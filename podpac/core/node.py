@@ -70,14 +70,13 @@ class Node(tl.HasTraits):
             Like en_intersect, but at the resolution/projection/scale of the
             native coordinates
         """
-        if evaluate is None and self.evaluated:
+        if evaluated is None and self.evaluated:
             evaluated = self.evaluated_coordinates
         if native is None:
             native = self.native_coordinates
 
-        en_intersect = evaluated.intersect(native)
-        ne_intersect = native.intersect(evaluated)
+        intersect = native.intersect(evaluated)
 
-        return en_intersect, ne_intersect
+        return intersect
 
     
