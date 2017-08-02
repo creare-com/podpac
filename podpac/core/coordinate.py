@@ -9,6 +9,9 @@ from collections import OrderedDict
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
+# TODO: Check intersections
+# TODO: test Coordinate
+
 class CoordinateException(Exception):
     pass
 
@@ -41,7 +44,7 @@ class Coord(tl.HasTraits):
                                 " then the coordinate is specified at the "
                                 " center of this line segement.")
     
-    extents = tl.List(allow_none=True,
+    extents = tl.List(allow_none=True, default_value=None, 
                       help="When specifying irregular coordinates, set the "
                       "bounding box (extents) of the grid in case area is "
                       " 'segment' or 'fence'")
@@ -158,14 +161,28 @@ class Coord(tl.HasTraits):
         if self._cached_bounds is not None:
             return self._cached_bounds
         if self.regularity == 'single':
-            self._cached_bounds = np.array([self.coords, self.coords]).squeeze()
+            self._cached_bounds = np.array(
+                [self.coords, self.coords], float).squeeze()
         if self.regularity == 'regular':
-            self._cached_bounds = np.array(self.coords[:2])
-        else:
-            self._cached_bounds = np.array([
-                np.min(self.coords, axis=0), 
-                np.max(self.coords, axis=0)])
-            
+            self._cached_bounds = np.array(self.coords[:2], float)
+        elif self.regularity == 'irregular':
+            if isinstance(self.coords, (list, tuple)):
+                self._cached_bounds = np.array([
+                    [c.min(), c.max()] for c in self.coords], float).T
+            else:
+                self._cached_bounds = np.array([
+                    np.min(self.coords, axis=0), 
+                    np.max(self.coords, axis=0)], float)
+        elif self.regularity == 'dependent':
+            if isinstance(self.coords, (list, tuple)):
+                self._cached_bounds = np.array([
+                    [c.min(), c.max()] for c in self.coords], float).T
+            else:
+                dims = [d for d in self.coords.dims if 'stack' not in d]
+                self._cached_bounds = np.array([
+                    self.coords.min(dims), 
+                    self.coords.max(dims)], float)            
+
         if self.area in ['fence', 'segment'] and self.regularity != 'single':
             p = self.segment_position
             self._cached_bounds += np.array([-p, 1 - p]) * self.delta
@@ -175,19 +192,26 @@ class Coord(tl.HasTraits):
     _cached_delta = tl.Instance(np.ndarray, allow_none=True)    
     @property
     def delta(self):
+        if self._cached_delta is not None:
+            return self._cached_delta        
+        if self.regularity == 'single':
+            self._cached_delta = np.array([0])
         if self.regularity == 'regular':
             if isinstance(self.coords[2], int):
-                return (self.coords[1] - self.coords[0]) / (self.coords[2] - 1.)
-            else: return self.coords[2]
-        elif self.extents is not None:
-            return self.extents
+                self._cached_delta = np.array(\
+                    (np.array(self.coords[1]) - np.array(self.coords[0]))\
+                    / (self.coords[2] - 1.))
+            else:
+                self._cached_delta = np.array(self.coords[2:3])
+        elif self.extents is not None and len(self.extents) == 2:
+            self._cached_delta = np.array(self.extents)
         else:
             print("Warning: delta probably doesn't work for stacked dependent coords")
-            return np.array([
+            self._cached_delta = np.array([
             self.coords[1] - self.coords[0],
             self.coords[-1] - self.coords[-2]
         ])
-
+        return self._cached_delta
 
     _cached_coords = tl.Any(default_value=None, allow_none=True)
     @property
@@ -195,7 +219,7 @@ class Coord(tl.HasTraits):
         coords = self.coords
         if self._cached_coords is not None:
             return self._cached_coords
-        regularity = self.regularity()
+        regularity = self.regularity
             
         if regularity == 'single':
             self._cached_coords = coords
@@ -210,7 +234,7 @@ class Coord(tl.HasTraits):
             
         return self._cached_coords
         
-    @tl.observe('extents')
+    @tl.observe('extents', 'area', 'segment_position')
     def _clear_bounds_cache(self, change):
         if (change['old'] is None and change['new'] is not None) or \
                np.any(np.array(change['old']) != np.array(change['new'])):
@@ -225,8 +249,14 @@ class Coord(tl.HasTraits):
             self._cached_delta = None
         
     def intersect(self, other_coord):
-        raise NotImplementedError ("Determine if this overlaps, and then" + \
-                "return overlapping coords")
+        ibounds = [
+            max(self.bounds[0], other_coord.bounds[0]),
+            min(self.bounds[1], other_coord.bounds[1])        
+            ]
+        if np.any(ibounds[0] < ibounds[1]):
+            return []
+        else:
+            return ibounds
     
     #def __init__(self, coords, segment_position=0.5, area='point',
                  #units=ureg.degrees, coord_ref_sys='WGS84'):
@@ -345,8 +375,8 @@ if __name__ == "__main__":
     coord = Coord(coords=np.linspace(0, 1, 4))
     # Dependent, Irregular
     coord = Coord(coords=xr.DataArray(
-        np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5)))[0], 
-                  dims=['lat', 'lon'])
+        np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
+                  dims=['lat', 'lon']))
     
     # Stacked
     # Regular

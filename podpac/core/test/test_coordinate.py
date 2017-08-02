@@ -38,8 +38,8 @@ class TestCoordCreation(unittest.TestCase):
         
     def test_unstacked_dependent(self):
         coord = Coord(coords=xr.DataArray(
-            np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5)))[0], 
-                      dims=['lat', 'lon'])
+            np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
+                      dims=['lat', 'lon']))
         self.assertEqual(coord.stacked, 1)
         self.assertEqual(coord.regularity, 'dependent')
         
