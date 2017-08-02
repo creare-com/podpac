@@ -12,6 +12,8 @@ ureg = UnitRegistry()
 # TODO: Check intersections
 # TODO: test Coordinate
 
+# What to do about coord that is not monotonic? Decreases instead of increases?
+
 class CoordinateException(Exception):
     pass
 
@@ -250,29 +252,20 @@ class Coord(tl.HasTraits):
         
     def intersect(self, other_coord):
         ibounds = [
-            max(self.bounds[0], other_coord.bounds[0]),
-            min(self.bounds[1], other_coord.bounds[1])        
+            np.maximum(self.bounds[0], other_coord.bounds[0]),
+            np.minimum(self.bounds[1], other_coord.bounds[1])        
             ]
-        if np.any(ibounds[0] < ibounds[1]):
+        if np.any(ibounds[0] > ibounds[1]):
             return []
         else:
             return ibounds
-    
-    #def __init__(self, coords, segment_position=0.5, area='point',
-                 #units=ureg.degrees, coord_ref_sys='WGS84'):
-        #super(Coord, self).__init__(coords=coords,
-                                    #segment_position=segment_position,
-                                    #area=area, units=units,
-                                    #coord_ref_sys=coord_ref_sys)
     
     def __repr__(self):
         rep = str(self.__class__) + ' Bounds: [{min}, {max}],' + \
             ' segment position: {}, area: "{}"'.format(self.segment_position, 
                                                        self.area)
         if isinstance(self.coords, tuple):
-            return rep.format(min=self.coords[0], max=self.coords[1])
-        else: return rep.format(min=np.min(self.coords[0], axis=0),
-                                max=np.max(self.coords[1], axis=0))
+            return rep.format(min=self.bounds[0], max=self.bounds[1])       
     
 class Coordinate(tl.HasTraits):
     """
@@ -368,19 +361,22 @@ if __name__ == "__main__":
     # Unstacked
     # Regular
     coord = Coord(coords=(0, 1, 4))
+    coord.intersect(coord)
     coord = Coord(coords=[0, 1, 4])
     coord = Coord(coords=(0, 1, 1/4))    
     coord = Coord(coords=[0, 1, 1/4])    
     # Irregular
     coord = Coord(coords=np.linspace(0, 1, 4))
+    coord.intersect(coord)
     # Dependent, Irregular
     coord = Coord(coords=xr.DataArray(
-        np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
+        np.meshgrid(np.linspace(0, 1, 4), np.linspace(-1, 0, 5))[0], 
                   dims=['lat', 'lon']))
-    
+    coord.intersect(coord)
     # Stacked
     # Regular
-    coord = Coord(coords=((0, 0), (1, -1), 4))
+    coord = Coord(coords=((0, -1), (1, 0), 4))
+    coord.intersect(coord)
     coord = Coord(coords=[(0, 0), (1, -1), 4])
     coord = Coord(coords=((0, 0), (1, -1), 1/4))
     coord = Coord(coords=[(0, 0), (1, -1), 1/4])
