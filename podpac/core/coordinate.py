@@ -9,7 +9,8 @@ from collections import OrderedDict
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
-# TODO: Check intersections
+# TODO: Implement intersections for Coordinate, returning new Coordinate object
+# TODO: Initialize dataset from Coordinate object
 # TODO: test Coordinate
 
 # What to do about coord that is not monotonic? Decreases instead of increases?
@@ -29,12 +30,12 @@ class Coord(tl.HasTraits):
     coord_ref_sys = tl.Unicode(default_value='WGS84',
                               help="Coordinate reference system for coordinate.")
     
-    area = tl.Enum(['segment', 'point', 'fence', 'post'], default_value='point',
+    ctype = tl.Enum(['segment', 'point', 'fence', 'post'], default_value='point',
                    help="Default is 'point'."
-                   "Indication of what area the coordinates represent. "
+                   "Indication of what coordinates type. "
                    "This is either a single point ('point' or 'post'), or it"
-                   " is the whole area between this coordinate and the next"
-                   " ('area', 'fence'). ")
+                   " is the whole segment between this coordinate and the next"
+                   " ('segment', 'fence'). ")
     
     segment_position = tl.Float(default_value=0.5,
                                 help="Default is 0.5. Where along a segment is"
@@ -48,7 +49,7 @@ class Coord(tl.HasTraits):
     
     extents = tl.List(allow_none=True, default_value=None, 
                       help="When specifying irregular coordinates, set the "
-                      "bounding box (extents) of the grid in case area is "
+                      "bounding box (extents) of the grid in case ctype is "
                       " 'segment' or 'fence'")
     
     @tl.validate('segment_position')
@@ -185,12 +186,16 @@ class Coord(tl.HasTraits):
                     self.coords.min(dims), 
                     self.coords.max(dims)], float)            
 
-        if self.area in ['fence', 'segment'] and self.regularity != 'single':
-            p = self.segment_position
-            self._cached_bounds += np.array([-p, 1 - p]) * self.delta
-        
         return self._cached_bounds
-                
+    
+    @property
+    def area_bounds(self):
+        extents = self.bounds  
+        if self.ctype in ['fence', 'segment'] and self.regularity != 'single':
+            p = self.segment_position
+            extents += np.array([-p, 1 - p]) * self.delta
+        return extents
+        
     _cached_delta = tl.Instance(np.ndarray, allow_none=True)    
     @property
     def delta(self):
@@ -236,7 +241,7 @@ class Coord(tl.HasTraits):
             
         return self._cached_coords
         
-    @tl.observe('extents', 'area', 'segment_position')
+    @tl.observe('extents', 'ctype', 'segment_position')
     def _clear_bounds_cache(self, change):
         if (change['old'] is None and change['new'] is not None) or \
                np.any(np.array(change['old']) != np.array(change['new'])):
@@ -262,8 +267,8 @@ class Coord(tl.HasTraits):
     
     def __repr__(self):
         rep = str(self.__class__) + ' Bounds: [{min}, {max}],' + \
-            ' segment position: {}, area: "{}"'.format(self.segment_position, 
-                                                       self.area)
+            ' segment position: {}, ctype: "{}"'.format(self.segment_position, 
+                                                       self.ctype)
         if isinstance(self.coords, tuple):
             return rep.format(min=self.bounds[0], max=self.bounds[1])       
     
@@ -303,21 +308,26 @@ class Coordinate(tl.HasTraits):
     # default val set in constructor
     ctype = tl.Enum(['segment', 'point', 'fence', 'post'])  
     segment_position = tl.Integer()  # default val set in constructor
+    coord_ref_sys = tl.CUnicode
+    coords = tl.Instance(OrderedDict)
     
-    def __init__(self, coords=None, projection="WGS84", ctype='point',
-            segment_position=0.5, area='point', bounds=[], **kwargs):
+    def __init__(self, coords=None, coord_ref_sys="WGS84", 
+            segment_position=0.5, ctype='point', **kwargs):
         """
         bounds is for fence-specification with non-uniform coordinates
         """
         if coords is None:
             coords = OrderedDict(kwargs)
         for key, val in coords.iteritems():
-            coords[key] = Coord(val)
-        super(Coordinate, self).__init__(coords=coords, projection=projection)
-    
-    ctype = tl.CaselessStrEnum(['uniform', None, 'fence', 'post'])
-    projection = tl.CUnicode
-    coords = tl.Instance(OrderedDict)
+            if not isinstance(val, Coord):
+                coords[key] = Coord(val, ctype=ctype,
+                                    coord_ref_sys=coord_ref_sys, 
+                                    segment_position=segment_position,
+                                    )
+        super(Coordinate, self).__init__(coords=coords,
+                                         coord_ref_sys=coord_ref_sys,
+                                         segment_position=segment_position,
+                                         ctype=ctype)
     
     @tl.validate('coords')
     def _coords_validate(self, proposal):
@@ -349,11 +359,12 @@ class Coordinate(tl.HasTraits):
                         raise CoordinateException("Dimensions of dependent" 
                         " coordinate DatArray needs to be in " + str(dims))
   
-    def modify(self, copy=True, **kwargs):
-        raise NotImplementedError("")
     def initialize_dataset(self, initial_value=0, dtype=np.float):
+        # TODO
         pass
+    
     def intersect(self, coords):
+        # TODO
         pass
 
 
