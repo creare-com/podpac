@@ -1,3 +1,5 @@
+from __future__ import division, print_function, absolute_import
+
 import operator
 import xarray as xr
 import numpy as np
@@ -22,11 +24,12 @@ class UnitDataArray(xr.DataArray):
                                     ureg.Quantity(1, getattr(other, "units", "1"))).u
         return x
 
-    def _apply_binary_comparison_to_units(self, func, other, x):
+    def _get_unit_multiplier(self, other):
         if self.attrs.get("units") or getattr(other, 'units'):
-            x.attrs["units"] = func(ureg.Quantity(1, getattr(self, "units", "1")),
-                                    ureg.Quantity(1, getattr(other, "units", "1"))).u
-        return x
+            otheru = ureg.Quantity(1, getattr(other, "units", "1"))
+            myu = ureg.Quantity(1, getattr(self, "units", "1"))
+            multiplier = otheru.to(myu.u).magnitude
+        return multiplier
 
     # pow is different because resulting unit depends on argument, not on
     # unit of argument (which must be unitless)
@@ -38,34 +41,27 @@ class UnitDataArray(xr.DataArray):
                 ureg.Quantity(other, getattr(other, "units", "1"))
                 ).u
         return x
-for tp in ("mul", "matmul", "truediv", "floordiv", "mod",
-    "divmod"):
+for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
     def func(self, other, meth=meth, tp=tp):
         x = getattr(super(UnitDataArray, self), meth)(other)
         return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
     func.__name__ = meth
-    #print(func, id(func))
     setattr(UnitDataArray, meth, func)
-for tp in ("add", "sub"):
+for tp in ("add", "sub", "mod", "divmod", "floordiv"):
     meth = "__{:s}__".format(tp)
-    # TODO: Need to check that dimensions are compatible, then do appropriate 
-    # scaling with different units. 
     def func(self, other, meth=meth, tp=tp):
-        x = getattr(super(UnitDataArray, self), meth)(other)
+        multiplier = self._get_unit_multiplier(other)
+        x = getattr(super(UnitDataArray, self), meth)(other * multiplier)
         return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
     func.__name__ = meth
-    #print(func, id(func))
     setattr(UnitDataArray, meth, func)
-    
 for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
-    # TODO: Finish implementing this
     meth = "__{:s}__".format(tp)
     def func(self, other, meth=meth, tp=tp):
-        x = getattr(super(UnitDataArray, self), meth)(other)
-        return self._apply_binary_comparison_to_units(getattr(operator, tp), other, x)
+        multiplier = self._get_unit_multiplier(other)
+        return getattr(super(UnitDataArray, self), meth)(other * multiplier)
     func.__name__ = meth
-    #print(func, id(func))
     setattr(UnitDataArray, meth, func)    
     
 del func
@@ -149,8 +145,19 @@ class Node(tl.HasTraits):
         pass
 
 if __name__ == "__main__":
-    a1 = UnitDataArray(np.random.rand(4,3), dims=['lat', 'lon'],
+    a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                        attrs={'units': ureg.meter})
-    a2 = UnitDataArray(np.random.rand(4,3), dims=['lat', 'lon'],
+    a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                        attrs={'units': ureg.inch})    
+    a3 = a1 + a2
+    a3b = a2 + a1
+    a4 = a1 > a2
+    a5 = a1 < a2
+    a6 = a1 == a2
+    a7 = a1 * a2
+    a8 = a2 / a1
+    a9 = a1 // a2
+    a10 = a1 % a2
+    # Not sure about divmod, need to test the rest, and incompatible units.
+    
     print ("Done")
