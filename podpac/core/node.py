@@ -48,7 +48,7 @@ for tp in ("mul", "matmul", "truediv", "div"):
         return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
     func.__name__ = meth
     setattr(UnitDataArray, meth, func)
-for tp in ("add", "sub", "mod", "divmod", "floordiv"):
+for tp in ("add", "sub", "mod", "floordiv"): #, "divmod", ):
     meth = "__{:s}__".format(tp)
     def func(self, other, meth=meth, tp=tp):
         multiplier = self._get_unit_multiplier(other)
@@ -158,6 +158,5 @@ if __name__ == "__main__":
     a8 = a2 / a1
     a9 = a1 // a2
     a10 = a1 % a2
-    # Not sure about divmod, need to test the rest, and incompatible units.
     
     print ("Done")
