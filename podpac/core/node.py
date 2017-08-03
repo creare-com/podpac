@@ -78,5 +78,7 @@ class Node(tl.HasTraits):
         intersect = native.intersect(evaluated)
 
         return intersect
-
+    
+    def initialize_dataset(self, initial_value=0, dtype=np.float):
+        pass
     

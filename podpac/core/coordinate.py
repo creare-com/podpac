@@ -9,11 +9,7 @@ from collections import OrderedDict
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
-# TODO: Implement intersections for Coordinate, returning new Coordinate object
-# TODO: Initialize dataset from Coordinate object
-# TODO: test Coordinate
-
-# What to do about coord that is not monotonic? Decreases instead of increases?
+# TODO: What to do about coord that is not monotonic? Decreases instead of increases?
 
 class CoordinateException(Exception):
     pass
@@ -24,7 +20,7 @@ class Coord(tl.HasTraits):
     stacked, unstacked
     independent, dependent
     """
-    units = tl.Instance(ureg.Quantity,
+    units = tl.Instance(ureg.Quantity, allow_none=True,
                         default_value=ureg.arcdegree, 
                         help="Units for the coordinates.")
     coord_ref_sys = tl.Unicode(default_value='WGS84',
@@ -232,7 +228,8 @@ class Coord(tl.HasTraits):
             self._cached_coords = coords
         elif regularity == 'regular':
             if not isinstance(self.coords[2], int):  # delta specified
-                N = (self.coords[0] - self.coords[1]) // self.coords[2] + 1
+                N = np.round(
+                    (self.coords[0] - self.coords[1]) / self.coords[2]) + 1
             else:
                 N = self.coords[2]
             self._cached_coords = np.linspace(self.coords[0], self.coords[1], N)
@@ -255,22 +252,76 @@ class Coord(tl.HasTraits):
             self._cached_bounds = None
             self._cached_delta = None
         
-    def intersect(self, other_coord):
+    def intersect(self, other_coord, coord_ref_sys=None, pad=1):
+        if coord_ref_sys is not None and coord_ref_sys != self.coord_ref_sys:
+            raise NotImplementedError("Still need to implement handling of "
+                                      "different coordinate reference systems")        
+        if self.coord_ref_sys != other_coord.coord_ref_sys:
+            raise NotImplementedError("Still need to implement handling of "
+                                      "different coordinate reference systems")
+        if self.units != other_coord.units:
+            raise NotImplementedError("Still need to implement handling of "
+                                              "different units")            
+        
+        if np.all(self.bounds == other_coord.bounds):
+            return self
         ibounds = [
             np.maximum(self.bounds[0], other_coord.bounds[0]),
             np.minimum(self.bounds[1], other_coord.bounds[1])        
             ]
         if np.any(ibounds[0] > ibounds[1]):
             return []
-        else:
-            return ibounds
+        if self.regularity == 'single':
+            return self
+        elif self.regularity == 'regular':
+            lefti = np.floor((ibounds[0] - self.bounds[0]) / self.delta)
+            righti =  np.ceil((self.bounds[1] - ibounds[1]) / self.delta)
+            left = self.bounds[0] + max(0, lefti - pad) * self.delta
+            right = min(self.bounds[1],
+                        self.bounds[1] - (righti + pad) *self.delta)   
+            new_crd = self.__class__((left, right, self.delta), **self.kwargs)
+        elif self.regularity == 'irregular':
+            lefti = np.argmin(np.abs(self.coordinates - other_coords.bounds[0]))
+            righti = np.argmax(np.abs(self.coordinates - other_coords.bounds[0]))
+            lefti = np.max(0, lefti - 1)
+            righti = np.min(righti, self.coordinates.shape[0])
+            new_crd = self.__class__(self.coordinates[lefti:righti], **self.kwargs)
+        elif self.regularity == 'dependent':
+            b = other_coord.bounds
+            mini = [np.min(np.argmin(np.abs(self.coordinates.data - b[0]),
+                                     axis=d)) \
+                for d in range(len(self.coordinates.dims))]
+            maxi = [np.min(np.argmin(np.abs(self.coordinates.data - b[1]),
+                                     axis=d)) \
+                    for d in range(len(self.coordinates.dims))]
+            slc = [slice(max(0, ss[0] - pad),
+                         min(self.coordinates.shape[i], ss[1] + pad)) \
+                   for i, ss in enumerate(zip(mini, maxi))]
+            crds = self.coordinates
+            for d, s in zip(self.coordinates.dims, slc):
+                crds = crds.isel(**{d: s})
+                       
+            new_crd = self.__class__(crds, **self.kwargs)
+            
+        return new_crd
+            
+    @property
+    def kwargs(self):
+        kwargs = {'units': self.units,
+                  'coord_ref_sys': self.coord_ref_sys,
+                  'ctype': self.ctype,
+                  'segment_position': self.segment_position,
+                  'extents': self.extents
+        }
+        return kwargs
     
     def __repr__(self):
         rep = str(self.__class__) + ' Bounds: [{min}, {max}],' + \
             ' segment position: {}, ctype: "{}"'.format(self.segment_position, 
                                                        self.ctype)
-        if isinstance(self.coords, tuple):
-            return rep.format(min=self.bounds[0], max=self.bounds[1])       
+        if self.regularity in ['single', 'regular', 'irregular']:
+            rep = rep.format(min=self.bounds[0], max=self.bounds[1])       
+        return rep
     
 class Coordinate(tl.HasTraits):
     """
@@ -301,13 +352,12 @@ class Coordinate(tl.HasTraits):
     """
 
     @property
-    @staticmethod
-    def _valid_dims():
+    def _valid_dims(self):
         return ('time', 'lat', 'lon', 'alt')
     
     # default val set in constructor
     ctype = tl.Enum(['segment', 'point', 'fence', 'post'])  
-    segment_position = tl.Integer()  # default val set in constructor
+    segment_position = tl.Float()  # default val set in constructor
     coord_ref_sys = tl.CUnicode
     coords = tl.Instance(OrderedDict)
     
@@ -320,7 +370,7 @@ class Coordinate(tl.HasTraits):
             coords = OrderedDict(kwargs)
         for key, val in coords.iteritems():
             if not isinstance(val, Coord):
-                coords[key] = Coord(val, ctype=ctype,
+                coords[key] = Coord(coords=val, ctype=ctype,
                                     coord_ref_sys=coord_ref_sys, 
                                     segment_position=segment_position,
                                     )
@@ -328,6 +378,12 @@ class Coordinate(tl.HasTraits):
                                          coord_ref_sys=coord_ref_sys,
                                          segment_position=segment_position,
                                          ctype=ctype)
+    
+    def __repr__(self):
+        rep = str(self.__class__)
+        for d in self.coords:
+            rep += '\n\t{}: '.format(d) + str(self.coords[d])
+        return rep
     
     @tl.validate('coords')
     def _coords_validate(self, proposal):
@@ -355,20 +411,39 @@ class Coordinate(tl.HasTraits):
         # Dependent array, needs to be an xarray.DataArray
         if isinstance(val, xr.DataArray):
             for key in val.coords: 
-                    if key not in dims:
-                        raise CoordinateException("Dimensions of dependent" 
-                        " coordinate DatArray needs to be in " + str(dims))
-  
-    def initialize_dataset(self, initial_value=0, dtype=np.float):
-        # TODO
-        pass
+                if key not in dims:
+                    raise CoordinateException("Dimensions of dependent" 
+                    " coordinate DatArray needs to be in " + str(dims))
+                #if val.coords.get_axis_num(dim) != 0:
+                    #raise CoordinateException(
+                        #"When specifying dependent coordinates, the first " 
+                        #" dimension need to be equal to  " + str(dims))                    
+   
+    def intersect(self, other, coord_ref_sys=None):
+        new_crds = OrderedDict()
+        for d in self.coords:
+            if d not in other.coords:
+                new_crds[d] = self.coords[d]
+                continue
+            new_crds[d] = self.coords[d].intersect(other.coords[d], coord_ref_sys)
+            
+        return self.__class__(new_crds, **self.kwargs)
     
-    def intersect(self, coords):
-        # TODO
-        pass
+    @property
+    def kwargs(self):
+        return {
+                'coord_ref_sys': self.coord_ref_sys,
+                'segment_position': self.segment_position,
+                'ctype': self.ctype
+                }
+            
 
 
 if __name__ == "__main__":
+    #Coordinate
+    coord = Coordinate(lat=0.25, lon=0.3)
+    coord2 = coord.intersect(coord).coords['lat'].bounds
+    
     # Unstacked
     # Regular
     coord = Coord(coords=(0, 1, 4))
@@ -384,6 +459,8 @@ if __name__ == "__main__":
         np.meshgrid(np.linspace(0, 1, 4), np.linspace(-1, 0, 5))[0], 
                   dims=['lat', 'lon']))
     coord.intersect(coord)
+    coord.__repr__()
+    np.argmin(coord.coords.data, axis=0)
     # Stacked
     # Regular
     coord = Coord(coords=((0, -1), (1, 0), 4))
