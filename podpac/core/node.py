@@ -1,8 +1,74 @@
+import operator
 import xarray as xr
 import numpy as np
 import traitlets as tl
+from pint import UnitRegistry
+ureg = UnitRegistry()
 
 from coordinate import Coordinate
+
+class UnitDataArray(xr.DataArray):
+    """Like xarray.DataArray, but transfers units
+     """
+    def __array_wrap__(self, obj, context=None):
+        new_var = super().__array_wrap__(obj, context)
+        if self.attrs.get("units"):
+            new_var.attrs["units"] = context[0](ureg.Quantity(1, self.attrs.get("units"))).u
+        return new_var
+
+    def _apply_binary_op_to_units(self, func, other, x):
+        if self.attrs.get("units") or getattr(other, 'units'):
+            x.attrs["units"] = func(ureg.Quantity(1, getattr(self, "units", "1")),
+                                    ureg.Quantity(1, getattr(other, "units", "1"))).u
+        return x
+
+    def _apply_binary_comparison_to_units(self, func, other, x):
+        if self.attrs.get("units") or getattr(other, 'units'):
+            x.attrs["units"] = func(ureg.Quantity(1, getattr(self, "units", "1")),
+                                    ureg.Quantity(1, getattr(other, "units", "1"))).u
+        return x
+
+    # pow is different because resulting unit depends on argument, not on
+    # unit of argument (which must be unitless)
+    def __pow__(self, other):
+        x = super().__pow__(other)
+        if self.attrs.get("units"):
+            x.attrs["units"] = pow(
+                ureg.Quantity(1, getattr(self, "units", "1")),
+                ureg.Quantity(other, getattr(other, "units", "1"))
+                ).u
+        return x
+for tp in ("mul", "matmul", "truediv", "floordiv", "mod",
+    "divmod"):
+    meth = "__{:s}__".format(tp)
+    def func(self, other, meth=meth, tp=tp):
+        x = getattr(super(UnitDataArray, self), meth)(other)
+        return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+    func.__name__ = meth
+    #print(func, id(func))
+    setattr(UnitDataArray, meth, func)
+for tp in ("add", "sub"):
+    meth = "__{:s}__".format(tp)
+    # TODO: Need to check that dimensions are compatible, then do appropriate 
+    # scaling with different units. 
+    def func(self, other, meth=meth, tp=tp):
+        x = getattr(super(UnitDataArray, self), meth)(other)
+        return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+    func.__name__ = meth
+    #print(func, id(func))
+    setattr(UnitDataArray, meth, func)
+    
+for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
+    # TODO: Finish implementing this
+    meth = "__{:s}__".format(tp)
+    def func(self, other, meth=meth, tp=tp):
+        x = getattr(super(UnitDataArray, self), meth)(other)
+        return self._apply_binary_comparison_to_units(getattr(operator, tp), other, x)
+    func.__name__ = meth
+    #print(func, id(func))
+    setattr(UnitDataArray, meth, func)    
+    
+del func
 
 class Node(tl.HasTraits):
 
@@ -78,7 +144,13 @@ class Node(tl.HasTraits):
         intersect = native.intersect(evaluated)
 
         return intersect
-    
+
     def initialize_dataset(self, initial_value=0, dtype=np.float):
         pass
-    
+
+if __name__ == "__main__":
+    a1 = UnitDataArray(np.random.rand(4,3), dims=['lat', 'lon'],
+                       attrs={'units': ureg.meter})
+    a2 = UnitDataArray(np.random.rand(4,3), dims=['lat', 'lon'],
+                       attrs={'units': ureg.inch})    
+    print ("Done")
