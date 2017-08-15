@@ -9,7 +9,7 @@ ureg = UnitRegistry()
 
 from podpac.core.node import Node, UnitDataArray
 
-class TestCoordCreation(unittest.TestCase):
+class TestUnitDataArray(unittest.TestCase):
     def test_no_units_coord(self):
         a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={})
@@ -125,3 +125,20 @@ class TestCoordCreation(unittest.TestCase):
             a9 = a1 // a2
         with self.assertRaises(DimensionalityError):
             a10 = a1 % a2        
+            
+    def test_ufuncs(self):
+        a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+                               attrs={'units': ureg.meter})
+        a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+                               attrs={'units': ureg.kelvin}) 
+        
+        np.sqrt(a1)
+        np.mean(a1)
+        np.min(a1)
+        np.max(a1)
+        a1 ** 2
+        
+        # These don't have units!
+        np.dot(a2.T, a1)
+        np.std(a1)
+        np.var(a1)        

@@ -13,7 +13,7 @@ class UnitDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
      """
     def __array_wrap__(self, obj, context=None):
-        new_var = super().__array_wrap__(obj, context)
+        new_var = super(UnitDataArray, self).__array_wrap__(obj, context)
         if self.attrs.get("units"):
             new_var.attrs["units"] = context[0](ureg.Quantity(1, self.attrs.get("units"))).u
         return new_var
@@ -35,12 +35,17 @@ class UnitDataArray(xr.DataArray):
     # pow is different because resulting unit depends on argument, not on
     # unit of argument (which must be unitless)
     def __pow__(self, other):
-        x = super().__pow__(other)
+        x = super(UnitDataArray, self).__pow__(other)
         if self.attrs.get("units"):
             x.attrs["units"] = pow(
                 ureg.Quantity(1, getattr(self, "units", "1")),
                 ureg.Quantity(other, getattr(other, "units", "1"))
                 ).u
+        return x
+    
+    def _copy_units(self, x):
+        if self.attrs.get("units", None):
+            x.attrs["units"] = self.attrs.get('units')
         return x
     
     def to(self, unit):
@@ -81,7 +86,12 @@ for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
         return getattr(super(UnitDataArray, self), meth)(other * multiplier)
     func.__name__ = meth
     setattr(UnitDataArray, meth, func)    
-    
+for tp in ("mean", 'min', 'max'):
+        def func(self, *args, **kwargs):
+            x = getattr(super(UnitDataArray, self), tp)(*args, **kwargs)
+            return self._copy_units(x)
+        func.__name__ = tp
+        setattr(UnitDataArray, tp, func)        
 del func
 
 class Node(tl.HasTraits):
@@ -163,5 +173,11 @@ class Node(tl.HasTraits):
         pass
 
 if __name__ == "__main__":
-    
+    a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+                           attrs={'units': ureg.meter})
+    a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+                           attrs={'units': ureg.kelvin}) 
+
+    np.mean(a1)    
+    np.std(a1)
     print ("Done")
