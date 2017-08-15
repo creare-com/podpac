@@ -7,7 +7,7 @@ import traitlets as tl
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
-from coordinate import Coordinate
+from podpac.core.coordinate import Coordinate
 
 class UnitDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
@@ -19,13 +19,14 @@ class UnitDataArray(xr.DataArray):
         return new_var
 
     def _apply_binary_op_to_units(self, func, other, x):
-        if self.attrs.get("units") or getattr(other, 'units'):
+        if self.attrs.get("units", None) or getattr(other, 'units', None):
             x.attrs["units"] = func(ureg.Quantity(1, getattr(self, "units", "1")),
                                     ureg.Quantity(1, getattr(other, "units", "1"))).u
         return x
 
     def _get_unit_multiplier(self, other):
-        if self.attrs.get("units") or getattr(other, 'units'):
+        multiplier = 1
+        if self.attrs.get("units", None) or getattr(other, 'units', None):
             otheru = ureg.Quantity(1, getattr(other, "units", "1"))
             myu = ureg.Quantity(1, getattr(self, "units", "1"))
             multiplier = otheru.to(myu.u).magnitude
@@ -41,6 +42,23 @@ class UnitDataArray(xr.DataArray):
                 ureg.Quantity(other, getattr(other, "units", "1"))
                 ).u
         return x
+    
+    def to(self, unit):
+        x = self.copy()
+        if self.attrs.get("units", None):
+            myu = ureg.Quantity(1, getattr(self, "units", "1"))
+            multiplier = myu.to(unit).magnitude
+            x = x * multiplier
+            x.attrs['units'] = unit
+        return x
+    
+    def to_base_units(self):
+        if self.attrs.get("units", None):
+            myu = ureg.Quantity(1, getattr(self, "units", "1")).to_base_units()        
+            return self.to(myu.u)
+        else:
+            return self.copy()
+        
 for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
     def func(self, other, meth=meth, tp=tp):
@@ -145,18 +163,5 @@ class Node(tl.HasTraits):
         pass
 
 if __name__ == "__main__":
-    a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
-                       attrs={'units': ureg.meter})
-    a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
-                       attrs={'units': ureg.inch})    
-    a3 = a1 + a2
-    a3b = a2 + a1
-    a4 = a1 > a2
-    a5 = a1 < a2
-    a6 = a1 == a2
-    a7 = a1 * a2
-    a8 = a2 / a1
-    a9 = a1 // a2
-    a10 = a1 % a2
     
     print ("Done")
