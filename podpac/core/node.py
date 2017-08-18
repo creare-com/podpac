@@ -9,7 +9,24 @@ ureg = UnitRegistry()
 
 from podpac.core.coordinate import Coordinate
 
-class UnitDataArray(xr.DataArray):
+class UnitsNode(tl.TraitType):      
+    info_text = "A UnitDataArray with specified dimensionality"
+    def validate(self, obj, value):
+        if isinstance(value, Node):
+            if 'units' in self.metadata and value.units is not None:
+                u = ureg.check(self.metadata['units'])(lambda x: x)(value.units)
+                return value
+        self.error(obj, value)
+ 
+class Units(tl.TraitType):
+    info_text = "A pint Unit"
+    def validate(self, obj, value):
+        if isinstance(value, ureg.Units):
+            return value
+        self.error(obj, value)
+
+
+class UnitsDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
      """
     def __array_wrap__(self, obj, context=None):
@@ -95,13 +112,12 @@ for tp in ("mean", 'min', 'max'):
 del func
 
 class Node(tl.HasTraits):
-
-    output = tl.Instance(xr.Dataset, allow_none=True)
-    native_coordinates = tl.Instance(Coordinate)
+    output = UnitsNode(allow_none=True, default_value=None)
+    native_coordinates = tl.Instance(Coordinate, allow_none=True)
     evaluted = tl.Bool(default_value=False)
-    evaluated_coordinates = tl.Instance(Coordinate)
+    evaluated_coordinates = tl.Instance(Coordinate, allow_none=True)
     params = tl.Dict(default_value=None, allow_none=True)
-
+    units = Units(default_value=None, allow_none=True)
 
     def __init__(self, *args, **kwargs):
         """ Do not overwrite me """
@@ -173,9 +189,9 @@ class Node(tl.HasTraits):
         pass
 
 if __name__ == "__main__":
-    a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+    a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={'units': ureg.meter})
-    a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+    a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={'units': ureg.kelvin}) 
 
     np.mean(a1)    
