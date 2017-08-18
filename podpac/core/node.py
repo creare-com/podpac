@@ -118,6 +118,13 @@ class Node(tl.HasTraits):
     evaluated_coordinates = tl.Instance(Coordinate, allow_none=True)
     params = tl.Dict(default_value=None, allow_none=True)
     units = Units(default_value=None, allow_none=True)
+    dtype = tl.Any(default_value=float)
+    style = tl.Instance(Style)
+    @tl.default
+    def _style_default(self):
+        return Style(self)
+    
+
 
     def __init__(self, *args, **kwargs):
         """ Do not overwrite me """
