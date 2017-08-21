@@ -9,13 +9,12 @@ import matplotlib.pyplot as plt
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
-import coordinate
-#coordinate = podpac.core.coordinate
+#import podpac.core.coordinate
 
 class UnitsNode(tl.TraitType):      
     info_text = "A UnitDataArray with specified dimensionality"
     def validate(self, obj, value):
-        if isinstance(value, podpac.core.node.Node):
+        if isinstance(value, Node):
             if 'units' in self.metadata and value.units is not None:
                 u = ureg.check(self.metadata['units'])(lambda x: x)(value.units)
                 return value
@@ -114,7 +113,7 @@ for tp in ("mean", 'min', 'max'):
 del func
 
 class Style(tl.HasTraits):
-    node = tl.Instance('Node', allow_none=False)
+    node = tl.Instance('podpac.core.node.Node', allow_none=False)
     name = tl.Unicode()
     @tl.default('name')
     def _name_default(self):
@@ -130,20 +129,24 @@ class Style(tl.HasTraits):
     enumeration_colors = tl.Tuple(trait=tl.Tuple)
     
     clim = tl.List(default_value=[None, None])
-    cmap = tl.Instance(matplotlib.colors.Colormap,
-                       default_value=matplotlib.cm.get_cmap('viridis'))
+    cmap = tl.Instance(matplotlib.colors.Colormap)
+    tl.default('cmap')
+    def _cmap_default(self):
+        return matplotlib.cm.get_cmap('viridis')
     
 class Node(tl.HasTraits):
-    output = UnitsNode(allow_none=True, default_value=None)
+    output = tl.Instance(UnitsDataArray, allow_none=True, default_value=None)
     @tl.default('output')
     def _output_default(self):
         return self.initialize_data_array('nan')
     
-    native_coordinates = tl.Instance('coordinate.Coordinate', allow_none=True)
+    native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
+                                     allow_none=True)
     evaluted = tl.Bool(default_value=False)
     implicit_pipeline_evaluation = tl.Bool(default_value=True).tag(
         help="Evaluate the pipeline implicitly (True, Default)")
-    evaluated_coordinates = tl.Instance('coordinate.Coordinate', allow_none=True)
+    evaluated_coordinates = tl.Instance('podpac.core.coordinate.Coordinate', 
+                                        allow_none=True)
     params = tl.Dict(default_value=None, allow_none=True)
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
@@ -184,14 +187,14 @@ class Node(tl.HasTraits):
         """
         self.evaluated_coordinates = coordinates
         self.params = params
+        out = None
         if output is not None:
             # This should be a reference, not a copy
             # subselect if neccessary
             out = output[coordinates.get_coord] 
-        self.output = out
+            self.output[:] = out
 
         return coordinates, params, out
-
 
     def get_description(self):
         """
@@ -243,11 +246,11 @@ class Node(tl.HasTraits):
         """
         if style is None: style = self.style
         if shape is None: shape = self.shape
-        if coords is None: coords = self.coords.coords
+        if coords is None: coords = self.evaluated_coordinates.coords
+        if dims is None: dims = self.evaluated_coordinates.dims
         if units is None: units = self.units
         if not isinstance(coords, dict):
             coords = dict(coords)
-        if dims is None: dims = self.coords.dims
         if init_type == 'empty':
             data = np.empty(shape)
         elif init_type == 'nan':
@@ -267,16 +270,20 @@ class Node(tl.HasTraits):
             x.attrs['layer_style'] = style
         if units is not None:
             x.attrs['units'] = units
-        x.attrs['params'] = params
+        x.attrs['params'] = self.params
         return x
 
     def plot(self, show=True, interpolation='none', **kwargs):
         """
         Plot function to display the output
         """
-        plt.imshow(self.output.data, cmap=self.style.cmap,
-               interpolation=interpolation, **kwargs)
-        plt.show()
+        if kwargs:
+            plt.imshow(self.output.data, cmap=self.style.cmap,
+                       interpolation=interpolation, **kwargs)
+        else:
+            self.output.plot()
+        if show:
+            plt.show()
 
 
 if __name__ == "__main__":

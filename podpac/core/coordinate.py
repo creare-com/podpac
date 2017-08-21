@@ -8,7 +8,7 @@ import traitlets as tl
 from collections import OrderedDict
 from pint import UnitRegistry
 ureg = UnitRegistry()
-import node
+import podpac.core.node
 
 # TODO: What to do about coord that is not monotonic? Decreases instead of increases?
 
@@ -21,7 +21,7 @@ class Coord(tl.HasTraits):
     stacked, unstacked
     independent, dependent
     """
-    units = node.Units()
+    units = podpac.core.node.Units()
     coord_ref_sys = tl.Unicode(default_value='WGS84',
                               help="Coordinate reference system for coordinate.")
     
@@ -238,10 +238,10 @@ class Coord(tl.HasTraits):
     def size(self):
         if not isinstance(self.coords[2], int):  # delta specified
             N = np.round(
-                (self.coords[0] - self.coords[1]) / self.coords[2]) + 1
+                (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
         else:
             N = self.coords[2]
-        return N
+        return int(N)
         
     @tl.observe('extents', 'ctype', 'segment_position')
     def _clear_bounds_cache(self, change):
@@ -444,7 +444,7 @@ class Coordinate(tl.HasTraits):
     
     @property
     def shape(self):
-        return [c.size for c in self._coords.values]
+        return [c.size for c in self._coords.values()]
     
     @property
     def dims(self):
