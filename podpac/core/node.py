@@ -4,15 +4,18 @@ import operator
 import xarray as xr
 import numpy as np
 import traitlets as tl
+import matplotlib.colors, matplotlib.cm
+import matplotlib.pyplot as plt
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
-from podpac.core.coordinate import Coordinate
+import coordinate
+#coordinate = podpac.core.coordinate
 
 class UnitsNode(tl.TraitType):      
     info_text = "A UnitDataArray with specified dimensionality"
     def validate(self, obj, value):
-        if isinstance(value, Node):
+        if isinstance(value, podpac.core.node.Node):
             if 'units' in self.metadata and value.units is not None:
                 u = ureg.check(self.metadata['units'])(lambda x: x)(value.units)
                 return value
@@ -25,12 +28,11 @@ class Units(tl.TraitType):
             return value
         self.error(obj, value)
 
-
 class UnitsDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
      """
     def __array_wrap__(self, obj, context=None):
-        new_var = super(UnitDataArray, self).__array_wrap__(obj, context)
+        new_var = super(UnitsDataArray, self).__array_wrap__(obj, context)
         if self.attrs.get("units"):
             new_var.attrs["units"] = context[0](ureg.Quantity(1, self.attrs.get("units"))).u
         return new_var
@@ -52,7 +54,7 @@ class UnitsDataArray(xr.DataArray):
     # pow is different because resulting unit depends on argument, not on
     # unit of argument (which must be unitless)
     def __pow__(self, other):
-        x = super(UnitDataArray, self).__pow__(other)
+        x = super(UnitsDataArray, self).__pow__(other)
         if self.attrs.get("units"):
             x.attrs["units"] = pow(
                 ureg.Quantity(1, getattr(self, "units", "1")),
@@ -84,48 +86,79 @@ class UnitsDataArray(xr.DataArray):
 for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
     def func(self, other, meth=meth, tp=tp):
-        x = getattr(super(UnitDataArray, self), meth)(other)
+        x = getattr(super(UnitsDataArray, self), meth)(other)
         return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
     func.__name__ = meth
-    setattr(UnitDataArray, meth, func)
+    setattr(UnitsDataArray, meth, func)
 for tp in ("add", "sub", "mod", "floordiv"): #, "divmod", ):
     meth = "__{:s}__".format(tp)
     def func(self, other, meth=meth, tp=tp):
         multiplier = self._get_unit_multiplier(other)
-        x = getattr(super(UnitDataArray, self), meth)(other * multiplier)
+        x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
         return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
     func.__name__ = meth
-    setattr(UnitDataArray, meth, func)
+    setattr(UnitsDataArray, meth, func)
 for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     meth = "__{:s}__".format(tp)
     def func(self, other, meth=meth, tp=tp):
         multiplier = self._get_unit_multiplier(other)
-        return getattr(super(UnitDataArray, self), meth)(other * multiplier)
+        return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
     func.__name__ = meth
-    setattr(UnitDataArray, meth, func)    
+    setattr(UnitsDataArray, meth, func)    
 for tp in ("mean", 'min', 'max'):
         def func(self, *args, **kwargs):
-            x = getattr(super(UnitDataArray, self), tp)(*args, **kwargs)
+            x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
             return self._copy_units(x)
         func.__name__ = tp
-        setattr(UnitDataArray, tp, func)        
+        setattr(UnitsDataArray, tp, func)        
 del func
 
+class Style(tl.HasTraits):
+    node = tl.Instance('Node', allow_none=False)
+    name = tl.Unicode()
+    @tl.default('name')
+    def _name_default(self):
+        return self.node.__class__.__name__
+        
+    units = Units(allow_none=True)
+    @tl.default('units')
+    def _units_default(self):
+        return self.node.units
+    
+    is_enumerated = tl.Bool(default_value=False)
+    enumeration_legend = tl.Tuple(trait=tl.Unicode)
+    enumeration_colors = tl.Tuple(trait=tl.Tuple)
+    
+    clim = tl.List(default_value=[None, None])
+    cmap = tl.Instance(matplotlib.colors.Colormap,
+                       default_value=matplotlib.cm.get_cmap('viridis'))
+    
 class Node(tl.HasTraits):
     output = UnitsNode(allow_none=True, default_value=None)
-    native_coordinates = tl.Instance(Coordinate, allow_none=True)
+    @tl.default('output')
+    def _output_default(self):
+        return self.initialize_data_array('nan')
+    
+    native_coordinates = tl.Instance('coordinate.Coordinate', allow_none=True)
     evaluted = tl.Bool(default_value=False)
-    evaluated_coordinates = tl.Instance(Coordinate, allow_none=True)
+    implicit_pipeline_evaluation = tl.Bool(default_value=True).tag(
+        help="Evaluate the pipeline implicitly (True, Default)")
+    evaluated_coordinates = tl.Instance('coordinate.Coordinate', allow_none=True)
     params = tl.Dict(default_value=None, allow_none=True)
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
     style = tl.Instance(Style)
-    @tl.default
+    @tl.default('style')
     def _style_default(self):
-        return Style(self)
+        return Style(node=self)
     
-
-
+    @property
+    def shape(self):
+        if self.evaluated_coordinates is not Node:
+            return self.evaluated_coordinates.shape
+        else:
+            return self.native_coordinates.shape    
+    
     def __init__(self, *args, **kwargs):
         """ Do not overwrite me """
         targs, tkwargs = self._first_init(*args, **kwargs)
@@ -149,10 +182,13 @@ class Node(tl.HasTraits):
         """ 
         Common input sanatization etc for when executing a node 
         """
+        self.evaluated_coordinates = coordinates
+        self.params = params
         if output is not None:
             # This should be a reference, not a copy
             # subselect if neccessary
             out = output[coordinates.get_coord] 
+        self.output = out
 
         return coordinates, params, out
 
@@ -163,37 +199,85 @@ class Node(tl.HasTraits):
         """
         raise NotImplementedError
 
-    def get_intersecting_coordinates(self, evaluated=None, native=None):
-        """ Helper function to get the reqions where the requested and
-        native coordinates intersect.
+    def initialize_data_array(self, init_type='empty', fillval=0, style=None,
+                              no_style=False, shape=None, coords=None,
+                              dims=None, units=None, dtype=np.float,  **kwargs):
+        """Initialize output data array
 
         Parameters
-        -------------
-        evaluated: Coordinate
-            Coordinates where the Node should be evaluated
-        native: Coordinate
-            The Node's native Coordinates
+        -----------
+        init_type : str, optional
+            How to initialize the array. Options are:
+                empty : uses np.empty (Default option)
+                nan  : uses np.full(..., np.nan)
+                zeros: uses np.zeros()
+                ones: uses np.ones
+                full: uses np.full(..., fillval)
+                data: uses the fillval as the input array
+        fillval : number, optional
+            used if init_type=='full' or 'data', default = 0
+        style : Style, optional
+            The style to use for plotting. Uses self.style by default
+        no_style : bool, optional
+            Default is False. If True, self.style will not be assigned to 
+            arr.attr['layer_style']
+        shape : tuple, optional
+            Shape of array. Uses self.shape by default.
+        coords : dict/list, optional
+            input to UnitsDataArray, uses self.coords by default
+        dims : list(str), optional
+            input to UnitsDataArray, uses self.coords by default
+        units : pint.unit.Unit, optional
+            Default is self.units The Units for the data contained in the 
+            DataArray
+        dtype : type, optional
+            Default is np.float. Datatype used by default
+        kwargs : kwargs
+            other keyword arguments passed to UnitsDataArray
 
         Returns
-        ---------
-        en_intersect: Coordinate
-            The coordinates of the overlap at the resolution/projection/scale
-            of the evaluated Coordinate object
-        ne_intersect: Coordinate
-            Like en_intersect, but at the resolution/projection/scale of the
-            native coordinates
+        -------
+        arr : UnitsDataArray
+            Unit-aware xarray DataArray of the desired size initialized using 
+            the method specified
         """
-        if evaluated is None and self.evaluated:
-            evaluated = self.evaluated_coordinates
-        if native is None:
-            native = self.native_coordinates
+        if style is None: style = self.style
+        if shape is None: shape = self.shape
+        if coords is None: coords = self.coords.coords
+        if units is None: units = self.units
+        if not isinstance(coords, dict):
+            coords = dict(coords)
+        if dims is None: dims = self.coords.dims
+        if init_type == 'empty':
+            data = np.empty(shape)
+        elif init_type == 'nan':
+            data = np.full(shape, np.nan)
+        elif init_type == 'zeros':
+            data = np.zeros(shape)
+        elif init_type == 'ones':
+            data = np.ones(shape)
+        elif init_type == 'full':
+            data = np.full(shape, fillval)
+        elif init_type == 'data':
+            data = fillval
+        else:
+            raise ValueError("Unknown init_type=%" % init_type)
+        x = UnitsDataArray(data, coords=coords, dims=dims, **kwargs)
+        if not no_style:
+            x.attrs['layer_style'] = style
+        if units is not None:
+            x.attrs['units'] = units
+        x.attrs['params'] = params
+        return x
 
-        intersect = native.intersect(evaluated)
+    def plot(self, show=True, interpolation='none', **kwargs):
+        """
+        Plot function to display the output
+        """
+        plt.imshow(self.output.data, cmap=self.style.cmap,
+               interpolation=interpolation, **kwargs)
+        plt.show()
 
-        return intersect
-
-    def initialize_dataset(self, initial_value=0, dtype=np.float):
-        pass
 
 if __name__ == "__main__":
     a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],

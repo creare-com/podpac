@@ -8,6 +8,7 @@ import traitlets as tl
 from collections import OrderedDict
 from pint import UnitRegistry
 ureg = UnitRegistry()
+import node
 
 # TODO: What to do about coord that is not monotonic? Decreases instead of increases?
 
@@ -20,9 +21,7 @@ class Coord(tl.HasTraits):
     stacked, unstacked
     independent, dependent
     """
-    units = tl.Instance(ureg.Quantity, allow_none=True,
-                        default_value=ureg.arcdegree, 
-                        help="Units for the coordinates.")
+    units = node.Units()
     coord_ref_sys = tl.Unicode(default_value='WGS84',
                               help="Coordinate reference system for coordinate.")
     
@@ -192,7 +191,8 @@ class Coord(tl.HasTraits):
             extents += np.array([-p, 1 - p]) * self.delta
         return extents
         
-    _cached_delta = tl.Instance(np.ndarray, allow_none=True)    
+    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
+    
     @property
     def delta(self):
         if self._cached_delta is not None:
@@ -227,16 +227,21 @@ class Coord(tl.HasTraits):
         if regularity == 'single':
             self._cached_coords = coords
         elif regularity == 'regular':
-            if not isinstance(self.coords[2], int):  # delta specified
-                N = np.round(
-                    (self.coords[0] - self.coords[1]) / self.coords[2]) + 1
-            else:
-                N = self.coords[2]
+            N = self.size
             self._cached_coords = np.linspace(self.coords[0], self.coords[1], N)
         elif regularity in ['irregular', 'dependent']:
             self._cached_coords = coords
             
         return self._cached_coords
+        
+    @property
+    def size(self):
+        if not isinstance(self.coords[2], int):  # delta specified
+            N = np.round(
+                (self.coords[0] - self.coords[1]) / self.coords[2]) + 1
+        else:
+            N = self.coords[2]
+        return N
         
     @tl.observe('extents', 'ctype', 'segment_position')
     def _clear_bounds_cache(self, change):
@@ -359,7 +364,7 @@ class Coordinate(tl.HasTraits):
     ctype = tl.Enum(['segment', 'point', 'fence', 'post'])  
     segment_position = tl.Float()  # default val set in constructor
     coord_ref_sys = tl.CUnicode
-    coords = tl.Instance(OrderedDict)
+    _coords = tl.Instance(OrderedDict)
     
     def __init__(self, coords=None, coord_ref_sys="WGS84", 
             segment_position=0.5, ctype='point', **kwargs):
@@ -374,18 +379,18 @@ class Coordinate(tl.HasTraits):
                                     coord_ref_sys=coord_ref_sys, 
                                     segment_position=segment_position,
                                     )
-        super(Coordinate, self).__init__(coords=coords,
+        super(Coordinate, self).__init__(_coords=coords,
                                          coord_ref_sys=coord_ref_sys,
                                          segment_position=segment_position,
                                          ctype=ctype)
     
     def __repr__(self):
         rep = str(self.__class__)
-        for d in self.coords:
-            rep += '\n\t{}: '.format(d) + str(self.coords[d])
+        for d in self._coords:
+            rep += '\n\t{}: '.format(d) + str(self._coords[d])
         return rep
     
-    @tl.validate('coords')
+    @tl.validate('_coords')
     def _coords_validate(self, proposal):
         seen_dims = []
         for key in proposal['value']:
@@ -410,22 +415,22 @@ class Coordinate(tl.HasTraits):
     def _validate_val(self, val, dim='', dims=[]):
         # Dependent array, needs to be an xarray.DataArray
         if isinstance(val, xr.DataArray):
-            for key in val.coords: 
+            for key in val._coords: 
                 if key not in dims:
                     raise CoordinateException("Dimensions of dependent" 
                     " coordinate DatArray needs to be in " + str(dims))
-                #if val.coords.get_axis_num(dim) != 0:
+                #if val._coords.get_axis_num(dim) != 0:
                     #raise CoordinateException(
                         #"When specifying dependent coordinates, the first " 
                         #" dimension need to be equal to  " + str(dims))                    
    
     def intersect(self, other, coord_ref_sys=None):
         new_crds = OrderedDict()
-        for d in self.coords:
-            if d not in other.coords:
-                new_crds[d] = self.coords[d]
+        for d in self._coords:
+            if d not in other._coords:
+                new_crds[d] = self._coords[d]
                 continue
-            new_crds[d] = self.coords[d].intersect(other.coords[d], coord_ref_sys)
+            new_crds[d] = self._coords[d].intersect(other._coords[d], coord_ref_sys)
             
         return self.__class__(new_crds, **self.kwargs)
     
@@ -436,4 +441,16 @@ class Coordinate(tl.HasTraits):
                 'segment_position': self.segment_position,
                 'ctype': self.ctype
                 }
+    
+    @property
+    def shape(self):
+        return [c.size for c in self._coords.values]
+    
+    @property
+    def dims(self):
+        return self._coords.keys()
+    
+    @property
+    def coords(self):
+        return {k: v.coordinates for k, v in self._coords.iteritems()}
             
