@@ -205,6 +205,8 @@ class Node(tl.HasTraits):
             # subselect if neccessary
             out = output[coordinates.get_coord] 
             self.output[:] = out
+        else:
+            self.output = self.initialize_output_array()
 
         return coordinates, params, out
 

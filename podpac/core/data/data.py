@@ -167,7 +167,7 @@ class NumpyArraySource(DataSource):
         
 if __name__ == '__main__':
     coord_src = Coordinate(lat=(45, 0, 9), lon=(-70, -65, 15), time=(0, 1, 2))
-    coord_dst = Coordinate(lat=(0, 50, 50), lon=(-71, -66, 100))
+    coord_dst = Coordinate(lat=(50, 0, 50), lon=(-71, -66, 100))
     LAT, LON, TIME = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
                             -70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta,
                             0:2:1]
@@ -177,4 +177,6 @@ if __name__ == '__main__':
     nas = NumpyArraySource(source=source, 
                            native_coordinates=coord_src, interpolation='bilinear')
     o = nas.execute(coord_dst)
+    coord_pt = Coordinate(lat=10., lon=-67.)
+    o2 = nas.execute(coord_pt)
     print ("Done")
