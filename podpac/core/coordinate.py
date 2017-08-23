@@ -155,13 +155,17 @@ class Coord(tl.HasTraits):
     _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
     @property
     def bounds(self):
+        """
+        This returns the (min, max) value of the coordinate
+        """
         if self._cached_bounds is not None:
             return self._cached_bounds
         if self.regularity == 'single':
             self._cached_bounds = np.array(
                 [self.coords, self.coords], float).squeeze()
         if self.regularity == 'regular':
-            self._cached_bounds = np.array(self.coords[:2], float)
+            self._cached_bounds = np.array([min(self.coords[:2]),
+                                           max(self.coords[:2])], float)
         elif self.regularity == 'irregular':
             if isinstance(self.coords, (list, tuple)):
                 self._cached_bounds = np.array([
@@ -185,9 +189,13 @@ class Coord(tl.HasTraits):
     @property
     def area_bounds(self):
         extents = copy.deepcopy(self.bounds)
-        if self.ctype in ['fence', 'segment'] and self.regularity != 'single':
-            p = self.segment_position
-            extents += np.array([-p, 1 - p]) * self.delta
+        if self.ctype in ['fence', 'segment']:
+            if self.regularity in ['dependent', 'irregular'] \
+                    and self.extents is not None:
+                extents = self.extents
+            elif self.regularity != 'single':
+                p = self.segment_position
+                extents += np.array([-p, 1 - p]) * self.delta
         return extents
         
     _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
@@ -202,17 +210,15 @@ class Coord(tl.HasTraits):
             if isinstance(self.coords[2], int):
                 self._cached_delta = np.array(\
                     (np.array(self.coords[1]) - np.array(self.coords[0]))\
-                    / (self.coords[2] - 1.))
+                    / (self.coords[2] - 1.) * (1 - 2 * self.is_max_to_min))
             else:
                 self._cached_delta = np.array(self.coords[2:3])
-        elif self.extents is not None and len(self.extents) == 2:
-            self._cached_delta = np.array(self.extents)
         else:
             print("Warning: delta probably doesn't work for stacked dependent coords")
             self._cached_delta = np.array([
             self.coords[1] - self.coords[0],
             self.coords[-1] - self.coords[-2]
-        ])
+        ]) * (1 - 2 * self.is_max_to_min)
         return self._cached_delta
 
     _cached_coords = tl.Any(default_value=None, allow_none=True)
@@ -236,7 +242,7 @@ class Coord(tl.HasTraits):
     @property
     def size(self):
         if not isinstance(self.coords[2], int):  # delta specified
-            N = np.round(
+            N = np.round((1 - 2 * self.is_max_to_min) * 
                 (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
         else:
             N = self.coords[2]
@@ -274,21 +280,30 @@ class Coord(tl.HasTraits):
         if self.regularity == 'single':
             return self
         elif self.regularity == 'regular':
-            lefti = np.floor((ibounds[0] - self.bounds[0]) / self.delta)
-            righti = np.ceil((self.bounds[1] - ibounds[1]) / self.delta)
+            min_max_i = [np.floor((ibounds[0] - self.bounds[0]) / self.delta),
+                         np.ceil((self.bounds[1] - ibounds[1]) / self.delta)]
             if ind:
-                return [int(max(0, lefti - pad)),
-                        int(min(self.size - righti + pad, self.size))]
-            left = self.bounds[0] + max(0, lefti - pad) * self.delta
-            right = min(self.bounds[1],
-                        self.bounds[1] - (righti - pad) * self.delta) 
-            new_crd = self.__class__(coords=(left, right, float(self.delta)),
-                                     **self.kwargs)
+                if self.is_max_to_min:
+                    min_max_i = min_max_i[::-1]
+                I = [int(min(self.size, max(0, min_max_i[0] - pad))),
+                     int(min(self.size, max(0, self.size - min_max_i[1] + pad)))]
+                return I
+            min_max = [self.bounds[0] + max(0, min_max_i[0] - pad) * self.delta,
+                       min(self.bounds[1],
+                        self.bounds[1] - (min_max_i[1] - pad) * self.delta)]
+            if self.is_max_to_min:
+                min_max = min_max[::-1]
+            
+            coords = min_max + [float(self.delta)]
+            new_crd = self.__class__(coords=coords, **self.kwargs)
+            
         elif self.regularity == 'irregular':
-            lefti = np.argmin(np.abs(self.coordinates - other_coords.bounds[0]))
-            righti = np.argmax(np.abs(self.coordinates - other_coords.bounds[0]))
-            lefti = np.max(0, lefti - 1)
-            righti = np.min(righti, self.coordinates.shape[0])
+            min_max_i = [np.argmin(np.abs(self.coordinates - other_coords.bounds[0])),
+                         np.argmin(np.abs(self.coordinates - other_coords.bounds[1]))]
+            if self.is_max_to_min:
+                min_max_i = min_max_i[::-1]
+            lefti = np.max(0, min_max_i[0] - pad)
+            righti = np.min(min_max_i[1] + pad, self.coordinates.shape[0])
             if ind:
                 return [int(lefti), int(righti)]
             new_crd = self.__class__(self.coordinates[lefti:righti], **self.kwargs)
@@ -300,6 +315,8 @@ class Coord(tl.HasTraits):
             maxi = [np.min(np.argmin(np.abs(self.coordinates.data - b[1]),
                                      axis=d)) \
                     for d in range(len(self.coordinates.dims))]
+            if self.is_max_to_min:
+                mini, maxi = maxi, mini
             if ind:
                 return [(int(max(0, ss[0] - pad)),
                          int(min(self.coordinates.shape[i], ss[1] + pad))) \
@@ -324,10 +341,21 @@ class Coord(tl.HasTraits):
         }
         return kwargs
     
+    @property
+    def is_max_to_min(self):
+        if self.regularity == 'regular':
+            return self.coords[0] > self.coords[1]
+        elif self.regularity == 'irregular':
+            return self.coords[0] > self.coords[-1]
+        elif self.regularity == 'dependent':
+            return np.array(self.coords).ravel()[0] > np.array(self.coords).ravel()[-1] 
+        else:
+            return False
+        
+    
     def __repr__(self):
-        rep = str(self.__class__) + ' Bounds: [{min}, {max}],' + \
-            ' segment position: {}, ctype: "{}"'.format(self.segment_position, 
-                                                       self.ctype)
+        rep = 'Coord: Bounds[{min}, {max}],' + \
+            ' N[{}], ctype["{}"]'.format(self.size, self.ctype)
         if self.regularity in ['single', 'regular', 'irregular']:
             rep = rep.format(min=self.bounds[0], max=self.bounds[1])       
         return rep

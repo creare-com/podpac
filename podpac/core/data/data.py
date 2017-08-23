@@ -89,13 +89,6 @@ class DataSource(Node):
         
     
     def rasterio_interpolation(self, data_subset, coords_subset, out, coords):
-        #coords_intersect = coords.intersect_ind_slice(coords_subset, pad=0)
-        #crds = {k: self.output.coords[k][ci] 
-                #for k, ci in zip(coords.dims, coords_intersect)}
-        #out = self.output#.loc[crds]
-        #coords_intersect = coords.intersect(coords_subset, pad=0)
-        coords_intersect = coords
-        
         if len(data_subset.dims) > 2:
             return self._loop_helper(self.rasterio_interpolation, ['lat', 'lon'], 
                                      data_subset, coords_subset, out, coords)
@@ -117,10 +110,13 @@ class DataSource(Node):
             src_transform = get_rasterio_transform(coords_subset)
             src_crs = {'init': coords_subset.gdal_crs}
             # Need to make sure array is c-contiguous
-            source = np.ascontiguousarray(data_subset.data[::-1, :])
+            if coords_subset['lat'].is_max_to_min:
+                source = np.ascontiguousarray(data_subset.data)
+            else:
+                source = np.ascontiguousarray(data_subset.data[::-1, :])
         
-            dst_transform = get_rasterio_transform(coords_intersect)
-            dst_crs = {'init': coords_intersect.gdal_crs}
+            dst_transform = get_rasterio_transform(coords)
+            dst_crs = {'init': coords.gdal_crs}
             # Need to make sure array is c-contiguous
             if not out.data.flags['C_CONTIGUOUS']:
                 destination = np.ascontiguousarray(out.data) 
@@ -138,7 +134,10 @@ class DataSource(Node):
                 dst_nodata=np.nan,
                 resampling=getattr(Resampling, self.interpolation)
             )
-            out.data[:] = destination[::-1, :]
+            if coords['lat'].is_max_to_min:
+                out.data[:] = destination
+            else:
+                out.data[:] = destination[::-1, :]
         return out
             
     def resample_latlon_to_gc(latlon, data_src, gc_dst, order=0):
@@ -167,14 +166,14 @@ class NumpyArraySource(DataSource):
         return d
         
 if __name__ == '__main__':
-    coord_src = Coordinate(lat=(0, 45, 9), lon=(-70, -65, 15), time=(0, 1, 2))
-    coord_dst = Coordinate(lat=(5, 50, 50), lon=(-71, -66, 100))
+    coord_src = Coordinate(lat=(45, 0, 9), lon=(-70, -65, 15), time=(0, 1, 2))
+    coord_dst = Coordinate(lat=(0, 50, 50), lon=(-71, -66, 100))
     LAT, LON, TIME = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
                             -70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta,
                             0:2:1]
     #LAT, LON = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
                               #-70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta]    
-    source = LAT + LON + TIME
+    source = LAT[::-1, ...] + 0*LON + 0*TIME
     nas = NumpyArraySource(source=source, 
                            native_coordinates=coord_src, interpolation='bilinear')
     o = nas.execute(coord_dst)
