@@ -120,7 +120,8 @@ class DataSource(Node):
         
             dst_transform = get_rasterio_transform(coords_intersect)
             dst_crs = {'init': coords_intersect.gdal_crs}
-            destination = out.data
+            # We have to copy here because out.data may be strided
+            destination = out.data.copy() 
         
             reproject(
                 source,
@@ -131,6 +132,7 @@ class DataSource(Node):
                 dst_crs=dst_crs,
                 resampling=getattr(Resampling, self.interpolation)
             )
+            out[:] = destination
         return out
             
     def resample_latlon_to_gc(latlon, data_src, gc_dst, order=0):
@@ -159,10 +161,10 @@ class NumpyArraySource(DataSource):
         return d
         
 if __name__ == '__main__':
-    coord_src = Coordinate(lat=(0, 45, 9), lon=(-70, -65, 15))#, time=(0, 1, 2))
+    coord_src = Coordinate(lat=(0, 45, 9), lon=(-70, -65, 15), time=(0, 1, 2))
     coord_dst = Coordinate(lat=(5, 50, 50), lon=(-71, -66, 100))
     
-    nas = NumpyArraySource(source=np.random.rand(9, 15),#, 2), 
+    nas = NumpyArraySource(source=np.random.rand(9, 15, 2), 
                            native_coordinates=coord_src, interpolation='bilinear')
     o = nas.execute(coord_dst)
     print ("Done")
