@@ -7,13 +7,13 @@ from pint.errors import DimensionalityError
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
-from podpac.core.node import Node, UnitDataArray
+from podpac.core.node import Node, UnitsDataArray
 
 class TestUnitDataArray(unittest.TestCase):
     def test_no_units_coord(self):
-        a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={})
-        a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={})    
         a3 = a1 + a2
         a3b = a2 + a1
@@ -26,9 +26,9 @@ class TestUnitDataArray(unittest.TestCase):
         a10 = a1 % a2        
         
     def test_first_units_coord(self):
-        a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={'units': ureg.meter})
-        a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={})    
         with self.assertRaises(DimensionalityError):
             a3 = a1 + a2
@@ -48,9 +48,9 @@ class TestUnitDataArray(unittest.TestCase):
             a10 = a1 % a2        
 
     def test_second_units_coord(self):
-        a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={})
-        a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={'units': ureg.inch})    
         with self.assertRaises(DimensionalityError):
             a3 = a1 + a2
@@ -70,9 +70,9 @@ class TestUnitDataArray(unittest.TestCase):
             a10 = a1 % a2        
         
     def test_units_allpass(self):
-        a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={'units': ureg.meter})
-        a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                            attrs={'units': ureg.inch})    
         a3 = a1 + a2
         self.assertEqual(a3[0, 0].data[()],
@@ -100,9 +100,9 @@ class TestUnitDataArray(unittest.TestCase):
                          ((1*ureg.meter) % (1*ureg.inch)).to_base_units().magnitude)                
     
     def test_units_somefail(self):
-        a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                                attrs={'units': ureg.meter})
-        a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                                attrs={'units': ureg.kelvin})    
         with self.assertRaises(DimensionalityError):
             a3 = a1 + a2
@@ -127,9 +127,9 @@ class TestUnitDataArray(unittest.TestCase):
             a10 = a1 % a2        
             
     def test_ufuncs(self):
-        a1 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                                attrs={'units': ureg.meter})
-        a2 = UnitDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+        a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
                                attrs={'units': ureg.kelvin}) 
         
         np.sqrt(a1)

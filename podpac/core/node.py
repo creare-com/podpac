@@ -22,6 +22,7 @@ class UnitsNode(tl.TraitType):
  
 class Units(tl.TraitType):
     info_text = "A pint Unit"
+    #default_value = None
     def validate(self, obj, value):
         if isinstance(value, ureg.Units):
             return value
@@ -138,12 +139,12 @@ class Node(tl.HasTraits):
     output = tl.Instance(UnitsDataArray, allow_none=True, default_value=None)
     @tl.default('output')
     def _output_default(self):
-        return self.initialize_data_array('nan')
+        return self.initialize_output_array('nan')
     
     native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
                                      allow_none=True)
     evaluted = tl.Bool(default_value=False)
-    implicit_pipeline_evaluation = tl.Bool(default_value=True).tag(
+    implicit_pipeline_evaluation = tl.Bool(default_value=True,
         help="Evaluate the pipeline implicitly (True, Default)")
     evaluated_coordinates = tl.Instance('podpac.core.coordinate.Coordinate', 
                                         allow_none=True)
@@ -157,10 +158,21 @@ class Node(tl.HasTraits):
     
     @property
     def shape(self):
-        if self.evaluated_coordinates is not Node:
-            return self.evaluated_coordinates.shape
+        ev = self.evaluated_coordinates
+        nv = self.native_coordinates
+        if ev is not None:
+            if nv is not None:
+                shape = []
+                for c in nv.coords:
+                    if c in ev.coords:
+                        shape.append(ev[c].size)
+                    else:
+                        shape.append(nv[c].size)
+            else:
+                shape = ev.shape
+            return shape
         else:
-            return self.native_coordinates.shape    
+            return nv.shape    
     
     def __init__(self, *args, **kwargs):
         """ Do not overwrite me """
@@ -201,8 +213,38 @@ class Node(tl.HasTraits):
         This is to get the pipeline lineage or provenance
         """
         raise NotImplementedError
+    
+    def initialize_output_array(self, init_type='empty', fillval=0, style=None,
+                              no_style=False, shape=None, coords=None,
+                              dims=None, units=None, dtype=np.float, **kwargs):
+        if coords is None: coords = self.evaluated_coordinates.coords
+        if not isinstance(coords, dict): coords = dict(coords)
+        if dims is None:
+            if self.native_coordinates is not None:
+                dims = self.native_coordinates.dims
+            else:
+                dims = coords.keys()
+        if self.native_coordinates is not None:
+            crds = {}
+            for c in self.native_coordinates.coords:
+                if c in coords:
+                    crds[c] = coords[c]
+                else:
+                    crds[c] = self.native_coordinates.coords[c]
+        else:
+            crds = coords        
+        return self.initialize_array(init_type, fillval, style, no_style, shape,
+                                     crds, dims, units, dtype, **kwargs)
+    
+    def initialize_coord_array(self, coords, init_type='empty', fillval=0, 
+                               style=None, no_style=False, units=None,
+                               dtype=np.float, **kwargs):
+        return self.initialize_array(init_type, fillval, style, no_style, 
+                                     coords.shape, coords.coords, coords.dims,
+                                     units, dtype, **kwargs)
+    
 
-    def initialize_data_array(self, init_type='empty', fillval=0, style=None,
+    def initialize_array(self, init_type='empty', fillval=0, style=None,
                               no_style=False, shape=None, coords=None,
                               dims=None, units=None, dtype=np.float,  **kwargs):
         """Initialize output data array
@@ -229,7 +271,7 @@ class Node(tl.HasTraits):
         coords : dict/list, optional
             input to UnitsDataArray, uses self.coords by default
         dims : list(str), optional
-            input to UnitsDataArray, uses self.coords by default
+            input to UnitsDataArray, uses self.native_coords.dims by default
         units : pint.unit.Unit, optional
             Default is self.units The Units for the data contained in the 
             DataArray
@@ -246,11 +288,9 @@ class Node(tl.HasTraits):
         """
         if style is None: style = self.style
         if shape is None: shape = self.shape
-        if coords is None: coords = self.evaluated_coordinates.coords
-        if dims is None: dims = self.evaluated_coordinates.dims
         if units is None: units = self.units
-        if not isinstance(coords, dict):
-            coords = dict(coords)
+        if not isinstance(coords, dict): coords = dict(coords)
+
         if init_type == 'empty':
             data = np.empty(shape)
         elif init_type == 'nan':
@@ -265,7 +305,9 @@ class Node(tl.HasTraits):
             data = fillval
         else:
             raise ValueError("Unknown init_type=%" % init_type)
+        
         x = UnitsDataArray(data, coords=coords, dims=dims, **kwargs)
+        
         if not no_style:
             x.attrs['layer_style'] = style
         if units is not None:
@@ -276,6 +318,8 @@ class Node(tl.HasTraits):
     def plot(self, show=True, interpolation='none', **kwargs):
         """
         Plot function to display the output
+        
+        TODO: Improve this substantially please
         """
         if kwargs:
             plt.imshow(self.output.data, cmap=self.style.cmap,

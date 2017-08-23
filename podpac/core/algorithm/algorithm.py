@@ -34,7 +34,8 @@ class Algorithm(Node):
         else:
             out[:] = self.algorithm(**kwargs)
             self.output = out
-        
+            
+        self.evaluted = True
         return self.output
         
     def algorithm(self, **kwargs):
@@ -44,7 +45,7 @@ class Algorithm(Node):
         
 class SinCoords(Algorithm):
     def algorithm(self):
-        out = self.initialize_data_array('ones')
+        out = self.initialize_output_array('ones')
         crds = np.meshgrid(*out.coords.values())
         for crd in crds:
             out *= np.sin(np.pi * crd / 90.0)
@@ -68,4 +69,5 @@ if __name__ == "__main__":
     o = a.execute(coords)
     a2 = Arithmetic(A=a, B=a)
     o2 = a2.execute(coords, params={'eqn': '2*abs(A) - B'})
+
     print ("Done")        
