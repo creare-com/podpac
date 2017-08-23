@@ -107,7 +107,7 @@ class DataSource(Node):
         from rasterio.warp import reproject, Resampling
         
         def get_rasterio_transform(c):
-            east, west = c['lon'].area_bounds
+            west, east = c['lon'].area_bounds
             south, north = c['lat'].area_bounds
             cols, rows = (c['lon'].size, c['lat'].size)
             #print (east, west, south, north)
@@ -116,23 +116,29 @@ class DataSource(Node):
         with rasterio.Env():
             src_transform = get_rasterio_transform(coords_subset)
             src_crs = {'init': coords_subset.gdal_crs}
-            source = data_subset.data
+            # Need to make sure array is c-contiguous
+            source = np.ascontiguousarray(data_subset.data[::-1, :])
         
             dst_transform = get_rasterio_transform(coords_intersect)
             dst_crs = {'init': coords_intersect.gdal_crs}
-            # We have to copy here because out.data may be strided
-            destination = out.data.copy() 
+            # Need to make sure array is c-contiguous
+            if not out.data.flags['C_CONTIGUOUS']:
+                destination = np.ascontiguousarray(out.data) 
+            else:
+                destination = out.data
         
             reproject(
                 source,
                 destination,
                 src_transform=src_transform,
                 src_crs=src_crs,
+                src_nodata=np.nan,
                 dst_transform=dst_transform,
                 dst_crs=dst_crs,
+                dst_nodata=np.nan,
                 resampling=getattr(Resampling, self.interpolation)
             )
-            out[:] = destination
+            out.data[:] = destination[::-1, :]
         return out
             
     def resample_latlon_to_gc(latlon, data_src, gc_dst, order=0):
@@ -163,8 +169,13 @@ class NumpyArraySource(DataSource):
 if __name__ == '__main__':
     coord_src = Coordinate(lat=(0, 45, 9), lon=(-70, -65, 15), time=(0, 1, 2))
     coord_dst = Coordinate(lat=(5, 50, 50), lon=(-71, -66, 100))
-    
-    nas = NumpyArraySource(source=np.random.rand(9, 15, 2), 
+    LAT, LON, TIME = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
+                            -70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta,
+                            0:2:1]
+    #LAT, LON = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
+                              #-70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta]    
+    source = LAT + LON + TIME
+    nas = NumpyArraySource(source=source, 
                            native_coordinates=coord_src, interpolation='bilinear')
     o = nas.execute(coord_dst)
     print ("Done")
