@@ -463,12 +463,18 @@ class Coordinate(tl.HasTraits):
    
     def intersect(self, other, coord_ref_sys=None, pad=1):
         new_crds = OrderedDict()
-        for d in self._coords:
+        for i, d in enumerate(self._coords):
             if d not in other._coords:
                 new_crds[d] = self._coords[d]
                 continue
+            if isinstance(pad, (list, tuple)):
+                spad = pad[i]
+            elif isinstance(pad, dict):
+                spad = pad[d]
+            else:
+                spad = pad
             new_crds[d] = self._coords[d].intersect(other._coords[d],
-                                                    coord_ref_sys, pad=pad)
+                                                    coord_ref_sys, pad=spad)
             
         return self.__class__(new_crds, **self.kwargs)
     
@@ -478,8 +484,14 @@ class Coordinate(tl.HasTraits):
             if d not in other._coords:
                 slc.append(slice(None, None))
                 continue
+            if isinstance(pad, (list, tuple)):
+                spad = pad[i]
+            elif isinstance(pad, dict):
+                spad = pad[d]
+            else:
+                spad = pad
             ind = self._coords[d].intersect(other._coords[d], 
-                                            coord_ref_sys, ind=True, pad=pad)
+                                            coord_ref_sys, ind=True, pad=spad)
             if self._coords[d].regularity == 'dependent':  # untested
                 i = self.coordinates.dims.index(d)
                 ind = [inds[i] for inds in ind]
