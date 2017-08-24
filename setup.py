@@ -33,6 +33,11 @@ setup(
         'xarray',
         'traitlets',
         'pint',
+        # Optional requirements
+        'rasterio',
+        'pydap',
+        'requests', 
+        'beautifulsoup4',        
         ],
     # entry_points = {
     #     'console_scripts' : []
