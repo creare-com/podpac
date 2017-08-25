@@ -94,7 +94,18 @@ class Coord(tl.HasTraits):
         else:
             # No checks yet
             pass 
-        return proposal['value']
+
+        # enforce floating point coordinates in some cases
+        if regularity == 'regular':
+            if isinstance(val[0], int):
+                val = (float(val[0]),) + tuple(val[1:])
+            if isinstance(val[1], int):
+                    val = (val[0], float(val[1])) + tuple(val[2:])
+        
+        if regularity == 'irregular':
+            if val.size == 1:  # This should actually be single
+                val = np.atleast_1d(val)[0]
+        return val
 
     @property
     def stacked(self):
@@ -146,7 +157,7 @@ class Coord(tl.HasTraits):
             return 'irregular'
         elif isinstance(coords, xr.DataArray):
             return 'dependent'
-        elif isinstance(coords, numbers.Number):
+        elif isinstance(coords, (numbers.Number, np.datetime64)):
             return 'single'
         
         raise CoordinateException("Coord regularity '{}'".format(coords) + \
@@ -162,27 +173,32 @@ class Coord(tl.HasTraits):
             return self._cached_bounds
         if self.regularity == 'single':
             self._cached_bounds = np.array(
-                [self.coords - self.delta, self.coords + self.delta], float).squeeze()
+                [self.coords - self.delta, self.coords + self.delta]).squeeze()
         if self.regularity == 'regular':
             self._cached_bounds = np.array([min(self.coords[:2]),
-                                           max(self.coords[:2])], float)
+                                           max(self.coords[:2])])
         elif self.regularity == 'irregular':
             if isinstance(self.coords, (list, tuple)):
                 self._cached_bounds = np.array([
-                    [c.min(), c.max()] for c in self.coords], float).T
+                    [np.nanmin(c), np.nanmax(c)] for c in self.coords]).T
             else:
-                self._cached_bounds = np.array([
-                    np.min(self.coords, axis=0), 
-                    np.max(self.coords, axis=0)], float)
+                if isinstance(self.coords[0], np.datetime64):
+                    self._cached_bounds = np.array([
+                        np.min(self.coords, axis=0), 
+                        np.max(self.coords, axis=0)])
+                else:
+                    self._cached_bounds = np.array([
+                        np.nanmin(self.coords, axis=0), 
+                        np.nanmax(self.coords, axis=0)])
         elif self.regularity == 'dependent':
             if isinstance(self.coords, (list, tuple)):
                 self._cached_bounds = np.array([
-                    [c.min(), c.max()] for c in self.coords], float).T
+                    [c.min(), c.max()] for c in self.coords]).T
             else:
                 dims = [d for d in self.coords.dims if 'stack' not in d]
                 self._cached_bounds = np.array([
                     self.coords.min(dims), 
-                    self.coords.max(dims)], float)            
+                    self.coords.max(dims)])            
 
         return self._cached_bounds
     
@@ -191,7 +207,7 @@ class Coord(tl.HasTraits):
         extents = copy.deepcopy(self.bounds)
         if self.ctype in ['fence', 'segment']:
             if self.regularity in ['dependent', 'irregular'] \
-                    and self.extents is not None:
+                    and self.extents:
                 extents = self.extents
             elif self.regularity != 'single':
                 p = self.segment_position
@@ -205,7 +221,12 @@ class Coord(tl.HasTraits):
         if self._cached_delta is not None:
             return self._cached_delta        
         if self.regularity == 'single':
-            self._cached_delta = np.array(np.sqrt(np.finfo(np.float32).eps))  # Arbitrary
+            # Arbitrary
+            if isinstance(self.coords, np.datetime64):
+                dtype = self.coords - self.coords
+                self._cached_delta = np.array(1, dtype=dtype)
+            else:
+                self._cached_delta = np.array(np.sqrt(np.finfo(np.float32).eps))  
         elif self.regularity == 'regular':
             if isinstance(self.coords[2], int):
                 self._cached_delta = np.array(\
@@ -213,6 +234,10 @@ class Coord(tl.HasTraits):
                     / (self.coords[2] - 1.) * (1 - 2 * self.is_max_to_min))
             else:
                 self._cached_delta = np.array(self.coords[2:3])
+        elif self.regularity == 'irregular':
+            print("Warning: delta is not representative for irregular coords")
+            self._cached_delta = np.atleast_1d(
+                (self.coords[1] - self.coords[0])*(1 - 2 * self.is_max_to_min))
         else:
             print("Warning: delta probably doesn't work for stacked dependent coords")
             self._cached_delta = np.array([
@@ -243,11 +268,17 @@ class Coord(tl.HasTraits):
     def size(self):
         if self.regularity == 'single':
             return 1
-        if not isinstance(self.coords[2], int):  # delta specified
-            N = np.round((1 - 2 * self.is_max_to_min) * 
-                (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
-        else:
-            N = self.coords[2]
+        elif self.regularity == 'regular':
+            if not isinstance(self.coords[2], int):  # delta specified
+                N = np.round((1 - 2 * self.is_max_to_min) * 
+                    (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
+            else:
+                N = self.coords[2]
+        elif self.regularity == 'irregular':
+            if self.stacked == 1:
+                N = self.coords.size
+            else:
+                N = self.coord[0].size
         return int(N)
         
     @tl.observe('extents', 'ctype', 'segment_position')
@@ -300,15 +331,16 @@ class Coord(tl.HasTraits):
             new_crd = self.__class__(coords=coords, **self.kwargs)
             
         elif self.regularity == 'irregular':
-            min_max_i = [np.argmin(np.abs(self.coordinates - other_coords.bounds[0])),
-                         np.argmin(np.abs(self.coordinates - other_coords.bounds[1]))]
+            b = other_coord.bounds
+            min_max_i = [np.nanargmin(np.abs(self.coordinates - b[0])),
+                         np.nanargmin(np.abs(self.coordinates - b[1]))]
             if self.is_max_to_min:
                 min_max_i = min_max_i[::-1]
-            lefti = np.max(0, min_max_i[0] - pad)
-            righti = np.min(min_max_i[1] + pad, self.coordinates.shape[0])
+            lefti = np.maximum(0, min_max_i[0] - pad)
+            righti = np.minimum(min_max_i[1] + pad + 1, self.size)
             if ind:
                 return [int(lefti), int(righti)]
-            new_crd = self.__class__(self.coordinates[lefti:righti], **self.kwargs)
+            new_crd = self.__class__(coords=self.coordinates[lefti:righti], **self.kwargs)
         elif self.regularity == 'dependent':
             b = other_coord.bounds
             mini = [np.min(np.argmin(np.abs(self.coordinates.data - b[0]),
@@ -324,7 +356,7 @@ class Coord(tl.HasTraits):
                          int(min(self.coordinates.shape[i], ss[1] + pad))) \
                                for i, ss in enumerate(zip(mini, maxi))]
             slc = [slice(max(0, ss[0] - pad),
-                         min(self.coordinates.shape[i], ss[1] + pad)) \
+                         min(self.coordinates.shape[i], ss[1] + pad + 1)) \
                    for i, ss in enumerate(zip(mini, maxi))]
             crds = self.coordinates
             for d, s in zip(self.coordinates.dims, slc):
@@ -348,7 +380,11 @@ class Coord(tl.HasTraits):
         if self.regularity == 'regular':
             return self.coords[0] > self.coords[1]
         elif self.regularity == 'irregular':
-            return self.coords[0] > self.coords[-1]
+            if isinstance(self.coords[0], np.datetime64):
+                return self.coords[0] > self.coords[-1]
+            else:
+                non_nan_coords = self.coords[np.isfinite(self.coords)]
+                return non_nan_coords[0] > non_nan_coords[-1]
         elif self.regularity == 'dependent':
             return np.array(self.coords).ravel()[0] > np.array(self.coords).ravel()[-1] 
         else:

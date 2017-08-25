@@ -15,6 +15,14 @@ try:
     from rasterio.warp import reproject, Resampling
 except:
     rasterio = None
+try: 
+    import scipy
+    from scipy.interpolate import (griddata, RectBivariateSpline, 
+                                   RegularGridInterpolator)
+except:
+    scipy = None
+    
+    
 
 # Internal imports
 from podpac.core.coordinate import Coordinate
@@ -26,19 +34,21 @@ class DataSource(Node):
                             'lanczos', 'average', 'mode', 'gauss', 'max', 'min',
                             'med', 'q1', 'q3'],
                             default_value='nearest')
+    no_data_vals = tl.List(allow_none=True)
     
     def execute(self, coordinates, params=None, output=None):
         coords, params, out = \
             self._execute_common(coordinates, params, output)
         
         data_subset, coords_subset = self.get_data_subset(coords)
-
+        if self.no_data_vals:
+            for ndv in self.no_data_vals:
+                data_subset.data[data_subset.data == ndv] = np.nan
         if output is None:
             res = self.interpolate_data(data_subset, coords_subset, coords)
             self.output = res  
         else:
-            out[:] = self.interpolate_data(data_subset,
-                                                   coords_subset, coords)
+            out[:] = self.interpolate_data(data_subset, coords_subset, coords)
             self.output = out
             
         self.evaluted = True        
@@ -48,21 +58,32 @@ class DataSource(Node):
         """
         This should return an UnitsDataArray, and A Coordinate object
         """
-        coords_subset = self.native_coordinates.intersect(coordinates)
-        data = self.get_data(coords_subset)
+        pad = self.interpolation != 'nearest'
+        coords_subset = self.native_coordinates.intersect(coordinates, pad=pad)
+        coords_subset_slc = self.native_coordinates.intersect_ind_slice(coordinates, pad=pad)
+        if self.interpolate_data == 'nearest':
+            # We can optimize a little
+            pass
+        
+        data = self.get_data(coords_subset, coords_subset_slc)
         
         return data, coords_subset
         
-    def get_data(self, coordinates):
+    def get_data(self, coordinates, coodinates_slice):
         """
         This should return an UnitsDataArray
         """
         raise NotImplementedError
     
-    def interpolate_data(self, data_subset, coords_subset, coords):
+    def interpolate_data(self, data_src, coords_src, coords_dst):
         # TODO: implement for all of the designed cases (points, etc)
         
+        data_dst = self.output
+        
         # This a big switch, funneling data to various interpolation routines
+        if data_src.size == 1 and np.prod(coords_dst.shape) == 1:
+            data_dst[:] = data_src
+            return data_dst
         
         # Raster to Raster interpolation from regular grids
         rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
@@ -71,16 +92,23 @@ class DataSource(Node):
         rasterio_regularity = ['single', 'regular', 'regular-rotated']
         if rasterio is not None \
                 and self.interpolation in rasterio_interps \
-                and ('lat' in coords_subset.coords 
-                     and 'lon' in coords_subset.coords) \
-                and ('lat' in coords.coords and 'lon' in coords.coords)\
-                and coords_subset['lat'].regularity in rasterio_regularity \
-                and coords_subset['lon'].regularity in rasterio_regularity \
-                and coords['lat'].regularity in rasterio_regularity \
-                and coords['lon'].regularity in rasterio_regularity:
-            return self.rasterio_interpolation(data_subset, coords_subset,
-                                               self.output, coords)
-
+                and ('lat' in coords_src.dims 
+                     and 'lon' in coords_src.dims) \
+                and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)\
+                and coords_src['lat'].regularity in rasterio_regularity \
+                and coords_src['lon'].regularity in rasterio_regularity \
+                and coords_dst['lat'].regularity in rasterio_regularity \
+                and coords_dst['lon'].regularity in rasterio_regularity:
+            return self.rasterio_interpolation(data_src, coords_src,
+                                               data_dst, coords_dst)
+        elif ('lat' in coords_src.dims 
+                and 'lon' in coords_src.dims) \
+                and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)\
+                and coords_src['lat'].regularity in ['irregular'] \
+                and coords_src['lon'].regularity in ['irregular']:
+            return self.interpolate_irregular_grid(data_src, coords_src,
+                                                   data_dst, coords_dst)
+        
     def _loop_helper(self, func, keep_dims, data_src, coords_src,
                      data_dst, coords_dst,
                      **kwargs):
@@ -98,11 +126,11 @@ class DataSource(Node):
         return data_dst
         
     
-    def rasterio_interpolation(self, data_subset, coords_subset, out, coords):
-        if len(data_subset.dims) > 2:
+    def rasterio_interpolation(self, data_src, coords_src, data_dst, coords_dst):
+        if len(data_src.dims) > 2:
             return self._loop_helper(self.rasterio_interpolation, ['lat', 'lon'], 
-                                     data_subset, coords_subset, out, coords)
-        elif 'lat' not in data_subset.dims or 'lon' not in data_subset.dims:
+                                     data_src, coords_src, data_dst, coords_dst)
+        elif 'lat' not in data_src.dims or 'lon' not in data_src.dims:
             raise ValueError
         
         def get_rasterio_transform(c):
@@ -113,21 +141,21 @@ class DataSource(Node):
             return transform.from_bounds(west, south, east, north, cols, rows)
         
         with rasterio.Env():
-            src_transform = get_rasterio_transform(coords_subset)
-            src_crs = {'init': coords_subset.gdal_crs}
+            src_transform = get_rasterio_transform(coords_src)
+            src_crs = {'init': coords_src.gdal_crs}
             # Need to make sure array is c-contiguous
-            if coords_subset['lat'].is_max_to_min:
-                source = np.ascontiguousarray(data_subset.data)
+            if coords_src['lat'].is_max_to_min:
+                source = np.ascontiguousarray(data_src.data)
             else:
-                source = np.ascontiguousarray(data_subset.data[::-1, :])
+                source = np.ascontiguousarray(data_src.data[::-1, :])
         
-            dst_transform = get_rasterio_transform(coords)
-            dst_crs = {'init': coords.gdal_crs}
+            dst_transform = get_rasterio_transform(coords_dst)
+            dst_crs = {'init': coords_dst.gdal_crs}
             # Need to make sure array is c-contiguous
-            if not out.data.flags['C_CONTIGUOUS']:
-                destination = np.ascontiguousarray(out.data) 
+            if not data_dst.data.flags['C_CONTIGUOUS']:
+                destination = np.ascontiguousarray(data_dst.data) 
             else:
-                destination = out.data
+                destination = data_dst.data
         
             reproject(
                 source,
@@ -140,25 +168,60 @@ class DataSource(Node):
                 dst_nodata=np.nan,
                 resampling=getattr(Resampling, self.interpolation)
             )
-            if coords['lat'].is_max_to_min:
-                out.data[:] = destination
+            if coords_dst['lat'].is_max_to_min:
+                data_dst.data[:] = destination
             else:
-                out.data[:] = destination[::-1, :]
-        return out
+                data_dst.data[:] = destination[::-1, :]
+        return data_dst
             
-    def resample_latlon_to_gc(latlon, data_src, gc_dst, order=0):
-        if order < 2:
-            f = RegularGridInterpolator((latlon[0][::-1].data, latlon[1].data),
-                                        data_src[::-1, :].data,
-                                        method=['nearest', 'linear'][order], 
+    def interpolate_irregular_grid(self, data_src, coords_src,
+                                   data_dst, coords_dst):
+        if len(data_src.dims) > 2:
+            keep_dims = ['lat', 'lon']
+            return self._loop_helper(self.interpolate_irregular_grid, keep_dims, 
+                                     data_src, coords_src, data_dst, coords_dst)
+        elif 'lat' not in data_src.dims or 'lon' not in data_src.dims:
+            raise ValueError
+        
+        interp = self.interpolation 
+        s = []
+        if coords_src['lat'].is_max_to_min:  
+            lat = coords_src['lat'].coordinates[::-1]
+            s.append(slice(None, None, -1))
+        else:                  
+            lat = coords_src['lat'].coordinates
+            s.append(slice(None, None))
+        if coords_src['lon'].is_max_to_min:  
+            lon = coords_src['lon'].coordinates[::-1]
+            s.append(slice(None, None, -1))
+        else:                  
+            lon = coords_src['lon'].coordinates
+            s.append(slice(None, None))
+            
+        data = data_src.data[s]
+        
+        # remove nan's
+        I, J = np.isfinite(lat), np.isfinite(lon)
+        lat, lon = lat[I], lon[J]
+        data = data[I, :][:, J]
+        
+        if interp in ['bilinear', 'nearest']:
+            f = RegularGridInterpolator([lat, lon], data,
+                                        method=interp.replace('bi', ''), 
                                         bounds_error=False, fill_value=np.nan)
-            x, y = np.meshgrid(gc_dst.x_axis, gc_dst.y_axis)
-            data_dst = f((y.ravel(), x.ravel())).reshape(gc_dst.y_axis.size, gc_dst.x_axis.size)
-        else:
-            f = RectBivariateSpline(latlon[0][::-1].data, latlon[1].data,
-                                    data_src[::-1, :].data, 
+            x, y = np.meshgrid(coords_dst['lon'].coordinates,
+                               coords_dst['lat'].coordinates)
+            data_dst.data[:] = f((y.ravel(), x.ravel())).reshape(coords_dst.shape)
+        elif 'spline' in interp:
+            if interp == 'cubic_spline':
+                order = 3
+            else:
+                order = int(interp.split('_')[-1])
+            f = RectBivariateSpline(lat, lon,
+                                    data, 
                                     kx=max(1, order), 
                                     ky=max(1, order))
-            data_dst = f(gc_dst.y_axis[::-1], gc_dst.x_axis, grid=True)[::-1, :]
+            data_dst.data[:] = f(coords_dst.coords['lat'],
+                                 coords_dst.coords['lon'], grid=True)
         return data_dst
     

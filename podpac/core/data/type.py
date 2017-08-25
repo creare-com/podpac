@@ -19,8 +19,8 @@ import podpac
 class NumpyArray(podpac.DataSource):
     source = tl.Instance(np.ndarray)
     
-    def get_data(self, coordinates):
-        s = self.native_coordinates.intersect_ind_slice(self.evaluated_coordinates)
+    def get_data(self, coordinates, coordinates_slice):
+        s = coordinates_slice
         d = self.initialize_coord_array(coordinates, 'data', 
                                         fillval=self.source[s])
         return d
@@ -49,16 +49,15 @@ class PyDAP(podpac.DataSource):
                                   "implementations.")
     
     
-    def get_data(self, coordinates):
-        s = self.native_coordinates.intersect_ind_slice(self.evaluated_coordinates)
-        data = self.dataset[self.datakey][tuple(s)]
+    def get_data(self, coordinates, coordinates_slice):
+        data = self.dataset[self.datakey][tuple(coordinates_slice)]
         d = self.initialize_coord_array(coordinates, 'data', 
-                                        fillval=data)
+                                        fillval=data.reshape(coordinates.shape))
         return d
         
 if __name__ == '__main__':
-    coord_src = podpac.Coordinate(lat_lon=((45, -75), (0, -65), 15))#, lon=(-70, -65, 15), time=(0, 1, 2))
-    coord_dst = podpac.Coordinate(lat=(50, 0, 50), lon=(-71, -66, 100))
+    coord_src = podpac.Coordinate(lat=(45, 0, 15), lon=(-70., -65., 15), time=(0, 1, 2))
+    coord_dst = podpac.Coordinate(lat=(50., 0., 50), lon=(-71., -66., 100))
     LAT, LON, TIME = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
                             -70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta,
                             0:2:1]
@@ -66,7 +65,7 @@ if __name__ == '__main__':
                               #-70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta]    
     source = LAT[::-1, ...] + 0*LON + 0*TIME
     nas = NumpyArray(source=source, 
-                     native_coordinates=coord_src, interpolation='bilinear')
+                     native_coordinates=coord_src, interpolation='nearest')
     o = nas.execute(coord_dst)
     coord_pt = podpac.Coordinate(lat=10., lon=-67.)
     o2 = nas.execute(coord_pt)
