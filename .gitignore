@@ -1,2 +1,3 @@
 *.pyc
 podpac.egg-info/
+podpac/cache/
