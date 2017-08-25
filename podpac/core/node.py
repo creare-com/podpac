@@ -1,5 +1,6 @@
 from __future__ import division, print_function, absolute_import
 
+import os
 import operator
 import xarray as xr
 import numpy as np
@@ -9,7 +10,10 @@ import matplotlib.pyplot as plt
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
+import cPickle
+
 #import podpac.core.coordinate
+from podpac import settings
 
 class UnitsNode(tl.TraitType):      
     info_text = "A UnitDataArray with specified dimensionality"
@@ -151,6 +155,8 @@ class Node(tl.HasTraits):
     params = tl.Dict(default_value=None, allow_none=True)
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
+    cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)    
+    
     style = tl.Instance(Style)
     @tl.default('style')
     def _style_default(self):
@@ -330,7 +336,30 @@ class Node(tl.HasTraits):
             self.output.plot()
         if show:
             plt.show()
-
+            
+    @property
+    def cache_dir(self):
+        basedir = settings.CACHE_DIR
+        subdir = str(self.__class__)[8:-2].split('.')
+        dirs = [basedir] + subdir
+        return os.path.join(*dirs)
+    
+    def cache_path(self, filename):
+        pre = str(self.source).replace('/', '_').replace('\\', '_').replace(':', '_')
+        return os.path.join(self.cache_dir, pre  + '_' + filename)
+    
+    def cache_obj(self, obj, filename):
+        path = self.cache_path(filename)
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
+        with open(path, 'wb') as fid:
+            cPickle.dump(obj, fid, protocol=cPickle.HIGHEST_PROTOCOL)
+            
+    def load_cached_obj(self, filename):
+        path = self.cache_path(filename)
+        with open(path, 'rb') as fid:
+            obj = cPickle.load(fid)
+        return obj
 
 if __name__ == "__main__":
     a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
