@@ -101,11 +101,28 @@ class Coord(tl.HasTraits):
                 val = (float(val[0]),) + tuple(val[1:])
             if isinstance(val[1], int):
                     val = (val[0], float(val[1])) + tuple(val[2:])
+            if stacked > 1:
+                newval0 = []
+                for v in val[0]:
+                    newval0.append(float(v))
+                newval1 = []
+                for v in val[1]:
+                    newval1.append(float(v))                
+                val = (tuple(newval0), tuple(newval1), val[2])
+                
         
         if regularity == 'irregular':
-            if val.size == 1:  # This should actually be single
+            if len(val) == 1:  # This should actually be single
                 val = np.atleast_1d(val)[0]
         return val
+
+    def __init__(self, *args, **kwargs):
+        """
+        bounds is for fence-specification with non-uniform coordinates
+        """
+        if kwargs.get('coords') is None:
+            kwargs['coords'] = args
+        super(Coord, self).__init__(**kwargs)
 
     @property
     def stacked(self):
@@ -145,7 +162,7 @@ class Coord(tl.HasTraits):
         if isinstance(coords, (list, tuple)):
             if len(coords) == 1:  # Single stacked coordinate
                 return 'single'
-            if np.all([isinstance(c, np.ndarray) for c in coords]):
+            elif np.all([isinstance(c, np.ndarray) for c in coords]):
                 return 'irregular'
             elif np.all([isinstance(c, xr.DataArray) for c in coords]):
                 return 'dependent'
@@ -211,7 +228,9 @@ class Coord(tl.HasTraits):
                 extents = self.extents
             elif self.regularity != 'single':
                 p = self.segment_position
-                extents += np.array([-p, 1 - p]) * self.delta
+                expands = np.array([-p, 1 - p])[:, None] * self.delta[None, :]
+                # for stacked coodinates
+                extents += expands.squeeze()
         return extents
         
     _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
@@ -224,20 +243,26 @@ class Coord(tl.HasTraits):
             # Arbitrary
             if isinstance(self.coords, np.datetime64):
                 dtype = self.coords - self.coords
-                self._cached_delta = np.array(1, dtype=dtype)
+                self._cached_delta = np.atleast_1d(1, dtype=dtype)
             else:
-                self._cached_delta = np.array(np.sqrt(np.finfo(np.float32).eps))  
+                self._cached_delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))  
         elif self.regularity == 'regular':
             if isinstance(self.coords[2], int):
-                self._cached_delta = np.array(\
+                self._cached_delta = np.atleast_1d(\
                     (np.array(self.coords[1]) - np.array(self.coords[0]))\
                     / (self.coords[2] - 1.) * (1 - 2 * self.is_max_to_min))
             else:
-                self._cached_delta = np.array(self.coords[2:3])
+                self._cached_delta = np.atleast_1d(self.coords[2:3])
         elif self.regularity == 'irregular':
             print("Warning: delta is not representative for irregular coords")
-            self._cached_delta = np.atleast_1d(
-                (self.coords[1] - self.coords[0])*(1 - 2 * self.is_max_to_min))
+            if self.stacked == 1:
+                self._cached_delta = np.atleast_1d(
+                    (self.coords[1] - self.coords[0])*(1 - 2 * self.is_max_to_min))
+            else:
+                self._cached_delta = np.atleast_1d([
+                    (c[1] - c[0])*(1 - 2 * m2m) 
+                    for c, m2m in zip(self.coords, self.is_max_to_min)]) 
+                    
         else:
             print("Warning: delta probably doesn't work for stacked dependent coords")
             self._cached_delta = np.array([
@@ -258,7 +283,12 @@ class Coord(tl.HasTraits):
             self._cached_coords = np.atleast_1d(coords)
         elif regularity == 'regular':
             N = self.size
-            self._cached_coords = np.linspace(self.coords[0], self.coords[1], N)
+            if self.stacked == 1:
+                self._cached_coords = np.linspace(self.coords[0], self.coords[1], N)
+            else:
+                self._cached_coords = \
+                    tuple([np.linspace(cs, ce, N) \
+                     for cs, ce in zip(self.coords[0], self.coords[1])])
         elif regularity in ['irregular', 'dependent']:
             self._cached_coords = coords
             
@@ -278,7 +308,7 @@ class Coord(tl.HasTraits):
             if self.stacked == 1:
                 N = self.coords.size
             else:
-                N = self.coord[0].size
+                N = self.coords[0].size
         return int(N)
         
     @tl.observe('extents', 'ctype', 'segment_position')
@@ -380,11 +410,21 @@ class Coord(tl.HasTraits):
         if self.regularity == 'regular':
             return self.coords[0] > self.coords[1]
         elif self.regularity == 'irregular':
-            if isinstance(self.coords[0], np.datetime64):
-                return self.coords[0] > self.coords[-1]
+            if self.stacked == 1:
+                if isinstance(self.coords[0], np.datetime64):
+                    return self.coords[0] > self.coords[-1]
+                else:
+                    non_nan_coords = self.coords[np.isfinite(self.coords)]
+                    return non_nan_coords[0] > non_nan_coords[-1]
             else:
-                non_nan_coords = self.coords[np.isfinite(self.coords)]
-                return non_nan_coords[0] > non_nan_coords[-1]
+                m2m = []
+                for c in self.coords:
+                    if isinstance(c, np.datetime64):
+                        m2m.append(c[0] > c[-1])
+                    else:
+                        non_nan_coords = c[np.isfinite(c)]
+                        m2m.append(non_nan_coords[0] > non_nan_coords[-1])
+                return np.array(m2m) 
         elif self.regularity == 'dependent':
             return np.array(self.coords).ravel()[0] > np.array(self.coords).ravel()[-1] 
         else:
@@ -555,7 +595,15 @@ class Coordinate(tl.HasTraits):
     
     @property
     def coords(self):
-        return {k: v.coordinates for k, v in self._coords.iteritems()}
+        crds = {}
+        for k, v in self._coords.iteritems():
+            if v.stacked == 1:
+                crds[k] = v
+            else:
+                dtype = [(str(kk), np.float64) for kk in k.split('_')]
+                crds[k] = np.column_stack(v.coordinates).astype(np.float64)
+                crds[k] = crds[k].view(dtype=dtype).squeeze()
+        return crds
     
     #@property
     #def gdal_transform(self):
@@ -578,21 +626,32 @@ class Coordinate(tl.HasTraits):
     
             
 if __name__ == '__main__':
-    coord = Coordinate(lat=xr.DataArray(
-        np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
-                  dims=['lat', 'lon']),
-                       lon=xr.DataArray(
-        np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
-                dims=['lat', 'lon'])  )
-    c = coord.intersect(coord)    
+    #coord = Coordinate(lat=xr.DataArray(
+        #np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
+                  #dims=['lat', 'lon']),
+                       #lon=xr.DataArray(
+        #np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
+                #dims=['lat', 'lon'])  )
+    #c = coord.intersect(coord)    
     
-    coord = Coord(coords=(1, 10, 10))
-    coord_left = Coord(coords=(-2, 7, 10))
-    coord_right = Coord(coords=(4, 13, 10))
-    coord_cent = Coord(coords=(4, 7, 4))
-    coord_cover = Coord(coords=(-2, 13, 15))
+    #coord = Coord(coords=(1, 10, 10))
+    #coord_left = Coord(coords=(-2, 7, 10))
+    #coord_right = Coord(coords=(4, 13, 10))
+    #coord_cent = Coord(coords=(4, 7, 4))
+    #coord_cover = Coord(coords=(-2, 13, 15))
     
-    c = coord.intersect(coord_left)
-    c = coord.intersect(coord_right)
-    c = coord.intersect(coord_cent)
+    #c = coord.intersect(coord_left)
+    #c = coord.intersect(coord_right)
+    #c = coord.intersect(coord_cent)
+    
+    cus = Coord(0, 2, 5)
+    cus.area_bounds    
+    c = Coord((0, 1, 2), (0, -1, -2), 5)
+    c.area_bounds
+    c.coordinates
+    
+    ci = Coord(coords=(np.linspace(0, 1, 5), np.linspace(0, 2, 5), np.linspace(1, 3, 5)))
+    ci.area_bounds
+    cc = Coordinate(lat_lon_alt=ci)
+    d = xr.DataArray(np.random.rand(5), dims=cc.dims, coords=cc.coords)
     print('Done')

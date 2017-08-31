@@ -16,6 +16,7 @@ class TestCoordCreation(unittest.TestCase):
                                           np.array(coord.bounds))        
         self.assertEqual(coord.stacked, 1)
         self.assertEqual(coord.regularity, 'single')
+        coord.area_bounds
     
     def test_single_stacked_coord(self):
         coord = Coord(coords=[(0.25, 0.5, 1.2)])
@@ -23,6 +24,7 @@ class TestCoordCreation(unittest.TestCase):
                                       np.array(coord.bounds))
         self.assertEqual(coord.stacked, 3)
         self.assertEqual(coord.regularity, 'single')    
+        coord.area_bounds
     
     def test_unstacked_regular(self):
         coord = Coord(coords=(0, 1, 4))
@@ -45,6 +47,7 @@ class TestCoordCreation(unittest.TestCase):
                                           np.array(coord.bounds))        
         self.assertEqual(coord.stacked, 1)
         self.assertEqual(coord.regularity, 'regular')
+        coord.area_bounds
         
     def test_unstacked_irregular(self):
         coord = Coord(coords=np.linspace(0, 1, 4))
@@ -52,6 +55,7 @@ class TestCoordCreation(unittest.TestCase):
                                           np.array(coord.bounds))        
         self.assertEqual(coord.stacked, 1)
         self.assertEqual(coord.regularity, 'irregular')
+        coord.area_bounds
         
     def test_unstacked_dependent(self):
         coord = Coord(coords=xr.DataArray(
@@ -61,6 +65,7 @@ class TestCoordCreation(unittest.TestCase):
                                           np.array(coord.bounds))        
         self.assertEqual(coord.stacked, 1)
         self.assertEqual(coord.regularity, 'dependent')
+        coord.area_bounds
         
     def test_stacked_regular(self):
         coord = Coord(coords=((0, 0), (1, -1), 4))
@@ -83,6 +88,7 @@ class TestCoordCreation(unittest.TestCase):
                                           np.array(coord.bounds))        
         self.assertEqual(coord.stacked, 2)
         self.assertEqual(coord.regularity, 'regular')                
+        coord.area_bounds
         
     def test_stacked_irregular(self):
         coord = Coord(coords=np.column_stack((np.linspace(0, 1, 4),
@@ -91,6 +97,14 @@ class TestCoordCreation(unittest.TestCase):
                                           np.array(coord.bounds))        
         self.assertEqual(coord.stacked, 2)
         self.assertEqual(coord.regularity, 'irregular')
+        
+        coord = Coord(coords=(np.linspace(0, 1, 4), np.linspace(0, -1, 4)))
+        np.testing.assert_array_equal(np.array(coord.intersect(coord).bounds),
+                                          np.array(coord.bounds))        
+        self.assertEqual(coord.stacked, 2)
+        self.assertEqual(coord.regularity, 'irregular')
+        
+        coord.area_bounds
         
     def test_stacked_dependent(self):
         coord = Coord(coords=[
@@ -113,8 +127,8 @@ class TestCoordCreation(unittest.TestCase):
                                           np.array(coord.bounds))        
         self.assertEqual(coord.stacked, 2)
         self.assertEqual(coord.regularity, 'dependent')                
+        coord.area_bounds
         
-
 class TestCoordIntersection(unittest.TestCase):
     def test_regular(self):
         coord = Coord(coords=(1, 10, 10))
