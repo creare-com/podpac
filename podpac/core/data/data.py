@@ -85,7 +85,7 @@ class DataSource(Node):
             data_dst[:] = data_src
             return data_dst
         
-        # Raster to Raster interpolation from regular grids
+        # Raster to Raster interpolation from regular grids to regular grids
         rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
                             'lanczos', 'average', 'mode', 'gauss', 'max', 'min',
                             'med', 'q1', 'q3']         
@@ -101,14 +101,27 @@ class DataSource(Node):
                 and coords_dst['lon'].regularity in rasterio_regularity:
             return self.rasterio_interpolation(data_src, coords_src,
                                                data_dst, coords_dst)
+        # Raster to Raster interpolation from irregular grids to arbitrary grids
         elif ('lat' in coords_src.dims 
                 and 'lon' in coords_src.dims) \
                 and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)\
-                and coords_src['lat'].regularity in ['irregular'] \
-                and coords_src['lon'].regularity in ['irregular']:
+                and coords_src['lat'].regularity in ['irregular', 'regular'] \
+                and coords_src['lon'].regularity in ['irregular', 'regular']:
             return self.interpolate_irregular_grid(data_src, coords_src,
-                                                   data_dst, coords_dst)
-        
+                                                   data_dst, coords_dst,
+                                                   grid=True)
+        # Raster to lat_lon point interpolation
+        elif ('lat' in coords_src.dims 
+                and 'lon' in coords_src.dims) \
+                and coords_src['lat'].regularity in ['irregular', 'regular'] \
+                and coords_src['lon'].regularity in ['irregular', 'regular'] \
+                and (np.any(['lat_lon' in d for d in coords_dst.dims]) or
+                     np.any(['lon_lat' in d for d in coords_dst.dims])):
+            coords_dst_us = coords_dst.unstack()
+            return self.interpolate_irregular_grid(data_src, coords_src,
+                                                   data_dst, coords_dst_us,
+                                                   grid=False)            
+            
     def _loop_helper(self, func, keep_dims, data_src, coords_src,
                      data_dst, coords_dst,
                      **kwargs):
@@ -175,11 +188,12 @@ class DataSource(Node):
         return data_dst
             
     def interpolate_irregular_grid(self, data_src, coords_src,
-                                   data_dst, coords_dst):
+                                   data_dst, coords_dst, grid=True):
         if len(data_src.dims) > 2:
             keep_dims = ['lat', 'lon']
             return self._loop_helper(self.interpolate_irregular_grid, keep_dims, 
-                                     data_src, coords_src, data_dst, coords_dst)
+                                     data_src, coords_src, data_dst, coords_dst,
+                                     grid=grid)
         elif 'lat' not in data_src.dims or 'lon' not in data_src.dims:
             raise ValueError
         
@@ -209,9 +223,13 @@ class DataSource(Node):
             f = RegularGridInterpolator([lat, lon], data,
                                         method=interp.replace('bi', ''), 
                                         bounds_error=False, fill_value=np.nan)
-            x, y = np.meshgrid(coords_dst['lon'].coordinates,
-                               coords_dst['lat'].coordinates)
-            data_dst.data[:] = f((y.ravel(), x.ravel())).reshape(coords_dst.shape)
+            if grid:
+                x, y = np.meshgrid(coords_dst['lon'].coordinates,
+                                   coords_dst['lat'].coordinates)
+            else:
+                x = coords_dst['lon'].coordinates
+                y = coords_dst['lat'].coordinates                
+            data_dst.data[:] = f((y.ravel(), x.ravel())).reshape(data_dst.shape)
         elif 'spline' in interp:
             if interp == 'cubic_spline':
                 order = 3
@@ -222,6 +240,7 @@ class DataSource(Node):
                                     kx=max(1, order), 
                                     ky=max(1, order))
             data_dst.data[:] = f(coords_dst.coords['lat'],
-                                 coords_dst.coords['lon'], grid=True)
+                                 coords_dst.coords['lon'],
+                                 grid=grid).reshape(data_dst.shape)
         return data_dst
     

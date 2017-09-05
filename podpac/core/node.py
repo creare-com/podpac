@@ -164,15 +164,21 @@ class Node(tl.HasTraits):
     
     @property
     def shape(self):
+        # Changes here likely will also require changes in initialize_output_array
         ev = self.evaluated_coordinates
         nv = self.native_coordinates
         if ev is not None:
+            stacked = ev.stacked_coords
+            stack_dict = {c: True for c, v in ev._coords.iteritems() if v.stacked != 1}
             if nv is not None:
                 shape = []
                 for c in nv.coords:
                     if c in ev.coords:
                         shape.append(ev[c].size)
-                    else:
+                    elif c in stacked and stack_dict[stacked[c]]:
+                        shape.append(ev[stacked[c]].size)
+                        stack_dict[stacked[c]] = False
+                    elif c not in stacked:
                         shape.append(nv[c].size)
             else:
                 shape = ev.shape
@@ -225,11 +231,18 @@ class Node(tl.HasTraits):
     def initialize_output_array(self, init_type='empty', fillval=0, style=None,
                               no_style=False, shape=None, coords=None,
                               dims=None, units=None, dtype=np.float, **kwargs):
-        if coords is None: coords = self.evaluated_coordinates.coords
+        # Changes here likely will also require changes in shape
+        if coords is None: 
+            coords = self.evaluated_coordinates.coords
+            stacked_coords = self.evaluated_coordinates.stacked_coords
+        else: 
+            stacked_coords = Coordinate.get_stacked_coord_dict(coords)
         if not isinstance(coords, dict): coords = dict(coords)
         if dims is None:
             if self.native_coordinates is not None:
                 dims = self.native_coordinates.dims
+                dims = [stacked_coords.get(d, d) for d in dims]
+                dims = [d for i, d in enumerate(dims) if d not in dims[:i]]
             else:
                 dims = coords.keys()
         if self.native_coordinates is not None:
@@ -237,6 +250,8 @@ class Node(tl.HasTraits):
             for c in self.native_coordinates.coords:
                 if c in coords:
                     crds[c] = coords[c]
+                elif c in stacked_coords:
+                    crds[stacked_coords[c]] = coords[stacked_coords[c]]
                 else:
                     crds[c] = self.native_coordinates.coords[c]
         else:

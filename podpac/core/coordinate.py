@@ -11,7 +11,8 @@ from pint import UnitRegistry
 ureg = UnitRegistry()
 import podpac
 
-# TODO: What to do about coord that is not monotonic? Decreases instead of increases?
+# TODO: Perhaps, Coord should not deal with stacking, and leave that 
+#       functionality to Coordinate instead
 
 class CoordinateException(Exception):
     pass
@@ -230,7 +231,7 @@ class Coord(tl.HasTraits):
                 p = self.segment_position
                 expands = np.array([-p, 1 - p])[:, None] * self.delta[None, :]
                 # for stacked coodinates
-                extents += expands.squeeze()
+                extents += expands.reshape(extents.shape)
         return extents
         
     _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
@@ -351,9 +352,10 @@ class Coord(tl.HasTraits):
                 I = [int(min(self.size, max(0, min_max_i[0] - pad))),
                      int(min(self.size, max(0, self.size - min_max_i[1] + pad)))]
                 return I
-            min_max = [self.bounds[0] + max(0, min_max_i[0] - pad) * self.delta,
+            min_max = [max(self.bounds[0],
+                           self.bounds[0] + max(0, min_max_i[0] - pad) * self.delta),
                        min(self.bounds[1],
-                        self.bounds[1] - (min_max_i[1] - pad) * self.delta)]
+                        self.bounds[1] - max(0, min_max_i[1] - pad) * self.delta)]
             if self.is_max_to_min:
                 min_max = min_max[::-1]
             
@@ -598,7 +600,7 @@ class Coordinate(tl.HasTraits):
         crds = {}
         for k, v in self._coords.iteritems():
             if v.stacked == 1:
-                crds[k] = v
+                crds[k] = v.coordinates
             else:
                 dtype = [(str(kk), np.float64) for kk in k.split('_')]
                 crds[k] = np.column_stack(v.coordinates).astype(np.float64)
@@ -623,6 +625,30 @@ class Coordinate(tl.HasTraits):
         crs = {'WGS84': 'EPSG:4326',
                'SPHER_MERC': 'EPSG:3857'}
         return crs[self.coord_ref_sys.upper()]
+    
+    def unstack(self):
+        new_crds = OrderedDict()
+        for k, v in self._coords.iteritems():
+            if v.stacked == 1:
+                new_crds[k] = v
+            else:
+                for i, kk in enumerate(k.split('_')):
+                    new_crds[kk] = self._coords[k].coordinates[i]
+
+        return self.__class__(new_crds, **self.kwargs) 
+    
+    @staticmethod
+    def get_stacked_coord_dict(coords):
+        stacked_coords = {}
+        for c in coords:
+            if '_' in c:
+                for cc in c.split('_'):
+                    stacked_coords[cc] = c        
+        return stacked_coords        
+    
+    @property
+    def stacked_coords(self):
+        return Coordinate.get_stacked_coord_dict(self._coords)
     
             
 if __name__ == '__main__':
@@ -654,4 +680,10 @@ if __name__ == '__main__':
     ci.area_bounds
     cc = Coordinate(lat_lon_alt=ci)
     d = xr.DataArray(np.random.rand(5), dims=cc.dims, coords=cc.coords)
+    cc2 = Coordinate(lat_lon_alt=c)
+    d2 = xr.DataArray(np.random.rand(5), dims=cc2.dims, coords=cc2.coords)
+    
+    ccus = cc.unstack()
+    cc2us = cc2.unstack()
+    
     print('Done')

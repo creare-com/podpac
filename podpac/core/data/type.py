@@ -56,16 +56,18 @@ class PyDAP(podpac.DataSource):
         return d
         
 if __name__ == '__main__':
-    coord_src = podpac.Coordinate(lat=(45, 0, 15), lon=(-70., -65., 15), time=(0, 1, 2))
+    coord_src = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2))
     coord_dst = podpac.Coordinate(lat=(50., 0., 50), lon=(-71., -66., 100))
-    LAT, LON, TIME = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
-                            -70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta,
-                            0:2:1]
+    LON, LAT, TIME = np.meshgrid(coord_src['lon'].coordinates,
+                                  coord_src['lat'].coordinates,
+                                  coord_src['time'].coordinates)
     #LAT, LON = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
                               #-70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta]    
-    source = LAT[::-1, ...] + 0*LON + 0*TIME
-    nas = NumpyArray(source=source, 
-                     native_coordinates=coord_src, interpolation='nearest')
+    source = LAT + 0*LON + 0*TIME
+    nas = NumpyArray(source=source.astype(float), 
+                     native_coordinates=coord_src, interpolation='bilinear')
+    coord_pts = podpac.Coordinate(lat_lon=(coord_src.coords['lat'], coord_src.coords['lon']))
+    o3 = nas.execute(coord_pts)
     o = nas.execute(coord_dst)
     coord_pt = podpac.Coordinate(lat=10., lon=-67.)
     o2 = nas.execute(coord_pt)
