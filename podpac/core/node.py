@@ -2,6 +2,7 @@ from __future__ import division, print_function, absolute_import
 
 import os
 import operator
+from collections import OrderedDict
 import xarray as xr
 import numpy as np
 import traitlets as tl
@@ -169,7 +170,7 @@ class Node(tl.HasTraits):
         nv = self.native_coordinates
         if ev is not None:
             stacked = ev.stacked_coords
-            stack_dict = {c: True for c, v in ev._coords.iteritems() if v.stacked != 1}
+            stack_dict = OrderedDict([(c, True) for c, v in ev._coords.iteritems() if v.stacked != 1])
             if nv is not None:
                 shape = []
                 for c in nv.coords:
@@ -228,7 +229,7 @@ class Node(tl.HasTraits):
         """
         raise NotImplementedError
     
-    def initialize_output_array(self, init_type='empty', fillval=0, style=None,
+    def initialize_output_array(self, init_type='nan', fillval=0, style=None,
                               no_style=False, shape=None, coords=None,
                               dims=None, units=None, dtype=np.float, **kwargs):
         # Changes here likely will also require changes in shape
@@ -246,7 +247,7 @@ class Node(tl.HasTraits):
             else:
                 dims = coords.keys()
         if self.native_coordinates is not None:
-            crds = {}
+            crds = OrderedDict()
             for c in self.native_coordinates.coords:
                 if c in coords:
                     crds[c] = coords[c]
@@ -259,7 +260,7 @@ class Node(tl.HasTraits):
         return self.initialize_array(init_type, fillval, style, no_style, shape,
                                      crds, dims, units, dtype, **kwargs)
     
-    def initialize_coord_array(self, coords, init_type='empty', fillval=0, 
+    def initialize_coord_array(self, coords, init_type='nan', fillval=0, 
                                style=None, no_style=False, units=None,
                                dtype=np.float, **kwargs):
         return self.initialize_array(init_type, fillval, style, no_style, 
@@ -267,7 +268,7 @@ class Node(tl.HasTraits):
                                      units, dtype, **kwargs)
     
 
-    def initialize_array(self, init_type='empty', fillval=0, style=None,
+    def initialize_array(self, init_type='nan', fillval=0, style=None,
                               no_style=False, shape=None, coords=None,
                               dims=None, units=None, dtype=np.float,  **kwargs):
         """Initialize output data array
@@ -276,8 +277,8 @@ class Node(tl.HasTraits):
         -----------
         init_type : str, optional
             How to initialize the array. Options are:
-                empty : uses np.empty (Default option)
-                nan  : uses np.full(..., np.nan)
+                nan: uses np.full(..., np.nan) (Default option)
+                empty: uses np.empty 
                 zeros: uses np.zeros()
                 ones: uses np.ones
                 full: uses np.full(..., fillval)

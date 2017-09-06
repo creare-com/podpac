@@ -49,6 +49,13 @@ class TestCoordCreation(unittest.TestCase):
         self.assertEqual(coord.regularity, 'regular')
         coord.area_bounds
         
+        coord = Coord(coords=[np.array([0]), np.array([1]), np.array([1/4])])
+        np.testing.assert_array_equal(np.array(coord.intersect(coord).bounds),
+                                          np.array(coord.bounds))        
+        self.assertEqual(coord.stacked, 1)
+        self.assertEqual(coord.regularity, 'regular')
+        coord.area_bounds        
+        
     def test_unstacked_irregular(self):
         coord = Coord(coords=np.linspace(0, 1, 4))
         np.testing.assert_array_equal(np.array(coord.intersect(coord).bounds),
@@ -151,55 +158,68 @@ class TestCoordIntersection(unittest.TestCase):
         
 class TestCoordinateCreation(unittest.TestCase):
     def test_single_coord(self):
-        coord = Coordinate(lat=0.25, lon=0.3)
+        coord = Coordinate(lat=0.25, lon=0.3, 
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
     
     def test_single_stacked_coord(self):
-        coord = Coordinate(lat=[(0.25, 0.5, 1.2)], lon=[(0.25, 0.5, 1.2)])
+        coord = Coordinate(lat=[(0.25, 0.5, 1.2)], lon=[(0.25, 0.5, 1.2)],
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
     
     def test_unstacked_regular(self):
-        coord = Coordinate(lat=(0, 1, 4), lon=(0, 1, 4))
+        coord = Coordinate(lat=(0, 1, 4), lon=(0, 1, 4), 
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=[0, 1, 4], lon=[0, 1, 4])
+        coord = Coordinate(lat=[0, 1, 4], lon=[0, 1, 4], 
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=(0, 1, 1/4), lon=(0, 1, 1/4))
+        coord = Coordinate(lat=(0, 1, 1/4), lon=(0, 1, 1/4), 
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=[0, 1, 1/4], lon=[0, 1, 1/4])
+        coord = Coordinate(lat=[0, 1, 1/4], lon=[0, 1, 1/4], 
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         
     def test_unstacked_irregular(self):
-        coord = Coordinate(lat=np.linspace(0, 1, 4), lon=np.linspace(0, 1, 4))
+        coord = Coordinate(lat=np.linspace(0, 1, 4), lon=np.linspace(0, 1, 4),
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         
     def test_unstacked_dependent(self):
-        coord = Coordinate(lat=xr.DataArray(
-            np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
-                      dims=['lat', 'lon']),
-                           lon=xr.DataArray(
-            np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
-                    dims=['lat', 'lon'])                           )
+        coord = Coordinate(
+            lat=xr.DataArray(
+                np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
+                dims=['lat', 'lon']),
+            lon=xr.DataArray(
+                np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
+                dims=['lat', 'lon']),
+            order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         
     def test_stacked_regular(self):
-        coord = Coordinate(lat=((0, 0), (1, -1), 4), lon=((0, 0), (1, -1), 4))
+        coord = Coordinate(lat=((0, 0), (1, -1), 4), lon=((0, 0), (1, -1), 4),
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=[(0, 0), (1, -1), 4], lon=[(0, 0), (1, -1), 4])
+        coord = Coordinate(lat=[(0, 0), (1, -1), 4], lon=[(0, 0), (1, -1), 4],
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=((0, 0), (1, -1), 1/4), lon=((0, 0), (1, -1), 1/4))
+        coord = Coordinate(lat=((0, 0), (1, -1), 1/4), lon=((0, 0), (1, -1), 1/4),
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=[(0, 0), (1, -1), 1/4], lon=[(0, 0), (1, -1), 1/4])
+        coord = Coordinate(lat=[(0, 0), (1, -1), 1/4], lon=[(0, 0), (1, -1), 1/4],
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         
@@ -207,34 +227,39 @@ class TestCoordinateCreation(unittest.TestCase):
         coord = Coordinate(lat=np.column_stack((np.linspace(0, 1, 4),
                                               np.linspace(0, -1, 4))),
                            lon=np.column_stack((np.linspace(0, 1, 4),
-                                              np.linspace(0, -1, 4))))
+                                              np.linspace(0, -1, 4))),
+                           order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         
     def test_stacked_dependent(self):
-        coord = Coordinate(lat=[
-            xr.DataArray(
+        coord = Coordinate(
+            lat=[
+                xr.DataArray(
                          np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0],
                          dims=['lat-lon', 'time']), 
-            xr.DataArray(
+                xr.DataArray(
                     np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[1],
                              dims=['lat-lon', 'time'])        
-                               ], 
-                           lon=[
-            xr.DataArray(
-                         np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0],
-                         dims=['lat-lon', 'time']), 
-            xr.DataArray(
+                ], 
+            lon=[
+                xr.DataArray(
+                    np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0],
+                    dims=['lat-lon', 'time']), 
+                xr.DataArray(
                     np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[1],
-                             dims=['lat-lon', 'time'])        
-        ])
+                    dims=['lat-lon', 'time']),
+                
+                ], 
+            order=['lat', 'lon'])
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=
-            xr.DataArray(np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5)),
-                         dims=['stack', 'lat-lon', 'time']), 
+        coord = Coordinate(
+            lat=xr.DataArray(np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5)),
+                             dims=['stack', 'lat-lon', 'time']), 
             lon=xr.DataArray(np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5)),
                          dims=['stack', 'lat-lon', 'time']), 
+            order=['lat', 'lon']
         )
         np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        

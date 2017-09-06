@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import numbers
 import copy
+import sys
 
 import xarray as xr
 import numpy as np
@@ -98,9 +99,9 @@ class Coord(tl.HasTraits):
 
         # enforce floating point coordinates in some cases
         if regularity == 'regular':
-            if isinstance(val[0], int):
+            if isinstance(val[0], (int, np.ndarray)):
                 val = (float(val[0]),) + tuple(val[1:])
-            if isinstance(val[1], int):
+            if isinstance(val[1], (int, np.ndarray)):
                     val = (val[0], float(val[1])) + tuple(val[2:])
             if stacked > 1:
                 newval0 = []
@@ -135,6 +136,10 @@ class Coord(tl.HasTraits):
         elif isinstance(coords, (list, tuple)):
             if len(coords) == 1:  # single stacked coordinate
                 return len(coords[0])
+            elif len(coords) == 3 and \
+                    np.all([isinstance(c, np.ndarray) for c in coords]) and \
+                    len(coords[2]) == 1 and len(coords[0]) == len(coords[1]):
+                return len(coords[0])
             elif np.all([isinstance(c, np.ndarray) for c in coords]) or \
                     np.all([isinstance(c, xr.DataArray) for c in coords]):
                 return len(coords)
@@ -163,6 +168,10 @@ class Coord(tl.HasTraits):
         if isinstance(coords, (list, tuple)):
             if len(coords) == 1:  # Single stacked coordinate
                 return 'single'
+            elif len(coords) == 3 and \
+                     np.all([isinstance(c, np.ndarray) for c in coords]) and \
+                     len(coords[2]) == 1 and len(coords[0]) == len(coords[1]):
+                return 'regular'
             elif np.all([isinstance(c, np.ndarray) for c in coords]):
                 return 'irregular'
             elif np.all([isinstance(c, xr.DataArray) for c in coords]):
@@ -193,8 +202,8 @@ class Coord(tl.HasTraits):
             self._cached_bounds = np.array(
                 [self.coords - self.delta, self.coords + self.delta]).squeeze()
         if self.regularity == 'regular':
-            self._cached_bounds = np.array([min(self.coords[:2]),
-                                           max(self.coords[:2])])
+            self._cached_bounds = np.array([np.min(self.coords[:2]),
+                                            np.max(self.coords[:2])]).squeeze()
         elif self.regularity == 'irregular':
             if isinstance(self.coords, (list, tuple)):
                 self._cached_bounds = np.array([
@@ -249,27 +258,27 @@ class Coord(tl.HasTraits):
                 self._cached_delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))  
         elif self.regularity == 'regular':
             if isinstance(self.coords[2], int):
-                self._cached_delta = np.atleast_1d(\
+                self._cached_delta = np.atleast_1d((\
                     (np.array(self.coords[1]) - np.array(self.coords[0]))\
-                    / (self.coords[2] - 1.) * (1 - 2 * self.is_max_to_min))
+                    / (self.coords[2] - 1.) * (1 - 2 * self.is_max_to_min)).squeeze())
             else:
-                self._cached_delta = np.atleast_1d(self.coords[2:3])
+                self._cached_delta = np.atleast_1d(np.array(self.coords[2:3]).squeeze())
         elif self.regularity == 'irregular':
             print("Warning: delta is not representative for irregular coords")
             if self.stacked == 1:
-                self._cached_delta = np.atleast_1d(
-                    (self.coords[1] - self.coords[0])*(1 - 2 * self.is_max_to_min))
+                self._cached_delta = np.atleast_1d(np.array(
+                    (self.coords[1] - self.coords[0])*(1 - 2 * self.is_max_to_min)).squeeze())
             else:
                 self._cached_delta = np.atleast_1d([
                     (c[1] - c[0])*(1 - 2 * m2m) 
-                    for c, m2m in zip(self.coords, self.is_max_to_min)]) 
+                    for c, m2m in zip(self.coords, self.is_max_to_min)]).squeeze()
                     
         else:
             print("Warning: delta probably doesn't work for stacked dependent coords")
             self._cached_delta = np.array([
-            self.coords[1] - self.coords[0],
-            self.coords[-1] - self.coords[-2]
-        ]) * (1 - 2 * self.is_max_to_min)
+                self.coords[1] - self.coords[0],
+                self.coords[-1] - self.coords[-2]
+            ]) * (1 - 2 * self.is_max_to_min).squeeze()
         return self._cached_delta
 
     _cached_coords = tl.Any(default_value=None, allow_none=True)
@@ -352,9 +361,9 @@ class Coord(tl.HasTraits):
                 I = [int(min(self.size, max(0, min_max_i[0] - pad))),
                      int(min(self.size, max(0, self.size - min_max_i[1] + pad)))]
                 return I
-            min_max = [max(self.bounds[0],
+            min_max = [np.maximum(self.bounds[0],
                            self.bounds[0] + max(0, min_max_i[0] - pad) * self.delta),
-                       min(self.bounds[1],
+                       np.minimum(self.bounds[1],
                         self.bounds[1] - max(0, min_max_i[1] - pad) * self.delta)]
             if self.is_max_to_min:
                 min_max = min_max[::-1]
@@ -478,13 +487,27 @@ class Coordinate(tl.HasTraits):
     coord_ref_sys = tl.CUnicode
     _coords = tl.Instance(OrderedDict)
     
-    def __init__(self, coords=None, coord_ref_sys="WGS84", 
+    def __init__(self, coords=None, coord_ref_sys="WGS84", order=None,
             segment_position=0.5, ctype='segment', **kwargs):
         """
         bounds is for fence-specification with non-uniform coordinates
+        
+        order is required for Python 2.x where the order of kwargs is not
+        preserved.
         """
         if coords is None:
-            coords = OrderedDict(kwargs)
+            if order is None and sys.version_info.major < 3 \
+                   and len(kwargs) > 1:
+                raise CoordinateException("Need to specify the order of the"
+                                          " coordinates 'using order'.")
+            if sys.version_info.major < 3:
+                coords = OrderedDict()
+                if len(kwargs) == 1 and order is None:
+                    order = kwargs.keys()
+                for k in order:
+                    coords[k] = kwargs[k]
+            else:
+                coords = OrderedDict(kwargs)
         for key, val in coords.iteritems():
             if not isinstance(val, Coord):
                 coords[key] = Coord(coords=val, ctype=ctype,
@@ -592,12 +615,16 @@ class Coordinate(tl.HasTraits):
         return [c.size for c in self._coords.values()]
     
     @property
+    def delta(self):
+        return np.array([c.delta for c in self._coords.values()]).squeeze()
+    
+    @property
     def dims(self):
         return self._coords.keys()
     
     @property
     def coords(self):
-        crds = {}
+        crds = OrderedDict()
         for k, v in self._coords.iteritems():
             if v.stacked == 1:
                 crds[k] = v.coordinates

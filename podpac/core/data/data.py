@@ -30,9 +30,9 @@ from podpac.core.node import Node, UnitsDataArray
 
 class DataSource(Node):
     source = tl.Any(allow_none=False, help="Path to the raw data source")
-    interpolation = tl.Enum(['nearest', 'bilinear', 'cubic', 'cubic_spline',
-                            'lanczos', 'average', 'mode', 'gauss', 'max', 'min',
-                            'med', 'q1', 'q3'],
+    interpolation = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
+                             'cubic_spline', 'lanczos', 'average', 'mode',
+                             'gauss', 'max', 'min', 'med', 'q1', 'q3'],
                             default_value='nearest')
     no_data_vals = tl.List(allow_none=True)
     
@@ -61,9 +61,33 @@ class DataSource(Node):
         pad = self.interpolation != 'nearest'
         coords_subset = self.native_coordinates.intersect(coordinates, pad=pad)
         coords_subset_slc = self.native_coordinates.intersect_ind_slice(coordinates, pad=pad)
-        if self.interpolate_data == 'nearest':
+        if self.interpolation == 'nearest_preview':
             # We can optimize a little
-            pass
+            new_coords = OrderedDict()
+            new_coords_slc = []
+            for i, d in enumerate(coords_subset.dims):
+                if coords_subset[d].regularity == 'regular':
+                    if d in coordinates.dims:
+                        ndelta = np.round(coordinates[d].delta /
+                                          coords_subset[d].delta)
+                        if ndelta <= 1:
+                            ndelta = coords_subset[d].delta
+                        coords = tuple(coords_subset[d].coords[:2]) \
+                            + (ndelta * coords_subset[d].delta,)
+                        new_coords[d] = coords
+                        new_coords_slc.append(
+                            slice(coords_subset_slc[i].start, 
+                                  coords_subset_slc[i].stop,
+                                  int(ndelta))
+                            )
+                    else:
+                        new_coords[d] = coords_subset[d]
+                        new_coords_slc.append(coords_subset_slc[i])
+                else:
+                    new_coords[d] = coords_subset[d]
+                    new_coords_slc.append(coords_subset_slc[i])                    
+            coords_subset = Coordinate(new_coords)
+            coords_subset_slc = new_coords_slc
         
         data = self.get_data(coords_subset, coords_subset_slc)
         
@@ -72,6 +96,8 @@ class DataSource(Node):
     def get_data(self, coordinates, coodinates_slice):
         """
         This should return an UnitsDataArray
+        coordinates and coordinates slice may be strided or subsets of the 
+        source data, but all coordinates will match 1:1 with the subset data
         """
         raise NotImplementedError
     
@@ -83,6 +109,16 @@ class DataSource(Node):
         # This a big switch, funneling data to various interpolation routines
         if data_src.size == 1 and np.prod(coords_dst.shape) == 1:
             data_dst[:] = data_src
+            return data_dst
+        
+        # Nearest preview of rasters
+        if self.interpolation == 'nearest_preview':
+            crd = OrderedDict()
+            for c in data_src.coords.keys():
+                crd[c] = data_dst.coords[c].sel(method=str('nearest'),
+                                                **{c: data_src.coords[c]}
+                                                )
+            data_dst.loc[crd] = data_src.data[:]
             return data_dst
         
         # Raster to Raster interpolation from regular grids to regular grids

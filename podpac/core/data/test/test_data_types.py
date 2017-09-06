@@ -11,7 +11,8 @@ class TestBasicInterpolation(unittest.TestCase):
     def setUp(self):
         self.coord_src = podpac.Coordinate(lat=(45, 0, 16),
                                            lon=(-70., -65., 16),
-                                           time=(0, 1, 2))
+                                           time=(0, 1, 2), 
+                                           order=['lat', 'lon', 'time'])
         LON, LAT, TIME = np.meshgrid(self.coord_src['lon'].coordinates,
                                      self.coord_src['lat'].coordinates,
                                      self.coord_src['time'].coordinates)        
@@ -28,7 +29,8 @@ class TestBasicInterpolation(unittest.TestCase):
                                     native_coordinates=self.coord_src, 
                                 interpolation='bilinear')        
     def test_raster_to_raster(self):
-        coord_dst = podpac.Coordinate(lat=(5., 40., 50), lon=(-68., -66., 100))
+        coord_dst = podpac.Coordinate(lat=(5., 40., 50), lon=(-68., -66., 100),
+                                      order=['lat', 'lon'])
         oLat = self.nasLat.execute(coord_dst)
         oLon = self.nasLon.execute(coord_dst)
         

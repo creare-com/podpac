@@ -51,7 +51,8 @@ class SMAPSource(datatype.PyDAP):
         lats[lats==self.no_data_vals[0]] = np.nan
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
-        coords = podpac.Coordinate(lat=lats, lon=lons, time=np.array(times))
+        coords = podpac.Coordinate(lat=lats, lon=lons, time=np.array(times), 
+                                   coord_order=['lat', 'lon', 'time'])
         self.cache_obj(coords, 'native.coordinates')
         return coords
         
@@ -150,7 +151,7 @@ class SMAP(datatype.PyDAP):
 if __name__ == '__main__':
     source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL3SMP.004/'
               '2015.04.11/SMAP_L3_SM_P_20150411_R14010_001.h5')
-    smap = SMAPSource(source=source)
+    smap = SMAPSource(source=source, interpolation='nearest_preview')
     coords = smap.native_coordinates
     print (coords)
     print (coords['time'].area_bounds)
@@ -163,7 +164,7 @@ if __name__ == '__main__':
     lat, lon = smap.native_coordinates.coords['lat'], smap.native_coordinates.coords['lon']
     lat = lat[::10][np.isfinite(lat[::10])]
     lon = lon[::10][np.isfinite(lon[::10])]
-    coords = podpac.Coordinate(lat=lat, lon=lon)
+    coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
     o = smap.execute(coords)    
     
     print ('Done')
