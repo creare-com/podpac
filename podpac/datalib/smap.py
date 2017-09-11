@@ -39,7 +39,7 @@ class SMAPSource(datatype.PyDAP):
         return rk + 'longitude'
 
     @tl.default('native_coordinates')
-    def set_native_coordinates(self):
+    def get_native_coordinates(self):
         if os.path.exists(self.cache_path('native.coordinates')):
             return self.load_cached_obj('native.coordinates')
         
@@ -99,7 +99,7 @@ class SMAP(datatype.PyDAP):
         return rk + 'longitude'
 
     @tl.default('native_coordinates')
-    def set_native_coordinates(self):
+    def get_native_coordinates(self):
         times = self.get_available_times()
         if self.source is None:
             source = self.get_fn_url(times[0])

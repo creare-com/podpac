@@ -37,13 +37,13 @@ class PyDAP(podpac.DataSource):
     def _update_dataset(self, change):
         if self.dataset is not None:
             self.dataset = self.open_dataset(change['new'])
-        self.native_coordinates = self.set_native_coordinates()
+        self.native_coordinates = self.get_native_coordinates()
     
     datakey = tl.Unicode(allow_none=False)
     native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
                                       allow_none=False)    
     @tl.default('native_coordinates')
-    def set_native_coordinates(self):
+    def get_native_coordinates(self):
         raise NotImplementedError("DAP has no mechanism for creating coordinates"
                                   ", so this is left up to child class "
                                   "implementations.")
