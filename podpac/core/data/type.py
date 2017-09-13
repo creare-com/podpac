@@ -13,6 +13,10 @@ try:
 except:
     pydap = None
     
+try:
+    import rasterio
+except:
+    rasterio = None
 # Internal dependencies
 import podpac
 
@@ -31,6 +35,8 @@ class PyDAP(podpac.DataSource):
     def open_dataset(self, source=None):
         if source is None:
             source = self.source
+        else:
+            self.source = source
         return pydap.client.open_url(source)
     
     @tl.observe('source')
@@ -54,6 +60,42 @@ class PyDAP(podpac.DataSource):
         d = self.initialize_coord_array(coordinates, 'data', 
                                         fillval=data.reshape(coordinates.shape))
         return d
+    
+class RasterioSource(podpac.DataSource):
+    source = tl.Unicode(allow_none=False)
+    
+    
+    dataset = tl.Instance('rasterio._io.RasterReader',
+                          allow_none=True)
+    @tl.default('dataset')
+    def open_dataset(self, source=None):
+        if source is None:
+            source = self.source
+        else:
+            self.source = source
+        return rasterio.open(source)
+    
+    @tl.observe('source')
+    def _update_dataset(self, change):
+        if self.dataset is not None:
+            self.dataset = self.open_dataset(change['new'])
+        self.native_coordinates = self.get_native_coordinates()
+    
+    native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
+                                      allow_none=False)    
+    @tl.default('native_coordinates')
+    def get_native_coordinates(self):
+        dlon, dlat = self.dataset.res
+        left, bottom, right, top = self.dataset.bounds
+        if self.dataset.transform[1] != 0.0 or\
+                self.dataset.transform[3] != 0.0:
+            raise NotImplementedError("Have not implemented rotated coords")
+        return podpac.Coordinate(lat=(top, bottom, dlat),
+                                 lon=(left, right, dlon))
+    
+    def get_data(self, coordinates, coodinates_slice):
+        return 
+
         
 if __name__ == '__main__':
     coord_src = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2))

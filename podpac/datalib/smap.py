@@ -52,7 +52,7 @@ class SMAPSource(datatype.PyDAP):
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
         coords = podpac.Coordinate(lat=lats, lon=lons, time=np.array(times), 
-                                   coord_order=['lat', 'lon', 'time'])
+                                   order=['lat', 'lon', 'time'])
         self.cache_obj(coords, 'native.coordinates')
         return coords
         
