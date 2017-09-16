@@ -45,8 +45,8 @@ class SMAPSource(datatype.PyDAP):
         
         times = self.get_available_times()
         ds = self.dataset
-        lons = ds[self.lonkey][:, :]
-        lats = ds[self.latkey][:, :]
+        lons = np.array(ds[self.lonkey][:, :])
+        lats = np.array(ds[self.latkey][:, :])
         lons[lons==self.no_data_vals[0]] = np.nan
         lats[lats==self.no_data_vals[0]] = np.nan
         lons = np.nanmean(lons, axis=0)
@@ -70,10 +70,10 @@ class SMAPSource(datatype.PyDAP):
             d = self.initialize_coord_array(coordinates, 'nan')
             am_key = self.rootdatakey + 'AM_' + self.layerkey
             pm_key = self.rootdatakey + 'PM_' + self.layerkey + '_pm'
-            d[dict(time=0)] = self.dataset[am_key][s]
-            d[dict(time=1)] = self.dataset[pm_key][s]
+            d[dict(time=0)] = np.array(self.dataset[am_key][s])
+            d[dict(time=1)] = np.array(self.dataset[pm_key][s])
         else:
-            data = self.dataset[self.datakey][s]
+            data = np.array(self.dataset[self.datakey][s])
             d = self.initialize_coord_array(coordinates, 'data', 
                                             fillval=data.reshape(coordinates.shape))
         return d    

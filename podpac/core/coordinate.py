@@ -68,7 +68,7 @@ class Coord(tl.HasTraits):
         try:
             stacked = self._stacked(val)
             regularity = self._regularity(val)
-        except Exception, e:
+        except Exception as e:
             raise CoordinateException("Unhandled error:" + str(e))
         
         if isinstance(val, (list, tuple)):
@@ -508,7 +508,7 @@ class Coordinate(tl.HasTraits):
                     coords[k] = kwargs[k]
             else:
                 coords = OrderedDict(kwargs)
-        for key, val in coords.iteritems():
+        for key, val in coords.items():
             if not isinstance(val, Coord):
                 coords[key] = Coord(coords=val, ctype=ctype,
                                     coord_ref_sys=coord_ref_sys, 
@@ -625,7 +625,7 @@ class Coordinate(tl.HasTraits):
     @property
     def coords(self):
         crds = OrderedDict()
-        for k, v in self._coords.iteritems():
+        for k, v in self._coords.items():
             if v.stacked == 1:
                 crds[k] = v.coordinates
             else:
@@ -655,7 +655,7 @@ class Coordinate(tl.HasTraits):
     
     def unstack(self):
         new_crds = OrderedDict()
-        for k, v in self._coords.iteritems():
+        for k, v in self._coords.items():
             if v.stacked == 1:
                 new_crds[k] = v
             else:
