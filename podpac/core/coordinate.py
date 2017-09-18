@@ -60,15 +60,18 @@ class Coord(tl.HasTraits):
     @tl.validate("coords")
     def _coords_validate(self, proposal):
         if not isinstance(proposal['value'],
-                          (tuple, list, np.ndarray, xr.DataArray, numbers.Number)):
+                          (tuple, list, np.ndarray, xr.DataArray, 
+                           numbers.Number, str, unicode, np.datetime64)):
             raise CoordinateException("Coords must be of type tuple, list, " 
-                                      "np.ndarray, or xr.DataArray")
+                                      "np.ndarray, xr.DataArray, str, or "
+                                      "np.datetime64, not " + 
+                                      str(type(proposal['value'])))
 
         val = proposal['value']
         try:
             stacked = self._stacked(val)
             regularity = self._regularity(val)
-        except Exception, e:
+        except Exception as e:
             raise CoordinateException("Unhandled error:" + str(e))
         
         if isinstance(val, (list, tuple)):
@@ -92,6 +95,8 @@ class Coord(tl.HasTraits):
             # These have to be checked in the coordinate object because the
             # dimension names are important.
             pass
+        elif isinstance(val, (str, unicode)):
+            val = np.datetime64(val)
         # Irregular spacing independent coordinates
         else:
             # No checks yet
@@ -131,7 +136,7 @@ class Coord(tl.HasTraits):
         return self._stacked(self.coords)
 
     def _stacked(self, coords):
-        if isinstance(coords, numbers.Number):
+        if isinstance(coords, (numbers.Number, str, np.datetime64, unicode)):
             return 1
         elif isinstance(coords, (list, tuple)):
             if len(coords) == 1:  # single stacked coordinate
@@ -184,7 +189,7 @@ class Coord(tl.HasTraits):
             return 'irregular'
         elif isinstance(coords, xr.DataArray):
             return 'dependent'
-        elif isinstance(coords, (numbers.Number, np.datetime64)):
+        elif isinstance(coords, (numbers.Number, np.datetime64, str, unicode)):
             return 'single'
         
         raise CoordinateException("Coord regularity '{}'".format(coords) + \
@@ -253,7 +258,7 @@ class Coord(tl.HasTraits):
             # Arbitrary
             if isinstance(self.coords, np.datetime64):
                 dtype = self.coords - self.coords
-                self._cached_delta = np.atleast_1d(1, dtype=dtype)
+                self._cached_delta = np.array([1], dtype=dtype.dtype)
             else:
                 self._cached_delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))  
         elif self.regularity == 'regular':
@@ -336,6 +341,10 @@ class Coord(tl.HasTraits):
             self._cached_delta = None
         
     def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+        """
+        Returns an Coord object if ind==False
+        Returns a list of start, stop coordinates if ind==True
+        """
         if self.units != other_coord.units:
             raise NotImplementedError("Still need to implement handling of "
                                               "different units")            
@@ -349,7 +358,10 @@ class Coord(tl.HasTraits):
             np.minimum(self.bounds[1], other_coord.bounds[1])        
             ]
         if np.any(ibounds[0] > ibounds[1]):
-            return []
+            if ind:
+                return [0, 0]
+            else:
+                return self.__class__(coords=(self.bounds[0], self.bounds[1], 0)) 
         if self.regularity == 'single':
             return self
         elif self.regularity == 'regular':
@@ -508,7 +520,7 @@ class Coordinate(tl.HasTraits):
                     coords[k] = kwargs[k]
             else:
                 coords = OrderedDict(kwargs)
-        for key, val in coords.iteritems():
+        for key, val in coords.items():
             if not isinstance(val, Coord):
                 coords[key] = Coord(coords=val, ctype=ctype,
                                     coord_ref_sys=coord_ref_sys, 
@@ -625,7 +637,7 @@ class Coordinate(tl.HasTraits):
     @property
     def coords(self):
         crds = OrderedDict()
-        for k, v in self._coords.iteritems():
+        for k, v in self._coords.items():
             if v.stacked == 1:
                 crds[k] = v.coordinates
             else:
@@ -655,7 +667,7 @@ class Coordinate(tl.HasTraits):
     
     def unstack(self):
         new_crds = OrderedDict()
-        for k, v in self._coords.iteritems():
+        for k, v in self._coords.items():
             if v.stacked == 1:
                 new_crds[k] = v
             else:

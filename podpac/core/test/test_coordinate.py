@@ -17,6 +17,21 @@ class TestCoordCreation(unittest.TestCase):
         self.assertEqual(coord.stacked, 1)
         self.assertEqual(coord.regularity, 'single')
         coord.area_bounds
+        
+    def test_single_time_coord(self):
+        coord = Coord(coords='2017-09-18')
+        np.testing.assert_array_equal(np.array(coord.intersect(coord).bounds),
+                                          np.array(coord.bounds))        
+        self.assertEqual(coord.stacked, 1)
+        self.assertEqual(coord.regularity, 'single')
+        coord.area_bounds    
+        
+        coord = Coord(coords=np.datetime64('2017-09-18'))
+        np.testing.assert_array_equal(np.array(coord.intersect(coord).bounds),
+                                          np.array(coord.bounds))        
+        self.assertEqual(coord.stacked, 1)
+        self.assertEqual(coord.regularity, 'single')
+        coord.area_bounds            
     
     def test_single_stacked_coord(self):
         coord = Coord(coords=[(0.25, 0.5, 1.2)])

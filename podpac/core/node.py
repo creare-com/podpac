@@ -11,7 +11,10 @@ import matplotlib.pyplot as plt
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
-import cPickle
+try:
+    import cPickle  # Python 2.7
+except:
+    import _pickle as cPickle
 
 #import podpac.core.coordinate
 from podpac import settings
@@ -170,7 +173,7 @@ class Node(tl.HasTraits):
         nv = self.native_coordinates
         if ev is not None:
             stacked = ev.stacked_coords
-            stack_dict = OrderedDict([(c, True) for c, v in ev._coords.iteritems() if v.stacked != 1])
+            stack_dict = OrderedDict([(c, True) for c, v in ev._coords.items() if v.stacked != 1])
             if nv is not None:
                 shape = []
                 for c in nv.coords:
@@ -369,7 +372,7 @@ class Node(tl.HasTraits):
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
         with open(path, 'wb') as fid:
-            cPickle.dump(obj, fid, protocol=cPickle.HIGHEST_PROTOCOL)
+            cPickle.dump(obj, fid)#, protocol=cPickle.HIGHEST_PROTOCOL)
             
     def load_cached_obj(self, filename):
         path = self.cache_path(filename)

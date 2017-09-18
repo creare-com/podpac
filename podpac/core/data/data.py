@@ -40,7 +40,12 @@ class DataSource(Node):
         coords, params, out = \
             self._execute_common(coordinates, params, output)
         
-        data_subset, coords_subset = self.get_data_subset(coords)
+        res = self.get_data_subset(coords)
+        if len(res) == 1:
+            self.output = res[0]
+            return self.output
+        
+        data_subset, coords_subset = res
         if self.no_data_vals:
             for ndv in self.no_data_vals:
                 data_subset.data[data_subset.data == ndv] = np.nan
@@ -56,11 +61,17 @@ class DataSource(Node):
         
     def get_data_subset(self, coordinates):
         """
-        This should return an UnitsDataArray, and A Coordinate object
+        This should return an UnitsDataArray, and A Coordinate object, unless
+        there is no intersection
         """
         pad = self.interpolation != 'nearest'
         coords_subset = self.native_coordinates.intersect(coordinates, pad=pad)
         coords_subset_slc = self.native_coordinates.intersect_ind_slice(coordinates, pad=pad)
+        
+        # If they do not intersect, we have a shortcut
+        if np.prod(coords_subset.shape) == 0:
+            return [self.initialize_coord_array(coordinates, init_type='nan')]
+
         if self.interpolation == 'nearest_preview':
             # We can optimize a little
             new_coords = OrderedDict()
