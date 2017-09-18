@@ -61,6 +61,11 @@ class DataSource(Node):
         pad = self.interpolation != 'nearest'
         coords_subset = self.native_coordinates.intersect(coordinates, pad=pad)
         coords_subset_slc = self.native_coordinates.intersect_ind_slice(coordinates, pad=pad)
+        
+        # If they do not intersect, we have a shortcut
+        if np.prod(coords_subset.shape) == 0:
+            return self.initialize_coord_array(coordinates, init_type='nan')
+
         if self.interpolation == 'nearest_preview':
             # We can optimize a little
             new_coords = OrderedDict()

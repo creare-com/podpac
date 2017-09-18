@@ -336,6 +336,10 @@ class Coord(tl.HasTraits):
             self._cached_delta = None
         
     def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+        """
+        Returns an Coord object if ind==False
+        Returns a list of start, stop coordinates if ind==True
+        """
         if self.units != other_coord.units:
             raise NotImplementedError("Still need to implement handling of "
                                               "different units")            
@@ -349,7 +353,10 @@ class Coord(tl.HasTraits):
             np.minimum(self.bounds[1], other_coord.bounds[1])        
             ]
         if np.any(ibounds[0] > ibounds[1]):
-            return []
+            if ind:
+                return [0, 0]
+            else:
+                return self.__class__(coords=(self.bounds[0], self.bounds[1], 0)) 
         if self.regularity == 'single':
             return self
         elif self.regularity == 'regular':
