@@ -60,9 +60,12 @@ class Coord(tl.HasTraits):
     @tl.validate("coords")
     def _coords_validate(self, proposal):
         if not isinstance(proposal['value'],
-                          (tuple, list, np.ndarray, xr.DataArray, numbers.Number)):
+                          (tuple, list, np.ndarray, xr.DataArray, 
+                           numbers.Number, str, unicode, np.datetime64)):
             raise CoordinateException("Coords must be of type tuple, list, " 
-                                      "np.ndarray, or xr.DataArray")
+                                      "np.ndarray, xr.DataArray, str, or "
+                                      "np.datetime64, not " + 
+                                      str(type(proposal['value'])))
 
         val = proposal['value']
         try:
@@ -92,6 +95,8 @@ class Coord(tl.HasTraits):
             # These have to be checked in the coordinate object because the
             # dimension names are important.
             pass
+        elif isinstance(val, (str, unicode)):
+            val = np.datetime64(val)
         # Irregular spacing independent coordinates
         else:
             # No checks yet
@@ -131,7 +136,7 @@ class Coord(tl.HasTraits):
         return self._stacked(self.coords)
 
     def _stacked(self, coords):
-        if isinstance(coords, numbers.Number):
+        if isinstance(coords, (numbers.Number, str, np.datetime64, unicode)):
             return 1
         elif isinstance(coords, (list, tuple)):
             if len(coords) == 1:  # single stacked coordinate
@@ -184,7 +189,7 @@ class Coord(tl.HasTraits):
             return 'irregular'
         elif isinstance(coords, xr.DataArray):
             return 'dependent'
-        elif isinstance(coords, (numbers.Number, np.datetime64)):
+        elif isinstance(coords, (numbers.Number, np.datetime64, str, unicode)):
             return 'single'
         
         raise CoordinateException("Coord regularity '{}'".format(coords) + \
@@ -253,7 +258,7 @@ class Coord(tl.HasTraits):
             # Arbitrary
             if isinstance(self.coords, np.datetime64):
                 dtype = self.coords - self.coords
-                self._cached_delta = np.atleast_1d(1, dtype=dtype)
+                self._cached_delta = np.array([1], dtype=dtype.dtype)
             else:
                 self._cached_delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))  
         elif self.regularity == 'regular':

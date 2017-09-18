@@ -165,7 +165,10 @@ if __name__ == '__main__':
     lat = lat[::10][np.isfinite(lat[::10])]
     lon = lon[::10][np.isfinite(lon[::10])]
     coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
-    o = smap.execute(coords)    
     
+    #o = smap.execute(coords)    
+    
+    t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
+    o2 = smap.execute(t_coords)
     print ('Done')
 
