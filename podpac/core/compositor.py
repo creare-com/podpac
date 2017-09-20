@@ -51,7 +51,22 @@ class Compositor(Node):
         return self.output
 
 
-class GridCompositor(Compositor):
+class OrderedCompositor(Compositor):
 
     def composite(self, src_subset, coordintes, params, output):
-        pass
+        start = 0
+        if output is None: 
+            output = src_subset[0].execute(coordintes, params)
+            start = 1
+
+        o = output.copy()  # Create the dataset once
+        I = np.isfinite(o.data)  # Create the masks once
+        Id = I.copy()
+        for src in src_subset[start:]:  # This could be a parfor (threaded)
+            if np.all(I):
+                break
+            o = src.execute(src_subset, params, o)
+            Id[:] = np.isfinite(o.data)
+            output.data[I & Id] = o.data[I & Id]
+            I &= Id
+        return output

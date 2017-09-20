@@ -461,6 +461,11 @@ class Coord(tl.HasTraits):
             rep = rep.format(min=self.bounds[0], max=self.bounds[1])       
         return rep
     
+    def __add__(self):
+        """ Should be able to add two coords together in some situations
+        """
+        raise NotImplementedError
+    
 class Coordinate(tl.HasTraits):
     """
     You can initialize a coordinate like this: 
@@ -688,6 +693,9 @@ class Coordinate(tl.HasTraits):
     @property
     def stacked_coords(self):
         return Coordinate.get_stacked_coord_dict(self._coords)
+    
+    def __add__(self, ohter):
+        raise NotImplementedError("Need to be able to add coordinates together.")
     
             
 if __name__ == '__main__':
