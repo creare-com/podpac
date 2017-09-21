@@ -461,10 +461,22 @@ class Coord(tl.HasTraits):
             rep = rep.format(min=self.bounds[0], max=self.bounds[1])       
         return rep
     
-    def __add__(self):
+    def __add__(self, other):
         """ Should be able to add two coords together in some situations
+        Although I'm really not sure about this function... may be a mistake
         """
-        raise NotImplementedError
+        if not isinstance(other, Coord):
+            raise CoordinateException("Can only add two Coord object together")
+        if self.regularity == 'dependent' or other.regularity == 'dependent'\
+                or self.stacked != other.stacked:
+            raise NotImplementedError
+        c1 = self.coordinates
+        c2 = other.coordinates
+        if self.stacked == 1:
+            return self.__class__(coords=np.concatenate((c1, c2)))
+        else:
+            return self.__class__(coords=[np.concatenate((cc1, cc2)) \
+                    for cc1, cc2 in zip(c1, c2)])
     
 class Coordinate(tl.HasTraits):
     """
@@ -694,10 +706,19 @@ class Coordinate(tl.HasTraits):
     def stacked_coords(self):
         return Coordinate.get_stacked_coord_dict(self._coords)
     
-    def __add__(self, ohter):
-        raise NotImplementedError("Need to be able to add coordinates together.")
-    
-            
+    def __add__(self, other):
+       if not isinstance(other, Coordinate):
+           raise CoordinateException("Can only add Coordinate objects"
+                   " together.")
+       new_coords = copy.deepcopy(self._coords)
+       for key in other._coords:
+           if key in self._coords:
+               raise NotImplementedError("Cannot combine Coordinates with"
+                                         " the same dimensions.")
+           else:
+               new_coords[key] = copy.deepcopy(other._coords[key])
+       return self.__class__(coords=new_coords)
+
 if __name__ == '__main__':
     #coord = Coordinate(lat=xr.DataArray(
         #np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
@@ -718,7 +739,7 @@ if __name__ == '__main__':
     #c = coord.intersect(coord_cent)
     
     cus = Coord(0, 2, 5)
-    cus.area_bounds    
+    cus.area_bounds  
     c = Coord((0, 1, 2), (0, -1, -2), 5)
     c.area_bounds
     c.coordinates
