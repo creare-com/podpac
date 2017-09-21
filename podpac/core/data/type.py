@@ -41,9 +41,12 @@ class PyDAP(podpac.DataSource):
     
     @tl.observe('source')
     def _update_dataset(self, change):
+        if change['old'] == None:
+            return
         if self.dataset is not None:
             self.dataset = self.open_dataset(change['new'])
-        self.native_coordinates = self.get_native_coordinates()
+        if self.native_coordinates is not None:
+            self.native_coordinates = self.get_native_coordinates()
     
     datakey = tl.Unicode(allow_none=False)
     native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',

@@ -4,6 +4,8 @@ import numbers
 import copy
 import sys
 
+from six import string_types
+
 import xarray as xr
 import numpy as np
 import traitlets as tl
@@ -61,7 +63,7 @@ class Coord(tl.HasTraits):
     def _coords_validate(self, proposal):
         if not isinstance(proposal['value'],
                           (tuple, list, np.ndarray, xr.DataArray, 
-                           numbers.Number, str, unicode, np.datetime64)):
+                           numbers.Number, string_types, np.datetime64)):
             raise CoordinateException("Coords must be of type tuple, list, " 
                                       "np.ndarray, xr.DataArray, str, or "
                                       "np.datetime64, not " + 
@@ -95,7 +97,7 @@ class Coord(tl.HasTraits):
             # These have to be checked in the coordinate object because the
             # dimension names are important.
             pass
-        elif isinstance(val, (str, unicode)):
+        elif isinstance(val, string_types):
             val = np.datetime64(val)
         # Irregular spacing independent coordinates
         else:
@@ -136,7 +138,7 @@ class Coord(tl.HasTraits):
         return self._stacked(self.coords)
 
     def _stacked(self, coords):
-        if isinstance(coords, (numbers.Number, str, np.datetime64, unicode)):
+        if isinstance(coords, (numbers.Number, string_types, np.datetime64)):
             return 1
         elif isinstance(coords, (list, tuple)):
             if len(coords) == 1:  # single stacked coordinate
@@ -189,7 +191,7 @@ class Coord(tl.HasTraits):
             return 'irregular'
         elif isinstance(coords, xr.DataArray):
             return 'dependent'
-        elif isinstance(coords, (numbers.Number, np.datetime64, str, unicode)):
+        elif isinstance(coords, (numbers.Number, np.datetime64, string_types)):
             return 'single'
         
         raise CoordinateException("Coord regularity '{}'".format(coords) + \
@@ -707,17 +709,18 @@ class Coordinate(tl.HasTraits):
         return Coordinate.get_stacked_coord_dict(self._coords)
     
     def __add__(self, other):
-       if not isinstance(other, Coordinate):
-           raise CoordinateException("Can only add Coordinate objects"
+        if not isinstance(other, Coordinate):
+            raise CoordinateException("Can only add Coordinate objects"
                    " together.")
-       new_coords = copy.deepcopy(self._coords)
-       for key in other._coords:
-           if key in self._coords:
-               raise NotImplementedError("Cannot combine Coordinates with"
-                                         " the same dimensions.")
-           else:
-               new_coords[key] = copy.deepcopy(other._coords[key])
-       return self.__class__(coords=new_coords)
+        new_coords = copy.deepcopy(self._coords)
+        for key in other._coords:
+            if key in self._coords:
+                if np.all(np.array(self._coords[key]) !=
+                        np.array(other._coords[key])):
+                    new_coords[key] = self._coords[key] + other._coords[key]
+            else:
+                new_coords[key] = copy.deepcopy(other._coords[key])
+        return self.__class__(coords=new_coords)
 
 if __name__ == '__main__':
     #coord = Coordinate(lat=xr.DataArray(

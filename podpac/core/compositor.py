@@ -20,7 +20,7 @@ class Compositor(Node):
     sources = tl.Instance(np.ndarray)
     
     @tl.default('native_coordinates')
-    def set_native_coordinates(self):
+    def get_native_coordinates(self):
         if self.shared_coordinates is not None:
             return self.source_coordinates + self.shared_coordinates
         else:
