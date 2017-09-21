@@ -4,6 +4,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import re
+from six import string_types
 import numpy as np
 import xarray as xr
 import traitlets as tl
@@ -15,13 +16,13 @@ from podpac.core.data import type as datatype
 # Helper functions
 
 def smap2np_date(date):
-    if isinstance(date, (str, unicode)):
-        ymd = '-'.join([times[:4], times[4:6], times[6:8]])
+    if isinstance(date, string_types):
+        ymd = '-'.join([date[:4], date[4:6], date[6:8]])
         if len(date) == 15:
-            HMS = ' ' + ':'.join(times[9:11], times[11:13], times[13:15])
+            HMS = ' ' + ':'.join([date[9:11], date[11:13], date[13:15]])
         else:
             HMS = ''
-        date = np.array(ymd + HMS, dtype='datetime64')
+        date = np.array([ymd + HMS], dtype='datetime64')
     return date
 
 def np2smap_date(date):
@@ -98,8 +99,7 @@ class SMAPSource(datatype.PyDAP):
         
     def get_available_times(self):
         times = self.source.split('_')[4]
-        times = np.array('-'.join([times[:4], times[4:6], times[6:8]]),
-                         dtype='datetime64')
+        times = smap2np_date(times) 
         if 'SM_P_' in self.source:
             times = times + np.array([6, 18], 'timedelta64[h]')
         return times
