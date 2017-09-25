@@ -132,6 +132,17 @@ class DataSource(Node):
             data_dst.loc[crd] = data_src.data[:]
             return data_dst
         
+        # For now, we just do nearest-neighbor interpolation for time and alt
+        # coordinates
+        if 'time' in coords_src.dims and 'time' in coords_dst.dims:
+            data_src = data_src.reindex(time=coords_dst.coords['time'], 
+                                        method='nearest')
+            coords_src._coords['time'] = data_src['time'].data
+        if 'alt' in coords_src.dims and 'alt' in coords_dst.dims:
+            data_src = data_src.reindex(alt=coords_dst.coords['alt'], 
+                                                method='nearest')            
+            coords_src._coords['alt'] = data_src['alt'].data
+            
         # Raster to Raster interpolation from regular grids to regular grids
         rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
                             'lanczos', 'average', 'mode', 'gauss', 'max', 'min',
@@ -168,6 +179,8 @@ class DataSource(Node):
             return self.interpolate_irregular_grid(data_src, coords_src,
                                                    data_dst, coords_dst_us,
                                                    grid=False)            
+        
+        return data_src
             
     def _loop_helper(self, func, keep_dims, data_src, coords_src,
                      data_dst, coords_dst,

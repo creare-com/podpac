@@ -299,7 +299,10 @@ class Coord(tl.HasTraits):
         elif regularity == 'regular':
             N = self.size
             if self.stacked == 1:
-                self._cached_coords = np.linspace(self.coords[0], self.coords[1], N)
+                if isinstance(self.coords[0], np.datetime64):
+                    self._cached_coords = self.coords[0] + np.arange(0, N) * self.delta
+                else:
+                    self._cached_coords = np.linspace(self.coords[0], self.coords[1], N)
             else:
                 self._cached_coords = \
                     tuple([np.linspace(cs, ce, N) \
