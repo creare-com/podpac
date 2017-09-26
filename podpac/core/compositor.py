@@ -15,12 +15,21 @@ from podpac.core.node import Node, UnitsDataArray
 class Compositor(Node):
 
     shared_coordinates = tl.Instance(Coordinate, allow_none=True)
-    source_coordinates = tl.Instance(Coordinate)
-
+    source_coordinates = tl.Instance(Coordinate, allow_none=True)
+    is_source_coordinates_complete = tl.Bool(False)
     sources = tl.Instance(np.ndarray)
     
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
+        """
+        This one is tricky... you can have multi-level compositors
+        One for a folder described by a date
+        One fo all the folders over all dates. 
+        The single folder one has time coordinates that are actually
+        more accurate than just the folder time coordinate, so you want
+        to replace the time coordinate in native coordinate -- does this 
+        rule hold? `
+        """
         if self.shared_coordinates is not None:
             return self.source_coordinates + self.shared_coordinates
         else:
@@ -34,9 +43,12 @@ class Compositor(Node):
                 self._execute_common(coordinates, params, output)
 
         # Decide which sources need to be evaluated
-        coords_subset_slc = \
+        if self.source_coordinates is None: # Do them all
+            src_subset = self.sources
+        else:
+            coords_subset_slc = \
                 self.source_coordinates.intersect_ind_slice(coordinates, pad=0)
-        src_subset = self.sources[coords_subset_slc]
+            src_subset = self.sources[coords_subset_slc]
         if len(src_subset) == 0:
             return self.initialize_coord_array(coordinates, init_type='nan')
 
