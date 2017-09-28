@@ -45,6 +45,8 @@ SMAP_PRODUCT_MAP = xr.DataArray([
               'attr':['latkey', 'lonkey', 'rootdatakey', 'layerkey']
               }
 )
+SMAP_BASE_URL = 'https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP'
+
 
 class SMAPSource(datatype.PyDAP):
     date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
@@ -119,18 +121,83 @@ class SMAPSource(datatype.PyDAP):
         return d    
 
 class SMAPDateFolder(podpac.OrderedCompositor):
-    pass
+    base_url = tl.Unicode(SMAP_BASE_URL)
+    product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist())
+    folder_date = tl.Unicode(u'')
+
+    @property
+    def source(self):
+        return '/'.join([self.base_url, self.product, self.folder_date])
+
+    @tl.default('sources')
+    def sources_default(self):
+        try: 
+            sources = self.load_cached_obj('sources')
+        except: 
+            _, sources = self.get_available_times_sources()
+            self.cache_obj(sources, 'sources')
+        b = self.source + '/'
+        src_objs = np.array([SMAPSource(source=b + s) for s in sources])
+        return src_objs
+
+    file_url_re = re.compile('.*_[0-9]{8}T[0-9]{6}_.*\.h5')
+    date_url_re = re.compile('[0-9]{8}T[0-9]{6}')
+    
+    @tl.default('is_source_coordinates_complete')
+    def src_crds_complete_default(self):
+        return True
+
+    @tl.default('source_coordinates')
+    def get_source_coordinates(self):
+        if os.path.exists(self.cache_path('source.coordinates')):
+            return self.load_cached_obj('source.coordinates')
+        times, _ = self.get_available_times_sources()
+        time_crds = podpac.Coordinate(time=times)
+        self.cache_obj(time_crds, 'source.coordinates')
+        return time_crds
+
+    @tl.default('shared_coordinates')
+    def get_shared_coordinates(self):
+        if os.path.exists(self.cache_path('shared.coordinates')):
+            return self.load_cached_obj('shared.coordinates')
+        coords = self.sources[0].native_coordinates
+        del coords._coords['time']
+        self.cache_obj(coords, 'shared.coordinates')
+        return coords
+
+    def get_available_times_sources(self):
+        url = self.source
+        soup = BeautifulSoup(requests.get(url).text, 'lxml')
+        a = soup.find_all('a')
+        file_regex = self.file_url_re
+        date_regex = self.date_url_re
+        times = []
+        sources = []
+        for aa in a:
+            m = file_regex.match(aa.get_text())
+            if m:
+                sources.append(m.group())
+                date_time = date_regex.search(m.group()).group()
+                times.append(np.datetime64(
+                    '%s-%s-%sT%s:%s:%s' % (date_time[:4], date_time[4:6],
+                        date_time[6:8], date_time[9:11], date_time[11:13],
+                        date_time[13:15])
+                    ))
+        times = np.array(times)
+        sources = np.array(sources)
+        I = np.argsort(times)
+        return times[I], sources[I]
+
 
 class SMAP(podpac.OrderedCompositor):
-    base_url = tl.Unicode(u'https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP')
-    product = tl.Enum(['SPL4SMGP.003', 'SPL3SMA.003', 'SPL3SMAP.003', 
-        'SPL3SMP.004'])
+    base_url = tl.Unicode(SMAP_BASE_URL)
+    product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist())
     date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
     rootdatakey = tl.Unicode(u'Soil_Moisture_Retrieval_Data_')
 
-    tl.default('source_coordinate')
+    @tl.default('source_coordinate')
     def get_source_coordinates(self):
-        return podpac.Coordinates(time=self.get_available_times())
+        return podpac.Coordinate(time=self.get_available_times())
 
     def get_available_times(self):
         url = '/'.join([self.base_url, self.product])

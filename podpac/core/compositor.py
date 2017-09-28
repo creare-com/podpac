@@ -65,10 +65,13 @@ class Compositor(Node):
 
 class OrderedCompositor(Compositor):
 
-    def composite(self, src_subset, coordintes, params, output):
+    def composite(self, src_subset, coordinates, params, output):
         start = 0
+        # The compositor doesn't actually know what dimensions are 
+        # in the source, so we rely on the first node to create the output
+        # output array if it has not been given. 
         if output is None: 
-            output = src_subset[0].execute(coordintes, params)
+            output = src_subset[0].execute(coordinates, params)
             start = 1
 
         o = output.copy()  # Create the dataset once
@@ -77,7 +80,7 @@ class OrderedCompositor(Compositor):
         for src in src_subset[start:]:  # This could be a parfor (threaded)
             if np.all(I):
                 break
-            o = src.execute(src_subset, params, o)
+            o = src.execute(coordinates, params, o)
             Id[:] = np.isfinite(o.data)
             output.data[I & Id] = o.data[I & Id]
             I &= Id
