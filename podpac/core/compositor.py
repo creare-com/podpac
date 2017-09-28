@@ -30,13 +30,19 @@ class Compositor(Node):
         to replace the time coordinate in native coordinate -- does this 
         rule hold? `
         """
+        try: 
+            return self.load_cached_obj('native.coordinates')
+        except: 
+            pass
         if self.shared_coordinates is not None and self.is_source_coordinates_complete:
-            return self.source_coordinates + self.shared_coordinates
+            crds = self.source_coordinates + self.shared_coordinates
         else:
             crds = self.sources[0].native_coordinates
             for s in self.sources[1:]:
                 crds = crds + s.native_coordinates
-            return crds
+                
+        self.cache_obj(crds, 'native.coordinates')
+        return crds
     
     def execute(self, coordinates, params=None, output=None):
         coords, params, out = \

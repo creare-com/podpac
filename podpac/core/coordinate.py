@@ -718,8 +718,8 @@ class Coordinate(tl.HasTraits):
         new_coords = copy.deepcopy(self._coords)
         for key in other._coords:
             if key in self._coords:
-                if np.all(np.array(self._coords[key]) !=
-                        np.array(other._coords[key])):
+                if np.all(np.array(self._coords[key].coords) !=
+                        np.array(other._coords[key].coords)):
                     new_coords[key] = self._coords[key] + other._coords[key]
             else:
                 new_coords[key] = copy.deepcopy(other._coords[key])

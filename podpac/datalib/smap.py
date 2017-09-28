@@ -126,6 +126,9 @@ class SMAPDateFolder(podpac.OrderedCompositor):
     product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist())
     folder_date = tl.Unicode(u'')
 
+    file_url_re = re.compile('.*_[0-9]{8}T[0-9]{6}_.*\.h5')
+    date_url_re = re.compile('[0-9]{8}T[0-9]{6}')
+
     @property
     def source(self):
         return '/'.join([self.base_url, self.product, self.folder_date])
@@ -140,9 +143,6 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         b = self.source + '/'
         src_objs = np.array([SMAPSource(source=b + s) for s in sources])
         return src_objs
-
-    file_url_re = re.compile('.*_[0-9]{8}T[0-9]{6}_.*\.h5')
-    date_url_re = re.compile('[0-9]{8}T[0-9]{6}')
     
     @tl.default('is_source_coordinates_complete')
     def src_crds_complete_default(self):
@@ -194,61 +194,72 @@ class SMAP(podpac.OrderedCompositor):
     base_url = tl.Unicode(SMAP_BASE_URL)
     product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist())
     date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
-    rootdatakey = tl.Unicode(u'Soil_Moisture_Retrieval_Data_')
+    
+    @property
+    def source(self):
+        return self.product
 
-    @tl.default('source_coordinate')
+    @tl.default('sources')
+    def sources_default(self):
+        try: 
+            dates = self.load_cached_obj('dates')
+        except: 
+            dates = self.get_available_times_dates()[1]
+            self.cache_obj(dates, 'dates')
+        src_objs = np.array([
+            SMAPDateFolder(product=self.product, folder_date=date,
+                           shared_coordinates=self.shared_coordinates)
+            for date in dates])
+        return src_objs
+
+    @tl.default('source_coordinates')
     def get_source_coordinates(self):
-        return podpac.Coordinate(time=self.get_available_times())
+        return podpac.Coordinate(time=self.get_available_times_dates()[0])
 
-    def get_available_times(self):
+    def get_available_times_dates(self):
         url = '/'.join([self.base_url, self.product])
         soup = BeautifulSoup(requests.get(url).text, 'lxml')
         a = soup.find_all('a')
         regex = self.date_url_re
         times = []
+        dates = []
         for aa in a:
             m = regex.match(aa.get_text())
             if m:
                 times.append(np.datetime64(m.group().replace('.', '-')))
+                dates.append(m.group())
         times.sort()
-        return np.array(times)
+        dates.sort()
+        return np.array(times), dates
+    
+    @tl.default('shared_coordinates')
+    def get_shared_coordinates(self):
+        if os.path.exists(self.cache_path('shared.coordinates')):
+            return self.load_cached_obj('shared.coordinates')
+        coords = SMAPDateFolder(product=self.product,
+                                folder_date=self.get_available_times_dates()[1][0],
+                           ).shared_coordinates
+        self.cache_obj(coords, 'shared.coordinates')
+        return coords    
 
-    def get_fn(self, date):
-        date = self.np2smap_date(date)
-        url = '/'.join([self.base_url, self.product, date])
-        soup = BeautifulSoup(requests.get(url).text, 'lxml')
-        a = soup.find_all('a')
-        p = self.product
-        regex = re.compile('SMAP_{level}_.*_{date}_R.*_.*\.h5'.format(
-            level=p[2:4], date=date.replace('.', '')))
-        for aa in a:
-            fn = regex.search(aa.get_text())
-            if fn:
-                return fn.group()
-        else:
-            raise Exeption('No file found')
-        
-    def get_fn_url(self, date):
-        date = self.np2smap_date(date)
-        return '/'.join([self.base_url, self.product, date, self.get_fn(date)])
     
 if __name__ == '__main__':
-    sdf = SMAPDateFolder(product='SPL4SMGP.003', folder_date='2016.04.07')
+    #sdf = SMAPDateFolder(product='SPL4SMGP.003', folder_date='2016.04.07')
     
-    coords = sdf.native_coordinates
-    print (coords)
-    #print (coords['time'].area_bounds)
+    #coords = sdf.native_coordinates
+    #print (coords)
+    ##print (coords['time'].area_bounds)
     
-    coords = podpac.Coordinate(time=coords.coords['time'][:3],
-                               lat=[45., 66., 50], lon=[-80., -70., 20],
-                               order=['time', 'lat', 'lon'])  
+    #coords = podpac.Coordinate(time=coords.coords['time'][:3],
+                               #lat=[45., 66., 50], lon=[-80., -70., 20],
+                               #order=['time', 'lat', 'lon'])  
 
     
-    o = sdf.execute(coords)    
-    coords2 = podpac.Coordinate(time=coords.coords['time'][1:2],
-                               lat=[45., 66., 50], lon=[-80., -70., 20],
-                               order=['time', 'lat', 'lon'])      
-    o2 = sdf.execute(coords2)    
+    #o = sdf.execute(coords)    
+    #coords2 = podpac.Coordinate(time=coords.coords['time'][1:2],
+                               #lat=[45., 66., 50], lon=[-80., -70., 20],
+                               #order=['time', 'lat', 'lon'])      
+    #o2 = sdf.execute(coords2)    
     
     #t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
     #o2 = smap.execute(t_coords)    
@@ -277,5 +288,21 @@ if __name__ == '__main__':
     
     #t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
     #o2 = smap.execute(t_coords)
+        
+    smap = SMAP(product='SPL4SMGP.003')
+    
+    coords = smap.native_coordinates
+    print (coords)
+    #print (coords['time'].area_bounds)
+    
+    coords = podpac.Coordinate(time=coords.coords['time'][:3],
+                               lat=[45., 66., 50], lon=[-80., -70., 20],
+                               order=['time', 'lat', 'lon'])  
+
+    o = smap.execute(coords)    
+    coords2 = podpac.Coordinate(time=coords.coords['time'][1:2],
+                               lat=[45., 66., 50], lon=[-80., -70., 20],
+                               order=['time', 'lat', 'lon'])      
+    o2 = smap.execute(coords2)     
     print ('Done')
 
