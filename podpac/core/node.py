@@ -219,7 +219,7 @@ class Node(tl.HasTraits):
         if output is not None:
             # This should be a reference, not a copy
             # subselect if neccessary
-            out = output[coordinates.get_coord] 
+            out = output.loc[coordinates.coords] 
             self.output[:] = out
         else:
             self.output = self.initialize_output_array()
