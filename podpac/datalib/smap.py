@@ -1,6 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
+import copy
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -160,7 +161,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
     def get_shared_coordinates(self):
         if os.path.exists(self.cache_path('shared.coordinates')):
             return self.load_cached_obj('shared.coordinates')
-        coords = self.sources[0].native_coordinates
+        coords = copy.deepcopy(self.sources[0].native_coordinates)
         del coords._coords['time']
         self.cache_obj(coords, 'shared.coordinates')
         return coords
@@ -232,29 +233,49 @@ class SMAP(podpac.OrderedCompositor):
         return '/'.join([self.base_url, self.product, date, self.get_fn(date)])
     
 if __name__ == '__main__':
-    source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP'
-              '/SPL4SMGP.003/2015.04.07'
-              '/SMAP_L4_SM_gph_20150407T013000_Vv3030_001.h5')
-    source2 = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL3SMP.004/'
-              '2015.04.11/SMAP_L3_SM_P_20150411_R14010_001.h5')
-    smap = SMAPSource(source=source, interpolation='nearest_preview')
-    coords = smap.native_coordinates
+    sdf = SMAPDateFolder(product='SPL4SMGP.003', folder_date='2016.04.07')
+    
+    coords = sdf.native_coordinates
     print (coords)
-    print (coords['time'].area_bounds)
-    #coord_pt = podpac.Coordinate(lat=10., lon=-67.)  # Not covered
-    #o = smap.execute(coord_pt)
-    #coord_pt = podpac.Coordinate(lat=66., lon=-72.)  
-    #o = smap.execute(coord_pt)
+    #print (coords['time'].area_bounds)
     
-    #coords = podpac.Coordinate(lat=[45., 66., 50], lon=[-80., -70., 20])  
-    lat, lon = smap.native_coordinates.coords['lat'], smap.native_coordinates.coords['lon']
-    lat = lat[::10][np.isfinite(lat[::10])]
-    lon = lon[::10][np.isfinite(lon[::10])]
-    coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
+    coords = podpac.Coordinate(time=coords.coords['time'][:3],
+                               lat=[45., 66., 50], lon=[-80., -70., 20],
+                               order=['time', 'lat', 'lon'])  
+
     
-    #o = smap.execute(coords)    
+    o = sdf.execute(coords)    
+    coords2 = podpac.Coordinate(time=coords.coords['time'][1:2],
+                               lat=[45., 66., 50], lon=[-80., -70., 20],
+                               order=['time', 'lat', 'lon'])      
+    o2 = sdf.execute(coords2)    
     
-    t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
-    o2 = smap.execute(t_coords)
+    #t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
+    #o2 = smap.execute(t_coords)    
+    
+    #source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP'
+              #'/SPL4SMGP.003/2015.04.07'
+              #'/SMAP_L4_SM_gph_20150407T013000_Vv3030_001.h5')
+    #source2 = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL3SMP.004/'
+              #'2015.04.11/SMAP_L3_SM_P_20150411_R14010_001.h5')
+    #smap = SMAPSource(source=source, interpolation='nearest_preview')
+    #coords = smap.native_coordinates
+    #print (coords)
+    #print (coords['time'].area_bounds)
+    ##coord_pt = podpac.Coordinate(lat=10., lon=-67.)  # Not covered
+    ##o = smap.execute(coord_pt)
+    ##coord_pt = podpac.Coordinate(lat=66., lon=-72.)  
+    ##o = smap.execute(coord_pt)
+    
+    ##coords = podpac.Coordinate(lat=[45., 66., 50], lon=[-80., -70., 20])  
+    #lat, lon = smap.native_coordinates.coords['lat'], smap.native_coordinates.coords['lon']
+    #lat = lat[::10][np.isfinite(lat[::10])]
+    #lon = lon[::10][np.isfinite(lon[::10])]
+    #coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
+    
+    ##o = smap.execute(coords)    
+    
+    #t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
+    #o2 = smap.execute(t_coords)
     print ('Done')
 

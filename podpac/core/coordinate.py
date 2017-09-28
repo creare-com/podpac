@@ -365,7 +365,10 @@ class Coord(tl.HasTraits):
             else:
                 return self.__class__(coords=(self.bounds[0], self.bounds[1], 0)) 
         if self.regularity == 'single':
-            return self
+            if ind:
+                return [0, 1]
+            else:
+                return self
         elif self.regularity == 'regular':
             min_max_i = [np.floor((ibounds[0] - self.bounds[0]) / self.delta),
                          np.ceil((self.bounds[1] - ibounds[1]) / self.delta)]

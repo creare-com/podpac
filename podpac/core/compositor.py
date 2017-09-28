@@ -30,7 +30,7 @@ class Compositor(Node):
         to replace the time coordinate in native coordinate -- does this 
         rule hold? `
         """
-        if self.shared_coordinates is not None:
+        if self.shared_coordinates is not None and self.is_source_coordinates_complete:
             return self.source_coordinates + self.shared_coordinates
         else:
             crds = self.sources[0].native_coordinates
@@ -82,6 +82,6 @@ class OrderedCompositor(Compositor):
                 break
             o = src.execute(coordinates, params, o)
             Id[:] = np.isfinite(o.data)
-            output.data[I & Id] = o.data[I & Id]
+            output.data[~I & Id] = o.data[~I & Id]
             I &= Id
         return output
