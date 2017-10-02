@@ -32,8 +32,8 @@ class Algorithm(Node):
             else:
                 self.output[:] = res
         else:
-            out[:] = self.algorithm(**kwargs)
-            self.output = out
+            output[:] = self.algorithm(**kwargs)
+            self.output = output
             
         self.evaluted = True
         return self.output
