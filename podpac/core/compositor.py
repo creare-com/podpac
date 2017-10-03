@@ -63,7 +63,7 @@ class Compositor(Node):
             self.output = self.composite(src_subset, coordinates,
                                          params, output)
         else: 
-            out[:] = self.composite(src_subset, coordintes, params, output)
+            out[:] = self.composite(src_subset, coordinates, params, output)
             self.output = out
         self.evaluated = True
 
@@ -87,7 +87,7 @@ class OrderedCompositor(Compositor):
         for src in src_subset[start:]:  # This could be a parfor (threaded)
             if np.all(I):
                 break
-            o = src.execute(coordinates, params, o)
+            o = src.execute(coordinates, params, o).transpose(*output.dims)
             Id[:] = np.isfinite(o.data)
             output.data[~I & Id] = o.data[~I & Id]
             I &= Id

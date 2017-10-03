@@ -46,7 +46,7 @@ class Algorithm(Node):
 class SinCoords(Algorithm):
     def algorithm(self):
         out = self.initialize_output_array('ones')
-        crds = np.meshgrid(*out.coords.values())
+        crds = np.meshgrid(*out.coords.values()[::-1])
         for crd in crds:
             out *= np.sin(np.pi * crd / 90.0)
         return out
@@ -65,7 +65,8 @@ class Arithmetic(Algorithm):
         
 if __name__ == "__main__":
     a = SinCoords()
-    coords = Coordinate(lat=[-90, 90, 1.], lon=[-180, 180, 2.])
+    coords = Coordinate(lat=[-90, 90, 1.], lon=[-180, 180, 1.], 
+                        order=['lat', 'lon'])
     o = a.execute(coords)
     a2 = Arithmetic(A=a, B=a)
     o2 = a2.execute(coords, params={'eqn': '2*abs(A) - B'})
