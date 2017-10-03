@@ -18,6 +18,7 @@ class Compositor(Node):
     source_coordinates = tl.Instance(Coordinate, allow_none=True)
     is_source_coordinates_complete = tl.Bool(False)
     sources = tl.Instance(np.ndarray)
+    cache_native_coordinates = tl.Bool(True)
     
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
@@ -40,8 +41,8 @@ class Compositor(Node):
             crds = self.sources[0].native_coordinates
             for s in self.sources[1:]:
                 crds = crds + s.native_coordinates
-                
-        self.cache_obj(crds, 'native.coordinates')
+        if self.cache_native_coordinates:
+            self.cache_obj(crds, 'native.coordinates')
         return crds
     
     def execute(self, coordinates, params=None, output=None):
