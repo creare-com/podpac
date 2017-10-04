@@ -329,6 +329,8 @@ class Coord(tl.HasTraits):
                 N = self.coords.size
             else:
                 N = self.coords[0].size
+        elif self.regularity == 'dependent':
+            N = self.coords.size
         return int(N)
         
     @tl.observe('extents', 'ctype', 'segment_position')
