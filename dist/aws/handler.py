@@ -59,11 +59,12 @@ def handler(event, context):
     img = base64.b64encode(im_data.getvalue())
     return img_response(img)
 
-def img_response(img, eqn):
+def img_response(img):
     return {
         'statusCode': 200,
         'headers': {
-            'Content-Type': 'image/png'
+            'Content-Type': 'image/png',
+            'Access-Control-Allow-Origin': '*',
         },
         'body': img,
         'isBase64Encoded': True,
