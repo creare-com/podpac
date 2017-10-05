@@ -21,7 +21,7 @@ class PipelineError(Exception):
 class Output(tl.HasTraits):
     pass
 
-class Pipeline():
+class Pipeline(tl.HasTraits):
     path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
     definition = tl.Dict(allow_none=False, help="pipeline definition")
     nodes = tl.Dict(trait=tl.Instance(Node), allow_none=False, help="pipeline nodes")
