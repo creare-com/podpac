@@ -115,7 +115,7 @@ for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)    
 for tp in ("mean", 'min', 'max'):
-        def func(self, *args, **kwargs):
+        def func(self, tp=tp, *args, **kwargs):
             x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
             return self._copy_units(x)
         func.__name__ = tp
