@@ -9,6 +9,7 @@ import traitlets as tl
 import matplotlib.colors, matplotlib.cm
 import matplotlib.pyplot as plt
 from pint import UnitRegistry
+from pint.unit import _Unit
 ureg = UnitRegistry()
 
 try:
@@ -32,7 +33,7 @@ class Units(tl.TraitType):
     info_text = "A pint Unit"
     #default_value = None
     def validate(self, obj, value):
-        if isinstance(value, ureg.Units):
+        if isinstance(value, _Unit):
             return value
         self.error(obj, value)
 
@@ -114,7 +115,7 @@ for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)    
 for tp in ("mean", 'min', 'max'):
-        def func(self, *args, **kwargs):
+        def func(self, tp=tp, *args, **kwargs):
             x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
             return self._copy_units(x)
         func.__name__ = tp
@@ -355,7 +356,57 @@ class Node(tl.HasTraits):
             self.output.plot()
         if show:
             plt.show()
-            
+
+    @property
+    def pipeline_definition(self):
+        raise NotImplementedError
+
+    @property
+    def pipeline(self):
+        return Pipeline(self.pipeline_definition)
+
+    @property
+    def evaluated_hash(self):
+        if self.evaluated_coordinates is None:
+            raise Exception("node not evaluated")
+        return hash((str(self.evaluated_coordinates), str(self.params)))
+
+    def make_filename(name, attr='output'):
+        # TODO sanitize better?
+        name = name.replace('/', '_').replace('\\', '_').replace(':', '_')
+
+        if attr is 'output':
+            filename = '%s_%s' % (name, self.evaluated_hash())
+        else:
+            filename = '%s_%s' % (name, attr)
+
+        return filename
+
+    def get_output_path(name, outdir=None, attr='output'):
+        if outdir is None:
+            outdir = settings.OUT_DIR
+
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+
+        return os.path.join(outdir, self.make_filename(name, attr=attr))
+
+    def write(self, name, outdir=None, attr='output', format='pickle'):
+        data = getattr(self, attr)
+        path = self.get_output_path(name, outdir=outdir, attr=attr)
+        
+        if format is 'pickle':
+            with open(path, 'wb') as f:
+                cPickle.dump(data, f)
+        else:
+            raise NotImplementedError
+
+    def load(self, name, outdir=None, attr='output'):
+        path = self.get_path(name, outdir=outdir, attr=attr)
+        with open(path, 'rb') as f:
+            data = cPickle.load(f)
+        return data
+
     @property
     def cache_dir(self):
         basedir = settings.CACHE_DIR

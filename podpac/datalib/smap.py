@@ -128,6 +128,8 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
     file_url_re = re.compile('.*_[0-9]{8}T[0-9]{6}_.*\.h5')
     date_url_re = re.compile('[0-9]{8}T[0-9]{6}')
+    
+    cache_native_coordinates = tl.Bool(False)
 
     @property
     def source(self):

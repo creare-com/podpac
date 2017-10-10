@@ -18,6 +18,7 @@ class Compositor(Node):
     source_coordinates = tl.Instance(Coordinate, allow_none=True)
     is_source_coordinates_complete = tl.Bool(False)
     sources = tl.Instance(np.ndarray)
+    cache_native_coordinates = tl.Bool(True)
     
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
@@ -40,8 +41,8 @@ class Compositor(Node):
             crds = self.sources[0].native_coordinates
             for s in self.sources[1:]:
                 crds = crds + s.native_coordinates
-                
-        self.cache_obj(crds, 'native.coordinates')
+        if self.cache_native_coordinates:
+            self.cache_obj(crds, 'native.coordinates')
         return crds
     
     def execute(self, coordinates, params=None, output=None):
@@ -62,7 +63,7 @@ class Compositor(Node):
             self.output = self.composite(src_subset, coordinates,
                                          params, output)
         else: 
-            out[:] = self.composite(src_subset, coordintes, params, output)
+            out[:] = self.composite(src_subset, coordinates, params, output)
             self.output = out
         self.evaluated = True
 
@@ -86,7 +87,7 @@ class OrderedCompositor(Compositor):
         for src in src_subset[start:]:  # This could be a parfor (threaded)
             if np.all(I):
                 break
-            o = src.execute(coordinates, params, o)
+            o = src.execute(coordinates, params, o).transpose(*output.dims)
             Id[:] = np.isfinite(o.data)
             output.data[~I & Id] = o.data[~I & Id]
             I &= Id
