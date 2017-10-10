@@ -267,9 +267,9 @@ if __name__ == '__main__':
     print('\ncoords\t', coords)
     print('\nparams\t', params)
     
-    # if args.dry_run:
-    #     pipeline.check_params(params)
-    # else:
-    #     pipeline.execute(coords, params)
+    if args.dry_run:
+        pipeline.check_params(params)
+    else:
+        pipeline.execute(coords, params)
 
-    # print('Done')
+    print('Done')

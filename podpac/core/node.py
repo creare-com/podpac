@@ -371,18 +371,18 @@ class Node(tl.HasTraits):
             raise Exception("node not evaluated")
         return hash((str(self.evaluated_coordinates), str(self.params)))
 
-    def make_filename(name, attr='output'):
+    def make_filename(self, name, attr='output'):
         # TODO sanitize better?
         name = name.replace('/', '_').replace('\\', '_').replace(':', '_')
 
-        if attr is 'output':
-            filename = '%s_%s' % (name, self.evaluated_hash())
+        if attr == 'output':
+            filename = '%s_%s' % (name, self.evaluated_hash)
         else:
             filename = '%s_%s' % (name, attr)
 
         return filename
 
-    def get_output_path(name, outdir=None, attr='output'):
+    def get_output_path(self, name, outdir=None, attr='output'):
         if outdir is None:
             outdir = settings.OUT_DIR
 
@@ -395,7 +395,7 @@ class Node(tl.HasTraits):
         data = getattr(self, attr)
         path = self.get_output_path(name, outdir=outdir, attr=attr)
         
-        if format is 'pickle':
+        if format == 'pickle':
             with open(path, 'wb') as f:
                 cPickle.dump(data, f)
         else:
