@@ -143,7 +143,7 @@ class Style(tl.HasTraits):
     tl.default('cmap')
     def _cmap_default(self):
         return matplotlib.cm.get_cmap('viridis')
-    
+
 class Node(tl.HasTraits):
     output = tl.Instance(UnitsDataArray, allow_none=True, default_value=None)
     @tl.default('output')
@@ -365,47 +365,49 @@ class Node(tl.HasTraits):
     def pipeline(self):
         return Pipeline(self.pipeline_definition)
 
+    def get_hash(self, coordinates=None, params=None):
+        return hash((str(coordinates), str(params)))
+
     @property
     def evaluated_hash(self):
         if self.evaluated_coordinates is None:
             raise Exception("node not evaluated")
-        return hash((str(self.evaluated_coordinates), str(self.params)))
+            
+        return self.get_hash(self.evaluated_coordinates, self.params)
 
-    def make_filename(self, name, attr='output'):
-        # TODO sanitize better?
-        name = name.replace('/', '_').replace('\\', '_').replace(':', '_')
-
-        if attr == 'output':
-            filename = '%s_%s' % (name, self.evaluated_hash)
-        else:
-            filename = '%s_%s' % (name, attr)
-
-        return filename
-
-    def get_output_path(self, name, outdir=None, attr='output'):
+    def get_output_path(self, filename, outdir=None):
         if outdir is None:
             outdir = settings.OUT_DIR
 
         if not os.path.exists(outdir):
             os.makedirs(outdir)
 
-        return os.path.join(outdir, self.make_filename(name, attr=attr))
+        return os.path.join(outdir, filename)
 
-    def write(self, name, outdir=None, attr='output', format='pickle'):
-        data = getattr(self, attr)
-        path = self.get_output_path(name, outdir=outdir, attr=attr)
-        
+    def write(self, name, outdir=None, format='pickle'):
+        filename = '%s_%s' % (name, self.evaluated_hash)
+        path = self.get_output_path(filename, outdir=outdir)
+
         if format == 'pickle':
             with open(path, 'wb') as f:
-                cPickle.dump(data, f)
+                cPickle.dump(self.output, f)
         else:
             raise NotImplementedError
 
-    def load(self, name, outdir=None, attr='output'):
-        path = self.get_path(name, outdir=outdir, attr=attr)
+    def load(self, name, coordinates, params, outdir=None):
+        filename = '%s_%s' % (name, self.get_hash(coordinates, params))
+        path = self.get_output_path(filename, outdir=outdir)
+        
         with open(path, 'rb') as f:
-            data = cPickle.load(f)
-        return data
+            self.output = cPickle.load(f)
+
+    def load_from_file(self, path):
+        with open(path, 'rb') as f:
+            output = cPickle.load(f)
+
+        self.output = output
+        self.evaluated_coordinates = self.output.coordinates
+        self.params = self.output.attrs['params']
 
     @property
     def cache_dir(self):
