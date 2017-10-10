@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 from collections import OrderedDict
 import numpy as np
+import xarray as xr
 import numexpr as ne
 import traitlets as tl
 import matplotlib.colors, matplotlib.cm
@@ -30,6 +31,7 @@ class Algorithm(Node):
             if isinstance(res, UnitsDataArray):
                 self.output = res
             else:
+                self.output = xr.align(*kwargs.values())
                 self.output[:] = res
         else:
             out[:] = self.algorithm(**kwargs)

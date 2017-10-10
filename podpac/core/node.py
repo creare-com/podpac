@@ -9,6 +9,7 @@ import traitlets as tl
 import matplotlib.colors, matplotlib.cm
 import matplotlib.pyplot as plt
 from pint import UnitRegistry
+from pint.unit import _Unit
 ureg = UnitRegistry()
 
 try:
@@ -32,7 +33,7 @@ class Units(tl.TraitType):
     info_text = "A pint Unit"
     #default_value = None
     def validate(self, obj, value):
-        if isinstance(value, ureg.Units):
+        if isinstance(value, _Unit):
             return value
         self.error(obj, value)
 
@@ -114,7 +115,7 @@ for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)    
 for tp in ("mean", 'min', 'max'):
-        def func(self, *args, **kwargs):
+        def func(self, tp=tp, *args, **kwargs):
             x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
             return self._copy_units(x)
         func.__name__ = tp
