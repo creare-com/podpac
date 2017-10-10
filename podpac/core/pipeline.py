@@ -4,6 +4,7 @@ from collections import OrderedDict
 import json
 import copy
 import importlib
+import inspect
 import warnings
 import numpy as np
 import traitlets as tl
@@ -14,19 +15,41 @@ ureg = UnitRegistry()
 
 from podpac.core.coordinate import Coordinate
 from podpac.core.node import Node, UnitsDataArray
+from podpac.core.data.data import DataSource
+from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.compositor import Compositor
 
 class PipelineError(Exception):
     pass
 
 class Output(tl.HasTraits):
-    pass
+    node = tl.Instance(Node)
+    name = tl.Unicode()
 
-class Pipeline():
+    def save(self):
+        raise NotImplementedError
+
+class FileOutput(Output):
+    outdir = tl.Unicode()
+    format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default='pickle')
+
+    def save(self):
+        self.node.write(self.name, outdir=self.outdir, format=self.format)
+
+class FTPOutput(Output):
+    url = tl.Unicode()
+    user = tl.Unicode()
+
+class AWSOutput(Output):
+    user = tl.Unicode()
+    bucket = tl.Unicode()
+
+class Pipeline(tl.HasTraits):
     path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
-    definition = tl.Dict(allow_none=False, help="pipeline definition")
-    nodes = tl.Dict(trait=tl.Instance(Node), allow_none=False, help="pipeline nodes")
-    params = tl.Dict(trait=tl.Dict(), allow_none=False, help="default parameter overrides")
-    outputs = tl.List(trait=tl.Instance(Output), allow_none=False, help="pipeline outputs")
+    definition = tl.Dict(help="pipeline definition")
+    nodes = tl.Dict(trait=tl.Instance(Node), help="pipeline nodes")
+    params = tl.Dict(trait=tl.Dict(), help="default parameter overrides")
+    outputs = tl.List(trait=tl.Instance(Output), help="pipeline outputs")
     
     def __init__(self, source):
         if type(source) is dict:
@@ -43,12 +66,15 @@ class Pipeline():
         for key, d in self.definition['nodes'].items():
             key = key.encode()
             self.nodes[key] = self.parse_node(key, d)
-            self.params[key] = d.get('params', {})
+            self.params[key] = d.get('params', OrderedDict())
 
         # parse outputs
         self.outputs = []
         for d in self.definition['outputs']:
-            self.outputs.append(self.parse_output(d))
+            self.outputs += self.parse_output(d)
+
+        # check execution graph for unused nodes
+        self.check_execution_graph()
 
     def parse_node(self, name, d):
         # get node class
@@ -63,27 +89,97 @@ class Pipeline():
         node_class = getattr(module, node_name)
         
         # parse and configure kwargs
-        skip = ['node', 'params', 'sources', 'inputs']
-        kwargs = {k:v for k, v in d.items() if k not in skip}
-        kwargs['implicit_pipeline_evaluation'] = False
+        kwargs = {}
+        whitelist = ['node', 'attrs', 'params']
         
         try:
-            if 'sources' in d:
+            parents = inspect.getmro(node_class)
+            
+            if DataSource in parents:
+                kwargs['source'] = d['source']
+                whitelist.append('source')
+                # kwargs['interpolation'] = d['interpolation']
+                # whitelist.append('interpolation')
+            elif Compositor in parents:
                 kwargs['sources'] = [self.nodes[source] for source in d['sources']]
-            if 'inputs' in d:
+                whitelist.append('sources')
+            elif Algorithm in parents:
                 kwargs.update({k:self.nodes[v] for k, v in d['inputs'].items()})
+                whitelist.append('inputs')
+            else:
+                raise PipelineError("node '%s' is not a DataSource, Compositor, or Algorithm" % name)
         except KeyError as e:
             raise PipelineError(
                 "node '%s' definition references nonexistent node '%s'" % (name, e))
+        
+        kwargs['implicit_pipeline_evaluation'] = False
+       
+        if 'params' in d:
+            kwargs['params'] = d['params']
+            
+        if 'attrs' in d:
+            kwargs.update(d['attrs'])
+
+        for key in d:
+            if key not in whitelist:
+                raise PipelineError("node '%s' definition has unexpected property '%s'" % (name, key))
 
         # return node info
         return node_class(**kwargs)
 
     def parse_output(self, d):
-        raise NotImplementedError
+        # modes
+        if 'mode' not in d:
+            raise PipelineError("output definition requires 'mode' property")
+        elif d['mode'] == 'file':
+            output_class = FileOutput
+            kwargs = {'outdir': d.get('outdir'), 'format': d['format']}
+        elif d['mode'] == 'ftp':
+            output_class = FTPOutput
+            kwargs = {'url': d['url'], 'user': d['user']}
+        elif d['mode'] == 'aws':
+            output_class = AWSOutput
+            kwargs = {'user': d['user'], 'bucket': d['bucken']}
+        else:
+            raise PipelineError("output definition has unexpected mode '%s'" % d['mode'])
 
-    def info(self):
-        raise NotImplementedError
+        # node rerfences
+        if 'node' in d and 'nodes' in d:
+            raise PipelineError("output definition expects 'node' or 'nodes' property, not both")
+        elif 'node' in d:
+            refs = [d['node']]
+        elif 'nodes' in d:
+            refs = d['nodes']
+        else:
+            raise PipelineError("output definition requires 'node' or 'nodes' property")
+        
+        # nodes
+        try:
+            nodes = [self.nodes[ref] for ref in refs]
+        except KeyError as e:
+            raise PipelineError("output definition references nonexistent node '%s'" % (e))
+
+        # outputs
+        return [output_class(node=node, name=ref, **kwargs) for ref, node in zip(refs, nodes)]
+
+    def check_execution_graph(self):
+        used = {ref:False for ref in self.nodes}
+        
+        def f(base_ref):
+            if used[base_ref]: return
+
+            used[base_ref] = True
+
+            d = self.definition['nodes'][base_ref]
+            for ref in d.get('sources', []) + d.get('inputs', {}).values():
+                f(ref)
+
+        for output in self.outputs:
+            f(output.name)
+
+        for ref in self.nodes:
+            if not used[ref]:
+                raise PipelineError("Unused node '%s'" % ref)
 
     def check_params(self, params):
         for node in params:
@@ -97,12 +193,15 @@ class Pipeline():
         for key in self.nodes:
             node = self.nodes[key]
             d = copy.deepcopy(self.params[key])
-            d.update(params.get(key, {}))
+            d.update(params.get(key, OrderedDict()))
             
             if node.evaluated_coordinates == coordinates and node.params == d:
                 continue
             
             node.execute(coordinates, params=d)
+
+        for output in self.outputs:
+            output.save()
 
 if __name__ == '__main__':
     import argparse
@@ -168,7 +267,9 @@ if __name__ == '__main__':
     print('\ncoords\t', coords)
     print('\nparams\t', params)
     
-    if args.dry_run:
-        pipeline.check_params(params)
-    else:
-        pipeline.execute(coords, params)
+    # if args.dry_run:
+    #     pipeline.check_params(params)
+    # else:
+    #     pipeline.execute(coords, params)
+
+    # print('Done')
