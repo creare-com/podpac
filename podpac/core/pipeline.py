@@ -96,16 +96,17 @@ class Pipeline(tl.HasTraits):
             parents = inspect.getmro(node_class)
             
             if DataSource in parents:
-                kwargs['source'] = d['source']
-                whitelist.append('source')
-                # kwargs['interpolation'] = d['interpolation']
-                # whitelist.append('interpolation')
+                if 'source' in d:
+                    kwargs['source'] = d['source']
+                    whitelist.append('source')
             elif Compositor in parents:
-                kwargs['sources'] = [self.nodes[source] for source in d['sources']]
-                whitelist.append('sources')
+                if 'sources' in d:
+                    kwargs['sources'] = [self.nodes[source] for source in d['sources']]
+                    whitelist.append('sources')
             elif Algorithm in parents:
-                kwargs.update({k:self.nodes[v] for k, v in d['inputs'].items()})
-                whitelist.append('inputs')
+                if 'inputs' in d:
+                    kwargs.update({k:self.nodes[v] for k, v in d['inputs'].items()})
+                    whitelist.append('inputs')
             else:
                 raise PipelineError("node '%s' is not a DataSource, Compositor, or Algorithm" % name)
         except KeyError as e:
