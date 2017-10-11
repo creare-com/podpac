@@ -32,6 +32,7 @@ def np2smap_date(date):
     return date
 
 SMAP_PRODUCT_MAP = xr.DataArray([
+        ['cell_lat', 'cell_lon', 'Analysis_Data_', 'sm_surface_analysis'],
         ['cell_lat', 'cell_lon', 'Geophysical_Data_', 'sm_surface'],
         ['{rdk}latitude', '{rdk}longitude', 'Soil_Moisture_Retrieval_Data_',
             'soil_moisture'],
@@ -41,7 +42,7 @@ SMAP_PRODUCT_MAP = xr.DataArray([
             'soil_moisture'],
     ],
     dims = ['product', 'attr'],
-    coords = {'product': ['SPL4SMGP.003', 'SPL3SMA.003', 'SPL3SMAP.003',
+    coords = {'product': ['SPL4SMAU.003', 'SPL4SMGP.003', 'SPL3SMA.003', 'SPL3SMAP.003',
                           'SPL3SMP.004'],
               'attr':['latkey', 'lonkey', 'rootdatakey', 'layerkey']
               }
@@ -271,27 +272,29 @@ if __name__ == '__main__':
               #'/SMAP_L4_SM_gph_20150407T013000_Vv3030_001.h5')
     #source2 = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL3SMP.004/'
               #'2015.04.11/SMAP_L3_SM_P_20150411_R14010_001.h5')
-    #smap = SMAPSource(source=source, interpolation='nearest_preview')
-    #coords = smap.native_coordinates
-    #print (coords)
-    #print (coords['time'].area_bounds)
-    ##coord_pt = podpac.Coordinate(lat=10., lon=-67.)  # Not covered
-    ##o = smap.execute(coord_pt)
+    source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL4SMAU.003/'
+              '2015.04.03/SMAP_L4_SM_aup_20150403T030000_Vv3030_001.h5')
+    smap = SMAPSource(source=source, interpolation='nearest_preview')
+    coords = smap.native_coordinates
+    print (coords)
+    print (coords['time'].area_bounds)
+    coord_pt = podpac.Coordinate(lat=10., lon=-67., order=['lat', 'lon'])  # Not covered
+    o = smap.execute(coord_pt)
     ##coord_pt = podpac.Coordinate(lat=66., lon=-72.)  
     ##o = smap.execute(coord_pt)
     
     ##coords = podpac.Coordinate(lat=[45., 66., 50], lon=[-80., -70., 20])  
-    #lat, lon = smap.native_coordinates.coords['lat'], smap.native_coordinates.coords['lon']
-    #lat = lat[::10][np.isfinite(lat[::10])]
-    #lon = lon[::10][np.isfinite(lon[::10])]
-    #coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
+    lat, lon = smap.native_coordinates.coords['lat'], smap.native_coordinates.coords['lon']
+    lat = lat[::10][np.isfinite(lat[::10])]
+    lon = lon[::10][np.isfinite(lon[::10])]
+    coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
     
-    ##o = smap.execute(coords)    
+    o = smap.execute(coords)    
     
     #t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
     #o2 = smap.execute(t_coords)
         
-    smap = SMAP(product='SPL4SMGP.003')
+    smap = SMAP(product='SPL4SMAU.003')
     
     coords = smap.native_coordinates
     print (coords)
