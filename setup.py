@@ -33,8 +33,9 @@ setup(
         'xarray',
         'traitlets',
         'pint',
+        'numerexpr',
         # Optional requirements
-        'rasterio',
+        'rasterio>=1.0',
         'pydap',
         'requests', 
         'beautifulsoup4',        
