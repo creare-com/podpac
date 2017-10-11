@@ -114,8 +114,14 @@ class SMAPSource(datatype.PyDAP):
             d = self.initialize_coord_array(coordinates, 'nan')
             am_key = self.rootdatakey + 'AM_' + self.layerkey
             pm_key = self.rootdatakey + 'PM_' + self.layerkey + '_pm'
-            d[dict(time=0)] = np.array(self.dataset[am_key][s])
-            d[dict(time=1)] = np.array(self.dataset[pm_key][s])
+            try:
+                t = self.native_coordinates.coords['time'][0]
+                d.loc[dict(time=t)] = np.array(self.dataset[am_key][s])
+            except: pass
+            try: 
+                t = self.native_coordinates.coords['time'][1]
+                d.loc[dict(time=t)] = np.array(self.dataset[pm_key][s])
+            except: pass
         else:
             data = np.array(self.dataset[self.datakey][s])
             d = self.initialize_coord_array(coordinates, 'data', 

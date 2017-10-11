@@ -123,16 +123,15 @@ for tp in ("mean", 'min', 'max'):
 del func
 
 class Style(tl.HasTraits):
-    node = tl.Instance('podpac.core.node.Node', allow_none=False)
-    name = tl.Unicode()
-    @tl.default('name')
-    def _name_default(self):
-        return self.node.__class__.__name__
+    
+    def __init__(self, node=None, *args, **kwargs):
+        if node:
+            self.name = self.node.__class.__name__
+            self.units = self.node.units
+        super(Style, self).__init__(*args, **kwargs)
         
+    name = tl.Unicode()
     units = Units(allow_none=True)
-    @tl.default('units')
-    def _units_default(self):
-        return self.node.units
     
     is_enumerated = tl.Bool(default_value=False)
     enumeration_legend = tl.Tuple(trait=tl.Unicode)
@@ -165,7 +164,7 @@ class Node(tl.HasTraits):
     style = tl.Instance(Style)
     @tl.default('style')
     def _style_default(self):
-        return Style(node=self)
+        return Style()
     
     @property
     def shape(self):

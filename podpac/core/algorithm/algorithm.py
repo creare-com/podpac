@@ -31,7 +31,7 @@ class Algorithm(Node):
             if isinstance(res, UnitsDataArray):
                 self.output = res
             else:
-                self.output = xr.align(*kwargs.values())
+                self.output = xr.align(*kwargs.values())[0]
                 self.output[:] = res
         else:
             output[:] = self.algorithm(**kwargs)
