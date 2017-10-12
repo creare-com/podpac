@@ -177,8 +177,37 @@ class WCS(podpac.DataSource):
             output.data[:] = dataset.read()
             
         return output
+    
+class ReprojectedSource(podpac.DataSource):
+    source = tl.Instance(podpac.Node)
+ 
+    # Specify either one of the next two
+    coordinates_source = tl.Instance(podpac.Node, allow_none=True)
+    reprojected_coordinates = tl.Instance(podpac.Coordinate)
+    
+    @tl.default('reprojected_coordinates')
+    def get_reprojected_coordinates(self):
+        try: 
+            return self.coordinates_source.native_coordinates
+        except AttributeError: 
+            raise Exception("Either reprojected_coordinates or coordinates"
+                            "_source must be specified")
+            
+    @tl.default('native_coordinates')
+    def get_native_coordinates(self):
+        coords = OrderedDict()
+        sc = self.source.native_coordinates
+        rc = self.reprojected_coordinates
+        for d in sc.dims:
+            if d in rc.dims:
+                coords[d] = rc[d]
+            else:
+                coords[d] = sc[d]
+        return podpac.Coordinate(coords)
+    
+    def get_data(self, coordinates, coordinates_slice):
+        return self.source.execute(coordinates, self.params)
 
-        
 if __name__ == '__main__':
     coord_src = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2),
                                   order=['lat', 'lon', 'time'])
@@ -198,10 +227,18 @@ if __name__ == '__main__':
     #coord_pt = podpac.Coordinate(lat=10., lon=-67.)
     #o2 = nas.execute(coord_pt)
     
-    coordinates = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 10),
+    coordinates = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16),
                                     order=['lat', 'lon'])
+    reprojected_coordinates = podpac.Coordinate(lat=(45, 0, 3), lon=(-70., -65., 3),
+                                    order=['lat', 'lon'])    
                           'TopographicWetnessIndexComposited3090m'),
               )
     
     o = wcs.execute(coordinates)
+
+    reprojected = ReprojectedSource(source=wcs,
+                                    reprojected_coordinates=reprojected_coordinates,
+                                    interpolation='bilinear')
+    o2 = reprojected.execute(coordinates)
+    
     print ("Done")
