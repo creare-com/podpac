@@ -61,7 +61,6 @@ class Pipeline(tl.HasTraits):
                 self.definition = json.load(f, object_pairs_hook=OrderedDict)
 
         # parse nodes and default params
-        
         self.nodes = OrderedDict()
         self.params = {}
         for key, d in self.definition['nodes'].items():
@@ -271,8 +270,6 @@ if __name__ == '__main__':
     print()
     print('\ncoords\t', coords)
     print('\nparams\t', params)
-    
-    import ipdb; ipdb.set_trace() # BREAKPOINT
 
     if args.dry_run:
         pipeline.check_params(params)
