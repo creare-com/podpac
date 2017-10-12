@@ -38,7 +38,8 @@ setup(
         'rasterio>=1.0',
         'pydap',
         'requests', 
-        'beautifulsoup4',        
+        'beautifulsoup4',   
+        'lxml',
         ],
     # entry_points = {
     #     'console_scripts' : []

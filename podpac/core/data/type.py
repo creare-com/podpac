@@ -126,8 +126,8 @@ class WCS(podpac.DataSource):
             raise Exception("Could not get capabilities from WCS server")
         capabilities = bs4.BeautifulSoup(capabilities.text, 'lxml')
         domain = capabilities.find('wcs:spatialdomain')
-        pos = domain.find('gml:envelope').findAll('gml:pos')
-        lonlat = np.array([p.text.split() for p in pos], float)
+        pos = domain.find('gml:envelope').get_text().split()
+        lonlat = np.array(pos, float).reshape(2, 2)
         grid_env = domain.find('gml:gridenvelope')
         low = np.array(grid_env.find('gml:low').text.split(), int)
         high = np.array(grid_env.find('gml:high').text.split(), int)
@@ -144,14 +144,16 @@ class WCS(podpac.DataSource):
     def get_native_coordinates(self):
         if self.evaluated_coordinates:
             ev = self.evaluated_coordinates
-            for c in ['lat', 'lon']:
-                if ev[c].regularity in ['irregular', 'dependent']:
+            wcs_c = self.wcs_coordinates
+            cs = OrderedDict()
+            for c in wcs_c.dims:
+                if c in ev.dims and ev[c].regularity in ['irregular', 'dependent']:
                     raise NotImplementedError
-            c = podpac.Coordinate(
-                lat=(min(ev['lat'].coords), max(ev['lat'].coords), ev['lat'].delta),
-                lon=(min(ev['lon'].coords), max(ev['lon'].coords), ev['lon'].delta), 
-                order=['lat', 'lon']
-                )
+                if c in ev.dims:
+                    cs[c] = [min(ev[c].coords), max(ev[c].coords), ev[c].delta]
+                else:
+                    cs.append(wcs_c[c])
+            c = podpac.Coordinate(cs)
             return c
         else:
             return self.wcs_coordinates
@@ -196,7 +198,7 @@ if __name__ == '__main__':
     #coord_pt = podpac.Coordinate(lat=10., lon=-67.)
     #o2 = nas.execute(coord_pt)
     
-    coordinates = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), 
+    coordinates = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 10),
                                     order=['lat', 'lon'])
                           'TopographicWetnessIndexComposited3090m'),
               )
