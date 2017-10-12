@@ -46,9 +46,9 @@ class AWSOutput(Output):
 
 class Pipeline(tl.HasTraits):
     path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
-    definition = tl.Dict(help="pipeline definition")
-    nodes = tl.Dict(trait=tl.Instance(Node), help="pipeline nodes")
-    params = tl.Dict(trait=tl.Dict(), help="default parameter overrides")
+    definition = tl.Instance(OrderedDict, help="pipeline definition")
+    nodes = tl.Instance(OrderedDict, help="pipeline nodes")
+    params = tl.Dict(trait=tl.Instance(OrderedDict), help="default parameter overrides")
     outputs = tl.List(trait=tl.Instance(Output), help="pipeline outputs")
     
     def __init__(self, source):
@@ -64,7 +64,6 @@ class Pipeline(tl.HasTraits):
         self.nodes = OrderedDict()
         self.params = {}
         for key, d in self.definition['nodes'].items():
-            key = key.encode()
             self.nodes[key] = self.parse_node(key, d)
             self.params[key] = d.get('params', OrderedDict())
 
@@ -105,7 +104,7 @@ class Pipeline(tl.HasTraits):
                     whitelist.append('sources')
             if Algorithm in parents:
                 if 'inputs' in d:
-                    kwargs.update({k:self.nodes[v.encode()] for k, v in d['inputs'].items()})
+                    kwargs.update({k:self.nodes[v] for k, v in d['inputs'].items()})
                     whitelist.append('inputs')
             if DataSource not in parents and\
                    Compositor not in parents and\
@@ -158,7 +157,7 @@ class Pipeline(tl.HasTraits):
         
         # nodes
         try:
-            nodes = [self.nodes[ref.encode()] for ref in refs]
+            nodes = [self.nodes[ref] for ref in refs]
         except KeyError as e:
             raise PipelineError("output definition references nonexistent node '%s'" % (e))
 
@@ -169,9 +168,9 @@ class Pipeline(tl.HasTraits):
         used = {ref:False for ref in self.nodes}
         
         def f(base_ref):
-            if used[base_ref.encode()]: return
+            if used[base_ref]: return
 
-            used[base_ref.encode()] = True
+            used[base_ref] = True
 
             d = self.definition['nodes'][base_ref]
             for ref in d.get('sources', []) + list(d.get('inputs', {}).values()):
@@ -199,8 +198,10 @@ class Pipeline(tl.HasTraits):
             d.update(params.get(key, OrderedDict()))
             
             if node.evaluated_coordinates == coordinates and node.params == d:
+                print("skipping node", key)
                 continue
             
+            print("executing node", key)
             node.execute(coordinates, params=d)
 
         for output in self.outputs:
@@ -269,7 +270,7 @@ if __name__ == '__main__':
     print()
     print('\ncoords\t', coords)
     print('\nparams\t', params)
-    
+
     if args.dry_run:
         pipeline.check_params(params)
     else:
