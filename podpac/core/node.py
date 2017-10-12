@@ -209,7 +209,8 @@ class Node(tl.HasTraits):
         """
         raise NotImplementedError
 
-    def _execute_common(self, coordinates, params=None, output=None):
+    def _execute_common(self, coordinates, params=None, output=None, 
+                        initialize_output=True):
         """ 
         Common input sanatization etc for when executing a node 
         """
@@ -221,8 +222,10 @@ class Node(tl.HasTraits):
             # subselect if neccessary
             out = output.loc[coordinates.coords] 
             self.output[:] = out
-        else:
+        elif initialize_output:
             self.output = self.initialize_output_array()
+        else:
+            out = None
 
         return coordinates, params, out
 

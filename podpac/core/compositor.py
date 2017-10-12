@@ -49,8 +49,10 @@ class Compositor(Node):
     
     def execute(self, coordinates, params=None, output=None):
         coords, params, out = \
-                self._execute_common(coordinates, params, output)
-
+                self._execute_common(coordinates, params, None, 
+                                     initialize_output=False)
+        out = output
+        
         # Decide which sources need to be evaluated
         if self.source_coordinates is None: # Do them all
             src_subset = self.sources
