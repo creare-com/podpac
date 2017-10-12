@@ -20,6 +20,8 @@ class Compositor(Node):
     sources = tl.Instance(np.ndarray)
     cache_native_coordinates = tl.Bool(True)
     
+    interpolation = tl.Unicode('')
+    
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
         """
@@ -56,6 +58,13 @@ class Compositor(Node):
             coords_subset_slc = \
                 self.source_coordinates.intersect_ind_slice(coordinates, pad=0)
             src_subset = self.sources[coords_subset_slc]
+            
+        #set the interpolation properties for sources
+        if self.interpolation:
+            for s in src_subset:
+                if hasattr(s, 'interpolation'):
+                    s.interpolation = self.interpolation
+            
         if len(src_subset) == 0:
             return self.initialize_coord_array(coordinates, init_type='nan')
 

@@ -163,24 +163,29 @@ class WCS(podpac.DataSource):
         
         url = self.source + '?' + self.get_data_qs.format(
             version=self.version, layer=self.layer_name, 
-            w=min(coordinates['lon'].coords),
-            e=max(coordinates['lon'].coords),
-            s=min(coordinates['lat'].coords),
-            n=max(coordinates['lat'].coords),
+            w=min(coordinates['lon'].area_bounds),
+            e=max(coordinates['lon'].area_bounds),
+            s=min(coordinates['lat'].area_bounds),
+            n=max(coordinates['lat'].area_bounds),
             width=coordinates['lon'].size,
             height=coordinates['lat'].size,
             crs=self.crs
             )
         data = requests.get(url)
+        if data.status_code != 200:
+            raise Exception("Could not get data from WCS server")        
         io = BytesIO(bytearray(data.content))
         with rasterio.open(io) as dataset:
             output.data[:] = dataset.read()
             
         return output
-    
-class ReprojectedSource(podpac.DataSource):
+
+# We mark this as an algorithm node for the sake of the pipeline, although
+# the "algorithm" portion is not being used / is overwritten by the DataSource
+class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
+    implicit_pipeline_evaluation = tl.Bool(False)
+    source_interpolation = tl.Unicode('nearest_preview')
     source = tl.Instance(podpac.Node)
- 
     # Specify either one of the next two
     coordinates_source = tl.Instance(podpac.Node, allow_none=True)
     reprojected_coordinates = tl.Instance(podpac.Coordinate)
@@ -206,6 +211,7 @@ class ReprojectedSource(podpac.DataSource):
         return podpac.Coordinate(coords)
     
     def get_data(self, coordinates, coordinates_slice):
+        self.source.interpolation = self.source_interpolation
         return self.source.execute(coordinates, self.params)
 
 if __name__ == '__main__':

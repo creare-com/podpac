@@ -99,15 +99,17 @@ class Pipeline(tl.HasTraits):
                 if 'source' in d:
                     kwargs['source'] = d['source']
                     whitelist.append('source')
-            elif Compositor in parents:
+            if Compositor in parents:
                 if 'sources' in d:
                     kwargs['sources'] = [self.nodes[source] for source in d['sources']]
                     whitelist.append('sources')
-            elif Algorithm in parents:
+            if Algorithm in parents:
                 if 'inputs' in d:
-                    kwargs.update({k:self.nodes[v] for k, v in d['inputs'].items()})
+                    kwargs.update({k:self.nodes[v.encode()] for k, v in d['inputs'].items()})
                     whitelist.append('inputs')
-            else:
+            if DataSource not in parents and\
+                   Compositor not in parents and\
+                   Algorithm not in parents:
                 raise PipelineError("node '%s' is not a DataSource, Compositor, or Algorithm" % name)
         except KeyError as e:
             raise PipelineError(
@@ -156,7 +158,7 @@ class Pipeline(tl.HasTraits):
         
         # nodes
         try:
-            nodes = [self.nodes[ref] for ref in refs]
+            nodes = [self.nodes[ref.encode()] for ref in refs]
         except KeyError as e:
             raise PipelineError("output definition references nonexistent node '%s'" % (e))
 
@@ -167,12 +169,12 @@ class Pipeline(tl.HasTraits):
         used = {ref:False for ref in self.nodes}
         
         def f(base_ref):
-            if used[base_ref]: return
+            if used[base_ref.encode()]: return
 
-            used[base_ref] = True
+            used[base_ref.encode()] = True
 
             d = self.definition['nodes'][base_ref]
-            for ref in d.get('sources', []) + d.get('inputs', {}).values():
+            for ref in d.get('sources', []) + list(d.get('inputs', {}).values()):
                 f(ref)
 
         for output in self.outputs:
@@ -251,8 +253,8 @@ if __name__ == '__main__':
 
     # TODO coordinate arguments and coordinate file path argument
     coords = Coordinate(
-        lat=[45., 66., 50],
-        lon=[-80., -70., 20],
+        lat=[43.759843545782765, 43.702536630730286, 64],
+        lon=[-72.3940658569336, -72.29999542236328, 32],
         time='2015-04-11T06:00:00',
         order=['lat', 'lon', 'time'])
     params = parse_params(args.params)

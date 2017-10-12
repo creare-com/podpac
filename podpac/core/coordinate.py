@@ -264,7 +264,7 @@ class Coord(tl.HasTraits):
             else:
                 self._cached_delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))  
         elif self.regularity == 'regular':
-            if isinstance(self.coords[2], int):
+            if isinstance(self.coords[2], (int, np.integer)):
                 self._cached_delta = np.atleast_1d((\
                     (np.array(self.coords[1]) - np.array(self.coords[0]))\
                     / (self.coords[2] - 1.) * (1 - 2 * self.is_max_to_min)).squeeze())
@@ -319,7 +319,7 @@ class Coord(tl.HasTraits):
         if self.regularity == 'single':
             return 1
         elif self.regularity == 'regular':
-            if not isinstance(self.coords[2], int):  # delta specified
+            if not isinstance(self.coords[2], (int, np.integer)):  # delta specified
                 N = np.round((1 - 2 * self.is_max_to_min) * 
                     (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
             else:

@@ -56,14 +56,24 @@ class SinCoords(Algorithm):
 class Arithmetic(Algorithm):
     A = tl.Instance(Node)
     B = tl.Instance(Node)
-    eqn = tl.Unicode(default_value='A+B')
+    C = tl.Instance(Node)
+    eqn = tl.Unicode(default_value='A+B+C')
     
-    def algorithm(self, A, B):
+    def algorithm(self, A, B=None, C=None):
         if 'eqn' not in self.params:
             eqn = self.eqn
         else: 
             eqn = self.params['eqn']
-        return ne.evaluate(eqn)
+        if C is None:
+            if B is None:
+                A = A
+            else:
+                A, B = xr.broadcast(A, B)
+        else:
+            A, B, C = xr.broadcast(A, B, C)
+        out = A.copy()
+        out.data[:] = ne.evaluate(eqn.format(**self.params))
+        return out
         
 if __name__ == "__main__":
     a = SinCoords()
