@@ -3,6 +3,7 @@ from __future__ import division, print_function, absolute_import
 import os
 import operator
 from collections import OrderedDict
+from io import BytesIO
 import xarray as xr
 import numpy as np
 import traitlets as tl
@@ -16,6 +17,11 @@ try:
     import cPickle  # Python 2.7
 except:
     import _pickle as cPickle
+
+try:
+    import boto3
+except:
+    boto3 = None
 
 #import podpac.core.coordinate
 from podpac import settings
@@ -424,15 +430,27 @@ class Node(tl.HasTraits):
     
     def cache_obj(self, obj, filename):
         path = self.cache_path(filename)
-        if not os.path.exists(self.cache_dir):
-            os.makedirs(self.cache_dir)
-        with open(path, 'wb') as fid:
-            cPickle.dump(obj, fid)#, protocol=cPickle.HIGHEST_PROTOCOL)
+        if settings.S3_BUCKET_NAME is None:
+            if not os.path.exists(self.cache_dir):
+                os.makedirs(self.cache_dir)
+            with open(path, 'wb') as fid:
+                cPickle.dump(obj, fid)#, protocol=cPickle.HIGHEST_PROTOCOL)
+        else:
+            s3 = boto3.resource('s3').Bucket(settings.S3_BUCKET_NAME)
+            io = BytesIO(cPickle.dumps(obj))
+            s3.upload_fileobj(io, path) 
             
     def load_cached_obj(self, filename):
         path = self.cache_path(filename)
-        with open(path, 'rb') as fid:
-            obj = cPickle.load(fid)
+        if settings.S3_BUCKET_NAME is None:
+            with open(path, 'rb') as fid:
+                obj = cPickle.load(fid)
+        else:
+            s3 = boto3.resource('s3').Bucket(settings.S3_BUCKET_NAME)
+            io = BytesIO()
+            s3.download_fileobj(path, io)
+            io.seek(0)
+            obj = cPickle.loads(io.read()) 
         return obj
 
 if __name__ == "__main__":

@@ -85,9 +85,10 @@ class SMAPSource(datatype.PyDAP):
 
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
-        if os.path.exists(self.cache_path('native.coordinates')):
+        try:
             return self.load_cached_obj('native.coordinates')
-        
+        except:
+            pass
         times = self.get_available_times()
         ds = self.dataset
         lons = np.array(ds[self.lonkey][:, :])
@@ -159,8 +160,10 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
     @tl.default('source_coordinates')
     def get_source_coordinates(self):
-        if os.path.exists(self.cache_path('source.coordinates')):
+        try: 
             return self.load_cached_obj('source.coordinates')
+        except:
+            pass
         times, _ = self.get_available_times_sources()
         time_crds = podpac.Coordinate(time=times)
         self.cache_obj(time_crds, 'source.coordinates')
@@ -168,8 +171,10 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
     @tl.default('shared_coordinates')
     def get_shared_coordinates(self):
-        if os.path.exists(self.cache_path('shared.coordinates')):
+        try: 
             return self.load_cached_obj('shared.coordinates')
+        except:
+            pass
         coords = copy.deepcopy(self.sources[0].native_coordinates)
         del coords._coords['time']
         self.cache_obj(coords, 'shared.coordinates')
@@ -273,13 +278,13 @@ if __name__ == '__main__':
     #t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
     #o2 = smap.execute(t_coords)    
     
-    #source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP'
-              #'/SPL4SMGP.003/2015.04.07'
-              #'/SMAP_L4_SM_gph_20150407T013000_Vv3030_001.h5')
+    source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP'
+              '/SPL4SMGP.003/2015.04.07'
+              '/SMAP_L4_SM_gph_20150407T013000_Vv3030_001.h5')
     #source2 = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL3SMP.004/'
               #'2015.04.11/SMAP_L3_SM_P_20150411_R14010_001.h5')
-    source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL4SMAU.003/'
-              '2015.04.03/SMAP_L4_SM_aup_20150403T030000_Vv3030_001.h5')
+    #source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL4SMAU.003/'
+    #          '2015.04.03/SMAP_L4_SM_aup_20150403T030000_Vv3030_001.h5')
     smap = SMAPSource(source=source, interpolation='nearest_preview')
     coords = smap.native_coordinates
     print (coords)

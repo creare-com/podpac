@@ -20,9 +20,9 @@ class AirMOSS_Source(datatype.PyDAP):
     
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
-        if os.path.exists(self.cache_path('native.coordinates')):
+        try: 
             return self.load_cached_obj('native.coordinates')
-        
+        except: pass
         ds = self.dataset
         base_date = ds['time'].attributes['units']
         base_date = self.date_url_re.search(base_date).group()
@@ -56,8 +56,9 @@ class AirMOSS_Site(podpac.GridCompositor):
 
     @tl.default('native_coordinates')
     def set_native_coordinates(self):
-        if os.path.exists(self.cache_path(self.site + '.native.coordinates')):
+        try: 
             return self.load_cached_obj('native.coordinates')
+        except: pass
         
         ds = self.dataset
         times = self.get_available_dates()
