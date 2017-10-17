@@ -26,14 +26,14 @@ class Output(tl.HasTraits):
     node = tl.Instance(Node)
     name = tl.Unicode()
 
-    def save(self):
+    def write(self):
         raise NotImplementedError
 
 class FileOutput(Output):
     outdir = tl.Unicode()
     format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default='pickle')
 
-    def save(self):
+    def write(self):
         self.node.write(self.name, outdir=self.outdir, format=self.format)
 
 class FTPOutput(Output):
@@ -44,12 +44,20 @@ class AWSOutput(Output):
     user = tl.Unicode()
     bucket = tl.Unicode()
 
+class ImageOutput(Output):
+    format = tl.CaselessStrEnum(values=['png'], default='png')
+    image = tl.Bytes()
+
+    def write(self):
+        self.image = self.node.get_image(format=self.format)
+
 class Pipeline(tl.HasTraits):
     path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
     definition = tl.Instance(OrderedDict, help="pipeline definition")
     nodes = tl.Instance(OrderedDict, help="pipeline nodes")
     params = tl.Dict(trait=tl.Instance(OrderedDict), help="default parameter overrides")
     outputs = tl.List(trait=tl.Instance(Output), help="pipeline outputs")
+    skip_evaluate = tl.List(trait=tl.Unicode, help="nodes to skip")
     
     def __init__(self, source):
         if type(source) is dict:
@@ -89,7 +97,7 @@ class Pipeline(tl.HasTraits):
         
         # parse and configure kwargs
         kwargs = {}
-        whitelist = ['node', 'attrs', 'params']
+        whitelist = ['node', 'attrs', 'params', 'evaluate']
         
         try:
             parents = inspect.getmro(node_class)
@@ -118,9 +126,12 @@ class Pipeline(tl.HasTraits):
        
         if 'params' in d:
             kwargs['params'] = d['params']
-            
+
         if 'attrs' in d:
             kwargs.update(d['attrs'])
+
+        if d.get('evaluate') is False:
+            self.skip_evaluate.append(name)
 
         for key in d:
             if key not in whitelist:
@@ -142,10 +153,13 @@ class Pipeline(tl.HasTraits):
         elif d['mode'] == 'aws':
             output_class = AWSOutput
             kwargs = {'user': d['user'], 'bucket': d['bucken']}
+        elif d['mode'] == 'image':
+            output_class = ImageOutput
+            kwargs = {'format': d.get('image', 'png')}
         else:
             raise PipelineError("output definition has unexpected mode '%s'" % d['mode'])
 
-        # node rerfences
+        # node references
         if 'node' in d and 'nodes' in d:
             raise PipelineError("output definition expects 'node' or 'nodes' property, not both")
         elif 'node' in d:
@@ -193,19 +207,22 @@ class Pipeline(tl.HasTraits):
         self.check_params(params)
 
         for key in self.nodes:
+            if key in self.skip_evaluate:
+                continue
+
             node = self.nodes[key]
+
             d = copy.deepcopy(self.params[key])
             d.update(params.get(key, OrderedDict()))
             
             if node.evaluated_coordinates == coordinates and node.params == d:
-                print("skipping node", key)
                 continue
             
             print("executing node", key)
             node.execute(coordinates, params=d)
 
         for output in self.outputs:
-            output.save()
+            output.write()
 
 if __name__ == '__main__':
     import argparse

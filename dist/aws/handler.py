@@ -56,32 +56,20 @@ def handler(event, context):
     subprocess.call(['unzip', '/tmp/' + deps, '-d', '/tmp'])
     subprocess.call(['rm', '/tmp/' + deps])
 
-    import requests
-    import matplotlib
-    matplotlib.use('agg')
-    from matplotlib import cm
-    from matplotlib.image import imsave
     import numpy as np
-    import podpac
-    from podpac.core.pipeline import pipeline
+    from podpac import Coordinate
+    from podpac.core.pipeline import Pipeline
 
     pipeline = Pipeline(source=pipeline)
     
     w, s, e, n = np.array(bbox, float)     
-    coord = podpac.Coordinate(lat=(n, s, height), lon=(w, e, width),
-                              time=np.datetime64(time), 
-                              order=['time', 'lat', 'lon'])
+    coord = Coordinate(lat=(n, s, height), lon=(w, e, width),
+                       time=np.datetime64(time), 
+                       order=['time', 'lat', 'lon'])
     pipeline.execute(coord)
 
-    if 'png' in fmt:
-        o = pipeline.outputs[0].node.output
-        c = (o.data - np.min(o.data)) / (np.max(o.data) - np.min(o.data) + 1e-16)
-        i = cm.viridis(c, bytes=True)
-        im_data = BytesIO()
-        imsave(im_data, i, format='png')
-        im_data.seek(0)
-        img = base64.b64encode(im_data.getvalue())
-    return o 
+    output = pipeline.outputs[0]
+    return img_response(output.image)
 
 def img_response(img):
     return {

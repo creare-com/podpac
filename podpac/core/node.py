@@ -4,6 +4,7 @@ import os
 import operator
 from collections import OrderedDict
 from io import BytesIO
+import base64
 import xarray as xr
 import numpy as np
 import traitlets as tl
@@ -416,6 +417,20 @@ class Node(tl.HasTraits):
         self.output = output
         self.evaluated_coordinates = self.output.coordinates
         self.params = self.output.attrs['params']
+
+    def get_image(self, format='png'):
+        import matplotlib
+        matplotlib.use('agg')
+        from matplotlib import cm
+        from matplotlib.image import imsave
+
+        data = self.output.data
+        c = (data - np.min(data)) / (np.max(data) - np.min(data) + 1e-16)
+        i = cm.viridis(c, bytes=True)
+        im_data = BytesIO()
+        imsave(im_data, i, format='png')
+        im_data.seek(0)
+        return base64.b64encode(im_data.getvalue())
 
     @property
     def cache_dir(self):
