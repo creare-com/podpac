@@ -269,13 +269,15 @@ def make_pipeline_definition(main_node):
 
     add_node(main_node)
 
+    output = OrderedDict()
+    output['mode'] = 'file'
+    output['format'] = 'pickle'
+    output['outdir'] = os.path.join(os.getcwd(), 'out')
+    output['nodes'] = [refs[-1]]
+
     d = OrderedDict()
     d['nodes'] = OrderedDict(zip(refs, definitions))
-    d['outputs'] = OrderedDict()
-    d['outputs']['mode'] = 'file'
-    d['outputs']['format'] = 'cPickle'
-    d['outputs']['outdir'] = os.path.join(os.getcwd(), 'out')
-    d['outputs']['nodes'] = [refs[-1]]
+    d['outputs'] = [output]
     return d
 
 if __name__ == '__main__':
@@ -344,6 +346,7 @@ if __name__ == '__main__':
 
     print('\nrebuilt pipeline definition:')
     print(pipeline.nodes.values()[-1].pipeline_json)
+    rebuilt_pipeline = Pipeline(pipeline.nodes.values()[-1].pipeline_definition)
     
     if args.dry_run:
         pipeline.check_params(params)
