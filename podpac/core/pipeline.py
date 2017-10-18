@@ -60,7 +60,7 @@ class Pipeline(tl.HasTraits):
     skip_evaluate = tl.List(trait=tl.Unicode, help="nodes to skip")
     
     def __init__(self, source):
-        if type(source) is dict:
+        if isinstance(source, dict):
             self.definition = source
         
         else:
