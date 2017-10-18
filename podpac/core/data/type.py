@@ -100,12 +100,14 @@ class RasterioSource(podpac.DataSource):
     def get_data(self, coordinates, coodinates_slice):
         return 
 
+WCS_DEFAULT_VERSION = u'1.0.0'
+WCS_DEFAULT_CRS = 'EPSG:4326'
 
 class WCS(podpac.DataSource):
     source = tl.Unicode()
     layer_name = tl.Unicode()
-    version = tl.Unicode('1.0.0')
-    crs = tl.Unicode('EPSG:4326')
+    version = tl.Unicode(WCS_DEFAULT_VERSION)
+    crs = tl.Unicode(WCS_DEFAULT_CRS)
     get_capabilities_qs = tl.Unicode('SERVICE=WCS&REQUEST=DescribeCoverage&'
                                      'VERSION={version}&COVERAGE={layer}')
     get_data_qs = tl.Unicode('SERVICE=WCS&VERSION={version}&REQUEST=GetCoverage&'
@@ -180,6 +182,21 @@ class WCS(podpac.DataSource):
             
         return output
 
+    @property
+    def base_ref(self):
+        return self.layer_name.rsplit('.', 1)[1]
+
+    @property
+    def definition(self):
+        d = super(WCS, self).definition
+        d['attrs'] = d.get('attrs', OrderedDict())
+        d['attrs']['layer_name'] = self.layer_name
+        if self.version != WCS_DEFAULT_VERSION:
+            d['attrs']['version'] = self.version
+        if self.crs != WCS_DEFAULT_CRS:
+            d['attrs']['crs'] = self.crs
+        return d
+
 # We mark this as an algorithm node for the sake of the pipeline, although
 # the "algorithm" portion is not being used / is overwritten by the DataSource
 class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
@@ -213,6 +230,21 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
     def get_data(self, coordinates, coordinates_slice):
         self.source.interpolation = self.source_interpolation
         return self.source.execute(coordinates, self.params)
+
+    @property
+    def base_ref(self):
+        return '%s_reprojected' % self.source.base_ref
+
+    @property
+    def definition(self):
+        d = podpac.Algorithm.definition.fget(self)
+        d['attrs'] = OrderedDict()
+        if self.interpolation:
+            d['attrs']['interpolation'] = self.interpolation
+        if self.coordinates_source is None:
+            # TODO serialize reprojected_coordinates
+            raise NotImplementedError
+        return d
 
 if __name__ == '__main__':
     coord_src = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2),

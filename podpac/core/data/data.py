@@ -303,4 +303,13 @@ class DataSource(Node):
                                  coords_dst.coords['lon'],
                                  grid=grid).reshape(data_dst.shape)
         return data_dst
-    
+
+    @property
+    def definition(self):
+        d = OrderedDict()
+        d['node'] = self.podpac_path
+        d['source'] = self.source
+        if self.interpolation:
+            d['attrs'] = OrderedDict()
+            d['attrs']['interpolation'] = self.interpolation
+        return d

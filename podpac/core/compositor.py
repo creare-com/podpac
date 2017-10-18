@@ -80,6 +80,22 @@ class Compositor(Node):
 
         return self.output
 
+    @property
+    def definition(self):
+        return NotImplementedError
+
+        # currently doesn't work because sources is a list of np.ndarray
+        # instead of a list of nodes
+
+        d = OrderedDict()
+        d['node'] = self.podpac_path
+        d['sources'] = self.sources
+
+        if self.interpolation:
+            d['attrs'] = OrderedCompositor()
+            d['attrs']['interpolation'] = interpolation
+        return d
+
 
 class OrderedCompositor(Compositor):
 

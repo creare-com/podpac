@@ -1,10 +1,12 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
+import os
 import json
 import copy
 import importlib
 import inspect
+import re
 import warnings
 import numpy as np
 import traitlets as tl
@@ -224,6 +226,58 @@ class Pipeline(tl.HasTraits):
         for output in self.outputs:
             output.write()
 
+def make_pipeline_definition(main_node):
+    """
+    Make a pipeline definition, including the flattened node definitions and a
+    default file output for the input node.
+    """
+
+    nodes = []
+    refs = []
+    definitions = []
+
+    def add_node(node):
+        if node in nodes:
+            return refs[nodes.index(node)]
+
+        # get definition
+        d = node.definition
+        
+        # replace nodes with references, adding nodes depth first
+        if 'inputs' in d:
+            for key, input_node in d['inputs'].items():
+                d['inputs'][key] = add_node(input_node)
+        if 'sources' in d:
+            for i, source_node in enumerate(d['sources']):
+                d['sources'][i] = add_node(source_node)
+
+        # unique ref
+        ref = node.base_ref
+        if ref in refs:
+            if re.search('_[1-9][0-9]*$', ref):
+                ref, i = ref.rsplit('_', 1)
+                i = int(i)
+            else:
+                i = 0
+            ref = '%s_%d' % (ref, i+1)
+        
+        nodes.append(node)
+        refs.append(ref)
+        definitions.append(d)
+
+        return ref
+
+    add_node(main_node)
+
+    d = OrderedDict()
+    d['nodes'] = OrderedDict(zip(refs, definitions))
+    d['outputs'] = OrderedDict()
+    d['outputs']['mode'] = 'file'
+    d['outputs']['format'] = 'cPickle'
+    d['outputs']['outdir'] = os.path.join(os.getcwd(), 'out')
+    d['outputs']['nodes'] = [refs[-1]]
+    return d
+
 if __name__ == '__main__':
     import argparse
     import os
@@ -288,6 +342,9 @@ if __name__ == '__main__':
     print('\ncoords\t', coords)
     print('\nparams\t', params)
 
+    print('\nrebuilt pipeline definition:')
+    print(pipeline.nodes.values()[-1].pipeline_json)
+    
     if args.dry_run:
         pipeline.check_params(params)
     else:

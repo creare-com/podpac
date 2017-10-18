@@ -44,6 +44,32 @@ class Algorithm(Node):
         """
         """
         raise NotImplementedError
+
+    @property
+    def definition(self):
+        d = OrderedDict()
+        d['node'] = self.podpac_path
+        
+        # this first version is nicer, but the gettattr(self, ref) can take a
+        # a long time if it is has a default value or is a property
+
+        # d['inputs'] = {
+        #     ref:getattr(self, ref)
+        #     for ref in self.trait_names()
+        #     if isinstance(getattr(self, ref, None), Node)
+        # }
+        
+        import inspect
+        d['inputs'] = {
+            ref:getattr(self, ref)
+            for ref, trait in self.traits().items()
+            if hasattr(trait, 'klass') and Node in inspect.getmro(trait.klass)
+        }
+        
+        if self.params:
+            d['params'] = self.params
+            
+        return d
         
 class SinCoords(Algorithm):
     def algorithm(self):
@@ -74,6 +100,15 @@ class Arithmetic(Algorithm):
         out = A.copy()
         out.data[:] = ne.evaluate(eqn.format(**self.params))
         return out
+
+    @property
+    def definition(self):
+        d = super(Arithmetic, self).definition
+        
+        if 'eqn' not in self.params:
+            d['params']['eqn'] = self.eqn
+
+        return d
         
 if __name__ == "__main__":
     a = SinCoords()

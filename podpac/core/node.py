@@ -1,10 +1,12 @@
 from __future__ import division, print_function, absolute_import
 
 import os
+import inspect
 import operator
 from collections import OrderedDict
 from io import BytesIO
 import base64
+import json
 import xarray as xr
 import numpy as np
 import traitlets as tl
@@ -235,12 +237,6 @@ class Node(tl.HasTraits):
             out = None
 
         return coordinates, params, out
-
-    def get_description(self):
-        """
-        This is to get the pipeline lineage or provenance
-        """
-        raise NotImplementedError
     
     def initialize_output_array(self, init_type='nan', fillval=0, style=None,
                               no_style=False, shape=None, coords=None,
@@ -367,11 +363,52 @@ class Node(tl.HasTraits):
             plt.show()
 
     @property
+    def podpac_path(self):
+        """
+        Submodule and class name (used in pipeline node definitions)
+        """
+        module_path = inspect.getmodule(self).__name__
+        submodule_name = module_path.split('.', 1)[1]
+        return '%s.%s' % (submodule_name, self.__class__.__name__)
+
+    @property
+    def base_ref(self):
+        """
+        Default pipeline node reference/name in pipeline node definitions
+        """
+        return self.__class__.__name__
+
+    @property
+    def definition(self):
+        """
+        Pipeline node definition. Implemented in primary base nodes, with
+        custom implementations or extensions necessary for specific nodes.
+
+        Should be an OrderedDict with at least a 'node' attribute.
+        """
+        parents = inspect.getmro(self.__class__)
+        podpac_parents = [
+            '%s.%s' % (p.__module__[7:], p.__name__)
+            for p in parents
+            if p.__module__.startswith('podpac')]
+        raise NotImplementedError('See %s' % ', '.join(podpac_parents))
+
+    @property
     def pipeline_definition(self):
-        raise NotImplementedError
+        """
+        Full pipeline definition for this node.
+        """
+
+        from pipeline import make_pipeline_definition
+        return make_pipeline_definition(self)
+
+    @property
+    def pipeline_json(self):
+        return json.dumps(self.pipeline_definition, indent=4)
 
     @property
     def pipeline(self):
+        from pipeline import Pipeline
         return Pipeline(self.pipeline_definition)
 
     def get_hash(self, coordinates=None, params=None):

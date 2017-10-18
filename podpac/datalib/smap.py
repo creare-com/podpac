@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import os
 import copy
+from collections import OrderedDict
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -254,8 +255,21 @@ class SMAP(podpac.OrderedCompositor):
                                 folder_date=self.get_available_times_dates()[1][0],
                            ).shared_coordinates
         self.cache_obj(coords, 'shared.coordinates')
-        return coords    
+        return coords
 
+    @property
+    def base_ref(self):
+        return '%s_%s' % (self.__class__.__name__, self.product)
+    
+    @property
+    def definition(self):
+        d = OrderedDict()
+        d['node'] = self.podpac_path
+        d['attrs'] = OrderedDict()
+        d['attrs']['product'] = self.product
+        if self.interpolation:
+            d['attrs']['interpolation'] = self.interpolation
+        return d
     
 if __name__ == '__main__':
     #sdf = SMAPDateFolder(product='SPL4SMGP.003', folder_date='2016.04.07')
