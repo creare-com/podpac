@@ -5,6 +5,7 @@ import json
 import boto3
 import subprocess
 from io import BytesIO
+from collections import OrderedDict
 import sys, os
 import urllib
 sys.path.append('/tmp')
@@ -30,11 +31,13 @@ def return_exception(e, event, context, pipeline=None):
     return {
         'statusCode': 200,
         'headers': {
-            'Content-Type': 'text/html'
+            'Content-Type': 'text/html',
+            'Access-Control-Allow-Origin': '*',
         },
         'body': '<h1>Event</h1><br><br><br>' + str(event)\
                 + '<h1>Context</h1><br><br><br>' + str(context)
-                + '<h1>Pipeline</h1><br><br><br>' + str(pipeline),
+                + '<h1>Pipeline</h1><br><br><br>' + str(pipeline)
+                + '<h1>Exception</h1><br><br><br>' + str(e),
         'isBase64Encoded': False,
     }    
 
@@ -54,13 +57,13 @@ def handler(event, context):
         width = urllib.unquote(qs['WIDTH'])
         height = urllib.unquote(qs['HEIGHT'])
         params = urllib.unquote(qs['PARAMS'])
-        pipeline = json.loads(params)['pipeline']
+        pipeline = json.loads(params, object_pairs_hook=OrderedDict)['pipeline']
         try: 
-            pipeline = json.loads(pipeline)
+            pipeline = json.loads(pipeline, object_pairs_hook=OrderedDict)
         except:
             pass
     except Exception as e:
-        return_exception(e, event, context)
+        return return_exception(e, event, context)
 
     # Download additional dependencies ( we should do this in a thread )
     s3.download_file(s3_bucket, 'podpac/' + deps, '/tmp/' + deps)
@@ -88,7 +91,7 @@ def handler(event, context):
                 break
         return img_response(output.image)
     except Exception as e:
-        return_exception(e, event, context, pipeline)        
+        return return_exception(e, event, context, pipeline)        
 
 def img_response(img):
     return {
