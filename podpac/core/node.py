@@ -424,7 +424,7 @@ class Node(tl.HasTraits):
         from matplotlib import cm
         from matplotlib.image import imsave
 
-        data = self.output.data
+        data = self.output.data.squeeze()
         c = (data - np.min(data)) / (np.max(data) - np.min(data) + 1e-16)
         i = cm.viridis(c, bytes=True)
         im_data = BytesIO()
