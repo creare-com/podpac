@@ -462,7 +462,7 @@ class Node(tl.HasTraits):
         from matplotlib.image import imsave
 
         data = self.output.data.squeeze()
-        c = (data - np.min(data)) / (np.max(data) - np.min(data) + 1e-16)
+        c = (data - np.nanmin(data)) / (np.nanmax(data) - np.nanmin(data) + 1e-16)
         i = cm.viridis(c, bytes=True)
         im_data = BytesIO()
         imsave(im_data, i, format='png')

@@ -54,8 +54,8 @@ def handler(event, context):
         bbox = urllib.unquote(qs['BBOX']).split(',')
         crs = urllib.unquote(qs['CRS'])
         response_crs = urllib.unquote(qs['RESPONSE_CRS'])
-        width = urllib.unquote(qs['WIDTH'])
-        height = urllib.unquote(qs['HEIGHT'])
+        width = int(urllib.unquote(qs['WIDTH']))
+        height = int(urllib.unquote(qs['HEIGHT']))
         params = urllib.unquote(qs['PARAMS'])
         pipeline = json.loads(params, object_pairs_hook=OrderedDict)['pipeline']
         try: 
@@ -84,7 +84,7 @@ def handler(event, context):
         coord = Coordinate(lat=(n, s, height), lon=(w, e, width),
                            time=np.datetime64(time), 
                            order=['time', 'lat', 'lon'])
-        pipeline.execute(coord)
+        pipeline.execute(coord, {})
         
         for output in pipeline.outputs:
             if output.format == 'png':
