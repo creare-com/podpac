@@ -64,7 +64,7 @@ class DataSource(Node):
         This should return an UnitsDataArray, and A Coordinate object, unless
         there is no intersection
         """
-        pad = self.interpolation != 'nearest'
+        pad = 1#self.interpolation != 'nearest'
         coords_subset = self.native_coordinates.intersect(coordinates, pad=pad)
         coords_subset_slc = self.native_coordinates.intersect_ind_slice(coordinates, pad=pad)
         
