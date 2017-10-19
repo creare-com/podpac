@@ -81,7 +81,10 @@ def handler(event, context):
         pipeline = Pipeline(source=pipeline)
         
         w, s, e, n = np.array(bbox, float)     
-        coord = Coordinate(lat=(n, s, height), lon=(w, e, width),
+        dwe = (w-e)/width/2.
+        dns = (n-s)/height/2.
+        coord = Coordinate(lat=(n-dns, s+dns, height),
+                           lon=(w+dwe, e-dwe, width),
                            time=np.datetime64(time), 
                            order=['time', 'lat', 'lon'])
         pipeline.execute(coord, {})
