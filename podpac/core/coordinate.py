@@ -108,8 +108,15 @@ class Coord(tl.HasTraits):
         if regularity == 'regular':
             if isinstance(val[0], (int, np.ndarray)):
                 val = (float(val[0]),) + tuple(val[1:])
+            elif isinstance(val[0], string_types):
+                val = (np.datetime64(val[0]),) + tuple(val[1:])
             if isinstance(val[1], (int, np.ndarray)):
-                    val = (val[0], float(val[1])) + tuple(val[2:])
+                val = (val[0], float(val[1])) + tuple(val[2:])
+            elif isinstance(val[1], string_types):
+                val = (val[0], np.datetime64(val[1])) + tuple(val[2:])
+            if isinstance(val[2], string_types):
+                a, b = val[2].split(',')
+                val = (val[0], val[1], np.timedelta64(int(a), b))
             if stacked > 1:
                 newval0 = []
                 for v in val[0]:
@@ -264,14 +271,15 @@ class Coord(tl.HasTraits):
             else:
                 self._cached_delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))  
         elif self.regularity == 'regular':
-            if isinstance(self.coords[2], (int, np.integer)):
+            if isinstance(self.coords[2], (int, np.integer)) \
+                    and not isinstance(self.coords[2], np.timedelta64):
                 self._cached_delta = np.atleast_1d((\
                     (np.array(self.coords[1]) - np.array(self.coords[0]))\
                     / (self.coords[2] - 1.) * (1 - 2 * self.is_max_to_min)).squeeze())
             else:
                 self._cached_delta = np.atleast_1d(np.array(self.coords[2:3]).squeeze())
         elif self.regularity == 'irregular':
-            print("Warning: delta is not representative for irregular coords")
+            #print("Warning: delta is not representative for irregular coords")
             if self.stacked == 1:
                 self._cached_delta = np.atleast_1d(np.array(
                     (self.coords[1] - self.coords[0])*(1 - 2 * self.is_max_to_min)).squeeze())
@@ -281,7 +289,7 @@ class Coord(tl.HasTraits):
                     for c, m2m in zip(self.coords, self.is_max_to_min)]).squeeze()
                     
         else:
-            print("Warning: delta probably doesn't work for stacked dependent coords")
+            #print("Warning: delta probably doesn't work for stacked dependent coords")
             self._cached_delta = np.array([
                 self.coords[1] - self.coords[0],
                 self.coords[-1] - self.coords[-2]
@@ -319,10 +327,12 @@ class Coord(tl.HasTraits):
         if self.regularity == 'single':
             return 1
         elif self.regularity == 'regular':
-            if not isinstance(self.coords[2], (int, np.integer)):  # delta specified
+            # delta specified
+            if not isinstance(self.coords[2], (int, np.integer)) or \
+                    isinstance(self.coords[2], np.timedelta64):
                 N = np.round((1 - 2 * self.is_max_to_min) * 
                     (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
-            else:
+            else: #number specified
                 N = self.coords[2]
         elif self.regularity == 'irregular':
             if self.stacked == 1:
