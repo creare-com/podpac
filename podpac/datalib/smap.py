@@ -99,7 +99,7 @@ class SMAPSource(datatype.PyDAP):
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
         coords = podpac.Coordinate(lat=lats, lon=lons, time=np.array(times), 
-                                   order=['lat', 'lon', 'time'])
+                                   order=['time', 'lat', 'lon'])
         self.cache_obj(coords, 'native.coordinates')
         return coords
         
@@ -111,7 +111,7 @@ class SMAPSource(datatype.PyDAP):
         return times
     
     def get_data(self, coordinates, coordinates_slice):
-        s = tuple(coordinates_slice)
+        s = tuple(coordinates_slice)[1:] # We actually ignore the time slice
         if 'SM_P_' in self.source:
             d = self.initialize_coord_array(coordinates, 'nan')
             am_key = self.rootdatakey + 'AM_' + self.layerkey
@@ -152,7 +152,9 @@ class SMAPDateFolder(podpac.OrderedCompositor):
             _, sources = self.get_available_times_sources()
             self.cache_obj(sources, 'sources')
         b = self.source + '/'
-        src_objs = np.array([SMAPSource(source=b + s) for s in sources])
+        tol = self.source_coordinates['time'].delta[0] / 2
+        src_objs = np.array([SMAPSource(source=b + s,
+                                        interpolation_tolerance=tol) for s in sources])
         return src_objs
     
     @tl.default('is_source_coordinates_complete')

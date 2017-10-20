@@ -16,7 +16,11 @@ class Compositor(Node):
 
     shared_coordinates = tl.Instance(Coordinate, allow_none=True)
     source_coordinates = tl.Instance(Coordinate, allow_none=True)
-    is_source_coordinates_complete = tl.Bool(False)
+    is_source_coordinates_complete = tl.Bool(False,
+        help=("This allows some optimizations but assumes that a node's " 
+        "native_coordinates=source_coordinate + shared_coordinate "
+        "IN THAT ORDER"))
+
     sources = tl.Instance(np.ndarray)
     cache_native_coordinates = tl.Bool(True)
     
@@ -58,15 +62,31 @@ class Compositor(Node):
             src_subset = self.sources
         else:
             coords_subset_slc = \
-                self.source_coordinates.intersect_ind_slice(coordinates, pad=0)
+                self.source_coordinates.intersect_ind_slice(coordinates, pad=1)
             src_subset = self.sources[coords_subset_slc]
             
-        #set the interpolation properties for sources
+        # Set the interpolation properties for sources
         if self.interpolation:
-            for s in src_subset:
+            for s in src_subset.ravel():
                 if hasattr(s, 'interpolation'):
                     s.interpolation = self.interpolation
-            
+
+        # Optimization: if coordinates complete and source coords is 1D,
+        # set native_coordinates unless they are set already
+        # WARNING: this assumes 
+        #              native_coords = source_coords + shared_coordinates
+        #         NOT  native_coords = shared_coords + source_coords
+        if self.is_source_coordinates_complete \
+                and len(self.source_coordinates.shape) == 1:
+            coords_subset = list(self.source_coordinates.intersect(coordinates,
+                    pad=1).coords.values())[0]
+            coords_dim = list(self.source_coordinates.dims)[0]
+            for s, c in zip(src_subset, coords_subset):
+                nc = Coordinate(**{coords_dim: c})\
+                        + self.shared_coordinates
+                if 'native_coordinates' not in s._trait_values:
+                    s.native_coordinates = nc
+
         if len(src_subset) == 0:
             return self.initialize_coord_array(coordinates, init_type='nan')
 

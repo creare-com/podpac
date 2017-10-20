@@ -34,6 +34,7 @@ class DataSource(Node):
                              'cubic_spline', 'lanczos', 'average', 'mode',
                              'gauss', 'max', 'min', 'med', 'q1', 'q3'],
                             default_value='nearest')
+    interpolation_tolerance = tl.Any()
     no_data_vals = tl.List(allow_none=True)
     
     def execute(self, coordinates, params=None, output=None):
@@ -53,7 +54,8 @@ class DataSource(Node):
             res = self.interpolate_data(data_subset, coords_subset, coords)
             self.output = res  
         else:
-            out[:] = self.interpolate_data(data_subset, coords_subset, coords)
+            out[:] = self.interpolate_data(
+                    data_subset, coords_subset, coords).transpose(*out.dims)
             self.output = out
             
         self.evaluted = True        
@@ -129,14 +131,15 @@ class DataSource(Node):
                 crd[c] = data_dst.coords[c].sel(method=str('nearest'),
                                                 **{c: data_src.coords[c]}
                                                 )
-            data_dst.loc[crd] = data_src.data[:]
+            data_dst.loc[crd] = data_src.transpose(*data_dst.dims).data[:]
             return data_dst
         
         # For now, we just do nearest-neighbor interpolation for time and alt
         # coordinates
         if 'time' in coords_src.dims and 'time' in coords_dst.dims:
             data_src = data_src.reindex(time=coords_dst.coords['time'], 
-                                        method='nearest')
+                                        method='nearest',
+                                        tolerance=self.interpolation_tolerance)
             coords_src._coords['time'] = data_src['time'].data
         if 'alt' in coords_src.dims and 'alt' in coords_dst.dims:
             data_src = data_src.reindex(alt=coords_dst.coords['alt'], 

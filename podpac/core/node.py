@@ -230,7 +230,8 @@ class Node(tl.HasTraits):
             # This should be a reference, not a copy
             # subselect if neccessary
             out = output.loc[coordinates.coords] 
-            self.output[:] = out
+            # self.output[:] = out.transpose(*self.output.dims)
+            self.output = out
         elif initialize_output:
             self.output = self.initialize_output_array()
         else:
