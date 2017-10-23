@@ -345,7 +345,7 @@ if __name__ == '__main__':
     print('\nparams\t', params)
 
     print('\nrebuilt pipeline definition:')
-    print(pipeline.nodes.values()[-1].pipeline_json)
+    print(list(pipeline.nodes.values())[-1].pipeline_json)
     rebuilt_pipeline = Pipeline(pipeline.nodes.values()[-1].pipeline_definition)
     
     if args.dry_run:

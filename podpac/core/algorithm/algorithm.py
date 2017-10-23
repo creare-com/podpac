@@ -81,8 +81,8 @@ class SinCoords(Algorithm):
 
 class Arithmetic(Algorithm):
     A = tl.Instance(Node)
-    B = tl.Instance(Node)
-    C = tl.Instance(Node)
+    B = tl.Instance(Node, allow_none=True)
+    C = tl.Instance(Node, allow_none=True)
     eqn = tl.Unicode(default_value='A+B+C')
     
     def algorithm(self, A, B=None, C=None):

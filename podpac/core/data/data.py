@@ -181,7 +181,11 @@ class DataSource(Node):
             coords_dst_us = coords_dst.unstack()
             return self.interpolate_irregular_grid(data_src, coords_src,
                                                    data_dst, coords_dst_us,
-                                                   grid=False)            
+                                                   grid=False)      
+        elif (np.any(['lat_lon' in d for d in coords_src.dims]) or \
+                  np.any(['lon_lat' in d for d in coords_src.dims])):
+            return self.interpolate_point_data(data_src, coords_src, 
+                                               data_dst, coords_dst)
         
         return data_src
             
@@ -306,6 +310,11 @@ class DataSource(Node):
                                  coords_dst.coords['lon'],
                                  grid=grid).reshape(data_dst.shape)
         return data_dst
+
+    def interpolate_point_data(self, data_src, coords_src,
+                               data_dst, coords_dst, grid=True):
+        print ("do interpolation")
+        
 
     @property
     def definition(self):
