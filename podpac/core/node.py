@@ -183,6 +183,7 @@ class Node(tl.HasTraits):
         if ev is not None:
             stacked = ev.stacked_coords
             stack_dict = OrderedDict([(c, True) for c, v in ev._coords.items() if v.stacked != 1])
+            nat_stacked = nv.stacked_coords
             if nv is not None:
                 shape = []
                 for c in nv.coords:
@@ -192,7 +193,22 @@ class Node(tl.HasTraits):
                         shape.append(ev[stacked[c]].size)
                         stack_dict[stacked[c]] = False
                     elif c not in stacked:
-                        shape.append(nv[c].size)
+
+                        # If native stacked, but request is not
+                        parts = c.split('_')
+                        partsplit = []
+                        for p in parts:
+                            if p in ev.coords:
+                                shape.append(ev[p].size)
+                                partsplit.append(p)
+
+                        if not partsplit:
+                            # Otherwise, coordinate not in request, use native
+                            shape.append(nv[c].size)
+                        elif len(partsplit) != len(parts):  #then there are leftover parts
+                            raise NotImplementedError()
+
+
             else:
                 shape = ev.shape
             return shape
@@ -248,11 +264,29 @@ class Node(tl.HasTraits):
             stacked_coords = self.evaluated_coordinates.stacked_coords
         else: 
             stacked_coords = Coordinate.get_stacked_coord_dict(coords)
-        if not isinstance(coords, dict): coords = dict(coords)
-        if dims is None:
+        if not isinstance(coords, dict): coords = OrderedDict(coords)
+        # TODO: Need to determine if we even need this? Can't we just get it from crds?
+        if 0: #dims is None:
             if self.native_coordinates is not None:
                 dims = self.native_coordinates.dims
+                nat_stack = self.native_coordinates.stacked_coords
+                # if request is stacked but native is not
                 dims = [stacked_coords.get(d, d) for d in dims]
+                # if native is stacked but request is not
+                rms = {k:[] for k in nat_stack.values()}
+                for d in nat_stack:
+                    if d in coords:
+                        rms[nat_stack[d]].append(d)
+                        dims.append(d)
+                for k, v in rms.items():
+                    i = dims.index(k)
+                    parts = dims[i].split('_')
+                    stayparts = [p for p in parts if p not in v]
+                    if stayparts:
+                        dims[i] = '_'.join(stayparts)
+                    else:
+                        dims.remove(k)
+                # eliminate duplicates
                 dims = [d for i, d in enumerate(dims) if d not in dims[:i]]
             else:
                 dims = coords.keys()
@@ -261,12 +295,24 @@ class Node(tl.HasTraits):
             for c in self.native_coordinates.coords:
                 if c in coords:
                     crds[c] = coords[c]
-                elif c in stacked_coords:
+                elif c in stacked_coords:  # if request stacked, but native not
                     crds[stacked_coords[c]] = coords[stacked_coords[c]]
                 else:
-                    crds[c] = self.native_coordinates.coords[c]
+                    # If native stacked, but request is not
+                    parts = c.split('_')
+                    partsplit = []
+                    for p in parts:
+                        if p in coords:
+                            crds[p] = coords[p]
+                            partsplit.append(p)
+                    if not partsplit:
+                        # Otherwise, coordinate not in request, use native
+                        crds[c] = self.native_coordinates.coords[c]
+                    elif len(partsplit) != len(parts):  #then there are leftover parts
+                        raise NotImplementedError()
         else:
             crds = coords        
+        dims = list(crds.keys())
         return self.initialize_array(init_type, fillval, style, no_style, shape,
                                      crds, dims, units, dtype, **kwargs)
     

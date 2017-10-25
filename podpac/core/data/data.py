@@ -19,6 +19,7 @@ try:
     import scipy
     from scipy.interpolate import (griddata, RectBivariateSpline, 
                                    RegularGridInterpolator)
+    from scipy.spatial import KDTree
 except:
     scipy = None
     
@@ -116,7 +117,7 @@ class DataSource(Node):
     
     def interpolate_data(self, data_src, coords_src, coords_dst):
         # TODO: implement for all of the designed cases (points, etc)
-        
+        #import ipdb;ipdb.set_trace()
         data_dst = self.output
         
         # This a big switch, funneling data to various interpolation routines
@@ -141,6 +142,8 @@ class DataSource(Node):
                                         method='nearest',
                                         tolerance=self.interpolation_tolerance)
             coords_src._coords['time'] = data_src['time'].data
+            if len(coords_dst.dims) == 1:
+                return data_src
         if 'alt' in coords_src.dims and 'alt' in coords_dst.dims:
             data_src = data_src.reindex(alt=coords_dst.coords['alt'], 
                                                 method='nearest')            
@@ -313,8 +316,48 @@ class DataSource(Node):
 
     def interpolate_point_data(self, data_src, coords_src,
                                data_dst, coords_dst, grid=True):
-        print ("do interpolation")
-        
+        if 'lat' in coords_dst.stacked_coords \
+                and 'lon' in coords_dst.stacked_coords:
+            order = coords_src.stacked_coords['lat']
+            dst_order = coords_dst.stacked_coords['lat']
+            i = list(coords_dst.dims).index(dst_order)
+            new_crds = Coordinate(**{order: [coords_dst.unstack()[c].coordinates
+                for c in order.split('_')]})
+            tol = np.linalg.norm(coords_dst.delta[i]) * 8
+            pts = KDTree(np.stack(coords_src[order].coordinates, axis=1))
+            dist, ind = pts.query(np.stack(new_crds[order].coordinates, axis=1),
+                    distance_upper_bound=tol)
+            dims = list(data_dst.dims)
+            dims[i] = order
+            data_dst.data[:] = data_src[{order: ind}].transpose(*dims).data[:]
+            return data_dst
+        elif 'lat' in coords_dst.dims and 'lon' in coords_dst.dims:
+            order = coords_src.stacked_coords['lat']
+            i = list(coords_dst.dims).index('lat')
+            j = list(coords_dst.dims).index('lon')
+            tol = np.linalg.norm([coords_dst.delta[i], coords_dst.delta[j]]) * 8
+            pts = np.stack(coords_src[order].coordinates)
+            if 'lat_lon' == order:
+                pts = pts[::-1]
+            pts = KDTree(np.stack(pts, axis=1))
+            lon, lat = np.meshgrid(coords_dst.coords['lon'], 
+                    coords_dst.coords['lat'])
+            dist, ind = pts.query(np.stack((lon.ravel(), lat.ravel()), axis=1),
+                    distance_upper_bound=tol)
+            vals = data_src[{order: ind}]
+            # make sure 'lat_lon' or 'lon_lat' is the first dimension
+            dims = list(data_src.dims)
+            dims.remove(order)
+            vals = vals.transpose(order, *dims).data
+            shape = vals.shape
+            vals = vals.reshape(coords_dst['lon'].size, coords_dst['lat'].size,
+                    *shape[1:])
+            vals = UnitsDataArray(vals, dims=['lon', 'lat'] + dims, 
+                    coords=[coords_dst.coords['lon'], coords_dst.coords['lat']] 
+                    + [coords_src[d].coordinates for d in dims])
+            data_dst.data[:] = vals.transpose(*data_dst.dims).data[:]
+            return data_dst
+
 
     @property
     def definition(self):
@@ -325,3 +368,21 @@ class DataSource(Node):
             d['attrs'] = OrderedDict()
             d['attrs']['interpolation'] = self.interpolation
         return d
+
+
+if __name__ == "__main__":
+    # Let's make a dummy node
+    from podpac.core.data.type import NumpyArray
+    arr = np.random.rand(16, 11)
+    lat = np.random.rand(16)
+    lon = np.random.rand(16)
+    coord = Coordinate(lat_lon=(lat, lon), time=np.linspace(0, 10, 11), 
+                       order=['lat_lon', 'time'])
+    node = NumpyArray(source=arr, native_coordinates=coord)
+    #a1 = node.execute(coord)
+
+    coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8))
+    coordt = Coordinate(time=(3,5, 2))
+
+    at = node.execute(coordt)
+    ag = node.execute(coordg)
