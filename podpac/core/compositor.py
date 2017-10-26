@@ -1,6 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
+from multiprocessing.pool import ThreadPool
 import numpy as np
 import traitlets as tl
 import matplotlib.colors, matplotlib.cm
@@ -118,23 +119,53 @@ class Compositor(Node):
 
 
 class OrderedCompositor(Compositor):
+    # When threaded is False, the compositor stops executing sources once the
+    # output is completely filled for efficiency. When threaded is True, the
+    # compositor must execute every source. The result is the same, but note
+    # that because of this, threaded=False could be faster than threaded=True,
+    # especially if n_threads is low. For example, threaded with n_threads=1
+    # could be much slower than non-threaded if the output is completely filled
+    # after the first few sources.
+
+    # NASA data servers seem to have a hard limit of 10 simultaneous requests,
+    # so the default for now is 10.
+
+    threaded = tl.Bool(False)
+    n_threads = tl.Int(10)
 
     def composite(self, src_subset, coordinates, params, output):
         start = 0
         # The compositor doesn't actually know what dimensions are 
         # in the source, so we rely on the first node to create the output
         # output array if it has not been given. 
-        if output is None: 
+        if output is None:
             output = src_subset[0].execute(coordinates, params)
             start = 1
+
+        if self.threaded:
+            # execute all sources in a thread pool
+            pool = ThreadPool(processes=self.n_threads)
+            def f(src):
+                return src.execute(coordinates, params, output.copy())
+            outputs = pool.map(f, src_subset[start:])
+        else:
+            # TODO use an iterator to execute sources as needed below 
+            # outputs = <iterator>
+            pass
 
         o = output.copy()  # Create the dataset once
         I = np.isfinite(o.data)  # Create the masks once
         Id = I.copy()
-        for src in src_subset[start:]:  # This could be a parfor (threaded)
+        for i, src in enumerate(src_subset[start:]):
             if np.all(I):
                 break
-            o = src.execute(coordinates, params, o).transpose(*output.dims)
+            if self.threaded:
+                # get asynchronously pre-executed output
+                o = outputs[i]
+            else:
+                # execute the next source synchronously
+                o = src.execute(coordinates, params, o)
+            o = o.transpose(*output.dims)
             Id[:] = np.isfinite(o.data)
             output.data[~I & Id] = o.data[~I & Id]
             I &= Id
