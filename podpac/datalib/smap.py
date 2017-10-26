@@ -41,10 +41,11 @@ SMAP_PRODUCT_MAP = xr.DataArray([
             'soil_moisture'],
         ['{rdk}AM_latitude', '{rdk}AM_longitude', 'Soil_Moisture_Retrieval_Data_',
             'soil_moisture'],
+        ['cell_lat', 'cell_lon', 'Land_Model_Constants_Data_', ''],
     ],
     dims = ['product', 'attr'],
     coords = {'product': ['SPL4SMAU.003', 'SPL4SMGP.003', 'SPL3SMA.003', 'SPL3SMAP.003',
-                          'SPL3SMP.004'],
+                          'SPL3SMP.004', 'SPL4SMLM.003'],
               'attr':['latkey', 'lonkey', 'rootdatakey', 'layerkey']
               }
 )
@@ -129,6 +130,50 @@ class SMAPSource(datatype.PyDAP):
             d = self.initialize_coord_array(coordinates, 'data', 
                                             fillval=data.reshape(coordinates.shape))
         return d    
+
+class SMAPProperties(SMAPSource):
+    source = tl.Unicode('https://n5eil01u.ecs.nsidc.org/opendap/SMAP/'
+                        'SPL4SMLM.003/2015.03.31/'
+                        'SMAP_L4_SM_lmc_00000000T000000_Vv3030_001.h5')
+
+    property = tl.Enum(['clsm_dzsf', 'mwrtm_bh', 'clsm_cdcr2', 'mwrtm_poros',
+                       'clsm_dzgt3', 'clsm_dzgt2', 'mwrtm_rghhmax', 
+                       'mwrtm_rghpolmix', 'clsm_dzgt1', 'clsm_wp', 'mwrtm_lewt',
+                       'clsm_dzgt4', 'clsm_cdcr1', 'cell_elevation',
+                       'mwrtm_rghwmin', 'clsm_dzrz', 'mwrtm_vegcls', 'mwrtm_bv',
+                       'mwrtm_rghwmax', 'mwrtm_rghnrh', 'clsm_dztsurf', 
+                       'mwrtm_rghhmin', 'mwrtm_wangwp', 'mwrtm_wangwt', 
+                       'clsm_dzgt5', 'clsm_dzpr', 'clsm_poros',
+                       'cell_land_fraction', 'mwrtm_omega', 'mwrtm_soilcls', 
+                       'clsm_dzgt6', 'mwrtm_rghnrv', 'mwrtm_clay', 'mwrtm_sand'])
+
+    @tl.default('layerkey') 
+    def _layerkey_default(self):
+        return self.property
+    
+    @tl.default('native_coordinates')
+    def get_native_coordinates(self):
+        try:
+            return self.load_cached_obj('native.coordinates')
+        except:
+            pass
+        ds = self.dataset
+        lons = np.array(ds[self.lonkey][:, :])
+        lats = np.array(ds[self.latkey][:, :])
+        lons[lons==self.no_data_vals[0]] = np.nan
+        lats[lats==self.no_data_vals[0]] = np.nan
+        lons = np.nanmean(lons, axis=0)
+        lats = np.nanmean(lats, axis=1)
+        coords = podpac.Coordinate(lat=lats, lon=lons, 
+                                   order=['lat', 'lon'])
+        self.cache_obj(coords, 'native.coordinates')
+        return coords    
+    
+class SMAPPorosity(SMAPProperties):
+    property = tl.Unicode('clsm_poros')
+    
+class SMAPWilt(SMAPProperties):
+    property = tl.Unicode('clsm_wp')    
 
 class SMAPDateFolder(podpac.OrderedCompositor):
     base_url = tl.Unicode(SMAP_BASE_URL)
@@ -273,6 +318,9 @@ class SMAP(podpac.OrderedCompositor):
             d['attrs']['interpolation'] = self.interpolation
         return d
     
+    
+    
+    
 if __name__ == '__main__':
     #sdf = SMAPDateFolder(product='SPL4SMGP.003', folder_date='2016.04.07')
     
@@ -293,6 +341,19 @@ if __name__ == '__main__':
     
     #t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
     #o2 = smap.execute(t_coords)    
+    
+    coordinates_world = \
+        podpac.Coordinate(lat=(-90, 90, 1.),
+                          lon=(-180, 180, 1.),
+                          time='2017-10-10T12:00:00', 
+                          order=['lat', 'lon', 'time'])
+    
+    porosity = SMAPPorosity()
+    o = porosity.execute(coordinates_world)    
+    
+    wilt = SMAPWilt()
+    o = wilt.execute(coordinates_world)
+    
     
     source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP'
               '/SPL4SMGP.003/2015.04.07'
@@ -335,6 +396,8 @@ if __name__ == '__main__':
     coords2 = podpac.Coordinate(time=coords.coords['time'][1:2],
                                lat=[45., 66., 50], lon=[-80., -70., 20],
                                order=['time', 'lat', 'lon'])      
-    o2 = smap.execute(coords2)     
+    o2 = smap.execute(coords2) 
+    
+
     print ('Done')
 
