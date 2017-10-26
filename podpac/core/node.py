@@ -183,7 +183,10 @@ class Node(tl.HasTraits):
         if ev is not None:
             stacked = ev.stacked_coords
             stack_dict = OrderedDict([(c, True) for c, v in ev._coords.items() if v.stacked != 1])
-            nat_stacked = nv.stacked_coords
+            if nv is not None:
+                nat_stacked = nv.stacked_coords
+            else:
+                nat_stacked = {}
             if nv is not None:
                 shape = []
                 for c in nv.coords:
@@ -446,7 +449,7 @@ class Node(tl.HasTraits):
         Full pipeline definition for this node.
         """
 
-        from pipeline import make_pipeline_definition
+        from podpac.core.pipeline import make_pipeline_definition
         return make_pipeline_definition(self)
 
     @property
@@ -502,14 +505,23 @@ class Node(tl.HasTraits):
         self.evaluated_coordinates = self.output.coordinates
         self.params = self.output.attrs['params']
 
-    def get_image(self, format='png'):
+    def get_image(self, format='png', vmin=None, vmax=None):
         import matplotlib
         matplotlib.use('agg')
         from matplotlib import cm
         from matplotlib.image import imsave
 
         data = self.output.data.squeeze()
-        c = (data - np.nanmin(data)) / (np.nanmax(data) - np.nanmin(data) + 1e-16)
+
+        if np.isnan(vmin):
+
+            vmin = np.nanmin(data)
+        if np.isnan(vmax):
+            vmax = np.nanmax(data)      
+        if vmax == vmin:
+            vmax +=  1e-16
+            
+        c = (data - vmin) / (vmax - vmin)
         i = cm.viridis(c, bytes=True)
         im_data = BytesIO()
         imsave(im_data, i, format='png')

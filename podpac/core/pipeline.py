@@ -48,10 +48,14 @@ class AWSOutput(Output):
 
 class ImageOutput(Output):
     format = tl.CaselessStrEnum(values=['png'], default='png')
+    vmax = tl.CFloat(allow_node=True, default_value=np.nan)
+    vmin = tl.CFloat(allow_node=True, default_value=np.nan)
     image = tl.Bytes()
 
     def write(self):
-        self.image = self.node.get_image(format=self.format)
+        self.image = self.node.get_image(format=self.format,
+                                         vmin=self.vmin,
+                                         vmax=self.vmax)
 
 class Pipeline(tl.HasTraits):
     path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
@@ -157,7 +161,9 @@ class Pipeline(tl.HasTraits):
             kwargs = {'user': d['user'], 'bucket': d['bucken']}
         elif d['mode'] == 'image':
             output_class = ImageOutput
-            kwargs = {'format': d.get('image', 'png')}
+            kwargs = {'format': d.get('image', 'png'),
+                      'vmin': d.get('vmin', np.nan),
+                      'vmax': d.get('vmax', np.nan)}
         else:
             raise PipelineError("output definition has unexpected mode '%s'" % d['mode'])
 
@@ -346,7 +352,7 @@ if __name__ == '__main__':
 
     print('\nrebuilt pipeline definition:')
     print(list(pipeline.nodes.values())[-1].pipeline_json)
-    rebuilt_pipeline = Pipeline(pipeline.nodes.values()[-1].pipeline_definition)
+    rebuilt_pipeline = Pipeline(list(pipeline.nodes.values())[-1].pipeline_definition)
     
     if args.dry_run:
         pipeline.check_params(params)
