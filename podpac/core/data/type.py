@@ -142,17 +142,22 @@ class WCS(podpac.DataSource):
         return podpac.Coordinate(lat=(top, bottom, size[1]),
                                  lon=(left, right, size[0]), order=['lat', 'lon'])    
 
-    @tl.default('native_coordinates')
-    def get_native_coordinates(self):
+    @property
+    def native_coordinates(self):
         if self.evaluated_coordinates:
             ev = self.evaluated_coordinates
             wcs_c = self.wcs_coordinates
             cs = OrderedDict()
             for c in wcs_c.dims:
                 if c in ev.dims and ev[c].regularity in ['irregular', 'dependent']:
-                    raise NotImplementedError
-                if c in ev.dims:
-                    cs[c] = [min(ev[c].coords), max(ev[c].coords), ev[c].delta]
+                    # This is rough, we have to use a regular grid for WCS calls, 
+                    # Otherwise we have to do multiple WCS calls... 
+                    # TODO: generalize/fix this
+                    cs[c] = [min(ev[c].coords),
+                             max(ev[c].coords), ev[c].delta]
+                elif c in ev.dims:
+                    cs[c] = [min(ev[c].coords[:2]),
+                             max(ev[c].coords[:2]), ev[c].delta]
                 else:
                     cs.append(wcs_c[c])
             c = podpac.Coordinate(cs)
@@ -179,7 +184,10 @@ class WCS(podpac.DataSource):
         io = BytesIO(bytearray(data.content))
         with rasterio.open(io) as dataset:
             output.data[:] = dataset.read()
-            
+        
+        if not coordinates['lat'].is_max_to_min:
+            output.data[:] = output.data[::-1, :]
+
         return output
 
     @property
@@ -247,36 +255,48 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
         return d
 
 if __name__ == '__main__':
-    coord_src = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2),
-                                  order=['lat', 'lon', 'time'])
-    coord_dst = podpac.Coordinate(lat=(50., 0., 50), lon=(-71., -66., 100),
-                                  order=['lat', 'lon'])
-    LON, LAT, TIME = np.meshgrid(coord_src['lon'].coordinates,
-                                  coord_src['lat'].coordinates,
-                                  coord_src['time'].coordinates)
-    #LAT, LON = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
-                              #-70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta]    
-    source = LAT + 0*LON + 0*TIME
-    nas = NumpyArray(source=source.astype(float), 
-                     native_coordinates=coord_src, interpolation='bilinear')
-    #coord_pts = podpac.Coordinate(lat_lon=(coord_src.coords['lat'], coord_src.coords['lon']))
-    #o3 = nas.execute(coord_pts)
-    o = nas.execute(coord_dst)
-    #coord_pt = podpac.Coordinate(lat=10., lon=-67.)
-    #o2 = nas.execute(coord_pt)
+    #coord_src = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2),
+                                  #order=['lat', 'lon', 'time'])
+    #coord_dst = podpac.Coordinate(lat=(50., 0., 50), lon=(-71., -66., 100),
+                                  #order=['lat', 'lon'])
+    #LON, LAT, TIME = np.meshgrid(coord_src['lon'].coordinates,
+                                  #coord_src['lat'].coordinates,
+                                  #coord_src['time'].coordinates)
+    ##LAT, LON = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
+                              ##-70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta]    
+    #source = LAT + 0*LON + 0*TIME
+    #nas = NumpyArray(source=source.astype(float), 
+                     #native_coordinates=coord_src, interpolation='bilinear')
+    ##coord_pts = podpac.Coordinate(lat_lon=(coord_src.coords['lat'], coord_src.coords['lon']))
+    ##o3 = nas.execute(coord_pts)
+    #o = nas.execute(coord_dst)
+    ##coord_pt = podpac.Coordinate(lat=10., lon=-67.)
+    ##o2 = nas.execute(coord_pt)
     
-    coordinates = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16),
-                                    order=['lat', 'lon'])
+    #coordinates = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16),
+                                    #order=['lat', 'lon'])
+    coordinates = podpac.Coordinate(lat=(39.3, 39., 64), lon=(-77.0, -76.7, 64), time='2017-09-03T12:00:00', 
+                                         order=['lat', 'lon', 'time'])    
     reprojected_coordinates = podpac.Coordinate(lat=(45, 0, 3), lon=(-70., -65., 3),
                                     order=['lat', 'lon'])    
                           'TopographicWetnessIndexComposited3090m'),
               )
     
     o = wcs.execute(coordinates)
-
     reprojected = ReprojectedSource(source=wcs,
                                     reprojected_coordinates=reprojected_coordinates,
                                     interpolation='bilinear')
+
+    from podpac.datalib.smap import SMAP
+    smap = SMAP(product='SPL4SMAU.003')
+    reprojected = ReprojectedSource(source=wcs,
+                                    coordinates_source=smap,
+                                    interpolation='nearest')    
     o2 = reprojected.execute(coordinates)
+    
+    coordinates_zoom = podpac.Coordinate(lat=(24.8, 30.6, 64), lon=(-85.0, -77.5, 64), time='2017-08-08T12:00:00', 
+                                         order=['lat', 'lon', 'time'])
+    o3 = wcs.execute(coordinates_zoom)
+    
     
     print ("Done")
