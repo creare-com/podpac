@@ -112,7 +112,9 @@ class SMAPSource(datatype.PyDAP):
         return times
     
     def get_data(self, coordinates, coordinates_slice):
-        s = tuple(coordinates_slice)[1:] # We actually ignore the time slice
+        # We actually ignore the time slice
+        s = tuple([slc for d, slc in zip(coordinates.dims, coordinates_slice)
+                   if 'time' not in d]) 
         if 'SM_P_' in self.source:
             d = self.initialize_coord_array(coordinates, 'nan')
             am_key = self.rootdatakey + 'AM_' + self.layerkey

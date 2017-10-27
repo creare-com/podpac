@@ -252,7 +252,8 @@ def make_pipeline_definition(main_node):
         # replace nodes with references, adding nodes depth first
         if 'inputs' in d:
             for key, input_node in d['inputs'].items():
-                d['inputs'][key] = add_node(input_node)
+                if input_node is not None:
+                    d['inputs'][key] = add_node(input_node)
         if 'sources' in d:
             for i, source_node in enumerate(d['sources']):
                 d['sources'][i] = add_node(source_node)

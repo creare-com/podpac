@@ -83,22 +83,27 @@ class Arithmetic(Algorithm):
     A = tl.Instance(Node)
     B = tl.Instance(Node, allow_none=True)
     C = tl.Instance(Node, allow_none=True)
-    eqn = tl.Unicode(default_value='A+B+C')
+    D = tl.Instance(Node, allow_none=True)
+    E = tl.Instance(Node, allow_none=True)
+    F = tl.Instance(Node, allow_none=True)
+    G = tl.Instance(Node, allow_none=True)
+    eqn = tl.Unicode(default_value='A+B+C+D+E+F+G')
     
-    def algorithm(self, A, B=None, C=None):
+    def algorithm(self, A, B=None, C=None, D=None, E=None, F=None, G=None):
         if 'eqn' not in self.params:
             eqn = self.eqn
         else: 
             eqn = self.params['eqn']
-        if C is None:
-            if B is None:
-                A = A
-            else:
-                A, B = xr.broadcast(A, B)
-        else:
-            A, B, C = xr.broadcast(A, B, C)
+        f_locals = locals()
+        fields = [f_locals[f] for f in 'ABCDEFG' if f_locals[f] is not None]
+        keys = [f for f in 'ABCDEFG' if f_locals[f] is not None]
+        res = xr.broadcast(*fields)
+        for key, r in zip(keys, res):
+            f_locals[key] = r
+        
         out = A.copy()
-        out.data[:] = ne.evaluate(eqn.format(**self.params))
+        out.data[:] = ne.evaluate(eqn.format(**self.params),
+                                  local_dict=f_locals)
         return out
 
     @property
