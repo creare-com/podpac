@@ -10,6 +10,8 @@ from six import string_types
 import numpy as np
 import xarray as xr
 import traitlets as tl
+import h5py
+
 
 # Internal dependencies
 import podpac
@@ -320,10 +322,56 @@ class SMAP(podpac.OrderedCompositor):
             d['attrs']['interpolation'] = self.interpolation
         return d
     
+class SentinelData(podpac.DataSource):
     
+    source = tl.Unicode(help="Filename for the sensor data")
+    no_data_vals = [-9999.0]
+
+    def get_time(self):
+        f = h5py.File(self.source,'r')
+#        start = f['Metadata/Extent'].attrs['rangeBeginningDateTime']
+#        end = f['Metadata/Extent'].attrs['rangeEndingDateTime']
+        time = f['Metadata/Extent'].attrs['rangeEndingDateTime']
+#        time = np.array([start,end])
+        
+        return time
+     
+    @tl.default('native_coordinates')
+    def get_native_coordinates(self):
+        f = h5py.File(self.source,'r')
+        
+        times = self.get_time()
+        lat = np.array(f['Soil_Moisture_Retrieval_Data_1km/latitude_1km'])
+        lon = np.array(f['Soil_Moisture_Retrieval_Data_1km/longitude_1km'])
+        
+        coords = podpac.Coordinate(time=times,
+                                   lat=np.nanmean(lat, 1),
+                                   lon=np.nanmean(lon, 0),
+                                   order=['lat', 'lon', 'time'])
+
+        return coords    
+    
+    def get_data(self, coordinates, coordinates_slice):
+        """
+        This should return an UnitsDataArray
+        coordinates and coordinates slice may be strided or subsets of the 
+        source data, but all coordinates will match 1:1 with the subset data
+        """
+        f = h5py.File(self.source,'r')
+        
+        data = np.array(f['Soil_Moisture_Retrieval_Data_1km/soil_moisture_1km'])[coordinates_slice[:-1]]
+        d = self.initialize_coord_array(coordinates, 'data', 
+                                fillval=data.reshape(coordinates.shape))
+        return d
     
     
 if __name__ == '__main__':
+    
+    sd = SentinelData(source=(r"\\OLYMPUS\Projects\1010028-Pipeline"
+                            r"\Technical Work\Testing\Data\SMAPSentinel"
+                            r"\SMAP_L2_SM_SP_1AIWDV_20170801T000000_20170731T235532_090E24N_T15110_002.h5"))
+     
+    
     #sdf = SMAPDateFolder(product='SPL4SMGP.003', folder_date='2016.04.07')
     
     #coords = sdf.native_coordinates
