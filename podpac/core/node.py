@@ -462,6 +462,15 @@ class Node(tl.HasTraits):
         return Pipeline(self.pipeline_definition)
 
     def get_hash(self, coordinates=None, params=None):
+        if params is not None:
+            # convert to OrderedDict with consistent keys
+            params = OrderedDict(sorted(params.items()))
+            
+            # convert dict values to OrderedDict with consistent keys
+            for key, value in params:
+                if type(value) is dict:
+                    params[key] = OrderedDict(sorted(value.items()))
+                    
         return hash((str(coordinates), str(params)))
 
     @property
