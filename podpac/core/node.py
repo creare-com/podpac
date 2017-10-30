@@ -470,7 +470,7 @@ class Node(tl.HasTraits):
             for key, value in params:
                 if type(value) is dict:
                     params[key] = OrderedDict(sorted(value.items()))
-                    
+
         return hash((str(coordinates), str(params)))
 
     @property
@@ -490,7 +490,10 @@ class Node(tl.HasTraits):
         return os.path.join(outdir, filename)
 
     def write(self, name, outdir=None, format='pickle'):
-        filename = '%s_%s' % (name, self.evaluated_hash)
+        filename = '%s_%s_%s.pkl' % (
+            name,
+            self.evaluated_hash,
+            self.evaluated_coordinates.latlon_bounds_str)
         path = self.get_output_path(filename, outdir=outdir)
 
         if format == 'pickle':
@@ -500,7 +503,10 @@ class Node(tl.HasTraits):
             raise NotImplementedError
 
     def load(self, name, coordinates, params, outdir=None):
-        filename = '%s_%s' % (name, self.get_hash(coordinates, params))
+        filename = '%s_%s_%s.pkl' % (
+            name,
+            self.get_hash(coordinates, params),
+            coordinates.latlon_bounds_str)
         path = self.get_output_path(filename, outdir=outdir)
         
         with open(path, 'rb') as f:

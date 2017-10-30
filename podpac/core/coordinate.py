@@ -740,6 +740,15 @@ class Coordinate(tl.HasTraits):
                 new_coords[key] = copy.deepcopy(other._coords[key])
         return self.__class__(coords=new_coords)
 
+    @property
+    def latlon_bounds_str(self):
+        return '%s_%s_x_%s_%s' % (
+            self._coords['lat'].bounds[0],
+            self._coords['lon'].bounds[0],
+            self._coords['lat'].bounds[1],
+            self._coords['lon'].bounds[1]
+        )
+
 if __name__ == '__main__':
     #coord = Coordinate(lat=xr.DataArray(
         #np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
