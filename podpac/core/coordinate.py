@@ -10,9 +10,8 @@ import xarray as xr
 import numpy as np
 import traitlets as tl
 from collections import OrderedDict
-from pint import UnitRegistry
-ureg = UnitRegistry()
-import podpac
+
+from podpac.core.units import Units
 
 # TODO: Perhaps, Coord should not deal with stacking, and leave that 
 #       functionality to Coordinate instead
@@ -26,7 +25,7 @@ class Coord(tl.HasTraits):
     stacked, unstacked
     independent, dependent
     """
-    units = podpac.Units(allow_none=True, default_value=None)
+    units = Units(allow_none=True, default_value=None)
     
     ctype = tl.Enum(['segment', 'point', 'fence', 'post'], default_value='segment',
                    help="Default is 'segment'."

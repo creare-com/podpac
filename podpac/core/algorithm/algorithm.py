@@ -5,13 +5,10 @@ import numpy as np
 import xarray as xr
 import numexpr as ne
 import traitlets as tl
-import matplotlib.colors, matplotlib.cm
-import matplotlib.pyplot as plt
-from pint import UnitRegistry
-ureg = UnitRegistry()
 
+from podpac.core.units import UnitsDataArray
 from podpac.core.coordinate import Coordinate
-from podpac.core.node import Node, UnitsDataArray
+from podpac.core.node import Node
 
 class Algorithm(Node):
     def execute(self, coordinates, params=None, output=None):

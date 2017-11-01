@@ -3,10 +3,6 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 from collections import OrderedDict
 import numpy as np
 import traitlets as tl
-import matplotlib.colors, matplotlib.cm
-import matplotlib.pyplot as plt
-from pint import UnitRegistry
-ureg = UnitRegistry()
 
 # Optional dependencies
 try: 
@@ -22,12 +18,11 @@ try:
     from scipy.spatial import KDTree
 except:
     scipy = None
-    
-    
 
 # Internal imports
+from podpac.core.units import UnitsDataArray
 from podpac.core.coordinate import Coordinate
-from podpac.core.node import Node, UnitsDataArray
+from podpac.core.node import Node
 
 class DataSource(Node):
     source = tl.Any(allow_none=False, help="Path to the raw data source")

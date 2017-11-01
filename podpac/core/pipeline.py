@@ -7,16 +7,11 @@ import copy
 import importlib
 import inspect
 import re
-import warnings
 import numpy as np
 import traitlets as tl
-import matplotlib.colors, matplotlib.cm
-import matplotlib.pyplot as plt
-from pint import UnitRegistry
-ureg = UnitRegistry()
 
 from podpac.core.coordinate import Coordinate
-from podpac.core.node import Node, UnitsDataArray
+from podpac.core.node import Node
 from podpac.core.data.data import DataSource
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor

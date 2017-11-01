@@ -4,14 +4,10 @@ from collections import OrderedDict
 from multiprocessing.pool import ThreadPool
 import numpy as np
 import traitlets as tl
-import matplotlib.colors, matplotlib.cm
-import matplotlib.pyplot as plt
-from pint import UnitRegistry
-ureg = UnitRegistry()
 
 # Internal imports
 from podpac.core.coordinate import Coordinate
-from podpac.core.node import Node, UnitsDataArray
+from podpac.core.node import Node
 
 class Compositor(Node):
 
