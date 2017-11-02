@@ -33,7 +33,7 @@ setup(
         'xarray',
         'traitlets',
         'pint',
-        'numerexpr',
+        'numexpr',
         # Optional requirements
         'rasterio>=1.0',
         'pydap',
