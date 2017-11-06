@@ -1,6 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
+import inspect
 import numpy as np
 import xarray as xr
 import numexpr as ne
@@ -56,7 +57,6 @@ class Algorithm(Node):
         #     if isinstance(getattr(self, ref, None), Node)
         # }
         
-        import inspect
         d['inputs'] = {
             ref:getattr(self, ref)
             for ref, trait in self.traits().items()
