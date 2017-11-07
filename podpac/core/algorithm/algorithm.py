@@ -4,7 +4,10 @@ from collections import OrderedDict
 import inspect
 import numpy as np
 import xarray as xr
-import numexpr as ne
+try: 
+    import numexpr as ne
+except: 
+    ne = None
 import traitlets as tl
 
 from podpac.core.units import UnitsDataArray
@@ -99,7 +102,11 @@ class Arithmetic(Algorithm):
             f_locals[key] = r
         
         out = A.copy()
-        out.data[:] = ne.evaluate(eqn.format(**self.params),
+        if ne is None:
+            out.data[:] = eval(eqn.format(**self.params),
+                                              local_dict=f_locals)            
+        else:
+            out.data[:] = ne.evaluate(eqn.format(**self.params),
                                   local_dict=f_locals)
         return out
 
