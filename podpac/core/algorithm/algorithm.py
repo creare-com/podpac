@@ -104,7 +104,7 @@ class Arithmetic(Algorithm):
         out = A.copy()
         if ne is None:
             out.data[:] = eval(eqn.format(**self.params),
-                                              locals=f_locals)            
+                                              f_locals)            
         else:
             out.data[:] = ne.evaluate(eqn.format(**self.params),
                                   local_dict=f_locals)
