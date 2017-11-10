@@ -1,7 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
-import requests
 from io import BytesIO
 import tempfile
 import bs4
@@ -27,6 +26,22 @@ try:
     import boto3
 except:
     boto3 = None
+    
+try:
+    import requests
+except:
+    requests = None
+    try:
+        import urllib3
+    except:
+        urllib3 = None
+
+# Not used directly, but used indirectly by bs4 so want to check if it's available
+try:
+    import lxml
+except:
+    lxml = None
+
 # Internal dependencies
 import podpac
 
@@ -130,10 +145,23 @@ class WCS(podpac.DataSource):
     wcs_coordinates = tl.Instance(podpac.Coordinate)
     @tl.default('wcs_coordinates')
     def get_wcs_coordinates(self):
-        capabilities = requests.get(self.get_capabilities_url)
-        if capabilities.status_code != 200:
-            raise Exception("Could not get capabilities from WCS server")
-        capabilities = bs4.BeautifulSoup(capabilities.text, 'lxml')
+        if requests is not None:
+            capabilities = requests.get(self.get_capabilities_url)
+            if capabilities.status_code != 200:
+                raise Exception("Could not get capabilities from WCS server")
+            capabilities = capabilities.text
+        elif urllib3 is not None:
+            http = urllib3.PoolManager()
+            r = http.request('GET',self.get_capabilities_url)
+            capabilities = r.data
+            if r.status != 200:
+                raise Exception("Could not get capabilities from WCS server")
+        else:
+            raise Exception("Do not have a URL request library to get WCS data.")
+        if lxml is not None: # could skip using lxml and always use html.parser instead, which seems to work but lxml might be faster
+            capabilities = bs4.BeautifulSoup(capabilities, 'lxml')
+        else:
+            capabilities = bs4.BeautifulSoup(capabilities, 'html.parser')
         domain = capabilities.find('wcs:spatialdomain')
         pos = domain.find('gml:envelope').get_text().split()
         lonlat = np.array(pos, float).reshape(2, 2)
