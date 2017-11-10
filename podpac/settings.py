@@ -2,10 +2,12 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import os
 
-S3_BUCKET_NAME=None
-ROOT_PATH=None
+S3_BUCKET_NAME = None
+CACHE_TO_S3 = False
+ROOT_PATH = None
 
-if S3_BUCKET_NAME:
+
+if S3_BUCKET_NAME and CACHE_TO_S3:
     CACHE_DIR = 'cache'
 else:
     if ROOT_PATH:

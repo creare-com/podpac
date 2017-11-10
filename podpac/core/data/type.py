@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import requests
 from io import BytesIO
+import tempfile
 import bs4
 from collections import OrderedDict
 import numpy as np
@@ -253,6 +254,55 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
             # TODO serialize reprojected_coordinates
             raise NotImplementedError
         return d
+
+class S3Source(podpac.DataSource):
+    source = tl.Unicode()
+    node = tl.Instance()  
+    node_class = tl.Any(podpac.DataSource)  # A class 
+    s3_bucket = tl.Unicode()
+    s3_data = tl.Any()
+    temp_file_cleanup = tl.List()
+    return_type = tl.Enum(['file_handle', 'path'])
+
+    @tl.default('node')
+    def node_default(self):
+        return self.node_class(source=self.s3_data)
+
+    @tl.default('s3_bucket')
+    def s3_bucket_default(self):
+        return podpac.settings.S3_BUCKET_NAME
+
+    @tl.default('s3_data')
+    def s3_data_default(self):
+        s3 = boto3.resource('s3').Bucket(self.s3_bucket)
+        if self.return_type == 'file_handle':
+            # download into memory
+            io = BytesIO()
+            s3.download_fileobj(self.source, io)
+            io.seek(0)
+            return io
+        elif self.return_type == 'path':
+            # Download the file to temporary directory
+            tmppath = os.path.join(tempfile.gettempdir(), self.source)
+            i = 0
+            while os.path.exists(tmppath)
+                tmppath = os.path.join(tempfile.gettempdir(),
+                        self.source + '.%d' % i)
+            s3.download_file(self.source, tmppath)
+            self.temp_file_cleanup.append(temppath)
+            return tmppath
+
+    def get_data(self, coordinates, coordinates_slice):
+        return self.source.get_data(coordinates, coordinates_slice)
+
+    @property
+    def native_coordinates(self):
+        return self.source.native_coordinates
+
+    def __del__(self):
+        super(S3Source).__del__(self)
+        for f in self.temp_file_cleanup:
+            os.remove(f)
 
 if __name__ == '__main__':
     #coord_src = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2),

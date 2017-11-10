@@ -452,7 +452,7 @@ class Node(tl.HasTraits):
     
     def cache_obj(self, obj, filename):
         path = self.cache_path(filename)
-        if settings.S3_BUCKET_NAME is None:
+        if settings.S3_BUCKET_NAME is None or settings.CACHE_TO_S3 == False:
             if not os.path.exists(self.cache_dir):
                 os.makedirs(self.cache_dir)
             with open(path, 'wb') as fid:
@@ -464,7 +464,7 @@ class Node(tl.HasTraits):
             
     def load_cached_obj(self, filename):
         path = self.cache_path(filename)
-        if settings.S3_BUCKET_NAME is None:
+        if settings.S3_BUCKET_NAME is None or settings.CACHE_TO_S3 == False:
             with open(path, 'rb') as fid:
                 obj = cPickle.load(fid)
         else:
