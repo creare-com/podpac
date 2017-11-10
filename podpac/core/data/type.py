@@ -1,5 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import os
 import requests
 from io import BytesIO
 import tempfile
@@ -21,6 +22,11 @@ try:
     import rasterio
 except:
     rasterio = None
+    
+try:
+    import boto3
+except:
+    boto3 = None
 # Internal dependencies
 import podpac
 
