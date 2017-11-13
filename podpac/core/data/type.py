@@ -21,6 +21,10 @@ try:
     import rasterio
 except:
     rasterio = None
+    try:
+        import arcpy
+    except:
+        arcpy = None
     
 try:
     import boto3
@@ -213,12 +217,31 @@ class WCS(podpac.DataSource):
             height=coordinates['lat'].size,
             crs=self.crs
             )
-        data = requests.get(url)
-        if data.status_code != 200:
-            raise Exception("Could not get data from WCS server")        
-        io = BytesIO(bytearray(data.content))
-        with rasterio.open(io) as dataset:
-            output.data[:] = dataset.read()
+        if requests is not None:
+            data = requests.get(url)
+            if data.status_code != 200:
+                raise Exception("Could not get data from WCS server")
+            io = BytesIO(bytearray(data.content))
+        elif urllib3 is not None:
+            http = urllib3.PoolManager()
+            r = http.request('GET',url)
+            if r.status != 200:
+               raise Exception("Could not get capabilities from WCS server") 
+            io = BytesIO(bytearray(r.data))
+        else:
+            raise Exception("Do not have a URL request library to get WCS data.")
+        
+        # Need to re-write the sections below and above to be general enough to handle
+        # cases like have requests but don't have rasterio
+        if rasterio is not None:
+            with rasterio.open(io) as dataset:
+                output.data[:] = dataset.read()
+        elif arcpy is not None:
+            # Writing the data to a temporary tiff and reading it from there is hacky
+            # However reading directly from r.data or io doesn't work
+            # Should improve in the future
+            open('temp.tiff','wb').write(r.data)
+            output.data[:] = arcpy.RasterToNumPyArray('temp.tiff')
         
         if not coordinates['lat'].is_max_to_min:
             output.data[:] = output.data[::-1, :]
