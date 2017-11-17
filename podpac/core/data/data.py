@@ -80,7 +80,7 @@ class DataSource(Node):
                         ndelta = np.round(coordinates[d].delta /
                                           coords_subset[d].delta)
                         if ndelta <= 1:
-                            ndelta = coords_subset[d].delta
+                            ndelta = 1 # coords_subset[d].delta
                         coords = tuple(coords_subset[d].coords[:2]) \
                             + (ndelta * coords_subset[d].delta,)
                         new_coords[d] = coords
