@@ -105,11 +105,11 @@ class Coord(tl.HasTraits):
 
         # enforce floating point coordinates in some cases
         if regularity == 'regular':
-            if isinstance(val[0], (int, np.ndarray, long, np.long)):
+            if isinstance(val[0], (int, np.ndarray, np.long)):
                 val = (float(val[0]),) + tuple(val[1:])
             elif isinstance(val[0], string_types):
                 val = (np.datetime64(val[0]),) + tuple(val[1:])
-            if isinstance(val[1], (int, np.ndarray, long, np.long)):
+            if isinstance(val[1], (int, np.ndarray, np.long)):
                 val = (val[0], float(val[1])) + tuple(val[2:])
             elif isinstance(val[1], string_types):
                 val = (val[0], np.datetime64(val[1])) + tuple(val[2:])
@@ -270,7 +270,7 @@ class Coord(tl.HasTraits):
             else:
                 self._cached_delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))  
         elif self.regularity == 'regular':
-            if isinstance(self.coords[2], (int, np.integer, long, np.long)) \
+            if isinstance(self.coords[2], (int, np.integer, np.long)) \
                     and not isinstance(self.coords[2], np.timedelta64):
                 self._cached_delta = np.atleast_1d((\
                     (np.array(self.coords[1]) - np.array(self.coords[0]))\
@@ -327,7 +327,7 @@ class Coord(tl.HasTraits):
             return 1
         elif self.regularity == 'regular':
             # delta specified
-            if not isinstance(self.coords[2], (int, np.integer, long, np.long)) or \
+            if not isinstance(self.coords[2], (int, np.integer, np.long)) or \
                     isinstance(self.coords[2], np.timedelta64):
                 N = np.round((1 - 2 * self.is_max_to_min) * 
                     (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
