@@ -3,6 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import numbers
 import copy
 import sys
+import itertools
 
 from six import string_types
 
@@ -739,14 +740,33 @@ class Coordinate(tl.HasTraits):
                 new_coords[key] = copy.deepcopy(other._coords[key])
         return self.__class__(coords=new_coords)
 
+    def iterchunks(self, shape):
+        # TODO assumes the input shape dimension and order matches
+        # TODO replace self[k].coords[slc] with self[k][slc] (and implement the slice)
+
+        slices = [
+            map(lambda i: slice(i, i+n), range(0, m, n))
+            for m, n
+            in zip(self.shape, shape)]
+
+        for l in itertools.product(*slices):
+            kwargs = {k:self[k].coordinates[slc] for k, slc in zip(self.dims, l)}
+            kwargs['order'] = self.dims
+            yield Coordinate(**kwargs)
+
     @property
     def latlon_bounds_str(self):
-        return '%s_%s_x_%s_%s' % (
-            self._coords['lat'].bounds[0],
-            self._coords['lon'].bounds[0],
-            self._coords['lat'].bounds[1],
-            self._coords['lon'].bounds[1]
-        )
+        if 'lat' in self.dims and 'lon' in self.dims:
+            return '%s_%s_x_%s_%s' % (
+                self['lat'].bounds[0],
+                self['lon'].bounds[0],
+                self['lat'].bounds[1],
+                self['lon'].bounds[1]
+            )
+        elif 'lat_lon' in self.dims:
+            return 'TODO'
+        else:
+            return 'NA'
 
 if __name__ == '__main__':
     #coord = Coordinate(lat=xr.DataArray(

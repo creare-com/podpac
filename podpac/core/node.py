@@ -23,6 +23,7 @@ except:
 
 from podpac import settings
 from podpac import Units, UnitsDataArray
+from podpac import Coordinate
 
 class Style(tl.HasTraits):
     
@@ -129,27 +130,6 @@ class Node(tl.HasTraits):
         understand this and get_description. 
         """
         raise NotImplementedError
-
-    def _execute_common(self, coordinates, params=None, output=None, 
-                        initialize_output=True):
-        """ 
-        Common input sanatization etc for when executing a node 
-        """
-        self.evaluated_coordinates = coordinates
-        self.params = params
-        out = None
-        if output is not None:
-            # This should be a reference, not a copy
-            # subselect if neccessary
-            out = output.loc[coordinates.coords] 
-            # self.output[:] = out.transpose(*self.output.dims)
-            self.output = out
-        elif initialize_output:
-            self.output = self.initialize_output_array()
-        else:
-            out = None
-
-        return coordinates, params, out
     
     def initialize_output_array(self, init_type='nan', fillval=0, style=None,
                               no_style=False, shape=None, coords=None,
@@ -363,7 +343,7 @@ class Node(tl.HasTraits):
             params = OrderedDict(sorted(params.items()))
             
             # convert dict values to OrderedDict with consistent keys
-            for key, value in params:
+            for key, value in params.items():
                 if type(value) is dict:
                     params[key] = OrderedDict(sorted(value.items()))
 
@@ -376,6 +356,10 @@ class Node(tl.HasTraits):
             
         return self.get_hash(self.evaluated_coordinates, self.params)
 
+    @property
+    def latlon_bounds_str(self):
+        return self.evaluated_coordinates.latlon_bounds_str
+    
     def get_output_path(self, filename, outdir=None):
         if outdir is None:
             outdir = settings.OUT_DIR
@@ -389,7 +373,7 @@ class Node(tl.HasTraits):
         filename = '%s_%s_%s.pkl' % (
             name,
             self.evaluated_hash,
-            self.evaluated_coordinates.latlon_bounds_str)
+            self.latlon_bounds_str)
         path = self.get_output_path(filename, outdir=outdir)
 
         if format == 'pickle':

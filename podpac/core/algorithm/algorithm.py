@@ -1,6 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
+from operator import mul
 import inspect
 import numpy as np
 import xarray as xr
@@ -16,29 +17,22 @@ from podpac.core.node import Node
 
 class Algorithm(Node):
     def execute(self, coordinates, params=None, output=None):
-        coordinates, params, out = \
-            self._execute_common(coordinates, params, output)
-        
-        kwargs = OrderedDict()
-        for name in self.trait_names():
-            node = getattr(self, name)
-            if isinstance(node, Node):
-                if self.implicit_pipeline_evaluation:
-                    node.execute(coordinates, params, output)
-                kwargs[name] = node.output
+        self.evaluated_coordinates = coordinates
+        self.params = params
+        self.output = output
 
-        if output is None:
-            res = self.algorithm(**kwargs)
-            if isinstance(res, UnitsDataArray):
-                self.output = res
-            else:
-                self.output = xr.align(*kwargs.values())[0]
-                self.output[:] = res
-        else:
-            output[:] = self.algorithm(**kwargs)
-            self.output = output
-            
-        self.evaluted = True
+        if self.output is None:
+            self.output = self.initialize_output_array()
+
+        if self.implicit_pipeline_evaluation:
+            for name in self.trait_names():
+                node = getattr(self, name)
+                if isinstance(node, Node):
+                    node.execute(coordinates, params)
+
+        result = self.algorithm()
+        self.output[:] = result #.transpose(*self.output.dims) # is this necessary?
+        self.evaluated = True
         return self.output
         
     def algorithm(self, **kwargs):
@@ -63,7 +57,9 @@ class Algorithm(Node):
         d['inputs'] = {
             ref:getattr(self, ref)
             for ref, trait in self.traits().items()
-            if hasattr(trait, 'klass') and Node in inspect.getmro(trait.klass)
+            if hasattr(trait, 'klass') and
+               Node in inspect.getmro(trait.klass) and
+               getattr(self, ref) is not None
         }
         
         if self.params:
@@ -89,26 +85,20 @@ class Arithmetic(Algorithm):
     G = tl.Instance(Node, allow_none=True)
     eqn = tl.Unicode(default_value='A+B+C+D+E+F+G')
     
-    def algorithm(self, A, B=None, C=None, D=None, E=None, F=None, G=None):
-        if 'eqn' not in self.params:
-            eqn = self.eqn
-        else: 
-            eqn = self.params['eqn']
-        f_locals = locals()
-        fields = [f_locals[f] for f in 'ABCDEFG' if f_locals[f] is not None]
-        keys = [f for f in 'ABCDEFG' if f_locals[f] is not None]
-        res = xr.broadcast(*fields)
-        for key, r in zip(keys, res):
-            f_locals[key] = r
+    def algorithm(self):
+        eqn = self.params.get('eqn', self.eqn)
+        eqn = eqn.format(**self.params)
         
-        out = A.copy()
+        fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
+        res = xr.broadcast(*[getattr(self, f).output for f in fields])
+        f_locals = dict(zip(fields, res))
+
         if ne is None:
-            out.data[:] = eval(eqn.format(**self.params),
-                                              f_locals)            
+            result = eval(eqn, f_locals)
         else:
-            out.data[:] = ne.evaluate(eqn.format(**self.params),
-                                  local_dict=f_locals)
-        return out
+            result = ne.evaluate(eqn, f_locals)
+
+        return result
 
     @property
     def definition(self):
@@ -118,6 +108,175 @@ class Arithmetic(Algorithm):
             d['params']['eqn'] = self.eqn
 
         return d
+
+class Reduce(Algorithm):
+    input_coordinates = tl.Instance(Coordinate)
+    input_node = tl.Instance(Node)
+
+    @property
+    def online(self):
+        return self.params.get('online', False)
+
+    @property
+    def dims(self):
+        """
+        Validates and translates requested reduction dimensions.
+        """
+
+        input_dims = self.input_coordinates.dims
+
+        if self.params is None or 'dims' not in self.params:
+            return input_dims
+
+        valid_dims = []
+        if 'time' in input_dims:
+            valid_dims.append('time')
+        if 'lat_lon' in input_dims:
+            valid_dims.append('lat_lon')
+        if 'lat' in input_dims and 'lon' in input_dims:
+            valid_dims.append('lat_lon')
+        if 'alt' in input_dims:
+            valid_dims.append('alt')
+
+        params_dims = self.params['dims']
+        if not isinstance(params_dims, (list, tuple)):
+            params_dims = [params_dims]
+
+        dims = []
+        for dim in params_dims:
+            if dim not in valid_dims:
+                raise ValueError("Invalid Reduce dimension: %s" % dim)    
+            elif dim in input_dims:
+                dims.append(dim)
+            elif dim == 'lat_lon':
+                dims.append('lat')
+                dims.append('lon')
+        
+        return dims
+
+    def get_reduced_coordinates(self, coordinates):
+        dims = self.dims
+        kwargs = {}
+        order = []
+        for dim in coordinates.dims:
+            if dim in self.dims:
+                continue
+            
+            kwargs[dim] = coordinates[dim]
+            order.append(dim)
+        
+        if not kwargs:
+            # TODO
+            return None
+
+        kwargs['order'] = order
+        return Coordinate(**kwargs)
+
+    @property
+    def chunk_shape(self):
+        chunk_size = self.params.get('chunk_size', 'auto')
+        if chunk_size == 'auto':
+            chunk_size = 1024**2 # TODO
+        
+        coords = self.input_coordinates
+        d = {k:coords[k].size for k in coords.dims if k not in self.dims}
+        s = reduce(mul, d.values())
+        for dim in self.dims:
+            n = chunk_size // s
+            if n == 0:
+                d[dim] = 1
+            elif n < coords[dim].size:
+                d[dim] = n
+            else:
+                d[dim] = coords[dim].size
+            s *= d[dim]
+
+        return [d[dim] for dim in coords.dims]
+
+    def iteroutputs(self):
+        for chunk in self.input_coordinates.iterchunks(self.chunk_shape):
+            yield self.input_node.execute(chunk, self.params)
+
+    def execute(self, coordinates, params=None, output=None):
+        self.input_coordinates = coordinates
+        self.params = params
+        self.output = output
+
+        self.evaluated_coordinates = self.get_reduced_coordinates(coordinates)
+
+        if self.output is None:
+            self.output = self.initialize_output_array()
+            
+        if self.online:
+            result = self.reduce_online(self.iteroutputs())
+        else:
+            if self.implicit_pipeline_evaluation:
+                self.input_node.execute(coordinates, params)
+            result = self.reduce(self.input_node.output)
+
+        if self.output.shape is (): # or self.evaluated_coordinates is None
+            self.output.data = result
+        else:
+            self.output[:] = result #.transpose(*self.output.dims) # is this necessary?
+        
+        self.evaluated = True
+
+        return self.output
+
+    def reduce(self, x):
+        """
+        Reduce a full array, e.g. x.mean(self.dims).
+
+        Must be defined in each child.
+        """
+
+        raise NotImplementedError
+
+    def reduce_online(self, xs):
+        """
+        Reduce a list of xs with a memory-effecient online algorithm.
+
+        Optionally defined in each child.
+        """
+
+        warnings.warn("No reduce_online method defined, using one-step reduce")
+        x = self.input_node.execute(self.input_coordinates, self.params)
+        return self.reduce(x)
+
+    @property
+    def evaluated_hash(self):
+        if self.input_coordinates is None:
+            raise Exception("node not evaluated")
+            
+        return self.get_hash(self.input_coordinates, self.params)
+
+    @property
+    def latlon_bounds_str(self):
+        return self.input_coordinates.latlon_bounds_str
+
+class Mean(Reduce):
+    def reduce(self, x):
+        return x.mean(dim=self.dims)
+
+    def reduce_online(self, xs):
+        s = xr.zeros_like(self.output) # alt: s = np.zeros(self.shape)
+        n = xr.zeros_like(self.output)
+        for x in xs:
+            # TODO efficency
+            s += x.sum(dim=self.dims)
+            n += np.isfinite(x).sum(dim=self.dims)
+        output = s / n
+        return output
+
+class Sum(Reduce):
+    def reduce(self, x):
+        return x.sum(dim=self.dims)
+
+    def reduce_online(self, xs):
+        s = xr.zeros_like(self.output)
+        for x in xs:
+            s += x.sum(dim=self.dims)
+        return s
         
 if __name__ == "__main__":
     a = SinCoords()
@@ -127,4 +286,48 @@ if __name__ == "__main__":
     a2 = Arithmetic(A=a, B=a)
     o2 = a2.execute(coords, params={'eqn': '2*abs(A) - B'})
 
-    print ("Done")        
+    from time import time
+    from podpac.datalib.smap import SMAP
+
+    smap = SMAP(product='SPL4SMAU.003')
+    coords = smap.native_coordinates
+    
+    coords = Coordinate(
+        time=coords.coords['time'][:10],
+        lat=[45., 66., 50], lon=[-80., -70., 20],
+        order=['time', 'lat', 'lon'])
+
+    smap_mean = Mean(input_node=SMAP(product='SPL4SMAU.003'))
+    mll = smap_mean.execute(coords, {'dims':'lat_lon'})
+    
+    print("lat_lon means")
+    t0 = time()
+    mll = smap_mean.execute(coords, {'dims':'lat_lon'})
+    print(coords.shape, time() - t0)
+    
+    t0 = time()
+    mll2 = smap_mean.execute(coords, {'dims':'lat_lon', 'online':True})
+    print(smap_mean.chunk_shape, time()-t0)
+    
+    t0 = time()
+    mll3 = smap_mean.execute(coords, {'dims':'lat_lon', 'online':True, 'chunk_size': 2000})
+    print(smap_mean.chunk_shape, time()-t0)
+
+    print("time means")
+    t0 = time()
+    mt = smap_mean.execute(coords, {'dims':'time'})
+    print(coords.shape, time() - t0)
+
+    t0 = time()
+    mt2 = smap_mean.execute(coords, {'dims':'time', 'online':True})
+    print(smap_mean.chunk_shape, time()-t0)
+    
+    t0 = time()
+    mt3 = smap_mean.execute(coords, {'dims':'time', 'online':True, 'chunk_size': 2000})
+    print(smap_mean.chunk_shape, time()-t0)
+
+    # print ("full means")
+    # all_mean = smap_mean.execute(coords, {'dims':['lat_lon', 'time']})
+    # none_mean = smap_mean.execute(coords, None)
+
+    print ("Done")
