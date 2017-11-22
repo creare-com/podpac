@@ -219,13 +219,74 @@ class Mean(Reduce):
         output = s / n
         return output
 
-class Median(Reduce):
-    pass
+class Variance(Reduce):
+    def reduce(self, x):
+        return x.var(dim=self.dims)
 
-class Mode(Reduce):
-    pass
+    def reduce_chunked(self, xs):
+        n = xr.zeros_like(self.output)
+        m = xr.zeros_like(self.output)
+        m2 = xr.zeros_like(self.output)
 
-class Std(Reduce):
+        # Welford, adapted to handle multiple data points in each iteration
+        for x in xs:
+            n += np.isfinite(x).sum(dim=self.dims)
+            d = x - m
+            m += (d/n).sum(dim=self.dims)
+            d2 = x - m
+            m2 += (d*d2).sum(dim=self.dims)
+
+        return m2 / n
+
+class StandardDeviation(Variance):
+    def reduce(self, x):
+        return x.std(dim=self.dims)
+
+    def reduce_chunked(self, xs):
+        var = super(StandardDeviation, self).reduce_chunked(xs)
+        return np.sqrt(var)
+
+class Reduce2(Reduce):
+    """
+    Extended Reduce class that enables chunks that are smaller than the reduced
+    output array.
+
+    The base Reduce node ensures that each chunk is at least as big as the
+    reduced output, which works for statistics that can be calculated in O(1)
+    space. For statistics that require O(n) space, the node must iterate
+    through the Coordinate orthogonally to the reduce dimension, using chunks
+    that only cover a portion of the output array.
+
+    Note that the above nodes *could* be implemented to allow small chunks.
+    """
+
+    @property
+    def chunk_shape(self):
+        if self.chunk_size is None:
+            # return self.input_coordinates.shape
+            return None
+
+        chunk_size = self.chunk_size
+        coords = self.input_coordinates
+        
+        # here, the minimum size is the reduce-dimensions size
+        d = {k:coords[k].size for k in self.dims}
+        s = reduce(mul, d.values(), 1)
+        for dim in coords.dims[::-1]:
+            if dim in self.dims:
+                continue
+            n = chunk_size // s
+            if n == 0:
+                d[dim] = 1
+            elif n < coords[dim].size:
+                d[dim] = n
+            else:
+                d[dim] = coords[dim].size
+            s *= d[dim]
+
+        return [d[dim] for dim in coords.dims]
+
+class Median(Reduce2):
     pass
 
 if __name__ == '__main__':
@@ -239,8 +300,7 @@ if __name__ == '__main__':
         lat=[45., 66., 50], lon=[-80., -70., 20],
         order=['time', 'lat', 'lon'])
 
-    smap_mean = Mean(input_node=SMAP(product='SPL4SMAU.003'))
-    
+    # smap_mean = Mean(input_node=SMAP(product='SPL4SMAU.003'))
     # print("lat_lon mean")
     # mean_ll = smap_mean.execute(coords, {'dims':'lat_lon'})
     # mean_ll_chunked = smap_mean.execute(coords, {'dims':'lat_lon', 'chunk_size': 2000})
@@ -264,18 +324,30 @@ if __name__ == '__main__':
     # sum_ll = smap_sum.execute(coords, {'dims':'lat_lon'})
     # sum_ll_chunked = smap_sum.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
 
-    print("lat_lon min")
-    smap_min = Min(input_node=SMAP(product='SPL4SMAU.003'))
-    min_ll = smap_min.execute(coords, {'dims':'lat_lon'})
-    min_ll_chunked = smap_min.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
-    min_time = smap_min.execute(coords, {'dims':'time'})
-    min_time_chunked = smap_min.execute(coords, {'dims':'time', 'chunk_size': 1000})
+    # print("lat_lon min")
+    # smap_min = Min(input_node=SMAP(product='SPL4SMAU.003'))
+    # min_ll = smap_min.execute(coords, {'dims':'lat_lon'})
+    # min_ll_chunked = smap_min.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
+    # min_time = smap_min.execute(coords, {'dims':'time'})
+    # min_time_chunked = smap_min.execute(coords, {'dims':'time', 'chunk_size': 1000})
 
-    print("lat_lon max")
-    smap_max = Max(input_node=SMAP(product='SPL4SMAU.003'))
-    max_ll = smap_max.execute(coords, {'dims':'lat_lon'})
-    max_ll_chunked = smap_max.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
-    max_time = smap_max.execute(coords, {'dims':'time'})
-    max_time_chunked = smap_max.execute(coords, {'dims':'time', 'chunk_size': 1000})
+    # print("lat_lon max")
+    # smap_max = Max(input_node=SMAP(product='SPL4SMAU.003'))
+    # max_ll = smap_max.execute(coords, {'dims':'lat_lon'})
+    # max_ll_chunked = smap_max.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
+    # max_time = smap_max.execute(coords, {'dims':'time'})
+    # max_time_chunked = smap_max.execute(coords, {'dims':'time', 'chunk_size': 1000})
+
+    smap_var = Variance(input_node=SMAP(product='SPL4SMAU.003'))
+    var_ll = smap_var.execute(coords, {'dims':'lat_lon'})
+    var_ll_chunked = smap_var.execute(coords, {'dims':'lat_lon', 'chunk_size': 6})
+    var_time = smap_var.execute(coords, {'dims':'time'})
+    var_time_chunked = smap_var.execute(coords, {'dims':'time', 'chunk_size': 6})
+
+    smap_std = StandardDeviation(input_node=SMAP(product='SPL4SMAU.003'))
+    std_ll = smap_std.execute(coords, {'dims':'lat_lon'})
+    std_ll_chunked = smap_std.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
+    std_time = smap_std.execute(coords, {'dims':'time'})
+    std_time_chunked = smap_std.execute(coords, {'dims':'time', 'chunk_size': 1000})
 
     print ("Done")
