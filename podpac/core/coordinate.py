@@ -545,18 +545,21 @@ class Coordinate(tl.HasTraits):
         preserved.
         """
         if coords is None:
-            if order is None and sys.version_info.major < 3 \
-                   and len(kwargs) > 1:
-                raise CoordinateException("Need to specify the order of the"
-                                          " coordinates 'using order'.")
             if sys.version_info.major < 3:
+                if order is None:
+                    if len(kwargs) > 1:
+                        raise CoordinateException(
+                            "Need to specify the order of the coordinates "
+                            "using 'order'.")
+                    else:
+                        order = kwargs.keys()
+                
                 coords = OrderedDict()
-                if len(kwargs) == 1 and order is None:
-                    order = kwargs.keys()
                 for k in order:
                     coords[k] = kwargs[k]
             else:
                 coords = OrderedDict(kwargs)
+
         for key, val in coords.items():
             if not isinstance(val, Coord):
                 coords[key] = Coord(coords=val, ctype=ctype,

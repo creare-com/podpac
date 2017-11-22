@@ -1,5 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import warnings
 from collections import OrderedDict
 from operator import mul
 import inspect
@@ -114,10 +115,6 @@ class Reduce(Algorithm):
     input_node = tl.Instance(Node)
 
     @property
-    def online(self):
-        return self.params.get('online', False)
-
-    @property
     def dims(self):
         """
         Validates and translates requested reduction dimensions.
@@ -165,22 +162,33 @@ class Reduce(Algorithm):
             kwargs[dim] = coordinates[dim]
             order.append(dim)
         
-        if not kwargs:
-            # TODO
-            return None
+        if order:
+            kwargs['order'] = order
 
-        kwargs['order'] = order
         return Coordinate(**kwargs)
 
     @property
+    def chunk_size(self):
+        if 'chunk_size' not in self.params:
+            # return self.input_coordinates.shape
+            return None
+
+        if self.params['chunk_size'] == 'auto':
+            return 1024**2 # TODO
+
+        return self.params['chunk_size']
+
+    @property
     def chunk_shape(self):
-        chunk_size = self.params.get('chunk_size', 'auto')
-        if chunk_size == 'auto':
-            chunk_size = 1024**2 # TODO
-        
+        if self.chunk_size is None:
+            # return self.input_coordinates.shape
+            return None
+
+        chunk_size = self.chunk_size
         coords = self.input_coordinates
+        
         d = {k:coords[k].size for k in coords.dims if k not in self.dims}
-        s = reduce(mul, d.values())
+        s = reduce(mul, d.values(), 1)
         for dim in self.dims:
             n = chunk_size // s
             if n == 0:
@@ -207,8 +215,8 @@ class Reduce(Algorithm):
         if self.output is None:
             self.output = self.initialize_output_array()
             
-        if self.online:
-            result = self.reduce_online(self.iteroutputs())
+        if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
+            result = self.reduce_chunked(self.iteroutputs())
         else:
             if self.implicit_pipeline_evaluation:
                 self.input_node.execute(coordinates, params)
@@ -232,14 +240,14 @@ class Reduce(Algorithm):
 
         raise NotImplementedError
 
-    def reduce_online(self, xs):
+    def reduce_chunked(self, xs):
         """
-        Reduce a list of xs with a memory-effecient online algorithm.
+        Reduce a list of xs with a memory-effecient iterative algorithm.
 
         Optionally defined in each child.
         """
 
-        warnings.warn("No reduce_online method defined, using one-step reduce")
+        warnings.warn("No reduce_chunked method defined, using one-step reduce")
         x = self.input_node.execute(self.input_coordinates, self.params)
         return self.reduce(x)
 
@@ -258,7 +266,7 @@ class Mean(Reduce):
     def reduce(self, x):
         return x.mean(dim=self.dims)
 
-    def reduce_online(self, xs):
+    def reduce_chunked(self, xs):
         s = xr.zeros_like(self.output) # alt: s = np.zeros(self.shape)
         n = xr.zeros_like(self.output)
         for x in xs:
@@ -272,11 +280,21 @@ class Sum(Reduce):
     def reduce(self, x):
         return x.sum(dim=self.dims)
 
-    def reduce_online(self, xs):
+    def reduce_chunked(self, xs):
         s = xr.zeros_like(self.output)
         for x in xs:
             s += x.sum(dim=self.dims)
         return s
+
+class Count(Reduce):
+    def reduce(self, x):
+        return np.isfinite(x).sum(dim=self.dims)
+
+    def reduce_chunked(self, xs):
+        sn= xr.zeros_like(self.output)
+        for x in xs:
+            n += np.isfinite(x).sum(dim=self.dims)
+
         
 if __name__ == "__main__":
     a = SinCoords()
@@ -293,41 +311,33 @@ if __name__ == "__main__":
     coords = smap.native_coordinates
     
     coords = Coordinate(
-        time=coords.coords['time'][:10],
+        time=coords.coords['time'][:5],
         lat=[45., 66., 50], lon=[-80., -70., 20],
         order=['time', 'lat', 'lon'])
 
     smap_mean = Mean(input_node=SMAP(product='SPL4SMAU.003'))
-    mll = smap_mean.execute(coords, {'dims':'lat_lon'})
     
     print("lat_lon means")
-    t0 = time()
     mll = smap_mean.execute(coords, {'dims':'lat_lon'})
-    print(coords.shape, time() - t0)
+    mll2 = smap_mean.execute(coords, {'dims':'lat_lon', 'chunk_size':'auto'})
+    mll3 = smap_mean.execute(coords, {'dims':'lat_lon', 'chunk_size': 2000})
+    mll4 = smap_mean.execute(coords, {'dims':'lat_lon', 'chunk_size': 6000})
     
-    t0 = time()
-    mll2 = smap_mean.execute(coords, {'dims':'lat_lon', 'online':True})
-    print(smap_mean.chunk_shape, time()-t0)
-    
-    t0 = time()
-    mll3 = smap_mean.execute(coords, {'dims':'lat_lon', 'online':True, 'chunk_size': 2000})
-    print(smap_mean.chunk_shape, time()-t0)
-
     print("time means")
-    t0 = time()
     mt = smap_mean.execute(coords, {'dims':'time'})
-    print(coords.shape, time() - t0)
+    mt2 = smap_mean.execute(coords, {'dims':'time', 'chunk_size':'auto'})
+    mt3 = smap_mean.execute(coords, {'dims':'time', 'chunk_size': 2000})
 
-    t0 = time()
-    mt2 = smap_mean.execute(coords, {'dims':'time', 'online':True})
-    print(smap_mean.chunk_shape, time()-t0)
-    
-    t0 = time()
-    mt3 = smap_mean.execute(coords, {'dims':'time', 'online':True, 'chunk_size': 2000})
-    print(smap_mean.chunk_shape, time()-t0)
+    print ("full means")
+    mllt = smap_mean.execute(coords, {'dims':['lat_lon', 'time']})
+    mllt2 = smap_mean.execute(coords, {'dims': ['lat_lon', 'time'], 'chunk_size': 1000})
+    mllt3 = smap_mean.execute(coords, {})
 
-    # print ("full means")
-    # all_mean = smap_mean.execute(coords, {'dims':['lat_lon', 'time']})
-    # none_mean = smap_mean.execute(coords, None)
+    print("lat_lon counts")
+    smap_count = Count(input_node=SMAP(product='SPL4SMAU.003'))
+    mll = smap_count.execute(coords, {'dims':'lat_lon'})
+    mll2 = smap_count.execute(coords, {'dims':'lat_lon', 'chunk_size':'auto'})
+    mll3 = smap_count.execute(coords, {'dims':'lat_lon', 'chunk_size': 2000})
+    mll4 = smap_count.execute(coords, {'dims':'lat_lon', 'chunk_size': 6000})
 
     print ("Done")
