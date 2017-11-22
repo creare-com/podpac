@@ -163,19 +163,27 @@ class Reduce(Algorithm):
     def latlon_bounds_str(self):
         return self.input_coordinates.latlon_bounds_str
 
-class Mean(Reduce):
+class Min(Reduce):
     def reduce(self, x):
-        return x.mean(dim=self.dims)
+        return x.min(dim=self.dims)
+    
+    def reduce_chunked(self, xs):
+        # note: np.fmin ignores NaNs, np.minimum propagates NaNs
+        y = xr.full_like(self.output, np.nan)
+        for x in xs:
+            y = np.fmin(y, x.min(dim=self.dims))
+        return y
+
+class Max(Reduce):
+    def reduce(self, x):
+        return x.max(dim=self.dims)
 
     def reduce_chunked(self, xs):
-        s = xr.zeros_like(self.output) # alt: s = np.zeros(self.shape)
-        n = xr.zeros_like(self.output)
+        # note: np.fmax ignores NaNs, np.maximum propagates NaNs
+        y = xr.full_like(self.output, np.nan)
         for x in xs:
-            # TODO efficency
-            s += x.sum(dim=self.dims)
-            n += np.isfinite(x).sum(dim=self.dims)
-        output = s / n
-        return output
+            y = np.fmax(y, x.max(dim=self.dims))
+        return y
 
 class Sum(Reduce):
     def reduce(self, x):
@@ -197,17 +205,24 @@ class Count(Reduce):
             n += np.isfinite(x).sum(dim=self.dims)
         return n
 
+class Mean(Reduce):
+    def reduce(self, x):
+        return x.mean(dim=self.dims)
+
+    def reduce_chunked(self, xs):
+        s = xr.zeros_like(self.output) # alt: s = np.zeros(self.shape)
+        n = xr.zeros_like(self.output)
+        for x in xs:
+            # TODO efficency
+            s += x.sum(dim=self.dims)
+            n += np.isfinite(x).sum(dim=self.dims)
+        output = s / n
+        return output
+
 class Median(Reduce):
     pass
 
 class Mode(Reduce):
-    pass
-
-class Min(Reduce):
-    def reduce(Reduce):
-        pass
-
-class Max(Reduce):
     pass
 
 class Std(Reduce):
@@ -220,33 +235,47 @@ if __name__ == '__main__':
     coords = smap.native_coordinates
     
     coords = Coordinate(
-        time=coords.coords['time'][:5],
+        time=coords.coords['time'][:3],
         lat=[45., 66., 50], lon=[-80., -70., 20],
         order=['time', 'lat', 'lon'])
 
     smap_mean = Mean(input_node=SMAP(product='SPL4SMAU.003'))
     
-    print("lat_lon means")
-    mll = smap_mean.execute(coords, {'dims':'lat_lon'})
-    mll2 = smap_mean.execute(coords, {'dims':'lat_lon', 'chunk_size':'auto'})
-    mll3 = smap_mean.execute(coords, {'dims':'lat_lon', 'chunk_size': 2000})
-    mll4 = smap_mean.execute(coords, {'dims':'lat_lon', 'chunk_size': 6000})
+    # print("lat_lon mean")
+    # mean_ll = smap_mean.execute(coords, {'dims':'lat_lon'})
+    # mean_ll_chunked = smap_mean.execute(coords, {'dims':'lat_lon', 'chunk_size': 2000})
     
-    print("time means")
-    mt = smap_mean.execute(coords, {'dims':'time'})
-    mt2 = smap_mean.execute(coords, {'dims':'time', 'chunk_size':'auto'})
-    mt3 = smap_mean.execute(coords, {'dims':'time', 'chunk_size': 2000})
+    # print("time mean")
+    # mean_time = smap_mean.execute(coords, {'dims':'time'})
+    # mean_time_chunked = smap_mean.execute(coords, {'dims':'time', 'chunk_size': 2000})
 
-    print ("full means")
-    mllt = smap_mean.execute(coords, {'dims':['lat_lon', 'time']})
-    mllt2 = smap_mean.execute(coords, {'dims': ['lat_lon', 'time'], 'chunk_size': 1000})
-    mllt3 = smap_mean.execute(coords, {})
+    # print ("full mean")
+    # mean_full = smap_mean.execute(coords, {'dims':['lat_lon', 'time']})
+    # mean_full_chunked = smap_mean.execute(coords, {'dims': ['lat_lon', 'time'], 'chunk_size': 1000})
+    # mean_full2 = smap_mean.execute(coords, {})
 
-    print("lat_lon counts")
-    smap_count = Count(input_node=SMAP(product='SPL4SMAU.003'))
-    cll = smap_count.execute(coords, {'dims':'lat_lon'})
-    cll2 = smap_count.execute(coords, {'dims':'lat_lon', 'chunk_size':'auto'})
-    cll3 = smap_count.execute(coords, {'dims':'lat_lon', 'chunk_size': 2000})
-    cll4 = smap_count.execute(coords, {'dims':'lat_lon', 'chunk_size': 6000})
+    # print("lat_lon count")
+    # smap_count = Count(input_node=SMAP(product='SPL4SMAU.003'))
+    # count_ll = smap_count.execute(coords, {'dims':'lat_lon'})
+    # count_ll_chunked = smap_count.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
+
+    # print("lat_lon sum")
+    # smap_sum = Sum(input_node=SMAP(product='SPL4SMAU.003'))
+    # sum_ll = smap_sum.execute(coords, {'dims':'lat_lon'})
+    # sum_ll_chunked = smap_sum.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
+
+    print("lat_lon min")
+    smap_min = Min(input_node=SMAP(product='SPL4SMAU.003'))
+    min_ll = smap_min.execute(coords, {'dims':'lat_lon'})
+    min_ll_chunked = smap_min.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
+    min_time = smap_min.execute(coords, {'dims':'time'})
+    min_time_chunked = smap_min.execute(coords, {'dims':'time', 'chunk_size': 1000})
+
+    print("lat_lon max")
+    smap_max = Max(input_node=SMAP(product='SPL4SMAU.003'))
+    max_ll = smap_max.execute(coords, {'dims':'lat_lon'})
+    max_ll_chunked = smap_max.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
+    max_time = smap_max.execute(coords, {'dims':'time'})
+    max_time_chunked = smap_max.execute(coords, {'dims':'time', 'chunk_size': 1000})
 
     print ("Done")
