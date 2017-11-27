@@ -40,6 +40,11 @@ except:
         import urllib3
     except:
         urllib3 = None
+        
+    try:
+        import certifi
+    except:
+        certifi = None
 
 # Not used directly, but used indirectly by bs4 so want to check if it's available
 try:
@@ -156,7 +161,10 @@ class WCS(podpac.DataSource):
                 raise Exception("Could not get capabilities from WCS server")
             capabilities = capabilities.text
         elif urllib3 is not None:
-            http = urllib3.PoolManager()
+            if certifi is not None:
+                http = urllib3.PoolManager(ca_certs=certifi.where())
+            else:
+                http = urllib3.PoolManager()
             r = http.request('GET',self.get_capabilities_url)
             capabilities = r.data
             if r.status != 200:
@@ -250,7 +258,10 @@ class WCS(podpac.DataSource):
                         raise Exception("Could not get data from WCS server")        
                     io = BytesIO(bytearray(data.content))
                 elif urllib3 is not None:
-                    http = urllib3.PoolManager()
+                    if certifi is not None:
+                        http = urllib3.PoolManager(ca_certs=certifi.where())
+                    else:
+                        http = urllib3.PoolManager()
                     r = http.request('GET',url)
                     if r.status != 200:
                        raise Exception("Could not get capabilities from WCS server") 
@@ -289,7 +300,10 @@ class WCS(podpac.DataSource):
                     raise Exception("Could not get data from WCS server")        
                 io = BytesIO(bytearray(data.content))
             elif urllib3 is not None:
-                http = urllib3.PoolManager()
+                if certifi is not None:
+                    http = urllib3.PoolManager(ca_certs=certifi.where())
+                else:
+                    http = urllib3.PoolManager()
                 r = http.request('GET',url)
                 if r.status != 200:
                    raise Exception("Could not get capabilities from WCS server") 

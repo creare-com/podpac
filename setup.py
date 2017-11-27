@@ -40,6 +40,10 @@ setup(
         'requests', 
         'beautifulsoup4',   
         'lxml',
+        # Optional requirements for Esri+ version
+        'arcpy',
+        'urllib3',
+        'certifi'
         ],
     # entry_points = {
     #     'console_scripts' : []
