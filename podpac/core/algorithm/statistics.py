@@ -286,8 +286,24 @@ class Reduce2(Reduce):
 
         return [d[dim] for dim in coords.dims]
 
+    def iteroutputs(self):
+        chunks = self.input_coordinates.iterchunks(self.chunk_shape, return_slice=True)
+        for slc, chunk in chunks:
+            yield slc, self.input_node.execute(chunk, self.params)
+
 class Median(Reduce2):
-    pass
+    def reduce(self, x):
+        return x.median(dim=self.dims)
+
+    def reduce_chunked(self, xs):
+        I = [self.input_coordinates.dims.index(dim)
+             for dim in
+             self.evaluated_coordinates.dims]
+        y = xr.full_like(self.output, np.nan)
+        for xslc, x in xs:
+            yslc = [xslc[i] for i in I]
+            y.data[yslc] = x.median(dim=self.dims)
+        return y
 
 if __name__ == '__main__':
     from podpac.datalib.smap import SMAP
@@ -297,7 +313,7 @@ if __name__ == '__main__':
     
     coords = Coordinate(
         time=coords.coords['time'][:3],
-        lat=[45., 66., 50], lon=[-80., -70., 20],
+        lat=[45., 66., 5], lon=[-80., -70., 2],
         order=['time', 'lat', 'lon'])
 
     # smap_mean = Mean(input_node=SMAP(product='SPL4SMAU.003'))
@@ -338,16 +354,24 @@ if __name__ == '__main__':
     # max_time = smap_max.execute(coords, {'dims':'time'})
     # max_time_chunked = smap_max.execute(coords, {'dims':'time', 'chunk_size': 1000})
 
-    smap_var = Variance(input_node=SMAP(product='SPL4SMAU.003'))
-    var_ll = smap_var.execute(coords, {'dims':'lat_lon'})
-    var_ll_chunked = smap_var.execute(coords, {'dims':'lat_lon', 'chunk_size': 6})
-    var_time = smap_var.execute(coords, {'dims':'time'})
-    var_time_chunked = smap_var.execute(coords, {'dims':'time', 'chunk_size': 6})
+    # smap_var = Variance(input_node=SMAP(product='SPL4SMAU.003'))
+    # var_ll = smap_var.execute(coords, {'dims':'lat_lon'})
+    # var_ll_chunked = smap_var.execute(coords, {'dims':'lat_lon', 'chunk_size': 6})
+    # var_time = smap_var.execute(coords, {'dims':'time'})
+    # var_time_chunked = smap_var.execute(coords, {'dims':'time', 'chunk_size': 6})
 
-    smap_std = StandardDeviation(input_node=SMAP(product='SPL4SMAU.003'))
-    std_ll = smap_std.execute(coords, {'dims':'lat_lon'})
-    std_ll_chunked = smap_std.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
-    std_time = smap_std.execute(coords, {'dims':'time'})
-    std_time_chunked = smap_std.execute(coords, {'dims':'time', 'chunk_size': 1000})
+    # smap_std = StandardDeviation(input_node=SMAP(product='SPL4SMAU.003'))
+    # std_ll = smap_std.execute(coords, {'dims':'lat_lon'})
+    # std_ll_chunked = smap_std.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
+    # std_time = smap_std.execute(coords, {'dims':'time'})
+    # std_time_chunked = smap_std.execute(coords, {'dims':'time', 'chunk_size': 1000})
+
+    smap_median = Median(input_node=SMAP(product='SPL4SMAU.003'))
+    median_ll = smap_median.execute(coords, {'dims':'lat_lon'})
+    median_ll_chunked = smap_median.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
+    median_ll_chunked2 = smap_median.execute(coords, {'dims':'lat_lon', 'chunk_size': 10})
+    median_time = smap_median.execute(coords, {'dims':'time'})
+    median_time_chunked = smap_median.execute(coords, {'dims':'time', 'chunk_size': 1})
+    median_time_chunked2 = smap_median.execute(coords, {'dims':'time', 'chunk_size': 10})
 
     print ("Done")

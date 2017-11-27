@@ -743,7 +743,7 @@ class Coordinate(tl.HasTraits):
                 new_coords[key] = copy.deepcopy(other._coords[key])
         return self.__class__(coords=new_coords)
 
-    def iterchunks(self, shape):
+    def iterchunks(self, shape, return_slice=False):
         # TODO assumes the input shape dimension and order matches
         # TODO replace self[k].coords[slc] with self[k][slc] (and implement the slice)
 
@@ -755,7 +755,11 @@ class Coordinate(tl.HasTraits):
         for l in itertools.product(*slices):
             kwargs = {k:self[k].coordinates[slc] for k, slc in zip(self.dims, l)}
             kwargs['order'] = self.dims
-            yield Coordinate(**kwargs)
+            coords = Coordinate(**kwargs)
+            if return_slice:
+                yield l, coords
+            else:
+                yield coords
 
     @property
     def latlon_bounds_str(self):
