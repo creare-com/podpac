@@ -102,9 +102,9 @@ class Compositor(Node):
             def f(src):
                 return src.execute(coordinates, params)
             pool = ThreadPool(processes=self.n_threads)
-            results = [pool.apply_async(f, src) for src in src_subsets]
+            results = [pool.apply_async(f, src) for src in src_subset]
             
-            for src, res in zip(src_subsets, results):
+            for src, res in zip(src_subset, results):
                 yield res.get()
                 src.output = None # free up memory
 
@@ -147,7 +147,7 @@ class OrderedCompositor(Compositor):
     def composite(self, outputs, result=None):
         if result is None:
             # consume the first source output
-            result = outputs.next().copy()
+            result = next(outputs).copy()
 
         # initialize the mask
         # if result is None, probably this is all false

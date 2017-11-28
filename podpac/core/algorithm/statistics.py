@@ -9,7 +9,7 @@ import traitlets as tl
 
 from podpac.core.coordinate import Coordinate
 from podpac.core.node import Node
-from algorithm import Algorithm
+from podpac.core.algorithm.algorithm import Algorithm
 
 class Reduce(Algorithm):
     input_coordinates = tl.Instance(Coordinate)
