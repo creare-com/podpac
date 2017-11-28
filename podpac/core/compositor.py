@@ -102,7 +102,7 @@ class Compositor(Node):
             def f(src):
                 return src.execute(coordinates, params)
             pool = ThreadPool(processes=self.n_threads)
-            results = [pool.apply_async(f, src) for src in src_subset]
+            results = [pool.apply_async(f, [src]) for src in src_subset]
             
             for src, res in zip(src_subset, results):
                 yield res.get()
