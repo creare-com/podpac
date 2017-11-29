@@ -535,12 +535,20 @@ class SMAPSentinelS3(podpac.OrderedCompositor):
         return d    
 
 class SMAPBestAvailable(podpac.OrderedCompositor):
-    pass
+    @tl.default('sources')
+    def sources_default(self):
+        src_objs = np.array([
+            SMAPSentinelS3(interpolation=self.interpolation),
+            SMAP(interpolation=self.interpolation, product='SPL4SMAU.003')
+        ])
+        return src_objs
     
 
 if __name__ == '__main__':
     s5 = SMAPSentinelS3(interpolation='nearest_preview')
-
+    smapba = SMAPBestAvailable(interpolation='nearest_preview')
+    smap = SMAP(interpolation='nearest_preview', product='SPL4SMAU.003')
+ 
     s55 = s5.sources[6]
     s5591 = s55.sources[91]
     s5592 = s55.sources[92]
@@ -553,7 +561,13 @@ if __name__ == '__main__':
     #a92 = s5592.execute(nc)
     a92 = s5592.execute(s5591.native_coordinates)
     
-    a = s5.execute(s5591.native_coordinates)
+    coords = copy.deepcopy(s5591.native_coordinates)
+    coords['time']._cached_delta = np.array([np.timedelta64(90, 'm')])
+    coords["time"]._cached_bounds = None
+    
+    a = s5.execute(coords)
+    b = smapba.execute(coords)
+    c = smap.execute(coords)
     
     sd = SentinelData(source=(r"\\OLYMPUS\Projects\1010028-Pipeline"
                             r"\Technical Work\Testing\Data\SMAPSentinel"
