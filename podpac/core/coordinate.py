@@ -405,10 +405,16 @@ class Coord(tl.HasTraits):
             
         elif self.regularity == 'irregular':
             b = other_coord.bounds
-            min_max_i = [np.nanargmin(np.abs(self.coordinates - b[0])),
-                         np.nanargmin(np.abs(self.coordinates - b[1]))]
-            if self.is_max_to_min:
-                min_max_i = min_max_i[::-1]
+            inds = np.where((self.coordinates >= (b[0] - self.delta))\
+                            & (self.coordinates <= (b[1] + self.delta)))[0]
+            if inds.size == 0:
+                if ind:
+                    return [0, 0]
+                else:
+                    return self.__class__(coords=(self.bounds[0], self.bounds[1], 0))                 
+            min_max_i = [min(inds), max(inds)]
+            #if self.is_max_to_min:
+                #min_max_i = min_max_i[::-1]
             lefti = np.maximum(0, min_max_i[0] - pad)
             righti = np.minimum(min_max_i[1] + pad + 1, self.size)
             if ind:
@@ -594,7 +600,7 @@ class Coordinate(tl.HasTraits):
         for part in parts:
             if part not in self._valid_dims:
                 raise CoordinateException("The '" + part + "' dimension of '"\
-                        + key + "' is not a valid dimension " \
+                        + parts + "' is not a valid dimension " \
                         + str(self.valid_dims)
                 )
             if part in seen_dims:
@@ -615,43 +621,108 @@ class Coordinate(tl.HasTraits):
                         #" dimension need to be equal to  " + str(dims))                    
    
     def intersect(self, other, coord_ref_sys=None, pad=1):
+        # TODO: FIXME (probably should be left for the re-write)
+        # This function doesn't handle stacking at all. If other is stacked, 
+        # self._coords has no idea and will do the wrong thing        
         new_crds = OrderedDict()
         for i, d in enumerate(self._coords):
-            if d not in other._coords:
-                new_crds[d] = self._coords[d]
-                continue
             if isinstance(pad, (list, tuple)):
                 spad = pad[i]
             elif isinstance(pad, dict):
                 spad = pad[d]
             else:
                 spad = pad
-            new_crds[d] = self._coords[d].intersect(other._coords[d],
-                                                    coord_ref_sys, pad=spad)
+            
+            if d not in other._coords and self._coords[d].stacked > 1:
+                parts = d.split('_')
+                inds = None
+                for i, p in enumerate(parts):
+                    if p not in other._coords:
+                        slc.append(slice(None, None))
+                        continue
+                    if self._coords[d].regularity != 'irregular':
+                        raise NotImplementedError()
+                    pcoord = Coord(coords=self._coords[d].coords[i])
+                    ind  = pcoord.intersect(other._coords[p], 
+                                                 coord_ref_sys, ind=True,
+                                                 pad=spad)
+                    if not ind:
+                        inds = None
+                        continue
+                    elif inds:
+                        inds[0] = max(inds[0], ind[0])
+                        inds[1] = min(inds[1], ind[1])
+                    else:
+                        inds = ind
+                if inds and inds[0] < inds[1]:
+                    new_crds[d] = Coord(coords=[c[inds[0]: inds[1]] for c in 
+                                         self.coords[d].coords])
+                else:
+                    new_crds[d] = Coord(coords=(self._coords[d].bound[0], 
+                                                self._coords[d].bound[1], 0))
+            elif  d not in other._coords:
+                new_crds[d] = self._coords[d]
+                continue
+            else:
+                new_crds[d] = self._coords[d].intersect(other._coords[d],
+                                                        coord_ref_sys, pad=spad)
             
         return self.__class__(new_crds, **self.kwargs)
     
     def intersect_ind_slice(self, other, coord_ref_sys=None, pad=1):
+        # TODO: FIXME (probably should be left for the re-write)
+        # This function doesn't handle stacking at all. If other is stacked, 
+        # self._coords has no idea and will do the wrong thing
         slc = []
-        for d in self._coords:
-            if d not in other._coords:
-                slc.append(slice(None, None))
-                continue
+        for j, d in enumerate(self._coords):
             if isinstance(pad, (list, tuple)):
-                spad = pad[i]
+                spad = pad[j]
             elif isinstance(pad, dict):
                 spad = pad[d]
             else:
                 spad = pad
-            ind = self._coords[d].intersect(other._coords[d], 
-                                            coord_ref_sys, ind=True, pad=spad)
-            if self._coords[d].regularity == 'dependent':  # untested
-                i = self.coordinates.dims.index(d)
-                ind = [inds[i] for inds in ind]
-            if ind:
-                slc.append(slice(ind[0], ind[1]))
-            else:
-                slc.append(slice(0, 0))
+                
+            if d not in other._coords and self._coords[d].stacked > 1:
+                parts = d.split('_')
+                inds = None
+                for i, p in enumerate(parts):
+                    if p not in other._coords:
+                        slc.append(slice(None, None))
+                        continue
+                    if self._coords[d].regularity != 'irregular':
+                        raise NotImplementedError()
+                    pcoord = Coord(coords=self._coords[d].coords[i])
+                    ind  = pcoord.intersect(other._coords[p], 
+                                                 coord_ref_sys, ind=True,
+                                                 pad=spad)
+                    #if pcoord.is_max_to_min:
+                        #ind = ind[::-1]
+                    if not ind:
+                        slc.append(slice(0, 0))
+                        inds = None
+                        continue
+                    elif inds:
+                        inds[0] = max(inds[0], ind[0])
+                        inds[1] = min(inds[1], ind[1])
+                    else:
+                        inds = ind
+                if inds and inds[0] < inds[1]:
+                    slc.append(slice(inds[0], inds[1]))
+                else:
+                    slc.append(slice(0, 0))                    
+            elif d not in other._coords:
+                    slc.append(slice(None, None))
+                    continue
+            else:    
+                ind = self._coords[d].intersect(other._coords[d], 
+                                                coord_ref_sys, ind=True, pad=spad)
+                if self._coords[d].regularity == 'dependent':  # untested
+                    i = self.coordinates.dims.index(d)
+                    ind = [inds[i] for inds in ind]
+                if ind:
+                    slc.append(slice(ind[0], ind[1]))
+                else:
+                    slc.append(slice(0, 0))
         return slc
     
     @property
