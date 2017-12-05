@@ -22,6 +22,20 @@ class Compositor(Node):
     cache_native_coordinates = tl.Bool(True)
     
     interpolation = tl.Unicode('')
+
+    # When threaded is False, the compositor stops executing sources once the
+    # output is completely filled for efficiency. When threaded is True, the
+    # compositor must execute every source. The result is the same, but note
+    # that because of this, threaded=False could be faster than threaded=True,
+    # especially if n_threads is low. For example, threaded with n_threads=1
+    # could be much slower than non-threaded if the output is completely filled
+    # after the first few sources.
+
+    # NASA data servers seem to have a hard limit of 10 simultaneous requests,
+    # so the default for now is 10.
+    
+    threaded = tl.Bool(False)
+    n_threads = tl.Int(10)
     
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
@@ -48,20 +62,20 @@ class Compositor(Node):
             self.cache_obj(crds, 'native.coordinates')
         return crds
     
-    def execute(self, coordinates, params=None, output=None):
-        coords, params, out = \
-                self._execute_common(coordinates, params, None, 
-                                     initialize_output=False)
-        out = output
-        
-        # Decide which sources need to be evaluated
-        if self.source_coordinates is None: # Do them all
-            src_subset = self.sources
+    def iteroutputs(self, coordinates, params):
+        # determine subset of sources needed
+        if self.source_coordinates is None:
+            src_subset = self.sources # all
         else:
-            coords_subset_slc = \
-                self.source_coordinates.intersect_ind_slice(coordinates, pad=1)
-            src_subset = self.sources[coords_subset_slc]
-            
+            # intersecting sources only
+            slc = self.source_coordinates.intersect_ind_slice(
+                coordinates, pad=1)
+            src_subset = self.sources[slc]
+
+        if len(src_subset) == 0:
+            yield self.initialize_coord_array(coordinates, init_type='nan')
+            return
+
         # Set the interpolation properties for sources
         if self.interpolation:
             for s in src_subset.ravel():
@@ -79,20 +93,35 @@ class Compositor(Node):
                     pad=1).coords.values())[0]
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
-                nc = Coordinate(**{coords_dim: c})\
-                        + self.shared_coordinates
+                nc = Coordinate(**{coords_dim: c}) + self.shared_coordinates
                 if 'native_coordinates' not in s._trait_values:
                     s.native_coordinates = nc
 
-        if len(src_subset) == 0:
-            return self.initialize_coord_array(coordinates, init_type='nan')
+        if self.threaded:
+            # TODO pool of pre-allocated scratch space
+            def f(src):
+                return src.execute(coordinates, params)
+            pool = ThreadPool(processes=self.n_threads)
+            results = [pool.apply_async(f, [src]) for src in src_subset]
+            
+            for src, res in zip(src_subset, results):
+                yield res.get()
+                src.output = None # free up memory
 
-        if output is None:
-            self.output = self.composite(src_subset, coordinates,
-                                         params, output)
-        else: 
-            out[:] = self.composite(src_subset, coordinates, params, output)
-            self.output = out
+        else:
+            output = None # scratch space
+            for src in src_subset:
+                output = src.execute(coordinates, params, output)
+                yield output
+                output[:] = np.nan
+
+    def execute(self, coordinates, params=None, output=None):
+        self.evaluated_coordinates = coordinates
+        self.params = params
+        self.output = output
+        
+        outputs = self.iteroutputs(coordinates, params)
+        self.output = self.composite(outputs, self.output)
         self.evaluated = True
 
         return self.output
@@ -101,8 +130,7 @@ class Compositor(Node):
     def definition(self):
         return NotImplementedError
 
-        # currently doesn't work because sources is a list of np.ndarray
-        # instead of a list of nodes
+        # TODO test
 
         d = OrderedDict()
         d['node'] = self.podpac_path
@@ -115,54 +143,28 @@ class Compositor(Node):
 
 
 class OrderedCompositor(Compositor):
-    # When threaded is False, the compositor stops executing sources once the
-    # output is completely filled for efficiency. When threaded is True, the
-    # compositor must execute every source. The result is the same, but note
-    # that because of this, threaded=False could be faster than threaded=True,
-    # especially if n_threads is low. For example, threaded with n_threads=1
-    # could be much slower than non-threaded if the output is completely filled
-    # after the first few sources.
 
-    # NASA data servers seem to have a hard limit of 10 simultaneous requests,
-    # so the default for now is 10.
+    def composite(self, outputs, result=None):
+        if result is None:
+            # consume the first source output
+            result = next(outputs).copy()
 
-    threaded = tl.Bool(False)
-    n_threads = tl.Int(10)
+        # initialize the mask
+        # if result is None, probably this is all false
+        mask = np.isfinite(result.data)
+        if np.all(mask):
+            return result
+        
+        # loop through remaining outputs
+        for output in outputs:
+            output = output.transpose(*result.dims)
+            source_mask = np.isfinite(output.data)
+            b = ~mask & source_mask
+            result.data[b] = output.data[b]
+            mask &= source_mask
 
-    def composite(self, src_subset, coordinates, params, output):
-        start = 0
-        # The compositor doesn't actually know what dimensions are 
-        # in the source, so we rely on the first node to create the output
-        # output array if it has not been given. 
-        if output is None:
-            output = src_subset[0].execute(coordinates, params)
-            start = 1
-
-        if self.threaded:
-            # execute all sources in a thread pool
-            pool = ThreadPool(processes=self.n_threads)
-            def f(src):
-                return src.execute(coordinates, params, output.copy())
-            outputs = pool.map(f, src_subset[start:])
-        else:
-            # TODO use an iterator to execute sources as needed below 
-            # outputs = <iterator>
-            pass
-
-        o = output.copy()  # Create the dataset once
-        I = np.isfinite(o.data)  # Create the masks once
-        Id = I.copy()
-        for i, src in enumerate(src_subset[start:]):
-            if np.all(I):
+            # stop if the results are full
+            if np.all(mask):
                 break
-            if self.threaded:
-                # get asynchronously pre-executed output
-                o = outputs[i]
-            else:
-                # execute the next source synchronously
-                o = src.execute(coordinates, params, o)
-            o = o.transpose(*output.dims)
-            Id[:] = np.isfinite(o.data)
-            output.data[~I & Id] = o.data[~I & Id]
-            I &= Id
-        return output
+
+        return result

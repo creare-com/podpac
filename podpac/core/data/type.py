@@ -396,15 +396,19 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
 class S3Source(podpac.DataSource):
     source = tl.Unicode()
     node = tl.Instance(podpac.Node)  
-    node_class = tl.Any(podpac.DataSource)  # A class 
+    node_class = tl.Type(podpac.DataSource)  # A class 
+    node_kwargs = tl.Dict(default_value={})
     s3_bucket = tl.Unicode()
     s3_data = tl.Any()
     temp_file_cleanup = tl.List()
     return_type = tl.Enum(['file_handle', 'path'], default_value='path')
+    
 
     @tl.default('node')
     def node_default(self):
-        return self.node_class(source=self.s3_data)
+        if 'source' in self.node_kwargs:
+            raise Exception("'source' present in node_kwargs for S3Source")
+        return self.node_class(source=self.s3_data, **self.node_kwargs)
 
     @tl.default('s3_bucket')
     def s3_bucket_default(self):
@@ -420,11 +424,18 @@ class S3Source(podpac.DataSource):
             io.seek(0)
             return io
         elif self.return_type == 'path':
-            # Download the file to temporary directory
-            tmppath = os.path.join(tempfile.gettempdir(),
-                                   self.source.replace('\\', '').replace(':','')\
-                                   .replace('/', ''))
-            i = 0
+            # Download the file to cache directory
+            #tmppath = os.path.join(tempfile.gettempdir(),
+                                   #self.source.replace('\\', '').replace(':','')\
+                                   #.replace('/', ''))
+            tmppath = os.path.join(
+                self.cache_dir,
+                self.source.replace('\\', '').replace(':','').replace('/', ''))
+            
+            rootpath = os.path.split(tmppath)[0]
+            if not os.path.exists(rootpath):
+                os.makedirs(rootpath)
+            #i = 0
             #while os.path.exists(tmppath):
                 #tmppath = os.path.join(tempfile.gettempdir(),
                                        #self.source + '.%d' % i)
@@ -434,6 +445,7 @@ class S3Source(podpac.DataSource):
             return tmppath
 
     def get_data(self, coordinates, coordinates_slice):
+        self.no_data_vals = getattr(self.node, 'no_data_vals', [])
         return self.node.get_data(coordinates, coordinates_slice)
 
     @property
@@ -441,17 +453,19 @@ class S3Source(podpac.DataSource):
         return self.node.native_coordinates
 
     def __del__(self):
-        super(S3Source).__del__(self)
+        if hasattr(super(S3Source), '__del__'):
+            super(S3Source).__del__(self)
         for f in self.temp_file_cleanup:
             os.remove(f)
 
 if __name__ == '__main__':
     #from podpac.core.data.type import S3Source
     #import podpac
-#     source = r'SMAPSentinel/C:\Users\ASOwusu-Akyaw.CREARE\Documents\Pipeline\SMAP_L2_SM_SP_1AIWDV_20170801T000000_20170731T114719_094E21N_T15110_002.h5'
-#     s3 = S3Source(source=source)
-#     
-#     s3.s3_data
+
+    source = r'SMAPSentinel/SMAP_L2_SM_SP_1AIWDV_20170801T000000_20170731T114719_094E21N_T15110_002.h5'
+    s3 = S3Source(source=source)
+    
+    s3.s3_data
     
     #coord_src = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2),
                                     #order=['lat', 'lon', 'time'])
@@ -470,6 +484,8 @@ if __name__ == '__main__':
     #o = nas.execute(coord_dst)
     ##coord_pt = podpac.Coordinate(lat=10., lon=-67.)
     ##o2 = nas.execute(coord_pt)
+    from podpac.datalib.smap import SMAPSentinelSource
+    s3.node_class = SMAPSentinelSource
 
     #coordinates = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16),
                                     #order=['lat', 'lon'])

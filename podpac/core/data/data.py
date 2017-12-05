@@ -34,27 +34,31 @@ class DataSource(Node):
     no_data_vals = tl.List(allow_none=True)
     
     def execute(self, coordinates, params=None, output=None):
-        coords, params, out = \
-            self._execute_common(coordinates, params, output)
-        
-        res = self.get_data_subset(coords)
-        if len(res) == 1:
-            self.output = res[0]
+        self.evaluated_coordinates = coordinates
+        self.params = params
+        self.output = output
+
+        res = self.get_data_subset(coordinates)
+        if isinstance(res, UnitsDataArray):
+            if self.output is None:
+                self.output = res
+            else:
+                self.output[:] = res
             return self.output
         
         data_subset, coords_subset = res
         if self.no_data_vals:
             for ndv in self.no_data_vals:
                 data_subset.data[data_subset.data == ndv] = np.nan
-        if output is None:
-            res = self.interpolate_data(data_subset, coords_subset, coords)
-            self.output = res  
-        else:
-            out[:] = self.interpolate_data(
-                    data_subset, coords_subset, coords).transpose(*out.dims)
-            self.output = out
-            
-        self.evaluted = True        
+        
+        # interpolate_data requires self.output to be initialized
+        if self.output is None:
+            self.output = self.initialize_output_array()
+
+        # sets self.output
+        self.interpolate_data(data_subset, coords_subset, coordinates)
+        
+        self.evaluated = True
         return self.output
         
     def get_data_subset(self, coordinates):
@@ -68,7 +72,7 @@ class DataSource(Node):
         
         # If they do not intersect, we have a shortcut
         if np.prod(coords_subset.shape) == 0:
-            return [self.initialize_coord_array(coordinates, init_type='nan')]
+            return self.initialize_coord_array(coordinates, init_type='nan')
 
         if self.interpolation == 'nearest_preview':
             # We can optimize a little
@@ -176,7 +180,7 @@ class DataSource(Node):
                 and coords_src['lon'].regularity in ['irregular', 'regular'] \
                 and (np.any(['lat_lon' in d for d in coords_dst.dims]) or
                      np.any(['lon_lat' in d for d in coords_dst.dims])):
-            coords_dst_us = coords_dst.unstack()
+            coords_dst_us = coords_dst.unstack() # TODO don't have to return
             return self.interpolate_irregular_grid(data_src, coords_src,
                                                    data_dst, coords_dst_us,
                                                    grid=False)      

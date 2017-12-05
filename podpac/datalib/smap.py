@@ -1,5 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import sys
 import os
 import copy
 from collections import OrderedDict
@@ -16,6 +17,12 @@ import h5py
 # Internal dependencies
 import podpac
 from podpac.core.data import type as datatype
+
+# Optional Dependencies
+try:
+    import boto3
+except:
+    boto3 = None
 
 # Helper functions
 
@@ -322,23 +329,26 @@ class SMAP(podpac.OrderedCompositor):
             d['attrs']['interpolation'] = self.interpolation
         return d
     
-class SentinelData(podpac.DataSource):
-    
+class SMAPSentinelSource(podpac.DataSource):
     source = tl.Unicode(help="Filename for the sensor data")
-    no_data_vals = [-9999.0]
+    no_data_vals = tl.List([-9999.0])
+    dataset = tl.Any()
+
+    @tl.default('dataset')
+    def dataset_default(self):
+        return h5py.File(self.source, 'r')
 
     def get_time(self):
-        f = h5py.File(self.source,'r')
-#        start = f['Metadata/Extent'].attrs['rangeBeginningDateTime']
-#        end = f['Metadata/Extent'].attrs['rangeEndingDateTime']
+        f = self.dataset
         time = f['Metadata/Extent'].attrs['rangeEndingDateTime']
-#        time = np.array([start,end])
+        time = time.decode()
         
         return time
      
+     
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
-        f = h5py.File(self.source,'r')
+        f = self.dataset
         
         times = self.get_time()
         lat = np.array(f['Soil_Moisture_Retrieval_Data_1km/latitude_1km'])
@@ -357,15 +367,207 @@ class SentinelData(podpac.DataSource):
         coordinates and coordinates slice may be strided or subsets of the 
         source data, but all coordinates will match 1:1 with the subset data
         """
-        f = h5py.File(self.source,'r')
+        f = self.dataset
         
-        data = np.array(f['Soil_Moisture_Retrieval_Data_1km/soil_moisture_1km'])[coordinates_slice[:-1]]
+        # We actually ignore the time slice
+        s = tuple([slc for d, slc in zip(coordinates.dims, coordinates_slice)
+                       if 'time' not in d])         
+        
+        data = np.array(f['Soil_Moisture_Retrieval_Data_1km/soil_moisture_1km'])[s]
         d = self.initialize_coord_array(coordinates, 'data', 
                                 fillval=data.reshape(coordinates.shape))
         return d
     
+
+class SMAPSentinelS3Date(podpac.OrderedCompositor):
+    folder_date = tl.Unicode(u'')
+
+    tile_re = re.compile('[0-9]{3}[E,W][0-9]{2}[N,S]')
+    s3_file_filter = tl.Unicode('SMAPSentinel/SMAP_L2_SM_SP_1BIWDV_')
+    cache_native_coordinates = tl.Bool(False)
     
+    objkeys = tl.List()
+
+    @tl.default('objkeys')
+    def objkeys_default(self):
+        try: 
+            objkeys = self.load_cached_obj('objkeys')
+        except: 
+            s3 = boto3.resource('s3').Bucket(self.s3_bucket)
+            objs = list(s3.objects.filter(Prefix=self.s3_file_filter))
+            objkeys = [o.key for o in objs \
+                       if o.key.endswith('.h5')]
+            self.cache_obj(objkeys, 'objkeys') 
+        return objkeys    
+
+    @property
+    def source(self):
+        return 'SMAPSentinalS3Data_' + self.folder_date
+
+    @tl.default('sources')
+    def sources_default(self):
+        sources = [o for o in self.objkeys \
+                   if self.s3_file_filter + self.folder_date in o]
+        
+        tol = np.timedelta64(12, 'h')
+        src_objs = np.array([datatype.S3Source(
+                node_class=SMAPSentinelSource, 
+                source=s,
+                node_kwargs=dict(interpolation_tolerance=tol, 
+                                 interpolation=self.interpolation))
+            for s in sources])
+        return src_objs
+    
+    @tl.default('is_source_coordinates_complete')
+    def src_crds_complete_default(self):
+        return False
+
+    @tl.default('source_coordinates')
+    def get_source_coordinates(self):
+        try: 
+            return self.load_cached_obj('source.coordinates')
+        except:
+            pass
+        tiles = self.get_available_tiles()
+        crds = podpac.Coordinate(lat_lon=tiles)
+        crds['lat_lon']._cached_delta = np.array([3, 3])
+        self.cache_obj(crds, 'source.coordinates')
+        return crds
+
+    def get_available_tiles(self):
+        sources = [o for o in self.objkeys \
+                   if self.s3_file_filter + self.folder_date in o]
+        lats = []
+        lons = []
+        strings = []
+        tile_re = self.tile_re
+        for aa in sources:
+            m = tile_re.search(aa)
+            if m:
+                string = m.group()
+                lons.append(float(string[:3]) * (1 - 2 *(string[3] == 'W')))
+                lats.append(float(string[4:6]) * (1 - 2 *(string[6] == 'S')))
+                strings.append(string)
+                 
+        tiles = [np.array(lats), np.array(lons)]    
+        return tiles
+        
+
+class SMAPSentinelS3(podpac.OrderedCompositor):
+    s3_bucket = tl.Unicode()
+    date_url_re = re.compile('[0-9]{8}T[0-9]{6}')
+    s3_file_filter = tl.Unicode('SMAPSentinel/SMAP_L2_SM_SP')
+    objkeys = tl.List()
+    
+    @tl.default('objkeys')
+    def objkeys_default(self):
+        try: 
+            objkeys = self.load_cached_obj('objkeys')
+        except: 
+            s3 = boto3.resource('s3').Bucket(self.s3_bucket)
+            objs = list(s3.objects.filter(Prefix=self.s3_file_filter))
+            objkeys = [o.key for o in objs if o.key.endswith('.h5')]
+            objkeys.sort()
+            self.cache_obj(objkeys, 'objkeys') 
+        return objkeys    
+    
+    @tl.default('s3_bucket')
+    def s3_bucket_default(self):
+        return podpac.settings.S3_BUCKET_NAME
+    
+    @property
+    def source(self):
+        return "SentinelS3"
+
+    @tl.default('sources')
+    def sources_default(self):
+        try: 
+            dates = self.load_cached_obj('dates')
+        except: 
+            dates = self.get_available_times_dates()[1]
+            self.cache_obj(dates, 'dates')
+        src_objs = np.array([
+            SMAPSentinelS3Date(folder_date=date,
+                               objkeys=self.objkeys,
+                               interpolation=self.interpolation)
+            for date in dates])
+        return src_objs
+
+    @tl.default('source_coordinates')
+    def get_source_coordinates(self):
+        try: 
+            times = self.load_cached_obj('times')
+        except: 
+            times = self.get_available_times_dates()[0]
+            self.cache_obj(times, 'times')
+            
+        return podpac.Coordinate(time=times)
+
+    def get_available_times_dates(self):
+        objkeys = self.objkeys
+            
+        regex = self.date_url_re
+        times = []
+        dates = []
+        for aa in objkeys:
+            m = regex.search(aa).group()
+            if m:
+                times.append(np.datetime64(m[:4] + '-' + m[4:6] + '-' + m[6:8]))
+                dates.append(m[:8])
+        times = np.unique(times)
+        times.sort()
+        dates = np.unique(dates)
+        dates.sort()
+        return np.array(times), dates.tolist()
+
+    @property
+    def base_ref(self):
+        return '%s_%s' % (self.__class__.__name__, self.product)
+    
+    @property
+    def definition(self):
+        d = OrderedDict()
+        d['node'] = self.podpac_path
+        d['attrs'] = OrderedDict()
+        d['attrs']['product'] = self.product
+        if self.interpolation:
+            d['attrs']['interpolation'] = self.interpolation
+        return d    
+
+class SMAPBestAvailable(podpac.OrderedCompositor):
+    @tl.default('sources')
+    def sources_default(self):
+        src_objs = np.array([
+            SMAPSentinelS3(interpolation=self.interpolation),
+            SMAP(interpolation=self.interpolation, product='SPL4SMAU.003')
+        ])
+        return src_objs
+    
+
 if __name__ == '__main__':
+    s5 = SMAPSentinelS3(interpolation='nearest_preview')
+    smapba = SMAPBestAvailable(interpolation='nearest_preview')
+    smap = SMAP(interpolation='nearest_preview', product='SPL4SMAU.003')
+ 
+    s55 = s5.sources[6]
+    s5591 = s55.sources[91]
+    s5592 = s55.sources[92]
+    print (s5591.native_coordinates)
+    print (s5592.native_coordinates)
+    #nc = copy.deepcopy(s5591.native_coordinates)
+    #del nc._coords['time']
+    a91 = s5591.execute(s5591.native_coordinates)
+    #a92n = s5592.execute(s5592.native_coordinates)
+    #a92 = s5592.execute(nc)
+    a92 = s5592.execute(s5591.native_coordinates)
+    
+    coords = copy.deepcopy(s5591.native_coordinates)
+    coords['time']._cached_delta = np.array([np.timedelta64(90, 'm')])
+    coords["time"]._cached_bounds = None
+    
+    a = s5.execute(coords)
+    b = smapba.execute(coords)
+    c = smap.execute(coords)
     
     sd = SentinelData(source=(r"\\OLYMPUS\Projects\1010028-Pipeline"
                             r"\Technical Work\Testing\Data\SMAPSentinel"

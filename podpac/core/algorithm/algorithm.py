@@ -4,41 +4,33 @@ from collections import OrderedDict
 import inspect
 import numpy as np
 import xarray as xr
+import traitlets as tl
 try: 
     import numexpr as ne
 except: 
     ne = None
-import traitlets as tl
 
-from podpac.core.units import UnitsDataArray
 from podpac.core.coordinate import Coordinate
 from podpac.core.node import Node
 
 class Algorithm(Node):
     def execute(self, coordinates, params=None, output=None):
-        coordinates, params, out = \
-            self._execute_common(coordinates, params, output)
-        
-        kwargs = OrderedDict()
-        for name in self.trait_names():
-            node = getattr(self, name)
-            if isinstance(node, Node):
-                if self.implicit_pipeline_evaluation:
-                    node.execute(coordinates, params, output)
-                kwargs[name] = node.output
+        self.evaluated_coordinates = coordinates
+        self.params = params
+        self.output = output
 
-        if output is None:
-            res = self.algorithm(**kwargs)
-            if isinstance(res, UnitsDataArray):
-                self.output = res
-            else:
-                self.output = xr.align(*kwargs.values())[0]
-                self.output[:] = res
-        else:
-            output[:] = self.algorithm(**kwargs)
-            self.output = output
-            
-        self.evaluted = True
+        if self.output is None:
+            self.output = self.initialize_output_array()
+
+        if self.implicit_pipeline_evaluation:
+            for name in self.trait_names():
+                node = getattr(self, name)
+                if isinstance(node, Node):
+                    node.execute(coordinates, params)
+
+        result = self.algorithm()
+        self.output[:] = result #.transpose(*self.output.dims) # is this necessary?
+        self.evaluated = True
         return self.output
         
     def algorithm(self, **kwargs):
@@ -63,7 +55,9 @@ class Algorithm(Node):
         d['inputs'] = {
             ref:getattr(self, ref)
             for ref, trait in self.traits().items()
-            if hasattr(trait, 'klass') and Node in inspect.getmro(trait.klass)
+            if hasattr(trait, 'klass') and
+               Node in inspect.getmro(trait.klass) and
+               getattr(self, ref) is not None
         }
         
         if self.params:
@@ -89,26 +83,20 @@ class Arithmetic(Algorithm):
     G = tl.Instance(Node, allow_none=True)
     eqn = tl.Unicode(default_value='A+B+C+D+E+F+G')
     
-    def algorithm(self, A, B=None, C=None, D=None, E=None, F=None, G=None):
-        if 'eqn' not in self.params:
-            eqn = self.eqn
-        else: 
-            eqn = self.params['eqn']
-        f_locals = locals()
-        fields = [f_locals[f] for f in 'ABCDEFG' if f_locals[f] is not None]
-        keys = [f for f in 'ABCDEFG' if f_locals[f] is not None]
-        res = xr.broadcast(*fields)
-        for key, r in zip(keys, res):
-            f_locals[key] = r
+    def algorithm(self):
+        eqn = self.params.get('eqn', self.eqn)
+        eqn = eqn.format(**self.params)
         
-        out = A.copy()
+        fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
+        res = xr.broadcast(*[getattr(self, f).output for f in fields])
+        f_locals = dict(zip(fields, res))
+
         if ne is None:
-            out.data[:] = eval(eqn.format(**self.params),
-                                              f_locals)            
+            result = eval(eqn, f_locals)
         else:
-            out.data[:] = ne.evaluate(eqn.format(**self.params),
-                                  local_dict=f_locals)
-        return out
+            result = ne.evaluate(eqn, f_locals)
+
+        return result
 
     @property
     def definition(self):
@@ -127,4 +115,4 @@ if __name__ == "__main__":
     a2 = Arithmetic(A=a, B=a)
     o2 = a2.execute(coords, params={'eqn': '2*abs(A) - B'})
 
-    print ("Done")        
+    print ("Done")
