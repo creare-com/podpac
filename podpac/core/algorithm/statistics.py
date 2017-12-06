@@ -5,6 +5,7 @@ from operator import mul
 
 import xarray as xr
 import numpy as np
+import scipy.stats
 import traitlets as tl
 
 from podpac.core.coordinate import Coordinate
@@ -101,6 +102,32 @@ class Reduce(Algorithm):
             s *= d[dim]
 
         return [d[dim] for dim in coords.dims]
+
+    def _reshape(self, x):
+        """
+        Transpose and reshape a DataArray to put the reduce dimensions together
+        as axis 0. This is useful for example for scipy.stats.skew and kurtosis
+        which only calculate over a single axis, by default 0.
+
+        Arguments
+        ---------
+        x : xr.DataArray
+            Input DataArray
+
+        Returns
+        -------
+        a : np.array
+            Transposed and reshaped array
+        """
+
+        if self.dims is None:
+            return x.data.flatten()
+
+        n = len(self.dims)
+        dims = list(self.dims) + [d for d in x.dims if d not in self.dims]
+        x = x.transpose(*dims)
+        a = x.data.reshape(-1, *x.shape[n:])
+        return a
 
     def iteroutputs(self):
         for chunk in self.input_coordinates.iterchunks(self.chunk_shape):
@@ -238,6 +265,171 @@ class Variance(Reduce):
 
         return m2 / n
 
+class Mean2(Mean):
+    def reduce_chunked(self, xs):
+        N = xr.zeros_like(self.output)
+        M1 = xr.zeros_like(self.output)
+        
+        for x in xs:
+            Nx = np.isfinite(x).sum(dim=self.dims)
+            M1x = x.mean(dim=self.dims)
+            d = M1x - M1
+            n = N + Nx
+            
+            M1 += d/n
+            N = n
+
+        return M1
+
+class Variance2(Variance):
+    def reduce_chunked(self, xs):
+        N = xr.zeros_like(self.output)
+        M1 = xr.zeros_like(self.output)
+        M2 = xr.zeros_like(self.output)
+
+        for x in xs:
+            Nx = np.isfinite(x).sum(dim=self.dims)
+            M1x = x.mean(dim=self.dims)
+            M2x = x.var(dim=self.dims)
+            
+            d = M1x - M1
+            n = N + Nx
+            
+            M2 += M2x + d**2*N*Nx/n
+            M1 += d*Nx/n
+            N = n
+
+        return M2 / N
+
+class Skew(Reduce):
+    # TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
+
+    def reduce(self, x):
+        # N = np.isfinite(x).sum(dim=self.dims)
+        # M1 = x.mean(dim=self.dims)
+        # E = x - M1
+        # E2 = E**2
+        # E3 = E2*E
+        # M2 = (E2).sum(dim=self.dims)
+        # M3 = (E3).sum(dim=self.dims)
+        # skew = self.skew(M3, M2, N)
+
+        a = self._reshape(x)
+        skew = scipy.stats.skew(a, nan_policy='omit')
+        return skew
+        
+    def reduce_chunked(self, xs):
+        N = xr.zeros_like(self.output)
+        M1 = xr.zeros_like(self.output)
+        M2 = xr.zeros_like(self.output)
+        M3 = xr.zeros_like(self.output)
+        check_empty = True
+
+        for x in xs:
+            Nx = np.isfinite(x).sum(dim=self.dims)
+            M1x = x.mean(dim=self.dims)
+            Ex = x - M1x
+            Ex2 = Ex**2
+            Ex3 = Ex2*Ex
+            M2x = (Ex2).sum(dim=self.dims)
+            M3x = (Ex3).sum(dim=self.dims)
+
+            # premask to omit NaNs
+            b = Nx.data > 0
+            Nx = Nx.data[b]
+            M1x = M1x.data[b]
+            M2x = M2x.data[b]
+            M3x = M3x.data[b]
+            
+            Nb = N.data[b]
+            M1b = M1.data[b]
+            M2b = M2.data[b]
+
+            # merge
+            d = M1x - M1b
+            n = Nb + Nx
+            NNx = Nb * Nx
+
+            M3.data[b] += (M3x + 
+                           d**3 * NNx * (Nb-Nx) / n**2 +
+                           3 * d * (Nb*M2x - Nx*M2b) / n)
+            M2.data[b] += M2x + d**2 * NNx / n
+            M1.data[b] += d * Nx / n
+            N.data[b] = n
+
+        # calculate skew
+        skew = np.sqrt(N) * M3 / np.sqrt(M2**3)
+        return skew
+
+class Kurtosis(Reduce):
+    # TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
+
+    def reduce(self, x):
+        # N = np.isfinite(x).sum(dim=self.dims)
+        # M1 = x.mean(dim=self.dims)        
+        # E = x - M1
+        # E2 = E**2
+        # E4 = E2**2
+        # M2 = (E2).sum(dim=self.dims)
+        # M4 = (E4).sum(dim=self.dims)
+        # kurtosis = N * M4 / M2**2 - 3
+
+        a = self._reshape(x)
+        kurtosis = scipy.stats.kurtosis(a, nan_policy='omit')
+        return kurtosis
+
+    def reduce_chunked(self, xs):
+        N = xr.zeros_like(self.output)
+        M1 = xr.zeros_like(self.output)
+        M2 = xr.zeros_like(self.output)
+        M3 = xr.zeros_like(self.output)
+        M4 = xr.zeros_like(self.output)
+
+        for x in xs:
+            Nx = np.isfinite(x).sum(dim=self.dims)
+            M1x = x.mean(dim=self.dims)
+            Ex = x - M1x
+            Ex2 = Ex**2
+            Ex3 = Ex2*Ex
+            Ex4 = Ex2**2
+            M2x = (Ex2).sum(dim=self.dims)
+            M3x = (Ex3).sum(dim=self.dims)
+            M4x = (Ex4).sum(dim=self.dims)
+            
+            # premask to omit NaNs
+            b = Nx.data > 0
+            Nx = Nx.data[b]
+            M1x = M1x.data[b]
+            M2x = M2x.data[b]
+            M3x = M3x.data[b]
+            M4x = M4x.data[b]
+            
+            Nb = N.data[b]
+            M1b = M1.data[b]
+            M2b = M2.data[b]
+            M3b = M3.data[b]
+
+            # merge
+            d = M1x - M1b
+            n = Nb + Nx
+            NNx = Nb * Nx
+
+            M4.data[b] += (M4x +
+                           d**4 * NNx * (Nb**2 - NNx + Nx**2) / n**3 +
+                           6 * d**2 * (Nb**2*M2x + Nx**2*M2b) / n**2 +
+                           4 * d * (Nb*M3x - Nx*M3b) / n)
+
+            M3.data[b] += (M3x + 
+                           d**3 * NNx * (Nb-Nx) / n**2 +
+                           3 * d * (Nb*M2x - Nx*M2b) / n)
+            M2.data[b] += M2x + d**2 * NNx / n
+            M1.data[b] += d * Nx / n
+            N.data[b] = n
+
+        # calculate kurtosis
+        kurtosis = N * M4 / M2**2 - 3
+        return kurtosis
+
 class StandardDeviation(Variance):
     def reduce(self, x):
         return x.std(dim=self.dims)
@@ -312,8 +504,8 @@ if __name__ == '__main__':
     coords = smap.native_coordinates
     
     coords = Coordinate(
-        time=coords.coords['time'][:3],
-        lat=[45., 66., 5], lon=[-80., -70., 2],
+        time=coords.coords['time'][:6],
+        lat=[45., 66., 5], lon=[-80., -70., 4],
         order=['time', 'lat', 'lon'])
 
     # smap_mean = Mean(input_node=SMAP(product='SPL4SMAU.003'))
@@ -355,10 +547,35 @@ if __name__ == '__main__':
     # max_time_chunked = smap_max.execute(coords, {'dims':'time', 'chunk_size': 1000})
 
     # smap_var = Variance(input_node=SMAP(product='SPL4SMAU.003'))
-    # var_ll = smap_var.execute(coords, {'dims':'lat_lon'})
     # var_ll_chunked = smap_var.execute(coords, {'dims':'lat_lon', 'chunk_size': 6})
+    # var_ll = smap_var.execute(coords, {'dims':'lat_lon'})
     # var_time = smap_var.execute(coords, {'dims':'time'})
-    # var_time_chunked = smap_var.execute(coords, {'dims':'time', 'chunk_size': 6})
+    # var_time_chunked = smap_var.execute(coords, {'dims':'time', 'chunk_size': 1})
+
+    # smap_var2 = Variance2(input_node=SMAP(product='SPL4SMAU.003'))
+    # var2_ll = smap_var2.execute(coords, {'dims':'lat_lon'})
+    # var2_ll_chunked = smap_var2.execute(coords, {'dims':'lat_lon', 'chunk_size': 6})
+    # var2_time = smap_var2.execute(coords, {'dims':'time'})
+    # var2_time_chunked = smap_var2.execute(coords, {'dims':'time', 'chunk_size': 1})
+
+    # smap = SMAP(product='SPL4SMAU.003')
+    # o = smap.execute(coords, {})
+
+    smap_skew = Skew(input_node=SMAP(product='SPL4SMAU.003'))
+    skew_ll = smap_skew.execute(coords, {'dims':'lat_lon'})
+    skew_ll_chunked = smap_skew.execute(coords, {'dims':'lat_lon', 'chunk_size': 40})
+    skew_ll_chunked1 = smap_skew.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
+    skew_time = smap_skew.execute(coords, {'dims':'time'})
+    skew_time_chunked = smap_skew.execute(coords, {'dims':'time', 'chunk_size': 40})
+    skew_time_chunked1 = smap_skew.execute(coords, {'dims':'time', 'chunk_size': 1})
+
+    smap_kurtosis = Kurtosis(input_node=SMAP(product='SPL4SMAU.003'))
+    kurtosis_ll = smap_kurtosis.execute(coords, {'dims':'lat_lon'})
+    kurtosis_ll_chunked = smap_kurtosis.execute(coords, {'dims':'lat_lon', 'chunk_size': 40})
+    kurtosis_ll_chunked1 = smap_kurtosis.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
+    kurtosis_time = smap_kurtosis.execute(coords, {'dims':'time'})
+    kurtosis_time_chunked = smap_kurtosis.execute(coords, {'dims':'time', 'chunk_size': 40})
+    kurtosis_time_chunked1 = smap_kurtosis.execute(coords, {'dims':'time', 'chunk_size': 1})
 
     # smap_std = StandardDeviation(input_node=SMAP(product='SPL4SMAU.003'))
     # std_ll = smap_std.execute(coords, {'dims':'lat_lon'})
@@ -366,12 +583,12 @@ if __name__ == '__main__':
     # std_time = smap_std.execute(coords, {'dims':'time'})
     # std_time_chunked = smap_std.execute(coords, {'dims':'time', 'chunk_size': 1000})
 
-    smap_median = Median(input_node=SMAP(product='SPL4SMAU.003'))
-    median_ll = smap_median.execute(coords, {'dims':'lat_lon'})
-    median_ll_chunked = smap_median.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
-    median_ll_chunked2 = smap_median.execute(coords, {'dims':'lat_lon', 'chunk_size': 10})
-    median_time = smap_median.execute(coords, {'dims':'time'})
-    median_time_chunked = smap_median.execute(coords, {'dims':'time', 'chunk_size': 1})
-    median_time_chunked2 = smap_median.execute(coords, {'dims':'time', 'chunk_size': 10})
+    # smap_median = Median(input_node=SMAP(product='SPL4SMAU.003'))
+    # median_ll = smap_median.execute(coords, {'dims':'lat_lon'})
+    # median_ll_chunked = smap_median.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
+    # median_ll_chunked2 = smap_median.execute(coords, {'dims':'lat_lon', 'chunk_size': 10})
+    # median_time = smap_median.execute(coords, {'dims':'time'})
+    # median_time_chunked = smap_median.execute(coords, {'dims':'time', 'chunk_size': 1})
+    # median_time_chunked2 = smap_median.execute(coords, {'dims':'time', 'chunk_size': 10})
 
     print ("Done")

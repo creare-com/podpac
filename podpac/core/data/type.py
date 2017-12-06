@@ -2,7 +2,6 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import os
 import re
-import requests
 from io import BytesIO
 import tempfile
 import bs4
@@ -23,11 +22,36 @@ try:
     import rasterio
 except:
     rasterio = None
-
+    try:
+        import arcpy
+    except:
+        arcpy = None
+    
 try:
     import boto3
 except:
     boto3 = None
+    
+try:
+    import requests
+except:
+    requests = None
+    try:
+        import urllib3
+    except:
+        urllib3 = None
+        
+    try:
+        import certifi
+    except:
+        certifi = None
+
+# Not used directly, but used indirectly by bs4 so want to check if it's available
+try:
+    import lxml
+except:
+    lxml = None
+
 # Internal dependencies
 import podpac
 
@@ -131,10 +155,26 @@ class WCS(podpac.DataSource):
     wcs_coordinates = tl.Instance(podpac.Coordinate)
     @tl.default('wcs_coordinates')
     def get_wcs_coordinates(self):
-        capabilities = requests.get(self.get_capabilities_url)
-        if capabilities.status_code != 200:
-            raise Exception("Could not get capabilities from WCS server")
-        capabilities = bs4.BeautifulSoup(capabilities.text, 'lxml')
+        if requests is not None:
+            capabilities = requests.get(self.get_capabilities_url)
+            if capabilities.status_code != 200:
+                raise Exception("Could not get capabilities from WCS server")
+            capabilities = capabilities.text
+        elif urllib3 is not None:
+            if certifi is not None:
+                http = urllib3.PoolManager(ca_certs=certifi.where())
+            else:
+                http = urllib3.PoolManager()
+            r = http.request('GET',self.get_capabilities_url)
+            capabilities = r.data
+            if r.status != 200:
+                raise Exception("Could not get capabilities from WCS server")
+        else:
+            raise Exception("Do not have a URL request library to get WCS data.")
+        if lxml is not None: # could skip using lxml and always use html.parser instead, which seems to work but lxml might be faster
+            capabilities = bs4.BeautifulSoup(capabilities, 'lxml')
+        else:
+            capabilities = bs4.BeautifulSoup(capabilities, 'html.parser')
         domain = capabilities.find('wcs:spatialdomain')
         pos = domain.find('gml:envelope').get_text().split()
         lonlat = np.array(pos, float).reshape(2, 2)
@@ -212,12 +252,32 @@ class WCS(podpac.DataSource):
                 )
                 if not dotime:
                     url = url.replace('&TIME=', '')
-                data = requests.get(url)
-                if data.status_code != 200:
-                    raise Exception("Could not get data from WCS server")        
-                io = BytesIO(bytearray(data.content))
-                with rasterio.open(io) as dataset:
-                    output.data[i, ...] = dataset.read()
+                if requests is not None:
+                    data = requests.get(url)
+                    if data.status_code != 200:
+                        raise Exception("Could not get data from WCS server")        
+                    io = BytesIO(bytearray(data.content))
+                elif urllib3 is not None:
+                    if certifi is not None:
+                        http = urllib3.PoolManager(ca_certs=certifi.where())
+                    else:
+                        http = urllib3.PoolManager()
+                    r = http.request('GET',url)
+                    if r.status != 200:
+                       raise Exception("Could not get capabilities from WCS server") 
+                    io = BytesIO(bytearray(r.data))
+                else:
+                    raise Exception("Do not have a URL request library to get WCS data.")
+                
+                if rasterio is not None:
+                    with rasterio.open(io) as dataset:
+                        output.data[i, ...] = dataset.read()
+                elif arcpy is not None:
+                    # Writing the data to a temporary tiff and reading it from there is hacky
+                    # However reading directly from r.data or io doesn't work
+                    # Should improve in the future
+                    open('temp.tiff','wb').write(r.data)
+                    output.data[i, ...] = arcpy.RasterToNumPyArray('temp.tiff')
         else:
             time = times[0]
             
@@ -234,12 +294,32 @@ class WCS(podpac.DataSource):
             )
             if not dotime:
                 url = url.replace('&TIME=', '')
-            data = requests.get(url)
-            if data.status_code != 200:
-                raise Exception("Could not get data from WCS server")        
-            io = BytesIO(bytearray(data.content))
-            with rasterio.open(io) as dataset:
-                output.data[:] = dataset.read()
+            if requests is not None:
+                data = requests.get(url)
+                if data.status_code != 200:
+                    raise Exception("Could not get data from WCS server")        
+                io = BytesIO(bytearray(data.content))
+            elif urllib3 is not None:
+                if certifi is not None:
+                    http = urllib3.PoolManager(ca_certs=certifi.where())
+                else:
+                    http = urllib3.PoolManager()
+                r = http.request('GET',url)
+                if r.status != 200:
+                   raise Exception("Could not get capabilities from WCS server") 
+                io = BytesIO(bytearray(r.data))
+            else:
+                raise Exception("Do not have a URL request library to get WCS data.")  
+            
+            if rasterio is not None:                          
+                with rasterio.open(io) as dataset:
+                    output.data[:] = dataset.read()
+            elif arcpy is not None:
+                # Writing the data to a temporary tiff and reading it from there is hacky
+                # However reading directly from r.data or io doesn't work
+                # Should improve in the future
+                open('temp.tiff','wb').write(r.data)
+                output.data[:] = arcpy.RasterToNumPyArray('temp.tiff')            
 
         if not coordinates['lat'].is_max_to_min:
             if dotime:
@@ -381,6 +461,7 @@ class S3Source(podpac.DataSource):
 if __name__ == '__main__':
     #from podpac.core.data.type import S3Source
     #import podpac
+
     source = r'SMAPSentinel/SMAP_L2_SM_SP_1AIWDV_20170801T000000_20170731T114719_094E21N_T15110_002.h5'
     s3 = S3Source(source=source)
     
