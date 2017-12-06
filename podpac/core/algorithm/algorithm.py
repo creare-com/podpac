@@ -29,7 +29,7 @@ class Algorithm(Node):
                     node.execute(coordinates, params)
 
         result = self.algorithm()
-        self.output[:] = result #.transpose(*self.output.dims) # is this necessary?
+        self.output[:] = result.transpose(*self.output.dims) # is this necessary?
         self.evaluated = True
         return self.output
         
