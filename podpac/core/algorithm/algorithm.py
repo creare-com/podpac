@@ -64,6 +64,12 @@ class Algorithm(Node):
             d['params'] = self.params
             
         return d
+
+class Ones(Algorithm):
+    ''' Misnamed test node '''
+    def algorithm(self):
+        out = self.initialize_output_array('ones')
+        return out * np.arange(out.size).reshape(out.shape)
         
 class SinCoords(Algorithm):
     def algorithm(self):
