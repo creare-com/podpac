@@ -264,14 +264,22 @@ class WCS(podpac.DataSource):
                         http = urllib3.PoolManager()
                     r = http.request('GET',url)
                     if r.status != 200:
-                       raise Exception("Could not get capabilities from WCS server") 
+                        raise Exception("Could not get capabilities from WCS server") 
                     io = BytesIO(bytearray(r.data))
                 else:
                     raise Exception("Do not have a URL request library to get WCS data.")
                 
                 if rasterio is not None:
-                    with rasterio.open(io) as dataset:
-                        output.data[i, ...] = dataset.read()
+                    try: # This works with rasterio v1.0a8 or greater, but not on python 2
+                        with rasterio.open(io) as dataset:
+                            output.data[i, ...] = dataset.read()
+                    except: # Probably python 2
+                        tmppath = os.path.join(
+                            self.cache_dir, 'wcs_temp.tiff')                        
+                        open(tmppath,'wb').write(r.data)
+                        with rasterio.open(temppath) as dataset:
+                            output.data[i, ...] = dataset.read()
+                        os.remove(tmppath) # Clean up
                 elif arcpy is not None:
                     # Writing the data to a temporary tiff and reading it from there is hacky
                     # However reading directly from r.data or io doesn't work
@@ -306,14 +314,22 @@ class WCS(podpac.DataSource):
                     http = urllib3.PoolManager()
                 r = http.request('GET',url)
                 if r.status != 200:
-                   raise Exception("Could not get capabilities from WCS server") 
+                    raise Exception("Could not get capabilities from WCS server") 
                 io = BytesIO(bytearray(r.data))
             else:
                 raise Exception("Do not have a URL request library to get WCS data.")  
             
             if rasterio is not None:                          
-                with rasterio.open(io) as dataset:
-                    output.data[:] = dataset.read()
+                try: # This works with rasterio v1.0a8 or greater, but not on python 2
+                    with rasterio.open(io) as dataset:
+                        output.data[i, ...] = dataset.read()
+                except: # Probably python 2
+                    tmppath = os.path.join(
+                        self.cache_dir, 'wcs_temp.tiff')                        
+                    open(tmppath,'wb').write(r.data)
+                    with rasterio.open(temppath) as dataset:
+                        output.data[i, ...] = dataset.read()
+                    os.remove(tmppath) # Clean up
             elif arcpy is not None:
                 # Writing the data to a temporary tiff and reading it from there is hacky
                 # However reading directly from r.data or io doesn't work
