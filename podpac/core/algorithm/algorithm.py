@@ -29,7 +29,10 @@ class Algorithm(Node):
                     node.execute(coordinates, params)
 
         result = self.algorithm()
-        self.output[:] = result.transpose(*self.output.dims) # is this necessary?
+        if isinstance(result, np.ndarray):
+            self.output.data[:] = result
+        else:
+            self.output[:] = result.transpose(*self.output.dims) # is this necessary?
         self.evaluated = True
         return self.output
         
@@ -74,7 +77,14 @@ class Ones(Algorithm):
 class SinCoords(Algorithm):
     def algorithm(self):
         out = self.initialize_output_array('ones')
-        crds = np.meshgrid(*out.coords.values()[::-1])
+        crds = list(out.coords.values())
+        try:
+            i_time = list(out.coords.keys()).index('time')
+            crds[i_time] = crds[i_time].astype('datetime64[h]').astype(float)
+        except ValueError:
+            pass
+        
+        crds = np.meshgrid(*crds, indexing='ij')
         for crd in crds:
             out *= np.sin(np.pi * crd / 90.0)
         return out
@@ -90,10 +100,13 @@ class Arithmetic(Algorithm):
     eqn = tl.Unicode(default_value='A+B+C+D+E+F+G')
     
     def algorithm(self):
-        eqn = self.params.get('eqn', self.eqn)
-        eqn = eqn.format(**self.params)
+        if self.params:
+            eqn = self.params.get('eqn', self.eqn)
+            eqn = eqn.format(**self.params)
+        else: eqn = self.eqn
         
         fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
+          
         res = xr.broadcast(*[getattr(self, f).output for f in fields])
         f_locals = dict(zip(fields, res))
 
@@ -108,7 +121,7 @@ class Arithmetic(Algorithm):
     def definition(self):
         d = super(Arithmetic, self).definition
         
-        if 'eqn' not in self.params:
+        if self.params and 'eqn' not in self.params:
             d['params']['eqn'] = self.eqn
 
         return d

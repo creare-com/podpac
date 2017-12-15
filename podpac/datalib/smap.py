@@ -204,7 +204,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
     def sources_default(self):
         try: 
             sources = self.load_cached_obj('sources')
-        except: 
+        except:
             _, sources = self.get_available_times_sources()
             self.cache_obj(sources, 'sources')
         b = self.source + '/'

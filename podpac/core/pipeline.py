@@ -59,8 +59,10 @@ class Pipeline(tl.HasTraits):
     params = tl.Dict(trait=tl.Instance(OrderedDict), help="default parameter overrides")
     outputs = tl.List(trait=tl.Instance(Output), help="pipeline outputs")
     skip_evaluate = tl.List(trait=tl.Unicode, help="nodes to skip")
+    implicit_pipeline_evaluation = tl.Bool(False)
     
-    def __init__(self, source):
+    def __init__(self, source, implicit_pipeline_evaluation=False):
+        self.implicit_pipeline_evaluation = implicit_pipeline_evaluation
         if isinstance(source, dict):
             self.definition = source
         
@@ -123,7 +125,7 @@ class Pipeline(tl.HasTraits):
             raise PipelineError(
                 "node '%s' definition references nonexistent node '%s'" % (name, e))
         
-        kwargs['implicit_pipeline_evaluation'] = False
+        kwargs['implicit_pipeline_evaluation'] = self.implicit_pipeline_evaluation
        
         if 'params' in d:
             kwargs['params'] = d['params']
