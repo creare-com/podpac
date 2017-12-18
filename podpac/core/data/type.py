@@ -257,6 +257,7 @@ class WCS(podpac.DataSource):
                     if data.status_code != 200:
                         raise Exception("Could not get data from WCS server")        
                     io = BytesIO(bytearray(data.content))
+                    content = data.content
                 elif urllib3 is not None:
                     if certifi is not None:
                         http = urllib3.PoolManager(ca_certs=certifi.where())
@@ -265,7 +266,7 @@ class WCS(podpac.DataSource):
                     r = http.request('GET',url)
                     if r.status != 200:
                         raise Exception("Could not get capabilities from WCS server") 
-                    data = r.data
+                    content = r.data
                     io = BytesIO(bytearray(r.data))
                 else:
                     raise Exception("Do not have a URL request library to get WCS data.")
@@ -280,8 +281,8 @@ class WCS(podpac.DataSource):
                             self.cache_dir, 'wcs_temp.tiff')                       
                         if not os.path.exists(os.path.split(tmppath)[0]):
                             os.makedirs(os.path.split(tmppath)[0]) 
-                        open(tmppath,'wb').write(data)
-                        with rasterio.open(temppath) as dataset:
+                        open(tmppath,'wb').write(content)
+                        with rasterio.open(tmppath) as dataset:
                             output.data[i, ...] = dataset.read()
                         os.remove(tmppath) # Clean up
                 elif arcpy is not None:
@@ -311,6 +312,7 @@ class WCS(podpac.DataSource):
                 if data.status_code != 200:
                     raise Exception("Could not get data from WCS server")        
                 io = BytesIO(bytearray(data.content))
+                content = data.content
             elif urllib3 is not None:
                 if certifi is not None:
                     http = urllib3.PoolManager(ca_certs=certifi.where())
@@ -319,7 +321,7 @@ class WCS(podpac.DataSource):
                 r = http.request('GET',url)
                 if r.status != 200:
                     raise Exception("Could not get capabilities from WCS server") 
-                data = r.data
+                content = r.data
                 io = BytesIO(bytearray(r.data))
             else:
                 raise Exception("Do not have a URL request library to get WCS data.")  
@@ -337,9 +339,9 @@ class WCS(podpac.DataSource):
                         self.cache_dir, 'wcs_temp.tiff')                        
                     if not os.path.exists(os.path.split(tmppath)[0]):
                         os.makedirs(os.path.split(tmppath)[0]) 
-                    open(tmppath,'wb').write(data)
-                    with rasterio.open(temppath) as dataset:
-                        output.data[i, ...] = dataset.read()
+                    open(tmppath,'wb').write(content)
+                    with rasterio.open(tmppath) as dataset:
+                        output.data[:] = dataset.read()
                     os.remove(tmppath) # Clean up
             elif arcpy is not None:
                 # Writing the data to a temporary tiff and reading it from there is hacky
