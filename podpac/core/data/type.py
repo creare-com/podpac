@@ -265,6 +265,7 @@ class WCS(podpac.DataSource):
                     r = http.request('GET',url)
                     if r.status != 200:
                         raise Exception("Could not get capabilities from WCS server") 
+                    data = r.data
                     io = BytesIO(bytearray(r.data))
                 else:
                     raise Exception("Do not have a URL request library to get WCS data.")
@@ -273,10 +274,13 @@ class WCS(podpac.DataSource):
                     try: # This works with rasterio v1.0a8 or greater, but not on python 2
                         with rasterio.open(io) as dataset:
                             output.data[i, ...] = dataset.read()
-                    except: # Probably python 2
+                    except Exception as e: # Probably python 2
+                        print (e)
                         tmppath = os.path.join(
-                            self.cache_dir, 'wcs_temp.tiff')                        
-                        open(tmppath,'wb').write(r.data)
+                            self.cache_dir, 'wcs_temp.tiff')                       
+                        if not os.path.exists(os.path.split(tmppath)[0]):
+                            os.makedirs(os.path.split(tmppath)[0]) 
+                        open(tmppath,'wb').write(data)
                         with rasterio.open(temppath) as dataset:
                             output.data[i, ...] = dataset.read()
                         os.remove(tmppath) # Clean up
@@ -315,6 +319,7 @@ class WCS(podpac.DataSource):
                 r = http.request('GET',url)
                 if r.status != 200:
                     raise Exception("Could not get capabilities from WCS server") 
+                data = r.data
                 io = BytesIO(bytearray(r.data))
             else:
                 raise Exception("Do not have a URL request library to get WCS data.")  
@@ -322,11 +327,17 @@ class WCS(podpac.DataSource):
             if rasterio is not None:                          
                 try: # This works with rasterio v1.0a8 or greater, but not on python 2
                     with rasterio.open(io) as dataset:
-                        output.data[i, ...] = dataset.read()
-                except: # Probably python 2
+                        if dotime:
+                            output.data[0, ...] = dataset.read()
+                        else:
+                            output.data[:] = dataset.read()
+                except Exception as e: # Probably python 2
+                    print (e)
                     tmppath = os.path.join(
                         self.cache_dir, 'wcs_temp.tiff')                        
-                    open(tmppath,'wb').write(r.data)
+                    if not os.path.exists(os.path.split(tmppath)[0]):
+                        os.makedirs(os.path.split(tmppath)[0]) 
+                    open(tmppath,'wb').write(data)
                     with rasterio.open(temppath) as dataset:
                         output.data[i, ...] = dataset.read()
                     os.remove(tmppath) # Clean up
