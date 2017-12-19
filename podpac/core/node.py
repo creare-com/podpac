@@ -1,133 +1,40 @@
 from __future__ import division, print_function, absolute_import
 
 import os
-import operator
+import inspect
+from collections import OrderedDict
+from io import BytesIO
+import base64
+import json
 import xarray as xr
 import numpy as np
 import traitlets as tl
 import matplotlib.colors, matplotlib.cm
-import matplotlib.pyplot as plt
-from pint import UnitRegistry
-ureg = UnitRegistry()
 
-import cPickle
+try:
+    import cPickle  # Python 2.7
+except:
+    import _pickle as cPickle
 
-#import podpac.core.coordinate
+try:
+    import boto3
+except:
+    boto3 = None
+
 from podpac import settings
-
-class UnitsNode(tl.TraitType):      
-    info_text = "A UnitDataArray with specified dimensionality"
-    def validate(self, obj, value):
-        if isinstance(value, Node):
-            if 'units' in self.metadata and value.units is not None:
-                u = ureg.check(self.metadata['units'])(lambda x: x)(value.units)
-                return value
-        self.error(obj, value)
- 
-class Units(tl.TraitType):
-    info_text = "A pint Unit"
-    #default_value = None
-    def validate(self, obj, value):
-        if isinstance(value, ureg.Units):
-            return value
-        self.error(obj, value)
-
-class UnitsDataArray(xr.DataArray):
-    """Like xarray.DataArray, but transfers units
-     """
-    def __array_wrap__(self, obj, context=None):
-        new_var = super(UnitsDataArray, self).__array_wrap__(obj, context)
-        if self.attrs.get("units"):
-            new_var.attrs["units"] = context[0](ureg.Quantity(1, self.attrs.get("units"))).u
-        return new_var
-
-    def _apply_binary_op_to_units(self, func, other, x):
-        if self.attrs.get("units", None) or getattr(other, 'units', None):
-            x.attrs["units"] = func(ureg.Quantity(1, getattr(self, "units", "1")),
-                                    ureg.Quantity(1, getattr(other, "units", "1"))).u
-        return x
-
-    def _get_unit_multiplier(self, other):
-        multiplier = 1
-        if self.attrs.get("units", None) or getattr(other, 'units', None):
-            otheru = ureg.Quantity(1, getattr(other, "units", "1"))
-            myu = ureg.Quantity(1, getattr(self, "units", "1"))
-            multiplier = otheru.to(myu.u).magnitude
-        return multiplier
-
-    # pow is different because resulting unit depends on argument, not on
-    # unit of argument (which must be unitless)
-    def __pow__(self, other):
-        x = super(UnitsDataArray, self).__pow__(other)
-        if self.attrs.get("units"):
-            x.attrs["units"] = pow(
-                ureg.Quantity(1, getattr(self, "units", "1")),
-                ureg.Quantity(other, getattr(other, "units", "1"))
-                ).u
-        return x
-    
-    def _copy_units(self, x):
-        if self.attrs.get("units", None):
-            x.attrs["units"] = self.attrs.get('units')
-        return x
-    
-    def to(self, unit):
-        x = self.copy()
-        if self.attrs.get("units", None):
-            myu = ureg.Quantity(1, getattr(self, "units", "1"))
-            multiplier = myu.to(unit).magnitude
-            x = x * multiplier
-            x.attrs['units'] = unit
-        return x
-    
-    def to_base_units(self):
-        if self.attrs.get("units", None):
-            myu = ureg.Quantity(1, getattr(self, "units", "1")).to_base_units()        
-            return self.to(myu.u)
-        else:
-            return self.copy()
-        
-for tp in ("mul", "matmul", "truediv", "div"):
-    meth = "__{:s}__".format(tp)
-    def func(self, other, meth=meth, tp=tp):
-        x = getattr(super(UnitsDataArray, self), meth)(other)
-        return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-    func.__name__ = meth
-    setattr(UnitsDataArray, meth, func)
-for tp in ("add", "sub", "mod", "floordiv"): #, "divmod", ):
-    meth = "__{:s}__".format(tp)
-    def func(self, other, meth=meth, tp=tp):
-        multiplier = self._get_unit_multiplier(other)
-        x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-        return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-    func.__name__ = meth
-    setattr(UnitsDataArray, meth, func)
-for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
-    meth = "__{:s}__".format(tp)
-    def func(self, other, meth=meth, tp=tp):
-        multiplier = self._get_unit_multiplier(other)
-        return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-    func.__name__ = meth
-    setattr(UnitsDataArray, meth, func)    
-for tp in ("mean", 'min', 'max'):
-        def func(self, *args, **kwargs):
-            x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
-            return self._copy_units(x)
-        func.__name__ = tp
-        setattr(UnitsDataArray, tp, func)        
-del func
+from podpac import Units, UnitsDataArray
+from podpac import Coordinate
 
 class Style(tl.HasTraits):
-    node = tl.Instance('podpac.core.node.Node', allow_none=False)
-    name = tl.Unicode()
-    @tl.default('name')
-    def _name_default(self):
-        return self.node.__class__.__name__
+    
+    def __init__(self, node=None, *args, **kwargs):
+        if node:
+            self.name = self.node.__class.__name__
+            self.units = self.node.units
+        super(Style, self).__init__(*args, **kwargs)
         
+    name = tl.Unicode()
     units = Units(allow_none=True)
-    @tl.default('units')
-    def _units_default(self):
-        return self.node.units
     
     is_enumerated = tl.Bool(default_value=False)
     enumeration_legend = tl.Tuple(trait=tl.Unicode)
@@ -138,7 +45,7 @@ class Style(tl.HasTraits):
     tl.default('cmap')
     def _cmap_default(self):
         return matplotlib.cm.get_cmap('viridis')
-    
+
 class Node(tl.HasTraits):
     output = tl.Instance(UnitsDataArray, allow_none=True, default_value=None)
     @tl.default('output')
@@ -160,20 +67,45 @@ class Node(tl.HasTraits):
     style = tl.Instance(Style)
     @tl.default('style')
     def _style_default(self):
-        return Style(node=self)
+        return Style()
     
     @property
     def shape(self):
+        # Changes here likely will also require changes in initialize_output_array
         ev = self.evaluated_coordinates
         nv = self.native_coordinates
         if ev is not None:
+            stacked = ev.stacked_coords
+            stack_dict = OrderedDict([(c, True) for c, v in ev._coords.items() if v.stacked != 1])
+            if nv is not None:
+                nat_stacked = nv.stacked_coords
+            else:
+                nat_stacked = {}
             if nv is not None:
                 shape = []
                 for c in nv.coords:
                     if c in ev.coords:
                         shape.append(ev[c].size)
-                    else:
-                        shape.append(nv[c].size)
+                    elif c in stacked and stack_dict[stacked[c]]:
+                        shape.append(ev[stacked[c]].size)
+                        stack_dict[stacked[c]] = False
+                    elif c not in stacked:
+
+                        # If native stacked, but request is not
+                        parts = c.split('_')
+                        partsplit = []
+                        for p in parts:
+                            if p in ev.coords:
+                                shape.append(ev[p].size)
+                                partsplit.append(p)
+
+                        if not partsplit:
+                            # Otherwise, coordinate not in request, use native
+                            shape.append(nv[c].size)
+                        elif len(partsplit) != len(parts):  #then there are leftover parts
+                            raise NotImplementedError()
+
+
             else:
                 shape = ev.shape
             return shape
@@ -198,53 +130,69 @@ class Node(tl.HasTraits):
         understand this and get_description. 
         """
         raise NotImplementedError
-
-    def _execute_common(self, coordinates, params=None, output=None):
-        """ 
-        Common input sanatization etc for when executing a node 
-        """
-        self.evaluated_coordinates = coordinates
-        self.params = params
-        out = None
-        if output is not None:
-            # This should be a reference, not a copy
-            # subselect if neccessary
-            out = output[coordinates.get_coord] 
-            self.output[:] = out
-        else:
-            self.output = self.initialize_output_array()
-
-        return coordinates, params, out
-
-    def get_description(self):
-        """
-        This is to get the pipeline lineage or provenance
-        """
-        raise NotImplementedError
     
-    def initialize_output_array(self, init_type='empty', fillval=0, style=None,
+    def initialize_output_array(self, init_type='nan', fillval=0, style=None,
                               no_style=False, shape=None, coords=None,
                               dims=None, units=None, dtype=np.float, **kwargs):
-        if coords is None: coords = self.evaluated_coordinates.coords
-        if not isinstance(coords, dict): coords = dict(coords)
-        if dims is None:
+        # Changes here likely will also require changes in shape
+        if coords is None: 
+            coords = self.evaluated_coordinates.coords
+            stacked_coords = self.evaluated_coordinates.stacked_coords
+        else: 
+            stacked_coords = Coordinate.get_stacked_coord_dict(coords)
+        if not isinstance(coords, dict): coords = OrderedDict(coords)
+        # TODO: Need to determine if we even need this? Can't we just get it from crds?
+        if 0: #dims is None:
             if self.native_coordinates is not None:
                 dims = self.native_coordinates.dims
+                nat_stack = self.native_coordinates.stacked_coords
+                # if request is stacked but native is not
+                dims = [stacked_coords.get(d, d) for d in dims]
+                # if native is stacked but request is not
+                rms = {k:[] for k in nat_stack.values()}
+                for d in nat_stack:
+                    if d in coords:
+                        rms[nat_stack[d]].append(d)
+                        dims.append(d)
+                for k, v in rms.items():
+                    i = dims.index(k)
+                    parts = dims[i].split('_')
+                    stayparts = [p for p in parts if p not in v]
+                    if stayparts:
+                        dims[i] = '_'.join(stayparts)
+                    else:
+                        dims.remove(k)
+                # eliminate duplicates
+                dims = [d for i, d in enumerate(dims) if d not in dims[:i]]
             else:
                 dims = coords.keys()
         if self.native_coordinates is not None:
-            crds = {}
+            crds = OrderedDict()
             for c in self.native_coordinates.coords:
                 if c in coords:
                     crds[c] = coords[c]
+                elif c in stacked_coords:  # if request stacked, but native not
+                    crds[stacked_coords[c]] = coords[stacked_coords[c]]
                 else:
-                    crds[c] = self.native_coordinates.coords[c]
+                    # If native stacked, but request is not
+                    parts = c.split('_')
+                    partsplit = []
+                    for p in parts:
+                        if p in coords:
+                            crds[p] = coords[p]
+                            partsplit.append(p)
+                    if not partsplit:
+                        # Otherwise, coordinate not in request, use native
+                        crds[c] = self.native_coordinates.coords[c]
+                    elif len(partsplit) != len(parts):  #then there are leftover parts
+                        raise NotImplementedError()
         else:
             crds = coords        
+        dims = list(crds.keys())
         return self.initialize_array(init_type, fillval, style, no_style, shape,
                                      crds, dims, units, dtype, **kwargs)
     
-    def initialize_coord_array(self, coords, init_type='empty', fillval=0, 
+    def initialize_coord_array(self, coords, init_type='nan', fillval=0, 
                                style=None, no_style=False, units=None,
                                dtype=np.float, **kwargs):
         return self.initialize_array(init_type, fillval, style, no_style, 
@@ -252,7 +200,7 @@ class Node(tl.HasTraits):
                                      units, dtype, **kwargs)
     
 
-    def initialize_array(self, init_type='empty', fillval=0, style=None,
+    def initialize_array(self, init_type='nan', fillval=0, style=None,
                               no_style=False, shape=None, coords=None,
                               dims=None, units=None, dtype=np.float,  **kwargs):
         """Initialize output data array
@@ -261,8 +209,8 @@ class Node(tl.HasTraits):
         -----------
         init_type : str, optional
             How to initialize the array. Options are:
-                empty : uses np.empty (Default option)
-                nan  : uses np.full(..., np.nan)
+                nan: uses np.full(..., np.nan) (Default option)
+                empty: uses np.empty 
                 zeros: uses np.zeros()
                 ones: uses np.ones
                 full: uses np.full(..., fillval)
@@ -329,6 +277,9 @@ class Node(tl.HasTraits):
         
         TODO: Improve this substantially please
         """
+        
+        import matplotlib.pyplot as plt
+
         if kwargs:
             plt.imshow(self.output.data, cmap=self.style.cmap,
                        interpolation=interpolation, **kwargs)
@@ -336,7 +287,142 @@ class Node(tl.HasTraits):
             self.output.plot()
         if show:
             plt.show()
+
+    @property
+    def podpac_path(self):
+        """
+        Submodule and class name (used in pipeline node definitions)
+        """
+        module_path = inspect.getmodule(self).__name__
+        submodule_name = module_path.split('.', 1)[1]
+        return '%s.%s' % (submodule_name, self.__class__.__name__)
+
+    @property
+    def base_ref(self):
+        """
+        Default pipeline node reference/name in pipeline node definitions
+        """
+        return self.__class__.__name__
+
+    @property
+    def definition(self):
+        """
+        Pipeline node definition. Implemented in primary base nodes, with
+        custom implementations or extensions necessary for specific nodes.
+
+        Should be an OrderedDict with at least a 'node' attribute.
+        """
+        parents = inspect.getmro(self.__class__)
+        podpac_parents = [
+            '%s.%s' % (p.__module__[7:], p.__name__)
+            for p in parents
+            if p.__module__.startswith('podpac')]
+        raise NotImplementedError('See %s' % ', '.join(podpac_parents))
+
+    @property
+    def pipeline_definition(self):
+        """
+        Full pipeline definition for this node.
+        """
+
+        from podpac.core.pipeline import make_pipeline_definition
+        return make_pipeline_definition(self)
+
+    @property
+    def pipeline_json(self):
+        return json.dumps(self.pipeline_definition, indent=4)
+
+    @property
+    def pipeline(self):
+        from pipeline import Pipeline
+        return Pipeline(self.pipeline_definition)
+
+    def get_hash(self, coordinates=None, params=None):
+        if params is not None:
+            # convert to OrderedDict with consistent keys
+            params = OrderedDict(sorted(params.items()))
             
+            # convert dict values to OrderedDict with consistent keys
+            for key, value in params.items():
+                if type(value) is dict:
+                    params[key] = OrderedDict(sorted(value.items()))
+
+        return hash((str(coordinates), str(params)))
+
+    @property
+    def evaluated_hash(self):
+        if self.evaluated_coordinates is None:
+            raise Exception("node not evaluated")
+            
+        return self.get_hash(self.evaluated_coordinates, self.params)
+
+    @property
+    def latlon_bounds_str(self):
+        return self.evaluated_coordinates.latlon_bounds_str
+    
+    def get_output_path(self, filename, outdir=None):
+        if outdir is None:
+            outdir = settings.OUT_DIR
+
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+
+        return os.path.join(outdir, filename)
+
+    def write(self, name, outdir=None, format='pickle'):
+        filename = '%s_%s_%s.pkl' % (
+            name,
+            self.evaluated_hash,
+            self.latlon_bounds_str)
+        path = self.get_output_path(filename, outdir=outdir)
+
+        if format == 'pickle':
+            with open(path, 'wb') as f:
+                cPickle.dump(self.output, f)
+        else:
+            raise NotImplementedError
+
+    def load(self, name, coordinates, params, outdir=None):
+        filename = '%s_%s_%s.pkl' % (
+            name,
+            self.get_hash(coordinates, params),
+            coordinates.latlon_bounds_str)
+        path = self.get_output_path(filename, outdir=outdir)
+        
+        with open(path, 'rb') as f:
+            self.output = cPickle.load(f)
+
+    def load_from_file(self, path):
+        with open(path, 'rb') as f:
+            output = cPickle.load(f)
+
+        self.output = output
+        self.evaluated_coordinates = self.output.coordinates
+        self.params = self.output.attrs['params']
+
+    def get_image(self, format='png', vmin=None, vmax=None):
+        import matplotlib
+        matplotlib.use('agg')
+        from matplotlib import cm
+        from matplotlib.image import imsave
+
+        data = self.output.data.squeeze()
+
+        if np.isnan(vmin):
+
+            vmin = np.nanmin(data)
+        if np.isnan(vmax):
+            vmax = np.nanmax(data)      
+        if vmax == vmin:
+            vmax +=  1e-16
+            
+        c = (data - vmin) / (vmax - vmin)
+        i = cm.viridis(c, bytes=True)
+        im_data = BytesIO()
+        imsave(im_data, i, format='png')
+        im_data.seek(0)
+        return base64.b64encode(im_data.getvalue())
+
     @property
     def cache_dir(self):
         basedir = settings.CACHE_DIR
@@ -350,23 +436,28 @@ class Node(tl.HasTraits):
     
     def cache_obj(self, obj, filename):
         path = self.cache_path(filename)
-        if not os.path.exists(self.cache_dir):
-            os.makedirs(self.cache_dir)
-        with open(path, 'wb') as fid:
-            cPickle.dump(obj, fid, protocol=cPickle.HIGHEST_PROTOCOL)
+        if settings.S3_BUCKET_NAME is None or settings.CACHE_TO_S3 == False:
+            if not os.path.exists(self.cache_dir):
+                os.makedirs(self.cache_dir)
+            with open(path, 'wb') as fid:
+                cPickle.dump(obj, fid)#, protocol=cPickle.HIGHEST_PROTOCOL)
+        else:
+            s3 = boto3.resource('s3').Bucket(settings.S3_BUCKET_NAME)
+            io = BytesIO(cPickle.dumps(obj))
+            s3.upload_fileobj(io, path) 
             
     def load_cached_obj(self, filename):
         path = self.cache_path(filename)
-        with open(path, 'rb') as fid:
-            obj = cPickle.load(fid)
+        if settings.S3_BUCKET_NAME is None or settings.CACHE_TO_S3 == False:
+            with open(path, 'rb') as fid:
+                obj = cPickle.load(fid)
+        else:
+            s3 = boto3.resource('s3').Bucket(settings.S3_BUCKET_NAME)
+            io = BytesIO()
+            s3.download_fileobj(path, io)
+            io.seek(0)
+            obj = cPickle.loads(io.read()) 
         return obj
 
 if __name__ == "__main__":
-    a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
-                           attrs={'units': ureg.meter})
-    a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
-                           attrs={'units': ureg.kelvin}) 
-
-    np.mean(a1)    
-    np.std(a1)
-    print ("Done")
+    print ("Nothing to do")

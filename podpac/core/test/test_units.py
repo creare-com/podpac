@@ -2,12 +2,11 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import unittest
 import numpy as np
-import xarray as xr
 from pint.errors import DimensionalityError
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
-from podpac.core.node import Node, UnitsDataArray
+from podpac.core.units import UnitsDataArray
 
 class TestUnitDataArray(unittest.TestCase):
     def test_no_units_coord(self):
