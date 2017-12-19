@@ -114,8 +114,9 @@ class Arithmetic(Algorithm):
             result = eval(eqn, f_locals)
         else:
             result = ne.evaluate(eqn, f_locals)
-
-        return result
+        res = res[0].copy()  # Make an xarray object with correct dimensions
+        res[:] = result
+        return res
 
     @property
     def definition(self):

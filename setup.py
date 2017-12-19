@@ -41,7 +41,7 @@ setup(
         'beautifulsoup4',   
         'lxml',
         # Optional requirements for Esri+ version
-        'arcpy',
+#        'arcpy',
         'urllib3',
         'certifi'
         ],

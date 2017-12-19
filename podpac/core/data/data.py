@@ -43,7 +43,7 @@ class DataSource(Node):
             if self.output is None:
                 self.output = res
             else:
-                self.output[:] = res
+                self.output[:] = res.transpose(*self.output.dims)
             return self.output
         
         data_subset, coords_subset = res
