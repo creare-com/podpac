@@ -7,6 +7,6 @@ from podpac.core.algorithm.statistics import (
     Variance, StandardDeviation, Skew, Kurtosis)
 from podpac.core.data.data import DataSource
 from podpac.core.compositor import Compositor, OrderedCompositor
-from podpac.core.pipeline import Pipeline
+from podpac.core.pipeline import Pipeline, PipelineError, PipelineNode
 
 from podpac.settings import CACHE_DIR

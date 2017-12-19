@@ -203,12 +203,18 @@ class Pipeline(tl.HasTraits):
                 raise PipelineError("Unused node '%s'" % ref)
 
     def check_params(self, params):
+        if params is None:
+            params = {}
+
         for node in params:
             if node not in self.nodes:
                 raise PipelineError(
                     "params reference nonexistent node '%s'" % node)
 
-    def execute(self, coordinates, params):
+    def execute(self, coordinates, params=None):
+        if params is None:
+            params = {}
+
         self.check_params(params)
 
         for key in self.nodes:
@@ -228,6 +234,31 @@ class Pipeline(tl.HasTraits):
 
         for output in self.outputs:
             output.write()
+
+class PipelineNode(Node):
+    """
+    Wraps a pipeline into a Node.
+
+    Todo: shape, native_coordinates, etc
+    """
+
+    source_pipeline = tl.Instance(Pipeline, allow_none=False)
+    output_node = tl.Unicode()
+
+    def execute(self, coordinates, params=None, output=None):
+        self.coordinates = coordinates
+        self.params = params
+        self.output = output
+
+        self.source_pipeline.execute(coordinates, params)
+        
+        out = self.source_pipeline.nodes[self.output_node].output
+        if self.output is None:
+            self.output = out
+        else:
+            self.output[:] = out
+        
+        return self.output
 
 def make_pipeline_definition(main_node):
     """
