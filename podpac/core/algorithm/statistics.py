@@ -551,6 +551,12 @@ class GroupReduce(Algorithm):
         self.evaluated = True
         return self.output
 
+    def base_ref(self):
+        """
+        Default pipeline node reference/name in pipeline node definitions
+        """
+        return '%s.%s.%s' % (self.source.base_ref,self.groupby,self.reduce_fn)
+
 class DayOfYear(GroupReduce):
     """ Convenience class. """
 
