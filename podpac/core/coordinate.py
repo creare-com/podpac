@@ -599,10 +599,9 @@ class Coordinate(tl.HasTraits):
         parts = dim.split('_')
         for part in parts:
             if part not in self._valid_dims:
-                raise CoordinateException("The '" + part + "' dimension of '"\
-                        + parts + "' is not a valid dimension " \
-                        + str(self.valid_dims)
-                )
+                raise CoordinateException(
+                    "The '%s' dimension of '%s' is not a valid dimension %s" % (
+                        part, parts, self._valid_dims))
             if part in seen_dims:
                 raise CoordinateException("The dimensions '" + part + \
                 "' cannot be repeated.")
