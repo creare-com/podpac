@@ -68,8 +68,8 @@ class Algorithm(Node):
             
         return d
 
-class Ones(Algorithm):
-    ''' Misnamed test node '''
+class Arange(Algorithm):
+    ''' A simple test node '''
     def algorithm(self):
         out = self.initialize_output_array('ones')
         return out * np.arange(out.size).reshape(out.shape)
