@@ -284,6 +284,7 @@ class DataSource(Node):
         data = data_src.data[s]
         
         # remove nan's
+        # TODO fix implicit assumption about the order of the lat/lon coordinates in the next line
         I, J = np.isfinite(lat), np.isfinite(lon)
         lat, lon = lat[I], lon[J]
         data = data[I, :][:, J]
