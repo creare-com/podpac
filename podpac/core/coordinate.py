@@ -10,12 +10,10 @@ from six import string_types
 import xarray as xr
 import numpy as np
 import traitlets as tl
-from collections import OrderedDict
+
 
 from podpac.core.units import Units
-
-# TODO: Perhaps, Coord should not deal with stacking, and leave that 
-#       functionality to Coordinate instead
+from podpac.core.utils import cached_property, clear_cache
 
 class CoordinateException(Exception):
     pass
@@ -58,79 +56,18 @@ class Coord(tl.HasTraits):
             raise CoordinateException("Coordinate dimension '" + self.dim + \
             "' must be in the segment position of [0, 1]")
     
-    coords = tl.Any()
-    @tl.validate("coords")
-    def _coords_validate(self, proposal):
-        if not isinstance(proposal['value'],
-                          (tuple, list, np.ndarray, xr.DataArray, 
-                           numbers.Number, string_types, np.datetime64)):
-            raise CoordinateException("Coords must be of type tuple, list, " 
-                                      "np.ndarray, xr.DataArray, str, or "
-                                      "np.datetime64, not " + 
-                                      str(type(proposal['value'])))
-
-        val = proposal['value']
-        try:
-            stacked = self._stacked(val)
-            regularity = self._regularity(val)
-        except Exception as e:
-            raise CoordinateException("Unhandled error:" + str(e))
-        
-        if isinstance(val, (list, tuple)):
-            # Regular, gridded equal value
-            if regularity == 'single' and len(val) != 1:
-                raise CoordinateException("Single stacked coordinates need"
-                                          " to be specified as a tuple of "
-                                          "tuples or list of lists.")
-            elif len(val) != 3 and regularity == 'regular':
-                raise CoordinateException("When specifying uniformly spaced" 
-                "coordinates, provide it in the format (start, stop, number)"
-                "or (start, stop, step)")
-            elif regularity in ['irregular', 'dependent'] and \
-                     np.any([v.shape != val[0].shape for v in val]):
-                raise CoordinateException("When specifying irregularly-spaced "
-                                          "or dependent stacked dimensions, " 
-                                          "all of input array need to be the "
-                                          "same size.")                
-        # Dependent array, needs to be an xarray.DataArray
-        elif isinstance(val, xr.DataArray):
-            # These have to be checked in the coordinate object because the
-            # dimension names are important.
-            pass
-        elif isinstance(val, string_types):
-            val = np.datetime64(val)
-        # Irregular spacing independent coordinates
-        else:
-            # No checks yet
-            pass 
-
-        # enforce floating point coordinates in some cases
-        if regularity == 'regular':
-            if isinstance(val[0], (int, np.ndarray, np.long)):
-                val = (float(val[0]),) + tuple(val[1:])
-            elif isinstance(val[0], string_types):
-                val = (np.datetime64(val[0]),) + tuple(val[1:])
-            if isinstance(val[1], (int, np.ndarray, np.long)):
-                val = (val[0], float(val[1])) + tuple(val[2:])
-            elif isinstance(val[1], string_types):
-                val = (val[0], np.datetime64(val[1])) + tuple(val[2:])
-            if isinstance(val[2], string_types):
-                a, b = val[2].split(',')
-                val = (val[0], val[1], np.timedelta64(int(a), b))
-            if stacked > 1:
-                newval0 = []
-                for v in val[0]:
-                    newval0.append(float(v))
-                newval1 = []
-                for v in val[1]:
-                    newval1.append(float(v))                
-                val = (tuple(newval0), tuple(newval1), val[2])
-                
-        
-        if regularity == 'irregular':
-            if len(val) == 1:  # This should actually be single
-                val = np.atleast_1d(val)[0]
-        return val
+    def __repr__(self):
+        rep = 'Coord: Bounds[{min}, {max}],' + \
+            ' N[{}], ctype["{}"]'.format(self.size, self.ctype)
+        if self.regularity in ['single', 'regular', 'irregular']:
+            rep = rep.format(min=self.bounds[0], max=self.bounds[1])       
+        return rep
+    
+    def __add__(self, other):
+        """ Should be able to add two coords together in some situations
+        Although I'm really not sure about this function... may be a mistake
+        """
+        raise NotImplementedError()
 
     def __init__(self, *args, **kwargs):
         """
@@ -140,109 +77,6 @@ class Coord(tl.HasTraits):
             kwargs['coords'] = args
         super(Coord, self).__init__(**kwargs)
 
-    @property
-    def stacked(self):
-        return self._stacked(self.coords)
-
-    def _stacked(self, coords):
-        if isinstance(coords, (numbers.Number, string_types, np.datetime64)):
-            return 1
-        elif isinstance(coords, (list, tuple)):
-            if len(coords) == 1:  # single stacked coordinate
-                return len(coords[0])
-            elif len(coords) == 3 and \
-                    np.all([isinstance(c, np.ndarray) for c in coords]) and \
-                    len(coords[2]) == 1 and len(coords[0]) == len(coords[1]):
-                return len(coords[0])
-            elif np.all([isinstance(c, np.ndarray) for c in coords]) or \
-                    np.all([isinstance(c, xr.DataArray) for c in coords]):
-                return len(coords)
-            elif len(coords) == 3:
-                if np.all([isinstance(c, (list, tuple, np.ndarray))
-                           for c in coords[:2]]):
-                    return len(coords[0])
-                return 1
-        elif isinstance(coords, np.ndarray):
-            if len(coords.shape) == 2:
-                return coords.shape[1]
-            return 1
-        elif isinstance(coords, xr.DataArray):
-            if 'stack' in coords.dims:
-                return coords.shape[coords.get_axis_num('stack')]
-            else: return 1
-
-        raise CoordinateException("Coord stacking '{}'".format(coords) + \
-                                  " not understood")
-        
-    @property
-    def regularity(self):
-        return self._regularity(self.coords)
-    
-    def _regularity(self, coords):
-        if isinstance(coords, (list, tuple)):
-            if len(coords) == 1:  # Single stacked coordinate
-                return 'single'
-            elif len(coords) == 3 and \
-                     np.all([isinstance(c, np.ndarray) for c in coords]) and \
-                     len(coords[2]) == 1 and len(coords[0]) == len(coords[1]):
-                return 'regular'
-            elif np.all([isinstance(c, np.ndarray) for c in coords]):
-                return 'irregular'
-            elif np.all([isinstance(c, xr.DataArray) for c in coords]):
-                return 'dependent'
-            elif len(coords) == 3:
-                return 'regular'
-            else:
-                return 'error'
-        elif isinstance(coords, np.ndarray):
-            return 'irregular'
-        elif isinstance(coords, xr.DataArray):
-            return 'dependent'
-        elif isinstance(coords, (numbers.Number, np.datetime64, string_types)):
-            return 'single'
-        
-        raise CoordinateException("Coord regularity '{}'".format(coords) + \
-                                  " not understood")
-            
-    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
-    @property
-    def bounds(self):
-        """
-        This returns the (min, max) value of the coordinate
-        """
-        if self._cached_bounds is not None:
-            return self._cached_bounds
-        if self.regularity == 'single':
-            self._cached_bounds = np.array(
-                [self.coords - self.delta, self.coords + self.delta]).squeeze()
-        if self.regularity == 'regular':
-            self._cached_bounds = np.array([np.min(self.coords[:2]),
-                                            np.max(self.coords[:2])]).squeeze()
-        elif self.regularity == 'irregular':
-            if isinstance(self.coords, (list, tuple)):
-                self._cached_bounds = np.array([
-                    [np.nanmin(c), np.nanmax(c)] for c in self.coords]).T
-            else:
-                if isinstance(self.coords[0], np.datetime64):
-                    self._cached_bounds = np.array([
-                        np.min(self.coords, axis=0), 
-                        np.max(self.coords, axis=0)])
-                else:
-                    self._cached_bounds = np.array([
-                        np.nanmin(self.coords, axis=0), 
-                        np.nanmax(self.coords, axis=0)])
-        elif self.regularity == 'dependent':
-            if isinstance(self.coords, (list, tuple)):
-                self._cached_bounds = np.array([
-                    [c.min(), c.max()] for c in self.coords]).T
-            else:
-                dims = [d for d in self.coords.dims if 'stack' not in d]
-                self._cached_bounds = np.array([
-                    self.coords.min(dims), 
-                    self.coords.max(dims)])            
-
-        return self._cached_bounds
-    
     @property
     def area_bounds(self):
         extents = copy.deepcopy(self.bounds)
@@ -256,195 +90,15 @@ class Coord(tl.HasTraits):
                 # for stacked coodinates
                 extents += expands.reshape(extents.shape)
         return extents
-        
-    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
-    
-    @property
-    def delta(self):
-        if self._cached_delta is not None:
-            return self._cached_delta        
-        if self.regularity == 'single':
-            # Arbitrary
-            if isinstance(self.coords, np.datetime64):
-                dtype = self.coords - self.coords
-                self._cached_delta = np.array([1], dtype=dtype.dtype)
-            else:
-                self._cached_delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))  
-        elif self.regularity == 'regular':
-            if isinstance(self.coords[2], (int, np.integer, np.long)) \
-                    and not isinstance(self.coords[2], np.timedelta64):
-                self._cached_delta = np.atleast_1d((\
-                    (np.array(self.coords[1]) - np.array(self.coords[0]))\
-                    / (self.coords[2] - 1.) * (1 - 2 * self.is_max_to_min)).squeeze())
-            else:
-                self._cached_delta = np.atleast_1d(np.array(self.coords[2:3]).squeeze())
-        elif self.regularity == 'irregular':
-            #print("Warning: delta is not representative for irregular coords")
-            if self.stacked == 1:
-                self._cached_delta = np.atleast_1d(np.array(
-                    (self.coords[1] - self.coords[0])*(1 - 2 * self.is_max_to_min)).squeeze())
-            else:
-                self._cached_delta = np.atleast_1d([
-                    (c[1] - c[0])*(1 - 2 * m2m) 
-                    for c, m2m in zip(self.coords, self.is_max_to_min)]).squeeze()
-                    
-        else:
-            #print("Warning: delta probably doesn't work for stacked dependent coords")
-            self._cached_delta = np.array([
-                self.coords[1] - self.coords[0],
-                self.coords[-1] - self.coords[-2]
-            ]) * (1 - 2 * self.is_max_to_min).squeeze()
-        return self._cached_delta
 
-    _cached_coords = tl.Any(default_value=None, allow_none=True)
-    @property
-    def coordinates(self):
-        coords = self.coords
-        if self._cached_coords is not None:
-            return self._cached_coords
-        regularity = self.regularity
-            
-        if regularity == 'single':
-            self._cached_coords = np.atleast_1d(coords)
-        elif regularity == 'regular':
-            N = self.size
-            if self.stacked == 1:
-                if isinstance(self.coords[0], np.datetime64):
-                    self._cached_coords = self.coords[0] + np.arange(0, N) * self.delta
-                else:
-                    self._cached_coords = np.linspace(self.coords[0], self.coords[1], N)
-            else:
-                self._cached_coords = \
-                    tuple([np.linspace(cs, ce, N) \
-                     for cs, ce in zip(self.coords[0], self.coords[1])])
-        elif regularity in ['irregular', 'dependent']:
-            self._cached_coords = coords
-            
-        return self._cached_coords
-        
-    @property
-    def size(self):
-        if self.regularity == 'single':
-            return 1
-        elif self.regularity == 'regular':
-            # delta specified
-            if not isinstance(self.coords[2], (int, np.integer, np.long)) or \
-                    isinstance(self.coords[2], np.timedelta64):
-                N = np.round((1 - 2 * self.is_max_to_min) * 
-                    (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
-            else: #number specified
-                N = self.coords[2]
-        elif self.regularity == 'irregular':
-            if self.stacked == 1:
-                N = self.coords.size
-            else:
-                N = self.coords[0].size
-        elif self.regularity == 'dependent':
-            N = self.coords.size
-        return int(N)
-        
     @tl.observe('extents', 'ctype', 'segment_position')
     def _clear_bounds_cache(self, change):
-        if (change['old'] is None and change['new'] is not None) or \
-               np.any(np.array(change['old']) != np.array(change['new'])):
-            self._cached_bounds = None
+        clear_cache(self, change, ['bounds'])
         
     @tl.observe('coords')
     def _clear_cache(self, change):
-        if (change['old'] is None and change['new'] is not None) or \
-               np.any(change['old'] != change['new']):
-            self._cached_coords = None
-            self._cached_bounds = None
-            self._cached_delta = None
+        clear_cache(self, change, ['coords', 'bounds', 'delta'])
         
-    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
-        """
-        Returns an Coord object if ind==False
-        Returns a list of start, stop coordinates if ind==True
-        """
-        if self.units != other_coord.units:
-            raise NotImplementedError("Still need to implement handling of "
-                                              "different units")            
-        
-        if np.all(self.bounds == other_coord.bounds):
-            if ind:
-                return [0, self.size]
-            return self
-        ibounds = [
-            np.maximum(self.bounds[0], other_coord.bounds[0]),
-            np.minimum(self.bounds[1], other_coord.bounds[1])        
-            ]
-        if np.any(ibounds[0] > ibounds[1]):
-            if ind:
-                return [0, 0]
-            else:
-                return self.__class__(coords=(self.bounds[0], self.bounds[1], 0)) 
-        if self.regularity == 'single':
-            if ind:
-                return [0, 1]
-            else:
-                return self
-        elif self.regularity == 'regular':
-            min_max_i = [np.floor((ibounds[0] - self.bounds[0]) / self.delta),
-                         np.ceil((self.bounds[1] - ibounds[1]) / self.delta)]
-            if ind:
-                if self.is_max_to_min:
-                    min_max_i = min_max_i[::-1]
-                I = [int(min(self.size, max(0, min_max_i[0] - pad))),
-                     int(min(self.size, max(0, self.size - min_max_i[1] + pad)))]
-                return I
-            min_max = [np.maximum(self.bounds[0],
-                           self.bounds[0] + max(0, min_max_i[0] - pad) * self.delta),
-                       np.minimum(self.bounds[1],
-                        self.bounds[1] - max(0, min_max_i[1] - pad) * self.delta)]
-            if self.is_max_to_min:
-                min_max = min_max[::-1]
-            
-            coords = min_max + [float(self.delta)]
-            new_crd = self.__class__(coords=coords, **self.kwargs)
-            
-        elif self.regularity == 'irregular':
-            b = other_coord.bounds
-            inds = np.where((self.coordinates >= (b[0] - self.delta))\
-                            & (self.coordinates <= (b[1] + self.delta)))[0]
-            if inds.size == 0:
-                if ind:
-                    return [0, 0]
-                else:
-                    return self.__class__(coords=(self.bounds[0], self.bounds[1], 0))                 
-            min_max_i = [min(inds), max(inds)]
-            #if self.is_max_to_min:
-                #min_max_i = min_max_i[::-1]
-            lefti = np.maximum(0, min_max_i[0] - pad)
-            righti = np.minimum(min_max_i[1] + pad + 1, self.size)
-            if ind:
-                return [int(lefti), int(righti)]
-            new_crd = self.__class__(coords=self.coordinates[lefti:righti], **self.kwargs)
-        elif self.regularity == 'dependent':
-            b = other_coord.bounds
-            mini = [np.min(np.argmin(np.abs(self.coordinates.data - b[0]),
-                                     axis=d)) \
-                for d in range(len(self.coordinates.dims))]
-            maxi = [np.min(np.argmin(np.abs(self.coordinates.data - b[1]),
-                                     axis=d)) \
-                    for d in range(len(self.coordinates.dims))]
-            if self.is_max_to_min:
-                mini, maxi = maxi, mini
-            if ind:
-                return [(int(max(0, ss[0] - pad)),
-                         int(min(self.coordinates.shape[i], ss[1] + pad))) \
-                               for i, ss in enumerate(zip(mini, maxi))]
-            slc = [slice(max(0, ss[0] - pad),
-                         min(self.coordinates.shape[i], ss[1] + pad + 1)) \
-                   for i, ss in enumerate(zip(mini, maxi))]
-            crds = self.coordinates
-            for d, s in zip(self.coordinates.dims, slc):
-                crds = crds.isel(**{d: s})
-                       
-            new_crd = self.__class__(coords=crds, **self.kwargs)
-            
-        return new_crd
-            
     @property
     def kwargs(self):
         kwargs = {'units': self.units,
@@ -454,56 +108,411 @@ class Coord(tl.HasTraits):
         }
         return kwargs
     
+    coords = tl.Any()
+    @tl.validate("coords")
+    def _coords_validate(self, proposal):
+         raise NotImplementedError()
+
+    @property
+    def regularity(self):
+        raise NotImplementedError() 
+
+    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
+    @property
+    def bounds(self):
+        raise NotImplementedError()
+        
+    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
+    @property
+    def delta(self):
+        raise NotImplementedError()
+ 
+    _cached_coords = tl.Any(default_value=None, allow_none=True)
+    @property
+    def coordinates(self):
+        raise NotImplementedError()
+
+    @property
+    def size(self):
+        raise NotImplementedError()
+
+    def intersect_check(self, other_coords, ind):
+        if self.units != other_coord.units:
+            raise NotImplementedError("Still need to implement handling of different units")
+        if np.all(self.bounds == other_coord.bounds):
+            if ind:
+                return [0, self.size]
+            return self
+        
+        ibounds = [
+            np.maximum(self.bounds[0], other_coord.bounds[0]),
+            np.minimum(self.bounds[1], other_coord.bounds[1])        
+            ]
+        if np.any(ibounds[0] > ibounds[1]):
+            if ind:
+                return [0, 0]
+            else:
+                return self.__class__(coords=(self.bounds[0], self.bounds[1], 0)) 
+        
+
+    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+        """
+        Returns an Coord object if ind==False
+        Returns a list of start, stop coordinates if ind==True
+        """
+        raise NotImplementedError()
+
     @property
     def is_max_to_min(self):
-        if self.regularity == 'regular':
-            return self.coords[0] > self.coords[1]
-        elif self.regularity == 'irregular':
-            if self.stacked == 1:
-                if isinstance(self.coords[0], np.datetime64):
-                    return self.coords[0] > self.coords[-1]
-                else:
-                    non_nan_coords = self.coords[np.isfinite(self.coords)]
-                    return non_nan_coords[0] > non_nan_coords[-1]
+        raise NotImplementedError()
+
+
+class SingleCoord(Coord):
+    coords = tl.Any()
+    @tl.validate("coords")
+    def _coords_validate(self, proposal):
+        if not isinstance(proposal['value'], 
+                          (tuple, list, np.ndarray, xr.DataArray, 
+                           numbers.Number, string_types, np.datetime64)):
+            raise CoordinateException("Coords type not recognized")
+        val = proposal['value']
+        if hasattr(val, __len__):
+            if len(val) == 1:
+                val = val[0]
             else:
-                m2m = []
-                for c in self.coords:
-                    if isinstance(c, np.datetime64):
-                        m2m.append(c[0] > c[-1])
-                    else:
-                        non_nan_coords = c[np.isfinite(c)]
-                        m2m.append(non_nan_coords[0] > non_nan_coords[-1])
-                return np.array(m2m) 
-        elif self.regularity == 'dependent':
-            return np.array(self.coords).ravel()[0] > np.array(self.coords).ravel()[-1] 
+                raise CoordinateException("SingleCoord cannot have multiple values")
+
+        if isinstance(val, string_types):
+            val = np.datetime64(val)
+
+    @property
+    def regularity(self):
+        return 'single' 
+
+    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
+    @cached_property
+    def bounds(self):
+        bounds = np.array(
+                [self.coords - self.delta, self.coords + self.delta])
+        return bounds
+
+    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
+    @cached_property
+    def delta(self):
+        # Arbitrary
+        if isinstance(self.coords, np.datetime64):
+            dtype = self.coords - self.coords
+            delta = np.array([1], dtype=dtype.dtype)
         else:
-            return False
-        
-    
-    def __repr__(self):
-        rep = 'Coord: Bounds[{min}, {max}],' + \
-            ' N[{}], ctype["{}"]'.format(self.size, self.ctype)
-        if self.regularity in ['single', 'regular', 'irregular']:
-            rep = rep.format(min=self.bounds[0], max=self.bounds[1])       
-        return rep
-    
-    def __add__(self, other):
-        """ Should be able to add two coords together in some situations
-        Although I'm really not sure about this function... may be a mistake
+            delta = np.atleast_id(np.sqrt(np.finfo(np.float32).eps))
+        return delta
+            
+             
+    _cached_coords = tl.Any(default_value=None, allow_none=True)
+    @cached_property
+    def coordinates(self):
+        return np.atleast1d(self.coords)
+
+    @property
+    def size(self):
+        return 1 
+
+    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
         """
-        if not isinstance(other, Coord):
-            raise CoordinateException("Can only add two Coord object together")
-        if self.regularity == 'dependent' or other.regularity == 'dependent'\
-                or self.stacked != other.stacked:
-            raise NotImplementedError
-        c1 = self.coordinates
-        c2 = other.coordinates
-        if self.stacked == 1:
-            return self.__class__(coords=np.concatenate((c1, c2)))
+        Returns an Coord object if ind==False
+        Returns a list of start, stop coordinates if ind==True
+        """
+        check = self.intersect_checks(other_coord, ind)
+        if check:
+            return check
+
+        if ind:
+            return [0, 1]
         else:
-            return self.__class__(coords=[np.concatenate((cc1, cc2)) \
-                    for cc1, cc2 in zip(c1, c2)])
+            return self
+
+    @property
+    def is_max_to_min(self):
+        return False
+
+
+class RegularCoord(Coord):
+    coords = tl.Any()
+    @tl.validate("coords")
+    def _coords_validate(self, proposal):
+        if not isinstance(proposal['value'], 
+                          (tuple, list)):
+            raise CoordinateException("Coords type not recognized")
+        val = proposal['value']
+        if len(val) < 3:
+            raise CoordinateException("Need to supply at least three entries "
+                "to define a 'regular' coordinate in the form "
+                "(start, stop, step) or (start, stop, number)."
+
+        if isinstance(val[0], (int, np.ndarray, np.long)):
+            val = (float(val[0]),) + tuple(val[1:])
+        elif isinstance(val[0], string_types):
+            val = (np.datetime64(val[0]),) + tuple(val[1:])
+        if isinstance(val[1], (int, np.ndarray, np.long)):
+            val = (val[0], float(val[1])) + tuple(val[2:])
+        elif isinstance(val[1], string_types):
+            val = (val[0], np.datetime64(val[1])) + tuple(val[2:])
+        if isinstance(val[2], string_types):
+            a, b = val[2].split(',')
+            val = (val[0], val[1], np.timedelta64(int(a), b))
+
+    @property
+    def regularity(self):
+       return 'regular'
+
+    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
+    @cached_property
+    def bounds(self):
+        return np.array([np.min(self.coords[:2]),
+                         np.max(self.coords[:2])).squeeze()
+        
+    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
+    @cached_property
+    def delta(self):
+        if isinstance(self.coords[2], (int, np.integer, np.long)) \
+                and not isinstance(self.coords[2], np.timedelta64):
+            return np.atleast_1d(((np.array(self.coords[1]) - np.array(self.coords[0]))\
+               / (self.coords[2] - 1.) * (1 - 2 * self.is_max_to_min)).squeeze())
+        else:
+            return np.atleast_1d(np.array(self.coords[2:3]).squeeze())
+ 
+    _cached_coords = tl.Any(default_value=None, allow_none=True)
+    @cached_property
+    def coordinates(self):
+        N = self.size
+        if isinstance(self.coords[0], np.datetime64):
+            return self.coords[0] + np.arange(0, N) * self.delta
+        else:
+            return np.linspace(self.coords[0], self.coords[1], N)
+
+    @property
+    def size(self):
+        if not isinstance(self.coords[2], (int, np.integer, np.long)) or \
+                isinstance(self.coords[2], np.timedelta64):
+            N = np.round((1 - 2 * self.is_max_to_min) * 
+                (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
+        else: #number specified
+            N = self.coords[2]
+
+    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+        """
+        Returns an Coord object if ind==False
+        Returns a list of start, stop coordinates if ind==True
+        """
+        check = self.intersect_checks(other_coord, ind)
+        if check:
+            return check
+        
+        min_max_i = [np.floor((ibounds[0] - self.bounds[0]) / self.delta),
+                     np.ceil((self.bounds[1] - ibounds[1]) / self.delta)]
+        if ind:
+            if self.is_max_to_min:
+                min_max_i = min_max_i[::-1]
+            I = [int(min(self.size, max(0, min_max_i[0] - pad))),
+                 int(min(self.size, max(0, self.size - min_max_i[1] + pad)))]
+            return I
+        min_max = [np.maximum(self.bounds[0],
+                       self.bounds[0] + max(0, min_max_i[0] - pad) * self.delta),
+                   np.minimum(self.bounds[1],
+                    self.bounds[1] - max(0, min_max_i[1] - pad) * self.delta)]
+        if self.is_max_to_min:
+            min_max = min_max[::-1]
+        
+        coords = min_max + [float(self.delta)]
+        new_crd = self.__class__(coords=coords, **self.kwargs)
+        return new_crd
+        
+    @property
+    def is_max_to_min(self):
+        return self.coords[0] > self.coords[1]
+
+
+class IrregularCoord(Coord):
+    coords = tl.Any()
+    @tl.validate("coords")
+    def _coords_validate(self, proposal):
+        if not isinstance(proposal['value'],
+                          (tuple, list, np.ndarray)):
+            raise CoordinateException("Coords type not recognized: " + 
+                                      str(type(proposal['value'])))
+
+        val = np.array(proposal['value']).squeeze()
+        if len(val.shape) > 1:
+            raise CoordinateException("Irregular coordinates can only"
+                                      " have 1 dimension, not " +
+                                      len(val.shape))\
+        return val
     
+    @property
+    def regularity(self):
+        return 'irregular'
+
+    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
+    @cached_property
+    def bounds(self):
+      if isinstance(self.coords[0], np.datetime64):
+            return = np.array([
+                np.min(self.coords), np.max(self.coords)])
+        else:
+            return = np.array([
+                np.nanmin(self.coords), np.nanmax(self.coords)])
+  
+        
+    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
+    @cached_property
+    def delta(self):
+        #print("Warning: delta is not representative for irregular coords")
+        return = np.atleast_1d(np.array(
+            (self.coords[-1] - self.coords[0]) / float(self.coords.size) \
+            * (1 - 2 * self.is_max_to_min)).squeeze())
+                    
+ 
+    _cached_coords = tl.Any(default_value=None, allow_none=True)
+    @cached_property
+    def coordinates(self):
+        return self.coords
+        
+    @property
+    def size(self):
+        return self.coords.size
+
+    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+        """
+        Returns an Coord object if ind==False
+        Returns a list of start, stop coordinates if ind==True
+        """
+        check = self.intersect_checks(other_coord, ind)
+        if check:
+            return check
+        
+        b = other_coord.bounds
+        inds = np.where((self.coordinates >= (b[0] - self.delta))\
+                        & (self.coordinates <= (b[1] + self.delta)))[0]
+        if inds.size == 0:
+            if ind:
+                return [0, 0]
+            else:
+                return self.__class__(coords=(self.bounds[0], self.bounds[1], 0))                 
+        min_max_i = [min(inds), max(inds)]
+        #if self.is_max_to_min:
+            #min_max_i = min_max_i[::-1]
+        lefti = np.maximum(0, min_max_i[0] - pad)
+        righti = np.minimum(min_max_i[1] + pad + 1, self.size)
+        if ind:
+            return [int(lefti), int(righti)]
+        new_crd = self.__class__(coords=self.coordinates[lefti:righti], **self.kwargs)
+        
+        return new_crd
+
+    @property
+    def is_max_to_min(self):
+        if isinstance(self.coords[0], np.datetime64):
+            return self.coords[0] > self.coords[-1]
+        else:
+            non_nan_coords = self.coords[np.isfinite(self.coords)]
+            return non_nan_coords[0] > non_nan_coords[-1]
+        
+class DependentCoord(Coord):
+    coords = tl.Instance(xr.DataArray)
+    coord_name = tl.Unicode('')
+    @tl.validate("coords")
+    def _coords_validate(self, proposal):
+        if not isinstance(proposal['value'],
+                          (xr.DataArray)):
+            raise CoordinateException("Coords must be of type xr.DataArray"
+                                      " not " + str(type(proposal['value'])))
+
+        val = proposal['value']
+        if len(val.shape) < 2:
+            raise CoordinateException("Dependent coordinates need at least "
+                                      "2 dimensions.")
+            
+    @property
+    def regularity(self):
+        return 'dependent'
+
+    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
+    @cached_property
+    def bounds(self):
+        dims = [d for d in self.coords.dims]
+        return np.array([self.coords.min(dims), self.coords.max(dims)]) 
+        
+    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
+    @cached_property
+    def delta(self):
+         return np.array([
+                self.coords[1] - self.coords[0]
+            ]) * (1 - 2 * self.is_max_to_min).squeeze()
+ 
+    @property
+    def coordinates(self):
+        return self.coords
+
+    @property
+    def size(self):
+        return self.coords[self.coord_name].size
+
+    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+        """
+        Returns an Coord object if ind==False
+        Returns a list of start, stop coordinates if ind==True
+        """
+        check = self.intersect_checks(other_coord, ind)
+        if check:
+            return check
+        
+        raise NotImplementedError()
+
+    @property
+    def is_max_to_min(self):
+        return np.array(self.coords).ravel()[0] > np.array(self.coords).ravel()[-1] 
+
+class GroupCoord(Coord):
+    coords = tl.Any()
+    @tl.validate("coords")
+    def _coords_validate(self, proposal):
+         raise NotImplementedError()
+
+    @property
+    def regularity(self):
+        raise NotImplementedError() 
+
+    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
+    @property
+    def bounds(self):
+        raise NotImplementedError()
+
+    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
+    @property
+    def delta(self):
+        raise NotImplementedError()
+ 
+    _cached_coords = tl.Any(default_value=None, allow_none=True)
+    @property
+    def coordinates(self):
+        raise NotImplementedError()
+
+    @property
+    def size(self):
+        raise NotImplementedError()
+
+    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+        """
+        Returns an Coord object if ind==False
+        Returns a list of start, stop coordinates if ind==True
+        """
+        raise NotImplementedError()
+
+    @property
+    def is_max_to_min(self):
+        raise NotImplementedError()
+
+
 class Coordinate(tl.HasTraits):
     """
     You can initialize a coordinate like this: 
