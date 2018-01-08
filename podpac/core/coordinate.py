@@ -10,6 +10,7 @@ from six import string_types
 import xarray as xr
 import numpy as np
 import traitlets as tl
+from collections import OrderedDict
 
 
 from podpac.core.units import Units
@@ -176,7 +177,7 @@ class SingleCoord(Coord):
                            numbers.Number, string_types, np.datetime64)):
             raise CoordinateException("Coords type not recognized")
         val = proposal['value']
-        if hasattr(val, __len__):
+        if hasattr(val, '__len__'):
             if len(val) == 1:
                 val = val[0]
             else:
@@ -184,6 +185,8 @@ class SingleCoord(Coord):
 
         if isinstance(val, string_types):
             val = np.datetime64(val)
+        
+        return val
 
     @property
     def regularity(self):
@@ -204,7 +207,7 @@ class SingleCoord(Coord):
             dtype = self.coords - self.coords
             delta = np.array([1], dtype=dtype.dtype)
         else:
-            delta = np.atleast_id(np.sqrt(np.finfo(np.float32).eps))
+            delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))
         return delta
             
              
@@ -247,7 +250,7 @@ class RegularCoord(Coord):
         if len(val) < 3:
             raise CoordinateException("Need to supply at least three entries "
                 "to define a 'regular' coordinate in the form "
-                "(start, stop, step) or (start, stop, number)."
+                "(start, stop, step) or (start, stop, number).")
 
         if isinstance(val[0], (int, np.ndarray, np.long)):
             val = (float(val[0]),) + tuple(val[1:])
@@ -261,6 +264,8 @@ class RegularCoord(Coord):
             a, b = val[2].split(',')
             val = (val[0], val[1], np.timedelta64(int(a), b))
 
+        return val
+
     @property
     def regularity(self):
        return 'regular'
@@ -269,7 +274,7 @@ class RegularCoord(Coord):
     @cached_property
     def bounds(self):
         return np.array([np.min(self.coords[:2]),
-                         np.max(self.coords[:2])).squeeze()
+                         np.max(self.coords[:2])]).squeeze()
         
     _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
     @cached_property
@@ -294,10 +299,10 @@ class RegularCoord(Coord):
     def size(self):
         if not isinstance(self.coords[2], (int, np.integer, np.long)) or \
                 isinstance(self.coords[2], np.timedelta64):
-            N = np.round((1 - 2 * self.is_max_to_min) * 
-                (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
+            return  np.round((1 - 2 * self.is_max_to_min) * 
+                    (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
         else: #number specified
-            N = self.coords[2]
+            return self.coords[2]
 
     def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
         """
@@ -345,7 +350,7 @@ class IrregularCoord(Coord):
         if len(val.shape) > 1:
             raise CoordinateException("Irregular coordinates can only"
                                       " have 1 dimension, not " +
-                                      len(val.shape))\
+                                      len(val.shape))
         return val
     
     @property
@@ -355,19 +360,17 @@ class IrregularCoord(Coord):
     _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
     @cached_property
     def bounds(self):
-      if isinstance(self.coords[0], np.datetime64):
-            return = np.array([
-                np.min(self.coords), np.max(self.coords)])
+        if isinstance(self.coords[0], np.datetime64):
+            return np.array([np.min(self.coords), np.max(self.coords)])
         else:
-            return = np.array([
-                np.nanmin(self.coords), np.nanmax(self.coords)])
+            return np.array([np.nanmin(self.coords), np.nanmax(self.coords)])
   
         
     _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
     @cached_property
     def delta(self):
         #print("Warning: delta is not representative for irregular coords")
-        return = np.atleast_1d(np.array(
+        return np.atleast_1d(np.array(
             (self.coords[-1] - self.coords[0]) / float(self.coords.size) \
             * (1 - 2 * self.is_max_to_min)).squeeze())
                     
@@ -431,7 +434,8 @@ class DependentCoord(Coord):
         if len(val.shape) < 2:
             raise CoordinateException("Dependent coordinates need at least "
                                       "2 dimensions.")
-            
+        return val
+
     @property
     def regularity(self):
         return 'dependent'
@@ -512,6 +516,19 @@ class GroupCoord(Coord):
     def is_max_to_min(self):
         raise NotImplementedError()
 
+def make_coord(coords, **kwargs): 
+    available_coords = [SingleCoord, RegularCoord, IrregularCoord, 
+                        DependentCoord, GroupCoord]
+    for ac in available_coords:
+        try:
+            coord = ac(coords=coords, **kwargs)
+        except CoordinateException:
+            continue
+        except Exception as e:
+            print ("Unknown exception: " + str(e))
+            continue
+        break
+    return coord
 
 class Coordinate(tl.HasTraits):
     """
