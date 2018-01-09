@@ -21,9 +21,6 @@ class CoordinateException(Exception):
 
 class Coord(tl.HasTraits):
     """
-    Regular, specified
-    stacked, unstacked
-    independent, dependent
     """
     units = Units(allow_none=True, default_value=None)
     
