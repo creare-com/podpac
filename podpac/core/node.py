@@ -94,7 +94,7 @@ class Node(tl.HasTraits):
         super(Node, self).__init__(**tkwargs)
         self.init()
 
-    def _first_init(**kwargs):
+    def _first_init(self, **kwargs):
         """ Only overwrite me if absolutely necessary """
         return kwargs
 

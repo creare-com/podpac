@@ -337,10 +337,10 @@ class RegularCoord(Coord):
     def size(self):
         if not isinstance(self.coords[2], (int, np.integer, np.long)) or \
                 isinstance(self.coords[2], np.timedelta64):
-            return  np.round((1 - 2 * self.is_max_to_min) * 
-                    (self.coords[1] - self.coords[0]) / self.coords[2]) + 1
+            return  int(np.round((1 - 2 * self.is_max_to_min) * 
+                    (self.coords[1] - self.coords[0]) / self.coords[2]) + 1)
         else: #number specified
-            return self.coords[2]
+            return int(self.coords[2])
 
     def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
         """
