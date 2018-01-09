@@ -177,15 +177,15 @@ class SingleCoord(Coord):
                            numbers.Number, string_types, np.datetime64)):
             raise CoordinateException("Coords type not recognized")
         val = proposal['value']
+        if isinstance(val, string_types):
+            val = np.datetime64(val)
+        
         if hasattr(val, '__len__'):
             if len(val) == 1:
                 val = val[0]
             else:
                 raise CoordinateException("SingleCoord cannot have multiple values")
 
-        if isinstance(val, string_types):
-            val = np.datetime64(val)
-        
         return val
 
     @property
@@ -567,7 +567,8 @@ class Coordinate(tl.HasTraits):
     segment_position = tl.Float()  # default val set in constructor
     coord_ref_sys = tl.CUnicode
     _coords = tl.Instance(OrderedDict)
-    
+    dims_map = tl.Dict()
+
     def __init__(self, coords=None, coord_ref_sys="WGS84", order=None,
             segment_position=0.5, ctype='segment', **kwargs):
         """
@@ -591,14 +592,19 @@ class Coordinate(tl.HasTraits):
                     coords[k] = kwargs[k]
             else:
                 coords = OrderedDict(kwargs)
+        elif not isinstance(coords, OrderedDict):
+            raise CoordinateException("coords needs to be an "
+                    "OrderedDict, not " + str(type(coords)))
 
-        for key, val in coords.items():
-            if not isinstance(val, Coord):
-                coords[key] = Coord(coords=val, ctype=ctype,
-                                    coord_ref_sys=coord_ref_sys, 
-                                    segment_position=segment_position,
-                                    )
-        super(Coordinate, self).__init__(_coords=coords,
+        self.dims_map = self.get_dims_map(coords)
+        _coords = self.unstack_dict(coords)
+        for key, val in _coords.items():
+            if not isinstance(_coords[key], Coord):
+                _coords[key] = make_coord(coords=val, ctype=ctype,
+                                     coord_ref_sys=coord_ref_sys, 
+                                     segment_position=segment_position,
+                                     )
+        super(Coordinate, self).__init__(_coords=_coords,
                                          coord_ref_sys=coord_ref_sys,
                                          segment_position=segment_position,
                                          ctype=ctype)
@@ -606,7 +612,10 @@ class Coordinate(tl.HasTraits):
     def __repr__(self):
         rep = str(self.__class__)
         for d in self._coords:
-            rep += '\n\t{}: '.format(d) + str(self._coords[d])
+            d2 = self.dims_map[d]
+            if d2 != d:
+                d2 = d2 + '[%s]' % d
+            rep += '\n\t{}: '.format(d2) + str(self._coords[d])
         return rep
     
     def __getitem__(self, item):
@@ -622,16 +631,14 @@ class Coordinate(tl.HasTraits):
         return proposal['value']
         
     def _validate_dim(self, dim, seen_dims):
-        parts = dim.split('_')
-        for part in parts:
-            if part not in self._valid_dims:
-                raise CoordinateException(
-                    "The '%s' dimension of '%s' is not a valid dimension %s" % (
-                        part, parts, self._valid_dims))
-            if part in seen_dims:
-                raise CoordinateException("The dimensions '" + part + \
-                "' cannot be repeated.")
-            seen_dims.append(part)
+        if dim not in self._valid_dims:
+            raise CoordinateException(
+                "The '%s' dimension is not a valid dimension %s" % (
+                    dim, self._valid_dims))
+        if dim in seen_dims:
+            raise CoordinateException("The dimensions '" + dim + \
+            "' cannot be repeated.")
+        seen_dims.append(dim)
     
     def _validate_val(self, val, dim='', dims=[]):
         # Dependent array, needs to be an xarray.DataArray
@@ -640,15 +647,82 @@ class Coordinate(tl.HasTraits):
                 if key not in dims:
                     raise CoordinateException("Dimensions of dependent" 
                     " coordinate DatArray needs to be in " + str(dims))
-                #if val._coords.get_axis_num(dim) != 0:
-                    #raise CoordinateException(
-                        #"When specifying dependent coordinates, the first " 
-                        #" dimension need to be equal to  " + str(dims))                    
    
+    def get_dims_map(self, coords=None):
+        if coords is None:
+            coords = self._coords
+        stacked_coords = {}
+        for c in coords:
+            if '_' in c:
+                for cc in c.split('_'):
+                    stacked_coords[cc] = c       
+            else:
+                stacked_coords[c] = c 
+        return stacked_coords        
+    
+    def unstack_dict(self, coords=None, check_dim_repeat=False):
+        if coords is None: 
+            coords = self._coords
+        dims_map = self.get_dims_map(coords)
+       
+        new_crds = OrderedDict()
+        seen_dims = []
+        for key, val in coords.items():
+            if key not in self.dims_map:  # stacked
+                keys = key.split('_')
+                for i, k in enumerate(keys):
+                    new_crds[k] = val[i]
+                    if check_dim_repeat and k in seen_dims:
+                        raise CoordinateException("Dimension %s " 
+                                "cannot be repeated." % k)
+                    seen_dims.append(k)
+            else:
+                new_crds[key] = val
+                if check_dim_repeat and key in seen_dims:
+                    raise CoordinateException("Dimension %s " 
+                        "cannot be repeated." % key)
+                seen_dims.append(key)
+
+        return new_crds
+
+    def stack_dict(self, coords=None, dims_map=None):
+        if coords is None: 
+            coords = self._coords
+        if dims_map is None:
+            dims_map = self.dims_map
+
+        stacked_coords = OrderedDict()
+        for key, val in dims_map.items():
+            if val in stacked_coords:
+                temp = stacked_coords[val]
+                if not isinstance(temp, list):
+                    temp = [temp]
+                temp.append(coords[key])
+                stacked_coords[val] = temp
+            else:
+                stacked_coords[val] = coords[key]
+        return stacked_coords
+   
+    def stack(self, stack_dims, copy=False):
+        stack_dim = '_'.join(stack_dims)
+        dims_map = {k:v for k,v in self.dims_map.items()}
+        for k in stack_dims:
+            dims_map[k] = stack_dim
+        if copy:
+            return self.__class__(coords=self._coords.copy(),
+                                  dims_map=dims_map)
+        else:
+            self.dims_map = dims_map
+            return self
+
+    def unstack(self, copy=False):
+        if copy:
+            return self.__class__(coords=self._coords)
+        else:
+            self.dims_map = {v:v for v in self.dims_map}
+            return self
+
     def intersect(self, other, coord_ref_sys=None, pad=1):
-        # TODO: FIXME (probably should be left for the re-write)
-        # This function doesn't handle stacking at all. If other is stacked, 
-        # self._coords has no idea and will do the wrong thing        
         new_crds = OrderedDict()
         for i, d in enumerate(self._coords):
             if isinstance(pad, (list, tuple)):
@@ -658,42 +732,15 @@ class Coordinate(tl.HasTraits):
             else:
                 spad = pad
             
-            if d not in other._coords and self._coords[d].stacked > 1:
-                parts = d.split('_')
-                inds = None
-                for i, p in enumerate(parts):
-                    if p not in other._coords:
-                        slc.append(slice(None, None))
-                        continue
-                    if self._coords[d].regularity != 'irregular':
-                        raise NotImplementedError()
-                    pcoord = Coord(coords=self._coords[d].coords[i])
-                    ind  = pcoord.intersect(other._coords[p], 
-                                                 coord_ref_sys, ind=True,
-                                                 pad=spad)
-                    if not ind:
-                        inds = None
-                        continue
-                    elif inds:
-                        inds[0] = max(inds[0], ind[0])
-                        inds[1] = min(inds[1], ind[1])
-                    else:
-                        inds = ind
-                if inds and inds[0] < inds[1]:
-                    new_crds[d] = Coord(coords=[c[inds[0]: inds[1]] for c in 
-                                         self.coords[d].coords])
-                else:
-                    new_crds[d] = Coord(coords=(self._coords[d].bound[0], 
-                                                self._coords[d].bound[1], 0))
-            elif  d not in other._coords:
+            if  d not in other._coords:
                 new_crds[d] = self._coords[d]
                 continue
             else:
                 new_crds[d] = self._coords[d].intersect(other._coords[d],
                                                         coord_ref_sys, pad=spad)
-            
-        return self.__class__(new_crds, **self.kwargs)
-    
+        stacked_coords = self.stack_dict(new_crds)
+        return self.__class__(stacked_coords, **self.kwargs)
+
     def intersect_ind_slice(self, other, coord_ref_sys=None, pad=1):
         # TODO: FIXME (probably should be left for the re-write)
         # This function doesn't handle stacking at all. If other is stacked, 
@@ -707,37 +754,9 @@ class Coordinate(tl.HasTraits):
             else:
                 spad = pad
                 
-            if d not in other._coords and self._coords[d].stacked > 1:
-                parts = d.split('_')
-                inds = None
-                for i, p in enumerate(parts):
-                    if p not in other._coords:
-                        slc.append(slice(None, None))
-                        continue
-                    if self._coords[d].regularity != 'irregular':
-                        raise NotImplementedError()
-                    pcoord = Coord(coords=self._coords[d].coords[i])
-                    ind  = pcoord.intersect(other._coords[p], 
-                                                 coord_ref_sys, ind=True,
-                                                 pad=spad)
-                    #if pcoord.is_max_to_min:
-                        #ind = ind[::-1]
-                    if not ind:
-                        slc.append(slice(0, 0))
-                        inds = None
-                        continue
-                    elif inds:
-                        inds[0] = max(inds[0], ind[0])
-                        inds[1] = min(inds[1], ind[1])
-                    else:
-                        inds = ind
-                if inds and inds[0] < inds[1]:
-                    slc.append(slice(inds[0], inds[1]))
-                else:
-                    slc.append(slice(0, 0))                    
-            elif d not in other._coords:
-                    slc.append(slice(None, None))
-                    continue
+            if d not in other._coords:
+                slc.append(slice(None, None))
+                continue
             else:    
                 ind = self._coords[d].intersect(other._coords[d], 
                                                 coord_ref_sys, ind=True, pad=spad)
@@ -800,30 +819,6 @@ class Coordinate(tl.HasTraits):
         crs = {'WGS84': 'EPSG:4326',
                'SPHER_MERC': 'EPSG:3857'}
         return crs[self.coord_ref_sys.upper()]
-    
-    def unstack(self):
-        new_crds = OrderedDict()
-        for k, v in self._coords.items():
-            if v.stacked == 1:
-                new_crds[k] = v
-            else:
-                for i, kk in enumerate(k.split('_')):
-                    new_crds[kk] = self._coords[k].coordinates[i]
-
-        return self.__class__(new_crds, **self.kwargs) 
-    
-    @staticmethod
-    def get_stacked_coord_dict(coords):
-        stacked_coords = {}
-        for c in coords:
-            if '_' in c:
-                for cc in c.split('_'):
-                    stacked_coords[cc] = c        
-        return stacked_coords        
-    
-    @property
-    def stacked_coords(self):
-        return Coordinate.get_stacked_coord_dict(self._coords)
     
     def __add__(self, other):
         if not isinstance(other, Coordinate):
