@@ -69,7 +69,31 @@ class Coord(tl.HasTraits):
         """ Should be able to add two coords together in some situations
         Although I'm really not sure about this function... may be a mistake
         """
-        raise NotImplementedError()
+        # In most cases you should simply be able to stack together the 
+        # coordinates into an irregular coordinate
+        if not isinstance(other, Coord):
+            raise CoordinateException("Can only add objects of type Coord to "
+                                      "other objects of type Coord.")
+        # TODO: This function should really be using Group Coords to cover
+        # the most general cases (like dependent coords)
+        cs = [self.coordinates, other.coordinates]
+        if self.is_max_to_min != other.is_max_to_min:
+            cs[1] = cs[1][::-1]
+        if self.is_max_to_min:
+            if cs[0].min() > cs[1].max():
+                pass #order is ok
+            elif cs[0].max() < cs[1].min():
+                cs = cs[::-1]
+            else:  # overlapping!
+                print ("Warning, added coordinates overlap")
+        else:
+            if cs[0].min() > cs[1].max():
+                cs = cs[::-1]
+            elif cs[0].max() < cs[1].min():
+                pass #order is ok
+            else:  # overlapping!
+                print ("Warning, added coordinates overlap")
+        return IrregularCoord(coords=np.concatenate(cs), **self.kwargs)
 
     def __init__(self, *args, **kwargs):
         """
@@ -189,6 +213,12 @@ class SingleCoord(Coord):
 
         return val
 
+    def __add__(self, other):
+        if not isinstance(other, (SingleCoord, RegularCoord, IrregularCoord)):
+            raise CoordinateException("Cannot add %s to %s." % (
+                    str(self.__class__), str(other.__class__)))
+        return super(self.__class__, self).__add__(other)
+
     @property
     def regularity(self):
         return 'single' 
@@ -214,7 +244,7 @@ class SingleCoord(Coord):
     _cached_coords = tl.Any(default_value=None, allow_none=True)
     @cached_property
     def coordinates(self):
-        return np.atleast1d(self.coords)
+        return np.atleast_1d(self.coords)
 
     @property
     def size(self):
@@ -265,6 +295,14 @@ class RegularCoord(Coord):
             val = (val[0], val[1], np.timedelta64(int(a), b))
 
         return val
+
+    def __add__(self, other):
+        if not isinstance(other, (SingleCoord, RegularCoord, IrregularCoord)):
+            raise CoordinateException("Cannot add %s to %s." % (
+                    str(self.__class__), str(other.__class__)))
+        if isinstance(other, RegularCoord):
+            pass # TODO: add some optimizations here
+        return super(self.__class__, self).__add__(other)
 
     @property
     def regularity(self):
@@ -357,6 +395,12 @@ class IrregularCoord(Coord):
                                       len(val.shape))
         return val
     
+    def __add__(self, other):
+        if not isinstance(other, (SingleCoord, RegularCoord, IrregularCoord)):
+            raise CoordinateException("Cannot add %s to %s." % (
+                    str(self.__class__), str(other.__class__)))
+        return super(self.__class__, self).__add__(other)
+    
     @property
     def regularity(self):
         return 'irregular'
@@ -439,6 +483,9 @@ class DependentCoord(Coord):
             raise CoordinateException("Dependent coordinates need at least "
                                       "2 dimensions.")
         return val
+
+    def __add__(self, other):
+        raise NotImplementedError()
 
     @property
     def regularity(self):
@@ -972,5 +1019,19 @@ if __name__ == '__main__':
     except CoordinateException as e:
         print(e)
         pass
+
+    coord_left = make_coord(coords=(-2, 7, 3))
+    coord_right = make_coord(coords=(8, 13, 3))
+    coord_right2 = make_coord(coords=(13, 8, 3))
+    coord_cent = make_coord(coords=(4, 11, 4))
+    coord_pts = make_coord(15)
+    coord_irr = make_coord(np.random.rand(5))
+    
+    print ((coord_left + coord_right).coordinates)
+    print ((coord_right + coord_left).coordinates)
+    print ((coord_left + coord_right2).coordinates)
+    print ((coord_right2 + coord_left).coordinates)
+    print ((coord_left + coord_pts).coordinates)
+    print (coord_irr + coord_pts + coord_cent)
     
     print('Done')
