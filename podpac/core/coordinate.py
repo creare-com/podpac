@@ -967,7 +967,7 @@ class Coordinate(tl.HasTraits):
             in zip(self.shape, shape)]
 
         for l in itertools.product(*slices):
-            kwargs = {k:self[k].coordinates[slc] for k, slc in zip(self.dims, l)}
+            kwargs = {k:self.coords[k][slc] for k, slc in zip(self.dims, l)}
             kwargs['order'] = self.dims
             coords = Coordinate(**kwargs)
             if return_slice:
