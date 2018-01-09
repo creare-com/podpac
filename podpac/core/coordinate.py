@@ -48,6 +48,7 @@ class Coord(tl.HasTraits):
                       help="When specifying irregular coordinates, set the "
                       "bounding box (extents) of the grid in case ctype is "
                       " 'segment' or 'fence'")
+    coord_ref_sys = tl.Unicode()
     
     @tl.validate('segment_position')
     def _segment_position_validate(self, proposal):
@@ -199,18 +200,17 @@ class SingleCoord(Coord):
                 [self.coords - self.delta, self.coords + self.delta])
         return bounds
 
-    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
-    @cached_property
+    delta = tl.Instance(np.ndarray, allow_none=True) 
+    @tl.default('delta')
     def delta(self):
         # Arbitrary
         if isinstance(self.coords, np.datetime64):
-            dtype = self.coords - self.coords
+            dtype = self.coords - self.coords  # Creates timedelta64 object
             delta = np.array([1], dtype=dtype.dtype)
         else:
             delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))
         return delta
             
-             
     _cached_coords = tl.Any(default_value=None, allow_none=True)
     @cached_property
     def coordinates(self):
@@ -631,10 +631,22 @@ class Coordinate(tl.HasTraits):
     @tl.validate('_coords')
     def _coords_validate(self, proposal):
         seen_dims = []
+        stack_dims = {}
         for key in proposal['value']:
             self._validate_dim(key, seen_dims)
             val = proposal['value'][key]
             self._validate_val(val, key, proposal['value'].keys())
+            if key not in self.dims_map.values():  # stacked dim
+                if self.dims_map[key] not in stack_dims:
+                    stack_dims[self.dims_map[key]] = val.size
+                else:
+                    if val.size != stack_dims[self.dims_map[key]]:
+                        raise CoordinateException("Stacked dimensions need to"
+                                                  " have the same size:"
+                                                  " %d != %d for %s in %s" % (
+                                                   val.size, 
+                                                   stack_dims[self.dims_map[key]],
+                                                   key, self.dims_map[key]))
         return proposal['value']
         
     def _validate_dim(self, dim, seen_dims):
@@ -710,21 +722,30 @@ class Coordinate(tl.HasTraits):
                 stacked_coords[val] = coords[key]
         return stacked_coords
    
-    def stack(self, stack_dims, copy=False):
+    def stack(self, stack_dims, copy=True):
         stack_dim = '_'.join(stack_dims)
         dims_map = {k:v for k,v in self.dims_map.items()}
         for k in stack_dims:
             dims_map[k] = stack_dim
+        stack_dict = self.stack_dict(self._coords.copy(), dims_map=dims_map)
         if copy:
-            return self.__class__(coords=self._coords.copy(),
-                                  dims_map=dims_map)
+            return self.__class__(coords=stack_dict)
         else:
+            # Check for correct dimensions
+            tmp = self.dims_map
             self.dims_map = dims_map
+            try:
+                self._coords_validate({'value': self._coords})
+            except CoordinateException as e:
+                self.dims_map = tmp
+                raise(e)
+                
+            
             return self
 
-    def unstack(self, copy=False):
+    def unstack(self, copy=True):
         if copy:
-            return self.__class__(coords=self._coords)
+            return self.__class__(coords=self._coords.copy())
         else:
             self.dims_map = {v:v for v in self.dims_map}
             return self
@@ -781,9 +802,28 @@ class Coordinate(tl.HasTraits):
                 'ctype': self.ctype
                 }
     
+    def get_shape(self, other_coords=None):
+        if other_coords is None:
+            other_coords = self
+        # Create shape for each dimension
+        shape = []
+        seen_dims = []
+        for k in self._coords:
+            if k in other_coords._coords:
+                shape.append(other_coords._coords[k].size)
+                # Remove stacked duplicates
+                if other_coords.dims_map[k] in seen_dims:
+                    shape.pop()
+                else:
+                    seen_dims.append(other_coords.dims_map[k])
+            else:
+                shape.append(self._coords[k].size)
+
+        return shape
+        
     @property
     def shape(self):
-        return [c.size for c in self._coords.values()]
+        return self.get_shape()
     
     @property
     def delta(self):
@@ -791,7 +831,11 @@ class Coordinate(tl.HasTraits):
     
     @property
     def dims(self):
-        return self._coords.keys()
+        dims = []
+        for v in self.dims_map.values():
+            if v not in dims:
+                dims.append(v)
+        return dims
     
     @property
     def coords(self):
@@ -891,5 +935,37 @@ if __name__ == '__main__':
     print(c.intersect(c_cent_s))
     print(c_s.intersect(c_cent))
     print(c_s.intersect(c_cent_s))
+    
+    try:
+        c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 11)))
+    except CoordinateException as e:
+        print(e)
+    
+    c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=(0, 1, 2))
+    c2 = Coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
+    print (c.shape)
+    print (c.unstack().shape)
+    print (c.get_shape(c2))
+    print (c.get_shape(c2.unstack()))
+    print (c.unstack().get_shape(c2))
+    print (c.unstack().get_shape(c2.unstack()))
+    
+    c = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), time=(0, 1, 2))
+    print(c.stack(['lat', 'lon']))
+    try:
+        c.stack(['lat','time'])
+        raise Exception
+    except CoordinateException as e:
+        print(e)
+        pass
+
+    try:
+        c.stack(['lat','time'], copy=False)
+        raise Exception
+    except CoordinateException as e:
+        print(e)
+        pass
+
+        
     
     print('Done')
