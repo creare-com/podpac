@@ -840,13 +840,20 @@ class Coordinate(tl.HasTraits):
     @property
     def coords(self):
         crds = OrderedDict()
-        for k, v in self._coords.items():
-            if v.stacked == 1:
-                crds[k] = v.coordinates
+        for k in self.dims:
+            if k in self.dims_map:  # not stacked
+                crds[k] = self._coords[k].coordinates
             else:
-                dtype = [(str(kk), np.float64) for kk in k.split('_')]
-                crds[k] = np.column_stack(v.coordinates).astype(np.float64)
-                crds[k] = crds[k].view(dtype=dtype).squeeze()
+                coordinates = [self._coords[kk].coordinates 
+                               for kk in k.split('_')]
+                dtype = [(str(kk), coordinates[i].dtype) 
+                         for i, kk in enumerate(k.split('_'))]
+                n_coords = len(coordinates)
+                s_coords = len(coordinates[0])
+                crds[k] = np.array([[tuple([coordinates[j][i]
+                                     for j in range(n_coords)])] 
+                                   for i in range(s_coords)],
+                    dtype=dtype).squeeze()
         return crds
     
     #@property
@@ -965,7 +972,5 @@ if __name__ == '__main__':
     except CoordinateException as e:
         print(e)
         pass
-
-        
     
     print('Done')
