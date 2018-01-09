@@ -776,7 +776,7 @@ class Coordinate(tl.HasTraits):
             dims_map[k] = stack_dim
         stack_dict = self.stack_dict(self._coords.copy(), dims_map=dims_map)
         if copy:
-            return self.__class__(coords=stack_dict)
+            return self.__class__(coords=stack_dict, **self.kwargs)
         else:
             # Check for correct dimensions
             tmp = self.dims_map
@@ -848,6 +848,27 @@ class Coordinate(tl.HasTraits):
                 'segment_position': self.segment_position,
                 'ctype': self.ctype
                 }
+    
+    def replace_coords(self, other, copy=True):
+        if copy:
+            coords = self._coords.copy()
+            dims_map = self.dims_map.copy()
+        else:
+            coords = self._coords
+            dims_map = self.dims_map
+            
+        for c in coords:
+            if c in other._coords:
+                coords[c] = other._coords[c]
+                dims_map[c] = other.dims_map[c]
+        
+        if copy:
+            stack_dict = self.stack_dict(coords, dims_map=dims_map)
+            return self.__class__(coords=stack_dict)
+        return self
+        
+
+                
     
     def get_shape(self, other_coords=None):
         if other_coords is None:
@@ -1033,5 +1054,14 @@ if __name__ == '__main__':
     print ((coord_right2 + coord_left).coordinates)
     print ((coord_left + coord_pts).coordinates)
     print (coord_irr + coord_pts + coord_cent)
+
+    c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=(0, 1, 2))
+    c2 = Coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
+
+    print (c.replace_coords(c2))
+    print (c.replace_coords(c2.unstack()))
+    print (c.unstack().replace_coords(c2))
+    print (c.unstack().replace_coords(c2.unstack()))
+    
     
     print('Done')
