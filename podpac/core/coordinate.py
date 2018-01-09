@@ -137,7 +137,7 @@ class Coord(tl.HasTraits):
     def size(self):
         raise NotImplementedError()
 
-    def intersect_check(self, other_coords, ind):
+    def intersect_check(self, other_coord, ind):
         if self.units != other_coord.units:
             raise NotImplementedError("Still need to implement handling of different units")
         if np.all(self.bounds == other_coord.bounds):
@@ -309,10 +309,14 @@ class RegularCoord(Coord):
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
         """
-        check = self.intersect_checks(other_coord, ind)
+        check = self.intersect_check(other_coord, ind)
         if check:
             return check
         
+        ibounds = [
+            np.maximum(self.bounds[0], other_coord.bounds[0]),
+            np.minimum(self.bounds[1], other_coord.bounds[1])        
+            ]
         min_max_i = [np.floor((ibounds[0] - self.bounds[0]) / self.delta),
                      np.ceil((self.bounds[1] - ibounds[1]) / self.delta)]
         if ind:
@@ -389,7 +393,7 @@ class IrregularCoord(Coord):
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
         """
-        check = self.intersect_checks(other_coord, ind)
+        check = self.intersect_check(other_coord, ind)
         if check:
             return check
         
@@ -466,7 +470,7 @@ class DependentCoord(Coord):
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
         """
-        check = self.intersect_checks(other_coord, ind)
+        check = self.intersect_check(other_coord, ind)
         if check:
             return check
         
@@ -528,6 +532,9 @@ def make_coord(coords, **kwargs):
             print ("Unknown exception: " + str(e))
             continue
         break
+    else:
+        raise CoordinateException("Could not create coordinate using existing"
+                                  " coordinate types.")
     return coord
 
 class Coordinate(tl.HasTraits):
@@ -565,7 +572,7 @@ class Coordinate(tl.HasTraits):
     # default val set in constructor
     ctype = tl.Enum(['segment', 'point', 'fence', 'post'])  
     segment_position = tl.Float()  # default val set in constructor
-    coord_ref_sys = tl.CUnicode
+    coord_ref_sys = tl.CUnicode()
     _coords = tl.Instance(OrderedDict)
     dims_map = tl.Dict()
 
@@ -742,9 +749,6 @@ class Coordinate(tl.HasTraits):
         return self.__class__(stacked_coords, **self.kwargs)
 
     def intersect_ind_slice(self, other, coord_ref_sys=None, pad=1):
-        # TODO: FIXME (probably should be left for the re-write)
-        # This function doesn't handle stacking at all. If other is stacked, 
-        # self._coords has no idea and will do the wrong thing
         slc = []
         for j, d in enumerate(self._coords):
             if isinstance(pad, (list, tuple)):
@@ -866,39 +870,26 @@ class Coordinate(tl.HasTraits):
         else:
             return 'NA'
 
-if __name__ == '__main__':
-    #coord = Coordinate(lat=xr.DataArray(
-        #np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
-                  #dims=['lat', 'lon']),
-                       #lon=xr.DataArray(
-        #np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
-                #dims=['lat', 'lon'])  )
-    #c = coord.intersect(coord)    
+if __name__ == '__main__': 
     
-    #coord = Coord(coords=(1, 10, 10))
-    #coord_left = Coord(coords=(-2, 7, 10))
-    #coord_right = Coord(coords=(4, 13, 10))
-    #coord_cent = Coord(coords=(4, 7, 4))
-    #coord_cover = Coord(coords=(-2, 13, 15))
+    coord = make_coord(coords=(1, 10, 10))
+    coord_left = make_coord(coords=(-2, 7, 10))
+    coord_right = make_coord(coords=(4, 13, 10))
+    coord_cent = make_coord(coords=(4, 7, 4))
+    coord_cover = make_coord(coords=(-2, 13, 15))
     
-    #c = coord.intersect(coord_left)
-    #c = coord.intersect(coord_right)
-    #c = coord.intersect(coord_cent)
+    c = coord.intersect(coord_left)
+    c = coord.intersect(coord_right)
+    c = coord.intersect(coord_cent)
     
-    cus = Coord(0, 2, 5)
-    cus.area_bounds  
-    c = Coord((0, 1, 2), (0, -1, -2), 5)
-    c.area_bounds
-    c.coordinates
-    
-    ci = Coord(coords=(np.linspace(0, 1, 5), np.linspace(0, 2, 5), np.linspace(1, 3, 5)))
-    ci.area_bounds
-    cc = Coordinate(lat_lon_alt=ci)
-    d = xr.DataArray(np.random.rand(5), dims=cc.dims, coords=cc.coords)
-    cc2 = Coordinate(lat_lon_alt=c)
-    d2 = xr.DataArray(np.random.rand(5), dims=cc2.dims, coords=cc2.coords)
-    
-    ccus = cc.unstack()
-    cc2us = cc2.unstack()
+    c = Coordinate(lat=coord, lon=coord)
+    c_s = Coordinate(lat_lon=(coord, coord))
+    c_cent = Coordinate(lat=coord_cent, lon=coord_cent)
+    c_cent_s = Coordinate(lon_lat=(coord_cent, coord_cent))
+
+    print(c.intersect(c_cent))
+    print(c.intersect(c_cent_s))
+    print(c_s.intersect(c_cent))
+    print(c_s.intersect(c_cent_s))
     
     print('Done')
