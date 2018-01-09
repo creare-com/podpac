@@ -38,6 +38,7 @@ class DataSource(Node):
         self.params = params
         self.output = output
 
+        # Need to ask the interpolator what coordinates I need
         res = self.get_data_subset(coordinates)
         if isinstance(res, UnitsDataArray):
             if self.output is None:
@@ -66,6 +67,9 @@ class DataSource(Node):
         This should return an UnitsDataArray, and A Coordinate object, unless
         there is no intersection
         """
+        # TODO: probably need to move these lines outside of this function
+        # since the coordinates we need from the datasource depends on the
+        # interpolation method
         pad = 1#self.interpolation != 'nearest'
         coords_subset = self.native_coordinates.intersect(coordinates, pad=pad)
         coords_subset_slc = self.native_coordinates.intersect_ind_slice(coordinates, pad=pad)
@@ -113,6 +117,13 @@ class DataSource(Node):
         source data, but all coordinates will match 1:1 with the subset data
         """
         raise NotImplementedError
+        
+    def get_native_coordinates(self):
+        raise NotImplementedError
+        
+    @tl.default('native_coordinates')
+    def _native_coordinates_default(self):
+        return self.get_native_coordinates()
     
     def interpolate_data(self, data_src, coords_src, coords_dst):
         # TODO: implement for all of the designed cases (points, etc)

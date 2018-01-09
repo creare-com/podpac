@@ -94,7 +94,6 @@ class SMAPSource(datatype.PyDAP):
         return SMAP_PRODUCT_MAP.sel(product=self.product,
                    attr='lonkey').item().format(rdk=self.rootdatakey)
 
-    @tl.default('native_coordinates')
     def get_native_coordinates(self):
         try:
             return self.load_cached_obj('native.coordinates')
@@ -162,7 +161,6 @@ class SMAPProperties(SMAPSource):
     def _layerkey_default(self):
         return self.property
     
-    @tl.default('native_coordinates')
     def get_native_coordinates(self):
         try:
             return self.load_cached_obj('native.coordinates')
@@ -217,7 +215,6 @@ class SMAPDateFolder(podpac.OrderedCompositor):
     def src_crds_complete_default(self):
         return True
 
-    @tl.default('source_coordinates')
     def get_source_coordinates(self):
         try: 
             return self.load_cached_obj('source.coordinates')
@@ -228,7 +225,6 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         self.cache_obj(time_crds, 'source.coordinates')
         return time_crds
 
-    @tl.default('shared_coordinates')
     def get_shared_coordinates(self):
         try: 
             return self.load_cached_obj('shared.coordinates')
@@ -285,7 +281,6 @@ class SMAP(podpac.OrderedCompositor):
             for date in dates])
         return src_objs
 
-    @tl.default('source_coordinates')
     def get_source_coordinates(self):
         return podpac.Coordinate(time=self.get_available_times_dates()[0])
 
@@ -305,7 +300,6 @@ class SMAP(podpac.OrderedCompositor):
         dates.sort()
         return np.array(times), dates
     
-    @tl.default('shared_coordinates')
     def get_shared_coordinates(self):
         if os.path.exists(self.cache_path('shared.coordinates')):
             return self.load_cached_obj('shared.coordinates')
@@ -345,8 +339,6 @@ class SMAPSentinelSource(podpac.DataSource):
         
         return time
      
-     
-    @tl.default('native_coordinates')
     def get_native_coordinates(self):
         f = self.dataset
         
@@ -422,7 +414,6 @@ class SMAPSentinelS3Date(podpac.OrderedCompositor):
     def src_crds_complete_default(self):
         return False
 
-    @tl.default('source_coordinates')
     def get_source_coordinates(self):
         try: 
             return self.load_cached_obj('source.coordinates')
@@ -493,7 +484,6 @@ class SMAPSentinelS3(podpac.OrderedCompositor):
             for date in dates])
         return src_objs
 
-    @tl.default('source_coordinates')
     def get_source_coordinates(self):
         try: 
             times = self.load_cached_obj('times')
@@ -569,7 +559,7 @@ if __name__ == '__main__':
     b = smapba.execute(coords)
     c = smap.execute(coords)
     
-    sd = SentinelData(source=(r"\\OLYMPUS\Projects\1010028-Pipeline"
+    sd = SMAPSentinelSource(source=(r"\\OLYMPUS\Projects\1010028-Pipeline"
                             r"\Technical Work\Testing\Data\SMAPSentinel"
                             r"\SMAP_L2_SM_SP_1AIWDV_20170801T000000_20170731T235532_090E24N_T15110_002.h5"))
      
