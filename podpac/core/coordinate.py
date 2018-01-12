@@ -90,7 +90,7 @@ class Coord(tl.HasTraits):
                 pass #order is ok
             else:  # overlapping!
                 print ("Warning, added coordinates overlap")
-        return IrregularCoord(coords=np.concatenate(cs), **self.kwargs)
+        return GridCoord(coords=np.concatenate(cs), **self.kwargs)
 
     def __init__(self, *args, **kwargs):
         """
@@ -211,7 +211,7 @@ class SingleCoord(Coord):
         return val
 
     def __add__(self, other):
-        if not isinstance(other, (SingleCoord, RegularCoord, IrregularCoord)):
+        if not isinstance(other, (SingleCoord, UniformGridCoord, GridCoord)):
             raise CoordinateException("Cannot add %s to %s." % (
                     str(self.__class__), str(other.__class__)))
         return super(self.__class__, self).__add__(other)
@@ -266,7 +266,7 @@ class SingleCoord(Coord):
         return False
 
 
-class RegularCoord(Coord):
+class UniformGridCoord(Coord):
     coords = tl.Any()
     @tl.validate("coords")
     def _coords_validate(self, proposal):
@@ -294,10 +294,10 @@ class RegularCoord(Coord):
         return val
 
     def __add__(self, other):
-        if not isinstance(other, (SingleCoord, RegularCoord, IrregularCoord)):
+        if not isinstance(other, (SingleCoord, UniformGridCoord, GridCoord)):
             raise CoordinateException("Cannot add %s to %s." % (
                     str(self.__class__), str(other.__class__)))
-        if isinstance(other, RegularCoord):
+        if isinstance(other, UniformGridCoord):
             pass # TODO: add some optimizations here
         return super(self.__class__, self).__add__(other)
 
@@ -376,7 +376,7 @@ class RegularCoord(Coord):
         return self.coords[0] > self.coords[1]
 
 
-class IrregularCoord(Coord):
+class GridCoord(Coord):
     coords = tl.Any()
     @tl.validate("coords")
     def _coords_validate(self, proposal):
@@ -393,7 +393,7 @@ class IrregularCoord(Coord):
         return val
     
     def __add__(self, other):
-        if not isinstance(other, (SingleCoord, RegularCoord, IrregularCoord)):
+        if not isinstance(other, (SingleCoord, UniformGridCoord, GridCoord)):
             raise CoordinateException("Cannot add %s to %s." % (
                     str(self.__class__), str(other.__class__)))
         return super(self.__class__, self).__add__(other)
@@ -464,65 +464,46 @@ class IrregularCoord(Coord):
         else:
             non_nan_coords = self.coords[np.isfinite(self.coords)]
             return non_nan_coords[0] > non_nan_coords[-1]
-        
-class DependentCoord(Coord):
-    coords = tl.Instance(xr.DataArray)
-    coord_name = tl.Unicode('')
+
+class RotatedGridCoord(Coord):
+    coords = tl.Any()
     @tl.validate("coords")
     def _coords_validate(self, proposal):
-        if not isinstance(proposal['value'],
-                          (xr.DataArray)):
-            raise CoordinateException("Coords must be of type xr.DataArray"
-                                      " not " + str(type(proposal['value'])))
-
-        val = proposal['value']
-        if len(val.shape) < 2:
-            raise CoordinateException("Dependent coordinates need at least "
-                                      "2 dimensions.")
-        return val
-
-    def __add__(self, other):
-        raise NotImplementedError()
+         raise NotImplementedError()
 
     @property
     def regularity(self):
-        return 'dependent'
+        raise NotImplementedError() 
 
     _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
-    @cached_property
+    @property
     def bounds(self):
-        dims = [d for d in self.coords.dims]
-        return np.array([self.coords.min(dims), self.coords.max(dims)]) 
-        
+        raise NotImplementedError()
+
     _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
-    @cached_property
+    @property
     def delta(self):
-         return np.array([
-                self.coords[1] - self.coords[0]
-            ]) * (1 - 2 * self.is_max_to_min).squeeze()
+        raise NotImplementedError()
  
+    _cached_coords = tl.Any(default_value=None, allow_none=True)
     @property
     def coordinates(self):
-        return self.coords
+        raise NotImplementedError()
 
     @property
     def size(self):
-        return self.coords[self.coord_name].size
+        raise NotImplementedError()
 
     def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
         """
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
         """
-        check = self.intersect_check(other_coord, ind)
-        if check:
-            return check
-        
         raise NotImplementedError()
 
     @property
     def is_max_to_min(self):
-        return np.array(self.coords).ravel()[0] > np.array(self.coords).ravel()[-1] 
+        raise NotImplementedError()
 
 class GroupCoord(Coord):
     coords = tl.Any()
@@ -565,8 +546,7 @@ class GroupCoord(Coord):
         raise NotImplementedError()
 
 def make_coord(coords, **kwargs): 
-    available_coords = [SingleCoord, RegularCoord, IrregularCoord, 
-                        DependentCoord, GroupCoord]
+    available_coords = [SingleCoord, UniformGridCoord, GridCoord, GroupCoord]
     for ac in available_coords:
         try:
             coord = ac(coords=coords, **kwargs)
