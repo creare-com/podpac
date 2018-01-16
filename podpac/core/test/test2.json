@@ -1,0 +1,18 @@
+{
+    "nodes": {
+        "twi": {
+            "node": "plugins.dassp_plugin.DasspNode",
+            "attrs": {
+                "layer": "composite_twi"
+            }
+        }
+    },
+    "outputs": [
+        {
+            "mode": "file",
+            "format": "pickle",
+            "outdir": "out_test",
+            "nodes": ["twi"]
+        }
+    ]
+}
