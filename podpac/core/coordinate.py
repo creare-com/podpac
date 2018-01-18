@@ -42,7 +42,7 @@ class Coord(tl.HasTraits):
                                 " center of this line segement.")
     
     extents = tl.List(allow_none=True, default_value=None, 
-                      help="When specifying irregular coordinates, set the "
+                      help="When specifying non-uniform coordinates, set the "
                       "bounding box (extents) of the grid in case ctype is "
                       " 'segment' or 'fence'")
     coord_ref_sys = tl.Unicode()
@@ -65,7 +65,7 @@ class Coord(tl.HasTraits):
         Although I'm really not sure about this function... may be a mistake
         """
         # In most cases you should simply be able to stack together the 
-        # coordinates into an irregular coordinate
+        # coordinates into a non-uniform GridCoordinate
         if not isinstance(other, Coord):
             raise CoordinateException("Can only add objects of type Coord to "
                                       "other objects of type Coord.")
@@ -167,6 +167,17 @@ class Coord(tl.HasTraits):
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
         """
+        check = self.intersect_check(other_coord, ind)
+        if check:
+            return check
+        
+        return self.intersect_bounds(other_coord.bounds, pad=pad, ind=ind)
+
+    def intersect_bounds(self, bounds, pad=1, ind=False):
+        """
+        Returns an Coord object if ind==False
+        Returns a list of start, stop coordinates if ind==True
+        """
         raise NotImplementedError()
 
     @property
@@ -233,15 +244,11 @@ class SingleCoord(Coord):
     def size(self):
         return 1 
 
-    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+    def intersect_bounds(self, bounds, pad=1, ind=False):
         """
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
         """
-        check = self.intersect_checks(other_coord, ind)
-        if check:
-            return check
-
         if ind:
             return [0, 1]
         else:
@@ -296,7 +303,7 @@ class GridCoord(Coord):
     _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
     @cached_property
     def delta(self):
-        #print("Warning: delta is not representative for irregular coords")
+        #print("Warning: delta is not representative for non-uniform coords")
         return np.atleast_1d(np.array(
             (self.coords[-1] - self.coords[0]) / float(self.coords.size) \
             * (1 - 2 * self.is_max_to_min)).squeeze())
@@ -311,18 +318,15 @@ class GridCoord(Coord):
     def size(self):
         return self.coords.size
 
-    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+    def intersect_bounds(self, bounds, pad=1, ind=False):
         """
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
         """
-        check = self.intersect_check(other_coord, ind)
-        if check:
-            return check
-        
-        b = other_coord.bounds
-        inds = np.where((self.coordinates >= (b[0] - self.delta))\
-                        & (self.coordinates <= (b[1] + self.delta)))[0]
+
+        gt = self.coordinates >= bounds[0] - self.delta
+        lt = self.coordinates <= bounds[1] + self.delta
+        inds = np.where(gt & lt)[0]
         if inds.size == 0:
             if ind:
                 return [0, 0]
@@ -360,7 +364,7 @@ class UniformGridCoord(Coord):
         val = proposal['value']
         if len(val) < 3:
             raise CoordinateException("Need to supply at least three entries "
-                "to define a 'regular' coordinate in the form "
+                "to define a uniform grid coordinate in the form "
                 "(start, stop, step) or (start, stop, number).")
 
         if isinstance(val[0], (int, np.ndarray, np.long)):
@@ -430,18 +434,14 @@ class UniformGridCoord(Coord):
         else: #number specified
             return int(self.coords[2])
 
-    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+    def intersect_bounds(self, bounds, pad=1, ind=False):
         """
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
         """
-        check = self.intersect_check(other_coord, ind)
-        if check:
-            return check
-        
         ibounds = [
-            np.maximum(self.bounds[0], other_coord.bounds[0]),
-            np.minimum(self.bounds[1], other_coord.bounds[1])        
+            np.maximum(self.bounds[0], bounds[0]),
+            np.minimum(self.bounds[1], bounds[1])        
             ]
         min_max_i = [np.floor((ibounds[0] - self.bounds[0]) / self.delta),
                      np.ceil((self.bounds[1] - ibounds[1]) / self.delta)]
@@ -465,6 +465,7 @@ class UniformGridCoord(Coord):
     @property
     def is_max_to_min(self):
         return self.coords[0] > self.coords[1]
+
 
 class RotatedGridCoord(Coord):
     coords = tl.Any()
@@ -491,7 +492,7 @@ class RotatedGridCoord(Coord):
     def size(self):
         raise NotImplementedError()
 
-    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+    def intersect_bounds(self, bounds, pad=1, ind=False):
         """
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
@@ -501,6 +502,7 @@ class RotatedGridCoord(Coord):
     @property
     def is_max_to_min(self):
         raise NotImplementedError()
+
 
 class GroupCoord(Coord):
     coords = tl.Any()
@@ -527,7 +529,7 @@ class GroupCoord(Coord):
     def size(self):
         raise NotImplementedError()
 
-    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
+    def intersect_bounds(self, bounds, pad=1, ind=False):
         """
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
