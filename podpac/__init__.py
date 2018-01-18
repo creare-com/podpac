@@ -1,5 +1,5 @@
 from podpac.core.units import Units, UnitsDataArray, UnitsNode
-from podpac.core.coordinate import Coord, Coordinate
+from podpac.core.coordinate import make_coord, Coordinate
 from podpac.core.node import Node, Style
 from podpac.core.algorithm.algorithm import Algorithm, Arithmetic
 from podpac.core.algorithm.stats import (

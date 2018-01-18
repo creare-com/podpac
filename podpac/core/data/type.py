@@ -86,7 +86,6 @@ class PyDAP(podpac.DataSource):
     datakey = tl.Unicode(allow_none=False)
     native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
                                      allow_none=False)    
-    @tl.default('native_coordinates')
     def get_native_coordinates(self):
         raise NotImplementedError("DAP has no mechanism for creating coordinates"
                                   ", so this is left up to child class "
@@ -119,7 +118,6 @@ class RasterioSource(podpac.DataSource):
 
     native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
                                      allow_none=False)    
-    @tl.default('native_coordinates')
     def get_native_coordinates(self):
         dlon, dlat = self.dataset.res
         left, bottom, right, top = self.dataset.bounds
@@ -391,7 +389,6 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
             raise Exception("Either reprojected_coordinates or coordinates"
                             "_source must be specified")
 
-    @tl.default('native_coordinates')
     def get_native_coordinates(self):
         coords = OrderedDict()
         sc = self.source.native_coordinates

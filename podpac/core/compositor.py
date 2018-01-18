@@ -37,7 +37,23 @@ class Compositor(Node):
     threaded = tl.Bool(False)
     n_threads = tl.Int(10)
     
+    @tl.default('source_coordinates')
+    def _source_coordinates_default(self):
+        return self.get_source_coordinates()
+    def get_source_coordinates(self):
+        raise NotImplementedError()
+        
+    @tl.default('shared_coordinates')
+    def _shared_coordinates_default(self):
+        return self.get_shared_coordinates()
+    def get_shared_coordinates(self):
+        raise NotImplementedError()
+    
+    
     @tl.default('native_coordinates')
+    def _native_coordinates_default(self):
+        return self.get_native_coordinates()
+    
     def get_native_coordinates(self):
         """
         This one is tricky... you can have multi-level compositors
@@ -138,7 +154,7 @@ class Compositor(Node):
 
         if self.interpolation:
             d['attrs'] = OrderedCompositor()
-            d['attrs']['interpolation'] = interpolation
+            d['attrs']['interpolation'] = self.interpolation
         return d
 
 
