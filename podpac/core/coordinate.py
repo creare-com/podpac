@@ -19,6 +19,10 @@ from podpac.core.utils import cached_property, clear_cache
 class CoordinateException(Exception):
     pass
 
+def get_timedelta(s):
+    a, b = s.split(',')
+    return np.timedelta64(int(a), b)
+
 class Coord(tl.HasTraits):
     """ Base class """
     
@@ -49,16 +53,18 @@ class Coord(tl.HasTraits):
     
     @tl.validate('segment_position')
     def _segment_position_validate(self, proposal):
-        if proposal['value'] <= 1 and proposal['value'] >= 0:
-            return proposal["value"]
-        else:
+        if not 0 <= proposal['value'] <= 1:
             raise CoordinateException("Coordinate dimension '" + self.dim + \
             "' must be in the segment position of [0, 1]")
-    
+        
+        return proposal["value"]
+        
     def __repr__(self):
-        rep = 'Coord: Bounds[{min}, {max}], N[{}], ctype["{}"]'.format(
-            self.size, self.ctype, min=self.bounds[0], max=self.bounds[1])
-        return rep
+        return '%s: Bounds[%s, %s], N[%d], ctype["%s"]' % (
+            self.__class__.__name__,
+            self.bounds[0], self.bounds[1],
+            self.size,
+            self.ctype)
     
     def __add__(self, other):
         """ Should be able to add two coords together in some situations
@@ -90,13 +96,11 @@ class Coord(tl.HasTraits):
                 print ("Warning, added coordinates overlap")
         return GridCoord(coords=np.concatenate(cs), **self.kwargs)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, coords=None, **kwargs):
         """
         bounds is for fence-specification with non-uniform coordinates
         """
-        if kwargs.get('coords') is None:
-            kwargs['coords'] = args
-        super(Coord, self).__init__(**kwargs)
+        super(Coord, self).__init__(coords=coords, **kwargs)
 
     @property
     def area_bounds(self):
@@ -129,7 +133,7 @@ class Coord(tl.HasTraits):
     def bounds(self):
         raise NotImplementedError()
         
-    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
+    _cached_delta = tl.Float(allow_none=True)
     @property
     def delta(self):
         raise NotImplementedError()
@@ -146,21 +150,22 @@ class Coord(tl.HasTraits):
     def intersect_check(self, other_coord, ind):
         if self.units != other_coord.units:
             raise NotImplementedError("Still need to implement handling of different units")
+        
         if np.all(self.bounds == other_coord.bounds):
             if ind:
                 return [0, self.size]
-            return self
+            else:
+                return self
         
         ibounds = [
             np.maximum(self.bounds[0], other_coord.bounds[0]),
-            np.minimum(self.bounds[1], other_coord.bounds[1])        
-            ]
+            np.minimum(self.bounds[1], other_coord.bounds[1])]
+
         if np.any(ibounds[0] > ibounds[1]):
             if ind:
                 return [0, 0]
             else:
                 return self.__class__(coords=(self.bounds[0], self.bounds[1], 0)) 
-        
 
     def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
         """
@@ -191,21 +196,26 @@ class SingleCoord(Coord):
     coords = tl.Any()
     @tl.validate("coords")
     def _coords_validate(self, proposal):
-        if not isinstance(proposal['value'], 
-                          (tuple, list, np.ndarray, xr.DataArray, 
-                           numbers.Number, string_types, np.datetime64)):
-            raise CoordinateException("Coords type not recognized")
         val = proposal['value']
+        if np.array(val).size != 1:
+            raise CoordinateException("SingleCoord cannot have multiple values")
+
+        # extract single value
+        val = np.array(val).flatten()[0]
+
+        # convert
         if isinstance(val, string_types):
             val = np.datetime64(val)
-        
-        if hasattr(val, '__len__'):
-            if len(val) == 1:
-                val = val[0]
-            else:
-                raise CoordinateException("SingleCoord cannot have multiple values")
 
+        # check type
+        if not isinstance(val, (numbers.Number, np.datetime64)):
+            raise CoordinateException("Coords type not recognized")
+        
         return val
+
+    def __repr__(self):
+        return '%s: Value[%s], ctype["%s"]' % (
+            self.__class__.__name__, self.coords, self.ctype)
 
     def __add__(self, other):
         if not isinstance(other, (SingleCoord, UniformGridCoord, GridCoord)):
@@ -213,7 +223,6 @@ class SingleCoord(Coord):
                     str(self.__class__), str(other.__class__)))
         return super(self.__class__, self).__add__(other)
 
-    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
     @cached_property
     def bounds(self):
         bounds = np.array(
@@ -224,18 +233,16 @@ class SingleCoord(Coord):
     def area_bounds(self):
         return copy.deepcopy(self.bounds)
 
-    delta = tl.Instance(np.ndarray, allow_none=True) 
-    @tl.default('delta')
+    @cached_property
     def delta(self):
         # Arbitrary
         if isinstance(self.coords, np.datetime64):
             dtype = self.coords - self.coords  # Creates timedelta64 object
-            delta = np.array([1], dtype=dtype.dtype)
+            delta = np.array(1, dtype=dtype.dtype)
         else:
-            delta = np.atleast_1d(np.sqrt(np.finfo(np.float32).eps))
+            delta = np.sqrt(np.finfo(np.float32).eps)
         return delta
             
-    _cached_coords = tl.Any(default_value=None, allow_none=True)
     @cached_property
     def coordinates(self):
         return np.atleast_1d(self.coords)
@@ -265,18 +272,28 @@ class GridCoord(Coord):
     coords = tl.Any()
     @tl.validate("coords")
     def _coords_validate(self, proposal):
-        if not isinstance(proposal['value'],
-                          (tuple, list, np.ndarray)):
-            raise CoordinateException("Coords type not recognized: " + 
-                                      str(type(proposal['value'])))
+        if not isinstance(proposal['value'], (tuple, list, np.ndarray)):
+            raise CoordinateException("Coords type not recognized: '%s'" % (
+                type(proposal['value'])))
 
+        # squeeze and check dimensions
         val = np.array(proposal['value']).squeeze()
-        if len(val.shape) > 1:
-            raise CoordinateException("Non-uniform coordinates can only"
-                                      " have 1 dimension, not " +
-                                      len(val.shape))
+        if val.ndim != 1:
+            raise CoordinateException("Non-uniform coordinates can only "
+                                      "have 1 dimension, not %d" % val.ndim)
+        
+        # convert strings to datetime
+        if isinstance(val[0], string_types):
+            val = np.array(val, dtype=np.datetime64)
+
+        # check dtype
+        if (not np.issubdtype(val.dtype, np.number) and
+            not np.issubdtype(val.dtype, np.datetime64)):
+            raise CoordinateException("GridCoord coordinates must all be the "
+                                      "same type")
+
         return val
-    
+
     def __add__(self, other):
         if not isinstance(other, (SingleCoord, UniformGridCoord, GridCoord)):
             raise CoordinateException("Cannot add %s to %s." % (
@@ -284,7 +301,6 @@ class GridCoord(Coord):
         return super(self.__class__, self).__add__(other)
 
 
-    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
     @cached_property
     def bounds(self):
         if isinstance(self.coords[0], np.datetime64):
@@ -307,9 +323,7 @@ class GridCoord(Coord):
         return np.atleast_1d(np.array(
             (self.coords[-1] - self.coords[0]) / float(self.coords.size) \
             * (1 - 2 * self.is_max_to_min)).squeeze())
-                    
  
-    _cached_coords = tl.Any(default_value=None, allow_none=True)
     @cached_property
     def coordinates(self):
         return self.coords
@@ -339,9 +353,9 @@ class GridCoord(Coord):
         righti = np.minimum(min_max_i[1] + pad + 1, self.size)
         if ind:
             return [int(lefti), int(righti)]
-        new_crd = self.__class__(coords=self.coordinates[lefti:righti], **self.kwargs)
-        
-        return new_crd
+        else:
+            coords = self.coordinates[lefti:righti]
+            return self.__class__(coords=coords, **self.kwargs)
 
     @property
     def is_max_to_min(self):
@@ -351,35 +365,77 @@ class GridCoord(Coord):
             non_nan_coords = self.coords[np.isfinite(self.coords)]
             return non_nan_coords[0] > non_nan_coords[-1]
 
-
 class UniformGridCoord(Coord):
-    """ A uniformly-spaced coordinates defined by a start, stop, and step. """
+    """
+    A uniformly-spaced coordinates defined by a start, stop, and step/size.
 
-    coords = tl.Any()
-    @tl.validate("coords")
-    def _coords_validate(self, proposal):
-        if not isinstance(proposal['value'], 
-                          (tuple, list)):
-            raise CoordinateException("Coords type not recognized")
-        val = proposal['value']
-        if len(val) < 3:
-            raise CoordinateException("Need to supply at least three entries "
-                "to define a uniform grid coordinate in the form "
-                "(start, stop, step) or (start, stop, number).")
+    Attributes
+    ----------
+    start : float or np.datetime64
+        start coordinate
+    stop : float or np.datetime64
+        stop coordinate
+    size : int
+        number of coordinate; can be specified or calculate from the step
+    step : float, np.timedealta64, or None
+        specified delta between coordinates; either size or step is required
+    epsg : TODO, str, unicode, or possibly enum
+        <not yet in use>
+    
+    Properties
+    ----------
+    coords : tuple
+        (start, stop, size) or (start, stop, size, epsg)
+    delta : float or np.timedelta64
+        delta between coordinates; this is either the step or calculated from
+        the start, stop, and size.
+    """
 
-        if isinstance(val[0], (int, np.ndarray, np.long)):
-            val = (float(val[0]),) + tuple(val[1:])
-        elif isinstance(val[0], string_types):
-            val = (np.datetime64(val[0]),) + tuple(val[1:])
-        if isinstance(val[1], (int, np.ndarray, np.long)):
-            val = (val[0], float(val[1])) + tuple(val[2:])
-        elif isinstance(val[1], string_types):
-            val = (val[0], np.datetime64(val[1])) + tuple(val[2:])
-        if isinstance(val[2], string_types):
-            a, b = val[2].split(',')
-            val = (val[0], val[1], np.timedelta64(int(a), b))
+    start = tl.Union((tl.Float(), tl.Instance(np.datetime64)))
+    stop = tl.Union((tl.Float(), tl.Instance(np.datetime64)))
+    num = tl.Integer(allow_none=True, default_value=None)
+    step = tl.Union((tl.Float(), tl.Instance(np.timedelta64)),
+                    allow_none=True, default_value=None)
+    epsg = tl.Unicode(allow_none=True, default_value=None) # or enum?
 
-        return val
+    @tl.validate('num')
+    def _validate_num(self, d):
+        if self.step is not None:
+            raise CoordinateException(
+                "UniformGridCoord requires num or step, not both")
+        return d['value']
+
+    @tl.validate('step')
+    def _validate_step(self, d):
+        if self.num is not None:
+            raise CoordinateException(
+                "UniformGridCoord requires num or step, not both")
+        return d['value']
+
+    @tl.observe('start', 'stop', 'num', 'step')
+    def _clear_cache(self, change):
+        clear_cache(self, change, ['coords', 'bounds', 'delta'])
+
+    def __init__(self, start=None, stop=None, num=None, epsg=None, step=None,
+                 coords=None, **kwargs):
+        """
+        """
+
+        if coords is not None:
+            start, stop, size, epsg = self._parse_coords(coords)
+        else:
+            if isinstance(start, string_types):
+                start = np.datetime64(start)
+            if isinstance(stop, string_types):
+                stop = np.datetime64(stop)
+            if isinstance(step, string_types):
+                step = get_timedelta(step)
+
+        if num is None and step is None:
+            raise CoordinateException("UniformGridCoord requires num or step")
+
+        super(Coord, self).__init__(
+            start=start, stop=stop, num=num, epsg=epsg, step=step, **kwargs)
 
     def __add__(self, other):
         if not isinstance(other, (SingleCoord, UniformGridCoord, GridCoord)):
@@ -389,83 +445,119 @@ class UniformGridCoord(Coord):
             pass # TODO: add some optimizations here
         return super(self.__class__, self).__add__(other)
 
-    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
+    @property
+    def coords(self):
+        """
+        Either (start, stop, size) or (start, stop, size, epsg)
+        """
+        coords = self.start, self.start + self.delta*self.size, self.size
+        if self.epsg is not None:
+            coords = coords + (self.epsg,)
+        return coords
+
+    def _parse_coords(self, coords):
+        if not isinstance(coords, (tuple, list)) or len(coords) not in [3, 4]:
+            raise CoordinateException(
+                'Invalid UniformGridCoord coords argument; expected '
+                '(start, stop, num) or (start, stop, num, epsg)')
+        
+        start, stop, num = coords[:3]
+        if len(coords) == 4:
+            epsg = coords[3]
+        else:
+            epsg = None
+
+        if isinstance(start, np.ndarray) and start.size == 1:
+            start = start.flatten()[0]
+        
+        if isinstance(stop, np.ndarray) and stop.size == 1:
+            stop = stop.flatten()[0]
+    
+        return start, stop, num, epsg
+
     @cached_property
     def bounds(self):
-        return np.array([np.min(self.coords[:2]),
-                         np.max(self.coords[:2])]).squeeze()
+        if self.is_max_to_min:
+            return np.array([self.stop, self.start])
+        else:
+            return np.array([self.start, self.stop])
 
     @property
     def area_bounds(self):
+        extents = copy.deepcopy(self.bounds)
         if self.ctype in ['fence', 'segment']:
             p = self.segment_position
-            expands = np.array([-p, 1 - p])[:, None] * self.delta[None, :]
             # for stacked coodinates
-            extents += expands.reshape(extents.shape)
-        else:
-            extents = copy.deepcopy(self.bounds)
+            extents += np.array([-p, 1 - p]) * self.delta
         return extents
-        
-    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
+    
     @cached_property
     def delta(self):
-        if isinstance(self.coords[2], (int, np.integer, np.long)) \
-                and not isinstance(self.coords[2], np.timedelta64):
-            return np.atleast_1d(((np.array(self.coords[1]) - np.array(self.coords[0]))\
-               / (self.coords[2] - 1.) * (1 - 2 * self.is_max_to_min)).squeeze())
+        if self.step is not None:
+            delta = self.step
         else:
-            return np.atleast_1d(np.array(self.coords[2:3]).squeeze())
- 
-    _cached_coords = tl.Any(default_value=None, allow_none=True)
-    @cached_property
-    def coordinates(self):
-        N = self.size
-        if isinstance(self.coords[0], np.datetime64):
-            return self.coords[0] + np.arange(0, N) * self.delta
-        else:
-            return np.linspace(self.coords[0], self.coords[1], N)
+            delta = (self.stop - self.start + 1) / self.num
+            if self.is_max_to_min:
+                delta *= -1 # TODO is this correct
+
+        return delta
 
     @property
     def size(self):
-        if not isinstance(self.coords[2], (int, np.integer, np.long)) or \
-                isinstance(self.coords[2], np.timedelta64):
-            return  int(np.round((1 - 2 * self.is_max_to_min) * 
-                    (self.coords[1] - self.coords[0]) / self.coords[2]) + 1)
-        else: #number specified
-            return int(self.coords[2])
+        if self.num is not None:
+            size = self.num
+        else:
+            size = max(0, int(np.ceil((self.start - self.stop) / self.step)))
+
+        return size
+ 
+    @cached_property
+    def coordinates(self):
+        if isinstance(self.start, np.datetime64):
+            # TODO datetime should include upper boundary?
+            coords = np.arange(self.start, self.stop+self.delta, self.delta)
+        elif self.step is not None:
+            coords = np.arange(self.start, self.stop+self.delta, self.step)
+        else:
+            coords = np.linspace(self.start, self.stop, self.size)
+        return coords
 
     def intersect_bounds(self, bounds, pad=1, ind=False):
         """
         Returns an Coord object if ind==False
         Returns a list of start, stop coordinates if ind==True
         """
-        ibounds = [
-            np.maximum(self.bounds[0], bounds[0]),
-            np.minimum(self.bounds[1], bounds[1])        
-            ]
-        min_max_i = [np.floor((ibounds[0] - self.bounds[0]) / self.delta),
-                     np.ceil((self.bounds[1] - ibounds[1]) / self.delta)]
+
+        bounds[0] = max(self.bounds[0], bounds[0])
+        bounds[1] = min(self.bounds[1], bounds[1])
+
+        imin = np.floor((bounds[0] - self.bounds[0]) / self.delta)
+        imax = np.ceil((self.bounds[1] - bounds[1]) / self.delta)
+
         if ind:
             if self.is_max_to_min:
-                min_max_i = min_max_i[::-1]
-            I = [int(min(self.size, max(0, min_max_i[0] - pad))),
-                 int(min(self.size, max(0, self.size - min_max_i[1] + pad)))]
-            return I
-        min_max = [np.maximum(self.bounds[0],
-                       self.bounds[0] + max(0, min_max_i[0] - pad) * self.delta),
-                   np.minimum(self.bounds[1],
-                    self.bounds[1] - max(0, min_max_i[1] - pad) * self.delta)]
+                imin, imax = imax, imin
+            imin = int(min(self.size, max(0, imin - pad)))
+            imax = int(min(self.size, max(0, self.size - imax + pad)))
+            return [imin, imax]
+
+        cmin = max(self.bounds[0], self.bounds[0]+max(0,imin-pad)*self.delta)
+        cmax = min(self.bounds[1], self.bounds[1]-max(0,imax-pad)*self.delta)
         if self.is_max_to_min:
-            min_max = min_max[::-1]
+            cmin, cmax = cmax, cmin
         
-        coords = min_max + [float(self.delta)]
-        new_crd = self.__class__(coords=coords, **self.kwargs)
+        if self.delta == 0:
+            import ipdb; ipdb.set_trace() # BREAKPOINT
+
+        new_crd = UniformGridCoord(
+            start=cmin, stop=cmax, step=self.delta, **self.kwargs)
+
+        
         return new_crd
         
     @property
     def is_max_to_min(self):
-        return self.coords[0] > self.coords[1]
-
+        return self.start > self.stop
 
 class RotatedGridCoord(Coord):
     coords = tl.Any()
@@ -473,17 +565,14 @@ class RotatedGridCoord(Coord):
     def _coords_validate(self, proposal):
          raise NotImplementedError()
 
-    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
     @property
     def bounds(self):
         raise NotImplementedError()
 
-    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
     @property
     def delta(self):
         raise NotImplementedError()
  
-    _cached_coords = tl.Any(default_value=None, allow_none=True)
     @property
     def coordinates(self):
         raise NotImplementedError()
@@ -510,17 +599,14 @@ class GroupCoord(Coord):
     def _coords_validate(self, proposal):
          raise NotImplementedError()
 
-    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
     @property
     def bounds(self):
         raise NotImplementedError()
 
-    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
     @property
     def delta(self):
         raise NotImplementedError()
  
-    _cached_coords = tl.Any(default_value=None, allow_none=True)
     @property
     def coordinates(self):
         raise NotImplementedError()
@@ -632,7 +718,7 @@ class Coordinate(tl.HasTraits):
                                          ctype=ctype)
     
     def __repr__(self):
-        rep = str(self.__class__)
+        rep = str(self.__class__.__name__)
         for d in self._coords:
             d2 = self.dims_map[d]
             if d2 != d:
@@ -833,7 +919,8 @@ class Coordinate(tl.HasTraits):
         if copy:
             stack_dict = self.stack_dict(coords, dims_map=dims_map)
             return self.__class__(coords=stack_dict)
-        return self   
+        else:
+            return self   
     
     def get_shape(self, other_coords=None):
         if other_coords is None:
@@ -960,11 +1047,11 @@ if __name__ == '__main__':
     
     U = UniformGridCoord
     
-    coord = make_coord(coords=U(1, 10, 10))
-    coord_left = make_coord(coords=U(-2, 7, 10))
-    coord_right = make_coord(coords=U(4, 13, 10))
-    coord_cent = make_coord(coords=U(4, 7, 4))
-    coord_cover = make_coord(coords=U(-2, 13, 15))
+    coord = U(1, 10, 10) # or U(start=1, stop=10, num=10)
+    coord_left = U(-2, 7, 10)
+    coord_right = U(4, 13, 10)
+    coord_cent = U(4, 7, 4)
+    coord_cover = U(-2, 13, 15)
     
     c = coord.intersect(coord_left)
     c = coord.intersect(coord_right)
@@ -1010,12 +1097,12 @@ if __name__ == '__main__':
         print(e)
         pass
 
-    coord_left = make_coord(coords=U(-2, 7, 3))
-    coord_right = make_coord(coords=U(8, 13, 3))
-    coord_right2 = make_coord(coords=U(13, 8, 3))
-    coord_cent = make_coord(coords=U(4, 11, 4))
-    coord_pts = make_coord(15)
-    coord_irr = make_coord(np.random.rand(5))
+    coord_left = U(-2, 7, 3)
+    coord_right = U(8, 13, 3)
+    coord_right2 = U(13, 8, 3)
+    coord_cent = U(4, 11, 4)
+    coord_pts = SingleCoord(15) # or make_coord(15)
+    coord_irr = GridCoord(np.random.rand(5)) # or make_coord(np.random.rand(5))
     
     print ((coord_left + coord_right).coordinates)
     print ((coord_right + coord_left).coordinates)
