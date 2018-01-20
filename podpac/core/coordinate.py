@@ -133,7 +133,8 @@ class Coord(tl.HasTraits):
     def bounds(self):
         raise NotImplementedError()
         
-    _cached_delta = tl.Float(allow_none=True)
+    _cached_delta = tl.Union((tl.Float(), tl.Instance(np.timedelta64)),
+                             allow_none=True)
     @property
     def delta(self):
         raise NotImplementedError()
@@ -545,13 +546,9 @@ class UniformGridCoord(Coord):
         cmax = min(self.bounds[1], self.bounds[1]-max(0,imax-pad)*self.delta)
         if self.is_max_to_min:
             cmin, cmax = cmax, cmin
-        
-        if self.delta == 0:
-            import ipdb; ipdb.set_trace() # BREAKPOINT
 
         new_crd = UniformGridCoord(
             start=cmin, stop=cmax, step=self.delta, **self.kwargs)
-
         
         return new_crd
         
@@ -771,7 +768,7 @@ class Coordinate(tl.HasTraits):
     def get_dims_map(self, coords=None):
         if coords is None:
             coords = self._coords
-        stacked_coords = {}
+        stacked_coords = OrderedDict()
         for c in coords:
             if '_' in c:
                 for cc in c.split('_'):
