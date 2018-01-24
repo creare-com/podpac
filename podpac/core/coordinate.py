@@ -1060,8 +1060,8 @@ class Coordinate(BaseCoordinate):
         else:
             return 'NA'
 
-class CoordinateGroup(BaseCoordinate)
-    groups = tl.List(Coordinate, minlen=1)
+class CoordinateGroup(BaseCoordinate):
+    groups = tl.List(trait=tl.Instance(Coordinate), minlen=1)
 
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
