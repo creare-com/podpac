@@ -84,9 +84,8 @@ class Compositor(Node):
             src_subset = self.sources # all
         else:
             # intersecting sources only
-            slc = self.source_coordinates.intersect_ind_slice(
-                coordinates, pad=1)
-            src_subset = self.sources[slc]
+            I = self.source_coordinates.intersect(coordinates, pad=1, ind=True)
+            src_subset = self.sources[I]
 
         if len(src_subset) == 0:
             yield self.initialize_coord_array(coordinates, init_type='nan')

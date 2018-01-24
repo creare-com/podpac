@@ -16,104 +16,76 @@ from collections import OrderedDict
 from podpac.core.units import Units
 from podpac.core.utils import cached_property, clear_cache
 
-class CoordinateException(Exception):
-    pass
-
 def get_timedelta(s):
     a, b = s.split(',')
     return np.timedelta64(int(a), b)
 
-class Coord(tl.HasTraits):
-    """ Base class """
+class BaseCoord(tl.HasTraits):
+    """
+    Base class for a single dimension of coordinates.
+    
+    Attributes
+    ----------
+    units
+    ctype
+    segment_position
+    extents
+    coord_ref_system
+
+    Properties
+    ----------
+    bounds
+    area_bounds
+    delta
+    coordinates
+    size
+    is_descending
+    is_monotonic
+    is_regular
+    is_datetime
+
+    Methods
+    -------
+    intersect
+    intersect_bounds
+
+
+    """
     
     units = Units(allow_none=True, default_value=None)
     
     ctype = tl.Enum(['segment', 'point', 'fence', 'post'], default_value='segment',
-                   help="Default is 'segment'."
-                   "Indication of what coordinates type. "
-                   "This is either a single point ('point' or 'post'), or it"
-                   " is the whole segment between this coordinate and the next"
-                   " ('segment', 'fence'). ")
+                    help="Default is 'segment'. Indication of the coordinates "
+                         "type. This is either a single point ('point' or "
+                         "'post') or the whole segment between this "
+                         "coordinate and the next ('segment', 'fence').")
     
     segment_position = tl.Float(default_value=0.5,
-                                help="Default is 0.5. Where along a segment is"
-                                "the coordinate specified. 0 <= segment <= ."
-                                " For example, if segment=0, the coordinate is"
-                                " specified at the left-most point of the line"
-                                " segement connecting the current coordinate"
-                                " and the next coordinate. If segment=0.5, "
-                                " then the coordinate is specified at the "
-                                " center of this line segement.")
+                                help="Default is 0.5. Where along a segment "
+                                     "is the coordinate specified. 0 <= "
+                                     "segment <= 1. For example, if segment=0, "
+                                     "the coordinate is specified at the "
+                                     "left-most point of the line segement "
+                                     "connecting the current coordinate and "
+                                     "the next coordinate. If segment=0.5, "
+                                     "then the coordinate is specified at the "
+                                     "center of this line segement.")
     
     extents = tl.List(allow_none=True, default_value=None, 
                       help="When specifying non-uniform coordinates, set the "
-                      "bounding box (extents) of the grid in case ctype is "
-                      " 'segment' or 'fence'")
+                           "bounding box (extents) of the grid in case ctype "
+                           "is 'segment' or 'fence'")
     coord_ref_sys = tl.Unicode()
     
     @tl.validate('segment_position')
     def _segment_position_validate(self, proposal):
-        if not 0 <= proposal['value'] <= 1:
-            raise CoordinateException("Coordinate dimension '" + self.dim + \
-            "' must be in the segment position of [0, 1]")
+        val = proposal['value']
+        if not 0 <= val <= 1:
+            raise ValueError(
+                "Invalid segment_position '%s', must be in [0, 1]" % val)
         
-        return proposal["value"]
-        
-    def __repr__(self):
-        return '%s: Bounds[%s, %s], N[%d], ctype["%s"]' % (
-            self.__class__.__name__,
-            self.bounds[0], self.bounds[1],
-            self.size,
-            self.ctype)
-    
-    def __add__(self, other):
-        """ Should be able to add two coords together in some situations
-        Although I'm really not sure about this function... may be a mistake
-        """
-        # In most cases you should simply be able to stack together the 
-        # coordinates into a non-uniform GridCoordinate
-        if not isinstance(other, Coord):
-            raise CoordinateException("Can only add objects of type Coord to "
-                                      "other objects of type Coord.")
-        # TODO: This function should really be using Group Coords to cover
-        # the most general cases (like dependent coords)
-        cs = [self.coordinates, other.coordinates]
-        if self.is_max_to_min != other.is_max_to_min:
-            cs[1] = cs[1][::-1]
-        if self.is_max_to_min:
-            if cs[0].min() > cs[1].max():
-                pass #order is ok
-            elif cs[0].max() < cs[1].min():
-                cs = cs[::-1]
-            else:  # overlapping!
-                print ("Warning, added coordinates overlap")
-        else:
-            if cs[0].min() > cs[1].max():
-                cs = cs[::-1]
-            elif cs[0].max() < cs[1].min():
-                pass #order is ok
-            else:  # overlapping!
-                print ("Warning, added coordinates overlap")
-        return GridCoord(coords=np.concatenate(cs), **self.kwargs)
+        return val
 
-    def __init__(self, coords=None, **kwargs):
-        """
-        bounds is for fence-specification with non-uniform coordinates
-        """
-        super(Coord, self).__init__(coords=coords, **kwargs)
-
-    @property
-    def area_bounds(self):
-        raise NotImplementedError
-
-    @tl.observe('extents', 'ctype', 'segment_position')
-    def _clear_bounds_cache(self, change):
-        clear_cache(self, change, ['bounds'])
-        
-    @tl.observe('coords')
-    def _clear_cache(self, change):
-        clear_cache(self, change, ['coords', 'bounds', 'delta'])
-        
     @property
     def kwargs(self):
         kwargs = {'units': self.units,
@@ -122,166 +94,171 @@ class Coord(tl.HasTraits):
                   'extents': self.extents
         }
         return kwargs
-    
-    coords = tl.Any()
-    @tl.validate("coords")
-    def _coords_validate(self, proposal):
-         raise NotImplementedError()
 
+    @tl.observe('extents', 'ctype', 'segment_position')
+    def _clear_bounds_cache(self, change):
+        clear_cache(self, change, ['bounds'])
+        
+    _cached_coordinates = tl.Instance(np.ndarray, default_value=None, allow_none=True)
+    @property
+    def coordinates(self):
+        raise NotImplementedError()
+    
+    @property
+    def area_bounds(self):
+        raise NotImplementedError
+    
     _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
     @property
     def bounds(self):
         raise NotImplementedError()
-        
-    _cached_delta = tl.Union((tl.Float(), tl.Instance(np.timedelta64)),
-                             allow_none=True)
-    @property
-    def delta(self):
-        raise NotImplementedError()
- 
-    _cached_coords = tl.Any(default_value=None, allow_none=True)
-    @property
-    def coordinates(self):
-        raise NotImplementedError()
 
     @property
     def size(self):
         raise NotImplementedError()
 
-    def intersect_check(self, other_coord, ind):
-        if self.units != other_coord.units:
-            raise NotImplementedError("Still need to implement handling of different units")
-        
-        if np.all(self.bounds == other_coord.bounds):
+    def intersect(self, other, coord_ref_sys=None, ind=False, **kwargs):
+        """ Wraps intersect_bounds using the other coordinates bounds. """
+
+        if self.units != other.units:
+            raise NotImplementedError("Still need to implement handling different units")
+
+        return self.select(other.bounds, ind=ind, **kwargs)
+
+    def select(self, bounds, ind=False, **kwargs):
+        """
+        Get the coordinates within the given bounds.
+
+        Arguments
+        ---------
+        bounds : lo, hi
+            selection bounds
+        ind : bool
+            return slice or indices for selection instead of coordinates
+
+        Returns
+        -------
+        intersection : BaseCoord
+            coord object with selected coordinates (if ind=False)
+        I : slice or list
+            index or slice for the selected coordinates (if ind=True)
+        """
+
+        # full
+        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
             if ind:
-                return [0, self.size]
+                return slice(None, None)
             else:
                 return self
-        
-        ibounds = [
-            np.maximum(self.bounds[0], other_coord.bounds[0]),
-            np.minimum(self.bounds[1], other_coord.bounds[1])]
 
-        if np.any(ibounds[0] > ibounds[1]):
+        # none
+        if self.bounds[0] > bounds[1] or self.bounds[1] < bounds[0]:
             if ind:
-                return [0, 0]
+                return slice(0, 0)
             else:
-                return self.__class__(coords=(self.bounds[0], self.bounds[1], 0)) 
+                return Coord([], **self.kwargs)
 
-    def intersect(self, other_coord, coord_ref_sys=None, pad=1, ind=False):
-        """
-        Returns an Coord object if ind==False
-        Returns a list of start, stop coordinates if ind==True
-        """
-        check = self.intersect_check(other_coord, ind)
-        if check:
-            return check
-        
-        return self.intersect_bounds(other_coord.bounds, pad=pad, ind=ind)
+        # partial, implemented in child classes
+        return self._select(bounds, ind=ind, **kwargs)
 
-    def intersect_bounds(self, bounds, pad=1, ind=False):
-        """
-        Returns an Coord object if ind==False
-        Returns a list of start, stop coordinates if ind==True
-        """
+    def _select(self, bounds, ind=False):
+        """ Partial selection, implemented in child classes. """
         raise NotImplementedError()
-
-    @property
-    def is_max_to_min(self):
-        raise NotImplementedError()
-
-
-class SingleCoord(Coord):
-    """ A single coordinate. """
-
-    coords = tl.Any()
-    @tl.validate("coords")
-    def _coords_validate(self, proposal):
-        val = proposal['value']
-        if np.array(val).size != 1:
-            raise CoordinateException("SingleCoord cannot have multiple values")
-
-        # extract single value
-        val = np.array(val).flatten()[0]
-
-        # convert
-        if isinstance(val, string_types):
-            val = np.datetime64(val)
-
-        # check type
-        if not isinstance(val, (numbers.Number, np.datetime64)):
-            raise CoordinateException("Coords type not recognized")
-        
-        return val
-
-    def __repr__(self):
-        return '%s: Value[%s], ctype["%s"]' % (
-            self.__class__.__name__, self.coords, self.ctype)
 
     def __add__(self, other):
-        if not isinstance(other, (SingleCoord, UniformGridCoord, GridCoord)):
-            raise CoordinateException("Cannot add %s to %s." % (
-                    str(self.__class__), str(other.__class__)))
-        return super(self.__class__, self).__add__(other)
+        if isinstance(other, string_types):
+            other = get_timedelta(other)
+        
+        if isinstance(other, numbers.Number):
+            if self.is_datetime:
+                raise TypeError("Cannot add '%s' to datetime coord" % type(other))
+            return self._add(other)
 
-    @cached_property
-    def bounds(self):
-        bounds = np.array(
-                [self.coords - self.delta, self.coords + self.delta])
-        return bounds
+        elif isinstance(other, np.timedelta64):
+            if not self.is_datetime:
+                raise TypeError("Cannot add timedelta to numerical coord")
+            return self._add(other)
 
-    @property
-    def area_bounds(self):
-        return copy.deepcopy(self.bounds)
+        elif isinstance(other, BaseCoord):
+            if self.is_datetime != other.is_datetime:
+                raise TypeError("Mismatching coordinates types")
+            return self._concat(other)
 
-    @cached_property
-    def delta(self):
-        # Arbitrary
-        if isinstance(self.coords, np.datetime64):
-            dtype = self.coords - self.coords  # Creates timedelta64 object
-            delta = np.array(1, dtype=dtype.dtype)
         else:
-            delta = np.sqrt(np.finfo(np.float32).eps)
-        return delta
-            
-    @cached_property
-    def coordinates(self):
-        return np.atleast_1d(self.coords)
+            raise TypeError("Cannot add '%s' to '%s'" % (
+                other.__class__.__name__, self.__class__.__name__))
 
-    @property
-    def size(self):
-        return 1 
+    def __iadd__(self, other):
+        if isinstance(other, string_types):
+            other = get_timedelta(other)
+        
+        if isinstance(other, numbers.Number):
+            if self.is_datetime:
+                raise TypeError("Cannot add '%s' to datetime coord" % type(other))
+            return self._add_equal(other)
 
-    def intersect_bounds(self, bounds, pad=1, ind=False):
-        """
-        Returns an Coord object if ind==False
-        Returns a list of start, stop coordinates if ind==True
-        """
-        if ind:
-            return [0, 1]
+        elif isinstance(other, np.timedelta64):
+            if not self.is_datetime:
+                raise TypeError("Cannot add timedelta to numerical coord")
+            return self._add_equal(other)
+
+        elif isinstance(other, BaseCoord):
+            return self._concat_equal(other)
+
         else:
-            return self
+            raise TypeError("Cannot add '%s' to '%s'" % (
+                other.__class__.__name__, self.__class__.__name__))
 
-    @property
-    def is_max_to_min(self):
-        return False
+    def _add(self, other):
+        raise NotImplementedError
 
+    def _add_equal(self, other):
+        raise NotImplementedError
 
-class GridCoord(Coord):
-    """ A list of arbitrary coordinates. """
+    def _concat(self, other):
+        raise NotImplementedError
+
+    def _concat_equal(self, other):
+        raise NotImplementedError
+
+    def __repr__(self):
+        return '%s: Bounds[%s, %s], N[%d], ctype["%s"]' % (
+            self.__class__.__name__,
+            self.bounds[0], self.bounds[1],
+            self.size,
+            self.ctype)
+
+class Coord(BaseCoord):
+    """
+    A basic array of coordinates.
+
+    Attributes
+    ----------
+    coords : np.ndarray
+        input coordinate array, must all be the same type.
+        string datetime coordinates are converted to datetime64
+
+    Properties
+    ----------
+    coordinates : np.ndarray
+        the input coords array
+
+    """
+
+    def __init__(self, coords, **kwargs):
+        super(Coord, self).__init__(coords=coords, **kwargs)
 
     coords = tl.Any()
-    @tl.validate("coords")
+    @tl.validate('coords')
     def _coords_validate(self, proposal):
-        if not isinstance(proposal['value'], (tuple, list, np.ndarray)):
-            raise CoordinateException("Coords type not recognized: '%s'" % (
-                type(proposal['value'])))
-
         # squeeze and check dimensions
-        val = np.array(proposal['value']).squeeze()
+        val = np.atleast_1d(np.array(proposal['value']).squeeze())
         if val.ndim != 1:
-            raise CoordinateException("Non-uniform coordinates can only "
-                                      "have 1 dimension, not %d" % val.ndim)
+            raise ValueError(
+                "Invalid coords (ndim=%d, must be ndim=1)" % val.ndim)
+        
+        if val.size == 0:
+            return val
         
         # convert strings to datetime
         if isinstance(val[0], string_types):
@@ -290,24 +267,29 @@ class GridCoord(Coord):
         # check dtype
         if (not np.issubdtype(val.dtype, np.number) and
             not np.issubdtype(val.dtype, np.datetime64)):
-            raise CoordinateException("GridCoord coordinates must all be the "
-                                      "same type")
+            raise TypeError(
+                "coords must all be a number or datetime and must all match")
 
         return val
 
-    def __add__(self, other):
-        if not isinstance(other, (SingleCoord, UniformGridCoord, GridCoord)):
-            raise CoordinateException("Cannot add %s to %s." % (
-                    str(self.__class__), str(other.__class__)))
-        return super(self.__class__, self).__add__(other)
+    @tl.observe('coords')
+    def _clear_cache(self, change):
+        clear_cache(self, change, ['coordinates', 'bounds'])
 
+    @cached_property
+    def coordinates(self):
+        return self.coords
 
     @cached_property
     def bounds(self):
-        if isinstance(self.coords[0], np.datetime64):
-            return np.array([np.min(self.coords), np.max(self.coords)])
+        if self.size == 0:
+            lo, hi = np.nan, np.nan # TODO something arbitrary like -1, 1?
+        elif self.is_datetime:
+            lo, hi = np.min(self.coords), np.max(self.coords)
         else:
-            return np.array([np.nanmin(self.coords), np.nanmax(self.coords)])
+            lo, hi = [np.nanmin(self.coords), np.nanmax(self.coords)]
+
+        return np.array([lo, hi])
 
     @property
     def area_bounds(self):
@@ -316,70 +298,181 @@ class GridCoord(Coord):
         else:
             extents = copy.deepcopy(self.bounds)
         return extents
-        
-    _cached_delta = tl.Instance(np.ndarray, allow_none=True) 
-    @cached_property
-    def delta(self):
-        #print("Warning: delta is not representative for non-uniform coords")
-        return np.atleast_1d(np.array(
-            (self.coords[-1] - self.coords[0]) / float(self.coords.size) \
-            * (1 - 2 * self.is_max_to_min)).squeeze())
- 
-    @cached_property
-    def coordinates(self):
-        return self.coords
-        
+
     @property
     def size(self):
         return self.coords.size
 
-    def intersect_bounds(self, bounds, pad=1, ind=False):
-        """
-        Returns an Coord object if ind==False
-        Returns a list of start, stop coordinates if ind==True
-        """
-
-        gt = self.coordinates >= bounds[0] - self.delta
-        lt = self.coordinates <= bounds[1] + self.delta
-        inds = np.where(gt & lt)[0]
-        if inds.size == 0:
-            if ind:
-                return [0, 0]
-            else:
-                return self.__class__(coords=(self.bounds[0], self.bounds[1], 0))                 
-        min_max_i = [min(inds), max(inds)]
-        #if self.is_max_to_min:
-            #min_max_i = min_max_i[::-1]
-        lefti = np.maximum(0, min_max_i[0] - pad)
-        righti = np.minimum(min_max_i[1] + pad + 1, self.size)
-        if ind:
-            return [int(lefti), int(righti)]
-        else:
-            coords = self.coordinates[lefti:righti]
-            return self.__class__(coords=coords, **self.kwargs)
+    @property
+    def is_datetime(self):
+        return np.issubdtype(self.coords.dtype, np.datetime64)
 
     @property
-    def is_max_to_min(self):
-        if isinstance(self.coords[0], np.datetime64):
-            return self.coords[0] > self.coords[-1]
-        else:
-            non_nan_coords = self.coords[np.isfinite(self.coords)]
-            return non_nan_coords[0] > non_nan_coords[-1]
+    def is_uniform(self):
+        return False
 
-class UniformGridCoord(Coord):
+    @property
+    def is_monotonic(self):
+        return False
+
+    def _select(self, bounds, ind=False, pad=None):
+        # returns a list of indices rather than a slice
+        if pad is not None:
+            # Should we ignore and raise a warning? We could also implement the
+            # padding by finding the necessary bounds increase required to
+            # include the appropriate coordinates wherever they are in the
+            # list. It may not matter or get factored out depending on how
+            # interpolations need to happen.
+            raise NotImplementedError("TODO unsorted Coord pad not implemented")
+
+        gt = self.coordinates >= bounds[0]
+        lt = self.coordinates <= bounds[1]
+        I = np.where(gt & lt)[0]
+        
+        if ind:
+            return I
+        
+        return Coord(self.coordinates[I], **self.kwargs)
+
+    def _add(self, other):
+        return Coord(self.coords + other, **self.kwargs)
+
+    def _add_equal(self, other):
+        self.coords += other
+        return self
+
+    def _concat(self, other):
+        # always returns a Coord object
+
+        # TODO kwargs (units, etc)
+        coords = np.concatenate([self.coordinates, other.coordinates])
+        return Coord(coords, **self.kwargs)
+
+    def _concat_equal(self, other):
+        self.coords = np.concatenate([self.coordinates, other.coordinates])
+        return self
+
+class MonotonicCoord(Coord):
     """
-    A uniformly-spaced coordinates defined by a start, stop, and step/size.
+    An array of monotonically increasing or decreasing coordinates.
+    
+    Attributes
+    ----------
+    coords : np.ndarray
+        input coordinate array; must all be the same type and sorted.
+        string datetime coordinates are converted to datetime64.
+
+    Properties
+    ----------
+    is_uniform : bool
+        False
+    is_monotonic : bool
+        True
+    is_descending : bool
+        Is the coordinates array in monotonitacally decreasing order.
+    """
+
+    @tl.validate("coords")
+    def _coords_validate(self, proposal):
+        # basic validation
+        val = super(MonotonicCoord, self)._coords_validate(proposal)
+
+        # TODO nan?
+        d = (val[1:] - val[:-1]) * (val[0] - val[1])
+        if np.any(d <= 0):
+            raise ValueError("Invalid coords, must be ascending or descending")
+
+        return val
+
+    @cached_property
+    def bounds(self):
+        # TODO nan?
+        if self.size == 0:
+            lo, hi = np.nan, np.nan # TODO something arbitrary like -1, 1?
+        elif self.is_descending:
+            lo, hi = self.coords[-1], self.coords[0]
+        else:
+            lo, hi = self.coords[0], self.coords[-1]
+        return np.array([lo, hi])
+    
+    @property
+    def is_monotonic(self):
+        return True
+
+    @property
+    def is_descending(self):
+        # TODO nan?
+        if self.size == 0:
+            return False
+        return self.coords[0] > self.coords[-1]
+
+    def _select(self, bounds, ind=False, pad=1):
+        gt = self.coordinates >= bounds[0]
+        lt = self.coordinates <= bounds[1]
+        I = np.where(gt & lt)[0]
+
+        if I.size == 0:
+            if ind:
+                return slice(0, 0)
+            else:
+                return Coord([], **self.kwargs)
+        
+        imin = max(0, I.min() - pad)
+        imax = min(self.size, I.max() + pad + 1)
+        slc = slice(imin, imax)
+        
+        if ind:
+            return slc
+
+        return MonotonicCoord(self.coordinates[slc], **self.kwargs)
+
+    def _concat(self, other):
+        # returns a MonotonicCoord if possible, else Coord
+
+        # TODO kwargs (units, etc)
+
+        if other.size == 0:
+            return MonotonicCoord(self.coord, **self.kwargs)
+
+        if other.is_monotonic and self.is_descending == other.is_descending:
+            # TODO only allows [self, other], should we allow [other, self]?
+            if ((self.is_descending and self.bounds[1] > other.bounds[0]) or
+                (not self.is_descending and self.bounds[1] < other.bounds[0])):
+
+                coords = np.concatenate([self.coordinates, other.coordinates])
+                return MonotonicCoord(coord, **self.kwargs)
+            
+        # otherwise return a plain Coord object
+        coords = np.concatenate([self.coordinates, other.coordinates])
+        return Coord(coords, **self.kwargs)
+
+    def _concat_equal(self, other):
+        if other.size == 0:
+            return self
+
+        if other.is_monotonic and self.is_descending == other.is_descending:
+            if ((self.is_descending and self.bounds[1] > other.bounds[0]) or
+                (not self.is_descending and self.bounds[1] < other.bounds[0])):
+
+                self.coords = np.concatenate([self.coordinates, other.coordinates])
+                return self
+        
+        # otherwise
+        raise TypeError("Cannot concatenate '%s' to '%s' in-place" % (
+            other.__class__.__name__, self.__class__.__name__))
+
+class UniformCoord(BaseCoord):
+    """
+    A uniformly-spaced coordinates defined by a start, stop, and step.
 
     Attributes
     ----------
     start : float or np.datetime64
         start coordinate
     stop : float or np.datetime64
-        stop coordinate
-    size : int
-        number of coordinate; can be specified or calculate from the step
-    step : float, np.timedealta64, or None
-        specified delta between coordinates; either size or step is required
+        stop coordinate; will be included if aligned with the start and step
+    delta : float or np.timedelta64
+        delta between coordinates; timedelta string input is parsed
     epsg : TODO, str, unicode, or possibly enum
         <not yet in use>
     
@@ -392,248 +485,185 @@ class UniformGridCoord(Coord):
         the start, stop, and size.
     """
 
-    start = tl.Union((tl.Float(), tl.Instance(np.datetime64)))
-    stop = tl.Union((tl.Float(), tl.Instance(np.datetime64)))
-    num = tl.Integer(allow_none=True, default_value=None)
-    step = tl.Union((tl.Float(), tl.Instance(np.timedelta64)),
-                    allow_none=True, default_value=None)
-    epsg = tl.Unicode(allow_none=True, default_value=None) # or enum?
+    start = tl.Any()
+    stop = tl.Any()
+    delta = tl.Any()
+    epsg = tl.Any() # TODO
 
-    @tl.validate('num')
-    def _validate_num(self, d):
-        if self.step is not None:
-            raise CoordinateException(
-                "UniformGridCoord requires num or step, not both")
-        return d['value']
+    def __init__(self, start, stop, delta, epsg=None, **kwargs):
+        super(UniformCoord, self).__init__(
+            start=start, stop=stop, delta=delta, epsg=epsg, **kwargs)
 
-    @tl.validate('step')
-    def _validate_step(self, d):
-        if self.num is not None:
-            raise CoordinateException(
-                "UniformGridCoord requires num or step, not both")
-        return d['value']
+    @tl.validate('delta')
+    def _validate_delta(self, d):
+        val = d['value']
 
-    @tl.observe('start', 'stop', 'num', 'step')
+        # type checking and conversion
+        if isinstance(val, string_types):
+            val = get_timedelta(val)
+        elif isinstance(val, np.timedelta64):
+            pass
+        elif isinstance(val, numbers.Number):
+            val = float(val)
+        else:
+            raise TypeError(
+                "delta must be number or timedelta, not '%s'" % type(val))
+
+        # check nonzero
+        if val == val*0:
+            raise ValueError("UniformCoord delta must be nonzero")
+        
+        return val
+
+    @tl.validate('start', 'stop')
+    def _validate_start_stop(self, d):
+        val = d['value']
+        
+        # type checking and conversion
+        if isinstance(val, string_types):
+            val = np.datetime64(val)
+        elif isinstance(val, np.datetime64):
+            pass
+        elif isinstance(val, numbers.Number):
+            val = float(val)
+        else:
+            raise TypeError(
+                "delta must be number or datetime, not '%s'" % type(val))
+
+        return val
+
+    @tl.observe('start', 'stop', 'delta')
     def _clear_cache(self, change):
-        clear_cache(self, change, ['coords', 'bounds', 'delta'])
+        clear_cache(self, change, ['coordinates', 'bounds'])
 
-    def __init__(self, start=None, stop=None, num=None, epsg=None, step=None,
-                 coords=None, **kwargs):
-        """
-        """
-
-        if coords is not None:
-            start, stop, size, epsg = self._parse_coords(coords)
-        else:
-            if isinstance(start, string_types):
-                start = np.datetime64(start)
-            if isinstance(stop, string_types):
-                stop = np.datetime64(stop)
-            if isinstance(step, string_types):
-                step = get_timedelta(step)
-
-        if num is None and step is None:
-            raise CoordinateException("UniformGridCoord requires num or step")
-
-        super(Coord, self).__init__(
-            start=start, stop=stop, num=num, epsg=epsg, step=step, **kwargs)
-
-    def __add__(self, other):
-        if not isinstance(other, (SingleCoord, UniformGridCoord, GridCoord)):
-            raise CoordinateException("Cannot add %s to %s." % (
-                    str(self.__class__), str(other.__class__)))
-        if isinstance(other, UniformGridCoord):
-            pass # TODO: add some optimizations here
-        return super(self.__class__, self).__add__(other)
-
-    @property
-    def coords(self):
-        """
-        Either (start, stop, size) or (start, stop, size, epsg)
-        """
-        coords = self.start, self.start + self.delta*self.size, self.size
-        if self.epsg is not None:
-            coords = coords + (self.epsg,)
-        return coords
-
-    def _parse_coords(self, coords):
-        if not isinstance(coords, (tuple, list)) or len(coords) not in [3, 4]:
-            raise CoordinateException(
-                'Invalid UniformGridCoord coords argument; expected '
-                '(start, stop, num) or (start, stop, num, epsg)')
-        
-        start, stop, num = coords[:3]
-        if len(coords) == 4:
-            epsg = coords[3]
-        else:
-            epsg = None
-
-        if isinstance(start, np.ndarray) and start.size == 1:
-            start = start.flatten()[0]
-        
-        if isinstance(stop, np.ndarray) and stop.size == 1:
-            stop = stop.flatten()[0]
-    
-        return start, stop, num, epsg
+    @cached_property
+    def coordinates(self):
+        return np.arange(self.bounds[0], self.bounds[1]+self.delta, self.delta)
 
     @cached_property
     def bounds(self):
-        if self.is_max_to_min:
-            return np.array([self.stop, self.start])
-        else:
-            return np.array([self.start, self.stop])
+        lo = self.start
+        hi = self.start + self.delta * (self.size - 1)
+        if self.is_descending:
+            lo, hi = hi, lo
+
+        return np.array([lo, hi])
 
     @property
     def area_bounds(self):
         extents = copy.deepcopy(self.bounds)
         if self.ctype in ['fence', 'segment']:
             p = self.segment_position
-            # for stacked coodinates
-            extents += np.array([-p, 1 - p]) * self.delta
+            extents[0] -= p * self.delta
+            extents[1] += (1-p) * self.delta
         return extents
-    
-    @cached_property
-    def delta(self):
-        if self.step is not None:
-            delta = self.step
-        else:
-            delta = (self.stop - self.start + 1) / self.num
-            if self.is_max_to_min:
-                delta *= -1 # TODO is this correct
-
-        return delta
 
     @property
     def size(self):
-        if self.num is not None:
-            size = self.num
-        else:
-            size = max(0, int(np.ceil((self.start - self.stop) / self.step)))
+        return max(0, int(np.floor((self.stop-self.start)/self.delta)+1))
 
-        return size
- 
-    @cached_property
-    def coordinates(self):
-        if isinstance(self.start, np.datetime64):
-            # TODO datetime should include upper boundary?
-            coords = np.arange(self.start, self.stop+self.delta, self.delta)
-        elif self.step is not None:
-            coords = np.arange(self.start, self.stop+self.delta, self.step)
-        else:
-            coords = np.linspace(self.start, self.stop, self.size)
-        return coords
+    @property
+    def is_datetime(self):
+        return isinstance(self.start, np.datetime64)
 
-    def intersect_bounds(self, bounds, pad=1, ind=False):
-        """
-        Returns an Coord object if ind==False
-        Returns a list of start, stop coordinates if ind==True
-        """
+    @property
+    def is_uniform(self):
+        return True
+    
+    @property
+    def is_monotonic(self):
+        return True
 
-        bounds[0] = max(self.bounds[0], bounds[0])
-        bounds[1] = min(self.bounds[1], bounds[1])
+    @property
+    def is_descending(self):
+        return self.stop < self.start
 
-        imin = np.floor((bounds[0] - self.bounds[0]) / self.delta)
-        imax = np.ceil((self.bounds[1] - bounds[1]) / self.delta)
+    def _select(self, bounds, ind=False, pad=1):
+        lo = max(bounds[0], self.bounds[0])
+        hi = min(bounds[1], self.bounds[1])
+        
+        imin = int(np.ceil((lo - self.bounds[0]) / self.delta))
+        imax = int(np.ceil((hi - self.bounds[0]) / self.delta))
+
+        imin = np.clip(imin-pad, 0, self.size)
+        imax = np.clip(imax+pad, 0, self.size)
+
+        if self.is_descending:
+            imin, imax = imax, imin
 
         if ind:
-            if self.is_max_to_min:
-                imin, imax = imax, imin
-            imin = int(min(self.size, max(0, imin - pad)))
-            imax = int(min(self.size, max(0, self.size - imax + pad)))
-            return [imin, imax]
+            return slice(imin, imax)
+            
+        start = self.bounds[0] + imin*self.delta
+        stop = self.bounds[0] + (imax-1)*self.delta
+        return UniformCoord(start, stop, self.delta, **self.kwargs)
 
-        cmin = max(self.bounds[0], self.bounds[0]+max(0,imin-pad)*self.delta)
-        cmax = min(self.bounds[1], self.bounds[1]-max(0,imax-pad)*self.delta)
-        if self.is_max_to_min:
-            cmin, cmax = cmax, cmin
+    def _add(self, other):
+        return UniformCoord(start+other, stop+other, self.delta, **self.kwargs)
 
-        new_crd = UniformGridCoord(
-            start=cmin, stop=cmax, step=self.delta, **self.kwargs)
+    def _add_equal(self, other):
+        self.start += other
+        self.stop += other
+        return self
+
+    def _concat(self, other):
+        # tries to return UniformCoord first, then MonotonicCoord, then Coord
+
+        if other.size == 0:
+            return UniformCoord(
+                self.start, self.stop, self.delta, **self.kwargs)
+
+        if isinstance(other, UniformCoord):
+            # TODO only allows [self, other], should we allow [other, self]?
+            # using the sizes as a trick to check that they line up perfectly
+            size = np.floor((other.stop - self.start) / self.delta) + 1
+            if self.size + other.size == size:
+                return UniformCoord(
+                    self.start, other.stop, self.delta, **self.kwargs)
+
+        if isinstance(other, MonotonicCoord):
+            return MonotonicCoord._concat(self, other)
         
-        return new_crd
-        
-    @property
-    def is_max_to_min(self):
-        return self.start > self.stop
+        # otherwise
+        coords = np.concatenate([self.coordinates, other.coordinates])
+        return Coord(coords, **self.kwargs)
 
-class RotatedGridCoord(Coord):
-    coords = tl.Any()
-    @tl.validate("coords")
-    def _coords_validate(self, proposal):
-         raise NotImplementedError()
+    def _concat_equal(self, other):
+        if other.size == 0:
+            return self
 
-    @property
-    def bounds(self):
-        raise NotImplementedError()
+        if isinstance(other, UniformCoord):
+            size = np.floor((other.stop - self.start) / self.delta) + 1
+            if self.size + other.size == size:
+                self.stop = other.stop
+                return self
 
-    @property
-    def delta(self):
-        raise NotImplementedError()
- 
-    @property
-    def coordinates(self):
-        raise NotImplementedError()
+        raise TypeError("Cannot concatenate '%s' to '%s' in-place" % (
+            other.__class__.__name__, self.__class__.__name__))
 
-    @property
-    def size(self):
-        raise NotImplementedError()
+def coord_linspace(start, stop, num, **kwargs):
+    """
+    Convencence wrapper to get a UniformCoord with the given bounds and size.
+    Will not work with np.datetime64 or string datetime bounds.
+    """
 
-    def intersect_bounds(self, bounds, pad=1, ind=False):
-        """
-        Returns an Coord object if ind==False
-        Returns a list of start, stop coordinates if ind==True
-        """
-        raise NotImplementedError()
+    if not isinstance(num, (int, long)):
+        raise TypeError("num must be an integer, not '%s'" % type(num))
+    delta = float(stop - start) / (num-1)
+    return UniformCoord(start, stop, delta, **kwargs)
 
-    @property
-    def is_max_to_min(self):
-        raise NotImplementedError()
-
-
-class GroupCoord(Coord):
-    coords = tl.Any()
-    @tl.validate("coords")
-    def _coords_validate(self, proposal):
-         raise NotImplementedError()
-
-    @property
-    def bounds(self):
-        raise NotImplementedError()
-
-    @property
-    def delta(self):
-        raise NotImplementedError()
- 
-    @property
-    def coordinates(self):
-        raise NotImplementedError()
-
-    @property
-    def size(self):
-        raise NotImplementedError()
-
-    def intersect_bounds(self, bounds, pad=1, ind=False):
-        """
-        Returns an Coord object if ind==False
-        Returns a list of start, stop coordinates if ind==True
-        """
-        raise NotImplementedError()
-
-    @property
-    def is_max_to_min(self):
-        raise NotImplementedError()
-
-def make_coord(coords, **kwargs): 
-    """ Coord factory """
-
-    if isinstance(coords, Coord):
-        pass
-    elif np.array(coords).size == 1:
-        coords = SingleCoord(coords, **kwargs)
+def _make_coord(arg, **kwargs):
+    if isinstance(arg, BaseCoord):
+        return arg
+    
+    elif isinstance(arg, tuple):
+        if isinstance(arg[2], (int, long)):
+            return coord_linspace(*arg, **kwargs)
+        else:
+            return UniformCoord(*arg, **kwargs)
+    
     else:
-        coords = GridCoord(coords, **kwargs)
-        
-    return coords
+        return Coord(arg, **kwargs)
 
 class Coordinate(tl.HasTraits):
     """
@@ -686,7 +716,7 @@ class Coordinate(tl.HasTraits):
             if sys.version_info.major < 3:
                 if order is None:
                     if len(kwargs) > 1:
-                        raise CoordinateException(
+                        raise TypeError(
                             "Need to specify the order of the coordinates "
                             "using 'order'.")
                     else:
@@ -698,21 +728,21 @@ class Coordinate(tl.HasTraits):
             else:
                 coords = OrderedDict(kwargs)
         elif not isinstance(coords, OrderedDict):
-            raise CoordinateException("coords needs to be an "
-                    "OrderedDict, not " + str(type(coords)))
+            raise TypeError(
+                "coords must be an OrderedDict, not %s" % type(coords))
 
         self.dims_map = self.get_dims_map(coords)
         _coords = self.unstack_dict(coords)
+        
+        kw = {
+            'ctype': ctype,
+            'coord_ref_sys': coord_ref_sys,
+            'segment_position':segment_position}
+
         for key, val in _coords.items():
-            if not isinstance(_coords[key], Coord):
-                _coords[key] = make_coord(coords=val, ctype=ctype,
-                                     coord_ref_sys=coord_ref_sys, 
-                                     segment_position=segment_position,
-                                     )
-        super(Coordinate, self).__init__(_coords=_coords,
-                                         coord_ref_sys=coord_ref_sys,
-                                         segment_position=segment_position,
-                                         ctype=ctype)
+            _coords[key] = _make_coord(val, **kw)
+
+        super(Coordinate, self).__init__(_coords=_coords, **kw)
     
     def __repr__(self):
         rep = str(self.__class__.__name__)
@@ -737,33 +767,31 @@ class Coordinate(tl.HasTraits):
             if key not in self.dims_map.values():  # stacked dim
                 if self.dims_map[key] not in stack_dims:
                     stack_dims[self.dims_map[key]] = val.size
-                else:
-                    if val.size != stack_dims[self.dims_map[key]]:
-                        raise CoordinateException("Stacked dimensions need to"
-                                                  " have the same size:"
-                                                  " %d != %d for %s in %s" % (
-                                                   val.size, 
-                                                   stack_dims[self.dims_map[key]],
-                                                   key, self.dims_map[key]))
+                elif val.size != stack_dims[self.dims_map[key]]:
+                    raise ValueError(
+                        "Stacked dimensions size mismatch for '%s' in '%s' "
+                        "(%d != %d)" % (key, self.dims_map[key], val.size,
+                                        stack_dims[self.dims_map[key]]))
         return proposal['value']
         
     def _validate_dim(self, dim, seen_dims):
         if dim not in self._valid_dims:
-            raise CoordinateException(
-                "The '%s' dimension is not a valid dimension %s" % (
-                    dim, self._valid_dims))
+            raise ValueError("Invalid dimension '%s', expected one of %s" % (
+                dim, self._valid_dims))
         if dim in seen_dims:
-            raise CoordinateException("The dimensions '" + dim + \
-            "' cannot be repeated.")
+            raise ValueError("The dimension '%s' cannot be repeated." % dim)
         seen_dims.append(dim)
     
     def _validate_val(self, val, dim='', dims=[]):
-        # Dependent array, needs to be an xarray.DataArray
-        if isinstance(val, xr.DataArray):
-            for key in val._coords: 
-                if key not in dims:
-                    raise CoordinateException("Dimensions of dependent" 
-                    " coordinate DatArray needs to be in " + str(dims))
+        if not isinstance(val, BaseCoord):
+            raise TypeError("Invalid coord type '%s'" % val.__class__.__name__)
+        # # Dependent array, needs to be an xarray.DataArray
+        # if isinstance(val, xr.DataArray):
+        #     for key in val._coords: 
+        #         if key not in dims:
+        #             raise ValueError(
+        #                 "Dimensions of dependent coordinate DatArray needs to "
+        #                 "be in %s" % dims)
    
     def get_dims_map(self, coords=None):
         if coords is None:
@@ -790,14 +818,14 @@ class Coordinate(tl.HasTraits):
                 for i, k in enumerate(keys):
                     new_crds[k] = val[i]
                     if check_dim_repeat and k in seen_dims:
-                        raise CoordinateException("Dimension %s " 
-                                "cannot be repeated." % k)
+                        raise ValueError(
+                            "The dimension '%s' cannot be repeated." % dim)
                     seen_dims.append(k)
             else:
                 new_crds[key] = val
                 if check_dim_repeat and key in seen_dims:
-                    raise CoordinateException("Dimension %s " 
-                        "cannot be repeated." % key)
+                    raise ValueError(
+                        "The dimension '%s' cannot be repeated." % key)
                 seen_dims.append(key)
 
         return new_crds
@@ -834,10 +862,9 @@ class Coordinate(tl.HasTraits):
             self.dims_map = dims_map
             try:
                 self._coords_validate({'value': self._coords})
-            except CoordinateException as e:
+            except Exception as e:
                 self.dims_map = tmp
                 raise(e)
-                
             
             return self
 
@@ -848,49 +875,40 @@ class Coordinate(tl.HasTraits):
             self.dims_map = {v:v for v in self.dims_map}
             return self
 
-    def intersect(self, other, coord_ref_sys=None, pad=1):
-        new_crds = OrderedDict()
-        for i, d in enumerate(self._coords):
-            if isinstance(pad, (list, tuple)):
-                spad = pad[i]
-            elif isinstance(pad, dict):
-                spad = pad[d]
-            else:
-                spad = pad
-            
-            if  d not in other._coords:
-                new_crds[d] = self._coords[d]
-                continue
-            else:
-                new_crds[d] = self._coords[d].intersect(other._coords[d],
-                                                        coord_ref_sys, pad=spad)
-        stacked_coords = self.stack_dict(new_crds)
-        return self.__class__(stacked_coords, **self.kwargs)
+    def intersect(self, other, coord_ref_sys=None, pad=1, ind=False):
+        if ind:
+            I = []
+        else:
+            d = OrderedDict()
 
-    def intersect_ind_slice(self, other, coord_ref_sys=None, pad=1):
-        slc = []
-        for j, d in enumerate(self._coords):
+        for i, dim in enumerate(self._coords):
             if isinstance(pad, (list, tuple)):
                 spad = pad[j]
             elif isinstance(pad, dict):
                 spad = pad[d]
             else:
                 spad = pad
-                
-            if d not in other._coords:
-                slc.append(slice(None, None))
-                continue
-            else:    
-                ind = self._coords[d].intersect(other._coords[d], 
-                                                coord_ref_sys, ind=True, pad=spad)
-                # if self._coords[d].regularity == 'dependent':  # untested
-                #     i = self.coordinates.dims.index(d)
-                #     ind = [inds[i] for inds in ind]
+
+            if dim not in other._coords:
                 if ind:
-                    slc.append(slice(ind[0], ind[1]))
+                    I.append(slice(None, None))
                 else:
-                    slc.append(slice(0, 0))
-        return slc
+                    d[dim] = self._coords[dim]
+                continue
+            
+            intersection = self._coords[dim].intersect(
+                other._coords[dim], coord_ref_sys, ind=ind, pad=spad)
+            
+            if ind:
+                I.append(intersection)
+            else:
+                d[dim] = intersection
+        
+        if ind:
+            return I
+        else:
+            coords = self.stack_dict(d)
+            return Coordinate(coords, **self.kwargs)
     
     @property
     def kwargs(self):
@@ -994,8 +1012,9 @@ class Coordinate(tl.HasTraits):
     
     def __add__(self, other):
         if not isinstance(other, Coordinate):
-            raise CoordinateException("Can only add Coordinate objects"
-                   " together.")
+            raise TypeError(
+                "Unsupported type '%s', can only add Coordinate object" % (
+                    other.__class__.__name__))
         new_coords = copy.deepcopy(self._coords)
         for key in other._coords:
             if key in self._coords:
@@ -1038,21 +1057,17 @@ class Coordinate(tl.HasTraits):
         else:
             return 'NA'
 
-# alias
-
 if __name__ == '__main__': 
     
-    U = UniformGridCoord
+    coord = coord_linspace(1, 10, 10)
+    coord_left = coord_linspace(-2, 7, 10)
+    coord_right = coord_linspace(4, 13, 10)
+    coord_cent = coord_linspace(4, 7, 4)
+    coord_cover = coord_linspace(-2, 13, 15)
     
-    coord = U(1, 10, 10) # or U(start=1, stop=10, num=10)
-    coord_left = U(-2, 7, 10)
-    coord_right = U(4, 13, 10)
-    coord_cent = U(4, 7, 4)
-    coord_cover = U(-2, 13, 15)
-    
-    c = coord.intersect(coord_left)
-    c = coord.intersect(coord_right)
-    c = coord.intersect(coord_cent)
+    print(coord.intersect(coord_left))
+    print(coord.intersect(coord_right))
+    print(coord.intersect(coord_cent))
     
     c = Coordinate(lat=coord, lon=coord, order=('lat', 'lon'))
     c_s = Coordinate(lat_lon=(coord, coord))
@@ -1066,8 +1081,10 @@ if __name__ == '__main__':
     
     try:
         c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 11)))
-    except CoordinateException as e:
+    except ValueError, e:
         print(e)
+    else:
+        raise Exception('expceted exception')
     
     c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=(0, 1, 2), order=('lat_lon', 'time'))
     c2 = Coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
@@ -1078,28 +1095,28 @@ if __name__ == '__main__':
     print (c.unstack().get_shape(c2))
     print (c.unstack().get_shape(c2.unstack()))
     
-    c = Coordinate(lat=U(0, 1, 10), lon=U(0, 1, 10), time=U(0, 1, 2), order=('lat', 'lon', 'time'))
+    c = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), time=(0, 1, 2), order=('lat', 'lon', 'time'))
     print(c.stack(['lat', 'lon']))
     try:
         c.stack(['lat','time'])
-        raise Exception
-    except CoordinateException as e:
+    except Exception, e:
         print(e)
-        pass
+    else:
+        raise Exception('expected exception')
 
     try:
         c.stack(['lat','time'], copy=False)
-        raise Exception
-    except CoordinateException as e:
+    except Exception, e:
         print(e)
-        pass
+    else:
+        raise Exception('expected exception')
 
-    coord_left = U(-2, 7, 3)
-    coord_right = U(8, 13, 3)
-    coord_right2 = U(13, 8, 3)
-    coord_cent = U(4, 11, 4)
-    coord_pts = SingleCoord(15) # or make_coord(15)
-    coord_irr = GridCoord(np.random.rand(5)) # or make_coord(np.random.rand(5))
+    coord_left = coord_linspace()(-2, 7, 3)
+    coord_right = coord_linspace()(8, 13, 3)
+    coord_right2 = coord_linspace()(13, 8, 3)
+    coord_cent = coord_linspace()(4, 11, 4)
+    coord_pts = Coord(15)
+    coord_irr = Coord(np.random.rand(5))
     
     print ((coord_left + coord_right).coordinates)
     print ((coord_right + coord_left).coordinates)
@@ -1108,8 +1125,8 @@ if __name__ == '__main__':
     print ((coord_left + coord_pts).coordinates)
     print (coord_irr + coord_pts + coord_cent)
 
-    c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=U(0, 1, 2), order=('lat_lon', 'time'))
-    c2 = Coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
+    c = Coordinate(lat_lon=(Ul(0, 1, 10), Ul(0, 1, 10)), time=Ul(0, 1, 2), order=('lat_lon', 'time'))
+    c2 = Coordinate(lat_lon=(Ul(0.5, 1.5, 15), Ul(0.1, 1.1, 15)))
 
     print (c.replace_coords(c2))
     print (c.replace_coords(c2.unstack()))

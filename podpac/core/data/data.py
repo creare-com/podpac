@@ -72,7 +72,7 @@ class DataSource(Node):
         # interpolation method
         pad = 1#self.interpolation != 'nearest'
         coords_subset = self.native_coordinates.intersect(coordinates, pad=pad)
-        coords_subset_slc = self.native_coordinates.intersect_ind_slice(coordinates, pad=pad)
+        coords_subset_slc = self.native_coordinates.intersect(coordinates, pad=pad, ind=True)
         
         # If they do not intersect, we have a shortcut
         if np.prod(coords_subset.shape) == 0:
@@ -127,7 +127,6 @@ class DataSource(Node):
     
     def interpolate_data(self, data_src, coords_src, coords_dst):
         # TODO: implement for all of the designed cases (points, etc)
-        #import ipdb;ipdb.set_trace()
         data_dst = self.output
         
         # This a big switch, funneling data to various interpolation routines
@@ -391,13 +390,13 @@ if __name__ == "__main__":
     arr = np.random.rand(16, 11)
     lat = np.random.rand(16)
     lon = np.random.rand(16)
-    coord = Coordinate(lat_lon=(lat, lon), time=np.linspace(0, 10, 11), 
+    coord = Coordinate(lat_lon=(lat, lon), time=(0, 10, 11), 
                        order=['lat_lon', 'time'])
     node = NumpyArray(source=arr, native_coordinates=coord)
     #a1 = node.execute(coord)
 
-    coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8))
-    coordt = Coordinate(time=(3,5, 2))
+    coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=('lat', 'lon'))
+    coordt = Coordinate(time=(3, 5, 2))
 
     at = node.execute(coordt)
     ag = node.execute(coordg)
