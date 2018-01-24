@@ -117,6 +117,22 @@ class BaseCoord(tl.HasTraits):
     def size(self):
         raise NotImplementedError()
 
+    @property
+    def is_datetime(self):
+        raise NotImplementedError
+
+    @property
+    def is_monotonic(self):
+        raise NotImplementedError
+
+    @property
+    def rasterio_regularity(self):
+        raise NotImplementedError
+
+    @property
+    def scipy_regularity(self):
+        raise NotImplementedError
+
     def intersect(self, other, coord_ref_sys=None, ind=False, **kwargs):
         """ Wraps intersect_bounds using the other coordinates bounds. """
 
@@ -144,8 +160,15 @@ class BaseCoord(tl.HasTraits):
             index or slice for the selected coordinates (if ind=True)
         """
 
+        # empty
+        if self.size == 0:
+            if ind:
+                return slice(None, None)
+            else:
+                return self
+
         # full
-        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
+        if self.size == 0 or self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
             if ind:
                 return slice(None, None)
             else:
@@ -283,7 +306,8 @@ class Coord(BaseCoord):
     @cached_property
     def bounds(self):
         if self.size == 0:
-            lo, hi = np.nan, np.nan # TODO something arbitrary like -1, 1?
+            # TODO or is it better to do something arbitrary like -1, 1?
+            lo, hi = np.nan, np.nan
         elif self.is_datetime:
             lo, hi = np.min(self.coords), np.max(self.coords)
         else:
@@ -308,12 +332,16 @@ class Coord(BaseCoord):
         return np.issubdtype(self.coords.dtype, np.datetime64)
 
     @property
-    def is_uniform(self):
+    def is_monotonic(self):
         return False
 
     @property
-    def is_monotonic(self):
-        return False
+    def rasterio_regularity(self):
+        return self.size == 1
+
+    @property
+    def scipy_regularity(self):
+        return True
 
     def _select(self, bounds, ind=False, pad=None):
         # returns a list of indices rather than a slice
@@ -364,8 +392,6 @@ class MonotonicCoord(Coord):
 
     Properties
     ----------
-    is_uniform : bool
-        False
     is_monotonic : bool
         True
     is_descending : bool
@@ -565,10 +591,6 @@ class UniformCoord(BaseCoord):
     @property
     def is_datetime(self):
         return isinstance(self.start, np.datetime64)
-
-    @property
-    def is_uniform(self):
-        return True
     
     @property
     def is_monotonic(self):
@@ -577,6 +599,14 @@ class UniformCoord(BaseCoord):
     @property
     def is_descending(self):
         return self.stop < self.start
+
+    @property
+    def rasterio_regularity(self):
+        return True
+
+    @property
+    def scipy_regularity(self):
+        return True
 
     def _select(self, bounds, ind=False, pad=1):
         lo = max(bounds[0], self.bounds[0])
