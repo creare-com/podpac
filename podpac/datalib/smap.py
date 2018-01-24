@@ -17,7 +17,6 @@ import h5py
 # Internal dependencies
 import podpac
 from podpac.core.data import type as datatype
-from podpac.core.coordinate import UniformGridCoord as UGC
 
 # Optional Dependencies
 try:
@@ -537,9 +536,11 @@ class SMAPBestAvailable(podpac.OrderedCompositor):
 
 if __name__ == '__main__':
     
+    from podpac.core.coordinate import UniformCoord as UC
+
     coordinates_world = \
-        podpac.Coordinate(lat=UGC(-90, 90, step=1.),
-                          lon=UGC(-180, 180, step=1.),
+        podpac.Coordinate(lat=UC(-90, 90, 1.),
+                          lon=UC(-180, 180, 1.),
                           time='2017-10-10T12:00:00', 
                           order=['lat', 'lon', 'time'])    
     smap = SMAP(interpolation='nearest_preview', product='SPL4SMAU.003')
