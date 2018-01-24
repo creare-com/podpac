@@ -76,7 +76,7 @@ class Node(tl.HasTraits):
     def shape(self):
         # Changes here likely will also require changes in initialize_output_array
         ev = self.evaluated_coordinates
-        nv = self.native_coordinates
+        nv = self._trait_values.get('native_coordinates',  None)
         if ev is not None and nv is not None:
             return nv.get_shape(ev)
         elif ev is not None and nv is None:
@@ -115,7 +115,7 @@ class Node(tl.HasTraits):
             coords = self.evaluated_coordinates
         if not isinstance(coords, (Coordinate)):
             coords = Coordinate(coords)
-        if self.native_coordinates is not None:
+        if self._trait_values.get("native_coordinates", None) is not None:
             crds = self.native_coordinates.replace_coords(coords).coords
         else:
             crds = coords.coords        
