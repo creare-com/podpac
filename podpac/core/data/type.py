@@ -429,7 +429,6 @@ class S3Source(podpac.DataSource):
     temp_file_cleanup = tl.List()
     return_type = tl.Enum(['file_handle', 'path'], default_value='path')
     
-
     @tl.default('node')
     def node_default(self):
         if 'source' in self.node_kwargs:

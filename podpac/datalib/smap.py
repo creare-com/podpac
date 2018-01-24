@@ -17,6 +17,7 @@ import h5py
 # Internal dependencies
 import podpac
 from podpac.core.data import type as datatype
+from podpac.core.coordinate import UniformGridCoord as UGC
 
 # Optional Dependencies
 try:
@@ -535,9 +536,20 @@ class SMAPBestAvailable(podpac.OrderedCompositor):
     
 
 if __name__ == '__main__':
+    
+    coordinates_world = \
+        podpac.Coordinate(lat=UGC(-90, 90, step=1.),
+                          lon=UGC(-180, 180, step=1.),
+                          time='2017-10-10T12:00:00', 
+                          order=['lat', 'lon', 'time'])    
+    smap = SMAP(interpolation='nearest_preview', product='SPL4SMAU.003')
+    o = smap.execute(coordinates_world)
+    print("done")
+    
+    
     s5 = SMAPSentinelS3(interpolation='nearest_preview')
     smapba = SMAPBestAvailable(interpolation='nearest_preview')
-    smap = SMAP(interpolation='nearest_preview', product='SPL4SMAU.003')
+    
  
     s55 = s5.sources[6]
     s5591 = s55.sources[91]
@@ -584,11 +596,7 @@ if __name__ == '__main__':
     #t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
     #o2 = smap.execute(t_coords)    
     
-    coordinates_world = \
-        podpac.Coordinate(lat=(-90, 90, 1.),
-                          lon=(-180, 180, 1.),
-                          time='2017-10-10T12:00:00', 
-                          order=['lat', 'lon', 'time'])
+
     
     porosity = SMAPPorosity()
     o = porosity.execute(coordinates_world)    
