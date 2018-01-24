@@ -139,6 +139,13 @@ class BaseCoord(tl.HasTraits):
         if self.units != other.units:
             raise NotImplementedError("Still need to implement handling different units")
 
+        # no valid other bounds, empty
+        if other.size == 0
+            if ind:
+                return slice(None, None)
+            else:
+                return Coord([], **self.kwargs)
+
         return self.select(other.bounds, ind=ind, **kwargs)
 
     def select(self, bounds, ind=False, **kwargs):
@@ -161,7 +168,7 @@ class BaseCoord(tl.HasTraits):
         """
 
         # empty
-        if self.size == 0:
+        if self.size == 0 
             if ind:
                 return slice(None, None)
             else:
