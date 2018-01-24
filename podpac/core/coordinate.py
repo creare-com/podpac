@@ -140,7 +140,7 @@ class BaseCoord(tl.HasTraits):
             raise NotImplementedError("Still need to implement handling different units")
 
         # no valid other bounds, empty
-        if other.size == 0
+        if other.size == 0:
             if ind:
                 return slice(None, None)
             else:
@@ -168,7 +168,7 @@ class BaseCoord(tl.HasTraits):
         """
 
         # empty
-        if self.size == 0 
+        if self.size == 0: 
             if ind:
                 return slice(None, None)
             else:
@@ -1127,7 +1127,7 @@ if __name__ == '__main__':
     
     try:
         c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 11)))
-    except ValueError, e:
+    except ValueError as e:
         print(e)
     else:
         raise Exception('expceted exception')
@@ -1145,14 +1145,14 @@ if __name__ == '__main__':
     print(c.stack(['lat', 'lon']))
     try:
         c.stack(['lat','time'])
-    except Exception, e:
+    except Exception as e:
         print(e)
     else:
         raise Exception('expected exception')
 
     try:
         c.stack(['lat','time'], copy=False)
-    except Exception, e:
+    except Exception as e:
         print(e)
     else:
         raise Exception('expected exception')

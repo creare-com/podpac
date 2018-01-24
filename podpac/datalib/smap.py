@@ -17,6 +17,7 @@ import h5py
 # Internal dependencies
 import podpac
 from podpac.core.data import type as datatype
+from podpac.core import authentication
 
 # Optional Dependencies
 try:
@@ -62,6 +63,20 @@ SMAP_BASE_URL = 'https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP'
 
 
 class SMAPSource(datatype.PyDAP):
+    auth_session = tl.Instance(authentication.EarthDataSession)
+    auth_class = tl.Type(authentication.EarthDataSession)
+    
+    @tl.default('auth_session')
+    def _auth_session_default(self):
+        session = self.auth_class(
+                username=self.username, password=self.password)
+        # check url
+        try:
+            session.get(self.source + '.dds')
+        except:
+            return None
+        return session    
+    
     date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
     rootdatakey = tl.Unicode(u'Soil_Moisture_Retrieval_Data_')    
     @tl.default('rootdatakey')
@@ -535,6 +550,24 @@ class SMAPBestAvailable(podpac.OrderedCompositor):
     
 
 if __name__ == '__main__':
+    from podpac.core import authentication
+    ed_session = authentication.EarthDataSession()
+    #ed_session.update_login()
+    
+    from pydap.cas.urs import setup_session
+    from pydap.client import open_url
+    source = 'https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL4SMGP.003/2015.04.07/SMAP_L4_SM_gph_20150407T013000_Vv3030_001.h5'
+    source = 'https://goldsmr4.gesdisc.eosdis.nasa.gov/opendap/MERRA2/M2T1NXSLV.5.12.4/2016/06/MERRA2_400.tavg1_2d_slv_Nx.20160601.nc4'
+    source = 'https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL4SMGP.003/2015.04.07/SMAP_L4_SM_gph_20150407T193000_Vv3030_001.h5'
+    
+    # Seems like we have to check a url in order to not get stuck in redirect land
+    #ed_session.get(source + '.dds')
+    #session = setup_session(ed_session.auth[0], ed_session.auth[1],
+                            #check_url=source)
+    #dataset = open_url(source, session=ed_session)
+
+    sm = SMAPSource(source=source) #, auth_session=ed_session)
+    sm.dataset
     
     from podpac.core.coordinate import UniformCoord as UC
 

@@ -54,6 +54,7 @@ except:
 
 # Internal dependencies
 import podpac
+from podpac.core import authentication
 
 class NumpyArray(podpac.DataSource):
     source = tl.Instance(np.ndarray)
@@ -65,6 +66,24 @@ class NumpyArray(podpac.DataSource):
         return d
 
 class PyDAP(podpac.DataSource):
+    auth_session = tl.Instance(authentication.SessionWithHeaderRedirection,
+                               allow_none=True)
+    auth_class = tl.Type(authentication.SessionWithHeaderRedirection)
+    username = tl.Unicode(None, allow_none=True)
+    password = tl.Unicode(None, allow_none=True)
+    @tl.default('auth_session')
+    def _auth_session_default(self):
+        if not self.username or not self.password:
+            return None
+        session = self.auth_class(
+                username=self.username, password=self.password)
+        # check url
+        try:
+            session.get(self.source + '.dds')
+        except:
+            return None
+        return session
+   
     dataset = tl.Instance('pydap.model.DatasetType', allow_none=True)
     @tl.default('dataset')
     def open_dataset(self, source=None):
@@ -72,7 +91,10 @@ class PyDAP(podpac.DataSource):
             source = self.source
         else:
             self.source = source
-        return pydap.client.open_url(source)
+        #Check Url (probably inefficient...)
+        # TODO: Check if this is actually needed still? 
+        self.auth_session.get(self.source + '.dds')
+        return pydap.client.open_url(source, session=self.auth_session)
 
     @tl.observe('source')
     def _update_dataset(self, change):
@@ -97,6 +119,10 @@ class PyDAP(podpac.DataSource):
         d = self.initialize_coord_array(coordinates, 'data', 
                                         fillval=data.reshape(coordinates.shape))
         return d
+    
+    @property
+    def keys(self):
+        return self.dataset.keys()
 
 class RasterioSource(podpac.DataSource):
     source = tl.Unicode(allow_none=False)

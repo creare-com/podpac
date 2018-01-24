@@ -33,6 +33,8 @@ setup(
         'xarray',
         'traitlets',
         'pint',
+        # Requirements for Python 2
+        'future',
         # Optional requirements        
         'numexpr',
         'rasterio',
