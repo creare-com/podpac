@@ -665,7 +665,10 @@ def _make_coord(arg, **kwargs):
     else:
         return Coord(arg, **kwargs)
 
-class Coordinate(tl.HasTraits):
+class BaseCoordinate(tl.HasTraits):
+    pass
+
+class Coordinate(BaseCoordinate):
     """
     You can initialize a coordinate like this: 
     # Single number
@@ -1056,6 +1059,12 @@ class Coordinate(tl.HasTraits):
             return 'TODO'
         else:
             return 'NA'
+
+class CoordinateGroup(BaseCoordinate)
+    groups = tl.List(Coordinate, minlen=1)
+
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError
 
 if __name__ == '__main__': 
     
