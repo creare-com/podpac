@@ -36,7 +36,7 @@ class BaseCoord(tl.HasTraits):
     ----------
     bounds
     area_bounds
-    delta
+    delta (signed)
     coordinates
     size
     is_descending
@@ -568,7 +568,7 @@ class UniformCoord(BaseCoord):
     stop : float or np.datetime64
         stop coordinate; will be included if aligned with the start and step
     delta : float or np.timedelta64
-        delta between coordinates; timedelta string input is parsed
+        signed delta between coordinates; timedelta string input is parsed
     epsg : TODO, str, unicode, or possibly enum
         <not yet in use>
     
@@ -578,7 +578,7 @@ class UniformCoord(BaseCoord):
         (start, stop, size) or (start, stop, size, epsg)
     delta : float or np.timedelta64
         delta between coordinates; this is either the step or calculated from
-        the start, stop, and size.
+        the start, stop, and size. It is signed. 
     """
 
     start = tl.Any()
@@ -609,6 +609,15 @@ class UniformCoord(BaseCoord):
         if val == val*0:
             raise ValueError("UniformCoord delta must be nonzero")
         
+        # check sign
+        if self.is_descending:
+            if np.array(val).astype(float) > 0:
+                raise ValueError("UniformCoord delta must be less than zero"
+                                 " if start > stop.")
+        elif np.array(val).astype(float) < 0:
+            raise ValueError("UniformCoord delta must be greater than zero"
+                             " if start < stop.")            
+        
         return val
 
     @tl.validate('start', 'stop')
@@ -634,12 +643,13 @@ class UniformCoord(BaseCoord):
 
     @cached_property
     def coordinates(self):
-        return np.linspace(self.start, self.stop, self.size)
-
+        # Syntax a little odd, but works for datetime64 as well as floats
+        return self.start + np.arange(0, self.size) * self.delta
+    
     @cached_property
     def bounds(self):
         lo = self.start
-        hi = self.stop
+        hi = self.start + self.delta * (self.size - 1)
         if self.is_descending:
             lo, hi = hi, lo
 
@@ -650,14 +660,13 @@ class UniformCoord(BaseCoord):
         extents = copy.deepcopy(self.bounds)
         if self.ctype in ['fence', 'segment']:
             p = self.segment_position
-            extents[0] -= p * self.delta
-            extents[1] += (1-p) * self.delta
+            extents[0] -= p * np.abs(self.delta)
+            extents[1] += (1-p) * np.abs(self.delta)
         return extents
 
     @property
     def size(self):
-        return max(0, int(np.floor(
-            np.abs(self.stop-self.start) / self.delta) + 1))
+        return max(0, int(np.floor((self.stop-self.start) / self.delta) + 1))
 
     @property
     def is_datetime(self):
@@ -683,20 +692,20 @@ class UniformCoord(BaseCoord):
         lo = max(bounds[0], self.bounds[0])
         hi = min(bounds[1], self.bounds[1])
         
-        imin = int(np.ceil((lo - self.bounds[0]) / self.delta))
-        imax = int(np.ceil((hi - self.bounds[0]) / self.delta))
+        imin = int(np.ceil((lo - self.bounds[0]) / np.abs(self.delta)))
+        imax = int(np.ceil((hi - self.bounds[0]) / np.abs(self.delta)))
 
         imin = np.clip(imin-pad, 0, self.size)
-        imax = np.clip(imax+pad, 0, self.size)
+        imax = np.clip(imax+pad+1, 0, self.size)
 
         if self.is_descending:
-            imin, imax = imax, imin
+            imax, imin = self.size - imin, self.size - imax
 
         if ind:
             return slice(imin, imax)
             
-        start = self.bounds[0] + imin*self.delta
-        stop = self.bounds[0] + (imax-1)*self.delta
+        start = self.start + imin*self.delta
+        stop = self.start + (imax-1)*self.delta
         return UniformCoord(start, stop, self.delta, **self.kwargs)
 
     def _add(self, other):
@@ -716,8 +725,9 @@ class UniformCoord(BaseCoord):
                 self.start, self.stop, self.delta, **self.kwargs)
 
         if isinstance(other, UniformCoord) \
-                and np.abs(self.delta - other.delta).astype(float) < TOL:
-            delta = (self.delta + other.delta) / 2
+                and np.abs(np.abs(self.delta) - np.abs(other.delta)).astype(float) < TOL:
+            # WARNING: This code is duplicated below in _concat_equal
+            delta = self.delta
             ostart, ostop = other.start, other.stop
             if self.is_descending != other.is_descending:
                 ostart, ostop = ostop, ostart
@@ -736,7 +746,7 @@ class UniformCoord(BaseCoord):
                     new_start, new_stop = ostart, self.stop
 
             # use the size trick to see if these align
-            size = (np.floor(np.abs(new_stop - new_start) / self.delta) + 1)
+            size = (np.floor((new_stop - new_start) / self.delta) + 1)
             if (self.size + other.size ) == size:
                 return UniformCoord(
                     new_start, new_stop, delta, **self.kwargs)
@@ -756,8 +766,9 @@ class UniformCoord(BaseCoord):
             return self
 
         if isinstance(other, UniformCoord) \
-                and np.abs(self.delta - other.delta) < TOL:
-            delta = (self.delta + other.delta) / 2
+                and np.abs(np.abs(self.delta) - np.abs(other.delta)).astype(float) < TOL:
+            # WARNING: This code is copied above in _concat
+            delta = self.delta
             ostart, ostop = other.start, other.stop
             if self.is_descending != other.is_descending:
                 ostart, ostop = ostop, ostart
@@ -775,7 +786,7 @@ class UniformCoord(BaseCoord):
                     new_start, new_stop = ostart, self.stop
 
             # use the size trick to see if these align
-            size = np.abs(np.floor((new_stop - new_start) / self.delta) + 1)
+            size = (np.floor((new_stop - new_start) / self.delta) + 1)
             if (self.size + other.size ) == size:
                 self.stop, self.start, self.delta = new_stop, new_start, delta
                 return self
@@ -786,20 +797,25 @@ class UniformCoord(BaseCoord):
 def coord_linspace(start, stop, num, **kwargs):
     """
     Convencence wrapper to get a UniformCoord with the given bounds and size.
+    
+    WARNING: the number of points may not be respected for time coordinates
+    because this function calculates a 'delta' which is quantized. If the 
+    start, stop, and num do not divide nicely you may end up with more or
+    fewer points than specified. 
     """
 
     if not isinstance(num, (int, np.long, np.integer)):
         raise TypeError("num must be an integer, not '%s'" % type(num))
     start = UniformCoord._validate_start_stop(None, {'value':start})
     stop = UniformCoord._validate_start_stop(None, {'value':stop})
-    delta = np.abs(stop - start) / (num-1)
+    delta = (stop - start) / (num-1)
     
     return UniformCoord(start, stop, delta, **kwargs)
 
 def _make_coord(arg, **kwargs):
     if isinstance(arg, BaseCoord):
         return arg
-    elif isinstance(arg, tuple) and len(arg) == 3:
+    elif isinstance(arg, tuple):
         if isinstance(arg[2], (int, np.long, np.integer)):
             return coord_linspace(*arg, **kwargs)
         else:
@@ -1206,13 +1222,18 @@ if __name__ == '__main__':
     
     coord = coord_linspace(1, 10, 10)
     coord_left = coord_linspace(-2, 7, 10)
+    coord_left_r = coord_linspace(7, -2, 10)
     coord_right = coord_linspace(4, 13, 10)
+    coord_right_r = coord_linspace(13, 4, 10)
     coord_cent = coord_linspace(4, 7, 4)
     coord_cover = coord_linspace(-2, 13, 15)
     
     print(coord.intersect(coord_left))
     print(coord.intersect(coord_right))
+    print(coord.intersect(coord_right_r))
     print(coord.intersect(coord_cent))
+    print(coord_right_r.intersect(coord))
+    print(coord_left_r.intersect(coord))
     
     c = Coordinate(lat=coord, lon=coord, order=('lat', 'lon'))
     c_s = Coordinate(lat_lon=(coord, coord))
@@ -1325,5 +1346,27 @@ if __name__ == '__main__':
     assert(isinstance(coord, Coord))
     print (coord.coordinates)        
     
+    c = UniformCoord(1, 10, 2)
+    np.testing.assert_equal(c.coordinates, np.arange(1., 10, 2))
+    
+    c = UniformCoord(10, 1, -2)
+    np.testing.assert_equal(c.coordinates, np.arange(10., 1, -2))    
+
+    try:
+        c = UniformCoord(10, 1, 2)
+        raise Exception
+    except ValueError as e:
+        print(e)
+    
+    try:
+        c = UniformCoord(1, 10, -2)
+        raise Exception
+    except ValueError as e:
+        print(e)
+    
+    np.testing.assert_array_equal(coord_right.area_bounds, coord_right_r.area_bounds)
+    
+    c = UniformCoord('2015-01-01', '2015-01-04', '1,D')
+    c2 = UniformCoord('2015-01-01', '2015-01-04', '2,D')
     
     print('Done')
