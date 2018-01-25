@@ -200,6 +200,17 @@ class SMAPWilt(SMAPProperties):
     property = tl.Unicode('clsm_wp')    
 
 class SMAPDateFolder(podpac.OrderedCompositor):
+    auth_session = tl.Instance(authentication.EarthDataSession)
+    auth_class = tl.Type(authentication.EarthDataSession)
+    username = tl.Unicode(None, allow_none=True)
+    password = tl.Unicode(None, allow_none=True)    
+    
+    @tl.default('auth_session')
+    def _auth_session_default(self):
+        session = self.auth_class(
+                username=self.username, password=self.password)
+        return session
+    
     base_url = tl.Unicode(SMAP_BASE_URL)
     product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist())
     folder_date = tl.Unicode(u'')
@@ -221,9 +232,11 @@ class SMAPDateFolder(podpac.OrderedCompositor):
             _, sources = self.get_available_times_sources()
             self.cache_obj(sources, 'sources')
         b = self.source + '/'
-        tol = self.source_coordinates['time'].delta[0] / 2
+        tol = self.source_coordinates['time'].delta / 2
         src_objs = np.array([SMAPSource(source=b + s,
-                                        interpolation_tolerance=tol) for s in sources])
+                                        interpolation_tolerance=tol,
+                                        auth_session=self.auth_session)
+                             for s in sources])
         return src_objs
     
     @tl.default('is_source_coordinates_complete')
@@ -252,7 +265,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
     def get_available_times_sources(self):
         url = self.source
-        soup = BeautifulSoup(requests.get(url).text, 'lxml')
+        soup = BeautifulSoup(self.auth_session.get(url).text, 'lxml')
         a = soup.find_all('a')
         file_regex = self.file_url_re
         date_regex = self.date_url_re
@@ -279,6 +292,17 @@ class SMAP(podpac.OrderedCompositor):
     product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist())
     date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
     
+    auth_session = tl.Instance(authentication.EarthDataSession)
+    auth_class = tl.Type(authentication.EarthDataSession)
+    username = tl.Unicode(None, allow_none=True)
+    password = tl.Unicode(None, allow_none=True)
+    
+    @tl.default('auth_session')
+    def _auth_session_default(self):
+        session = self.auth_class(
+                username=self.username, password=self.password)
+        return session    
+    
     @property
     def source(self):
         return self.product
@@ -292,7 +316,8 @@ class SMAP(podpac.OrderedCompositor):
             self.cache_obj(dates, 'dates')
         src_objs = np.array([
             SMAPDateFolder(product=self.product, folder_date=date,
-                           shared_coordinates=self.shared_coordinates)
+                           shared_coordinates=self.shared_coordinates,
+                           auth_session=self.auth_session)
             for date in dates])
         return src_objs
 
@@ -301,7 +326,7 @@ class SMAP(podpac.OrderedCompositor):
 
     def get_available_times_dates(self):
         url = '/'.join([self.base_url, self.product])
-        soup = BeautifulSoup(requests.get(url).text, 'lxml')
+        soup = BeautifulSoup(self.auth_session.get(url).text, 'lxml')
         a = soup.find_all('a')
         regex = self.date_url_re
         times = []
@@ -568,15 +593,23 @@ if __name__ == '__main__':
 
     sm = SMAPSource(source=source) #, auth_session=ed_session)
     sm.dataset
+    sm.native_coordinates
     
-    from podpac.core.coordinate import UniformCoord as UC
-
+    coords = podpac.Coordinate(lat=sm.native_coordinates['lat'].coordinates[::10],
+                              lon=sm.native_coordinates['lon'].coordinates[::10],
+                              time=sm.native_coordinates['time'], 
+                              order=['lat', 'lon', 'time'])
+    
+    #o = sm.execute(coords)
+    
     coordinates_world = \
-        podpac.Coordinate(lat=UC(-90, 90, 1.),
-                          lon=UC(-180, 180, 1.),
+        podpac.Coordinate(lat=(-90, 90, 1.),
+                          lon=(-180, 180, 1.),
                           time='2017-10-10T12:00:00', 
                           order=['lat', 'lon', 'time'])    
     smap = SMAP(interpolation='nearest_preview', product='SPL4SMAU.003')
+    smap.source_coordinates
+    smap.shared_coordinates
     o = smap.execute(coordinates_world)
     print("done")
     

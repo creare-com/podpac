@@ -91,10 +91,16 @@ class PyDAP(podpac.DataSource):
             source = self.source
         else:
             self.source = source
-        #Check Url (probably inefficient...)
-        # TODO: Check if this is actually needed still? 
-        self.auth_session.get(self.source + '.dds')
-        return pydap.client.open_url(source, session=self.auth_session)
+        
+        try:
+            dataset = pydap.client.open_url(source, session=self.auth_session)
+        except:
+            #Check Url (probably inefficient...)
+            self.auth_session.get(self.source + '.dds')
+            dataset = pydap.client.open_url(source, session=self.auth_session)
+        
+        return dataset
+        
 
     @tl.observe('source')
     def _update_dataset(self, change):
@@ -106,8 +112,7 @@ class PyDAP(podpac.DataSource):
             self.native_coordinates = self.get_native_coordinates()
 
     datakey = tl.Unicode(allow_none=False)
-    native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
-                                     allow_none=False)    
+  
     def get_native_coordinates(self):
         raise NotImplementedError("DAP has no mechanism for creating coordinates"
                                   ", so this is left up to child class "

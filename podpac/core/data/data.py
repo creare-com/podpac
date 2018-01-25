@@ -277,13 +277,13 @@ class DataSource(Node):
         
         interp = self.interpolation 
         s = []
-        if coords_src['lat'].is_max_to_min:  
+        if coords_src['lat'].is_descending:  
             lat = coords_src['lat'].coordinates[::-1]
             s.append(slice(None, None, -1))
         else:                  
             lat = coords_src['lat'].coordinates
             s.append(slice(None, None))
-        if coords_src['lon'].is_max_to_min:  
+        if coords_src['lon'].is_descending:  
             lon = coords_src['lon'].coordinates[::-1]
             s.append(slice(None, None, -1))
         else:                  

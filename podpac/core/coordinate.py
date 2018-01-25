@@ -124,6 +124,10 @@ class BaseCoord(tl.HasTraits):
     @property
     def is_monotonic(self):
         raise NotImplementedError
+    
+    @property
+    def is_descending(self):
+        raise NotImplementedError    
 
     @property
     def rasterio_regularity(self):
@@ -325,6 +329,10 @@ class Coord(BaseCoord):
 
         return val
 
+    @property
+    def delta(self):  # average delta
+        return (self.bounds[1] - self.bounds[0]) / (self.size - 1)
+
     @tl.observe('coords')
     def _clear_cache(self, change):
         clear_cache(self, change, ['bounds'])
@@ -364,6 +372,10 @@ class Coord(BaseCoord):
     @property
     def is_monotonic(self):
         return False
+
+    @property
+    def is_descending(self):
+        return None  # No way of telling so None (which evaluates as False)
 
     @property
     def rasterio_regularity(self):
@@ -427,6 +439,10 @@ class MonotonicCoord(Coord):
     is_descending : bool
         Is the coordinates array in monotonitacally decreasing order.
     """
+    
+    @property
+    def delta(self):  # average delta
+        return (self.coordinates[-1] - self.coordinates[0]) / (self.size - 1)
 
     @tl.validate("coords")
     def _coords_validate(self, proposal):
@@ -434,7 +450,10 @@ class MonotonicCoord(Coord):
         val = super(MonotonicCoord, self)._coords_validate(proposal)
 
         # TODO nan?
-        d = (val[1:] - val[:-1]) * (val[1] - val[0])
+        if isinstance(val[0], np.datetime64):
+            d = (val[1:] - val[:-1]).astype(float) * (val[1] - val[0]).astype(float)
+        else:
+            d = (val[1:] - val[:-1]) * (val[1] - val[0])
         if np.any(d <= 0):
             raise ValueError("Invalid coords, must be ascending or descending")
 
@@ -465,16 +484,17 @@ class MonotonicCoord(Coord):
     def _select(self, bounds, ind=False, pad=1):
         gt = self.coordinates >= bounds[0]
         lt = self.coordinates <= bounds[1]
-        I = np.where(gt & lt)[0]
+        if self.is_descending:
+            gt, lt = lt, gt
+        imin = max(0, np.where(gt)[0].min() - pad)
+        imax = min(self.size, np.where(lt)[0].max() + pad + 1)
 
-        if I.size == 0:
+        if imin == imax:
             if ind:
                 return slice(0, 0)
             else:
                 return Coord([], **self.kwargs)
         
-        imin = max(0, I.min() - pad)
-        imax = min(self.size, I.max() + pad + 1)
         slc = slice(imin, imax)
         
         if ind:
