@@ -142,7 +142,7 @@ class BaseCoord(tl.HasTraits):
         # no valid other bounds, empty
         if other.size == 0:
             if ind:
-                return slice(None, None)
+                return slice(0, 0)
             else:
                 return Coord([], **self.kwargs)
 
@@ -154,7 +154,7 @@ class BaseCoord(tl.HasTraits):
 
         Arguments
         ---------
-        bounds : lo, hi
+        bounds : min, max
             selection bounds
         ind : bool
             return slice or indices for selection instead of coordinates
@@ -170,12 +170,12 @@ class BaseCoord(tl.HasTraits):
         # empty
         if self.size == 0: 
             if ind:
-                return slice(None, None)
+                return slice(0, 0)
             else:
                 return self
 
         # full
-        if self.size == 0 or self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
+        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
             if ind:
                 return slice(None, None)
             else:
@@ -194,19 +194,42 @@ class BaseCoord(tl.HasTraits):
     def _select(self, bounds, ind=False):
         """ Partial selection, implemented in child classes. """
         raise NotImplementedError()
+    
+    def __sub__(self, other):
+        if isinstance(other, string_types):
+            other = get_timedelta(other)
+        
+        if isinstance(other, np.timedelta64):
+            if not self.is_datetime:
+                raise TypeError("Cannot add timedelta to numerical coord")
+            return self._add(-other)
+
+        elif isinstance(other, numbers.Number):
+            if self.is_datetime:
+                raise TypeError("Cannot add '%s' to datetime coord" % type(other))
+            return self._add(-other)
+
+        elif isinstance(other, BaseCoord):
+            if self.is_datetime != other.is_datetime:
+                raise TypeError("Mismatching coordinates types")
+            return self.intersect(other)
+
+        else:
+            raise TypeError("Cannot subtract '%s' to '%s'" % (
+                other.__class__.__name__, self.__class__.__name__))
 
     def __add__(self, other):
         if isinstance(other, string_types):
             other = get_timedelta(other)
         
-        if isinstance(other, numbers.Number):
-            if self.is_datetime:
-                raise TypeError("Cannot add '%s' to datetime coord" % type(other))
-            return self._add(other)
-
-        elif isinstance(other, np.timedelta64):
+        if isinstance(other, np.timedelta64):
             if not self.is_datetime:
                 raise TypeError("Cannot add timedelta to numerical coord")
+            return self._add(other)
+
+        elif isinstance(other, numbers.Number):
+            if self.is_datetime:
+                raise TypeError("Cannot add '%s' to datetime coord" % type(other))
             return self._add(other)
 
         elif isinstance(other, BaseCoord):
@@ -304,9 +327,9 @@ class Coord(BaseCoord):
 
     @tl.observe('coords')
     def _clear_cache(self, change):
-        clear_cache(self, change, ['coordinates', 'bounds'])
+        clear_cache(self, change, ['bounds'])
 
-    @cached_property
+    @property
     def coordinates(self):
         return self.coords
 
@@ -411,7 +434,7 @@ class MonotonicCoord(Coord):
         val = super(MonotonicCoord, self)._coords_validate(proposal)
 
         # TODO nan?
-        d = (val[1:] - val[:-1]) * (val[0] - val[1])
+        d = (val[1:] - val[:-1]) * (val[1] - val[0])
         if np.any(d <= 0):
             raise ValueError("Invalid coords, must be ascending or descending")
 
@@ -467,13 +490,32 @@ class MonotonicCoord(Coord):
         if other.size == 0:
             return MonotonicCoord(self.coord, **self.kwargs)
 
-        if other.is_monotonic and self.is_descending == other.is_descending:
-            # TODO only allows [self, other], should we allow [other, self]?
-            if ((self.is_descending and self.bounds[1] > other.bounds[0]) or
-                (not self.is_descending and self.bounds[1] < other.bounds[0])):
-
-                coords = np.concatenate([self.coordinates, other.coordinates])
-                return MonotonicCoord(coord, **self.kwargs)
+        if other.is_monotonic:
+            other_coords = other.coordinates
+            
+            # Let's match self.is_descending for the output
+            if self.is_descending != other.is_descending:
+                other_coords = other_coords[::-1]
+            
+            concat_list = [self.coordinates, other_coords]
+            overlap = False
+            if self.is_descending:
+                if concat_list[0][-1] > concat_list[1][0]: # then we're good!
+                    coords = np.concatenate(concat_list)
+                elif concat_list[1][-1] > concat_list[0][0]: # need to reverse
+                    coords = np.concatenate(concat_list[::-1])
+                else: 
+                    overlap = True
+            else:
+                if concat_list[0][-1] < concat_list[1][0]: # then we're good!
+                    coords = np.concatenate(concat_list)
+                elif concat_list[1][-1] < concat_list[0][0]: # need to reverse
+                    coords = np.concatenate(concat_list[::-1])
+                else: 
+                    overlap = True
+                
+            if not overlap:
+                return MonotonicCoord(coords, **self.kwargs)
             
         # otherwise return a plain Coord object
         coords = np.concatenate([self.coordinates, other.coordinates])
@@ -483,11 +525,32 @@ class MonotonicCoord(Coord):
         if other.size == 0:
             return self
 
-        if other.is_monotonic and self.is_descending == other.is_descending:
-            if ((self.is_descending and self.bounds[1] > other.bounds[0]) or
-                (not self.is_descending and self.bounds[1] < other.bounds[0])):
-
-                self.coords = np.concatenate([self.coordinates, other.coordinates])
+        if other.is_monotonic:
+            other_coords = other.coordinates
+            
+            # Let's match self.is_descending for the output
+            if self.is_descending != other.is_descending:
+                other_coords = other_coords[::-1]
+            
+            concat_list = [self.coordinates, other_coords]
+            overlap = False
+            if self.is_descending:
+                if concat_list[0][-1] > conact_list[1][0]: # then we're good!
+                    coords = np.concatenate(concat_list)
+                elif concat_list[1][-1] > cancat_list[0][0]: # need to reverse
+                    coords = np.concatenate(concat_list[::-1])
+                else: 
+                    overlap = True
+            else:
+                if concat_list[0][-1] < conact_list[1][0]: # then we're good!
+                    coords = np.concatenate(concat_list)
+                elif concat_list[1][-1] < concat_list[0][0]: # need to reverse
+                    coords = np.concatenate(concat_list[::-1])
+                else: 
+                    overlap = True
+                
+            if not overlap:
+                self.coords = coords
                 return self
         
         # otherwise
@@ -496,7 +559,7 @@ class MonotonicCoord(Coord):
 
 class UniformCoord(BaseCoord):
     """
-    A uniformly-spaced coordinates defined by a start, stop, and step.
+    A uniformly-spaced coordinates defined by a start, stop, and delta.
 
     Attributes
     ----------
@@ -561,7 +624,7 @@ class UniformCoord(BaseCoord):
             val = float(val)
         else:
             raise TypeError(
-                "delta must be number or datetime, not '%s'" % type(val))
+                "start/stop must be number or datetime, not '%s'" % type(val))
 
         return val
 
@@ -571,12 +634,12 @@ class UniformCoord(BaseCoord):
 
     @cached_property
     def coordinates(self):
-        return np.arange(self.bounds[0], self.bounds[1]+self.delta, self.delta)
+        return np.linspace(self.start, self.stop, self.size)
 
     @cached_property
     def bounds(self):
         lo = self.start
-        hi = self.start + self.delta * (self.size - 1)
+        hi = self.stop
         if self.is_descending:
             lo, hi = hi, lo
 
@@ -593,7 +656,8 @@ class UniformCoord(BaseCoord):
 
     @property
     def size(self):
-        return max(0, int(np.floor((self.stop-self.start)/self.delta)+1))
+        return max(0, int(np.floor(
+            np.abs(self.stop-self.start) / self.delta) + 1))
 
     @property
     def is_datetime(self):
@@ -636,7 +700,8 @@ class UniformCoord(BaseCoord):
         return UniformCoord(start, stop, self.delta, **self.kwargs)
 
     def _add(self, other):
-        return UniformCoord(start+other, stop+other, self.delta, **self.kwargs)
+        return UniformCoord(self.start + other,
+                            self.stop + other, self.delta, **self.kwargs)
 
     def _add_equal(self, other):
         self.start += other
@@ -645,18 +710,39 @@ class UniformCoord(BaseCoord):
 
     def _concat(self, other):
         # tries to return UniformCoord first, then MonotonicCoord, then Coord
-
+        TOL = 1e-12
         if other.size == 0:
             return UniformCoord(
                 self.start, self.stop, self.delta, **self.kwargs)
 
-        if isinstance(other, UniformCoord):
-            # TODO only allows [self, other], should we allow [other, self]?
-            # using the sizes as a trick to check that they line up perfectly
-            size = np.floor((other.stop - self.start) / self.delta) + 1
-            if self.size + other.size == size:
+        if isinstance(other, UniformCoord) \
+                and np.abs(self.delta - other.delta).astype(float) < TOL:
+            delta = (self.delta + other.delta) / 2
+            ostart, ostop = other.start, other.stop
+            if self.is_descending != other.is_descending:
+                ostart, ostop = ostop, ostart
+                overlap = False
+
+            new_start, new_stop = self.start, ostop
+            if self.is_descending:
+                if (self.stop > ostart):
+                    new_start, new_stop = self.start, ostop
+                elif (ostop > self.start):
+                    new_start, new_stop = ostart, self.stop
+            else:
+                if (self.stop < ostart):
+                    new_start, new_stop = self.start, ostop
+                elif (ostop < self.start):
+                    new_start, new_stop = ostart, self.stop
+
+            # use the size trick to see if these align
+            size = (np.floor(np.abs(new_stop - new_start) / self.delta) + 1)
+            if (self.size + other.size ) == size:
                 return UniformCoord(
-                    self.start, other.stop, self.delta, **self.kwargs)
+                    new_start, new_stop, delta, **self.kwargs)
+            elif (self.size + other.size) < size:  # No overlap, but separated
+                return MonotonicCoord._concat(self, other)
+            #else: # overlapping
 
         if isinstance(other, MonotonicCoord):
             return MonotonicCoord._concat(self, other)
@@ -669,10 +755,29 @@ class UniformCoord(BaseCoord):
         if other.size == 0:
             return self
 
-        if isinstance(other, UniformCoord):
-            size = np.floor((other.stop - self.start) / self.delta) + 1
-            if self.size + other.size == size:
-                self.stop = other.stop
+        if isinstance(other, UniformCoord) \
+                and np.abs(self.delta - other.delta) < TOL:
+            delta = (self.delta + other.delta) / 2
+            ostart, ostop = other.start, other.stop
+            if self.is_descending != other.is_descending:
+                ostart, ostop = ostop, ostart
+                overlap = False
+
+            if self.is_descending:
+                if (self.stop > ostart):
+                    new_start, new_stop = self.start, ostop
+                elif (ostop > self.start):
+                    new_start, new_stop = ostart, self.stop
+            else:
+                if (self.stop < ostart):
+                    new_start, new_stop = self.start, ostop
+                elif (ostop < self.start):
+                    new_start, new_stop = ostart, self.stop
+
+            # use the size trick to see if these align
+            size = np.abs(np.floor((new_stop - new_start) / self.delta) + 1)
+            if (self.size + other.size ) == size:
+                self.stop, self.start, self.delta = new_stop, new_start, delta
                 return self
 
         raise TypeError("Cannot concatenate '%s' to '%s' in-place" % (
@@ -681,26 +786,29 @@ class UniformCoord(BaseCoord):
 def coord_linspace(start, stop, num, **kwargs):
     """
     Convencence wrapper to get a UniformCoord with the given bounds and size.
-    Will not work with np.datetime64 or string datetime bounds.
     """
 
-    if not isinstance(num, (int, long)):
+    if not isinstance(num, (int, np.long, np.integer)):
         raise TypeError("num must be an integer, not '%s'" % type(num))
-    delta = float(stop - start) / (num-1)
+    start = UniformCoord._validate_start_stop(None, {'value':start})
+    stop = UniformCoord._validate_start_stop(None, {'value':stop})
+    delta = np.abs(stop - start) / (num-1)
+    
     return UniformCoord(start, stop, delta, **kwargs)
 
 def _make_coord(arg, **kwargs):
     if isinstance(arg, BaseCoord):
         return arg
-    
-    elif isinstance(arg, tuple):
-        if isinstance(arg[2], (int, long)):
+    elif isinstance(arg, tuple) and len(arg) == 3:
+        if isinstance(arg[2], (int, np.long, np.integer)):
             return coord_linspace(*arg, **kwargs)
         else:
             return UniformCoord(*arg, **kwargs)
-    
     else:
-        return Coord(arg, **kwargs)
+        try:
+            return MonotonicCoord(arg, **kwargs)
+        except:
+            return Coord(arg, **kwargs)
 
 class BaseCoordinate(tl.HasTraits):
     pass
@@ -825,13 +933,6 @@ class Coordinate(BaseCoordinate):
     def _validate_val(self, val, dim='', dims=[]):
         if not isinstance(val, BaseCoord):
             raise TypeError("Invalid coord type '%s'" % val.__class__.__name__)
-        # # Dependent array, needs to be an xarray.DataArray
-        # if isinstance(val, xr.DataArray):
-        #     for key in val._coords: 
-        #         if key not in dims:
-        #             raise ValueError(
-        #                 "Dimensions of dependent coordinate DatArray needs to "
-        #                 "be in %s" % dims)
    
     def get_dims_map(self, coords=None):
         if coords is None:
@@ -1085,15 +1186,13 @@ class Coordinate(BaseCoordinate):
 
     @property
     def latlon_bounds_str(self):
-        if 'lat' in self.dims and 'lon' in self.dims:
+        if 'lat' in self._coords and 'lon' in self._coords:
             return '%s_%s_x_%s_%s' % (
                 self['lat'].bounds[0],
                 self['lon'].bounds[0],
                 self['lat'].bounds[1],
                 self['lon'].bounds[1]
             )
-        elif 'lat_lon' in self.dims:
-            return 'TODO'
         else:
             return 'NA'
 
@@ -1157,10 +1256,10 @@ if __name__ == '__main__':
     else:
         raise Exception('expected exception')
 
-    coord_left = coord_linspace()(-2, 7, 3)
-    coord_right = coord_linspace()(8, 13, 3)
-    coord_right2 = coord_linspace()(13, 8, 3)
-    coord_cent = coord_linspace()(4, 11, 4)
+    coord_left = coord_linspace(-2, 7, 3)
+    coord_right = coord_linspace(8, 13, 3)
+    coord_right2 = coord_linspace(13, 8, 3)
+    coord_cent = coord_linspace(4, 11, 4)
     coord_pts = Coord(15)
     coord_irr = Coord(np.random.rand(5))
     
@@ -1171,13 +1270,60 @@ if __name__ == '__main__':
     print ((coord_left + coord_pts).coordinates)
     print (coord_irr + coord_pts + coord_cent)
 
-    c = Coordinate(lat_lon=(Ul(0, 1, 10), Ul(0, 1, 10)), time=Ul(0, 1, 2), order=('lat_lon', 'time'))
-    c2 = Coordinate(lat_lon=(Ul(0.5, 1.5, 15), Ul(0.1, 1.1, 15)))
+    c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=(0, 1, 2), order=('lat_lon', 'time'))
+    c2 = Coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
 
     print (c.replace_coords(c2))
     print (c.replace_coords(c2.unstack()))
     print (c.unstack().replace_coords(c2))
     print (c.unstack().replace_coords(c2.unstack()))
+    
+    
+    coord_left = coord_linspace(0, 2, 3)
+    coord_right = coord_linspace(3, 5, 3)
+    coord_right_r = coord_linspace(5, 3, 3)
+    coord_right_g = coord_linspace(4, 6, 3)
+    coord_right_g_r = coord_linspace(6, 4, 3)
+    
+    coord = coord_left + coord_right
+    assert(isinstance(coord, UniformCoord))
+    print (coord.coordinates)
+    
+    coord = coord_left + coord_right_r
+    assert(isinstance(coord, UniformCoord))
+    print (coord.coordinates)    
+    
+    coord = coord_right_r + coord_left 
+    assert(isinstance(coord, UniformCoord))
+    print (coord.coordinates)        
+    
+    coord = coord_right_g + coord_left 
+    assert(isinstance(coord, MonotonicCoord))
+    print (coord.coordinates)            
+    
+    coord = coord_left + coord_right_g
+    assert(isinstance(coord, MonotonicCoord))
+    print (coord.coordinates)    
+
+    coord = coord_right_g_r + coord_left 
+    assert(isinstance(coord, MonotonicCoord))
+    print (coord.coordinates)            
+    
+    coord = coord_left + coord_right_g_r
+    assert(isinstance(coord, MonotonicCoord))
+    print (coord.coordinates)    
+    
+    coord = coord_left + coord_left
+    assert(isinstance(coord, Coord))
+    print (coord.coordinates)    
+    
+    coord = coord_right_r + coord_right_r
+    assert(isinstance(coord, Coord))
+    print (coord.coordinates)    
+    
+    coord = coord_right_g_r + coord_right_g_r
+    assert(isinstance(coord, Coord))
+    print (coord.coordinates)        
     
     
     print('Done')
