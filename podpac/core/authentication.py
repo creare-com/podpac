@@ -10,7 +10,7 @@ from podpac.core import utils
 class SessionWithHeaderRedirection(requests.Session):
     AUTH_HOST = ''
     def __init__(self, username=None, password=None):
-        super().__init__()
+        super(SessionWithHeaderRedirection, self).__init__()
         if username is None:
             username = utils.load_setting('username@' + self.AUTH_HOST)
         if password is None:
