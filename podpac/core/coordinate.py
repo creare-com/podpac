@@ -77,6 +77,8 @@ class BaseCoord(tl.HasTraits):
                            "is 'segment' or 'fence'")
     coord_ref_sys = tl.Unicode()
     
+    delta = tl.Any(allow_none=False)
+    
     @tl.validate('segment_position')
     def _segment_position_validate(self, proposal):
         val = proposal['value']
@@ -329,8 +331,8 @@ class Coord(BaseCoord):
 
         return val
 
-    @property
-    def delta(self):  # average delta
+    @tl.default('delta')
+    def _delta_default(self):  # average delta
         return (self.bounds[1] - self.bounds[0]) / (self.size - 1)
 
     @tl.observe('coords')
@@ -387,16 +389,11 @@ class Coord(BaseCoord):
 
     def _select(self, bounds, ind=False, pad=None):
         # returns a list of indices rather than a slice
-        if pad is not None:
-            # Should we ignore and raise a warning? We could also implement the
-            # padding by finding the necessary bounds increase required to
-            # include the appropriate coordinates wherever they are in the
-            # list. It may not matter or get factored out depending on how
-            # interpolations need to happen.
-            raise NotImplementedError("TODO unsorted Coord pad not implemented")
+        if pad is None:
+            pad = 0
 
-        gt = self.coordinates >= bounds[0]
-        lt = self.coordinates <= bounds[1]
+        gt = self.coordinates >= (bounds[0] - pad * self.delta)
+        lt = self.coordinates <= (bounds[1] + pad * self.delta)
         I = np.where(gt & lt)[0]
         
         if ind:
@@ -440,8 +437,8 @@ class MonotonicCoord(Coord):
         Is the coordinates array in monotonitacally decreasing order.
     """
     
-    @property
-    def delta(self):  # average delta
+    @tl.default('delta')
+    def _delta_default(self):  # average delta
         return (self.coordinates[-1] - self.coordinates[0]) / (self.size - 1)
 
     @tl.validate("coords")
@@ -1025,6 +1022,13 @@ class Coordinate(BaseCoordinate):
                 stacked_coords[val] = coords[key]
         return stacked_coords
    
+    @property
+    def is_stacked(self):
+        for k, v in self.dims_map.items():
+            if k != v:
+                return True
+        return False
+   
     def stack(self, stack_dims, copy=True):
         stack_dim = '_'.join(stack_dims)
         dims_map = {k:v for k,v in self.dims_map.items()}
@@ -1053,7 +1057,7 @@ class Coordinate(BaseCoordinate):
             return self
 
     def intersect(self, other, coord_ref_sys=None, pad=1, ind=False):
-        if ind:
+        if ind or self.is_stacked:
             I = []
         else:
             d = OrderedDict()
@@ -1067,22 +1071,46 @@ class Coordinate(BaseCoordinate):
                 spad = pad
 
             if dim not in other._coords:
-                if ind:
+                if ind or self.is_stacked:
                     I.append(slice(None, None))
                 else:
                     d[dim] = self._coords[dim]
                 continue
             
-            intersection = self._coords[dim].intersect(
-                other._coords[dim], coord_ref_sys, ind=ind, pad=spad)
+            intersect = self._coords[dim].intersect(
+                other._coords[dim], coord_ref_sys, ind=ind or self.is_stacked,
+                pad=spad)
             
-            if ind:
-                I.append(intersection)
+            if ind or self.is_stacked:
+                I.append(intersect)
             else:
-                d[dim] = intersection
+                d[dim] = intersect
         
-        if ind:
-            return I
+        if ind or self.is_stacked:
+            if not self.is_stacked:
+                return I
+
+            # Need to handle the stacking
+            I2 = [np.ones(s, bool) for s in self.shape]
+            for i, d in enumerate(self.dims):
+                parts = d.split('_')
+                It = np.zeros_like(I2[i])
+                for j, p in enumerate(parts):
+                    k = list(self._coords.keys()).index(p)
+                    It[I[k]] = True
+                    I2[i] = I2[i] & It
+                    It[:] = False
+                I2[i] = np.where(I2[i])[0]
+                
+            if ind:
+                return I2
+            
+            coords =  OrderedDict()
+            for k in self._coords.keys():
+                i = self.dims.index(self.dims_map[k])
+                coords[k] = self._coords[k].coordinates[I2[i]]
+            coords = self.stack_dict(coords)
+            return Coordinate(coords, **self.kwargs)
         else:
             coords = self.stack_dict(d)
             return Coordinate(coords, **self.kwargs)
