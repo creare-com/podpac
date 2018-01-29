@@ -168,7 +168,7 @@ class DataSource(Node):
                      and 'lon' in coords_src.dims) \
                 and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)\
                 and coords_src['lat'].rasterio_regularity \
-                and c0oords_src['lon'].rasterio_regularity \
+                and coords_src['lon'].rasterio_regularity \
                 and coords_dst['lat'].rasterio_regularity \
                 and coords_dst['lon'].rasterio_regularity:
             return self.rasterio_interpolation(data_src, coords_src,
@@ -235,7 +235,7 @@ class DataSource(Node):
             src_transform = get_rasterio_transform(coords_src)
             src_crs = {'init': coords_src.gdal_crs}
             # Need to make sure array is c-contiguous
-            if coords_src['lat'].is_max_to_min:
+            if coords_src['lat'].is_descending:
                 source = np.ascontiguousarray(data_src.data)
             else:
                 source = np.ascontiguousarray(data_src.data[::-1, :])
@@ -259,7 +259,7 @@ class DataSource(Node):
                 dst_nodata=np.nan,
                 resampling=getattr(Resampling, self.interpolation)
             )
-            if coords_dst['lat'].is_max_to_min:
+            if coords_dst['lat'].is_descending:
                 data_dst.data[:] = destination
             else:
                 data_dst.data[:] = destination[::-1, :]
