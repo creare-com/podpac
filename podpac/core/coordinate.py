@@ -606,6 +606,10 @@ class UniformCoord(BaseCoord):
     def __init__(self, start, stop, delta, epsg=None, **kwargs):
         super(UniformCoord, self).__init__(
             start=start, stop=stop, delta=delta, epsg=epsg, **kwargs)
+        
+    @property
+    def coords(self):  # For backwards compatibility
+        return [self.start, self.stop]
 
     @tl.validate('delta')
     def _validate_delta(self, d):

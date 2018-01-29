@@ -239,17 +239,17 @@ class WCS(podpac.DataSource):
             wcs_c = self.wcs_coordinates
             cs = OrderedDict()
             for c in wcs_c.dims:
-                if c in ev.dims and ev[c].regularity in ['irregular', 'dependent']:
+                if c in ev.dims and ev[c].size == 1:
+                    cs[c] = ev[c].coords
+                elif c in ev.dims and not isinstance(ev[c], podpac.UniformCoord):
                     # This is rough, we have to use a regular grid for WCS calls, 
                     # Otherwise we have to do multiple WCS calls... 
                     # TODO: generalize/fix this
                     cs[c] = [min(ev[c].coords),
                              max(ev[c].coords), ev[c].delta]
-                elif c in ev.dims and ev[c].regularity == 'regular':
+                elif c in ev.dims and isinstance(ev[c], podpac.UniformCoord):
                     cs[c] = [min(ev[c].coords[:2]),
                              max(ev[c].coords[:2]), ev[c].delta]
-                elif c in ev.dims and ev[c].regularity == 'single':
-                    cs[c] = ev[c].coords
                 else:
                     cs.append(wcs_c[c])
             c = podpac.Coordinate(cs)
@@ -379,7 +379,7 @@ class WCS(podpac.DataSource):
                 open('temp.tiff','wb').write(r.data)
                 output.data[:] = arcpy.RasterToNumPyArray('temp.tiff')            
 
-        if not coordinates['lat'].is_max_to_min:
+        if not coordinates['lat'].is_descending:
             if dotime:
                 output.data[:] = output.data[:, ::-1, :]
             else:
