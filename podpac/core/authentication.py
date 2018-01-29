@@ -12,7 +12,6 @@ else:
 # Optional PODPAC dependency
 try:
     import requests
-    raise Exception
 except:
     class Dum(object):
         def __init__(self, *args, **kwargs):
