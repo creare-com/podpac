@@ -772,7 +772,8 @@ class UniformCoord(BaseCoord):
                 return UniformCoord(
                     new_start, new_stop, delta, **self.kwargs)
             elif (self.size + other.size) < size:  # No overlap, but separated
-                return MonotonicCoord._concat(self, other)
+                return MonotonicCoord(
+                    np.concatenate((self.coordinates, other.coordinates)))
             #else: # overlapping
 
         if isinstance(other, MonotonicCoord):
