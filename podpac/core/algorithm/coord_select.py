@@ -125,7 +125,6 @@ if __name__ == '__main__':
     # basic spatial expansion
     o = node.execute(coords, params={'lat': (-1, 1, 0.1) })
     print(o.coords)
-    import ipdb; ipdb.set_trace() # BREAKPOINT
 
     # time expansion using native coordinates
     class Test(DataSource):
