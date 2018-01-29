@@ -12,9 +12,11 @@ else:
 # Optional PODPAC dependency
 try:
     import requests
+    raise Exception
 except:
-    class Dum():
-        pass
+    class Dum(object):
+        def __init__(self, *args, **kwargs):
+            pass
     requests = Dum()
     requests.Session = Dum()
 
