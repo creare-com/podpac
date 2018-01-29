@@ -1221,14 +1221,21 @@ class Coordinate(BaseCoordinate):
                 "Unsupported type '%s', can only add Coordinate object" % (
                     other.__class__.__name__))
         new_coords = copy.deepcopy(self._coords)
+        dims_map = self.dims_map
         for key in other._coords:
             if key in self._coords:
+                if dims_map[key] != other.dims_map[key]:
+                    raise ValueError(
+                        "Cannot add coordinates with different stacking. "
+                        "%s != %s." % (dims_map[key], other.dims_map[key])
+                    )
                 #if np.all(np.array(self._coords[key].coords) !=
                         #np.array(other._coords[key].coords)):
                 new_coords[key] = self._coords[key] + other._coords[key]
             else:
+                dims_map[key] = other.dims_map[key]
                 new_coords[key] = copy.deepcopy(other._coords[key])
-        return self.__class__(coords=self.stack_dict(new_coords))
+        return self.__class__(coords=self.stack_dict(new_coords, dims_map))
 
     def iterchunks(self, shape, return_slice=False):
         # TODO assumes the input shape dimension and order matches
