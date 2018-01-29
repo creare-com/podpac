@@ -288,7 +288,13 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
     def get_available_coords_sources(self):
         url = self.source
-        soup = BeautifulSoup(self.auth_session.get(url).text, 'lxml')
+        r = self.auth_session.get(url)
+        if r.status_code != 200:
+            r = self.auth_session.get(url.replace('opendap/hyrax/',''))
+            if r.status_code != 200:
+                raise RuntimeError('HTTP error: <%d>\n' % (r.status_code)
+                               + r.text[:256])
+        soup = BeautifulSoup(r.text, 'lxml')
         a = soup.find_all('a')
         file_regex = self.file_url_re
         date_regex = self.date_url_re
@@ -358,7 +364,13 @@ class SMAP(podpac.OrderedCompositor):
 
     def get_available_times_dates(self):
         url = '/'.join([self.base_url, self.product])
-        soup = BeautifulSoup(self.auth_session.get(url).text, 'lxml')
+        r = self.auth_session.get(url)
+        if r.status_code != 200:
+            r = self.auth_session.get(url.replace('opendap/hyrax/',''))
+            if r.status_code != 200:
+                raise RuntimeError('HTTP error: <%d>\n' % (r.status_code)
+                                   + r.text[:256])
+        soup = BeautifulSoup(r.text, 'lxml')
         a = soup.find_all('a')
         regex = self.date_url_re
         times = []
@@ -385,19 +397,25 @@ class SMAP(podpac.OrderedCompositor):
         self.cache_obj(coords, 'shared.coordinates')
         return coords
     
-    def get_partial_native_coordinates(self):
+    def get_partial_native_coordinates_sources(self):
         try:
-            return self.load_cached_obj('partial_native.coordinates')
+            return (self.load_cached_obj('partial_native.coordinates'),
+                    self.load_cached_obj('partial_native.sources'))
         except:
             pass
         
         crds = self.sources[0].source_coordinates
+        sources = [self.source[0]]
         for s in self.sources[1:]:
-            crds = crds + s.source_coordinates
+            if np.prod(s.source_coordinates.shape) > 0:
+                crds = crds + s.source_coordinates
+                sources.append(s)
         if self.shared_coordinates is not None:
             crds = crds + self.shared_coordinates
+        sources = np.array(sources, object)
         self.cache_obj(crds, 'partial_native.coordinates')
-        return crds        
+        self.cache_obj(sources, 'partial_native.sources')
+        return crds, sources
 
     @property
     def base_ref(self):
@@ -430,6 +448,7 @@ if __name__ == '__main__':
                           time=['2017-11-18T00:00:00', '2017-11-19T00:00:00'],
                           order=['lat', 'lon', 'time'])    
     sentinel = SMAP(interpolation='nearest_preview', product='SPL2SMAP_S.001')
+    pnc, srcs = sentinel.get_partial_native_coordinates_sources()
     o = sentinel.execute(coordinates_world)
     s = sentinel.sources[121]
     s.source_coordinates.intersect(coordinates_world)

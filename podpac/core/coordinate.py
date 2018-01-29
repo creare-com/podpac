@@ -1223,12 +1223,12 @@ class Coordinate(BaseCoordinate):
         new_coords = copy.deepcopy(self._coords)
         for key in other._coords:
             if key in self._coords:
-                if np.all(np.array(self._coords[key].coords) !=
-                        np.array(other._coords[key].coords)):
-                    new_coords[key] = self._coords[key] + other._coords[key]
+                #if np.all(np.array(self._coords[key].coords) !=
+                        #np.array(other._coords[key].coords)):
+                new_coords[key] = self._coords[key] + other._coords[key]
             else:
                 new_coords[key] = copy.deepcopy(other._coords[key])
-        return self.__class__(coords=new_coords)
+        return self.__class__(coords=self.stack_dict(new_coords))
 
     def iterchunks(self, shape, return_slice=False):
         # TODO assumes the input shape dimension and order matches
