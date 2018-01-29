@@ -1,9 +1,24 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from builtins import input
 
-import requests
+import sys
 
+# python 2/3 compatibility
+if sys.version_info.major < 3:
+    input = raw_input 
+else:
+    from builtins import input
+
+# Optional PODPAC dependency
+try:
+    import requests
+except:
+    class Dum():
+        pass
+    requests = Dum()
+    requests.Session = Dum()
+
+# Internal dependencies
 from podpac.core import utils
 
 # overriding requests.Session.rebuild_auth to mantain headers when redirected
