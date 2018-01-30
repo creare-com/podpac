@@ -1220,7 +1220,13 @@ class Coordinate(BaseCoordinate):
                'SPHER_MERC': 'EPSG:3857'}
         return crs[self.coord_ref_sys.upper()]
     
+    def add_unique(self, other):
+        return self._add(other, unique=True)
+    
     def __add__(self, other):
+        return self._add(other)
+    
+    def _add(self, other, unique=False):
         if not isinstance(other, Coordinate):
             raise TypeError(
                 "Unsupported type '%s', can only add Coordinate object" % (
@@ -1234,9 +1240,9 @@ class Coordinate(BaseCoordinate):
                         "Cannot add coordinates with different stacking. "
                         "%s != %s." % (dims_map[key], other.dims_map[key])
                     )
-                #if np.all(np.array(self._coords[key].coords) !=
-                        #np.array(other._coords[key].coords)):
-                new_coords[key] = self._coords[key] + other._coords[key]
+                if np.all(np.array(self._coords[key].coords) !=
+                        np.array(other._coords[key].coords)) or not unique:
+                    new_coords[key] = self._coords[key] + other._coords[key]
             else:
                 dims_map[key] = other.dims_map[key]
                 new_coords[key] = copy.deepcopy(other._coords[key])

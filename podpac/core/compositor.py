@@ -73,7 +73,7 @@ class Compositor(Node):
         else:
             crds = self.sources[0].native_coordinates
             for s in self.sources[1:]:
-                crds = crds + s.native_coordinates
+                crds = crds.add_unique(s.native_coordinates)
         if self.cache_native_coordinates:
             self.cache_obj(crds, 'native.coordinates')
         return crds
