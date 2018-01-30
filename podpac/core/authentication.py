@@ -17,7 +17,7 @@ except:
         def __init__(self, *args, **kwargs):
             pass
     requests = Dum()
-    requests.Session = Dum()
+    requests.Session = Dum
 
 # Internal dependencies
 from podpac.core import utils
