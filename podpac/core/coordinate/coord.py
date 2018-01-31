@@ -9,7 +9,8 @@ import traitlets as tl
 
 from podpac.core.units import Units
 from podpac.core.utils import cached_property, clear_cache
-from podpac.core.coordinate.util import get_timedelta
+from podpac.core.coordinate.util import (
+    make_coord_value, make_coord_delta, get_timedelta)
 
 class BaseCoord(tl.HasTraits):
     """
@@ -604,18 +605,8 @@ class UniformCoord(BaseCoord):
 
     @tl.validate('delta')
     def _validate_delta(self, d):
-        val = d['value']
-
         # type checking and conversion
-        if isinstance(val, string_types):
-            val = get_timedelta(val)
-        elif isinstance(val, np.timedelta64):
-            pass
-        elif isinstance(val, numbers.Number):
-            val = float(val)
-        else:
-            raise TypeError(
-                "delta must be number or timedelta, not '%s'" % type(val))
+        val = make_coord_delta(d['value'])
 
         # check nonzero
         if val == val*0:
@@ -634,19 +625,7 @@ class UniformCoord(BaseCoord):
 
     @tl.validate('start', 'stop')
     def _validate_start_stop(self, d):
-        val = d['value']
-        
-        # type checking and conversion
-        if isinstance(val, string_types):
-            val = np.datetime64(val)
-        elif isinstance(val, np.datetime64):
-            pass
-        elif isinstance(val, numbers.Number):
-            val = float(val)
-        else:
-            raise TypeError(
-                "start/stop must be number or datetime, not '%s'" % type(val))
-
+        val = make_coord_value(d['value'])
         return val
 
     @tl.observe('start', 'stop', 'delta')
@@ -768,7 +747,8 @@ class UniformCoord(BaseCoord):
             #else: # overlapping
 
         if isinstance(other, MonotonicCoord):
-            return MonotonicCoord._concat(self, other)
+            return MonotonicCoord(
+                np.concatenate((self.coordinates, other.coordinates)))
         
         # otherwise
         coords = np.concatenate([self.coordinates, other.coordinates])
@@ -823,8 +803,8 @@ def coord_linspace(start, stop, num, **kwargs):
 
     if not isinstance(num, (int, np.long, np.integer)):
         raise TypeError("num must be an integer, not '%s'" % type(num))
-    start = UniformCoord._validate_start_stop(None, {'value':start})
-    stop = UniformCoord._validate_start_stop(None, {'value':stop})
+    start = make_coord_value(start)
+    stop = make_coord_value(stop)
     delta = (stop - start) / (num-1)
     
     return UniformCoord(start, stop, delta, **kwargs)

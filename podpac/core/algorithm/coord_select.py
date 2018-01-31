@@ -1,12 +1,10 @@
 
 import traitlets as tl
 import numpy as np
-import xarray as xr
 import scipy.signal
-from six import string_types
 
 from podpac.core.coordinate import Coordinate, UniformCoord
-from podpac.core.coordinate import get_timedelta
+from podpac.core.coordinate import make_coord_delta
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 
@@ -37,12 +35,8 @@ class ExpandCoordinates(Algorithm):
             raise ValueError("Invalid expansion params for '%s'" % dim)
 
         # get start and stop offsets
-        dstart = self.params[dim][0]
-        dstop = self.params[dim][1]
-
-        if isinstance(dstart, string_types) and isinstance(dstop, string_types):
-            dstart = get_timedelta(dstart)
-            dstop = get_timedelta(dstop)
+        dstart = make_coord_delta(self.params[dim][0])
+        dstop = make_coord_delta(self.params[dim][1])
 
         if len(self.params[dim]) == 2:
             # expand and use native coordinates
@@ -57,13 +51,11 @@ class ExpandCoordinates(Algorithm):
 
         elif len(self.params[dim]) == 3:
             # or expand explicitly
-            step = self.params[dim][2]
-            if isinstance(step, string_types):
-                step = get_timedelta(step)
+            delta = make_coord_delta(self.params[dim][2])
             
             # TODO GroupCoord
             xcoords = [
-                UniformCoord(c+dstart, c+dstop, step)
+                UniformCoord(c+dstart, c+dstop, delta)
                 for c in icoords.coordinates]
             xcoord = sum(xcoords[1:], xcoords[0])
 
