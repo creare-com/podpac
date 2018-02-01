@@ -245,11 +245,11 @@ class WCS(podpac.DataSource):
                     # This is rough, we have to use a regular grid for WCS calls, 
                     # Otherwise we have to do multiple WCS calls... 
                     # TODO: generalize/fix this
-                    cs[c] = [min(ev[c].coords),
-                             max(ev[c].coords), ev[c].delta]
+                    cs[c] = (min(ev[c].coords),
+                             max(ev[c].coords), abs(ev[c].delta))
                 elif c in ev.dims and isinstance(ev[c], podpac.UniformCoord):
-                    cs[c] = [min(ev[c].coords[:2]),
-                             max(ev[c].coords[:2]), ev[c].delta]
+                    cs[c] = (min(ev[c].coords[:2]),
+                             max(ev[c].coords[:2]), abs(ev[c].delta))
                 else:
                     cs.append(wcs_c[c])
             c = podpac.Coordinate(cs)
