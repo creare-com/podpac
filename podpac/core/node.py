@@ -1,6 +1,8 @@
 from __future__ import division, print_function, absolute_import
 
 import os
+import glob
+import shutil
 import inspect
 from collections import OrderedDict
 from io import BytesIO
@@ -397,6 +399,31 @@ class Node(tl.HasTraits):
             io.seek(0)
             obj = cPickle.loads(io.read()) 
         return obj
+    
+    def clear_disk_cache(self, attr='*', node_cache=False, all_cache=False):
+        """ Helper function to clear disk cache. 
+        
+        WARNING: This function will permanently delete cached values
+        
+        Parameters
+        ------------
+        attr: str, optional
+            Default '*'. Specific attribute to be cleared for specific 
+            instance of this Node. By default all attributes are cleared.
+        node_cache: bool, optional
+            Default False. If True, will ignore `attr` and clear all attributes
+            for all variants/instances of this Node. 
+        all_cache: bool, optional
+            Default False. If True, will clear the entire podpac cache. 
+        """
+        if all_cache:
+            shutil.rmtree(settings.CACHE_DIR)
+        elif node_cache:
+            shutil.rmtree(self.cache_dir)
+        else: 
+            for f in glob.glob(self.cache_path(attr)):
+                os.remove(f)
+            
 
 if __name__ == "__main__":
     # checking creation of output node
