@@ -153,7 +153,7 @@ class Coordinate(BaseCoordinate):
    
     def get_dims_map(self, coords=None):
         if coords is None:
-            coords = self._coords
+            coords = self.coords
         stacked_coords = OrderedDict()
         for c in coords:
             if '_' in c:
