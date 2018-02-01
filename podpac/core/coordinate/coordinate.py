@@ -95,7 +95,7 @@ class Coordinate(BaseCoordinate):
 
             # make coord helper
             if isinstance(val, tuple):
-                if isinstance(val[2], (int, np.long, np.integer)):
+                if isinstance(val[2], (int, np.long, np.integer)) and not isinstance(val[2],(np.timedelta64)):
                     _coords[key] = coord_linspace(*val, **kw)
                 else:
                     _coords[key] = UniformCoord(*val, **kw)
