@@ -109,7 +109,11 @@ class Compositor(Node):
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
                 nc = Coordinate(**{coords_dim: c}) + self.shared_coordinates
-                if 'native_coordinates' not in s._trait_values:
+                # Switching from _trait_values to hasattr because "native_coordinates"
+                # sometimes not showing up in _trait_values in other locations
+                # Not confirmed here
+                #if 'native_coordinates' not in s._trait_values:
+                if hasattr(s,'native_coordinates') is False:
                     s.native_coordinates = nc
 
         if self.threaded:
