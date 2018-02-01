@@ -450,8 +450,7 @@ class SMAP(podpac.OrderedCompositor):
     
     @property
     def definition(self):
-        d = OrderedDict()
-        d['node'] = self.podpac_path
+        d = self._base_definition()
         d['attrs'] = OrderedDict()
         d['attrs']['product'] = self.product
         if self.interpolation:

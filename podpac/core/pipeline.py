@@ -88,15 +88,18 @@ class Pipeline(tl.HasTraits):
 
     def parse_node(self, name, d):
         # get node class
-        node_string = d['node']
-        if '.' in node_string:
-            submodule_name, node_name = node_string.rsplit('.', 1)
-            module_name = 'podpac.%s' % submodule_name
-        else:
-            module_name = 'podpac'
-            node_name = node_string
-        module = importlib.import_module(module_name)
-        node_class = getattr(module, node_name)
+        module_root = d.get('plugin', 'podpac')
+        node_string = '%s.%s' % (module_root, d['node'])
+        module_name, node_name = node_string.rsplit('.', 1)
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            raise PipelineError("No module found '%s'" % module_name)
+        try:
+            node_class = getattr(module, node_name)
+        except AttributeError:
+            raise PipelineError("Node '%s' not found in module '%s'" % (
+                node_name, module_name))
         
         # parse and configure kwargs
         kwargs = {}

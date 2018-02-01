@@ -1,7 +1,8 @@
 {
     "nodes": {
         "twi": {
-            "node": "plugins.dassp_plugin.DasspNode",
+            "plugin": "podpac.plugins.dassp_plugin"
+            "node": "DasspNode",
             "attrs": {
                 "layer": "composite_twi"
             }

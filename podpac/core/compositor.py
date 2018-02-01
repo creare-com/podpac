@@ -151,8 +151,7 @@ class Compositor(Node):
 
         # TODO test
 
-        d = OrderedDict()
-        d['node'] = self.podpac_path
+        d = self._base_definition()
         d['sources'] = self.sources
 
         if self.interpolation:

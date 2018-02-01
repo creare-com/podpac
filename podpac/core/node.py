@@ -228,20 +228,26 @@ class Node(tl.HasTraits):
             plt.show()
 
     @property
-    def podpac_path(self):
-        """
-        Submodule and class name (used in pipeline node definitions)
-        """
-        module_path = inspect.getmodule(self).__name__
-        submodule_name = module_path.split('.', 1)[1]
-        return '%s.%s' % (submodule_name, self.__class__.__name__)
-
-    @property
     def base_ref(self):
         """
         Default pipeline node reference/name in pipeline node definitions
         """
         return self.__class__.__name__
+    
+    def _base_definition(self):
+        """ populates 'node' and 'plugin', if necessary """
+        d = OrderedDict()
+        
+        if self.__module__ == 'podpac':
+            d['node'] = self.__class__.__name__
+        elif self.__module__.startswith('podpac.'):
+            _, module = self.__module__.split('.', 1)
+            d['node'] = '%s.%s' % (module, self.__class__.__name__)
+        else:
+            d['plugin'] = self.__module__
+            d['node'] = self.__class__.__name__
+
+        return d
 
     @property
     def definition(self):
@@ -253,9 +259,9 @@ class Node(tl.HasTraits):
         """
         parents = inspect.getmro(self.__class__)
         podpac_parents = [
-            '%s.%s' % (p.__module__[7:], p.__name__)
+            '%s.%s' % (p.__module__.split('.', 1)[1:], p.__name__)
             for p in parents
-            if p.__module__.startswith('podpac')]
+            if p.__module__.startswith('podpac.')]
         raise NotImplementedError('See %s' % ', '.join(podpac_parents))
 
     @property
