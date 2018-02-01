@@ -16,9 +16,13 @@ class BaseCoordinate(tl.HasTraits):
     def _valid_dims(self):
         return ('time', 'lat', 'lon', 'alt')
 
-    @property
-    def dims(self):
-        """ implemented in child class """
+    def stack(self, stack_dims, copy=True):
+        raise NotImplementedError
+
+    def unstack(self, copy=True):
+        raise NotImplementedError
+
+    def intersect(self, other, coord_ref_sys=None, pad=1, ind=False):
         raise NotImplementedError
 
 class Coordinate(BaseCoordinate):
@@ -459,102 +463,132 @@ class Coordinate(BaseCoordinate):
 
 class CoordinateGroup(BaseCoordinate):
     # TODO list or array?
-    groups = tl.List(trait=tl.Instance(Coordinate))
+    _items = tl.List(trait=tl.Instance(Coordinate))
 
-    @tl.validate('groups')
-    def _validate_groups(self, d):
-        groups = d['value']
-        if not groups:
-            return groups
+    @tl.validate('_items')
+    def _validate_items(self, d):
+        items = d['value']
+        if not items:
+            return items
 
-        # dims must match, but not necessarily in order
-        dims = set(groups[0].dims)
-        for g in groups:
-            if set(g.dims) != dims:
+        # unstacked dims must match, but not necessarily in order
+        dims = set(items[0].dims_map)
+        for g in items:
+            if set(g.dims_map) != dims:
                 raise ValueError(
                     "Mismatching dims: '%s != %s" % (dims, set(g.dims)))
 
-        return groups
+        return items
+
+    def __init__(self, items=[], **kwargs):
+        return super(CoordinateGroup, self).__init__(_items=items, **kwargs)
 
     def __repr__(self):
         rep = self.__class__.__name__
-        rep += '\n' + '\n'.join([repr(g) for g in self.groups])
+        rep += '\n' + '\n'.join([repr(g) for g in self._items])
         return rep
     
-    def __getitem__(self, item):
-        if item in self._valid_dims:
+    def __getitem__(self, key):
+        if isinstance(key, (int, slice)):
+            return self._items[key]
+        
+        elif isinstance(key, tuple):
+            if len(key) != 2:
+                raise IndexError("Too many indices for CoordinateGroup")
+            
+            k, dim = key
             # TODO list or array?
-            return [g[item] for g in self.groups]
+            return [item[dim] for item in self._items[k]]
+        
         else:
-            return self.groups[item]
-   
-    def get_dims_map(self, coords=None):
-        raise NotImplementedError
-    
-    def unstack_dict(self, coords=None, check_dim_repeat=False):
-        raise NotImplementedError
+            raise IndexError(
+                "invalid CoordinateGroup index type '%s'" % type(key))
 
-    def stack_dict(self, coords=None, dims_map=None):
-        raise NotImplementedError
-   
-    @property
-    def is_stacked(self):
-        raise NotImplementedError
+    def __len__(self):
+        return len(self._items)
+
+    def __iter__(self):
+        return self._items.__iter__()
+
+    def append(self, c):
+        if not isinstance(c, Coordinate):
+            raise TypeError(
+                "Can only append Coordinate objects, not '%s'" % type(c))
+        
+        self._items.append(c)
    
     def stack(self, stack_dims, copy=True):
-        raise NotImplementedError
+        """ stack all """
+
+        if copy:
+            return CoordinateGroup(
+                [c.stack(stack_dims, copy=True) for c in self._items])
+        else:
+            for c in self._items:
+                c.stack(stack_dims)
+            return self
 
     def unstack(self, copy=True):
-        raise NotImplementedError
+        """ unstack all"""
+        if copy:
+            return CoordinateGroup(
+                [c.unstack(stack_dims, copy=True) for c in self._items])
+        else:
+            for c in self._items:
+                c.unstack(stack_dims)
+            return self            
 
     def intersect(self, other, coord_ref_sys=None, pad=1, ind=False):
-        raise NotImplementedError
-    
-    @property
-    def kwargs(self):
-        raise NotImplementedError
-    
-    def replace_coords(self, other, copy=True):
-        raise NotImplementedError
-    
-    def get_shape(self, other_coords=None):
-        raise NotImplementedError
-
-    @property
-    def shape(self):
-        raise NotImplementedError
-    
-    @property
-    def delta(self):
-        raise NotImplementedError
+        return CoordinateGroup([c.intersect(other) for c in self._items])
     
     @property
     def dims(self):
-        return self.groups[0].dims
-    
-    @property
-    def coords(self):
-        raise NotImplementedError
-    
-    @property
-    def gdal_crs(self):
-        raise NotImplementedError
-    
+        """ unordered (set) and unstacked """
+        if len(self._items) == 0:
+            return {}
+        return set(self._items[0].dims_map)
+
     def add_unique(self, other):
-        raise NotImplementedError
+        return self._add(other, unique=True)
     
     def __add__(self, other):
-        raise NotImplementedError
+        return self._add(other)
     
     def _add(self, other, unique=False):
-        raise NotImplementedError
+        if unique:
+            raise NotImplementedError("TODO")
+
+        if isinstance(other, Coordinate):
+            # TODO should this concat, fail, or do something else?
+            # items = self._items + [other]
+            raise NotImplementedError("TODO")
+        elif isinstance(other, CoordinateGroup):
+            items = self._items + g._items
+        else:
+            raise TypeError("Cannot add '%s', only BaseCoordinate" % type(c))
+        
+        return CoordinateGroup(self._items + [other])
+
+    def __iadd__(self, other):
+        if isinstance(other, Coordinate):
+            # TODO should this append, fail, or do something else?
+            # TypeError("Cannot add individual Coordinate, use 'append'")
+            # self._items.append(other)
+            raise NotImplementedError("TODO")
+        elif isinstance(other, CoordinateGroup):
+            self._items += g._items
+        else:
+            raise TypeError("Cannot add '%s' to CoordinateGroup" % type(c))
+
+        return self
 
     def iterchunks(self, shape, return_slice=False):
-        raise NotImplementedError
+        raise NotImplementedError("TODO")
 
     @property
     def latlon_bounds_str(self):
-        raise NotImplementedError
+        # TODO should this be a single latlon bounds or a list of bounds?
+        raise NotImplementedError("TODO")
     
 # =============================================================================
 # helper functions
