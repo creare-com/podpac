@@ -501,8 +501,9 @@ if __name__ == '__main__':
                           order=['lat', 'lon', 'time'])    
     sentinel = SMAP(interpolation='nearest_preview', product='SPL2SMAP_S.001')
     smap = SMAP(product='SPL4SMAU.003')
+    pnc2, srcs2 = smap.get_partial_native_coordinates_sources()
     o2 = smap.execute(coordinates_world)
-    pnc, srcs = sentinel.get_partial_native_coordinates_sources()
+    pnc3, srcs3 = sentinel.get_partial_native_coordinates_sources()
     o3 = sentinel.execute(coordinates_world)
     s = sentinel.sources[121]
     s.source_coordinates.intersect(coordinates_world)

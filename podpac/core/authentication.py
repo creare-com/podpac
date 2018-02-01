@@ -24,6 +24,9 @@ from podpac.core import utils
 
 # overriding requests.Session.rebuild_auth to mantain headers when redirected
 class SessionWithHeaderRedirection(requests.Session):
+    """
+    Modified from: https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+Python
+    """
     AUTH_HOST = ''
     def __init__(self, username=None, password=None):
         super(SessionWithHeaderRedirection, self).__init__()
