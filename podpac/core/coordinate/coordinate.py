@@ -45,12 +45,6 @@ class Coordinate(BaseCoordinate):
     # specified stacked coordinates
     c = Coordinate(lat_lon=(np.array([50, 50.1, 50.4, 50.8, 50.9]), 
                             np.array([-120, -125, -126, -127, -130]) 
-    # Depended specified coordinates
-    c = Coordinate(lat=xr.DataArray([[50.1, 50.2, 50.3], [50.2, 50.3, 50.4]],
-                   dims=['lat', 'lon']), lon=... )) 
-    # Dependent from 3 points
-    c = Coordinate(lat=((50.1, 51.4, 51.2), 100),
-                   lon=((120, 120.1, 121.1), 50)) 
     """
 
     # default val set in constructor
