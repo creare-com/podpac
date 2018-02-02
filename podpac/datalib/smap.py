@@ -48,9 +48,9 @@ SMAP_PRODUCT_MAP = xr.DataArray([
         ['{rdk}latitude', '{rdk}longitude', 'Soil_Moisture_Retrieval_Data_',
             '{rdk}soil_moisture'],
         ['{rdk}latitude', '{rdk}longitude', 'Soil_Moisture_Retrieval_Data_',
-            'soil_moisture'],
+            '{rdk}soil_moisture'],
         ['{rdk}AM_latitude', '{rdk}AM_longitude', 'Soil_Moisture_Retrieval_Data_',
-            'soil_moisture'],
+            '{rdk}soil_moisture'],
         ['cell_lat', 'cell_lon', 'Land_Model_Constants_Data_', ''],
         ['{rdk}latitude_1km', '{rdk}longitude_1km',
          'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km'],
@@ -96,7 +96,7 @@ class SMAPSource(datatype.PyDAP):
     def _layerkey_default(self):
         return SMAP_PRODUCT_MAP.sel(
             product=self.product,
-            attr='layerkey').item().format(rdk=self.rootdatakey)
+            attr='layerkey').item()
 
     no_data_vals = [-9999.0]
   
@@ -107,7 +107,7 @@ class SMAPSource(datatype.PyDAP):
 
     @tl.default('datakey')
     def _datakey_default(self):
-        return self.layerkey
+        return self.layerkey.format(rdk=self.rootdatakey)
     
     @property
     def latkey(self):
@@ -153,8 +153,8 @@ class SMAPSource(datatype.PyDAP):
                    if 'time' not in d]) 
         if 'SM_P_' in self.source:
             d = self.initialize_coord_array(coordinates, 'nan')
-            am_key = self.rootdatakey + 'AM_' + self.layerkey
-            pm_key = self.rootdatakey + 'PM_' + self.layerkey + '_pm'
+            am_key = self.layerkey.format(rdk=self.rootdatakey + 'AM_')
+            pm_key = self.layerkey.format(rdk=self.rootdatakey + 'PM_') + '_pm'
             try:
                 t = self.native_coordinates.coords['time'][0]
                 d.loc[dict(time=t)] = np.array(self.dataset[am_key][s])
@@ -238,6 +238,19 @@ class SMAPDateFolder(podpac.OrderedCompositor):
     
     cache_native_coordinates = tl.Bool(False)
 
+    layerkey = tl.Unicode()
+    @tl.default('layerkey')
+    def _layerkey_default(self):
+        return SMAP_PRODUCT_MAP.sel(
+            product=self.product,
+            attr='layerkey').item()
+
+    @tl.observe('layerkey')
+    def _layerkey_change(self, change):
+        if change['old'] != change['new']:
+            for s in self.sources:
+                s.layerkey = change['new']
+
     @property
     def source(self):
         return '/'.join([self.base_url, self.product, self.folder_date])
@@ -257,7 +270,8 @@ class SMAPDateFolder(podpac.OrderedCompositor):
             tol = np.timedelta64(1, dtype=(tol.dtype))
         src_objs = np.array([SMAPSource(source=b + s,
                                         interpolation_tolerance=tol,
-                                        auth_session=self.auth_session)
+                                        auth_session=self.auth_session, 
+                                        layerkey=self.layerkey)
                              for s in sources])
         return src_objs
     
@@ -354,6 +368,10 @@ class SMAPDateFolder(podpac.OrderedCompositor):
             return times[I], latlons[I], sources[I]
         else:
             return times[I], None, sources[I]        
+        
+    @property
+    def keys(self):
+        return self.sources[0].keys        
 
 
 class SMAP(podpac.OrderedCompositor):
@@ -372,6 +390,19 @@ class SMAP(podpac.OrderedCompositor):
                 username=self.username, password=self.password)
         return session    
     
+    layerkey = tl.Unicode()
+    @tl.default('layerkey')
+    def _layerkey_default(self):
+        return SMAP_PRODUCT_MAP.sel(
+            product=self.product,
+            attr='layerkey').item()
+    
+    @tl.observe('layerkey')
+    def _layerkey_change(self, change):
+        if change['old'] != change['new']:
+            for s in self.sources:
+                s.layerkey = change['new']
+    
     @property
     def source(self):
         return self.product
@@ -382,7 +413,8 @@ class SMAP(podpac.OrderedCompositor):
         src_objs = np.array([
             SMAPDateFolder(product=self.product, folder_date=date,
                            shared_coordinates=self.shared_coordinates,
-                           auth_session=self.auth_session)
+                           auth_session=self.auth_session,
+                           layerkey=self.layerkey)
             for date in dates])
         return src_objs
 
@@ -457,6 +489,11 @@ class SMAP(podpac.OrderedCompositor):
             d['attrs']['interpolation'] = self.interpolation
         return d
     
+    @property
+    def keys(self):
+        return self.sources[0].keys
+        
+    
 class SMAPBestAvailable(podpac.OrderedCompositor):
     @tl.default('sources')
     def sources_default(self):
@@ -465,6 +502,8 @@ class SMAPBestAvailable(podpac.OrderedCompositor):
             SMAP(interpolation=self.interpolation, product='SPL4SMAU.003')
         ])
         return src_objs
+    
+    
     
 
 if __name__ == '__main__':
