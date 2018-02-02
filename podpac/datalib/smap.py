@@ -475,18 +475,16 @@ if __name__ == '__main__':
     #eds.update_login()
         # follow the prompts
     from podpac.core.data.type import WCS
-    coords = podpac.Coordinate(time='2015-04-06',
+    coords = podpac.Coordinate(time='2015-04-06T06',
                                lat=(-34.5, -35.25, 30), lon=(145.75, 146.5, 30),
                                order=['time', 'lat', 'lon'])  
     
     
-    from podpac.datalib.smap import SMAP 
+    #from podpac.datalib.smap import SMAP 
     smap = SMAP(product='SPL3SMP.004')  
     #smap = SMAP(product='SPL4SMAU.003')  
-    nc = smap.native_coordinates
-    pnc, srcs = smap.get_partial_native_coordinates_sources()
-    coords2 = podpac.Coordinate(lat=[-34, -40, 30], lon=[145, 150, 30],
-                                order=['lat', 'lon'])  
+    #nc = smap.native_coordinates
+    #pnc, srcs = smap.get_partial_native_coordinates_sources()
     o = smap.execute(coords)
     
     

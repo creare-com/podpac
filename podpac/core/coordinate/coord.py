@@ -180,7 +180,7 @@ class BaseCoord(tl.HasTraits):
                 return self
 
         # none
-        if self.bounds[0] > bounds[1] or self.bounds[1] < bounds[0]:
+        if self.area_bounds[0] > bounds[1] or self.area_bounds[1] < bounds[0]:
             if ind:
                 return slice(0, 0)
             else:
@@ -325,7 +325,10 @@ class Coord(BaseCoord):
 
     @tl.default('delta')
     def _delta_default(self):  # average delta
-        return (self.bounds[1] - self.bounds[0]) / (self.size - 1)
+        if self.size == 1 and self.is_datetime:
+            return self.bounds[0] - self.bounds[0] + np.timedelta64(2)
+        else:
+            return (self.bounds[1] - self.bounds[0]) / (self.size - 1)
 
     @tl.observe('coords')
     def _clear_cache(self, change):
@@ -350,9 +353,13 @@ class Coord(BaseCoord):
     @property
     def area_bounds(self):
         if self.ctype in ['fence', 'segment'] and self.extents:
-            extents = self.extents
+            return self.extents
         else:
             extents = copy.deepcopy(self.bounds)
+        if self.ctype in ['fence', 'segment']:
+            p = self.segment_position
+            extents[0] -= p * np.abs(self.delta)
+            extents[1] += (1-p) * np.abs(self.delta)        
         return extents
 
     @property
