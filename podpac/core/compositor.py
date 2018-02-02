@@ -41,7 +41,7 @@ class Compositor(Node):
     def _source_coordinates_default(self):
         return self.get_source_coordinates()
     def get_source_coordinates(self):
-        raise NotImplementedError()
+        return None
         
     @tl.default('shared_coordinates')
     def _shared_coordinates_default(self):
