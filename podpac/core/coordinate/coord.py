@@ -482,8 +482,15 @@ class MonotonicCoord(Coord):
         lt = self.coordinates <= bounds[1]
         if self.is_descending:
             gt, lt = lt, gt
-        imin = max(0, np.where(gt)[0].min() - pad)
-        imax = min(self.size, np.where(lt)[0].max() + pad + 1)
+        gtw = np.where(gt)[0]
+        ltw = np.where(lt)[0]
+        if gtw.size == 0 or ltw.size == 0:
+            if ind:
+                return slice(0, 0)
+            else: 
+                return Coord([], **self.kwargs)
+        imin = max(0, gtw.min() - pad)
+        imax = min(self.size, ltw.max() + pad + 1)
 
         if imin == imax:
             if ind:
