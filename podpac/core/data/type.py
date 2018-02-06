@@ -150,13 +150,15 @@ class RasterioSource(podpac.DataSource):
     #native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
                                      #allow_none=False)    
     def get_native_coordinates(self):
-        dlon, dlat = self.dataset.res
+        dlon = self.dataset.width
+        dlat = self.dataset.height
         left, bottom, right, top = self.dataset.bounds
-        if self.dataset.transform[1] != 0.0 or\
-           self.dataset.transform[3] != 0.0:
+        if self.dataset.affine[1] != 0.0 or\
+           self.dataset.affine[3] != 0.0:
             raise NotImplementedError("Have not implemented rotated coords")
         return podpac.Coordinate(lat=(top, bottom, dlat),
-                                 lon=(left, right, dlon))
+                                 lon=(left, right, dlon), 
+                                 order=['lat', 'lon'])
 
     def get_data(self, coordinates, coodinates_slice):
         return 

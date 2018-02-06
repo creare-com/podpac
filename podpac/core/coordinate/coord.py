@@ -326,7 +326,9 @@ class Coord(BaseCoord):
     @tl.default('delta')
     def _delta_default(self):  # average delta
         if self.size == 1 and self.is_datetime:
-            return self.bounds[0] - self.bounds[0] + np.timedelta64(2)
+            time_delta = self.bounds[0] - self.bounds[0]
+            delta = np.ones_like(time_delta) * 2
+            return time_delta + delta
         else:
             return (self.bounds[1] - self.bounds[0]) / (self.size - 1)
 

@@ -48,17 +48,19 @@ class Compositor(Node):
         return self.get_shared_coordinates()
     def get_shared_coordinates(self):
         raise NotImplementedError()
-    
+
+    def composite(self, outputs, result=None):    
+        raise NotImplementedError()
     
     @tl.default('native_coordinates')
     def _native_coordinates_default(self):
         return self.get_native_coordinates()
-    
+
     def get_native_coordinates(self):
         """
         This one is tricky... you can have multi-level compositors
         One for a folder described by a date
-        One fo all the folders over all dates. 
+        One for all the folders over all dates. 
         The single folder one has time coordinates that are actually
         more accurate than just the folder time coordinate, so you want
         to replace the time coordinate in native coordinate -- does this 

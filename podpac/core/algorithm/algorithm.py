@@ -27,10 +27,10 @@ class Algorithm(Node):
                     node.execute(coordinates, params)
                 # accumulate coordniates
                 if coords is None:
-                    crds = node.native_coordinates.replace_coords(node.evaluated_coordinates)
                     coords = convert_xarray_to_podpac(node.output.coords)
                 else:
-                    coords = coords + convert_xarray_to_podpac(node.output.coords)
+                    coords = coords.add_unique(
+                        convert_xarray_to_podpac(node.output.coords))
 
         if self.output is None:
             self.output = self.initialize_coord_array(coords)
