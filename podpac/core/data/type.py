@@ -131,8 +131,7 @@ class PyDAP(podpac.DataSource):
 
 class RasterioSource(podpac.DataSource):
     source = tl.Unicode(allow_none=False)
-    dataset = tl.Instance('rasterio._io.RasterReader',
-                          allow_none=True)
+    dataset = tl.Any(allow_none=True)
     @tl.default('dataset')
     def open_dataset(self, source=None):
         if source is None:
@@ -152,9 +151,13 @@ class RasterioSource(podpac.DataSource):
     def get_native_coordinates(self):
         dlon = self.dataset.width
         dlat = self.dataset.height
+        if hasattr(self.dataset, 'affine'):
+            affine = self.dataset.affine
+        else:
+            affine = self.dataset.transform
         left, bottom, right, top = self.dataset.bounds
-        if self.dataset.affine[1] != 0.0 or\
-           self.dataset.affine[3] != 0.0:
+        if affine[1] != 0.0 or\
+           affine[3] != 0.0:
             raise NotImplementedError("Have not implemented rotated coords")
         return podpac.Coordinate(lat=(top, bottom, dlat),
                                  lon=(left, right, dlon), 
