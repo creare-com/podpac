@@ -7,6 +7,7 @@ import itertools
 import numpy as np
 import traitlets as tl
 from collections import OrderedDict
+from xarray.core.coordinates import DataArrayCoordinates
 
 from podpac.core.coordinate.coord import (
     BaseCoord, Coord, MonotonicCoord, UniformCoord, coord_linspace)
@@ -588,7 +589,16 @@ class CoordinateGroup(BaseCoordinate):
 # helper functions
 # =============================================================================
 
-# TODO
+def convert_xarray_to_podpac(orig_coord):
+    """
+    Take xarray coordinate and convert to podpac coordinate
+    """    
+    if not isinstance(orig_coord, DataArrayCoordinates):
+        raise TypeError("num must be an xarray dataarray coordinate, not '%s'" % type(orig_coord))
+    new_ord_dict = OrderedDict()
+    for d in orig_coord.dims:
+        new_ord_dict[d] = orig_coord[d].data
+    return Coordinate(new_ord_dict)
 
 # =============================================================================
 # TODO convert to unit testing

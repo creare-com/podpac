@@ -10,7 +10,7 @@ try:
 except: 
     ne = None
 
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinate import Coordinate, convert_xarray_to_podpac
 from podpac.core.node import Node
 
 class Algorithm(Node):
@@ -19,14 +19,22 @@ class Algorithm(Node):
         self.params = params
         self.output = output
 
-        if self.output is None:
-            self.output = self.initialize_output_array()
-
-        if self.implicit_pipeline_evaluation:
-            for name in self.trait_names():
-                node = getattr(self, name)
-                if isinstance(node, Node):
+        coords = None
+        for name in self.trait_names():
+            node = getattr(self, name)
+            if isinstance(node, Node):
+                if self.implicit_pipeline_evaluation:
                     node.execute(coordinates, params)
+                # accumulate coordniates
+                if coords is None:
+                    crds = node.native_coordinates.replace_coords(node.evaluated_coordinates)
+                    coords = convert_xarray_to_podpac(node.output.coords)
+                else:
+                    coords = coords + convert_xarray_to_podpac(node.output.coords)
+
+        if self.output is None:
+            self.output = self.initialize_coord_array(coords)
+
 
         result = self.algorithm()
         if isinstance(result, np.ndarray):

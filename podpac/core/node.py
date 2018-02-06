@@ -133,6 +133,23 @@ class Node(tl.HasTraits):
         dims = list(crds.keys())
         return self.initialize_array(init_type, fillval, style, no_style, shape,
                                      crds, dims, units, dtype, **kwargs)
+
+    def copy_output_array(self, init_type='nan'):
+        x = self.output.copy(True)   
+        shape = x.data.shape
+        
+        if init_type == 'empty':
+            x.data = np.empty(shape)
+        elif init_type == 'nan':
+            data = np.full(shape, np.nan)
+        elif init_type == 'zeros':
+            data = np.zeros(shape)
+        elif init_type == 'ones':
+            data = np.ones(shape)
+        else:
+            raise ValueError("Unknown init_type=%" % init_type)
+        
+        return x
     
     def initialize_coord_array(self, coords, init_type='nan', fillval=0, 
                                style=None, no_style=False, units=None,

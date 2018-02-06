@@ -11,3 +11,4 @@ from podpac.core.coordinate.coord import coord_linspace
 from podpac.core.coordinate.coordinate import BaseCoordinate
 from podpac.core.coordinate.coordinate import Coordinate
 from podpac.core.coordinate.coordinate import CoordinateGroup
+from podpac.core.coordinate.coordinate import convert_xarray_to_podpac
