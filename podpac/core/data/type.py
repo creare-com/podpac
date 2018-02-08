@@ -5,7 +5,7 @@ import re
 from io import BytesIO
 import tempfile
 import bs4
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import numpy as np
 import xarray as xp
 import traitlets as tl
@@ -55,6 +55,7 @@ except:
 # Internal dependencies
 import podpac
 from podpac.core import authentication
+from podpac.core.utils import cached_property, clear_cache
 
 class NumpyArray(podpac.DataSource):
     source = tl.Instance(np.ndarray)
@@ -132,6 +133,8 @@ class PyDAP(podpac.DataSource):
 class RasterioSource(podpac.DataSource):
     source = tl.Unicode(allow_none=False)
     dataset = tl.Any(allow_none=True)
+    band = tl.CInt(1)
+    
     @tl.default('dataset')
     def open_dataset(self, source=None):
         if source is None:
@@ -139,6 +142,9 @@ class RasterioSource(podpac.DataSource):
         else:
             self.source = source
         return rasterio.open(source)
+    
+    def close_dataset(self):
+        self.dataset.close()
 
     @tl.observe('source')
     def _update_dataset(self, change):
@@ -146,8 +152,6 @@ class RasterioSource(podpac.DataSource):
             self.dataset = self.open_dataset(change['new'])
         self.native_coordinates = self.get_native_coordinates()
 
-    #native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
-                                     #allow_none=False)    
     def get_native_coordinates(self):
         dlon = self.dataset.width
         dlat = self.dataset.height
@@ -164,7 +168,56 @@ class RasterioSource(podpac.DataSource):
                                  order=['lat', 'lon'])
 
     def get_data(self, coordinates, coodinates_slice):
-        return 
+        data = self.initialize_coord_array(coordinates)
+        
+        data.data.ravel()[:] = self.dataset.read(
+            self.band, window=((slc[0].start, slc[0].stop), 
+                               (slc[1].start, slc[1].stop)),
+            out_shape=tuple(coordinates.shape)
+            ).ravel()
+            
+        return data 
+    
+    @cached_property
+    def band_count(self):
+        return self.dataset.count
+    
+    @cached_property
+    def band_descriptions(self):
+        bands = OrderedDict()
+        for i in range(self.dataset.count):
+            bands[i] = self.dataset.tags(i + 1)
+        return bands    
+
+    @cached_property
+    def band_keys(self):
+        keys = {}
+        for i in range(self.band_count):
+            for k in self.band_descriptions[i].keys():
+                keys[k] = None
+        keys = keys.keys()
+        band_keys = defaultdict(lambda: [])
+        for k in keys: 
+            for i in range(self.band_count):
+                band_keys[k].append(self.band_descriptions[i].get(k, None))
+        return band_keys    
+    
+    @tl.observe('source')
+    def _clear_band_description(self, change):
+        clear_cache(self, change, ['band_descriptions', 'band_count',
+                                   'band_keys'])
+
+    def get_band_numbers(self, key, value):
+        if not hasattr(key, '__iter__') and not hasattr(value, '__iter__'):
+            key = [key]
+            value = [value]
+
+        match = np.ones(self.band_count, bool)
+        for k, v in zip(key, value):
+            match = match & (np.array(self.band_keys[k]) == v)
+        matches = np.where(match)[0] + 1
+        return matches    
+
 
 WCS_DEFAULT_VERSION = u'1.0.0'
 WCS_DEFAULT_CRS = 'EPSG:4326'
