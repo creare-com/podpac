@@ -69,6 +69,8 @@ class Node(tl.HasTraits):
     dtype = tl.Any(default_value=float)
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)    
     
+    node_defaults = tl.Dict(allow_none=True)
+    
     style = tl.Instance(Style)
     @tl.default('style')
     def _style_default(self):
@@ -99,6 +101,18 @@ class Node(tl.HasTraits):
     def __init__(self, **kwargs):
         """ Do not overwrite me """
         tkwargs = self._first_init(**kwargs)
+        
+        # Add default values listed in dictionary
+        # self.node_defaults.update(tkwargs) <-- could almost do this...
+        #                                        but don't want to overwrite 
+        #                                        node_defaults and want to 
+        #                                        ignore 'node_defaults'
+        for key, val in self.node_defaults.items():
+            if key == 'node_defaults': continue  # ignore this entry
+            if not hasattr(tkwargs, key):  # Only add value if not in input
+                tkwargs[key] = val
+        
+        # Call traitlest constructor
         super(Node, self).__init__(**tkwargs)
         self.init()
 
