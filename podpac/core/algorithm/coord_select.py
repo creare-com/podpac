@@ -8,6 +8,26 @@ from podpac.core.coordinate import make_coord_delta
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 
+def add_coords(base, off):
+    try:
+        return base + off
+    except TypeError as e:
+        if not (isinstance(base, np.datetime64) \
+                and isinstance(off, np.timedelta64)):
+            raise e
+
+        unit = off.dtype.name
+        unit = unit[unit.index('[') + 1: unit.index(']')]
+        attr = {'Y': 'year', 'M': 'month'}[unit]
+
+        date = base.astype(object)
+        try: 
+            date = date.replace(**{attr: getattr(date, attr) + off.astype(object)})
+        except ValueError as e:
+            date = date.replace(**{attr: getattr(date, attr) + off.astype(object)
+                , 'day': 28})
+        return np.datetime64(date)
+
 class ExpandCoordinates(Algorithm):
     source = tl.Instance(Node)
     native_coordinates_source = tl.Instance(Node, allow_none=True)
@@ -44,7 +64,7 @@ class ExpandCoordinates(Algorithm):
             
             # TODO GroupCoord
             xcoords = [
-                ncoord.select((c+dstart, c+dstop))
+                ncoord.select((add_coords(c, dstart), add_coords(c, dstop)))
                 for c in icoords.coordinates
             ]
             xcoord = sum(xcoords[1:], xcoords[0])
@@ -55,7 +75,7 @@ class ExpandCoordinates(Algorithm):
             
             # TODO GroupCoord
             xcoords = [
-                UniformCoord(c+dstart, c+dstop, delta)
+                UniformCoord(add_coords(c, dstart), add_coords(c, dstop), delta)
                 for c in icoords.coordinates]
             xcoord = sum(xcoords[1:], xcoords[0])
 
@@ -133,8 +153,8 @@ if __name__ == '__main__':
     
     node = Test()
     o = node.execute(coords)
-    print o.coords
+    print (o.coords)
 
     node = ExpandCoordinates(source=Test())
     o = node.execute(coords, params={'time': ('-15,D', '0,D')})
-    print o.coords
+    print (o.coords)
