@@ -31,7 +31,8 @@ class Algorithm(Node):
                 else:
                     coords = coords.add_unique(
                         convert_xarray_to_podpac(node.output.coords))
-
+        if coords is None:
+            coords = coordinates
         if self.output is None:
             self.output = self.initialize_coord_array(coords)
 

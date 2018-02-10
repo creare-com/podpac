@@ -13,6 +13,11 @@ import xarray as xr
 import traitlets as tl
 import h5py
 
+# fixing problem with older versions of numpy
+if not hasattr(np, 'isnat'):
+    def isnat(a):
+        return a.astype(str) == 'None'
+    np.isnat = isnat
 
 # Internal dependencies
 import podpac
