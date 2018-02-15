@@ -1,12 +1,11 @@
-
 # Pipeline
 
 A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and, optionally, *outputs* to produce when executing the pipeline.
 
 ## Attributes
 
- * `nodes`: (object) node definitions
- * `outputs`: (list) output definitions, optional
+ * `nodes`: node definitions  *(object, required)*
+ * `outputs`: output definitions *(list, optional)* 
 
 ## Sample
 
@@ -30,15 +29,15 @@ There are three basic *node types*: DataSource, Compositor, and Algorithm.
 
 ## Common Attributes
 
- * `node`: (string) a path to the node class. The path is relative to the podpac module, unless `plugin` is defined. See Notes.
- * `plugin`: (string) a path to a plugin module to use (prepended node path). See Notes.
- * `attrs`: (object) explicitly set attributes in the node for custom behavior.
- * `evaluate`: (bool) if `false`, the pipeline will not execute this node automatically. This is useful for nodes that will be executed implicitly by a later node. Default: `true`.
+ * `node`: a path to the node class. The path is relative to the podpac module, unless `plugin` is defined. See Notes. *(string, required)*
+ * `plugin`: a path to a plugin module to use (prepended node path). See Notes. *(string, optional)*
+ * `attrs`: explicitly set attributes in the node for custom behavior. *(string, optional)*
+ * `evaluate`: execute this node automatically. Setting this to `false` is useful for nodes that will be executed implicitly by a later node. *(bool, optional, default `true`)*
 
 ## DataSource
 
 ###  Attributes
- * `source`: (string) the dataset source
+ * `source`: the dataset source *(string, required)*
 
 ### Sample
 
@@ -60,7 +59,7 @@ There are three basic *node types*: DataSource, Compositor, and Algorithm.
 
 ### Attributes
 
- * `sources`: (list) nodes to composite.
+ * `sources`: nodes to composite *(list, required)*
 
 ### Sample
 
@@ -82,8 +81,8 @@ There are three basic *node types*: DataSource, Compositor, and Algorithm.
 ## Algorithm
 
 ### Attributes
- * `inputs`: (object) node inputs to the algorithm.
- * `params`: (object) non-node inputs to the algorithm.
+ * `inputs`: node inputs to the algorithm. *(object, required)*
+ * `params`: non-node inputs to the algorithm. *(object, optional)*
 
 ```
 {
