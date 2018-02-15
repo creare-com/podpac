@@ -17,6 +17,7 @@ A podpac pipeline can be defined using JSON. The pipeline definition describes t
     },
     "outputs": [
         { ... },
+        { ... }
     ]
 }
 ```
