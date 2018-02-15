@@ -43,8 +43,8 @@ class AWSOutput(Output):
 
 class ImageOutput(Output):
     format = tl.CaselessStrEnum(values=['png'], default='png')
-    vmax = tl.CFloat(allow_node=True, default_value=np.nan)
-    vmin = tl.CFloat(allow_node=True, default_value=np.nan)
+    vmax = tl.CFloat(allow_none=True, default_value=np.nan)
+    vmin = tl.CFloat(allow_none=True, default_value=np.nan)
     image = tl.Bytes()
 
     def write(self):

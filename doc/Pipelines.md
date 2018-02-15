@@ -25,9 +25,9 @@ A podpac pipeline can be defined using JSON. The pipeline definition describes t
 
 A node definition defines the node and its inputs and parameters. It also names the node so that it can be used as an input to other nodes in the pipeline. Nodes must be defined before they are referenced in a later node.
 
-There are three basic *node types*: DataSource, Compositor, and Algorithm.
+All nodes must be one of these three basic types: *DataSource*, *Compositor*, and *Algorithm*.
 
-## Common Attributes
+### Common Attributes
 
  * `node`: a path to the node class. The path is relative to the podpac module, unless `plugin` is defined. See Notes. *(string, required)*
  * `plugin`: a path to a plugin module to use (prepended node path). See Notes. *(string, optional)*
@@ -118,3 +118,80 @@ There are three basic *node types*: DataSource, Compositor, and Algorithm.
    - `"plugin": "myplugin", "node": "MyCustomNode"` is equivalent to `from myplugin import MyCustomNode`
 
 # Output Definitions
+
+An output definition defines a type of output, the nodes to output, and other parameters such as output location. Outputs are not required, but each output definition should contain a list of one or more nodes (by name) to output.
+
+Podpac provides several output types: *file*, *image*, *ftp*, and *aws*. Currently custom output types are not supported.
+
+### Common Attributes
+
+ * `mode`: The output type, options are 'file', 'image', 'ftp', and 'aws'. *(string, required)*
+ * `nodes`: The nodes to output. *(list, required)*
+
+## Files
+
+Nodes can be output to file in a variety of formats.
+
+### Attributes
+
+ * `format`: file format, options are 'pickle' (default), 'geotif', 'png'. *(string, optional)*
+ * `outdir`: destination path for the output file *(string, required)*
+
+### Sample
+
+```
+{
+    "nodes": {
+        "MyNode1": { ... },
+        "MyNode2": { ... }
+    },
+
+    "outputs": [
+        {
+            "mode": "file",
+            "format": "png",
+            "outdir": "C:\Path\To\OutputData",
+            "nodes": ["MyNode2"]
+        }
+    ]
+}
+```
+
+## Images
+
+Nodes can be output to a png image (in memory).
+
+### Attributes
+
+ * `format`: image format, options are 'png' (default). *(string, optional)*
+ * `vmin`: min value for the colormap *(number, optional)*
+ * `vmax`: max value for the colormap *(number, optional)*
+
+### Sample
+
+```
+{
+    "nodes": {
+        "MyNode1": { ... },
+        "MyNode2": { ... }
+    },
+
+    "outputs": [
+         {
+            "mode": "image",
+            "format": "png",
+            "vmin": 0.1,
+            "vmax": 0.35,
+            "nodes": ["MyNode1", "MyNode2"]
+        }
+    ]
+}
+```
+
+## AWS
+
+*Not yet implemented*
+
+## FTP
+
+*Not yet implemented*
