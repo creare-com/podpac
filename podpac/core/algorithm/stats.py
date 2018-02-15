@@ -474,6 +474,8 @@ class Median(Reduce2):
 # Time-Grouped Reduce
 # =============================================================================
 
+# TODO native_coordinates_source as an attribute
+
 class GroupReduce(Algorithm):
     """
     Group a time-dependent source node by a datetime accessor and reduce.
@@ -491,6 +493,7 @@ class GroupReduce(Algorithm):
     """
 
     source = tl.Instance(Node)
+    native_coordinates_source = tl.Instance(Node, allow_none=True)
 
     # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
     groupby = tl.CaselessStrEnum(['dayofyear']) # could add season, month, etc
@@ -501,9 +504,19 @@ class GroupReduce(Algorithm):
     custom_reduce_fn = tl.Any()
 
     @property
+    def native_coordinates(self):
+        try:
+            if self.native_coordinates_source:
+                return self.native_coordinates_source.native_coordinates
+            else:
+                return self.source.native_coordinates
+        except:
+            raise Exception("no native coordinates found")
+
+    @property
     def source_coordinates(self):
         # intersect grouped time coordinates using groupby DatetimeAccessor
-        native_time = xr.DataArray(self.source.native_coordinates.coords['time'])
+        native_time = xr.DataArray(self.native_coordinates.coords['time'])
         eval_time = xr.DataArray(self.evaluated_coordinates.coords['time'])
         N = getattr(native_time.dt, self.groupby)
         E = getattr(eval_time.dt, self.groupby)
@@ -526,7 +539,7 @@ class GroupReduce(Algorithm):
         if self.output is None:
             self.output = self.initialize_output_array()
 
-        if 'time' not in self.source.native_coordinates.dims:
+        if 'time' not in self.native_coordinates.dims:
             raise ValueError("GroupReduce source node must be time-dependent")
         
         if self.implicit_pipeline_evaluation:
