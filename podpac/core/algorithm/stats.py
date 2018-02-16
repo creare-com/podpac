@@ -543,7 +543,7 @@ class GroupReduce(Algorithm):
             raise ValueError("GroupReduce source node must be time-dependent")
         
         if self.implicit_pipeline_evaluation:
-             self.source.execute(self.source_coordinates, params)
+            self.source.execute(self.source_coordinates, params)
 
         # group
         grouped = self.source.output.groupby('time.%s' % self.groupby)

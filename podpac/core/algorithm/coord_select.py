@@ -1,7 +1,8 @@
+from __future__ import division, unicode_literals, print_function, absolute_import
 
-import traitlets as tl
 import numpy as np
 import scipy.signal
+import traitlets as tl
 
 from podpac.core.coordinate import Coordinate, UniformCoord
 from podpac.core.coordinate import make_coord_delta
@@ -133,8 +134,8 @@ if __name__ == '__main__':
     
     node = Test()
     o = node.execute(coords)
-    print o.coords
+    print (o.coords)
 
     node = ExpandCoordinates(source=Test())
     o = node.execute(coords, params={'time': ('-15,D', '0,D')})
-    print o.coords
+    print (o.coords)

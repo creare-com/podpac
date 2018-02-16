@@ -308,10 +308,17 @@ def make_pipeline_definition(main_node):
     add_node(main_node)
 
     output = OrderedDict()
-    output['mode'] = 'file'
-    output['format'] = 'pickle'
-    output['outdir'] = os.path.join(os.getcwd(), 'out')
+    #output['mode'] = 'file'
+    #output['format'] = 'pickle'
+    #output['outdir'] = os.path.join(os.getcwd(), 'out')
+    #output['nodes'] = [refs[-1]]
+
+    output['mode'] = 'image'
+    output['format'] = 'png'
+    output['vmin'] = -1.2
+    output['vmax'] = 1.2
     output['nodes'] = [refs[-1]]
+
 
     d = OrderedDict()
     d['nodes'] = OrderedDict(zip(refs, definitions))
