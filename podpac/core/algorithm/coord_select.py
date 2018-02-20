@@ -7,6 +7,7 @@ from podpac.core.coordinate import Coordinate, UniformCoord
 from podpac.core.coordinate import make_coord_delta
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.time_utils import add_time_coords
 
 def add_coords(base, off):
     try:
@@ -16,17 +17,7 @@ def add_coords(base, off):
                 and isinstance(off, np.timedelta64)):
             raise e
 
-        unit = off.dtype.name
-        unit = unit[unit.index('[') + 1: unit.index(']')]
-        attr = {'Y': 'year', 'M': 'month'}[unit]
-
-        date = base.astype(object)
-        try: 
-            date = date.replace(**{attr: getattr(date, attr) + off.astype(object)})
-        except ValueError as e:
-            date = date.replace(**{attr: getattr(date, attr) + off.astype(object)
-                , 'day': 28})
-        return np.datetime64(date)
+        return add_time_coords(base, off) 
 
 class ExpandCoordinates(Algorithm):
     source = tl.Instance(Node)
@@ -157,4 +148,10 @@ if __name__ == '__main__':
 
     node = ExpandCoordinates(source=Test())
     o = node.execute(coords, params={'time': ('-15,D', '0,D')})
+    print (o.coords)
+
+    node.params={'time': ('-15,Y', '0,D', '1,Y')}
+    print (node.get_expanded_coord('time'))
+
+    o = node.execute(coords, params={'time': ('-5,M', '0,D', '1,M')})
     print (o.coords)

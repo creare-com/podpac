@@ -350,7 +350,11 @@ class Coordinate(BaseCoordinate):
     
     @property
     def delta(self):
-        return np.array([c.delta for c in self._coords.values()]).squeeze()
+        try:
+            return np.array([c.delta for c in self._coords.values()]).squeeze()
+        except ValueError as e:
+            return np.array([c.delta for c in self._coords.values()], 
+                    object).squeeze()
     
     @property
     def dims(self):

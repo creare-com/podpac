@@ -11,6 +11,8 @@ from podpac.core.units import Units
 from podpac.core.utils import cached_property, clear_cache
 from podpac.core.coordinate.util import (
     make_coord_value, make_coord_delta, get_timedelta)
+from podpac.core.time_utils import (get_time_coords_size, add_time_coords)
+
 
 class BaseCoord(tl.HasTraits):
     """
@@ -651,12 +653,22 @@ class UniformCoord(BaseCoord):
     @cached_property
     def coordinates(self):
         # Syntax a little odd, but works for datetime64 as well as floats
-        return self.start + np.arange(0, self.size) * self.delta
+        try:
+            return self.start + np.arange(0, self.size) * self.delta
+        except TypeError as e:
+            if not self.is_datetime:
+                raise e
+            return add_time_coords(self.start, np.arange(0, self.size) * self.delta)
     
     @cached_property
     def bounds(self):
         lo = self.start
-        hi = self.start + self.delta * (self.size - 1)
+        try:
+            hi = self.start + self.delta * (self.size - 1)
+        except TypeError as e:
+            if not self.is_datetime:
+                raise e
+            hi = add_time_coords(self.start, self.delta * (self.size - 1))
         if self.is_descending:
             lo, hi = hi, lo
 
@@ -667,13 +679,28 @@ class UniformCoord(BaseCoord):
         extents = copy.deepcopy(self.bounds)
         if self.ctype in ['fence', 'segment']:
             p = self.segment_position
-            extents[0] -= p * np.abs(self.delta)
-            extents[1] += (1-p) * np.abs(self.delta)
+            try:
+                extents[0] -= p * np.abs(self.delta)
+                extents[1] += (1-p) * np.abs(self.delta)
+            except TypeError as e:
+                if not self.is_datetime:
+                    raise e
+                extents[0] = add_time_coords(extents[0], p * np.abs(self.delta))
+                extents[1] = add_time_coords(extents[1],
+                                             (1-p) * np.abs(self.delta))
         return extents
 
     @property
     def size(self):
-        return max(0, int(np.floor((self.stop-self.start) / self.delta) + 1))
+        try: 
+            return max(0, int(np.floor((self.stop-self.start) / self.delta) + 1))
+        except ValueError as e:
+            raise e
+        except TypeError as e:
+            if not self.is_datetime:
+                raise e
+            return get_time_coords_size(self.start, self.stop, self.delta)
+
 
     @property
     def is_datetime(self):
