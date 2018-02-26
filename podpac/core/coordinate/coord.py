@@ -691,7 +691,8 @@ class UniformCoord(BaseCoord):
             range_ = self.stop - self.start
             step = self.delta
 
-        return max(0, int(np.floor(range_/step) + 1))
+        eps = 1e-12  # To avoid floating point errors when calculating delta
+        return max(0, int(np.floor(range_/step + eps) + 1))
 
     @property
     def is_datetime(self):
@@ -776,8 +777,16 @@ class UniformCoord(BaseCoord):
                 return UniformCoord(
                     new_start, new_stop, delta, **self.kwargs)
             elif (self.size + other.size) < size:  # No overlap, but separated
-                return MonotonicCoord(
-                    np.concatenate((self.coordinates, other.coordinates)))
+                c1 = self.coordinates
+                c2 = other.coordinates
+                if self.is_descending != other.is_descending:
+                    c2 = c2[::-1]
+                if self.is_descending and c1[-1] < c2[0]:
+                        c1, c2 = c2, c1
+                elif not self.is_descending and c1[-1] > c2[0]:
+                        c1, c2 = c2, c1
+                coords = np.concatenate((c1, c2))
+                return MonotonicCoord(coords)
             #else: # overlapping
 
         if isinstance(other, MonotonicCoord):
@@ -839,7 +848,7 @@ def coord_linspace(start, stop, num, **kwargs):
         raise TypeError("num must be an integer, not '%s'" % type(num))
     start = make_coord_value(start)
     stop = make_coord_value(stop)
-    delta = (stop - start) / (num-1)
+    delta = (stop - start) / (num - 1)
     
     return UniformCoord(start, stop, delta, **kwargs)
 

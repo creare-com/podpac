@@ -1,4 +1,6 @@
-PODPAC: Pipeline for Observation Data Processing Analysis and Collaboration
+# PODPAC 
+
+> Pipeline for Observation Data Processing Analysis and Collaboration
 
 This is in development. 
 
@@ -13,3 +15,7 @@ The purpose of PODPAC is to facilitate the
  * Analysis of data products
  * Sharing of algorithms and data products
  * Use of cloud computing architectures for processing
+
+## Install
+
+See [doc/install](doc/install.md)
