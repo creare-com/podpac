@@ -436,7 +436,8 @@ class WCS(podpac.DataSource):
                 # Should improve in the future
                 open('temp.tiff','wb').write(r.data)
                 output.data[:] = arcpy.RasterToNumPyArray('temp.tiff')            
-
+            else: 
+                raise Exception('Rasterio or Arcpy not available to read WCS feed.')
         if not coordinates['lat'].is_descending:
             if dotime:
                 output.data[:] = output.data[:, ::-1, :]
