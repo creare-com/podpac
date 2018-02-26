@@ -759,8 +759,16 @@ class UniformCoord(BaseCoord):
                 return UniformCoord(
                     new_start, new_stop, delta, **self.kwargs)
             elif (self.size + other.size) < size:  # No overlap, but separated
-                return MonotonicCoord(
-                    np.concatenate((self.coordinates, other.coordinates)))
+                c1 = self.coordinates
+                c2 = other.coordinates
+                if self.is_descending != other.is_descending:
+                    c2 = c2[::-1]
+                if self.is_descending and c1[-1] < c2[0]:
+                        c1, c2 = c2, c1
+                elif not self.is_descending and c1[-1] > c2[0]:
+                        c1, c2 = c2, c1
+                coords = np.concatenate((c1, c2))
+                return MonotonicCoord(coords)
             #else: # overlapping
 
         if isinstance(other, MonotonicCoord):
