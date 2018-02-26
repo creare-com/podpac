@@ -672,7 +672,7 @@ class UniformCoord(BaseCoord):
 
     @property
     def size(self):
-        dname = self.delta.dtype.name
+        dname = np.array(self.delta).dtype.name
 
         if dname == 'timedelta64[Y]':
             dyear = self.stop.item().year - self.start.item().year
