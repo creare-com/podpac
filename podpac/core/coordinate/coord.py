@@ -673,7 +673,8 @@ class UniformCoord(BaseCoord):
 
     @property
     def size(self):
-        return max(0, int(np.floor((self.stop-self.start) / self.delta) + 1))
+        eps = 1e-12  # To avoid floating point errors when calculating delta
+        return max(0, int(np.floor((self.stop-self.start) / self.delta + eps) + 1))
 
     @property
     def is_datetime(self):
@@ -821,7 +822,7 @@ def coord_linspace(start, stop, num, **kwargs):
         raise TypeError("num must be an integer, not '%s'" % type(num))
     start = make_coord_value(start)
     stop = make_coord_value(stop)
-    delta = (stop - start) / (num-1)
+    delta = (stop - start) / (num - 1)
     
     return UniformCoord(start, stop, delta, **kwargs)
 
