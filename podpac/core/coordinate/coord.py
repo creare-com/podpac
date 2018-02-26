@@ -10,8 +10,7 @@ import traitlets as tl
 from podpac.core.units import Units
 from podpac.core.utils import cached_property, clear_cache
 from podpac.core.coordinate.util import (
-    make_coord_value, make_coord_delta, get_timedelta)
-from podpac.core.time_utils import (get_time_coords_size, add_time_coords)
+    make_coord_value, make_coord_delta, get_timedelta, add_coord)
 
 
 class BaseCoord(tl.HasTraits):
@@ -652,23 +651,12 @@ class UniformCoord(BaseCoord):
 
     @cached_property
     def coordinates(self):
-        # Syntax a little odd, but works for datetime64 as well as floats
-        try:
-            return self.start + np.arange(0, self.size) * self.delta
-        except TypeError as e:
-            if not self.is_datetime:
-                raise e
-            return add_time_coords(self.start, np.arange(0, self.size) * self.delta)
+        return add_coord(self.start, np.arange(0, self.size) * self.delta)
     
     @cached_property
     def bounds(self):
         lo = self.start
-        try:
-            hi = self.start + self.delta * (self.size - 1)
-        except TypeError as e:
-            if not self.is_datetime:
-                raise e
-            hi = add_time_coords(self.start, self.delta * (self.size - 1))
+        hi = add_coord(self.start, self.delta * (self.size - 1))
         if self.is_descending:
             lo, hi = hi, lo
 
@@ -679,28 +667,31 @@ class UniformCoord(BaseCoord):
         extents = copy.deepcopy(self.bounds)
         if self.ctype in ['fence', 'segment']:
             p = self.segment_position
-            try:
-                extents[0] -= p * np.abs(self.delta)
-                extents[1] += (1-p) * np.abs(self.delta)
-            except TypeError as e:
-                if not self.is_datetime:
-                    raise e
-                extents[0] = add_time_coords(extents[0], p * np.abs(self.delta))
-                extents[1] = add_time_coords(extents[1],
-                                             (1-p) * np.abs(self.delta))
+            extents[0] = add_coord(extents[0], p * np.abs(self.delta))
         return extents
 
     @property
     def size(self):
-        try: 
-            return max(0, int(np.floor((self.stop-self.start) / self.delta) + 1))
-        except ValueError as e:
-            raise e
-        except TypeError as e:
-            if not self.is_datetime:
-                raise e
-            return get_time_coords_size(self.start, self.stop, self.delta)
+        dname = self.delta.dtype.name
 
+        if dname == 'timedelta64[Y]':
+            dyear = self.stop.item().year - self.start.item().year
+            if self.stop.item().month >= self.start.item().month:
+                dyear += 1
+            range_ = dyear
+            step = self.delta.item()
+
+        if dname == 'timedelta64[M]':
+            dyear = self.stop.item().year - self.start.item().year
+            dmonth = self.stop.item().month - self.start.item().month
+            range_ = 12*dyear + dmonth
+            step = self.delta.item()
+
+        else:
+            range_ = self.stop - self.start
+            step = self.delta
+
+        return max(0, int(np.floor(range_/step) + 1))
 
     @property
     def is_datetime(self):

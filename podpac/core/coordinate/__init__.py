@@ -1,6 +1,7 @@
 
 from podpac.core.coordinate.util import make_coord_value
 from podpac.core.coordinate.util import make_coord_delta
+from podpac.core.coordinate.util import add_coord, divide_coord
 
 from podpac.core.coordinate.coord import BaseCoord
 from podpac.core.coordinate.coord import Coord

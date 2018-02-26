@@ -4,20 +4,9 @@ import numpy as np
 import scipy.signal
 
 from podpac.core.coordinate import Coordinate, UniformCoord
-from podpac.core.coordinate import make_coord_delta
+from podpac.core.coordinate import make_coord_delta, add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.time_utils import add_time_coords
-
-def add_coords(base, off):
-    try:
-        return base + off
-    except TypeError as e:
-        if not (isinstance(base, np.datetime64) \
-                and isinstance(off, np.timedelta64)):
-            raise e
-
-        return add_time_coords(base, off) 
 
 class ExpandCoordinates(Algorithm):
     source = tl.Instance(Node)
@@ -55,7 +44,7 @@ class ExpandCoordinates(Algorithm):
             
             # TODO GroupCoord
             xcoords = [
-                ncoord.select((add_coords(c, dstart), add_coords(c, dstop)))
+                ncoord.select((add_coord(c, dstart), add_coord(c, dstop)))
                 for c in icoords.coordinates
             ]
             xcoord = sum(xcoords[1:], xcoords[0])
@@ -66,7 +55,7 @@ class ExpandCoordinates(Algorithm):
             
             # TODO GroupCoord
             xcoords = [
-                UniformCoord(add_coords(c, dstart), add_coords(c, dstop), delta)
+                UniformCoord(add_coord(c, dstart), add_coord(c, dstop), delta)
                 for c in icoords.coordinates]
             xcoord = sum(xcoords[1:], xcoords[0])
 
