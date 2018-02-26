@@ -21,6 +21,11 @@ def get_timedelta_string(delta):
 
 def make_coord_value(val):
     # type checking and conversion
+    if isinstance(val, np.ndarray):
+        if val.dtype.ndim == 0:
+            val = val[()]
+        elif val.size == 1:
+            val = val[0]
     if isinstance(val, string_types):
         val = np.datetime64(val)
     elif isinstance(val, np.datetime64):

@@ -145,4 +145,14 @@ if __name__ == '__main__':
 
     o = node.execute(coords, params={'time': ('-5,M', '0,D', '1,M')})
     print (o.coords)
+    
+    node.params={'time': ('-15,Y', '0,D', '4,Y')}  # Behaviour a little strange
+    print (node.get_expanded_coord('time'))
+    
+    node.params={'time': ('-15,Y', '0,D', '13,M')}  # Behaviour a little strange
+    print (node.get_expanded_coord('time'))
 
+    node.params={'time': ('-144,M', '0,D', '13,M')}  # Behaviour a little strange
+    print (node.get_expanded_coord('time'))
+
+    print ('Done')

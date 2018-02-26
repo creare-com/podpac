@@ -681,7 +681,7 @@ class UniformCoord(BaseCoord):
             range_ = dyear
             step = self.delta.item()
 
-        if dname == 'timedelta64[M]':
+        elif dname == 'timedelta64[M]':
             dyear = self.stop.item().year - self.start.item().year
             dmonth = self.stop.item().month - self.start.item().month
             range_ = 12*dyear + dmonth
