@@ -10,7 +10,8 @@ import traitlets as tl
 from podpac.core.units import Units
 from podpac.core.utils import cached_property, clear_cache
 from podpac.core.coordinate.util import (
-    make_coord_value, make_coord_delta, get_timedelta)
+    make_coord_value, make_coord_delta, get_timedelta, add_coord)
+
 
 class BaseCoord(tl.HasTraits):
     """
@@ -650,13 +651,12 @@ class UniformCoord(BaseCoord):
 
     @cached_property
     def coordinates(self):
-        # Syntax a little odd, but works for datetime64 as well as floats
-        return self.start + np.arange(0, self.size) * self.delta
+        return add_coord(self.start, np.arange(0, self.size) * self.delta)
     
     @cached_property
     def bounds(self):
         lo = self.start
-        hi = self.start + self.delta * (self.size - 1)
+        hi = add_coord(self.start, self.delta * (self.size - 1))
         if self.is_descending:
             lo, hi = hi, lo
 
@@ -667,14 +667,32 @@ class UniformCoord(BaseCoord):
         extents = copy.deepcopy(self.bounds)
         if self.ctype in ['fence', 'segment']:
             p = self.segment_position
-            extents[0] -= p * np.abs(self.delta)
-            extents[1] += (1-p) * np.abs(self.delta)
+            extents[0] = add_coord(extents[0], p * np.abs(self.delta))
         return extents
 
     @property
     def size(self):
+        dname = np.array(self.delta).dtype.name
+
+        if dname == 'timedelta64[Y]':
+            dyear = self.stop.item().year - self.start.item().year
+            if self.stop.item().month >= self.start.item().month:
+                dyear += 1
+            range_ = dyear
+            step = self.delta.item()
+
+        elif dname == 'timedelta64[M]':
+            dyear = self.stop.item().year - self.start.item().year
+            dmonth = self.stop.item().month - self.start.item().month
+            range_ = 12*dyear + dmonth
+            step = self.delta.item()
+
+        else:
+            range_ = self.stop - self.start
+            step = self.delta
+
         eps = 1e-12  # To avoid floating point errors when calculating delta
-        return max(0, int(np.floor((self.stop-self.start) / self.delta + eps) + 1))
+        return max(0, int(np.floor(range_/step + eps) + 1))
 
     @property
     def is_datetime(self):

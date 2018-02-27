@@ -5,7 +5,7 @@ import scipy.signal
 import traitlets as tl
 
 from podpac.core.coordinate import Coordinate, UniformCoord
-from podpac.core.coordinate import make_coord_delta
+from podpac.core.coordinate import make_coord_delta, add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 
@@ -45,7 +45,7 @@ class ExpandCoordinates(Algorithm):
             
             # TODO GroupCoord
             xcoords = [
-                ncoord.select((c+dstart, c+dstop))
+                ncoord.select((add_coord(c, dstart), add_coord(c, dstop)))
                 for c in icoords.coordinates
             ]
             xcoord = sum(xcoords[1:], xcoords[0])
@@ -56,7 +56,7 @@ class ExpandCoordinates(Algorithm):
             
             # TODO GroupCoord
             xcoords = [
-                UniformCoord(c+dstart, c+dstop, delta)
+                UniformCoord(add_coord(c, dstart), add_coord(c, dstop), delta)
                 for c in icoords.coordinates]
             xcoord = sum(xcoords[1:], xcoords[0])
 
@@ -139,3 +139,20 @@ if __name__ == '__main__':
     node = ExpandCoordinates(source=Test())
     o = node.execute(coords, params={'time': ('-15,D', '0,D')})
     print (o.coords)
+
+    node.params={'time': ('-15,Y', '0,D', '1,Y')}
+    print (node.get_expanded_coord('time'))
+
+    o = node.execute(coords, params={'time': ('-5,M', '0,D', '1,M')})
+    print (o.coords)
+    
+    node.params={'time': ('-15,Y', '0,D', '4,Y')}  # Behaviour a little strange
+    print (node.get_expanded_coord('time'))
+    
+    node.params={'time': ('-15,Y', '0,D', '13,M')}  # Behaviour a little strange
+    print (node.get_expanded_coord('time'))
+
+    node.params={'time': ('-144,M', '0,D', '13,M')}  # Behaviour a little strange
+    print (node.get_expanded_coord('time'))
+
+    print ('Done')
