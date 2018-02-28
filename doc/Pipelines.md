@@ -32,7 +32,7 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
  * `node`: a path to the node class. The path is relative to the podpac module, unless `plugin` is defined. See Notes. *(string, required)*
  * `plugin`: a path to a plugin module to use (prepended node path). See Notes. *(string, optional)*
- * `attrs`: explicitly set attributes in the node for custom behavior. *(string, optional)*
+ * `attrs`: explicitly set attributes in the node for custom behavior. Each value can be a number, string, boolean, dictionary, or list. *(dictionary, optional)*
  * `evaluate`: execute this node automatically. Setting this to `false` is useful for nodes that will be executed implicitly by a later node. *(bool, optional, default `true`)*
 
 ## DataSource
@@ -83,7 +83,7 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
 ### Attributes
  * `inputs`: node inputs to the algorithm. *(object, required)*
- * `params`: non-node inputs to the algorithm. *(object, optional)*
+ * `params`: non-node inputs to the algorithm. Each value can be a number, string, boolean, dictionary, or list. *(dictionary, optional)*
 
 ```
 {
