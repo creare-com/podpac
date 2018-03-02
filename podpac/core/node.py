@@ -109,7 +109,7 @@ class Node(tl.HasTraits):
         #                                        ignore 'node_defaults'
         for key, val in self.node_defaults.items():
             if key == 'node_defaults': continue  # ignore this entry
-            if not hasattr(tkwargs, key):  # Only add value if not in input
+            if key not in tkwargs:  # Only add value if not in input
                 tkwargs[key] = val
         
         # Call traitlest constructor

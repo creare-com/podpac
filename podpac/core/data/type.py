@@ -481,7 +481,10 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
 
     def get_native_coordinates(self):
         coords = OrderedDict()
-        sc = self.source.native_coordinates
+        if isinstance(self.source, podpac.DataSource):
+            sc = self.source.native_coordinates
+        else: # Otherwise we cannot guarantee that native_coordinates exist
+            sc = self.reprojected_coordinates
         rc = self.reprojected_coordinates
         for d in sc.dims:
             if d in rc.dims:
@@ -492,7 +495,17 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
 
     def get_data(self, coordinates, coordinates_slice):
         self.source.interpolation = self.source_interpolation
-        return self.source.execute(coordinates, self.params)
+        data = self.source.execute(coordinates, self.params)
+        
+        # The following is needed in case the source is an algorithm
+        # or compositor node that doesn't have all the dimensions of 
+        # the reprojected coordinates
+        # TODO: What if data has coordinates that reprojected_coordinates 
+        #       doesn't have
+        keep_dims = list(data.coords.keys())
+        drop_dims = [d for d in coordinates.dims if d not in keep_dims]
+        coordinates.drop_dims(*drop_dims)
+        return data
 
     @property
     def base_ref(self):

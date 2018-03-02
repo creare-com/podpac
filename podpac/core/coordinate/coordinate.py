@@ -324,7 +324,20 @@ class Coordinate(BaseCoordinate):
             return self.__class__(coords=stack_dict)
         else:
             return self   
-    
+   
+    def drop_dims(self, *args):
+        split_dims = []
+        for arg in args:
+            if arg not in self._coords:
+                continue
+            del self._coords[arg]
+            if self.dims_map[arg] == arg:
+                del self.dims_map[arg]
+            else:
+                split_dims += self.dims_map[arg].split('_')
+        if split_dims:
+            self.drop_dims(*split_dims) 
+ 
     def get_shape(self, other_coords=None):
         if other_coords is None:
             other_coords = self
