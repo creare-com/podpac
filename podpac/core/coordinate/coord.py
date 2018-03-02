@@ -101,8 +101,16 @@ class BaseCoord(tl.HasTraits):
     
     @property
     def area_bounds(self):
-        raise NotImplementedError
-    
+        if self.ctype in ['fence', 'segment'] and self.extents:
+            return self.extents
+        else:
+            extents = copy.deepcopy(self.bounds)
+        if self.ctype in ['fence', 'segment']:
+            p = self.segment_position
+            extents[0] = add_coord(extents[0], -p * np.abs(self.delta))
+            extents[1] = add_coord(extents[1], (1-p) * np.abs(self.delta))
+        return extents
+
     _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
     @property
     def bounds(self):
@@ -352,18 +360,6 @@ class Coord(BaseCoord):
             lo, hi = [np.nanmin(self.coords), np.nanmax(self.coords)]
 
         return np.array([lo, hi])
-
-    @property
-    def area_bounds(self):
-        if self.ctype in ['fence', 'segment'] and self.extents:
-            return self.extents
-        else:
-            extents = copy.deepcopy(self.bounds)
-        if self.ctype in ['fence', 'segment']:
-            p = self.segment_position
-            extents[0] -= p * np.abs(self.delta)
-            extents[1] += (1-p) * np.abs(self.delta)        
-        return extents
 
     @property
     def size(self):
@@ -661,14 +657,6 @@ class UniformCoord(BaseCoord):
             lo, hi = hi, lo
 
         return np.array([lo, hi])
-
-    @property
-    def area_bounds(self):
-        extents = copy.deepcopy(self.bounds)
-        if self.ctype in ['fence', 'segment']:
-            p = self.segment_position
-            extents[0] = add_coord(extents[0], p * np.abs(self.delta))
-        return extents
 
     @property
     def size(self):
