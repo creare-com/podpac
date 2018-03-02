@@ -59,14 +59,17 @@ def get_timedelta_unit(delta):
 
     """
 
-    dname = delta.dtype.name
+    try:
+        dname = delta.dtype.name
+    except AttributeError:
+        raise TypeError("Cannot get timedelta unit from type '%s'" % type(delta))
     if not dname.startswith('timedelta'):
-        raise TypeError("Cannot get timedelta unit from type '%s'" % dname)
-    return dname[12]
+        raise TypeError("Cannot get timedelta unit from dtype '%s'" % dname)
+    return dname[12:-1]
 
-def get_timedelta_string(delta):
+def make_timedelta_string(delta):
     """
-    Get the podpac timedelta string from a numpy timedelta.
+    Make a podpac timedelta string from a numpy timedelta.
 
     Parameters
     ----------
@@ -86,9 +89,12 @@ def get_timedelta_string(delta):
 
     """
 
-    a = delta.item()
-    b = get_timedelta_unit(delta)
-    return a, b
+    if not isinstance(delta, np.timedelta64):
+        raise TypeError("Cannot make timedelta string from type '%s'" % type(delta))
+
+    mag = delta.astype(int)
+    unit = get_timedelta_unit(delta)
+    return '%d,%s' % (mag, unit)
 
 def make_coord_value(val):
     """
@@ -113,15 +119,15 @@ def make_coord_value(val):
 
     """
 
+    print(val, type(val))
+
     # extract value from singleton and 0-dimensional arrays
     if isinstance(val, np.ndarray):
-        if val.dtype.ndim == 0:
-            val = val[()]
-        elif val.size == 1:
-            val = val[0]
+        if val.size == 1:
+            val = val.item()
 
     # type checking and conversion
-    if isinstance(val, (string_types, datetime.datetime)):
+    if isinstance(val, (string_types, datetime.datetime, datetime.date)):
         val = np.datetime64(val)
     elif isinstance(val, np.datetime64):
         pass
@@ -157,10 +163,8 @@ def make_coord_delta(val):
 
     # extract value from singleton and 0-dimensional arrays
     if isinstance(val, np.ndarray):
-        if val.dtype.ndim == 0:
-            val = val[()]
-        elif val.size == 1:
-            val = val[0]
+        if val.size == 1:
+            val = val.item()
 
     # type checking and conversion
     if isinstance(val, string_types):
@@ -259,7 +263,7 @@ def _replace_safe(dt, year=None, month=None):
     if month is None:
         month = dt.month
     
-    year = dt.year + (month-1) // 12
+    year = year + (month-1) // 12
     month = (month-1) % 12 + 1
     day = min(dt.day, calendar.monthrange(year, month)[1])
     return dt.replace(year=year, month=month, day=day)
