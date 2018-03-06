@@ -78,6 +78,23 @@ class UnitsDataArray(xr.DataArray):
             return self.to(myu.u)
         else:
             return self.copy()
+
+    def __getitem__(self, key):
+        # special cases when key is also a DataArray
+        if isinstance(key, xr.DataArray):
+            # transpose with shared dims first
+            shared_dims = [dim for dim in self.dims if dim in key.dims]
+            missing_dims = [dim for dim in self.dims if dim not in key.dims]
+            xT = self.transpose(*shared_dims + missing_dims)
+            
+            # index
+            outT = xT[key.data]
+
+            # transpose back to original dimensions
+            out = outT.transpose(*self.dims)
+            return out
+        
+        return super(UnitsDataArray, self).__getitem__(key)
         
 for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
@@ -110,11 +127,22 @@ for tp in ("mean", 'min', 'max'):
 del func
 
 if __name__ == "__main__":
-    a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
-                           attrs={'units': ureg.meter})
-    a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
-                           attrs={'units': ureg.kelvin}) 
+    # a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+    #                        attrs={'units': ureg.meter})
+    # a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
+    #                        attrs={'units': ureg.kelvin}) 
 
-    np.mean(a1)    
-    np.std(a1)
+    # np.mean(a1)    
+    # np.std(a1)
+
+    a = UnitsDataArray(
+        np.arange(24).reshape((3, 4, 2)),
+        coords={'x': np.arange(3), 'y': np.arange(4)*10, 'z': np.arange(2)+100},
+        dims=['x', 'y', 'z'])
+    b = a[0, :, 0]
+    b = b<3
+    print(a)
+    print(b)
+    print(a[b])
+
     print ("Done")
