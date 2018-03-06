@@ -461,6 +461,43 @@ class Coordinate(BaseCoordinate):
             else:
                 yield coords
 
+    def transpose(self, *dims, **kwargs):
+        """
+        Transpose (re-order) the Coordinate dimensions.
+
+        Parameters
+        ----------
+        *dims : str, optional
+            Reorder dims to this order. By default, reverse the dims.
+        in_place : boolean, optional
+            If False, return a new, transposed Coordinate object (default).
+            If True, transpose the dimensions in-place.
+
+        Returns
+        -------
+        transposed : Coordinate
+            The transposed Coordinate object.
+
+        See Also
+        --------
+        xarray.DataArray.transpose : return a transposed DataArray
+
+        """
+
+        if len(dims) == 0:
+            dims = self._coords.keys()[::-1]
+
+        coords = OrderedDict((dim, self._coords[dim]) for dim in dims)
+
+        if kwargs.get('in_place', False):
+            self._coords = coords
+            return self
+
+        else:
+            kwargs = coords
+            kwargs.update(self.kwargs)
+            return Coordinate(order=dims, **kwargs)
+
     @property
     def latlon_bounds_str(self):
         if 'lat' in self._coords and 'lon' in self._coords:
