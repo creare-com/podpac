@@ -89,8 +89,6 @@ class Pipeline(tl.HasTraits):
     def parse_node(self, name, d):
         # get node class
         module_root = d.get('plugin', 'podpac')
-        if 'plugin' in d:
-            del d['plugin']
         node_string = '%s.%s' % (module_root, d['node'])
         module_name, node_name = node_string.rsplit('.', 1)
         try:
@@ -105,7 +103,7 @@ class Pipeline(tl.HasTraits):
         
         # parse and configure kwargs
         kwargs = {}
-        whitelist = ['node', 'attrs', 'params', 'evaluate']
+        whitelist = ['node', 'attrs', 'params', 'evaluate', 'plugin']
         
         try:
             parents = inspect.getmro(node_class)
