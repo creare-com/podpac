@@ -119,8 +119,6 @@ def make_coord_value(val):
 
     """
 
-    #print(val, type(val))
-
     # extract value from singleton and 0-dimensional arrays
     if isinstance(val, np.ndarray):
         if val.size == 1:
