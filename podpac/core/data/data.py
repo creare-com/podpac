@@ -35,6 +35,10 @@ class DataSource(Node):
     
     def execute(self, coordinates, params=None, output=None):
         self.evaluated_coordinates = coordinates
+        # remove dimensions that don't exist in native coordinates
+        for dim in self.evaluated_coordinates.dims:
+            if dim not in self.native_coordinates.dims:
+                self.evaluated_coordinates.drop_dims(dim)
         self.params = params
         self.output = output
 
@@ -58,6 +62,9 @@ class DataSource(Node):
 
         # sets self.output
         self.interpolate_data(data_subset, coords_subset, coordinates)
+        
+        # set the order of dims to be the same as that of evaluated_coordinates
+        self.output = self.output.transpose(*self.evaluated_coordinates.dims)
         
         self.evaluated = True
         return self.output
