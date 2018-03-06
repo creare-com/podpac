@@ -3,6 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 from collections import OrderedDict
 import numpy as np
 import traitlets as tl
+from copy import deepcopy
 
 # Optional dependencies
 try: 
@@ -34,7 +35,7 @@ class DataSource(Node):
     no_data_vals = tl.List(allow_none=True)
     
     def execute(self, coordinates, params=None, output=None):
-        self.evaluated_coordinates = coordinates
+        self.evaluated_coordinates = deepcopy(coordinates)
         # remove dimensions that don't exist in native coordinates
         for dim in self.evaluated_coordinates.dims:
             if dim not in self.native_coordinates.dims:
