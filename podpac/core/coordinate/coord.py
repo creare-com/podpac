@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import numbers
 import copy
+import datetime
 
 from six import string_types
 import numpy as np
@@ -305,14 +306,20 @@ class Coord(BaseCoord):
 
     """
 
-    def __init__(self, coords, **kwargs):
+    def __init__(self, coords=[], **kwargs):
         super(Coord, self).__init__(coords=coords, **kwargs)
 
     coords = tl.Any()
     @tl.validate('coords')
     def _coords_validate(self, proposal):
+        val = np.array(proposal['value'])
+        
+        # protects numbers from being cast to string
+        if np.issubdtype(val.dtype, str):
+            val = np.array(proposal['value'], object)
+
         # squeeze and check dimensions
-        val = np.atleast_1d(np.array(proposal['value']).squeeze())
+        val = np.atleast_1d(val.squeeze())
         if val.ndim != 1:
             raise ValueError(
                 "Invalid coords (ndim=%d, must be ndim=1)" % val.ndim)
@@ -320,8 +327,8 @@ class Coord(BaseCoord):
         if val.size == 0:
             return val
         
-        # convert strings to datetime
-        if isinstance(val[0], string_types):
+        # convert strings and datetimes to datetime64
+        if isinstance(val[0], (string_types, datetime.datetime)):
             val = np.array(val, dtype=np.datetime64)
 
         # check dtype
