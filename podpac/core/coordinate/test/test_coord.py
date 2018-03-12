@@ -19,13 +19,12 @@ class TestCoord(object):
         assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array([np.nan, np.nan]))
-        assert_equal(c.area_bounds, np.array([np.nan, np.nan]))
         assert c.size == 0
-        assert c.is_datetime is False
-        assert c.is_monotonic is False
+        assert c.is_datetime == False
+        assert c.is_monotonic == False
         assert c.is_descending is None
-        assert c.rasterio_regularity is False
-        assert c.scipy_regularity is True
+        assert c.rasterio_regularity == False
+        assert c.scipy_regularity == True
 
         c = Coord([])
         assert_equal(c.coords, a)
@@ -42,17 +41,15 @@ class TestCoord(object):
         assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array([-3., 100.]))
-        assert_equal(c.area_bounds, np.array([-3.0, 100.0]))
         assert np.issubdtype(c.coords.dtype, np.float)
         assert np.issubdtype(c.coordinates.dtype, np.float)
         assert np.issubdtype(c.bounds.dtype, np.float)
-        assert np.issubdtype(c.area_bounds.dtype, np.float)
         assert c.size == 4
-        assert c.is_datetime is False
-        assert c.is_monotonic is False
+        assert c.is_datetime == False
+        assert c.is_monotonic == False
         assert c.is_descending is None
-        assert c.rasterio_regularity is False
-        assert c.scipy_regularity is True
+        assert c.rasterio_regularity == False
+        assert c.scipy_regularity == True
 
         # list input
         c = Coord(values)
@@ -78,17 +75,15 @@ class TestCoord(object):
         assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array([value, value]))
-        assert_equal(c.area_bounds, np.array([value, value]))
         assert np.issubdtype(c.coords.dtype, np.float)
         assert np.issubdtype(c.coordinates.dtype, np.float)
         assert np.issubdtype(c.bounds.dtype, np.float)
-        assert np.issubdtype(c.area_bounds.dtype, np.float)
         assert c.size == 1
-        assert c.is_datetime is False
-        assert c.is_monotonic is False
+        assert c.is_datetime == False
+        assert c.is_monotonic == False
         assert c.is_descending is None
-        assert c.rasterio_regularity is True
-        assert c.scipy_regularity is True
+        assert c.rasterio_regularity == True
+        assert c.scipy_regularity == True
 
         # np input
         c = Coord(np.array(value))
@@ -115,17 +110,15 @@ class TestCoord(object):
         assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
-        assert_equal(c.area_bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert np.issubdtype(c.coords.dtype, np.datetime64)
         assert np.issubdtype(c.coordinates.dtype, np.datetime64)
         assert np.issubdtype(c.bounds.dtype, np.datetime64)
-        assert np.issubdtype(c.area_bounds.dtype, np.datetime64)
         assert c.size == 4
-        assert c.is_datetime is True
-        assert c.is_monotonic is False
+        assert c.is_datetime == True
+        assert c.is_monotonic == False
         assert c.is_descending is None
-        assert c.rasterio_regularity is False
-        assert c.scipy_regularity is True
+        assert c.rasterio_regularity == False
+        assert c.scipy_regularity == True
 
         # list of strings
         c = Coord(values)
@@ -153,17 +146,15 @@ class TestCoord(object):
         assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array([value_dt64, value_dt64]))
-        assert_equal(c.area_bounds, np.array([value_dt64, value_dt64]))
         assert np.issubdtype(c.coords.dtype, np.datetime64)
         assert np.issubdtype(c.coordinates.dtype, np.datetime64)
         assert np.issubdtype(c.bounds.dtype, np.datetime64)
-        assert np.issubdtype(c.area_bounds.dtype, np.datetime64)
         assert c.size == 1
-        assert c.is_datetime is True
-        assert c.is_monotonic is False
+        assert c.is_datetime == True
+        assert c.is_monotonic == False
         assert c.is_descending is None
-        assert c.rasterio_regularity is True
-        assert c.scipy_regularity is True
+        assert c.rasterio_regularity == True
+        assert c.scipy_regularity == True
 
         # ndim=0 array input
         c = Coord(np.array(value_str))
@@ -328,13 +319,22 @@ class TestCoord(object):
         assert_equal(Coord(numerical, ctype='point').area_bounds, [lo, hi])
         assert_equal(Coord(datetimes, ctype='point').area_bounds, [dt_lo, dt_hi])
         
+        assert np.issubdtype(Coord(numerical, ctype='point').area_bounds.dtype, np.float)
+        assert np.issubdtype(Coord(datetimes, ctype='point').area_bounds.dtype, np.datetime64)
+        
         # points: ignore extents
         assert_equal(Coord(numerical, ctype='point', extents=e).area_bounds, [lo, hi])
         assert_equal(Coord(datetimes, ctype='point', extents=dt_e).area_bounds, [dt_lo, dt_hi])
+        
+        assert np.issubdtype(Coord(numerical, ctype='point', extents=e).area_bounds.dtype, np.float)
+        assert np.issubdtype(Coord(datetimes, ctype='point', extents=dt_e).area_bounds.dtype, np.datetime64)
 
         # segments: explicit extents
         assert_equal(Coord(numerical, ctype='segment', extents=e).area_bounds, e)
         assert_equal(Coord(datetimes, ctype='segment', extents=dt_e).area_bounds, dt_e)
+
+        assert np.issubdtype(Coord(numerical, ctype='segment', extents=e).area_bounds.dtype, np.float)
+        assert np.issubdtype(Coord(datetimes, ctype='segment', extents=dt_e).area_bounds.dtype, np.datetime64)
         
         # segments: calculate from bounds, segment_position, and delta
         # TODO
@@ -342,6 +342,11 @@ class TestCoord(object):
         # assert_equal(Coord(numerical), ctype='segment', segment_position=0.8).area_bounds, TODO)
         # assert_equal(Coord(datetimes), ctype='segment').area_bounds, TODO)
         # assert_equal(Coord(datetimes), ctype='segment', segment_position=0.8).area_bounds, TODO)
+
+        assert np.issubdtype(Coord(numerical, ctype='segment').area_bounds.dtype, np.float)
+        assert np.issubdtype(Coord(datetimes, ctype='segment').area_bounds.dtype, np.datetime64)
+        assert np.issubdtype(Coord(numerical, ctype='segment').area_bounds.dtype, np.float)
+        assert np.issubdtype(Coord(datetimes, ctype='segment').area_bounds.dtype, np.datetime64)
 
     def test_intersect(self):
         pass
@@ -362,7 +367,177 @@ class TestCoord(object):
         pass
 
 class TestMonotonicCoord(object):
-    pass
+    """
+    MonotonicCoord extends Coord, so only some properties and methods are 
+    tested here::
+     - coords validation
+     - bounds, delta, is_datetime, is_datetime, and is_descending properties
+     - intersect and select methods
+    """
+
+    def test_empty(self):
+        c = MonotonicCoord()
+        a = np.array([])
+
+        assert_equal(c.coords, a)
+        assert_equal(c.bounds, np.array([np.nan, np.nan]))
+        assert c.is_datetime == False
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+
+        c = MonotonicCoord([])
+        assert_equal(c.coords, a)
+
+        c = MonotonicCoord(np.array([]))
+        assert_equal(c.coords, a)
+
+    def test_numerical_array(self):
+        values = [0.0, 1.0, 50., 100.]
+        a = np.array(values)
+        
+        # array input
+        c = MonotonicCoord(a, ctype='point')
+        assert_equal(c.coords, a)
+        assert_equal(c.bounds, np.array([0., 100.]))
+        assert np.issubdtype(c.coords.dtype, np.float)
+        assert np.issubdtype(c.bounds.dtype, np.float)
+        assert c.is_datetime == False
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+        
+        # list input
+        c = MonotonicCoord(values)
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.float)
+
+        # nested array input
+        c = MonotonicCoord(np.array([values]))
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.float)
+        
+        # int dtype
+        c = MonotonicCoord(a.astype(int))
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.float)
+
+        # descending
+        c = MonotonicCoord(a[::-1])
+        assert_equal(c.coords, a[::-1])
+        assert_equal(c.bounds, np.array([0., 100.]))
+        assert c.is_descending == True
+        assert np.issubdtype(c.coords.dtype, np.float)
+
+        # invalid (unsorted)
+        with pytest.raises(ValueError):
+            MonotonicCoord(a[[0, 2, 1, 3]])
+
+    def test_numerical_singleton(self):
+        value = 10.0
+        a = np.array([value])
+
+        # basic input
+        c = MonotonicCoord(value, ctype='point')
+        assert_equal(c.coords, a)
+        assert_equal(c.bounds, np.array([value, value]))
+        assert np.issubdtype(c.coords.dtype, np.float)
+        assert np.issubdtype(c.bounds.dtype, np.float)
+        assert c.is_datetime == False
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+        
+        # np input
+        c = MonotonicCoord(np.array(value))
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.float)
+
+        c = MonotonicCoord(np.array([value]))
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.float)
+        
+        # int dtype
+        c = MonotonicCoord(int(value))
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.float)
+
+    def test_datetime_array(self):
+        values = ['2017-01-01', '2018-01-01', '2018-01-02', '2019-01-01']
+        a = np.array(values).astype(np.datetime64)
+        
+        # array input
+        c = MonotonicCoord(a, ctype='point')
+        assert_equal(c.coords, a)
+        assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
+        assert np.issubdtype(c.coords.dtype, np.datetime64)
+        assert np.issubdtype(c.bounds.dtype, np.datetime64)
+        assert c.is_datetime == True
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+        
+        # list of strings
+        c = MonotonicCoord(values)
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.datetime64)
+
+        # nested array input
+        c = MonotonicCoord(np.array([values]))
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.datetime64)
+        
+        # datetime.datetime
+        c = MonotonicCoord([e.item() for e in a])
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.datetime64)
+
+        # descending
+        c = MonotonicCoord(a[::-1])
+        assert_equal(c.coords, a[::-1])
+        assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
+        assert c.is_descending == True
+        assert np.issubdtype(c.coords.dtype, np.datetime64)
+
+        # invalid (unsorted)
+        with pytest.raises(ValueError):
+            MonotonicCoord(a[[0, 2, 1, 3]])
+
+    def test_datetime_singleton(self):
+        value_str = '2018-01-01'
+        value_dt64 = np.datetime64(value_str)
+        value_dt = value_dt64.item()
+        a = np.array([value_dt64])
+
+        # string input
+        c = MonotonicCoord(value_str, ctype='point')
+        assert_equal(c.coords, a)
+        assert_equal(c.bounds, np.array([value_dt64, value_dt64]))
+        assert np.issubdtype(c.coords.dtype, np.datetime64)
+        assert np.issubdtype(c.bounds.dtype, np.datetime64)
+        assert c.is_datetime == True
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+        
+        # ndim=0 array input
+        c = MonotonicCoord(np.array(value_str))
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.datetime64)
+
+        # datetime64 input
+        c = MonotonicCoord(value_dt64)
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.datetime64)
+
+        # datetime.datetime
+        c = MonotonicCoord(value_dt)
+        assert_equal(c.coords, a)
+        assert np.issubdtype(c.coords.dtype, np.datetime64)
+
+    def test_delta(self):
+        pass
+
+    def test_intersect(self):
+        pass
+
+    def test_select(self):
+        pass
 
 class TestUniformCoord(object):
     pass

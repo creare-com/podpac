@@ -608,7 +608,7 @@ class Coord(BaseCoord):
         return self.size == 1
 
     @property
-    def scipy_regularity(self): # TODO check
+    def scipy_regularity(self):
         return True
 
     def _select(self, bounds, ind=False, pad=None):
