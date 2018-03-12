@@ -11,66 +11,66 @@ from podpac.core.coordinate.util import get_timedelta_unit
 from podpac.core.coordinate import Coord, MonotonicCoord, UniformCoord
 from podpac.core.coordinate import coord_linspace
 
+from podpac.core.testing import assert_equal_dtype
 
 class TestCoord(object):
     def test_coords(self):
         dt64 = np.datetime64
 
         # empty
-        assert_equal(Coord().coords, np.array([]))
-        assert_equal(Coord([]), np.array([]))
-        assert_equal(Coord(np.array([])), np.array([]))
+        assert_equal_dtype(Coord().coords, np.array([]))
+        assert_equal_dtype(Coord([]).coords, np.array([]))
+        assert_equal_dtype(Coord(np.array([])).coords, np.array([]))
 
         # single numerical values
-        assert_equal(Coord(5).coords, np.array([5.0]))
-        assert_equal(Coord(5L).coords, np.array([5.0]))
-        assert_equal(Coord(5.0).coords, np.array([5.0]))
-        assert_equal(Coord([5.0]).coords, np.array([5.0]))
-        assert_equal(Coord(np.array(5.0)).coords, np.array([5.0]))
-        assert_equal(Coord(np.array([5.0])).coords, np.array([5.0]))
-        assert_equal(Coord(np.array([[5.0]])).coords, np.array([5.0]))
+        assert_equal_dtype(Coord(5).coords, np.array([5.0]))
+        assert_equal_dtype(Coord(5.0).coords, np.array([5.0]))
+        assert_equal_dtype(Coord([5.0]).coords, np.array([5.0]))
+        assert_equal_dtype(Coord(np.array(5.0)).coords, np.array([5.0]))
+        assert_equal_dtype(Coord(np.array([5.0])).coords, np.array([5.0]))
+        assert_equal_dtype(Coord(np.array([[5.0]])).coords, np.array([5.0]))
         
         # single datetimes
-        assert_equal(Coord('2018-01-01').coords, np.array([dt64('2018-01-01')]))
-        assert_equal(Coord(['2018-01-01']).coords, np.array([dt64('2018-01-01')]))
-        assert_equal(Coord(np.array('2018-01-01')).coords, np.array([dt64('2018-01-01')]))
-        assert_equal(Coord(np.array(['2018-01-01'])).coords, np.array([dt64('2018-01-01')]))
-        assert_equal(Coord(np.array([['2018-01-01']])).coords, np.array([dt64('2018-01-01')]))
+        assert_equal_dtype(Coord('2018-01-01').coords, np.array([dt64('2018-01-01')]))
+        assert_equal_dtype(Coord(['2018-01-01']).coords, np.array([dt64('2018-01-01')]))
+        assert_equal_dtype(Coord(np.array('2018-01-01')).coords, np.array([dt64('2018-01-01')]))
+        assert_equal_dtype(Coord(np.array(['2018-01-01'])).coords, np.array([dt64('2018-01-01')]))
+        assert_equal_dtype(Coord(np.array([['2018-01-01']])).coords, np.array([dt64('2018-01-01')]))
 
-        assert_equal(Coord(dt64('2018-01-01')).coords, np.array([dt64('2018-01-01')]))
-        assert_equal(Coord([dt64('2018-01-01')]).coords, np.array([dt64('2018-01-01')]))
-        assert_equal(Coord(np.array(dt64('2018-01-01'))).coords, np.array([dt64('2018-01-01')]))
-        assert_equal(Coord(np.array([dt64('2018-01-01')])).coords, np.array([dt64('2018-01-01')]))
-        assert_equal(Coord(np.array([[dt64('2018-01-01')]])).coords, np.array([dt64('2018-01-01')]))
+        assert_equal_dtype(Coord(dt64('2018-01-01')).coords, np.array([dt64('2018-01-01')]))
+        assert_equal_dtype(Coord([dt64('2018-01-01')]).coords, np.array([dt64('2018-01-01')]))
+        assert_equal_dtype(Coord(np.array(dt64('2018-01-01'))).coords, np.array([dt64('2018-01-01')]))
+        assert_equal_dtype(Coord(np.array([dt64('2018-01-01')])).coords, np.array([dt64('2018-01-01')]))
+        assert_equal_dtype(Coord(np.array([[dt64('2018-01-01')]])).coords, np.array([dt64('2018-01-01')]))
         
-        assert_equal(Coord(datetime.now()).coords, np.array([datetime.now()]).astype(dt64))
-        assert_equal(Coord([datetime.now()]).coords, np.array([datetime.now()]).astype(dt64))
-        assert_equal(Coord(np.array(datetime.now())).coords, np.array([datetime.now()]).astype(dt64))
-        assert_equal(Coord(np.array([datetime.now()])).coords, np.array([datetime.now()]).astype(dt64))
-        assert_equal(Coord(np.array([[datetime.now()]])).coords, np.array([datetime.now()]).astype(dt64))
+        assert_equal_dtype(Coord(datetime.now()).coords, np.array([datetime.now()]).astype(dt64))
+        assert_equal_dtype(Coord([datetime.now()]).coords, np.array([datetime.now()]).astype(dt64))
+        assert_equal_dtype(Coord(np.array(datetime.now())).coords, np.array([datetime.now()]).astype(dt64))
+        assert_equal_dtype(Coord(np.array([datetime.now()])).coords, np.array([datetime.now()]).astype(dt64))
+        assert_equal_dtype(Coord(np.array([[datetime.now()]])).coords, np.array([datetime.now()]).astype(dt64))
 
         # multiple values
-        assert_equal(Coord([1, 2, 3]).coords, np.array([1, 2, 3]))
-        assert_equal(Coord([[1, 2, 3]]).coords, np.array([1, 2, 3]))
-        assert_equal(Coord(np.array([1, 2, 3])).coords, np.array([1, 2, 3]))
-        assert_equal(Coord(np.array([[1, 2, 3]])).coords, np.array([1, 2, 3]))
+        assert_equal_dtype(Coord([0, 1, 2]).coords, np.arange(3.0))
+        assert_equal_dtype(Coord([[0, 1, 2]]).coords, np.arange(3.0))
+        assert_equal_dtype(Coord(np.array([0, 1, 2])).coords, np.arange(3.0))
+        assert_equal_dtype(Coord(np.array([[0, 1, 2]])).coords, np.arange(3.0))
         
-        assert_equal(Coord(['2018-01-01', '2018-02-01']).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64))
-        assert_equal(Coord([['2018-01-01', '2018-02-01']]).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64))
-        assert_equal(Coord(np.array(['2018-01-01', '2018-02-01'])).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64))
-        assert_equal(Coord(np.array([['2018-01-01', '2018-02-01']])).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64))
+        assert_equal_dtype(Coord(['2018-01-01', '2018-02-01']).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64), dt64)
+        assert_equal_dtype(Coord([['2018-01-01', '2018-02-01']]).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64), dt64)
+        assert_equal_dtype(Coord(np.array(['2018-01-01', '2018-02-01'])).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64), dt64)
+        assert_equal_dtype(Coord(np.array([['2018-01-01', '2018-02-01']])).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64), dt64)
         
-        assert_equal(Coord([dt64('2018-01-01'), dt64('2018-02-01')]).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64))
-        assert_equal(Coord([[dt64('2018-01-01'), dt64('2018-02-01')]]).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64))
-        assert_equal(Coord(np.array(['2018-01-01', '2018-02-01']).astype(dt64)).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64))
-        assert_equal(Coord(np.array([['2018-01-01', '2018-02-01']]).astype(dt64)).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64))
+        assert_equal_dtype(Coord([dt64('2018-01-01'), dt64('2018-02-01')]).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64), dt64)
+        assert_equal_dtype(Coord([[dt64('2018-01-01'), dt64('2018-02-01')]]).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64), dt64)
+        assert_equal_dtype(Coord(np.array(['2018-01-01', '2018-02-01']).astype(dt64)).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64), dt64)
+        assert_equal_dtype(Coord(np.array([['2018-01-01', '2018-02-01']]).astype(dt64)).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64), dt64)
         
         dt1 = datetime.now()
         dt2 = datetime.now()
-        assert_equal(Coord([dt1, dt2]).coords, np.array([dt1, dt2]).astype(dt64))
-        assert_equal(Coord([[dt1, dt2]]).coords, np.array([dt1, dt2]).astype(dt64))
-        assert_equal(Coord(np.array([dt1, dt2])).coords, np.array([dt1, dt2]).astype(dt64))
-        assert_equal(Coord(np.array([[dt1, dt2]])).coords, np.array([dt1, dt2]).astype(dt64))
+        assert_equal_dtype(Coord([dt1, dt2]).coords, np.array([dt1, dt2]).astype(dt64))
+        assert_equal_dtype(Coord([[dt1, dt2]]).coords, np.array([dt1, dt2]).astype(dt64))
+        assert_equal_dtype(Coord(np.array([dt1, dt2])).coords, np.array([dt1, dt2]).astype(dt64))
+        assert_equal_dtype(Coord(np.array([[dt1, dt2]])).coords, np.array([dt1, dt2]).astype(dt64))
 
         # invalid
         with pytest.raises(TypeError):
@@ -101,8 +101,6 @@ class TestCoord(object):
         # initialize
         assert Coord(5.0, ctype='segment').ctype == 'segment'
         assert Coord(5.0, ctype='point').ctype == 'point'
-        assert Coord(5.0, ctype='fence').ctype == 'fence'
-        assert Coord(5.0, ctype='post').ctype == 'post'
         
         # invalid
         with pytest.raises(tl.TraitError):
@@ -117,11 +115,14 @@ class TestCoord(object):
 
     def test_extents(self):
         # default
-        assert len(Coord(5.0).extents) == 0
+        assert Coord(5.0).extents is None
 
         # initialize
         c = Coord([1.0, 1.8, 2.0], extents=[1.0, 2.0])
-        assert_equal(c.extents, [1.0, 2.0])
+        assert_equal_dtype(c.extents, [1.0, 2.0], float)
+
+        c = Coord('2018-01-02', extents=['2018-01-01', '2018-01-05'])
+        assert_equal_dtype(c.extents, np.array(['2018-01-01', '2018-01-05']).astype(np.datetime64))
 
     def test_coord_ref_system(self):
         # default
@@ -142,25 +143,61 @@ class TestCoord(object):
         # assert Coord(5.0).delta == # TODO
 
         # single datetimes
+        assert type(Coord(['2018-01-01']).delta) == np.timedelta64
         assert get_timedelta_unit(Coord(['2018-01-01']).delta) == 'D'
-        assert get_timedelta_unit(Coord(['2018-01-01 12:00']).delta) == 'm'
 
         # multiple values
         assert Coord([1.0, 2.0, 3.0]).delta == 1.0
         assert 1.0 < Coord([1.0, 2.0, 4.0]).delta < 2.0
 
         assert Coord(['2018-01-01', '2018-01-02', '2018-01-03']).delta == np.timedelta64(1, 'D')
-        assert Coord(['2018-01-01 12:00', '2018-01-01 13:00', '2018-01-01 14:00']).delta == np.timedelta64(1, 'h')
 
 
     def test_kwargs(self):
-        pass
+        # defaults
+        c = Coord()
+        assert isinstance(c.kwargs, dict)
+        assert set(c.kwargs.keys()) == set(['units', 'ctype', 'segment_position', 'extents'])
+        assert c.kwargs['units'] is None
+        assert c.kwargs['ctype'] == 'segment'
+        assert c.kwargs['segment_position'] == 0.5
+        assert c.kwargs['extents'] is None
+
+        # args
+        # TODO replace with the version with units...
+        c = Coord(ctype="segment", segment_position=0.8, extents=[0.0, 1.0])
+        # c = Coord(units=Units(), ctype="segment", segment_position=0.8, extents=[0.0, 1.0])
+
+        assert isinstance(c.kwargs, dict)
+        assert set(c.kwargs.keys()) == set(['units', 'ctype', 'segment_position', 'extents'])
+        assert c.kwargs['units'] is None
+        assert c.kwargs['ctype'] is 'segment'
+        assert c.kwargs['segment_position'] == 0.8
+        assert_equal_dtype(c.kwargs['extents'], [0.0, 1.0], float)
 
     def test_coordinates(self):
-        pass
+        dt64 = np.datetime64
+
+        # empty
+        assert_equal_dtype(Coord().coordinates, np.array([]))
+        
+        # singletons
+        assert_equal_dtype(Coord(5.0).coordinates, np.array([5.0]))
+        assert_equal_dtype(Coord('2018-01-01').coordinates, np.array([dt64('2018-01-01')]))
+        
+        # multiple values
+        assert_equal_dtype(Coord([1, 2, 3]).coords, np.array([1, 2, 3], float))
+        assert_equal_dtype(Coord(['2018-01-01', '2018-02-01']).coords, np.array(['2018-01-01', '2018-02-01']).astype(dt64))
 
     def test_area_bounds(self):
-        pass
+        # use bounds for point
+        assert_equal(Coord([0, 1, 2], ctype='point').area_bounds, [0, 2])
+        
+        # calculate from bounds, segment_position, and delta for segments
+        assert_equal(Coord([0, 1, 2], ctype='segment').area_bounds, [-0.5, 2.5])
+        assert_equal(Coord([0, 1, 2], ctype='segment', segment_position=0.8).area_bounds, [-0.8, 2.2])
+        assert_equal(Coord([0, 1, 2], ctype='segment', extents=[-1, 3]).area_bounds, [-1, 3])
+    
 
     def test_bounds(self):
         pass

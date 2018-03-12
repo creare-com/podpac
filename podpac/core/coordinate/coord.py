@@ -20,55 +20,52 @@ class BaseCoord(tl.HasTraits):
     
     Attributes
     ----------
-    units
-    ctype
-    segment_position
-    extents
-    coord_ref_system
-
-    Properties
-    ----------
+    units : Units
+        TODO
+    ctype : str
+        Coordinates type (default 'segment'). Options::
+         - 'segment': whole segment between this coordinate and the next.
+         - 'point': single point
+    segment_position : float
+        For segment coordinates, where along the segment the coordinate is
+        specified, between 0 and 1 (default 0.5). Unused for point.
+    extents : ndarray
+        Custom bounding box (if ctype='segment').
+    coord_ref_sys : unicode
+        Coordinate reference system.
+    kwargs
+    coordinates
     bounds
     area_bounds
-    delta (signed)
-    coordinates
+    delta
     size
-    is_descending
-    is_monotonic
-    is_regular
     is_datetime
-
-    Methods
-    -------
-    intersect
-    intersect_bounds
-
+    is_monotonic
+    is_descending
+    rasterio_regularity
+    scipy_regularity
 
     """
     
     units = Units(allow_none=True, default_value=None)
     
-    ctype = tl.Enum(['segment', 'point', 'fence', 'post'], default_value='segment',
-                    help="Default is 'segment'. Indication of the coordinates "
-                         "type. This is either a single point ('point' or "
-                         "'post') or the whole segment between this "
-                         "coordinate and the next ('segment', 'fence').")
+    ctype = tl.Enum(['segment', 'point'], default_value='segment',
+        help="Coordinates type. Options are 'segment' (default) for the whole "
+             "segment between this coordinate and the next or 'point' for a "
+             "single location.")
     
     segment_position = tl.Float(default_value=0.5,
-                                help="Default is 0.5. Where along a segment "
-                                     "is the coordinate specified. 0 <= "
-                                     "segment <= 1. For example, if segment=0, "
-                                     "the coordinate is specified at the "
-                                     "left-most point of the line segement "
-                                     "connecting the current coordinate and "
-                                     "the next coordinate. If segment=0.5, "
-                                     "then the coordinate is specified at the "
-                                     "center of this line segement.")
+        help="Default is 0.5. Where along a segment is the coordinate "
+             "specified. 0 <= segment <= 1. For example, if segment=0, the "
+             "coordinate is specified at the left-most point of the line "
+             "segement connecting the current coordinate and the next "
+             "coordinate. If segment=0.5, then the coordinate is specified at "
+             "the center of this line segement.")
     
-    extents = tl.List(allow_none=True, default_value=None, 
-                      help="When specifying non-uniform coordinates, set the "
-                           "bounding box (extents) of the grid in case ctype "
-                           "is 'segment' or 'fence'")
+    extents = tl.Any(allow_none=True, default_value=None, 
+        help="Custom bounding box of the grid when ctype='segment'. Useful "
+             "when specifying non-uniform segment coordinates")
+    
     coord_ref_sys = tl.Unicode()
     
     delta = tl.Any(allow_none=False)
@@ -82,8 +79,33 @@ class BaseCoord(tl.HasTraits):
         
         return val
 
+    @tl.validate('extents')
+    def _extents_validate(self, proposal):
+        # TODO test this
+        val = proposal['value']
+        if val is None:
+            return None
+
+        # check shape
+        val = np.array(val)
+        if val.shape != (2,):
+            raise ValueError("Invalid extents shape %s, must be (2,)" % val.shape)
+
+        # check and cast values
+        val = np.array([make_coord_value(val[0]), make_coord_value(val[1])])
+        return val
+
     @property
     def kwargs(self):
+        '''
+        Dictionary specifying the coordinate properties.
+
+        Returns
+        -------
+        kwargs : dict
+            Coordinate properties.
+        '''
+
         kwargs = {'units': self.units,
                   'ctype': self.ctype,
                   'segment_position': self.segment_position,
@@ -98,51 +120,199 @@ class BaseCoord(tl.HasTraits):
     _cached_coordinates = tl.Instance(np.ndarray, default_value=None, allow_none=True)
     @property
     def coordinates(self):
-        raise NotImplementedError()
+        '''
+        Full coordinates array. See subclasses for specific implementations.
+
+        Returns
+        -------
+        coordinates : ndarray
+            Full array of coordinates, ndim=1. The dtype will be float64 for
+            numerical coordinates and datetime64 for datetime coordinates.
+        '''
+
+        # get coordinates and ensure read-only array with correct dtype
+        coordinates = np.array(self._coordinates(), dtype=self.dtype)
+        coordinates.setflags(write=False)
+        return coordinates
+
+    def _coordinates(self):
+        raise NotImplementedError
+
+    @property
+    def dtype(self):
+        '''
+        Coordinate array dtype.
+
+        Returns
+        -------
+        dtype : dtype
+            Coordinates dtype, either datetime64 or float64.
+        '''
+
+        if self.is_datetime:
+            return np.datetime64
+        else:
+            return np.float64
     
     @property
     def area_bounds(self):
-        if self.ctype in ['fence', 'segment'] and self.extents:
+        '''
+        Low and high bounds including segments if applicable.
+
+        Returns
+        -------
+        area_bounds : ndarray
+            Low and high area bounds, shape=(2,), read-only. If ctype is
+            'segment', the bounds will include the portions of the segments
+            beyond the low and high coordinate bounds.
+        '''
+        
+        # get area_bounds and ensure read-only array with the correct dtype
+        area_bounds = np.array(self._area_bounds(), dtype=self.dtype)
+        area_bounds.setflags(write=False)
+        return area_bounds
+
+    def _area_bounds(self):
+        # point: same as bounds
+        if self.ctype == 'point':
+            return self.bounds
+
+        # segment: explicit extents
+        elif self.extents is not None:
             return self.extents
+
+        # segment: calculate extents from segment_position and delta
         else:
-            extents = copy.deepcopy(self.bounds)
-        if self.ctype in ['fence', 'segment']:
             p = self.segment_position
-            extents[0] = add_coord(extents[0], -p * np.abs(self.delta))
-            extents[1] = add_coord(extents[1], (1-p) * np.abs(self.delta))
-        return extents
+            b = self.bounds
+            d = np.abs(self.delta)
+            return [add_coord(b[0], -p * d), add_coord(b[1], (1-p) * d)]
 
     _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
     @property
     def bounds(self):
-        raise NotImplementedError()
+        '''
+        Low and high bounds.
+
+        Returns
+        -------
+        bounds : ndarray
+            Low and high coordinate bounds, shape=(2,), read-only.
+        '''
+
+        # get bounds and ensure read-only array with the correct dtype
+        bounds = np.array(self._bounds(), dtype=self.dtype)
+        bounds.setflags(write=False)
+        return bounds
+
+    def _bounds(self):
+        return NotImplementedError
 
     @property
     def size(self):
+        '''
+        Number of coordinates.
+
+        Returns
+        -------
+        size : int
+            number of coordinates, equal to coordinates.size.
+        '''
+
         raise NotImplementedError()
 
     @property
     def is_datetime(self):
+        '''
+        True for datetime coordinates, Fales for numerical coordinates.
+
+        Returns
+        -------
+        is_datetime : bool
+            True for datetime coordinates, False for numerical coordinates.
+        '''
+
         raise NotImplementedError
 
     @property
     def is_monotonic(self):
+        '''
+        True if the coordinates are guaranteed to be in-order, else False.
+
+        Returns
+        -------
+        is_monotinc: bool
+            True if the coordinates are guaranteed to be in-order, else False.
+        '''
+
         raise NotImplementedError
     
     @property
     def is_descending(self):
-        raise NotImplementedError    
+        '''
+        True if the coordinates are monotonically descending, False if 
+        monotonically ascending, and None for non-monotonic coordinates.
+
+        Returns
+        -------
+        is_descending : bool
+            True if the coordinates are monotonically descending, False if 
+            monotonically ascending, and None for non-monotonic coordinates.
+        '''
+
+        raise NotImplementedError
 
     @property
     def rasterio_regularity(self):
+        """
+        TODO
+
+        Returns
+        -------
+        rasterio_regularity : bool
+            TODO
+        """
+
         raise NotImplementedError
 
     @property
     def scipy_regularity(self):
+        """
+        TODO
+
+        Returns
+        -------
+        rasterio_regularity : bool
+            TODO
+        """
+
         raise NotImplementedError
 
     def intersect(self, other, coord_ref_sys=None, ind=False, **kwargs):
-        """ Wraps intersect_bounds using the other coordinates bounds. """
+        """
+        Get the coordinates within the bounds the given coordinates object.
+        
+        Arguments
+        ---------
+        other : BaseCoord
+            coordinates to intersect with
+        coord_ref_sys : str, optional
+            TODO
+        ind : bool, optional
+            If True, return slice or indices for the selection instead of
+            coordinates. Default False.
+
+        Returns
+        -------
+        intersection : BaseCoord
+            coord object with coordinates with other.bounds (if ind=False)
+        I : slice or list
+            index or slice for the intersected coordinates (if ind=True)
+
+        See Also
+        --------
+        select : Get the coordinates within the given bounds.
+        """
 
         if self.units != other.units:
             raise NotImplementedError("Still need to implement handling different units")
@@ -164,7 +334,7 @@ class BaseCoord(tl.HasTraits):
         ---------
         bounds : min, max
             selection bounds
-        ind : bool
+        ind : bool, optional
             return slice or indices for selection instead of coordinates
 
         Returns
@@ -200,12 +370,25 @@ class BaseCoord(tl.HasTraits):
         return self._select(bounds, ind=ind, **kwargs)
 
     def _select(self, bounds, ind=False):
-        """ Partial selection, implemented in child classes. """
         raise NotImplementedError()
     
     def __sub__(self, other):
-        if isinstance(other, string_types):
-            other = get_timedelta(other)
+        """
+        Subtract a delta value or intersect coordinates.
+
+        Arguments
+        ---------
+        other : timedelta64, float, BaseCoord
+            If delta, subtract from coordinates. If BaseCoord, intersect.
+
+        Returns
+        -------
+        result : BaseCoord
+            New BaseCoord object with subtracted or intersected coordinates.
+        """
+
+        if not isinstance(other, BaseCoord):
+            other = make_coord_delta(other)
         
         if isinstance(other, np.timedelta64):
             if not self.is_datetime:
@@ -227,8 +410,22 @@ class BaseCoord(tl.HasTraits):
                 other.__class__.__name__, self.__class__.__name__))
 
     def __add__(self, other):
-        if isinstance(other, string_types):
-            other = get_timedelta(other)
+        """
+        Add a delta value or concatenate coordinates.
+
+        Arguments
+        ---------
+        other : timedelta64, float, BaseCoord
+            If delta, add to coordinates. If BaseCoord, concatenate.
+
+        Returns
+        -------
+        result : BaseCoord
+            New BaseCoord object with summed or concatenated coordinates.
+        """
+
+        if not isinstance(other, BaseCoord):
+            other = make_coord_delta(other)
         
         if isinstance(other, np.timedelta64):
             if not self.is_datetime:
@@ -250,6 +447,20 @@ class BaseCoord(tl.HasTraits):
                 other.__class__.__name__, self.__class__.__name__))
 
     def __iadd__(self, other):
+        """
+        Add a delta value or concatenate coordinates in-place.
+
+        Arguments
+        ---------
+        other : timedelta64, float, BaseCoord
+            If delta, add to coordinates. If BaseCoord, concatenate.
+
+        Returns
+        -------
+        result : BaseCoord
+            This object with with summed or concatenated coordinates.
+        """
+
         if isinstance(other, string_types):
             other = get_timedelta(other)
         
@@ -291,19 +502,25 @@ class BaseCoord(tl.HasTraits):
 
 class Coord(BaseCoord):
     """
-    A basic array of coordinates.
+    A basic array of coordinates. Not guaranteed to be sorted, unique, or 
+    uniformly-spaced.
 
     Attributes
     ----------
-    coords : np.ndarray
-        input coordinate array, must all be the same type.
-        string datetime coordinates are converted to datetime64
+    coords : ndarray
+        Input coordinate array, must all be the same type. Numerical values
+        are converted to floats, datetime values are converted to datetime64.
+    coordinates : ndarray
+        Full read-only coordinates array, equal to ``coords``.
+    delta : timedelta64, float
+        An average distance between adjacent coordinates. Note that because
+        there are no guarantees on the coordinates, this value should be used
+        with caution.
 
-    Properties
-    ----------
-    coordinates : np.ndarray
-        the input coords array
-
+    See Also
+    --------
+    MonotonicCoord : An array of sorted coordinates.
+    UniformCoord : An array of sorted, uniformly-spaced coordinates.
     """
 
     def __init__(self, coords=[], **kwargs):
@@ -331,16 +548,17 @@ class Coord(BaseCoord):
         if isinstance(val[0], (string_types, datetime.datetime)):
             val = np.array(val, dtype=np.datetime64)
 
-        # check dtype
-        if (not np.issubdtype(val.dtype, np.number) and
-            not np.issubdtype(val.dtype, np.datetime64)):
-            raise TypeError(
-                "coords must all be a number or datetime and must all match")
+        if np.issubdtype(val.dtype, np.number):
+            val = val.astype(float)
+        elif np.issubdtype(val.dtype, np.datetime64):
+            pass
+        else:
+            raise TypeError("coords must be all numbers or all datetimes")
 
         return val
 
     @tl.default('delta')
-    def _delta_default(self):  # average delta
+    def _delta_default(self):
         if self.size == 1 and self.is_datetime:
             time_delta = self.bounds[0] - self.bounds[0]
             delta = np.ones_like(time_delta) * 2
@@ -352,21 +570,19 @@ class Coord(BaseCoord):
     def _clear_cache(self, change):
         clear_cache(self, change, ['bounds'])
 
-    @property
-    def coordinates(self):
+    def _coordinates(self):
         return self.coords
 
-    @cached_property
-    def bounds(self):
+    def _bounds(self):
         if self.size == 0:
             # TODO or is it better to do something arbitrary like -1, 1?
             lo, hi = np.nan, np.nan
         elif self.is_datetime:
             lo, hi = np.min(self.coords), np.max(self.coords)
         else:
-            lo, hi = [np.nanmin(self.coords), np.nanmax(self.coords)]
+            lo, hi = np.nanmin(self.coords), np.nanmax(self.coords)
 
-        return np.array([lo, hi])
+        return lo, hi
 
     @property
     def size(self):
@@ -389,7 +605,7 @@ class Coord(BaseCoord):
         return self.size == 1
 
     @property
-    def scipy_regularity(self):
+    def scipy_regularity(self): # TODO check
         return True
 
     def _select(self, bounds, ind=False, pad=None):
@@ -426,20 +642,27 @@ class Coord(BaseCoord):
 
 class MonotonicCoord(Coord):
     """
-    An array of monotonically increasing or decreasing coordinates.
+    An array of monotonically increasing or decreasing coordinates. The
+    coordinates are guaranteed to be sorted and unique, but not guaranteed to
+    be uniformly spaced.
     
     Attributes
     ----------
-    coords : np.ndarray
-        input coordinate array; must all be the same type and sorted.
-        string datetime coordinates are converted to datetime64.
+    coords : ndarray
+        Input coordinate array, must all be the same type, unique, and sorted.
+        Numerical values are converted to floats, datetime values are
+        converted to datetime64.
+    coordinates : ndarray
+        Full read-only coordinates array, equal to ``coords``.
+    delta : timedelta64, float
+        An average distance between adjacent coordinates. Note that because
+        there are no guarantees on the coordinate spacing, this value should
+        be used with caution.
 
-    Properties
-    ----------
-    is_monotonic : bool
-        True
-    is_descending : bool
-        Is the coordinates array in monotonitacally decreasing order.
+    See Also
+    --------
+    Coord : A basic array of coordinates.
+    UniformCoord : An array of sorted, uniformly-spaced coordinates.
     """
     
     @tl.default('delta')
@@ -588,26 +811,29 @@ class MonotonicCoord(Coord):
 
 class UniformCoord(BaseCoord):
     """
-    A uniformly-spaced coordinates defined by a start, stop, and delta.
-
+    An array of sorted, uniformly-spaced coordinates defined by a start, stop,
+    and delta.
+    
     Attributes
     ----------
-    start : float or np.datetime64
-        start coordinate
-    stop : float or np.datetime64
-        stop coordinate; will be included if aligned with the start and step
-    delta : float or np.timedelta64
-        signed delta between coordinates; timedelta string input is parsed
-    epsg : TODO, str, unicode, or possibly enum
+    start, stop: float or datetime64
+        start and stop coordinates. numerical inputs are cast as floats and
+        non-numerical inputs are parsed as datetime64.
+    delta : float or timedelta64
+        signed, non-zero delta between coordinates. numerical inputs are cast
+        as floats and non-numerical inputs are parsed as timedelta64
+    epsg : str
         <not yet in use>
+    coordinates : ndarray
+        Full read-only coordinates array defined by start, stop, and delta.
+        The stop value will be included if it falls an exact multiple of
+        ``delta`` from ``start``.
+    coords
     
-    Properties
-    ----------
-    coords : tuple
-        (start, stop, size) or (start, stop, size, epsg)
-    delta : float or np.timedelta64
-        delta between coordinates; this is either the step or calculated from
-        the start, stop, and size. It is signed. 
+    See Also
+    --------
+    Coord : A basic array of coordinates.
+    MonotonicCoord: An array of sorted coordinates.
     """
 
     start = tl.Any()
@@ -620,8 +846,17 @@ class UniformCoord(BaseCoord):
             start=start, stop=stop, delta=delta, epsg=epsg, **kwargs)
         
     @property
-    def coords(self):  # For backwards compatibility
-        return [self.start, self.stop]
+    def coords(self):
+        """
+        Coordinates start and stop, for backwards compatibility.
+
+        Returns
+        -------
+        start : float, datetime64
+        stop : float, datetime64
+        """
+
+        return self.start, self.stop
 
     @tl.validate('delta')
     def _validate_delta(self, d):
@@ -652,8 +887,7 @@ class UniformCoord(BaseCoord):
     def _clear_cache(self, change):
         clear_cache(self, change, ['coordinates', 'bounds'])
 
-    @cached_property
-    def coordinates(self):
+    def _coordinates(self):
         return add_coord(self.start, np.arange(0, self.size) * self.delta)
     
     @cached_property
@@ -831,12 +1065,14 @@ class UniformCoord(BaseCoord):
 
 def coord_linspace(start, stop, num, **kwargs):
     """
-    Convencence wrapper to get a UniformCoord with the given bounds and size.
+    Get a UniformCoord with the given bounds and size.
     
-    WARNING: the number of points may not be respected for time coordinates
-    because this function calculates a 'delta' which is quantized. If the 
-    start, stop, and num do not divide nicely you may end up with more or
-    fewer points than specified. 
+    Notes
+    -----
+    The number of points may not be respected for time coordinates because
+    this function calculates a 'delta' which is quantized. If the start, stop,
+    and num do not divide nicely you may end up with more or fewer points than
+    specified.
     """
 
     if not isinstance(num, (int, np.long, np.integer)):
