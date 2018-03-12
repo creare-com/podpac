@@ -49,7 +49,7 @@ class Coordinate(BaseCoordinate):
     """
 
     # default val set in constructor
-    ctype = tl.Enum(['segment', 'point', 'fence', 'post'])  
+    ctype = tl.Enum(['segment', 'point'])  
     segment_position = tl.Float()  # default val set in constructor
     coord_ref_sys = tl.CUnicode()
     _coords = tl.Instance(OrderedDict)
@@ -58,7 +58,7 @@ class Coordinate(BaseCoordinate):
     def __init__(self, coords=None, coord_ref_sys="WGS84", order=None,
             segment_position=0.5, ctype='segment', **kwargs):
         """
-        bounds is for fence-specification with non-uniform coordinates
+        bounds is for segment-specification with non-uniform coordinates
         
         order is required for Python 2.x where the order of kwargs is not
         preserved.
