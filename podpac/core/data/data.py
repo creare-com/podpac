@@ -65,7 +65,11 @@ class DataSource(Node):
         self.interpolate_data(data_subset, coords_subset, coordinates)
         
         # set the order of dims to be the same as that of evaluated_coordinates
-        self.output = self.output.transpose(*self.evaluated_coordinates.dims)
+        # + the dims that are missing from evaluated_coordinates. 
+        missing_dims = [dim for dim in self.native_coordinates.dims \
+                        if dim not in self.evaluated_coordinates.dims]
+        transpose_dims = self.evaluated_coordinates.dims + missing_dims
+        self.output = self.output.transpose(*transpose_dims)
         
         self.evaluated = True
         return self.output
