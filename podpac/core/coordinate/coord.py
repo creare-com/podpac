@@ -545,7 +545,10 @@ class Coord(BaseCoord):
             return val
         
         # convert strings and datetimes to datetime64
-        if isinstance(val[0], (string_types, datetime.datetime)):
+        if isinstance(val[0], (string_types, datetime.date)):
+            if any(isinstance(v, numbers.Number) for v in val):
+                raise TypeError("coords must be all numbers or all datetimes")
+
             val = np.array(val, dtype=np.datetime64)
 
         if np.issubdtype(val.dtype, np.number):

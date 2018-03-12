@@ -102,7 +102,7 @@ def make_coord_value(val):
 
     Parameters
     ----------
-    val : str, number, datetime.datetime, np.array
+    val : str, number, datetime.date, np.array
         Input coordinate value.
 
     Returns
@@ -125,7 +125,7 @@ def make_coord_value(val):
             val = val.item()
 
     # type checking and conversion
-    if isinstance(val, (string_types, datetime.datetime, datetime.date)):
+    if isinstance(val, (string_types, datetime.date)):
         val = np.datetime64(val)
     elif isinstance(val, np.datetime64):
         pass
