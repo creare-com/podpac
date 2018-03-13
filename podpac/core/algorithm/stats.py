@@ -12,6 +12,10 @@ from podpac.core.coordinate import Coordinate
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 
+# =============================================================================
+# Reduce Nodes
+# =============================================================================
+
 class Reduce(Algorithm):
     input_coordinates = tl.Instance(Coordinate)
     input_node = tl.Instance(Node)
@@ -53,7 +57,8 @@ class Reduce(Algorithm):
         
         return dims
 
-    def get_reduced_coordinates(self, coordinates):
+    def get_reduced_coordinates(self):
+        coordinates = self.input_coordinates
         dims = self.dims
         kwargs = {}
         order = []
@@ -135,10 +140,10 @@ class Reduce(Algorithm):
 
     def execute(self, coordinates, params=None, output=None):
         self.input_coordinates = coordinates
-        self.params = params
+        self.params = params or {}
         self.output = output
 
-        self.evaluated_coordinates = self.get_reduced_coordinates(coordinates)
+        self.evaluated_coordinates = self.get_reduced_coordinates()
 
         if self.output is None:
             self.output = self.initialize_output_array()
@@ -264,42 +269,6 @@ class Variance(Reduce):
             m2 += (d*d2).sum(dim=self.dims)
 
         return m2 / n
-
-class Mean2(Mean):
-    def reduce_chunked(self, xs):
-        N = xr.zeros_like(self.output)
-        M1 = xr.zeros_like(self.output)
-        
-        for x in xs:
-            Nx = np.isfinite(x).sum(dim=self.dims)
-            M1x = x.mean(dim=self.dims)
-            d = M1x - M1
-            n = N + Nx
-            
-            M1 += d/n
-            N = n
-
-        return M1
-
-class Variance2(Variance):
-    def reduce_chunked(self, xs):
-        N = xr.zeros_like(self.output)
-        M1 = xr.zeros_like(self.output)
-        M2 = xr.zeros_like(self.output)
-
-        for x in xs:
-            Nx = np.isfinite(x).sum(dim=self.dims)
-            M1x = x.mean(dim=self.dims)
-            M2x = x.var(dim=self.dims)
-            
-            d = M1x - M1
-            n = N + Nx
-            
-            M2 += M2x + d**2*N*Nx/n
-            M1 += d*Nx/n
-            N = n
-
-        return M2 / N
 
 class Skew(Reduce):
     # TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
@@ -438,6 +407,10 @@ class StandardDeviation(Variance):
         var = super(StandardDeviation, self).reduce_chunked(xs)
         return np.sqrt(var)
 
+# =============================================================================
+# Orthogonally chunked reduce
+# =============================================================================
+
 class Reduce2(Reduce):
     """
     Extended Reduce class that enables chunks that are smaller than the reduced
@@ -497,16 +470,124 @@ class Median(Reduce2):
             y.data[yslc] = x.median(dim=self.dims)
         return y
 
+# =============================================================================
+# Time-Grouped Reduce
+# =============================================================================
+
+# TODO native_coordinates_source as an attribute
+
+class GroupReduce(Algorithm):
+    """
+    Group a time-dependent source node by a datetime accessor and reduce.
+
+    Attributes
+    ----------
+    source : Node
+        Source node, must have native_coordinates
+    groupby : str
+        datetime sub-accessor. Currently 'dayofyear' is the enabled option.
+    reduce_fn : str
+        builtin xarray groupby reduce function, or 'custom'.
+    custom_reduce_fn : function
+        required if reduce_fn is 'custom'.
+    """
+
+    source = tl.Instance(Node)
+    native_coordinates_source = tl.Instance(Node, allow_none=True)
+
+    # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
+    groupby = tl.CaselessStrEnum(['dayofyear']) # could add season, month, etc
+
+    reduce_fn = tl.CaselessStrEnum(['all', 'any', 'count', 'max', 'mean',
+                                    'median', 'min', 'prod', 'std',
+                                    'sum', 'var', 'custom'])
+    custom_reduce_fn = tl.Any()
+
+    @property
+    def native_coordinates(self):
+        try:
+            if self.native_coordinates_source:
+                return self.native_coordinates_source.native_coordinates
+            else:
+                return self.source.native_coordinates
+        except:
+            raise Exception("no native coordinates found")
+
+    @property
+    def source_coordinates(self):
+        # intersect grouped time coordinates using groupby DatetimeAccessor
+        native_time = xr.DataArray(self.native_coordinates.coords['time'])
+        eval_time = xr.DataArray(self.evaluated_coordinates.coords['time'])
+        N = getattr(native_time.dt, self.groupby)
+        E = getattr(eval_time.dt, self.groupby)
+        native_time_mask = np.in1d(N, E)
+
+        # use requested spatial coordinates and filtered native times
+        coords = Coordinate(
+            time=native_time.data[native_time_mask],
+            lat=self.evaluated_coordinates['lat'],
+            lon=self.evaluated_coordinates['lon'],
+            order=('time', 'lat', 'lon'))
+
+        return coords
+
+    def execute(self, coordinates, params=None, output=None):
+        self.evaluated_coordinates = coordinates
+        self.params = params
+        self.output = output
+
+        if self.output is None:
+            self.output = self.initialize_output_array()
+
+        if 'time' not in self.native_coordinates.dims:
+            raise ValueError("GroupReduce source node must be time-dependent")
+        
+        if self.implicit_pipeline_evaluation:
+            self.source.execute(self.source_coordinates, params)
+
+        # group
+        grouped = self.source.output.groupby('time.%s' % self.groupby)
+        
+        # reduce
+        if self.reduce_fn is 'custom':
+            out = grouped.apply(self.custom_reduce_fn, 'time')
+        else:
+            # standard, e.g. grouped.median('time')
+            out = getattr(grouped, self.reduce_fn)('time')
+
+        # map
+        eval_time = xr.DataArray(self.evaluated_coordinates.coords['time'])
+        E = getattr(eval_time.dt, self.groupby)
+        out = out.sel(**{self.groupby:E}).rename({self.groupby: 'time'})
+        self.output[:] = out.transpose(*self.output.dims).data
+
+        self.evaluated = True
+        return self.output
+
+    def base_ref(self):
+        """
+        Default pipeline node reference/name in pipeline node definitions
+        """
+        return '%s.%s.%s' % (self.source.base_ref,self.groupby,self.reduce_fn)
+
+class DayOfYear(GroupReduce):
+    """ Convenience class. """
+
+    groupby = 'dayofyear'
+
+
+
+
 if __name__ == '__main__':
     from podpac.datalib.smap import SMAP
 
-    smap = SMAP(product='SPL4SMAU.003')
-    coords = smap.native_coordinates
+    # smap = SMAP(product='SPL4SMAU.003')
+    # coords = smap.native_coordinates
     
-    coords = Coordinate(
-        time=coords.coords['time'][:6],
-        lat=[45., 66., 5], lon=[-80., -70., 4],
-        order=['time', 'lat', 'lon'])
+    # coords = Coordinate(
+    #     time=coords.coords['time'][:6],
+    #     lat=[45., 66., 5], lon=[-80., -70., 4],
+    #     order=['time', 'lat', 'lon'])
 
     # smap_mean = Mean(input_node=SMAP(product='SPL4SMAU.003'))
     # print("lat_lon mean")
@@ -561,21 +642,21 @@ if __name__ == '__main__':
     # smap = SMAP(product='SPL4SMAU.003')
     # o = smap.execute(coords, {})
 
-    smap_skew = Skew(input_node=SMAP(product='SPL4SMAU.003'))
-    skew_ll = smap_skew.execute(coords, {'dims':'lat_lon'})
-    skew_ll_chunked = smap_skew.execute(coords, {'dims':'lat_lon', 'chunk_size': 40})
-    skew_ll_chunked1 = smap_skew.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
-    skew_time = smap_skew.execute(coords, {'dims':'time'})
-    skew_time_chunked = smap_skew.execute(coords, {'dims':'time', 'chunk_size': 40})
-    skew_time_chunked1 = smap_skew.execute(coords, {'dims':'time', 'chunk_size': 1})
+    # smap_skew = Skew(input_node=SMAP(product='SPL4SMAU.003'))
+    # skew_ll = smap_skew.execute(coords, {'dims':'lat_lon'})
+    # skew_ll_chunked = smap_skew.execute(coords, {'dims':'lat_lon', 'chunk_size': 40})
+    # skew_ll_chunked1 = smap_skew.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
+    # skew_time = smap_skew.execute(coords, {'dims':'time'})
+    # skew_time_chunked = smap_skew.execute(coords, {'dims':'time', 'chunk_size': 40})
+    # skew_time_chunked1 = smap_skew.execute(coords, {'dims':'time', 'chunk_size': 1})
 
-    smap_kurtosis = Kurtosis(input_node=SMAP(product='SPL4SMAU.003'))
-    kurtosis_ll = smap_kurtosis.execute(coords, {'dims':'lat_lon'})
-    kurtosis_ll_chunked = smap_kurtosis.execute(coords, {'dims':'lat_lon', 'chunk_size': 40})
-    kurtosis_ll_chunked1 = smap_kurtosis.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
-    kurtosis_time = smap_kurtosis.execute(coords, {'dims':'time'})
-    kurtosis_time_chunked = smap_kurtosis.execute(coords, {'dims':'time', 'chunk_size': 40})
-    kurtosis_time_chunked1 = smap_kurtosis.execute(coords, {'dims':'time', 'chunk_size': 1})
+    # smap_kurtosis = Kurtosis(input_node=SMAP(product='SPL4SMAU.003'))
+    # kurtosis_ll = smap_kurtosis.execute(coords, {'dims':'lat_lon'})
+    # kurtosis_ll_chunked = smap_kurtosis.execute(coords, {'dims':'lat_lon', 'chunk_size': 40})
+    # kurtosis_ll_chunked1 = smap_kurtosis.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
+    # kurtosis_time = smap_kurtosis.execute(coords, {'dims':'time'})
+    # kurtosis_time_chunked = smap_kurtosis.execute(coords, {'dims':'time', 'chunk_size': 40})
+    # kurtosis_time_chunked1 = smap_kurtosis.execute(coords, {'dims':'time', 'chunk_size': 1})
 
     # smap_std = StandardDeviation(input_node=SMAP(product='SPL4SMAU.003'))
     # std_ll = smap_std.execute(coords, {'dims':'lat_lon'})
@@ -590,5 +671,17 @@ if __name__ == '__main__':
     # median_time = smap_median.execute(coords, {'dims':'time'})
     # median_time_chunked = smap_median.execute(coords, {'dims':'time', 'chunk_size': 1})
     # median_time_chunked2 = smap_median.execute(coords, {'dims':'time', 'chunk_size': 10})
+
+    # =========================================================================
+    # Grouping
+    # =========================================================================
+
+    # coords = Coordinate(
+    #     time=np.array(map(np.datetime64, ['2017-10-01', '2017-10-02', '2017-10-03', '2015-10-03'])),
+    #     lat=[45., 66., 5], lon=[-80., -70., 4],
+    #     order=['time', 'lat', 'lon'])
+
+    # node = DayOfYear(source=SMAP(product='SPL4SMAU.003'), reduce_fn='mean')
+    # output = node.execute(coords)
 
     print ("Done")

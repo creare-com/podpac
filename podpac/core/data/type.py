@@ -5,7 +5,7 @@ import re
 from io import BytesIO
 import tempfile
 import bs4
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import numpy as np
 import xarray as xp
 import traitlets as tl
@@ -54,6 +54,8 @@ except:
 
 # Internal dependencies
 import podpac
+from podpac.core import authentication
+from podpac.core.utils import cached_property, clear_cache
 
 class NumpyArray(podpac.DataSource):
     source = tl.Instance(np.ndarray)
@@ -65,6 +67,24 @@ class NumpyArray(podpac.DataSource):
         return d
 
 class PyDAP(podpac.DataSource):
+    auth_session = tl.Instance(authentication.SessionWithHeaderRedirection,
+                               allow_none=True)
+    auth_class = tl.Type(authentication.SessionWithHeaderRedirection)
+    username = tl.Unicode(None, allow_none=True)
+    password = tl.Unicode(None, allow_none=True)
+    @tl.default('auth_session')
+    def _auth_session_default(self):
+        if not self.username or not self.password:
+            return None
+        session = self.auth_class(
+                username=self.username, password=self.password)
+        # check url
+        try:
+            session.get(self.source + '.dds')
+        except:
+            return None
+        return session
+   
     dataset = tl.Instance('pydap.model.DatasetType', allow_none=True)
     @tl.default('dataset')
     def open_dataset(self, source=None):
@@ -72,7 +92,16 @@ class PyDAP(podpac.DataSource):
             source = self.source
         else:
             self.source = source
-        return pydap.client.open_url(source)
+        
+        try:
+            dataset = pydap.client.open_url(source, session=self.auth_session)
+        except:
+            #Check Url (probably inefficient...)
+            self.auth_session.get(self.source + '.dds')
+            dataset = pydap.client.open_url(source, session=self.auth_session)
+        
+        return dataset
+        
 
     @tl.observe('source')
     def _update_dataset(self, change):
@@ -84,9 +113,7 @@ class PyDAP(podpac.DataSource):
             self.native_coordinates = self.get_native_coordinates()
 
     datakey = tl.Unicode(allow_none=False)
-    native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
-                                     allow_none=False)    
-    @tl.default('native_coordinates')
+  
     def get_native_coordinates(self):
         raise NotImplementedError("DAP has no mechanism for creating coordinates"
                                   ", so this is left up to child class "
@@ -98,11 +125,16 @@ class PyDAP(podpac.DataSource):
         d = self.initialize_coord_array(coordinates, 'data', 
                                         fillval=data.reshape(coordinates.shape))
         return d
+    
+    @property
+    def keys(self):
+        return self.dataset.keys()
 
 class RasterioSource(podpac.DataSource):
     source = tl.Unicode(allow_none=False)
-    dataset = tl.Instance('rasterio._io.RasterReader',
-                          allow_none=True)
+    dataset = tl.Any(allow_none=True)
+    band = tl.CInt(1)
+    
     @tl.default('dataset')
     def open_dataset(self, source=None):
         if source is None:
@@ -110,6 +142,9 @@ class RasterioSource(podpac.DataSource):
         else:
             self.source = source
         return rasterio.open(source)
+    
+    def close_dataset(self):
+        self.dataset.close()
 
     @tl.observe('source')
     def _update_dataset(self, change):
@@ -117,20 +152,72 @@ class RasterioSource(podpac.DataSource):
             self.dataset = self.open_dataset(change['new'])
         self.native_coordinates = self.get_native_coordinates()
 
-    native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
-                                     allow_none=False)    
-    @tl.default('native_coordinates')
     def get_native_coordinates(self):
-        dlon, dlat = self.dataset.res
+        dlon = self.dataset.width
+        dlat = self.dataset.height
+        if hasattr(self.dataset, 'affine'):
+            affine = self.dataset.affine
+        else:
+            affine = self.dataset.transform
         left, bottom, right, top = self.dataset.bounds
-        if self.dataset.transform[1] != 0.0 or\
-           self.dataset.transform[3] != 0.0:
+        if affine[1] != 0.0 or\
+           affine[3] != 0.0:
             raise NotImplementedError("Have not implemented rotated coords")
         return podpac.Coordinate(lat=(top, bottom, dlat),
-                                 lon=(left, right, dlon))
+                                 lon=(left, right, dlon), 
+                                 order=['lat', 'lon'])
 
     def get_data(self, coordinates, coodinates_slice):
-        return 
+        data = self.initialize_coord_array(coordinates)
+        
+        data.data.ravel()[:] = self.dataset.read(
+            self.band, window=((slc[0].start, slc[0].stop), 
+                               (slc[1].start, slc[1].stop)),
+            out_shape=tuple(coordinates.shape)
+            ).ravel()
+            
+        return data 
+    
+    @cached_property
+    def band_count(self):
+        return self.dataset.count
+    
+    @cached_property
+    def band_descriptions(self):
+        bands = OrderedDict()
+        for i in range(self.dataset.count):
+            bands[i] = self.dataset.tags(i + 1)
+        return bands    
+
+    @cached_property
+    def band_keys(self):
+        keys = {}
+        for i in range(self.band_count):
+            for k in self.band_descriptions[i].keys():
+                keys[k] = None
+        keys = keys.keys()
+        band_keys = defaultdict(lambda: [])
+        for k in keys: 
+            for i in range(self.band_count):
+                band_keys[k].append(self.band_descriptions[i].get(k, None))
+        return band_keys    
+    
+    @tl.observe('source')
+    def _clear_band_description(self, change):
+        clear_cache(self, change, ['band_descriptions', 'band_count',
+                                   'band_keys'])
+
+    def get_band_numbers(self, key, value):
+        if not hasattr(key, '__iter__') and not hasattr(value, '__iter__'):
+            key = [key]
+            value = [value]
+
+        match = np.ones(self.band_count, bool)
+        for k, v in zip(key, value):
+            match = match & (np.array(self.band_keys[k]) == v)
+        matches = np.where(match)[0] + 1
+        return matches    
+
 
 WCS_DEFAULT_VERSION = u'1.0.0'
 WCS_DEFAULT_CRS = 'EPSG:4326'
@@ -210,17 +297,17 @@ class WCS(podpac.DataSource):
             wcs_c = self.wcs_coordinates
             cs = OrderedDict()
             for c in wcs_c.dims:
-                if c in ev.dims and ev[c].regularity in ['irregular', 'dependent']:
+                if c in ev.dims and ev[c].size == 1:
+                    cs[c] = ev[c].coords
+                elif c in ev.dims and not isinstance(ev[c], podpac.UniformCoord):
                     # This is rough, we have to use a regular grid for WCS calls, 
                     # Otherwise we have to do multiple WCS calls... 
                     # TODO: generalize/fix this
-                    cs[c] = [min(ev[c].coords),
-                             max(ev[c].coords), ev[c].delta]
-                elif c in ev.dims and ev[c].regularity == 'regular':
-                    cs[c] = [min(ev[c].coords[:2]),
-                             max(ev[c].coords[:2]), ev[c].delta]
-                elif c in ev.dims and ev[c].regularity == 'single':
-                    cs[c] = ev[c].coords
+                    cs[c] = (min(ev[c].coords),
+                             max(ev[c].coords), abs(ev[c].delta))
+                elif c in ev.dims and isinstance(ev[c], podpac.UniformCoord):
+                    cs[c] = (min(ev[c].coords[:2]),
+                             max(ev[c].coords[:2]), abs(ev[c].delta))
                 else:
                     cs.append(wcs_c[c])
             c = podpac.Coordinate(cs)
@@ -349,8 +436,9 @@ class WCS(podpac.DataSource):
                 # Should improve in the future
                 open('temp.tiff','wb').write(r.data)
                 output.data[:] = arcpy.RasterToNumPyArray('temp.tiff')            
-
-        if not coordinates['lat'].is_max_to_min:
+            else: 
+                raise Exception('Rasterio or Arcpy not available to read WCS feed.')
+        if not coordinates['lat'].is_descending:
             if dotime:
                 output.data[:] = output.data[:, ::-1, :]
             else:
@@ -391,10 +479,12 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
             raise Exception("Either reprojected_coordinates or coordinates"
                             "_source must be specified")
 
-    @tl.default('native_coordinates')
     def get_native_coordinates(self):
         coords = OrderedDict()
-        sc = self.source.native_coordinates
+        if isinstance(self.source, podpac.DataSource):
+            sc = self.source.native_coordinates
+        else: # Otherwise we cannot guarantee that native_coordinates exist
+            sc = self.reprojected_coordinates
         rc = self.reprojected_coordinates
         for d in sc.dims:
             if d in rc.dims:
@@ -405,7 +495,17 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
 
     def get_data(self, coordinates, coordinates_slice):
         self.source.interpolation = self.source_interpolation
-        return self.source.execute(coordinates, self.params)
+        data = self.source.execute(coordinates, self.params)
+        
+        # The following is needed in case the source is an algorithm
+        # or compositor node that doesn't have all the dimensions of 
+        # the reprojected coordinates
+        # TODO: What if data has coordinates that reprojected_coordinates 
+        #       doesn't have
+        keep_dims = list(data.coords.keys())
+        drop_dims = [d for d in coordinates.dims if d not in keep_dims]
+        coordinates.drop_dims(*drop_dims)
+        return data
 
     @property
     def base_ref(self):
@@ -432,7 +532,6 @@ class S3Source(podpac.DataSource):
     temp_file_cleanup = tl.List()
     return_type = tl.Enum(['file_handle', 'path'], default_value='path')
     
-
     @tl.default('node')
     def node_default(self):
         if 'source' in self.node_kwargs:

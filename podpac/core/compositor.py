@@ -37,12 +37,30 @@ class Compositor(Node):
     threaded = tl.Bool(False)
     n_threads = tl.Int(10)
     
+    @tl.default('source_coordinates')
+    def _source_coordinates_default(self):
+        return self.get_source_coordinates()
+    def get_source_coordinates(self):
+        return None
+        
+    @tl.default('shared_coordinates')
+    def _shared_coordinates_default(self):
+        return self.get_shared_coordinates()
+    def get_shared_coordinates(self):
+        raise NotImplementedError()
+
+    def composite(self, outputs, result=None):    
+        raise NotImplementedError()
+    
     @tl.default('native_coordinates')
+    def _native_coordinates_default(self):
+        return self.get_native_coordinates()
+
     def get_native_coordinates(self):
         """
         This one is tricky... you can have multi-level compositors
         One for a folder described by a date
-        One fo all the folders over all dates. 
+        One for all the folders over all dates. 
         The single folder one has time coordinates that are actually
         more accurate than just the folder time coordinate, so you want
         to replace the time coordinate in native coordinate -- does this 
@@ -57,7 +75,7 @@ class Compositor(Node):
         else:
             crds = self.sources[0].native_coordinates
             for s in self.sources[1:]:
-                crds = crds + s.native_coordinates
+                crds = crds.add_unique(s.native_coordinates)
         if self.cache_native_coordinates:
             self.cache_obj(crds, 'native.coordinates')
         return crds
@@ -68,9 +86,8 @@ class Compositor(Node):
             src_subset = self.sources # all
         else:
             # intersecting sources only
-            slc = self.source_coordinates.intersect_ind_slice(
-                coordinates, pad=1)
-            src_subset = self.sources[slc]
+            I = self.source_coordinates.intersect(coordinates, pad=1, ind=True)
+            src_subset = self.sources[I]
 
         if len(src_subset) == 0:
             yield self.initialize_coord_array(coordinates, init_type='nan')
@@ -94,7 +111,11 @@ class Compositor(Node):
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
                 nc = Coordinate(**{coords_dim: c}) + self.shared_coordinates
-                if 'native_coordinates' not in s._trait_values:
+                # Switching from _trait_values to hasattr because "native_coordinates"
+                # sometimes not showing up in _trait_values in other locations
+                # Not confirmed here
+                #if 'native_coordinates' not in s._trait_values:
+                if hasattr(s,'native_coordinates') is False:
                     s.native_coordinates = nc
 
         if self.threaded:
@@ -132,13 +153,12 @@ class Compositor(Node):
 
         # TODO test
 
-        d = OrderedDict()
-        d['node'] = self.podpac_path
+        d = self._base_definition()
         d['sources'] = self.sources
 
         if self.interpolation:
             d['attrs'] = OrderedCompositor()
-            d['attrs']['interpolation'] = interpolation
+            d['attrs']['interpolation'] = self.interpolation
         return d
 
 

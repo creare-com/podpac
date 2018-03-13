@@ -43,8 +43,8 @@ class AWSOutput(Output):
 
 class ImageOutput(Output):
     format = tl.CaselessStrEnum(values=['png'], default='png')
-    vmax = tl.CFloat(allow_node=True, default_value=np.nan)
-    vmin = tl.CFloat(allow_node=True, default_value=np.nan)
+    vmax = tl.CFloat(allow_none=True, default_value=np.nan)
+    vmin = tl.CFloat(allow_none=True, default_value=np.nan)
     image = tl.Bytes()
 
     def write(self):
@@ -88,19 +88,22 @@ class Pipeline(tl.HasTraits):
 
     def parse_node(self, name, d):
         # get node class
-        node_string = d['node']
-        if '.' in node_string:
-            submodule_name, node_name = node_string.rsplit('.', 1)
-            module_name = 'podpac.%s' % submodule_name
-        else:
-            module_name = 'podpac'
-            node_name = node_string
-        module = importlib.import_module(module_name)
-        node_class = getattr(module, node_name)
+        module_root = d.get('plugin', 'podpac')
+        node_string = '%s.%s' % (module_root, d['node'])
+        module_name, node_name = node_string.rsplit('.', 1)
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            raise PipelineError("No module found '%s'" % module_name)
+        try:
+            node_class = getattr(module, node_name)
+        except AttributeError:
+            raise PipelineError("Node '%s' not found in module '%s'" % (
+                node_name, module_name))
         
         # parse and configure kwargs
         kwargs = {}
-        whitelist = ['node', 'attrs', 'params', 'evaluate']
+        whitelist = ['node', 'attrs', 'params', 'evaluate', 'plugin']
         
         try:
             parents = inspect.getmro(node_class)
@@ -305,10 +308,17 @@ def make_pipeline_definition(main_node):
     add_node(main_node)
 
     output = OrderedDict()
-    output['mode'] = 'file'
-    output['format'] = 'pickle'
-    output['outdir'] = os.path.join(os.getcwd(), 'out')
+    #output['mode'] = 'file'
+    #output['format'] = 'pickle'
+    #output['outdir'] = os.path.join(os.getcwd(), 'out')
+    #output['nodes'] = [refs[-1]]
+
+    output['mode'] = 'image'
+    output['format'] = 'png'
+    output['vmin'] = -1.2
+    output['vmax'] = 1.2
     output['nodes'] = [refs[-1]]
+
 
     d = OrderedDict()
     d['nodes'] = OrderedDict(zip(refs, definitions))

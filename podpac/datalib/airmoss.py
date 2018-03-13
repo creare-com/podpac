@@ -18,7 +18,6 @@ class AirMOSS_Source(datatype.PyDAP):
     datakey = tl.Unicode(u'sm1')    
     no_data_vals = [-9999.0]
     
-    @tl.default('native_coordinates')
     def get_native_coordinates(self):
         try: 
             return self.load_cached_obj('native.coordinates')
@@ -54,8 +53,7 @@ class AirMOSS_Site(podpac.GridCompositor):
     site = tl.Unicode('')
     date_url_re = re.compile('[0-9]{8}')
 
-    @tl.default('native_coordinates')
-    def set_native_coordinates(self):
+    def get_native_coordinates(self):
         try: 
             return self.load_cached_obj('native.coordinates')
         except: pass

@@ -3,6 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 from collections import OrderedDict
 import numpy as np
 import traitlets as tl
+from copy import deepcopy
 
 # Optional dependencies
 try: 
@@ -21,7 +22,7 @@ except:
 
 # Internal imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinate import Coordinate, UniformCoord
 from podpac.core.node import Node
 
 class DataSource(Node):
@@ -34,10 +35,15 @@ class DataSource(Node):
     no_data_vals = tl.List(allow_none=True)
     
     def execute(self, coordinates, params=None, output=None):
-        self.evaluated_coordinates = coordinates
+        self.evaluated_coordinates = deepcopy(coordinates)
+        # remove dimensions that don't exist in native coordinates
+        for dim in self.evaluated_coordinates.dims:
+            if dim not in self.native_coordinates.dims:
+                self.evaluated_coordinates.drop_dims(dim)
         self.params = params
         self.output = output
 
+        # Need to ask the interpolator what coordinates I need
         res = self.get_data_subset(coordinates)
         if isinstance(res, UnitsDataArray):
             if self.output is None:
@@ -58,6 +64,13 @@ class DataSource(Node):
         # sets self.output
         self.interpolate_data(data_subset, coords_subset, coordinates)
         
+        # set the order of dims to be the same as that of evaluated_coordinates
+        # + the dims that are missing from evaluated_coordinates. 
+        missing_dims = [dim for dim in self.native_coordinates.dims \
+                        if dim not in self.evaluated_coordinates.dims]
+        transpose_dims = self.evaluated_coordinates.dims + missing_dims
+        self.output = self.output.transpose(*transpose_dims)
+        
         self.evaluated = True
         return self.output
         
@@ -66,9 +79,12 @@ class DataSource(Node):
         This should return an UnitsDataArray, and A Coordinate object, unless
         there is no intersection
         """
+        # TODO: probably need to move these lines outside of this function
+        # since the coordinates we need from the datasource depends on the
+        # interpolation method
         pad = 1#self.interpolation != 'nearest'
         coords_subset = self.native_coordinates.intersect(coordinates, pad=pad)
-        coords_subset_slc = self.native_coordinates.intersect_ind_slice(coordinates, pad=pad)
+        coords_subset_slc = self.native_coordinates.intersect(coordinates, pad=pad, ind=True)
         
         # If they do not intersect, we have a shortcut
         if np.prod(coords_subset.shape) == 0:
@@ -79,7 +95,7 @@ class DataSource(Node):
             new_coords = OrderedDict()
             new_coords_slc = []
             for i, d in enumerate(coords_subset.dims):
-                if coords_subset[d].regularity == 'regular':
+                if isinstance(coords_subset[d], UniformCoord):
                     if d in coordinates.dims:
                         ndelta = np.round(coordinates[d].delta /
                                           coords_subset[d].delta)
@@ -113,10 +129,16 @@ class DataSource(Node):
         source data, but all coordinates will match 1:1 with the subset data
         """
         raise NotImplementedError
+        
+    def get_native_coordinates(self):
+        raise NotImplementedError
+        
+    @tl.default('native_coordinates')
+    def _native_coordinates_default(self):
+        return self.get_native_coordinates()
     
     def interpolate_data(self, data_src, coords_src, coords_dst):
         # TODO: implement for all of the designed cases (points, etc)
-        #import ipdb;ipdb.set_trace()
         data_dst = self.output
         
         # This a big switch, funneling data to various interpolation routines
@@ -152,32 +174,31 @@ class DataSource(Node):
         rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
                             'lanczos', 'average', 'mode', 'gauss', 'max', 'min',
                             'med', 'q1', 'q3']         
-        rasterio_regularity = ['single', 'regular', 'regular-rotated']
         if rasterio is not None \
                 and self.interpolation in rasterio_interps \
                 and ('lat' in coords_src.dims 
                      and 'lon' in coords_src.dims) \
                 and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)\
-                and coords_src['lat'].regularity in rasterio_regularity \
-                and coords_src['lon'].regularity in rasterio_regularity \
-                and coords_dst['lat'].regularity in rasterio_regularity \
-                and coords_dst['lon'].regularity in rasterio_regularity:
+                and coords_src['lat'].rasterio_regularity \
+                and coords_src['lon'].rasterio_regularity \
+                and coords_dst['lat'].rasterio_regularity \
+                and coords_dst['lon'].rasterio_regularity:
             return self.rasterio_interpolation(data_src, coords_src,
                                                data_dst, coords_dst)
         # Raster to Raster interpolation from irregular grids to arbitrary grids
         elif ('lat' in coords_src.dims 
                 and 'lon' in coords_src.dims) \
                 and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)\
-                and coords_src['lat'].regularity in ['irregular', 'regular'] \
-                and coords_src['lon'].regularity in ['irregular', 'regular']:
+                and coords_src['lat'].scipy_regularity \
+                and coords_src['lon'].scipy_regularity:
             return self.interpolate_irregular_grid(data_src, coords_src,
                                                    data_dst, coords_dst,
                                                    grid=True)
         # Raster to lat_lon point interpolation
         elif ('lat' in coords_src.dims 
                 and 'lon' in coords_src.dims) \
-                and coords_src['lat'].regularity in ['irregular', 'regular'] \
-                and coords_src['lon'].regularity in ['irregular', 'regular'] \
+                and coords_src['lat'].scipy_regularity \
+                and coords_src['lon'].scipy_regularity \
                 and (np.any(['lat_lon' in d for d in coords_dst.dims]) or
                      np.any(['lon_lat' in d for d in coords_dst.dims])):
             coords_dst_us = coords_dst.unstack() # TODO don't have to return
@@ -226,7 +247,7 @@ class DataSource(Node):
             src_transform = get_rasterio_transform(coords_src)
             src_crs = {'init': coords_src.gdal_crs}
             # Need to make sure array is c-contiguous
-            if coords_src['lat'].is_max_to_min:
+            if coords_src['lat'].is_descending:
                 source = np.ascontiguousarray(data_src.data)
             else:
                 source = np.ascontiguousarray(data_src.data[::-1, :])
@@ -250,7 +271,7 @@ class DataSource(Node):
                 dst_nodata=np.nan,
                 resampling=getattr(Resampling, self.interpolation)
             )
-            if coords_dst['lat'].is_max_to_min:
+            if coords_dst['lat'].is_descending:
                 data_dst.data[:] = destination
             else:
                 data_dst.data[:] = destination[::-1, :]
@@ -268,13 +289,13 @@ class DataSource(Node):
         
         interp = self.interpolation 
         s = []
-        if coords_src['lat'].is_max_to_min:  
+        if coords_src['lat'].is_descending:  
             lat = coords_src['lat'].coordinates[::-1]
             s.append(slice(None, None, -1))
         else:                  
             lat = coords_src['lat'].coordinates
             s.append(slice(None, None))
-        if coords_src['lon'].is_max_to_min:  
+        if coords_src['lon'].is_descending:  
             lon = coords_src['lon'].coordinates[::-1]
             s.append(slice(None, None, -1))
         else:                  
@@ -285,40 +306,45 @@ class DataSource(Node):
         
         # remove nan's
         I, J = np.isfinite(lat), np.isfinite(lon)
-        lat, lon = lat[I], lon[J]
+        coords_i = lat[I], lon[J]
+        coords_i_dst = [coords_dst['lon'].coordinates,
+                        coords_dst['lat'].coordinates]
+        # Swap order in case datasource uses lon,lat ordering instead of lat,lon
+        if coords_src.dims.index('lat') > coords_src.dims.index('lon'):
+            I, J = J, I
+            coords_i = coords_i[::-1]
+            coords_i_dst = coords_i_dst[::-1]
         data = data[I, :][:, J]
         
         if interp in ['bilinear', 'nearest']:
-            f = RegularGridInterpolator([lat, lon], data,
+            f = RegularGridInterpolator(coords_i, data,
                                         method=interp.replace('bi', ''), 
                                         bounds_error=False, fill_value=np.nan)
             if grid:
-                x, y = np.meshgrid(coords_dst['lon'].coordinates,
-                                   coords_dst['lat'].coordinates)
+                x, y = np.meshgrid(*coords_i_dst)
             else:
-                x = coords_dst['lon'].coordinates
-                y = coords_dst['lat'].coordinates                
+                x, y = coords_i_dst['lon']                
             data_dst.data[:] = f((y.ravel(), x.ravel())).reshape(data_dst.shape)
         elif 'spline' in interp:
             if interp == 'cubic_spline':
                 order = 3
             else:
                 order = int(interp.split('_')[-1])
-            f = RectBivariateSpline(lat, lon,
+            f = RectBivariateSpline(coords_i[0], coords_i[1],
                                     data, 
                                     kx=max(1, order), 
                                     ky=max(1, order))
-            data_dst.data[:] = f(coords_dst.coords['lat'],
-                                 coords_dst.coords['lon'],
+            data_dst.data[:] = f(coords_i_dst[1],
+                                 coords_i_dst[0],
                                  grid=grid).reshape(data_dst.shape)
         return data_dst
 
     def interpolate_point_data(self, data_src, coords_src,
                                data_dst, coords_dst, grid=True):
-        if 'lat' in coords_dst.stacked_coords \
-                and 'lon' in coords_dst.stacked_coords:
-            order = coords_src.stacked_coords['lat']
-            dst_order = coords_dst.stacked_coords['lat']
+        if 'lat' in coords_dst.dims_map.values() \
+                and 'lon' in coords_dst.dims_map.values():
+            order = coords_src.dims_map['lat']
+            dst_order = coords_dst.dims_map['lat']
             i = list(coords_dst.dims).index(dst_order)
             new_crds = Coordinate(**{order: [coords_dst.unstack()[c].coordinates
                 for c in order.split('_')]})
@@ -331,7 +357,7 @@ class DataSource(Node):
             data_dst.data[:] = data_src[{order: ind}].transpose(*dims).data[:]
             return data_dst
         elif 'lat' in coords_dst.dims and 'lon' in coords_dst.dims:
-            order = coords_src.stacked_coords['lat']
+            order = coords_src.dims_map['lat']
             i = list(coords_dst.dims).index('lat')
             j = list(coords_dst.dims).index('lon')
             tol = np.linalg.norm([coords_dst.delta[i], coords_dst.delta[j]]) * 8
@@ -357,11 +383,9 @@ class DataSource(Node):
             data_dst.data[:] = vals.transpose(*data_dst.dims).data[:]
             return data_dst
 
-
     @property
     def definition(self):
-        d = OrderedDict()
-        d['node'] = self.podpac_path
+        d = self._base_definition()
         d['source'] = self.source
         if self.interpolation:
             d['attrs'] = OrderedDict()
@@ -375,13 +399,13 @@ if __name__ == "__main__":
     arr = np.random.rand(16, 11)
     lat = np.random.rand(16)
     lon = np.random.rand(16)
-    coord = Coordinate(lat_lon=(lat, lon), time=np.linspace(0, 10, 11), 
+    coord = Coordinate(lat_lon=(lat, lon), time=(0, 10, 11), 
                        order=['lat_lon', 'time'])
     node = NumpyArray(source=arr, native_coordinates=coord)
     #a1 = node.execute(coord)
 
-    coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8))
-    coordt = Coordinate(time=(3,5, 2))
+    coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=('lat', 'lon'))
+    coordt = Coordinate(time=(3, 5, 2))
 
     at = node.execute(coordt)
     ag = node.execute(coordg)
