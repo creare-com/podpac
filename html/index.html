@@ -1,0 +1,219 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>PodPac Demo</title>
+  <meta name="podpac demo" content="The HTML5 Herald">
+  <meta name="Creare" content="SitePoint">
+
+<!--   <link rel="stylesheet" href="css/styles.css?v=1.0"> -->
+
+  <!--[if lt IE 9]>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.js"></script>
+  <![endif]-->
+</head>
+
+<body>
+  <script
+    src="https://code.jquery.com/jquery-3.2.1.min.js"
+    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+    crossorigin="anonymous">
+  </script>
+  <script>
+  $.ajaxSetup({timeout:180000});
+
+  function getSetImage(url, img, gridtext, trynum=0){
+    if (trynum == 6){
+      return;
+    }
+      $.get(url, function (data) {
+      if (data.startsWith('data:image')){
+        img.attr('src', data );  
+        $('#errors').html("");
+        console.log('SUCCESS: ' + gridtext);
+      } else if (gridtext === 'single') {
+        img.attr('src', "" );
+        $('#errors').html(data);
+      } else {
+        console.log('Try Again PP Fail: ' + trynum + " " + gridtext);
+        getSetImage(url, img, gridtext, trynum + 1);      
+      }
+    })
+    .fail(function() {
+      console.log('Try Again: ' + trynum + " " + gridtext);
+      getSetImage(url, img, gridtext, trynum + 1);
+      });
+  }
+
+  function UpdateImage(){
+    var pipeline = $('#pipeline').val();
+    var e = $('#e').val();
+    var w = $('#w').val();
+    var n = $('#n').val();
+    var s = $('#s').val();
+    var time = encodeURIComponent($('#datetime').val());
+    if (e & n & s & w){
+        var coordinates = encodeURIComponent(w+','+s+','+e+','+n);
+    } else { var coordinates = 0;}
+    var params = {"pipeline":pipeline};
+    var paramsJ = encodeURIComponent(JSON.stringify(params));
+    var url = "https://22d3a0pwlf.execute-api.us-east-1.amazonaws.com/prod/";
+    if (pipeline!='' & coordinates!=''){
+      var format = encodeURIComponent('image/png');
+      url = url + "?SERVICE=WMS&VERSION=1.0.0&REQUEST=GetCoverage&" +
+                   "FORMAT=" + format + "&COVERAGE=PIPELINE&TIME=" + time +
+                   "&BBOX=" + coordinates + "&CRS=EPSG:4326&RESPONSE_CRS=EPSG:4326&" +
+                   "WIDTH=64&HEIGHT=64&PARAMS=" + paramsJ;
+    }
+    console.log('Clicked: ' + url);
+    $('#img').attr('src', "" );
+    $('#errors').html("");
+    getSetImage(url, $('#img'), 'single');
+  }
+  function updateImageSize(){
+    var cols = parseInt($("#cols").val());
+    var rows = parseInt($("#rows").val());
+    var width = cols * 64;
+    var height = rows * 64;
+
+    $('#img').css('height', height + 'px');
+    $('#img').css('width', width + 'px');
+    UpdateImageGrid(true);
+  }
+
+  function UpdateImageGrid(init){
+    var pipeline = $('#pipeline').val();
+    var cols = parseInt($("#cols").val());
+    var rows = parseInt($("#rows").val());
+    var e = parseFloat($('#e').val());
+    var w = parseFloat($('#w').val());
+    var n = parseFloat($('#n').val());
+    var s = parseFloat($('#s').val());
+    var time = encodeURIComponent($('#datetime').val());
+    dew = (parseFloat(e) - parseFloat(w)) / cols;
+    dns = (parseFloat(n) - parseFloat(s)) / rows;
+
+    if (!(e & n & s & w)){
+      return;
+    }
+
+    // Create image holders
+    d = $('#imgrid');
+    d.html("");
+    for (var i=0; i<rows; i++){
+      for (var j=0;j<cols; j++){ 
+        d.html(d.html() + '<img id="' + i + "_" + j +'" src="" style="width:64px;height:64px"/>');
+      }
+      d.html(d.html() + "<br>\n");
+    }
+    if (init){
+      return;
+    }
+
+    for (var i=0; i<rows; i++){
+      for (var j=0;j<cols; j++){
+        (function (i, j){ 
+          var ee = w + dew * (j + 1);
+          var ww = w + dew * j; 
+          var nn = n - dns * (i);
+          var ss = n - dns * (i + 1);
+
+//           var nn = s + dns * (i + 1);
+//           var ss = s + dns * (i + 0);
+
+          var coordinates = encodeURIComponent(ww+','+ss+','+ee+','+nn);
+
+          var params = {"pipeline":pipeline};
+          var paramsJ = encodeURIComponent(JSON.stringify(params));
+          var url = "https://22d3a0pwlf.execute-api.us-east-1.amazonaws.com/prod/";
+          if (pipeline!=''){
+            var format = encodeURIComponent('image/png');
+            url = url + "?SERVICE=WMS&VERSION=1.0.0&REQUEST=GetCoverage&" +
+                         "FORMAT=" + format + "&COVERAGE=PIPELINE&TIME=" + time +
+                         "&BBOX=" + coordinates + "&CRS=EPSG:4326&RESPONSE_CRS=EPSG:4326&" +
+                         "WIDTH=64&HEIGHT=64&PARAMS=" + paramsJ;
+          }
+          console.log('Submitted ' + i + '_' + j + ': ' + url);
+          var gridtext = i + '_' + j;
+          var img = $('#' + i + "_" + j); 
+          img.attr('src', "" );
+          getSetImage(url, img, gridtext);
+        })(i, j);
+      }
+    }
+  }
+
+  </script>
+  <div style="display:flex;">
+    <div style="margin:1em;width:600px;">
+      <h1> Single Image </h1>
+      <input id='button' type='button' value="update" onclick="UpdateImage();"></input>
+
+<!--       <div>
+          <img src="" id='img' style="width:256px;height:256px"></img>
+      </div> -->
+      
+    </div>
+
+    <div width=600px style="margin:1em;width:600px;">
+      <h1> Image Grid </h1>
+      <table>
+        <tr>
+          <td>Columns:</td>
+          <td> <input id="cols" type="number" value=4 min=1 max=9 onchange="updateImageSize()"/></td>
+        </tr><tr>
+          <td> Rows: </td>
+          <td> <input id="rows" type="number" value=4 min=1 max=9 onchange="updateImageSize()"/></td>
+        </tr>
+      </table>
+      <input id='button' type='button' value="update grid" onclick="UpdateImageGrid(false);"></input>
+
+<!--       <div id="imgrid" style="line-height:0em;white-space:nowrap;"></div>   -->
+    </div>
+  </div>
+
+  <div style="display:flex;">
+    <div width=600px style="margin:1em;width:600px;">
+      <div>
+          <img src="" id='img' style="width:256px;height:256px"></img>
+      </div>
+    </div>
+
+    <div width=600px style="margin:1em;width:600px;">
+      <div id="imgrid" style="line-height:0em;white-space:nowrap;"></div>  
+    </div>
+  </div>
+
+
+
+  Coordinates:
+  <table>
+  <tr>
+    <td></td>
+    <td>N <input id='n' type=number value='39.3' step=0.1 tabindex="1"></input></td>
+    <td></td>
+  </tr><tr>
+    <td>W <input id='w' type=number value='-77.0' step=0.1 tabindex="3"></input></td>
+    <td></td>
+    <td>E <input id='e' type=number value='-76.7' step=0.1 tabindex="4"></input></td>
+  </tr><tr>
+    <td></td>
+    <td>S <input id='s' type=number value=39.0  step=0.1 tabindex="2"></input></td>
+    <td></td>
+  </tr>
+  </table>
+  <div>
+  Date / Time : <input id='datetime' type='text' value='2017-08-08T12:00:00'></input>
+  </div>
+  Pipeline: <br><textarea id='pipeline' style='width:90%;min-height:40em'>
+[ Paste Pipeline Definition Here ]
+</textarea>
+<div id="errors"></div> 
+<!--   <div id="debug"></div> -->
+<script> 
+  UpdateImageGrid(true);
+</script>
+</body>
+</html>
