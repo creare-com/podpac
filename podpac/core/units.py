@@ -4,6 +4,8 @@ import numpy as np
 import traitlets as tl
 import operator
 from pint import UnitRegistry
+from copy import deepcopy
+from numbers import Number
 from pint.unit import _Unit
 ureg = UnitRegistry()
 
@@ -95,6 +97,34 @@ class UnitsDataArray(xr.DataArray):
             return out
         
         return super(UnitsDataArray, self).__getitem__(key)
+    
+    def set(self, value, mask):
+        # set the UnitsDataArray data to have a particular value, possibly using a mask
+        # in general, want to handle cases where value is a single value, an array,
+        # or a UnitsDataArray, and likewise for mask to be None, ndarray, or UnitsDataArray
+        # For now, focus on case where value is a single value and mask is a UnitsDataArray
+                 
+        if type(mask) is UnitsDataArray and isinstance(value,Number):
+            orig_dims = deepcopy(self.dims)   
+            
+            # find out status of all dims
+            shared_dims = [dim for dim in mask.dims if dim in self.dims]
+            self_only_dims = [dim for dim in self.dims if dim not in mask.dims]
+            mask_only_dims = [dim for dim in mask.dims if dim not in self.dims]
+            
+            # don't handle case where there are mask_only_dims
+            if len(mask_only_dims) > 0:
+                return
+            
+            # transpose self to have same order of dims as mask so those shared dims
+            # come first and in the same order in both cases
+            self = self.transpose(*shared_dims+self_only_dims)
+            
+            # set the values approved by ok_mask to be value
+            self.values[mask.values,...] = value
+            
+            # set self to have the same dims (and same order) as when first started
+            self = self.transpose(*orig_dims)    
         
 for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
@@ -139,10 +169,12 @@ if __name__ == "__main__":
         np.arange(24).reshape((3, 4, 2)),
         coords={'x': np.arange(3), 'y': np.arange(4)*10, 'z': np.arange(2)+100},
         dims=['x', 'y', 'z'])
-    b = a[0, :, 0]
+    b = a[0, :, :]
     b = b<3
+    b = b.transpose(*('z','y'))
     print(a)
     print(b)
-    print(a[b])
+    a.set(-10,b)
+    print(a)
 
     print ("Done")
