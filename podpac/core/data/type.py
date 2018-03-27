@@ -620,9 +620,9 @@ if __name__ == '__main__':
     coordinates = podpac.Coordinate(lat=(39.3, 39., 64), lon=(-77.0, -76.7, 64), time='2017-09-03T12:00:00', 
                                     order=['lat', 'lon', 'time'])    
     reprojected_coordinates = podpac.Coordinate(lat=(45, 0, 3), lon=(-70., -65., 3),
-                                                order=['lat', 'lon'])    
-                          'TopographicWetnessIndexComposited3090m'),
-              )
+                                                order=['lat', 'lon']),
+    #                                           'TopographicWetnessIndexComposited3090m'),
+    #          )
 
     o = wcs.execute(coordinates)
     reprojected = ReprojectedSource(source=wcs,
