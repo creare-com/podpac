@@ -58,4 +58,4 @@ As such use PODPAC at your own risk.
 
 
 # References
-[link-to-AMS-talk](TOOD)
+[AMS2018 Presentation using PODPAC](https://ams.confex.com/ams/98Annual/webprogram/Paper332957.html)
