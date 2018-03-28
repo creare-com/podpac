@@ -1,5 +1,5 @@
 # Install
-i
+
 ## For developers
 At the moment, only a developer installation procedure exists. 
 
