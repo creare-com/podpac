@@ -3,7 +3,11 @@ See [Installation Notes](install.md)
 
 # Code design
 
-The essential class structure is captured in [ClassStructure](Images/ClassStructure.png). The directory structure is as follows:
+The essential class structure is captured in the following image:
+
+<img src="Images/ClassStructure.png" width="640">
+
+The directory structure is as follows:
 
 * `dist`: Contains installation instructions and environments for various deployments, including cloud deployment on AWS
 * `doc`: Any documentation
