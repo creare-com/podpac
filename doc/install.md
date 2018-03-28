@@ -1,4 +1,7 @@
 # Install
+i
+## For developers
+At the moment, only a developer installation procedure exists. 
 
 These install notes assume you are using the anaconda python distribution.
 
@@ -8,12 +11,19 @@ We recommend that you create a new python 3 environment to install `podpac`:
 $ conda create -n podpac python=3 anaconda   # installs all `anaconda` packages
 ```
 
-## Windows
+Installation procedes as follows: 
 
 -  *Optional* Activate your podpac conda environment:
 
 ```bash
-$ activate podpac
+$ conda activate podpac  # Windows
+$ source activate podpac # Linux / Mac
+```
+- Install dependencies
+
+```bash
+$ conda install numpy scipy xarray traitlets pint  # Core dependencies
+$ conda install numexpr pydap requests beautifulsoup4 lxml urllib3 certifi
 ```
 
 - Install [rasterio](https://mapbox.github.io/rasterio/installation.html#installing-with-anaconda) from the **conda-forge** channel
@@ -25,7 +35,10 @@ $ conda install rasterio --channel conda-forge
 - Install `podpac` in development mode:
 
 ```bash
+$ cd <install-path>
+$ git clone https://github.com/creare-com/podpac.git
+$ cd podpac
 $ python setup.py develop
 ```
-
+*Note*: This procedure checks out the `master` branch, which is intented to be somewhat stable with working code. For bleeding edge, checkout the `develop` branch instead using `git checkout -b develop origin/develop`
 

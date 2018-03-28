@@ -8,7 +8,7 @@ setup(
     version='0.0.0',
 
     description="Pipeline for Observational Data Processing, Analysis, and Collaboration",
-    author='MPU',
+    author='Creare',
     # url="https://github.com/creare-com/podpac",
     license="APACHE 2.0",
     classifiers=[
