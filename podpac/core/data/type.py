@@ -23,9 +23,9 @@ try:
 except:
     rasterio = None
     try:
-        import arcpy
+        from arcpy import RasterToNumPyArray
     except:
-        arcpy = None
+        RasterToNumPyArray = None
     
 try:
     import boto3
@@ -372,12 +372,12 @@ class WCS(podpac.DataSource):
                         with rasterio.open(tmppath) as dataset:
                             output.data[i, ...] = dataset.read()
                         os.remove(tmppath) # Clean up
-                elif arcpy is not None:
+                elif RasterToNumPyArray is not None:
                     # Writing the data to a temporary tiff and reading it from there is hacky
                     # However reading directly from r.data or io doesn't work
                     # Should improve in the future
                     open('temp.tiff','wb').write(r.data)
-                    output.data[i, ...] = arcpy.RasterToNumPyArray('temp.tiff')
+                    output.data[i, ...] = RasterToNumPyArray('temp.tiff')
         else:
             time = times[0]
             
@@ -430,12 +430,12 @@ class WCS(podpac.DataSource):
                     with rasterio.open(tmppath) as dataset:
                         output.data[:] = dataset.read()
                     os.remove(tmppath) # Clean up
-            elif arcpy is not None:
+            elif RasterToNumPyArray is not None:
                 # Writing the data to a temporary tiff and reading it from there is hacky
                 # However reading directly from r.data or io doesn't work
                 # Should improve in the future
                 open('temp.tiff','wb').write(r.data)
-                output.data[:] = arcpy.RasterToNumPyArray('temp.tiff')            
+                output.data[:] = RasterToNumPyArray('temp.tiff')            
             else: 
                 raise Exception('Rasterio or Arcpy not available to read WCS feed.')
         if not coordinates['lat'].is_descending:
