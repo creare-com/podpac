@@ -15,7 +15,7 @@ NASA.
   your account
 * To enable OpenDAP access: 
     * Go to your [Profile](https://urs.earthdata.nasa.gov/profile) once logged in.
-    * Click on `My Applications`
+    * Under `Applications`, click on `Authorized Apps`
     * Scroll to the bottom and click on `APPROVE MORE APPLICATIONS`
     * Find the `NASA GESDICS DATA ARCHIVE` and `NSIDC V0 OPeNDAP` applications
         * Additional applications may be required to access datasets of interest
