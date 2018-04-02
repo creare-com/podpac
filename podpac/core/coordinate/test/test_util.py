@@ -150,3 +150,11 @@ class TestCoordUtils(object):
         assert add_coord(dt64('2018-01-31'), td64( 2, 'M')) == dt64('2018-03-31')
         assert add_coord(dt64('2018-01-31'), td64( 3, 'M')) == dt64('2018-04-30')
         assert add_coord(dt64('2020-01-31'), td64( 1, 'M')) == dt64('2020-02-29')
+
+        # type error
+        with pytest.raises(TypeError):
+            add_coord(25.0, dt64('2020-01-31'))
+
+        # this case is generally not encountered
+        from podpac.core.coordinate.util import _add_nominal_timedelta
+        assert _add_nominal_timedelta(dt64('2018-01-30'), td64( 1, 'D')) == dt64('2018-01-31')
