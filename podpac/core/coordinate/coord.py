@@ -678,7 +678,6 @@ class MonotonicCoord(Coord):
         val = super(MonotonicCoord, self)._coords_validate(proposal)
 
         if val.size > 1:
-            # TODO nan?
             d = (val[1:] - val[:-1]).astype(float) * (val[1] - val[0]).astype(float)
             if np.any(d <= 0):
                 raise ValueError("Invalid coords, must be ascending or descending")
@@ -687,7 +686,6 @@ class MonotonicCoord(Coord):
 
     @cached_property
     def bounds(self):
-        # TODO nan?
         if self.size == 0:
             lo, hi = np.nan, np.nan # TODO something arbitrary like -1, 1?
         elif self.is_descending:
@@ -702,7 +700,6 @@ class MonotonicCoord(Coord):
 
     @property
     def is_descending(self):
-        # TODO nan?
         if self.size == 0:
             return False
         return self.coords[0] > self.coords[-1]
