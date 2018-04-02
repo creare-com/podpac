@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 
 import sys
+import getpass
 
 # python 2/3 compatibility
 if sys.version_info.major < 3:
@@ -56,10 +57,10 @@ class SessionWithHeaderRedirection(requests.Session):
     def update_login(self, username=None, password=None):
         print ("Updating login information for", self.AUTH_HOST)
         if username is None:
-            username = input("username: ")
+            username = input("Username: ")
             utils.save_setting('username@' + self.AUTH_HOST, username)
         if password is None:
-            password = input("password: ")
+            password = getpass.getpass()
             utils.save_setting('password@' + self.AUTH_HOST, password)
         
         self.auth = (username, password)
