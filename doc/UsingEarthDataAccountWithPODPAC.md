@@ -17,7 +17,7 @@ NASA.
     * Go to your [Profile](https://urs.earthdata.nasa.gov/profile) once logged in.
     * Under `Applications`, click on `Authorized Apps`
     * Scroll to the bottom and click on `APPROVE MORE APPLICATIONS`
-    * Find the `NASA GESDICS DATA ARCHIVE` and `NSIDC V0 OPeNDAP` applications
+    * Find the `NASA GESDICS DATA ARCHIVE`, `NSIDC V0 OPeNDAP`, and `NSIDC_DATAPOOL_OPS` applications
         * Additional applications may be required to access datasets of interest
     * For each, click the `APPROVE` button
 * At this stage, your EarthData account should be set up and ready to use for
