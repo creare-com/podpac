@@ -368,12 +368,12 @@ class TestCoord(object):
         # none, above
         s = c.select([100, 200])
         assert isinstance(s, Coord)
-        assert s.size == 0
+        assert_equal(s.coordinates, [])
 
         # none, below
         s = c.select([0, 5])
         assert isinstance(s, Coord)
-        assert s.size == 0
+        assert_equal(s.coordinates, [])
 
         # partial, above
         s = c.select([50, 100])
@@ -398,65 +398,139 @@ class TestCoord(object):
         # partial, none
         s = c.select([52, 55])
         assert isinstance(s, Coord)
-        assert s.size == 0
+        assert_equal(s.coordinates, [])
 
         # partial, backwards bounds
         s = c.select([70, 30])
         assert isinstance(s, Coord)
-        assert s.size == 0
+        assert_equal(s.coordinates, [])
 
         # empty coords
         c = Coord()        
         s = c.select([0, 1])
         assert isinstance(s, Coord)
-        assert s.size == 0
+        assert_equal(s.coordinates, [])
 
     def test_select_ind(self):
         c = Coord([20., 50., 60., 90., 40., 10.])
         
         # full selection
-        s = c.select([0, 100], ind=True)
-        assert_equal(c.coordinates[s], c.coordinates)
+        I = c.select([0, 100], ind=True)
+        assert_equal(c.coordinates[I], c.coordinates)
 
         # none, above
-        s = c.select([100, 200], ind=True)
-        assert_equal(c.coordinates[s], [])
+        I = c.select([100, 200], ind=True)
+        assert_equal(c.coordinates[I], [])
 
         # none, below
-        s = c.select([0, 5], ind=True)
-        assert_equal(c.coordinates[s], [])
+        I = c.select([0, 5], ind=True)
+        assert_equal(c.coordinates[I], [])
 
         # partial, above
-        s = c.select([50, 100], ind=True)
-        assert_equal(c.coordinates[s], [50., 60., 90.])
+        I = c.select([50, 100], ind=True)
+        assert_equal(c.coordinates[I], [50., 60., 90.])
 
         # partial, below
-        s = c.select([0, 50], ind=True)
-        assert_equal(c.coordinates[s], [20., 50., 40., 10.])
+        I = c.select([0, 50], ind=True)
+        assert_equal(c.coordinates[I], [20., 50., 40., 10.])
 
         # partial, inner
-        s = c.select([30., 70.], ind=True)
-        assert_equal(c.coordinates[s], [50., 60., 40.])
+        I = c.select([30., 70.], ind=True)
+        assert_equal(c.coordinates[I], [50., 60., 40.])
 
         # partial, inner exact
-        s = c.select([40., 60.], ind=True)
-        assert_equal(c.coordinates[s], [50., 60., 40.])
+        I = c.select([40., 60.], ind=True)
+        assert_equal(c.coordinates[I], [50., 60., 40.])
 
         # partial, none
-        s = c.select([52, 55], ind=True)
-        assert_equal(c.coordinates[s], [])
+        I = c.select([52, 55], ind=True)
+        assert_equal(c.coordinates[I], [])
 
         # partial, backwards bounds
-        s = c.select([70, 30], ind=True)
-        assert_equal(c.coordinates[s], [])
+        I = c.select([70, 30], ind=True)
+        assert_equal(c.coordinates[I], [])
 
         # empty coords
         c = Coord()        
-        s = c.select([0, 1], ind=True)
-        assert_equal(c.coordinates[s], [])
+        I = c.select([0, 1], ind=True)
+        assert_equal(c.coordinates[I], [])
 
     def test_intersect(self):
-        pass
+        a = Coord([20., 50., 60., 10.])
+        b = Coord([55., 65., 95., 45.])
+        c = Coord([80., 70., 90.])
+        e = Coord()
+        
+        # Coord other, both directions
+        ab = a.intersect(b)
+        assert isinstance(ab, Coord)
+        assert_equal(ab.coordinates, [50., 60.])
+        
+        ba = b.intersect(a)
+        assert isinstance(ba, Coord)
+        assert_equal(ba.coordinates, [55., 45.])
+
+        # Coord other, no overlap
+        ac = a.intersect(c)
+        assert isinstance(ac, Coord)
+        assert_equal(ac.coordinates, [])
+
+        # empty self
+        ea = e.intersect(a)
+        assert isinstance(ea, Coord)
+        assert_equal(ea.coordinates, [])
+
+        # empty other
+        ae = a.intersect(e)
+        assert isinstance(ae, Coord)
+        assert_equal(ae.coordinates, [])
+
+        # MonotonicCoord other
+        m = MonotonicCoord([45., 55., 65., 95.])
+        am = a.intersect(m)
+        assert isinstance(am, Coord)
+        assert_equal(am.coordinates, [50., 60.])
+
+        # UniformCoord other
+        u = UniformCoord(45, 95, 10)
+        au = a.intersect(u)
+        assert isinstance(au, Coord)
+        assert_equal(au.coordinates, [50., 60.])
+
+    def test_intersect_ind(self):
+        a = Coord([20., 50., 60., 10.])
+        b = Coord([55., 65., 95., 45.])
+        c = Coord([80., 70., 90.])
+        e = Coord()
+        
+        # Coord other, both directions
+        I = a.intersect(b, ind=True)
+        assert_equal(a.coordinates[I], [50., 60.])
+        
+        I = b.intersect(a, ind=True)
+        assert_equal(b.coordinates[I], [55., 45.])
+
+        # Coord other, no overlap
+        I = a.intersect(c, ind=True)
+        assert_equal(a.coordinates[I], [])
+
+        # empty self
+        I = e.intersect(a, ind=True)
+        assert_equal(e.coordinates[I], [])
+
+        # empty other
+        I = a.intersect(e, ind=True)
+        assert_equal(a.coordinates[I], [])
+
+        # MonotonicCoord other
+        m = MonotonicCoord([45., 55., 65., 95.])
+        I = a.intersect(m, ind=True)
+        assert_equal(a.coordinates[I], [50., 60.])
+
+        # UniformCoord other
+        u = UniformCoord(45, 95, 10)
+        I = a.intersect(u, ind=True)
+        assert_equal(a.coordinates[I], [50., 60.])
 
     def test___sub__(self):
         pass
@@ -634,9 +708,6 @@ class TestMonotonicCoord(object):
         assert_equal(c.coords, a)
         assert np.issubdtype(c.coords.dtype, np.datetime64)
 
-    def test_intersect(self):
-        pass
-
     def test_select_ascending(self):
         c = MonotonicCoord([10., 20., 40., 50., 60., 90.])
         
@@ -739,6 +810,20 @@ class TestMonotonicCoord(object):
         # partial, backwards bounds
         s = c.select([70, 30], ind=True, pad=0)
         assert_equal(c.coordinates[s], [])
+
+    def test_intersect(self):
+        # MonotonicCoord other
+        a = MonotonicCoord([10., 20., 50., 60.])
+        b = MonotonicCoord([45., 55., 65., 95.])
+        assert isinstance(a.intersect(b), MonotonicCoord)
+
+        # Coord other
+        c = Coord([20., 50., 60., 10.])
+        assert isinstance(a.intersect(c), MonotonicCoord)
+        
+        # UniformCoord
+        u = UniformCoord(45, 95, 10)
+        assert isinstance(a.intersect(u), MonotonicCoord)
 
 class TestUniformCoord(object):
     pass
