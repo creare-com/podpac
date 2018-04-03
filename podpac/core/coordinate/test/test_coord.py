@@ -8,8 +8,36 @@ from numpy.testing import assert_equal
 
 from podpac.core.units import Units
 from podpac.core.coordinate.util import get_timedelta_unit
-from podpac.core.coordinate import Coord, MonotonicCoord, UniformCoord
+from podpac.core.coordinate import BaseCoord, Coord, MonotonicCoord, UniformCoord
 from podpac.core.coordinate import coord_linspace
+
+class TestBaseCoord(object):
+    def test_abstract(self):
+        c = BaseCoord()
+        
+        with pytest.raises(NotImplementedError):
+            c.coordinates
+
+        with pytest.raises(NotImplementedError):
+            c.bounds
+
+        with pytest.raises(NotImplementedError):
+            c.is_datetime
+
+        with pytest.raises(NotImplementedError):
+            c.is_monotonic
+
+        with pytest.raises(NotImplementedError):
+            c.is_descending
+
+        with pytest.raises(NotImplementedError):
+            c.rasterio_regularity
+
+        with pytest.raises(NotImplementedError):
+            c.scipy_regularity
+
+        with pytest.raises(NotImplementedError):
+            c.select([0, 1])
 
 class TestCoord(object):
     def test_empty(self):
@@ -285,25 +313,6 @@ class TestCoord(object):
         assert c.kwargs['segment_position'] == 0.8
         assert_equal(c.kwargs['extents'], [0.0, 1.0])
 
-    def test_delta(self):
-        # TODO
-
-        # empty
-        assert np.isnan(Coord().delta)
-
-        # single numerical values
-        # assert Coord(5.0).delta == # TODO
-
-        # single datetimes
-        assert type(Coord(['2018-01-01']).delta) == np.timedelta64
-        assert get_timedelta_unit(Coord(['2018-01-01']).delta) == 'D'
-
-        # multiple values
-        assert Coord([1.0, 2.0, 3.0]).delta == 1.0
-        assert 1.0 < Coord([1.0, 2.0, 4.0]).delta < 2.0
-
-        assert Coord(['2018-01-01', '2018-01-02', '2018-01-03']).delta == np.timedelta64(1, 'D')
-
     def test_area_bounds(self):
         numerical = [0., 100., -3., 10.]
         lo = -3.
@@ -336,7 +345,7 @@ class TestCoord(object):
         assert np.issubdtype(Coord(numerical, ctype='segment', extents=e).area_bounds.dtype, np.float)
         assert np.issubdtype(Coord(datetimes, ctype='segment', extents=dt_e).area_bounds.dtype, np.datetime64)
         
-        # segments: calculate from bounds, segment_position, and delta
+        # segments: calculate from bounds, segment_position
         # TODO
         # assert_equal(Coord(numerical), ctype='segment').area_bounds, TODO)
         # assert_equal(Coord(numerical), ctype='segment', segment_position=0.8).area_bounds, TODO)
@@ -348,10 +357,105 @@ class TestCoord(object):
         assert np.issubdtype(Coord(numerical, ctype='segment').area_bounds.dtype, np.float)
         assert np.issubdtype(Coord(datetimes, ctype='segment').area_bounds.dtype, np.datetime64)
 
-    def test_intersect(self):
-        pass
-
     def test_select(self):
+        c = Coord([20., 50., 60., 90., 40., 10.])
+        
+        # full selection
+        s = c.select([0, 100])
+        assert isinstance(s, Coord)
+        assert_equal(s.coordinates, c.coordinates)
+
+        # none, above
+        s = c.select([100, 200])
+        assert isinstance(s, Coord)
+        assert s.size == 0
+
+        # none, below
+        s = c.select([0, 5])
+        assert isinstance(s, Coord)
+        assert s.size == 0
+
+        # partial, above
+        s = c.select([50, 100])
+        assert isinstance(s, Coord)
+        assert_equal(s.coordinates, [50., 60., 90.])
+
+        # partial, below
+        s = c.select([0, 50])
+        assert isinstance(s, Coord)
+        assert_equal(s.coordinates, [20., 50., 40., 10.])
+
+        # partial, inner
+        s = c.select([30., 70.])
+        assert isinstance(s, Coord)
+        assert_equal(s.coordinates, [50., 60., 40.])
+
+        # partial, inner exact
+        s = c.select([40., 60.])
+        assert isinstance(s, Coord)
+        assert_equal(s.coordinates, [50., 60., 40.])
+
+        # partial, none
+        s = c.select([52, 55])
+        assert isinstance(s, Coord)
+        assert s.size == 0
+
+        # partial, backwards bounds
+        s = c.select([70, 30])
+        assert isinstance(s, Coord)
+        assert s.size == 0
+
+        # empty coords
+        c = Coord()        
+        s = c.select([0, 1])
+        assert isinstance(s, Coord)
+        assert s.size == 0
+
+    def test_select_ind(self):
+        c = Coord([20., 50., 60., 90., 40., 10.])
+        
+        # full selection
+        s = c.select([0, 100], ind=True)
+        assert_equal(c.coordinates[s], c.coordinates)
+
+        # none, above
+        s = c.select([100, 200], ind=True)
+        assert_equal(c.coordinates[s], [])
+
+        # none, below
+        s = c.select([0, 5], ind=True)
+        assert_equal(c.coordinates[s], [])
+
+        # partial, above
+        s = c.select([50, 100], ind=True)
+        assert_equal(c.coordinates[s], [50., 60., 90.])
+
+        # partial, below
+        s = c.select([0, 50], ind=True)
+        assert_equal(c.coordinates[s], [20., 50., 40., 10.])
+
+        # partial, inner
+        s = c.select([30., 70.], ind=True)
+        assert_equal(c.coordinates[s], [50., 60., 40.])
+
+        # partial, inner exact
+        s = c.select([40., 60.], ind=True)
+        assert_equal(c.coordinates[s], [50., 60., 40.])
+
+        # partial, none
+        s = c.select([52, 55], ind=True)
+        assert_equal(c.coordinates[s], [])
+
+        # partial, backwards bounds
+        s = c.select([70, 30], ind=True)
+        assert_equal(c.coordinates[s], [])
+
+        # empty coords
+        c = Coord()        
+        s = c.select([0, 1], ind=True)
+        assert_equal(c.coordinates[s], [])
+
+    def test_intersect(self):
         pass
 
     def test___sub__(self):
@@ -371,7 +475,7 @@ class TestMonotonicCoord(object):
     MonotonicCoord extends Coord, so only some properties and methods are 
     tested here::
      - coords validation
-     - bounds, delta, is_datetime, is_datetime, and is_descending properties
+     - bounds, is_datetime, is_datetime, and is_descending properties
      - intersect and select methods
     """
 
@@ -530,14 +634,111 @@ class TestMonotonicCoord(object):
         assert_equal(c.coords, a)
         assert np.issubdtype(c.coords.dtype, np.datetime64)
 
-    def test_delta(self):
-        pass
-
     def test_intersect(self):
         pass
 
-    def test_select(self):
-        pass
+    def test_select_ascending(self):
+        c = MonotonicCoord([10., 20., 40., 50., 60., 90.])
+        
+        # full and empty selection type
+        assert isinstance(c.select([0, 100]), MonotonicCoord)
+        assert isinstance(c.select([100, 200]), Coord)
+        assert isinstance(c.select([0, 5]), Coord)
+        
+        # partial, above
+        s = c.select([50, 100], pad=0)
+        assert isinstance(s, MonotonicCoord)
+        assert_equal(s.coordinates, [50., 60., 90.])
+
+        # partial, below
+        s = c.select([0, 50], pad=0)
+        assert isinstance(s, MonotonicCoord)
+        assert_equal(s.coordinates, [10., 20., 40., 50.])
+
+        # partial, inner
+        s = c.select([30., 70.], pad=0)
+        assert isinstance(s, MonotonicCoord)
+        assert_equal(s.coordinates, [40., 50., 60.])
+
+        # partial, inner exact
+        s = c.select([40., 60.], pad=0)
+        assert isinstance(s, MonotonicCoord)
+        assert_equal(s.coordinates, [40., 50., 60.])
+
+        # partial, none
+        s = c.select([52, 55], pad=0)
+        assert isinstance(s, Coord)
+        assert s.size == 0
+
+        # partial, backwards bounds
+        s = c.select([70, 30], pad=0)
+        assert isinstance(s, Coord)
+        assert s.size == 0
+
+    def test_select_descending(self):
+        c = MonotonicCoord([90., 60., 50., 40., 20., 10.])
+        
+        # full and empty selection type
+        assert isinstance(c.select([0, 100]), MonotonicCoord)
+        assert isinstance(c.select([100, 200]), Coord)
+        assert isinstance(c.select([0, 5]), Coord)
+        
+        # partial, above
+        s = c.select([50, 100], pad=0)
+        assert isinstance(s, MonotonicCoord)
+        assert_equal(s.coordinates, [90., 60., 50.])
+
+        # partial, below
+        s = c.select([0, 50], pad=0)
+        assert isinstance(s, MonotonicCoord)
+        assert_equal(s.coordinates, [50., 40., 20., 10.])
+
+        # partial, inner
+        s = c.select([30., 70.], pad=0)
+        assert isinstance(s, MonotonicCoord)
+        assert_equal(s.coordinates, [60., 50., 40.])
+
+        # partial, inner exact
+        s = c.select([40., 60.], pad=0)
+        assert isinstance(s, MonotonicCoord)
+        assert_equal(s.coordinates, [60., 50., 40.])
+
+        # partial, none
+        s = c.select([52, 55], pad=0)
+        assert isinstance(s, Coord)
+        assert s.size == 0
+
+        # partial, backwards bounds
+        s = c.select([70, 30], pad=0)
+        assert isinstance(s, Coord)
+        assert s.size == 0
+
+    def test_select_ind(self):
+        c = MonotonicCoord([10., 20., 40., 50., 60., 90.])
+        
+        # partial, above
+        s = c.select([50, 100], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [50., 60., 90.])
+
+        # partial, below
+        s = c.select([0, 50], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [10., 20., 40., 50.])
+
+        # partial, inner
+        s = c.select([30., 70.], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [40., 50., 60.])
+
+        # partial, inner exact
+        s = c.select([40., 60.], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [40., 50., 60.])
+
+        # partial, none
+        s = c.select([52, 55], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [])
+
+        # partial, backwards bounds
+        s = c.select([70, 30], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [])
 
 class TestUniformCoord(object):
     pass
