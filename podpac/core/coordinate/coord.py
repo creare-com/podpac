@@ -350,14 +350,14 @@ class BaseCoord(tl.HasTraits):
             if ind:
                 return slice(0, 0)
             else:
-                return self
+                return copy.deepcopy(self)
 
         # full
         if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
             if ind:
                 return slice(None, None)
             else:
-                return self
+                return copy.deepcopy(self)
 
         # none
         if self.area_bounds[0] > bounds[1] or self.area_bounds[1] < bounds[0]:
@@ -428,18 +428,29 @@ class BaseCoord(tl.HasTraits):
             other = make_coord_delta(other)
         
         if isinstance(other, np.timedelta64):
+            if self.size == 0:
+                return copy.deepcopy(self)
             if not self.is_datetime:
                 raise TypeError("Cannot add timedelta to numerical coord")
             return self._add(other)
 
         elif isinstance(other, numbers.Number):
+            if self.size == 0:
+                return copy.deepcopy(self)
             if self.is_datetime:
                 raise TypeError("Cannot add '%s' to datetime coord" % type(other))
             return self._add(other)
 
         elif isinstance(other, BaseCoord):
+            if other.size == 0:
+                return copy.deepcopy(self)
+
+            if self.size == 0:
+                return copy.deepcopy(other)
+
             if self.is_datetime != other.is_datetime:
                 raise TypeError("Mismatching coordinates types")
+            
             return self._concat(other)
 
         else:
@@ -464,17 +475,28 @@ class BaseCoord(tl.HasTraits):
         if isinstance(other, string_types):
             other = get_timedelta(other)
         
-        if isinstance(other, numbers.Number):
-            if self.is_datetime:
-                raise TypeError("Cannot add '%s' to datetime coord" % type(other))
-            return self._add_equal(other)
-
-        elif isinstance(other, np.timedelta64):
+        if isinstance(other, np.timedelta64):
+            if self.size == 0:
+                return self
             if not self.is_datetime:
                 raise TypeError("Cannot add timedelta to numerical coord")
             return self._add_equal(other)
 
+        elif isinstance(other, numbers.Number):
+            if self.size == 0:
+                return self
+            if self.is_datetime:
+                raise TypeError("Cannot add '%s' to datetime coord" % type(other))
+            return self._add_equal(other)
+
         elif isinstance(other, BaseCoord):
+            if other.size == 0:
+                return self
+
+            if self.size == 0:
+                self = copy.deepcopy(other)
+                return self
+
             return self._concat_equal(other)
 
         else:

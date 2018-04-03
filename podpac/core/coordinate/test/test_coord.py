@@ -535,10 +535,182 @@ class TestCoord(object):
     def test___sub__(self):
         pass
 
-    def test___add__(self):
+    def test_add_coords(self):
+        a = Coord([20., 50., 60., 10.])
+        b = Coord([55., 65., 95., 45.])
+        c = Coord([80., 70., 90.])
+        e = Coord()
+
+        t = Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03'])
+        
+        # Coord other, both directions
+        ab = a + b
+        assert isinstance(ab, Coord)
+        assert_equal(ab.coordinates, [20., 50., 60., 10., 55., 65., 95., 45.])
+        
+        ba = b + a
+        assert isinstance(ba, Coord)
+        assert_equal(ba.coordinates, [55., 65., 95., 45., 20., 50., 60., 10.])
+
+        # empty self
+        ea = e + a
+        assert isinstance(ea, Coord)
+        assert_equal(ea.coordinates, a.coordinates)
+
+        et = e + t
+        assert isinstance(et, Coord)
+        assert_equal(et.coordinates, t.coordinates)
+
+        # empty other
+        ae = a + e
+        assert isinstance(ae, Coord)
+        assert_equal(ae.coordinates, a.coordinates)
+
+        te = t + e
+        assert isinstance(te, Coord)
+        assert_equal(te.coordinates, t.coordinates)
+
+        # MonotonicCoord other
+        m = MonotonicCoord([45., 55., 65., 95.])
+        am = a + m
+        assert isinstance(am, Coord)
+        assert_equal(am.coordinates, [20., 50., 60., 10., 45., 55., 65., 95.])
+
+        # UniformCoord other
+        u = UniformCoord(45, 95, 10)
+        au = a + u
+        assert isinstance(au, Coord)
+        assert_equal(au.coordinates, [20., 50., 60., 10., 45., 55., 65., 75., 85., 95.])
+
+        # type error
+        with pytest.raises(TypeError):
+            a + t
+
+        with pytest.raises(TypeError):
+            t + a
+
+    def test_add_constant(self):
+        a = Coord([20., 50., 60., 10.])
+        t = Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03'])
+        e = Coord()
+
+        # numerical
+        r = a + 1
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [21., 51., 61., 11.])
+
+        r = e + 1
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [])
+
+        # datetime
+        r = t + '10,D'
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, np.array(['2018-01-12', '2018-01-11', '2018-01-14', '2018-01-13']).astype(np.datetime64))
+
+        r = e + '10,D'
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [])
+
+        # type error
+        with pytest.raises(TypeError):
+            a + '10,D'
+
+        with pytest.raises(TypeError):
+            t + 4
+
+    def test_iadd_coords(self):
+        a = Coord([55., 65., 95., 45.])
+        b = Coord([80., 70., 90.])
+        e = Coord()
+        t = Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03'])
+        m = MonotonicCoord([45., 55., 65., 95.])
+        u = UniformCoord(45, 95, 10)
+        
+        # Coord other
+        c = Coord([20., 50., 60., 10.])
+        c += a
+        assert isinstance(c, Coord)
+        assert_equal(c.coordinates, [20., 50., 60., 10., 55., 65., 95., 45.])
+        
+        # empty self
+        c = Coord()
+        c += a
+        assert isinstance(c, Coord)
+        assert_equal(c.coordinates, a.coordinates)
+
+        c = Coord()
+        c += t
+        assert isinstance(c, Coord)
+        assert_equal(c.coordinates, t.coordinates)
+
+        # empty other
+        c = Coord([20., 50., 60., 10.])
+        c += e
+        assert isinstance(c, Coord)
+        assert_equal(c.coordinates, [20., 50., 60., 10.])
+
+        c = Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03'])
+        c += e
+        assert isinstance(c, Coord)
+        assert_equal(t.coordinates, np.array(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03']).astype(np.datetime64))
+
+        # MonotonicCoord other
+        c = Coord([20., 50., 60., 10.])
+        c += m
+        assert isinstance(c, Coord)
+        assert_equal(c.coordinates, [20., 50., 60., 10., 45., 55., 65., 95.])
+
+        # UniformCoord other
+        c = Coord([20., 50., 60., 10.])
+        c += u
+        assert isinstance(c, Coord)
+        assert_equal(c.coordinates, [20., 50., 60., 10., 45., 55., 65., 75., 85., 95.])
+
+        # type error
+        with pytest.raises(TypeError):
+            a += t
+
+        with pytest.raises(TypeError):
+            t += a
+
+    def test_iadd_constant(self):
+        # numerical
+        c = Coord([20., 50., 60., 10.])
+        c += 1
+        assert isinstance(c, Coord)
+        assert_equal(c.coordinates, [21., 51., 61., 11.])
+
+        c = Coord()
+        c += 1
+        assert isinstance(c, Coord)
+        assert_equal(c.coordinates, [])
+
+        # datetime
+        c = Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03'])
+        c += '10,D'
+        assert isinstance(c, Coord)
+        assert_equal(c.coordinates, np.array(['2018-01-12', '2018-01-11', '2018-01-14', '2018-01-13']).astype(np.datetime64))
+
+        c = Coord()
+        c += '10,D'
+        assert isinstance(c, Coord)
+        assert_equal(c.coordinates, [])
+
+        # type error
+        c = Coord([20., 50., 60., 10.])
+        with pytest.raises(TypeError):
+            c += '10,D'
+
+        c = Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03'])
+        with pytest.raises(TypeError):
+            c += 4
+
+    def test_sub_coord(self):
+        # TODO can we reuse __add__ here?
         pass
 
-    def test___iadd__(self):
+    def test_sub_constant(self):
         pass
 
     def test___repr__(self):
