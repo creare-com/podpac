@@ -772,8 +772,8 @@ class MonotonicCoord(Coord):
 
         # TODO kwargs (units, etc)
 
-        if other.size == 0:
-            return MonotonicCoord(self.coord, **self.kwargs)
+        if self.size == 0:
+            return copy.deepcopy(other)
 
         if other.is_monotonic:
             other_coords = other.coordinates
@@ -807,40 +807,46 @@ class MonotonicCoord(Coord):
         return Coord(coords, **self.kwargs)
 
     def _concat_equal(self, other):
-        if other.size == 0:
+        if not other.is_monotonic:
+            raise TypeError("Cannot concatenate '%s' to '%s' in-place" % (
+                other.__class__.__name__, self.__class__.__name__))
+        
+        if self.size == 0:
+            self.coords = other.coordinates
             return self
 
-        if other.is_monotonic:
-            other_coords = other.coordinates
-            
-            # Let's match self.is_descending for the output
-            if self.is_descending != other.is_descending:
-                other_coords = other_coords[::-1]
-            
-            concat_list = [self.coordinates, other_coords]
-            overlap = False
-            if self.is_descending:
-                if concat_list[0][-1] > conact_list[1][0]: # then we're good!
-                    coords = np.concatenate(concat_list)
-                elif concat_list[1][-1] > cancat_list[0][0]: # need to reverse
-                    coords = np.concatenate(concat_list[::-1])
-                else: 
-                    overlap = True
-            else:
-                if concat_list[0][-1] < conact_list[1][0]: # then we're good!
-                    coords = np.concatenate(concat_list)
-                elif concat_list[1][-1] < concat_list[0][0]: # need to reverse
-                    coords = np.concatenate(concat_list[::-1])
-                else: 
-                    overlap = True
-                
-            if not overlap:
-                self.coords = coords
-                return self
+        other_coords = other.coordinates
         
-        # otherwise
-        raise TypeError("Cannot concatenate '%s' to '%s' in-place" % (
-            other.__class__.__name__, self.__class__.__name__))
+        # Let's match self.is_descending for the output
+        if self.is_descending != other.is_descending:
+            other_coords = other_coords[::-1]
+        
+        concat_list = [self.coordinates, other_coords]
+        overlap = False
+        if self.is_descending:
+            if concat_list[0][-1] > concat_list[1][0]: # then we're good!
+                coords = np.concatenate(concat_list)
+            elif concat_list[1][-1] > concat_list[0][0]: # need to reverse
+                coords = np.concatenate(concat_list[::-1])
+            else: 
+                overlap = True
+        else:
+            if concat_list[0][-1] < concat_list[1][0]: # then we're good!
+                coords = np.concatenate(concat_list)
+            elif concat_list[1][-1] < concat_list[0][0]: # need to reverse
+                coords = np.concatenate(concat_list[::-1])
+            else: 
+                overlap = True
+            
+        if overlap:
+            raise ValueError("Cannot concatenate overlapping monotonic coords")
+
+        self.coords = coords
+        return self
+
+    def _add(self, other):
+        return MonotonicCoord(self.coords + other, **self.kwargs)
+        
 
 class UniformCoord(BaseCoord):
     """

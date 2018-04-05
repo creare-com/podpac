@@ -599,42 +599,35 @@ class TestCoord(object):
         
         # Coord other
         c = Coord([20., 50., 60., 10.])
-        r = c.concat(a, inplace=True)
-        assert r is c
+        c.concat(a, inplace=True)
         assert_equal(c.coordinates, [20., 50., 60., 10., 55., 65., 95., 45.])
         
         # empty self
         c = Coord()
-        r = c.concat(a, inplace=True)
-        assert r is c
+        c.concat(a, inplace=True)
         assert_equal(c.coordinates, a.coordinates)
 
         c = Coord()
-        r = c.concat(t, inplace=True)
-        assert r is c
+        c.concat(t, inplace=True)
         assert_equal(c.coordinates, t.coordinates)
 
         # empty other
         c = Coord([20., 50., 60., 10.])
-        r = c.concat(e, inplace=True)
-        assert r is c
+        c.concat(e, inplace=True)
         assert_equal(c.coordinates, [20., 50., 60., 10.])
 
         c = Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03'])
-        r = c.concat(e, inplace=True)
-        assert r is c
+        c.concat(e, inplace=True)
         assert_equal(t.coordinates, np.array(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03']).astype(np.datetime64))
 
         # MonotonicCoord other
         c = Coord([20., 50., 60., 10.])
-        r = c.concat(m, inplace=True)
-        assert r is c
+        c.concat(m, inplace=True)
         assert_equal(c.coordinates, [20., 50., 60., 10., 45., 55., 65., 95.])
 
         # UniformCoord other
         c = Coord([20., 50., 60., 10.])
-        r = c.concat(u, inplace=True)
-        assert r is c
+        c.concat(u, inplace=True)
         assert_equal(c.coordinates, [20., 50., 60., 10., 45., 55., 65., 75., 85., 95.])
 
     def test_add(self):
@@ -673,24 +666,20 @@ class TestCoord(object):
     def test_add_equal(self):
         # empty
         c = Coord()
-        r = c.add(1, inplace=True)
-        assert r is c
+        c.add(1, inplace=True)
         assert_equal(c.coordinates, [])
 
         c = Coord()
-        r = c.add('10,D', inplace=True)
-        assert r is c
+        c.add('10,D', inplace=True)
         assert_equal(c.coordinates, [])
 
         # standard
         c = Coord([20., 50., 60., 10.])
-        r = c.add(1, inplace=True)
-        assert r is c
+        c.add(1, inplace=True)
         assert_equal(c.coordinates, [21., 51., 61., 11.])
 
         c = Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03'])
-        r = c.add('10,D', inplace=True)
-        assert r is c
+        c.add('10,D', inplace=True)
         assert_equal(c.coordinates, np.array(['2018-01-12', '2018-01-11', '2018-01-14', '2018-01-13']).astype(np.datetime64))
 
     def test___add__(self):
@@ -1061,6 +1050,186 @@ class TestMonotonicCoord(object):
         # UniformCoord
         u = UniformCoord(45, 95, 10)
         assert isinstance(a.intersect(u), MonotonicCoord)
+
+    def test_concat(self):
+        a = MonotonicCoord([10., 20., 50., 60.])
+        b = MonotonicCoord([45., 55., 65., 95.])
+        c = MonotonicCoord([70., 80., 90.])
+        d = MonotonicCoord([35., 25., 15.])
+        e = MonotonicCoord()
+        f = MonotonicCoord([90., 80., 70.])
+        o = Coord([20., 50., 60., 10.])
+        u = UniformCoord(45, 95, 10)
+        v = UniformCoord(75, 95, 10)
+        t = MonotonicCoord(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
+        
+        # overlap, ascending
+        ab = a.concat(b)
+        assert isinstance(ab, Coord)
+        assert not isinstance(ab, MonotonicCoord)
+        assert_equal(ab.coordinates, [10., 20., 50., 60., 45., 55., 65., 95.])
+        
+        ba = b.concat(a)
+        assert isinstance(ba, Coord)
+        assert not isinstance(ba, MonotonicCoord)
+        assert_equal(ba.coordinates, [45., 55., 65., 95., 10., 20., 50., 60.])
+
+        # overlap, descending
+        da = d.concat(a)
+        assert isinstance(da, Coord)
+        assert not isinstance(da, MonotonicCoord)
+        assert_equal(da.coordinates, [35., 25., 15., 10., 20., 50., 60.])
+
+        # ascending
+        ac = a.concat(c)
+        assert isinstance(ac, MonotonicCoord)
+        assert_equal(ac.coordinates, [10., 20., 50., 60., 70., 80., 90])
+
+        # ascending, reverse
+        cd = c.concat(d)
+        assert isinstance(cd, MonotonicCoord)
+        assert_equal(cd.coordinates, [15., 25., 35., 70., 80., 90])
+
+        # descending
+        fd = f.concat(d)
+        assert isinstance(fd, MonotonicCoord)
+        assert_equal(fd.coordinates, [90., 80., 70, 35, 25, 15])
+
+        # descending, reverse
+        dc = d.concat(c)
+        assert isinstance(cd, MonotonicCoord)
+        assert_equal(cd.coordinates, [15., 25., 35., 70., 80., 90])
+
+        # empty self
+        ea = e.concat(a)
+        assert isinstance(ea, MonotonicCoord)
+        assert_equal(ea.coordinates, a.coordinates)
+
+        et = e.concat(t)
+        assert isinstance(et, MonotonicCoord)
+        assert_equal(et.coordinates, t.coordinates)
+        
+        eu = e.concat(u)
+        assert isinstance(eu, UniformCoord)
+        assert_equal(eu.coordinates, u.coordinates)
+        
+        eo = e.concat(o)
+        assert isinstance(eo, Coord)
+        assert not isinstance(eo, MonotonicCoord)
+        assert_equal(eo.coordinates, o.coordinates)
+
+        # empty other
+        ae = a.concat(e)
+        assert isinstance(ae, Coord)
+        assert_equal(ae.coordinates, a.coordinates)
+
+        te = t.concat(e)
+        assert isinstance(te, Coord)
+        assert_equal(te.coordinates, t.coordinates)
+
+        # Coord other
+        co = c.concat(o)
+        assert isinstance(co, Coord)
+        assert not isinstance(co, MonotonicCoord)
+        assert_equal(co.coordinates, [70., 80., 90., 20., 50., 60., 10.])
+
+        # UniformCoord other, overlap
+        au = a.concat(u)
+        assert isinstance(au, Coord)
+        assert not isinstance(au, MonotonicCoord)
+        assert_equal(au.coordinates, [10., 20., 50., 60., 45., 55., 65., 75., 85., 95.])
+
+        # UniformCoord other, no overlap
+        av = a.concat(v)
+        assert isinstance(av, MonotonicCoord)
+        assert_equal(av.coordinates, [10., 20., 50., 60., 75., 85., 95.])
+
+    def test_concat_equal(self):
+        a = MonotonicCoord([10., 20., 50., 60.])
+        b = MonotonicCoord([45., 55., 65., 95.])
+        c = MonotonicCoord([70., 80., 90.])
+        d = MonotonicCoord([35., 25., 15.])
+        e = MonotonicCoord()
+        f = MonotonicCoord([90., 80., 70.])
+        o = Coord([20., 50., 60., 10.])
+        u = UniformCoord(45, 95, 10)
+        v = UniformCoord(75, 95, 10)
+        t = MonotonicCoord(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
+        
+        # ascending
+        c = MonotonicCoord([10., 20., 50., 60.])
+        c.concat(MonotonicCoord([70., 80., 90.]), inplace=True)
+        assert_equal(c.coordinates, [10., 20., 50., 60., 70., 80., 90])
+
+        # ascending, reverse
+        c = MonotonicCoord([70., 80., 90.])
+        c.concat(MonotonicCoord([35., 25., 15.]), inplace=True)
+        assert_equal(c.coordinates, [15., 25., 35., 70., 80., 90])
+
+        # descending
+        c = MonotonicCoord([90., 80., 70.])
+        c.concat(MonotonicCoord([35., 25., 15.]), inplace=True)
+        assert_equal(c.coordinates, [90., 80., 70, 35, 25, 15])
+
+        # descending, reverse
+        c = MonotonicCoord([35., 25., 15.])
+        c.concat(MonotonicCoord([70., 80., 90.]), inplace=True)
+        assert_equal(c.coordinates, [90.,  80.,  70.,  35.,  25.,  15.])
+
+        # UniformCoord other, no overlap
+        c = MonotonicCoord([10., 20., 50., 60.])
+        c.concat(UniformCoord(75, 95, 10), inplace=True)
+        assert_equal(c.coordinates, [10., 20., 50., 60., 75., 85., 95.])
+
+        # empty self
+        c = MonotonicCoord()
+        c.concat(MonotonicCoord([10., 20., 50., 60.]), inplace=True)
+        assert_equal(c.coordinates, [10., 20., 50., 60.])
+
+        c = MonotonicCoord()
+        c.concat(MonotonicCoord(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04']), inplace=True)
+        assert_equal(c.coordinates, np.array(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04']).astype(np.datetime64))
+        
+        c = MonotonicCoord()
+        c.concat(UniformCoord(75, 95, 10), inplace=True)
+        assert_equal(c.coordinates, [75., 85., 95.])
+        
+        # empty other
+        c = MonotonicCoord([10., 20., 50., 60.])
+        c.concat(MonotonicCoord(), inplace=True)
+        assert_equal(c.coordinates, [10., 20., 50., 60.])
+
+        c = MonotonicCoord(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
+        c.concat(MonotonicCoord(), inplace=True)
+        assert_equal(c.coordinates, np.array(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04']).astype(np.datetime64))
+
+        # overlap, ascending
+        c = MonotonicCoord([10., 20., 50., 60.])
+        with pytest.raises(ValueError):
+            c.concat(MonotonicCoord([45., 55., 65., 95.]), inplace=True)
+        
+        # overlap, descending
+        c = MonotonicCoord([35., 25., 15.])
+        with pytest.raises(ValueError):
+            c.concat(MonotonicCoord([10., 20., 50., 60.]), inplace=True)
+
+        # overlap, UniformCoord
+        c = MonotonicCoord([10., 20., 50., 60.])
+        with pytest.raises(ValueError):
+            c.concat(UniformCoord(45, 95, 10), inplace=True)
+
+        # Coord other
+        c = MonotonicCoord([45., 55., 65., 95.])
+        with pytest.raises(TypeError):
+            c.concat(Coord([20., 50., 60., 10.]), inplace=True)
+
+        c = MonotonicCoord() # should fail here even when empty
+        with pytest.raises(TypeError):
+            c.concat(Coord([20., 50., 60, 10.]), inplace=True)
+
+    def test_add(self):
+        a = MonotonicCoord([10., 20., 50., 60.])
+        assert isinstance(a + 1, MonotonicCoord)
 
 class TestUniformCoord(object):
     pass
