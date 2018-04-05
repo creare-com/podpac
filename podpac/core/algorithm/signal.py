@@ -60,7 +60,10 @@ class TimeConvolution(Convolution):
         if 'time' not in self.input_node.output.dims:
             raise ValueError('cannot compute time convolution from'
                              'time-indepedendent input')
-        
+        if 'lat' not in self.input_node.output.dims \
+                and 'lon' not in self.input_node.output.dims:
+            return self.kernel       
+ 
         kernel = np.array([[self.kernel]])
         kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
         kernel = kernel.transpose(*self.input_node.output.dims)
@@ -98,6 +101,10 @@ if __name__ == '__main__':
     coords_spatial = Coordinate(
         lat=[45., 66., 30], lon=[-80., -70., 40],
         order=['lat', 'lon'])
+    
+    coords_time = Coordinate(
+        time=('2017-09-01', '2017-10-31', '1,D'),
+        order=['time'])
 
     kernel3 = np.array([[[1, 2, 1]]])
     kernel2 = np.array([[1, 2, 1]])
@@ -117,6 +124,7 @@ if __name__ == '__main__':
 
     node = TimeConvolution(input_node=Arange(), kernel=kernel1)
     o3d_time = node.execute(coords)
+    o3d_time = node.execute(coords_time)
 
     node = SpatialConvolution(input_node=Arange(), kernel_type='gaussian, 3, 1')
     o3d_spatial = node.execute(coords)
@@ -132,12 +140,12 @@ if __name__ == '__main__':
 
     node = Convolution(input_node=Arange(), kernel=kernel2)
     try: node.execute(coords)
-    except: pass # should fail becaus the input node is 3 dimensions
+    except: pass # should fail because the input node is 3 dimensions
     else: raise Exception("expected an exception")
 
     node = Convolution(input_node=Arange(), kernel=kernel1)
     try: node.execute(coords_spatial)
-    except: pass # should fail becaus the input node is 1 dimensions
+    except: pass # should fail because the input node is 1 dimensions
     else: raise Exception("expected an exception")
 
     try: node = SpatialConvolution(input_node=Arange(), kernel=kernel3)
