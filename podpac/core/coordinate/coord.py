@@ -369,139 +369,88 @@ class BaseCoord(tl.HasTraits):
         # partial, implemented in child classes
         return self._select(bounds, ind=ind, **kwargs)
 
-    def _select(self, bounds, ind=False):
-        raise NotImplementedError()
-    
-    def __sub__(self, other):
+    def add(self, delta, inplace=False):
         """
-        Subtract a delta value or intersect coordinates.
+        Add a delta value to each coordinate.
 
         Arguments
         ---------
-        other : timedelta64, float, BaseCoord
-            If delta, subtract from coordinates. If BaseCoord, intersect.
+        other : number, timedelta64, str, datetime.timedelta
+            Delta value to add.
+        inplace : bool (optional)
+            If True, update coordinates in-place. Default False.
 
         Returns
         -------
         result : BaseCoord
-            New BaseCoord object with subtracted or intersected coordinates.
+            If inplace, this object with resulting coordinates.
+            Otherwise, new BaseCoord object with resulting coordinates.
+        """
+
+        delta = make_coord_delta(delta)
+        
+        if self.is_datetime is True and not isinstance(delta, np.timedelta64):
+            raise TypeError("Cannot add '%s' to datetime coord" % type(delta))
+        
+        if self.is_datetime is False and isinstance(delta, np.timedelta64):
+            raise TypeError("Cannot add timedelta to numerical coord")
+
+        # empty case
+        if self.size == 0:
+            if inplace:
+                return self
+            else:
+                return copy.deepcopy(self)
+        
+        # standard case
+        if inplace:
+            return self._add_equal(delta)
+        else:
+            return self._add(delta)
+    
+    def concat(self, other, inplace=False):
+        """
+        Concatenate coordinates.
+
+        Arguments
+        ---------
+        other : BaseCoord
+            coords object to concatenate
+        inplace : bool (optional)
+            If True, update coordinates in-place. Default False.
+
+        Returns
+        -------
+        result : BaseCoord
+            If inplace, this object with concatenated coordinates.
+            New coords object with concatenated coordinates.
         """
 
         if not isinstance(other, BaseCoord):
-            other = make_coord_delta(other)
-        
-        if isinstance(other, np.timedelta64):
-            if not self.is_datetime:
-                raise TypeError("Cannot add timedelta to numerical coord")
-            return self._add(-other)
-
-        elif isinstance(other, numbers.Number):
-            if self.is_datetime:
-                raise TypeError("Cannot add '%s' to datetime coord" % type(other))
-            return self._add(-other)
-
-        elif isinstance(other, BaseCoord):
-            if self.is_datetime != other.is_datetime:
-                raise TypeError("Mismatching coordinates types")
-            return self.intersect(other)
-
-        else:
-            raise TypeError("Cannot subtract '%s' to '%s'" % (
+            raise TypeError("Cannot concatenate '%s' to '%s'" % (
                 other.__class__.__name__, self.__class__.__name__))
 
-    def __add__(self, other):
-        """
-        Add a delta value or concatenate coordinates.
-
-        Arguments
-        ---------
-        other : timedelta64, float, BaseCoord
-            If delta, add to coordinates. If BaseCoord, concatenate.
-
-        Returns
-        -------
-        result : BaseCoord
-            New BaseCoord object with summed or concatenated coordinates.
-        """
-
-        if not isinstance(other, BaseCoord):
-            other = make_coord_delta(other)
+        if self.is_datetime is True and other.is_datetime is False:
+            raise TypeError("Cannot concatenate numerical coords to datetime coords")
         
-        if isinstance(other, np.timedelta64):
-            if self.size == 0:
-                return copy.deepcopy(self)
-            if not self.is_datetime:
-                raise TypeError("Cannot add timedelta to numerical coord")
-            return self._add(other)
+        if self.is_datetime is False and other.is_datetime is True:
+            raise TypeError("Cannot concatenate datetime coords to numerical coords")
 
-        elif isinstance(other, numbers.Number):
-            if self.size == 0:
-                return copy.deepcopy(self)
-            if self.is_datetime:
-                raise TypeError("Cannot add '%s' to datetime coord" % type(other))
-            return self._add(other)
-
-        elif isinstance(other, BaseCoord):
-            if other.size == 0:
+        # empty cases
+        if other.size == 0:
+            if inplace:
+                return self
+            else:
                 return copy.deepcopy(self)
 
-            if self.size == 0:
-                return copy.deepcopy(other)
-
-            if self.is_datetime != other.is_datetime:
-                raise TypeError("Mismatching coordinates types")
-            
+        # standard case
+        if inplace:
+            return self._concat_equal(other)
+        else:
             return self._concat(other)
 
-        else:
-            raise TypeError("Cannot add '%s' to '%s'" % (
-                other.__class__.__name__, self.__class__.__name__))
-
-    def __iadd__(self, other):
-        """
-        Add a delta value or concatenate coordinates in-place.
-
-        Arguments
-        ---------
-        other : timedelta64, float, BaseCoord
-            If delta, add to coordinates. If BaseCoord, concatenate.
-
-        Returns
-        -------
-        result : BaseCoord
-            This object with with summed or concatenated coordinates.
-        """
-
-        if isinstance(other, string_types):
-            other = get_timedelta(other)
-        
-        if isinstance(other, np.timedelta64):
-            if self.size == 0:
-                return self
-            if not self.is_datetime:
-                raise TypeError("Cannot add timedelta to numerical coord")
-            return self._add_equal(other)
-
-        elif isinstance(other, numbers.Number):
-            if self.size == 0:
-                return self
-            if self.is_datetime:
-                raise TypeError("Cannot add '%s' to datetime coord" % type(other))
-            return self._add_equal(other)
-
-        elif isinstance(other, BaseCoord):
-            if other.size == 0:
-                return self
-
-            if self.size == 0:
-                self = copy.deepcopy(other)
-                return self
-
-            return self._concat_equal(other)
-
-        else:
-            raise TypeError("Cannot add '%s' to '%s'" % (
-                other.__class__.__name__, self.__class__.__name__))
+    def _select(self, bounds, ind=False):
+        raise NotImplementedError()
 
     def _add(self, other):
         raise NotImplementedError
@@ -513,6 +462,61 @@ class BaseCoord(tl.HasTraits):
         raise NotImplementedError
 
     def _concat_equal(self, other):
+        raise NotImplementedError
+    
+    # ----------------------------------
+    # standard operators / magic methods
+    # ----------------------------------
+
+    def __len__(self):
+        """ number of coordinate values """
+        return self.size
+
+    def __contains__(self, value):
+        """ is the value within the coordinate area """
+        return self.area_bounds[0] <= value <= self.area_bounds[1]
+
+    def __getitem__(self, index):
+        """ indexes coordinates """
+        return self.coordinates[index]
+
+    def __add__(self, other):
+        """ add a delta or concatenate """
+
+        if isinstance(other, BaseCoord):
+            return self.concat(other)
+        else:
+            return self.add(other)
+
+    def __iadd__(self, other):
+        """ add a delta or concatenate in-place """
+        
+        if isinstance(other, BaseCoord):
+            return self.concat_equal(other)
+
+        else:
+            other = make_coord_delta(other)
+            return self.add_equal(other)
+
+    def __sub__(self, other):
+        """ subtract a delta """
+        _other = -make_coord_delta(other)
+        return self.add(_other)
+
+    def __isub(self, other):
+        """ subtract a delta in place """
+        _other = -make_coord_delta(other)
+        return self.add_equal(_other)
+
+    def __and__(self, other):
+        """ intersect """
+        return self.intersect(other)
+
+    def __iand__(self, other):
+        """ intersect in-place """
+        raise NotImplementedError
+
+    def __str__(self):
         raise NotImplementedError
 
     def __repr__(self):
@@ -615,6 +619,9 @@ class Coord(BaseCoord):
 
     @property
     def is_datetime(self):
+        if self.size == 0:
+            return None
+        
         return np.issubdtype(self.coords.dtype, np.datetime64)
 
     @property
@@ -656,13 +663,19 @@ class Coord(BaseCoord):
 
     def _concat(self, other):
         # always returns a Coord object
+        if self.size == 0:
+            coords = other.coordinates
+        else:
+            coords = np.concatenate([self.coordinates, other.coordinates])
 
-        # TODO kwargs (units, etc)
-        coords = np.concatenate([self.coordinates, other.coordinates])
         return Coord(coords, **self.kwargs)
 
     def _concat_equal(self, other):
-        self.coords = np.concatenate([self.coordinates, other.coordinates])
+        if self.size == 0:
+            self.coords = other.coordinates
+        else:
+            self.coords = np.concatenate([self.coordinates, other.coordinates])
+            
         return self
 
 class MonotonicCoord(Coord):
