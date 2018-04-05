@@ -14,7 +14,29 @@ from podpac.core.algorithm.algorithm import Algorithm
 class Convolution(Algorithm):
     input_node = tl.Instance(Node)
     kernel = tl.Instance(np.ndarray)
-    
+    kernel_type = tl.Unicode()
+    kernel_ndim = tl.Int()
+
+    @tl.default('kernel')
+    def _kernel_default(self):
+        kernel_type = self.kernel_type
+        if not kernel_type:
+            raise ValueError("Need to supply either 'kernel' as a numpy array,"
+                             " or 'kernel_type' as a string.")
+        ktype = kernel_type.split(',')[0]
+        size = int(kernel_type.split(',')[1])
+        args = [float(a) for a in kernel_type.split(',')[2:]]
+        if ktype == 'mean':
+            k = np.ones([size] * self.kernel_ndim) 
+        else: 
+            f = getattr(scipy.signal, ktype)
+            k1d = f(size, *args)
+            k = k1d.copy()
+            for i in range(self.kernel_ndim - 1):
+                k = np.tensordot(k, k1d, 0)
+        
+        return k / k.sum()
+ 
     @property
     def full_kernel(self):
         return self.kernel
@@ -24,6 +46,7 @@ class Convolution(Algorithm):
         return res
 
 class TimeConvolution(Convolution):
+    kernel_ndim = tl.Int(1)
     @tl.validate('kernel')
     def validate_kernel(self, proposal):
         if proposal['value'].ndim != 1:
@@ -44,6 +67,7 @@ class TimeConvolution(Convolution):
         return kernel.data
 
 class SpatialConvolution(Convolution):
+    kernel_ndim = tl.Int(2)
     @tl.validate('kernel')
     def validate_kernel(self, proposal):
         if proposal['value'].ndim != 2:
@@ -94,17 +118,29 @@ if __name__ == '__main__':
     node = TimeConvolution(input_node=Arange(), kernel=kernel1)
     o3d_time = node.execute(coords)
 
+    node = SpatialConvolution(input_node=Arange(), kernel_type='gaussian, 3, 1')
+    o3d_spatial = node.execute(coords)
+    o2d_spatial2 = node.execute(coords_spatial)
+    node = SpatialConvolution(input_node=Arange(), kernel_type='mean, 3')
+    o3d_spatial = node.execute(coords)
+    o2d_spatial2 = node.execute(coords_spatial)
+
+    node = TimeConvolution(input_node=Arange(), kernel_type='gaussian, 3, 1')
+    o3d_time = node.execute(coords)
+    node = TimeConvolution(input_node=Arange(), kernel_type='mean, 3')
+    o3d_time = node.execute(coords)
+
     node = Convolution(input_node=Arange(), kernel=kernel2)
     try: node.execute(coords)
     except: pass # should fail becaus the input node is 3 dimensions
     else: raise Exception("expected an exception")
 
-    node = Convolution(input_node=Arange(), kernel=kernel)
+    node = Convolution(input_node=Arange(), kernel=kernel1)
     try: node.execute(coords_spatial)
-    except: pass # should fail becaus the input node is 2 dimensions
+    except: pass # should fail becaus the input node is 1 dimensions
     else: raise Exception("expected an exception")
 
-    try: node = SpatialConvolution(input_node=Arange(), kernel=kernel)
+    try: node = SpatialConvolution(input_node=Arange(), kernel=kernel3)
     except: pass # should fail because the kernel is 3 dimensions
     else: raise Exception("expected an exception")
 
@@ -112,7 +148,7 @@ if __name__ == '__main__':
     except: pass # should fail because the kernel is 1 dimension
     else: raise Exception("expected an exception")
 
-    try: node = TimeConvolution(input_node=Arange(), kernel=kernel)
+    try: node = TimeConvolution(input_node=Arange(), kernel=kernel3)
     except: pass # should fail because the kernel is 3 dimensions
     else: raise Exception("expected an exception")
 
