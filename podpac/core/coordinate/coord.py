@@ -474,6 +474,9 @@ class BaseCoord(tl.HasTraits):
 
     def __contains__(self, value):
         """ is the value within the coordinate area """
+        if self.size == 0:
+            return False
+
         return self.area_bounds[0] <= value <= self.area_bounds[1]
 
     def __getitem__(self, index):
@@ -492,21 +495,21 @@ class BaseCoord(tl.HasTraits):
         """ add a delta or concatenate in-place """
         
         if isinstance(other, BaseCoord):
-            return self.concat_equal(other)
+            return self.concat(other, inplace=True)
 
         else:
             other = make_coord_delta(other)
-            return self.add_equal(other)
+            return self.add(other, inplace=True)
 
     def __sub__(self, other):
         """ subtract a delta """
         _other = -make_coord_delta(other)
         return self.add(_other)
 
-    def __isub(self, other):
+    def __isub__(self, other):
         """ subtract a delta in place """
         _other = -make_coord_delta(other)
-        return self.add_equal(_other)
+        return self.add(_other, inplace=True)
 
     def __and__(self, other):
         """ intersect """
@@ -514,9 +517,6 @@ class BaseCoord(tl.HasTraits):
 
     def __iand__(self, other):
         """ intersect in-place """
-        raise NotImplementedError
-
-    def __str__(self):
         raise NotImplementedError
 
     def __repr__(self):
@@ -675,7 +675,7 @@ class Coord(BaseCoord):
             self.coords = other.coordinates
         else:
             self.coords = np.concatenate([self.coordinates, other.coordinates])
-            
+
         return self
 
 class MonotonicCoord(Coord):

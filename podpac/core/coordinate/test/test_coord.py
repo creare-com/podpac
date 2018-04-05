@@ -694,31 +694,92 @@ class TestCoord(object):
         assert_equal(c.coordinates, np.array(['2018-01-12', '2018-01-11', '2018-01-14', '2018-01-13']).astype(np.datetime64))
 
     def test___add__(self):
-        pass
+        a = Coord([20., 50., 60., 10.])
+        b = Coord([55., 65., 95., 45.])
+        
+        # concat
+        r = a + b
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [20., 50., 60., 10., 55., 65., 95., 45.])
+        
+        r = b + a
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [55., 65., 95., 45., 20., 50., 60., 10.])
+
+        # add
+        r = a + 1
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [21., 51., 61., 11.])
 
     def test___iadd__(self):
-        pass
+        # concat
+        c = Coord([20., 50., 60., 10.])
+        c += Coord([55., 65., 95., 45.])
+        assert_equal(c.coordinates, [20., 50., 60., 10., 55., 65., 95., 45.])
+        
+        # add
+        c = Coord([20., 50., 60., 10.])
+        c += 1
+        assert_equal(c.coordinates, [21., 51., 61., 11.])
 
     def test___sub__(self):
-        pass
+        c = Coord([20., 50., 60., 10.])
+        r = c - 1
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [19., 49., 59., 9.])
 
     def test___isub__(self):
-        pass
+        c = Coord([20., 50., 60., 10.])
+        c -= 1
+        assert_equal(c.coordinates, [19., 49., 59., 9.])
 
     def test___and__(self):
-        pass
+        a = Coord([20., 50., 60., 10.])
+        b = Coord([55., 65., 95., 45.])
+        
+        r = a & b
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [50., 60.])
+        
+        r = b & a
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [55., 45.])
 
     def test___getitem__(self):
-        pass
+        c = Coord([20., 50., 60., 10.])
+        
+        assert c[0] == 20.
+        assert_equal(c[1:3], [50., 60.])
 
     def test___len__(self):
-        pass
+        c = Coord([20., 50., 60., 10.])
+        assert len(c) == 4
 
-    def test___str__(self):
-        pass
+        e = Coord()
+        assert len(e) == 0
+
+    def test___in__(self):
+        c = Coord([20., 50., 60., 10.])
+        t = Coord(['2018-01-02', '2018-01-01', '2018-01-05', '2018-01-03'])
+        e = Coord()
+        
+        # TODO area_bounds
+        
+        assert 10. in c
+        assert 50. in c
+        assert 55. in c
+        assert 90 not in c
+        
+        assert np.datetime64('2018-01-02') in t
+        assert np.datetime64('2018-01-04') in t
+        assert np.datetime64('2017-01-04') not in t
+        
+        assert 50. not in e
+        assert np.datetime64('2018-01-02') not in e
 
     def test___repr__(self):
-        pass
+        c = Coord([20., 50., 60., 10.])
+        repr(c)
 
 class TestMonotonicCoord(object):
     """
