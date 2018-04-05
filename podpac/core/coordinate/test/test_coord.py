@@ -590,44 +590,37 @@ class TestCoord(object):
             t.concat(a)
 
     def test_concat_equal(self):
-        a = Coord([55., 65., 95., 45.])
-        b = Coord([80., 70., 90.])
-        e = Coord()
-        t = Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03'])
-        m = MonotonicCoord([45., 55., 65., 95.])
-        u = UniformCoord(45, 95, 10)
-        
         # Coord other
         c = Coord([20., 50., 60., 10.])
-        c.concat(a, inplace=True)
+        c.concat(Coord([55., 65., 95., 45.]), inplace=True)
         assert_equal(c.coordinates, [20., 50., 60., 10., 55., 65., 95., 45.])
         
         # empty self
         c = Coord()
-        c.concat(a, inplace=True)
-        assert_equal(c.coordinates, a.coordinates)
+        c.concat(Coord([55., 65., 95., 45.]), inplace=True)
+        assert_equal(c.coordinates, [55., 65., 95., 45.])
 
         c = Coord()
-        c.concat(t, inplace=True)
-        assert_equal(c.coordinates, t.coordinates)
+        c.concat(Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03']), inplace=True)
+        assert_equal(c.coordinates, np.array(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03']).astype(np.datetime64))
 
         # empty other
         c = Coord([20., 50., 60., 10.])
-        c.concat(e, inplace=True)
+        c.concat(Coord(), inplace=True)
         assert_equal(c.coordinates, [20., 50., 60., 10.])
 
         c = Coord(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03'])
-        c.concat(e, inplace=True)
-        assert_equal(t.coordinates, np.array(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03']).astype(np.datetime64))
+        c.concat(Coord(), inplace=True)
+        assert_equal(c.coordinates, np.array(['2018-01-02', '2018-01-01', '2018-01-04', '2018-01-03']).astype(np.datetime64))
 
         # MonotonicCoord other
         c = Coord([20., 50., 60., 10.])
-        c.concat(m, inplace=True)
+        c.concat(MonotonicCoord([45., 55., 65., 95.]), inplace=True)
         assert_equal(c.coordinates, [20., 50., 60., 10., 45., 55., 65., 95.])
 
         # UniformCoord other
         c = Coord([20., 50., 60., 10.])
-        c.concat(u, inplace=True)
+        c.concat(UniformCoord(45, 95, 10), inplace=True)
         assert_equal(c.coordinates, [20., 50., 60., 10., 45., 55., 65., 75., 85., 95.])
 
     def test_add(self):
@@ -1144,18 +1137,7 @@ class TestMonotonicCoord(object):
         assert isinstance(av, MonotonicCoord)
         assert_equal(av.coordinates, [10., 20., 50., 60., 75., 85., 95.])
 
-    def test_concat_equal(self):
-        a = MonotonicCoord([10., 20., 50., 60.])
-        b = MonotonicCoord([45., 55., 65., 95.])
-        c = MonotonicCoord([70., 80., 90.])
-        d = MonotonicCoord([35., 25., 15.])
-        e = MonotonicCoord()
-        f = MonotonicCoord([90., 80., 70.])
-        o = Coord([20., 50., 60., 10.])
-        u = UniformCoord(45, 95, 10)
-        v = UniformCoord(75, 95, 10)
-        t = MonotonicCoord(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
-        
+    def test_concat_equal(self):        
         # ascending
         c = MonotonicCoord([10., 20., 50., 60.])
         c.concat(MonotonicCoord([70., 80., 90.]), inplace=True)
@@ -1232,9 +1214,348 @@ class TestMonotonicCoord(object):
         assert isinstance(a + 1, MonotonicCoord)
 
 class TestUniformCoord(object):
-    pass
+    def test_numerical(self):
+        # ascending
+        c = UniformCoord(0., 50., 10.)
+        a = np.array([0., 10., 20., 30., 40., 50])
+        
+        assert type(c.start) == float
+        assert type(c.stop) == float
+        assert type(c.delta) == float
+        assert isinstance(c.coords, tuple)
+        assert c.start == 0.
+        assert c.stop == 50.
+        assert c.delta == 10.
+        assert c.coords == (0., 50.)
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, np.array([0., 50.]))
+        assert np.issubdtype(c.coordinates.dtype, np.float)
+        assert np.issubdtype(c.bounds.dtype, np.float)
+        assert c.size == 6
+        assert c.is_datetime == False
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+        assert c.rasterio_regularity == True
+        assert c.scipy_regularity == True
+
+        # descending
+        c = UniformCoord(50., 0., -10.)
+        a = np.array([50., 40., 30., 20., 10., 0])
+
+        assert c.start == 50.
+        assert c.stop == 0.
+        assert c.delta == -10.
+        assert c.coords == (50., 0.)
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, np.array([0., 50.]))
+        assert c.size == 6
+        assert c.is_datetime == False
+        assert c.is_monotonic == True
+        assert c.is_descending == True
+
+        # inexact step
+        c = UniformCoord(0., 49., 10.)
+        a = np.array([0., 10., 20., 30., 40.])
+        
+        assert type(c.start) == float
+        assert type(c.stop) == float
+        assert type(c.delta) == float
+        assert isinstance(c.coords, tuple)
+        assert c.start == 0.
+        assert c.stop == 49.
+        assert c.delta == 10.
+        assert c.coords == (0., 49.)
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, np.array([0., 40.]))
+        assert c.size == 5
+        
+    def test_datetime(self):
+        # ascending
+        c = UniformCoord('2018-01-01', '2018-01-04', '1,D')
+        a = np.array(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04']).astype(np.datetime64)
+        
+        assert isinstance(c.start, np.datetime64)
+        assert isinstance(c.stop, np.datetime64)
+        assert isinstance(c.delta, np.timedelta64)
+        assert isinstance(c.coords, tuple)
+        assert c.start == np.datetime64('2018-01-01')
+        assert c.stop == np.datetime64('2018-01-04')
+        assert c.delta == np.timedelta64(1, 'D')
+        assert c.coords == (np.datetime64('2018-01-01'), np.datetime64('2018-01-04'))
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, a[[0, -1]])
+        assert np.issubdtype(c.coordinates.dtype, np.datetime64)
+        assert np.issubdtype(c.bounds.dtype, np.datetime64)
+        assert c.size == a.size
+        assert c.is_datetime == True
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+        assert c.rasterio_regularity == True
+        assert c.scipy_regularity == True
+
+        # descending
+        c = UniformCoord('2018-01-04', '2018-01-01', '-1,D')
+        a = np.array(['2018-01-04', '2018-01-03', '2018-01-02', '2018-01-01']).astype(np.datetime64)
+        
+        assert c.start == a[0]
+        assert c.stop == a[-1]
+        assert c.delta == np.timedelta64(-1, 'D')
+        assert c.coords == (a[0], a[-1])
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, a[[-1, 0]])
+        assert c.size == a.size
+        assert c.is_datetime == True
+        assert c.is_monotonic == True
+        assert c.is_descending == True
+
+        # inexact step
+        c = UniformCoord('2018-01-01', '2018-01-06', '2,D')
+        a = np.array(['2018-01-01', '2018-01-03', '2018-01-05']).astype(np.datetime64)
+        
+        assert c.start == np.datetime64('2018-01-01')
+        assert c.stop == np.datetime64('2018-01-06')
+        assert c.delta == np.timedelta64(2, 'D')
+        assert c.coords == (np.datetime64('2018-01-01'), np.datetime64('2018-01-06'))
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, a[[0, -1]])
+        assert c.size == a.size
+        assert c.is_datetime == True
+        assert c.is_monotonic == True
+        assert c.is_descending == False
+
+        # month step
+        c = UniformCoord('2018-01-01', '2018-04-01', '1,M')
+        a = np.array(['2018-01-01', '2018-02-01', '2018-03-01', '2018-04-01']).astype(np.datetime64)
+        
+        assert c.start == np.datetime64('2018-01-01')
+        assert c.stop == np.datetime64('2018-04-01')
+        assert c.delta == np.timedelta64(1, 'M')
+        assert c.coords == (np.datetime64('2018-01-01'), np.datetime64('2018-04-01'))
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, a[[0, -1]])
+        assert c.size == a.size
+
+        # year step ascending, exact
+        c = UniformCoord('2018-01-01', '2021-01-01', '1,Y')
+        a = np.array(['2018-01-01', '2019-01-01', '2020-01-01', '2021-01-01']).astype(np.datetime64)
+        
+        assert c.start == np.datetime64('2018-01-01')
+        assert c.stop == np.datetime64('2021-01-01')
+        assert c.delta == np.timedelta64(1, 'Y')
+        assert c.coords == (np.datetime64('2018-01-01'), np.datetime64('2021-01-01'))
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, a[[0, -1]])
+        assert c.size == a.size
+
+        # year step descending, exact
+        c = UniformCoord('2021-01-01', '2018-01-01', '-1,Y')
+        a = np.array(['2021-01-01', '2020-01-01', '2019-01-01', '2018-01-01']).astype(np.datetime64)
+        
+        assert c.start == np.datetime64('2021-01-01')
+        assert c.stop == np.datetime64('2018-01-01')
+        assert c.delta == np.timedelta64(-1, 'Y')
+        assert c.coords == (np.datetime64('2021-01-01'), np.datetime64('2018-01-01'))
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, a[[-1, 0]])
+        assert c.size == a.size
+
+        # year step ascending, inexact (two cases)
+        c = UniformCoord('2018-01-01', '2021-04-01', '1,Y')
+        a = np.array(['2018-01-01', '2019-01-01', '2020-01-01', '2021-01-01']).astype(np.datetime64)
+        
+        assert c.start == np.datetime64('2018-01-01')
+        assert c.stop == np.datetime64('2021-04-01')
+        assert c.delta == np.timedelta64(1, 'Y')
+        assert c.coords == (np.datetime64('2018-01-01'), np.datetime64('2021-04-01'))
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, a[[0, -1]])
+        assert c.size == a.size
+
+        c = UniformCoord('2018-04-01', '2021-01-01', '1,Y')
+        a = np.array(['2018-04-01', '2019-04-01', '2020-04-01']).astype(np.datetime64)
+        
+        assert c.start == np.datetime64('2018-04-01')
+        assert c.stop == np.datetime64('2021-01-01')
+        assert c.delta == np.timedelta64(1, 'Y')
+        assert c.coords == (np.datetime64('2018-04-01'), np.datetime64('2021-01-01'))
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, a[[0, -1]])
+        assert c.size == a.size
+
+        # year step descending, inexact (two cases)
+        c = UniformCoord('2021-01-01', '2018-04-01', '-1,Y')
+        a = np.array(['2021-01-01', '2020-01-01', '2019-01-01', '2018-01-01']).astype(np.datetime64)
+        
+        assert c.start == np.datetime64('2021-01-01')
+        assert c.stop == np.datetime64('2018-04-01')
+        assert c.delta == np.timedelta64(-1, 'Y')
+        assert c.coords == (np.datetime64('2021-01-01'), np.datetime64('2018-04-01'))
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, a[[-1, 0]])
+        assert c.size == a.size
+
+        c = UniformCoord('2021-04-01', '2018-01-01', '-1,Y')
+        a = np.array(['2021-04-01', '2020-04-01', '2019-04-01', '2018-04-01']).astype(np.datetime64)
+        
+        assert c.start == np.datetime64('2021-04-01')
+        assert c.stop == np.datetime64('2018-01-01')
+        assert c.delta == np.timedelta64(-1, 'Y')
+        assert c.coords == (np.datetime64('2021-04-01'), np.datetime64('2018-01-01'))
+        assert_equal(c.coordinates, a)
+        assert_equal(c.bounds, a[[-1, 0]])
+        assert c.size == a.size
+
+    def test_invalid_init(self):
+        with pytest.raises(ValueError):
+            UniformCoord(0., 50., 0)
+
+        with pytest.raises(ValueError):
+            UniformCoord(0., 50., -10)
+
+        with pytest.raises(ValueError):
+            UniformCoord(50., 0., 10)
+        
+        with pytest.raises(TypeError):
+            UniformCoord(0., '2018-01-01', 10.)
+
+        with pytest.raises(TypeError):
+            UniformCoord('2018-01-01', 50., 10.)
+
+        # TODO
+        # with pytest.raises(TypeError):
+        #     UniformCoord('2018-01-01', '2018-01-02', 10.)
+        
+        with pytest.raises(TypeError):
+            UniformCoord(0., '2018-01-01', '1,D')
+
+        with pytest.raises(TypeError):
+            UniformCoord('2018-01-01', 50., '1,D')
+
+        # TODO
+        # with pytest.raises(TypeError):
+        #     UniformCoord(0., 50., '1,D')
+
+        with pytest.raises(ValueError):
+            UniformCoord('a', 50., 10.)
+
+        with pytest.raises(ValueError):
+            UniformCoord(0., 'b', 10)
+
+        with pytest.raises(ValueError):
+            UniformCoord(0., 50., 'a')
+
+        with pytest.raises(TypeError):
+            UniformCoord()
+
+        with pytest.raises(TypeError):
+            UniformCoord(0., 50.)
+
+    def test_select_ascending(self):
+        pass
+
+    def test_select_descending(self):
+        pass
+
+    def test_select_ind(self):
+        pass
+
+    def test_intersect(self):
+        pass
+
+    def test_concat(self):
+        pass
+
+    def test_concat_equal(self):
+        pass
+
+    def test_add(self):
+        pass
+
+    def test_add_equal(self):
+        pass
+
  
-class TestCoordLinspace(object):
-    def test_floating_point_error(self):
-        c = coord_linspace(50.619, 50.62795, 30)
-        assert(c.size == 30)
+# class TestCoordLinspace(object):
+#     def test_floating_point_error(self):
+#         c = coord_linspace(50.619, 50.62795, 30)
+#         assert(c.size == 30)
+
+#     def test_todo(self):
+#         coord = coord_linspace(1, 10, 10)
+#         coord_left = coord_linspace(-2, 7, 10)
+#         coord_left_r = coord_linspace(7, -2, 10)
+#         coord_right = coord_linspace(4, 13, 10)
+#         coord_right_r = coord_linspace(13, 4, 10)
+#         coord_cent = coord_linspace(4, 7, 4)
+#         coord_cover = coord_linspace(-2, 13, 15)
+        
+#         print(coord.intersect(coord_left))
+#         print(coord.intersect(coord_right))
+#         print(coord.intersect(coord_right_r))
+#         print(coord.intersect(coord_cent))
+#         print(coord_right_r.intersect(coord))
+#         print(coord_left_r.intersect(coord))
+        
+#         coord_left = coord_linspace(-2, 7, 3)
+#         coord_right = coord_linspace(8, 13, 3)
+#         coord_right2 = coord_linspace(13, 8, 3)
+#         coord_cent = coord_linspace(4, 11, 4)
+#         coord_pts = Coord(15)
+#         coord_irr = Coord(np.random.rand(5))
+        
+#         print ((coord_left + coord_right).coordinates)
+#         print ((coord_right + coord_left).coordinates)
+#         print ((coord_left + coord_right2).coordinates)
+#         print ((coord_right2 + coord_left).coordinates)
+#         print ((coord_left + coord_pts).coordinates)
+#         print (coord_irr + coord_pts + coord_cent)
+
+#         coord_left = coord_linspace(0, 2, 3)
+#         coord_right = coord_linspace(3, 5, 3)
+#         coord_right_r = coord_linspace(5, 3, 3)
+#         coord_right_g = coord_linspace(4, 6, 3)
+#         coord_right_g_r = coord_linspace(6, 4, 3)
+        
+#         coord = coord_left + coord_right
+#         assert(isinstance(coord, UniformCoord))
+#         print (coord.coordinates)
+        
+#         coord = coord_left + coord_right_r
+#         assert(isinstance(coord, UniformCoord))
+#         print (coord.coordinates)    
+        
+#         coord = coord_right_r + coord_left 
+#         assert(isinstance(coord, UniformCoord))
+#         print (coord.coordinates)        
+        
+#         coord = coord_right_g + coord_left 
+#         assert(isinstance(coord, MonotonicCoord))
+#         print (coord.coordinates)            
+        
+#         coord = coord_left + coord_right_g
+#         assert(isinstance(coord, MonotonicCoord))
+#         print (coord.coordinates)    
+
+#         coord = coord_right_g_r + coord_left 
+#         assert(isinstance(coord, MonotonicCoord))
+#         print (coord.coordinates)            
+        
+#         coord = coord_left + coord_right_g_r
+#         assert(isinstance(coord, MonotonicCoord))
+#         print (coord.coordinates)    
+        
+#         coord = coord_left + coord_left
+#         assert(isinstance(coord, Coord))
+#         print (coord.coordinates)    
+        
+#         coord = coord_right_r + coord_right_r
+#         assert(isinstance(coord, Coord))
+#         print (coord.coordinates)    
+        
+#         coord = coord_right_g_r + coord_right_g_r
+#         assert(isinstance(coord, Coord))
+#         print (coord.coordinates)        
+        
+#         np.testing.assert_array_equal(coord_right.area_bounds, coord_right_r.area_bounds)
+        
+#         print('Done')

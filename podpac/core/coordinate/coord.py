@@ -944,8 +944,8 @@ class UniformCoord(BaseCoord):
 
         if dname == 'timedelta64[Y]':
             dyear = self.stop.item().year - self.start.item().year
-            if self.stop.item().month >= self.start.item().month:
-                dyear += 1
+            if dyear > 0 and self.stop.item().month < self.start.item().month:
+                dyear -= 1
             range_ = dyear
             step = self.delta.item()
 
@@ -1121,88 +1121,3 @@ def coord_linspace(start, stop, num, **kwargs):
     delta = (stop - start) / (num - 1)
     
     return UniformCoord(start, stop, delta, **kwargs)
-
-# =============================================================================
-# TODO convert to unit testing
-# =============================================================================
-
-if __name__ == '__main__': 
-    
-    coord = coord_linspace(1, 10, 10)
-    coord_left = coord_linspace(-2, 7, 10)
-    coord_left_r = coord_linspace(7, -2, 10)
-    coord_right = coord_linspace(4, 13, 10)
-    coord_right_r = coord_linspace(13, 4, 10)
-    coord_cent = coord_linspace(4, 7, 4)
-    coord_cover = coord_linspace(-2, 13, 15)
-    
-    print(coord.intersect(coord_left))
-    print(coord.intersect(coord_right))
-    print(coord.intersect(coord_right_r))
-    print(coord.intersect(coord_cent))
-    print(coord_right_r.intersect(coord))
-    print(coord_left_r.intersect(coord))
-    
-    coord_left = coord_linspace(-2, 7, 3)
-    coord_right = coord_linspace(8, 13, 3)
-    coord_right2 = coord_linspace(13, 8, 3)
-    coord_cent = coord_linspace(4, 11, 4)
-    coord_pts = Coord(15)
-    coord_irr = Coord(np.random.rand(5))
-    
-    print ((coord_left + coord_right).coordinates)
-    print ((coord_right + coord_left).coordinates)
-    print ((coord_left + coord_right2).coordinates)
-    print ((coord_right2 + coord_left).coordinates)
-    print ((coord_left + coord_pts).coordinates)
-    print (coord_irr + coord_pts + coord_cent)
-
-    coord_left = coord_linspace(0, 2, 3)
-    coord_right = coord_linspace(3, 5, 3)
-    coord_right_r = coord_linspace(5, 3, 3)
-    coord_right_g = coord_linspace(4, 6, 3)
-    coord_right_g_r = coord_linspace(6, 4, 3)
-    
-    coord = coord_left + coord_right
-    assert(isinstance(coord, UniformCoord))
-    print (coord.coordinates)
-    
-    coord = coord_left + coord_right_r
-    assert(isinstance(coord, UniformCoord))
-    print (coord.coordinates)    
-    
-    coord = coord_right_r + coord_left 
-    assert(isinstance(coord, UniformCoord))
-    print (coord.coordinates)        
-    
-    coord = coord_right_g + coord_left 
-    assert(isinstance(coord, MonotonicCoord))
-    print (coord.coordinates)            
-    
-    coord = coord_left + coord_right_g
-    assert(isinstance(coord, MonotonicCoord))
-    print (coord.coordinates)    
-
-    coord = coord_right_g_r + coord_left 
-    assert(isinstance(coord, MonotonicCoord))
-    print (coord.coordinates)            
-    
-    coord = coord_left + coord_right_g_r
-    assert(isinstance(coord, MonotonicCoord))
-    print (coord.coordinates)    
-    
-    coord = coord_left + coord_left
-    assert(isinstance(coord, Coord))
-    print (coord.coordinates)    
-    
-    coord = coord_right_r + coord_right_r
-    assert(isinstance(coord, Coord))
-    print (coord.coordinates)    
-    
-    coord = coord_right_g_r + coord_right_g_r
-    assert(isinstance(coord, Coord))
-    print (coord.coordinates)        
-    
-    np.testing.assert_array_equal(coord_right.area_bounds, coord_right_r.area_bounds)
-    
-    print('Done')
