@@ -13,6 +13,7 @@ from podpac.core.utils import cached_property, clear_cache
 from podpac.core.coordinate.util import (
     make_coord_value, make_coord_delta, get_timedelta, add_coord)
 
+TOL = 1e-12
 
 class BaseCoord(tl.HasTraits):
     """
@@ -1021,7 +1022,6 @@ class UniformCoord(BaseCoord):
 
     def _concat(self, other):
         # tries to return UniformCoord first, then MonotonicCoord, then Coord
-        TOL = 1e-12
         if other.size == 0:
             return UniformCoord(
                 self.start, self.stop, self.delta, **self.kwargs)
@@ -1031,28 +1031,29 @@ class UniformCoord(BaseCoord):
             # WARNING: This code is duplicated below in _concat_equal
             delta = self.delta
             ostart, ostop = other.start, other.stop
+            ofirst, olast = other.bounds
+            if other.is_descending:
+                ofirst, olast = olast, ofirst
+
             if self.is_descending != other.is_descending:
                 ostart, ostop = ostop, ostart
+                ofirst, olast = olast, ofirst
                 overlap = False
 
-            new_start, new_stop = self.start, ostop
-            if self.is_descending:
-                if (self.stop > ostart):
-                    new_start, new_stop = self.start, ostop
-                elif (ostop > self.start):
-                    new_start, new_stop = ostart, self.stop
+            if self.is_descending == (self.stop > ostart):
+                start, stop, last = self.start, ostop, olast
+            elif self.is_descending:
+                start, stop, last = ostart, self.stop, self.bounds[0]
             else:
-                if (self.stop < ostart):
-                    new_start, new_stop = self.start, ostop
-                elif (ostop < self.start):
-                    new_start, new_stop = ostart, self.stop
+                start, stop, last = ostart, self.stop, self.bounds[1]
 
             # use the size trick to see if these align
-            size = (np.floor((new_stop - new_start) / self.delta) + 1)
-            if (self.size + other.size ) == size:
-                return UniformCoord(
-                    new_start, new_stop, delta, **self.kwargs)
-            elif (self.size + other.size) < size:  # No overlap, but separated
+            size = np.floor((last - start) / self.delta) + 1
+            if self.size + other.size == size:
+                return UniformCoord(start, stop, delta, **self.kwargs)
+            
+            # No overlap, but separated
+            if (self.size + other.size) < size: 
                 c1 = self.coordinates
                 c2 = other.coordinates
                 if self.is_descending != other.is_descending:
@@ -1065,13 +1066,7 @@ class UniformCoord(BaseCoord):
                 return MonotonicCoord(coords)
             #else: # overlapping
 
-        if isinstance(other, MonotonicCoord):
-            return MonotonicCoord(
-                np.concatenate((self.coordinates, other.coordinates)))
-        
-        # otherwise
-        coords = np.concatenate([self.coordinates, other.coordinates])
-        return Coord(coords, **self.kwargs)
+        return MonotonicCoord(self.coordinates).concat(other)
 
     def _concat_equal(self, other):
         if other.size == 0:
