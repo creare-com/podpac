@@ -1021,85 +1021,85 @@ class UniformCoord(BaseCoord):
         return self
 
     def _concat(self, other):
-        # tries to return UniformCoord first, then MonotonicCoord, then Coord
+        # empty other
         if other.size == 0:
-            return UniformCoord(
-                self.start, self.stop, self.delta, **self.kwargs)
+            return copy.deepcopy(self)
+        
+        # MonotonicCoord other
+        if isinstance(other, MonotonicCoord):
+            return MonotonicCoord(self.coordinates).concat(other)
+        
+        # Coord other
+        if isinstance(other, Coord):
+            return Coord(self.coordinates).concat(other)
 
-        if isinstance(other, UniformCoord) \
-                and np.abs(np.abs(self.delta) - np.abs(other.delta)).astype(float) < TOL:
-            # WARNING: This code is duplicated below in _concat_equal
-            delta = self.delta
-            ostart, ostop = other.start, other.stop
-            ofirst, olast = other.bounds
-            if other.is_descending:
-                ofirst, olast = olast, ofirst
+        if isinstance(other, UniformCoord):
+            # mismatched delta
+            if np.abs(np.abs(self.delta) - np.abs(other.delta)).astype(float) > TOL:
+                return MonotonicCoord(self.coordinates).concat(other)
 
-            if self.is_descending != other.is_descending:
-                ostart, ostop = ostop, ostart
-                ofirst, olast = olast, ofirst
-                overlap = False
+            start, stop, last, size = self._get_concat_values(other)
 
-            if self.is_descending == (self.stop > ostart):
-                start, stop, last = self.start, ostop, olast
-            elif self.is_descending:
-                start, stop, last = ostart, self.stop, self.bounds[0]
-            else:
-                start, stop, last = ostart, self.stop, self.bounds[1]
-
-            # use the size trick to see if these align
-            size = np.floor((last - start) / self.delta) + 1
+            # aligned -> return UniformCoord
             if self.size + other.size == size:
-                return UniformCoord(start, stop, delta, **self.kwargs)
+                return UniformCoord(start, stop, self.delta, **self.kwargs)
             
-            # No overlap, but separated
-            if (self.size + other.size) < size: 
-                c1 = self.coordinates
-                c2 = other.coordinates
-                if self.is_descending != other.is_descending:
-                    c2 = c2[::-1]
-                if self.is_descending and c1[-1] < c2[0]:
-                        c1, c2 = c2, c1
-                elif not self.is_descending and c1[-1] > c2[0]:
-                        c1, c2 = c2, c1
-                coords = np.concatenate((c1, c2))
-                return MonotonicCoord(coords)
-            #else: # overlapping
+            # separated (no overlap) -> return MonotonicCoord
+            elif self.size + other.size < size:
+                return MonotonicCoord(self.coordinates).concat(other)
 
-        return MonotonicCoord(self.coordinates).concat(other)
+            # overlapping -> return MonotonicCoord or Coord
+            else:
+                return MonotonicCoord(self.coordinates).concat(other)
 
     def _concat_equal(self, other):
         if other.size == 0:
             return self
 
-        if isinstance(other, UniformCoord) \
-                and np.abs(np.abs(self.delta) - np.abs(other.delta)).astype(float) < TOL:
-            # WARNING: This code is copied above in _concat
-            delta = self.delta
-            ostart, ostop = other.start, other.stop
-            if self.is_descending != other.is_descending:
-                ostart, ostop = ostop, ostart
-                overlap = False
+        if not isinstance(other, UniformCoord):
+            raise TypeError("Cannot concatenate '%s' to '%s' in-place" % (
+                other.__class__.__name__, self.__class__.__name__))
 
-            if self.is_descending:
-                if (self.stop > ostart):
-                    new_start, new_stop = self.start, ostop
-                elif (ostop > self.start):
-                    new_start, new_stop = ostart, self.stop
-            else:
-                if (self.stop < ostart):
-                    new_start, new_stop = self.start, ostop
-                elif (ostop < self.start):
-                    new_start, new_stop = ostart, self.stop
+        if np.abs(np.abs(self.delta) - np.abs(other.delta)).astype(float) > TOL:
+            raise ValueError("Cannot concatenate UniformCoord, delta mismatch (%f != %f)" % (
+                self.delta, other.delta))
 
-            # use the size trick to see if these align
-            size = (np.floor((new_stop - new_start) / self.delta) + 1)
-            if (self.size + other.size ) == size:
-                self.stop, self.start, self.delta = new_stop, new_start, delta
-                return self
+        start, stop, last, size = self._get_concat_values(other)
 
-        raise TypeError("Cannot concatenate '%s' to '%s' in-place" % (
-            other.__class__.__name__, self.__class__.__name__))
+        # aligned
+        if self.size + other.size == size:
+            self.stop, self.start = stop, start
+            return self
+
+        # separated (no overlap)
+        if self.size + other.size < size:
+            raise ValueError("Cannot concatenate UniformCoord, ranges are separated")
+
+        # overlapping
+        else:
+            raise ValueError("Cannot concatenate UniformCoord, ranges are overlapping")
+
+    def _get_concat_values(self, other):
+        ostart, ostop = other.start, other.stop
+        ofirst, olast = other.bounds
+        
+        if other.is_descending:
+            ofirst, olast = olast, ofirst
+
+        if self.is_descending != other.is_descending:
+            ostart, ostop = ostop, ostart
+            ofirst, olast = olast, ofirst
+
+        if self.is_descending == (self.stop > ostart):
+            start, stop, last = self.start, ostop, olast
+        elif self.is_descending:
+            start, stop, last = ostart, self.stop, self.bounds[0]
+        else:
+            start, stop, last = ostart, self.stop, self.bounds[1]
+
+        size = np.floor((last - start) / self.delta) + 1
+
+        return start, stop, last, size
 
 # =============================================================================
 # helper functions

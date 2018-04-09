@@ -1622,10 +1622,260 @@ class TestUniformCoord(object):
         assert isinstance(a.intersect(m), UniformCoord)
 
     def test_concat(self):
-        pass
+        a = UniformCoord(30., 60., 10.)
+        b = UniformCoord(60., 30., -10.)
+
+        # empty other
+        r = a.concat(Coord())
+        assert isinstance(r, UniformCoord)
+        assert r.start == a.start
+        assert r.stop == a.stop
+        assert r.delta == a.delta
+
+        r = a._concat(Coord())
+        assert isinstance(r, UniformCoord)
+        assert r.start == a.start
+        assert r.stop == a.stop
+        assert r.delta == a.delta
+
+        # both ascending -> UniformCoord
+        r = a.concat(UniformCoord(70., 100, 10.))
+        assert isinstance(r, UniformCoord)
+        assert r.start == 30.
+        assert r.stop == 100.
+        assert r.delta == 10.
+
+        r = a.concat(UniformCoord(0., 20, 10.))
+        assert isinstance(r, UniformCoord)
+        assert r.start == 0.
+        assert r.stop == 60.
+        assert r.delta == 10.
+
+        # both descending -> UniformCoord
+        r = b.concat(UniformCoord(100., 70, -10.))
+        assert isinstance(r, UniformCoord)
+        assert r.start == 100.
+        assert r.stop == 30.
+        assert r.delta == -10.
+
+        r = b.concat(UniformCoord(20., 0, -10.))
+        assert isinstance(r, UniformCoord)
+        assert r.start == 60.
+        assert r.stop == 0.
+        assert r.delta == -10.
+
+        # mismatched -> UniformCoord
+        r = b.concat(UniformCoord(70., 100, 10.))
+        assert isinstance(r, UniformCoord)
+        assert r.start == 100.
+        assert r.stop == 30.
+        assert r.delta == -10.
+
+        r = b.concat(UniformCoord(0., 20, 10.))
+        assert isinstance(r, UniformCoord)
+        assert r.start == 60.
+        assert r.stop == 0.
+        assert r.delta == -10.
+
+        r = a.concat(UniformCoord(100., 70, -10.))
+        assert isinstance(r, UniformCoord)
+        assert r.start == 30.
+        assert r.stop == 100.
+        assert r.delta == 10.
+
+        r = a.concat(UniformCoord(20., 0, -10.))
+        assert isinstance(r, UniformCoord)
+        assert r.start == 0.
+        assert r.stop == 60.
+        assert r.delta == 10.
+
+        # separated, both ascending -> MonotonicCoord
+        r = a.concat(UniformCoord(80., 100, 10.))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [30., 40., 50., 60., 80., 90., 100.])
+
+        r = a.concat(UniformCoord(0., 10, 10.))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [0., 10., 30., 40., 50., 60.])
+
+        # separated, both descendeng -> MonotonicCoord
+        r = b.concat(UniformCoord(100., 80., -10.))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [100., 90., 80., 60., 50., 40., 30.])
+
+        r = b.concat(UniformCoord(10., 0, -10.))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [60., 50., 40., 30., 10., 0.])
+
+        # separated, mismatched -> MonotonicCoord
+        r = b.concat(UniformCoord(80., 100, 10.))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [100., 90., 80., 60., 50., 40., 30.])
+
+        r = b.concat(UniformCoord(0., 10, 10.))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [60., 50., 40., 30., 10., 0.])
+
+        # separated, both descendeng -> MonotonicCoord
+        r = a.concat(UniformCoord(100., 80., -10.))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [30., 40., 50., 60., 80., 90., 100.])
+
+        r = a.concat(UniformCoord(10., 0, -10.))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [0., 10., 30., 40., 50., 60.])
+
+        # mismatched delta -> MonotonicCoord
+        r = a.concat(UniformCoord(70., 100, 5.))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [30., 40., 50., 60., 70., 75., 80., 85., 90., 95., 100.])
+
+        # not aligned -> MonotonicCoord
+        r = a.concat(UniformCoord(65., 100, 10.))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [30., 40., 50., 60., 65., 75., 85., 95.])
+
+        # overlap -> Coord
+        r = a.concat(UniformCoord(50., 100, 10))
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [30., 40., 50., 60., 50., 60., 70., 80., 90., 100.])
+
+        # MonotonicCoord other
+        r = a.concat(MonotonicCoord([75, 80, 90]))
+        assert isinstance(r, MonotonicCoord)
+        assert_equal(r.coordinates, [30., 40., 50., 60., 75, 80, 90])
+
+        r = a.concat(MonotonicCoord([55, 75, 80, 90]))
+        assert isinstance(r, Coord)
+        assert_equal(r.coordinates, [30., 40., 50., 60., 55, 75, 80, 90])
+        
+        # Coord other
+        r = a.concat(Coord([75, 90, 80]))
+        assert_equal(r.coordinates, [30., 40., 50., 60., 75, 90, 80])
+        assert isinstance(r, Coord)
 
     def test_concat_equal(self):
-        pass
+        # empty other
+        a = UniformCoord(30., 60., 10.)
+        a.concat(Coord(), inplace=True)
+        assert a.start == 30.
+        assert a.stop == 60.
+        assert a.delta == 10.
+
+        a = UniformCoord(30., 60., 10.)
+        a._concat(Coord())
+        assert a.start == 30.
+        assert a.stop == 60.
+        assert a.delta == 10.
+
+        # both ascending
+        a = UniformCoord(30., 60., 10.)
+        a.concat(UniformCoord(70., 100, 10.), inplace=True)
+        assert a.start == 30.
+        assert a.stop == 100.
+        assert a.delta == 10.
+
+        a = UniformCoord(30., 60., 10.)
+        a.concat(UniformCoord(0., 20, 10.), inplace=True)
+        assert a.start == 0.
+        assert a.stop == 60.
+        assert a.delta == 10.
+
+        # both descending
+        b = UniformCoord(60., 30., -10.)
+        b.concat(UniformCoord(100., 70, -10.), inplace=True)
+        assert b.start == 100.
+        assert b.stop == 30.
+        assert b.delta == -10.
+
+        b = UniformCoord(60., 30., -10.)
+        b.concat(UniformCoord(20., 0, -10.), inplace=True)
+        assert b.start == 60.
+        assert b.stop == 0.
+        assert b.delta == -10.
+
+        # mismatched
+        b = UniformCoord(60., 30., -10.)
+        b.concat(UniformCoord(70., 100, 10.), inplace=True)
+        assert b.start == 100.
+        assert b.stop == 30.
+        assert b.delta == -10.
+
+        b = UniformCoord(60., 30., -10.)
+        b.concat(UniformCoord(0., 20, 10.), inplace=True)
+        assert b.start == 60.
+        assert b.stop == 0.
+        assert b.delta == -10.
+
+        a = UniformCoord(30., 60., 10.)
+        a.concat(UniformCoord(100., 70, -10.), inplace=True)
+        assert a.start == 30.
+        assert a.stop == 100.
+        assert a.delta == 10.
+
+        a = UniformCoord(30., 60., 10.)
+        a.concat(UniformCoord(20., 0, -10.), inplace=True)
+        assert a.start == 0.
+        assert a.stop == 60.
+        assert a.delta == 10.
+
+        # separated -> ValueError
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            a.concat(UniformCoord(80., 100, 10.), inplace=True)
+
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            a.concat(UniformCoord(0., 10, 10.), inplace=True)
+
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            b.concat(UniformCoord(100., 80., -10.), inplace=True)
+
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            b.concat(UniformCoord(10., 0, -10.), inplace=True)
+
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            b.concat(UniformCoord(80., 100, 10.), inplace=True)
+
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            b.concat(UniformCoord(0., 10, 10.), inplace=True)
+
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            a.concat(UniformCoord(100., 80., -10.), inplace=True)
+
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            a.concat(UniformCoord(10., 0, -10.), inplace=True)
+
+        # mismatched delta -> ValueError
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            a.concat(UniformCoord(70., 100, 5.), inplace=True)
+
+        # not aligned -> ValueError
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            a.concat(UniformCoord(65., 100, 10.), inplace=True)
+
+        # overlap -> ValueError
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(ValueError):
+            a.concat(UniformCoord(50., 100, 10), inplace=True)
+
+        # non UniformCoord other -> TypeError
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(TypeError):
+            a.concat(MonotonicCoord([75, 80, 90]), inplace=True)
+
+        # Coord other
+        a = UniformCoord(30., 60., 10.)
+        with pytest.raises(TypeError):
+            a.concat(Coord([75, 90, 80]), inplace=True)
 
     def test_add(self):
         # numerical
