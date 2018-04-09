@@ -1010,12 +1010,13 @@ class UniformCoord(BaseCoord):
         return UniformCoord(start, stop, self.delta, **self.kwargs)
 
     def _add(self, other):
-        return UniformCoord(self.start + other,
-                            self.stop + other, self.delta, **self.kwargs)
+        start = add_coord(self.start, other)
+        stop = add_coord(self.stop, other)
+        return UniformCoord(start, stop, self.delta, **self.kwargs)
 
     def _add_equal(self, other):
-        self.start += other
-        self.stop += other
+        self.start = add_coord(self.start, other)
+        self.stop += add_coord(self.stop, other)
         return self
 
     def _concat(self, other):
