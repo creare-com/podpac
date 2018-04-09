@@ -958,12 +958,12 @@ class TestMonotonicCoord(object):
         # partial, none
         s = c.select([52, 55], pad=0)
         assert isinstance(s, Coord)
-        assert s.size == 0
+        assert_equal(s.coordinates, [])
 
         # partial, backwards bounds
         s = c.select([70, 30], pad=0)
         assert isinstance(s, Coord)
-        assert s.size == 0
+        assert_equal(s.coordinates, [])
 
     def test_select_descending(self):
         c = MonotonicCoord([90., 60., 50., 40., 20., 10.])
@@ -996,12 +996,12 @@ class TestMonotonicCoord(object):
         # partial, none
         s = c.select([52, 55], pad=0)
         assert isinstance(s, Coord)
-        assert s.size == 0
+        assert_equal(s.coordinates, [])
 
         # partial, backwards bounds
         s = c.select([70, 30], pad=0)
         assert isinstance(s, Coord)
-        assert s.size == 0
+        assert_equal(s.coordinates, [])
 
     def test_select_ind(self):
         c = MonotonicCoord([10., 20., 40., 50., 60., 90.])
@@ -1451,13 +1451,150 @@ class TestUniformCoord(object):
             UniformCoord(0., 50.)
 
     def test_select_ascending(self):
-        pass
+        c = UniformCoord(20., 70., 10.)
+        
+        # full and empty selection type
+        assert isinstance(c.select([0, 100]), UniformCoord)
+        assert isinstance(c.select([100, 200]), Coord)
+        assert isinstance(c.select([0, 5]), Coord)
+        
+        # partial, above
+        s = c.select([45, 100], pad=0)
+        assert isinstance(s, UniformCoord)
+        assert s.start == 50.
+        assert s.stop == 70.
+        assert s.delta == 10.
+        
+        # partial, below
+        s = c.select([5, 55], pad=0)
+        assert isinstance(s, UniformCoord)
+        assert s.start == 20.
+        assert s.stop == 50.
+        assert s.delta == 10.
+
+        # partial, inner
+        s = c.select([30., 60.], pad=0)
+        assert isinstance(s, UniformCoord)
+        assert s.start == 30.
+        assert s.stop == 60.
+        assert s.delta == 10.
+
+        # partial, inner exact
+        s = c.select([35., 55.], pad=0)
+        assert isinstance(s, UniformCoord)
+        assert s.start == 40.
+        assert s.stop == 50.
+        assert s.delta == 10.
+        
+        # partial, none
+        s = c.select([52, 55], pad=0)
+        assert isinstance(s, Coord)
+        assert_equal(s.coordinates, [])
+
+        # partial, backwards bounds
+        s = c.select([70, 30], pad=0)
+        assert isinstance(s, Coord)
+        assert_equal(s.coordinates, [])
 
     def test_select_descending(self):
-        pass
+        c = UniformCoord(70., 20., -10.)
+        
+        # full and empty selection type
+        assert isinstance(c.select([0, 100]), UniformCoord)
+        assert isinstance(c.select([100, 200]), Coord)
+        assert isinstance(c.select([0, 5]), Coord)
+        
+        # partial, above
+        s = c.select([45, 100], pad=0)
+        assert isinstance(s, UniformCoord)
+        assert s.start == 70.
+        assert s.stop == 50.
+        assert s.delta == -10.
+        
+        # partial, below
+        s = c.select([5, 55], pad=0)
+        assert isinstance(s, UniformCoord)
+        assert s.start == 50.
+        assert s.stop == 20.
+        assert s.delta == -10.
 
-    def test_select_ind(self):
-        pass
+        # partial, inner
+        s = c.select([30., 60.], pad=0)
+        assert isinstance(s, UniformCoord)
+        assert s.start == 60.
+        assert s.stop == 30.
+        assert s.delta == -10.
+
+        # partial, inner exact
+        s = c.select([35., 55.], pad=0)
+        assert isinstance(s, UniformCoord)
+        assert s.start == 50.
+        assert s.stop == 40.
+        assert s.delta == -10.
+        
+        # partial, none
+        s = c.select([52, 55], pad=0)
+        assert isinstance(s, Coord)
+        assert_equal(s.coordinates, [])
+
+        # partial, backwards bounds
+        s = c.select([70, 30], pad=0)
+        assert isinstance(s, Coord)
+        assert_equal(s.coordinates, [])
+
+    def test_select_ind_ascending(self):
+        c = UniformCoord(20., 70., 10.)
+        
+        # partial, above
+        s = c.select([45, 100], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [50., 60., 70.])
+        
+        # partial, below
+        s = c.select([5, 55], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [20., 30., 40., 50])
+
+        # partial, inner
+        s = c.select([30., 60.], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [30., 40., 50., 60])
+
+        # partial, inner exact
+        s = c.select([35., 55.], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [40., 50.])
+        
+        # partial, none
+        s = c.select([52, 55], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [])
+
+        # partial, backwards bounds
+        s = c.select([70, 30], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [])
+
+    def test_select_ind_descending(self):
+        c = UniformCoord(70., 20., -10.)
+        
+        # partial, above
+        s = c.select([45, 100], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [70., 60., 50.])
+        
+        # partial, below
+        s = c.select([5, 55], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [50., 40., 30., 20.])
+
+        # partial, inner
+        s = c.select([30., 60.], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [60., 50., 40., 30.])
+
+        # partial, inner exact
+        s = c.select([35., 55.], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [50., 40.])
+        
+        # partial, none
+        s = c.select([52, 55], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [])
+
+        # partial, backwards bounds
+        s = c.select([70, 30], ind=True, pad=0)
+        assert_equal(c.coordinates[s], [])
 
     def test_intersect(self):
         pass

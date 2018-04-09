@@ -987,10 +987,17 @@ class UniformCoord(BaseCoord):
         hi = min(bounds[1], self.bounds[1])
         
         imin = int(np.ceil((lo - self.bounds[0]) / np.abs(self.delta)))
-        imax = int(np.ceil((hi - self.bounds[0]) / np.abs(self.delta)))
+        imax = int(np.floor((hi - self.bounds[0]) / np.abs(self.delta)))
 
-        imin = np.clip(imin-pad, 0, self.size)
         imax = np.clip(imax+pad+1, 0, self.size)
+        imin = np.clip(imin-pad, 0, self.size)
+        
+        # empty case
+        if imin >= imax:
+            if ind:
+                return slice(0, 0)
+            else:
+                return Coord()
 
         if self.is_descending:
             imax, imin = self.size - imin, self.size - imax
