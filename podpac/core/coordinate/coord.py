@@ -884,6 +884,12 @@ class UniformCoord(BaseCoord):
     def __init__(self, start, stop, delta, epsg=None, **kwargs):
         super(UniformCoord, self).__init__(
             start=start, stop=stop, delta=delta, epsg=epsg, **kwargs)
+
+        if self.is_datetime and not isinstance(self.delta, np.timedelta64):
+            raise TypeError("delta must a timedelta for datetime coords")
+
+        if not self.is_datetime and isinstance(self.delta, np.timedelta64):
+            raise TypeError("delta must a number for numerical coords")
         
     @property
     def coords(self):

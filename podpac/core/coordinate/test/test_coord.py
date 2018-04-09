@@ -1421,9 +1421,8 @@ class TestUniformCoord(object):
         with pytest.raises(TypeError):
             UniformCoord('2018-01-01', 50., 10.)
 
-        # TODO
-        # with pytest.raises(TypeError):
-        #     UniformCoord('2018-01-01', '2018-01-02', 10.)
+        with pytest.raises(TypeError):
+            UniformCoord('2018-01-01', '2018-01-02', 10.)
         
         with pytest.raises(TypeError):
             UniformCoord(0., '2018-01-01', '1,D')
@@ -1431,9 +1430,8 @@ class TestUniformCoord(object):
         with pytest.raises(TypeError):
             UniformCoord('2018-01-01', 50., '1,D')
 
-        # TODO
-        # with pytest.raises(TypeError):
-        #     UniformCoord(0., 50., '1,D')
+        with pytest.raises(TypeError):
+            UniformCoord(0., 50., '1,D')
 
         with pytest.raises(ValueError):
             UniformCoord('a', 50., 10.)
@@ -1763,7 +1761,7 @@ class TestUniformCoord(object):
         assert a.delta == 10.
 
         a = UniformCoord(30., 60., 10.)
-        a._concat(Coord())
+        a._concat_equal(Coord())
         assert a.start == 30.
         assert a.stop == 60.
         assert a.delta == 10.
@@ -1947,88 +1945,68 @@ class TestUniformCoord(object):
         assert t.stop == np.datetime64('2020-01-10')
         assert t.delta == np.timedelta64(1, 'D')
 
- 
-# class TestCoordLinspace(object):
-#     def test_floating_point_error(self):
-#         c = coord_linspace(50.619, 50.62795, 30)
-#         assert(c.size == 30)
+    def test_coord_linspace_numerical(self):
+        # ascending
+        c = coord_linspace(0., 10., 20)
+        assert isinstance(c, UniformCoord)
+        assert c.start == 0.
+        assert c.stop == 10.
+        assert c.size == 20
+        assert_equal(c.bounds, [0., 10.])
+        assert c.is_descending == False
+        assert c.is_datetime == False
 
-#     def test_todo(self):
-#         coord = coord_linspace(1, 10, 10)
-#         coord_left = coord_linspace(-2, 7, 10)
-#         coord_left_r = coord_linspace(7, -2, 10)
-#         coord_right = coord_linspace(4, 13, 10)
-#         coord_right_r = coord_linspace(13, 4, 10)
-#         coord_cent = coord_linspace(4, 7, 4)
-#         coord_cover = coord_linspace(-2, 13, 15)
-        
-#         print(coord.intersect(coord_left))
-#         print(coord.intersect(coord_right))
-#         print(coord.intersect(coord_right_r))
-#         print(coord.intersect(coord_cent))
-#         print(coord_right_r.intersect(coord))
-#         print(coord_left_r.intersect(coord))
-        
-#         coord_left = coord_linspace(-2, 7, 3)
-#         coord_right = coord_linspace(8, 13, 3)
-#         coord_right2 = coord_linspace(13, 8, 3)
-#         coord_cent = coord_linspace(4, 11, 4)
-#         coord_pts = Coord(15)
-#         coord_irr = Coord(np.random.rand(5))
-        
-#         print ((coord_left + coord_right).coordinates)
-#         print ((coord_right + coord_left).coordinates)
-#         print ((coord_left + coord_right2).coordinates)
-#         print ((coord_right2 + coord_left).coordinates)
-#         print ((coord_left + coord_pts).coordinates)
-#         print (coord_irr + coord_pts + coord_cent)
+        # descending
+        c = coord_linspace(10., 0., 20)
+        assert isinstance(c, UniformCoord)
+        assert c.start == 10.
+        assert c.stop == 0.
+        assert c.size == 20
+        assert_equal(c.bounds, [0., 10.])
+        assert c.is_descending == True
+        assert c.is_datetime == False
 
-#         coord_left = coord_linspace(0, 2, 3)
-#         coord_right = coord_linspace(3, 5, 3)
-#         coord_right_r = coord_linspace(5, 3, 3)
-#         coord_right_g = coord_linspace(4, 6, 3)
-#         coord_right_g_r = coord_linspace(6, 4, 3)
-        
-#         coord = coord_left + coord_right
-#         assert(isinstance(coord, UniformCoord))
-#         print (coord.coordinates)
-        
-#         coord = coord_left + coord_right_r
-#         assert(isinstance(coord, UniformCoord))
-#         print (coord.coordinates)    
-        
-#         coord = coord_right_r + coord_left 
-#         assert(isinstance(coord, UniformCoord))
-#         print (coord.coordinates)        
-        
-#         coord = coord_right_g + coord_left 
-#         assert(isinstance(coord, MonotonicCoord))
-#         print (coord.coordinates)            
-        
-#         coord = coord_left + coord_right_g
-#         assert(isinstance(coord, MonotonicCoord))
-#         print (coord.coordinates)    
+    def test_coord_linspace_datetime(self):
+        # ascending
+        c = coord_linspace('2018-01-01', '2018-01-10', 10)
+        assert isinstance(c, UniformCoord)
+        assert c.start == np.datetime64('2018-01-01')
+        assert c.stop == np.datetime64('2018-01-10')
+        assert c.size == 20
+        assert_equal(c.bounds, [np.datetime64('2018-01-01'), np.datetime64('2018-01-10')])
+        assert c.is_descending == False
+        assert c.is_datetime == True
 
-#         coord = coord_right_g_r + coord_left 
-#         assert(isinstance(coord, MonotonicCoord))
-#         print (coord.coordinates)            
+        # descending
+        c = coord_linspace('2018-01-10', '2018-01-01', 10)
+        assert isinstance(c, UniformCoord)
+        assert c.start == np.datetime64('2018-01-10')
+        assert c.stop == np.datetime64('2018-01-01')
+        assert c.size == 20
+        assert_equal(c.bounds, [np.datetime64('2018-01-01'), np.datetime64('2018-01-10')])
+        assert c.is_descending == True
+        assert c.is_datetime == True
+
+        # not exact
+        c = coord_linspace('2018-01-01', '2018-01-10', 20)
+        assert isinstance(c, UniformCoord)
+        assert c.start == np.datetime64('2018-01-01')
+        assert c.stop == np.datetime64('2018-01-10')
+        assert c.size == 20
+        assert_equal(c.bounds, [np.datetime64('2018-01-01'), np.datetime64('2018-01-10')])
+        assert c.is_descending == False
+        assert c.is_datetime == True
+
+    def test_coord_linspace_invalid(self):
+        with pytest.raises(TypeError):
+            coord_linspace(0., 10., 20.)
         
-#         coord = coord_left + coord_right_g_r
-#         assert(isinstance(coord, MonotonicCoord))
-#         print (coord.coordinates)    
+        with pytest.raises(TypeError):
+            coord_linspace(0., 10., '')
+
+        with pytest.raises(TypeError):
+            coord_linspace('2018-01-10', '2018-01-01', '1,D')
         
-#         coord = coord_left + coord_left
-#         assert(isinstance(coord, Coord))
-#         print (coord.coordinates)    
-        
-#         coord = coord_right_r + coord_right_r
-#         assert(isinstance(coord, Coord))
-#         print (coord.coordinates)    
-        
-#         coord = coord_right_g_r + coord_right_g_r
-#         assert(isinstance(coord, Coord))
-#         print (coord.coordinates)        
-        
-#         np.testing.assert_array_equal(coord_right.area_bounds, coord_right_r.area_bounds)
-        
-#         print('Done')
+    def test_coord_linspace_floating_point_error(self):
+        c = coord_linspace(50.619, 50.62795, 30)
+        assert c.size == 30
