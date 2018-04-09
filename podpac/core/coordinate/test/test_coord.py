@@ -1597,7 +1597,29 @@ class TestUniformCoord(object):
         assert_equal(c.coordinates[s], [])
 
     def test_intersect(self):
-        pass
+        # MonotonicCoord other
+        a = UniformCoord(10., 60., 10.)
+        b = UniformCoord(45., 95., 5.)
+        
+        ab = a.intersect(b, pad=0)
+        assert isinstance(ab, UniformCoord)
+        assert ab.start == 50.
+        assert ab.stop == 60.
+        assert ab.delta == 10.
+
+        ba = b.intersect(a, pad=0)
+        assert isinstance(ba, UniformCoord)
+        assert ba.start == 45.
+        assert ba.stop == 60.
+        assert ba.delta == 5.
+
+        # Coord other
+        c = Coord([40., 70., 50.,])
+        assert isinstance(a.intersect(c), UniformCoord)
+        
+        # MonotonicCoord
+        m = MonotonicCoord([40., 50., 70.])
+        assert isinstance(a.intersect(m), UniformCoord)
 
     def test_concat(self):
         pass
