@@ -1628,6 +1628,7 @@ class TestUniformCoord(object):
         pass
 
     def test_add(self):
+        # numerical
         c = UniformCoord(20., 60., 10.)
         c2 = c.add(1)
         assert isinstance(c2, UniformCoord)
@@ -1635,6 +1636,7 @@ class TestUniformCoord(object):
         assert c2.stop == 61.
         assert c2.delta == 10.
 
+        # simple datetime
         t = UniformCoord('2018-01-01', '2018-01-10', '1,D')
         t2d = t.add('2,D')
         assert isinstance(t2d, UniformCoord)
@@ -1642,21 +1644,19 @@ class TestUniformCoord(object):
         assert t2d.stop == np.datetime64('2018-01-12')
         assert t2d.delta == np.timedelta64(1, 'D')
 
-        t = UniformCoord('2018-01-01', '2018-01-10', '1,D')
         t2d = t.add('-2,D')
         assert isinstance(t2d, UniformCoord)
         assert t2d.start == np.datetime64('2017-12-30')
         assert t2d.stop == np.datetime64('2018-01-08')
         assert t2d.delta == np.timedelta64(1, 'D')
 
-        t = UniformCoord('2018-01-01', '2018-01-10', '1,D')
+        # nominal datetime
         t2m = t.add('2,M')
         assert isinstance(t2m, UniformCoord)
         assert t2m.start == np.datetime64('2018-03-01')
         assert t2m.stop == np.datetime64('2018-03-10')
         assert t2m.delta == np.timedelta64(1, 'D')
 
-        t = UniformCoord('2018-01-01', '2018-01-10', '1,D')
         t2y = t.add('2,Y')
         assert isinstance(t2y, UniformCoord)
         assert t2y.start == np.datetime64('2020-01-01')
@@ -1664,7 +1664,38 @@ class TestUniformCoord(object):
         assert t2y.delta == np.timedelta64(1, 'D')
 
     def test_add_equal(self):
-        pass
+        # numerical
+        c = UniformCoord(20., 60., 10.)
+        c.add(1, inplace=True)
+        assert c.start == 21.
+        assert c.stop == 61.
+        assert c.delta == 10.
+
+        # simple datetime
+        t = UniformCoord('2018-01-01', '2018-01-10', '1,D')
+        t.add('2,D', inplace=True)
+        assert t.start == np.datetime64('2018-01-03')
+        assert t.stop == np.datetime64('2018-01-12')
+        assert t.delta == np.timedelta64(1, 'D')
+
+        t = UniformCoord('2018-01-01', '2018-01-10', '1,D')
+        t.add('-2,D', inplace=True)
+        assert t.start == np.datetime64('2017-12-30')
+        assert t.stop == np.datetime64('2018-01-08')
+        assert t.delta == np.timedelta64(1, 'D')
+
+        # nominal datetime
+        t = UniformCoord('2018-01-01', '2018-01-10', '1,D')
+        t.add('2,M', inplace=True)
+        assert t.start == np.datetime64('2018-03-01')
+        assert t.stop == np.datetime64('2018-03-10')
+        assert t.delta == np.timedelta64(1, 'D')
+
+        t = UniformCoord('2018-01-01', '2018-01-10', '1,D')
+        t.add('2,Y', inplace=True)
+        assert t.start == np.datetime64('2020-01-01')
+        assert t.stop == np.datetime64('2020-01-10')
+        assert t.delta == np.timedelta64(1, 'D')
 
  
 # class TestCoordLinspace(object):

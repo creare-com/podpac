@@ -1016,7 +1016,7 @@ class UniformCoord(BaseCoord):
 
     def _add_equal(self, other):
         self.start = add_coord(self.start, other)
-        self.stop += add_coord(self.stop, other)
+        self.stop = add_coord(self.stop, other)
         return self
 
     def _concat(self, other):
