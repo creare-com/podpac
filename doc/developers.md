@@ -47,8 +47,41 @@ git branch feature/my_new_feature
 At this point we will review your changes, request modifications, and ultimately accept or reject your modifications. 
 
 ## Coding style
+
 * Generally try to follow PEP8, but we're not strict about it. 
 * Code should be compatible with both Python 2 and 3
+
+### Lint
+
+To help adhere to PEP8, we use the `pylint` module. This provides the most benefit if you [configure your text editor or IDE](https://pylint.readthedocs.io/en/latest/user_guide/ide-integration.html)  to run pylint as you develop. To use `pylint` from the command line:
+
+```bash
+$ pylint podpac                 # lint the whole module
+$ pylint podpac/settings.py     # lint single file
+```
+
+Configuration options are specified in `.pylintrc`.
+
+## Testing
+
+We use `pytest` to run unit tests. To run tests, run from the root of the repository:
+
+```
+$ pytest
+$ pytest -k "TestClass"    # run only the TestClass
+```
+
+Configuration options are specified in `setup.cfg`
+
+## Code Coverage
+
+We use `coverage` to monitor code coverage of unit tests. To record coverage while running tests, run:
+
+```bash
+$ coverage run -m pytest        # watch files while testing
+$ coverage report               # display coverage report
+```
+
 
 # A Note on PODPAC's Governance Model
 

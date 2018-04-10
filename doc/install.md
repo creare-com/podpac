@@ -22,8 +22,16 @@ $ source activate podpac # Linux / Mac
 - Install dependencies
 
 ```bash
-$ conda install numpy scipy xarray traitlets pint  # Core dependencies
-$ conda install numexpr pydap requests beautifulsoup4 lxml urllib3 certifi
+# Core dependencies
+$ conda install numpy scipy xarray traitlets    
+$ pip install pint
+
+# Optional dependencies
+$ conda install numexpr requests beautifulsoup4 lxml urllib3 certifi
+$ pip install pydap
+
+# development dependencies
+$ conda install pylint pytest coverage
 ```
 
 - Install [rasterio](https://mapbox.github.io/rasterio/installation.html#installing-with-anaconda) from the **conda-forge** channel
