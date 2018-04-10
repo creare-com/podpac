@@ -46,7 +46,7 @@ $ conda install rasterio --channel conda-forge
 $ cd <install-path>
 $ git clone https://github.com/creare-com/podpac.git
 $ cd podpac
-$ python setup.py develop
+$ pip install -e .
 ```
 *Note*: This procedure checks out the `master` branch, which is intented to be somewhat stable with working code. For bleeding edge, checkout the `develop` branch instead using `git checkout -b develop origin/develop`
 

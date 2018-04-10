@@ -1,5 +1,7 @@
+""" podpac module"""
+
 # Always perfer setuptools over distutils
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, find_packages
 
 setup(
     # ext_modules=None,
@@ -28,25 +30,28 @@ setup(
     ],
     packages=find_packages(),
     install_requires=[
-        'numpy',
-        'scipy',
-        'xarray',
-        'traitlets',
-        'pint',
-        'matplotlib',
+        'numpy>=1.14',
+        'scipy>=1.0',
+        'xarray>=0.10',
+        'traitlets>=4.3',
+        'pint>=0.8',
+        'matplotlib>2.1',
+
         # Requirements for Python 2
-        'future',
-        # Optional requirements        
-        'numexpr',
-        'rasterio',
-        'pydap',
-        'requests', 
-        'beautifulsoup4',   
-        'lxml',
+        'future>0.16',
+
+        # Optional requirements
+        'numexpr>=2.6',
+        'rasterio>=0.36',
+        'pydap>=3.2',
+        'requests>=2.18',
+        'beautifulsoup4>=4.6',
+        'lxml>=4.2',
+
         # Optional requirements for Esri+ version
-#        'arcpy',
-        'urllib3',
-        'certifi'
+        # 'arcpy',
+        'urllib3>=1.22',
+        'certifi>=2018.1.18'
         ],
     # entry_points = {
     #     'console_scripts' : []
