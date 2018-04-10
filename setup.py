@@ -33,6 +33,7 @@ setup(
         'xarray',
         'traitlets',
         'pint',
+        'maptplotlib',
         # Requirements for Python 2
         'future',
         # Optional requirements        
