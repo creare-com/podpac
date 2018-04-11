@@ -20,26 +20,19 @@ class Reduce(Algorithm):
     input_coordinates = tl.Instance(Coordinate)
     input_node = tl.Instance(Node)
 
-    @property
-    def dims(self):
+    dims = tl.List()
+
+    def get_dims(self, out):
         """
         Validates and translates requested reduction dimensions.
         """
-
-        input_dims = self.input_coordinates.dims
+        # Using self.output.dims does a lot of work for us comparing
+        # native_coordinates to evaluated coordinates
+        input_dims = list(out.dims) 
+        valid_dims = self.input_coordinates.dims
 
         if self.params is None or 'dims' not in self.params:
             return input_dims
-
-        valid_dims = []
-        if 'time' in input_dims:
-            valid_dims.append('time')
-        if 'lat_lon' in input_dims:
-            valid_dims.append('lat_lon')
-        if 'lat' in input_dims and 'lon' in input_dims:
-            valid_dims.append('lat_lon')
-        if 'alt' in input_dims:
-            valid_dims.append('alt')
 
         params_dims = self.params['dims']
         if not isinstance(params_dims, (list, tuple)):
@@ -51,11 +44,13 @@ class Reduce(Algorithm):
                 raise ValueError("Invalid Reduce dimension: %s" % dim)    
             elif dim in input_dims:
                 dims.append(dim)
-            elif dim == 'lat_lon':
-                dims.append('lat')
-                dims.append('lon')
         
         return dims
+    
+    def dims_axes(self, output):
+        axes = [i for i in range(len(output.dims))
+                 if output.dims[i] in self.dims]
+        return axes
 
     def get_reduced_coordinates(self):
         coordinates = self.input_coordinates
@@ -142,12 +137,15 @@ class Reduce(Algorithm):
         self.input_coordinates = coordinates
         self.params = params or {}
         self.output = output
-
+        
+        self.evaluated_coordinates = coordinates
+        test_out = self.initialize_output_array(init_type='empty')
+        self.dims = self.get_dims(test_out)
+ 
         self.evaluated_coordinates = self.get_reduced_coordinates()
-
-        if self.output is None:
+        if self.output is None: 
             self.output = self.initialize_output_array()
-            
+
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
             result = self.reduce_chunked(self.iteroutputs())
         else:
@@ -456,10 +454,6 @@ class Reduce2(Reduce):
         for slc, chunk in chunks:
             yield slc, self.input_node.execute(chunk, self.params)
 
-class Median(Reduce2):
-    def reduce(self, x):
-        return x.median(dim=self.dims)
-
     def reduce_chunked(self, xs):
         I = [self.input_coordinates.dims.index(dim)
              for dim in
@@ -467,8 +461,19 @@ class Median(Reduce2):
         y = xr.full_like(self.output, np.nan)
         for xslc, x in xs:
             yslc = [xslc[i] for i in I]
-            y.data[yslc] = x.median(dim=self.dims)
+            y.data[yslc] = self.reduce(x)
         return y
+
+class Median(Reduce2):
+    def reduce(self, x):
+        return x.median(dim=self.dims)
+
+class Percentile(Reduce2):
+    percentile = tl.Float(default=50.0)
+
+    def reduce(self, x):
+        percentile = self.params.get('percentile', self.percentile)
+        return np.nanpercentile(x, percentile, self.dims_axes(x))
 
 # =============================================================================
 # Time-Grouped Reduce
