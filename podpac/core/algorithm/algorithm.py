@@ -33,15 +33,18 @@ class Algorithm(Node):
                         convert_xarray_to_podpac(node.output.coords))
         if coords is None:
             coords = coordinates
-        if self.output is None:
-            self.output = self.initialize_coord_array(coords)
-
 
         result = self.algorithm()
         if isinstance(result, np.ndarray):
+            if self.output is None:
+                self.output = self.initialize_coord_array(coords)
             self.output.data[:] = result
         else:
-            self.output[:] = result.transpose(*self.output.dims) # is this necessary?
+            dims = [d for d in self.evaluated_coordinates.dims if d in result.dims]
+            if self.output is None:
+                self.output = result.transpose(*dims) # is this necessary?
+            else:
+                self.output[:] = result.transpose(*dims) # is this necessary?
         self.evaluated = True
         return self.output
         
@@ -81,7 +84,22 @@ class Arange(Algorithm):
     def algorithm(self):
         out = self.initialize_output_array('ones')
         return out * np.arange(out.size).reshape(out.shape)
-        
+      
+class CoordData(Algorithm):
+    coord_name = tl.Unicode('')
+    def algorithm(self):
+        if self.params:
+            coord_name = self.params.get('coord_name', self.coord_name)
+        else: coord_name = self.coord_name
+        ec = self.evaluated_coordinates
+        if coord_name not in ec.dims:
+            return xr.DataArray([1]).min()
+       
+        c = ec[coord_name] 
+        data = c.coordinates
+        coords = Coordinate(order=[coord_name], **{coord_name: c}) 
+        return self.initialize_coord_array(coords, init_type='data', fillval=data)
+  
 class SinCoords(Algorithm):
     def algorithm(self):
         out = self.initialize_output_array('ones')
