@@ -5,7 +5,7 @@ import scipy.signal
 import traitlets as tl
 
 from podpac.core.coordinate import Coordinate, UniformCoord
-from podpac.core.coordinate import make_coord_delta, add_coord
+from podpac.core.coordinate import make_coord_value, make_coord_delta, add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 
@@ -91,6 +91,33 @@ class ExpandCoordinates(Algorithm):
 
         return self.output
 
+class SelectCoordinates(ExpandCoordinates):
+    def get_expanded_coord(self, dim):
+        icoords = self.input_coordinates[dim]
+        
+        if dim not in self.params:
+            # no expansion in this dimension
+            return icoords
+
+        if len(self.params[dim]) not in [2, 3]:
+            raise ValueError("Invalid expansion params for '%s'" % dim)
+
+        # get start and stop offsets
+        start = make_coord_value(self.params[dim][0])
+        stop = make_coord_value(self.params[dim][1])
+
+        if len(self.params[dim]) == 2:
+            # expand and use native coordinates
+            ncoord = self.native_coordinates[dim]
+            xcoord = ncoord.select([start, stop])
+
+        elif len(self.params[dim]) == 3:
+            # or expand explicitly
+            delta = make_coord_delta(self.params[dim][2])
+            xcoord = UniformCoord(start, stop, delta)
+
+        return xcoord
+
 if __name__ == '__main__':
     from podpac.core.algorithm.algorithm import Arange
     from podpac.core.data.data import DataSource
@@ -101,11 +128,12 @@ if __name__ == '__main__':
         lon=(-80., -70., 5),
         order=('time', 'lat', 'lon'))
 
-    node = ExpandCoordinates(source=Arange())
-
     # source
     o = Arange().execute(coords)
     print(o.coords)
+
+    # node
+    node = ExpandCoordinates(source=Arange())
 
     # no expansion
     o = node.execute(coords)
@@ -117,6 +145,21 @@ if __name__ == '__main__':
 
     # basic spatial expansion
     o = node.execute(coords, params={'lat': (-1, 1, 0.1) })
+    print(o.coords)
+
+    # select node
+    snode = SelectCoordinates(source=Arange())
+
+    # no expansion of select 
+    o = snode.execute(coords)
+    print(o.coords)
+
+    # basic time selection
+    o = snode.execute(coords, params={'time': ('2017-08-01', '2017-09-30', '1,D') })
+    print(o.coords)
+
+    # basic spatial selection
+    o = node.execute(coords, params={'lat': (46, 56, 1) })
     print(o.coords)
 
     # time expansion using native coordinates
@@ -135,7 +178,8 @@ if __name__ == '__main__':
     node = Test()
     o = node.execute(coords)
     print (o.coords)
-
+    
+    # node
     node = ExpandCoordinates(source=Test())
     o = node.execute(coords, params={'time': ('-15,D', '0,D')})
     print (o.coords)
@@ -153,6 +197,14 @@ if __name__ == '__main__':
     print (node.get_expanded_coord('time'))
 
     node.params={'time': ('-144,M', '0,D', '13,M')}  # Behaviour a little strange
+    print (node.get_expanded_coord('time'))
+
+    # select node
+    node = SelectCoordinates(source=Test())
+    o = node.execute(coords, params={'time': ('2011-01-01', '2011-02-01')})
+    print (o.coords)
+
+    node.params={'time': ('2011-01-01', '2017-01-01', '1,Y')}
     print (node.get_expanded_coord('time'))
 
     print ('Done')
