@@ -26,6 +26,10 @@ class Output(tl.HasTraits):
     def write(self):
         raise NotImplementedError
 
+class NoOutput(Output):
+    def write(self):
+        pass
+
 class FileOutput(Output):
     outdir = tl.Unicode()
     format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default='pickle')
@@ -147,9 +151,12 @@ class Pipeline(tl.HasTraits):
         return node_class(**kwargs)
 
     def parse_output(self, d):
+        kwargs = {}
         # modes
         if 'mode' not in d:
             raise PipelineError("output definition requires 'mode' property")
+        elif d['mode'] == 'none':
+            output_class = NoOutput
         elif d['mode'] == 'file':
             output_class = FileOutput
             kwargs = {'outdir': d.get('outdir'), 'format': d['format']}
@@ -174,6 +181,9 @@ class Pipeline(tl.HasTraits):
             refs = [d['node']]
         elif 'nodes' in d:
             refs = d['nodes']
+        elif d['mode'] == 'none':
+            nodes = self.nodes
+            refs = list(nodes.keys()) 
         else:
             raise PipelineError("output definition requires 'node' or 'nodes' property")
         
