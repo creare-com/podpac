@@ -24,4 +24,4 @@ install:
 cache: pip
 
 script:
-  - pytest podpac
+  - pytest podpac --ci
