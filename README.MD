@@ -2,6 +2,8 @@
 
 > Pipeline for Observation Data Processing Analysis and Collaboration
 
+[![Build Status](https://travis-ci.org/creare-com/podpac.svg?branch=develop)](https://travis-ci.org/creare-com/podpac)
+
 The basic premise is that data wranging and processing of geospatial data should be seamless
 so that earth scientists can focus on science. 
 
