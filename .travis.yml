@@ -20,5 +20,8 @@ install:
   - pip install .
   - pip install -r dev-requirements.txt
 
+# cache pip dependencies for faster builds
+cache: pip
+
 script:
   - pytest podpac
