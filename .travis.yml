@@ -11,6 +11,12 @@ python:
   - "3.6"
 
 install:
+  # required for rasterio (https://rasterio.readthedocs.io/en/latest/installation.html#linux)
+  - sudo add-apt-repository ppa:ubuntugis/ppa
+  - sudo apt-get update
+  - sudo apt-get install gdal-bin libgdal-dev
+
+  # install setup.py
   - pip install .
   - pip install -r dev-requirements.txt
 
