@@ -35,10 +35,10 @@ setup(
         'xarray>=0.10',
         'traitlets>=4.3',
         'pint>=0.8',
-        'matplotlib>2.1',
+        'matplotlib>=2.1',
 
         # Requirements for Python 2
-        'future>0.16',
+        'future>=0.16',
 
         # Optional requirements
         'numexpr>=2.6',
