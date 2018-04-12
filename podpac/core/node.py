@@ -387,7 +387,6 @@ class Node(tl.HasTraits):
         data = self.output.data.squeeze()
 
         if np.isnan(vmin):
-
             vmin = np.nanmin(data)
         if np.isnan(vmax):
             vmax = np.nanmax(data)      
