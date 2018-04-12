@@ -1,0 +1,18 @@
+# Travis CI Podpac Build
+# Builds for python 2.x and python 3.x
+# 
+# Useful links:
+# https://docs.travis-ci.com/user/languages/python/
+# https://conda.io/docs/user-guide/tasks/use-conda-with-travis-ci.html
+
+language: python
+python:
+  - "2.7"
+  - "3.6"
+
+install:
+  - pip install .
+  - pip install -r dev-requirements.txt
+
+script:
+  - pytest podpac
