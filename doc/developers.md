@@ -75,11 +75,10 @@ Configuration options are specified in `setup.cfg`
 
 ## Code Coverage
 
-We use `coverage` to monitor code coverage of unit tests. To record coverage while running tests, run:
+We use `pytest-cov` to monitor code coverage of unit tests. To record coverage while running tests, run:
 
 ```bash
-$ coverage run -m pytest        # watch files while testing
-$ coverage report               # display coverage report
+$ pytest --cov=podpac --cov-report html podpac   # outputs html coverage
 ```
 
 
