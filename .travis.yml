@@ -10,6 +10,13 @@ python:
   - "2.7"
   - "3.6"
 
+
+# addons:
+#   # https://docs.travis-ci.com/user/uploading-artifacts/
+#   artifacts:
+#     paths:
+#     - ./artifacts
+
 install:
   # required for rasterio (https://rasterio.readthedocs.io/en/latest/installation.html#linux)
   - sudo add-apt-repository -y ppa:ubuntugis/ppa
