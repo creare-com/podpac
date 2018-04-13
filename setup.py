@@ -35,10 +35,10 @@ setup(
         'xarray>=0.10',
         'traitlets>=4.3',
         'pint>=0.8',
-        'matplotlib>2.1',
+        'matplotlib>=2.1',
 
         # Requirements for Python 2
-        'future>0.16',
+        'future>=0.16',
 
         # Optional requirements
         'numexpr>=2.6',
@@ -47,6 +47,7 @@ setup(
         'requests>=2.18',
         'beautifulsoup4>=4.6',
         'lxml>=4.2',
+        'h5py>=2.7',
 
         # Optional requirements for Esri+ version
         # 'arcpy',

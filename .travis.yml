@@ -1,0 +1,34 @@
+# Travis CI Podpac Build
+# Builds for python 2.x and python 3.x
+# 
+# Useful links:
+# https://docs.travis-ci.com/user/languages/python/
+# https://conda.io/docs/user-guide/tasks/use-conda-with-travis-ci.html
+
+language: python
+python:
+  - "2.7"
+  - "3.6"
+
+
+# addons:
+#   # https://docs.travis-ci.com/user/uploading-artifacts/
+#   artifacts:
+#     paths:
+#     - ./artifacts
+
+install:
+  # required for rasterio (https://rasterio.readthedocs.io/en/latest/installation.html#linux)
+  - sudo add-apt-repository -y ppa:ubuntugis/ppa
+  - sudo apt-get -qq update
+  - sudo apt-get install -y gdal-bin libgdal-dev
+
+  # install setup.py
+  - pip install .
+  - pip install -r dev-requirements.txt
+
+# cache pip dependencies for faster builds
+cache: pip
+
+script:
+  - pytest --ci --junitxml=./artifacts/tests.xml --cov=podpac --cov-report html:./artifacts/coverage podpac

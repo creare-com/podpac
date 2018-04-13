@@ -124,9 +124,15 @@ class Pipeline(tl.HasTraits):
                 if 'inputs' in d:
                     kwargs.update({k:self.nodes[v] for k, v in d['inputs'].items()})
                     whitelist.append('inputs')
+            if PipelineNode in parents:
+                if 'pipeline_json' in d:
+                    kwargs['pipeline_json'] = d['pipeline_json']
+                    whitelist.append('pipeline_json')
+              
             if DataSource not in parents and\
                    Compositor not in parents and\
-                   Algorithm not in parents:
+                   Algorithm not in parents and\
+                   PipelineNode not in parents:
                 raise PipelineError("node '%s' is not a DataSource, Compositor, or Algorithm" % name)
         except KeyError as e:
             raise PipelineError(
@@ -255,8 +261,31 @@ class PipelineNode(Node):
     Todo: shape, native_coordinates, etc
     """
 
-    source_pipeline = tl.Instance(Pipeline, allow_none=False)
+    path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
+    implicit_pipeline_evaluation = tl.Bool(False)
+
     output_node = tl.Unicode()
+    @tl.default('output_node')
+    def _output_node_default(self):
+        return self.definition['outputs'][0]['nodes'][0]
+
+    pipeline_json = tl.Unicode(help="pipeline json definition")
+    @tl.default('pipeline_json')
+    def _pipeline_json_default(self):
+        with open(self.path) as f:
+            pipeline_json = f.read()
+        return pipeline_json
+
+    definition = tl.Instance(OrderedDict, help="pipeline definition")
+    @tl.default('definition')
+    def _definition_default(self):
+        return json.loads(self.pipeline_json, object_pairs_hook=OrderedDict)
+
+    source_pipeline = tl.Instance(Pipeline, allow_none=False)
+    @tl.default('source_pipeline')
+    def _source_pipeline_default(self):
+        return Pipeline(source=self.definition,
+                        implicit_pipeline_evaluation=self.implicit_pipeline_evaluation)
 
     def execute(self, coordinates, params=None, output=None):
         self.coordinates = coordinates

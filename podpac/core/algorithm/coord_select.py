@@ -66,30 +66,22 @@ class ExpandCoordinates(Algorithm):
     def expanded_coordinates(self):
         kwargs = {}
         for dim in self.input_coordinates.dims:
-            kwargs[dim] = self.get_expanded_coord(dim)
+            ec = self.get_expanded_coord(dim)
+            if ec.size == 0:
+                raise ValueError("Expanded/selected coordinates do not"
+                                 " intersect with source data.")
+            kwargs[dim] = ec
         kwargs['order'] = self.input_coordinates.dims
         return Coordinate(**kwargs)
-    
+   
+    def algorithm(self):
+        return self.source.output
+ 
     def execute(self, coordinates, params=None, output=None):
         self.input_coordinates = coordinates
-        self.params = params or {}
-        self.output = output
-
-        self.evaluated_coordinates = self.expanded_coordinates
-
-        if self.output is None:
-            self.output = self.initialize_output_array()
-            
-        result = self.source.execute(self.evaluated_coordinates, params)
-            
-        if self.output.shape is ():
-            self.output.data = result
-        else:
-            self.output[:] = result.transpose(*self.output.dims)
-        
-        self.evaluated = True
-
-        return self.output
+        coordinates = self.expanded_coordinates
+        return super(ExpandCoordinates, self).execute(
+                         coordinates, params, output)
 
 class SelectCoordinates(ExpandCoordinates):
     def get_expanded_coord(self, dim):
