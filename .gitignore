@@ -15,4 +15,4 @@ podpac/cache/
 # test
 .cache
 .coverage
-htmlcov
+artifacts
