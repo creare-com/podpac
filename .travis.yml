@@ -31,4 +31,4 @@ install:
 cache: pip
 
 script:
-  - pytest --ci --junitxml=./artifacts/tests.xml --cov=podpac --cov-report html:./artifacts/coverage podpac
+  - pytest --ci podpac
