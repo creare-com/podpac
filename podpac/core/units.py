@@ -98,6 +98,12 @@ class UnitsDataArray(xr.DataArray):
         
         return super(UnitsDataArray, self).__getitem__(key)
     
+    def part_transpose(self, new_dims):
+        shared_dims = [dim for dim in new_dims if dim in self.dims]
+        self_only_dims = [dim for dim in self.dims if dim not in new_dims]
+        
+        return self.transpose(*shared_dims+self_only_dims)
+    
     def set(self, value, mask):
         # set the UnitsDataArray data to have a particular value, possibly using a mask
         # in general, want to handle cases where value is a single value, an array,
