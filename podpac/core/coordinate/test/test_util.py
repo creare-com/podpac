@@ -52,13 +52,11 @@ class TestCoordUtils(object):
         # numbers
         assert make_coord_value(10.5) == 10.5
         assert make_coord_value(10) == 10.0
-        assert make_coord_value(long(10)) == 10.0
         assert make_coord_value(np.array(10.5)) == 10.5
         assert make_coord_value(np.array([10.5])) == 10.5
 
         assert type(make_coord_value(10.5)) is float
         assert type(make_coord_value(10)) is float
-        assert type(make_coord_value(long(10))) is float
         assert type(make_coord_value(np.array(10.5))) is float
         assert type(make_coord_value(np.array([10.5]))) is float
 
