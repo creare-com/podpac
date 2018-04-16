@@ -86,13 +86,11 @@ class TestCoordUtils(object):
         # numbers
         assert make_coord_delta(10.5) == 10.5
         assert make_coord_delta(10) == 10.0
-        assert make_coord_delta(long(10)) == 10.0
         assert make_coord_delta(np.array(10.5)) == 10.5
         assert make_coord_delta(np.array([10.5])) == 10.5
 
         assert type(make_coord_delta(10.5)) is float
         assert type(make_coord_delta(10)) is float
-        assert type(make_coord_delta(long(10))) is float
         assert type(make_coord_delta(np.array(10.5))) is float
         assert type(make_coord_delta(np.array([10.5]))) is float
 
