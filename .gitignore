@@ -1,4 +1,18 @@
-*.pyc
-podpac.egg-info/
-podpac/cache/
+# ide
+*.sublime-workspace
+*.sublime-project
 .ipynb_checkpoints/
+
+# build
+__pycache__
+*.pyc
+*.zip
+*.rdb
+*.egg-info
+podpac/cache/
+
+
+# test
+.cache
+.coverage
+artifacts

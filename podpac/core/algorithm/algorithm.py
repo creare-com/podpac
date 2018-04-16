@@ -25,7 +25,7 @@ class Algorithm(Node):
             if isinstance(node, Node):
                 if self.implicit_pipeline_evaluation:
                     node.execute(coordinates, params)
-                # accumulate coordniates
+                # accumulate coordinates
                 if coords is None:
                     coords = convert_xarray_to_podpac(node.output.coords)
                 else:
@@ -42,9 +42,9 @@ class Algorithm(Node):
         else:
             dims = [d for d in self.evaluated_coordinates.dims if d in result.dims]
             if self.output is None:
-                self.output = result.transpose(*dims) # is this necessary?
-            else:
-                self.output[:] = result.transpose(*dims) # is this necessary?
+                coords = convert_xarray_to_podpac(result.coords)
+                self.output = self.initialize_coord_array(coords) 
+            self.output[:] = result.transpose(*dims) # is this necessary?
         self.evaluated = True
         return self.output
         
