@@ -48,7 +48,7 @@ class TestCoordinate(object):
         c = Coordinate(lon=0.3, lat=0.25, order=['lat', 'lon'])
         assert c.dims == ['lat', 'lon']
         
-        Coordinate(lon=0.3, lat=0.25, order=['lon', 'lat'])
+        c = Coordinate(lon=0.3, lat=0.25, order=['lon', 'lat'])
         assert c.dims == ['lon', 'lat']
 
     @pytest.mark.skipif(sys.version_info.major < 3, reason="Python 3 required")
