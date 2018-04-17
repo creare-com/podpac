@@ -24,16 +24,25 @@ class TestBaseCoordinate(object):
 
 class TestCoordinate(object):
     @pytest.mark.skipif(sys.version_info.major == 3, reason="Python 2 compatibility")
-    def test_order_required(self):
+    def test_order(self):
+        # required
         with pytest.raises(TypeError):
             Coordinate(lat=0.25, lon=0.3)
 
-        # not required for only one coord
+        # not required
         Coordinate(lat=0.25)
         
-        # not required with OrderedDict coord
+        # not required
         Coordinate(coords=OrderedDict(lat=0.25, lon=0.3))
 
+        # invalid
+        with pytest.raises(ValueError):
+            Coordinate(lon=0.3, lat=0.25, order=['lat', 'lon', 'time'])
+
+        # invalid
+        with pytest.raises(ValueError):
+            Coordinate(lon=0.3, lat=0.25, order=['lat'])
+    
     @pytest.mark.skipif(sys.version_info.major < 3, reason="Python 3 required")
     def test_order_detect(self):
         coord = Coordinate(lat=0.25, lon=0.3)
@@ -41,13 +50,6 @@ class TestCoordinate(object):
 
         coord = Coordinate(lon=0.3, lat=0.25)
         assert coord.dims == ['lon', 'lat']
-
-    def test_order_invalid(self):
-        with pytest.raises(ValueError):
-            Coordinate(lon=0.3, lat=0.25, order=['lat', 'lon', 'time'])
-
-        with pytest.raises(ValueError):
-            Coordinate(lon=0.3, lat=0.25, order=['lat'])
 
     def test_coords_init(self):
         c1 = Coordinate(lat=0.25, lon=0.3, order=['lat', 'lon'])
@@ -71,7 +73,7 @@ class TestCoordinate(object):
         assert coord.is_stacked == False
         assert coord.shape == ()
         assert isinstance(coord.coords, OrderedDict)
-        assert coord.coords.keys() == []
+        assert len(coord.coords.keys()) == 0
         assert isinstance(coord.kwargs, dict)
         assert isinstance(coord.latlon_bounds_str, (unicode, str))
 
@@ -91,7 +93,6 @@ class TestCoordinate(object):
         assert coord.shape == (1, 1)
 
         assert isinstance(coord.coords, OrderedDict)
-        assert coord.coords.keys() == coord.dims
         assert isinstance(coord.coords['lat'], np.ndarray)
         assert isinstance(coord.coords['lon'], np.ndarray)
         np.testing.assert_array_equal(coord.coords['lat'], [0.25])
@@ -109,7 +110,6 @@ class TestCoordinate(object):
         assert coord.shape == (1,)
 
         assert isinstance(coord.coords, OrderedDict)
-        assert coord.coords.keys() == coord.dims
         assert isinstance(coord.coords['time'], np.ndarray)
         np.testing.assert_array_equal(coord.coords['time'], np.datetime64('2018-01-01'))
 
@@ -127,7 +127,6 @@ class TestCoordinate(object):
         assert coord.shape == (1, 1, 1)
 
         assert isinstance(coord.coords, OrderedDict)
-        assert coord.coords.keys() == coord.dims
         assert isinstance(coord.coords['time'], np.ndarray)
         assert isinstance(coord.coords['lat'], np.ndarray)
         assert isinstance(coord.coords['lon'], np.ndarray)
@@ -148,7 +147,6 @@ class TestCoordinate(object):
         assert coord.shape == (1,)
 
         assert isinstance(coord.coords, OrderedDict)
-        assert coord.coords.keys() == coord.dims
         assert isinstance(coord.coords['lat_lon'], np.ndarray)
         np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.25])
         np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3])
@@ -167,7 +165,6 @@ class TestCoordinate(object):
         assert coord.shape == (1, 1)
 
         assert isinstance(coord.coords, OrderedDict)
-        assert coord.coords.keys() == coord.dims
         assert isinstance(coord.coords['time'], np.ndarray)
         assert isinstance(coord.coords['lat_lon'], np.ndarray)
         np.testing.assert_array_equal(coord.coords['time'], np.datetime64('2018-01-01'))
