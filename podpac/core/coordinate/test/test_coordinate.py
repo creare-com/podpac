@@ -24,7 +24,7 @@ class TestBaseCoordinate(object):
             c.intersect(c)
 
 class TestCoordinate(object):
-    @pytest.mark.skipif(sys.version_info.major == 3, reason="Python 2 compatibility")
+    @pytest.mark.skipif(sys.version >= '3.6', reason="Python <3.6 compatibility")
     def test_order(self):
         # required
         with pytest.raises(TypeError):
@@ -51,7 +51,7 @@ class TestCoordinate(object):
         c = Coordinate(lon=0.3, lat=0.25, order=['lon', 'lat'])
         assert c.dims == ['lon', 'lat']
 
-    @pytest.mark.skipif(sys.version_info.major < 3, reason="Python 3 required")
+    @pytest.mark.skipif(sys.version < '3.6', reason="Python >=3.6 required")
     def test_order_detect(self):
         coord = Coordinate(lat=0.25, lon=0.3)
         assert coord.dims == ['lat', 'lon']
@@ -59,9 +59,18 @@ class TestCoordinate(object):
         coord = Coordinate(lon=0.3, lat=0.25)
         assert coord.dims == ['lon', 'lat']
 
+        # in fact, ignore order
+        coord = Coordinate(lon=0.3, lat=0.25, order=['lat', 'lon'])
+        assert coord.dims == ['lon', 'lat']
+
     def test_coords_init(self):
         c1 = Coordinate(lat=0.25, lon=0.3, order=['lat', 'lon'])
-        c2 = Coordinate(coords=OrderedDict(lat=0.25, lon=0.3))
+        
+        coords = OrderedDict()
+        coords['lat'] = 0.25
+        coords['lon'] = 0.3
+        c2 = Coordinate(coords=coords)
+        
         assert c1.dims == c2.dims
         assert c1.coords['lat'] == c2.coords['lat']
         assert c1.coords['lon'] == c2.coords['lon']

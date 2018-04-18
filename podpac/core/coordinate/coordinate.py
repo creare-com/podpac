@@ -60,11 +60,11 @@ class Coordinate(BaseCoordinate):
         """
         bounds is for segment-specification with non-uniform coordinates
         
-        order is required for Python 2.x where the order of kwargs is not
+        order is required for Python <3.6 where the order of kwargs is not
         preserved.
         """
         if coords is None:
-            if sys.version_info.major < 3:
+            if sys.version < '3.6':
                 if order is None:
                     if len(kwargs) > 1:
                         raise TypeError(
