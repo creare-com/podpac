@@ -129,9 +129,7 @@ class Node(tl.HasTraits):
         """
         raise NotImplementedError
     
-    def initialize_output_array(self, init_type='nan', fillval=0, style=None,
-                              no_style=False, shape=None, coords=None,
-                              dims=None, units=None, dtype=np.float, **kwargs):
+    def get_output_coords(self, coords=None):
         # Changes here likely will also require changes in shape
         if coords is None: 
             coords = self.evaluated_coordinates
@@ -141,9 +139,15 @@ class Node(tl.HasTraits):
         # Switching from _trait_values to hasattr because "native_coordinates"
         # not showing up in _trait_values        
         if hasattr(self, "native_coordinates") and self.native_coordinates is not None:
-            crds = self.native_coordinates.replace_coords(coords).coords
+            crds = self.native_coordinates.replace_coords(coords)
         else:
-            crds = coords.coords        
+            crds = coords
+        return crds
+
+    def initialize_output_array(self, init_type='nan', fillval=0, style=None,
+                              no_style=False, shape=None, coords=None,
+                              dims=None, units=None, dtype=np.float, **kwargs):
+        crds = self.get_output_coords(coords).coords
         dims = list(crds.keys())
         return self.initialize_array(init_type, fillval, style, no_style, shape,
                                      crds, dims, units, dtype, **kwargs)
@@ -194,12 +198,12 @@ class Node(tl.HasTraits):
         no_style : bool, optional
             Default is False. If True, self.style will not be assigned to 
             arr.attr['layer_style']
-        shape : tuple, optional
+        shape : tuple
             Shape of array. Uses self.shape by default.
-        coords : dict/list, optional
-            input to UnitsDataArray, uses self.coords by default
-        dims : list(str), optional
-            input to UnitsDataArray, uses self.native_coords.dims by default
+        coords : dict/list
+            input to UnitsDataArray
+        dims : list(str)
+            input to UnitsDataArray
         units : pint.unit.Unit, optional
             Default is self.units The Units for the data contained in the 
             DataArray

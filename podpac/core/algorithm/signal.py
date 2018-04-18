@@ -3,19 +3,67 @@ import traitlets as tl
 import numpy as np
 import xarray as xr
 import scipy.signal
+from collections import OrderedDict
 
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinate import Coordinate, UniformCoord
+from podpac.core.coordinate import add_coord 
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 
 #NOTE: another option for the convolution kernel input would be to accept an
 #      xarray and add and transpose dimensions as necessary.
 
+# NOTE: At the moment this module is quite brittle... it makes assumptions about
+#       the input node (i.e. alt coordinates would likely break this)
+
 class Convolution(Algorithm):
     input_node = tl.Instance(Node)
     kernel = tl.Instance(np.ndarray)
     kernel_type = tl.Unicode()
     kernel_ndim = tl.Int()
+    output_coordinates = tl.Instance(Coordinate)
+    expanded_coordinates = tl.Instance(Coordinate)
+    
+    def execute(self, coordinates, params=None, output=None):
+        self.evaluated_coordinates = coordinates
+        self.params = params
+        self.output = output
+
+        self.output_coordinates = self.input_node.get_output_coords(coordinates)
+
+        # This should be aligned with coordinates' dimension order
+        shape = self.full_kernel.shape
+
+        # expand the coordinates
+        exp_coords = OrderedDict()
+        exp_slice = []
+        for c, s in zip(coordinates._coords, shape):
+            coord = coordinates[c]
+            if s == 1:
+                exp_coords[c] = coord
+                exp_slice.append(slice(None))
+                continue
+            if not isinstance(coord, UniformCoord):
+                exp_slice.append(slice(None))
+                continue
+            s_start = -s // 2 
+            s_end = s // 2 - ((s + 1) % 2)
+            exp_coords[c] = UniformCoord(
+                start=add_coord(coord.start, s_start * coord.delta),
+                stop=add_coord(coord.stop, s_end * coord.delta + 1e-07*coord.delta),
+                delta=coord.delta)
+            exp_slice.append(slice(-s_start, -s_end))
+        exp_coords = Coordinate(exp_coords)
+        self.expanded_coordinates = exp_coords
+        exp_slice = tuple(exp_slice)
+
+        # execute using expanded coordinates
+        out = super(Convolution, self).execute(exp_coords, params, output)
+
+        # reduce down to originally requested coordinates
+        self.output = out[exp_slice]
+
+        return self.output 
 
     @tl.default('kernel')
     def _kernel_default(self):
@@ -57,16 +105,16 @@ class TimeConvolution(Convolution):
 
     @property
     def full_kernel(self):
-        if 'time' not in self.input_node.output.dims:
+        if 'time' not in self.output_coordinates.dims:
             raise ValueError('cannot compute time convolution from'
                              'time-indepedendent input')
-        if 'lat' not in self.input_node.output.dims \
-                and 'lon' not in self.input_node.output.dims:
+        if 'lat' not in self.output_coordinates.dims \
+                and 'lon' not in self.output_coordinates.dims:
             return self.kernel       
  
         kernel = np.array([[self.kernel]])
         kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
-        kernel = kernel.transpose(*self.input_node.output.dims)
+        kernel = kernel.transpose(*self.output_coordinates.dims)
         return kernel.data
 
 class SpatialConvolution(Convolution):
@@ -81,13 +129,12 @@ class SpatialConvolution(Convolution):
 
     @property
     def full_kernel(self):
-        x = self.input_node.output
-        if 'time' not in self.input_node.output.dims:
+        if 'time' not in self.output_coordinates.dims:
             return self.kernel
 
         kernel = np.array([self.kernel])
         kernel = xr.DataArray(kernel, dims=('time', 'lat', 'lon'))
-        kernel = kernel.transpose(*self.input_node.output.dims)
+        kernel = kernel.transpose(*self.output_coordinates.dims)
         return kernel.data
 
 if __name__ == '__main__':
