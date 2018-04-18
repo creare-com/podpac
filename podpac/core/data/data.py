@@ -262,7 +262,7 @@ class DataSource(Node):
         
             reproject(
                 source,
-                destination,
+                destination.squeeze(),  # Needed for legacy compatibility
                 src_transform=src_transform,
                 src_crs=src_crs,
                 src_nodata=np.nan,
