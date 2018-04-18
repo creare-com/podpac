@@ -29,9 +29,11 @@ class Convolution(Algorithm):
         self.params = params
         self.output = output
 
+        # This is needed to get the full_kernel
         self.output_coordinates = self.input_node.get_output_coords(coordinates)
 
         # This should be aligned with coordinates' dimension order
+        # The size of this kernel is used to figure out the expanded size
         shape = self.full_kernel.shape
 
         # expand the coordinates
@@ -48,6 +50,8 @@ class Convolution(Algorithm):
                 continue
             s_start = -s // 2 
             s_end = s // 2 - ((s + 1) % 2)
+            # The 1e-07 is for floating point error because if endpoint is slightly
+            # in front of delta * N then the endpoint is excluded
             exp_coords[c] = UniformCoord(
                 start=add_coord(coord.start, s_start * coord.delta),
                 stop=add_coord(coord.stop, s_end * coord.delta + 1e-07*coord.delta),
