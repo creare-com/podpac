@@ -8,8 +8,8 @@ import podpac
 from podpac import datalib
 from podpac.datalib import smap
 
-@pytest.mark.skipif(pytest.config.getoption("ci"), reason="skipping on ci")
-class TestThreaded(unittest.TestCase):
+class TestCompositor(object):
+    @pytest.mark.skip(reason="unfinished")
     def test_threaded(self):
         datalib.smap.SMAP_PRODUCT_MAP.product.data.tolist()
 
@@ -27,5 +27,6 @@ class TestThreaded(unittest.TestCase):
         smap.threaded = True
         output = smap.execute(coordinates_point)
         smap.threaded = False
-        print ("MIN, MAX = ", output.min().item(), output.max().item())
-        output.plot()
+
+class TestOrderedCompositor(object):
+    pass

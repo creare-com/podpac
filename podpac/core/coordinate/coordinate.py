@@ -75,7 +75,14 @@ class Coordinate(BaseCoordinate):
                 
                 coords = OrderedDict()
                 for k in order:
+                    if k not in kwargs:
+                        raise ValueError("Unexpected dimension '%s' in 'order'" % k)
                     coords[k] = kwargs[k]
+
+                for k in kwargs:
+                    if k not in order:
+                        raise ValueError("Missing dimension '%s' in 'order'" % k)
+
             else:
                 coords = OrderedDict(kwargs)
         elif not isinstance(coords, OrderedDict):
@@ -355,7 +362,7 @@ class Coordinate(BaseCoordinate):
             else:
                 shape.append(self._coords[k].size)
 
-        return shape
+        return tuple(shape)
         
     @property
     def shape(self):

@@ -1,3 +1,7 @@
+"""
+Utilities functions for handling podpac coordinates.
+"""
+
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import datetime
@@ -260,7 +264,7 @@ def _replace_safe(dt, year=None, month=None):
         year = dt.year
     if month is None:
         month = dt.month
-    
+
     year = year + (month-1) // 12
     month = (month-1) % 12 + 1
     day = min(dt.day, calendar.monthrange(year, month)[1])
