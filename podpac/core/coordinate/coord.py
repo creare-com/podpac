@@ -882,8 +882,10 @@ class UniformCoord(BaseCoord):
     epsg = tl.Any() # TODO
 
     def __init__(self, start, stop, delta, epsg=None, **kwargs):
-        super(UniformCoord, self).__init__(
-            start=start, stop=stop, delta=delta, epsg=epsg, **kwargs)
+        self.start = start
+        self.stop = stop
+        self.delta = delta
+        super(UniformCoord, self).__init__(epsg=epsg, **kwargs)
 
         if self.is_datetime and not isinstance(self.delta, np.timedelta64):
             raise TypeError("delta must a timedelta for datetime coords")
