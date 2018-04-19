@@ -9,6 +9,9 @@ from six import string_types
 
 from podpac.core.coordinate import Coordinate, CoordinateGroup
 
+def allclose_structured(a, b):
+    return all(np.allclose(a[name], b) for name in a.dtype.names)
+
 class TestBaseCoordinate(object):
     def test_abstract_methods(self):
         from podpac.core.coordinate import BaseCoordinate
@@ -98,8 +101,8 @@ class TestCoordinate(object):
         coord = Coordinate(lat=0.25, lon=0.3, order=['lat', 'lon'])
         
         self._common_checks(coord, ['lat', 'lon'], (1, 1), False)
-        np.testing.assert_array_equal(coord.coords['lat'], [0.25])
-        np.testing.assert_array_equal(coord.coords['lon'], [0.3])
+        np.testing.assert_allclose(coord.coords['lat'], [0.25])
+        np.testing.assert_allclose(coord.coords['lon'], [0.3])
 
     def test_coords_single_datetime(self):
         coord = Coordinate(time='2018-01-01')
@@ -111,8 +114,8 @@ class TestCoordinate(object):
         coord = Coordinate(lat=0.25, lon=0.3, time='2018-01-01', order=['lat', 'lon', 'time'])
         
         self._common_checks(coord, ['lat', 'lon', 'time'], (1, 1, 1), False)
-        np.testing.assert_array_equal(coord.coords['lat'], [0.25])
-        np.testing.assert_array_equal(coord.coords['lon'], [0.3])
+        np.testing.assert_allclose(coord.coords['lat'], [0.25])
+        np.testing.assert_allclose(coord.coords['lon'], [0.3])
         np.testing.assert_array_equal(coord.coords['time'], np.datetime64('2018-01-01'))
 
     def test_coords_single_latlon_stacked(self):
@@ -121,8 +124,8 @@ class TestCoordinate(object):
         self._common_checks(coord, ['lat_lon'], (1,), True)
         assert coord.dims_map['lat'] == 'lat_lon'
         assert coord.dims_map['lon'] == 'lat_lon'
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.25])
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3])
+        np.testing.assert_allclose(coord.coords['lat_lon']['lat'], [0.25])
+        np.testing.assert_allclose(coord.coords['lat_lon']['lon'], [0.3])
 
     def test_coords_single_time_dependent_stacked(self):
         coord = Coordinate(lat_lon=[0.25, 0.3], time='2018-01-01', order=['lat_lon', 'time'])
@@ -131,23 +134,25 @@ class TestCoordinate(object):
         assert coord.dims_map['lat'] == 'lat_lon'
         assert coord.dims_map['lon'] == 'lat_lon'
         assert coord.dims_map['time'] == 'time'
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.25])
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3])
+        np.testing.assert_allclose(coord.coords['lat_lon']['lat'], [0.25])
+        np.testing.assert_allclose(coord.coords['lat_lon']['lon'], [0.3])
         np.testing.assert_array_equal(coord.coords['time'], np.datetime64('2018-01-01'))
 
     def test_coords_latlon_coord(self):
         coord = Coordinate(lat=[0.2, 0.4, 0.5], lon=[0.3, -0.1], order=['lat', 'lon'])
         
         self._common_checks(coord, ['lat', 'lon'], (3, 2), False)
-        np.testing.assert_array_equal(coord.coords['lat'], [0.2, 0.4, 0.5])
-        np.testing.assert_array_equal(coord.coords['lon'], [0.3, -0.1])
+        np.testing.assert_allclose(coord.coords['lat'], [0.2, 0.4, 0.5])
+        np.testing.assert_allclose(coord.coords['lon'], [0.3, -0.1])
 
     def test_coords_latlon_coord_stacked(self):
         coord = Coordinate(lat_lon=[[0.2, 0.4, 0.5], [0.3, -0.1, 0.2]])
         
         self._common_checks(coord, ['lat_lon'], (3,), True)
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.2, 0.4, 0.5])
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3, -0.1, 0.2])
+        assert coord.dims_map['lat'] == 'lat_lon'
+        assert coord.dims_map['lon'] == 'lat_lon'
+        np.testing.assert_allclose(coord.coords['lat_lon']['lat'], [0.2, 0.4, 0.5])
+        np.testing.assert_allclose(coord.coords['lat_lon']['lon'], [0.3, -0.1, 0.2])
 
     def test_coords_datetime_coord(self):
         coord = Coordinate(time=['2018-01-01', '2018-01-02', '2018-02-01'])
@@ -164,23 +169,65 @@ class TestCoordinate(object):
             order=['lat_lon', 'time'])
         
         self._common_checks(coord, ['lat_lon', 'time'], (3, 3), True)
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.2, 0.4, 0.5])
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3, -0.1, 0.2])
+        assert coord.dims_map['lat'] == 'lat_lon'
+        assert coord.dims_map['lon'] == 'lat_lon'
+        assert coord.dims_map['time'] == 'time'
+        np.testing.assert_allclose(coord.coords['lat_lon']['lat'], [0.2, 0.4, 0.5])
+        np.testing.assert_allclose(coord.coords['lat_lon']['lon'], [0.3, -0.1, 0.2])
         np.testing.assert_array_equal(
             coord.coords['time'],
             np.array(['2018-01-01', '2018-01-02', '2018-02-01']).astype(np.datetime64))
 
-    def test_coords_latlon_uniform(self):
-        pass
+    def test_coords_latlon_uniform_num(self):
+        coord = Coordinate(lat=(0.1, 0.4, 4), lon=(-0.3, -0.1, 3), order=['lat', 'lon'])
+        
+        self._common_checks(coord, ['lat', 'lon'], (4, 3), False)
+        np.testing.assert_allclose(coord.coords['lat'], [0.1, 0.2, 0.3, 0.4])
+        np.testing.assert_allclose(coord.coords['lon'], [-0.3, -0.2, -0.1])
+        
+    def test_coords_latlon_uniform_step(self):
+        coord = Coordinate(lat=(0.1, 0.4, 0.1), lon=(-0.3, -0.1, 0.1), order=['lat', 'lon'])
+        
+        self._common_checks(coord, ['lat', 'lon'], (4, 3), False)
+        np.testing.assert_allclose(coord.coords['lat'], [0.1, 0.2, 0.3, 0.4])
+        np.testing.assert_allclose(coord.coords['lon'], [-0.3, -0.2, -0.1])
 
     def test_coords_latlon_uniform_stacked(self):
-        pass
+        coord = Coordinate(lat_lon=[(0.1, 0.4), (-0.3, -0.0), 4])
+        
+        self._common_checks(coord, ['lat_lon'], (4,), True)
+        assert coord.dims_map['lat'] == 'lat_lon'
+        assert coord.dims_map['lon'] == 'lat_lon'
+        np.testing.assert_allclose(coord.coords['lat_lon']['lat'], [0.1, 0.2, 0.3, 0.4])
+        np.testing.assert_allclose(coord.coords['lat_lon']['lon'], [-0.3, -0.2, -0.1, 0.0])
 
-    def test_coords_datetime_uniform(self):
-        pass
+        # step not allowed
+        with pytest.raises(TypeError):
+            Coordinate(lat_lon=[(0.1, 0.4), (-0.3, -0.0), 0.1])
 
-    def test_coords_time_dependent_uniform_stacked(self):
-        pass
+        # timedelta not allowed
+        with pytest.raises(TypeError):
+            Coordinate(lat_lon=[(0.1, 0.4), (-0.3, -0.0), np.timedelta64(1, 'D')])
+
+        # size required
+        with pytest.raises(ValueError):
+            Coordinate(lat_lon=[(0.1, 0.4), (-0.3, -0.0)])
+
+    def test_coords_datetime_uniform_num(self):
+        coord = Coordinate(time=('2018-01-01', '2018-01-03', 3))
+
+        self._common_checks(coord, ['time'], (3,), False)
+        np.testing.assert_array_equal(
+            coord.coords['time'],
+            np.array(['2018-01-01', '2018-01-02', '2018-01-03']).astype(np.datetime64))
+
+    def test_coords_datetime_uniform_step(self):
+        coord = Coordinate(time=('2018-01-01', '2018-01-03', '1,D'))
+
+        self._common_checks(coord, ['time'], (3,), False)
+        np.testing.assert_array_equal(
+            coord.coords['time'],
+            np.array(['2018-01-01', '2018-01-02', '2018-01-03']).astype(np.datetime64))
 
     def test_coords_time_dependent_mixed(self):
         pass
@@ -211,8 +258,8 @@ class TestCoordinate(object):
         coord = Coordinate(lat=Coord([0.2, 0.4, 0.5]), lon=[0.3, -0.1], order=['lat', 'lon'])
         
         self._common_checks(coord, ['lat', 'lon'], (3, 2), False)
-        np.testing.assert_array_equal(coord.coords['lat'], [0.2, 0.4, 0.5])
-        np.testing.assert_array_equal(coord.coords['lon'], [0.3, -0.1])
+        np.testing.assert_allclose(coord.coords['lat'], [0.2, 0.4, 0.5])
+        np.testing.assert_allclose(coord.coords['lon'], [0.3, -0.1])
 
     def test_coords_invalid(self):
         pass
@@ -221,26 +268,26 @@ class TestCoordinate(object):
     def test_unstacked_regular(self):
         coord = Coordinate(lat=(0, 1, 4), lon=(0, 1, 4), 
                            order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         coord = Coordinate(lat=[0, 1, 4], lon=[0, 1, 4], 
                            order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         coord = Coordinate(lat=(0, 1, 1/4), lon=(0, 1, 1/4), 
                            order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         coord = Coordinate(lat=[0, 1, 1/4], lon=[0, 1, 1/4], 
                            order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         
     @pytest.mark.skip(reason="coordinate refactor")
     def test_unstacked_irregular(self):
         coord = Coordinate(lat=np.linspace(0, 1, 4), lon=np.linspace(0, 1, 4),
                            order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         
     @pytest.mark.skip(reason="coordinate refactor")
@@ -253,26 +300,26 @@ class TestCoordinate(object):
                 np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5))[0], 
                 dims=['lat', 'lon']),
             order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         
     @pytest.mark.skip(reason="coordinate refactor")
     def test_stacked_regular(self):
         coord = Coordinate(lat=((0, 0), (1, -1), 4), lon=((0, 0), (1, -1), 4),
                            order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         coord = Coordinate(lat=[(0, 0), (1, -1), 4], lon=[(0, 0), (1, -1), 4],
                            order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         coord = Coordinate(lat=((0, 0), (1, -1), 1/4), lon=((0, 0), (1, -1), 1/4),
                            order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         coord = Coordinate(lat=[(0, 0), (1, -1), 1/4], lon=[(0, 0), (1, -1), 1/4],
                            order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         
     @pytest.mark.skip(reason="coordinate refactor")
@@ -282,7 +329,7 @@ class TestCoordinate(object):
                            lon=np.column_stack((np.linspace(0, 1, 4),
                                               np.linspace(0, -1, 4))),
                            order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         
     @pytest.mark.skip(reason="coordinate refactor")
@@ -306,7 +353,7 @@ class TestCoordinate(object):
                 
                 ], 
             order=['lat', 'lon'])
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))        
         coord = Coordinate(
             lat=xr.DataArray(np.meshgrid(np.linspace(0, 1, 4), np.linspace(0, -1, 5)),
@@ -315,7 +362,7 @@ class TestCoordinate(object):
                          dims=['stack', 'lat-lon', 'time']), 
             order=['lat', 'lon']
         )
-        np.testing.assert_array_equal(np.array(coord.intersect(coord)._coords['lat'].bounds),
+        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))
 
 class TestCoordIntersection(object):
@@ -328,16 +375,16 @@ class TestCoordIntersection(object):
         coord_cover = Coord(coords=(-2, 13, 15))
         
         c = coord.intersect(coord).coordinates
-        np.testing.assert_array_equal(c, coord.coordinates)
+        np.testing.assert_allclose(c, coord.coordinates)
         c = coord.intersect(coord_cover).coordinates
-        np.testing.assert_array_equal(c, coord.coordinates)        
+        np.testing.assert_allclose(c, coord.coordinates)        
         
         c = coord.intersect(coord_left).coordinates
-        np.testing.assert_array_equal(c, coord.coordinates[:8])                
+        np.testing.assert_allclose(c, coord.coordinates[:8])                
         c = coord.intersect(coord_right).coordinates
-        np.testing.assert_array_equal(c, coord.coordinates[2:])
+        np.testing.assert_allclose(c, coord.coordinates[2:])
         c = coord.intersect(coord_cent).coordinates
-        np.testing.assert_array_equal(c, coord.coordinates[2:8])
+        np.testing.assert_allclose(c, coord.coordinates[2:8])
 
 class TestCoordinateGroup(object):
     def test_init(self):
@@ -360,7 +407,7 @@ class TestCoordinateGroup(object):
             order=('time', 'lat', 'lon'))
 
         c4 = Coordinate(
-            lat_lon=((0, 10, 5), (0, 20, 5)),
+            lat_lon=((0, 10), (0, 20), 5),
             time='2018-01-01',
             order=('lat_lon', 'time'))
 
@@ -445,7 +492,7 @@ class TestCoordinateGroup(object):
             order=('time', 'lat', 'lon'))
 
         c4 = Coordinate(
-            lat_lon=((0, 10, 5), (0, 20, 5)),
+            lat_lon=((0, 10), (0, 20), 5),
             time='2018-01-01',
             order=('lat_lon', 'time'))
 

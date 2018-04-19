@@ -103,7 +103,8 @@ class Coordinate(BaseCoordinate):
 
             # make coord helper
             if isinstance(val, tuple):
-                if isinstance(val[2], (int, np.long, np.integer)) and not isinstance(val[2],(np.timedelta64)):
+                if (isinstance(val[2], (int, np.long, np.integer)) and
+                    not isinstance(val[2], (np.timedelta64))):
                     _coords[key] = coord_linspace(*val, **kw)
                 else:
                     _coords[key] = UniformCoord(*val, **kw)
@@ -181,6 +182,17 @@ class Coordinate(BaseCoordinate):
                 keys = key.split('_')
                 for i, k in enumerate(keys):
                     new_crds[k] = val[i]
+
+                    # parse uniform coords tuple and append size
+                    if isinstance(val[i], tuple):
+                        if len(val) != len(keys) + 1:
+                            raise ValueError("missing size for stacked uniform coordinates")
+                        if (not isinstance(val[-1], (int, np.long, np.integer)) or
+                            isinstance(val[-1], (np.timedelta64))):
+                            raise TypeError("invalid size for stacked uniform coordinates \
+                                             (expected integer, not '%s')" % type(val[-1]))
+                        new_crds[k] += (val[-1],)
+                    
                     if check_dim_repeat and k in seen_dims:
                         raise ValueError(
                             "The dimension '%s' cannot be repeated." % dim)

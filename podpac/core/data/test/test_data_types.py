@@ -56,7 +56,7 @@ class TestBasicInterpolation(object):
         
     @pytest.mark.skip(reason="coordinate refactor")
     def test_raster_to_points(self):
-        coord_dst = podpac.Coordinate(lat_lon=((5., -68, 60), (40., -66, 60)))
+        coord_dst = podpac.Coordinate(lat_lon=((5., -68), (40., -66), 60))
         oLat = self.nasLat.execute(coord_dst)
         oLon = self.nasLon.execute(coord_dst)
         
