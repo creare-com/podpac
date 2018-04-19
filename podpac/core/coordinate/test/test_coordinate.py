@@ -63,7 +63,132 @@ class TestCoordinate(object):
         coord = Coordinate(lon=0.3, lat=0.25, order=['lat', 'lon'])
         assert coord.dims == ['lon', 'lat']
 
-    def test_coords_init(self):
+    def _common_checks(self, coord, expected_dims, expected_shape, stacked):
+        # note: check stacked dims_map manually
+
+        assert coord.dims == expected_dims
+        assert coord.shape == expected_shape
+        assert coord.is_stacked == stacked
+        
+        # dims map and coords
+        assert isinstance(coord.dims_map, dict)
+        assert isinstance(coord.coords, OrderedDict)
+        for dim in expected_dims:
+            if not coord.is_stacked:
+                assert coord.dims_map[dim] == dim
+            assert isinstance(coord.coords[dim], np.ndarray)
+
+        # additional properties
+        assert isinstance(coord.kwargs, dict)
+        assert isinstance(coord.latlon_bounds_str, string_types)
+
+    def test_coords_empty(self):
+        coord = Coordinate()
+        
+        self._common_checks(coord, [], (), False)
+        assert len(coord.dims_map.keys()) == 0
+        assert len(coord.coords.keys()) == 0
+
+        assert coord.ctype == 'segment' # TODO move
+        assert coord.segment_position == 0.5 # TODO move
+        assert coord.coord_ref_sys == 'WGS84' # TODO move
+        assert coord.gdal_crs == 'EPSG:4326' # TODO move
+
+    def test_coords_single_latlon(self):
+        coord = Coordinate(lat=0.25, lon=0.3, order=['lat', 'lon'])
+        
+        self._common_checks(coord, ['lat', 'lon'], (1, 1), False)
+        np.testing.assert_array_equal(coord.coords['lat'], [0.25])
+        np.testing.assert_array_equal(coord.coords['lon'], [0.3])
+
+    def test_coords_single_datetime(self):
+        coord = Coordinate(time='2018-01-01')
+
+        self._common_checks(coord, ['time'], (1,), False)
+        np.testing.assert_array_equal(coord.coords['time'], np.datetime64('2018-01-01'))
+
+    def test_coords_single_time_dependent(self):
+        coord = Coordinate(lat=0.25, lon=0.3, time='2018-01-01', order=['lat', 'lon', 'time'])
+        
+        self._common_checks(coord, ['lat', 'lon', 'time'], (1, 1, 1), False)
+        np.testing.assert_array_equal(coord.coords['lat'], [0.25])
+        np.testing.assert_array_equal(coord.coords['lon'], [0.3])
+        np.testing.assert_array_equal(coord.coords['time'], np.datetime64('2018-01-01'))
+
+    def test_coords_single_latlon_stacked(self):
+        coord = Coordinate(lat_lon=[0.25, 0.3])
+        
+        self._common_checks(coord, ['lat_lon'], (1,), True)
+        assert coord.dims_map['lat'] == 'lat_lon'
+        assert coord.dims_map['lon'] == 'lat_lon'
+        np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.25])
+        np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3])
+
+    def test_coords_single_time_dependent_stacked(self):
+        coord = Coordinate(lat_lon=[0.25, 0.3], time='2018-01-01', order=['lat_lon', 'time'])
+        
+        self._common_checks(coord, ['lat_lon', 'time'], (1, 1), True)
+        assert coord.dims_map['lat'] == 'lat_lon'
+        assert coord.dims_map['lon'] == 'lat_lon'
+        assert coord.dims_map['time'] == 'time'
+        np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.25])
+        np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3])
+        np.testing.assert_array_equal(coord.coords['time'], np.datetime64('2018-01-01'))
+
+    def test_coords_latlon_coord(self):
+        coord = Coordinate(lat=[0.2, 0.4, 0.5], lon=[0.3, -0.1], order=['lat', 'lon'])
+        
+        self._common_checks(coord, ['lat', 'lon'], (3, 2), False)
+        np.testing.assert_array_equal(coord.coords['lat'], [0.2, 0.4, 0.5])
+        np.testing.assert_array_equal(coord.coords['lon'], [0.3, -0.1])
+
+    def test_coords_latlon_coord_stacked(self):
+        coord = Coordinate(lat_lon=[[0.2, 0.4, 0.5], [0.3, -0.1, 0.2]])
+        
+        self._common_checks(coord, ['lat_lon'], (3,), True)
+        np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.2, 0.4, 0.5])
+        np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3, -0.1, 0.2])
+
+    def test_coords_datetime_coord(self):
+        coord = Coordinate(time=['2018-01-01', '2018-01-02', '2018-02-01'])
+
+        self._common_checks(coord, ['time'], (3,), False)
+        np.testing.assert_array_equal(
+            coord.coords['time'],
+            np.array(['2018-01-01', '2018-01-02', '2018-02-01']).astype(np.datetime64))
+
+    def test_coords_time_dependent_coord_stacked(self):
+        coord = Coordinate(
+            lat_lon=[[0.2, 0.4, 0.5], [0.3, -0.1, 0.2]],
+            time=['2018-01-01', '2018-01-02', '2018-02-01'],
+            order=['lat_lon', 'time'])
+        
+        self._common_checks(coord, ['lat_lon', 'time'], (3, 3), True)
+        np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.2, 0.4, 0.5])
+        np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3, -0.1, 0.2])
+        np.testing.assert_array_equal(
+            coord.coords['time'],
+            np.array(['2018-01-01', '2018-01-02', '2018-02-01']).astype(np.datetime64))
+
+    def test_coords_latlon_uniform(self):
+        pass
+
+    def test_coords_latlon_uniform_stacked(self):
+        pass
+
+    def test_coords_datetime_uniform(self):
+        pass
+
+    def test_coords_time_dependent_uniform_stacked(self):
+        pass
+
+    def test_coords_time_dependent_mixed(self):
+        pass
+
+    def test_coords_time_dependent_mixed_stacked(self):
+        pass
+
+    def test_coords_explicit_coords(self):
         c1 = Coordinate(lat=0.25, lon=0.3, order=['lat', 'lon'])
         
         coords = OrderedDict()
@@ -81,115 +206,17 @@ class TestCoordinate(object):
         with pytest.raises(TypeError):
             Coordinate(coords={'lat': 0.25, 'lon': 0.3})
 
-    def test_empty(self):
-        coord = Coordinate()
+    def test_coords_explicit_coord(self):
+        from podpac.core.coordinate import Coord
+        coord = Coordinate(lat=Coord([0.2, 0.4, 0.5]), lon=[0.3, -0.1], order=['lat', 'lon'])
         
-        assert coord.dims == []
-        assert isinstance(coord.dims_map, OrderedDict)
-        assert len(coord.dims_map.keys()) == 0
-        assert coord.is_stacked == False
-        assert coord.shape == ()
-        assert isinstance(coord.coords, OrderedDict)
-        assert len(coord.coords.keys()) == 0
-        assert isinstance(coord.kwargs, dict)
-        assert isinstance(coord.latlon_bounds_str, string_types)
+        self._common_checks(coord, ['lat', 'lon'], (3, 2), False)
+        np.testing.assert_array_equal(coord.coords['lat'], [0.2, 0.4, 0.5])
+        np.testing.assert_array_equal(coord.coords['lon'], [0.3, -0.1])
 
-        assert coord.ctype == 'segment' # TODO move
-        assert coord.segment_position == 0.5 # TODO move
-        assert coord.coord_ref_sys == 'WGS84' # TODO move
-        assert coord.gdal_crs == 'EPSG:4326' # TODO move
+    def test_coords_invalid(self):
+        pass
 
-    def test_single_latlon(self):
-        coord = Coordinate(lat=0.25, lon=0.3, order=['lat', 'lon'])
-        
-        assert coord.dims == ['lat', 'lon']
-        assert coord.dims_map['lat'] == 'lat'
-        assert coord.dims_map['lon'] == 'lon'
-        assert coord.is_stacked == False
-        
-        assert coord.shape == (1, 1)
-
-        assert isinstance(coord.coords, OrderedDict)
-        assert isinstance(coord.coords['lat'], np.ndarray)
-        assert isinstance(coord.coords['lon'], np.ndarray)
-        np.testing.assert_array_equal(coord.coords['lat'], [0.25])
-        np.testing.assert_array_equal(coord.coords['lon'], [0.3])
-
-        assert isinstance(coord.latlon_bounds_str, string_types)
-
-    def test_single_datetime(self):
-        coord = Coordinate(time='2018-01-01')
-        
-        assert coord.dims == ['time']
-        assert coord.dims_map['time'] == 'time'
-        assert coord.is_stacked == False
-        
-        assert coord.shape == (1,)
-
-        assert isinstance(coord.coords, OrderedDict)
-        assert isinstance(coord.coords['time'], np.ndarray)
-        np.testing.assert_array_equal(coord.coords['time'], np.datetime64('2018-01-01'))
-
-        assert isinstance(coord.latlon_bounds_str, string_types)
-
-    def test_single_time_dependent(self):
-        coord = Coordinate(lat=0.25, lon=0.3, time='2018-01-01', order=['lat', 'lon', 'time'])
-        
-        assert coord.dims == ['lat', 'lon', 'time']
-        assert coord.dims_map['lat'] == 'lat'
-        assert coord.dims_map['lon'] == 'lon'
-        assert coord.dims_map['time'] == 'time'
-        assert coord.is_stacked == False
-        
-        assert coord.shape == (1, 1, 1)
-
-        assert isinstance(coord.coords, OrderedDict)
-        assert isinstance(coord.coords['lat'], np.ndarray)
-        assert isinstance(coord.coords['lon'], np.ndarray)
-        assert isinstance(coord.coords['time'], np.ndarray)
-        np.testing.assert_array_equal(coord.coords['lat'], [0.25])
-        np.testing.assert_array_equal(coord.coords['lon'], [0.3])
-        np.testing.assert_array_equal(coord.coords['time'], np.datetime64('2018-01-01'))
-
-        assert isinstance(coord.latlon_bounds_str, string_types)
-
-    def test_single_latlon_stacked(self):
-        coord = Coordinate(lat_lon=[0.25, 0.3])
-        
-        assert coord.dims == ['lat_lon']
-        assert coord.dims_map['lat'] == 'lat_lon'
-        assert coord.dims_map['lon'] == 'lat_lon'
-        assert coord.is_stacked == True
-        
-        assert coord.shape == (1,)
-
-        assert isinstance(coord.coords, OrderedDict)
-        assert isinstance(coord.coords['lat_lon'], np.ndarray)
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.25])
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3])
-
-        assert isinstance(coord.latlon_bounds_str, string_types)
-
-    def test_single_time_dependent_stacked(self):
-        coord = Coordinate(lat_lon=[0.25, 0.3], time='2018-01-01', order=['lat_lon', 'time'])
-        
-        assert coord.dims == ['lat_lon', 'time']
-        assert coord.dims_map['lat'] == 'lat_lon'
-        assert coord.dims_map['lon'] == 'lat_lon'
-        assert coord.dims_map['time'] == 'time'
-        assert coord.is_stacked == True
-        
-        assert coord.shape == (1, 1)
-
-        assert isinstance(coord.coords, OrderedDict)
-        assert isinstance(coord.coords['lat_lon'], np.ndarray)
-        assert isinstance(coord.coords['time'], np.ndarray)
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lat'], [0.25])
-        np.testing.assert_array_equal(coord.coords['lat_lon']['lon'], [0.3])
-        np.testing.assert_array_equal(coord.coords['time'], np.datetime64('2018-01-01'))
-
-        assert isinstance(coord.latlon_bounds_str, string_types)
-    
     @pytest.mark.skip(reason="coordinate refactor")
     def test_unstacked_regular(self):
         coord = Coordinate(lat=(0, 1, 4), lon=(0, 1, 4), 
