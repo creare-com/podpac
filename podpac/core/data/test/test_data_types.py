@@ -54,7 +54,7 @@ class TestBasicInterpolation(object):
         np.testing.assert_array_almost_equal(oLat.data[..., 0], LAT)
         np.testing.assert_array_almost_equal(oLon.data[..., 0], LON)
         
-    @pytest.mark.skip(reason="coordinate refactor")
+    @pytest.mark.xfail(reason="coordinate refactor")
     def test_raster_to_points(self):
         coord_dst = podpac.Coordinate(lat_lon=((5., -68), (40., -66), 60))
         oLat = self.nasLat.execute(coord_dst)
