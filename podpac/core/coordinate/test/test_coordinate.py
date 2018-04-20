@@ -154,6 +154,10 @@ class TestCoordinate(object):
         np.testing.assert_allclose(coord.coords['lat_lon']['lat'], [0.2, 0.4, 0.5])
         np.testing.assert_allclose(coord.coords['lat_lon']['lon'], [0.3, -0.1, 0.2])
 
+        # length must match
+        with pytest.raises(ValueError):
+            Coordinate(lat_lon=[[0.2, 0.4, 0.5], [0.3, -0.1]])
+
     def test_coords_datetime_coord(self):
         coord = Coordinate(time=['2018-01-01', '2018-01-02', '2018-02-01'])
 
@@ -229,29 +233,27 @@ class TestCoordinate(object):
             coord.coords['time'],
             np.array(['2018-01-01', '2018-01-02', '2018-01-03']).astype(np.datetime64))
 
-    def test_coords_time_dependent_mixed(self):
-        pass
-
-    def test_coords_time_dependent_mixed_stacked(self):
-        pass
-
     def test_coords_explicit_coords(self):
-        c1 = Coordinate(lat=0.25, lon=0.3, order=['lat', 'lon'])
+        from podpac.core.coordinate import Coord
+        c1 = Coordinate(lat=[0.25, 0.35], lon=[0.3, 0.4], order=['lat', 'lon'])
         
         coords = OrderedDict()
-        coords['lat'] = 0.25
-        coords['lon'] = 0.3
+        coords['lat'] = [0.25, 0.35]
+        coords['lon'] = Coord([0.3, 0.4])
         c2 = Coordinate(coords=coords)
         
         assert c1.dims == c2.dims
-        assert c1.coords['lat'] == c2.coords['lat']
-        assert c1.coords['lon'] == c2.coords['lon']
+        np.testing.assert_allclose(c1.coords['lat'], c2.coords['lat'])
+        np.testing.assert_allclose(c1.coords['lon'], c2.coords['lon'])
         
         with pytest.raises(TypeError):
             Coordinate(coords=[0.25])
 
         with pytest.raises(TypeError):
             Coordinate(coords={'lat': 0.25, 'lon': 0.3})
+
+        # invalid value
+        # TODO how to trigger the TypeError in _validate_val
 
     def test_coords_explicit_coord(self):
         from podpac.core.coordinate import Coord
@@ -261,8 +263,27 @@ class TestCoordinate(object):
         np.testing.assert_allclose(coord.coords['lat'], [0.2, 0.4, 0.5])
         np.testing.assert_allclose(coord.coords['lon'], [0.3, -0.1])
 
-    def test_coords_invalid(self):
-        pass   
+    def test_coords_explicit_coord_stacked(self):
+        from podpac.core.coordinate import Coord
+        coord = Coordinate(lat_lon=[Coord([0.2, 0.4, 0.5]), Coord([0.3, -0.1, 0.2])])
+        
+        self._common_checks(coord, ['lat_lon'], (3,), True)
+        assert coord.dims_map['lat'] == 'lat_lon'
+        assert coord.dims_map['lon'] == 'lat_lon'
+        np.testing.assert_allclose(coord.coords['lat_lon']['lat'], [0.2, 0.4, 0.5])
+        np.testing.assert_allclose(coord.coords['lat_lon']['lon'], [0.3, -0.1, 0.2])
+
+        # length must match
+        with pytest.raises(ValueError):
+            coord = Coordinate(lat_lon=[Coord([0.2, 0.4, 0.5]), Coord([0.3, -0.1])])
+
+    def test_coords_invalid_dims(self):
+        # invalid dimension
+        with pytest.raises(ValueError):
+            coord = Coordinate(abc=[0.2, 0.4, 0.5])
+
+        # repeated dimension
+        # TODO how to trigger the repeated dim ValueError in _validate_dim
         
     @pytest.mark.skip(reason="coordinate refactor")
     def test_unstacked_dependent(self):
@@ -331,7 +352,7 @@ class TestCoordIntersection(object):
         c = coord.intersect(coord_cent).coordinates
         np.testing.assert_allclose(c, coord.coordinates[2:8])
 
-@pytest.mark.skip(reason="jxm")
+@pytest.mark.skip(reason="new/experimental feature; spec uncertain")
 class TestCoordinateGroup(object):
     def test_init(self):
         c1 = Coordinate(
