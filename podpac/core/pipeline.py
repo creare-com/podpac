@@ -52,9 +52,12 @@ class ImageOutput(Output):
     image = tl.Bytes()
 
     def write(self):
-        self.image = self.node.get_image(format=self.format,
-                                         vmin=self.vmin,
-                                         vmax=self.vmax)
+        try:
+            self.image = self.node.get_image(format=self.format,
+                                             vmin=self.vmin,
+                                             vmax=self.vmax)
+        except:
+            pass
 
 class Pipeline(tl.HasTraits):
     path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
@@ -286,6 +289,10 @@ class PipelineNode(Node):
     def _source_pipeline_default(self):
         return Pipeline(source=self.definition,
                         implicit_pipeline_evaluation=self.implicit_pipeline_evaluation)
+
+    @tl.default('native_coordinates')
+    def get_native_coordinates(self):
+        return self.source_pipeline.nodes[self.output_node].native_coordinates
 
     def execute(self, coordinates, params=None, output=None):
         self.coordinates = coordinates
