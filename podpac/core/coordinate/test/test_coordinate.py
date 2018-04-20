@@ -262,33 +262,7 @@ class TestCoordinate(object):
         np.testing.assert_allclose(coord.coords['lon'], [0.3, -0.1])
 
     def test_coords_invalid(self):
-        pass
-
-    @pytest.mark.skip(reason="coordinate refactor")
-    def test_unstacked_regular(self):
-        coord = Coordinate(lat=(0, 1, 4), lon=(0, 1, 4), 
-                           order=['lat', 'lon'])
-        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=[0, 1, 4], lon=[0, 1, 4], 
-                           order=['lat', 'lon'])
-        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=(0, 1, 1/4), lon=(0, 1, 1/4), 
-                           order=['lat', 'lon'])
-        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=[0, 1, 1/4], lon=[0, 1, 1/4], 
-                           order=['lat', 'lon'])
-        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
-        
-    @pytest.mark.skip(reason="coordinate refactor")
-    def test_unstacked_irregular(self):
-        coord = Coordinate(lat=np.linspace(0, 1, 4), lon=np.linspace(0, 1, 4),
-                           order=['lat', 'lon'])
-        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
+        pass   
         
     @pytest.mark.skip(reason="coordinate refactor")
     def test_unstacked_dependent(self):
@@ -301,36 +275,7 @@ class TestCoordinate(object):
                 dims=['lat', 'lon']),
             order=['lat', 'lon'])
         np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
-        
-    @pytest.mark.skip(reason="coordinate refactor")
-    def test_stacked_regular(self):
-        coord = Coordinate(lat=((0, 0), (1, -1), 4), lon=((0, 0), (1, -1), 4),
-                           order=['lat', 'lon'])
-        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=[(0, 0), (1, -1), 4], lon=[(0, 0), (1, -1), 4],
-                           order=['lat', 'lon'])
-        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=((0, 0), (1, -1), 1/4), lon=((0, 0), (1, -1), 1/4),
-                           order=['lat', 'lon'])
-        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
-        coord = Coordinate(lat=[(0, 0), (1, -1), 1/4], lon=[(0, 0), (1, -1), 1/4],
-                           order=['lat', 'lon'])
-        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
-        
-    @pytest.mark.skip(reason="coordinate refactor")
-    def test_stacked_irregular(self):
-        coord = Coordinate(lat=np.column_stack((np.linspace(0, 1, 4),
-                                              np.linspace(0, -1, 4))),
-                           lon=np.column_stack((np.linspace(0, 1, 4),
-                                              np.linspace(0, -1, 4))),
-                           order=['lat', 'lon'])
-        np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
-                                          np.array(coord._coords['lat'].bounds))        
+                                          np.array(coord._coords['lat'].bounds))     
         
     @pytest.mark.skip(reason="coordinate refactor")
     def test_stacked_dependent(self):
@@ -386,6 +331,7 @@ class TestCoordIntersection(object):
         c = coord.intersect(coord_cent).coordinates
         np.testing.assert_allclose(c, coord.coordinates[2:8])
 
+@pytest.mark.skip(reason="jxm")
 class TestCoordinateGroup(object):
     def test_init(self):
         c1 = Coordinate(
