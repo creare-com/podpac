@@ -59,7 +59,7 @@ class Node(tl.HasTraits):
     
     native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
                                      allow_none=True)
-    evaluted = tl.Bool(default_value=False)
+    evaluated = tl.Bool(default_value=False)
     implicit_pipeline_evaluation = tl.Bool(default_value=True,
         help="Evaluate the pipeline implicitly (True, Default)")
     evaluated_coordinates = tl.Instance('podpac.core.coordinate.Coordinate', 
