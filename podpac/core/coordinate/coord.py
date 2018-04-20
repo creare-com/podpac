@@ -559,7 +559,7 @@ class Coord(BaseCoord):
         val = np.array(proposal['value'])
         
         # protects numbers from being cast to string
-        if np.issubdtype(val.dtype, str):
+        if np.issubdtype(val.dtype, np.dtype(str).type):
             val = np.array(proposal['value'], object)
 
         # squeeze and check dimensions
