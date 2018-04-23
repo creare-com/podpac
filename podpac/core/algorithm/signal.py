@@ -23,7 +23,11 @@ class Convolution(Algorithm):
     kernel_ndim = tl.Int()
     output_coordinates = tl.Instance(Coordinate)
     expanded_coordinates = tl.Instance(Coordinate)
-    
+   
+    @property
+    def native_coordinates(self):
+        return self.input_node.native_coordinates
+ 
     def execute(self, coordinates, params=None, output=None):
         self.evaluated_coordinates = coordinates
         self.params = params

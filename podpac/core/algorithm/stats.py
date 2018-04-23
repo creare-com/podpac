@@ -22,6 +22,10 @@ class Reduce(Algorithm):
 
     dims = tl.List()
 
+    @property
+    def native_coordinates(self):
+        return self.input_node.native_coordinates
+
     def get_dims(self, out):
         """
         Validates and translates requested reduction dimensions.
@@ -139,12 +143,12 @@ class Reduce(Algorithm):
         self.output = output
         
         self.evaluated_coordinates = coordinates
-        test_out = self.initialize_output_array(init_type='empty')
+        test_out = self.get_output_coords(coords=coordinates)
         self.dims = self.get_dims(test_out)
  
         self.evaluated_coordinates = self.get_reduced_coordinates()
         if self.output is None: 
-            self.output = self.initialize_output_array()
+            self.output = self.initialize_coord_array(self.evaluated_coordinates)
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
             result = self.reduce_chunked(self.iteroutputs())
