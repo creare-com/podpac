@@ -28,7 +28,6 @@ class Convolution(Algorithm):
         self.evaluated_coordinates = coordinates
         self.params = params
         self.output = output
-
         # This is needed to get the full_kernel
         self.output_coordinates = self.input_node.get_output_coords(coordinates)
 
@@ -94,7 +93,12 @@ class Convolution(Algorithm):
         return self.kernel
 
     def algorithm(self):
-        res = scipy.signal.convolve(self.input_node.output, self.full_kernel, mode='same')
+        if np.isnan(np.max(self.input_node.output)):
+            method = 'direct'
+        else: method = 'auto'
+        res = scipy.signal.convolve(self.input_node.output,
+                                    self.full_kernel, 
+                                    mode='same', method=method)
         return res
 
 class TimeConvolution(Convolution):
@@ -136,8 +140,8 @@ class SpatialConvolution(Convolution):
         if 'time' not in self.output_coordinates.dims:
             return self.kernel
 
-        kernel = np.array([self.kernel])
-        kernel = xr.DataArray(kernel, dims=('time', 'lat', 'lon'))
+        kernel = np.array([self.kernel]).T
+        kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
         kernel = kernel.transpose(*self.output_coordinates.dims)
         return kernel.data
 
