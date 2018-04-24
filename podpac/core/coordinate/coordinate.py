@@ -363,6 +363,7 @@ class Coordinate(BaseCoordinate):
         # Create shape for each dimension
         shape = []
         seen_dims = []
+        self_seen_dims = []
         for k in self._coords:
             if k in other_coords._coords:
                 shape.append(other_coords._coords[k].size)
@@ -373,6 +374,12 @@ class Coordinate(BaseCoordinate):
                     seen_dims.append(other_coords.dims_map[k])
             else:
                 shape.append(self._coords[k].size)
+                # Remove stacked duplicates
+                if self.dims_map[k] in self_seen_dims:
+                    shape.pop()
+                else:
+                    self_seen_dims.append(self.dims_map[k])
+                
 
         return tuple(shape)
         
