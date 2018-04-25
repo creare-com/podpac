@@ -100,11 +100,6 @@ class BaseCoord(tl.HasTraits):
     def kwargs(self):
         '''
         Dictionary specifying the coordinate properties.
-
-        Returns
-        -------
-        kwargs : dict
-            Coordinate properties.
         '''
 
         kwargs = {'units': self.units,
@@ -123,12 +118,6 @@ class BaseCoord(tl.HasTraits):
     def coordinates(self):
         '''
         Full coordinates array. See subclasses for specific implementations.
-
-        Returns
-        -------
-        coordinates : ndarray
-            Full array of coordinates, ndim=1. The dtype will be float64 for
-            numerical coordinates and datetime64 for datetime coordinates.
         '''
 
         # get coordinates and ensure read-only array with correct dtype
@@ -143,11 +132,6 @@ class BaseCoord(tl.HasTraits):
     def dtype(self):
         '''
         Coordinate array dtype.
-
-        Returns
-        -------
-        dtype : dtype
-            Coordinates dtype, either datetime64 or float64.
         '''
 
         if self.is_datetime:
@@ -158,14 +142,8 @@ class BaseCoord(tl.HasTraits):
     @property
     def area_bounds(self):
         '''
-        Low and high bounds including segments if applicable.
-
-        Returns
-        -------
-        area_bounds : ndarray
-            Low and high area bounds, shape=(2,), read-only. If ctype is
-            'segment', the bounds will include the portions of the segments
-            beyond the low and high coordinate bounds.
+        Low and high bounds. If ctype is 'segment', the bounds will include
+        the portions of the segments beyond the low and high coordinate bounds.
         '''
         
         # get area_bounds and ensure read-only array with the correct dtype
@@ -194,11 +172,6 @@ class BaseCoord(tl.HasTraits):
     def bounds(self):
         '''
         Low and high bounds.
-
-        Returns
-        -------
-        bounds : ndarray
-            Low and high coordinate bounds, shape=(2,), read-only.
         '''
 
         # get bounds and ensure read-only array with the correct dtype
@@ -213,11 +186,6 @@ class BaseCoord(tl.HasTraits):
     def size(self):
         '''
         Number of coordinates.
-
-        Returns
-        -------
-        size : int
-            number of coordinates, equal to coordinates.size.
         '''
 
         raise NotImplementedError()
@@ -225,12 +193,7 @@ class BaseCoord(tl.HasTraits):
     @property
     def is_datetime(self):
         '''
-        True for datetime coordinates, Fales for numerical coordinates.
-
-        Returns
-        -------
-        is_datetime : bool
-            True for datetime coordinates, False for numerical coordinates.
+        True for datetime coordinates, False for numerical coordinates.
         '''
 
         raise NotImplementedError
@@ -239,11 +202,6 @@ class BaseCoord(tl.HasTraits):
     def is_monotonic(self):
         '''
         True if the coordinates are guaranteed to be in-order, else False.
-
-        Returns
-        -------
-        is_monotinc: bool
-            True if the coordinates are guaranteed to be in-order, else False.
         '''
 
         raise NotImplementedError
@@ -253,12 +211,6 @@ class BaseCoord(tl.HasTraits):
         '''
         True if the coordinates are monotonically descending, False if 
         monotonically ascending, and None for non-monotonic coordinates.
-
-        Returns
-        -------
-        is_descending : bool
-            True if the coordinates are monotonically descending, False if 
-            monotonically ascending, and None for non-monotonic coordinates.
         '''
 
         raise NotImplementedError
@@ -267,11 +219,6 @@ class BaseCoord(tl.HasTraits):
     def rasterio_regularity(self):
         """
         TODO
-
-        Returns
-        -------
-        rasterio_regularity : bool
-            TODO
         """
 
         raise NotImplementedError
@@ -280,11 +227,6 @@ class BaseCoord(tl.HasTraits):
     def scipy_regularity(self):
         """
         TODO
-
-        Returns
-        -------
-        rasterio_regularity : bool
-            TODO
         """
 
         raise NotImplementedError
@@ -551,6 +493,15 @@ class Coord(BaseCoord):
     """
 
     def __init__(self, coords=[], **kwargs):
+        """
+        Initialize coords from an array.
+
+        Arguments
+        ---------
+        coords : array-like
+            coordinate values.
+        """
+
         super(Coord, self).__init__(coords=coords, **kwargs)
 
     coords = tl.Any()
@@ -616,10 +567,18 @@ class Coord(BaseCoord):
 
     @property
     def size(self):
+        '''
+        Number of coordinates.
+        '''
+
         return self.coords.size
 
     @property
     def is_datetime(self):
+        '''
+        True for datetime coordinates, False for numerical coordinates. None if empty.
+        '''
+
         if self.size == 0:
             return None
         
@@ -627,18 +586,30 @@ class Coord(BaseCoord):
 
     @property
     def is_monotonic(self):
+        '''
+        False; the coordinates are not guaranteed to be in-order.
+        '''
+
         return False
 
     @property
     def is_descending(self):
+        '''
+        None; n/a.
+        '''
+
         return None  # No way of telling so None (which evaluates as False)
 
     @property
     def rasterio_regularity(self):
+        """ True if size is 1, else False """
+
         return self.size == 1
 
     @property
     def scipy_regularity(self):
+        """ True """
+
         return True
 
     def _select(self, bounds, ind=False, pad=None):
@@ -732,12 +703,20 @@ class MonotonicCoord(Coord):
     
     @property
     def is_monotonic(self):
+        '''
+        True; the coordinates are guaranteed to be in-order.
+        '''
+
         return True
 
     @property
     def is_descending(self):
+        '''
+        True if the coordinates are descending, False if ascending (or empty).
+        '''
+
         if self.size == 0:
-            return False
+            return None
         return self.coords[0] > self.coords[-1]
 
     def _select(self, bounds, ind=False, pad=1):
@@ -882,6 +861,19 @@ class UniformCoord(BaseCoord):
     epsg = tl.Any() # TODO
 
     def __init__(self, start, stop, delta, epsg=None, **kwargs):
+        """
+        Initialize uniformly-spaced coordinates.
+
+        Arguments
+        ---------
+        start : float or datetime64
+            coordinates start value
+        stop : float or datetime64
+            coordinates stop value
+        delta : float or timedelta64
+            step
+        """
+
         self.start = start
         self.stop = stop
         self.delta = delta
@@ -949,6 +941,10 @@ class UniformCoord(BaseCoord):
 
     @property
     def size(self):
+        '''
+        Number of coordinates.
+        '''
+
         dname = np.array(self.delta).dtype.name
 
         if dname == 'timedelta64[Y]':
@@ -973,22 +969,37 @@ class UniformCoord(BaseCoord):
 
     @property
     def is_datetime(self):
+        '''
+        True for datetime coordinates, False for numerical coordinates.
+        '''
         return isinstance(self.start, np.datetime64)
     
     @property
     def is_monotonic(self):
+        '''
+        True; the coordinates are guaranteed to be in-order.
+        '''
+
         return True
 
     @property
     def is_descending(self):
+        '''
+        True if the coordinates are descending, False if ascending.
+        '''
+
         return self.stop < self.start
 
     @property
     def rasterio_regularity(self):
+        """ True """
+        
         return True
 
     @property
     def scipy_regularity(self):
+        """ True """
+
         return True
 
     def _select(self, bounds, ind=False, pad=1):

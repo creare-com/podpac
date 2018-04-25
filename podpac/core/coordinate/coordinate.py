@@ -13,6 +13,10 @@ from podpac.core.coordinate.coord import (
     BaseCoord, Coord, MonotonicCoord, UniformCoord, coord_linspace)
 
 class BaseCoordinate(tl.HasTraits):
+    """
+    Base class for multidimensional coordinates.
+    """
+
     @property
     def _valid_dims(self):
         return ('time', 'lat', 'lon', 'alt')
@@ -28,24 +32,59 @@ class BaseCoordinate(tl.HasTraits):
 
 class Coordinate(BaseCoordinate):
     """
-    You can initialize a coordinate like this: 
-    # Single number
-    c = Coordinate(lat=1) 
-    # Single number for stacked coordinate
-    c = Coordinate(lat_lon=((1, 2))) 
-    # uniformly spaced range (start, stop, number)
-    c = Coordinate(lat=(49.1, 50.2, 100) 
-    # uniform range for stacked coordinate
-    c = Coordinate(lat_lon=((49.1, -120), (50.2, -122), 100) 
-    # uniformly spaced steps (start, stop, step)
-    c = Coordinate(lat=(49.1, 50.1, 0.1)) 
-    # uniform steps for stacked coordinate
-    c = Coordinate(lat_lon=((49.1, -120), (50.2, -122), (0.1, 0.2)) 
-    # specified coordinates
-    c = Coordinate(lat=np.array([50, 50.1, 50.4, 50.8, 50.9])) 
-    # specified stacked coordinates
-    c = Coordinate(lat_lon=(np.array([50, 50.1, 50.4, 50.8, 50.9]), 
-                            np.array([-120, -125, -126, -127, -130]) 
+    Multidimensional Coordinates.
+
+    Attributes
+    ----------
+    ctype : str
+        Coordinates type (default 'segment'). Options::
+         - 'segment': whole segment between this coordinate and the next.
+         - 'point': single point
+    segment_position : float
+        For segment coordinates, where along the segment the coordinate is
+        specified, between 0 and 1 (default 0.5). Unused for point.
+    coord_ref_sys : unicode
+        Coordinate reference system.
+    dims_map : dict
+        Maps unstacked dimensions to the correct (potentiall stacked) dimension'
+    kwargs
+    is_stacked
+    shape
+    dims
+    coords
+    gdal_crs
+
+    >>> Coordinate(lat=1)
+    Coordinate
+            lat: MonotonicCoord: Bounds[1.0, 1.0], N[1], ctype["segment"]
+
+    >>> Coordinate(lat_lon=((1, 2)))
+    Coordinate
+            lat_lon[lat]: MonotonicCoord: Bounds[1.0, 1.0], N[1], ctype["segment"]
+            lat_lon[lon]: MonotonicCoord: Bounds[2.0, 2.0], N[1], ctype["segment"]
+
+    >>> Coordinate(lat=(49.1, 50.2, 100))
+    Coordinate
+            lat: UniformCoord: Bounds[49.1, 50.2], N[100], ctype["segment"]
+
+    >>> Coordinate(lat_lon=((49.1, -120), (50.2, -122), 100))
+    Coordinate
+            lat_lon[lat]: UniformCoord: Bounds[-120.0, 49.1], N[100], ctype["segment"]
+            lat_lon[lon]: UniformCoord: Bounds[-121.99999999999999, 50.2], N[100], ctype["segment"]
+
+    >>> Coordinate(lat=(49.1, 50.1, 0.1))
+    Coordinate
+            lat: UniformCoord: Bounds[49.1, 50.1], N[11], ctype["segment"]
+    
+    >>> Coordinate(lat=np.array([50, 50.1, 50.4, 50.8, 50.9]))
+    Coordinate
+            lat: MonotonicCoord: Bounds[50.0, 50.9], N[5], ctype["segment"]
+    
+    >>> Coordinate(lat_lon=([50, 50.1, 50.4, 50.8, 50.9],
+                            [-120, -125, -126, -127, -130]))
+    Coordinate
+            lat_lon[lat]: MonotonicCoord: Bounds[50.0, 50.9], N[5], ctype["segment"]
+            lat_lon[lon]: MonotonicCoord: Bounds[-130.0, -120.0], N[5], ctype["segment"]
     """
 
     # default val set in constructor
@@ -55,14 +94,58 @@ class Coordinate(BaseCoordinate):
     _coords = tl.Instance(OrderedDict)
     dims_map = tl.Dict()
 
-    def __init__(self, coords=None, coord_ref_sys="WGS84", order=None,
-            segment_position=0.5, ctype='segment', **kwargs):
+    def __init__(self, coords=None, order=None, coord_ref_sys="WGS84", 
+                       segment_position=0.5, ctype='segment', **kwargs):
         """
-        bounds is for segment-specification with non-uniform coordinates
-        
-        order is required for Python <3.6 where the order of kwargs is not
-        preserved.
+        Initialize a multidimensional coords object.
+
+        Keyword Arguments
+        -----------------
+        coords : OrderedDict
+            explicit coords mapping; if provided, keyword arguments for
+            individual dimensions will be ignored.
+        <dim>
+            Coordinate initialization values for the given unstacked dimension.
+            Valid dimensions are::
+             * 'time'
+             * 'lat'
+             * 'lon'
+             * 'alt'
+            Valid values are::
+             * an explicit BaseCoord object (Coord, UniformCoord, etc)
+             * a single number/datetime value
+             * an array-like object of numbers/datetimes
+             * tuple in the form (start, stop, size) where size is an integer
+             * tuple in the form (start, stop, step) where step is a float or timedelta
+        <dims>
+            A tuple of coordinate initialization values corresponding to the
+            given stacked dimensions. The keyword is split on underscores
+            into dimensions and may contain any number of dimensions (e.g.
+            lat_lon is split into lat and lon). The value must be a list/tuple
+            with elements corresponding to the split dimensions in the keyword.
+            Valid values for the elements are the same as for single unstacked
+            dimensions except in the case of uniform coordinates. Stacked
+            uniform coordinates are in the form
+
+              ``dim1_dim2=((start1, stop1), (start2, stop2), size)
+
+            where size is an integer defining the common size.
+        order : list
+            The order of the dimensions. Ignored if coords is provided and in
+            Python >=3.6 where the order of kwargs is preserved. Required in
+            Python <3.6 if providing more than one dimension via keyword arguments.
+        ctype : str
+            Coordinate type, passed to individual coord objects during
+            initialization.
+        segment_position : float
+            Segment position, passed to individual coord objects during
+            initialization.
+        coord_ref_sys : str
+            Coordinate reference system, passed to individual coord objects
+            during initialization.
+
         """
+
         if coords is None:
             if sys.version < '3.6':
                 if order is None:
@@ -126,6 +209,18 @@ class Coordinate(BaseCoordinate):
         return rep
     
     def __getitem__(self, item):
+        """
+        TODO
+        
+        Arguments
+        ---------
+        item : str
+
+        Returns
+        -------
+        TODO
+        """
+
         return self._coords[item]
     
     @tl.validate('_coords')
@@ -159,8 +254,23 @@ class Coordinate(BaseCoordinate):
             raise TypeError("Invalid coord type '%s'" % val.__class__.__name__)
    
     def get_dims_map(self, coords=None):
+        """
+        TODO
+
+        Arguments
+        ---------
+        coords : dict, optional
+            TODO
+
+        Returns
+        -------
+        stacked_coords : OrderedDict
+            TODO
+        """
+
         if coords is None:
             coords = self.coords
+
         stacked_coords = OrderedDict()
         for c in coords:
             if '_' in c:
@@ -171,8 +281,25 @@ class Coordinate(BaseCoordinate):
         return stacked_coords        
     
     def unstack_dict(self, coords=None, check_dim_repeat=False):
+        """
+        TODO
+
+        Arguments
+        ---------
+        coords : dict, optional
+            TODO
+        check_dim_repeat : boolean
+            TODO
+
+        Returns
+        -------
+        new_crds : OrderedDict
+            TODO
+        """
+
         if coords is None: 
             coords = self._coords
+
         dims_map = self.get_dims_map(coords)
        
         new_crds = OrderedDict()
@@ -207,6 +334,22 @@ class Coordinate(BaseCoordinate):
         return new_crds
 
     def stack_dict(self, coords=None, dims_map=None):
+        """
+        TODO
+
+        Arguments
+        ---------
+        coords : OrderedDict, optional
+            TODO
+        dims_map: OrderedDict, optional
+            TODO
+
+        Returns
+        -------
+        stacked_coords : OrderedDict
+            TODO
+        """
+
         if coords is None: 
             coords = self._coords
         if dims_map is None:
@@ -226,12 +369,33 @@ class Coordinate(BaseCoordinate):
    
     @property
     def is_stacked(self):
+        """
+        True if any of the coordinates are stacked; False if none are stacked.
+        """
+
         for k, v in self.dims_map.items():
             if k != v:
                 return True
         return False
    
     def stack(self, stack_dims, copy=True):
+        """
+        Stack the coordinates in of given dimensions.
+
+        Arguments
+        ---------
+        stack_dims : list
+            dimensions to stack
+        copy : boolean, optional
+            If True, stack dimensions in-place.
+
+        Returns
+        -------
+        coord : Coordinate
+            If copy=False, a new coordinate object with stacked dimensions.
+            If copy=True, this object with its dimensions stacked.
+        """
+
         stack_dim = '_'.join(stack_dims)
         dims_map = {k:v for k,v in self.dims_map.items()}
         for k in stack_dims:
@@ -252,6 +416,21 @@ class Coordinate(BaseCoordinate):
             return self
 
     def unstack(self, copy=True):
+        """
+        Unstack the coordinates of all of the dimensions.
+
+        Arguments
+        ---------
+        copy : boolean, optional
+            If True, unstack dimensions in-place.
+
+        Returns
+        -------
+        coord : Coordinate
+            If copy=False, a new coordinate object with unstacked dimensions.
+            If copy=True, this object with its dimensions unstacked.
+        """
+
         if copy:
             return self.__class__(coords=self._coords.copy())
         else:
@@ -259,6 +438,29 @@ class Coordinate(BaseCoordinate):
             return self
 
     def intersect(self, other, coord_ref_sys=None, pad=1, ind=False):
+        """
+        TODO
+
+        Arguments
+        ---------
+        other : Coordinate (TODO or BaseCoordinate?)
+            Coordinates to intersect with.
+        coord_ref_sys : str, optional
+            unused
+        pad : int, optional
+            delta padding (default 1); to be deprecated
+        ind : boolean, optional
+            Return slice or indices instead of Coordinate objects.
+
+        Returns
+        -------
+        intersection : Coordinate
+            If ind=False, Coordinate object with coordinates within other.bounds.
+        I : list
+            If ind=True, a list of slices/indices for the intersected coordinates
+            in each dimension
+        """
+
         if ind or self.is_stacked:
             I = []
         else:
@@ -319,6 +521,10 @@ class Coordinate(BaseCoordinate):
     
     @property
     def kwargs(self):
+        '''
+        Dictionary specifying the coordinate properties.
+        '''
+
         return {
                 'coord_ref_sys': self.coord_ref_sys,
                 'segment_position': self.segment_position,
@@ -326,6 +532,24 @@ class Coordinate(BaseCoordinate):
                 }
     
     def replace_coords(self, other, copy=True):
+        '''
+        TODO
+
+        Arguments
+        ---------
+        other : Coordinate
+            Replacement Coordinates.
+        copy : boolean, optional
+            If True (default), make a new Coordinate object. If False, replace
+            coordinates in-place.
+
+        Returns
+        -------
+        coord : Coordinate
+            If copy=True, a new Coordinate with replaced coordinates.
+            If copy=False, this object with its coordinates replaced.
+        '''
+
         if copy:
             coords = self._coords.copy()
             dims_map = self.dims_map.copy()
@@ -345,6 +569,15 @@ class Coordinate(BaseCoordinate):
             return self   
    
     def drop_dims(self, *args):
+        """
+        Remove the given dimensions from the Coordinate.
+
+        Arguments
+        ---------
+        <dim> : str
+            Dimension to drop.
+        """
+
         split_dims = []
         for arg in args:
             if arg not in self._coords:
@@ -358,6 +591,20 @@ class Coordinate(BaseCoordinate):
             self.drop_dims(*split_dims) 
  
     def get_shape(self, other_coords=None):
+        """
+        Coordinates shape, corresponding to dims attribute.
+
+        Arguments
+        ---------
+        other_coords : Coordinate, optional
+            TODO
+
+        Returns
+        -------
+        shape : tuple
+            Number of coordinates in each dimension.
+        """
+
         if other_coords is None:
             other_coords = self
         # Create shape for each dimension
@@ -385,10 +632,14 @@ class Coordinate(BaseCoordinate):
         
     @property
     def shape(self):
+        """ Coordinates shape, corresponding to dims attribute. """
+
         return self.get_shape()
     
     @property
     def delta(self):
+        """ to be deprecated """
+
         try:
             return np.array([c.delta for c in self._coords.values()]).squeeze()
         except ValueError as e:
@@ -397,6 +648,8 @@ class Coordinate(BaseCoordinate):
     
     @property
     def dims(self):
+        """ Coordinates dimensions. """
+
         dims = []
         for v in self.dims_map.values():
             if v not in dims:
@@ -405,6 +658,8 @@ class Coordinate(BaseCoordinate):
     
     @property
     def coords(self):
+        """ TODO """
+
         crds = OrderedDict()
         for k in self.dims:
             if k in self.dims_map:  # not stacked
@@ -437,14 +692,44 @@ class Coordinate(BaseCoordinate):
     
     @property
     def gdal_crs(self):
+        """ GDAL coordinate reference system. """
+
         crs = {'WGS84': 'EPSG:4326',
                'SPHER_MERC': 'EPSG:3857'}
         return crs[self.coord_ref_sys.upper()]
     
     def add_unique(self, other):
+        """
+        Concatenate coordinates, skipping duplicates.
+
+        Arguments
+        ---------
+        other : Coordinate
+            Coordinates to concatenate.
+
+        Returns
+        -------
+        coord : Coordinate
+            New Coordinate object with concatenated coordinates.
+        """
+
         return self._add(other, unique=True)
     
     def __add__(self, other):
+        """
+        Concatenate coordinates.
+
+        Arguments
+        ---------
+        other : Coordinate
+            Coordinates to concatenate.
+
+        Returns
+        -------
+        coord : Coordinate
+            New Coordinate object with concatenated coordinates.
+        """
+
         return self._add(other)
     
     def _add(self, other, unique=False):
@@ -470,6 +755,24 @@ class Coordinate(BaseCoordinate):
         return self.__class__(coords=self.stack_dict(new_coords, dims_map))
 
     def iterchunks(self, shape, return_slice=False):
+        """
+        TODO
+
+        Arguments
+        ---------
+        shape : tuple
+            TODO
+        return_slice : boolean, optional
+            Return slice in addition to Coordinate chunk.
+
+        Yields
+        ------
+        l : slice
+            If return_slice=True, slice for this Coordinate chunk.
+        coords : Coordinate
+            A Coordinate object with one chunk of the coordinates.
+        """
+        
         # TODO assumes the input shape dimension and order matches
         # TODO replace self[k].coords[slc] with self[k][slc] (and implement the slice)
 
@@ -491,10 +794,13 @@ class Coordinate(BaseCoordinate):
         """
         Transpose (re-order) the Coordinate dimensions.
 
-        Parameters
-        ----------
+        Arguments
+        ---------
         *dims : str, optional
             Reorder dims to this order. By default, reverse the dims.
+        
+        Keyword Arguments
+        -----------------
         in_place : boolean, optional
             If False, return a new, transposed Coordinate object (default).
             If True, transpose the dimensions in-place.

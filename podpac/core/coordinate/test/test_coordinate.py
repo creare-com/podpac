@@ -323,13 +323,6 @@ class TestCoordinate(object):
         np.testing.assert_allclose(np.array(coord.intersect(coord)._coords['lat'].bounds),
                                           np.array(coord._coords['lat'].bounds))
 
-    def test_kwarg_defaults(self):
-        coord = Coordinate(lat=[0.1, 0.2])
-        assert coord.ctype == 'segment'
-        assert coord.segment_position == 0.5
-        assert coord.coord_ref_sys == 'WGS84'
-        assert coord.gdal_crs == 'EPSG:4326'
-
     def test_ctype(self):
         # default
         coord = Coordinate()
@@ -355,11 +348,6 @@ class TestCoordinate(object):
         coord = Coordinate(lat=[0.2, 0.4], ctype='point')
         coord._coords['lat'].ctype == 'point'
 
-        # ignored if explicit coord object
-        coord = Coordinate(lat=Coord([0.2, 0.4], ctype='point'), ctype='segment')
-        coord.ctype == 'segment'
-        coord._coords['lat'].ctype == 'point'
-
     def test_segment_position(self):
         # default
         coord = Coordinate()
@@ -377,11 +365,6 @@ class TestCoordinate(object):
         coord._coords['lat'].segment_position == 0.5
 
         coord = Coordinate(lat=[0.2, 0.4], segment_position=0.3)
-        coord._coords['lat'].segment_position == 0.3
-
-        # ignored if explicit coord object
-        coord = Coordinate(lat=Coord([0.2, 0.4], segment_position=0.3), segment_position=0.5)
-        coord.segment_position == 0.5
         coord._coords['lat'].segment_position == 0.3
         
     def test_coord_ref_sys(self):
@@ -402,10 +385,26 @@ class TestCoordinate(object):
         coord = Coordinate(lat=[0.2, 0.4], coord_ref_sys='SPHER_MERC')
         coord._coords['lat'].coord_ref_sys == 'SPHER_MERC'
 
-        # ignored if explicit coord object
-        coord = Coordinate(lat=Coord([0.2, 0.4], coord_ref_sys='SPHER_MERC'), coord_ref_sys='WGS84')
-        coord.coord_ref_sys == 'WGS84'
-        coord._coords['lat'].coord_ref_sys == 'SPHER_MERC'
+    def test_get_shape(self):
+        pass
+
+    def test_intersect(self):
+        pass
+
+    def test_drop_dims(self):
+        pass
+
+    def test_transpose(self):
+        pass
+
+    def test_iterchunks(self):
+        pass
+
+    def test_add(self):
+        pass
+
+    def test_add_unique(self):
+        pass
 
 class TestCoordIntersection(object):
     @pytest.mark.skip(reason="coordinate refactor")
