@@ -780,7 +780,7 @@ class TestMonotonicCoord(object):
         assert_equal(c.bounds, np.array([np.nan, np.nan]))
         assert c.is_datetime == None
         assert c.is_monotonic == True
-        assert c.is_descending == False
+        assert c.is_descending == None
 
         c = MonotonicCoord([])
         assert_equal(c.coords, a)
