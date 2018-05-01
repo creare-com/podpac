@@ -975,16 +975,34 @@ class CoordinateGroup(BaseCoordinate):
 # helper functions
 # =============================================================================
 
-def convert_xarray_to_podpac(orig_coord):
+def convert_xarray_to_podpac(xcoord):
     """
-    Take xarray coordinate and convert to podpac coordinate
+    Convert an xarray coord to podpac Coordinate.
+
+    Arguments
+    ---------
+    xcoord : DataArrayCoordinates
+        xarray coord attribute to convert
+
+    Returns
+    -------
+    coord : Coordinate
+        podpact Coordinate object
     """    
-    if not isinstance(orig_coord, DataArrayCoordinates):
-        raise TypeError("num must be an xarray dataarray coordinate, not '%s'" % type(orig_coord))
-    new_ord_dict = OrderedDict()
-    for d in orig_coord.dims:
-        new_ord_dict[d] = orig_coord[d].data
-    return Coordinate(new_ord_dict)
+
+    if not isinstance(xcoord, DataArrayCoordinates):
+        raise TypeError("input must be an xarray DataArrayCoordinate, not '%s'" % type(xcoord))
+
+    d = OrderedDict()
+    for dim in xcoord.dims:
+        c = xcoord[dim].data
+        if c.dtype.names:
+            # extract/transpose stacked coordinates from structured array
+            d[dim] = [c[_dim] for _dim in c.dtype.names]
+        else:
+            d[dim] = c
+
+    return Coordinate(d)
 
 # =============================================================================
 # TODO convert to unit testing
