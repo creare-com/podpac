@@ -29,6 +29,11 @@ We use the following versioning format:
 # 0.2.0
 ## Features
 * #7: Refactor interpolation mechanism for DataSource nodes
+* Refactor implementation of pipeline node
+    * Improve specification of output coordinates, dimensions, and shape
+    * Handle cases where evaluated coordinates are expanded/modified by other nodes
+* Refactor usage of traitlets
+
 
 ## Bugs
 * Fix implementation of units in Nodes and UnitsDataArray
@@ -55,6 +60,7 @@ The community update -- to help promote community contributions
     * Integrate with dask? 
 * Tighter integration with AWS -- automatic lambda function creation and invocation
 * #2: Test coordinate group
+* Add support for 'None' endpoints/startpoints in UniformCoordinates objects (and potentially monotonic coordinates)
 
 ## Bugs
 * #11: Nodes with default inputs breaks pipeline
