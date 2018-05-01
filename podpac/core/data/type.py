@@ -488,9 +488,9 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
         rc = self.reprojected_coordinates
         for d in sc.dims:
             if d in rc.dims:
-                coords[d] = rc[d]
+                coords[d] = rc.stack_dict()[d]
             else:
-                coords[d] = sc[d]
+                coords[d] = sc.stack_dict()[d]
         return podpac.Coordinate(coords)
 
     def get_data(self, coordinates, coordinates_slice):
