@@ -16,3 +16,6 @@ podpac/cache/
 .cache
 .coverage
 artifacts
+
+# docs
+doc/build

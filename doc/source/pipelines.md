@@ -1,13 +1,13 @@
-# Pipeline
+# Pipelines
 
 A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and, optionally, *outputs* to produce when executing the pipeline.
 
-## Attributes
+### Attributes
 
  * `nodes`: node definitions  *(object, required)*
  * `outputs`: output definitions *(list, optional)* 
 
-## Sample
+### Sample
 
 ```
 {
@@ -22,7 +22,7 @@ A podpac pipeline can be defined using JSON. The pipeline definition describes t
 }
 ```
 
-# Node definitions
+## Node definitions
 
 A node definition defines the node and its inputs and parameters. It also names the node so that it can be used as an input to other nodes in the pipeline. Nodes must be defined before they are referenced in a later node.
 
@@ -109,7 +109,7 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 }
 ```
 
-## Notes
+### Notes
 
  * The `node` path should include the submodule path and the node class. The submodule path is omitted for top-level classes. For example:
    - `"node": "datalib.smap.SMAP"` is equivalent to `from podpac.datalib.smap import SMAP`.
@@ -118,7 +118,7 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
    - `"plugin": "path.to.myplugin", "node": "mymodule.MyCustomNode"` is equivalent to `from path.to.myplugin.mymodule import MyCustomNode`.
    - `"plugin": "myplugin", "node": "MyCustomNode"` is equivalent to `from myplugin import MyCustomNode`
 
-# Output Definitions
+## Output Definitions
 
 An output definition defines a type of output, the nodes to output, and other parameters such as output location. Outputs are not required, but each output definition should contain a list of one or more nodes (by name) to output.
 

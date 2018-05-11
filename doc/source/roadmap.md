@@ -1,4 +1,5 @@
-# Introduction
+# Roadmap
+
 This document records the roadmap for PODPAC development. Specific issues will be referenced for features / bugs. 
 
 When features / bugs are identified, they will be placed in the `TODO` section. The features and bugs will be prioritized, and targeted for a release, by moving it under the release heading. 
@@ -19,40 +20,47 @@ We use the following versioning format:
     * Allows a particular point in the development to be referenced
     * Tagged releases will not include this hash
 
-# 0.3.0
-## Features
+## 0.3.0
+
+### Features
+
 * Add unit support to Coordinate
 * Add automated geospatial reprojection to UniformCoordinates
 
-## Bugs
+### Bugs
 
-# 0.2.0
-## Features
+## 0.2.0
+
+### Features
+
 * #7: Refactor interpolation mechanism for DataSource nodes
 * Refactor implementation of pipeline node
     * Improve specification of output coordinates, dimensions, and shape
     * Handle cases where evaluated coordinates are expanded/modified by other nodes
 * Refactor usage of traitlets
 
+### Bugs
 
-## Bugs
 * Fix implementation of units in Nodes and UnitsDataArray
 * #13: Generalize/fix convolution nodes
 * #12: Add transpose to Coordinates
 
+## 0.1.0
 
-# 0.1.0
 The community update -- to help promote community contributions
-## Features
+
+### Features
+
 * Add doctrings to everything (#4, #9)
 * Increase unit test coverage to > 90% (#3)
 * Implement automated tests
 
-## Bugs
+### Bugs
 
+## TODO
 
-# TODO
-## Features
+### Features
+
 * Improve data caching
     * Specify max cache size
     * Cache expiration
@@ -62,7 +70,8 @@ The community update -- to help promote community contributions
 * #2: Test coordinate group
 * Add support for 'None' endpoints/startpoints in UniformCoordinates objects (and potentially monotonic coordinates)
 
-## Bugs
+### Bugs
+
 * #11: Nodes with default inputs breaks pipeline
 * #10: Enable access to sub-attributes in Pipelines
 * #8: Rethink how params are used and how they should behave
