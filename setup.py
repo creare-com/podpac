@@ -11,7 +11,7 @@ setup(
 
     description="Pipeline for Observational Data Processing, Analysis, and Collaboration",
     author='Creare',
-    # url="https://github.com/creare-com/podpac",
+    url="https://github.com/creare-com/podpac",
     license="APACHE 2.0",
     classifiers=[
         # How mature is this project? Common values are
