@@ -1,11 +1,14 @@
-
+.. _api:
 
 API Reference
 =============
 
 .. toctree::
-    :maxdepth: 2
- 
-    settings
-    core
+    :maxdepth: 1
 
+    api/settings
+
+.. toctree::
+    :maxdepth: 2
+
+    api/core

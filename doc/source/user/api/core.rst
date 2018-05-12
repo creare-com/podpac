@@ -1,4 +1,4 @@
-
+.. _podpac-core:
 
 Core
 ====

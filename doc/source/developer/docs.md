@@ -78,3 +78,9 @@ See https://github.com/GaretJax/sphinx-autobuild for more options
     + `/source/index.rst` - root documentation file. Includes TOC
     + ... add others as generated ...
 - `/build` - generated documentation files
+
+## References 
+
+- [Sphinx docstring interpretation (autodoc)](http://www.sphinx-doc.org/en/stable/ext/autodoc.html#module-sphinx.ext.autodoc)
+- [Sphinx Themes](http://www.sphinx-doc.org/en/stable/theming.html)
+    + [Read the Docs Theme](https://github.com/rtfd/sphinx_rtd_theme)

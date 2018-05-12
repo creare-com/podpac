@@ -2,7 +2,7 @@
 PODPAC
 ======
 
-> Pipeline for Observational Data Processing Analysis and Collaboration
+*Pipeline for Observational Data Processing Analysis and Collaboration*
 
 
 The basic premise is that data wranging and processing of geospatial data should be seamless 
