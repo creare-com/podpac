@@ -27,6 +27,7 @@ To build the documentation into a website in the `doc/build` directory, run from
 $ make html
 or
 $ sphinx-build source build   # run sphinx manually to build html by default
+$ sphinx-build -aE source build   # for sphinx to rebuild all files (no cache)
 ```
 
 See [`sphinx-build` docs](http://www.sphinx-doc.org/en/stable/invocation.html#invocation-of-sphinx-build) for more options.
