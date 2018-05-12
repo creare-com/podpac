@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copy docs to podpac-docs repository
+# Build and copy docs to podpac-docs repository
 # requires `podpac-docs` repository to be in the same parent directory as `podpac`
 
 PODPAC_DOCS_PATH=../../podpac-docs

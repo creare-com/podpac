@@ -2,7 +2,7 @@
 PODPAC
 ======
 
-Pipeline for Observational Data Processing Analysis and Collaboration
+> Pipeline for Observational Data Processing Analysis and Collaboration
 
 
 The basic premise is that data wranging and processing of geospatial data should be seamless 
@@ -20,26 +20,26 @@ The purpose of PODPAC is to facilitate the
 
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Getting Started
+    :maxdepth: 1
+    :caption: Getting Started
 
-   why-podpac
-   install
-   examples
-   roadmap
+    why-podpac
+    install
+    examples
+    roadmap
 
 .. toctree::
-   :maxdepth: 1
-   :caption: User Guide
+    :maxdepth: 1
+    :caption: User Guide
 
-   pipelines
-   references
-   api
+    user/pipelines
+    user/references
+    user/api
    
 .. toctree::
-   :maxdepth: 1
-   :caption: Developer Guide
+    :maxdepth: 1
+    :caption: Developer Guide
 
-   design
-   contributing
-   docs
+    developer/design
+    developer/contributing
+    developer/docs

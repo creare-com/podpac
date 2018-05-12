@@ -1,6 +1,6 @@
 # Contributing
 
-To get a sense of where the project is going, have a look at our [Roadmap](roadmap)
+To get a sense of where the project is going, have a look at our [Roadmap](/roadmap)
 
 There are a number of ways to contribute:
 
@@ -38,7 +38,9 @@ At this point we will review your changes, request modifications, and ultimately
 All classes and methods should be properly documented with docstrings.
 Docstrings will be used to create the package documentation.
 
-Podpac adheres to the complete [numpy format for docstrings](https://numpydoc.readthedocs.io/en/latest/format.html):
+Many IDE's have auto docstring generators to make this process easier. See the [AutoDocstring](https://github.com/KristoforMaynard/SublimeAutoDocstring) sublime text plugin for one example.
+
+Podpac adheres to the [numpy format for docstrings](https://numpydoc.readthedocs.io/en/latest/format.html):
 
 ```python
 """A one-line summary that does not use variable names or the
