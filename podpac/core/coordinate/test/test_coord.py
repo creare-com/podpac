@@ -1976,7 +1976,7 @@ def test_coord_linspace_datetime():
     assert isinstance(c, UniformCoord)
     assert c.start == np.datetime64('2018-01-01')
     assert c.stop == np.datetime64('2018-01-10')
-    assert c.size == 20
+    assert c.size == 10
     assert_equal(c.bounds, [np.datetime64('2018-01-01'), np.datetime64('2018-01-10')])
     assert c.is_descending == False
     assert c.is_datetime == True
@@ -1986,7 +1986,7 @@ def test_coord_linspace_datetime():
     assert isinstance(c, UniformCoord)
     assert c.start == np.datetime64('2018-01-10')
     assert c.stop == np.datetime64('2018-01-01')
-    assert c.size == 20
+    assert c.size == 10
     assert_equal(c.bounds, [np.datetime64('2018-01-01'), np.datetime64('2018-01-10')])
     assert c.is_descending == True
     assert c.is_datetime == True
