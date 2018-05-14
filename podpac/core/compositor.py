@@ -1,6 +1,10 @@
+"""
+Compositor Summary
+"""
+
+
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from collections import OrderedDict
 from multiprocessing.pool import ThreadPool
 import numpy as np
 import traitlets as tl
@@ -14,9 +18,9 @@ class Compositor(Node):
     shared_coordinates = tl.Instance(Coordinate, allow_none=True)
     source_coordinates = tl.Instance(Coordinate, allow_none=True)
     is_source_coordinates_complete = tl.Bool(False,
-        help=("This allows some optimizations but assumes that a node's " 
-        "native_coordinates=source_coordinate + shared_coordinate "
-        "IN THAT ORDER"))
+        help=("This allows some optimizations but assumes that a node's "
+              "native_coordinates=source_coordinate + shared_coordinate "
+              "IN THAT ORDER"))
 
     sources = tl.Instance(np.ndarray)
     cache_native_coordinates = tl.Bool(True)
@@ -40,16 +44,46 @@ class Compositor(Node):
     @tl.default('source_coordinates')
     def _source_coordinates_default(self):
         return self.get_source_coordinates()
+
     def get_source_coordinates(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return None
         
     @tl.default('shared_coordinates')
     def _shared_coordinates_default(self):
         return self.get_shared_coordinates()
+
     def get_shared_coordinates(self):
+        """Summary
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
+        """
         raise NotImplementedError()
 
-    def composite(self, outputs, result=None):    
+    def composite(self, outputs, result=None):
+        """Summary
+        
+        Parameters
+        ----------
+        outputs : TYPE
+            Description
+        result : None, optional
+            Description
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
+        """
         raise NotImplementedError()
     
     @tl.default('native_coordinates')
@@ -65,6 +99,11 @@ class Compositor(Node):
         more accurate than just the folder time coordinate, so you want
         to replace the time coordinate in native coordinate -- does this 
         rule hold? `
+        
+        Returns
+        -------
+        TYPE
+            Description
         """
         try: 
             return self.load_cached_obj('native.coordinates')
@@ -81,6 +120,20 @@ class Compositor(Node):
         return crds
     
     def iteroutputs(self, coordinates, params):
+        """Summary
+        
+        Parameters
+        ----------
+        coordinates : TYPE
+            Description
+        params : TYPE
+            Description
+        
+        Yields
+        ------
+        TYPE
+            Description
+        """
         # determine subset of sources needed
         if self.source_coordinates is None:
             src_subset = self.sources # all
@@ -101,7 +154,7 @@ class Compositor(Node):
 
         # Optimization: if coordinates complete and source coords is 1D,
         # set native_coordinates unless they are set already
-        # WARNING: this assumes 
+        # WARNING: this assumes
         #              native_coords = source_coords + shared_coordinates
         #         NOT  native_coords = shared_coords + source_coords
         if self.is_source_coordinates_complete \
@@ -120,6 +173,7 @@ class Compositor(Node):
 
         if self.threaded:
             # TODO pool of pre-allocated scratch space
+            # TODO: docstring?
             def f(src):
                 return src.execute(coordinates, params)
             pool = ThreadPool(processes=self.n_threads)
@@ -137,6 +191,22 @@ class Compositor(Node):
                 output[:] = np.nan
 
     def execute(self, coordinates, params=None, output=None):
+        """Summary
+        
+        Parameters
+        ----------
+        coordinates : TYPE
+            Description
+        params : None, optional
+            Description
+        output : None, optional
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         self.evaluated_coordinates = coordinates
         self.params = params
         self.output = output
@@ -149,6 +219,13 @@ class Compositor(Node):
 
     @property
     def definition(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return NotImplementedError
 
         # TODO test
@@ -163,8 +240,24 @@ class Compositor(Node):
 
 
 class OrderedCompositor(Compositor):
-
+    """Summary
+    """
+    
     def composite(self, outputs, result=None):
+        """Summary
+        
+        Parameters
+        ----------
+        outputs : TYPE
+            Description
+        result : None, optional
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if result is None:
             # consume the first source output
             result = next(outputs).copy()
