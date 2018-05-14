@@ -1,6 +1,10 @@
+"""
+Pipeline Summary
+"""
+
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import os
 import json
 import copy
@@ -17,40 +21,115 @@ from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
 
 class PipelineError(Exception):
+    """Summary
+    """
+
     pass
 
 class Output(tl.HasTraits):
+    """Summary
+
+    Attributes
+    ----------
+    name : TYPE
+        Description
+    node : TYPE
+        Description
+    """
+
     node = tl.Instance(Node)
     name = tl.Unicode()
 
     def write(self):
+        """Summary
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
+        """
         raise NotImplementedError
 
+
 class NoOutput(Output):
+    """Summary
+    """
+    
+    # TODO: docstring?
     def write(self):
         pass
 
+
 class FileOutput(Output):
+    """Summary
+
+    Attributes
+    ----------
+    format : TYPE
+        Description
+    outdir : TYPE
+        Description
+    """
+    
     outdir = tl.Unicode()
     format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default='pickle')
 
+    # TODO: docstring?
     def write(self):
         self.node.write(self.name, outdir=self.outdir, format=self.format)
 
+
 class FTPOutput(Output):
+    """Summary
+
+    Attributes
+    ----------
+    url : TYPE
+        Description
+    user : TYPE
+        Description
+    """
+
     url = tl.Unicode()
     user = tl.Unicode()
 
+
 class AWSOutput(Output):
+    """Summary
+
+    Attributes
+    ----------
+    bucket : TYPE
+        Description
+    user : TYPE
+        Description
+    """
+
     user = tl.Unicode()
     bucket = tl.Unicode()
 
+
 class ImageOutput(Output):
+    """Summary
+
+    Attributes
+    ----------
+    format : TYPE
+        Description
+    image : TYPE
+        Description
+    vmax : TYPE
+        Description
+    vmin : TYPE
+        Description
+    """
+
     format = tl.CaselessStrEnum(values=['png'], default='png')
     vmax = tl.CFloat(allow_none=True, default_value=np.nan)
     vmin = tl.CFloat(allow_none=True, default_value=np.nan)
     image = tl.Bytes()
 
+    # TODO: docstring?
     def write(self):
         try:
             self.image = self.node.get_image(format=self.format,
@@ -59,7 +138,28 @@ class ImageOutput(Output):
         except:
             pass
 
+
 class Pipeline(tl.HasTraits):
+    """Summary
+
+    Attributes
+    ----------
+    definition : TYPE
+        Description
+    implicit_pipeline_evaluation : TYPE
+        Description
+    nodes : TYPE
+        Description
+    outputs : list
+        Description
+    params : dict
+        Description
+    path : TYPE
+        Description
+    skip_evaluate : TYPE
+        Description
+    """
+
     path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
     definition = tl.Instance(OrderedDict, help="pipeline definition")
     nodes = tl.Instance(OrderedDict, help="pipeline nodes")
@@ -67,12 +167,12 @@ class Pipeline(tl.HasTraits):
     outputs = tl.List(trait=tl.Instance(Output), help="pipeline outputs")
     skip_evaluate = tl.List(trait=tl.Unicode, help="nodes to skip")
     implicit_pipeline_evaluation = tl.Bool(False)
-    
+
     def __init__(self, source, implicit_pipeline_evaluation=False):
         self.implicit_pipeline_evaluation = implicit_pipeline_evaluation
         if isinstance(source, dict):
             self.definition = source
-        
+
         else:
             self.path = source
             with open(self.path) as f:
@@ -94,6 +194,26 @@ class Pipeline(tl.HasTraits):
         self.check_execution_graph()
 
     def parse_node(self, name, d):
+        """Summary
+
+        Parameters
+        ----------
+        name : TYPE
+            Description
+        d : TYPE
+            Description
+
+        Returns
+        -------
+        TYPE
+            Description
+
+        Raises
+        ------
+        PipelineError
+            Description
+        """
+
         # get node class
         module_root = d.get('plugin', 'podpac')
         node_string = '%s.%s' % (module_root, d['node'])
@@ -107,14 +227,14 @@ class Pipeline(tl.HasTraits):
         except AttributeError:
             raise PipelineError("Node '%s' not found in module '%s'" % (
                 node_name, module_name))
-        
+
         # parse and configure kwargs
         kwargs = {}
         whitelist = ['node', 'attrs', 'params', 'evaluate', 'plugin']
-        
+
         try:
             parents = inspect.getmro(node_class)
-            
+
             if DataSource in parents:
                 if 'source' in d:
                     kwargs['source'] = d['source']
@@ -131,7 +251,7 @@ class Pipeline(tl.HasTraits):
                 if 'pipeline_json' in d:
                     kwargs['pipeline_json'] = d['pipeline_json']
                     whitelist.append('pipeline_json')
-              
+
             if DataSource not in parents and\
                    Compositor not in parents and\
                    Algorithm not in parents and\
@@ -140,9 +260,9 @@ class Pipeline(tl.HasTraits):
         except KeyError as e:
             raise PipelineError(
                 "node '%s' definition references nonexistent node '%s'" % (name, e))
-        
+
         kwargs['implicit_pipeline_evaluation'] = self.implicit_pipeline_evaluation
-       
+
         if 'params' in d:
             kwargs['params'] = d['params']
 
@@ -160,6 +280,24 @@ class Pipeline(tl.HasTraits):
         return node_class(**kwargs)
 
     def parse_output(self, d):
+        """Summary
+        
+        Parameters
+        ----------
+        d : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        PipelineError
+            Description
+        """
+
         kwargs = {}
         # modes
         if 'mode' not in d:
@@ -192,10 +330,10 @@ class Pipeline(tl.HasTraits):
             refs = d['nodes']
         elif d['mode'] == 'none':
             nodes = self.nodes
-            refs = list(nodes.keys()) 
+            refs = list(nodes.keys())
         else:
             raise PipelineError("output definition requires 'node' or 'nodes' property")
-        
+
         # nodes
         try:
             nodes = [self.nodes[ref] for ref in refs]
@@ -206,10 +344,30 @@ class Pipeline(tl.HasTraits):
         return [output_class(node=node, name=ref, **kwargs) for ref, node in zip(refs, nodes)]
 
     def check_execution_graph(self):
+        """Summary
+
+        Raises
+        ------
+        PipelineError
+            Description
+        """
         used = {ref:False for ref in self.nodes}
-        
+
         def f(base_ref):
-            if used[base_ref]: return
+            """Summary
+
+            Parameters
+            ----------
+            base_ref : TYPE
+                Description
+
+            Returns
+            -------
+            TYPE
+                Description
+            """
+            if used[base_ref]:
+                return
 
             used[base_ref] = True
 
@@ -225,6 +383,18 @@ class Pipeline(tl.HasTraits):
                 raise PipelineError("Unused node '%s'" % ref)
 
     def check_params(self, params):
+        """Summary
+
+        Parameters
+        ----------
+        params : TYPE
+            Description
+
+        Raises
+        ------
+        PipelineError
+            Description
+        """
         if params is None:
             params = {}
 
@@ -234,6 +404,15 @@ class Pipeline(tl.HasTraits):
                     "params reference nonexistent node '%s'" % node)
 
     def execute(self, coordinates, params=None):
+        """Summary
+
+        Parameters
+        ----------
+        coordinates : TYPE
+            Description
+        params : None, optional
+            Description
+        """
         if params is None:
             params = {}
 
@@ -247,10 +426,10 @@ class Pipeline(tl.HasTraits):
 
             d = copy.deepcopy(self.params[key])
             d.update(params.get(key, OrderedDict()))
-            
+
             if node.evaluated_coordinates == coordinates and node.params == d:
                 continue
-            
+
             print("executing node", key)
             node.execute(coordinates, params=d)
 
@@ -262,6 +441,27 @@ class PipelineNode(Node):
     Wraps a pipeline into a Node.
 
     Todo: shape, native_coordinates, etc
+
+    Attributes
+    ----------
+    coordinates : TYPE
+        Description
+    definition : TYPE
+        Description
+    implicit_pipeline_evaluation : TYPE
+        Description
+    output : TYPE
+        Description
+    output_node : TYPE
+        Description
+    params : TYPE
+        Description
+    path : TYPE
+        Description
+    pipeline_json : TYPE
+        Description
+    source_pipeline : TYPE
+        Description
     """
 
     path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
@@ -292,27 +492,60 @@ class PipelineNode(Node):
 
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
+        """Summary
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return self.source_pipeline.nodes[self.output_node].native_coordinates
 
     def execute(self, coordinates, params=None, output=None):
+        """Summary
+
+        Parameters
+        ----------
+        coordinates : TYPE
+            Description
+        params : None, optional
+            Description
+        output : None, optional
+            Description
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
         self.coordinates = coordinates
         self.params = params
         self.output = output
 
         self.source_pipeline.execute(coordinates, params)
-        
+
         out = self.source_pipeline.nodes[self.output_node].output
         if self.output is None:
             self.output = out
         else:
             self.output[:] = out
-        
+
         return self.output
 
 def make_pipeline_definition(main_node):
     """
     Make a pipeline definition, including the flattened node definitions and a
     default file output for the input node.
+
+    Parameters
+    ----------
+    main_node : TYPE
+        Description
+
+    Returns
+    -------
+    TYPE
+        Description
     """
 
     nodes = []
@@ -320,12 +553,24 @@ def make_pipeline_definition(main_node):
     definitions = []
 
     def add_node(node):
+        """Summary
+
+        Parameters
+        ----------
+        node : TYPE
+            Description
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if node in nodes:
             return refs[nodes.index(node)]
 
         # get definition
         d = node.definition
-        
+
         # replace nodes with references, adding nodes depth first
         if 'inputs' in d:
             for key, input_node in d['inputs'].items():
@@ -344,7 +589,7 @@ def make_pipeline_definition(main_node):
             else:
                 i = 0
             ref = '%s_%d' % (ref, i+1)
-        
+
         nodes.append(node)
         refs.append(ref)
         definitions.append(d)
@@ -373,18 +618,33 @@ def make_pipeline_definition(main_node):
 
 if __name__ == '__main__':
     import argparse
-    import os
-    from collections import defaultdict
     import podpac
-    
+
     def parse_param(item):
+        """Summary
+
+        Parameters
+        ----------
+        item : TYPE
+            Description
+
+        Returns
+        -------
+        TYPE
+            Description
+
+        Raises
+        ------
+        ValueError
+            Description
+        """
         try:
             key, value = item.split('=')
             layer, param = key.split('.')
         except:
             raise ValueError("Invalid params argument '%s', "
                              "expected <layer>.<param>=<value>" % item)
-        
+
         try:
             value = json.loads(value)
         except ValueError:
@@ -393,6 +653,18 @@ if __name__ == '__main__':
         return layer, param, value
 
     def parse_params(l):
+        """Summary
+
+        Parameters
+        ----------
+        l : TYPE
+            Description
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if len(l) == 1 and os.path.isfile(l[0]):
             with open(l) as f:
                 d = json.load(f)
@@ -438,7 +710,7 @@ if __name__ == '__main__':
     print('\nrebuilt pipeline definition:')
     print(list(pipeline.nodes.values())[-1].pipeline_json)
     rebuilt_pipeline = Pipeline(list(pipeline.nodes.values())[-1].pipeline_definition)
-    
+
     if args.dry_run:
         pipeline.check_params(params)
     else:
