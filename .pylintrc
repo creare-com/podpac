@@ -52,10 +52,7 @@ confidence=
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
 disable=
-        C0301,      # line too long
         C0103,      # snake case enforcement
-        C0330,      # wrong indent (2 instead of 4)
-        W0311,      # bad indent (2 instead of 4)
         W0703,      # too broad except error
         print-statement,
         parameter-unpacking,
@@ -298,7 +295,7 @@ indent-after-paren=4
 indent-string='    '
 
 # Maximum number of characters on a single line.
-max-line-length=100
+max-line-length=120
 
 # Maximum number of lines in a module
 max-module-lines=1000
@@ -308,7 +305,8 @@ max-module-lines=1000
 # `trailing-comma` allows a space between comma and closing bracket: (a, ).
 # `empty-line` allows space-only lines.
 no-space-check=trailing-comma,
-               dict-separator
+               dict-separator,
+               empty-line
 
 # Allow the body of a class to be on the same line as the declaration if body
 # contains single statement.
