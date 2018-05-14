@@ -20,6 +20,7 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
+import datetime
 
 # for parsing markdown files
 # pip install recommonmark
@@ -63,7 +64,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'PODPAC'
-copyright = '2018, Creare'
+copyright = '2017-{}, Creare'.format(datetime.datetime.now().year)
 author = 'Creare'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -107,7 +108,12 @@ html_theme = 'sphinx_rtd_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'logo_only': True,
+}
+# The name of an image file (relative to this directory) to place at the top
+# of the sidebar.
+html_logo = "_static/img/pea-logo.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
