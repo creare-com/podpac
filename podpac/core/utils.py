@@ -1,5 +1,5 @@
 """
-Summary
+Utils Summary
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
@@ -24,6 +24,7 @@ def cached_property(func):
     TYPE
         Description
     """
+
     @property
     def f(self):
         """Summary
