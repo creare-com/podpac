@@ -1,3 +1,13 @@
+"""
+Coord summary
+
+Attributes
+----------
+TOL : float
+    Description
+"""
+
+
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import numbers
@@ -21,19 +31,21 @@ class BaseCoord(tl.HasTraits):
     
     Attributes
     ----------
-    units : Units
-        TODO
+    coord_ref_sys : unicode
+        Coordinate reference system.
     ctype : str
         Coordinates type (default 'segment'). Options::
          - 'segment': whole segment between this coordinate and the next.
          - 'point': single point
+    delta : TYPE
+        Description
+    extents : ndarray
+        Custom bounding box (if ctype='segment').
     segment_position : float
         For segment coordinates, where along the segment the coordinate is
         specified, between 0 and 1 (default 0.5). Unused for point.
-    extents : ndarray
-        Custom bounding box (if ctype='segment').
-    coord_ref_sys : unicode
-        Coordinate reference system.
+    units : Units
+        TODO
     kwargs
     coordinates
     bounds
@@ -45,7 +57,7 @@ class BaseCoord(tl.HasTraits):
     is_descending
     rasterio_regularity
     scipy_regularity
-
+    
     """
     
     units = Units(allow_none=True, default_value=None)
@@ -100,6 +112,11 @@ class BaseCoord(tl.HasTraits):
     def kwargs(self):
         '''
         Dictionary specifying the coordinate properties.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         kwargs = {'units': self.units,
@@ -118,6 +135,11 @@ class BaseCoord(tl.HasTraits):
     def coordinates(self):
         '''
         Full coordinates array. See subclasses for specific implementations.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         # get coordinates and ensure read-only array with correct dtype
@@ -132,6 +154,11 @@ class BaseCoord(tl.HasTraits):
     def dtype(self):
         '''
         Coordinate array dtype.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         if self.is_datetime:
@@ -144,6 +171,11 @@ class BaseCoord(tl.HasTraits):
         '''
         Low and high bounds. If ctype is 'segment', the bounds will include
         the portions of the segments beyond the low and high coordinate bounds.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
         
         # get area_bounds and ensure read-only array with the correct dtype
@@ -172,6 +204,11 @@ class BaseCoord(tl.HasTraits):
     def bounds(self):
         '''
         Low and high bounds.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         # get bounds and ensure read-only array with the correct dtype
@@ -186,6 +223,11 @@ class BaseCoord(tl.HasTraits):
     def size(self):
         '''
         Number of coordinates.
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
         '''
 
         raise NotImplementedError()
@@ -194,6 +236,11 @@ class BaseCoord(tl.HasTraits):
     def is_datetime(self):
         '''
         True for datetime coordinates, False for numerical coordinates.
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
         '''
 
         raise NotImplementedError
@@ -202,6 +249,11 @@ class BaseCoord(tl.HasTraits):
     def is_monotonic(self):
         '''
         True if the coordinates are guaranteed to be in-order, else False.
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
         '''
 
         raise NotImplementedError
@@ -211,6 +263,11 @@ class BaseCoord(tl.HasTraits):
         '''
         True if the coordinates are monotonically descending, False if 
         monotonically ascending, and None for non-monotonic coordinates.
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
         '''
 
         raise NotImplementedError
@@ -219,6 +276,11 @@ class BaseCoord(tl.HasTraits):
     def rasterio_regularity(self):
         """
         TODO
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
         """
 
         raise NotImplementedError
@@ -227,6 +289,11 @@ class BaseCoord(tl.HasTraits):
     def scipy_regularity(self):
         """
         TODO
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
         """
 
         raise NotImplementedError
@@ -244,17 +311,24 @@ class BaseCoord(tl.HasTraits):
         ind : bool, optional
             If True, return slice or indices for the selection instead of
             coordinates. Default False.
-
+        **kwargs
+            Description
+        
         Returns
         -------
         intersection : BaseCoord
             coord object with coordinates with other.bounds (if ind=False)
         I : slice or list
             index or slice for the intersected coordinates (if ind=True)
-
+        
         See Also
         --------
         select : Get the coordinates within the given bounds.
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
         """
 
         if self.units != other.units:
@@ -272,14 +346,16 @@ class BaseCoord(tl.HasTraits):
     def select(self, bounds, ind=False, **kwargs):
         """
         Get the coordinates within the given bounds.
-
+        
         Arguments
         ---------
         bounds : min, max
             selection bounds
         ind : bool, optional
             return slice or indices for selection instead of coordinates
-
+        **kwargs
+            Description
+        
         Returns
         -------
         intersection : BaseCoord
@@ -289,7 +365,7 @@ class BaseCoord(tl.HasTraits):
         """
 
         # empty
-        if self.size == 0: 
+        if self.size == 0:
             if ind:
                 return slice(0, 0)
             else:
@@ -315,19 +391,29 @@ class BaseCoord(tl.HasTraits):
     def add(self, delta, inplace=False):
         """
         Add a delta value to each coordinate.
-
+        
         Arguments
         ---------
-        other : number, timedelta64, str, datetime.timedelta
-            Delta value to add.
+        delta : TYPE
+            Description
         inplace : bool (optional)
             If True, update coordinates in-place. Default False.
-
+        
         Returns
         -------
         result : BaseCoord
             If inplace, this object with resulting coordinates.
             Otherwise, new BaseCoord object with resulting coordinates.
+        
+        Deleted Parameters
+        ------------------
+        other : number, timedelta64, str, datetime.timedelta
+            Delta value to add.
+        
+        Raises
+        ------
+        TypeError
+            Description
         """
 
         delta = make_coord_delta(delta)
@@ -354,19 +440,24 @@ class BaseCoord(tl.HasTraits):
     def concat(self, other, inplace=False):
         """
         Concatenate coordinates.
-
+        
         Arguments
         ---------
         other : BaseCoord
             coords object to concatenate
         inplace : bool (optional)
             If True, update coordinates in-place. Default False.
-
+        
         Returns
         -------
         result : BaseCoord
             If inplace, this object with concatenated coordinates.
             New coords object with concatenated coordinates.
+        
+        Raises
+        ------
+        TypeError
+            Description
         """
 
         if not isinstance(other, BaseCoord):
@@ -473,33 +564,38 @@ class Coord(BaseCoord):
     """
     A basic array of coordinates. Not guaranteed to be sorted, unique, or 
     uniformly-spaced.
-
+    
     Attributes
     ----------
     coords : ndarray
         Input coordinate array, must all be the same type. Numerical values
         are converted to floats, datetime values are converted to datetime64.
+    
+    See Also
+    --------
+    MonotonicCoord : An array of sorted coordinates.
+    UniformCoord : An array of sorted, uniformly-spaced coordinates.
+    
+    Deleted Attributes
+    ------------------
     coordinates : ndarray
         Full read-only coordinates array, equal to ``coords``.
     delta : timedelta64, float
         An average distance between adjacent coordinates. Note that because
         there are no guarantees on the coordinates, this value should be used
         with caution.
-
-    See Also
-    --------
-    MonotonicCoord : An array of sorted coordinates.
-    UniformCoord : An array of sorted, uniformly-spaced coordinates.
     """
 
     def __init__(self, coords=[], **kwargs):
         """
         Initialize coords from an array.
-
+        
         Arguments
         ---------
         coords : array-like
             coordinate values.
+        **kwargs
+            Description
         """
 
         super(Coord, self).__init__(coords=coords, **kwargs)
@@ -569,6 +665,11 @@ class Coord(BaseCoord):
     def size(self):
         '''
         Number of coordinates.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         return self.coords.size
@@ -577,6 +678,11 @@ class Coord(BaseCoord):
     def is_datetime(self):
         '''
         True for datetime coordinates, False for numerical coordinates. None if empty.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         if self.size == 0:
@@ -588,6 +694,11 @@ class Coord(BaseCoord):
     def is_monotonic(self):
         '''
         False; the coordinates are not guaranteed to be in-order.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         return False
@@ -596,19 +707,36 @@ class Coord(BaseCoord):
     def is_descending(self):
         '''
         None; n/a.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         return None  # No way of telling so None (which evaluates as False)
 
     @property
     def rasterio_regularity(self):
-        """ True if size is 1, else False """
+        """True if size is 1, else False 
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
 
         return self.size == 1
 
     @property
     def scipy_regularity(self):
-        """ True """
+        """True 
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
 
         return True
 
@@ -662,17 +790,20 @@ class MonotonicCoord(Coord):
         Input coordinate array, must all be the same type, unique, and sorted.
         Numerical values are converted to floats, datetime values are
         converted to datetime64.
+    
+    See Also
+    --------
+    Coord : A basic array of coordinates.
+    UniformCoord : An array of sorted, uniformly-spaced coordinates.
+    
+    Deleted Attributes
+    ------------------
     coordinates : ndarray
         Full read-only coordinates array, equal to ``coords``.
     delta : timedelta64, float
         An average distance between adjacent coordinates. Note that because
         there are no guarantees on the coordinate spacing, this value should
         be used with caution.
-
-    See Also
-    --------
-    Coord : A basic array of coordinates.
-    UniformCoord : An array of sorted, uniformly-spaced coordinates.
     """
     
     @tl.default('delta')
@@ -705,6 +836,11 @@ class MonotonicCoord(Coord):
     def is_monotonic(self):
         '''
         True; the coordinates are guaranteed to be in-order.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         return True
@@ -713,6 +849,11 @@ class MonotonicCoord(Coord):
     def is_descending(self):
         '''
         True if the coordinates are descending, False if ascending (or empty).
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         if self.size == 0:
@@ -729,7 +870,7 @@ class MonotonicCoord(Coord):
         if gtw.size == 0 or ltw.size == 0:
             if ind:
                 return slice(0, 0)
-            else: 
+            else:
                 return Coord([], **self.kwargs)
         imin = max(0, gtw.min() - pad)
         imax = min(self.size, ltw.max() + pad + 1)
@@ -808,14 +949,14 @@ class MonotonicCoord(Coord):
                 coords = np.concatenate(concat_list)
             elif concat_list[1][-1] > concat_list[0][0]: # need to reverse
                 coords = np.concatenate(concat_list[::-1])
-            else: 
+            else:
                 overlap = True
         else:
             if concat_list[0][-1] < concat_list[1][0]: # then we're good!
                 coords = np.concatenate(concat_list)
             elif concat_list[1][-1] < concat_list[0][0]: # need to reverse
                 coords = np.concatenate(concat_list[::-1])
-            else: 
+            else:
                 overlap = True
             
         if overlap:
@@ -835,24 +976,27 @@ class UniformCoord(BaseCoord):
     
     Attributes
     ----------
-    start, stop: float or datetime64
-        start and stop coordinates. numerical inputs are cast as floats and
-        non-numerical inputs are parsed as datetime64.
     delta : float or timedelta64
         signed, non-zero delta between coordinates. numerical inputs are cast
         as floats and non-numerical inputs are parsed as timedelta64
     epsg : str
         <not yet in use>
-    coordinates : ndarray
-        Full read-only coordinates array defined by start, stop, and delta.
-        The stop value will be included if it falls an exact multiple of
-        ``delta`` from ``start``.
+    start, stop : float or datetime64
+        start and stop coordinates. numerical inputs are cast as floats and
+        non-numerical inputs are parsed as datetime64.
     coords
     
     See Also
     --------
     Coord : A basic array of coordinates.
     MonotonicCoord: An array of sorted coordinates.
+    
+    Deleted Attributes
+    ------------------
+    coordinates : ndarray
+        Full read-only coordinates array defined by start, stop, and delta.
+        The stop value will be included if it falls an exact multiple of
+        ``delta`` from ``start``.
     """
 
     start = tl.Any()
@@ -889,7 +1033,7 @@ class UniformCoord(BaseCoord):
     def coords(self):
         """
         Coordinates start and stop, for backwards compatibility.
-
+        
         Returns
         -------
         start : float, datetime64
@@ -914,7 +1058,7 @@ class UniformCoord(BaseCoord):
                                  " if start > stop.")
         elif np.array(val).astype(float) < 0:
             raise ValueError("UniformCoord delta must be greater than zero"
-                             " if start < stop.")            
+                             " if start < stop.")
         
         return val
 
@@ -943,6 +1087,11 @@ class UniformCoord(BaseCoord):
     def size(self):
         '''
         Number of coordinates.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         dname = np.array(self.delta).dtype.name
@@ -971,6 +1120,11 @@ class UniformCoord(BaseCoord):
     def is_datetime(self):
         '''
         True for datetime coordinates, False for numerical coordinates.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
         return isinstance(self.start, np.datetime64)
     
@@ -978,6 +1132,11 @@ class UniformCoord(BaseCoord):
     def is_monotonic(self):
         '''
         True; the coordinates are guaranteed to be in-order.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         return True
@@ -986,19 +1145,36 @@ class UniformCoord(BaseCoord):
     def is_descending(self):
         '''
         True if the coordinates are descending, False if ascending.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         return self.stop < self.start
 
     @property
     def rasterio_regularity(self):
-        """ True """
+        """True 
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         
         return True
 
     @property
     def scipy_regularity(self):
-        """ True """
+        """True 
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
 
         return True
 
@@ -1134,6 +1310,27 @@ def coord_linspace(start, stop, num, **kwargs):
     this function calculates a 'delta' which is quantized. If the start, stop,
     and num do not divide nicely you may end up with more or fewer points than
     specified.
+    
+    Parameters
+    ----------
+    start : TYPE
+        Description
+    stop : TYPE
+        Description
+    num : TYPE
+        Description
+    **kwargs
+        Description
+    
+    Returns
+    -------
+    TYPE
+        Description
+    
+    Raises
+    ------
+    TypeError
+        Description
     """
 
     if not isinstance(num, (int, np.long, np.integer)):

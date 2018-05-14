@@ -1,3 +1,8 @@
+"""
+Coordinate Summary
+"""
+
+
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
@@ -33,69 +38,52 @@ class BaseCoordinate(tl.HasTraits):
 class Coordinate(BaseCoordinate):
     """
     Multidimensional Coordinates.
-
+    
     Attributes
     ----------
+    coord_ref_sys : unicode
+        Coordinate reference system.
     ctype : str
         Coordinates type (default 'segment'). Options::
          - 'segment': whole segment between this coordinate and the next.
          - 'point': single point
+    dims_map : dict
+        Maps unstacked dimensions to the correct (potentiall stacked) dimension'
     segment_position : float
         For segment coordinates, where along the segment the coordinate is
         specified, between 0 and 1 (default 0.5). Unused for point.
-    coord_ref_sys : unicode
-        Coordinate reference system.
-    dims_map : dict
-        Maps unstacked dimensions to the correct (potentiall stacked) dimension'
     kwargs
     is_stacked
     shape
     dims
     coords
-    gdal_crs
-
     >>> Coordinate(lat=1)
-    Coordinate
-            lat: MonotonicCoord: Bounds[1.0, 1.0], N[1], ctype["segment"]
-
     >>> Coordinate(lat_lon=((1, 2)))
-    Coordinate
-            lat_lon[lat]: MonotonicCoord: Bounds[1.0, 1.0], N[1], ctype["segment"]
-            lat_lon[lon]: MonotonicCoord: Bounds[2.0, 2.0], N[1], ctype["segment"]
-
     >>> Coordinate(lat=(49.1, 50.2, 100))
-    Coordinate
-            lat: UniformCoord: Bounds[49.1, 50.2], N[100], ctype["segment"]
-
     >>> Coordinate(lat_lon=((49.1, -120), (50.2, -122), 100))
-    Coordinate
-            lat_lon[lat]: UniformCoord: Bounds[-120.0, 49.1], N[100], ctype["segment"]
-            lat_lon[lon]: UniformCoord: Bounds[-121.99999999999999, 50.2], N[100], ctype["segment"]
-
     >>> Coordinate(lat=(49.1, 50.1, 0.1))
-    Coordinate
-            lat: UniformCoord: Bounds[49.1, 50.1], N[11], ctype["segment"]
-    
     >>> Coordinate(lat=np.array([50, 50.1, 50.4, 50.8, 50.9]))
-    Coordinate
-            lat: MonotonicCoord: Bounds[50.0, 50.9], N[5], ctype["segment"]
-    
     >>> Coordinate(lat_lon=([50, 50.1, 50.4, 50.8, 50.9],
                             [-120, -125, -126, -127, -130]))
+    
+    Deleted Attributes
+    ------------------
+    gdal_crs
+    
     Coordinate
-            lat_lon[lat]: MonotonicCoord: Bounds[50.0, 50.9], N[5], ctype["segment"]
-            lat_lon[lon]: MonotonicCoord: Bounds[-130.0, -120.0], N[5], ctype["segment"]
+        lat_lon[lat]: MonotonicCoord: Bounds[50.0, 50.9], N[5], ctype["segment"]
+        lat_lon[lon]: MonotonicCoord: Bounds[-130.0, -120.0], N[5], ctype["segment"]
     """
 
     # default val set in constructor
-    ctype = tl.Enum(['segment', 'point'])  
+    ctype = tl.Enum(['segment', 'point'])
     segment_position = tl.Float()  # default val set in constructor
     coord_ref_sys = tl.CUnicode()
     _coords = tl.Instance(OrderedDict)
     dims_map = tl.Dict()
 
-    def __init__(self, coords=None, order=None, coord_ref_sys="WGS84", 
-                       segment_position=0.5, ctype='segment', **kwargs):
+    def __init__(self, coords=None, order=None, coord_ref_sys="WGS84",
+                 segment_position=0.5, ctype='segment', **kwargs):
         """
         Initialize a multidimensional coords object.
 
@@ -256,12 +244,12 @@ class Coordinate(BaseCoordinate):
     def get_dims_map(self, coords=None):
         """
         TODO
-
+        
         Arguments
         ---------
         coords : dict, optional
             TODO
-
+        
         Returns
         -------
         stacked_coords : OrderedDict
@@ -275,29 +263,36 @@ class Coordinate(BaseCoordinate):
         for c in coords:
             if '_' in c:
                 for cc in c.split('_'):
-                    stacked_coords[cc] = c       
+                    stacked_coords[cc] = c
             else:
-                stacked_coords[c] = c 
-        return stacked_coords        
+                stacked_coords[c] = c
+        return stacked_coords
     
     def unstack_dict(self, coords=None, check_dim_repeat=False):
         """
         TODO
-
+        
         Arguments
         ---------
         coords : dict, optional
             TODO
         check_dim_repeat : boolean
             TODO
-
+        
         Returns
         -------
         new_crds : OrderedDict
             TODO
+        
+        Raises
+        ------
+        TypeError
+            Description
+        ValueError
+            Description
         """
 
-        if coords is None: 
+        if coords is None:
             coords = self._coords
 
         dims_map = self.get_dims_map(coords)
@@ -336,21 +331,21 @@ class Coordinate(BaseCoordinate):
     def stack_dict(self, coords=None, dims_map=None):
         """
         TODO
-
+        
         Arguments
         ---------
         coords : OrderedDict, optional
             TODO
-        dims_map: OrderedDict, optional
+        dims_map : OrderedDict, optional
             TODO
-
+        
         Returns
         -------
         stacked_coords : OrderedDict
             TODO
         """
 
-        if coords is None: 
+        if coords is None:
             coords = self._coords
         if dims_map is None:
             dims_map = self.dims_map
@@ -371,6 +366,11 @@ class Coordinate(BaseCoordinate):
     def is_stacked(self):
         """
         True if any of the coordinates are stacked; False if none are stacked.
+        
+        Returns
+        -------
+        TYPE
+            Description
         """
 
         for k, v in self.dims_map.items():
@@ -381,14 +381,14 @@ class Coordinate(BaseCoordinate):
     def stack(self, stack_dims, copy=True):
         """
         Stack the coordinates in of given dimensions.
-
+        
         Arguments
         ---------
         stack_dims : list
             dimensions to stack
         copy : boolean, optional
             If True, stack dimensions in-place.
-
+        
         Returns
         -------
         coord : Coordinate
@@ -418,12 +418,12 @@ class Coordinate(BaseCoordinate):
     def unstack(self, copy=True):
         """
         Unstack the coordinates of all of the dimensions.
-
+        
         Arguments
         ---------
         copy : boolean, optional
             If True, unstack dimensions in-place.
-
+        
         Returns
         -------
         coord : Coordinate
@@ -440,7 +440,7 @@ class Coordinate(BaseCoordinate):
     def intersect(self, other, coord_ref_sys=None, pad=1, ind=False):
         """
         TODO
-
+        
         Arguments
         ---------
         other : Coordinate (TODO or BaseCoordinate?)
@@ -451,7 +451,7 @@ class Coordinate(BaseCoordinate):
             delta padding (default 1); to be deprecated
         ind : boolean, optional
             Return slice or indices instead of Coordinate objects.
-
+        
         Returns
         -------
         intersection : Coordinate
@@ -523,6 +523,11 @@ class Coordinate(BaseCoordinate):
     def kwargs(self):
         '''
         Dictionary specifying the coordinate properties.
+        
+        Returns
+        -------
+        TYPE
+            Description
         '''
 
         return {
@@ -534,7 +539,7 @@ class Coordinate(BaseCoordinate):
     def replace_coords(self, other, copy=True):
         '''
         TODO
-
+        
         Arguments
         ---------
         other : Coordinate
@@ -542,7 +547,7 @@ class Coordinate(BaseCoordinate):
         copy : boolean, optional
             If True (default), make a new Coordinate object. If False, replace
             coordinates in-place.
-
+        
         Returns
         -------
         coord : Coordinate
@@ -571,9 +576,14 @@ class Coordinate(BaseCoordinate):
     def drop_dims(self, *args):
         """
         Remove the given dimensions from the Coordinate.
-
+        
         Arguments
         ---------
+        *args
+            Description
+        
+        Deleted Parameters
+        ------------------
         <dim> : str
             Dimension to drop.
         """
@@ -593,12 +603,12 @@ class Coordinate(BaseCoordinate):
     def get_shape(self, other_coords=None):
         """
         Coordinates shape, corresponding to dims attribute.
-
+        
         Arguments
         ---------
         other_coords : Coordinate, optional
             TODO
-
+        
         Returns
         -------
         shape : tuple
@@ -632,13 +642,25 @@ class Coordinate(BaseCoordinate):
         
     @property
     def shape(self):
-        """ Coordinates shape, corresponding to dims attribute. """
+        """Coordinates shape, corresponding to dims attribute. 
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
 
         return self.get_shape()
     
     @property
     def delta(self):
-        """ to be deprecated """
+        """to be deprecated 
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
 
         try:
             return np.array([c.delta for c in self._coords.values()]).squeeze()
@@ -648,7 +670,13 @@ class Coordinate(BaseCoordinate):
     
     @property
     def dims(self):
-        """ Coordinates dimensions. """
+        """Coordinates dimensions. 
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
 
         dims = []
         for v in self.dims_map.values():
@@ -658,21 +686,27 @@ class Coordinate(BaseCoordinate):
     
     @property
     def coords(self):
-        """ TODO """
+        """TODO 
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
 
         crds = OrderedDict()
         for k in self.dims:
             if k in self.dims_map:  # not stacked
                 crds[k] = self._coords[k].coordinates
             else:
-                coordinates = [self._coords[kk].coordinates 
+                coordinates = [self._coords[kk].coordinates
                                for kk in k.split('_')]
                 dtype = [(str(kk), coordinates[i].dtype) 
                          for i, kk in enumerate(k.split('_'))]
                 n_coords = len(coordinates)
                 s_coords = len(coordinates[0])
                 crds[k] = np.array([[tuple([coordinates[j][i]
-                                     for j in range(n_coords)])] 
+                                     for j in range(n_coords)])]
                                    for i in range(s_coords)],
                     dtype=dtype).squeeze()
         return crds
@@ -692,7 +726,13 @@ class Coordinate(BaseCoordinate):
     
     @property
     def gdal_crs(self):
-        """ GDAL coordinate reference system. """
+        """GDAL coordinate reference system. 
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
 
         crs = {'WGS84': 'EPSG:4326',
                'SPHER_MERC': 'EPSG:3857'}
@@ -701,12 +741,12 @@ class Coordinate(BaseCoordinate):
     def add_unique(self, other):
         """
         Concatenate coordinates, skipping duplicates.
-
+        
         Arguments
         ---------
         other : Coordinate
             Coordinates to concatenate.
-
+        
         Returns
         -------
         coord : Coordinate
@@ -718,12 +758,12 @@ class Coordinate(BaseCoordinate):
     def __add__(self, other):
         """
         Concatenate coordinates.
-
+        
         Arguments
         ---------
         other : Coordinate
             Coordinates to concatenate.
-
+        
         Returns
         -------
         coord : Coordinate
@@ -757,14 +797,14 @@ class Coordinate(BaseCoordinate):
     def iterchunks(self, shape, return_slice=False):
         """
         TODO
-
+        
         Arguments
         ---------
         shape : tuple
             TODO
         return_slice : boolean, optional
             Return slice in addition to Coordinate chunk.
-
+        
         Yields
         ------
         l : slice
@@ -793,27 +833,29 @@ class Coordinate(BaseCoordinate):
     def transpose(self, *dims, **kwargs):
         """
         Transpose (re-order) the Coordinate dimensions.
-
+        
         Arguments
         ---------
         *dims : str, optional
             Reorder dims to this order. By default, reverse the dims.
+        **kwargs
+            Description
         
         Keyword Arguments
         -----------------
         in_place : boolean, optional
             If False, return a new, transposed Coordinate object (default).
             If True, transpose the dimensions in-place.
-
+        
         Returns
         -------
         transposed : Coordinate
             The transposed Coordinate object.
-
+        
         See Also
         --------
         xarray.DataArray.transpose : return a transposed DataArray
-
+        
         """
 
         if len(dims) == 0:
@@ -843,6 +885,9 @@ class Coordinate(BaseCoordinate):
             return 'NA'
 
 class CoordinateGroup(BaseCoordinate):
+    """CoordinateGroup Summary
+    """
+    
     # TODO list or array?
     _items = tl.List(trait=tl.Instance(Coordinate))
 
@@ -978,17 +1023,22 @@ class CoordinateGroup(BaseCoordinate):
 def convert_xarray_to_podpac(xcoord):
     """
     Convert an xarray coord to podpac Coordinate.
-
+    
     Arguments
     ---------
     xcoord : DataArrayCoordinates
         xarray coord attribute to convert
-
+    
     Returns
     -------
     coord : Coordinate
         podpact Coordinate object
-    """    
+    
+    Raises
+    ------
+    TypeError
+        Description
+    """
 
     if not isinstance(xcoord, DataArrayCoordinates):
         raise TypeError("input must be an xarray DataArrayCoordinate, not '%s'" % type(xcoord))

@@ -13,29 +13,29 @@ from six import string_types
 def get_timedelta(s):
     """
     Make a numpy timedelta from a podpac timedelta string.
-
+    
     The time delta string must be in the form '<n>,<unit>', where <n> is an
     integer and <unit> is the character for the timedelta unit.
-
+    
     Parameters
     ----------
     s : str
         podpac timedelta string, in the form '<n>,<unit>'
-
+    
     Returns
     -------
     np.timedelta64
         numpy timedelta
-
+    
     Examples
     --------
-
+    
     >>> get_timedelta('2,D')
     numpy.timedelta64(2,'D')
-
+    
     >>> get_timedelta('-3,h')
     numpy.timedelta64(-3,'h')
-
+    
     """
 
     a, b = s.split(',')
@@ -44,23 +44,28 @@ def get_timedelta(s):
 def get_timedelta_unit(delta):
     """
     Get the unit character from a numpy timedelta.
-
+    
     Parameters
     ----------
     delta : np.timedelta64
         numpy timedelta
-
+    
     Returns
     -------
     str
         the character for the timedelta unit
-
+    
     Examples
     --------
-
+    
     >>> get_timedelta_unit(np.timedelta64(1, 'D'))
     'D'
-
+    
+    Raises
+    ------
+    TypeError
+        Description
+    
     """
 
     try:
@@ -74,23 +79,28 @@ def get_timedelta_unit(delta):
 def make_timedelta_string(delta):
     """
     Make a podpac timedelta string from a numpy timedelta.
-
+    
     Parameters
     ----------
     delta : np.timedelta64
         numpy timedelta
-
+    
     Returns
     -------
     str
         podpac timedelta string, in the form '<n>,<units>'
-
+    
     Examples
     --------
-
+    
     >>> get_timedelta_string(np.timedelta64(2, 'D'))
     '2,D'
-
+    
+    Raises
+    ------
+    TypeError
+        Description
+    
     """
 
     if not isinstance(delta, np.timedelta64):
@@ -103,24 +113,29 @@ def make_timedelta_string(delta):
 def make_coord_value(val):
     """
     Make a podpac coordinate value by casting to the correct type.
-
+    
     Parameters
     ----------
     val : str, number, datetime.date, np.array
         Input coordinate value.
-
+    
     Returns
     -------
     val : float, np.datetime64
         Cast coordinate value.
-
+    
     Notes
     -----
      * the value is extracted from singleton and 0-dimensional arrays
      * strings interpreted as inputs to numpy.datetime64
      * datetime datetimes are converted to numpy datetimes
      * numbers are converted to floats
-
+    
+    Raises
+    ------
+    TypeError
+        Description
+    
     """
 
     # extract value from singleton and 0-dimensional arrays
@@ -143,24 +158,29 @@ def make_coord_value(val):
 def make_coord_delta(val):
     """
     Make a podpac coordinate delta by casting to the correct type.
-
+    
     Parameters
     ----------
     val : str, number, datetime.timedelta, np.array
         Input coordinate delta.
-
+    
     Returns
     -------
     val : float, np.timedelta64
         Cast coordinate delta.
-
+    
     Notes
     -----
      * the value is extracted from singleton and 0-dimensional arrays
      * strings are interpreted as inputs to get_timedelta
      * datetime timedeltas are converted to numpy timedeltas
      * numbers are converted to floats
-
+    
+    Raises
+    ------
+    TypeError
+        Description
+    
     """
 
     # extract value from singleton and 0-dimensional arrays
@@ -185,47 +205,52 @@ def make_coord_delta(val):
 def add_coord(base, delta):
     """
     Add a coordinate delta to a coordinate value.
-
+    
     Parameters
     ----------
     base : float, np.datetime64
         The base coordinate value.
     delta : float, np.timedelta64
         The coordinate delta. This can also be a numpy array.
-
+    
     Returns
     -------
     result : float, np.datetime64
         The sum, with month and year timedeltas handled. If dalta is an array,
         the result will be an array.
-
+    
     Notes
     -----
     Month and year deltas are added nominally, which differs from how numpy
     adds timedeltas to datetimes. When adding months or years, if the new date
     exceeds the number of days in the month, it is set to the last day of the
     month.
-
+    
     Examples
     --------
-
+    
     >>> add_coord(1.5, 1.0)
     2.5
-
+    
     >>> add_coord(1.5, np.array([1.0, 2.0]))
     array([ 2.5,  3.5])
-
+    
     >>> add_coord(np.datetime64('2018-01-01'), np.timedelta64(1, 'D'))
     numpy.datetime64('2018-01-02')
-
+    
     >>> np.datetime64('2018-01-01') + np.timedelta64(1, 'M')
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
     TypeError: Cannot get a common metadata divisor for NumPy datetime metadata [D] and [M] because they have incompatible nonlinear base time units
-
+    
     >>> add_coord(np.datetime64('2018-01-01'), np.timedelta64(1, 'M'))
     numpy.datetime64('2018-02-01')
-
+    
+    Raises
+    ------
+    e
+        Description
+    
     """
 
     try:
