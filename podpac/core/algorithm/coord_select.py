@@ -1,7 +1,9 @@
+"""
+Coord Select Summary
+"""
+
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import numpy as np
-import scipy.signal
 import traitlets as tl
 
 from podpac.core.coordinate import Coordinate, UniformCoord
@@ -9,7 +11,22 @@ from podpac.core.coordinate import make_coord_value, make_coord_delta, add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 
+
 class ExpandCoordinates(Algorithm):
+    """Summary
+    
+    Attributes
+    ----------
+    implicit_pipeline_evaluation : TYPE
+        Description
+    input_coordinates : TYPE
+        Description
+    native_coordinates_source : TYPE
+        Description
+    source : TYPE
+        Description
+    """
+    
     source = tl.Instance(Node)
     native_coordinates_source = tl.Instance(Node, allow_none=True)
     input_coordinates = tl.Instance(Coordinate, allow_none=True)
@@ -17,6 +34,18 @@ class ExpandCoordinates(Algorithm):
 
     @property
     def native_coordinates(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        Exception
+            Description
+        """
         try:
             if self.native_coordinates_source:
                 return self.native_coordinates_source.native_coordinates
@@ -26,6 +55,23 @@ class ExpandCoordinates(Algorithm):
             raise Exception("no native coordinates found")
 
     def get_expanded_coord(self, dim):
+        """Summary
+        
+        Parameters
+        ----------
+        dim : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        ValueError
+            Description
+        """
         icoords = self.input_coordinates[dim]
         
         if dim not in self.params:
@@ -64,6 +110,18 @@ class ExpandCoordinates(Algorithm):
 
     @property
     def expanded_coordinates(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        ValueError
+            Description
+        """
         kwargs = {}
         for dim in self.input_coordinates.dims:
             ec = self.get_expanded_coord(dim)
@@ -75,16 +133,60 @@ class ExpandCoordinates(Algorithm):
         return Coordinate(**kwargs)
    
     def algorithm(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return self.source.output
  
     def execute(self, coordinates, params=None, output=None):
+        """Summary
+        
+        Parameters
+        ----------
+        coordinates : TYPE
+            Description
+        params : None, optional
+            Description
+        output : None, optional
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         self.input_coordinates = coordinates
         coordinates = self.expanded_coordinates
-        return super(ExpandCoordinates, self).execute(
-                         coordinates, params, output)
+
+        return super(ExpandCoordinates, self).execute(coordinates, params, output)
+
 
 class SelectCoordinates(ExpandCoordinates):
+    """Summary
+    """
+    
     def get_expanded_coord(self, dim):
+        """Summary
+        
+        Parameters
+        ----------
+        dim : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        ValueError
+            Description
+        """
         icoords = self.input_coordinates[dim]
         
         if dim not in self.params:

@@ -1,11 +1,15 @@
+"""
+Algorithm Summary
+"""
+
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from collections import OrderedDict
 import inspect
 import numpy as np
 import xarray as xr
 import traitlets as tl
-try: 
+
+try:
     import numexpr as ne
 except: 
     ne = None
@@ -13,8 +17,39 @@ except:
 from podpac.core.coordinate import Coordinate, convert_xarray_to_podpac
 from podpac.core.node import Node
 
+
 class Algorithm(Node):
+    """Summary
+    
+    Attributes
+    ----------
+    evaluated : bool
+        Description
+    evaluated_coordinates : TYPE
+        Description
+    output : TYPE
+        Description
+    params : TYPE
+        Description
+    """
+    
     def execute(self, coordinates, params=None, output=None):
+        """Summary
+        
+        Parameters
+        ----------
+        coordinates : TYPE
+            Description
+        params : None, optional
+            Description
+        output : None, optional
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         self.evaluated_coordinates = coordinates
         self.params = params
         self.output = output
@@ -46,7 +81,7 @@ class Algorithm(Node):
             dims = [d for d in self.evaluated_coordinates.dims if d in result.dims]
             if self.output is None:
                 coords = convert_xarray_to_podpac(result.coords)
-                self.output = self.initialize_coord_array(coords) 
+                self.output = self.initialize_coord_array(coords)
             self.output[:] = result
             self.output = self.output.transpose(*dims) # split into 2nd line to avoid broadcasting issues with slice [:]
         self.evaluated = True
@@ -54,11 +89,27 @@ class Algorithm(Node):
         
     def algorithm(self, **kwargs):
         """
+        Parameters
+        ----------
+        **kwargs
+            Description
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
         """
         raise NotImplementedError
 
     @property
     def definition(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         d = self._base_definition()
         
         # this first version is nicer, but the gettattr(self, ref) can take a
@@ -73,25 +124,49 @@ class Algorithm(Node):
         d['inputs'] = {
             ref:getattr(self, ref)
             for ref, trait in self.traits().items()
-            if hasattr(trait, 'klass') and
-               Node in inspect.getmro(trait.klass) and
-               getattr(self, ref) is not None
+            if hasattr(trait, 'klass') and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
         }
         
         if self.params:
             d['params'] = self.params
-            
+        
         return d
 
 class Arange(Algorithm):
-    ''' A simple test node '''
+    '''A simple test node 
+    '''
+
     def algorithm(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         out = self.initialize_output_array('ones')
         return out * np.arange(out.size).reshape(out.shape)
       
+
 class CoordData(Algorithm):
+    """Summary
+    
+    Attributes
+    ----------
+    coord_name : TYPE
+        Description
+    """
+    
     coord_name = tl.Unicode('')
+
     def algorithm(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if self.params:
             coord_name = self.params.get('coord_name', self.coord_name)
         else: coord_name = self.coord_name
@@ -99,13 +174,24 @@ class CoordData(Algorithm):
         if coord_name not in ec.dims:
             return xr.DataArray([1]).min()
        
-        c = ec[coord_name] 
+        c = ec[coord_name]
         data = c.coordinates
-        coords = Coordinate(order=[coord_name], **{coord_name: c}) 
+        coords = Coordinate(order=[coord_name], **{coord_name: c})
         return self.initialize_coord_array(coords, init_type='data', fillval=data)
-  
+
+
 class SinCoords(Algorithm):
+    """Summary
+    """
+    
     def algorithm(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         out = self.initialize_output_array('ones')
         crds = list(out.coords.values())
         try:
@@ -119,7 +205,30 @@ class SinCoords(Algorithm):
             out *= np.sin(np.pi * crd / 90.0)
         return out
 
+
 class Arithmetic(Algorithm):
+    """Summary
+    
+    Attributes
+    ----------
+    A : TYPE
+        Description
+    B : TYPE
+        Description
+    C : TYPE
+        Description
+    D : TYPE
+        Description
+    E : TYPE
+        Description
+    eqn : TYPE
+        Description
+    F : TYPE
+        Description
+    G : TYPE
+        Description
+    """
+    
     A = tl.Instance(Node)
     B = tl.Instance(Node, allow_none=True)
     C = tl.Instance(Node, allow_none=True)
@@ -130,6 +239,13 @@ class Arithmetic(Algorithm):
     eqn = tl.Unicode(default_value='A+B+C+D+E+F+G')
     
     def algorithm(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if self.params:
             eqn = self.params.get('eqn', self.eqn)
             eqn = eqn.format(**self.params)
@@ -150,6 +266,13 @@ class Arithmetic(Algorithm):
 
     @property
     def definition(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         d = super(Arithmetic, self).definition
         
         if self.params and 'eqn' not in self.params:

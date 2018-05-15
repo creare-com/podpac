@@ -1,22 +1,50 @@
+"""
+Signal Summary
+
+NOTE: another option for the convolution kernel input would be to accept an
+    xarray and add and transpose dimensions as necessary.
+
+NOTE: At the moment this module is quite brittle... it makes assumptions about
+    the input node (i.e. alt coordinates would likely break this)
+"""
+
+from collections import OrderedDict
 
 import traitlets as tl
 import numpy as np
 import xarray as xr
 import scipy.signal
-from collections import OrderedDict
 
 from podpac.core.coordinate import Coordinate, UniformCoord
-from podpac.core.coordinate import add_coord 
+from podpac.core.coordinate import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 
-#NOTE: another option for the convolution kernel input would be to accept an
-#      xarray and add and transpose dimensions as necessary.
-
-# NOTE: At the moment this module is quite brittle... it makes assumptions about
-#       the input node (i.e. alt coordinates would likely break this)
-
 class Convolution(Algorithm):
+    """Summary
+    
+    Attributes
+    ----------
+    evaluated_coordinates : TYPE
+        Description
+    expanded_coordinates : TYPE
+        Description
+    input_node : TYPE
+        Description
+    kernel : TYPE
+        Description
+    kernel_ndim : TYPE
+        Description
+    kernel_type : TYPE
+        Description
+    output : TYPE
+        Description
+    output_coordinates : TYPE
+        Description
+    params : TYPE
+        Description
+    """
+    
     input_node = tl.Instance(Node)
     kernel = tl.Instance(np.ndarray)
     kernel_type = tl.Unicode()
@@ -26,9 +54,32 @@ class Convolution(Algorithm):
    
     @property
     def native_coordinates(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return self.input_node.native_coordinates
  
     def execute(self, coordinates, params=None, output=None):
+        """Summary
+        
+        Parameters
+        ----------
+        coordinates : TYPE
+            Description
+        params : None, optional
+            Description
+        output : None, optional
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         self.evaluated_coordinates = coordinates
         self.params = params
         self.output = output
@@ -51,7 +102,7 @@ class Convolution(Algorithm):
             if not isinstance(coord, UniformCoord):
                 exp_slice.append(slice(None))
                 continue
-            s_start = -s // 2 
+            s_start = -s // 2
             s_end = s // 2 - ((s + 1) % 2)
             # The 1e-07 is for floating point error because if endpoint is slightly
             # in front of delta * N then the endpoint is excluded
@@ -70,7 +121,7 @@ class Convolution(Algorithm):
         # reduce down to originally requested coordinates
         self.output = out[exp_slice]
 
-        return self.output 
+        return self.output
 
     @tl.default('kernel')
     def _kernel_default(self):
@@ -82,8 +133,8 @@ class Convolution(Algorithm):
         size = int(kernel_type.split(',')[1])
         args = [float(a) for a in kernel_type.split(',')[2:]]
         if ktype == 'mean':
-            k = np.ones([size] * self.kernel_ndim) 
-        else: 
+            k = np.ones([size] * self.kernel_ndim)
+        else:
             f = getattr(scipy.signal, ktype)
             k1d = f(size, *args)
             k = k1d.copy()
@@ -94,21 +145,61 @@ class Convolution(Algorithm):
  
     @property
     def full_kernel(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return self.kernel
 
     def algorithm(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if np.isnan(np.max(self.input_node.output)):
             method = 'direct'
         else: method = 'auto'
         res = scipy.signal.convolve(self.input_node.output,
-                                    self.full_kernel, 
+                                    self.full_kernel,
                                     mode='same', method=method)
         return res
 
+
 class TimeConvolution(Convolution):
+    """Summary
+    
+    Attributes
+    ----------
+    kernel_ndim : TYPE
+        Description
+    """
+    
     kernel_ndim = tl.Int(1)
     @tl.validate('kernel')
     def validate_kernel(self, proposal):
+        """Summary
+        
+        Parameters
+        ----------
+        proposal : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        ValueError
+            Description
+        """
         if proposal['value'].ndim != 1:
             raise ValueError('kernel must have ndim=1 (got ndim=%d)' % (
                 proposal['value'].ndim))
@@ -117,36 +208,79 @@ class TimeConvolution(Convolution):
 
     @property
     def full_kernel(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        ValueError
+            Description
+        """
         if 'time' not in self.output_coordinates.dims:
-            raise ValueError('cannot compute time convolution from'
-                             'time-indepedendent input')
-        if 'lat' not in self.output_coordinates.dims \
-                and 'lon' not in self.output_coordinates.dims:
-            return self.kernel       
+            raise ValueError('cannot compute time convolution from time-indepedendent input')
+        if 'lat' not in self.output_coordinates.dims and 'lon' not in self.output_coordinates.dims:
+            return self.kernel
  
         kernel = np.array([[self.kernel]])
         kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
         kernel = kernel.transpose(*self.output_coordinates.dims)
         return kernel.data
 
+
 class SpatialConvolution(Convolution):
+    """Summary
+    
+    Attributes
+    ----------
+    kernel_ndim : TYPE
+        Description
+    """
+    
     kernel_ndim = tl.Int(2)
     @tl.validate('kernel')
     def validate_kernel(self, proposal):
+        """Summary
+        
+        Parameters
+        ----------
+        proposal : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        ValueError
+            Description
+        """
         if proposal['value'].ndim != 2:
-            raise ValueError('kernel must have ndim=2 (got ndim=%d)' % (
-                proposal['value'].ndim))
+            raise ValueError('kernel must have ndim=2 (got ndim=%d)' % (proposal['value'].ndim))
 
         return proposal['value']
 
     @property
     def full_kernel(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if 'time' not in self.output_coordinates.dims:
             return self.kernel
 
         kernel = np.array([self.kernel]).T
         kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
         kernel = kernel.transpose(*self.output_coordinates.dims)
+
         return kernel.data
 
 if __name__ == '__main__':

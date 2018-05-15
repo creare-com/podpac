@@ -1,3 +1,7 @@
+"""
+Stats Summary
+"""
+
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import warnings
@@ -17,6 +21,26 @@ from podpac.core.algorithm.algorithm import Algorithm
 # =============================================================================
 
 class Reduce(Algorithm):
+    """Summary
+    
+    Attributes
+    ----------
+    dims : TYPE
+        Description
+    evaluated : bool
+        Description
+    evaluated_coordinates : TYPE
+        Description
+    input_coordinates : TYPE
+        Description
+    input_node : TYPE
+        Description
+    output : TYPE
+        Description
+    params : TYPE
+        Description
+    """
+    
     input_coordinates = tl.Instance(Coordinate)
     input_node = tl.Instance(Node)
 
@@ -24,15 +48,37 @@ class Reduce(Algorithm):
 
     @property
     def native_coordinates(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return self.input_node.native_coordinates
 
     def get_dims(self, out):
         """
         Validates and translates requested reduction dimensions.
+        
+        Parameters
+        ----------
+        out : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        ValueError
+            Description
         """
         # Using self.output.dims does a lot of work for us comparing
         # native_coordinates to evaluated coordinates
-        input_dims = list(out.dims) 
+        input_dims = list(out.dims)
         valid_dims = self.input_coordinates.dims
 
         if self.params is None or 'dims' not in self.params:
@@ -45,18 +91,36 @@ class Reduce(Algorithm):
         dims = []
         for dim in params_dims:
             if dim not in valid_dims:
-                raise ValueError("Invalid Reduce dimension: %s" % dim)    
+                raise ValueError("Invalid Reduce dimension: %s" % dim)
             elif dim in input_dims:
                 dims.append(dim)
         
         return dims
     
     def dims_axes(self, output):
-        axes = [i for i in range(len(output.dims))
-                 if output.dims[i] in self.dims]
+        """Summary
+        
+        Parameters
+        ----------
+        output : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
+        axes = [i for i in range(len(output.dims)) if output.dims[i] in self.dims]
         return axes
 
     def get_reduced_coordinates(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         coordinates = self.input_coordinates
         dims = self.dims
         kwargs = {}
@@ -75,6 +139,13 @@ class Reduce(Algorithm):
 
     @property
     def chunk_size(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if 'chunk_size' not in self.params:
             # return self.input_coordinates.shape
             return None
@@ -86,6 +157,13 @@ class Reduce(Algorithm):
 
     @property
     def chunk_shape(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if self.chunk_size is None:
             # return self.input_coordinates.shape
             return None
@@ -112,12 +190,12 @@ class Reduce(Algorithm):
         Transpose and reshape a DataArray to put the reduce dimensions together
         as axis 0. This is useful for example for scipy.stats.skew and kurtosis
         which only calculate over a single axis, by default 0.
-
+        
         Arguments
         ---------
         x : xr.DataArray
             Input DataArray
-
+        
         Returns
         -------
         a : np.array
@@ -134,10 +212,33 @@ class Reduce(Algorithm):
         return a
 
     def iteroutputs(self):
+        """Summary
+        
+        Yields
+        ------
+        TYPE
+            Description
+        """
         for chunk in self.input_coordinates.iterchunks(self.chunk_shape):
             yield self.input_node.execute(chunk, self.params)
 
     def execute(self, coordinates, params=None, output=None):
+        """Summary
+        
+        Parameters
+        ----------
+        coordinates : TYPE
+            Description
+        params : None, optional
+            Description
+        output : None, optional
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         self.input_coordinates = coordinates
         self.params = params or {}
         self.output = output
@@ -147,7 +248,7 @@ class Reduce(Algorithm):
         self.dims = self.get_dims(test_out)
  
         self.evaluated_coordinates = self.get_reduced_coordinates()
-        if self.output is None: 
+        if self.output is None:
             self.output = self.initialize_coord_array(self.evaluated_coordinates)
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
@@ -169,8 +270,18 @@ class Reduce(Algorithm):
     def reduce(self, x):
         """
         Reduce a full array, e.g. x.mean(self.dims).
-
+        
         Must be defined in each child.
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Raises
+        ------
+        NotImplementedError
+            Description
         """
 
         raise NotImplementedError
@@ -178,8 +289,18 @@ class Reduce(Algorithm):
     def reduce_chunked(self, xs):
         """
         Reduce a list of xs with a memory-effecient iterative algorithm.
-
+        
         Optionally defined in each child.
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
         """
 
         warnings.warn("No reduce_chunked method defined, using one-step reduce")
@@ -188,6 +309,18 @@ class Reduce(Algorithm):
 
     @property
     def evaluated_hash(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        Exception
+            Description
+        """
         if self.input_coordinates is None:
             raise Exception("node not evaluated")
             
@@ -195,55 +328,201 @@ class Reduce(Algorithm):
 
     @property
     def latlon_bounds_str(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return self.input_coordinates.latlon_bounds_str
 
 class Min(Reduce):
+    """Summary
+    """
+    
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return x.min(dim=self.dims)
     
     def reduce_chunked(self, xs):
+        """Summary
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         # note: np.fmin ignores NaNs, np.minimum propagates NaNs
         y = xr.full_like(self.output, np.nan)
         for x in xs:
             y = np.fmin(y, x.min(dim=self.dims))
         return y
 
+
 class Max(Reduce):
+    """Summary
+    """
+    
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return x.max(dim=self.dims)
 
     def reduce_chunked(self, xs):
+        """Summary
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         # note: np.fmax ignores NaNs, np.maximum propagates NaNs
         y = xr.full_like(self.output, np.nan)
         for x in xs:
             y = np.fmax(y, x.max(dim=self.dims))
         return y
 
+
 class Sum(Reduce):
+    """Summary
+    """
+    
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return x.sum(dim=self.dims)
 
     def reduce_chunked(self, xs):
+        """Summary
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         s = xr.zeros_like(self.output)
         for x in xs:
             s += x.sum(dim=self.dims)
         return s
 
+
 class Count(Reduce):
+    """Summary
+    """
+    
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return np.isfinite(x).sum(dim=self.dims)
 
     def reduce_chunked(self, xs):
+        """Summary
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         n = xr.zeros_like(self.output)
         for x in xs:
             n += np.isfinite(x).sum(dim=self.dims)
         return n
 
+
 class Mean(Reduce):
+    """Summary
+    """
+    
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return x.mean(dim=self.dims)
 
     def reduce_chunked(self, xs):
+        """Summary
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         s = xr.zeros_like(self.output) # alt: s = np.zeros(self.shape)
         n = xr.zeros_like(self.output)
         for x in xs:
@@ -253,11 +532,39 @@ class Mean(Reduce):
         output = s / n
         return output
 
+
 class Variance(Reduce):
+    """Summary
+    """
+    
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return x.var(dim=self.dims)
 
     def reduce_chunked(self, xs):
+        """Summary
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         n = xr.zeros_like(self.output)
         m = xr.zeros_like(self.output)
         m2 = xr.zeros_like(self.output)
@@ -272,10 +579,27 @@ class Variance(Reduce):
 
         return m2 / n
 
+
 class Skew(Reduce):
-    # TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
+    """
+    Summary
+
+    TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
+    """
 
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         # N = np.isfinite(x).sum(dim=self.dims)
         # M1 = x.mean(dim=self.dims)
         # E = x - M1
@@ -290,6 +614,18 @@ class Skew(Reduce):
         return skew
         
     def reduce_chunked(self, xs):
+        """Summary
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         N = xr.zeros_like(self.output)
         M1 = xr.zeros_like(self.output)
         M2 = xr.zeros_like(self.output)
@@ -321,7 +657,7 @@ class Skew(Reduce):
             n = Nb + Nx
             NNx = Nb * Nx
 
-            M3.data[b] += (M3x + 
+            M3.data[b] += (M3x +
                            d**3 * NNx * (Nb-Nx) / n**2 +
                            3 * d * (Nb*M2x - Nx*M2b) / n)
             M2.data[b] += M2x + d**2 * NNx / n
@@ -333,9 +669,23 @@ class Skew(Reduce):
         return skew
 
 class Kurtosis(Reduce):
-    # TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
+    """Summary
+    TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
+    """
 
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         # N = np.isfinite(x).sum(dim=self.dims)
         # M1 = x.mean(dim=self.dims)        
         # E = x - M1
@@ -350,6 +700,18 @@ class Kurtosis(Reduce):
         return kurtosis
 
     def reduce_chunked(self, xs):
+        """Summary
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         N = xr.zeros_like(self.output)
         M1 = xr.zeros_like(self.output)
         M2 = xr.zeros_like(self.output)
@@ -390,7 +752,7 @@ class Kurtosis(Reduce):
                            6 * d**2 * (Nb**2*M2x + Nx**2*M2b) / n**2 +
                            4 * d * (Nb*M3x - Nx*M3b) / n)
 
-            M3.data[b] += (M3x + 
+            M3.data[b] += (M3x +
                            d**3 * NNx * (Nb-Nx) / n**2 +
                            3 * d * (Nb*M2x - Nx*M2b) / n)
             M2.data[b] += M2x + d**2 * NNx / n
@@ -401,11 +763,39 @@ class Kurtosis(Reduce):
         kurtosis = N * M4 / M2**2 - 3
         return kurtosis
 
+
 class StandardDeviation(Variance):
+    """Summary
+    """
+    
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return x.std(dim=self.dims)
 
     def reduce_chunked(self, xs):
+        """Summary
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         var = super(StandardDeviation, self).reduce_chunked(xs)
         return np.sqrt(var)
 
@@ -417,18 +807,25 @@ class Reduce2(Reduce):
     """
     Extended Reduce class that enables chunks that are smaller than the reduced
     output array.
-
+    
     The base Reduce node ensures that each chunk is at least as big as the
     reduced output, which works for statistics that can be calculated in O(1)
     space. For statistics that require O(n) space, the node must iterate
     through the Coordinate orthogonally to the reduce dimension, using chunks
     that only cover a portion of the output array.
-
+    
     Note that the above nodes *could* be implemented to allow small chunks.
     """
 
     @property
     def chunk_shape(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if self.chunk_size is None:
             # return self.input_coordinates.shape
             return None
@@ -454,11 +851,30 @@ class Reduce2(Reduce):
         return [d[dim] for dim in coords.dims]
 
     def iteroutputs(self):
+        """Summary
+        
+        Yields
+        ------
+        TYPE
+            Description
+        """
         chunks = self.input_coordinates.iterchunks(self.chunk_shape, return_slice=True)
         for slc, chunk in chunks:
             yield slc, self.input_node.execute(chunk, self.params)
 
     def reduce_chunked(self, xs):
+        """Summary
+        
+        Parameters
+        ----------
+        xs : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         I = [self.input_coordinates.dims.index(dim)
              for dim in
              self.evaluated_coordinates.dims]
@@ -468,14 +884,51 @@ class Reduce2(Reduce):
             y.data[yslc] = self.reduce(x)
         return y
 
+
 class Median(Reduce2):
+    """Summary
+    """
+    
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         return x.median(dim=self.dims)
 
+
 class Percentile(Reduce2):
+    """Summary
+    
+    Attributes
+    ----------
+    percentile : TYPE
+        Description
+    """
+    
     percentile = tl.Float(default=50.0)
 
     def reduce(self, x):
+        """Summary
+        
+        Parameters
+        ----------
+        x : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         percentile = self.params.get('percentile', self.percentile)
         return np.nanpercentile(x, percentile, self.dims_axes(x))
 
@@ -488,17 +941,27 @@ class Percentile(Reduce2):
 class GroupReduce(Algorithm):
     """
     Group a time-dependent source node by a datetime accessor and reduce.
-
+    
     Attributes
     ----------
-    source : Node
-        Source node, must have native_coordinates
-    groupby : str
-        datetime sub-accessor. Currently 'dayofyear' is the enabled option.
-    reduce_fn : str
-        builtin xarray groupby reduce function, or 'custom'.
     custom_reduce_fn : function
         required if reduce_fn is 'custom'.
+    evaluated : bool
+        Description
+    evaluated_coordinates : TYPE
+        Description
+    groupby : str
+        datetime sub-accessor. Currently 'dayofyear' is the enabled option.
+    native_coordinates_source : TYPE
+        Description
+    output : TYPE
+        Description
+    params : TYPE
+        Description
+    reduce_fn : str
+        builtin xarray groupby reduce function, or 'custom'.
+    source : Node
+        Source node, must have native_coordinates
     """
 
     source = tl.Instance(Node)
@@ -514,6 +977,18 @@ class GroupReduce(Algorithm):
 
     @property
     def native_coordinates(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        Exception
+            Description
+        """
         try:
             if self.native_coordinates_source:
                 return self.native_coordinates_source.native_coordinates
@@ -524,6 +999,13 @@ class GroupReduce(Algorithm):
 
     @property
     def source_coordinates(self):
+        """Summary
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         # intersect grouped time coordinates using groupby DatetimeAccessor
         native_time = xr.DataArray(self.native_coordinates.coords['time'])
         eval_time = xr.DataArray(self.evaluated_coordinates.coords['time'])
@@ -541,6 +1023,27 @@ class GroupReduce(Algorithm):
         return coords
 
     def execute(self, coordinates, params=None, output=None):
+        """Summary
+        
+        Parameters
+        ----------
+        coordinates : TYPE
+            Description
+        params : None, optional
+            Description
+        output : None, optional
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        ValueError
+            Description
+        """
         self.evaluated_coordinates = coordinates
         self.params = params
         self.output = output
@@ -576,11 +1079,22 @@ class GroupReduce(Algorithm):
     def base_ref(self):
         """
         Default pipeline node reference/name in pipeline node definitions
+        
+        Returns
+        -------
+        TYPE
+            Description
         """
         return '%s.%s.%s' % (self.source.base_ref,self.groupby,self.reduce_fn)
 
 class DayOfYear(GroupReduce):
-    """ Convenience class. """
+    """Convenience class. 
+    
+    Attributes
+    ----------
+    groupby : str
+        Description
+    """
 
     groupby = 'dayofyear'
 
