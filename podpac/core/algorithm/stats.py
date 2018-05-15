@@ -6,6 +6,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import warnings
 from operator import mul
+from functools import reduce
 
 import xarray as xr
 import numpy as np
