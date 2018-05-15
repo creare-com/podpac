@@ -1,8 +1,8 @@
 """ podpac module"""
 
 # Always perfer setuptools over distutils
-from setuptools import setup, find_packages
 import sys
+from setuptools import setup, find_packages
 
 install_requires = [
     'matplotlib>=2.1',
@@ -33,7 +33,7 @@ extras_require = {
         ],
     'esri': [
         # 'arcpy',
-        'certifi>=2018.1.18'        
+        'certifi>=2018.1.18',
         'urllib3>=1.22',
         ],
     'dev': [
@@ -50,7 +50,8 @@ extras_require = {
 
 all_reqs = []
 for key, val in extras_require.items():
-    if 'key' == 'dev': continue
+    if 'key' == 'dev':
+        continue
     all_reqs += val
 extras_require['all'] = all_reqs
 extras_require['devall'] = all_reqs + extras_require['dev']
@@ -75,7 +76,7 @@ setup(
         'Intended Audience :: Developers',
         'Topic :: Scientific/Engineering :: GIS',
         # Pick your license as you wish (should match "license" above)
-         'License :: OSI Approved :: Apache Software License',
+        'License :: OSI Approved :: Apache Software License',
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: both',
