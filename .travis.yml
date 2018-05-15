@@ -33,6 +33,9 @@ cache: pip
 script: 
   - pytest --ci podpac
 
+  # # run doctest
+  # - cd doc && ./test-docs.sh && cd ..
+
 # deploy docs to `podpac-docs` repository. This script only pushes the docs on pushes to develop and master.
 jobs:
   include:

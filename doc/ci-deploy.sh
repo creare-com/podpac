@@ -25,6 +25,11 @@ else
     exit 0
 fi
 
+# Get the deploy key by using Travis's stored variables to decrypt ci-doc-deploy
+openssl aes-256-cbc -K $encrypted_f01ce353ad15_key -iv $encrypted_f01ce353ad15_iv -in ci-doc-deploy.enc -out ci-doc-deploy -d
+eval `ssh-agent -s`
+ssh-add ci-doc-deploy
+
 # clone podpac-docs repo into directory next to podpac
 git clone $PODPAC_DOCS $PODPAC_DOCS_PATH
 
@@ -47,10 +52,7 @@ fi
 git add -A .
 git commit -m "Deploy podpac docs to GitHub Pages: $TRAVIS_COMMIT"
 
-# Get the deploy key by using Travis's stored variables to decrypt ci-doc-deploy
-openssl aes-256-cbc -K $encrypted_f01ce353ad15_key -iv $encrypted_f01ce353ad15_iv -in ci-doc-deploy.enc -out ci-doc-deploy -d
-eval `ssh-agent -s`
-ssh-add ci-doc-deploy
+
 
 # Now that we're all set up, we can push.
 git push $SSH_PODPAC_DOCS master
