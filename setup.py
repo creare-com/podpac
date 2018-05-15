@@ -2,6 +2,58 @@
 
 # Always perfer setuptools over distutils
 from setuptools import setup, find_packages
+import sys
+
+install_requires = [
+    'numpy>=1.14',
+    'scipy>=1.0',
+    'xarray>=0.10',
+    'traitlets>=4.3',
+    'pint>=0.8',
+    'matplotlib>=2.1',
+    ]
+if sys.version_info.major == 2:
+    install_requires += 'future>=0.16'
+
+extras_require = {
+    'datatype': [
+        'rasterio>=0.36',
+        'pydap>=3.2',
+        'requests>=2.18',
+        'beautifulsoup4>=4.6',
+        'lxml>=4.2',
+        'h5py>=2.7'
+        ],
+    'aws': [
+        'boto3>=1.4',
+        'awscli>=1.11'
+    ],
+    'algorithms': [
+        'numexpr>=2.6',
+        ],
+    'esri': [
+                # 'arcpy',
+        'urllib3>=1.22',
+        'certifi>=2018.1.18'        
+        ],
+    'dev': [
+        'pylint>=1.8.2',
+        'pytest>=3.3.2',
+        'pytest-cov>=2.5.1',
+        'pytest-html>=1.7.0',
+        'sphinx>=1.6.6',
+        'sphinx-rtd-theme>=0.3.1',
+        'recommonmark>=0.4.0',
+        'numpydoc>=0.7.0',
+        ]
+    }
+
+all_reqs = []
+for key, val in extras_require.items():
+    if 'key' == 'dev': continue
+    all_reqs += val
+extras_require['all'] = all_reqs
+extras_require['devall'] = all_reqs + extras_require['dev']
 
 setup(
     # ext_modules=None,
@@ -29,31 +81,8 @@ setup(
         'Programming Language :: Python :: both',
     ],
     packages=find_packages(),
-    install_requires=[
-        'numpy>=1.14',
-        'scipy>=1.0',
-        'xarray>=0.10',
-        'traitlets>=4.3',
-        'pint>=0.8',
-        'matplotlib>=2.1',
-
-        # Requirements for Python 2
-        'future>=0.16',
-
-        # Optional requirements
-        'numexpr>=2.6',
-        'rasterio>=0.36',
-        'pydap>=3.2',
-        'requests>=2.18',
-        'beautifulsoup4>=4.6',
-        'lxml>=4.2',
-        'h5py>=2.7',
-
-        # Optional requirements for Esri+ version
-        # 'arcpy',
-        'urllib3>=1.22',
-        'certifi>=2018.1.18'
-        ],
+    install_requires=install_requires,
+    extras_require=extras_require,
     # entry_points = {
     #     'console_scripts' : []
     # }
