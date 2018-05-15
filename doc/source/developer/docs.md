@@ -17,6 +17,16 @@ $ conda install sphinx_rtd_theme    # or `pip install sphinx-rtd-theme`
 $ pip install recommonmark
 ```
 
+## Test
+
+To run the doctests in the documentation, run from the `/doc` directory:
+
+```
+$ ./test-docs.sh        # convience script
+or
+$ sphinx-build -b doctest source build  # run tests manually
+```
+
 ## Build
 
 ### Website
@@ -26,8 +36,8 @@ To build the documentation into a website in the `doc/build` directory, run from
 ```bash
 $ make html
 or
-$ sphinx-build source build   # run sphinx manually to build html by default
-$ sphinx-build -aE source build   # for sphinx to rebuild all files (no cache)
+$ sphinx-build source build       # run manually
+$ sphinx-build -aE source build   # rebuild all files (no cache)
 ```
 
 See [`sphinx-build` docs](http://www.sphinx-doc.org/en/stable/invocation.html#invocation-of-sphinx-build) for more options.
@@ -46,7 +56,7 @@ Enter the build directory and convert tex file to pdf:
 
 ```bash
 $ cd build                             # go into the latex directory
-$ pdflatex WeatherCitizen.tex          # build the pdf from WeatherCitizen.tex entry file
+$ pdflatex podpac.tex          # build the pdf from podpac.tex entry file
 ```
 
 ## Develop
@@ -60,7 +70,10 @@ $ pip install sphinx-autobuild
 Then run from the `doc` directory:
 
 ```
-$ sphinx-autobuild -aE source build
+$ ./serve-docs.sh                   # convience script
+or
+$ sphinx-autobuild source build     # run manually
+$ sphinx-autobuild -aE source build # rebuild all files (no cache)
 ```
 
 And the visit the webpage served at http://127.0.0.1:8000. Each time a change to the documentation source is detected, the HTML is rebuilt and the browser automatically reloaded.
@@ -84,3 +97,4 @@ See https://github.com/GaretJax/sphinx-autobuild for more options
 - [Sphinx docstring interpretation (autodoc)](http://www.sphinx-doc.org/en/stable/ext/autodoc.html#module-sphinx.ext.autodoc)
 - [Sphinx Themes](http://www.sphinx-doc.org/en/stable/theming.html)
     + [Read the Docs Theme](https://github.com/rtfd/sphinx_rtd_theme)
+- [Sphinx doctest](http://www.sphinx-doc.org/en/master/ext/doctest.html)

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# serve docs 
+# test docs 
 
 # clean docs if asked
 if [ "$1" == "clean" ]; then
@@ -8,4 +8,4 @@ if [ "$1" == "clean" ]; then
 fi
 
 # build sphinx-docs
-sphinx-autobuild -b html source build 
+sphinx-build -b doctest source build 

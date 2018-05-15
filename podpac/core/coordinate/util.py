@@ -1,5 +1,10 @@
 """
 Utilities functions for handling podpac coordinates.
+
+.. testsetup:: podpac.core.coordinate.util
+    
+    import numpy as np
+    from podpac.core.coordinate.util import *
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
@@ -29,12 +34,14 @@ def get_timedelta(s):
     
     Examples
     --------
-    
-    >>> get_timedelta('2,D')
-    numpy.timedelta64(2,'D')
-    
-    >>> get_timedelta('-3,h')
-    numpy.timedelta64(-3,'h')
+
+    .. doctest:: podpac.core.coordinate.util
+
+        >>> get_timedelta('2,D')
+        numpy.timedelta64(2,'D')
+        
+        >>> get_timedelta('-3,h')
+        numpy.timedelta64(-3,'h')
     
     """
 
@@ -58,8 +65,10 @@ def get_timedelta_unit(delta):
     Examples
     --------
     
-    >>> get_timedelta_unit(np.timedelta64(1, 'D'))
-    'D'
+    .. doctest:: podpac.core.coordinate.util
+    
+        >>> get_timedelta_unit(np.timedelta64(1, 'D'))
+        'D'
     
     Raises
     ------
@@ -93,8 +102,10 @@ def make_timedelta_string(delta):
     Examples
     --------
     
-    >>> get_timedelta_string(np.timedelta64(2, 'D'))
-    '2,D'
+    .. doctest:: podpac.core.coordinate.util
+
+        >>> get_timedelta_string(np.timedelta64(2, 'D'))
+        '2,D'
     
     Raises
     ------
@@ -229,22 +240,24 @@ def add_coord(base, delta):
     Examples
     --------
     
-    >>> add_coord(1.5, 1.0)
-    2.5
-    
-    >>> add_coord(1.5, np.array([1.0, 2.0]))
-    array([ 2.5,  3.5])
-    
-    >>> add_coord(np.datetime64('2018-01-01'), np.timedelta64(1, 'D'))
-    numpy.datetime64('2018-01-02')
-    
-    >>> np.datetime64('2018-01-01') + np.timedelta64(1, 'M')
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-    TypeError: Cannot get a common metadata divisor for NumPy datetime metadata [D] and [M] because they have incompatible nonlinear base time units
-    
-    >>> add_coord(np.datetime64('2018-01-01'), np.timedelta64(1, 'M'))
-    numpy.datetime64('2018-02-01')
+    .. doctest:: podpac.core.coordinate.util
+
+        >>> add_coord(1.5, 1.0)
+        2.5
+        
+        >>> add_coord(1.5, np.array([1.0, 2.0]))
+        array([ 2.5, 3.5])
+        
+        >>> add_coord(np.datetime64('2018-01-01'), np.timedelta64(1, 'D'))
+        numpy.datetime64('2018-01-02')
+        
+        >>> np.datetime64('2018-01-01') + np.timedelta64(1, 'M')
+        Traceback (most recent call last):
+          File "<stdin>", line 1, in <module>
+        TypeError: Cannot get a common metadata divisor for NumPy datetime metadata [D] and [M] because they have incompatible nonlinear base time units
+        
+        >>> add_coord(np.datetime64('2018-01-01'), np.timedelta64(1, 'M'))
+        numpy.datetime64('2018-02-01')
     
     Raises
     ------
