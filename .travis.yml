@@ -33,6 +33,10 @@ cache: pip
 script:
   - pytest --ci podpac
 
+# deploy docs to `podpac-docs` repository. This script only pushes the docs on pushes to develop and master.
 deploy:
-  # deploy docs to `podpac-docs` repository. This script only pushes the docs on pushes to develop and master.
-  - cd doc && ./ci-deploy.sh && cd ..   
+  provider: script
+  script: cd doc && ./ci-deploy.sh && cd ..   
+  on:
+    all_branches: true
+    condition: $TRAVIS_BRANCH =~ ^develop|master$

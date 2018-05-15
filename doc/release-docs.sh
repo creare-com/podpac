@@ -12,6 +12,9 @@ PODPAC_DOCS_PATH="../../podpac-docs"
 sphinx-build source build
 
 if [ -d "$PODPAC_DOCS_PATH" ]; then
+    # remove contents of podpac-docs repository
+    rm -rf $PODPAC_DOCS_PATH/**/*
+
     # copy recursively to new repository
     cp -rf build/* $PODPAC_DOCS_PATH
 else

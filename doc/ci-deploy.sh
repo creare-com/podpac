@@ -1,6 +1,5 @@
 #!/bin/bash
 # Adapted from https://gist.github.com/domenic/ec8b0fc8ab45f39403dd
-# MIT License https://gist.github.com/domenic/ec8b0fc8ab45f39403dd#licensing
 # 
 # this script runs from the `doc` directory in the travis deploy job
 # Note this decrypts deploy key `ci-doc-deploy` for creare-com/podpac-docs repository 
@@ -12,30 +11,20 @@
 
 set -e # Exit with nonzero exit code if anything fails
 
-REPO="https://github.com/creare-com/podpac-docs"
-SSH_REPO="git@github.com:creare-com/podpac-docs.git"
-REPO_PATH="../../podpac-docs"
+PODPAC_DOCS="https://github.com/creare-com/podpac-docs"
+SSH_PODPAC_DOCS="git@github.com:creare-com/podpac-docs.git"
+PODPAC_DOCS_PATH="../../podpac-docs"
 COMMIT_AUTHOR=`git log --format="%cn" -n 1`
 COMMIT_AUTHOR_EMAIL=`git log --format="%ce" -n 1`
 
-# Only deploy to site on develop or master. Ignore pull requests
-if [ "$TRAVIS_BRANCH" != "master" -o "$TRAVIS_BRANCH" != "develop" -o "$TRAVIS_PULL_REQUEST" != "false" ]; then
-    echo "Building docs without deploying"
-    ./release-docs.sh
-    exit 0
-fi
-
 # clone podpac-docs repo into directory next to podpac
-git clone $REPO $REPO_PATH
-
-# Clean out existing contents
-rm -rf $REPO_PATH/**/* || exit 0
+git clone $PODPAC_DOCS $PODPAC_DOCS_PATH
 
 # Run our compile script
 ./release-docs.sh
 
 # Now let's go have some fun with the cloned repo
-cd $REPO_PATH
+cd $PODPAC_DOCS_PATH
 git config user.name "$COMMIT_AUTHOR"
 git config user.email "$COMMIT_AUTHOR_EMAIL"
 
@@ -56,4 +45,4 @@ eval `ssh-agent -s`
 ssh-add ci-doc-deploy
 
 # Now that we're all set up, we can push.
-git push $SSH_REPO master
+git push $SSH_PODPAC_DOCS master
