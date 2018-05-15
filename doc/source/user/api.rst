@@ -1,14 +1,66 @@
 .. _api:
 
+.. currentmodule:: podpac
+
+
 API Reference
 =============
 
-.. toctree::
-    :maxdepth: 1
 
-    api/settings
+Settings
+--------
 
-.. toctree::
-    :maxdepth: 2
+.. autosummary::
+    :nosignatures:
+    :toctree: api/
 
-    api/core
+    settings
+
+Core
+----
+
+.. autosummary::
+    :nosignatures:
+    :toctree: api/
+
+    core.authentication
+    core.compositor
+    core.node
+    core.pipeline
+    core.units
+    core.utils
+
+Coordinates
+-----------
+
+.. autosummary::
+    :nosignatures:
+    :toctree: api/
+
+    core.coordinate.coord
+    core.coordinate.coordinate
+    core.coordinate.util
+
+Data
+----
+
+.. autosummary::
+    :nosignatures:
+    :toctree: api/
+
+    core.data.data
+    core.data.interpolate
+    core.data.type
+
+
+Data Sources
+------------
+
+.. autosummary::
+    :nosignatures:
+    :toctree: api/
+
+    datalib.smap
+    datalib.airmoss
+
+

@@ -30,8 +30,7 @@ source_parsers = {
     '.md': CommonMarkParser,
 }
 
-# see https://numpydoc.readthedocs.io/en/latest/install.html
-numpydoc_show_class_members = False
+GIT_URL = 'https://github.com/creare-com/podpac'
 
 # -- General configuration ------------------------------------------------
 
@@ -48,8 +47,10 @@ extensions = [
     'numpydoc',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages']
+    # 'sphinx.ext.viewcode',
+    'sphinx.ext.extlinks',
+    'sphinx.ext.githubpages'
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -97,6 +98,18 @@ todo_include_todos = True
 # autodoc options
 autodoc_default_flags = ['members']  # include all module members by default
 
+# see https://numpydoc.readthedocs.io/en/latest/install.html
+numpydoc_class_members_toctree = True
+numpydoc_show_class_members = False
+
+# generate autosummary files into the :toctree: directory
+# see http://www.sphinx-doc.org/en/master/ext/autosummary.html
+autosummary_generate = True
+
+# shortened external links. see http://www.sphinx-doc.org/en/master/ext/extlinks.html
+extlinks = {'issue': ('{0}/issues/%s'.format(GIT_URL), '#'), # refer to issues :issue:`123`
+            'github': ('{0}'.format(GIT_URL), '')}
+
 # -- Options for HTML output ----------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -109,8 +122,11 @@ html_theme = 'sphinx_rtd_theme'
 # documentation.
 #
 html_theme_options = {
-    'logo_only': True,
+    'canonical_url': 'https://creare-com.github.io/podpac-docs',
+    'logo_only': True
 }
+
+
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_logo = "_static/img/pea-logo.png"

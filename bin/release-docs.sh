@@ -6,6 +6,10 @@
 PODPAC_DOCS_PATH=../../podpac-docs
 DOCS_PATH=../doc
 
+# clean up old docs
+rm -rf $DOCS_PATH/build
+rm -rf $DOCS_PATH/source/user/api
+
 # build sphinx-docs
 sphinx-build -aE $DOCS_PATH/source $DOCS_PATH/build
 
