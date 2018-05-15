@@ -17,6 +17,12 @@ PODPAC_DOCS_PATH="../../podpac-docs"
 COMMIT_AUTHOR=`git log --format="%cn" -n 1`
 COMMIT_AUTHOR_EMAIL=`git log --format="%ce" -n 1`
 
+# Only deploy to site on develop or master. Ignore pull requests
+if [ "$TRAVIS_BRANCH" != "master" -o "$TRAVIS_BRANCH" != "develop" -o "$TRAVIS_PULL_REQUEST" != "false" ]; then
+    echo "Skipping docs build on branch $TRAVIS_BRANCH"
+    exit 0
+fi
+
 # clone podpac-docs repo into directory next to podpac
 git clone $PODPAC_DOCS $PODPAC_DOCS_PATH
 

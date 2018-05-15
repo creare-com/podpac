@@ -13,7 +13,7 @@ install_requires = [
     'xarray>=0.10',
     ]
 if sys.version_info.major == 2:
-    install_requires += 'future>=0.16'
+    install_requires += ['future>=0.16']
 
 extras_require = {
     'datatype': [

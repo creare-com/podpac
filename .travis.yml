@@ -29,13 +29,13 @@ install:
 # cache pip dependencies for faster builds
 cache: pip
 
-script:
+# run unit tests
+script: 
   - pytest --ci podpac
 
 # deploy docs to `podpac-docs` repository. This script only pushes the docs on pushes to develop and master.
-deploy:
-  provider: script
-  script: cd doc && ./ci-deploy.sh && cd ..   
-  on:
-    all_branches: true
-    condition: $TRAVIS_BRANCH =~ ^develop|master$
+jobs:
+  include:
+    - stage: docs deploy
+      python: "3.6"
+      script: cd doc && ./ci-deploy.sh && cd ..
