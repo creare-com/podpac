@@ -27,6 +27,7 @@ fi
 
 # Get the deploy key by using Travis's stored variables to decrypt ci-doc-deploy
 openssl aes-256-cbc -K $encrypted_f01ce353ad15_key -iv $encrypted_f01ce353ad15_iv -in ci-doc-deploy.enc -out ci-doc-deploy -d
+chmod 0600 ci-doc-deploy
 eval `ssh-agent -s`
 ssh-add ci-doc-deploy
 
