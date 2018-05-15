@@ -192,8 +192,8 @@ class Reduce(Algorithm):
         as axis 0. This is useful for example for scipy.stats.skew and kurtosis
         which only calculate over a single axis, by default 0.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         x : xr.DataArray
             Input DataArray
         

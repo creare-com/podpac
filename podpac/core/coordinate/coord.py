@@ -313,8 +313,8 @@ class BaseCoord(tl.HasTraits):
         """
         Get the coordinates within the bounds the given coordinates object.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         other : BaseCoord
             coordinates to intersect with
         coord_ref_sys : str, optional
@@ -358,8 +358,8 @@ class BaseCoord(tl.HasTraits):
         """
         Get the coordinates within the given bounds.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         bounds : min, max
             selection bounds
         ind : bool, optional
@@ -403,8 +403,8 @@ class BaseCoord(tl.HasTraits):
         """
         Add a delta value to each coordinate.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         delta : TYPE
             Description
         inplace : bool (optional)
@@ -415,11 +415,6 @@ class BaseCoord(tl.HasTraits):
         result : BaseCoord
             If inplace, this object with resulting coordinates.
             Otherwise, new BaseCoord object with resulting coordinates.
-        
-        Deleted Parameters
-        ------------------
-        other : number, timedelta64, str, datetime.timedelta
-            Delta value to add.
         
         Raises
         ------
@@ -452,8 +447,8 @@ class BaseCoord(tl.HasTraits):
         """
         Concatenate coordinates.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         other : BaseCoord
             coords object to concatenate
         inplace : bool (optional)
@@ -573,7 +568,7 @@ class BaseCoord(tl.HasTraits):
 
 class Coord(BaseCoord):
     """
-    A basic array of coordinates. Not guaranteed to be sorted, unique, or 
+    A basic array of coordinates. Not guaranteed to be sorted, unique, or
     uniformly-spaced.
     
     Attributes
@@ -587,22 +582,14 @@ class Coord(BaseCoord):
     MonotonicCoord : An array of sorted coordinates.
     UniformCoord : An array of sorted, uniformly-spaced coordinates.
     
-    Deleted Attributes
-    ------------------
-    coordinates : ndarray
-        Full read-only coordinates array, equal to ``coords``.
-    delta : timedelta64, float
-        An average distance between adjacent coordinates. Note that because
-        there are no guarantees on the coordinates, this value should be used
-        with caution.
     """
 
     def __init__(self, coords=[], **kwargs):
         """
         Initialize coords from an array.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         coords : array-like
             coordinate values.
         **kwargs
@@ -806,15 +793,6 @@ class MonotonicCoord(Coord):
     --------
     Coord : A basic array of coordinates.
     UniformCoord : An array of sorted, uniformly-spaced coordinates.
-    
-    Deleted Attributes
-    ------------------
-    coordinates : ndarray
-        Full read-only coordinates array, equal to ``coords``.
-    delta : timedelta64, float
-        An average distance between adjacent coordinates. Note that because
-        there are no guarantees on the coordinate spacing, this value should
-        be used with caution.
     """
     
     @tl.default('delta')
@@ -1002,13 +980,6 @@ class UniformCoord(BaseCoord):
     --------
     Coord : A basic array of coordinates.
     MonotonicCoord: An array of sorted coordinates.
-    
-    Deleted Attributes
-    ------------------
-    coordinates : ndarray
-        Full read-only coordinates array defined by start, stop, and delta.
-        The stop value will be included if it falls an exact multiple of
-        ``delta`` from ``start``.
     """
 
     start = tl.Any()
@@ -1020,8 +991,8 @@ class UniformCoord(BaseCoord):
         """
         Initialize uniformly-spaced coordinates.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         start : float or datetime64
             coordinates start value
         stop : float or datetime64
