@@ -24,8 +24,7 @@ install:
   - sudo apt-get install -y gdal-bin libgdal-dev
 
   # install setup.py and dev extras
-  - pip install .
-  - pip install .[dev]
+  - pip install .[devall]
 
 # cache pip dependencies for faster builds
 cache: pip
