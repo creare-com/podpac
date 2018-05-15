@@ -71,14 +71,6 @@ class Coordinate(BaseCoordinate):
         TODO
     coords :
         TODO
-    
-    Deleted Attributes
-    ------------------
-    gdal_crs
-    
-    Coordinate
-        lat_lon[lat]: MonotonicCoord: Bounds[50.0, 50.9], N[5], ctype["segment"]
-        lat_lon[lon]: MonotonicCoord: Bounds[-130.0, -120.0], N[5], ctype["segment"]
     """
 
     # default val set in constructor
@@ -93,8 +85,8 @@ class Coordinate(BaseCoordinate):
         """
         Initialize a multidimensional coords object.
 
-        Keyword Arguments
-        -----------------
+        Parameters
+        ----------
         coords : OrderedDict
             explicit coords mapping; if provided, keyword arguments for
             individual dimensions will be ignored.
@@ -206,8 +198,8 @@ class Coordinate(BaseCoordinate):
         """
         TODO
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         item : str
 
         Returns
@@ -251,8 +243,8 @@ class Coordinate(BaseCoordinate):
         """
         TODO
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         coords : dict, optional
             TODO
         
@@ -278,8 +270,8 @@ class Coordinate(BaseCoordinate):
         """
         TODO
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         coords : dict, optional
             TODO
         check_dim_repeat : boolean
@@ -338,8 +330,8 @@ class Coordinate(BaseCoordinate):
         """
         TODO
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         coords : OrderedDict, optional
             TODO
         dims_map : OrderedDict, optional
@@ -388,8 +380,8 @@ class Coordinate(BaseCoordinate):
         """
         Stack the coordinates in of given dimensions.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         stack_dims : list
             dimensions to stack
         copy : boolean, optional
@@ -425,8 +417,8 @@ class Coordinate(BaseCoordinate):
         """
         Unstack the coordinates of all of the dimensions.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         copy : boolean, optional
             If True, unstack dimensions in-place.
         
@@ -447,8 +439,8 @@ class Coordinate(BaseCoordinate):
         """
         TODO
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         other : Coordinate (TODO or BaseCoordinate?)
             Coordinates to intersect with.
         coord_ref_sys : str, optional
@@ -546,8 +538,8 @@ class Coordinate(BaseCoordinate):
         '''
         TODO
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         other : Coordinate
             Replacement Coordinates.
         copy : boolean, optional
@@ -583,15 +575,10 @@ class Coordinate(BaseCoordinate):
         """
         Remove the given dimensions from the Coordinate.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         *args
             Description
-        
-        Deleted Parameters
-        ------------------
-        <dim> : str
-            Dimension to drop.
         """
 
         split_dims = []
@@ -610,8 +597,8 @@ class Coordinate(BaseCoordinate):
         """
         Coordinates shape, corresponding to dims attribute.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         other_coords : Coordinate, optional
             TODO
         
@@ -732,7 +719,7 @@ class Coordinate(BaseCoordinate):
     
     @property
     def gdal_crs(self):
-        """GDAL coordinate reference system. 
+        """GDAL coordinate reference system.
         
         Returns
         -------
@@ -748,8 +735,8 @@ class Coordinate(BaseCoordinate):
         """
         Concatenate coordinates, skipping duplicates.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         other : Coordinate
             Coordinates to concatenate.
         
@@ -765,8 +752,8 @@ class Coordinate(BaseCoordinate):
         """
         Concatenate coordinates.
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         other : Coordinate
             Coordinates to concatenate.
         
@@ -804,8 +791,8 @@ class Coordinate(BaseCoordinate):
         """
         TODO
         
-        Arguments
-        ---------
+        Parameters
+        ----------
         shape : tuple
             TODO
         return_slice : boolean, optional
@@ -839,20 +826,17 @@ class Coordinate(BaseCoordinate):
     def transpose(self, *dims, **kwargs):
         """
         Transpose (re-order) the Coordinate dimensions.
-        
-        Arguments
-        ---------
+              
+        Parameters
+        ----------
+        in_place : boolean, optional
+            If False, return a new, transposed Coordinate object (default).
+            If True, transpose the dimensions in-place.
         *dims : str, optional
             Reorder dims to this order. By default, reverse the dims.
         **kwargs
             Description
-        
-        Keyword Arguments
-        -----------------
-        in_place : boolean, optional
-            If False, return a new, transposed Coordinate object (default).
-            If True, transpose the dimensions in-place.
-        
+
         Returns
         -------
         transposed : Coordinate
@@ -1030,8 +1014,8 @@ def convert_xarray_to_podpac(xcoord):
     """
     Convert an xarray coord to podpac Coordinate.
     
-    Arguments
-    ---------
+    Parameters
+    ----------
     xcoord : DataArrayCoordinates
         xarray coord attribute to convert
     

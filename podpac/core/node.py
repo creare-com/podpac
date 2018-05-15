@@ -402,11 +402,6 @@ class Node(tl.HasTraits):
             Unit-aware xarray DataArray of the desired size initialized using
             the method specified
 
-        Deleted Parameters
-        ------------------
-        kwargs : kwargs
-            other keyword arguments passed to UnitsDataArray
-
         Raises
         ------
         ValueError
