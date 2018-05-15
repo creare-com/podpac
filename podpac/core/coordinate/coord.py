@@ -46,17 +46,28 @@ class BaseCoord(tl.HasTraits):
         specified, between 0 and 1 (default 0.5). Unused for point.
     units : Units
         TODO
-    kwargs
-    coordinates
-    bounds
-    area_bounds
-    delta
-    size
-    is_datetime
-    is_monotonic
-    is_descending
-    rasterio_regularity
-    scipy_regularity
+    kwargs : TYPE
+        TODO
+    coordinates : TYPE
+        TODO
+    bounds : TYPE
+        TODO
+    area_bounds : TYPE
+        TODO
+    delta : TYPE
+        TODO
+    size : TYPE
+        TODO
+    is_datetime : TYPE
+        TODO
+    is_monotonic : TYPE
+        TODO
+    is_descending : TYPE
+        TODO
+    rasterio_regularity : TYPE
+        TODO
+    scipy_regularity : TYPE
+        TODO
     
     """
     
@@ -984,7 +995,8 @@ class UniformCoord(BaseCoord):
     start, stop : float or datetime64
         start and stop coordinates. numerical inputs are cast as floats and
         non-numerical inputs are parsed as datetime64.
-    coords
+    coords :
+        TODO
     
     See Also
     --------
