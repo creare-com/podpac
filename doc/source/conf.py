@@ -47,7 +47,7 @@ extensions = [
     'numpydoc',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
-    # 'sphinx.ext.viewcode',
+    'sphinx.ext.viewcode',
     'sphinx.ext.extlinks',
     'sphinx.ext.githubpages'
 ]
@@ -95,9 +95,6 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
-# autodoc options
-autodoc_default_flags = ['members']  # include all module members by default
-
 # see https://numpydoc.readthedocs.io/en/latest/install.html
 numpydoc_class_members_toctree = True
 numpydoc_show_class_members = False
@@ -105,6 +102,9 @@ numpydoc_show_class_members = False
 # generate autosummary files into the :toctree: directory
 # see http://www.sphinx-doc.org/en/master/ext/autosummary.html
 autosummary_generate = True
+
+# autodoc options
+autodoc_default_flags = ['members']  # include all module members for parts that have not already been generated
 
 # shortened external links. see http://www.sphinx-doc.org/en/master/ext/extlinks.html
 extlinks = {'issue': ('{0}/issues/%s'.format(GIT_URL), '#'), # refer to issues :issue:`123`

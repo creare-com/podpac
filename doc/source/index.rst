@@ -1,4 +1,5 @@
 
+
 PODPAC
 ======
 
@@ -34,8 +35,9 @@ The purpose of PODPAC is to facilitate the
 
     user/pipelines
     user/references
+    user/api-min
     user/api
-   
+
 .. toctree::
     :maxdepth: 1
     :caption: Developer Guide
