@@ -1,5 +1,9 @@
 """
 Coordinate Summary
+
+.. testsetup:: podpac.core.coordinate.coordinate
+    
+    from podpac.core.coordinate.coordinate import *
 """
 
 
@@ -39,14 +43,13 @@ class Coordinate(BaseCoordinate):
     """
     Multidimensional Coordinates.
     
-    >>> Coordinate(lat=1)
-    >>> Coordinate(lat_lon=((1, 2)))
-    >>> Coordinate(lat=(49.1, 50.2, 100))
-    >>> Coordinate(lat_lon=((49.1, -120), (50.2, -122), 100))
-    >>> Coordinate(lat=(49.1, 50.1, 0.1))
-    >>> Coordinate(lat=np.array([50, 50.1, 50.4, 50.8, 50.9]))
-    >>> Coordinate(lat_lon=([50, 50.1, 50.4, 50.8, 50.9],
-                            [-120, -125, -126, -127, -130]))
+        >>> Coordinate(lat=1)                                       # doctest: +SKIP
+        >>> Coordinate(lat_lon=((1, 2)))                            # doctest: +SKIP
+        >>> Coordinate(lat=(49.1, 50.2, 100))                       # doctest: +SKIP
+        >>> Coordinate(lat_lon=((49.1, -120), (50.2, -122), 100))   # doctest: +SKIP
+        >>> Coordinate(lat=(49.1, 50.1, 0.1))                       # doctest: +SKIP
+        >>> Coordinate(lat=np.array([50, 50.1, 50.4, 50.8, 50.9]))  # doctest: +SKIP
+        >>> Coordinate(lat_lon=([50, 50.1, 50.4, 50.8, 50.9], [-120, -125, -126, -127, -130])) # doctest: +SKIP
 
     Attributes
     ----------
@@ -71,6 +74,7 @@ class Coordinate(BaseCoordinate):
         TODO
     coords :
         TODO
+
     """
 
     # default val set in constructor

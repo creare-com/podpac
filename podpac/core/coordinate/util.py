@@ -66,7 +66,7 @@ def get_timedelta_unit(delta):
     --------
     
     .. doctest:: podpac.core.coordinate.util
-    
+
         >>> get_timedelta_unit(np.timedelta64(1, 'D'))
         'D'
     
@@ -104,7 +104,7 @@ def make_timedelta_string(delta):
     
     .. doctest:: podpac.core.coordinate.util
 
-        >>> get_timedelta_string(np.timedelta64(2, 'D'))
+        >>> make_timedelta_string(np.timedelta64(2, 'D'))
         '2,D'
     
     Raises
@@ -246,7 +246,7 @@ def add_coord(base, delta):
         2.5
         
         >>> add_coord(1.5, np.array([1.0, 2.0]))
-        array([ 2.5, 3.5])
+        array([2.5, 3.5])
         
         >>> add_coord(np.datetime64('2018-01-01'), np.timedelta64(1, 'D'))
         numpy.datetime64('2018-01-02')
