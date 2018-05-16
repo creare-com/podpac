@@ -13,7 +13,8 @@ class TestNodeOutputArrayCreation(object):
     @classmethod
     def setup_class(cls):
         from podpac import Coordinate
-        cls.c1 = Coordinate(lat_lon=((0, 1), (0, 1), 10), time=(0, 1, 2))
+        cls.c1 = Coordinate(lat_lon=((0, 1), (0, 1), 10), time=(0, 1, 2),
+                            order=['lat_lon', 'time'])
         cls.c2 = Coordinate(lat_lon=((0.5, 1.5), (0.1, 1.1), 15))
         
     def test_output_creation_stacked_native(self):
