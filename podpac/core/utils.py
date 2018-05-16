@@ -10,6 +10,21 @@ import json
 import traitlets as tl
 import numpy as np
 
+def common_doc(doc_dict):
+    """ Decorator: replaces commond fields in a function docstring
+    
+    Parameters
+    -----------
+    doc_dict : dict
+        Dictionary of parameters that will be used to format a doctring. e.g. func.__doc__.format(**doc_dict)
+    """
+    def _decorator(func):
+        if func.__doc__ is None:
+            return func
+        
+        func.__doc__ = func.__doc__.format(**doc_dict)
+        return func
+    return _decorator
 
 def cached_property(func):
     """Summary
