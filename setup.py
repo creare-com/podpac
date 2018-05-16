@@ -46,6 +46,7 @@ extras_require = {
         'sphinx>=1.6.6',
         'sphinx-rtd-theme>=0.3.1',
         'sphinx-autobuild>=0.7',
+        'coveralls>=1.3',
         ]
     }
 

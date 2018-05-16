@@ -31,7 +31,7 @@ cache: pip
 
 # run unit tests
 script: 
-  - pytest --ci podpac
+  - pytest --ci --cov=podpac podpac
 
   # run doctest
   - cd doc && ./test-docs.sh && cd ..
