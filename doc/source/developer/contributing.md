@@ -154,7 +154,7 @@ Configuration options are specified in `setup.cfg`
 
 ## Code Coverage
 
-We use `pytest-cov` to monitor code coverage of unit tests. To record coverage while running tests, run:
+We use [`pytest-cov`](https://github.com/pytest-dev/pytest-cov) (which uses [`coverage`](https://coverage.readthedocs.io/en/coverage-4.5.1/) underneath) to monitor code coverage of unit tests and [`coveralls`](https://github.com/coveralls-clients/coveralls-python) to provide the coverage status. To record coverage while running tests, run:
 
 ```bash
 $ pytest --cov=podpac --cov-report html podpac   # outputs html coverage

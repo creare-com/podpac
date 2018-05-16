@@ -61,7 +61,7 @@ $ pdflatex podpac.tex          # build the pdf from podpac.tex entry file
 
 ## Develop
 
-To live-serve the documentation as a website during development, you will need to add one more python package `sphinx-autobuild`:
+To live-serve the documentation as a website during development, you will need to add one more python package [`sphinx-autobuild`](https://github.com/GaretJax/sphinx-autobuild):
 
 ```
 $ pip install sphinx-autobuild
@@ -76,11 +76,9 @@ $ sphinx-autobuild source build     # run manually
 $ sphinx-autobuild -aE source build # rebuild all files (no cache)
 ```
 
-And the visit the webpage served at http://127.0.0.1:8000. Each time a change to the documentation source is detected, the HTML is rebuilt and the browser automatically reloaded.
+And the visit the webpage served at `http://127.0.0.1:8000`. Each time a change to the documentation source is detected, the HTML is rebuilt and the browser automatically reloaded.
 
-To stop the server simply press ^C.
-
-See https://github.com/GaretJax/sphinx-autobuild for more options
+To stop the server simply press `^C`.
 
 ## Organization
 
@@ -89,6 +87,8 @@ See https://github.com/GaretJax/sphinx-autobuild for more options
     + `/source/_static` - static files that need to be copied over to distributed documentation (i.e. images, source code, etc)
     + `/source/conf.py` - sphinx configuration file
     + `/source/index.rst` - root documentation file. Includes TOC
+    + `/source/user/api/` - auto generated API documentation using `sphinx-autogen`
+    + `/source/user/api-min/` - auto generated minimal API documentation using `sphinx-autogen`
     + ... add others as generated ...
 - `/build` - generated documentation files
 

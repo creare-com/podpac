@@ -6,12 +6,10 @@ PODPAC
 *Pipeline for Observational Data Processing Analysis and Collaboration*
 
 
-
 Data wranging and processing of geospatial data should be seamless 
 so that earth scientists can focus on science. 
 
-.. `View the source code on GitHub <https://github.com/creare-com/podpac>`_.
-
+.. sphinx_rtd_theme includes `font-awesome` already, so we don't ned to add it manually
 .. raw:: html
 
     <a href="https://github.com/creare-com/podpac" class="fa fa-github"> View the Source Code GitHub</a><br><br>

@@ -15,6 +15,22 @@ $ conda activate podpac  # Windows
 $ source activate podpac # Linux / Mac
 ```
 
+### Installing podpac
+
+Install `podpac` in development mode:
+
+```bash
+$ cd <install-path>
+$ git clone https://github.com/creare-com/podpac.git
+$ cd podpac
+
+# Install podpac with only the core dependencies
+$ pip install -e .
+
+# development dependencies and all other dependencies
+$ pip install -e .[devall]
+```
+
 ### Manually install dependencies
 
 To manually install dependencies using conda and pip:
@@ -38,19 +54,6 @@ We also recommend you install [rasterio](https://mapbox.github.io/rasterio/insta
 $ conda install rasterio --channel conda-forge
 ```
 
-### Installing podpac
-
-Install `podpac` in development mode:
-
-```bash
-$ cd <install-path>
-$ git clone https://github.com/creare-com/podpac.git
-$ cd podpac
-# Install podpac with only the core dependencies
-$ pip install -e .
-# development dependencies and all other dependencies
-$ pip install -e .[devall]
-```
 
 *Note*: This procedure checks out the `master` branch, which is intented to be somewhat stable with working code. For bleeding edge, checkout the `develop` branch instead using `git checkout -b develop origin/develop`
 
