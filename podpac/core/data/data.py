@@ -522,16 +522,20 @@ class DataSource(Node):
             new_stacked = np.stack([c.coordinates for c in new_crds.stack_dict()[order]], axis=1) 
             pts = KDTree(src_stacked)
             dist, ind = pts.query(new_stacked, distance_upper_bound=tol)
+            mask = ind == data_src[order].size
+            ind[mask] = 0
+            vals = data_src[{order: ind}]
+            vals[mask] = np.nan
             dims = list(data_dst.dims)
             dims[i] = order
-            data_dst.data[:] = data_src[{order: ind}].transpose(*dims).data[:]
+            data_dst.data[:] = vals.transpose(*dims).data[:]
             return data_dst
         elif 'lat' in coords_dst.dims and 'lon' in coords_dst.dims:
             order = coords_src.dims_map['lat']
             i = list(coords_dst.dims).index('lat')
             j = list(coords_dst.dims).index('lon')
             tol = np.linalg.norm([coords_dst.delta[i], coords_dst.delta[j]]) * 8
-            pts = np.stack(coords_src[order].coordinates)
+            pts = np.stack([c.coordinates for c in coords_src.stack_dict()[order]])
             if 'lat_lon' == order:
                 pts = pts[::-1]
             pts = KDTree(np.stack(pts, axis=1))
@@ -539,7 +543,11 @@ class DataSource(Node):
                     coords_dst.coords['lat'])
             dist, ind = pts.query(np.stack((lon.ravel(), lat.ravel()), axis=1),
                     distance_upper_bound=tol)
+            mask = ind == data_src[order].size
+            ind[mask] = 0 # This is a hack to make the select on the next line work
+                          # (the masked values are set to NaN on the following line)
             vals = data_src[{order: ind}]
+            vals[mask] = np.nan
             # make sure 'lat_lon' or 'lon_lat' is the first dimension
             dims = list(data_src.dims)
             dims.remove(order)
