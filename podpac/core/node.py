@@ -30,12 +30,42 @@ except:
 from podpac import settings
 from podpac import Units, UnitsDataArray
 from podpac import Coordinate
+from podpac.core.utils import common_doc
 
+COMMON_DOC = {
+    'native_coordinates': 
+        '''The native set of coordinates for a node. This attribute may be `None` for some nodes.''',
+    'evaluated_coordinates': 
+        '''The set of coordinates requested by a user. The Node will be executed using these coordinates.''',
+    'params': 'Default is None. Runtime parameters that modify any default node parameters.',
+    'hash_return': 'A unique hash capturing the coordinates and parameters used to execute the node. ',
+    'outdir': 'Optional output directory. Uses settings.OUT_DIR by default',
+    'arr_init_type': 
+        '''How to initialize the array. Options are:
+                nan: uses np.full(..., np.nan) (Default option)
+                empty: uses np.empty
+                zeros: uses np.zeros()
+                ones: uses np.ones
+                full: uses np.full(..., fillval)
+                data: uses the fillval as the input array''',
+    'arr_fillval' : "used if init_type=='full' or 'data', default = 0",
+    'arr_style' : "The style to use for plotting. Uses self.style by default",
+    'arr_no_style' : "Default is False. If True, self.style will not be assigned to arr.attr['layer_style']",
+    'arr_shape': 'Shape of array. Uses self.shape by default.',
+    'arr_coords' : "Input to UnitsDataArray (i.e. an xarray coords dictionary/list)",
+    'arr_dims' : "Input to UnitsDataArray (i.e. an xarray dims list of strings)",
+    'arr_units' : "Default is self.units The Units for the data contained in the DataArray.",
+    'arr_dtype' :"Default is np.float. Datatype used by default",
+    'arr_kwargs' : "Dictioary of any additional keyword arguments that will be passed to UnitsDataArray.",
+    'arr_return' : 
+        """UnitsDataArray
+            Unit-aware xarray DataArray of the desired size initialized using the method specified.
+            """
+    }
 
 class NodeException(Exception):
     """Summary
     """
-
     pass
 
 class Style(tl.HasTraits):
@@ -79,34 +109,38 @@ class Style(tl.HasTraits):
     def _cmap_default(self):
         return matplotlib.cm.get_cmap('viridis')
 
-
+@common_doc(COMMON_DOC)
 class Node(tl.HasTraits):
-    """Summary
+    """The base class for all Nodes, which defines the common interface for everything.
 
     Attributes
     ----------
-    cache_type : TYPE
-        Description
-    dtype : TYPE
-        Description
-    evaluated : TYPE
-        Description
-    evaluated_coordinates : TYPE
-        Description
-    implicit_pipeline_evaluation : TYPE
-        Description
-    native_coordinates : TYPE
-        Description
-    node_defaults : TYPE
-        Description
-    output : TYPE
-        Description
-    params : TYPE
-        Description
-    style : TYPE
-        Description
-    units : TYPE
-        Description
+    cache_type : [None, 'disk', 'ram']
+        How the output of the nodes should be cached. By default, outputs are not cached.
+    dtype : type
+        The numpy datatype of the output. Currently only `float` is supported.
+    evaluated : Bool
+        Flag indicating if the node has been evaluated.
+    evaluated_coordinates : podpac.Coordinate
+        {evaluated_coordinates}
+        This attribute stores the coordinates that were last used to evaluate the node.
+    implicit_pipeline_evaluation : Bool
+        Flag indicating if nodes as part of a pipeline should be automatically evaluated when
+        the root node is evaluated. This attribute is planned for deprecation in the future.
+    native_coordinates : podpac.Coordinate, optional
+        {native_coordinates} 
+    node_defaults : dict
+        Dictionary of defaults values for attributes of a Node. 
+    output : podpac.UnitsDataArray
+        Output data from the last evaluation of the node. 
+    params : dict
+        Dictionary of parameters that control the output of a node. For example, these can be coefficients in an 
+        equation, or the interpolation type. This attribute is planned for deprecation in the future.
+    style : podpac.Style
+        Object discribing how the output of a node should be displayed. This attribute is planned for deprecation in the
+        future.
+    units : podpac.Units
+        The units of the output data, defined using the pint unit registry `podpac.units.ureg`.
     """
 
     output = tl.Instance(UnitsDataArray, allow_none=True, default_value=None)
@@ -133,22 +167,32 @@ class Node(tl.HasTraits):
         return Style()
 
     @property
-    def shape(self):
-        """Summary
+    def shape(self, coords=None):
+        """Returns the shape of the output based on the evaluated coordinates. This shape is jointly determined by the
+        input or evaluated coordinates and the native_coordinates (if present).
+
+        Parameters
+        -----------
+        coords: podpac.Coordinates, optional
+            Requested coordinates that help determine the shape of the output. Uses self.evaluated_coordinates if not 
+            supplied. 
 
         Returns
         -------
-        TYPE
-            Description
+        tuple/list
+            Size of the dimensions of the output
 
         Raises
         ------
         NodeException
-            Description
+            If the shape cannot be automatically determined, this exception is raised. 
         """
 
         # Changes here likely will also require changes in initialize_output_array
-        ev = self.evaluated_coordinates
+        if coords is None: 
+            ev = self.evaluated_coordinates
+        else: 
+            ev = coordinates
         #nv = self._trait_values.get('native_coordinates',  None)
         # Switching from _trait_values to hasattr because "native_coordinates"
         # not showing up in _trait_values
@@ -192,52 +236,60 @@ class Node(tl.HasTraits):
         Parameters
         ----------
         **kwargs
-            Description
+            Keyword arguments provided by user when class was instantiated.
 
         Returns
         -------
-        TYPE
-            Description
+        dict
+            Keyword arguments that will be passed to the standard intialization function.
         """
         return kwargs
 
     def init(self):
-        """Summary
+        """Overwrite this method if a node needs to do any additional initialization after the standard initialization.
         """
         pass
 
-    def execute(self, coordinates, params=None, output=None):
+    @common_doc(COMMON_DOC)
+    def execute(self, coordinates, params=None, output=None, method=None):
         """This is the common interface used for ALL nodes. Pipelines only
-        understand this and get_description.
+        understand this method and get_description.
 
         Parameters
         ----------
-        coordinates : TYPE
-            Description
-        params : None, optional
-            Description
-        output : None, optional
-            Description
+        coordinates : podpac.Coordinate
+            {evaluated_coordinates}
+        params : dict, optional
+            Default is None. Runtime parameters that modify any default node parameters.
+        output : podpac.UnitsDataArray, optional
+            Default is None. Optional input array used to store the output data. When supplied, the node will not 
+            allocate its own memory for the output array. This array needs to have the correct dimensions and 
+            coordinates.
+        method : str, optional
+            Default is None. How the node will be executed: serial, parallel, on aws, locally, etc. Currently only local
+            execution is supported.
 
         Raises
         ------
         NotImplementedError
-            Description
+            Children need to implement this method, otherwise this error is raised. 
         """
         raise NotImplementedError
 
     def get_output_coords(self, coords=None):
-        """Summary
+        """Returns the output coordinates based on the user-requested coordinates. This is jointly determined by 
+        the input or evaluated coordinates and the native_coordinates (if present).
 
         Parameters
         ----------
-        coords : None, optional
-            Description
+        coords : podpac.Coordinates, optional
+            Requested coordinates that help determine the coordinates of the output. Uses self.evaluated_coordinates if 
+            not supplied.
 
         Returns
         -------
-        TYPE
-            Description
+        podpac.Coordinate
+            The coordinates of the output if the node is executed with `coords`
         """
 
         # Changes here likely will also require changes in shape
@@ -255,61 +307,62 @@ class Node(tl.HasTraits):
             crds = coords
         return crds
 
+    @common_doc(COMMON_DOC)
     def initialize_output_array(self, init_type='nan', fillval=0, style=None,
                                 no_style=False, shape=None, coords=None,
                                 dims=None, units=None, dtype=np.float, **kwargs):
-        """Summary
+        """Initializes the UnitsDataArray with the expected output size.
 
         Parameters
         ----------
         init_type : str, optional
-            Description
-        fillval : int, optional
-            Description
-        style : None, optional
-            Description
+            {arr_init_type}
+        fillval : number/np.ndarray, optional
+            {arr_fillval}
+        style : podpac.Style, optional
+            {arr_style}
         no_style : bool, optional
-            Description
-        shape : None, optional
-            Description
-        coords : None, optional
-            Description
+            {arr_no_style}
+        shape : list/tuple, optional
+            {arr_shape}
+        coords : Coordinate, optional
+            {arr_coords}
         dims : None, optional
-            Description
-        units : None, optional
-            Description
+            {arr_dims}
+        units : Unit, optional
+            {arr_units}
         dtype : TYPE, optional
-            Description
+            {arr_dtype}
         **kwargs
-            Description
+            {arr_kwargs}
 
         Returns
         -------
-        TYPE
-            Description
+        {arr_return}
         """
         crds = self.get_output_coords(coords).coords
         dims = list(crds.keys())
         return self.initialize_array(init_type, fillval, style, no_style, shape,
                                      crds, dims, units, dtype, **kwargs)
-
+    
+    @common_doc(COMMON_DOC)
     def copy_output_array(self, init_type='nan'):
-        """Summary
+        """Create a copy of the output array, initialized using the specified method.
 
         Parameters
         ----------
         init_type : str, optional
-            Description
+            {arr_init_type}
 
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            A copy of the `self.output` array, initialized with the specified method.
 
         Raises
         ------
         ValueError
-            Description
+            Raises this error if the init_type specified is not supported.
         """
         x = self.output.copy(True)
         shape = x.data.shape
@@ -327,39 +380,40 @@ class Node(tl.HasTraits):
 
         return x
 
+    @common_doc(COMMON_DOC)
     def initialize_coord_array(self, coords, init_type='nan', fillval=0,
                                style=None, no_style=False, units=None,
                                dtype=np.float, **kwargs):
-        """Summary
+        """Initialize an output array using a podpac.Coordinate object.
 
         Parameters
         ----------
-        coords : TYPE
-            Description
+        coords : podpac.Coordinate
+            Coordinates descriping the size of the data array that will be initialized
         init_type : str, optional
-            Description
-        fillval : int, optional
-            Description
-        style : None, optional
-            Description
+            {arr_init_type}
+        fillval : number/np.ndarray, optional
+            {arr_fillval}
+        style : podpac.Style, optional
+            {arr_style}
         no_style : bool, optional
-            Description
-        units : None, optional
-            Description
+            {arr_no_style}
+        units : podpac.Unit, optional
+            {arr_units}
         dtype : TYPE, optional
-            Description
+            {arr_dtype}
         **kwargs
-            Description
+            {arr_kwargs}
 
         Returns
         -------
-        TYPE
-            Description
+        {arr_return}
         """
         return self.initialize_array(init_type, fillval, style, no_style,
                                      coords.shape, coords.coords, coords.dims,
                                      units, dtype, **kwargs)
 
+    @common_doc(COMMON_DOC)
     def initialize_array(self, init_type='nan', fillval=0, style=None,
                          no_style=False, shape=None, coords=None,
                          dims=None, units=None, dtype=np.float, **kwargs):
@@ -368,44 +422,35 @@ class Node(tl.HasTraits):
         Parameters
         ----------
         init_type : str, optional
-            How to initialize the array. Options are:
-                nan: uses np.full(..., np.nan) (Default option)
-                empty: uses np.empty
-                zeros: uses np.zeros()
-                ones: uses np.ones
-                full: uses np.full(..., fillval)
-                data: uses the fillval as the input array
+            {arr_init_type}
         fillval : number, optional
-            used if init_type=='full' or 'data', default = 0
+            {arr_fillval}
         style : Style, optional
-            The style to use for plotting. Uses self.style by default
+            {arr_style}
         no_style : bool, optional
-            Default is False. If True, self.style will not be assigned to
-            arr.attr['layer_style']
+            {arr_no_style}
         shape : tuple
-            Shape of array. Uses self.shape by default.
+            {arr_shape}
         coords : dict/list
-            input to UnitsDataArray
+            {arr_coords}
         dims : list(str)
-            input to UnitsDataArray
+            {arr_dims}
         units : pint.unit.Unit, optional
-            Default is self.units The Units for the data contained in the
-            DataArray
+            {arr_units}
         dtype : type, optional
-            Default is np.float. Datatype used by default
+            {arr_dtype}
         **kwargs
-            Description
+            {arr_kwargs}
 
         Returns
         -------
-        arr : UnitsDataArray
-            Unit-aware xarray DataArray of the desired size initialized using
-            the method specified
+        {arr_return}
+            
 
         Raises
         ------
         ValueError
-            Description
+            Raises this error if the init_type specified is not supported.
         """
 
         if style is None: style = self.style
@@ -437,32 +482,6 @@ class Node(tl.HasTraits):
         x.attrs['params'] = self.params
         return x
 
-    def plot(self, show=True, interpolation='none', **kwargs):
-        """
-        Plot function to display the output
-
-        TODO: Improve this substantially please
-
-        Parameters
-        ----------
-        show : bool, optional
-            Description
-        interpolation : str, optional
-            Description
-        **kwargs
-            Description
-        """
-
-        import matplotlib.pyplot as plt
-
-        if kwargs:
-            plt.imshow(self.output.data, cmap=self.style.cmap,
-                       interpolation=interpolation, **kwargs)
-        else:
-            self.output.plot()
-        if show:
-            plt.show()
-
     @property
     def base_ref(self):
         """
@@ -470,8 +489,8 @@ class Node(tl.HasTraits):
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            Name of the node in pipeline definitions
         """
         return self.__class__.__name__
 
@@ -481,8 +500,8 @@ class Node(tl.HasTraits):
 
         Returns
         -------
-        TYPE
-            Description
+        OrderedDict
+            Dictionary containing the location of the Node, and the name of the plugin (if required)
         """
         d = OrderedDict()
 
@@ -508,7 +527,7 @@ class Node(tl.HasTraits):
         Raises
         ------
         NotImplementedError
-            Description
+            This needs to be implemented by derived classes
         """
         parents = inspect.getmro(self.__class__)
         podpac_parents = [
@@ -524,8 +543,8 @@ class Node(tl.HasTraits):
 
         Returns
         -------
-        TYPE
-            Description
+        OrderedDict
+            Dictionary-formatted definition of a PODPAC pipeline. 
         """
 
         from podpac.core.pipeline import make_pipeline_definition
@@ -533,98 +552,108 @@ class Node(tl.HasTraits):
 
     @property
     def pipeline_json(self):
-        """Summary
+        """Full pipeline definition for this node in json format
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            JSON-formatted definition of a PODPAC pipeline.
+            
+        Notes
+        ------
+        This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to 
+        share algorithms and pipelines, or run code on cloud services. 
         """
         return json.dumps(self.pipeline_definition, indent=4)
 
     @property
     def pipeline(self):
-        """Summary
+        """Create a pipeline node from this node
 
         Returns
         -------
-        TYPE
-            Description
+        podpac.Pipeline
+            A pipeline node created using the self.pipeline_definition
         """
         from pipeline import Pipeline
         return Pipeline(self.pipeline_definition)
 
     def get_hash(self, coordinates=None, params=None):
-        """Summary
+        """Hash used for caching node outputs.
 
         Parameters
         ----------
         coordinates : None, optional
-            Description
+            {evaluated_coordinates}
         params : None, optional
-            Description
+            {params}
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            {hash_return}
         """
         if params is not None:
             # convert to OrderedDict with consistent keys
-            params = OrderedDict(sorted(params.items()))
+            if not isinstance(params, OrderedDict):
+                params = OrderedDict(sorted(params.items()))
 
             # convert dict values to OrderedDict with consistent keys
             for key, value in params.items():
-                if isinstance(value, dict):
+                if isinstance(value, dict) and not isinstance(value, OrderedDict):
                     params[key] = OrderedDict(sorted(value.items()))
 
         return hash((str(coordinates), str(params)))
 
     @property
     def evaluated_hash(self):
-        """Summary
+        """Get hash for node after being evaluated
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            {hash_return}
 
         Raises
         ------
-        Exception
-            Description
+        NodeException
+            Gets raised if node has not been evaluated
         """
         if self.evaluated_coordinates is None:
-            raise Exception("node not evaluated")
+            raise NodeException("node not evaluated")
 
         return self.get_hash(self.evaluated_coordinates, self.params)
 
     @property
     def latlon_bounds_str(self):
-        """Summary
+        """Helper property used for naming cached files
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            String containing the latitude/longitude bounds of a set of coordinates
         """
         return self.evaluated_coordinates.latlon_bounds_str
 
 
     def get_output_path(self, filename, outdir=None):
-        """Summary
+        """Get the output path where data is cached to disk
 
         Parameters
         ----------
-        filename : TYPE
-            Description
+        filename : str
+            Name of the file in the cache.
         outdir : None, optional
-            Description
+            Directory where caching occurs. If None, uses settings.OUT_DIR
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            Path to location where data is cached
+            
+        Notes
+        ------
+        If the output directory doesn't exist, it will be created.
         """
         if outdir is None:
             outdir = settings.OUT_DIR
@@ -636,21 +665,21 @@ class Node(tl.HasTraits):
 
 
     def write(self, name, outdir=None, format='pickle'):
-        """Summary
+        """Write self.output to disk using the specified format
 
         Parameters
         ----------
-        name : TYPE
-            Description
+        name : str
+            Name of the file prefix. The final filename will have <name>_<hash>_<latlon_bounds_str>.<format>
         outdir : None, optional
-            Description
+            {outdir}
         format : str, optional
-            Description
+            The file format. Currently only `pickle` is supported. 
 
         Raises
         ------
         NotImplementedError
-            Description
+            Raised if an unsupported format is specified
         """
         filename = '%s_%s_%s.pkl' % (
             name,
@@ -665,18 +694,18 @@ class Node(tl.HasTraits):
             raise NotImplementedError
 
     def load(self, name, coordinates, params, outdir=None):
-        """Summary
+        """Retrieves a cached file from disk. 
 
         Parameters
         ----------
-        name : TYPE
-            Description
-        coordinates : TYPE
-            Description
-        params : TYPE
-            Description
-        outdir : None, optional
-            Description
+        name : str
+            Name of the file prefix.
+        coordinates : podpac.Coordinate
+            {evaluated_coordinates}
+        params : dict
+            {params}
+        outdir : str, optional
+            {outdir}
         """
         filename = '%s_%s_%s.pkl' % (
             name,
@@ -688,12 +717,12 @@ class Node(tl.HasTraits):
             self.output = cPickle.load(f)
 
     def load_from_file(self, path):
-        """Summary
+        """Retrieves a specified file from disk using pickle, and assigns it to self.output
 
         Parameters
         ----------
-        path : TYPE
-            Description
+        path : str
+            Path to file
         """
         with open(path, 'rb') as f:
             output = cPickle.load(f)
@@ -703,21 +732,21 @@ class Node(tl.HasTraits):
         self.params = self.output.attrs['params']
 
     def get_image(self, format='png', vmin=None, vmax=None):
-        """Summary
+        """Return a base64-encoded image of the output
 
         Parameters
         ----------
         format : str, optional
-            Description
-        vmin : None, optional
-            Description
-        vmax : None, optional
-            Description
+            Default is 'png'. Type of image. 
+        vmin : number, optional
+            Minimum value of colormap
+        vmax : vmax, optional
+            Maximum value of colormap
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            Base64 encoded image. 
         """
         matplotlib.use('agg')
         from matplotlib.image import imsave
@@ -734,18 +763,18 @@ class Node(tl.HasTraits):
         c = (data - vmin) / (vmax - vmin)
         i = matplotlib.cm.viridis(c, bytes=True)
         im_data = BytesIO()
-        imsave(im_data, i, format='png')
+        imsave(im_data, i, format=format)
         im_data.seek(0)
         return base64.b64encode(im_data.getvalue())
 
     @property
     def cache_dir(self):
-        """Summary
+        """Return the directory used for caching
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            Path to the default cache directory
         """
         basedir = settings.CACHE_DIR
         subdir = str(self.__class__)[8:-2].split('.')
@@ -753,30 +782,30 @@ class Node(tl.HasTraits):
         return os.path.join(*dirs)
 
     def cache_path(self, filename):
-        """Summary
+        """Return the cache path for the file
 
         Parameters
         ----------
-        filename : TYPE
-            Description
+        filename : str
+            Name of the cached file
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            Path to the cached file
         """
         pre = str(self.source).replace('/', '_').replace('\\', '_').replace(':', '_')
         return os.path.join(self.cache_dir, pre  + '_' + filename)
 
     def cache_obj(self, obj, filename):
-        """Summary
+        """Cache the input object using the given filename
 
         Parameters
         ----------
-        obj : TYPE
-            Description
-        filename : TYPE
-            Description
+        obj : object
+            Object to be cached to disk
+        filename : str
+            File name for the object to be cached
         """
         path = self.cache_path(filename)
         if settings.S3_BUCKET_NAME is None or settings.CACHE_TO_S3 == False:
@@ -790,17 +819,17 @@ class Node(tl.HasTraits):
             s3.upload_fileobj(io, path)
 
     def load_cached_obj(self, filename):
-        """Summary
+        """Retreive an object from cache
 
         Parameters
         ----------
-        filename : TYPE
-            Description
+        filename : str
+            File name of object to be retrieved from cache
 
         Returns
         -------
-        TYPE
-            Description
+        object
+            Object loaded from cache
         """
         path = self.cache_path(filename)
         if settings.S3_BUCKET_NAME is None or not settings.CACHE_TO_S3:
@@ -838,24 +867,3 @@ class Node(tl.HasTraits):
             for f in glob.glob(self.cache_path(attr)):
                 os.remove(f)
 
-
-if __name__ == "__main__":
-    # checking creation of output node
-    c1 = Coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=(0, 1, 2))
-    c2 = Coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
-
-    n = Node(native_coordinates=c1)
-    print(n.initialize_output_array().shape)
-    n.evaluated_coordinates = c2
-    print(n.initialize_output_array().shape)
-
-    n = Node(native_coordinates=c1.unstack())
-    print(n.initialize_output_array().shape)
-    n.evaluated_coordinates = c2
-    print(n.initialize_output_array().shape)
-
-    n = Node(native_coordinates=c1)
-    print(n.initialize_output_array().shape)
-    n.evaluated_coordinates = c2.unstack()
-    print(n.initialize_output_array().shape)
-    print("Nothing to do")
