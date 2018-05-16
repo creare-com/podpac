@@ -12,7 +12,7 @@ so that earth scientists can focus on science.
 .. sphinx_rtd_theme includes `font-awesome` already, so we don't ned to add it manually
 .. raw:: html
 
-    <a href="https://github.com/creare-com/podpac" class="fa fa-github"> View the Source Code GitHub</a><br><br>
+    <a href="https://github.com/creare-com/podpac" class="fa fa-github"> View the Source on GitHub</a><br><br>
 
 Purpose
 -------
