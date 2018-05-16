@@ -284,15 +284,13 @@ class DataSource(Node):
                 and 'lon' in coords_src.dims) \
                 and coords_src['lat'].scipy_regularity \
                 and coords_src['lon'].scipy_regularity \
-                and (np.any(['lat_lon' in d for d in coords_dst.dims]) or
-                     np.any(['lon_lat' in d for d in coords_dst.dims])):
+                and ('lat_lon' in coords_src.dims or 'lon_lat' in coords_src.dims):
             coords_dst_us = coords_dst.unstack() # TODO don't have to return
             return self.interpolate_irregular_grid(data_src, coords_src,
                                                    data_dst, coords_dst_us,
                                                    grid=False)
 
-        elif (np.any(['lat_lon' in d for d in coords_src.dims]) or np.any(['lon_lat' in d for d in coords_src.dims])):
-
+        elif 'lat_lon' in coords_src.dims or 'lon_lat' in coords_src.dims:
             return self.interpolate_point_data(data_src, coords_src,
                                                data_dst, coords_dst)
         
@@ -507,17 +505,24 @@ class DataSource(Node):
         TYPE
             Description
         """
-        if 'lat' in coords_dst.dims_map.values() \
-                and 'lon' in coords_dst.dims_map.values():
+        if 'lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims:
             order = coords_src.dims_map['lat']
             dst_order = coords_dst.dims_map['lat']
+
+
+            # there is a bug here that is not yet fixed
+            if order != dst_order:
+                raise NotImplementedError('%s -> %s interpolation not currently supported' % (
+                    order, dst_order))
+
             i = list(coords_dst.dims).index(dst_order)
             new_crds = Coordinate(**{order: [coords_dst.unstack()[c].coordinates
                 for c in order.split('_')]})
             tol = np.linalg.norm(coords_dst.delta[i]) * 8
-            pts = KDTree(np.stack(coords_src[order].coordinates, axis=1))
-            dist, ind = pts.query(np.stack(new_crds[order].coordinates, axis=1),
-                    distance_upper_bound=tol)
+            src_stacked = np.stack([c.coordinates for c in coords_src.stack_dict()[order]], axis=1)
+            new_stacked = np.stack([c.coordinates for c in new_crds.stack_dict()[order]], axis=1) 
+            pts = KDTree(src_stacked)
+            dist, ind = pts.query(new_stacked, distance_upper_bound=tol)
             dims = list(data_dst.dims)
             dims[i] = order
             data_dst.data[:] = data_src[{order: ind}].transpose(*dims).data[:]
