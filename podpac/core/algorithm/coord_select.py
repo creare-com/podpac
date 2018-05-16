@@ -278,19 +278,19 @@ if __name__ == '__main__':
     o = node.execute(coords, params={'time': ('-15,D', '0,D')})
     print (o.coords)
 
-    node.params={'time': ('-15,Y', '0,D', '1,Y')}
+    node._params={'time': ('-15,Y', '0,D', '1,Y')}
     print (node.get_expanded_coord('time'))
 
     o = node.execute(coords, params={'time': ('-5,M', '0,D', '1,M')})
     print (o.coords)
     
-    node.params={'time': ('-15,Y', '0,D', '4,Y')}  # Behaviour a little strange
+    node._params={'time': ('-15,Y', '0,D', '4,Y')}  # Behaviour a little strange
     print (node.get_expanded_coord('time'))
     
-    node.params={'time': ('-15,Y', '0,D', '13,M')}  # Behaviour a little strange
+    node._params={'time': ('-15,Y', '0,D', '13,M')}  # Behaviour a little strange
     print (node.get_expanded_coord('time'))
 
-    node.params={'time': ('-144,M', '0,D', '13,M')}  # Behaviour a little strange
+    node._params={'time': ('-144,M', '0,D', '13,M')}  # Behaviour a little strange
     print (node.get_expanded_coord('time'))
 
     # select node
@@ -298,7 +298,7 @@ if __name__ == '__main__':
     o = node.execute(coords, params={'time': ('2011-01-01', '2011-02-01')})
     print (o.coords)
 
-    node.params={'time': ('2011-01-01', '2017-01-01', '1,Y')}
+    node._params={'time': ('2011-01-01', '2017-01-01', '1,Y')}
     print (node.get_expanded_coord('time'))
 
     print ('Done')

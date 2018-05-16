@@ -127,9 +127,6 @@ class Algorithm(Node):
             if hasattr(trait, 'klass') and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
         }
         
-        if self.params:
-            d['params'] = self.params
-        
         return d
 
 class Arange(Algorithm):

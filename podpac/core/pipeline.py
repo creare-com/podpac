@@ -427,7 +427,7 @@ class Pipeline(tl.HasTraits):
             d = copy.deepcopy(self.params[key])
             d.update(params.get(key, OrderedDict()))
 
-            if node.evaluated_coordinates == coordinates and node.params == d:
+            if node.evaluated_coordinates == coordinates and node._params == d:
                 continue
 
             print("executing node", key)
