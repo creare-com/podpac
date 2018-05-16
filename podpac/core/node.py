@@ -15,6 +15,7 @@ import json
 import numpy as np
 import traitlets as tl
 import matplotlib
+import matplotlib.cm
 
 
 try:
@@ -39,7 +40,7 @@ COMMON_DOC = {
         '''The set of coordinates requested by a user. The Node will be executed using these coordinates.''',
     'params': 'Default is None. Runtime parameters that modify any default node parameters.',
     'hash_return': 'A unique hash capturing the coordinates and parameters used to execute the node. ',
-    'outdir': 'Optional output directory. Uses settings.OUT_DIR by default',
+    'outdir': 'Optional output directory. Uses settings.CACHE_DIR by default',
     'arr_init_type': 
         '''How to initialize the array. Options are:
                 nan: uses np.full(..., np.nan) (Default option)
@@ -91,8 +92,8 @@ class Style(tl.HasTraits):
 
     def __init__(self, node=None, *args, **kwargs):
         if node:
-            self.name = self.node.__class.__name__
-            self.units = self.node.units
+            self.name = node.__class.__name__
+            self.units = node.units
         super(Style, self).__init__(*args, **kwargs)
 
     name = tl.Unicode()
@@ -192,7 +193,7 @@ class Node(tl.HasTraits):
         if coords is None: 
             ev = self.evaluated_coordinates
         else: 
-            ev = coordinates
+            ev = coords
         #nv = self._trait_values.get('native_coordinates',  None)
         # Switching from _trait_values to hasattr because "native_coordinates"
         # not showing up in _trait_values
@@ -644,7 +645,7 @@ class Node(tl.HasTraits):
         filename : str
             Name of the file in the cache.
         outdir : None, optional
-            Directory where caching occurs. If None, uses settings.OUT_DIR
+            {out_dir}
 
         Returns
         -------
@@ -656,7 +657,7 @@ class Node(tl.HasTraits):
         If the output directory doesn't exist, it will be created.
         """
         if outdir is None:
-            outdir = settings.OUT_DIR
+            outdir = settings.CACHE_DIR
 
         if not os.path.exists(outdir):
             os.makedirs(outdir)
