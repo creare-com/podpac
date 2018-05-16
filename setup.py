@@ -45,6 +45,7 @@ extras_require = {
         'recommonmark>=0.4.0',
         'sphinx>=1.6.6',
         'sphinx-rtd-theme>=0.3.1',
+        'sphinx-autobuild>=0.7',
         ]
     }
 
