@@ -87,7 +87,7 @@ class DataSource(Node):
         self.output = output
 
         # Need to ask the interpolator what coordinates I need
-        res = self.get_data_subset(coordinates)
+        res = self.get_data_subset(self.evaluated_coordinates)
         if isinstance(res, UnitsDataArray):
             if self.output is None:
                 self.output = res
@@ -105,7 +105,7 @@ class DataSource(Node):
             self.output = self.initialize_output_array()
 
         # sets self.output
-        self.interpolate_data(data_subset, coords_subset, coordinates)
+        self.interpolate_data(data_subset, coords_subset, self.evaluated_coordinates)
         
         # set the order of dims to be the same as that of evaluated_coordinates
         # + the dims that are missing from evaluated_coordinates.
