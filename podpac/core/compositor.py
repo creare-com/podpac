@@ -12,9 +12,10 @@ import traitlets as tl
 # Internal imports
 from podpac.core.coordinate import Coordinate
 from podpac.core.node import Node
+from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC 
 
-COMMON_DOC = COMMON_DATA_DOC.copy()
+COMMON_DOC = COMMON_NODE_DOC.copy()
 
 class Compositor(Node):
     """The base class for all Nodes, which defines the common interface for everything.
@@ -31,19 +32,15 @@ class Compositor(Node):
         coordinates could include the year-month-day of the source, but the actual source also has hour-minute-second
         information. In that case, source_coordinates is incomplete. This flag is used to automatically construct 
         native_coordinates
-
     sources : np.ndarray
         An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to 
         subselect the nodes that will be evaluated.
-
     cache_native_coordinates : True
         Default is True. If native_coordinates are requested by the user, it may take a long time to calculate if the 
         Compositor points to many sources. The result is relatively small and is cached by default. Caching may not be
         desired if the datasource change or is updated. 
-    
     interpolation : str
         Indicates the interpolation type. This gets passed down to the DataSources as part of the compositor. 
-
     threaded : bool, optional
         Default if False.
         When threaded is False, the compositor stops executing sources once the
@@ -53,10 +50,13 @@ class Compositor(Node):
         especially if n_threads is low. For example, threaded with n_threads=1
         could be much slower than non-threaded if the output is completely filled
         after the first few sources.
-
     n_threads : int
         Default is 10 -- used when threaded is True. 
         NASA data servers seem to have a hard limit of 10 simultaneous requests, which determined the default value.
+        
+    Notes
+    ------
+    Developers of new Compositor nodes need to implement the `composite` method.
     """
     shared_coordinates = tl.Instance(Coordinate, allow_none=True)
     source_coordinates = tl.Instance(Coordinate, allow_none=True)
@@ -234,8 +234,7 @@ class Compositor(Node):
 
     @common_doc(COMMON_DOC)
     def execute(self, coordinates, params=None, output=None, method=None):
-        """This is the common interface used for ALL nodes. Pipelines only
-        understand this method and get_description.
+        """Executes this nodes using the supplied coordinates and params. 
 
         Parameters
         ----------

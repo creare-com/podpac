@@ -16,42 +16,40 @@ except:
 
 from podpac.core.coordinate import Coordinate, convert_xarray_to_podpac
 from podpac.core.node import Node
+from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.utils import common_doc
 
+COMMON_DOC = COMMON_NODE_DOC.copy()
 
 class Algorithm(Node):
-    """Summary
+    """Base node for any algorithm or computation node. 
     
-    Attributes
-    ----------
-    evaluated : bool
-        Description
-    evaluated_coordinates : TYPE
-        Description
-    output : TYPE
-        Description
-    params : TYPE
-        Description
+    Notes
+    ------
+    Developers of new Algorithm nodes need to implement the `algorithm` method. 
     """
     
-    def execute(self, coordinates, params=None, output=None):
-        """Summary
+    @common_doc(COMMON_DOC)
+    def execute(self, coordinates, params=None, output=None, method=None):
+        """Executes this nodes using the supplied coordinates and params. 
         
         Parameters
         ----------
-        coordinates : TYPE
-            Description
-        params : None, optional
-            Description
-        output : None, optional
-            Description
+        coordinates : podpac.Coordinate
+            {evaluated_coordinates}
+        params : dict, optional
+            {execute_params} 
+        output : podpac.UnitsDataArray, optional
+            {execute_out}
+        method : str, optional
+            {execute_method}
         
         Returns
         -------
-        TYPE
-            Description
+        {execute_return}
         """
         self.evaluated_coordinates = coordinates
-        self.params = params
+        self._params = self.get_params(params)
         self.output = output
 
         coords = None
@@ -59,10 +57,7 @@ class Algorithm(Node):
             node = getattr(self, name)
             if isinstance(node, Node):
                 if self.implicit_pipeline_evaluation:
-                    if params is None:
-                        node.execute(coordinates, params)
-                    else:
-                        node.execute(coordinates, params.get(name, {}))
+                    node.execute(coordinates, self._params.get(name, {}))
                 # accumulate coordinates
                 if coords is None:
                     coords = convert_xarray_to_podpac(node.output.coords)
@@ -92,7 +87,7 @@ class Algorithm(Node):
         Parameters
         ----------
         **kwargs
-            Description
+            Key-word arguments for the algorithm
         
         Raises
         ------
@@ -103,12 +98,12 @@ class Algorithm(Node):
 
     @property
     def definition(self):
-        """Summary
-        
+        """Pipeline node definition. 
+
         Returns
         -------
-        TYPE
-            Description
+        OrderedDict
+            Extends base description by adding 'inputs'
         """
         d = self._base_definition()
         
@@ -130,43 +125,41 @@ class Algorithm(Node):
         return d
 
 class Arange(Algorithm):
-    '''A simple test node 
+    '''A simple test node that gives each value in the output a number.
     '''
 
     def algorithm(self):
-        """Summary
+        """Uses np.arange to give each value in output a unique number
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            A row-majored numbered array of the requested size. 
         """
         out = self.initialize_output_array('ones')
         return out * np.arange(out.size).reshape(out.shape)
       
 
 class CoordData(Algorithm):
-    """Summary
+    """Extracts the coordinates from a request and makes it available as a data
     
     Attributes
     ----------
-    coord_name : TYPE
-        Description
+    coord_name : str
+        Name of coordinate to extract (one of lat, lon, time, alt)
     """
     
-    coord_name = tl.Unicode('')
+    coord_name = tl.Unicode('').tag(attr=True)
 
     def algorithm(self):
-        """Summary
+        """Extract coordinate from request and makes data available.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            The coordinates as data for the requested coordinate.
         """
-        if self.params:
-            coord_name = self.params.get('coord_name', self.coord_name)
-        else: coord_name = self.coord_name
+        coord_name = self._params['coord_name']
         ec = self.evaluated_coordinates
         if coord_name not in ec.dims:
             return xr.DataArray([1]).min()
@@ -178,16 +171,16 @@ class CoordData(Algorithm):
 
 
 class SinCoords(Algorithm):
-    """Summary
+    """A simple test node that creates a data based on coordinates and trigonometric (sin) functions. 
     """
     
     def algorithm(self):
-        """Summary
+        """Computes sinusoids of all the coordinates. 
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Sinusoids of a certain period for all of the requested coordinates
         """
         out = self.initialize_output_array('ones')
         crds = list(out.coords.values())
@@ -204,26 +197,34 @@ class SinCoords(Algorithm):
 
 
 class Arithmetic(Algorithm):
-    """Summary
+    """Create a simple point-by-point computation of up to 7 different input nodes.
     
     Attributes
     ----------
-    A : TYPE
-        Description
-    B : TYPE
-        Description
-    C : TYPE
-        Description
-    D : TYPE
-        Description
-    E : TYPE
-        Description
-    eqn : TYPE
-        Description
-    F : TYPE
-        Description
-    G : TYPE
-        Description
+    A : podpac.Node
+        An input node that can be used in a computation. 
+    B : podpac.Node
+        An input node that can be used in a computation. 
+    C : podpac.Node
+        An input node that can be used in a computation. 
+    D : podpac.Node
+        An input node that can be used in a computation. 
+    E : podpac.Node
+        An input node that can be used in a computation. 
+    F : podpac.Node
+        An input node that can be used in a computation. 
+    G : podpac.Node
+        An input node that can be used in a computation. 
+    eqn : str
+        An equation stating how the datasources can be combined. 
+        Parameters may be specified in {}'s
+        
+    Examples
+    ----------
+    a = SinCoords()
+    b = Arange()
+    arith = Arithmetic(A=a, B=b, eqn = 'A * B + {offset}')
+    arith.execute(coordinates, params={'offset': 1})
     """
     
     A = tl.Instance(Node)
@@ -233,20 +234,19 @@ class Arithmetic(Algorithm):
     E = tl.Instance(Node, allow_none=True)
     F = tl.Instance(Node, allow_none=True)
     G = tl.Instance(Node, allow_none=True)
-    eqn = tl.Unicode(default_value='A+B+C+D+E+F+G')
+    eqn = tl.Unicode(default_value='A+B+C+D+E+F+G').tag(param=True)
     
     def algorithm(self):
         """Summary
         
         Returns
         -------
-        TYPE
+        UnitsDataArray
             Description
         """
-        if self.params:
-            eqn = self.params.get('eqn', self.eqn)
-            eqn = eqn.format(**self.params)
-        else: eqn = self.eqn
+        
+        eqn = self._params['eqn']
+        eqn = eqn.format(**self._params)        
         
         fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
           
@@ -261,28 +261,3 @@ class Arithmetic(Algorithm):
         res[:] = result
         return res
 
-    @property
-    def definition(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        d = super(Arithmetic, self).definition
-        
-        if self.params and 'eqn' not in self.params:
-            d['params']['eqn'] = self.eqn
-
-        return d
-        
-if __name__ == "__main__":
-    a = SinCoords()
-    coords = Coordinate(lat=[-90, 90, 1.], lon=[-180, 180, 1.], 
-                        order=['lat', 'lon'])
-    o = a.execute(coords)
-    a2 = Arithmetic(A=a, B=a)
-    o2 = a2.execute(coords, params={'eqn': '2*abs(A) - B'})
-
-    print ("Done")
