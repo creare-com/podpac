@@ -16,47 +16,39 @@ import traitlets as tl
 from podpac.core.coordinate import Coordinate
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.utils import common_doc
+from podpac.core.node import COMMON_NODE_DOC
+
+COMMON_DOC = COMMON_NODE_DOC.copy()
 
 # =============================================================================
 # Reduce Nodes
 # =============================================================================
 
 class Reduce(Algorithm):
-    """Summary
+    """Base node for reduction algorithms
     
     Attributes
     ----------
-    dims : TYPE
-        Description
-    evaluated : bool
-        Description
-    evaluated_coordinates : TYPE
-        Description
-    input_coordinates : TYPE
-        Description
-    input_node : TYPE
-        Description
-    output : TYPE
-        Description
-    params : TYPE
-        Description
+    dims : list
+        List of strings that give the dimensions which should be reduced
+    input_coordinates : podpac.Coordinate
+        The input coordinates before reduction
+    source : podpac.Node
+        The source node that will be reduced. 
     """
     
     input_coordinates = tl.Instance(Coordinate)
-    input_node = tl.Instance(Node)
+    source = tl.Instance(Node)
 
-    dims = tl.List()
+    dims = tl.List().tag(param=True)
+    iter_chunk_size = tl.Union(tl.Int(), tl.Unicode(), allow_none=True, default_value=None).tag(param=True)
 
     @property
     def native_coordinates(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
+        """Pass through for source.native_coordinates
         """
-        return self.input_node.native_coordinates
+        return self.source.native_coordinates
 
     def get_dims(self, out):
         """
@@ -64,28 +56,28 @@ class Reduce(Algorithm):
         
         Parameters
         ----------
-        out : TYPE
-            Description
+        out : UnitsDataArray
+            The output array
         
         Returns
         -------
-        TYPE
-            Description
+        list
+            List of dimensions after reduction
         
         Raises
         ------
         ValueError
-            Description
+            If dimension is not valid, raises this error. 
         """
         # Using self.output.dims does a lot of work for us comparing
         # native_coordinates to evaluated coordinates
         input_dims = list(out.dims)
         valid_dims = self.input_coordinates.dims
 
-        if self.params is None or 'dims' not in self.params:
+        if self._params is None or not self._params['dims']:
             return input_dims
 
-        params_dims = self.params['dims']
+        params_dims = self._params['dims']
         if not isinstance(params_dims, (list, tuple)):
             params_dims = [params_dims]
 
@@ -99,28 +91,28 @@ class Reduce(Algorithm):
         return dims
     
     def dims_axes(self, output):
-        """Summary
+        """Finds the indices for the dimensions that will be reduced. This is passed to numpy. 
         
         Parameters
         ----------
-        output : TYPE
-            Description
+        output : UnitsDataArray
+            The output array with the reduced dimensions
         
         Returns
         -------
-        TYPE
-            Description
+        list
+            List of integers for the dimensions that will be reduces
         """
         axes = [i for i in range(len(output.dims)) if output.dims[i] in self.dims]
         return axes
 
     def get_reduced_coordinates(self):
-        """Summary
+        """Returns the coordinates with the reduced dimensions removed
         
         Returns
         -------
-        TYPE
-            Description
+        podpac.Coordinate
+            Reduced coordinates
         """
         coordinates = self.input_coordinates
         dims = self.dims
@@ -140,30 +132,27 @@ class Reduce(Algorithm):
 
     @property
     def chunk_size(self):
-        """Summary
+        """Size of chunks for parallel processing
         
         Returns
         -------
-        TYPE
-            Description
+        int
+            Size of chunks
         """
-        if 'chunk_size' not in self.params:
-            # return self.input_coordinates.shape
-            return None
 
-        if self.params['chunk_size'] == 'auto':
+        if self._params['iter_chunk_size'] == 'auto':
             return 1024**2 # TODO
 
-        return self.params['chunk_size']
+        return self._params['iter_chunk_size']
 
     @property
     def chunk_shape(self):
-        """Summary
+        """Shape of chunks for parallel processing.
         
         Returns
         -------
-        TYPE
-            Description
+        list
+            List of integers giving the shape of each chunk.
         """
         if self.chunk_size is None:
             # return self.input_coordinates.shape
@@ -212,7 +201,7 @@ class Reduce(Algorithm):
         a = x.data.reshape(-1, *x.shape[n:])
         return a
 
-    def iteroutputs(self):
+    def iteroutputs(self, method=None):
         """Summary
         
         Yields
@@ -221,9 +210,9 @@ class Reduce(Algorithm):
             Description
         """
         for chunk in self.input_coordinates.iterchunks(self.chunk_shape):
-            yield self.input_node.execute(chunk, self.params)
+            yield self.source.execute(chunk, self_params, method=method)
 
-    def execute(self, coordinates, params=None, output=None):
+    def execute(self, coordinates, params=None, output=None, method=None):
         """Summary
         
         Parameters
@@ -241,7 +230,7 @@ class Reduce(Algorithm):
             Description
         """
         self.input_coordinates = coordinates
-        self.params = params or {}
+        self._params = self.get_params(params)
         self.output = output
         
         self.evaluated_coordinates = coordinates
@@ -253,11 +242,11 @@ class Reduce(Algorithm):
             self.output = self.initialize_coord_array(self.evaluated_coordinates)
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
-            result = self.reduce_chunked(self.iteroutputs())
+            result = self.reduce_chunked(self.iteroutputs(method), method)
         else:
             if self.implicit_pipeline_evaluation:
-                self.input_node.execute(coordinates, params)
-            result = self.reduce(self.input_node.output)
+                self.source.execute(coordinates, params, method=method)
+            result = self.reduce(self.source.output)
 
         if self.output.shape is (): # or self.evaluated_coordinates is None
             self.output.data = result
@@ -287,7 +276,7 @@ class Reduce(Algorithm):
 
         raise NotImplementedError
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """
         Reduce a list of xs with a memory-effecient iterative algorithm.
         
@@ -305,7 +294,7 @@ class Reduce(Algorithm):
         """
 
         warnings.warn("No reduce_chunked method defined, using one-step reduce")
-        x = self.input_node.execute(self.input_coordinates, self.params)
+        x = self.source.execute(self.input_coordinates, self._params, method=method)
         return self.reduce(x)
 
     @property
@@ -325,7 +314,7 @@ class Reduce(Algorithm):
         if self.input_coordinates is None:
             raise Exception("node not evaluated")
             
-        return self.get_hash(self.input_coordinates, self.params)
+        return self.get_hash(self.input_coordinates, self._params)
 
     @property
     def latlon_bounds_str(self):
@@ -357,7 +346,7 @@ class Min(Reduce):
         """
         return x.min(dim=self.dims)
     
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """Summary
         
         Parameters
@@ -396,7 +385,7 @@ class Max(Reduce):
         """
         return x.max(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """Summary
         
         Parameters
@@ -435,7 +424,7 @@ class Sum(Reduce):
         """
         return x.sum(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """Summary
         
         Parameters
@@ -473,7 +462,7 @@ class Count(Reduce):
         """
         return np.isfinite(x).sum(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """Summary
         
         Parameters
@@ -511,7 +500,7 @@ class Mean(Reduce):
         """
         return x.mean(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """Summary
         
         Parameters
@@ -553,7 +542,7 @@ class Variance(Reduce):
         """
         return x.var(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """Summary
         
         Parameters
@@ -614,7 +603,7 @@ class Skew(Reduce):
         skew = scipy.stats.skew(a, nan_policy='omit')
         return skew
         
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """Summary
         
         Parameters
@@ -700,7 +689,7 @@ class Kurtosis(Reduce):
         kurtosis = scipy.stats.kurtosis(a, nan_policy='omit')
         return kurtosis
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """Summary
         
         Parameters
@@ -784,7 +773,7 @@ class StandardDeviation(Variance):
         """
         return x.std(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """Summary
         
         Parameters
@@ -797,7 +786,7 @@ class StandardDeviation(Variance):
         TYPE
             Description
         """
-        var = super(StandardDeviation, self).reduce_chunked(xs)
+        var = super(StandardDeviation, self).reduce_chunked(xs, method)
         return np.sqrt(var)
 
 # =============================================================================
@@ -851,7 +840,7 @@ class Reduce2(Reduce):
 
         return [d[dim] for dim in coords.dims]
 
-    def iteroutputs(self):
+    def iteroutputs(self, method):
         """Summary
         
         Yields
@@ -861,9 +850,9 @@ class Reduce2(Reduce):
         """
         chunks = self.input_coordinates.iterchunks(self.chunk_shape, return_slice=True)
         for slc, chunk in chunks:
-            yield slc, self.input_node.execute(chunk, self.params)
+            yield slc, self.source.execute(chunk, self._params, method=method)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, method=None):
         """Summary
         
         Parameters
@@ -930,7 +919,7 @@ class Percentile(Reduce2):
         TYPE
             Description
         """
-        percentile = self.params.get('percentile', self.percentile)
+        percentile = self._params.get('percentile', self.percentile)
         return np.nanpercentile(x, percentile, self.dims_axes(x))
 
 # =============================================================================
@@ -1023,7 +1012,7 @@ class GroupReduce(Algorithm):
 
         return coords
 
-    def execute(self, coordinates, params=None, output=None):
+    def execute(self, coordinates, params=None, output=None, method=None):
         """Summary
         
         Parameters
@@ -1046,7 +1035,7 @@ class GroupReduce(Algorithm):
             Description
         """
         self.evaluated_coordinates = coordinates
-        self.params = params
+        self._params = self.get_params(params)
         self.output = output
 
         if self.output is None:
@@ -1056,7 +1045,7 @@ class GroupReduce(Algorithm):
             raise ValueError("GroupReduce source node must be time-dependent")
         
         if self.implicit_pipeline_evaluation:
-            self.source.execute(self.source_coordinates, params)
+            self.source.execute(self.source_coordinates, params, method=method)
 
         # group
         grouped = self.source.output.groupby('time.%s' % self.groupby)
