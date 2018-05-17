@@ -42,12 +42,11 @@ class Reduce(Algorithm):
     source = tl.Instance(Node)
 
     dims = tl.List().tag(param=True)
-    iter_chunk_size = tl.Union(tl.Int(), tl.Unicode(), allow_none=True, default_value=None).tag(param=True)
+    iter_chunk_size = tl.Union([tl.Int(), tl.Unicode()], allow_none=True, default_value=None).tag(param=True)
 
     @property
     def native_coordinates(self):
-        """Pass through for source.native_coordinates
-        """
+        """Pass through for source.native_coordinates or self.native_coordinates_source.native_coordinates (preferred)        """
         return self.source.native_coordinates
 
     def get_dims(self, out):
@@ -132,7 +131,7 @@ class Reduce(Algorithm):
 
     @property
     def chunk_size(self):
-        """Size of chunks for parallel processing
+        """Size of chunks for parallel processing or large arrays that do not fit in memory
         
         Returns
         -------
@@ -147,7 +146,7 @@ class Reduce(Algorithm):
 
     @property
     def chunk_shape(self):
-        """Shape of chunks for parallel processing.
+        """Shape of chunks for parallel processing or large arrays that do not fit in memory.
         
         Returns
         -------
@@ -202,32 +201,34 @@ class Reduce(Algorithm):
         return a
 
     def iteroutputs(self, method=None):
-        """Summary
+        """Generator for the chunks of the output
         
         Yields
         ------
-        TYPE
-            Description
+        UnitsDataArray
+            Output for this chunk
         """
         for chunk in self.input_coordinates.iterchunks(self.chunk_shape):
             yield self.source.execute(chunk, self_params, method=method)
 
+    @common_doc(COMMON_DOC)
     def execute(self, coordinates, params=None, output=None, method=None):
-        """Summary
+        """Executes this nodes using the supplied coordinates and params. 
         
         Parameters
         ----------
-        coordinates : TYPE
-            Description
-        params : None, optional
-            Description
-        output : None, optional
-            Description
+        coordinates : podpac.Coordinate
+            {evaluated_coordinates}
+        params : dict, optional
+            {execute_params} 
+        output : podpac.UnitsDataArray, optional
+            {execute_out}
+        method : str, optional
+            {execute_method}
         
         Returns
         -------
-        TYPE
-            Description
+        {execute_return}
         """
         self.input_coordinates = coordinates
         self._params = self.get_params(params)
@@ -245,7 +246,7 @@ class Reduce(Algorithm):
             result = self.reduce_chunked(self.iteroutputs(method), method)
         else:
             if self.implicit_pipeline_evaluation:
-                self.source.execute(coordinates, params, method=method)
+                self.source.execute(coordinates, self._params, method=method)
             result = self.reduce(self.source.output)
 
         if self.output.shape is (): # or self.evaluated_coordinates is None
@@ -265,13 +266,13 @@ class Reduce(Algorithm):
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Array that needs to be reduced.
         
         Raises
         ------
         NotImplementedError
-            Description
+            Must be defined in each child.
         """
 
         raise NotImplementedError
@@ -284,13 +285,13 @@ class Reduce(Algorithm):
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : list, generator
+            List of UnitsDataArray's that need to be reduced together.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Reduced output.
         """
 
         warnings.warn("No reduce_chunked method defined, using one-step reduce")
@@ -299,17 +300,17 @@ class Reduce(Algorithm):
 
     @property
     def evaluated_hash(self):
-        """Summary
+        """Unique hash used for caching
         
         Returns
         -------
-        TYPE
-            Description
+        str
+            Hash string used for caching
         
         Raises
         ------
         Exception
-            Description
+            If node has not been evaluated, no hash can be determined
         """
         if self.input_coordinates is None:
             raise Exception("node not evaluated")
@@ -318,46 +319,46 @@ class Reduce(Algorithm):
 
     @property
     def latlon_bounds_str(self):
-        """Summary
+        """String for lat-lon bounds used in hash. 
         
         Returns
         -------
-        TYPE
-            Description
+        str
+            String containg lat/lon bounds
         """
         return self.input_coordinates.latlon_bounds_str
 
 class Min(Reduce):
-    """Summary
+    """Computes the minimum across dimension(s)
     """
     
     def reduce(self, x):
-        """Summary
+        """Computes the minimum across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Minimum of the source data over self.dims
         """
         return x.min(dim=self.dims)
     
     def reduce_chunked(self, xs, method=None):
-        """Summary
+        """Computes the minimum across a chunk
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : iterable
+            Iterable of sources
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Minimum of the source data over self.dims
         """
         # note: np.fmin ignores NaNs, np.minimum propagates NaNs
         y = xr.full_like(self.output, np.nan)
@@ -367,36 +368,36 @@ class Min(Reduce):
 
 
 class Max(Reduce):
-    """Summary
+    """Computes the maximum across dimension(s)
     """
     
     def reduce(self, x):
-        """Summary
+        """Computes the maximum across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Maximum of the source data over self.dims
         """
         return x.max(dim=self.dims)
 
     def reduce_chunked(self, xs, method=None):
-        """Summary
+        """Computes the maximum across a chunk
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : iterable
+            Iterable of sources
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Maximum of the source data over self.dims
         """
         # note: np.fmax ignores NaNs, np.maximum propagates NaNs
         y = xr.full_like(self.output, np.nan)
@@ -406,36 +407,36 @@ class Max(Reduce):
 
 
 class Sum(Reduce):
-    """Summary
+    """Computes the sum across dimension(s)
     """
     
     def reduce(self, x):
-        """Summary
+        """Computes the sum across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Sum of the source data over self.dims
         """
         return x.sum(dim=self.dims)
 
     def reduce_chunked(self, xs, method=None):
-        """Summary
+        """Computes the sum across a chunk
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : iterable
+            Iterable of sources
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Sum of the source data over self.dims
         """
         s = xr.zeros_like(self.output)
         for x in xs:
@@ -444,36 +445,36 @@ class Sum(Reduce):
 
 
 class Count(Reduce):
-    """Summary
+    """Counts the finite values across dimension(s)
     """
     
     def reduce(self, x):
-        """Summary
+        """Counts the finite values across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Number of finite values of the source data over self.dims
         """
         return np.isfinite(x).sum(dim=self.dims)
 
     def reduce_chunked(self, xs, method=None):
-        """Summary
+        """Counts the finite values across a chunk
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : iterable
+            Iterable of sources
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Number of finite values of the source data over self.dims
         """
         n = xr.zeros_like(self.output)
         for x in xs:
@@ -482,36 +483,36 @@ class Count(Reduce):
 
 
 class Mean(Reduce):
-    """Summary
+    """Computes the mean across dimension(s)
     """
     
     def reduce(self, x):
-        """Summary
+        """Computes the mean across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Mean of the source data over self.dims
         """
         return x.mean(dim=self.dims)
 
     def reduce_chunked(self, xs, method=None):
-        """Summary
+        """Computes the mean across a chunk
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : iterable
+            Iterable of sources
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Mean of the source data over self.dims
         """
         s = xr.zeros_like(self.output) # alt: s = np.zeros(self.shape)
         n = xr.zeros_like(self.output)
@@ -524,36 +525,36 @@ class Mean(Reduce):
 
 
 class Variance(Reduce):
-    """Summary
+    """Computes the variance across dimension(s)
     """
     
     def reduce(self, x):
-        """Summary
+        """Computes the variance across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Variance of the source data over self.dims
         """
         return x.var(dim=self.dims)
 
     def reduce_chunked(self, xs, method=None):
-        """Summary
+        """Computes the variance across a chunk
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : iterable
+            Iterable of sources
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Variance of the source data over self.dims
         """
         n = xr.zeros_like(self.output)
         m = xr.zeros_like(self.output)
@@ -572,23 +573,23 @@ class Variance(Reduce):
 
 class Skew(Reduce):
     """
-    Summary
+    Computes the skew across dimension(s)
 
     TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
     """
 
     def reduce(self, x):
-        """Summary
+        """Computes the skew across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Skew of the source data over self.dims
         """
         # N = np.isfinite(x).sum(dim=self.dims)
         # M1 = x.mean(dim=self.dims)
@@ -604,17 +605,17 @@ class Skew(Reduce):
         return skew
         
     def reduce_chunked(self, xs, method=None):
-        """Summary
+        """Computes the skew across a chunk
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : iterable
+            Iterable of sources
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Skew of the source data over self.dims
         """
         N = xr.zeros_like(self.output)
         M1 = xr.zeros_like(self.output)
@@ -659,22 +660,22 @@ class Skew(Reduce):
         return skew
 
 class Kurtosis(Reduce):
-    """Summary
+    """Computes the kurtosis across dimension(s)
     TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
     """
 
     def reduce(self, x):
-        """Summary
+        """Computes the kurtosis across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Kurtosis of the source data over self.dims
         """
         # N = np.isfinite(x).sum(dim=self.dims)
         # M1 = x.mean(dim=self.dims)        
@@ -690,17 +691,17 @@ class Kurtosis(Reduce):
         return kurtosis
 
     def reduce_chunked(self, xs, method=None):
-        """Summary
+        """Computes the kurtosis across a chunk
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : iterable
+            Iterable of sources
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Kurtosis of the source data over self.dims
         """
         N = xr.zeros_like(self.output)
         M1 = xr.zeros_like(self.output)
@@ -755,36 +756,36 @@ class Kurtosis(Reduce):
 
 
 class StandardDeviation(Variance):
-    """Summary
+    """Computes the standard deviation across dimension(s)
     """
     
     def reduce(self, x):
-        """Summary
+        """Computes the standard deviation across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Standard deviation of the source data over self.dims
         """
         return x.std(dim=self.dims)
 
     def reduce_chunked(self, xs, method=None):
-        """Summary
+        """Computes the standard deviation across a chunk
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : iterable
+            Iterable of sources
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Standard deviation of the source data over self.dims
         """
         var = super(StandardDeviation, self).reduce_chunked(xs, method)
         return np.sqrt(var)
@@ -809,12 +810,12 @@ class Reduce2(Reduce):
 
     @property
     def chunk_shape(self):
-        """Summary
+        """Shape of chunks for parallel processing or large arrays that do not fit in memory.
         
         Returns
         -------
-        TYPE
-            Description
+        list
+            List of integers giving the shape of each chunk.
         """
         if self.chunk_size is None:
             # return self.input_coordinates.shape
@@ -841,29 +842,32 @@ class Reduce2(Reduce):
         return [d[dim] for dim in coords.dims]
 
     def iteroutputs(self, method):
-        """Summary
+        """Generator for the chunks of the output
         
         Yields
         ------
-        TYPE
-            Description
+        UnitsDataArray
+            Output for this chunk
         """
         chunks = self.input_coordinates.iterchunks(self.chunk_shape, return_slice=True)
         for slc, chunk in chunks:
             yield slc, self.source.execute(chunk, self._params, method=method)
 
     def reduce_chunked(self, xs, method=None):
-        """Summary
+        """
+        Reduce a list of xs with a memory-effecient iterative algorithm.
+        
+        Optionally defined in each child.
         
         Parameters
         ----------
-        xs : TYPE
-            Description
+        xs : list, generator
+            List of UnitsDataArray's that need to be reduced together.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Reduced output.
         """
         I = [self.input_coordinates.dims.index(dim)
              for dim in
@@ -876,27 +880,27 @@ class Reduce2(Reduce):
 
 
 class Median(Reduce2):
-    """Summary
+    """Computes the median across dimension(s)
     """
     
     def reduce(self, x):
-        """Summary
+        """Computes the median across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Median of the source data over self.dims
         """
         return x.median(dim=self.dims)
 
 
 class Percentile(Reduce2):
-    """Summary
+    """Computes the percentile across dimension(s)
     
     Attributes
     ----------
@@ -904,20 +908,20 @@ class Percentile(Reduce2):
         Description
     """
     
-    percentile = tl.Float(default=50.0)
+    percentile = tl.Float(default=50.0).tag(param=True)
 
     def reduce(self, x):
-        """Summary
+        """Computes the percentile across dimension(s)
         
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : UnitsDataArray
+            Source data.
         
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            Percentile of the source data over self.dims
         """
         percentile = self._params.get('percentile', self.percentile)
         return np.nanpercentile(x, percentile, self.dims_axes(x))
@@ -936,21 +940,13 @@ class GroupReduce(Algorithm):
     ----------
     custom_reduce_fn : function
         required if reduce_fn is 'custom'.
-    evaluated : bool
-        Description
-    evaluated_coordinates : TYPE
-        Description
     groupby : str
         datetime sub-accessor. Currently 'dayofyear' is the enabled option.
-    native_coordinates_source : TYPE
-        Description
-    output : TYPE
-        Description
-    params : TYPE
-        Description
+    native_coordinates_source : podpac.Node
+        Node that acts as the source for the native_coordinates of this node. 
     reduce_fn : str
         builtin xarray groupby reduce function, or 'custom'.
-    source : Node
+    source : podpac.Node
         Source node, must have native_coordinates
     """
 
@@ -967,17 +963,7 @@ class GroupReduce(Algorithm):
 
     @property
     def native_coordinates(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
-        
-        Raises
-        ------
-        Exception
-            Description
+        """Pass through for source.native_coordinates or self.native_coordinates_source.native_coordinates (preferred)
         """
         try:
             if self.native_coordinates_source:
@@ -1012,27 +998,29 @@ class GroupReduce(Algorithm):
 
         return coords
 
+    @common_doc(COMMON_DOC)
     def execute(self, coordinates, params=None, output=None, method=None):
-        """Summary
+        """Executes this nodes using the supplied coordinates and params. 
         
         Parameters
         ----------
-        coordinates : TYPE
-            Description
-        params : None, optional
-            Description
-        output : None, optional
-            Description
+        coordinates : podpac.Coordinate
+            {evaluated_coordinates}
+        params : dict, optional
+            {execute_params} 
+        output : podpac.UnitsDataArray, optional
+            {execute_out}
+        method : str, optional
+            {execute_method}
         
         Returns
         -------
-        TYPE
-            Description
+        {execute_return}
         
         Raises
         ------
         ValueError
-            Description
+            If source it not time-depended (required by this node).
         """
         self.evaluated_coordinates = coordinates
         self._params = self.get_params(params)
@@ -1072,8 +1060,8 @@ class GroupReduce(Algorithm):
         
         Returns
         -------
-        TYPE
-            Description
+        str
+            Default pipeline node reference/name in pipeline node definitions
         """
         return '%s.%s.%s' % (self.source.base_ref,self.groupby,self.reduce_fn)
 
