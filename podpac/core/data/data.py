@@ -29,7 +29,7 @@ except:
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinate import Coordinate, UniformCoord
 from podpac.core.node import Node
-from podpac.core.node import COMMON_DOC as COMMON_NODE_DOC
+from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.utils import common_doc
 
 COMMON_DATA_DOC = {
@@ -85,6 +85,10 @@ class DataSource(Node):
     source : Any
         The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as
         a few examples. 
+        
+    Notes
+    -------
+    Developers of new DataSource nodes need to implement the `get_data` and `get_native_coordinates` methods. 
     """
     
     source = tl.Any(allow_none=False, help="Path to the raw data source")
@@ -97,7 +101,7 @@ class DataSource(Node):
     
     @common_doc(COMMON_DOC)
     def execute(self, coordinates, params=None, output=None, method=None):
-        """Summary
+        """Executes this nodes using the supplied coordinates and params. 
         
         Parameters
         ----------
