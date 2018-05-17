@@ -12,46 +12,79 @@ import traitlets as tl
 # Internal imports
 from podpac.core.coordinate import Coordinate
 from podpac.core.node import Node
+from podpac.core.node import COMMON_NODE_DOC 
+
+COMMON_DOC = COMMON_DATA_DOC.copy()
 
 class Compositor(Node):
+    """The base class for all Nodes, which defines the common interface for everything.
 
+    Attributes
+    ----------
+    shared_coordinates : podpac.Coordinate, optional
+        Coordinates that are shared amongst all of the composited sources
+    source_coordinates = podpac.Coordinate, optional
+        Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the 
+        user-requested coordinates. It is an optimization. 
+    is_source_coordinates_complete : Bool
+        Default is False. The source_coordinates do not have to completely describe the source. For example, the source
+        coordinates could include the year-month-day of the source, but the actual source also has hour-minute-second
+        information. In that case, source_coordinates is incomplete. This flag is used to automatically construct 
+        native_coordinates
+
+    sources : np.ndarray
+        An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to 
+        subselect the nodes that will be evaluated.
+
+    cache_native_coordinates : True
+        Default is True. If native_coordinates are requested by the user, it may take a long time to calculate if the 
+        Compositor points to many sources. The result is relatively small and is cached by default. Caching may not be
+        desired if the datasource change or is updated. 
+    
+    interpolation : str
+        Indicates the interpolation type. This gets passed down to the DataSources as part of the compositor. 
+
+    threaded : bool, optional
+        Default if False.
+        When threaded is False, the compositor stops executing sources once the
+        output is completely filled for efficiency. When threaded is True, the
+        compositor must execute every source. The result is the same, but note
+        that because of this, threaded=False could be faster than threaded=True,
+        especially if n_threads is low. For example, threaded with n_threads=1
+        could be much slower than non-threaded if the output is completely filled
+        after the first few sources.
+
+    n_threads : int
+        Default is 10 -- used when threaded is True. 
+        NASA data servers seem to have a hard limit of 10 simultaneous requests, which determined the default value.
+    """
     shared_coordinates = tl.Instance(Coordinate, allow_none=True)
     source_coordinates = tl.Instance(Coordinate, allow_none=True)
     is_source_coordinates_complete = tl.Bool(False,
         help=("This allows some optimizations but assumes that a node's "
               "native_coordinates=source_coordinate + shared_coordinate "
-              "IN THAT ORDER"))
+              "IN THAT ORDER")).tag(attr=True)
 
     sources = tl.Instance(np.ndarray)
-    cache_native_coordinates = tl.Bool(True)
+    cache_native_coordinates = tl.Bool(True).tag(attr=True)
     
-    interpolation = tl.Unicode('')
-
-    # When threaded is False, the compositor stops executing sources once the
-    # output is completely filled for efficiency. When threaded is True, the
-    # compositor must execute every source. The result is the same, but note
-    # that because of this, threaded=False could be faster than threaded=True,
-    # especially if n_threads is low. For example, threaded with n_threads=1
-    # could be much slower than non-threaded if the output is completely filled
-    # after the first few sources.
-
-    # NASA data servers seem to have a hard limit of 10 simultaneous requests,
-    # so the default for now is 10.
-    
-    threaded = tl.Bool(False)
-    n_threads = tl.Int(10)
+    interpolation = tl.Unicode('').tag(param=True)
+   
+    threaded = tl.Bool(False).tag(param=True)
+    n_threads = tl.Int(10).tag(param=True)
     
     @tl.default('source_coordinates')
     def _source_coordinates_default(self):
         return self.get_source_coordinates()
 
     def get_source_coordinates(self):
-        """Summary
+        """Returns the coordinates describing each source. 
+        This may be implemented by derived classes, and is an optimization that allows a subset of source to be executed.
         
         Returns
         -------
-        TYPE
-            Description
+        podpac.Coordinate
+            Coordinates describing each source.
         """
         return None
         
@@ -60,7 +93,7 @@ class Compositor(Node):
         return self.get_shared_coordinates()
 
     def get_shared_coordinates(self):
-        """Summary
+        """Coordinates shared by each source. 
         
         Raises
         ------
@@ -70,14 +103,14 @@ class Compositor(Node):
         raise NotImplementedError()
 
     def composite(self, outputs, result=None):
-        """Summary
+        """Implements the rules for compositing multiple sources together. 
         
         Parameters
         ----------
-        outputs : TYPE
-            Description
-        result : None, optional
-            Description
+        outputs : list
+            A list of outputs that need to be composited together
+        result : UnitDataArray, optional
+            An optional pre-filled array may be supplied, otherwise the output will be allocated. 
         
         Raises
         ------
@@ -91,19 +124,28 @@ class Compositor(Node):
         return self.get_native_coordinates()
 
     def get_native_coordinates(self):
-        """
+        """Returns the native coordinates of the entire dataset.
+        
+        Returns
+        -------
+        podpac.Coordinate
+            Description
+            Native coordinates of the entire dataset.
+            
+        Notes
+        -------
         This one is tricky... you can have multi-level compositors
         One for a folder described by a date
         One for all the folders over all dates. 
         The single folder one has time coordinates that are actually
         more accurate than just the folder time coordinate, so you want
         to replace the time coordinate in native coordinate -- does this 
-        rule hold? `
+        rule hold? 
         
-        Returns
-        -------
-        TYPE
-            Description
+        Also, you could have datasource with wildly different coordinates -- how are the native coordinates described
+        in that case? This is the usecase for the GroupCoordinates, but then how to evaluate nodes with
+        GroupCoordinates? 
+        
         """
         try: 
             return self.load_cached_obj('native.coordinates')
@@ -190,22 +232,25 @@ class Compositor(Node):
                 yield output
                 output[:] = np.nan
 
-    def execute(self, coordinates, params=None, output=None):
-        """Summary
-        
+    @common_doc(COMMON_DOC)
+    def execute(self, coordinates, params=None, output=None, method=None):
+        """This is the common interface used for ALL nodes. Pipelines only
+        understand this method and get_description.
+
         Parameters
         ----------
-        coordinates : TYPE
-            Description
-        params : None, optional
-            Description
-        output : None, optional
-            Description
-        
+        coordinates : podpac.Coordinate
+            {evaluated_coordinates}
+        params : dict, optional
+            {execute_params} 
+        output : podpac.UnitsDataArray, optional
+            {execute_out}
+        method : str, optional
+            {execute_method}
+            
         Returns
         -------
-        TYPE
-            Description
+        {execute_return}
         """
         self.evaluated_coordinates = coordinates
         self.params = params
@@ -218,45 +263,37 @@ class Compositor(Node):
         return self.output
 
     @property
+    @common_doc(COMMON_DOC)
     def definition(self):
-        """Summary
+        """Pipeline node defintion for Compositor nodes. 
         
         Returns
         -------
-        TYPE
-            Description
+        {definition_return}
         """
-        return NotImplementedError
-
-        # TODO test
-
         d = self._base_definition()
         d['sources'] = self.sources
-
-        if self.interpolation:
-            d['attrs'] = OrderedCompositor()
-            d['attrs']['interpolation'] = self.interpolation
         return d
 
 
 class OrderedCompositor(Compositor):
-    """Summary
+    """Compositor that combines sources based on their order in self.sources. Once a request contains no
+    nans, the result is returned. 
     """
-    
+    @common_doc(COMMON_DOC)
     def composite(self, outputs, result=None):
-        """Summary
+        """Composites outputs in order that they appear.
         
         Parameters
         ----------
-        outputs : TYPE
-            Description
+        outputs : generator
+            Generator that gives UnitDataArray's with the source values.
         result : None, optional
             Description
         
         Returns
         -------
-        TYPE
-            Description
+        {execute_return} This composites the sources together until there are no nans or no more sources.
         """
         if result is None:
             # consume the first source output

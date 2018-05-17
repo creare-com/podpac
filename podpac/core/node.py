@@ -157,6 +157,8 @@ class Node(tl.HasTraits):
         future.
     units : podpac.Units
         The units of the output data, defined using the pint unit registry `podpac.units.ureg`.
+    interpolation : str, optional
+        The interpolation type to use for the node. Not all nodes use this attribute.
     """
 
     output = tl.Instance(UnitsDataArray, allow_none=True, default_value=None)
@@ -176,6 +178,8 @@ class Node(tl.HasTraits):
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
 
     node_defaults = tl.Dict(allow_none=True)
+    
+    interpolation = tl.Unicode('')
 
     style = tl.Instance(Style)
     @tl.default('style')

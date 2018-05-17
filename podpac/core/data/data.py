@@ -96,7 +96,7 @@ class DataSource(Node):
     no_data_vals = tl.List(allow_none=True)
     
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None):
+    def execute(self, coordinates, params=None, output=None, method=None):
         """Summary
         
         Parameters
