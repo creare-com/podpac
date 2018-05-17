@@ -184,7 +184,7 @@ class ExpandCoordinates(Algorithm):
         self.input_coordinates = coordinates
         coordinates = self.expanded_coordinates
 
-        return super(ExpandCoordinates, self).execute(coordinates, params, output)
+        return super(ExpandCoordinates, self).execute(coordinates, params, output, method)
 
 
 class SelectCoordinates(ExpandCoordinates):

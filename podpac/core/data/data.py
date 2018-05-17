@@ -29,8 +29,8 @@ except:
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinate import Coordinate, UniformCoord
 from podpac.core.node import Node
-from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.utils import common_doc
+from podpac.core.node import COMMON_NODE_DOC
 
 COMMON_DATA_DOC = {
     'get_data': 

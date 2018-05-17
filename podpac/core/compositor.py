@@ -161,7 +161,7 @@ class Compositor(Node):
             self.cache_obj(crds, 'native.coordinates')
         return crds
     
-    def iteroutputs(self, coordinates, params):
+    def iteroutputs(self, coordinates, params, method=None):
         """Summary
         
         Parameters
@@ -217,7 +217,7 @@ class Compositor(Node):
             # TODO pool of pre-allocated scratch space
             # TODO: docstring?
             def f(src):
-                return src.execute(coordinates, params)
+                return src.execute(coordinates, params, method=method)
             pool = ThreadPool(processes=self.n_threads)
             results = [pool.apply_async(f, [src]) for src in src_subset]
             
@@ -228,7 +228,7 @@ class Compositor(Node):
         else:
             output = None # scratch space
             for src in src_subset:
-                output = src.execute(coordinates, params, output)
+                output = src.execute(coordinates, params, output, method)
                 yield output
                 output[:] = np.nan
 
@@ -255,7 +255,7 @@ class Compositor(Node):
         self.params = params
         self.output = output
         
-        outputs = self.iteroutputs(coordinates, params)
+        outputs = self.iteroutputs(coordinates, params, method=method)
         self.output = self.composite(outputs, self.output)
         self.evaluated = True
 

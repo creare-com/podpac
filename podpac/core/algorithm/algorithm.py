@@ -57,7 +57,7 @@ class Algorithm(Node):
             node = getattr(self, name)
             if isinstance(node, Node):
                 if self.implicit_pipeline_evaluation:
-                    node.execute(coordinates, self._params.get(name, {}))
+                    node.execute(coordinates, self._params.get(name, {}), method)
                 # accumulate coordinates
                 if coords is None:
                     coords = convert_xarray_to_podpac(node.output.coords)
