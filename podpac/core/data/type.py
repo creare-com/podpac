@@ -274,8 +274,6 @@ class RasterioSource(podpac.DataSource):
     def get_native_coordinates(self):
         """{get_native_coordinates}
         
-        Notes
-        -------
         The default implementation tries to find the lat/lon coordinates based on dataset.affine or dataset.transform
         (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may 
         have to overload this method. 
@@ -792,17 +790,18 @@ class ReprojectedSource(podpac.DataSource):
 
     @property
     def definition(self):
-        """Summary
+        """ Pipeline node definition. 
         
         Returns
         -------
-        TYPE
-            Description
+        OrderedDict
+            Pipeline node definition. 
         
         Raises
         ------
         NotImplementedError
-            Description
+            If coordinates_source is None, this raises an error because serialization of reprojected_coordinates 
+            is not implemented
         """
         
         d = podpac.Algorithm.definition.fget(self)
@@ -815,28 +814,26 @@ class ReprojectedSource(podpac.DataSource):
         return d
 
 class S3Source(podpac.DataSource):
-    """Summary
+    """Create a DataSource from a file on an S3 Bucket. 
     
     Attributes
     ----------
-    no_data_vals : TYPE
-        Description
-    node : TYPE
-        Description
-    node_class : TYPE
-        Description
-    node_kwargs : TYPE
-        Description
-    return_type : TYPE
-        Description
-    s3_bucket : TYPE
-        Description
-    s3_data : TYPE
-        Description
-    source : TYPE
-        Description
-    temp_file_cleanup : TYPE
-        Description
+    node : podpac.Node, optional
+        The DataSource node used to interpret the S3 file
+    node_class : podpac.DataSource, optional
+        The class type of self.node. This is used to create self.node if self.node is not specified
+    node_kwargs : dict, optional
+        Keyword arguments passed to `node_class` when automatically creating `node`
+    return_type : str, optional
+        Either: 'file_handle' (for files downloaded to RAM); or 
+        the default option 'path' (for files downloaded to disk)
+    s3_bucket : str, optional
+        Name of the S3 bucket. Uses settings.S3_BUCKET_NAME by default. 
+    s3_data : file/str
+        If return_type == 'file_handle' returns a file pointer object
+        If return_type == 'path' returns a string to the data
+    source : str
+        Path to the file residing in the S3 bucket that will be loaded
     """
     
     source = tl.Unicode()
@@ -845,22 +842,22 @@ class S3Source(podpac.DataSource):
     node_kwargs = tl.Dict(default_value={})
     s3_bucket = tl.Unicode()
     s3_data = tl.Any()
-    temp_file_cleanup = tl.List()
+    _temp_file_cleanup = tl.List()
     return_type = tl.Enum(['file_handle', 'path'], default_value='path')
     
     @tl.default('node')
     def node_default(self):
-        """Summary
+        """Creates the default node using the node_class and node_kwargs
         
         Returns
         -------
-        TYPE
-            Description
+        self.node_class
+            Instance of self.node_class
         
         Raises
         ------
         Exception
-            Description
+            This function sets the source in the node, so 'source' cannot be present in node_kwargs
         """
         if 'source' in self.node_kwargs:
             raise Exception("'source' present in node_kwargs for S3Source")
@@ -868,23 +865,23 @@ class S3Source(podpac.DataSource):
 
     @tl.default('s3_bucket')
     def s3_bucket_default(self):
-        """Summary
+        """Retrieves defaul S3 Bucket from settings
         
         Returns
         -------
-        TYPE
-            Description
+        Str
+            Name of the S3 bucket
         """
         return podpac.settings.S3_BUCKET_NAME
 
     @tl.default('s3_data')
     def s3_data_default(self):
-        """Summary
+        """Returns the file handle or path to the S3 bucket
         
         Returns
         -------
-        TYPE
-            Description
+        str/file
+            Either a string to the downloaded file path, or a file handle
         """
         s3 = boto3.resource('s3').Bucket(self.s3_bucket)
         if self.return_type == 'file_handle':
@@ -911,42 +908,27 @@ class S3Source(podpac.DataSource):
                                        #self.source + '.%d' % i)
             if not os.path.exists(tmppath):
                 s3.download_file(self.source, tmppath)
-            #self.temp_file_cleanup.append(tmppath)
+            #self._temp_file_cleanup.append(tmppath)
             return tmppath
 
+    @common_doc(COMMON_DOC)
     def get_data(self, coordinates, coordinates_slice):
-        """Summary
-        
-        Parameters
-        ----------
-        coordinates : TYPE
-            Description
-        coordinates_slice : TYPE
-            Description
-        
-        Returns
-        -------
-        TYPE
-            Description
+        """{get_data}
         """
         self.no_data_vals = getattr(self.node, 'no_data_vals', [])
         return self.node.get_data(coordinates, coordinates_slice)
 
     @property
+    @common_doc(COMMON_DOC)
     def native_coordinates(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
+        """{native_coordinates}
         """
         return self.node.native_coordinates
 
     def __del__(self):
         if hasattr(super(S3Source), '__del__'):
             super(S3Source).__del__(self)
-        for f in self.temp_file_cleanup:
+        for f in self._temp_file_cleanup:
             os.remove(f)
 
 if __name__ == '__main__':
