@@ -1,11 +1,11 @@
 # Pipelines
 
-A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and, optionally, *outputs* to produce when executing the pipeline.
+A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and defines an *output* node.
 
 ### Attributes
 
  * `nodes`: node definitions  *(object, required)*
- * `outputs`: output definitions *(list, optional)* 
+ * `output`: output definition *(object, optional)*
 
 ### Sample
 
@@ -14,11 +14,12 @@ A podpac pipeline can be defined using JSON. The pipeline definition describes t
     "nodes": {
         "myNode": { ... },
         "myOtherNode": { ... }
+        ...
+        "myFinalNode": { ... }
     },
-    "outputs": [
-        { ... },
-        { ... }
-    ]
+    "output": {
+        "node": "myFinalNode"
+    }
 }
 ```
 
@@ -118,16 +119,20 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
    - `"plugin": "path.to.myplugin", "node": "mymodule.MyCustomNode"` is equivalent to `from path.to.myplugin.mymodule import MyCustomNode`.
    - `"plugin": "myplugin", "node": "MyCustomNode"` is equivalent to `from myplugin import MyCustomNode`
 
-## Output Definitions
+## Output Definition
 
-An output definition defines a type of output, the nodes to output, and other parameters such as output location. Outputs are not required, but each output definition should contain a list of one or more nodes (by name) to output.
+The output definition defines the node to output and, optionally, an output mode along with associated parameters. If an output definition is not supplied, the last defined node *nodes* is used.
 
-Podpac provides several output types: *file*, *image*, *ftp*, and *aws*. Currently custom output types are not supported.
+Podpac provides several output types: *file* and *image*. Currently custom output types are not supported.
 
 ### Common Attributes
 
- * `mode`: The output type, options are 'file', 'image', 'ftp', and 'aws'. *(string, required)*
- * `nodes`: The nodes to output. *(list, required)*
+ * `node`: The nodes to output. *(list, required)*
+ * `mode`: The output mode, options are 'none' (default), 'file', 'image'. *(string, optional)*
+
+## None (default)
+
+No additional output. The output will be returned from the `Pipeline.execute` method.
 
 ## Files
 
@@ -147,14 +152,12 @@ Nodes can be output to file in a variety of formats.
         "MyNode2": { ... }
     },
 
-    "outputs": [
-        {
-            "mode": "file",
-            "format": "png",
-            "outdir": "C:\Path\To\OutputData",
-            "nodes": ["MyNode2"]
-        }
-    ]
+    "output": {
+        "nodes": "MyNode2",
+        "mode": "file",
+        "format": "png",
+        "outdir": "C:\Path\To\OutputData"
+    }
 }
 ```
 
@@ -177,22 +180,12 @@ Nodes can be output to a png image (in memory).
         "MyNode2": { ... }
     },
 
-    "outputs": [
-         {
-            "mode": "image",
-            "format": "png",
-            "vmin": 0.1,
-            "vmax": 0.35,
-            "nodes": ["MyNode1", "MyNode2"]
-        }
-    ]
+    "output": {
+        "nodes": "MyNode2",
+        "mode": "image",
+        "format": "png",
+        "vmin": 0.1,
+        "vmax": 0.35
+    }
 }
 ```
-
-## AWS
-
-*Not yet implemented*
-
-## FTP
-
-*Not yet implemented*

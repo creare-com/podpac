@@ -4,20 +4,23 @@ Pipeline output Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import warnings
+
 import traitlets as tl
 import numpy as np
 
 from podpac.core.node import Node
 
 class Output(tl.HasTraits):
-    """Summary
+    """
+    Base Pipeline Output class.
 
     Attributes
     ----------
-    name : TYPE
-        Description
-    node : TYPE
-        Description
+    node : Node
+        output node
+    name : string
+        output name
     """
 
     node = tl.Instance(Node)
@@ -33,7 +36,6 @@ class Output(tl.HasTraits):
         """
         raise NotImplementedError
 
-
 class NoOutput(Output):
     """Summary
     """
@@ -41,7 +43,6 @@ class NoOutput(Output):
     # TODO: docstring?
     def write(self):
         pass
-
 
 class FileOutput(Output):
     """Summary
@@ -55,7 +56,7 @@ class FileOutput(Output):
     """
     
     outdir = tl.Unicode()
-    format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default='pickle')
+    format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default_value='pickle')
 
     # TODO: docstring?
     def write(self):
@@ -75,9 +76,9 @@ class FTPOutput(Output):
 
     url = tl.Unicode()
     user = tl.Unicode()
+    pw = tl.Unicode()
 
-
-class AWSOutput(Output):
+class S3Output(Output):
     """Summary
 
     Attributes
@@ -88,9 +89,8 @@ class AWSOutput(Output):
         Description
     """
 
-    user = tl.Unicode()
     bucket = tl.Unicode()
-
+    user = tl.Unicode()
 
 class ImageOutput(Output):
     """Summary
@@ -111,6 +111,10 @@ class ImageOutput(Output):
     vmax = tl.CFloat(allow_none=True, default_value=np.nan)
     vmin = tl.CFloat(allow_none=True, default_value=np.nan)
     image = tl.Bytes()
+
+    def __init__(self, **kwargs):
+        warnings.warn("image output deprecated, use Node.get_image instead", DeprecationWarning)
+        super(ImageOutput, self).__init__(**kwargs)
 
     # TODO: docstring?
     def write(self):

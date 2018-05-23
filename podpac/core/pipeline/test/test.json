@@ -46,19 +46,10 @@
             }
         }
     },
-    "outputs": [
-        {
-            "mode": "file",
-            "format": "pickle",
-            "outdir": "out_test",
-            "nodes": ["downscaled_sm"]
-        },
-        {
-            "mode": "image",
-            "format": "png",
-            "vmin": 0.1,
-            "vmax": 0.35,
-            "nodes": ["downscaled_sm"]
-        }
-    ]
+    "output": {
+        "node": "downscaled_sm",
+        "mode": "file",
+        "format": "pickle",
+        "outdir": "out_test"
+    }
 }

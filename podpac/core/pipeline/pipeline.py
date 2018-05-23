@@ -10,6 +10,8 @@ import json
 import copy
 import importlib
 import inspect
+import warnings
+
 import numpy as np
 import traitlets as tl
 
@@ -19,7 +21,7 @@ from podpac.core.data.data import DataSource
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
 
-from podpac.core.pipeline.output import Output, NoOutput, FileOutput, ImageOutput, AWSOutput, FTPOutput
+from podpac.core.pipeline.output import Output, NoOutput, FileOutput, ImageOutput
 from podpac.core.pipeline.util import make_pipeline_definition
 
 class PipelineError(NodeException):
@@ -39,7 +41,7 @@ class Pipeline(tl.HasTraits):
         Description
     nodes : TYPE
         Description
-    outputs : list
+    output : list
         Description
     params : dict
         Description
@@ -53,7 +55,7 @@ class Pipeline(tl.HasTraits):
     definition = tl.Instance(OrderedDict, help="pipeline definition")
     nodes = tl.Instance(OrderedDict, help="pipeline nodes")
     params = tl.Dict(trait=tl.Instance(OrderedDict), help="default parameter overrides")
-    outputs = tl.List(trait=tl.Instance(Output), help="pipeline outputs")
+    output = tl.Instance(Output, help="pipeline output")
     skip_evaluate = tl.List(trait=tl.Unicode, help="nodes to skip")
     implicit_pipeline_evaluation = tl.Bool(False)
 
@@ -67,22 +69,28 @@ class Pipeline(tl.HasTraits):
             with open(self.path) as f:
                 self.definition = json.load(f, object_pairs_hook=OrderedDict)
 
-        # parse nodes and default params
+
+        # parse node definitions and default params
         self.nodes = OrderedDict()
         self.params = {}
+        
+        if 'nodes' not in self.definition:
+            raise PipelineError("Pipeline definition requires 'nodes' property")
+
+        if len(self.definition['nodes']) == 0:
+            raise PipelineError("Pipeline definition 'nodes' property cannot be empty")
+        
         for key, d in self.definition['nodes'].items():
-            self.nodes[key] = self.parse_node(key, d)
+            self.nodes[key] = self._parse_node_definition(key, d)
             self.params[key] = d.get('params', OrderedDict())
 
-        # parse outputs
-        self.outputs = []
-        for d in self.definition['outputs']:
-            self.outputs += self.parse_output(d)
+        # parse output definition
+        self.output = self._parse_output_definition(self.definition.get('output'))
 
         # check execution graph for unused nodes
-        self.check_execution_graph()
+        self._check_execution_graph()
 
-    def parse_node(self, name, d):
+    def _parse_node_definition(self, name, d):
         """Summary
 
         Parameters
@@ -147,8 +155,7 @@ class Pipeline(tl.HasTraits):
                    PipelineNode not in parents:
                 raise PipelineError("node '%s' is not a DataSource, Compositor, or Algorithm" % name)
         except KeyError as e:
-            raise PipelineError(
-                "node '%s' definition references nonexistent node '%s'" % (name, e))
+            raise PipelineError("node '%s' definition references nonexistent node '%s'" % (name, e))
 
         kwargs['implicit_pipeline_evaluation'] = self.implicit_pipeline_evaluation
 
@@ -168,93 +175,48 @@ class Pipeline(tl.HasTraits):
         # return node info
         return node_class(**kwargs)
 
-    def parse_output(self, d):
-        """Summary
-        
-        Parameters
-        ----------
-        d : TYPE
-            Description
-        
-        Returns
-        -------
-        TYPE
-            Description
-        
-        Raises
-        ------
-        PipelineError
-            Description
-        """
+    def _parse_output_definition(self, d):
+        if d is None:
+            d = {}
 
-        kwargs = {}
-        # modes
-        if 'mode' not in d:
-            raise PipelineError("output definition requires 'mode' property")
-        elif d['mode'] == 'none':
-            output_class = NoOutput
-        elif d['mode'] == 'file':
-            output_class = FileOutput
-            kwargs = {'outdir': d.get('outdir'), 'format': d['format']}
-        elif d['mode'] == 'ftp':
-            output_class = FTPOutput
-            kwargs = {'url': d['url'], 'user': d['user']}
-        elif d['mode'] == 'aws':
-            output_class = AWSOutput
-            kwargs = {'user': d['user'], 'bucket': d['bucken']}
-        elif d['mode'] == 'image':
-            output_class = ImageOutput
-            kwargs = {'format': d.get('image', 'png'),
-                      'vmin': d.get('vmin', np.nan),
-                      'vmax': d.get('vmax', np.nan)}
+        # node (uses last node by default)
+        if 'node' in d:
+            name = d['node']
         else:
-            raise PipelineError("output definition has unexpected mode '%s'" % d['mode'])
+            name = list(self.nodes.keys())[-1]
+            warnings.warn("No output node provided, using last node '%s'" % name)
 
-        # node references
-        if 'node' in d and 'nodes' in d:
-            raise PipelineError("output definition expects 'node' or 'nodes' property, not both")
-        elif 'node' in d:
-            refs = [d['node']]
-        elif 'nodes' in d:
-            refs = d['nodes']
-        elif d['mode'] == 'none':
-            nodes = self.nodes
-            refs = list(nodes.keys())
-        else:
-            raise PipelineError("output definition requires 'node' or 'nodes' property")
-
-        # nodes
         try:
-            nodes = [self.nodes[ref] for ref in refs]
+            node = self.nodes[name]
         except KeyError as e:
             raise PipelineError("output definition references nonexistent node '%s'" % (e))
 
-        # outputs
-        return [output_class(node=node, name=ref, **kwargs) for ref, node in zip(refs, nodes)]
+        # mode (uses NoOutput by default)
+        mode = d.get('mode', 'none')
+        if mode == 'none':
+            output_class = NoOutput
+        elif mode == 'file':
+            output_class = FileOutput
+        # elif mode == 'ftp':
+        #     output_class = FTPOutput
+        # elif mode == 's3':
+        #     output_class = S3Output
+        elif mode == 'image':
+            output_class = ImageOutput
+        else:
+            raise PipelineError("output definition has unexpected mode '%s'" % mode)
 
-    def check_execution_graph(self):
-        """Summary
+        # config
+        config = {k:v for k, v in d.items() if k not in ['node', 'mode']}
+        
+        # output
+        output = output_class(node=node, name=name, **config)
+        return output
 
-        Raises
-        ------
-        PipelineError
-            Description
-        """
+    def _check_execution_graph(self):
         used = {ref:False for ref in self.nodes}
 
         def f(base_ref):
-            """Summary
-
-            Parameters
-            ----------
-            base_ref : TYPE
-                Description
-
-            Returns
-            -------
-            TYPE
-                Description
-            """
             if used[base_ref]:
                 return
 
@@ -264,36 +226,22 @@ class Pipeline(tl.HasTraits):
             for ref in d.get('sources', []) + list(d.get('inputs', {}).values()):
                 f(ref)
 
-        for output in self.outputs:
-            f(output.name)
+        f(self.output.name)
 
         for ref in self.nodes:
             if not used[ref]:
                 raise PipelineError("Unused node '%s'" % ref)
 
-    def check_params(self, params):
-        """Summary
-
-        Parameters
-        ----------
-        params : TYPE
-            Description
-
-        Raises
-        ------
-        PipelineError
-            Description
-        """
+    def _check_params(self, params):
         if params is None:
             params = {}
 
         for node in params:
             if node not in self.nodes:
-                raise PipelineError(
-                    "params reference nonexistent node '%s'" % node)
+                raise PipelineError("params reference nonexistent node '%s'" % node)
 
     def execute(self, coordinates, params=None):
-        """Summary
+        """Execute the pipeline, writing the output if one is defined.
 
         Parameters
         ----------
@@ -305,7 +253,7 @@ class Pipeline(tl.HasTraits):
         if params is None:
             params = {}
 
-        self.check_params(params)
+        self._check_params(params)
 
         for key in self.nodes:
             if key in self.skip_evaluate:
@@ -319,11 +267,9 @@ class Pipeline(tl.HasTraits):
             if node.evaluated_coordinates == coordinates and node.params == d:
                 continue
 
-            print("executing node", key)
             node.execute(coordinates, params=d)
 
-        for output in self.outputs:
-            output.write()
+        self.output.write()
 
 class PipelineNode(Node):
     """
@@ -359,7 +305,7 @@ class PipelineNode(Node):
     output_node = tl.Unicode()
     @tl.default('output_node')
     def _output_node_default(self):
-        return self.definition['outputs'][0]['nodes'][0]
+        return self.definition['output']['node']
 
     pipeline_json = tl.Unicode(help="pipeline json definition")
     @tl.default('pipeline_json')
@@ -507,7 +453,7 @@ if __name__ == '__main__':
     print('\npipeline definition\t', pipeline.definition)
     print('\npipeline nodes     \t', pipeline.nodes)
     print('\npipeline params    \t', pipeline.params)
-    print('\npipeline outputs   \t', pipeline.outputs)
+    print('\npipeline output   \t', pipeline.output)
     print()
     print('\ncoords\t', coords)
     print('\nparams\t', params)

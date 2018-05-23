@@ -89,5 +89,5 @@ def make_pipeline_definition(main_node):
 
     d = OrderedDict()
     d['nodes'] = OrderedDict(zip(refs, definitions))
-    d['outputs'] = [output]
+    d['output'] = output
     return d
