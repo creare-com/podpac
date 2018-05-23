@@ -10,134 +10,23 @@ import json
 import copy
 import importlib
 import inspect
-import re
 import numpy as np
 import traitlets as tl
 
 from podpac.core.coordinate import Coordinate
-from podpac.core.node import Node
+from podpac.core.node import Node, NodeException
 from podpac.core.data.data import DataSource
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
 
-class PipelineError(Exception):
+from podpac.core.pipeline.output import Output, NoOutput, FileOutput, ImageOutput, AWSOutput, FTPOutput
+from podpac.core.pipeline.util import make_pipeline_definition
+
+class PipelineError(NodeException):
     """Summary
     """
 
     pass
-
-class Output(tl.HasTraits):
-    """Summary
-
-    Attributes
-    ----------
-    name : TYPE
-        Description
-    node : TYPE
-        Description
-    """
-
-    node = tl.Instance(Node)
-    name = tl.Unicode()
-
-    def write(self):
-        """Summary
-        
-        Raises
-        ------
-        NotImplementedError
-            Description
-        """
-        raise NotImplementedError
-
-
-class NoOutput(Output):
-    """Summary
-    """
-    
-    # TODO: docstring?
-    def write(self):
-        pass
-
-
-class FileOutput(Output):
-    """Summary
-
-    Attributes
-    ----------
-    format : TYPE
-        Description
-    outdir : TYPE
-        Description
-    """
-    
-    outdir = tl.Unicode()
-    format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default='pickle')
-
-    # TODO: docstring?
-    def write(self):
-        self.node.write(self.name, outdir=self.outdir, format=self.format)
-
-
-class FTPOutput(Output):
-    """Summary
-
-    Attributes
-    ----------
-    url : TYPE
-        Description
-    user : TYPE
-        Description
-    """
-
-    url = tl.Unicode()
-    user = tl.Unicode()
-
-
-class AWSOutput(Output):
-    """Summary
-
-    Attributes
-    ----------
-    bucket : TYPE
-        Description
-    user : TYPE
-        Description
-    """
-
-    user = tl.Unicode()
-    bucket = tl.Unicode()
-
-
-class ImageOutput(Output):
-    """Summary
-
-    Attributes
-    ----------
-    format : TYPE
-        Description
-    image : TYPE
-        Description
-    vmax : TYPE
-        Description
-    vmin : TYPE
-        Description
-    """
-
-    format = tl.CaselessStrEnum(values=['png'], default='png')
-    vmax = tl.CFloat(allow_none=True, default_value=np.nan)
-    vmin = tl.CFloat(allow_none=True, default_value=np.nan)
-    image = tl.Bytes()
-
-    # TODO: docstring?
-    def write(self):
-        try:
-            self.image = self.node.get_image(format=self.format,
-                                             vmin=self.vmin,
-                                             vmax=self.vmax)
-        except:
-            pass
-
 
 class Pipeline(tl.HasTraits):
     """Summary
@@ -531,90 +420,6 @@ class PipelineNode(Node):
             self.output[:] = out
 
         return self.output
-
-def make_pipeline_definition(main_node):
-    """
-    Make a pipeline definition, including the flattened node definitions and a
-    default file output for the input node.
-
-    Parameters
-    ----------
-    main_node : TYPE
-        Description
-
-    Returns
-    -------
-    TYPE
-        Description
-    """
-
-    nodes = []
-    refs = []
-    definitions = []
-
-    def add_node(node):
-        """Summary
-
-        Parameters
-        ----------
-        node : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        if node in nodes:
-            return refs[nodes.index(node)]
-
-        # get definition
-        d = node.definition
-
-        # replace nodes with references, adding nodes depth first
-        if 'inputs' in d:
-            for key, input_node in d['inputs'].items():
-                if input_node is not None:
-                    d['inputs'][key] = add_node(input_node)
-        if 'sources' in d:
-            for i, source_node in enumerate(d['sources']):
-                d['sources'][i] = add_node(source_node)
-
-        # unique ref
-        ref = node.base_ref
-        if ref in refs:
-            if re.search('_[1-9][0-9]*$', ref):
-                ref, i = ref.rsplit('_', 1)
-                i = int(i)
-            else:
-                i = 0
-            ref = '%s_%d' % (ref, i+1)
-
-        nodes.append(node)
-        refs.append(ref)
-        definitions.append(d)
-
-        return ref
-
-    add_node(main_node)
-
-    output = OrderedDict()
-    #output['mode'] = 'file'
-    #output['format'] = 'pickle'
-    #output['outdir'] = os.path.join(os.getcwd(), 'out')
-    #output['nodes'] = [refs[-1]]
-
-    output['mode'] = 'image'
-    output['format'] = 'png'
-    output['vmin'] = -1.2
-    output['vmax'] = 1.2
-    output['nodes'] = [refs[-1]]
-
-
-    d = OrderedDict()
-    d['nodes'] = OrderedDict(zip(refs, definitions))
-    d['outputs'] = [output]
-    return d
 
 if __name__ == '__main__':
     import argparse
