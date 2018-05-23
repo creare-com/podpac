@@ -36,12 +36,9 @@ script:
   # run doctest
   - cd doc && ./test-docs.sh && cd ..
 
-# only include this step for python 3.6
-matrix:
-  include:
   # upload coverage report to coveralls for badge display
-  - python: "3.6"
-    script: coveralls
+  - coveralls
+
 
 # deploy docs to `podpac-docs` repository. This script only pushes the docs on pushes to develop and master.
 jobs:

@@ -120,14 +120,14 @@ class DataSource(Node):
         """
         self.evaluated_coordinates = deepcopy(coordinates)
         # remove dimensions that don't exist in native coordinates
-        for dim in self.evaluated_coordinates.dims:
-            if dim not in self.native_coordinates.dims:
+        for dim in self.evaluated_coordinates.dims_map.keys():
+            if dim not in self.native_coordinates.dims_map.keys():
                 self.evaluated_coordinates.drop_dims(dim)
         self._params = self.get_params(params)
         self.output = output
 
         # Need to ask the interpolator what coordinates I need
-        res = self.get_data_subset(coordinates)
+        res = self.get_data_subset(self.evaluated_coordinates)
         if isinstance(res, UnitsDataArray):
             if self.output is None:
                 self.output = res
@@ -145,12 +145,12 @@ class DataSource(Node):
             self.output = self.initialize_output_array()
 
         # sets self.output
-        self._interpolate_data(data_subset, coords_subset, coordinates)
+        self._interpolate_data(data_subset, coords_subset, self.evaluated_coordinates)
         
         # set the order of dims to be the same as that of evaluated_coordinates
         # + the dims that are missing from evaluated_coordinates.
-        missing_dims = [dim for dim in self.native_coordinates.dims \
-                        if dim not in self.evaluated_coordinates.dims]
+        missing_dims = [dim for dim in self.native_coordinates.dims_map.keys() \
+                        if dim not in self.evaluated_coordinates.dims_map.keys()]
         transpose_dims = self.evaluated_coordinates.dims + missing_dims
         self.output = self.output.transpose(*transpose_dims)
         
@@ -315,11 +315,10 @@ class DataSource(Node):
                                                    data_dst, coords_dst,
                                                    grid=True)
         # Raster to lat_lon point interpolation
-        elif ('lat' in coords_src.dims
-                and 'lon' in coords_src.dims) \
-                and coords_src['lat'].scipy_regularity \
-                and coords_src['lon'].scipy_regularity \
-                and ('lat_lon' in coords_src.dims or 'lon_lat' in coords_src.dims):
+        elif (('lat' in coords_src.dims and 'lon' in coords_src.dims)
+              and coords_src['lat'].scipy_regularity
+              and coords_src['lon'].scipy_regularity
+              and ('lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims)):
             coords_dst_us = coords_dst.unstack() # TODO don't have to return
             return self.interpolate_irregular_grid(data_src, coords_src,
                                                    data_dst, coords_dst_us,
@@ -502,7 +501,7 @@ class DataSource(Node):
             if grid:
                 x, y = np.meshgrid(*coords_i_dst)
             else:
-                x, y = coords_i_dst['lon']
+                x, y = coords_i_dst
             data_dst.data[:] = f((y.ravel(), x.ravel())).reshape(data_dst.shape)
         elif 'spline' in interp:
             if interp == 'cubic_spline':
@@ -558,16 +557,20 @@ class DataSource(Node):
             new_stacked = np.stack([c.coordinates for c in new_crds.stack_dict()[order]], axis=1) 
             pts = KDTree(src_stacked)
             dist, ind = pts.query(new_stacked, distance_upper_bound=tol)
+            mask = ind == data_src[order].size
+            ind[mask] = 0
+            vals = data_src[{order: ind}]
+            vals[mask] = np.nan
             dims = list(data_dst.dims)
             dims[i] = order
-            data_dst.data[:] = data_src[{order: ind}].transpose(*dims).data[:]
+            data_dst.data[:] = vals.transpose(*dims).data[:]
             return data_dst
         elif 'lat' in coords_dst.dims and 'lon' in coords_dst.dims:
             order = coords_src.dims_map['lat']
             i = list(coords_dst.dims).index('lat')
             j = list(coords_dst.dims).index('lon')
             tol = np.linalg.norm([coords_dst.delta[i], coords_dst.delta[j]]) * 8
-            pts = np.stack(coords_src[order].coordinates)
+            pts = np.stack([c.coordinates for c in coords_src.stack_dict()[order]])
             if 'lat_lon' == order:
                 pts = pts[::-1]
             pts = KDTree(np.stack(pts, axis=1))
@@ -575,7 +578,11 @@ class DataSource(Node):
                     coords_dst.coords['lat'])
             dist, ind = pts.query(np.stack((lon.ravel(), lat.ravel()), axis=1),
                     distance_upper_bound=tol)
+            mask = ind == data_src[order].size
+            ind[mask] = 0 # This is a hack to make the select on the next line work
+                          # (the masked values are set to NaN on the following line)
             vals = data_src[{order: ind}]
+            vals[mask] = np.nan
             # make sure 'lat_lon' or 'lon_lat' is the first dimension
             dims = list(data_src.dims)
             dims.remove(order)
