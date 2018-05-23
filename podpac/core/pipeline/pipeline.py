@@ -230,7 +230,7 @@ class Pipeline(tl.HasTraits):
 
         for ref in self.nodes:
             if not used[ref]:
-                raise PipelineError("Unused node '%s'" % ref)
+                warnings.warning("Unused pipeline node '%s'" % ref, UserWarning)
 
     def _check_params(self, params):
         if params is None:
