@@ -84,8 +84,7 @@ class Coordinate(BaseCoordinate):
     _coords = tl.Instance(OrderedDict)
     dims_map = tl.Dict()
 
-    def __init__(self, coords=None, order=None, coord_ref_sys="WGS84",
-                 segment_position=0.5, ctype='segment', **kwargs):
+    def __init__(self, coords=None, order=None, coord_ref_sys="WGS84", segment_position=0.5, ctype='segment', **kwargs):
         """
         Initialize a multidimensional coords object.
 
@@ -140,9 +139,7 @@ class Coordinate(BaseCoordinate):
             if sys.version < '3.6':
                 if order is None:
                     if len(kwargs) > 1:
-                        raise TypeError(
-                            "Need to specify the order of the coordinates "
-                            "using 'order'.")
+                        raise TypeError("Need to specify the order of the using 'order'.")
                     else:
                         order = kwargs.keys()
                 
@@ -159,8 +156,7 @@ class Coordinate(BaseCoordinate):
             else:
                 coords = OrderedDict(kwargs)
         elif not isinstance(coords, OrderedDict):
-            raise TypeError(
-                "coords must be an OrderedDict, not %s" % type(coords))
+            raise TypeError("coords must be an OrderedDict, not %s" % type(coords))
 
         self.dims_map = self.get_dims_map(coords)
         _coords = self.unstack_dict(coords)
@@ -176,8 +172,7 @@ class Coordinate(BaseCoordinate):
 
             # make coord helper
             if isinstance(val, tuple):
-                if (isinstance(val[2], (int, np.long, np.integer)) and
-                    not isinstance(val[2], (np.timedelta64))):
+                if isinstance(val[2], (int, np.long, np.integer)) and not isinstance(val[2], (np.timedelta64)):
                     _coords[key] = coord_linspace(*val, **kw)
                 else:
                     _coords[key] = UniformCoord(*val, **kw)
@@ -225,16 +220,13 @@ class Coordinate(BaseCoordinate):
                 if self.dims_map[key] not in stack_dims:
                     stack_dims[self.dims_map[key]] = val.size
                 elif val.size != stack_dims[self.dims_map[key]]:
-                    raise ValueError(
-                        "Stacked dimensions size mismatch for '%s' in '%s' "
-                        "(%d != %d)" % (key, self.dims_map[key], val.size,
-                                        stack_dims[self.dims_map[key]]))
+                    raise ValueError("Stacked dimensions size mismatch for '%s' in '%s'(%d != %d)" % (
+                        key, self.dims_map[key], val.size, stack_dims[self.dims_map[key]]))
         return proposal['value']
         
     def _validate_dim(self, dim, seen_dims):
         if dim not in self._valid_dims:
-            raise ValueError("Invalid dimension '%s', expected one of %s" % (
-                dim, self._valid_dims))
+            raise ValueError("Invalid dimension '%s', expected one of %s" % (dim, self._valid_dims))
         if dim in seen_dims:
             raise ValueError("The dimension '%s' cannot be repeated." % dim)
         seen_dims.append(dim)
@@ -311,21 +303,18 @@ class Coordinate(BaseCoordinate):
                     if isinstance(val[i], tuple):
                         if len(val) != len(keys) + 1:
                             raise ValueError("missing size for stacked uniform coordinates")
-                        if (not isinstance(val[-1], (int, np.long, np.integer)) or
-                            isinstance(val[-1], (np.timedelta64))):
+                        if not isinstance(val[-1], (int, np.long, np.integer)) or isinstance(val[-1], np.timedelta64):
                             raise TypeError("invalid size for stacked uniform coordinates \
                                              (expected integer, not '%s')" % type(val[-1]))
                         new_crds[k] += (val[-1],)
                     
                     if check_dim_repeat and k in seen_dims:
-                        raise ValueError(
-                            "The dimension '%s' cannot be repeated." % dim)
+                        raise ValueError("The dimension '%s' cannot be repeated." % dim)
                     seen_dims.append(k)
             else:
                 new_crds[key] = val
                 if check_dim_repeat and key in seen_dims:
-                    raise ValueError(
-                        "The dimension '%s' cannot be repeated." % key)
+                    raise ValueError("The dimension '%s' cannot be repeated." % key)
                 seen_dims.append(key)
 
         return new_crds
@@ -483,19 +472,18 @@ class Coordinate(BaseCoordinate):
                     d[dim] = self._coords[dim]
                 continue
             
-            intersect = self._coords[dim].intersect(
-                other._coords[dim], coord_ref_sys, ind=ind or self.is_stacked,
-                pad=spad)
+            ind
+            intersect = self._coords[dim].intersect(other._coords[dim], coord_ref_sys, ind=ind or self.is_stacked, pad=spad)
             
             if ind or self.is_stacked:
                 I.append(intersect)
             else:
                 d[dim] = intersect
         
+        if ind and not self.is_stacked:
+            return I
+        
         if ind or self.is_stacked:
-            if not self.is_stacked:
-                return I
-
             # Need to handle the stacking
             I2 = [np.ones(s, bool) for s in self.shape]
             for i, d in enumerate(self.dims):
@@ -533,10 +521,10 @@ class Coordinate(BaseCoordinate):
         '''
 
         return {
-                'coord_ref_sys': self.coord_ref_sys,
-                'segment_position': self.segment_position,
-                'ctype': self.ctype
-                }
+            'coord_ref_sys': self.coord_ref_sys,
+            'segment_position': self.segment_position,
+            'ctype': self.ctype
+            }
     
     def replace_coords(self, other, copy=True):
         '''
@@ -662,8 +650,7 @@ class Coordinate(BaseCoordinate):
         try:
             return np.array([c.delta for c in self._coords.values()]).squeeze()
         except ValueError as e:
-            return np.array([c.delta for c in self._coords.values()], 
-                    object).squeeze()
+            return np.array([c.delta for c in self._coords.values()], object).squeeze()
     
     @property
     def dims(self):
@@ -696,30 +683,24 @@ class Coordinate(BaseCoordinate):
             if k in self.dims_map:  # not stacked
                 crds[k] = self._coords[k].coordinates
             else:
-                coordinates = [self._coords[kk].coordinates
-                               for kk in k.split('_')]
-                dtype = [(str(kk), coordinates[i].dtype) 
-                         for i, kk in enumerate(k.split('_'))]
+                coordinates = [self._coords[kk].coordinates for kk in k.split('_')]
+                dtype = [(str(kk), coordinates[i].dtype) for i, kk in enumerate(k.split('_'))]
                 n_coords = len(coordinates)
                 s_coords = len(coordinates[0])
-                crds[k] = np.array([[tuple([coordinates[j][i]
-                                     for j in range(n_coords)])]
-                                   for i in range(s_coords)],
-                    dtype=dtype).squeeze()
+                c = [[tuple([coordinates[j][i] for j in range(n_coords)])] for i in range(s_coords)]
+                crds[k] = np.array(c, dtype=dtype).squeeze()
         return crds
     
-    #@property
-    #def gdal_transform(self):
-        #if self['lon'].regularity == 'regular' \
-               #and self['lat'].regularity == 'regular':
-            #lon_bounds = self['lon'].area_bounds
-            #lat_bounds = self['lat'].area_bounds
+    # @property
+    # def gdal_transform(self):
+    #     if self['lon'].regularity == 'regular' and self['lat'].regularity == 'regular':
+    #         lon_bounds = self['lon'].area_bounds
+    #         lat_bounds = self['lat'].area_bounds
         
-            #transform = [lon_bounds[0], self['lon'].delta, 0,
-                         #lat_bounds[0], 0, -self['lat'].delta]
-        #else:
-            #raise NotImplementedError
-        #return transform
+    #         transform = [lon_bounds[0], self['lon'].delta, 0, lat_bounds[0], 0, -self['lat'].delta]
+    #     else:
+    #         raise NotImplementedError
+    #     return transform
     
     @property
     def gdal_crs(self):
@@ -731,8 +712,7 @@ class Coordinate(BaseCoordinate):
             Description
         """
 
-        crs = {'WGS84': 'EPSG:4326',
-               'SPHER_MERC': 'EPSG:3857'}
+        crs = {'WGS84': 'EPSG:4326', 'SPHER_MERC': 'EPSG:3857'}
         return crs[self.coord_ref_sys.upper()]
     
     def add_unique(self, other):
@@ -771,20 +751,15 @@ class Coordinate(BaseCoordinate):
     
     def _add(self, other, unique=False):
         if not isinstance(other, Coordinate):
-            raise TypeError(
-                "Unsupported type '%s', can only add Coordinate object" % (
-                    other.__class__.__name__))
+            raise TypeError("Unsupported type '%s', can only add Coordinate object" % (other.__class__.__name__))
         new_coords = copy.deepcopy(self._coords)
         dims_map = self.dims_map
         for key in other._coords:
             if key in self._coords:
                 if dims_map[key] != other.dims_map[key]:
-                    raise ValueError(
-                        "Cannot add coordinates with different stacking. "
-                        "%s != %s." % (dims_map[key], other.dims_map[key])
-                    )
-                if np.all(np.array(self._coords[key].coords) !=
-                        np.array(other._coords[key].coords)) or not unique:
+                    raise ValueError("Cannot add coordinates with different stacking. %s != %s." % (
+                        dims_map[key], other.dims_map[key]))
+                if np.all(np.array(self._coords[key].coords) != np.array(other._coords[key].coords)) or not unique:
                     new_coords[key] = self._coords[key] + other._coords[key]
             else:
                 dims_map[key] = other.dims_map[key]
@@ -813,10 +788,7 @@ class Coordinate(BaseCoordinate):
         # TODO assumes the input shape dimension and order matches
         # TODO replace self[k].coords[slc] with self[k][slc] (and implement the slice)
 
-        slices = [
-            map(lambda i: slice(i, i+n), range(0, m, n))
-            for m, n
-            in zip(self.shape, shape)]
+        slices = [map(lambda i: slice(i, i+n), range(0, m, n)) for m, n in zip(self.shape, shape)]
 
         for l in itertools.product(*slices):
             kwargs = {k:self.coords[k][slc] for k, slc in zip(self.dims, l)}
@@ -873,8 +845,7 @@ class Coordinate(BaseCoordinate):
                 self['lat'].bounds[0],
                 self['lon'].bounds[0],
                 self['lat'].bounds[1],
-                self['lon'].bounds[1]
-            )
+                self['lon'].bounds[1])
         else:
             return 'NA'
 
@@ -895,8 +866,7 @@ class CoordinateGroup(BaseCoordinate):
         dims = set(items[0].dims_map)
         for g in items:
             if set(g.dims_map) != dims:
-                raise ValueError(
-                    "Mismatching dims: '%s != %s" % (dims, set(g.dims)))
+                raise ValueError("Mismatching dims: '%s != %s" % (dims, set(g.dims)))
 
         return items
 
@@ -921,8 +891,7 @@ class CoordinateGroup(BaseCoordinate):
             return [item[dim] for item in self._items[k]]
         
         else:
-            raise IndexError(
-                "invalid CoordinateGroup index type '%s'" % type(key))
+            raise IndexError("invalid CoordinateGroup index type '%s'" % type(key))
 
     def __len__(self):
         return len(self._items)
@@ -932,8 +901,7 @@ class CoordinateGroup(BaseCoordinate):
 
     def append(self, c):
         if not isinstance(c, Coordinate):
-            raise TypeError(
-                "Can only append Coordinate objects, not '%s'" % type(c))
+            raise TypeError("Can only append Coordinate objects, not '%s'" % type(c))
         
         self._items.append(c)
    
@@ -941,8 +909,7 @@ class CoordinateGroup(BaseCoordinate):
         """ stack all """
 
         if copy:
-            return CoordinateGroup(
-                [c.stack(stack_dims, copy=True) for c in self._items])
+            return CoordinateGroup([c.stack(stack_dims, copy=True) for c in self._items])
         else:
             for c in self._items:
                 c.stack(stack_dims)
@@ -951,8 +918,7 @@ class CoordinateGroup(BaseCoordinate):
     def unstack(self, copy=True):
         """ unstack all"""
         if copy:
-            return CoordinateGroup(
-                [c.unstack(stack_dims, copy=True) for c in self._items])
+            return CoordinateGroup([c.unstack(stack_dims, copy=True) for c in self._items])
         else:
             for c in self._items:
                 c.unstack(stack_dims)
