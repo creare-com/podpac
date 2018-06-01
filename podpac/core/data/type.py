@@ -99,8 +99,7 @@ class NumpyArray(podpac.DataSource):
             Description
         """
         s = coordinates_slice
-        d = self.initialize_coord_array(coordinates, 'data',
-                                        fillval=self.source[s])
+        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
         return d
 
 class PyDAP(podpac.DataSource):
@@ -126,8 +125,7 @@ class PyDAP(podpac.DataSource):
         Description
     """
     
-    auth_session = tl.Instance(authentication.SessionWithHeaderRedirection,
-                               allow_none=True)
+    auth_session = tl.Instance(authentication.SessionWithHeaderRedirection, allow_none=True)
     auth_class = tl.Type(authentication.SessionWithHeaderRedirection)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
@@ -195,9 +193,8 @@ class PyDAP(podpac.DataSource):
         NotImplementedError
             Description
         """
-        raise NotImplementedError("DAP has no mechanism for creating coordinates"
-                                  ", so this is left up to child class "
-                                  "implementations.")
+        raise NotImplementedError(
+            "DAP has no mechanism for creating coordinates, so this is left up to child class implementations.")
 
 
     def get_data(self, coordinates, coordinates_slice):
@@ -216,8 +213,7 @@ class PyDAP(podpac.DataSource):
             Description
         """
         data = self.dataset[self.datakey][tuple(coordinates_slice)]
-        d = self.initialize_coord_array(coordinates, 'data',
-                                        fillval=data.reshape(coordinates.shape))
+        d = self.initialize_coord_array(coordinates, 'data', fillval=data.reshape(coordinates.shape))
         return d
     
     @property
@@ -301,13 +297,10 @@ class RasterioSource(podpac.DataSource):
         else:
             affine = self.dataset.transform
         left, bottom, right, top = self.dataset.bounds
-        if affine[1] != 0.0 or\
-           affine[3] != 0.0:
+        if affine[1] != 0.0 or affine[3] != 0.0:
             raise NotImplementedError("Have not implemented rotated coords")
 
-        return podpac.coordinate(lat=(top, bottom, dlat),
-                                 lon=(left, right, dlon),
-                                 order=['lat', 'lon'])
+        return podpac.coordinate(lat=(top, bottom, dlat), lon=(left, right, dlon), order=['lat', 'lon'])
 
     def get_data(self, coordinates, coodinates_slice):
         """Summary
@@ -326,12 +319,8 @@ class RasterioSource(podpac.DataSource):
         """
         data = self.initialize_coord_array(coordinates)
         
-        data.data.ravel()[:] = self.dataset.read(
-            self.band, window=((slc[0].start, slc[0].stop),
-                               (slc[1].start, slc[1].stop)),
-            out_shape=tuple(coordinates.shape)
-            ).ravel()
-            
+        window = (slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop)
+        data.data.ravel()[:] = self.dataset.read(self.band, window=window, out_shape=coordinates.shape).ravel()
         return data
     
     @cached_property
@@ -381,8 +370,7 @@ class RasterioSource(podpac.DataSource):
     
     @tl.observe('source')
     def _clear_band_description(self, change):
-        clear_cache(self, change, ['band_descriptions', 'band_count',
-                                   'band_keys'])
+        clear_cache(self, change, ['band_descriptions', 'band_count', 'band_keys'])
 
     def get_band_numbers(self, key, value):
         """Summary
@@ -455,8 +443,7 @@ class WCS(podpac.DataSource):
         TYPE
             Description
         """
-        return self.source + '?' + self.get_capabilities_qs.format(
-            version=self.version, layer=self.layer_name)
+        return self.source + '?' + self.get_capabilities_qs.format(version=self.version, layer=self.layer_name)
 
     wcs_coordinates = tl.Instance(Coordinate)
     @tl.default('wcs_coordinates')
@@ -491,7 +478,8 @@ class WCS(podpac.DataSource):
         else:
             raise Exception("Do not have a URL request library to get WCS data.")
 
-        if lxml is not None: # could skip using lxml and always use html.parser instead, which seems to work but lxml might be faster
+        # could skip using lxml and always use html.parser instead, which seems to work but lxml might be faster
+        if lxml is not None:
             capabilities = bs4.BeautifulSoup(capabilities, 'lxml')
         else:
             capabilities = bs4.BeautifulSoup(capabilities, 'html.parser')
@@ -511,8 +499,7 @@ class WCS(podpac.DataSource):
 
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
-            return podpac.coordinate(lat=(top, bottom, size[1]),
-                                         lon=(left, right, size[0]), order=['lat', 'lon'])
+            return podpac.coordinate(lat=(top, bottom, size[1]), lon=(left, right, size[0]), order=['lat', 'lon'])
         
         date_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')
@@ -544,11 +531,9 @@ class WCS(podpac.DataSource):
                     # This is rough, we have to use a regular grid for WCS calls,
                     # Otherwise we have to do multiple WCS calls...
                     # TODO: generalize/fix this
-                    cs[c] = (min(ev[c].coords),
-                             max(ev[c].coords), abs(ev[c].delta))
+                    cs[c] = (min(ev[c].coords), max(ev[c].coords), abs(ev[c].delta))
                 elif c in ev.dims and isinstance(ev[c], podpac.UniformCoord):
-                    cs[c] = (min(ev[c].coords[:2]),
-                             max(ev[c].coords[:2]), abs(ev[c].delta))
+                    cs[c] = (min(ev[c].coords[:2]), max(ev[c].coords[:2]), abs(ev[c].delta))
                 else:
                     cs.append(wcs_c[c])
             c = podpac.coordinate(cs)
@@ -786,8 +771,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
         try:
             return self.coordinates_source.native_coordinates
         except AttributeError:
-            raise Exception("Either reprojected_coordinates or coordinates"
-                            "_source must be specified")
+            raise Exception("Either reprojected_coordinates or coordinates_source must be specified")
 
     def get_native_coordinates(self):
         """Summary
@@ -805,9 +789,9 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
         rc = self.reprojected_coordinates
         for d in sc.dims:
             if d in rc.dims:
-                coords[d] = rc.stack_dict()[d]
+                coords[d] = rc.stacked_dict[d]
             else:
-                coords[d] = sc.stack_dict()[d]
+                coords[d] = sc.stacked_dict[d]
         return Coordinate(coords)
 
     def get_data(self, coordinates, coordinates_slice):

@@ -765,7 +765,6 @@ class CoordinateGroup(BaseCoordinate):
 # helper functions
 # =============================================================================
 
-# JXM TODO is this used outside of this module?
 def stack_coords(coords, dims_map):
     """
     Stack the coordinates according to the given dims_map.
