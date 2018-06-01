@@ -772,13 +772,12 @@ def stack_coords(coords, dims_map):
             stacked_coords[key] = coords[key]
 
         else:
-
             cs = [coords[dim] for dim in _unstack_dims(key)]
             
             # validate stacked dimensions sizes
             sizes = [c.size for c in cs]
             if any(size != sizes[0] for size in sizes):
-                raise ValueError("Stacked dimensions size mismatch in '%s' (%s must all match)" % (dim, sizes))
+                raise ValueError("Stacked dimensions size mismatch in '%s' (%s must all match)" % (key, sizes))
                 
             stacked_coords[key] = cs
 
