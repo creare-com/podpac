@@ -767,7 +767,10 @@ def stack_coords(coords, dims_map):
 
     # make stacked coords dict
     stacked_coords = OrderedDict()
-    for key in set(dims_map.values()):
+    for key in dims_map.values():
+        if key in stacked_coords:
+            continue
+
         if key in dims_map:
             stacked_coords[key] = coords[key]
 
