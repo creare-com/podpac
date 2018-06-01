@@ -47,7 +47,7 @@ class BaseCoordinate(tl.HasTraits):
 
 class Coordinate(BaseCoordinate):
     """
-    Multidimensional Coordinates.    
+    Multidimensional Coordinates.
 
     Attributes
     ----------
@@ -480,7 +480,7 @@ class Coordinate(BaseCoordinate):
                 unstacked_dims += _unstack_dims(self.dims_map[arg])
 
         if unstacked_dims:
-            self.drop_dims(*unstacked_dims) 
+            self.drop_dims(*unstacked_dims)
     
     def add_unique(self, other):
         """
@@ -675,7 +675,7 @@ class CoordinateGroup(BaseCoordinate):
         else:
             for c in self._items:
                 c.unstack(stack_dims)
-            return self            
+            return self
 
     def intersect(self, other, coord_ref_sys=None, pad=1, ind=False):
         return CoordinateGroup([c.intersect(other) for c in self._items])
@@ -939,7 +939,7 @@ def coordinate(order=None, coord_ref_sys="WGS84", segment_position=0.5, ctype='s
 # TODO convert to unit testing
 # =============================================================================
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     
     coord = coord_linspace(1, 10, 10)
     coord_cent = coord_linspace(4, 7, 4)
@@ -992,13 +992,13 @@ if __name__ == '__main__':
     # print (c.replace_coords(c2))
     # print (c.replace_coords(c2.unstack()))
     # print (c.unstack().replace_coords(c2))
-    # print (c.unstack().replace_coords(c2.unstack()))  
+    # print (c.unstack().replace_coords(c2.unstack()))
     
     # c = UniformCoord(1, 10, 2)
     # np.testing.assert_equal(c.coordinates, np.arange(1., 10, 2))
     
     # c = UniformCoord(10, 1, -2)
-    # np.testing.assert_equal(c.coordinates, np.arange(10., 1, -2))    
+    # np.testing.assert_equal(c.coordinates, np.arange(10., 1, -2))
 
     # try:
     #     c = UniformCoord(10, 1, 2)

@@ -34,14 +34,14 @@ from podpac.core.coordinate import Coordinate
 from podpac.core.utils import common_doc
 
 COMMON_DOC = {
-    'native_coordinates': 
+    'native_coordinates':
         '''The native set of coordinates for a node. This attribute may be `None` for some nodes.''',
-    'evaluated_coordinates': 
+    'evaluated_coordinates':
         '''The set of coordinates requested by a user. The Node will be executed using these coordinates.''',
     'params': 'Default is None. Runtime parameters that modify any default node parameters.',
     'hash_return': 'A unique hash capturing the coordinates and parameters used to execute the node. ',
     'outdir': 'Optional output directory. Uses settings.CACHE_DIR by default',
-    'arr_init_type': 
+    'arr_init_type':
         '''How to initialize the array. Options are:
                 nan: uses np.full(..., np.nan) (Default option)
                 empty: uses np.empty
@@ -58,7 +58,7 @@ COMMON_DOC = {
     'arr_units' : "Default is self.units The Units for the data contained in the DataArray.",
     'arr_dtype' :"Default is np.float. Datatype used by default",
     'arr_kwargs' : "Dictioary of any additional keyword arguments that will be passed to UnitsDataArray.",
-    'arr_return' : 
+    'arr_return' :
         """UnitsDataArray
             Unit-aware xarray DataArray of the desired size initialized using the method specified.
             """
@@ -129,13 +129,13 @@ class Node(tl.HasTraits):
         Flag indicating if nodes as part of a pipeline should be automatically evaluated when
         the root node is evaluated. This attribute is planned for deprecation in the future.
     native_coordinates : podpac.Coordinate, optional
-        {native_coordinates} 
+        {native_coordinates}
     node_defaults : dict
-        Dictionary of defaults values for attributes of a Node. 
+        Dictionary of defaults values for attributes of a Node.
     output : podpac.UnitsDataArray
-        Output data from the last evaluation of the node. 
+        Output data from the last evaluation of the node.
     params : dict
-        Dictionary of parameters that control the output of a node. For example, these can be coefficients in an 
+        Dictionary of parameters that control the output of a node. For example, these can be coefficients in an
         equation, or the interpolation type. This attribute is planned for deprecation in the future.
     style : podpac.Style
         Object discribing how the output of a node should be displayed. This attribute is planned for deprecation in the
@@ -175,8 +175,8 @@ class Node(tl.HasTraits):
         Parameters
         -----------
         coords: podpac.Coordinates, optional
-            Requested coordinates that help determine the shape of the output. Uses self.evaluated_coordinates if not 
-            supplied. 
+            Requested coordinates that help determine the shape of the output. Uses self.evaluated_coordinates if not
+            supplied.
 
         Returns
         -------
@@ -186,13 +186,13 @@ class Node(tl.HasTraits):
         Raises
         ------
         NodeException
-            If the shape cannot be automatically determined, this exception is raised. 
+            If the shape cannot be automatically determined, this exception is raised.
         """
 
         # Changes here likely will also require changes in initialize_output_array
-        if coords is None: 
+        if coords is None:
             ev = self.evaluated_coordinates
-        else: 
+        else:
             ev = coords
         #nv = self._trait_values.get('native_coordinates',  None)
         # Switching from _trait_values to hasattr because "native_coordinates"
@@ -263,8 +263,8 @@ class Node(tl.HasTraits):
         params : dict, optional
             Default is None. Runtime parameters that modify any default node parameters.
         output : podpac.UnitsDataArray, optional
-            Default is None. Optional input array used to store the output data. When supplied, the node will not 
-            allocate its own memory for the output array. This array needs to have the correct dimensions and 
+            Default is None. Optional input array used to store the output data. When supplied, the node will not
+            allocate its own memory for the output array. This array needs to have the correct dimensions and
             coordinates.
         method : str, optional
             Default is None. How the node will be executed: serial, parallel, on aws, locally, etc. Currently only local
@@ -273,18 +273,18 @@ class Node(tl.HasTraits):
         Raises
         ------
         NotImplementedError
-            Children need to implement this method, otherwise this error is raised. 
+            Children need to implement this method, otherwise this error is raised.
         """
         raise NotImplementedError
 
     def get_output_coords(self, coords=None):
-        """Returns the output coordinates based on the user-requested coordinates. This is jointly determined by 
+        """Returns the output coordinates based on the user-requested coordinates. This is jointly determined by
         the input or evaluated coordinates and the native_coordinates (if present).
 
         Parameters
         ----------
         coords : podpac.Coordinates, optional
-            Requested coordinates that help determine the coordinates of the output. Uses self.evaluated_coordinates if 
+            Requested coordinates that help determine the coordinates of the output. Uses self.evaluated_coordinates if
             not supplied.
 
         Returns
@@ -549,7 +549,7 @@ class Node(tl.HasTraits):
         Returns
         -------
         OrderedDict
-            Dictionary-formatted definition of a PODPAC pipeline. 
+            Dictionary-formatted definition of a PODPAC pipeline.
         """
 
         from podpac.core.pipeline import make_pipeline_definition
@@ -566,8 +566,8 @@ class Node(tl.HasTraits):
             
         Notes
         ------
-        This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to 
-        share algorithms and pipelines, or run code on cloud services. 
+        This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to
+        share algorithms and pipelines, or run code on cloud services.
         """
         return json.dumps(self.pipeline_definition, indent=4)
 
@@ -679,7 +679,7 @@ class Node(tl.HasTraits):
         outdir : None, optional
             {outdir}
         format : str, optional
-            The file format. Currently only `pickle` is supported. 
+            The file format. Currently only `pickle` is supported.
 
         Raises
         ------
@@ -699,7 +699,7 @@ class Node(tl.HasTraits):
             raise NotImplementedError
 
     def load(self, name, coordinates, params, outdir=None):
-        """Retrieves a cached file from disk. 
+        """Retrieves a cached file from disk.
 
         Parameters
         ----------
@@ -742,7 +742,7 @@ class Node(tl.HasTraits):
         Parameters
         ----------
         format : str, optional
-            Default is 'png'. Type of image. 
+            Default is 'png'. Type of image.
         vmin : number, optional
             Minimum value of colormap
         vmax : vmax, optional
@@ -751,7 +751,7 @@ class Node(tl.HasTraits):
         Returns
         -------
         str
-            Base64 encoded image. 
+            Base64 encoded image.
         """
         matplotlib.use('agg')
         from matplotlib.image import imsave

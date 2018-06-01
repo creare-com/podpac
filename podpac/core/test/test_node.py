@@ -36,5 +36,5 @@ class TestNodeOutputArrayCreation(object):
         assert((15, 2) == s2)
         n.evaluated_coordinates = self.c2.unstack()
         s3 = n.initialize_output_array().shape
-        assert((15, 15, 2) == s3)    
+        assert((15, 15, 2) == s3)
         
