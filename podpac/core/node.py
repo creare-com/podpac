@@ -202,7 +202,7 @@ class Node(tl.HasTraits):
         else:
             nv = None
         if ev is not None and nv is not None:
-            return nv.get_shape(ev)
+            return nv.replace_coords(ev).shape
         elif ev is not None and nv is None:
             return ev.shape
         elif nv is not None:
@@ -297,6 +297,9 @@ class Node(tl.HasTraits):
         if coords is None:
             coords = self.evaluated_coordinates
         
+        if coords is None:
+            coords = Coordinate()
+
         if not isinstance(coords, Coordinate):
             coords = Coordinate(coords)
 

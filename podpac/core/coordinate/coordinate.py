@@ -25,7 +25,7 @@ def _unstack_dims(stacked_dim):
     return stacked_dim.split('_')
 
 def _stack_dims(unstacked_dims):
-    return '_'.join(dims)
+    return '_'.join(unstacked_dims)
 
 class BaseCoordinate(tl.HasTraits):
     """
@@ -202,7 +202,7 @@ class Coordinate(BaseCoordinate):
     def shape(self):
         """Coordinates shape, corresponding to dims attribute. """
 
-        return self.get_shape()
+        return tuple(self[_unstack_dims(dim)[0]].size for dim in self.dims)
     
     @property
     def delta(self):
@@ -282,48 +282,6 @@ class Coordinate(BaseCoordinate):
                 self['lon'].bounds[1])
         else:
             return 'NA'
-
-    def get_shape(self, other_coords=None):
-        """
-        Coordinates shape, corresponding to dims attribute.
-        
-        Parameters
-        ----------
-        other_coords : Coordinate, optional
-            TODO
-        
-        Returns
-        -------
-        shape : tuple
-            Number of coordinates in each dimension.
-        """
-
-        # JXM TODO separate out other_coords logic?
-
-        if other_coords is None:
-            other_coords = self
-
-        # Create shape for each dimension
-        shape = []
-        seen_dims = []
-        self_seen_dims = []
-        for k in self._coords:
-            if k in other_coords._coords:
-                shape.append(other_coords._coords[k].size)
-                # Remove stacked duplicates
-                if other_coords.dims_map[k] in seen_dims:
-                    shape.pop()
-                else:
-                    seen_dims.append(other_coords.dims_map[k])
-            else:
-                shape.append(self._coords[k].size)
-                # Remove stacked duplicates
-                if self.dims_map[k] in self_seen_dims:
-                    shape.pop()
-                else:
-                    self_seen_dims.append(self.dims_map[k])
-
-        return tuple(shape)
    
     def stack(self, stack_dims, copy=True):
         """
@@ -342,6 +300,11 @@ class Coordinate(BaseCoordinate):
             If copy=False, a new coordinate object with stacked dimensions.
             If copy=True, this object with its dimensions stacked.
         """
+
+        sizes = [self[dim].size for dim in stack_dims]
+        if any(size != sizes[0] for size in sizes):
+            raise ValueError("Stacked dimensions size mismatch (%s must all match)" % (sizes))
+
 
         key = _stack_dims(stack_dims)
         stacked_dims_map = self.dims_map.copy()
@@ -450,7 +413,10 @@ class Coordinate(BaseCoordinate):
             coords =  OrderedDict()
             for k in self._coords.keys():
                 i = self.dims.index(self.dims_map[k])
-                coords[k] = self._coords[k].coordinates[I2[i]]
+                try:
+                    coords[k] = MonotonicCoord(self._coords[k].coordinates[I2[i]])
+                except:
+                    coords[k] = Coord(self._coords[k].coordinates[I2[i]])
             coords = stack_coords(coords, self.dims_map)
             return Coordinate(coords, **self.kwargs)
         else:
@@ -483,12 +449,14 @@ class Coordinate(BaseCoordinate):
                     dims_map[c] = other.dims_map[c]
 
         if copy:
-            _replace(self._coords.copy(), self._dims_map.copy())
+            coords = self._coords.copy()
+            dims_map = self._dims_map.copy()
+            _replace(coords, dims_map, other)
             stacked_coords = stack_coords(coords, dims_map)
             return self.__class__(coords=stacked_coords)
         else:
             with self.hold_trait_notifications():
-                _replace(self._coords, self._dims_map)
+                _replace(self._coords, self._dims_map, other)
             return self
    
     def drop_dims(self, *args):
@@ -800,14 +768,19 @@ def stack_coords(coords, dims_map):
     # make stacked coords dict
     stacked_coords = OrderedDict()
     for key in set(dims_map.values()):
-        cs = [coords[dim] for dim in _unstack_dims(key)]
-        
-        # validate stacked dimensions sizes
-        sizes = [c.size for c in cs]
-        if any(size != sizes[0] for size in sizes):
-            raise ValueError("Stacked dimensions size mismatch in '%s' (%s must all match)" % (dim, sizes))
+        if key in dims_map:
+            stacked_coords[key] = coords[key]
+
+        else:
+
+            cs = [coords[dim] for dim in _unstack_dims(key)]
             
-        stacked_coords[key] = cs
+            # validate stacked dimensions sizes
+            sizes = [c.size for c in cs]
+            if any(size != sizes[0] for size in sizes):
+                raise ValueError("Stacked dimensions size mismatch in '%s' (%s must all match)" % (dim, sizes))
+                
+            stacked_coords[key] = cs
 
     return stacked_coords
 
@@ -986,7 +959,7 @@ if __name__ == '__main__':
     except ValueError as e:
         print(e)
     else:
-        raise Exception('expceted exception')
+        raise Exception('expected exception')
     
     c = coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=(0, 1, 2), order=('lat_lon', 'time'))
     c2 = coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
@@ -997,49 +970,49 @@ if __name__ == '__main__':
     print (c.unstack().get_shape(c2))
     print (c.unstack().get_shape(c2.unstack()))
     
-    c = coordinate(lat=(0, 1, 10), lon=(0, 1, 10), time=(0, 1, 2), order=('lat', 'lon', 'time'))
-    print(c.stack(['lat', 'lon']))
-    try:
-        c.stack(['lat','time'])
-    except Exception as e:
-        print(e)
-    else:
-        raise Exception('expected exception')
+    # c = coordinate(lat=(0, 1, 10), lon=(0, 1, 10), time=(0, 1, 2), order=('lat', 'lon', 'time'))
+    # print(c.stack(['lat', 'lon']))
+    # try:
+    #     c.stack(['lat','time'])
+    # except Exception as e:
+    #     print(e)
+    # else:
+    #     raise Exception('expected exception')
 
-    try:
-        c.stack(['lat','time'], copy=False)
-    except Exception as e:
-        print(e)
-    else:
-        raise Exception('expected exception')
+    # try:
+    #     c.stack(['lat','time'], copy=False)
+    # except Exception as e:
+    #     print(e)
+    # else:
+    #     raise Exception('expected exception')
 
-    c = coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=(0, 1, 2), order=('lat_lon', 'time'))
-    c2 = coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
+    # c = coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=(0, 1, 2), order=('lat_lon', 'time'))
+    # c2 = coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
 
-    print (c.replace_coords(c2))
-    print (c.replace_coords(c2.unstack()))
-    print (c.unstack().replace_coords(c2))
-    print (c.unstack().replace_coords(c2.unstack()))  
+    # print (c.replace_coords(c2))
+    # print (c.replace_coords(c2.unstack()))
+    # print (c.unstack().replace_coords(c2))
+    # print (c.unstack().replace_coords(c2.unstack()))  
     
-    c = UniformCoord(1, 10, 2)
-    np.testing.assert_equal(c.coordinates, np.arange(1., 10, 2))
+    # c = UniformCoord(1, 10, 2)
+    # np.testing.assert_equal(c.coordinates, np.arange(1., 10, 2))
     
-    c = UniformCoord(10, 1, -2)
-    np.testing.assert_equal(c.coordinates, np.arange(10., 1, -2))    
+    # c = UniformCoord(10, 1, -2)
+    # np.testing.assert_equal(c.coordinates, np.arange(10., 1, -2))    
 
-    try:
-        c = UniformCoord(10, 1, 2)
-        raise Exception
-    except ValueError as e:
-        print(e)
+    # try:
+    #     c = UniformCoord(10, 1, 2)
+    #     raise Exception
+    # except ValueError as e:
+    #     print(e)
     
-    try:
-        c = UniformCoord(1, 10, -2)
-        raise Exception
-    except ValueError as e:
-        print(e)
+    # try:
+    #     c = UniformCoord(1, 10, -2)
+    #     raise Exception
+    # except ValueError as e:
+    #     print(e)
     
-    c = UniformCoord('2015-01-01', '2015-01-04', '1,D')
-    c2 = UniformCoord('2015-01-01', '2015-01-04', '2,D')
+    # c = UniformCoord('2015-01-01', '2015-01-04', '1,D')
+    # c2 = UniformCoord('2015-01-01', '2015-01-04', '2,D')
     
-    print('Done')
+    # print('Done')
