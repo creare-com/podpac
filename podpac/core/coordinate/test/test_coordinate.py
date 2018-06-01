@@ -7,8 +7,8 @@ import traitlets as tl
 import numpy as np
 from six import string_types
 
-from podpac.core.coordinate import Coordinate, CoordinateGroup, coordinate
-from podpac.core.coordinate import BaseCoordinate, Coord, coord_linspace
+from podpac.core.coordinate.coordinate import BaseCoordinate, Coordinate, CoordinateGroup, coordinate
+from podpac.core.coordinate.coord import Coord, MonotonicCoord, UniformCoord, coord_linspace
 
 def allclose_structured(a, b):
     return all(np.allclose(a[name], b) for name in a.dtype.names)
@@ -460,6 +460,15 @@ class TestCoordinateInitialization(object):
             lon=10.,
             time='2018-01-02',
             order=['lat', 'lon', 'time'])
+
+        assert coord.dims == ['lat', 'lon', 'time']
+        assert coord.is_stacked == False
+        assert isinstance(coord['lat'], Coord)
+        assert isinstance(coord['lon'], Coord)
+        assert isinstance(coord['time'], Coord)
+        np.testing.assert_allclose(coord.coords['lat'], [1.])
+        np.testing.assert_allclose(coord.coords['lon'], [10.])
+        np.testing.assert_array_equal(coord.coords['time'], np.array(['2018-01-02']).astype('datetime64'))
     
     def test_array(self):
         coord = coordinate(
@@ -468,12 +477,34 @@ class TestCoordinateInitialization(object):
             time=['2018-01-01', '2018-01-03', '2018-01-02'],
             order=['lat', 'lon', 'time'])
 
+        assert coord.dims == ['lat', 'lon', 'time']
+        assert coord.is_stacked == False
+        assert isinstance(coord['lat'], Coord)
+        assert isinstance(coord['lon'], Coord)
+        assert isinstance(coord['time'], Coord)
+        np.testing.assert_allclose(coord.coords['lat'], [1., 3., 2.,])
+        np.testing.assert_allclose(coord.coords['lon'], [10., 30., 20.])
+        np.testing.assert_array_equal(
+            coord.coords['time'],
+            np.array(['2018-01-01', '2018-01-03', '2018-01-02']).astype('datetime64'))
+
     def test_monotonic(self):
         coord = coordinate(
             lat=[1., 2., 3.],
-            lon=[1., 2., 3.],
+            lon=[10., 20., 30.],
             time=['2018-01-01', '2018-01-02', '2018-01-03'],
             order=['lat', 'lon', 'time'])
+
+        assert coord.dims == ['lat', 'lon', 'time']
+        assert coord.is_stacked == False
+        assert isinstance(coord['lat'], MonotonicCoord)
+        assert isinstance(coord['lon'], MonotonicCoord)
+        assert isinstance(coord['time'], MonotonicCoord)
+        np.testing.assert_allclose(coord.coords['lat'], [1., 2., 3.,])
+        np.testing.assert_allclose(coord.coords['lon'], [10., 20., 30.])
+        np.testing.assert_array_equal(
+            coord.coords['time'],
+            np.array(['2018-01-01', '2018-01-02', '2018-01-03']).astype('datetime64'))
 
     def test_uniform(self):
         coord = coordinate(
@@ -482,6 +513,17 @@ class TestCoordinateInitialization(object):
             time=('2018-01-01', '2018-01-05', '1,D'),
             order=['lat', 'lon', 'time'])
 
+        assert coord.dims == ['lat', 'lon', 'time']
+        assert coord.is_stacked == False
+        assert isinstance(coord['lat'], UniformCoord)
+        assert isinstance(coord['lon'], UniformCoord)
+        assert isinstance(coord['time'], UniformCoord)
+        np.testing.assert_allclose(coord.coords['lat'], np.arange(1., 5.1, 0.5))
+        np.testing.assert_allclose(coord.coords['lon'], np.arange(10., 50.1, 0.5))
+        np.testing.assert_array_equal(
+            coord.coords['time'],
+            np.arange(np.datetime64('2018-01-01'), np.datetime64('2018-01-06'), np.timedelta64(1, 'D')))
+
     def test_coord_linspace(self):
         coord = coordinate(
             lat=(1., 5., 10),
@@ -489,14 +531,45 @@ class TestCoordinateInitialization(object):
             time=('2018-01-01', '2018-01-05', 5),
             order=['lat', 'lon', 'time'])
 
+        assert coord.dims == ['lat', 'lon', 'time']
+        assert coord.is_stacked == False
+        assert isinstance(coord['lat'], UniformCoord)
+        assert isinstance(coord['lon'], UniformCoord)
+        assert isinstance(coord['time'], UniformCoord)
+        np.testing.assert_allclose(coord.coords['lat'], np.linspace(1., 5., 10))
+        np.testing.assert_allclose(coord.coords['lon'], np.linspace(10., 50., 20))
+        np.testing.assert_array_equal(
+            coord.coords['time'],
+            np.arange(np.datetime64('2018-01-01'), np.datetime64('2018-01-06'), np.timedelta64(1, 'D')))
+
     def test_stacked(self):
         coord = coordinate(
             lat_lon=([1, 2, 3], [10, 20, 30]),
             time='2018-01-01',
             order=['lat_lon', 'time'])
 
+        assert coord.dims == ['lat_lon', 'time']
+        assert coord.is_stacked == True
+        assert isinstance(coord['lat'], Coord)
+        assert isinstance(coord['lon'], Coord)
+        assert isinstance(coord['time'], Coord)
+        np.testing.assert_allclose(coord.coords['lat_lon']['lat'], [1., 2., 3.])
+        np.testing.assert_allclose(coord.coords['lat_lon']['lon'], [10., 20., 30.])
+        np.testing.assert_array_equal(coord.coords['time'], np.array(['2018-01-01']).astype('datetime64'))
+
         coord = coordinate(
             lat_lon_time=([1, 2, 3], [10, 20, 30], ['2018-01-01', '2018-01-02', '2018-01-03']))
+
+        assert coord.dims == ['lat_lon_time']
+        assert coord.is_stacked == True
+        assert isinstance(coord['lat'], Coord)
+        assert isinstance(coord['lon'], Coord)
+        assert isinstance(coord['time'], Coord)
+        np.testing.assert_allclose(coord.coords['lat_lon_time']['lat'], [1., 2., 3.])
+        np.testing.assert_allclose(coord.coords['lat_lon_time']['lon'], [10., 20., 30.])
+        np.testing.assert_array_equal(
+            coord.coords['lat_lon_time']['time'],
+            np.array(['2018-01-01', '2018-01-02', '2018-01-03']).astype('datetime64'))
 
         # mismatched size
         with pytest.raises(ValueError):
@@ -519,8 +592,28 @@ class TestCoordinateInitialization(object):
             time='2018-01-01',
             order=['lat_lon', 'time'])
 
+        assert coord.dims == ['lat_lon', 'time']
+        assert coord.is_stacked == True
+        assert isinstance(coord['lat'], UniformCoord)
+        assert isinstance(coord['lon'], UniformCoord)
+        assert isinstance(coord['time'], Coord)
+        np.testing.assert_allclose(coord.coords['lat_lon']['lat'], np.linspace(1., 5., 30))
+        np.testing.assert_allclose(coord.coords['lat_lon']['lon'], np.linspace(10., 50., 30.))
+        np.testing.assert_array_equal(coord.coords['time'], np.array(['2018-01-01']).astype('datetime64'))
+
         coord = coordinate(
             lat_lon_time=((1., 5.), (10., 50.), ('2018-01-01', '2018-01-05'), 5))
+
+        assert coord.dims == ['lat_lon_time']
+        assert coord.is_stacked == True
+        assert isinstance(coord['lat'], UniformCoord)
+        assert isinstance(coord['lon'], UniformCoord)
+        assert isinstance(coord['time'], UniformCoord)
+        np.testing.assert_allclose(coord.coords['lat_lon_time']['lat'], np.linspace(1., 5., 5))
+        np.testing.assert_allclose(coord.coords['lat_lon_time']['lon'], np.linspace(10., 50., 5))
+        np.testing.assert_array_equal(
+            coord.coords['lat_lon_time']['time'],
+            np.arange(np.datetime64('2018-01-01'), np.datetime64('2018-01-06'), np.timedelta64(1, 'D')))
 
         # linspace requires integer
         with pytest.raises(TypeError):
