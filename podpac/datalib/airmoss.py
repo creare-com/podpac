@@ -60,8 +60,7 @@ class AirMOSS_Source(datatype.PyDAP):
         lats = (ds['lat'][0], ds['lat'][-1],
                 ds['lat'][1] - ds['lat'][0])
 
-        coords = podpac.Coordinate(time=np.array(times), lat=lats, lon=lons,
-                                   coord_order=['time', 'lat', 'lon'])
+        coords = podpac.coordinate(time=np.array(times), lat=lats, lon=lons, coord_order=['time', 'lat', 'lon'])
         self.cache_obj(coords, 'native.coordinates')
 
         return coords
@@ -132,8 +131,7 @@ class AirMOSS_Site(podpac.GridCompositor):
         lats = (ds['lat'][0], ds['lat'][-1],
                 ds['lat'][1] - ds['lat'][0])
 
-        coords = podpac.Coordinate(time=np.array(times), lat=lats, lon=lons,
-                                   coord_order=['time', 'lat', 'lon'])
+        coords = podpac.coordinate(time=np.array(times), lat=lats, lon=lons, coord_order=['time', 'lat', 'lon'])
         self.cache_obj(coords, 'native.coordinates')
 
         return coords
@@ -215,8 +213,7 @@ if __name__ == '__main__':
                        site='BermsP')
     print(ams.native_coordinates)
 
-    source = ('https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1421/'
-              'L4RZSM_BermsP_20121025_v5.nc4')
+    source = 'https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1421/L4RZSM_BermsP_20121025_v5.nc4'
     am = AirMOSS_Source(source=source, interpolation='nearest_preview')
     coords = am.native_coordinates
     print(coords)
@@ -225,7 +222,7 @@ if __name__ == '__main__':
     lat, lon = am.native_coordinates.coords['lat'], am.native_coordinates.coords['lon']
     lat = lat[::10][np.isfinite(lat[::10])]
     lon = lon[::10][np.isfinite(lon[::10])]
-    coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
+    coords = podpac.coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
     o = am.execute(coords)
 
     print('Done')

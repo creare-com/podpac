@@ -5,6 +5,7 @@ Stats Summary
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import warnings
+from collections import OrderedDict
 from operator import mul
 from functools import reduce
 
@@ -13,7 +14,7 @@ import numpy as np
 import scipy.stats
 import traitlets as tl
 
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinate import coordinate, Coordinate
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 
@@ -122,21 +123,13 @@ class Reduce(Algorithm):
         TYPE
             Description
         """
-        coordinates = self.input_coordinates
-        dims = self.dims
-        kwargs = {}
-        order = []
-        for dim in coordinates.dims:
+        
+        coords = OrderedDict()
+        for dim in self.input_coordinates.dims:
             if dim in self.dims:
                 continue
-            
-            kwargs[dim] = coordinates[dim]
-            order.append(dim)
-        
-        if order:
-            kwargs['order'] = order
-
-        return Coordinate(**kwargs)
+            coord[dim] = self.input_coordinates[dim]
+        return Coordinate(coords, **self.input_coordinates.kwargs)
 
     @property
     def chunk_size(self):
@@ -1015,7 +1008,7 @@ class GroupReduce(Algorithm):
         native_time_mask = np.in1d(N, E)
 
         # use requested spatial coordinates and filtered native times
-        coords = Coordinate(
+        coords = coordinate(
             time=native_time.data[native_time_mask],
             lat=self.evaluated_coordinates['lat'],
             lon=self.evaluated_coordinates['lon'],
@@ -1108,7 +1101,7 @@ if __name__ == '__main__':
     # smap = SMAP(product='SPL4SMAU.003')
     # coords = smap.native_coordinates
     
-    # coords = Coordinate(
+    # coords = coordinate(
     #     time=coords.coords['time'][:6],
     #     lat=[45., 66., 5], lon=[-80., -70., 4],
     #     order=['time', 'lat', 'lon'])
@@ -1200,7 +1193,7 @@ if __name__ == '__main__':
     # Grouping
     # =========================================================================
 
-    # coords = Coordinate(
+    # coords = coordinate(
     #     time=np.array(map(np.datetime64, ['2017-10-01', '2017-10-02', '2017-10-03', '2015-10-03'])),
     #     lat=[45., 66., 5], lon=[-80., -70., 4],
     #     order=['time', 'lat', 'lon'])

@@ -15,6 +15,8 @@ import numbers
 import numpy as np
 from six import string_types
 
+CRS2GDAL = {'WGS84': 'EPSG:4326', 'SPHER_MERC': 'EPSG:3857'}
+
 def get_timedelta(s):
     """
     Make a numpy timedelta from a podpac timedelta string.

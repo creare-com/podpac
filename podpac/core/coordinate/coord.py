@@ -86,7 +86,7 @@ class BaseCoord(tl.HasTraits):
              "coordinate. If segment=0.5, then the coordinate is specified at "
              "the center of this line segement.")
     
-    extents = tl.Any(allow_none=True, default_value=None, 
+    extents = tl.Any(allow_none=True, default_value=None,
         help="Custom bounding box of the grid when ctype='segment'. Useful "
              "when specifying non-uniform segment coordinates")
     
@@ -210,7 +210,7 @@ class BaseCoord(tl.HasTraits):
             d = np.abs(self.delta)
             return [add_coord(b[0], -p * d), add_coord(b[1], (1-p) * d)]
 
-    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)    
+    _cached_bounds = tl.Instance(np.ndarray, allow_none=True)
     @property
     def bounds(self):
         '''
@@ -272,7 +272,7 @@ class BaseCoord(tl.HasTraits):
     @property
     def is_descending(self):
         '''
-        True if the coordinates are monotonically descending, False if 
+        True if the coordinates are monotonically descending, False if
         monotonically ascending, and None for non-monotonic coordinates.
         
         Raises
@@ -716,7 +716,7 @@ class Coord(BaseCoord):
 
     @property
     def rasterio_regularity(self):
-        """True if size is 1, else False 
+        """True if size is 1, else False
         
         Returns
         -------
@@ -728,7 +728,7 @@ class Coord(BaseCoord):
 
     @property
     def scipy_regularity(self):
-        """True 
+        """True
         
         Returns
         -------
@@ -899,14 +899,14 @@ class MonotonicCoord(Coord):
                     coords = np.concatenate(concat_list)
                 elif concat_list[1][-1] > concat_list[0][0]: # need to reverse
                     coords = np.concatenate(concat_list[::-1])
-                else: 
+                else:
                     overlap = True
             else:
                 if concat_list[0][-1] < concat_list[1][0]: # then we're good!
                     coords = np.concatenate(concat_list)
                 elif concat_list[1][-1] < concat_list[0][0]: # need to reverse
                     coords = np.concatenate(concat_list[::-1])
-                else: 
+                else:
                     overlap = True
                 
             if not overlap:
@@ -1139,7 +1139,7 @@ class UniformCoord(BaseCoord):
 
     @property
     def rasterio_regularity(self):
-        """True 
+        """True
         
         Returns
         -------
@@ -1151,7 +1151,7 @@ class UniformCoord(BaseCoord):
 
     @property
     def scipy_regularity(self):
-        """True 
+        """True
         
         Returns
         -------
@@ -1316,7 +1316,7 @@ def coord_linspace(start, stop, num, **kwargs):
         Description
     """
 
-    if not isinstance(num, (int, np.long, np.integer)):
+    if not isinstance(num, (int, np.long, np.integer)) or isinstance(num, np.timedelta64):
         raise TypeError("num must be an integer, not '%s'" % type(num))
     start = make_coord_value(start)
     stop = make_coord_value(stop)

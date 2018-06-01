@@ -215,8 +215,7 @@ class SMAPSource(datatype.PyDAP):
         lats[lats == self.no_data_vals[0]] = np.nan
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
-        coords = podpac.Coordinate(lat=lats, lon=lons, time=np.array(times),
-                                   order=['time', 'lat', 'lon'])
+        coords = podpac.coordinate(lat=lats, lon=lons, time=np.array(times), order=['time', 'lat', 'lon'])
         self.cache_obj(coords, 'native.coordinates')
         return coords
 
@@ -329,8 +328,7 @@ class SMAPProperties(SMAPSource):
         lats[lats == self.no_data_vals[0]] = np.nan
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
-        coords = podpac.Coordinate(lat=lats, lon=lons,
-                                   order=['lat', 'lon'])
+        coords = podpac.coordinate(lat=lats, lon=lons, order=['lat', 'lon'])
         self.cache_obj(coords, 'native.coordinates')
         return coords
 
@@ -494,14 +492,14 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         times, latlon, _ = self.get_available_coords_sources()
 
         if latlon is not None and latlon.size > 0:
-            crds = podpac.Coordinate(
+            crds = podpac.coordinate(
                 time_lat_lon=(times,
                               podpac.Coord(latlon[:, 0], delta=self.latlon_delta),
                               podpac.Coord(latlon[:, 1], delta=self.latlon_delta)
                               )
                 )
         else:
-            crds = podpac.Coordinate(time=times)
+            crds = podpac.coordinate(time=times)
         self.cache_obj(crds, 'source.coordinates')
         return crds
 
@@ -691,7 +689,7 @@ class SMAP(podpac.OrderedCompositor):
         TYPE
             Description
         """
-        return podpac.Coordinate(time=self.get_available_times_dates()[0])
+        return podpac.coordinate(time=self.get_available_times_dates()[0])
 
     def get_available_times_dates(self):
         """Summary
@@ -844,7 +842,7 @@ if __name__ == '__main__':
     #eds.update_login()
         # follow the prompts
     from podpac.core.data.type import WCS
-    coords = podpac.Coordinate(time='2015-04-06T06',
+    coords = podpac.coordinate(time='2015-04-06T06',
                                lat=(-34.5, -35.25, 30), lon=(145.75, 146.5, 30),
                                order=['time', 'lat', 'lon'])
    
@@ -860,11 +858,11 @@ if __name__ == '__main__':
     # GET THE TOP WORKING FOR RACHEL
 
    
-    coordinates_world = \
-        podpac.Coordinate(lat=(-90, 90, 1.),
-                          lon=(-180, 180, 1.),
-                          time=['2017-11-18T00:00:00', '2017-11-19T00:00:00'],
-                          order=['lat', 'lon', 'time'])
+    coordinates_world = podpac.coordinate(
+        lat=(-90, 90, 1.),
+        lon=(-180, 180, 1.),
+        time=['2017-11-18T00:00:00', '2017-11-19T00:00:00'],
+        order=['lat', 'lon', 'time'])
     sentinel = SMAP(interpolation='nearest_preview', product='SPL2SMAP_S.001')
     smap = SMAP(product='SPL4SMAU.003')
     pnc2, srcs2 = smap.get_partial_native_coordinates_sources()
@@ -884,11 +882,11 @@ if __name__ == '__main__':
     
     smd = SMAPDateFolder(product='SPL2SMAP_S.001', folder_date='2017.02.08')
     crds = smd.get_source_coordinates()
-    c = podpac.Coordinate(lat=0, lon=0)
+    c = podpac.coordinate(lat=0, lon=0)
     a = crds.intersect(c)
-    c2 = podpac.Coordinate(lat=30, lon=119)
+    c2 = podpac.coordinate(lat=30, lon=119)
     a2 = crds.intersect(c2)
-    c3 = podpac.Coordinate(lat=30.5, lon=119.5)
+    c3 = podpac.coordinate(lat=30.5, lon=119.5)
     a3 = crds.intersect(c3)
     
     
@@ -912,7 +910,7 @@ if __name__ == '__main__':
     sm.dataset
     sm.native_coordinates
     
-    coords = podpac.Coordinate(lat=sm.native_coordinates['lat'].coordinates[::10],
+    coords = podpac.coordinate(lat=sm.native_coordinates['lat'].coordinates[::10],
                               lon=sm.native_coordinates['lon'].coordinates[::10],
                               time=sm.native_coordinates['time'], 
                               order=['lat', 'lon', 'time'])
@@ -946,20 +944,20 @@ if __name__ == '__main__':
     coords = smap.native_coordinates
     print (coords)
     print (coords['time'].area_bounds)
-    coord_pt = podpac.Coordinate(lat=10., lon=-67., order=['lat', 'lon'])  # Not covered
+    coord_pt = podpac.coordinate(lat=10., lon=-67., order=['lat', 'lon'])  # Not covered
     o = smap.execute(coord_pt)
-    ##coord_pt = podpac.Coordinate(lat=66., lon=-72.)  
+    ##coord_pt = podpac.coordinate(lat=66., lon=-72.)  
     ##o = smap.execute(coord_pt)
     
-    ##coords = podpac.Coordinate(lat=[45., 66., 50], lon=[-80., -70., 20])  
+    ##coords = podpac.coordinate(lat=[45., 66., 50], lon=[-80., -70., 20])  
     lat, lon = smap.native_coordinates.coords['lat'], smap.native_coordinates.coords['lon']
     lat = lat[::10][np.isfinite(lat[::10])]
     lon = lon[::10][np.isfinite(lon[::10])]
-    coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
+    coords = podpac.coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
     
     o = smap.execute(coords)    
     
-    #t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
+    #t_coords = podpac.coordinate(time=np.datetime64('2015-12-11T06'))
     #o2 = smap.execute(t_coords)
         
     smap = SMAP(product='SPL4SMAU.003')
@@ -968,12 +966,12 @@ if __name__ == '__main__':
     print (coords)
     #print (coords['time'].area_bounds)
     
-    coords = podpac.Coordinate(time=coords.coords['time'][:3],
+    coords = podpac.coordinate(time=coords.coords['time'][:3],
                                lat=[45., 66., 50], lon=[-80., -70., 20],
                                order=['time', 'lat', 'lon'])  
 
     o = smap.execute(coords)    
-    coords2 = podpac.Coordinate(time=coords.coords['time'][1:2],
+    coords2 = podpac.coordinate(time=coords.coords['time'][1:2],
                                lat=[45., 66., 50], lon=[-80., -70., 20],
                                order=['time', 'lat', 'lon'])      
     o2 = smap.execute(coords2) 

@@ -285,17 +285,18 @@ class SpatialConvolution(Convolution):
 
 if __name__ == '__main__':
     from podpac.core.algorithm.algorithm import Arange
+    import podpac
 
-    coords = Coordinate(
+    coords = podpac.coordinate(
         time=('2017-09-01', '2017-10-31', '1,D'),
         lat=[45., 66., 30], lon=[-80., -70., 40],
         order=['time', 'lat', 'lon'])
 
-    coords_spatial = Coordinate(
+    coords_spatial = podpac.coordinate(
         lat=[45., 66., 30], lon=[-80., -70., 40],
         order=['lat', 'lon'])
     
-    coords_time = Coordinate(
+    coords_time = podpac.coordinate(
         time=('2017-09-01', '2017-10-31', '1,D'),
         order=['time'])
 

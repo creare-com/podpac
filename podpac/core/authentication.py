@@ -21,7 +21,7 @@ try:
 except:
     class Dum(object):
         def __init__(self, *args, **kwargs):
-            pass
+            raise RuntimeError("requests package required; please install requests to use this feature")
     requests = Dum()
     requests.Session = Dum
 

@@ -27,7 +27,7 @@ except:
 
 # Internal imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinate import Coordinate, UniformCoord
+from podpac.core.coordinate import Coordinate, coordinate, UniformCoord
 from podpac.core.node import Node
 
 class DataSource(Node):
@@ -168,7 +168,7 @@ class DataSource(Node):
                 else:
                     new_coords[d] = coords_subset[d]
                     new_coords_slc.append(coords_subset_slc[i])
-            coords_subset = Coordinate(new_coords)
+            coords_subset = coordinate(new_coords) # TODO update to use Coordinate() directly
             coords_subset_slc = new_coords_slc
         
         data = self.get_data(coords_subset, coords_subset_slc)
@@ -505,53 +505,53 @@ class DataSource(Node):
             Description
         """
         if 'lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims:
-            order = coords_src.dims_map['lat']
+            key = coords_src.dims_map['lat']
             dst_order = coords_dst.dims_map['lat']
 
 
             # there is a bug here that is not yet fixed
-            if order != dst_order:
-                raise NotImplementedError('%s -> %s interpolation not currently supported' % (
-                    order, dst_order))
+            if key != dst_order:
+                raise NotImplementedError('%s -> %s interpolation not currently supported' % (key, dst_order))
 
             i = list(coords_dst.dims).index(dst_order)
-            new_crds = Coordinate(**{order: [coords_dst.unstack()[c].coordinates
-                for c in order.split('_')]})
+            # TODO update new_crds to use Coordinate directly
+            #      e.g: new_crds = Coordinate({key: [coords_dst[c] for c in key.split('_')]})
+            new_crds = coordinate(**{key: [coords_dst.unstack()[c].coordinates for c in key.split('_')]})
             tol = np.linalg.norm(coords_dst.delta[i]) * 8
-            src_stacked = np.stack([c.coordinates for c in coords_src.stack_dict()[order]], axis=1)
-            new_stacked = np.stack([c.coordinates for c in new_crds.stack_dict()[order]], axis=1) 
+            src_stacked = np.stack([c.coordinates for c in coords_src.stacked_dict[key]], axis=1)
+            new_stacked = np.stack([c.coordinates for c in new_crds.stacked_dict[key]], axis=1) 
             pts = KDTree(src_stacked)
             dist, ind = pts.query(new_stacked, distance_upper_bound=tol)
-            mask = ind == data_src[order].size
+            mask = ind == data_src[key].size
             ind[mask] = 0
-            vals = data_src[{order: ind}]
+            vals = data_src[{key: ind}]
             vals[mask] = np.nan
             dims = list(data_dst.dims)
-            dims[i] = order
+            dims[i] = key
             data_dst.data[:] = vals.transpose(*dims).data[:]
             return data_dst
         elif 'lat' in coords_dst.dims and 'lon' in coords_dst.dims:
-            order = coords_src.dims_map['lat']
+            key = coords_src.dims_map['lat']
             i = list(coords_dst.dims).index('lat')
             j = list(coords_dst.dims).index('lon')
             tol = np.linalg.norm([coords_dst.delta[i], coords_dst.delta[j]]) * 8
-            pts = np.stack([c.coordinates for c in coords_src.stack_dict()[order]])
-            if 'lat_lon' == order:
+            pts = np.stack([c.coordinates for c in coords_src.stacked_dict[key]])
+            if 'lat_lon' == key:
                 pts = pts[::-1]
             pts = KDTree(np.stack(pts, axis=1))
             lon, lat = np.meshgrid(coords_dst.coords['lon'],
                     coords_dst.coords['lat'])
             dist, ind = pts.query(np.stack((lon.ravel(), lat.ravel()), axis=1),
                     distance_upper_bound=tol)
-            mask = ind == data_src[order].size
+            mask = ind == data_src[key].size
             ind[mask] = 0 # This is a hack to make the select on the next line work
                           # (the masked values are set to NaN on the following line)
-            vals = data_src[{order: ind}]
+            vals = data_src[{key: ind}]
             vals[mask] = np.nan
             # make sure 'lat_lon' or 'lon_lat' is the first dimension
             dims = list(data_src.dims)
-            dims.remove(order)
-            vals = vals.transpose(order, *dims).data
+            dims.remove(key)
+            vals = vals.transpose(key, *dims).data
             shape = vals.shape
             vals = vals.reshape(coords_dst['lon'].size, coords_dst['lat'].size,
                     *shape[1:])
@@ -580,17 +580,18 @@ class DataSource(Node):
 
 if __name__ == "__main__":
     # Let's make a dummy node
+    import podpac
     from podpac.core.data.type import NumpyArray
+
     arr = np.random.rand(16, 11)
     lat = np.random.rand(16)
     lon = np.random.rand(16)
-    coord = Coordinate(lat_lon=(lat, lon), time=(0, 10, 11), 
-                       order=['lat_lon', 'time'])
+    coord = podpac.coordinate(lat_lon=(lat, lon), time=(0, 10, 11), order=['lat_lon', 'time'])
     node = NumpyArray(source=arr, native_coordinates=coord)
     #a1 = node.execute(coord)
 
-    coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=('lat', 'lon'))
-    coordt = Coordinate(time=(3, 5, 2))
+    coordg = podpac.coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=('lat', 'lon'))
+    coordt = podpac.coordinate(time=(3, 5, 2))
 
     at = node.execute(coordt)
     ag = node.execute(coordg)

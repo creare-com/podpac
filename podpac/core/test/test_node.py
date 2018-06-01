@@ -6,16 +6,15 @@ from pint.errors import DimensionalityError
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
-from podpac.core.node import *
+import podpac
+from podpac.core.node import Node
 from podpac.core.units import UnitsDataArray
 
 class TestNodeOutputArrayCreation(object):
     @classmethod
     def setup_class(cls):
-        from podpac import Coordinate
-        cls.c1 = Coordinate(lat_lon=((0, 1), (0, 1), 10), time=(0, 1, 2),
-                            order=['lat_lon', 'time'])
-        cls.c2 = Coordinate(lat_lon=((0.5, 1.5), (0.1, 1.1), 15))
+        cls.c1 = podpac.coordinate(lat_lon=((0, 1), (0, 1), 10), time=(0, 1, 2), order=['lat_lon', 'time'])
+        cls.c2 = podpac.coordinate(lat_lon=((0.5, 1.5), (0.1, 1.1), 15))
         
     def test_output_creation_stacked_native(self):
         n = Node(native_coordinates=self.c1)
@@ -37,5 +36,5 @@ class TestNodeOutputArrayCreation(object):
         assert((15, 2) == s2)
         n.evaluated_coordinates = self.c2.unstack()
         s3 = n.initialize_output_array().shape
-        assert((15, 15, 2) == s3)    
+        assert((15, 15, 2) == s3)
         

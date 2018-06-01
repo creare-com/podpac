@@ -79,7 +79,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
     import matplotlib 
     matplotlib.use('agg')
-    from podpac import Coordinate
+    from podpac import coordinate
     from podpac.core.pipeline import Pipeline
     try:
         pipeline = Pipeline(source=pipeline)
@@ -87,7 +87,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         w, s, e, n = np.array(bbox, float)     
         dwe = (w-e)/width/2.
         dns = (n-s)/height/2.
-        coord = Coordinate(lat=(n-dns, s+dns, height),
+        coord = coordinate(lat=(n-dns, s+dns, height),
                            lon=(w+dwe, e-dwe, width),
                            time=np.datetime64(time), 
                            order=['time', 'lat', 'lon'])
