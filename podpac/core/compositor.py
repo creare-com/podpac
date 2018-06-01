@@ -10,7 +10,7 @@ import numpy as np
 import traitlets as tl
 
 # Internal imports
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinate import Coordinate, coordinate
 from podpac.core.node import Node
 
 class Compositor(Node):
@@ -157,13 +157,12 @@ class Compositor(Node):
         # WARNING: this assumes
         #              native_coords = source_coords + shared_coordinates
         #         NOT  native_coords = shared_coords + source_coords
-        if self.is_source_coordinates_complete \
-                and len(self.source_coordinates.shape) == 1:
-            coords_subset = list(self.source_coordinates.intersect(coordinates,
-                    pad=1).coords.values())[0]
+        if self.is_source_coordinates_complete and len(self.source_coordinates.shape) == 1:
+            coords_subset = list(self.source_coordinates.intersect(coordinates, pad=1).coords.values())[0]
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
-                nc = Coordinate(**{coords_dim: c}) + self.shared_coordinates
+                # TODO convert this to direct Coordinate()
+                nc = coordinate(**{coords_dim: c}) + self.shared_coordinates
                 # Switching from _trait_values to hasattr because "native_coordinates"
                 # sometimes not showing up in _trait_values in other locations
                 # Not confirmed here

@@ -14,7 +14,6 @@ import re
 import numpy as np
 import traitlets as tl
 
-from podpac.core.coordinate import Coordinate
 from podpac.core.node import Node
 from podpac.core.data.data import DataSource
 from podpac.core.algorithm.algorithm import Algorithm
@@ -689,7 +688,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # TODO coordinate arguments and coordinate file path argument
-    coords = Coordinate(
+    coords = podpac.coordinate(
         lat=[43.759843545782765, 43.702536630730286, 64],
         lon=[-72.3940658569336, -72.29999542236328, 32],
         time='2015-04-11T06:00:00',

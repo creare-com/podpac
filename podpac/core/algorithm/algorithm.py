@@ -5,6 +5,7 @@ Algorithm Summary
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import inspect
+from collections import OrderedDict
 import numpy as np
 import xarray as xr
 import traitlets as tl
@@ -176,7 +177,7 @@ class CoordData(Algorithm):
        
         c = ec[coord_name]
         data = c.coordinates
-        coords = Coordinate(order=[coord_name], **{coord_name: c})
+        coords = Coordinate(OrderedDict(**{coord_name:c}))
         return self.initialize_coord_array(coords, init_type='data', fillval=data)
 
 
@@ -281,9 +282,9 @@ class Arithmetic(Algorithm):
         return d
         
 if __name__ == "__main__":
+    import podpac
     a = SinCoords()
-    coords = Coordinate(lat=[-90, 90, 1.], lon=[-180, 180, 1.], 
-                        order=['lat', 'lon'])
+    coords = podpac.coordinate(lat=[-90, 90, 1.], lon=[-180, 180, 1.], order=['lat', 'lon'])
     o = a.execute(coords)
     a2 = Arithmetic(A=a, B=a)
     o2 = a2.execute(coords, params={'eqn': '2*abs(A) - B'})

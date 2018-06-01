@@ -6,7 +6,7 @@ from pint.errors import DimensionalityError
 from pint import UnitRegistry
 ureg = UnitRegistry()
 
-from podpac.core.coordinate import Coordinate
+import podpac
 from podpac.core.algorithm.algorithm import Algorithm, SinCoords, Arithmetic
 
 class TestAlgorithm(object):
@@ -15,7 +15,7 @@ class TestAlgorithm(object):
         
     def TestSinCoords(self):
         a = SinCoords()
-        coords = Coordinate(lat=[-90, 90, 1.], lon=[0, 360, 2.])
+        coords = podpac.coordinate(lat=[-90, 90, 1.], lon=[0, 360, 2.])
         o = a.execute(coords)
         
     

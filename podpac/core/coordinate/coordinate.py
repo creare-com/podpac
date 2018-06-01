@@ -12,10 +12,10 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import copy
 import sys
 import itertools
+from collections import OrderedDict
 
 import numpy as np
 import traitlets as tl
-from collections import OrderedDict
 from xarray.core.coordinates import DataArrayCoordinates
 
 from podpac.core.coordinate.coord import BaseCoord, Coord, MonotonicCoord, UniformCoord, coord_linspace

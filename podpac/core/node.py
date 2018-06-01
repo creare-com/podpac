@@ -30,7 +30,7 @@ except:
 
 from podpac import settings
 from podpac import Units, UnitsDataArray
-from podpac import Coordinate
+from podpac.core.coordinate import Coordinate
 from podpac.core.utils import common_doc
 
 COMMON_DOC = {
@@ -296,7 +296,8 @@ class Node(tl.HasTraits):
         # Changes here likely will also require changes in shape
         if coords is None:
             coords = self.evaluated_coordinates
-        if not isinstance(coords, (Coordinate)):
+        
+        if not isinstance(coords, Coordinate):
             coords = Coordinate(coords)
 
         #if self._trait_values.get("native_coordinates", None) is not None:

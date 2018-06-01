@@ -4,6 +4,7 @@ Coord Select Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+from collections import OrderedDict
 import traitlets as tl
 
 from podpac.core.coordinate import Coordinate, UniformCoord
@@ -122,15 +123,12 @@ class ExpandCoordinates(Algorithm):
         ValueError
             Description
         """
-        kwargs = {}
+        coords = OrderedDict()
         for dim in self.input_coordinates.dims:
-            ec = self.get_expanded_coord(dim)
-            if ec.size == 0:
-                raise ValueError("Expanded/selected coordinates do not"
-                                 " intersect with source data.")
-            kwargs[dim] = ec
-        kwargs['order'] = self.input_coordinates.dims
-        return Coordinate(**kwargs)
+            coords[dim] = self.get_expanded_coord(dim)
+            if coords[dim].size == 0:
+                raise ValueError("Expanded/selected coordinates do not intersect with source data.")
+        return Coordinate(coords, **self.input_coordinates.kwargs)
    
     def algorithm(self):
         """Summary
@@ -215,8 +213,9 @@ class SelectCoordinates(ExpandCoordinates):
 if __name__ == '__main__':
     from podpac.core.algorithm.algorithm import Arange
     from podpac.core.data.data import DataSource
+    import podpac
     
-    coords = Coordinate(
+    coords = podpac.coordinate(
         time='2017-09-01',
         lat=(45., 66., 4),
         lon=(-80., -70., 5),
@@ -259,7 +258,7 @@ if __name__ == '__main__':
     # time expansion using native coordinates
     class Test(DataSource):
         def get_native_coordinates(self):
-            return Coordinate(
+            return podpac.coordinate(
                 time=('2010-01-01', '2018-01-01', '4,h'),
                 lat=(-180., 180., 1800),
                 lon=(-80., -70., 1800),
