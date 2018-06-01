@@ -69,6 +69,7 @@ except:
 import podpac
 from podpac.core import authentication
 from podpac.core.utils import cached_property, clear_cache
+from podpac.core.coordinate import Coordinate
 
 
 class NumpyArray(podpac.DataSource):
@@ -304,7 +305,7 @@ class RasterioSource(podpac.DataSource):
            affine[3] != 0.0:
             raise NotImplementedError("Have not implemented rotated coords")
 
-        return podpac.Coordinate(lat=(top, bottom, dlat),
+        return podpac.coordinate(lat=(top, bottom, dlat),
                                  lon=(left, right, dlon),
                                  order=['lat', 'lon'])
 
@@ -457,7 +458,7 @@ class WCS(podpac.DataSource):
         return self.source + '?' + self.get_capabilities_qs.format(
             version=self.version, layer=self.layer_name)
 
-    wcs_coordinates = tl.Instance(podpac.Coordinate)
+    wcs_coordinates = tl.Instance(Coordinate)
     @tl.default('wcs_coordinates')
     def get_wcs_coordinates(self):
         """Summary
@@ -510,14 +511,14 @@ class WCS(podpac.DataSource):
 
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
-            return podpac.Coordinate(lat=(top, bottom, size[1]),
+            return podpac.coordinate(lat=(top, bottom, size[1]),
                                          lon=(left, right, size[0]), order=['lat', 'lon'])
         
         date_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')
         times = np.array([t for t in times if date_re.match(t)], np.datetime64)
         
-        return podpac.Coordinate(time=times,
+        return podpac.coordinate(time=times,
                                  lat=(top, bottom, size[1]),
                                  lon=(left, right, size[0]),                        
                                  order=['time', 'lat', 'lon'])
@@ -550,7 +551,7 @@ class WCS(podpac.DataSource):
                              max(ev[c].coords[:2]), abs(ev[c].delta))
                 else:
                     cs.append(wcs_c[c])
-            c = podpac.Coordinate(cs)
+            c = podpac.coordinate(cs)
             return c
         else:
             return self.wcs_coordinates
@@ -766,7 +767,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
     source = tl.Instance(podpac.Node)
     # Specify either one of the next two
     coordinates_source = tl.Instance(podpac.Node, allow_none=True)
-    reprojected_coordinates = tl.Instance(podpac.Coordinate)
+    reprojected_coordinates = tl.Instance(Coordinate)
 
     @tl.default('reprojected_coordinates')
     def get_reprojected_coordinates(self):
@@ -807,7 +808,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
                 coords[d] = rc.stack_dict()[d]
             else:
                 coords[d] = sc.stack_dict()[d]
-        return podpac.Coordinate(coords)
+        return Coordinate(coords)
 
     def get_data(self, coordinates, coordinates_slice):
         """Summary
@@ -1015,9 +1016,9 @@ if __name__ == '__main__':
     
     s3.s3_data
     
-    #coord_src = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2),
+    #coord_src = podpac.coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2),
                                     #order=['lat', 'lon', 'time'])
-    #coord_dst = podpac.Coordinate(lat=(50., 0., 50), lon=(-71., -66., 100),
+    #coord_dst = podpac.coordinate(lat=(50., 0., 50), lon=(-71., -66., 100),
                                     #order=['lat', 'lon'])
     #LON, LAT, TIME = np.meshgrid(coord_src['lon'].coordinates,
                                     #coord_src['lat'].coordinates,
@@ -1027,19 +1028,19 @@ if __name__ == '__main__':
     #source = LAT + 0*LON + 0*TIME
     #nas = NumpyArray(source=source.astype(float), 
                         #native_coordinates=coord_src, interpolation='bilinear')
-    ##coord_pts = podpac.Coordinate(lat_lon=(coord_src.coords['lat'], coord_src.coords['lon']))
+    ##coord_pts = podpac.coordinate(lat_lon=(coord_src.coords['lat'], coord_src.coords['lon']))
     ##o3 = nas.execute(coord_pts)
     #o = nas.execute(coord_dst)
-    ##coord_pt = podpac.Coordinate(lat=10., lon=-67.)
+    ##coord_pt = podpac.coordinate(lat=10., lon=-67.)
     ##o2 = nas.execute(coord_pt)
     from podpac.datalib.smap import SMAPSentinelSource
     s3.node_class = SMAPSentinelSource
 
-    #coordinates = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16),
+    #coordinates = podpac.coordinate(lat=(45, 0, 16), lon=(-70., -65., 16),
                                     #order=['lat', 'lon'])
-    coordinates = podpac.Coordinate(lat=(39.3, 39., 64), lon=(-77.0, -76.7, 64), time='2017-09-03T12:00:00', 
+    coordinates = podpac.coordinate(lat=(39.3, 39., 64), lon=(-77.0, -76.7, 64), time='2017-09-03T12:00:00', 
                                     order=['lat', 'lon', 'time'])    
-    reprojected_coordinates = podpac.Coordinate(lat=(45, 0, 3), lon=(-70., -65., 3),
+    reprojected_coordinates = podpac.coordinate(lat=(45, 0, 3), lon=(-70., -65., 3),
                                                 order=['lat', 'lon']),
     #                                           'TopographicWetnessIndexComposited3090m'),
     #          )
@@ -1056,7 +1057,7 @@ if __name__ == '__main__':
                                     interpolation='nearest')    
     o2 = reprojected.execute(coordinates)
 
-    coordinates_zoom = podpac.Coordinate(lat=(24.8, 30.6, 64), lon=(-85.0, -77.5, 64), time='2017-08-08T12:00:00', 
+    coordinates_zoom = podpac.coordinate(lat=(24.8, 30.6, 64), lon=(-85.0, -77.5, 64), time='2017-08-08T12:00:00', 
                                          order=['lat', 'lon', 'time'])
     o3 = wcs.execute(coordinates_zoom)
 

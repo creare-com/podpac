@@ -20,10 +20,11 @@ class TestCompositor(object):
         # Because of this, the results are cached after the first run
         smap.native_coordinates 
 
-        coordinates_point = \
-            podpac.Coordinate(lat=39., lon=-77, 
-                              time=('2017-09-01', '2017-10-31', '1,D'), 
-                              order=['lat', 'lon', 'time'])
+        coordinates_point = podpac.coordinate(
+            lat=39.,
+            lon=-77,
+            time=('2017-09-01', '2017-10-31', '1,D'),
+            order=['lat', 'lon', 'time'])
         smap.threaded = True
         output = smap.execute(coordinates_point)
         smap.threaded = False

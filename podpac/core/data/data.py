@@ -27,7 +27,7 @@ except:
 
 # Internal imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinate import Coordinate, UniformCoord
+from podpac.core.coordinate import Coordinate, coordinate, UniformCoord
 from podpac.core.node import Node
 
 class DataSource(Node):
@@ -168,7 +168,7 @@ class DataSource(Node):
                 else:
                     new_coords[d] = coords_subset[d]
                     new_coords_slc.append(coords_subset_slc[i])
-            coords_subset = Coordinate(new_coords)
+            coords_subset = coordinate(new_coords) # TODO update to use Coordinate() directly
             coords_subset_slc = new_coords_slc
         
         data = self.get_data(coords_subset, coords_subset_slc)
@@ -511,12 +511,12 @@ class DataSource(Node):
 
             # there is a bug here that is not yet fixed
             if order != dst_order:
-                raise NotImplementedError('%s -> %s interpolation not currently supported' % (
-                    order, dst_order))
+                raise NotImplementedError('%s -> %s interpolation not currently supported' % (order, dst_order))
 
             i = list(coords_dst.dims).index(dst_order)
-            new_crds = Coordinate(**{order: [coords_dst.unstack()[c].coordinates
-                for c in order.split('_')]})
+            # TODO update new_crds to use Coordinate directly
+            #      e.g: new_crds = Coordinate({order: [coords_dst[c] for c in order.split('_')]})
+            new_crds = coordinate(**{order: [coords_dst.unstack()[c].coordinates for c in order.split('_')]})
             tol = np.linalg.norm(coords_dst.delta[i]) * 8
             src_stacked = np.stack([c.coordinates for c in coords_src.stack_dict()[order]], axis=1)
             new_stacked = np.stack([c.coordinates for c in new_crds.stack_dict()[order]], axis=1) 
@@ -580,17 +580,19 @@ class DataSource(Node):
 
 if __name__ == "__main__":
     # Let's make a dummy node
+    import podpac
     from podpac.core.data.type import NumpyArray
+
     arr = np.random.rand(16, 11)
     lat = np.random.rand(16)
     lon = np.random.rand(16)
-    coord = Coordinate(lat_lon=(lat, lon), time=(0, 10, 11), 
+    coord = podpac.coordinate(lat_lon=(lat, lon), time=(0, 10, 11), 
                        order=['lat_lon', 'time'])
     node = NumpyArray(source=arr, native_coordinates=coord)
     #a1 = node.execute(coord)
 
-    coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=('lat', 'lon'))
-    coordt = Coordinate(time=(3, 5, 2))
+    coordg = podpac.coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=('lat', 'lon'))
+    coordt = podpac.coordinate(time=(3, 5, 2))
 
     at = node.execute(coordt)
     ag = node.execute(coordg)
