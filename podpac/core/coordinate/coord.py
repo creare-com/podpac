@@ -1316,7 +1316,7 @@ def coord_linspace(start, stop, num, **kwargs):
         Description
     """
 
-    if not isinstance(num, (int, np.long, np.integer)):
+    if not isinstance(num, (int, np.long, np.integer)) or isinstance(num, np.timedelta64):
         raise TypeError("num must be an integer, not '%s'" % type(num))
     start = make_coord_value(start)
     stop = make_coord_value(stop)
