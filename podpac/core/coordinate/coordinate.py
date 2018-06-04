@@ -13,6 +13,7 @@ import copy
 import sys
 import itertools
 from collections import OrderedDict
+import warnings
 
 import numpy as np
 import traitlets as tl
@@ -208,7 +209,7 @@ class Coordinate(BaseCoordinate):
     def delta(self):
         """ used in interpolation, to be deprecated """
 
-        warnings.warning("delta will be removed before v0.0.1", DeprecationWarning)
+        warnings.warn("delta will be removed before v0.0.1", DeprecationWarning)
 
         try:
             return np.array([c.delta for c in self._coords.values()]).squeeze()
