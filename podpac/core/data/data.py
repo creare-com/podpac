@@ -525,7 +525,7 @@ class DataSource(Node):
             mask = ind == data_src[order].size
             ind[mask] = 0
             vals = data_src[{order: ind}]
-            vals[mask] = np.nan
+            vals[{order: mask}] = np.nan
             dims = list(data_dst.dims)
             dims[i] = order
             data_dst.data[:] = vals.transpose(*dims).data[:]

@@ -702,10 +702,10 @@ class Coordinate(BaseCoordinate):
                          for i, kk in enumerate(k.split('_'))]
                 n_coords = len(coordinates)
                 s_coords = len(coordinates[0])
-                crds[k] = np.array([[tuple([coordinates[j][i]
+                crds[k] = np.atleast_1d(np.array([[tuple([coordinates[j][i]
                                      for j in range(n_coords)])]
                                    for i in range(s_coords)],
-                    dtype=dtype).squeeze()
+                    dtype=dtype).squeeze())
         return crds
     
     #@property

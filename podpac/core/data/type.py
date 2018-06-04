@@ -324,7 +324,7 @@ class RasterioSource(podpac.DataSource):
             Description
         """
         data = self.initialize_coord_array(coordinates)
-        
+        slc = coodinates_slice
         data.data.ravel()[:] = self.dataset.read(
             self.band, window=((slc[0].start, slc[0].stop),
                                (slc[1].start, slc[1].stop)),
