@@ -43,6 +43,7 @@ The purpose of PODPAC is to facilitate
     :caption: User Guide
 
     user/pipelines
+    user/custom-nodes
     user/references
     user/api-min
     user/api
