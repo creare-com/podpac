@@ -1,13 +1,29 @@
 
-# Extending Podpac with Custom Nodes
+# Nodes
+
+TODO
+
+## DataSource
+
+TODO
+
+## Compositor
+
+TODO
+
+## Algorithm
+
+TODO
+
+## Extending Podpac with Custom Nodes
 
 The podpac core library includes a number of common data sources and algorithms, and additional data sources are available in the datalib submodule. However, you may need to write your own node to handle unique data sources or additional data processing.
 
-## Custom Data Source
+### Example
 
-TODO Data Source example
+TODO (DataSource example)
 
-## Tagging params and attrs
+### Tagging execution params
 
 ### params
 
@@ -30,7 +46,7 @@ output = node.execute(coords, {'my_param2': 75.0})
 
 You will also be able to set these tagged params in [pipelines](pipeline.md).
 
-### attrs
+### Tagging node attributes
 
 Unlike params, node attributes are defined when instantiating the node, but cannot be set when later executing the node. Again, for each attribute, the class definition should include a traitlets attribute that is tagged as an `attr`, and you can optionally include a default value.
 
@@ -53,6 +69,6 @@ output = node.execute(coords, {'my_param2': 75.0})
 
 You will also be able to set these tagged attrs in [pipelines](pipeline.md).
 
-## Using Custom Nodes in a Pipeline
+### Using Custom Nodes in a Pipeline
 
-TODO: Brief Plugin Guide
+TODO: (Brief Plugin Guide)
