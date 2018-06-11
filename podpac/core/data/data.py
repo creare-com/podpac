@@ -31,7 +31,7 @@ from podpac.core.coordinate import Coordinate, UniformCoord
 from podpac.core.node import Node
 
 class DataSource(Node):
-    """Summary
+    """ The base class for all data sources.
     
     Attributes
     ----------
@@ -60,6 +60,7 @@ class DataSource(Node):
                             default_value='nearest')
     interpolation_tolerance = tl.Any()
     no_data_vals = tl.List(allow_none=True)
+
     
     def execute(self, coordinates, params=None, output=None):
         """Summary
@@ -178,7 +179,7 @@ class DataSource(Node):
     def get_data(self, coordinates, coodinates_slice):
         """
         This should return an UnitsDataArray
-        coordinates and coordinates slice may be strided or subsets of the 
+        coordinates and coordinates slice may be strided or subsets of the
         source data, but all coordinates will match 1:1 with the subset data
         
         Parameters
@@ -563,34 +564,19 @@ class DataSource(Node):
 
     @property
     def definition(self):
-        """Summary
+        """Return the definition of the DataSource node.
         
         Returns
         -------
-        TYPE
-            Description
+        OrderedDict
+            Dictionary containing the location of the node, data source, and interpolation (if defined)
         """
         d = self._base_definition()
         d['source'] = self.source
+
+        # TODO: is there ever a case where interpolation is not defined?
         if self.interpolation:
             d['attrs'] = OrderedDict()
             d['attrs']['interpolation'] = self.interpolation
+        
         return d
-
-
-if __name__ == "__main__":
-    # Let's make a dummy node
-    from podpac.core.data.type import NumpyArray
-    arr = np.random.rand(16, 11)
-    lat = np.random.rand(16)
-    lon = np.random.rand(16)
-    coord = Coordinate(lat_lon=(lat, lon), time=(0, 10, 11), 
-                       order=['lat_lon', 'time'])
-    node = NumpyArray(source=arr, native_coordinates=coord)
-    #a1 = node.execute(coord)
-
-    coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=('lat', 'lon'))
-    coordt = Coordinate(time=(3, 5, 2))
-
-    at = node.execute(coordt)
-    ag = node.execute(coordg)
