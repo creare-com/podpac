@@ -38,4 +38,9 @@ class TestNodeOutputArrayCreation(object):
         n.evaluated_coordinates = self.c2.unstack()
         s3 = n.initialize_output_array().shape
         assert((15, 15, 2) == s3)    
-        
+
+
+# TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)
+@pytest.mark.integration
+def tests_node_integration():
+    assert True
