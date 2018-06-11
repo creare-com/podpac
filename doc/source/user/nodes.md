@@ -17,7 +17,7 @@ TODO
 
 ## Extending Podpac with Custom Nodes
 
-The podpac core library includes a number of common data sources and algorithms, and additional data sources are available in the datalib submodule. However, you may need to write your own node to handle unique data sources or additional data processing.
+In addition to the core data sources and algorithms, you may need to write your own node to handle unique data sources or additional data processing. You can do this by subclassing a core podpac node and extending it for your needs. The DataSource node in particular is designed to be extended for new sources of data.
 
 ### Example
 
