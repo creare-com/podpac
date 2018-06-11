@@ -42,7 +42,7 @@ node = MyDataSource(my_param1=0.5)
 output = node.execute(coords, {'my_param2': 75.0})
 ```
 
-You will also be able to set these tagged params in [pipelines](pipeline.md).
+You will also be able to set these tagged params in [pipelines](pipelines.md).
 
 ### Tagging attributes
 
@@ -65,4 +65,4 @@ node = MyDataSource(my_param1=0.5, my_attr=0.5)
 output = node.execute(coords, {'my_param2': 75.0})
 ```
 
-You will also be able to set these tagged attrs in [pipelines](pipeline.md).
+You will also be able to set these tagged attrs in [pipelines](pipelines.md).
