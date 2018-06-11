@@ -159,10 +159,10 @@ class CoordData(Algorithm):
         UnitsDataArray
             The coordinates as data for the requested coordinate.
         """
-        coord_name = self._params['coord_name']
+        coord_name = self.coord_name
         ec = self.evaluated_coordinates
         if coord_name not in ec.dims:
-            return xr.DataArray([1]).min()
+            raise Exception ('Coordinate name not in evaluated coordinates')
        
         c = ec[coord_name]
         data = c.coordinates

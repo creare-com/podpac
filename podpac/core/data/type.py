@@ -701,7 +701,7 @@ class WCS(podpac.DataSource):
 # In particular, this is required for providing coordinates_source
 # We should be able to to remove this requirement of attributes in the pipeline 
 # can have nodes specified... 
-class ReprojectedSource(podpac.DataSource):
+class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
     """Create a DataSource with a different resolution from another Node. This can be used to bilinearly interpolated a
     dataset after averaging over a larger area.
     
