@@ -69,8 +69,8 @@ from podpac.core.utils import cached_property, clear_cache, common_doc
 from podpac.core.data.data import COMMON_DATA_DOC
 from podpac.core.node import COMMON_NODE_DOC 
 
-COMMON_DOC = COMMON_DATA_DOC.copy()
-COMMON_DOC.update(COMMON_NODE_DOC)
+COMMON_DOC = COMMON_NODE_DOC.copy()
+COMMON_DOC.update(COMMON_DATA_DOC)      # inherit and overwrite with COMMON_DATA_DOC
 
 class NumpyArray(podpac.DataSource):
     """Create a DataSource from a numpy array
@@ -88,10 +88,10 @@ class NumpyArray(podpac.DataSource):
     source = tl.Instance(np.ndarray)
     
     @common_doc(COMMON_DOC)
-    def get_data(self, coordinates, coordinates_slice):
+    def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        s = coordinates_slice
+        s = coordinates_index
         d = self.initialize_coord_array(coordinates, 'data',
                                         fillval=self.source[s])
         return d
@@ -294,11 +294,11 @@ class RasterioSource(podpac.DataSource):
                                  order=['lat', 'lon'])
 
     @common_doc(COMMON_DOC)
-    def get_data(self, coordinates, coodinates_slice):
+    def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
         data = self.initialize_coord_array(coordinates)
-        slc = coodinates_slice
+        slc = coordinates_index
         data.data.ravel()[:] = self.dataset.read(
             self.band, window=((slc[0].start, slc[0].stop),
                                (slc[1].start, slc[1].stop)),
@@ -538,7 +538,7 @@ class WCS(podpac.DataSource):
         else:
             return self.wcs_coordinates
 
-    def get_data(self, coordinates, coodinates_slice):
+    def get_data(self, coordinates, coordinates_index):
         """{get_data}
         
         Raises

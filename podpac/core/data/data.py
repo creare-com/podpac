@@ -33,18 +33,26 @@ from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
 
 COMMON_DATA_DOC = {
-    'get_data': 
-        """This should return an UnitsDataArray
-        coordinates and coordinates slice may be strided or subsets of the 
-        source data, but all coordinates will match 1:1 with the subset data
+    'get_data':
+        """
+        This method is must be defined by the data source implementing the DataSource class.
+        When data source nodes are executing, this method is called with request coordinates and coordinate indexes.
+        The implementing method can choose which input provides the most efficient method of getting data
+        (i.e via coordinates or via the index of the coordinates).
+        
+        Coordinates and coordinate indexes may be strided or subsets of the
+        source data, but all coordinates and coordinate indexes will match 1:1 with the subset data.
+
+        Most methods generate the template UnitsDataArray using the inherited Node method :meth:initialize_coord_array.
+        See :meth:podpac.Node.initialize_coord_array for more details.
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
-            The coordinates that need to be retrieved from the data source using the coordinate system of the data 
+        coordinates : podpac.Coordinate, optional
+            The coordinates that need to be retrieved from the data source using the coordinate system of the data
             source
-        coodinates_slice : List
-            Either a list of slices or a boolean array that give the indices of the data that needs to be retrieved from
+        coordinates_index : List, optional
+            A list of slices or a boolean array that give the indices of the data that needs to be retrieved from
             the data source
             
         Returns
@@ -54,21 +62,25 @@ COMMON_DATA_DOC = {
         """,
     'ds_native_coordinates': 'The coordinates of the data source.',
     'get_native_coordinates':
-           """This should return a podpac.Coordinate object that describes the coordinates of the data source.
-           
-           Returns
-           --------
-           podpac.Coordinate
-               The coordinates describing the data source array.
-           
-           Notes
-           ------
-           Need to pay attention to: the order of the dimensions, the stacking of the dimension, and the type of
-           coordinates for best efficiency. Also, coordinates should be non-nan and non-repeating for best compatibility."""
+        """This should return a podpac.Coordinate object that describes the coordinates of the data source.
+
+        Returns
+        --------
+        podpac.Coordinate
+           The coordinates describing the data source array.
+
+        Notes
+        ------
+        Need to pay attention to:
+        - the order of the dimensions
+        - the stacking of the dimension
+        - the type of coordinates
+
+        Coordinates should be non-nan and non-repeating for best compatibility"""
     }
 
-COMMON_DOC = COMMON_DATA_DOC.copy()
-COMMON_DOC.update(COMMON_NODE_DOC)
+COMMON_DOC = COMMON_NODE_DOC.copy()
+COMMON_DOC.update(COMMON_DATA_DOC)      # inherit and overwrite with COMMON_DATA_DOC
 
 class DataSource(Node):
     """Base node for any data obtained directly from a single source.
@@ -84,11 +96,11 @@ class DataSource(Node):
         List of values from source data that should be interpreted as 'no data' or 'nans'
     source : Any
         The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as
-        a few examples. 
+        a few examples.
         
     Notes
     -------
-    Developers of new DataSource nodes need to implement the `get_data` and `get_native_coordinates` methods. 
+    Developers of new DataSource nodes need to implement the `get_data` and `get_native_coordinates` methods.
     """
     
     source = tl.Any(allow_none=False, help="Path to the raw data source")
@@ -102,14 +114,14 @@ class DataSource(Node):
     
     @common_doc(COMMON_DOC)
     def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+        """Executes this nodes using the supplied coordinates and params.
         
         Parameters
         ----------
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
         params : dict, optional
-            {execute_params} 
+            {execute_params}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -120,6 +132,7 @@ class DataSource(Node):
         {execute_return}
         """
         self.evaluated_coordinates = deepcopy(coordinates)
+
         # remove dimensions that don't exist in native coordinates
         for dim in self.evaluated_coordinates.dims_map.keys():
             if dim not in self.native_coordinates.dims_map.keys():
@@ -166,62 +179,64 @@ class DataSource(Node):
         
         Parameters
         ----------
-        coordinates : podpac.Coordinates
+        coordinates : podpac.Coordinate
             {evaluated_coordinates}
         
         Returns
         -------
         UnitsDataArray
             A nan-array in case the native_coordinates do not intersection with coordinates
-        UnitsDataArray, coords_subset
-            An array containing the subset of the datasource, along with the coordinates of the datasubset (in the 
+        UnitsDataArray, podpac.Coordinate
+            An array containing the subset of the datasource, along with the coordinates of the datasubset (in the
             coordinate system of the data source).
         """
+
         # TODO: probably need to move these lines outside of this function
         # since the coordinates we need from the datasource depends on the
         # interpolation method
         pad = 1#self.interpolation != 'nearest'
+
         coords_subset = self.native_coordinates.intersect(coordinates, pad=pad)
-        coords_subset_slc = self.native_coordinates.intersect(coordinates, pad=pad, ind=True)
+        coords_subset_idx = self.native_coordinates.intersect(coordinates, pad=pad, ind=True)
         
         # If they do not intersect, we have a shortcut
         if np.prod(coords_subset.shape) == 0:
             return self.initialize_coord_array(coordinates, init_type='nan')
 
+        # TODO: replace this with actual self.interpolation methods
         if self.interpolation == 'nearest_preview':
             # We can optimize a little
             new_coords = OrderedDict()
-            new_coords_slc = []
+            new_coords_idx = []
             for i, d in enumerate(coords_subset.dims):
                 if isinstance(coords_subset[d], UniformCoord):
                     if d in coordinates.dims:
-                        ndelta = np.round(coordinates[d].delta /
-                                          coords_subset[d].delta)
+                        ndelta = np.round(coordinates[d].delta / coords_subset[d].delta)
                         if ndelta <= 1:
                             ndelta = 1 # coords_subset[d].delta
-                        coords = tuple(coords_subset[d].coords[:2]) \
-                            + (ndelta * coords_subset[d].delta,)
+                        coords = tuple(coords_subset[d].coords[:2]) + (ndelta * coords_subset[d].delta,)
                         new_coords[d] = coords
-                        new_coords_slc.append(
-                            slice(coords_subset_slc[i].start,
-                                  coords_subset_slc[i].stop,
+                        new_coords_idx.append(
+                            slice(coords_subset_idx[i].start,
+                                  coords_subset_idx[i].stop,
                                   int(ndelta))
                             )
                     else:
                         new_coords[d] = coords_subset[d]
-                        new_coords_slc.append(coords_subset_slc[i])
+                        new_coords_idx.append(coords_subset_idx[i])
                 else:
                     new_coords[d] = coords_subset[d]
-                    new_coords_slc.append(coords_subset_slc[i])
+                    new_coords_idx.append(coords_subset_idx[i])
+
             coords_subset = Coordinate(new_coords)
-            coords_subset_slc = new_coords_slc
+            coords_subset_idx = new_coords_idx
         
-        data = self.get_data(coords_subset, coords_subset_slc)
+        data = self.get_data(coords_subset, coords_subset_idx)
         
         return data, coords_subset
     
     @common_doc(COMMON_DOC)
-    def get_data(self, coordinates, coodinates_slice):
+    def get_data(self, coordinates=None, coordinates_index=None):
         """{get_data}
         
         Raises
@@ -233,12 +248,15 @@ class DataSource(Node):
         
     @common_doc(COMMON_DOC)
     def get_native_coordinates(self):
-        """{get_native_coordinates}     
+        """{get_native_coordinates}
+
         Raises
         ------
         NotImplementedError
             This needs to be implemented by derived classes
         """
+
+        # TODO: should this return self.native_coordinates by default? Otherwise raise NotImplementedError?
         raise NotImplementedError
         
     @tl.default('native_coordinates')
