@@ -40,6 +40,9 @@ TODO: Add specification for creating coordinates using short-cut convenient func
 ### Coordinate modification
 TODO: Add specification for how to and what happens when adding/intersecting/replacing/dropping/sub-selecting coordinates
 
+- Include method (name tbd) for determining if an input coordinate is completely available within Coordinate set (i.e. there is no need for interpolation)
+    + Returns a Boolean that is true if the coordinate set includes the input coordinates, False if the coordinate set is not completely available 
+
 ## Developer interface 
 ### Coordinate1D interface
 TODO: Add common attributes and function expected by any Coordinate1D class in case we want to develop new types of coordinates
