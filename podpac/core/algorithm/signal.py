@@ -8,6 +8,7 @@ NOTE: At the moment this module is quite brittle... it makes assumptions about
     the input node (i.e. alt coordinates would likely break this)
 """
 
+import podpac
 from collections import OrderedDict
 
 import traitlets as tl
@@ -19,87 +20,108 @@ from podpac.core.coordinate import Coordinate, UniformCoord
 from podpac.core.coordinate import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.utils import common_doc
+from podpac.core.node import COMMON_NODE_DOC
+
+COMMON_DOC = COMMON_NODE_DOC.copy()
+COMMON_DOC['full_kernel'] = '''Kernel that contains all the dimensions of the input source, in the correct order.
+        
+        Returns
+        -------
+        np.ndarray
+            The dimensionally full convolution kernel'''
+COMMON_DOC['validate_kernel'] = '''Checks to make sure the kernel is valid. 
+        
+        Parameters
+        ----------
+        proposal : np.ndarray
+            The proposed kernel
+        
+        Returns
+        -------
+        np.ndarray
+            The valid kernel
+        
+        Raises
+        ------
+        ValueError
+            If the kernel is not valid (i.e. incorrect dimensionality). '''
 
 class Convolution(Algorithm):
-    """Summary
+    """Base algorithm node for computing convolutions. This node automatically resizes the request to avoid edge effects.
     
     Attributes
     ----------
-    evaluated_coordinates : TYPE
-        Description
-    expanded_coordinates : TYPE
-        Description
-    input_node : TYPE
-        Description
-    kernel : TYPE
-        Description
-    kernel_ndim : TYPE
-        Description
-    kernel_type : TYPE
-        Description
-    output : TYPE
-        Description
-    output_coordinates : TYPE
-        Description
-    params : TYPE
-        Description
+    expanded_coordinates : podpac.Coordinate
+        The expanded coordinates needed to avoid edge effects.
+    source : podpac.Node
+        Source node on which convolution will be performed. 
+    kernel : np.ndarray
+        The convolution kernel
+    kernel_ndim : int
+        Number of dimensions of the kernel
+    kernel_type : str, optional
+        If kernel is not defined, kernel_type will create a kernel based on the inputs. 
+        The format for the created  kernels is '<kernel_type>, <kernel_size>, <kernel_params>'.
+        Any kernel defined in `scipy.signal` as well as `mean` can be used. For example:
+        kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid. 
+        Note: These kernels are automatically normalized such that kernel.sum() == 1
+    output_coordinates : podpac.Coordinate
+        The non-expanded coordinates
     """
     
-    input_node = tl.Instance(Node)
-    kernel = tl.Instance(np.ndarray)
-    kernel_type = tl.Unicode()
-    kernel_ndim = tl.Int()
+    source = tl.Instance(Node)
+    kernel = tl.Instance(np.ndarray)  # Would like to tag this, but arrays are not yet supported
+    kernel_type = tl.Unicode().tag(attr=True)
+    kernel_ndim = tl.Int().tag(attr=True)
     output_coordinates = tl.Instance(Coordinate)
     expanded_coordinates = tl.Instance(Coordinate)
    
     @property
     def native_coordinates(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
+        """Returns the native coordinates of the source node. 
         """
-        return self.input_node.native_coordinates
+        return self.source.native_coordinates
  
-    def execute(self, coordinates, params=None, output=None):
-        """Summary
+    @common_doc(COMMON_DOC)
+    def execute(self, coordinates, params=None, output=None, method=None):
+        """Executes this nodes using the supplied coordinates and params. 
         
         Parameters
         ----------
-        coordinates : TYPE
-            Description
-        params : None, optional
-            Description
-        output : None, optional
-            Description
+        coordinates : podpac.Coordinate
+            {evaluated_coordinates}
+        params : dict, optional
+            {execute_params} 
+        output : podpac.UnitsDataArray, optional
+            {execute_out}
+        method : str, optional
+            {execute_method}
         
         Returns
         -------
-        TYPE
-            Description
+        {execute_return}
         """
         self.evaluated_coordinates = coordinates
-        self.params = params
+        self._params = self.get_params(params)
         self.output = output
         # This is needed to get the full_kernel
-        self.output_coordinates = self.input_node.get_output_coords(coordinates)
+        self.output_coordinates = self.source.get_output_coords(coordinates)
 
         # This should be aligned with coordinates' dimension order
         # The size of this kernel is used to figure out the expanded size
         shape = self.full_kernel.shape
+        
+        if len(shape) != len(self.output_coordinates.shape):
+            raise ValueError("Kernel shape does not match source data shape")
 
         # expand the coordinates
         exp_coords = OrderedDict()
         exp_slice = []
         for c, s in zip(coordinates._coords, shape):
             coord = coordinates[c]
-            if s == 1:
+            if s == 1 or (not isinstance(coord, UniformCoord)):
                 exp_coords[c] = coord
-                exp_slice.append(slice(None))
-                continue
-            if not isinstance(coord, UniformCoord):
                 exp_slice.append(slice(None))
                 continue
             s_start = -s // 2
@@ -116,7 +138,7 @@ class Convolution(Algorithm):
         exp_slice = tuple(exp_slice)
 
         # execute using expanded coordinates
-        out = super(Convolution, self).execute(exp_coords, params, output)
+        out = super(Convolution, self).execute(exp_coords, params, output, method)
 
         # reduce down to originally requested coordinates
         self.output = out[exp_slice]
@@ -145,60 +167,40 @@ class Convolution(Algorithm):
  
     @property
     def full_kernel(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
+        """{full_kernel}
         """
         return self.kernel
 
     def algorithm(self):
-        """Summary
+        """Computes the convolution of the source and the kernel
         
         Returns
         -------
-        TYPE
-            Description
+        np.ndarray
+            Resultant array. 
         """
-        if np.isnan(np.max(self.input_node.output)):
+        if np.isnan(np.max(self.source.output)):
             method = 'direct'
         else: method = 'auto'
-        res = scipy.signal.convolve(self.input_node.output,
+        res = scipy.signal.convolve(self.source.output,
                                     self.full_kernel,
                                     mode='same', method=method)
         return res
 
 
 class TimeConvolution(Convolution):
-    """Summary
+    """Specialized convolution node that computes temporal convolutions only.
     
     Attributes
     ----------
-    kernel_ndim : TYPE
-        Description
+    kernel_ndim : int
+        Value is 1. Should not be modified.
     """
     
     kernel_ndim = tl.Int(1)
     @tl.validate('kernel')
     def validate_kernel(self, proposal):
-        """Summary
-        
-        Parameters
-        ----------
-        proposal : TYPE
-            Description
-        
-        Returns
-        -------
-        TYPE
-            Description
-        
-        Raises
-        ------
-        ValueError
-            Description
+        """{validate_kernel}
         """
         if proposal['value'].ndim != 1:
             raise ValueError('kernel must have ndim=1 (got ndim=%d)' % (
@@ -208,17 +210,12 @@ class TimeConvolution(Convolution):
 
     @property
     def full_kernel(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
+        """{full_kernel}
         
         Raises
         ------
         ValueError
-            Description
+            If source data doesn't have time dimension.
         """
         if 'time' not in self.output_coordinates.dims:
             raise ValueError('cannot compute time convolution from time-indepedendent input')
@@ -232,33 +229,18 @@ class TimeConvolution(Convolution):
 
 
 class SpatialConvolution(Convolution):
-    """Summary
+    """Specialized convolution node that computes lat-lon convolutions only.
     
     Attributes
     ----------
-    kernel_ndim : TYPE
-        Description
+    kernel_ndim : int
+        Value is 2. Should not be modified.
     """
     
     kernel_ndim = tl.Int(2)
     @tl.validate('kernel')
     def validate_kernel(self, proposal):
-        """Summary
-        
-        Parameters
-        ----------
-        proposal : TYPE
-            Description
-        
-        Returns
-        -------
-        TYPE
-            Description
-        
-        Raises
-        ------
-        ValueError
-            Description
+        """{validate_kernel}
         """
         if proposal['value'].ndim != 2:
             raise ValueError('kernel must have ndim=2 (got ndim=%d)' % (proposal['value'].ndim))
@@ -267,12 +249,7 @@ class SpatialConvolution(Convolution):
 
     @property
     def full_kernel(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
+        """{full_kernel}
         """
         if 'time' not in self.output_coordinates.dims:
             return self.kernel
@@ -282,82 +259,3 @@ class SpatialConvolution(Convolution):
         kernel = kernel.transpose(*self.output_coordinates.dims)
 
         return kernel.data
-
-if __name__ == '__main__':
-    from podpac.core.algorithm.algorithm import Arange
-
-    coords = Coordinate(
-        time=('2017-09-01', '2017-10-31', '1,D'),
-        lat=[45., 66., 30], lon=[-80., -70., 40],
-        order=['time', 'lat', 'lon'])
-
-    coords_spatial = Coordinate(
-        lat=[45., 66., 30], lon=[-80., -70., 40],
-        order=['lat', 'lon'])
-    
-    coords_time = Coordinate(
-        time=('2017-09-01', '2017-10-31', '1,D'),
-        order=['time'])
-
-    kernel3 = np.array([[[1, 2, 1]]])
-    kernel2 = np.array([[1, 2, 1]])
-    kernel1 = np.array([1, 2, 1])
-
-    o = Arange().execute(coords)
-
-    node = Convolution(input_node=Arange(), kernel=kernel3)
-    o3d_full = node.execute(coords)
-
-    node = Convolution(input_node=Arange(), kernel=kernel2)
-    o2d_spatial1 = node.execute(coords_spatial)
-    
-    node = SpatialConvolution(input_node=Arange(), kernel=kernel2)
-    o3d_spatial = node.execute(coords)
-    o2d_spatial2 = node.execute(coords_spatial)
-
-    node = TimeConvolution(input_node=Arange(), kernel=kernel1)
-    o3d_time = node.execute(coords)
-    o3d_time = node.execute(coords_time)
-
-    node = SpatialConvolution(input_node=Arange(), kernel_type='gaussian, 3, 1')
-    o3d_spatial = node.execute(coords)
-    o2d_spatial2 = node.execute(coords_spatial)
-    node = SpatialConvolution(input_node=Arange(), kernel_type='mean, 3')
-    o3d_spatial = node.execute(coords)
-    o2d_spatial2 = node.execute(coords_spatial)
-
-    node = TimeConvolution(input_node=Arange(), kernel_type='gaussian, 3, 1')
-    o3d_time = node.execute(coords)
-    node = TimeConvolution(input_node=Arange(), kernel_type='mean, 3')
-    o3d_time = node.execute(coords)
-
-    node = Convolution(input_node=Arange(), kernel=kernel2)
-    try: node.execute(coords)
-    except: pass # should fail because the input node is 3 dimensions
-    else: raise Exception("expected an exception")
-
-    node = Convolution(input_node=Arange(), kernel=kernel1)
-    try: node.execute(coords_spatial)
-    except: pass # should fail because the input node is 1 dimensions
-    else: raise Exception("expected an exception")
-
-    try: node = SpatialConvolution(input_node=Arange(), kernel=kernel3)
-    except: pass # should fail because the kernel is 3 dimensions
-    else: raise Exception("expected an exception")
-
-    try: node = SpatialConvolution(input_node=Arange(), kernel=kernel1)
-    except: pass # should fail because the kernel is 1 dimension
-    else: raise Exception("expected an exception")
-
-    try: node = TimeConvolution(input_node=Arange(), kernel=kernel3)
-    except: pass # should fail because the kernel is 3 dimensions
-    else: raise Exception("expected an exception")
-
-    try: node = TimeConvolution(input_node=Arange(), kernel=kernel2)
-    except: pass # should fail because the kernel is 2 dimensions
-    else: raise Exception("expected an exception")
-
-    node = TimeConvolution(input_node=Arange(), kernel=kernel1)
-    try: node.execute(coords_spatial)
-    except: pass # should fail because the input_node has no time dimension
-    else: raise Exception("expected an exception")
