@@ -1,8 +1,18 @@
 # Install
 
-> At the moment, only a developer installation procedure exists.
+At the moment, only a developer installation procedure exists.
 
 These instructions assume you are using the [Anaconda Python distribution](https://www.anaconda.com/).
+
+## Conda Environment
+
+We recommend that you create a new python 3 environment to install `podpac`:
+
+```bash
+$ conda create -n podpac python=3 anaconda   # installs all `anaconda` packages
+$ conda activate podpac  # Windows
+$ source activate podpac # Linux / Mac
+```
 
 ## Users
 
@@ -23,17 +33,7 @@ $ cd podpac
 The `master` branch is intented to be somewhat stable with working code. For bleeding edge, checkout the `develop` branch instead:
 
 ```bash
-$ git checkout -b develop origin/develop`
-```
-
-### Setting up Conda Environment
-
-We recommend that you create a new python 3 environment to install `podpac`:
-
-```bash
-$ conda create -n podpac python=3 anaconda   # installs all `anaconda` packages
-$ conda activate podpac  # Windows
-$ source activate podpac # Linux / Mac
+$ git checkout -b develop origin/develop
 ```
 
 ### Installing podpac
@@ -48,7 +48,7 @@ $ pip install -e .
 $ pip install -e .[devall]
 ```
 
-Some users may experience issues installing [rasterio](https://mapbox.github.io/rasterio/installation.html#installing-with-anaconda) which is included in the `datatype` installation. If you encounter issues, we recommend trying to install from the **conda-forge** channel. Depending on your platform, this may be simpler than letting `podpac` install `rasterio` using pip:
+Some users may experience issues installing [rasterio](https://mapbox.github.io/rasterio/installation.html#installing-with-anaconda) (included in the `datatype`, `all`, and `devall` installations). If you encounter issues, we recommend trying to install from the **conda-forge** channel. Depending on your platform, this may be simpler than letting `podpac` install `rasterio` using pip:
 
 ```bash
 $ conda install rasterio --channel conda-forge
