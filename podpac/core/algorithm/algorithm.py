@@ -105,7 +105,7 @@ class Algorithm(Node):
         OrderedDict
             Extends base description by adding 'inputs'
         """
-        d = self._base_definition()
+        d = self.base_definition()
         
         # this first version is nicer, but the gettattr(self, ref) can take a
         # a long time if it is has a default value or is a property

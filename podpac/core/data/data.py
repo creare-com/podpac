@@ -605,7 +605,7 @@ class DataSource(Node):
         -------
         {definition_return}
         """
-        d = self._base_definition()
+        d = self.base_definition()
         d['source'] = self.source
         return d
 

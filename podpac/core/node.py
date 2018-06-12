@@ -547,8 +547,8 @@ class Node(tl.HasTraits):
         return self.__class__.__name__
 
 
-    def _base_definition(self):
-        """populates 'node' and 'plugin', if necessary
+    def base_definition(self):
+        """Get the base pipeline definition.
 
         Returns
         -------
@@ -601,22 +601,27 @@ class Node(tl.HasTraits):
     @property
     def definition(self):
         """
-        Pipeline node definition. Implemented in primary base nodes, with
-        custom implementations or extensions necessary for specific nodes.
+        Pipeline node definition.
 
-        Should be an OrderedDict with at least a 'node' attribute.
+        This property is implemented in the primary base nodes (DataSource, Algorithm, and Compositor). Node
+        subclasses with additional params or attrs will need to extend this property.
+
+        Returns
+        -------
+        definition : OrderedDct
+            full pipeline definition, including the base_defition and any additional properties
 
         Raises
         ------
         NotImplementedError
             This needs to be implemented by derived classes
+
+        See Also
+        --------
+        base_definition
         """
-        parents = inspect.getmro(self.__class__)
-        podpac_parents = [
-            '%s.%s' % (p.__module__.split('.', 1)[1:], p.__name__)
-            for p in parents
-            if p.__module__.startswith('podpac.')]
-        raise NotImplementedError('See %s' % ', '.join(podpac_parents))
+
+        raise NotImplementedError
 
     @property
     def pipeline_definition(self):
