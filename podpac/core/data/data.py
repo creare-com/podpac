@@ -570,7 +570,7 @@ class DataSource(Node):
         TYPE
             Description
         """
-        d = self._base_definition()
+        d = self.base_definition()
         d['source'] = self.source
         if self.interpolation:
             d['attrs'] = OrderedDict()
