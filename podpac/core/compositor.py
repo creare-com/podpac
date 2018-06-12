@@ -230,7 +230,7 @@ class Compositor(Node):
 
         # TODO test
 
-        d = self.base_definition()
+        d = self._base_definition()
         d['sources'] = self.sources
 
         if self.interpolation:

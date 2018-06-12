@@ -796,7 +796,7 @@ class SMAP(podpac.OrderedCompositor):
         TYPE
             Description
         """
-        d = self.base_definition()
+        d = self._base_definition()
         d['attrs'] = OrderedDict()
         d['attrs']['product'] = self.product
         if self.interpolation:
