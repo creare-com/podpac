@@ -42,6 +42,8 @@ The purpose of PODPAC is to facilitate
     :maxdepth: 1
     :caption: User Guide
 
+    user/coordinates
+    user/nodes
     user/pipelines
     user/references
     user/api-min
