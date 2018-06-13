@@ -163,7 +163,6 @@ class TestKurtosis(BaseTests):
     def setup_class(cls):
         cls.node = Kurtosis(source=source)
 
-@pytest.mark.skip("not-yet-working")
 class TestMedian(BaseTests):
     @classmethod
     def setup_class(cls):
