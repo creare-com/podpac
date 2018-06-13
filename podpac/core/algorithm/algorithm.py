@@ -162,7 +162,7 @@ class CoordData(Algorithm):
         coord_name = self.coord_name
         ec = self.evaluated_coordinates
         if coord_name not in ec.dims:
-            raise Exception ('Coordinate name not in evaluated coordinates')
+            raise ValueError('Coordinate name not in evaluated coordinates')
        
         c = ec[coord_name]
         data = c.coordinates
