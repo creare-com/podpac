@@ -209,7 +209,7 @@ class Reduce(Algorithm):
             Output for this chunk
         """
         for chunk in self.input_coordinates.iterchunks(self.chunk_shape):
-            yield self.source.execute(chunk, self_params, method=method)
+            yield self.source.execute(chunk, self._params, method=method)
 
     @common_doc(COMMON_DOC)
     def execute(self, coordinates, params=None, output=None, method=None):
@@ -1066,123 +1066,19 @@ class GroupReduce(Algorithm):
         return '%s.%s.%s' % (self.source.base_ref,self.groupby,self.reduce_fn)
 
 class DayOfYear(GroupReduce):
-    """Convenience class. 
+    """
+    Group a time-dependent source node by day of year and reduce. Convenience node for GroupReduce.
     
     Attributes
     ----------
-    groupby : str
-        Description
+    custom_reduce_fn : function
+        required if reduce_fn is 'custom'.
+    native_coordinates_source : podpac.Node
+        Node that acts as the source for the native_coordinates of this node. 
+    reduce_fn : str
+        builtin xarray groupby reduce function, or 'custom'.
+    source : podpac.Node
+        Source node, must have native_coordinates
     """
 
     groupby = 'dayofyear'
-
-
-
-
-if __name__ == '__main__':
-    from podpac.datalib.smap import SMAP
-
-    # smap = SMAP(product='SPL4SMAU.003')
-    # coords = smap.native_coordinates
-    
-    # coords = Coordinate(
-    #     time=coords.coords['time'][:6],
-    #     lat=[45., 66., 5], lon=[-80., -70., 4],
-    #     order=['time', 'lat', 'lon'])
-
-    # smap_mean = Mean(input_node=SMAP(product='SPL4SMAU.003'))
-    # print("lat_lon mean")
-    # mean_ll = smap_mean.execute(coords, {'dims':'lat_lon'})
-    # mean_ll_chunked = smap_mean.execute(coords, {'dims':'lat_lon', 'chunk_size': 2000})
-    
-    # print("time mean")
-    # mean_time = smap_mean.execute(coords, {'dims':'time'})
-    # mean_time_chunked = smap_mean.execute(coords, {'dims':'time', 'chunk_size': 2000})
-
-    # print ("full mean")
-    # mean_full = smap_mean.execute(coords, {'dims':['lat_lon', 'time']})
-    # mean_full_chunked = smap_mean.execute(coords, {'dims': ['lat_lon', 'time'], 'chunk_size': 1000})
-    # mean_full2 = smap_mean.execute(coords, {})
-
-    # print("lat_lon count")
-    # smap_count = Count(input_node=SMAP(product='SPL4SMAU.003'))
-    # count_ll = smap_count.execute(coords, {'dims':'lat_lon'})
-    # count_ll_chunked = smap_count.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
-
-    # print("lat_lon sum")
-    # smap_sum = Sum(input_node=SMAP(product='SPL4SMAU.003'))
-    # sum_ll = smap_sum.execute(coords, {'dims':'lat_lon'})
-    # sum_ll_chunked = smap_sum.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
-
-    # print("lat_lon min")
-    # smap_min = Min(input_node=SMAP(product='SPL4SMAU.003'))
-    # min_ll = smap_min.execute(coords, {'dims':'lat_lon'})
-    # min_ll_chunked = smap_min.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
-    # min_time = smap_min.execute(coords, {'dims':'time'})
-    # min_time_chunked = smap_min.execute(coords, {'dims':'time', 'chunk_size': 1000})
-
-    # print("lat_lon max")
-    # smap_max = Max(input_node=SMAP(product='SPL4SMAU.003'))
-    # max_ll = smap_max.execute(coords, {'dims':'lat_lon'})
-    # max_ll_chunked = smap_max.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
-    # max_time = smap_max.execute(coords, {'dims':'time'})
-    # max_time_chunked = smap_max.execute(coords, {'dims':'time', 'chunk_size': 1000})
-
-    # smap_var = Variance(input_node=SMAP(product='SPL4SMAU.003'))
-    # var_ll_chunked = smap_var.execute(coords, {'dims':'lat_lon', 'chunk_size': 6})
-    # var_ll = smap_var.execute(coords, {'dims':'lat_lon'})
-    # var_time = smap_var.execute(coords, {'dims':'time'})
-    # var_time_chunked = smap_var.execute(coords, {'dims':'time', 'chunk_size': 1})
-
-    # smap_var2 = Variance2(input_node=SMAP(product='SPL4SMAU.003'))
-    # var2_ll = smap_var2.execute(coords, {'dims':'lat_lon'})
-    # var2_ll_chunked = smap_var2.execute(coords, {'dims':'lat_lon', 'chunk_size': 6})
-    # var2_time = smap_var2.execute(coords, {'dims':'time'})
-    # var2_time_chunked = smap_var2.execute(coords, {'dims':'time', 'chunk_size': 1})
-
-    # smap = SMAP(product='SPL4SMAU.003')
-    # o = smap.execute(coords, {})
-
-    # smap_skew = Skew(input_node=SMAP(product='SPL4SMAU.003'))
-    # skew_ll = smap_skew.execute(coords, {'dims':'lat_lon'})
-    # skew_ll_chunked = smap_skew.execute(coords, {'dims':'lat_lon', 'chunk_size': 40})
-    # skew_ll_chunked1 = smap_skew.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
-    # skew_time = smap_skew.execute(coords, {'dims':'time'})
-    # skew_time_chunked = smap_skew.execute(coords, {'dims':'time', 'chunk_size': 40})
-    # skew_time_chunked1 = smap_skew.execute(coords, {'dims':'time', 'chunk_size': 1})
-
-    # smap_kurtosis = Kurtosis(input_node=SMAP(product='SPL4SMAU.003'))
-    # kurtosis_ll = smap_kurtosis.execute(coords, {'dims':'lat_lon'})
-    # kurtosis_ll_chunked = smap_kurtosis.execute(coords, {'dims':'lat_lon', 'chunk_size': 40})
-    # kurtosis_ll_chunked1 = smap_kurtosis.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
-    # kurtosis_time = smap_kurtosis.execute(coords, {'dims':'time'})
-    # kurtosis_time_chunked = smap_kurtosis.execute(coords, {'dims':'time', 'chunk_size': 40})
-    # kurtosis_time_chunked1 = smap_kurtosis.execute(coords, {'dims':'time', 'chunk_size': 1})
-
-    # smap_std = StandardDeviation(input_node=SMAP(product='SPL4SMAU.003'))
-    # std_ll = smap_std.execute(coords, {'dims':'lat_lon'})
-    # std_ll_chunked = smap_std.execute(coords, {'dims':'lat_lon', 'chunk_size': 1000})
-    # std_time = smap_std.execute(coords, {'dims':'time'})
-    # std_time_chunked = smap_std.execute(coords, {'dims':'time', 'chunk_size': 1000})
-
-    # smap_median = Median(input_node=SMAP(product='SPL4SMAU.003'))
-    # median_ll = smap_median.execute(coords, {'dims':'lat_lon'})
-    # median_ll_chunked = smap_median.execute(coords, {'dims':'lat_lon', 'chunk_size': 1})
-    # median_ll_chunked2 = smap_median.execute(coords, {'dims':'lat_lon', 'chunk_size': 10})
-    # median_time = smap_median.execute(coords, {'dims':'time'})
-    # median_time_chunked = smap_median.execute(coords, {'dims':'time', 'chunk_size': 1})
-    # median_time_chunked2 = smap_median.execute(coords, {'dims':'time', 'chunk_size': 10})
-
-    # =========================================================================
-    # Grouping
-    # =========================================================================
-
-    # coords = Coordinate(
-    #     time=np.array(map(np.datetime64, ['2017-10-01', '2017-10-02', '2017-10-03', '2015-10-03'])),
-    #     lat=[45., 66., 5], lon=[-80., -70., 4],
-    #     order=['time', 'lat', 'lon'])
-
-    # node = DayOfYear(source=SMAP(product='SPL4SMAU.003'), reduce_fn='mean')
-    # output = node.execute(coords)
-
-    print ("Done")

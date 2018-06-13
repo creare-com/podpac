@@ -7,9 +7,6 @@ from podpac.core.coordinate import Coordinate
 from podpac.core.algorithm.algorithm import Algorithm, Arange, CoordData, SinCoords, Arithmetic
 
 class TestAlgorithm(object):
-    def test_Algorithm(self):
-        node = Algorithm()
-
     def test_not_implemented(self):
         c = Coordinate(lat=[0, 1, 10], lon=[0, 1, 20], order=['lat', 'lon'])
         
