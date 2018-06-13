@@ -6,45 +6,59 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import traitlets as tl
 
-from podpac.core.coordinate import Coordinate, UniformCoord
+from podpac.core.coordinate import Coordinate, UniformCoord, Coord
 from podpac.core.coordinate import make_coord_value, make_coord_delta, add_coord
-from podpac.core.node import Node
+from podpac.core.node import Node, COMMON_NODE_DOC
 from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.utils import common_doc
 
+COMMON_DOC = COMMON_NODE_DOC.copy()
 
 class ExpandCoordinates(Algorithm):
-    """Summary
+    """Algorithm node used to expand requested coordinates. This is normally used in conjunction with a reduce operation
+    to calculate, for example, the average temperature over the last month. While this is simple to do when evaluating
+    a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a pipeline.
     
     Attributes
     ----------
-    implicit_pipeline_evaluation : TYPE
-        Description
-    input_coordinates : TYPE
-        Description
-    native_coordinates_source : TYPE
-        Description
-    source : TYPE
-        Description
+    input_coordinates : podpac.Coordinate
+        The coordinates that were used to execute the node
+    native_coordinates_source : podpac.Coordinate
+        The native coordinates of the source node whose coordinates are being expanded. This is needed in case the
+        source doesn't have native coordinates (e.g. an Algorithm node).
+    source : podpac.Node
+        Source node that will be evaluated with the expanded coordinates.
+    lat : List
+        Expansion parameters for latitude. Format is ['start_offset', 'end_offset', 'step_size'].
+    lon : List
+        Expansion parameters for longitude. Format is ['start_offset', 'end_offset', 'step_size'].
+    time : List
+        Expansion parameters for time. Format is ['start_offset', 'end_offset', 'step_size'].
+    alt : List
+        Expansion parameters for altitude. Format is ['start_offset', 'end_offset', 'step_size'].
     """
     
     source = tl.Instance(Node)
     native_coordinates_source = tl.Instance(Node, allow_none=True)
     input_coordinates = tl.Instance(Coordinate, allow_none=True)
-    implicit_pipeline_evaluation = tl.Bool(False)
+    lat = tl.List().tag(param=True)
+    lon = tl.List().tag(param=True)
+    time = tl.List().tag(param=True)
+    alt = tl.List().tag(param=True)
 
     @property
     def native_coordinates(self):
-        """Summary
+        """Native coordinates of the source node, if available
         
         Returns
         -------
-        TYPE
-            Description
+        podpac.Coordinate
+            Native coordinates of the source node
         
         Raises
         ------
         Exception
-            Description
+            Is thrown if no suitable native_coordinates can be found
         """
         try:
             if self.native_coordinates_source:
@@ -55,37 +69,37 @@ class ExpandCoordinates(Algorithm):
             raise Exception("no native coordinates found")
 
     def get_expanded_coord(self, dim):
-        """Summary
+        """Returns the expanded coordinates for the requested dimension
         
         Parameters
         ----------
-        dim : TYPE
-            Description
+        dim : str
+            Dimension to expand
         
         Returns
         -------
-        TYPE
-            Description
+        podpac.Coord
+            Expanded coordinate
         
         Raises
         ------
         ValueError
-            Description
+            In case dimension is not in the parameters.
         """
         icoords = self.input_coordinates[dim]
         
-        if dim not in self.params:
+        if not self._params[dim]:  # i.e. if list is empty
             # no expansion in this dimension
             return icoords
 
-        if len(self.params[dim]) not in [2, 3]:
+        if len(self._params[dim]) not in [2, 3]:
             raise ValueError("Invalid expansion params for '%s'" % dim)
 
         # get start and stop offsets
-        dstart = make_coord_delta(self.params[dim][0])
-        dstop = make_coord_delta(self.params[dim][1])
+        dstart = make_coord_delta(self._params[dim][0])
+        dstop = make_coord_delta(self._params[dim][1])
 
-        if len(self.params[dim]) == 2:
+        if len(self._params[dim]) == 2:
             # expand and use native coordinates
             ncoord = self.native_coordinates[dim]
             
@@ -96,9 +110,9 @@ class ExpandCoordinates(Algorithm):
             ]
             xcoord = sum(xcoords[1:], xcoords[0])
 
-        elif len(self.params[dim]) == 3:
+        elif len(self._params[dim]) == 3:
             # or expand explicitly
-            delta = make_coord_delta(self.params[dim][2])
+            delta = make_coord_delta(self._params[dim][2])
             
             # TODO GroupCoord
             xcoords = [
@@ -110,17 +124,18 @@ class ExpandCoordinates(Algorithm):
 
     @property
     def expanded_coordinates(self):
-        """Summary
+        """The expanded coordinates
         
         Returns
         -------
-        TYPE
-            Description
+        podpac.Coordinate
+            The expanded coordinates
         
         Raises
         ------
         ValueError
-            Description
+            Raised if expanded coordinates do not intersect with the source data. For example if a date in the future
+            is selected.
         """
         kwargs = {}
         for dim in self.input_coordinates.dims:
@@ -133,54 +148,66 @@ class ExpandCoordinates(Algorithm):
         return Coordinate(**kwargs)
    
     def algorithm(self):
-        """Summary
+        """Passthrough of the source data
         
         Returns
         -------
-        TYPE
-            Description
+        UnitDataArray
+            Source evaluated at the expanded coordinates
         """
         return self.source.output
  
-    def execute(self, coordinates, params=None, output=None):
-        """Summary
-        
+    @common_doc(COMMON_DOC)
+    def execute(self, coordinates, params=None, output=None, method=None):
+        """Executes this nodes using the supplied coordinates and params. 
+
         Parameters
         ----------
-        coordinates : TYPE
-            Description
-        params : None, optional
-            Description
-        output : None, optional
-            Description
-        
+        coordinates : podpac.Coordinate
+            {evaluated_coordinates}
+        params : dict, optional
+            {execute_params} 
+        output : podpac.UnitsDataArray, optional
+            {execute_out}
+        method : str, optional
+            {execute_method}
+            
         Returns
         -------
-        TYPE
-            Description
+        {execute_return}
+        
+        Notes
+        -------
+        The input coordinates are modified and the passed to the base class implementation of execute.
         """
+        self._params = self.get_params(params)
         self.input_coordinates = coordinates
         coordinates = self.expanded_coordinates
 
-        return super(ExpandCoordinates, self).execute(coordinates, params, output)
+        return super(ExpandCoordinates, self).execute(coordinates, params, output, method)
 
 
 class SelectCoordinates(ExpandCoordinates):
-    """Summary
+    """Algorithm node used to select coordinates different from the input coordinates. While this is simple to do when 
+    evaluating a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a 
+    pipeline. For example, if a single spatial reference point is used for a particular comparison, and this reference
+    point is different than the requested coordinates, we need to explicitly select those coordinates using this Node. 
+    
     """
     
     def get_expanded_coord(self, dim):
-        """Summary
+        """Function name is a misnomer -- should be get_selected_coord, but we are using a lot of the
+        functionality of the ExpandCoordinates node. 
         
         Parameters
         ----------
-        dim : TYPE
-            Description
+        dim : str
+            Dimension for doing the selection
         
         Returns
         -------
-        TYPE
-            Description
+        podpac.Coord
+            The selected coordinate
         
         Raises
         ------
@@ -189,116 +216,31 @@ class SelectCoordinates(ExpandCoordinates):
         """
         icoords = self.input_coordinates[dim]
         
-        if dim not in self.params:
-            # no expansion in this dimension
+        if not self._params[dim]:
+            # no selection in this dimension
             return icoords
 
-        if len(self.params[dim]) not in [2, 3]:
+        if len(self._params[dim]) not in [1, 2, 3]:
             raise ValueError("Invalid expansion params for '%s'" % dim)
 
-        # get start and stop offsets
-        start = make_coord_value(self.params[dim][0])
-        stop = make_coord_value(self.params[dim][1])
-
-        if len(self.params[dim]) == 2:
-            # expand and use native coordinates
+        # get start offset
+        start = make_coord_value(self._params[dim][0])
+        
+        if len(self._params[dim]) == 1:
+            xcoord = Coord(start)
+        elif len(self._params[dim]) == 2:
+            # Get stop offset
+            stop = make_coord_value(self._params[dim][1])
+            # select and use native coordinates
             ncoord = self.native_coordinates[dim]
             xcoord = ncoord.select([start, stop])
 
-        elif len(self.params[dim]) == 3:
-            # or expand explicitly
-            delta = make_coord_delta(self.params[dim][2])
+        elif len(self._params[dim]) == 3:
+            # Get stop offset
+            stop = make_coord_value(self._params[dim][1])            
+            # or select explicitly
+            delta = make_coord_delta(self._params[dim][2])
             xcoord = UniformCoord(start, stop, delta)
 
         return xcoord
 
-if __name__ == '__main__':
-    from podpac.core.algorithm.algorithm import Arange
-    from podpac.core.data.data import DataSource
-    
-    coords = Coordinate(
-        time='2017-09-01',
-        lat=(45., 66., 4),
-        lon=(-80., -70., 5),
-        order=('time', 'lat', 'lon'))
-
-    # source
-    o = Arange().execute(coords)
-    print(o.coords)
-
-    # node
-    node = ExpandCoordinates(source=Arange())
-
-    # no expansion
-    o = node.execute(coords)
-    print(o.coords)
-
-    # basic time expansion
-    o = node.execute(coords, params={'time': ('-15,D', '0,D', '1,D') })
-    print(o.coords)
-
-    # basic spatial expansion
-    o = node.execute(coords, params={'lat': (-1, 1, 0.1) })
-    print(o.coords)
-
-    # select node
-    snode = SelectCoordinates(source=Arange())
-
-    # no expansion of select 
-    o = snode.execute(coords)
-    print(o.coords)
-
-    # basic time selection
-    o = snode.execute(coords, params={'time': ('2017-08-01', '2017-09-30', '1,D') })
-    print(o.coords)
-
-    # basic spatial selection
-    o = node.execute(coords, params={'lat': (46, 56, 1) })
-    print(o.coords)
-
-    # time expansion using native coordinates
-    class Test(DataSource):
-        def get_native_coordinates(self):
-            return Coordinate(
-                time=('2010-01-01', '2018-01-01', '4,h'),
-                lat=(-180., 180., 1800),
-                lon=(-80., -70., 1800),
-                order=('time', 'lat', 'lon'))
-
-        def get_data(self, coordinates, slc):
-            node = Arange()
-            return node.execute(coordinates)
-    
-    node = Test()
-    o = node.execute(coords)
-    print (o.coords)
-    
-    # node
-    node = ExpandCoordinates(source=Test())
-    o = node.execute(coords, params={'time': ('-15,D', '0,D')})
-    print (o.coords)
-
-    node.params={'time': ('-15,Y', '0,D', '1,Y')}
-    print (node.get_expanded_coord('time'))
-
-    o = node.execute(coords, params={'time': ('-5,M', '0,D', '1,M')})
-    print (o.coords)
-    
-    node.params={'time': ('-15,Y', '0,D', '4,Y')}  # Behaviour a little strange
-    print (node.get_expanded_coord('time'))
-    
-    node.params={'time': ('-15,Y', '0,D', '13,M')}  # Behaviour a little strange
-    print (node.get_expanded_coord('time'))
-
-    node.params={'time': ('-144,M', '0,D', '13,M')}  # Behaviour a little strange
-    print (node.get_expanded_coord('time'))
-
-    # select node
-    node = SelectCoordinates(source=Test())
-    o = node.execute(coords, params={'time': ('2011-01-01', '2011-02-01')})
-    print (o.coords)
-
-    node.params={'time': ('2011-01-01', '2017-01-01', '1,Y')}
-    print (node.get_expanded_coord('time'))
-
-    print ('Done')
