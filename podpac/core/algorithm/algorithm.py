@@ -234,7 +234,7 @@ class Arithmetic(Algorithm):
     E = tl.Instance(Node, allow_none=True)
     F = tl.Instance(Node, allow_none=True)
     G = tl.Instance(Node, allow_none=True)
-    eqn = tl.Unicode(default_value='A+B+C+D+E+F+G').tag(param=True)
+    eqn = tl.Unicode().tag(param=True)
     
     def algorithm(self):
         """Summary
@@ -246,6 +246,9 @@ class Arithmetic(Algorithm):
         """
         
         eqn = self._params['eqn']
+        if eqn == '':
+            raise ValueError("Cannot evaluate Arithmetic node: 'eqn' parameter missing or empty")
+
         eqn = eqn.format(**self._params)        
         
         fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
