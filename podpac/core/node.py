@@ -107,7 +107,7 @@ class Style(tl.HasTraits):
 
     def __init__(self, node=None, *args, **kwargs):
         if node:
-            self.name = node.__class.__name__
+            self.name = node.__class__.__name__
             self.units = node.units
         super(Style, self).__init__(*args, **kwargs)
 
@@ -120,8 +120,8 @@ class Style(tl.HasTraits):
 
     clim = tl.List(default_value=[None, None])
     cmap = tl.Instance(matplotlib.colors.Colormap)
-    tl.default('cmap')
-
+    
+    @tl.default('cmap') 
     def _cmap_default(self):
         return matplotlib.cm.get_cmap('viridis')
 
@@ -187,10 +187,10 @@ class Node(tl.HasTraits):
         return Style()
 
     @property
-    def shape(self, coords=None):
+    def shape(self):
         """See `get_output_shape`
         """
-        return self.get_output_shape(coords)
+        return self.get_output_shape()
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """
