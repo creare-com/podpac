@@ -35,48 +35,48 @@
 
 ## Coordinates for One Dimension
 
- * Coordinate values are either float or np.datetime64
- * Coordinate deltas are either float or np.timedelta64
+ * Coordinate values are either `float` or `np.datetime64`
+ * Coordinate deltas are either `float` or `np.timedelta64`
  * When input:
-   - numerical values and deltas are cast to float
-   - string values are parsed with np.datetime64
-   - string deltas are split by `,` and then parsed by np.timedelta64 (e.g. `'1,D'` -> `np.timedelta(1, 'D')`)
+   - numerical values and deltas are cast to `float`
+   - string values are parsed with `np.datetime64`
+   - string deltas are split and then parsed by `np.timedelta64` (e.g. `'1,D'` -> `np.timedelta(1, 'D')`)
 
 ### Coordinates1D
 
 Traits:
-- name: Enum('lat', 'lon', 'time', 'alt') *Required*
-- units: Units
-- coord_ref_sys: Unicode
-- ctype: Enum('segment', 'point')
-- segment_position: Float
-- extents: array, [Float, Float]
+- `name`: Enum('lat', 'lon', 'time', 'alt')
+- `units`: Units
+- `coord_ref_sys`: Unicode
+- `ctype`: Enum('segment', 'point')
+- `segment_position`: Float
+- `extents`: array, [Float, Float]
 
 Properties
-- coordinates: read-only array
-- dtype: `np.datetime64` or `np.float64`
-- size: Int
-- bounds: read-only array, [Float, Float]
-- area_bounds: read-only array, [Float, Float]
-- is_datetime
-- is_monotonic
-- is_descending
-- rasterio_regularity
-- scipy_regularity
+- `coordinates`: read-only array
+- `dtype`: `np.datetime64` or `np.float64`
+- `size`: Int
+- `bounds`: read-only array, [Float, Float]
+- `area_bounds`: read-only array, [Float, Float]
+- `is_datetime`
+- `is_monotonic`
+- `is_descending`
+- `rasterio_regularity`
+- `scipy_regularity`
 
 Methods
- - select(bounds): returns a new Coordinates1D object within the given bounds
- - intersect(other1D): returns a new Coordinates1D object with the other1D.bounds 
- - add: add delta value to each coordinate value (returns a new Coordinates1D by default, can be used in-place)
- - concat: concatenate another Coordinates1D  (returns a new Coordinates1D by default, can be used in-place)
+ - `select(bounds)`: returns a new Coordinates1D object within the given bounds
+ - `intersect(other1D)`: returns a new Coordinates1D object with the other1D.bounds 
+ - `add`: add delta value to each coordinate value (returns a new Coordinates1D by default, can be used in-place)
+ - `concat`: concatenate another Coordinates1D  (returns a new Coordinates1D by default, can be used in-place)
 
 Operators
- - len: size
- - in: area_bounds[0] < value < area_bounds[1]
- - []: returns a new Coordinates1D object; supports a single index, a slice, an index array, and a boolean array
- - +, +=: concat Coordinates1D or add value
- - -, -=: subtract value
- - &: intersect
+ - `len`: size
+ - `in`: area_bounds[0] < value < area_bounds[1]
+ - `[]`: returns a new Coordinates1D object; supports a single index, a slice, an index array, and a boolean array
+ - `+`, `+=`: concat Coordinates1D or add value
+ - `-`, `-=`: subtract value
+ - `&`: intersect
 
 ### ArrayCoordinates1D
 
@@ -111,13 +111,13 @@ For ease-of-use, the following aliases will be defined (one of these options):
 
 Also, consider named versions, 16 in total (one of these options):
 
- - `A1DLat`, `U1DTime`
- - `ArrayLat1D`, `UniformTime1D`
- - `LatArray1D`, `TimeUniform1D`
- - `ArrayLat`, `UniformTime`
- - `LatArray`, `TimeUniform`
- - `ALat`, `UTime`
- - `_alat`, `_utime`
+ - `A1DLat`, `U1DTime`, ...
+ - `ArrayLat1D`, `UniformTime1D`, ...
+ - `LatArray1D`, `TimeUniform1D`, ...
+ - `ArrayLat`, `UniformTime`, ...
+ - `LatArray`, `TimeUniform`, ...
+ - `ALat`, `UTime`, ...
+ - `_alat`, `_utime`, ...
 
 So that the following are equivalent
 
@@ -145,7 +145,9 @@ Coordinates are created from a list or dict containing Coordinates1D objects.
 Coordinates(values, **traits)
 ```
 
-When using a list, each item is either Coordinates1D object for unstacked dimensions or a tuple of Coordinate1D objects for stacked dimensions.
+When using a list, each item is either
+ * a Coordinates1D object (unstacked dimensions)
+ * a tuple of Coordinate1D objects (stacked dimensions)
 
 ```
 lat = UniformCoordinate1D(0, 1, size=10, name='lat', ...)
@@ -155,7 +157,7 @@ coords = Coordinates([lat, lon, time], **traits)
 coords = Coordinates([(lat, lon), time], **traits) # stacked
 ```
 
-When using a dict, dimension names are mapped to Coordinate1D objects for unstacked dimensions or a tuple of Coordinate1D objects for stacked dimensions.
+When using a dict, dimension names are mapped to (tuples of) Coordinate1D objects. *Note: in Python <= 3.5, an OrderedDict is required.*
 
 ```
 lat = UniformCoordinate1D(0, 1, size=10, name='lat', ...)
@@ -164,8 +166,6 @@ time = ArrayCoordinate1D(['2018-01-01', '2018-01-02'], name='time', ...)
 coords = Coordinates({'lat': lat, 'lon': lon, 'time': time}, **traits)
 coords = Coordinates({'lat_lon': (lat, lon), 'time': time}, **traits) # stacked
 ```
-
-*note: in Python <= 3.5, an OrderedDict is required.*
 
 ### Stacking functions
 
@@ -176,13 +176,11 @@ coords = Coordinates([stack(lat, lon), time], **traits)
 coords = Coordinates({'lat_lon': stack(lat, lon), 'time': time}, **traits)
 ```
 
-The `stacked_linspace` helper function returns a tuple of UniformCoordinates1D, each with the given size
+The `stacked_linspace` helper function returns a tuple of UniformCoordinates1D, each with the given size, so that the following examples are equivalent
 
 ```
 stacked_linspace((0, 0, 20), (1, 1, 100), 100, names=('lat', 'lon', 'alt'))
 ```
-
-is the equivalent to
 
 ```
 lat = UniformCoordinates1D(0, 1, size=100), name='lat')
@@ -191,44 +189,25 @@ alt = UniformCoordinates1D(20, 100, size=100), name=alt')
 stacked(lat, lon, alt)
 ```
 
-Coordinate creation is based on [xarray.DataArray](http://xarray.pydata.org/en/stable/data-structures.html#dataarray).
-
-```
-coords = Coordinates(values, dims=dims, ctype='segment', segment_position=0.5, ...)
-```
-
- * `values` - a list of coordinate values, one for each dimension. Each item is translated to the correct Coordinate1D type under the hood.
- * `dims` - a list of dimension labels, matching the length of `values`
-
-Valid coordinate values:
- * a single value (number, string, or datetime object)
- * an array-like of numbers, strings, or datetime objects
- * a Coordinate1D object
- * a tuple of valid coordinate values (for stacked coordinates)
-
-Valid dimension labels:
- * 'lat', 'lon', 'time', or 'alt'
- * two or more dimension labels joined by underscores, e.g. 'lat_lon' or 'time_lat_lon' (for stacked coordinates)
-
 ### Traits
 
- * coord_ref_sys
- * distance_units
- * segment_position
- * ctype
+- `coord_ref_sys`: Unicode
+- `distance_units`: Units
+- `segment_position`: Float
+- `ctype`: Enum('segment', 'point')
 
 *TODO: defaults, passing on to Coordinates1D, overriding with Coordinates1D*
 
 ### Properties
 
- * ndim: Int
- * dims: tuple(str, str, ...)
- * shape - tuple(int, int, ...)
- * coords - OrderedDict, maps dimension names to Coordinate1D objects or tuples of Coordinate1D objects
- * coords1d - OrderedDict, maps dimension names to Coordinate1D objects (always unstacked)
- * coordinates - xarray Coordinates (dictionary mapping dimension names to named DataArrays)
+ * `ndim`: Int
+ * `dims`: tuple(str, str, ...)
+ * `shape` - tuple(int, int, ...)
+ * `coords` - OrderedDict, maps dimension names to Coordinate1D objects or tuples of Coordinate1D objects
+ * `coords1d` - OrderedDict, maps dimension names to Coordinate1D objects (always unstacked)
+ * `coordinates` - xarray Coordinates (dictionary mapping dimension names to named DataArrays)
 
-For stacked dimensions, the names are combined by an underscore, and the coordinates are implemented as a pandas MultiIndex.
+For stacked dimensions, the dimension names are combined by an underscore, and the coordinates are implemented as a pandas MultiIndex:
 
 ```
 coords.dims -> ('lat_lon', 'time')
@@ -253,23 +232,30 @@ coords.coords1d['lat_lon'] -> KeyError
 ### Miscellaneous Examples
 
 
+Some equivalent ways to copy:
+
 ```
-# Some equivalent ways to copy:
 coords_copy = Coordinates(other) # I'm not sure we need this one
 coords_copy = Coordinates(other.coords)
 coords_copy = Coordinates(other.coords.values())
 ```
 
+Select specific dimensions
 
 ```
-# Select specific dimensions
 dims = ['lat', 'lon']
 c1 = Coordinates([other.coords[dim] for dim in dims])
+```
 
-# downsample (note: in the current spec, this only works if there is no stacking)
+Downsample *(note: in the current spec, this only works if there is no stacking)*
+
+```
 c2 = Coordinates([c[::10] for c in other.coords.values()])
+```
 
-# downsample only the time dimension
+Downsample only the time dimension *(note: in the current spec, only works if time is not stacked)*
+
+```
 d = other.coords.copy()
 d['time'] = d['time'][::10]
 c3 = Coordinates(d)
