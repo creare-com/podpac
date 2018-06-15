@@ -28,6 +28,11 @@ class TestNodeProperties(object):
                     Coordinate(lat_lon=((0.5, 1.5), (0.1, 1.1), 15))
                     ]
 
+    def test_shape_not_Valid(self):
+        n = Node()
+        with pytest.raises(NodeException):
+            n.get_output_shape()
+
     def test_shape_no_nc(self):
         n = Node()
         for crd in self.crds:
@@ -117,7 +122,8 @@ class TestNodeMethods(object):
                                           ['alt'])            
             n3.evaluated_coordinates = crd
             np.testing.assert_array_equal(n3.get_output_dims(), 
-                                          crd.dims)            
+                                          crd.dims)
+            assert(n1.get_output_dims(OrderedDict([('lat',0)])) == ['lat'])
         
 
 class TestNodeOutputArrayCreation(object):
@@ -142,6 +148,9 @@ class TestNodeOutputArrayCreation(object):
             # Just run through the different creating methods
             for init_type in self.init_types[:4]:
                 n1.copy_output_array(init_type)
+            
+            with pytest.raises(ValueError):
+                n1.copy_output_array('notValidInitType')
                 
     def test_default_output_native_coordinates(self):
         n = Node(native_coordinates=self.c1)
@@ -228,9 +237,10 @@ class TestFilesAndCaching(object):
         n2 = Node()
         params = {'param1': 1}
         assert(n1.get_hash(crds1, params) == n2.get_hash(crds1, params))
-        assert(n1.get_hash(crds1, params) != n2.get_hash(crds1, {}))
+        assert(n1.get_hash(crds1, params) != n2.get_hash(crds1, {'param2':{'p2.2': 2.2}}))
         assert(n1.get_hash(crds2, params) != n2.get_hash(crds1, params))
         assert(n1.get_hash(crds3, params) != n2.get_hash(crds1, params))
+        
         
     def test_evaluated_hash(self):
         n = Node()
