@@ -51,7 +51,7 @@ class TestNodeProperties(object):
         Node().base_ref
         
     def test_latlon_bounds_str(self):
-        n = Node(evaluated_coordinates=Coordinate(lat=(0, 1, 3), lon=(0, 1, 3)), order=['lat', 'lon'])
+        n = Node(evaluated_coordinates=Coordinate(lat=(0, 1, 3), lon=(0, 1, 3), order=['lat', 'lon']))
         assert(n.latlon_bounds_str == '0.0_0.0_x_1.0_1.0')
         
     def test_cache_dir(self):
@@ -245,7 +245,7 @@ class TestFilesAndCaching(object):
         assert(os.path.exists(os.path.dirname(p)))
         
     def test_write_file(self):
-        n = Node(native_coordinates=Coordinate(lat=0, lon=1), order=['lat', 'lon'])
+        n = Node(native_coordinates=Coordinate(lat=0, lon=1, order=['lat', 'lon']))
         n.evaluated_coordinates = n.native_coordinates
         fn = 'temp_test'
         p = n.write(fn)
@@ -255,7 +255,7 @@ class TestFilesAndCaching(object):
             n.write(fn, format='notARealFormat')
     
     def test_load_file(self):
-        n = Node(native_coordinates=Coordinate(lat=0, lon=1), order=['lat', 'lon'])
+        n = Node(native_coordinates=Coordinate(lat=0, lon=1, order=['lat', 'lon']))
         n.evaluated_coordinates = n.native_coordinates
         fn = 'temp_test'
         p = n.write(fn)
@@ -284,7 +284,7 @@ class TestFilesAndCaching(object):
 
 class TestGetImage(object):
     def test_get_image(self):
-        n = Node(native_coordinates=Coordinate(lat=(0, 1, 3), lon=(0, 1, 5)), order=['lat', 'lon'])
+        n = Node(native_coordinates=Coordinate(lat=(0, 1, 3), lon=(0, 1, 5), order=['lat', 'lon']))
         n.output[:] = 1
         im = n.get_image()
         assert(im == b'iVBORw0KGgoAAAANSUhEUgAAAAUAAAADCAYAAABbNsX4AAAABHNCSVQICAgIfAhkiAAAABVJREFUCJljdGEM+c+ABpjQBXAKAgBgJgGe5UsCaQAAAABJRU5ErkJggg==')
