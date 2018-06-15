@@ -272,7 +272,7 @@ class TestFilesAndCaching(object):
         with pytest.raises(AttributeError):
             p = Node().load_cached_obj('testFileName')    
     
-    @pytest.skip("This doesn't really work without self.source")
+    @pytest.mark.skip("This doesn't really work without self.source")
     def test_clear_cache(self):
         n = Node()
         with pytest.raises(AttributeError):
