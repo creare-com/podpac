@@ -185,7 +185,7 @@ StackedCoordinates(lat, lon, alt)
 
 ### Shorthand
 
-For ease-of-use, the following aliases will be defined:
+For ease-of-use, the following aliases will be defined (on of these options):
  
  - `_s` and `_sl`
  - `Stacked`, `SL`
@@ -200,7 +200,7 @@ _sl((0, 0, 20), (1, 1, 100), 100, names='lat', 'lon', 'alt')
 _s(_ulat(0, 1, 100), _ulon(0, 1, 100), _ualt(20, 100, 100))
 ```
 
-or possibly, with the other scheme:
+or possibly, depending on which scheme we choose:
 
 ```
 Stacked(ULat(0, 1, 100), ULon(0, 1, 100), UAlt(20, 100, 100))
@@ -232,7 +232,7 @@ c2 = Coordinates({'lat_lon': Stacked(lat, lon), 'time': time}, **traits)
 
 ### Implicit Stacking
 
-The `stack` function is recommended as it makes stacking more explicit, but we may wish to support stacking implicitly:
+Explicit stacked dimension creation is recommended (`StackedCoordinates` or `stacked_linspace`) as it makes stacking more explicit, but we may wish to support stacking implicitly:
 
 ```
 c1 = Coordinates([(lat, lon), time], **traits)
@@ -280,7 +280,7 @@ In general, methods will return a new Coordinates object by default, with an opt
    - stacked dimensions can be removed together or individually
 	
 	```
-    # the folowwinng equivalent
+    # the folowing are equivalent
     coords.drop_dims('lat_lon')
     coords.drop_dims(['lat', 'lon'])
 	
