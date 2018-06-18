@@ -6,7 +6,7 @@ See [the example notebooks](https://github.com/creare-com/podpac/doc/notebooks) 
 
 The general workflow for retrieving data using PODPAC is as follows: 
 
-*Note*: Accessing SMAP data requires a [NASA Earth Data Account](user/earthdata.md)
+*Note*: Accessing SMAP data requires a [NASA Earth Data Account](user/earthdata)
 
 ```python
 import podpac  # import the library
