@@ -21,8 +21,6 @@ The purpose of PODPAC is to facilitate the
 
 The official PODPAC documentation is available here: https://creare-com.github.io/podpac-docs
 
-- To set up an Earth Data Account, used to access SMAP and other NASA data, see  [here](notes/UsingEarthDataAccountWithPODPAC.md)
-
 - To run PODPAC in ESRI ArcGIS Python, see [here](notes/packages_EsriPlus_Python.md)
 
 ## Contributing
