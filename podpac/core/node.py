@@ -107,7 +107,7 @@ class Style(tl.HasTraits):
 
     def __init__(self, node=None, *args, **kwargs):
         if node:
-            self.name = node.__class.__name__
+            self.name = node.__class__.__name__
             self.units = node.units
         super(Style, self).__init__(*args, **kwargs)
 
@@ -120,8 +120,8 @@ class Style(tl.HasTraits):
 
     clim = tl.List(default_value=[None, None])
     cmap = tl.Instance(matplotlib.colors.Colormap)
-    tl.default('cmap')
-
+    
+    @tl.default('cmap') 
     def _cmap_default(self):
         return matplotlib.cm.get_cmap('viridis')
 
@@ -187,10 +187,10 @@ class Node(tl.HasTraits):
         return Style()
 
     @property
-    def shape(self, coords=None):
+    def shape(self):
         """See `get_output_shape`
         """
-        return self.get_output_shape(coords)
+        return self.get_output_shape()
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """
@@ -508,7 +508,7 @@ class Node(tl.HasTraits):
         if style is None: style = self.style
         if shape is None: shape = self.shape
         if units is None: units = self.units
-        if not isinstance(coords, (dict, OrderedDict)): coords = dict(coords)
+        if not isinstance(coords, (dict, OrderedDict, list)): coords = dict(coords)
 
         if init_type == 'empty':
             data = np.empty(shape)
@@ -662,7 +662,7 @@ class Node(tl.HasTraits):
         podpac.Pipeline
             A pipeline node created using the self.pipeline_definition
         """
-        from pipeline import Pipeline
+        from podpac.core.pipeline import Pipeline
         return Pipeline(self.pipeline_definition)
 
     def get_hash(self, coordinates=None, params=None):
@@ -762,6 +762,11 @@ class Node(tl.HasTraits):
             {outdir}
         format : str, optional
             The file format. Currently only `pickle` is supported. 
+            
+        Returns
+        --------
+        str
+            The path of the loaded file
 
         Raises
         ------
@@ -779,9 +784,10 @@ class Node(tl.HasTraits):
                 cPickle.dump(self.output, f)
         else:
             raise NotImplementedError
+        return path
 
     def load(self, name, coordinates, params, outdir=None):
-        """Retrieves a cached file from disk. 
+        """Retrieves a cached output from disk and assigns it to self.output
 
         Parameters
         ----------
@@ -793,6 +799,11 @@ class Node(tl.HasTraits):
             {params}
         outdir : str, optional
             {outdir}
+            
+        Returns
+        --------
+        str
+            The path of the loaded file
         """
         filename = '%s_%s_%s.pkl' % (
             name,
@@ -802,21 +813,7 @@ class Node(tl.HasTraits):
 
         with open(path, 'rb') as f:
             self.output = cPickle.load(f)
-
-    def load_from_file(self, path):
-        """Retrieves a specified file from disk using pickle, and assigns it to self.output
-
-        Parameters
-        ----------
-        path : str
-            Path to file
-        """
-        with open(path, 'rb') as f:
-            output = cPickle.load(f)
-
-        self.output = output
-        self.evaluated_coordinates = self.output.coordinates
-        self._params = self.output.attrs['params']
+        return path
 
     def get_image(self, format='png', vmin=None, vmax=None):
         """Return a base64-encoded image of the output
@@ -840,9 +837,9 @@ class Node(tl.HasTraits):
 
         data = self.output.data.squeeze()
 
-        if np.isnan(vmin):
+        if vmin is None or np.isnan(vmin):
             vmin = np.nanmin(data)
-        if np.isnan(vmax):
+        if vmax is None or np.isnan(vmax):
             vmax = np.nanmax(data)
         if vmax == vmin:
             vmax += 1e-16

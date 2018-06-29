@@ -869,6 +869,7 @@ class Coordinate(BaseCoordinate):
     @property
     def latlon_bounds_str(self):
         if 'lat' in self._coords and 'lon' in self._coords:
+            # Where is this really used? Shouldn't this be area_bounds?
             return '%s_%s_x_%s_%s' % (
                 self['lat'].bounds[0],
                 self['lon'].bounds[0],
