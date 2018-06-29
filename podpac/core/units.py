@@ -43,7 +43,8 @@ class UnitsNode(tl.TraitType):
         TYPE
             Description
         """
-        if isinstance(value, Node):
+        import podpac.core.node as node
+        if isinstance(value, node.Node):
             if 'units' in self.metadata and value.units is not None:
                 u = ureg.check(self.metadata['units'])(lambda x: x)(value.units)
                 return value
