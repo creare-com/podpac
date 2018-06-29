@@ -6,12 +6,64 @@ import pytest
 
 import numpy as np
 from traitlets import TraitError
+from xarray.core.coordinates import DataArrayCoordinates
 
 from podpac.core.units import UnitsDataArray
 from podpac.core.data.data import DataSource, COMMON_DATA_DOC, COMMON_DOC
-from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import Style, COMMON_NODE_DOC
 from podpac.core.coordinate import Coordinate
 
+####
+# Mock test fixtures
+####
+
+DATA = np.random.rand(101, 101)
+COORDINATES = Coordinate(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
+
+class MockDataSource(DataSource):
+    """ Mock Data Source for testing """
+
+    # mock 101 x 101 grid of random values, and some specified values
+    source = DATA
+    source[0, 0] = 10
+    source[0, 1] = 1
+    source[1, 0] = 5
+    source[1, 1] = None
+    native_coordinates = COORDINATES
+
+    def get_native_coordinates(self):
+        """ see DataSource """
+
+        return self.native_coordinates
+
+    def get_data(self, coordinates, coordinates_index):
+        """ see DataSource """
+
+        s = coordinates_index
+        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
+        return d
+
+class MockNonuniformDataSource(DataSource):
+    """ Mock Data Source for testing that is non-uniform """
+
+    # mock 3 x 3 grid of random values
+    source = np.random.rand(3, 3)
+    native_coordinates = Coordinate(lat=[-10, -2, -1], lon=[4, 32, 1], order=['lat', 'lon'])
+
+    def get_native_coordinates(self):
+        """ """
+        return self.native_coordinates
+
+    def get_data(self, coordinates, coordinates_index):
+        """ """
+        s = coordinates_index
+        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
+        return d
+
+
+####
+# Tests
+####
 class TestDataSource(object):
     """Test podpac.core.data.data module"""
 
@@ -187,36 +239,109 @@ class TestDataSource(object):
             assert data.shape == (3, 3)
             assert coords_subset.shape == (3, 3)
 
-class MockDataSource(DataSource):
-    """ Mock Data Source for testing """
 
-    # mock 100 x 100 grid of random values
-    source = np.random.rand(101, 101)
-    native_coordinates = Coordinate(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
+    class TestExecute(object):
+        """Test execute methods"""
 
-    def get_native_coordinates(self):
-        """ """
-        return self.native_coordinates
 
-    def get_data(self, coordinates, coordinates_index):
-        """ """
-        s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
-        return d
+        def test_requires_coordinates(self):
+            """execute requires coordinates input"""
+            
+            node = MockDataSource()
+            
+            with pytest.raises(TypeError):
+                node.execute()
 
-class MockNonuniformDataSource(DataSource):
-    """ Mock Data Source for testing """
+        def test_execute_at_native_coordinates(self):
+            """execute node at native coordinates"""
 
-    # mock 100 x 100 grid of random values
-    source = np.random.rand(3, 3)
-    native_coordinates = Coordinate(lat=[-10, -2, -1], lon=[4, 32, 1], order=['lat', 'lon'])
+            node = MockDataSource()
+            output = node.execute(node.native_coordinates)
 
-    def get_native_coordinates(self):
-        """ """
-        return self.native_coordinates
+            assert isinstance(output, UnitsDataArray)
+            assert output.shape == (101, 101)
+            assert output[0, 0] == 10
+            assert output.lat.shape == (101,)
+            assert output.lon.shape == (101,)
 
-    def get_data(self, coordinates, coordinates_index):
-        """ """
-        s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
-        return d
+            # assert coordinates
+            assert isinstance(output.coords, DataArrayCoordinates)
+            assert output.coords.dims == ('lat', 'lon')
+
+            # assert attributes
+            assert isinstance(output.attrs['layer_style'], Style) and output.attrs['params']['interpolation'] == 'nearest'
+
+            # should be evaluated
+            assert node.evaluated
+
+        def test_execute_with_output(self):
+            """execute node at native coordinates passing in output to store in"""
+            
+            node = MockDataSource()
+            output = UnitsDataArray(np.zeros(node.source.shape),
+                                    coords=node.native_coordinates.coords,
+                                    dims=node.native_coordinates.dims)
+            node.execute(node.native_coordinates, output=output)
+
+            assert isinstance(output, UnitsDataArray)
+            assert output.shape == (101, 101)
+            assert np.all(output[0, 0] == 10)
+
+
+        def test_execute_with_output_no_overlap(self):
+            """execute node at native coordinates passing output that does not overlap"""
+            
+            node = MockDataSource()
+            coords = Coordinate(lat=(-55, -45, 101), lon=(-55, -45, 101), order=['lat', 'lon'])
+            data = np.zeros(node.source.shape)
+            output = UnitsDataArray(data, coords=coords.coords, dims=coords.dims)
+            node.execute(coords, output=output)
+
+            assert isinstance(output, UnitsDataArray)
+            assert output.shape == (101, 101)
+            assert np.all(np.isnan(output[0, 0]))
+
+        def test_remove_dims(self):
+            """execute node with coordinates that have more dims that data source"""
+
+            node = MockDataSource()
+            coords = Coordinate(lat=(-25, 0, 20), lon=(-25, 0, 20), time=(1, 10, 10), order=['lat', 'lon', 'time'])
+            output = node.execute(coords)
+
+            assert output.coords.dims == ('lat', 'lon')  # coordinates of the DataSource, no the evaluated coordinates
+
+        def test_no_overlap(self):
+            """execute node with coordinates that do not overlap"""
+
+            node = MockDataSource()
+            coords = Coordinate(lat=(-55, -45, 20), lon=(-55, -45, 20), order=['lat', 'lon'])
+            output = node.execute(coords)
+
+            assert np.all(np.isnan(output))
+        
+        def test_no_data_vals(self):
+            """ execute note with no_data_vals """
+
+            node = MockDataSource(no_data_vals=[10, None])
+            output = node.execute(node.native_coordinates)
+
+            assert output.values[np.isnan(output)].shape == (2,)
+
+
+    class TestInterpolateData(object):
+        """test interpolation functions"""
+
+        def test_size1(self):
+            """  """
+            source = np.random.rand(1,1)
+            coords_src = Coordinate(lat=[20], lon=[20], order=['lat', 'lon'])
+            coords_dst = Coordinate(lat=[25], lon=[25], order=['lat', 'lon'])
+
+            node = DataSource(source=source, native_coordinates=coords_src)
+            data = node.get_data_subset(coords_dst)
+            node._interpolate_data(data, coords_src, coords_dst)
+
+
+
+
+
