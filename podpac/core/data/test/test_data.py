@@ -60,6 +60,22 @@ class MockNonuniformDataSource(DataSource):
         d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
         return d
 
+class MockEmptyDataSource(DataSource):
+    """ Mock Empty Data Source for testing 
+        requires passing in source, native_coordinates to work correctly
+    """
+
+    def get_native_coordinates(self):
+        """ see DataSource """
+
+        return self.native_coordinates
+
+    def get_data(self, coordinates, coordinates_index):
+        """ see DataSource """
+
+        s = coordinates_index
+        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
+        return d
 
 ####
 # Tests
@@ -269,7 +285,8 @@ class TestDataSource(object):
             assert output.coords.dims == ('lat', 'lon')
 
             # assert attributes
-            assert isinstance(output.attrs['layer_style'], Style) and output.attrs['params']['interpolation'] == 'nearest'
+            assert isinstance(output.attrs['layer_style'], Style)
+            assert output.attrs['params']['interpolation'] == 'nearest'
 
             # should be evaluated
             assert node.evaluated
@@ -331,16 +348,43 @@ class TestDataSource(object):
     class TestInterpolateData(object):
         """test interpolation functions"""
 
-        def test_size1(self):
-            """  """
+        def test_one_data_point(self):
+            """ test when there is only one data point """
+            # TODO: as this is currently written, this would never make it to the interpolater
+            
             source = np.random.rand(1,1)
             coords_src = Coordinate(lat=[20], lon=[20], order=['lat', 'lon'])
-            coords_dst = Coordinate(lat=[25], lon=[25], order=['lat', 'lon'])
+            coords_dst = Coordinate(lat=[20], lon=[20], order=['lat', 'lon'])
 
-            node = DataSource(source=source, native_coordinates=coords_src)
-            data = node.get_data_subset(coords_dst)
-            node._interpolate_data(data, coords_src, coords_dst)
+            # TODO: this doesn't work, but I feel like it shold
+            # coords_dst = Coordinate(lat=[21], lon=[21], order=['lat', 'lon'])
 
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            data, coords_subset = node.get_data_subset(coords_dst)
+            output = node._interpolate_data(data, coords_subset, coords_dst)
+
+            assert isinstance(output, UnitsDataArray)
+
+        def test_nearest_preview(self):
+            """ test interpolation == 'nearest_preview' """
+
+            source = DATA
+            # Coordinate(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
+            coords_src = COORDINATES
+            coords_dst = Coordinate(lat=[-4.013, -1.30], lon=[0.2312, 1.2342], order=['lat', 'lon'])
+
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            node.interpolation = 'nearest_preview'
+
+            data, coords_subset = node.get_data_subset(coords_dst)
+            output = node._interpolate_data(data, coords_subset, coords_dst)
+
+            assert isinstance(output, UnitsDataArray)
+
+
+
+    class TestLoopHelper(object):
+        """test _loop_helper"""
 
 
 

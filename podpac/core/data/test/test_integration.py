@@ -2,7 +2,10 @@
 Data Source Integration Tests
 """
 
+import numpy as np
 import pytest
+
+from podpac.core.coordinate import Coordinate
 
 @pytest.mark.integration
 class TestDataSourceIntegration():

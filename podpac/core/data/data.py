@@ -48,10 +48,10 @@ COMMON_DATA_DOC = {
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate, optional
+        coordinates : podpac.Coordinate
             The coordinates that need to be retrieved from the data source using the coordinate system of the data
             source
-        coordinates_index : List, optional
+        coordinates_index : List
             A list of slices or a boolean array that give the indices of the data that needs to be retrieved from
             the data source
             
@@ -237,7 +237,7 @@ class DataSource(Node):
         return data, coords_subset
     
     @common_doc(COMMON_DOC)
-    def get_data(self, coordinates=None, coordinates_index=None):
+    def get_data(self, coordinates, coordinates_index):
         """{get_data}
         
         Raises
@@ -350,10 +350,31 @@ class DataSource(Node):
         
         raise NotImplementedError("The combination of source/destination coordinates has not been implemented.")
             
-    def _loop_helper(self, func, keep_dims, data_src, coords_src,
-                     data_dst, coords_dst,
-                     **kwargs):
+    def _loop_helper(self, func, keep_dims, data_src, coords_src, data_dst, coords_dst, **kwargs):
+        """ Loop helper
         
+        Parameters
+        ----------
+        func : TYPE
+            Description
+        keep_dims : TYPE
+            Description
+        data_src : TYPE
+            Description
+        coords_src : TYPE
+            Description
+        data_dst : TYPE
+            Description
+        coords_dst : TYPE
+            Description
+        **kwargs
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         loop_dims = [d for d in data_src.dims if d not in keep_dims]
         if len(loop_dims) > 0:
             for i in data_src.coords[loop_dims[0]]:
