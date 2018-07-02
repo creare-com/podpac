@@ -9,7 +9,8 @@ from traitlets import TraitError
 from xarray.core.coordinates import DataArrayCoordinates
 
 from podpac.core.units import UnitsDataArray
-from podpac.core.data.data import DataSource, COMMON_DATA_DOC, COMMON_DOC
+from podpac.core.data.data import DataSource, COMMON_DATA_DOC, COMMON_DOC, rasterio
+from podpac.core.data import data
 from podpac.core.node import Style, COMMON_NODE_DOC
 from podpac.core.coordinate import Coordinate
 
@@ -367,25 +368,218 @@ class TestDataSource(object):
 
         def test_nearest_preview(self):
             """ test interpolation == 'nearest_preview' """
-
-            source = DATA
-            # Coordinate(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
-            coords_src = COORDINATES
-            coords_dst = Coordinate(lat=[-4.013, -1.30], lon=[0.2312, 1.2342], order=['lat', 'lon'])
+            source = np.random.rand(5)
+            coords_src = Coordinate(lat=(0, 10, 5), order=['lat'])
+            coords_dst = Coordinate(lat=[1, 1.2, 1.5, 5, 9], order=['lat'])
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest_preview'
-
-            data, coords_subset = node.get_data_subset(coords_dst)
-            output = node._interpolate_data(data, coords_subset, coords_dst)
+            output = node.execute(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst.coords['lat'])
 
 
+        def test_interpolate_time(self):
+            """ for now time uses nearest neighbor """
 
-    class TestLoopHelper(object):
-        """test _loop_helper"""
+            source = np.random.rand(5)
+            coords_src = Coordinate(time=(0, 10, 5), order=['time'])
+            coords_dst = Coordinate(time=(1, 11, 5), order=['time'])
+
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            output = node.execute(coords_dst)
+
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.time.values == coords_dst.coords['time'])
+
+        @pytest.mark.skip(reason="not implemented yet")
+        def test_interpolate_lat_time(self):
+            """interpolate with n dims and time"""
+            pass
+
+        def test_interpolate_alt(self):
+            """ for now alt uses nearest neighbor """
+
+            source = np.random.rand(5)
+            coords_src = Coordinate(alt=(0, 10, 5), order=['alt'])
+            coords_dst = Coordinate(alt=(1, 11, 5), order=['alt'])
+
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            output = node.execute(coords_dst)
+
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.alt.values == coords_dst.coords['alt'])
 
 
+        def test_interpolate_nearest(self):
+            """ regular nearest interpolation """
+
+            source = np.random.rand(5, 5)
+            coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), order=['lat', 'lon'])
+            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
+
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            node.interpolation = 'nearest'
+            output = node.execute(coords_dst)
+
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst.coords['lat'])
+            assert output.values[0, 0] == source[1, 1]
+
+        def test_interpolate_rasterio(self):
+            """ regular interpolation using rasterio"""
+
+            assert rasterio is not None
+
+            rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
+                                'lanczos', 'average', 'mode', 'max', 'min',
+                                'med', 'q1', 'q3']
+            source = np.random.rand(5, 5)
+            coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), order=['lat', 'lon'])
+            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
+
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+
+            # make sure it raises trait error
+            with pytest.raises(TraitError):
+                node.interpolation = 'myowninterp'
+                output = node.execute(coords_dst)
+
+            # make sure rasterio_interpolation method requires lat and lon
+            # with pytest.raises(ValueError):
+            #     coords_not_lon = Coordinate(lat=(0, 10, 5), order=['lat'])
+            #     node = MockEmptyDataSource(source=source, native_coordinates=coords_not_lon)
+            #     node.rasterio_interpolation(node, coords_src, coords_dst)
+
+            # try all other interp methods
+            for interp in rasterio_interps:
+                node.interpolation = interp
+                print(interp)
+                output = node.execute(coords_dst)
+
+                assert isinstance(output, UnitsDataArray)
+                assert np.all(output.lat.values == coords_dst.coords['lat'])
 
 
+        def test_interpolate_rasterio_descending(self):
+            """should handle descending"""
+
+            source = np.random.rand(5, 5)
+            coords_src = Coordinate(lat=(10, 0, 5), lon=(10, 0, 5), order=['lat', 'lon'])
+            coords_dst = Coordinate(lat=(12, 2, 5), lon=(12, 2, 5), order=['lat', 'lon'])
+            
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            output = node.execute(coords_dst)
+            
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst.coords['lat'])
+            assert np.all(output.lon.values == coords_dst.coords['lon'])
+
+        def test_interpolate_irregular_arbitrary(self):
+            """ irregular interpolation """
+
+            # suppress module to force statement
+            data.rasterio = None
+            rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
+                                'lanczos', 'average', 'mode', 'max', 'min',
+                                'med', 'q1', 'q3']
+            source = np.random.rand(5, 5)
+            coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), order=['lat', 'lon'])
+            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
+
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+
+            for interp in rasterio_interps:
+                node.interpolation = interp
+                print(interp)
+                output = node.execute(coords_dst)
+
+                assert isinstance(output, UnitsDataArray)
+                assert np.all(output.lat.values == coords_dst.coords['lat'])
+
+        def test_interpolate_irregular_arbitrary_2dims(self):
+            """ irregular interpolation """
+
+            # try >2 dims
+            source = np.random.rand(5, 5, 3)
+            coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), time=(2, 5, 3), order=['lat', 'lon', 'time'])
+            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), time=(2, 5, 3), order=['lat', 'lon', 'time'])
+            
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            node.interpolation = 'nearest'
+            output = node.execute(coords_dst)
+            
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst.coords['lat'])
+            assert np.all(output.lon.values == coords_dst.coords['lon'])
+            assert np.all(output.time.values == coords_dst.coords['time'])
+
+        def test_interpolate_irregular_arbitrary_descending(self):
+            """should handle descending"""
+
+            source = np.random.rand(5, 5)
+            coords_src = Coordinate(lat=(10, 0, 5), lon=(10, 0, 5), order=['lat', 'lon'])
+            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
+            
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            node.interpolation = 'nearest'
+            output = node.execute(coords_dst)
+            
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst.coords['lat'])
+            assert np.all(output.lon.values == coords_dst.coords['lon'])
+
+        def test_interpolate_irregular_arbitrary_swap(self):
+            """should handle descending"""
+
+            source = np.random.rand(5, 5)
+            coords_src = Coordinate(lon=(10, 0, 5), lat=(10, 0, 5), order=['lon', 'lat'])
+            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
+            
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            node.interpolation = 'nearest'
+            output = node.execute(coords_dst)
+            
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst.coords['lat'])
+            assert np.all(output.lon.values == coords_dst.coords['lon'])
+
+        def test_interpolate_irregular_lat_lon(self):
+            """ irregular interpolation """
+
+            source = np.random.rand(5, 5)
+            coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), order=['lat', 'lon'])
+            coords_dst = Coordinate(lat_lon=([0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]))
+
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            node.interpolation = 'nearest'
+            output = node.execute(coords_dst)
+
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat_lon.values == coords_dst.coords['lat_lon'])
+            assert output.values[0] == source[0, 0]
+            assert output.values[1] == source[1, 1]
+            assert output.values[-1] == source[-1, -1]
+
+        def test_interpolate_point(self):
+            """ interpolate point data to nearest neighbor with various coords_dst"""
+
+            source = np.random.rand(5)
+            coords_src = Coordinate(lat_lon=([0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]))
+            coords_dst = Coordinate(lat_lon=([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]))
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+
+            output = node.execute(coords_dst)
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat_lon.values == coords_dst.coords['lat_lon'])
+            assert output.values[0] == source[0]
+            assert output.values[-1] == source[3]
+
+
+            coords_dst = Coordinate(lat=[1, 2, 3, 4, 5], lon=[1, 2, 3, 4, 5], order=['lat', 'lon'])
+            output = node.execute(coords_dst)
+            assert isinstance(output, UnitsDataArray)
+            assert np.all(output.lat.values == coords_dst.coords['lat'])
+            assert output.values[0, 0] == source[0]
+            assert output.values[-1, -1] == source[3]
