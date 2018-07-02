@@ -106,7 +106,7 @@ class DataSource(Node):
     source = tl.Any(allow_none=False, help="Path to the raw data source")
     interpolation = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
                              'cubic_spline', 'lanczos', 'average', 'mode',
-                             'gauss', 'max', 'min', 'med', 'q1', 'q3'],
+                             'gauss', 'max', 'min', 'med', 'q1', 'q3'],   # TODO: gauss is not supported by rasterio
                             default_value='nearest').tag(param=True)
     interpolation_param = tl.Any()
     no_data_vals = tl.List(allow_none=True)
@@ -306,10 +306,13 @@ class DataSource(Node):
             coords_src._coords['time'] = data_src['time'].data
             if len(coords_dst.dims) == 1:
                 return data_src
+
         if 'alt' in coords_src.dims and 'alt' in coords_dst.dims:
             data_src = data_src.reindex(alt=coords_dst.coords['alt'], method='nearest')
             coords_src._coords['alt'] = data_src['alt'].data
-            
+            if len(coords_dst.dims) == 1:
+                return data_src
+
         # Raster to Raster interpolation from regular grids to regular grids
         rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
                             'lanczos', 'average', 'mode', 'gauss', 'max', 'min',
@@ -325,8 +328,7 @@ class DataSource(Node):
             return self.rasterio_interpolation(data_src, coords_src, data_dst, coords_dst)
 
         # Raster to Raster interpolation from irregular grids to arbitrary grids
-        elif ('lat' in coords_src.dims
-                and 'lon' in coords_src.dims) \
+        elif ('lat' in coords_src.dims and 'lon' in coords_src.dims) \
                 and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)\
                 and coords_src['lat'].scipy_regularity \
                 and coords_src['lon'].scipy_regularity:
