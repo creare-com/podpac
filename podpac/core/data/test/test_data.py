@@ -427,6 +427,9 @@ class TestDataSource(object):
             assert np.all(output.lat.values == coords_dst.coords['lat'])
             assert output.values[0, 0] == source[1, 1]
 
+    class TestInterpolateRasterio(object):
+        """test interpolation functions"""
+
         def test_interpolate_rasterio(self):
             """ regular interpolation using rasterio"""
 
@@ -476,11 +479,16 @@ class TestDataSource(object):
             assert np.all(output.lat.values == coords_dst.coords['lat'])
             assert np.all(output.lon.values == coords_dst.coords['lon'])
 
+    class TestInterpolateNoRasterio(object):
+        """test interpolation functions"""
+
+
         def test_interpolate_irregular_arbitrary(self):
             """ irregular interpolation """
 
             # suppress module to force statement
             data.rasterio = None
+
             rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
                                 'lanczos', 'average', 'mode', 'max', 'min',
                                 'med', 'q1', 'q3']
@@ -501,6 +509,8 @@ class TestDataSource(object):
         def test_interpolate_irregular_arbitrary_2dims(self):
             """ irregular interpolation """
 
+            data.rasterio = None
+
             # try >2 dims
             source = np.random.rand(5, 5, 3)
             coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), time=(2, 5, 3), order=['lat', 'lon', 'time'])
@@ -518,6 +528,8 @@ class TestDataSource(object):
         def test_interpolate_irregular_arbitrary_descending(self):
             """should handle descending"""
 
+            data.rasterio = None
+
             source = np.random.rand(5, 5)
             coords_src = Coordinate(lat=(10, 0, 5), lon=(10, 0, 5), order=['lat', 'lon'])
             coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
@@ -533,6 +545,8 @@ class TestDataSource(object):
         def test_interpolate_irregular_arbitrary_swap(self):
             """should handle descending"""
 
+            data.rasterio = None
+
             source = np.random.rand(5, 5)
             coords_src = Coordinate(lon=(10, 0, 5), lat=(10, 0, 5), order=['lon', 'lat'])
             coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
@@ -547,6 +561,8 @@ class TestDataSource(object):
 
         def test_interpolate_irregular_lat_lon(self):
             """ irregular interpolation """
+
+            data.rasterio = None
 
             source = np.random.rand(5, 5)
             coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), order=['lat', 'lon'])
@@ -564,6 +580,8 @@ class TestDataSource(object):
 
         def test_interpolate_point(self):
             """ interpolate point data to nearest neighbor with various coords_dst"""
+
+            data.rasterio = None
 
             source = np.random.rand(5)
             coords_src = Coordinate(lat_lon=([0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]))
