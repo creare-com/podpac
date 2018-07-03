@@ -212,7 +212,7 @@ class UnitsDataArray(xr.DataArray):
             Description
         """
 
-        if type(mask) is UnitsDataArray and isinstance(value,Number):
+        if isinstance(mask,UnitsDataArray) and isinstance(value,Number):
             orig_dims = deepcopy(self.dims)   
 
             # find out status of all dims
@@ -343,25 +343,3 @@ for tp in ("mean", 'min', 'max'):
 
 del func
 
-if __name__ == "__main__":
-    # a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
-    #                        attrs={'units': ureg.meter})
-    # a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
-    #                        attrs={'units': ureg.kelvin})
-
-    # np.mean(a1)
-    # np.std(a1)
-
-    a = UnitsDataArray(
-        np.arange(24).reshape((3, 4, 2)),
-        coords={'x': np.arange(3), 'y': np.arange(4)*10, 'z': np.arange(2)+100},
-        dims=['x', 'y', 'z'])
-    b = a[0, :, :]
-    b = b<3
-    b = b.transpose(*('z','y'))
-    print(a)
-    print(b)
-    a.set(-10,b)
-    print(a)
-
-    print ("Done")

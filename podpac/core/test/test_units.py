@@ -51,6 +51,47 @@ class TestUnits(object):
             l.units = 'meter'
 
 class TestUnitDataArray(object):
+    def test_set_to_value_using_UnitsDataArray_as_mask_broadcasts_to_dimensions_not_in_mask(self):
+        a = UnitsDataArray(
+                np.arange(24, dtype=np.float64).reshape((3, 4, 2)),
+                coords={'x': np.arange(3), 'y': np.arange(4)*10, 'z': np.arange(2)+100},
+                dims=['x', 'y', 'z'])
+        b = a[0, :, :]
+        b = b<3
+
+        mask = b.transpose(*('z','y'))
+        value = np.nan
+        
+        a.set(value, mask)
+        # dims of a remain unchanged
+        assert np.all(np.array(a.dims) == np.array(('x', 'y', 'z')))
+        # shape of a remains unchanged
+        assert np.all(np.array(a.values.shape) == np.array((3, 4, 2)))
+        # a.set was broadcast across the 'x' dimension 
+        for x in range(3):
+            for y in range(4):
+                for z in range(2):
+                    if y == 0 and (z==0 or z==1):
+                        assert np.isnan(a[x,y,z])
+                    elif y == 1 and z == 0:
+                        assert np.isnan(a[x,y,z])
+                    else:
+                        assert not np.isnan(a[x,y,z])
+
+
+    def test_get_item_with_units_data_array_as_key_throws_index_error(self):
+        """
+        I believe this is not the desired behavior. We should look at this function.
+        """
+        a = UnitsDataArray(
+                np.arange(24, dtype=np.float64).reshape((3, 4, 2)),
+                coords={'x': np.arange(3), 'y': np.arange(4)*10, 'z': np.arange(2)+100},
+                dims=['x', 'y', 'z'])
+        b = a < 3
+        with pytest.raises(IndexError):
+            a[b]
+
+
     def test_partial_transpose_specify_just_lon_swaps_lat_lon(self):
         n_lats = 3
         n_lons = 4
