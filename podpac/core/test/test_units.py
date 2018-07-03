@@ -66,7 +66,7 @@ class TestUnitDataArray(object):
         assert b.attrs.get("units", None) is None
  
 
-    def test_mean_passes_units_while_sum_does_not(self):
+    def test_reductions_maintain_units(self):
         n_lats = 3
         n_lons = 4
         n_alts = 2
@@ -74,7 +74,33 @@ class TestUnitDataArray(object):
                             dims=['lat', 'lon', 'alt'],
                             attrs={'units': ureg.meter})
         assert a.mean(axis=0).attrs.get("units", None) is not None
-        assert a.sum(axis=0).attrs.get("units", None) is None
+        assert a.sum(axis=0).attrs.get("units", None) is not None
+        assert a.cumsum(axis=0).attrs.get("units", None) is not None
+        assert a.min(axis=0).attrs.get("units", None) is not None
+        assert a.max(axis=0).attrs.get("units", None) is not None
+        assert np.mean(a, axis=0).attrs.get("units", None) is not None
+        assert np.sum(a, axis=0).attrs.get("units", None) is not None
+        assert np.cumsum(a, axis=0).attrs.get("units", None) is not None
+        assert np.min(a, axis=0).attrs.get("units", None) is not None
+        assert np.max(a, axis=0).attrs.get("units", None) is not None
+
+    def test_set_to_value_using_UnitsDataArray_as_mask_does_nothing_if_mask_has_dim_not_in_array(self):
+        a = UnitsDataArray(
+                np.arange(24, dtype=np.float64).reshape((3, 4, 2)),
+                coords={'x': np.arange(3), 'y': np.arange(4)*10, 'z': np.arange(2)+100},
+                dims=['x', 'y', 'z'])
+        b = UnitsDataArray(
+                np.arange(24, dtype=np.float64).reshape((3, 4, 2)),
+                coords={'i': np.arange(3), 'y': np.arange(4)*10, 'z': np.arange(2)+100},
+                dims=['i', 'y', 'z'])
+
+        mask = b > -10
+        value = np.nan
+
+        a.set(value, mask)
+        # dims of a remain unchanged
+        assert not np.any(np.isnan(a.data))
+
 
     def test_set_to_value_using_UnitsDataArray_as_mask_broadcasts_to_dimensions_not_in_mask(self):
         a = UnitsDataArray(

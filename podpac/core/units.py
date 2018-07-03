@@ -317,7 +317,7 @@ for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     setattr(UnitsDataArray, meth, func)
 
 
-for tp in ("mean", 'min', 'max'):
+for tp in ("mean", 'min', 'max', 'sum', 'cumsum'):
 
     def func(self, tp=tp, *args, **kwargs):
         """Summary
