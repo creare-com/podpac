@@ -61,7 +61,7 @@ class TestUnitDataArray(object):
 
         mask = b.transpose(*('z','y'))
         value = np.nan
-        
+
         a.set(value, mask)
         # dims of a remain unchanged
         assert np.all(np.array(a.dims) == np.array(('x', 'y', 'z')))
@@ -77,6 +77,28 @@ class TestUnitDataArray(object):
                         assert np.isnan(a[x,y,z])
                     else:
                         assert not np.isnan(a[x,y,z])
+
+    def test_get_item_with_1d_units_data_array_as_key_boradcasts_to_correct_dimension(self):
+        a = UnitsDataArray(
+                np.arange(24).reshape((3, 4, 2)),
+                coords={'x': np.arange(3), 'y': np.arange(4)*10, 'z': np.arange(2)+100},
+                dims=['x', 'y', 'z'])
+        b = a[0, :, 0]
+        b = b<3
+        c = a[b]
+        # dims of a remain unchanged
+        assert np.all(np.array(a.dims) == np.array(('x', 'y', 'z')))
+        # shape of a remains unchanged
+        assert np.all(np.array(a.values.shape) == np.array((3, 4, 2)))
+        # dims of a remain unchanged
+        assert np.all(np.array(c.dims) == np.array(('x', 'y', 'z')))
+        # shape of a remains unchanged
+        assert np.all(np.array(c.values.shape) == np.array((3, 2, 2)))
+        # a[b] was broadcast across the 'y' dimension 
+        for x in range(3):
+            for y in range(2):
+                for z in range(2):
+                    c[x,y,z] in [ 0,  1,  2,  3,  8,  9, 10, 11, 16, 17, 18, 19]
 
 
     def test_get_item_with_units_data_array_as_key_throws_index_error(self):

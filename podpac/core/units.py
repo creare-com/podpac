@@ -160,7 +160,8 @@ class UnitsDataArray(xr.DataArray):
 
     def __getitem__(self, key):
         # special cases when key is also a DataArray
-        if isinstance(key, xr.DataArray):
+        # and has only one dimension
+        if isinstance(key, xr.DataArray) and len(key.dims) == 1:
             # transpose with shared dims first
             shared_dims = [dim for dim in self.dims if dim in key.dims]
             missing_dims = [dim for dim in self.dims if dim not in key.dims]
