@@ -36,6 +36,12 @@ class TestUnitsNode(object):
         with pytest.raises(DimensionalityError):
             strict_node.length = a
 
+    def test_set_length_to_number_throws_error(self):
+        strict_node = StrictUnitsNode()
+        with pytest.raises(tl.TraitError):
+            strict_node.length = 10
+
+
 class TestUnits(object):
     def test_set_units_to_related_unit(self):
         l = Length()
@@ -51,6 +57,25 @@ class TestUnits(object):
             l.units = 'meter'
 
 class TestUnitDataArray(object):
+    def test_no_units_to_base_units_has_no_units(self):
+        a = UnitsDataArray(
+                np.arange(24, dtype=np.float64).reshape((3, 4, 2)),
+                coords={'x': np.arange(3), 'y': np.arange(4)*10, 'z': np.arange(2)+100},
+                dims=['x', 'y', 'z'])
+        b = a.to_base_units()
+        assert b.attrs.get("units", None) is None
+ 
+
+    def test_mean_passes_units_while_sum_does_not(self):
+        n_lats = 3
+        n_lons = 4
+        n_alts = 2
+        a = UnitsDataArray(np.arange(n_lats*n_lons*n_alts).reshape((n_lats,n_lons,n_alts)), 
+                            dims=['lat', 'lon', 'alt'],
+                            attrs={'units': ureg.meter})
+        assert a.mean(axis=0).attrs.get("units", None) is not None
+        assert a.sum(axis=0).attrs.get("units", None) is None
+
     def test_set_to_value_using_UnitsDataArray_as_mask_broadcasts_to_dimensions_not_in_mask(self):
         a = UnitsDataArray(
                 np.arange(24, dtype=np.float64).reshape((3, 4, 2)),
