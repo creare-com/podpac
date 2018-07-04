@@ -167,7 +167,7 @@ class Node(tl.HasTraits):
         return self.initialize_output_array('nan')
 
     native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
-                                     allow_none=True)
+                                     allow_none=True, default=None)
     evaluated = tl.Bool(default_value=False)
     implicit_pipeline_evaluation = tl.Bool(default_value=True, help="Evaluate the pipeline implicitly (True, Default)")
     evaluated_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',

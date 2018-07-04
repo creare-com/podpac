@@ -250,16 +250,23 @@ class DataSource(Node):
     @common_doc(COMMON_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
-
+        
         Raises
         ------
         NotImplementedError
             This needs to be implemented by derived classes
+        
+        Returns
+        -------
+        podpac.Coordinate
+            Native coordinates of the datasource
         """
 
-        # TODO: should this return self.native_coordinates by default? Otherwise raise NotImplementedError?
-        raise NotImplementedError
-        
+        if self.native_coordinates is not None:
+            return self.native_coordinates
+        else:
+            raise NotImplementedError
+    
     @tl.default('native_coordinates')
     def _native_coordinates_default(self):
         return self.get_native_coordinates()

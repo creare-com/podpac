@@ -103,48 +103,63 @@ class PyDAP(podpac.DataSource):
     Attributes
     ----------
     auth_class : podpac.core.authentication.SessionWithHeaderRedirection
-        A request.Session-derived class that has header redirection. This is used to authenticate using an EarthData 
-        login. When username and password are provided, an auth_session is created using this class. 
+        A request.Session-derived class that has header redirection. This is used to authenticate using an EarthData
+        login. When username and password are provided, an auth_session is created using this class.
     auth_session : podpac.core.authentication.SessionWithHeaderRedirection
-        Instance of the auth_class. This is created if username and password is supplied, but this object can also be 
+        Instance of the auth_class. This is created if username and password is supplied, but this object can also be
         supplied directly
     datakey : str
         Pydap 'key' for the data to be retrieved from the server. Datasource may have multiple keys, so this key
-        determines which variable is returned from the source. 
+        determines which variable is returned from the source.
     dataset : pydap.model.DatasetType
-        The open pydap dataset. This is provided for troubleshooting. 
+        The open pydap dataset. This is provided for troubleshooting.
     native_coordinates : podpac.Coordinate
         {ds_native_coordinates}
-    password : str, optional 
+    password : str, optional
         Password used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
-        auth_session instead if you have security concerns. 
+        auth_session instead if you have security concerns.
     source : str
-        URL of the OpenDAP server. 
+        URL of the OpenDAP server.
     username : str, optional
         Username used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
-        auth_session instead if you have security concerns. 
+        auth_session instead if you have security concerns.
     """
     
+    # required inputs
+    source = tl.Unicode(allow_none=False)
+    datakey = tl.Unicode(allow_none=False)
+
+    # optional inputs and later defined traits
     auth_session = tl.Instance(authentication.SessionWithHeaderRedirection,
                                allow_none=True)
     auth_class = tl.Type(authentication.SessionWithHeaderRedirection)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
+    dataset = tl.Instance('pydap.model.DatasetType', allow_none=True)
 
     @tl.default('auth_session')
     def _auth_session_default(self):
+        
+        # requires username and password
         if not self.username or not self.password:
             return None
-        session = self.auth_class(username=self.username, password=self.password)
 
-        # check url
+        # requires auth_class
+        # TODO: default auth_class?
+        if not self.auth_class:
+            return None
+
+        # instantiate and check utl
         try:
+            session = self.auth_class(username=self.username, password=self.password)
             session.get(self.source + '.dds')
         except:
+            # TODO: catch a 403 error
             return None
+
+
         return session
    
-    dataset = tl.Instance('pydap.model.DatasetType', allow_none=True)
 
     @tl.default('dataset')
     def _open_dataset(self, source=None):
@@ -152,7 +167,7 @@ class PyDAP(podpac.DataSource):
         
         Parameters
         ----------
-        source : None, optional
+        source : str, optional
             Description
         
         Returns
@@ -160,31 +175,48 @@ class PyDAP(podpac.DataSource):
         TYPE
             Description
         """
+        # TODO: is source ever None?
+        # TODO: enforce string source
         if source is None:
             source = self.source
         else:
             self.source = source
         
+        # auth session
+        # if self.auth_session:
         try:
             dataset = pydap.client.open_url(source, session=self.auth_session)
-        except:
-            #Check Url (probably inefficient...)
-            self.auth_session.get(self.source + '.dds')
-            dataset = pydap.client.open_url(source, session=self.auth_session)
-        
+        except Exception:
+            # TODO handle a 403 error
+            # TODO: Check Url (probably inefficient...)
+            try:
+                self.auth_session.get(self.source + '.dds')
+                dataset = pydap.client.open_url(source, session=self.auth_session)
+            except Exception:
+                # TODO: handle 403 error
+                dataset = None
+
         return dataset
         
 
+    # TODO: where does "change" get passed in from?
     @tl.observe('source')
-    def _update_dataset(self, change):
-        if change['old'] == None:
+    def _update_dataset(self, change=None):
+        if change is None:
             return
-        if self.dataset is not None:
-            self.dataset = self._open_dataset(change['new'])
-        if self.native_coordinates is not None:
-            self.native_coordinates = self.get_native_coordinates()
 
-    datakey = tl.Unicode(allow_none=False)
+        if change['old'] is None:
+            return
+
+        if self.dataset is not None:
+            self.dataset = self._open_dataset(source=change['new'])
+
+        try:
+            if self.native_coordinates is not None:
+                self.native_coordinates = self.get_native_coordinates()
+        except NotImplementedError:
+            pass
+
   
     @common_doc(COMMON_DOC)
     def get_native_coordinates(self):
@@ -195,8 +227,8 @@ class PyDAP(podpac.DataSource):
         NotImplementedError
             DAP has no mechanism for creating coordinates automatically, so this is left up to child classes.
         """
-        raise NotImplementedError("DAP has no mechanism for creating coordinates"
-                                  ", so this is left up to child class "
+        raise NotImplementedError("DAP has no mechanism for creating coordinates" +
+                                  ", so this is left up to child class " +
                                   "implementations.")
 
     @common_doc(COMMON_DOC)
@@ -219,6 +251,7 @@ class PyDAP(podpac.DataSource):
         """
         return self.dataset.keys()
 
+# TODO: rename "Rasterio" to be more consistent with other naming conventions
 @common_doc(COMMON_DOC)
 class RasterioSource(podpac.DataSource):
     """Create a DataSource using Rasterio.
