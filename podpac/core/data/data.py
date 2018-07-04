@@ -262,10 +262,7 @@ class DataSource(Node):
             Native coordinates of the datasource
         """
 
-        if self.native_coordinates is not None:
-            return self.native_coordinates
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
     
     @tl.default('native_coordinates')
     def _native_coordinates_default(self):
