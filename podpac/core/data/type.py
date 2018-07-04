@@ -290,6 +290,9 @@ class RasterioSource(podpac.DataSource):
             source = self.source
         else:
             self.source = source
+
+        # TODO: dataset should not open by default
+        # prefer with as: syntax
         return rasterio.open(source)
     
     def close_dataset(self):
@@ -308,19 +311,21 @@ class RasterioSource(podpac.DataSource):
         """{get_native_coordinates}
         
         The default implementation tries to find the lat/lon coordinates based on dataset.affine or dataset.transform
-        (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may 
-        have to overload this method. 
+        (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
+        have to overload this method.
         """
         dlon = self.dataset.width
         dlat = self.dataset.height
+
         if hasattr(self.dataset, 'affine'):
             affine = self.dataset.affine
         else:
             affine = self.dataset.transform
+
         left, bottom, right, top = self.dataset.bounds
-        if affine[1] != 0.0 or\
-           affine[3] != 0.0:
-            raise NotImplementedError("Have not implemented rotated coords")
+
+        if affine[1] != 0.0 or affine[3] != 0.0:
+            raise NotImplementedError("Rotated coordinates are not yet supported")
 
         return podpac.Coordinate(lat=(top, bottom, dlat),
                                  lon=(left, right, dlon),
@@ -858,10 +863,10 @@ class S3Source(podpac.DataSource):
     node_kwargs : dict, optional
         Keyword arguments passed to `node_class` when automatically creating `node`
     return_type : str, optional
-        Either: 'file_handle' (for files downloaded to RAM); or 
+        Either: 'file_handle' (for files downloaded to RAM); or
         the default option 'path' (for files downloaded to disk)
     s3_bucket : str, optional
-        Name of the S3 bucket. Uses settings.S3_BUCKET_NAME by default. 
+        Name of the S3 bucket. Uses settings.S3_BUCKET_NAME by default.
     s3_data : file/str
         If return_type == 'file_handle' returns a file pointer object
         If return_type == 'path' returns a string to the data
@@ -894,6 +899,7 @@ class S3Source(podpac.DataSource):
         """
         if 'source' in self.node_kwargs:
             raise Exception("'source' present in node_kwargs for S3Source")
+
         return self.node_class(source=self.s3_data, **self.node_kwargs)
 
     @tl.default('s3_bucket')
@@ -1035,4 +1041,4 @@ if __name__ == '__main__':
     obs3 = list(s3.objects.all())
     obsD = [o for o in obs3 if 'ASOwusu' in o.key]
     for o in obsD:
-        o.delete()    
+        o.delete()
