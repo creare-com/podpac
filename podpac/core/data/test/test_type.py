@@ -2,19 +2,22 @@
 Test podpac.core.data.type module
 """
 
+import os
+from collections import OrderedDict
+
 import pytest
 
 import numpy as np
 from traitlets import TraitError
 from xarray.core.coordinates import DataArrayCoordinates
-
 import pydap
+import rasterio
 
 from podpac.core import data
 from podpac.core.units import UnitsDataArray
-from podpac.core.data.data import COMMON_DATA_DOC
-from podpac.core.node import COMMON_NODE_DOC 
-from podpac.core.data.type import COMMON_DOC, NumpyArray, PyDAP
+from podpac.core.data.data import COMMON_DATA_DOC, DataSource
+from podpac.core.node import COMMON_NODE_DOC, Node
+from podpac.core.data.type import COMMON_DOC, NumpyArray, PyDAP, RasterioSource, WCS, S3Source
 from podpac.core.coordinate import Coordinate
 
 
@@ -219,10 +222,154 @@ class TestType(object):
     class TestRasterio(object):
         """test rasterio data source"""
 
-        source = 'path/to/rasterio'
+        source = os.path.join(os.path.dirname(__file__), 'assets/RGB.byte.tif')
         band = 1
 
 
+        def test_init(self):
+            """test basic init of class"""
+
+            node = RasterioSource(source=self.source, band=self.band)
+            assert isinstance(node, RasterioSource)
+
+            node = MockRasterioSource()
+            assert isinstance(node, MockRasterioSource)
+
+        def test_traits(self):
+            """ check each of the rasterio traits """
+
+            with pytest.raises(TraitError):
+                RasterioSource(source=5, band=self.band)
+
+            with pytest.raises(TraitError):
+                RasterioSource(source=self.source, band='test')
+
+        def test_dataset(self):
+            """test dataset attribute and trait default """
+            
+            node = RasterioSource(source=self.source, band=self.band)
+            assert isinstance(node.dataset, rasterio._io.RasterReader)
+
+            # update source when asked
+            with pytest.raises(rasterio.errors.RasterioIOError):
+                node.open_dataset(source='assets/not-tiff')
+
+            assert node.source == 'assets/not-tiff'
+
+            node.close_dataset()
+
+        def test_default_native_coordinates(self):
+            """test default native coordinates implementations"""
+            
+            node = RasterioSource(source=self.source)
+            native_coordinates = node.get_native_coordinates()
+            assert isinstance(native_coordinates, Coordinate)
+            assert len(native_coordinates['lat']) == 718
+
+        def test_get_data(self):
+            """test default get_data method"""
+
+            node = RasterioSource(source=self.source)
+            native_coordinates = node.get_native_coordinates()
+            output = node.execute(native_coordinates)
+
+            assert isinstance(output, UnitsDataArray)
+
+        def test_band_descriptions(self):
+            """test band count method"""
+            node = RasterioSource(source=self.source)
+            bands = node.band_descriptions
+            assert bands and isinstance(bands, OrderedDict)
+
+        def test_band_count(self):
+            """test band descriptions methods"""
+            node = RasterioSource(source=self.source)
+            count = node.band_count
+            assert count and isinstance(count, int)
+
+        def test_band_keys(self):
+            """test band keys methods"""
+            node = RasterioSource(source=self.source)
+            keys = node.band_keys
+            assert keys and isinstance(keys, dict)
+
+        # TODO: what is the input to this method?
+        @pytest.mark.skip('this does not seem to work')
+        def test_get_band_numbers(self):
+            """test band numbers methods"""
+            node = RasterioSource(source=self.source)
+            numbers = node.get_band_numbers(0, 255)
+            assert numbers and isinstance(numbers, np.ndarray)
+
+        def tests_source(self):
+            """test source attribute and trailets observe"""
+            
+            node = RasterioSource(source=self.source)
+            assert node.source == self.source
+
+            # clear cache when source changes
+            node._clear_band_description(change={'old': None, 'new': None})
+
+
+    class TestWCS(object):
+        """test WCS data source"""
+
+        source = 'WCSsource'
+
+        def test_init(self):
+            """test basic init of class"""
+
+            node = WCS(source=self.source)
+            assert isinstance(node, WCS)
+
+
+    class TestS3Source(object):
+        """test S3 data source"""
+
+        source = 's3source'
+
+        def test_init(self):
+            """test basic init of class"""
+
+            node = S3Source(source=self.source)
+            assert isinstance(node, S3Source)
+
+        def test_traits(self):
+            """ check each of the s3 traits """
+
+            S3Source(source=self.source, s3_bucket='bucket')
+            with pytest.raises(TraitError):
+                S3Source(source=self.source, s3_bucket=5)
+
+            S3Source(source=self.source, node=Node())
+            with pytest.raises(TraitError):
+                S3Source(source=self.source, node='not a node')
+
+            S3Source(source=self.source, node_kwargs={})
+            with pytest.raises(TraitError):
+                S3Source(source=self.source, node_kwargs=5)
+
+            S3Source(source=self.source, node_class=DataSource)
+            with pytest.raises(TraitError):
+                S3Source(source=self.source, node_class=5)
+
+        def test_node(self):
+            """test node attribute and defaults"""
+
+            parent_node = Node()
+            node = S3Source(source=self.source, node=parent_node)
+
+            assert node.node_class
+
+            # TODO: this should raise
+            # with pytest.raises(Exception): 
+            #     S3Source(source=self.source, node_kwargs={'source': 'test'})
+
+
+
+#####
+# Implemented Data Source Classes
+#####
 class MockPyDAP(PyDAP):
     """mock pydap data source """
     
@@ -233,3 +380,14 @@ class MockPyDAP(PyDAP):
 
     def get_native_coordinates(self):
         return self.native_coordinates
+
+
+class MockRasterioSource(RasterioSource):
+    """mock rasterio data source """
+    
+    source = os.path.join(os.path.dirname(__file__), 'assets/RGB.byte.tif')
+    band = 1
+
+    def get_native_coordinates(self):
+        return self.native_coordinates
+
