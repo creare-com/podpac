@@ -72,7 +72,7 @@ def make_coordinate_combinations(lat=None, lon=None, alt=None, time=None):
             for i in range(len(indep_coords)):
                 crd = indep_coords[i]
                 kwargs_plus = kwargs.copy()
-                kwargs_plus.update({c: coord1d[c] for c in crd})
+                kwargs_plus.update(OrderedDict([[c, coord1d[c]] for c in crd]))
                 #print ("Depth", depth, ', i', i)
                 coord_collection = recurse_coord(coord_collection, indep_coords, kwargs_plus, depth+1)
             return coord_collection
