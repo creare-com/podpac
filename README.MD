@@ -1,5 +1,7 @@
 # PODPAC 
 
+[![icon](doc/source/_static/img/icon-outline.png)](https://creare-com.github.io/podpac-docs)
+
 > Pipeline for Observation Data Processing Analysis and Collaboration
 
 [![Build Status](https://travis-ci.org/creare-com/podpac.svg?branch=develop)](https://travis-ci.org/creare-com/podpac)
