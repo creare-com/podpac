@@ -43,7 +43,8 @@ class UnitsNode(tl.TraitType):
         TYPE
             Description
         """
-        if isinstance(value, Node):
+        import podpac.core.node as node
+        if isinstance(value, node.Node):
             if 'units' in self.metadata and value.units is not None:
                 u = ureg.check(self.metadata['units'])(lambda x: x)(value.units)
                 return value
@@ -159,7 +160,8 @@ class UnitsDataArray(xr.DataArray):
 
     def __getitem__(self, key):
         # special cases when key is also a DataArray
-        if isinstance(key, xr.DataArray):
+        # and has only one dimension
+        if isinstance(key, xr.DataArray) and len(key.dims) == 1:
             # transpose with shared dims first
             shared_dims = [dim for dim in self.dims if dim in key.dims]
             missing_dims = [dim for dim in self.dims if dim not in key.dims]
@@ -211,7 +213,7 @@ class UnitsDataArray(xr.DataArray):
             Description
         """
 
-        if type(mask) is UnitsDataArray and isinstance(value,Number):
+        if isinstance(mask,UnitsDataArray) and isinstance(value,Number):
             orig_dims = deepcopy(self.dims)   
 
             # find out status of all dims
@@ -315,7 +317,7 @@ for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     setattr(UnitsDataArray, meth, func)
 
 
-for tp in ("mean", 'min', 'max'):
+for tp in ("mean", 'min', 'max', 'sum', 'cumsum'):
 
     def func(self, tp=tp, *args, **kwargs):
         """Summary
@@ -342,25 +344,3 @@ for tp in ("mean", 'min', 'max'):
 
 del func
 
-if __name__ == "__main__":
-    # a1 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
-    #                        attrs={'units': ureg.meter})
-    # a2 = UnitsDataArray(np.ones((4,3)), dims=['lat', 'lon'],
-    #                        attrs={'units': ureg.kelvin})
-
-    # np.mean(a1)
-    # np.std(a1)
-
-    a = UnitsDataArray(
-        np.arange(24).reshape((3, 4, 2)),
-        coords={'x': np.arange(3), 'y': np.arange(4)*10, 'z': np.arange(2)+100},
-        dims=['x', 'y', 'z'])
-    b = a[0, :, :]
-    b = b<3
-    b = b.transpose(*('z','y'))
-    print(a)
-    print(b)
-    a.set(-10,b)
-    print(a)
-
-    print ("Done")
