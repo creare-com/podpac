@@ -303,7 +303,7 @@ class TestGetImage(object):
         assert(im == b'iVBORw0KGgoAAAANSUhEUgAAAAUAAAADCAYAAABbNsX4AAAABHNCSVQICAgIfAhkiAAAABVJREFUCJljdGEM+c+ABpjQBXAKAgBgJgGe5UsCaQAAAABJRU5ErkJggg==')
 
 class TestNodeOutputCoordinates(object):
-    @pytest.mark.xfail("This defines part of the node spec, which still needs to be implemented")
+    @pytest.mark.xfail(reason="This defines part of the node spec, which still needs to be implemented")
     def test_node_output_coordinates(self):
         ev = ctu.make_coordinate_combinations()
         kwargs = {}
