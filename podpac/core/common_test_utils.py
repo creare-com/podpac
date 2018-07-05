@@ -65,7 +65,7 @@ def make_coordinate_combinations(lat=None, lon=None, alt=None, time=None):
     def recurse_coord(coord_collection, indep_coords, kwargs=OrderedDict(), depth=0):
         #print ("Depth", depth)
         if len(indep_coords) == depth:
-            coord_collection[tuple(kwargs.keys())] = pcoord.Coordinate(**kwargs, order=list(kwargs.keys()))
+            coord_collection[tuple(kwargs.keys())] = pcoord.Coordinate(order=list(kwargs.keys()), **kwargs)
             kwargs = OrderedDict()
             return coord_collection
         else:
