@@ -25,8 +25,8 @@ extras_require = {
         'requests>=2.18',
         ],
     'aws': [
-        'awscli>=1.11'
-        'boto3>=1.4',
+        'awscli>=1.11',
+        'boto3>=1.4'
     ],
     'algorithms': [
         'numexpr>=2.6',
