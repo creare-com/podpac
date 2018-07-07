@@ -47,6 +47,7 @@ try:
 except:
     requests = None
     try:
+        # TODO: remove support urllib3 - requests is sufficient
         import urllib3
     except:
         urllib3 = None
@@ -449,13 +450,16 @@ class WCS(podpac.DataSource):
     layer_name = tl.Unicode().tag(attr=True)
     version = tl.Unicode(WCS_DEFAULT_VERSION).tag(attr=True)
     crs = tl.Unicode(WCS_DEFAULT_CRS).tag(attr=True)
-    _get_capabilities_qs = tl.Unicode('SERVICE=WCS&REQUEST=DescribeCoverage&'
-                                     'VERSION={version}&COVERAGE={layer}')
-    _get_data_qs = tl.Unicode('SERVICE=WCS&VERSION={version}&REQUEST=GetCoverage&'
-                             'FORMAT=GeoTIFF&COVERAGE={layer}&'
-                             'BBOX={w},{s},{e},{n}&CRS={crs}&RESPONSE_CRS={crs}&'
-                             'WIDTH={width}&HEIGHT={height}&TIME={time}')
+    wcs_coordinates = tl.Instance(podpac.Coordinate)   # default below
 
+    _get_capabilities_qs = tl.Unicode('SERVICE=WCS&REQUEST=DescribeCoverage&'
+                                      'VERSION={version}&COVERAGE={layer}')
+    _get_data_qs = tl.Unicode('SERVICE=WCS&VERSION={version}&REQUEST=GetCoverage&'
+                              'FORMAT=GeoTIFF&COVERAGE={layer}&'
+                              'BBOX={w},{s},{e},{n}&CRS={crs}&RESPONSE_CRS={crs}&'
+                              'WIDTH={width}&HEIGHT={height}&TIME={time}')
+
+    # TODO: This should be capabilities_url, not get_
     @property
     def get_capabilities_url(self):
         """Constructs the url that requests the WCS capabilities
@@ -468,7 +472,6 @@ class WCS(podpac.DataSource):
         return self.source + '?' + self._get_capabilities_qs.format(
             version=self.version, layer=self.layer_name)
 
-    wcs_coordinates = tl.Instance(podpac.Coordinate)
     @tl.default('wcs_coordinates')
     def get_wcs_coordinates(self):
         """Retrieves the native coordinates reported by the WCS service.
@@ -492,6 +495,8 @@ class WCS(podpac.DataSource):
             if capabilities.status_code != 200:
                 raise Exception("Could not get capabilities from WCS server")
             capabilities = capabilities.text
+
+        # TODO: remove support urllib3 - requests is sufficient
         elif urllib3 is not None:
             if certifi is not None:
                 http = urllib3.PoolManager(ca_certs=certifi.where())
@@ -526,7 +531,7 @@ class WCS(podpac.DataSource):
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
             return podpac.Coordinate(lat=(top, bottom, size[1]),
-                                         lon=(left, right, size[0]), order=['lat', 'lon'])
+                                     lon=(left, right, size[0]), order=['lat', 'lon'])
         
         date_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')
@@ -534,7 +539,7 @@ class WCS(podpac.DataSource):
         
         return podpac.Coordinate(time=times,
                                  lat=(top, bottom, size[1]),
-                                 lon=(left, right, size[0]),                        
+                                 lon=(left, right, size[0]),
                                  order=['time', 'lat', 'lon'])
         
 
@@ -564,13 +569,15 @@ class WCS(podpac.DataSource):
                     # This is rough, we have to use a regular grid for WCS calls,
                     # Otherwise we have to do multiple WCS calls...
                     # TODO: generalize/fix this
-                    cs[c] = (min(ev[c].coords),
-                             max(ev[c].coords), abs(ev[c].delta))
+                    cs[c] = (np.min(ev[c].coords),
+                             np.max(ev[c].coords), np.abs(ev[c].delta))
                 elif c in ev.dims and isinstance(ev[c], podpac.UniformCoord):
-                    cs[c] = (min(ev[c].coords[:2]),
-                             max(ev[c].coords[:2]), abs(ev[c].delta))
+                    cs[c] = (np.min(ev[c].coords[:2]),
+                             np.max(ev[c].coords[:2]), np.abs(ev[c].delta))
                 else:
-                    cs.append(wcs_c[c])
+                    cs[c] = wcs_c[c]
+                    # TODO: OrderedDict() has no append method
+                    # cs.append(wcs_c[c])
             c = podpac.Coordinate(cs)
             return c
         else:
@@ -592,7 +599,7 @@ class WCS(podpac.DataSource):
             times = [str(t+sd) for t in coordinates['time'].coordinates]
         else:
             times = ['']
-            
+        
         if len(times) > 1:
             for i, time in enumerate(times):
                 url = self.source + '?' + self._get_data_qs.format(
@@ -616,6 +623,8 @@ class WCS(podpac.DataSource):
                         raise Exception("Could not get data from WCS server")
                     io = BytesIO(bytearray(data.content))
                     content = data.content
+
+                # TODO: remove support urllib3 - requests is sufficient
                 elif urllib3 is not None:
                     if certifi is not None:
                         http = urllib3.PoolManager(ca_certs=certifi.where())
@@ -676,6 +685,8 @@ class WCS(podpac.DataSource):
                     raise Exception("Could not get data from WCS server")
                 io = BytesIO(bytearray(data.content))
                 content = data.content
+
+            # TODO: remove support urllib3 - requests is sufficient
             elif urllib3 is not None:
                 if certifi is not None:
                     http = urllib3.PoolManager(ca_certs=certifi.where())
@@ -758,6 +769,8 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
     source_interpolation = tl.Unicode('nearest_preview').tag(param=True)
     source = tl.Instance(podpac.Node)
     # Specify either one of the next two
+    # TODO: should this be of type podpac.Coordinate?
+    # This doesn't make much sense
     coordinates_source = tl.Instance(podpac.Node, allow_none=True).tag(attr=True)
     reprojected_coordinates = tl.Instance(podpac.Coordinate).tag(attr=True)
 
@@ -878,10 +891,11 @@ class S3Source(podpac.DataSource):
     node = tl.Instance(podpac.Node)
     node_class = tl.Type(podpac.DataSource)  # A class
     node_kwargs = tl.Dict(default_value={})
-    s3_bucket = tl.Unicode()
-    s3_data = tl.Any()
+    s3_bucket = tl.Unicode(allow_none=True)
+    s3_data = tl.Any(allow_none=True)
     _temp_file_cleanup = tl.List()
     return_type = tl.Enum(['file_handle', 'path'], default_value='path')
+    # TODO: handle s3 auth setup
     
     @tl.default('node')
     def node_default(self):
@@ -904,7 +918,7 @@ class S3Source(podpac.DataSource):
 
     @tl.default('s3_bucket')
     def s3_bucket_default(self):
-        """Retrieves defaul S3 Bucket from settings
+        """Retrieves default S3 Bucket from settings
         
         Returns
         -------
@@ -922,8 +936,14 @@ class S3Source(podpac.DataSource):
         str/file
             Either a string to the downloaded file path, or a file handle
         """
+        if self.s3_bucket is None:
+            raise ValueError('No s3 bucket set')
+
         s3 = boto3.resource('s3').Bucket(self.s3_bucket)
+
         if self.return_type == 'file_handle':
+            # TODO: should this use the with/as syntax
+            # https://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.download_fileobj
             # download into memory
             io = BytesIO()
             s3.download_fileobj(self.source, io)
@@ -947,6 +967,8 @@ class S3Source(podpac.DataSource):
                                        #self.source + '.%d' % i)
             if not os.path.exists(tmppath):
                 s3.download_file(self.source, tmppath)
+
+            # TODO: should we handle temp files here?
             #self._temp_file_cleanup.append(tmppath)
             return tmppath
 
@@ -969,76 +991,3 @@ class S3Source(podpac.DataSource):
             super(S3Source).__del__(self)
         for f in self._temp_file_cleanup:
             os.remove(f)
-
-if __name__ == '__main__':
-    #from podpac.core.data.type import S3Source
-    #import podpac
-
-    source = r'SMAPSentinel/SMAP_L2_SM_SP_1AIWDV_20170801T000000_20170731T114719_094E21N_T15110_002.h5'
-    s3 = S3Source(source=source)
-    
-    s3.s3_data
-    
-    #coord_src = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16), time=(0, 1, 2),
-                                    #order=['lat', 'lon', 'time'])
-    #coord_dst = podpac.Coordinate(lat=(50., 0., 50), lon=(-71., -66., 100),
-                                    #order=['lat', 'lon'])
-    #LON, LAT, TIME = np.meshgrid(coord_src['lon'].coordinates,
-                                    #coord_src['lat'].coordinates,
-                                    #coord_src['time'].coordinates)
-    ##LAT, LON = np.mgrid[0:45+coord_src['lat'].delta/2:coord_src['lat'].delta,
-                                ##-70:-65+coord_src['lon'].delta/2:coord_src['lon'].delta]    
-    #source = LAT + 0*LON + 0*TIME
-    #nas = NumpyArray(source=source.astype(float), 
-                        #native_coordinates=coord_src, interpolation='bilinear')
-    ##coord_pts = podpac.Coordinate(lat_lon=(coord_src.coords['lat'], coord_src.coords['lon']))
-    ##o3 = nas.execute(coord_pts)
-    #o = nas.execute(coord_dst)
-    ##coord_pt = podpac.Coordinate(lat=10., lon=-67.)
-    ##o2 = nas.execute(coord_pt)
-    from podpac.datalib.smap import SMAPSentinelSource
-    s3.node_class = SMAPSentinelSource
-
-    #coordinates = podpac.Coordinate(lat=(45, 0, 16), lon=(-70., -65., 16),
-                                    #order=['lat', 'lon'])
-    coordinates = podpac.Coordinate(lat=(39.3, 39., 64), lon=(-77.0, -76.7, 64), time='2017-09-03T12:00:00', 
-                                    order=['lat', 'lon', 'time'])    
-    reprojected_coordinates = podpac.Coordinate(lat=(45, 0, 3), lon=(-70., -65., 3),
-                                                order=['lat', 'lon']),
-    #                                           'TopographicWetnessIndexComposited3090m'),
-    #          )
-
-    o = wcs.execute(coordinates)
-    reprojected = ReprojectedSource(source=wcs,
-                                    reprojected_coordinates=reprojected_coordinates,
-                                    interpolation='bilinear')
-
-    from podpac.datalib.smap import SMAP
-    smap = SMAP(product='SPL4SMAU.003')
-    reprojected = ReprojectedSource(source=wcs,
-                                    coordinates_source=smap,
-                                    interpolation='nearest')    
-    o2 = reprojected.execute(coordinates)
-
-    coordinates_zoom = podpac.Coordinate(lat=(24.8, 30.6, 64), lon=(-85.0, -77.5, 64), time='2017-08-08T12:00:00', 
-                                         order=['lat', 'lon', 'time'])
-    o3 = wcs.execute(coordinates_zoom)
-
-
-    print ("Done")
-    
-    # Rename files in s3 bucket
-    s3 = boto3.resource('s3').Bucket(self.s3_bucket)
-    s3.Bucket(name='podpac-s3')
-    obs = list(s3.objects.all())
-    obs2 = [o for o in obs if 'SMAP_L2_SM_SP' in o.key]
-    
-    rootpath = obs2[0].key.split('/')[0] + '/'
-    for o in obs2:
-        newkey = rootpath + os.path.split(o.key)[1]
-        s3.Object(newkey).copy_from(CopySource=self.s3_bucket + '/' + o.key)
-        
-    obs3 = list(s3.objects.all())
-    obsD = [o for o in obs3 if 'ASOwusu' in o.key]
-    for o in obsD:
-        o.delete()
