@@ -26,6 +26,8 @@ def setup_module():
     data = source.execute(coords)
 
 class TestReduce(object):
+    """ Tests the Reduce class """
+    
     def test_invalid_dims(self):
         # any reduce node would do here
         node = Min(source=source)
@@ -69,6 +71,8 @@ class TestReduce(object):
         xr.testing.assert_allclose(output, output_chunked)
 
 class BaseTests(object):
+    """ Common tests for Reduce subclasses """
+
     def test_full(self):
         output = self.node.execute(coords)
         xr.testing.assert_allclose(output, self.expected_full)
@@ -93,7 +97,6 @@ class BaseTests(object):
         output = self.node.execute(coords, {'dims': 'time', 'iter_chunk_size': 100})
         xr.testing.assert_allclose(output, self.expected_time)
 
-@pytest.mark.skip(reason="TODO: Python 3 issues")
 class TestMin(BaseTests):
     @classmethod
     def setup_class(cls):
@@ -102,7 +105,6 @@ class TestMin(BaseTests):
         cls.expected_latlon = data.min(dim=['lat', 'lon'])
         cls.expected_time = data.min(dim='time')
 
-@pytest.mark.skip(reason="TODO: Python 3 issues")
 class TestMax(BaseTests):
     @classmethod
     def setup_class(cls):
@@ -111,7 +113,6 @@ class TestMax(BaseTests):
         cls.expected_latlon = data.max(dim=['lat', 'lon'])
         cls.expected_time = data.max(dim='time')
 
-@pytest.mark.skip(reason="TODO: Python 3 issues")
 class TestSum(BaseTests):
     @classmethod
     def setup_class(cls):
@@ -121,8 +122,7 @@ class TestSum(BaseTests):
         cls.expected_time = data.sum(dim='time')
 
 # xr.testing.assert_allclose should ignore the DataArray attrs, but that seems to be why these are failing
-# @pytest.mark.xfail(reason="possibly a bug in xarray.testing.assert_allclose")
-@pytest.mark.skip(reason="TODO: Python 3 issues")
+@pytest.mark.xfail(reason="possibly a bug in xarray.testing.assert_allclose")
 class TestCount(BaseTests):
     @classmethod
     def setup_class(cls):
@@ -131,7 +131,6 @@ class TestCount(BaseTests):
         cls.expected_latlon = np.isfinite(data).sum(dim=['lat', 'lon'])
         cls.expected_time = np.isfinite(data).sum(dim='time')
 
-@pytest.mark.skip(reason="TODO: Python 3 issues")
 class TestMean(BaseTests):
     @classmethod
     def setup_class(cls):
@@ -140,7 +139,6 @@ class TestMean(BaseTests):
         cls.expected_latlon = data.mean(dim=['lat', 'lon'])
         cls.expected_time = data.mean(dim='time')
 
-@pytest.mark.skip(reason="TODO: Python 3 issues")
 class TestVariance(BaseTests):
     @classmethod
     def setup_class(cls):
@@ -149,7 +147,6 @@ class TestVariance(BaseTests):
         cls.expected_latlon = data.var(dim=['lat', 'lon'])
         cls.expected_time = data.var(dim='time')
 
-@pytest.mark.skip(reason="TODO: Python 3 issues")
 class TestStandardDeviation(BaseTests):
     @classmethod
     def setup_class(cls):

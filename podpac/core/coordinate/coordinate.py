@@ -814,7 +814,7 @@ class Coordinate(BaseCoordinate):
         # TODO replace self[k].coords[slc] with self[k][slc] (and implement the slice)
 
         slices = [
-            map(lambda i: slice(i, i+n), range(0, m, n))
+            [slice(i, i+n) for i in range(0, m, n)]
             for m, n
             in zip(self.shape, shape)]
 
