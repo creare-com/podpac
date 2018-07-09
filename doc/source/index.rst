@@ -45,6 +45,7 @@ The purpose of PODPAC is to facilitate
     user/coordinates
     user/nodes
     user/pipelines
+    user/earthdata
     user/references
     user/api-min
     user/api

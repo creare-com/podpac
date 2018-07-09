@@ -26,6 +26,8 @@ def setup_module():
     data = source.execute(coords)
 
 class TestReduce(object):
+    """ Tests the Reduce class """
+    
     def test_invalid_dims(self):
         # any reduce node would do here
         node = Min(source=source)
@@ -69,6 +71,8 @@ class TestReduce(object):
         xr.testing.assert_allclose(output, output_chunked)
 
 class BaseTests(object):
+    """ Common tests for Reduce subclasses """
+
     def test_full(self):
         output = self.node.execute(coords)
         xr.testing.assert_allclose(output, self.expected_full)

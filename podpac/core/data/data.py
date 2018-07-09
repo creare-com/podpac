@@ -151,6 +151,7 @@ class DataSource(Node):
         # + the dims that are missing from evaluated_coordinates.
         missing_dims = [dim for dim in self.native_coordinates.dims_map.keys() \
                         if dim not in self.evaluated_coordinates.dims_map.keys()]
+        missing_dims = np.unique([self.native_coordinates.dims_map[md] for md in missing_dims]).tolist()
         transpose_dims = self.evaluated_coordinates.dims + missing_dims
         self.output = self.output.transpose(*transpose_dims)
         

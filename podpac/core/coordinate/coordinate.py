@@ -814,7 +814,7 @@ class Coordinate(BaseCoordinate):
         # TODO replace self[k].coords[slc] with self[k][slc] (and implement the slice)
 
         slices = [
-            map(lambda i: slice(i, i+n), range(0, m, n))
+            [slice(i, i+n) for i in range(0, m, n)]
             for m, n
             in zip(self.shape, shape)]
 
@@ -869,6 +869,7 @@ class Coordinate(BaseCoordinate):
     @property
     def latlon_bounds_str(self):
         if 'lat' in self._coords and 'lon' in self._coords:
+            # Where is this really used? Shouldn't this be area_bounds?
             return '%s_%s_x_%s_%s' % (
                 self['lat'].bounds[0],
                 self['lon'].bounds[0],
