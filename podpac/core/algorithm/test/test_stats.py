@@ -3,6 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import pytest
 import numpy as np
 import xarray as xr
+import scipy.stats
 
 from podpac.core.coordinate import Coordinate
 from podpac.core.data.type import NumpyArray
@@ -75,27 +76,34 @@ class BaseTests(object):
 
     def test_full(self):
         output = self.node.execute(coords)
-        xr.testing.assert_allclose(output, self.expected_full)
+        # xr.testing.assert_allclose(output, self.expected_full)
+        np.testing.assert_allclose(output.data, self.expected_full.data)
 
         output = self.node.execute(coords, {'dims': coords.dims})
-        xr.testing.assert_allclose(output, self.expected_full)
+        # xr.testing.assert_allclose(output, self.expected_full)
+        np.testing.assert_allclose(output.data, self.expected_full.data)
 
         output = self.node.execute(coords, {'iter_chunk_size': 100})
-        xr.testing.assert_allclose(output, self.expected_full)
+        # xr.testing.assert_allclose(output, self.expected_full)
+        np.testing.assert_allclose(output.data, self.expected_full.data)
 
     def test_lat_lon(self):
         output = self.node.execute(coords, {'dims': ['lat', 'lon']})
-        xr.testing.assert_allclose(output, self.expected_latlon)
+        # xr.testing.assert_allclose(output, self.expected_latlon)
+        np.testing.assert_allclose(output.data, self.expected_latlon.data)
 
         output = self.node.execute(coords, {'dims': ['lat', 'lon'], 'iter_chunk_size': 100})
-        xr.testing.assert_allclose(output, self.expected_latlon)
+        # xr.testing.assert_allclose(output, self.expected_latlon)
+        np.testing.assert_allclose(output.data, self.expected_latlon.data)
 
     def test_time(self):
         output = self.node.execute(coords, {'dims': 'time'})
-        xr.testing.assert_allclose(output, self.expected_time)
+        # xr.testing.assert_allclose(output, self.expected_time)
+        np.testing.assert_allclose(output.data, self.expected_time.data)
 
         output = self.node.execute(coords, {'dims': 'time', 'iter_chunk_size': 100})
-        xr.testing.assert_allclose(output, self.expected_time)
+        # xr.testing.assert_allclose(output, self.expected_time)
+        np.testing.assert_allclose(output.data, self.expected_time.data)
 
 class TestMin(BaseTests):
     @classmethod
@@ -121,8 +129,6 @@ class TestSum(BaseTests):
         cls.expected_latlon = data.sum(dim=['lat', 'lon'])
         cls.expected_time = data.sum(dim='time')
 
-# xr.testing.assert_allclose should ignore the DataArray attrs, but that seems to be why these are failing
-@pytest.mark.xfail(reason="possibly a bug in xarray.testing.assert_allclose")
 class TestCount(BaseTests):
     @classmethod
     def setup_class(cls):
@@ -155,11 +161,13 @@ class TestStandardDeviation(BaseTests):
         cls.expected_latlon = data.std(dim=['lat', 'lon'])
         cls.expected_time = data.std(dim='time')
 
-@pytest.mark.skip("TODO")
 class TestSkew(BaseTests):
     @classmethod
     def setup_class(cls):
         cls.node = Skew(source=source)
+        cls.expected_full = xr.DataArray(scipy.stats.skew(data.data.reshape(1000), nan_policy='omit'))
+        cls.expected_latlon = scipy.stats.skew(data.data.reshape((100, 10)), axis=0, nan_policy='omit')
+        cls.expected_time = scipy.stats.skew(data, axis=2, nan_policy='omit')
 
 @pytest.mark.skip("TODO")
 class TestKurtosis(BaseTests):
