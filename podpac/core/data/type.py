@@ -127,7 +127,7 @@ class PyDAP(podpac.DataSource):
     """
     
     # required inputs
-    source = tl.Unicode(allow_none=False)
+    source = tl.Unicode(allow_none=False, default_value='')
     datakey = tl.Unicode(allow_none=False)
 
     # optional inputs and later defined traits
@@ -206,7 +206,7 @@ class PyDAP(podpac.DataSource):
         if change is None:
             return
 
-        if change['old'] is None:
+        if change['old'] == '':
             return
 
         if self.dataset is not None:
@@ -233,10 +233,10 @@ class PyDAP(podpac.DataSource):
                                   "implementations.")
 
     @common_doc(COMMON_DOC)
-    def get_data(self, coordinates, coordinates_slice):
+    def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.dataset[self.datakey][tuple(coordinates_slice)]
+        data = self.dataset[self.datakey][tuple(coordinates_index)]
         d = self.initialize_coord_array(coordinates, 'data',
                                         fillval=data.reshape(coordinates.shape))
         return d
@@ -812,7 +812,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
         return podpac.Coordinate(coords)
 
     @common_doc(COMMON_DOC)
-    def get_data(self, coordinates, coordinates_slice):
+    def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
         self.source.interpolation = self.source_interpolation
@@ -973,11 +973,11 @@ class S3Source(podpac.DataSource):
             return tmppath
 
     @common_doc(COMMON_DOC)
-    def get_data(self, coordinates, coordinates_slice):
+    def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
         self.no_data_vals = getattr(self.node, 'no_data_vals', [])
-        return self.node.get_data(coordinates, coordinates_slice)
+        return self.node.get_data(coordinates, coordinates_index)
 
     @property
     @common_doc(COMMON_DOC)

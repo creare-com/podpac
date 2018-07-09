@@ -66,14 +66,14 @@ class AirMOSS_Source(datatype.PyDAP):
 
         return coords
 
-    def get_data(self, coordinates, coordinates_slice):
+    def get_data(self, coordinates, coordinates_index):
         """Summary
 
         Parameters
         ----------
         coordinates : TYPE
             Description
-        coordinates_slice : TYPE
+        coordinates_index : TYPE
             Description
 
         Returns
@@ -81,7 +81,7 @@ class AirMOSS_Source(datatype.PyDAP):
         TYPE
             Description
         """
-        data = self.dataset[self.datakey].array[tuple(coordinates_slice)]
+        data = self.dataset[self.datakey].array[tuple(coordinates_index)]
         d = self.initialize_coord_array(coordinates, 'data',
                                         fillval=data.reshape(coordinates.shape))
         return d

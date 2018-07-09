@@ -85,7 +85,7 @@ SMAP_PRODUCT_MAP = xr.DataArray([
     ['cell_lat', 'cell_lon', 'Geophysical_Data_', '{rdk}sm_surface'],
     ['{rdk}latitude', '{rdk}longitude', 'Soil_Moisture_Retrieval_Data_', '{rdk}soil_moisture'],
     ['{rdk}latitude', '{rdk}longitude', 'Soil_Moisture_Retrieval_Data_', '{rdk}soil_moisture'],
-    ['{rdk}AM_latitude', '{rdk}AM_longitude', 'Soil_Moisture_Retrieval_Data_', '{rdk}soil_moisture'],
+    ['{rdk}AM_latitude', '{rdk}AM_longitude', 'Soil_Moisture_Retrieval_Data_', '{rdk}AM_soil_moisture'],
     ['cell_lat', 'cell_lon', 'Land_Model_Constants_Data_', ''],
     ['{rdk}latitude_1km', '{rdk}longitude_1km', 'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km']],
     dims = ['product', 'attr'],
@@ -206,7 +206,6 @@ class SMAPSource(datatype.PyDAP):
             return self.load_cached_obj('native.coordinates')
         except:
             pass
-
         times = self.get_available_times()
         ds = self.dataset
         lons = np.array(ds[self.lonkey][:, :])
@@ -237,14 +236,14 @@ class SMAPSource(datatype.PyDAP):
             times = times + np.array([6, 18], 'timedelta64[h]')
         return times
 
-    def get_data(self, coordinates, coordinates_slice):
+    def get_data(self, coordinates, coordinates_index):
         """Summary
 
         Parameters
         ----------
         coordinates : TYPE
             Description
-        coordinates_slice : TYPE
+        coordinates_index : TYPE
             Description
 
         Returns
@@ -253,7 +252,7 @@ class SMAPSource(datatype.PyDAP):
             Description
         """
         # We actually ignore the time slice
-        s = tuple([slc for d, slc in zip(coordinates.dims, coordinates_slice)
+        s = tuple([slc for d, slc in zip(coordinates.dims, coordinates_index)
                    if 'time' not in d])
         if 'SM_P_' in self.source:
             d = self.initialize_coord_array(coordinates, 'nan')
@@ -424,7 +423,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
     @tl.observe('layerkey')
     def _layerkey_change(self, change):
-        if change['old'] != change['new']:
+        if change['old'] != change['new'] and change['old'] != '':
             for s in self.sources:
                 s.layerkey = change['new']
 
@@ -650,7 +649,7 @@ class SMAP(podpac.OrderedCompositor):
 
     @tl.observe('layerkey')
     def _layerkey_change(self, change):
-        if change['old'] != change['new']:
+        if change['old'] != change['new'] and change['old'] != '':
             for s in self.sources:
                 s.layerkey = change['new']
 
@@ -854,11 +853,10 @@ if __name__ == '__main__':
     #smap = SMAP(product='SPL4SMAU.003')
     #nc = smap.native_coordinates
     #pnc, srcs = smap.get_partial_native_coordinates_sources()
+    sources = smap.sources
     o = smap.execute(coords)
-
+    
     #%% Get data from DASSP
-    # GET THE TOP WORKING FOR RACHEL
-
    
     coordinates_world = \
         podpac.Coordinate(lat=(-90, 90, 1.),
