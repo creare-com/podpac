@@ -869,9 +869,12 @@ class Reduce2(Reduce):
         UnitsDataArray
             Reduced output.
         """
-        I = [self.input_coordinates.dims.index(dim)
-             for dim in
-             self.evaluated_coordinates.dims]
+        # special case for full reduce
+        if not self.evaluated_coordinates.dims:
+            xslc, x = next(xs)
+            return self.reduce(x)
+
+        I = [self.input_coordinates.dims.index(dim) for dim in self.evaluated_coordinates.dims]
         y = xr.full_like(self.output, np.nan)
         for xslc, x in xs:
             yslc = [xslc[i] for i in I]
