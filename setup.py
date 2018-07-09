@@ -18,7 +18,7 @@ if sys.version_info.major == 2:
 extras_require = {
     'datatype': [
         'beautifulsoup4>=4.6',
-        'h5py>=2.7'
+        'h5py>=2.7',
         'lxml>=4.2',
         'pydap>=3.2',
         'rasterio>=0.36',
