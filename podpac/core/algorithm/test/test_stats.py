@@ -165,15 +165,19 @@ class TestSkew(BaseTests):
     @classmethod
     def setup_class(cls):
         cls.node = Skew(source=source)
-        cls.expected_full = xr.DataArray(scipy.stats.skew(data.data.reshape(1000), nan_policy='omit'))
-        cls.expected_latlon = scipy.stats.skew(data.data.reshape((100, 10)), axis=0, nan_policy='omit')
+        n, m, l = data.shape
+        cls.expected_full = xr.DataArray(scipy.stats.skew(data.data.reshape(n*m*l), nan_policy='omit'))
+        cls.expected_latlon = scipy.stats.skew(data.data.reshape((n*m, l)), axis=0, nan_policy='omit')
         cls.expected_time = scipy.stats.skew(data, axis=2, nan_policy='omit')
 
-@pytest.mark.skip("TODO")
 class TestKurtosis(BaseTests):
     @classmethod
     def setup_class(cls):
         cls.node = Kurtosis(source=source)
+        n, m, l = data.shape
+        cls.expected_full = xr.DataArray(scipy.stats.kurtosis(data.data.reshape(n*m*l), nan_policy='omit'))
+        cls.expected_latlon = scipy.stats.kurtosis(data.data.reshape((n*m, l)), axis=0, nan_policy='omit')
+        cls.expected_time = scipy.stats.kurtosis(data, axis=2, nan_policy='omit')
 
 class TestMedian(BaseTests):
     @classmethod
