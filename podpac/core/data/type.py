@@ -206,10 +206,10 @@ class PyDAP(podpac.DataSource):
         if change is None:
             return
 
-        if change['old'] == '':
+        if change['old'] == None or change['old'] == '':
             return
 
-        if self.dataset is not None:
+        if self.dataset is not None and 'new' in change:
             self.dataset = self._open_dataset(source=change['new'])
 
         try:
