@@ -36,15 +36,23 @@ class SessionWithHeaderRedirection(requests.Session):
     
     Attributes
     ----------
-    auth : TYPE
-        Description
+    auth : tuple
+        (username, password) string in plain text
     AUTH_HOST : str
-        Description
+        Host address (eg. http://example.com) that gets authenticated
     """
 
     AUTH_HOST = ''
 
     def __init__(self, username=None, password=None):
+        '''
+        Parameters
+        ------------
+        username: str, optional
+            Username used for authentication. Loaded from podpac settings file using username@`self.AUTH_HOST` as the key.
+        password: str
+            Password used for authentication. Loaded from podpac settings file using password@`self.AUTH_HOST` as the key.
+        '''
         super(SessionWithHeaderRedirection, self).__init__()
         if username is None:
             username = utils.load_setting('username@' + self.AUTH_HOST)
@@ -97,10 +105,10 @@ class SessionWithHeaderRedirection(requests.Session):
         print("Updating login information for", self.AUTH_HOST)
         if username is None:
             username = input("Username: ")
-            utils.save_setting('username@' + self.AUTH_HOST, username)
+        utils.save_setting('username@' + self.AUTH_HOST, username)
         if password is None:
             password = getpass.getpass()
-            utils.save_setting('password@' + self.AUTH_HOST, password)
+        utils.save_setting('password@' + self.AUTH_HOST, password)
         
         self.auth = (username, password)
     
