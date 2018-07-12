@@ -4,24 +4,25 @@ import pytest
 import sys
 from io import StringIO
 
-from podpac.core.authentication import *
+import podpac.core.authentication as auth
 
 class TestAuthentication(object):
     def test_earth_data_session_update(self):
-        eds = EarthDataSession()
+        eds = auth.EarthDataSession()
         eds.update_login('testuser', 'testpassword')
-        eds = EarthDataSession()
+        eds = auth.EarthDataSession()
         assert(eds.auth == ('testuser', 'testpassword'))
                
     def test_earth_data_session_update_input(self):
-        eds = EarthDataSession()
-        sys.stdin = StringIO('testuser2\ntestpass2\n')
+        eds = auth.EarthDataSession()
+        auth.input = lambda x: 'testuser2'
+        auth.getpass.getpass = lambda: 'testpass2'
         eds.update_login()
-        eds = EarthDataSession()
+        eds = auth.EarthDataSession()
         assert(eds.auth == ('testuser2', 'testpass2'))
         
     def test_earth_data_session_rebuild_auth(self):
-        eds = EarthDataSession() 
+        eds = auth.EarthDataSession() 
         class Dum(object):
             pass
         
