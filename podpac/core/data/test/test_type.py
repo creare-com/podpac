@@ -342,7 +342,10 @@ class TestType(object):
                 # get capabilities
                 if ('REQUEST=DescribeCoverage' in url):
                     r.status_code = cap_status_code
-                    r._content = bytes(self.capabilities, 'utf-8')
+                    try:
+                        r._content = bytes(self.capabilities, 'utf-8')
+                    except:  # Python 2.7
+                        r._content = bytes(self.capabilities)
                 # get geotiff
                 else:
                     r.status_code = data_status_code
@@ -391,8 +394,11 @@ class TestType(object):
             
             node = WCS(source=self.source)
             url = node.get_capabilities_url
-
-            assert isinstance(url, str)
+            try:
+                isinstance(url, unicode)  # Python 2.7
+            except:
+                unicode = str  # Python 3.x
+            assert isinstance(url, unicode)
             assert node.source in url
 
         def test_get_wcs_coordinates(self):
