@@ -478,7 +478,7 @@ class TestType(object):
             # no time
             notime_coordinates = Coordinate(lat=(lat[0], lat[-2], 10),
                                             lon=(lon[0], lon[-2], 10),
-                                            time=['2006-06-14T17:00:00'])
+                                            time=['2006-06-14T17:00:00'], order=['lat', 'lon', 'time'])
 
             with pytest.raises(ValueError):
                 output = node.execute(notime_coordinates)
@@ -488,7 +488,7 @@ class TestType(object):
             # time
             time_coordinates = Coordinate(lat=(lat[0], lat[-2], 10),
                                             lon=(lon[0], lon[-2], 10),
-                                            time=(time[0], time[-1], len(time)))
+                                            time=(time[0], time[-1], len(time)), order=['lat', 'lon', 'time'])
 
             with pytest.raises(ValueError):
                 output = node.execute(time_coordinates)

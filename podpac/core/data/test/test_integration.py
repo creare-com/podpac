@@ -13,7 +13,8 @@ from podpac.core.coordinate import Coordinate
 from podpac.core.data.type import NumpyArray, S3Source, ReprojectedSource, WCS
 # from podpac.datalib.smap import SMAPSentinelSource
 
-@pytest.mark.integration
+# @pytest.mark.integration
+@pytest.mark.skip('TODO: implement integration tests')
 class TestDataSourceIntegration():
 
     """Test Data Source Integrations"""
