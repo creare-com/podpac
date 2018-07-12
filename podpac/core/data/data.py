@@ -255,11 +255,7 @@ class DataSource(Node):
         ------
         NotImplementedError
             This needs to be implemented by derived classes
-        
-        Returns
-        -------
-        podpac.Coordinate
-            Native coordinates of the datasource
+
         """
 
         raise NotImplementedError
