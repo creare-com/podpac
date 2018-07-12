@@ -7,6 +7,7 @@ from collections import OrderedDict
 from io import BytesIO
 import urllib3
 import lxml
+from six import string_types
 
 import pytest
 
@@ -394,12 +395,7 @@ class TestType(object):
             
             node = WCS(source=self.source)
             url = node.get_capabilities_url
-            print (url, type(url))
-            try:
-                isinstance(url, (str, unicode))  # Python 2.7
-            except:
-                unicode = str  # Python 3.x
-            assert isinstance(url, (str, unicode))
+            assert isinstance(url, string_types)
             assert node.source in url
 
         def test_get_wcs_coordinates(self):
