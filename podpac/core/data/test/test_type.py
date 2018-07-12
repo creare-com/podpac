@@ -394,11 +394,12 @@ class TestType(object):
             
             node = WCS(source=self.source)
             url = node.get_capabilities_url
+            print (url, type(url))
             try:
-                isinstance(url, unicode)  # Python 2.7
+                isinstance(url, (str, unicode))  # Python 2.7
             except:
                 unicode = str  # Python 3.x
-            assert isinstance(url, unicode)
+            assert isinstance(url, (str, unicode))
             assert node.source in url
 
         def test_get_wcs_coordinates(self):
