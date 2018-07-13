@@ -27,7 +27,7 @@ install:
   - pip install .[devall]
 
 # cache pip dependencies for faster builds
-# cache: pip
+cache: pip
 
 # run unit tests
 script: 
