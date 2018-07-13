@@ -9,6 +9,7 @@
             * GeoTIFFs
 * Cached queries are idempotent with respect to some set of parameters that define the query (location/datetime, datasource, paramters used to compute a prediction).
 * ability to retrieve calculated data from a pipeline after execution in an interactive shell for debugging or analysis purposes
+* ? Support retrieval of subsets of data. For example, previous results of a calculation over North America at some resolution are cached. Does cache support retrieval of just the results for California at the same resolution? Or, does interpolation handle this in conjunction with cache? Or, does interpolation only handle it when the resolution doesn't match. Or does caller request data using "key" of original cache and an additional "subset" parameter?
 * Support different storage mediums
     * This includes:
         * RAM
