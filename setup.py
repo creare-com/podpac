@@ -48,7 +48,7 @@ extras_require = {
         'sphinx-autobuild>=0.7',
         'coveralls>=1.3',
         'six>=1.0',
-        'attrs>=17.0'
+        'attrs>=17.4.0'
         ]
     }
 
