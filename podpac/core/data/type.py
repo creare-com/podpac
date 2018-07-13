@@ -15,6 +15,7 @@ import os
 import re
 from io import BytesIO
 from collections import OrderedDict, defaultdict
+from six import string_types
 
 import bs4
 import numpy as np
@@ -403,17 +404,18 @@ class RasterioSource(podpac.DataSource):
         
         Parameters
         ----------
-        key : str
-            Key present in the metadata of the band.
-        value : str
-            Value of the key that should be returned
+        key : str / list
+            Key present in the metadata of the band. Can be a single key, or a list of keys.
+        value : str / list
+            Value of the key that should be returned. Can be a single value, or a list of values
         
         Returns
         -------
         np.ndarray
             An array of band numbers that match the criteria
         """
-        if not hasattr(key, '__iter__') and not hasattr(value, '__iter__'):
+        if (not hasattr(key, '__iter__') or isinstance(key, string_types))\
+                and (not hasattr(value, '__iter__') or isinstance(value, string_types)):
             key = [key]
             value = [value]
 

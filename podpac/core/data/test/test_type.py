@@ -258,7 +258,11 @@ class TestType(object):
             """test dataset attribute and trait default """
             
             node = RasterioSource(source=self.source, band=self.band)
-            assert isinstance(node.dataset, rasterio._io.RasterReader)
+            try:
+                RasterReader = rasterio._io.RasterReader  # Rasterio < v1.0
+            except:
+                RasterReader = rasterio.io.DatasetReader  # Rasterio >= v1.0
+            assert isinstance(node.dataset, RasterReader)
 
             # update source when asked
             with pytest.raises(rasterio.errors.RasterioIOError):
@@ -303,13 +307,12 @@ class TestType(object):
             keys = node.band_keys
             assert keys and isinstance(keys, dict)
 
-        # TODO: what is the input to this method?
-        @pytest.mark.skip('this does not seem to work')
         def test_get_band_numbers(self):
             """test band numbers methods"""
             node = RasterioSource(source=self.source)
-            numbers = node.get_band_numbers(0, 255)
-            assert numbers and isinstance(numbers, np.ndarray)
+            numbers = node.get_band_numbers('STATISTICS_MINIMUM', '0')
+            assert isinstance(numbers, np.ndarray)
+            np.testing.assert_array_equal(numbers, np.arange(3) + 1)
 
         def tests_source(self):
             """test source attribute and trailets observe"""
