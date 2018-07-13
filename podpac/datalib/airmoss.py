@@ -87,7 +87,7 @@ class AirMOSS_Source(datatype.PyDAP):
         return d
 
 
-class AirMOSS_Site(podpac.GridCompositor):
+class AirMOSS_Site(podpac.OrderedCompositor):
     """Summary
 
     Attributes
@@ -163,7 +163,7 @@ class AirMOSS_Site(podpac.GridCompositor):
 
 
 
-class AirMOSS(podpac.GridCompositor):
+class AirMOSS(podpac.OrderedCompositor):
     """Summary
 
     Attributes
