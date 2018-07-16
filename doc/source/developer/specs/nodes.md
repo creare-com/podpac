@@ -396,3 +396,6 @@ def definition(self, type='dict'):
 * initialize_output_array 
 * get_cached_object: similar go 'get', but specifies a particular filename? Maybe superceded by caching refactor? 
 * save_to_disk? 
+
+### Testing
+* I think testing should live in the common_test_utils. I.e. separate from this node. 
