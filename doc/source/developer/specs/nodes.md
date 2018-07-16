@@ -55,7 +55,7 @@ node = Node()
 * Any attributes set at this stage are constant for all executions
 * Any parameters set at this stage are used as default parameters, but can be overwritten during execution. After execution, it reverts to the defaults
 
-#### execute(coordinates, params=None, output=None, method=None)
+#### execute(coordinates, params=None, output=None, method=None)  # Tempted to rename to evaluate or eval
 ```python
 def execute(coordinates, params=None, output=None, method=None):
     '''
@@ -209,6 +209,7 @@ def execute(coordinates, params=None, output=None, method=None):
         * Perhaps we can do that? In that case only the bottom node returns the `group` dataarray, and anything internal should be fine
         * This will break if an internal node uses a group coordinate as part of the pipeline
         * Safest is just to disallow this behaviour... 
+    * Alternatively (Currently the favorite): WE could raise an exception, and provide a execute_group method that will do the looping for the user. This avoids any group coordinates executed within the pipeline, but still let's a user evaluate a group in a consistent manner. 
 * The output will contain metadata on the: 
     * Units
     * Styling? 
@@ -249,11 +250,22 @@ def execute(coordinates, params=None, output=None, method=None):
     array([1.])
     ```
     * Note, the default or instantiated parameters are not overwritten by subsequent executes
+* We could also suppored paths such as the following, where both are equivalent:
+    ```python 
+    params = {'input.my_param'=1}
+    params = {'input': {'my_param'=1}}
+    ```
+* The special key `'*'` could be reserved for passing a parameter to ALL nodes in the pipeline, unless overwritten by a specific node. 
+    ```python
+    params = {'*': {interpolation='nearest'}, 'input.interpolation'='bilinear'}, 
+    ```
     
-#### find_coordinates(dims=None, bounds=None)
+    
+#### find_coordinates
 ```python
-def find_coordinates(dims=None, bounds=None, number=None, sortby='size'):
-    '''This is a helper function to get the largest extents, or highest resolution native coordinates within a pipeline
+def find_coordinates(dims=None, bounds=None, number=None, sortby='size', stop_types=[Compositor, DataSource]):
+    '''This is a helper function to get all the native coordinates within a pipeline, sorted by
+       the largest extents, or highest resolution
 
     Parameters
     -----------
@@ -265,6 +277,8 @@ def find_coordinates(dims=None, bounds=None, number=None, sortby='size'):
         Default is None, in which case all coordinates found are returned. Otherwise, only the first `number` of coordinates are returned, based on the `sortby` specified. If number is <0, the the last `number` of coordinates are returned. 
     sortby : str, optional
         Default is 'size'. `sortby` should be in ['size', 'extents']. If 'size', the returned coordinates are sorted by the number of coordinates in the dimension, with the largest first. If 'extents', the returned coordinates are sorted by the largest geographical extent. In case of ties, the sorting looks at the other option to break the tie. 
+    stop_type : list, optional
+        List of node types where search should be stopped. By default, searches stop at DataSource and Compositor nodes. Remove the compositor node to search for native coordinates of individual files, but this may take a long time.
         
     Returns
     --------
@@ -286,9 +300,99 @@ def find_coordinates(dims=None, bounds=None, number=None, sortby='size'):
 ```
 
 #### __get_item__(self, ...)
+```python
+def __get__item__(self, key)
+    ''' Returns any slice of the data for the last execution
+    Paramters
+    ----------
+    key : slice, np.ndarray, dict, list, str
+        * If isinstance (key, [slice, np.ndarray, dict, list]), then the keys gets passed down to the last output of the node output[key].
+        * If isinstance(key, str) then the string points to a path node pipeline, and the data for that node for the last execution is returned (Calls `get` function with execute=True)
 
+    Returns
+    --------
+    UnitsDataArray 
+        The data from the most recent execution
 
+    '''
+```
+
+#### get(self, str, coordinates, params, execute=False)
+```python
+def get(self, key, coordinates, params, execute=False):
+    '''Retrieves execution results from the node
+    Parameters
+    ------------
+    key : str
+       Path to the cached object (within the node pipeline). If empty or '.', returns data for the current node.
+    coordinates: Coordinate 
+        Coordinates for which cached data should be retrieved
+    params : dict
+        Parameters used to execute the node for which data should be retrieved. These parameters should be relative to the current node from which get is called. E.g. key = .input.source, to set a param on source, use params={'input.source.param'=<value>}
+    execute : bool, optional
+        Default is False. If True, will execute the node to retrieve data if the data is not within the cache. Otherwise, will raise an exception if data is not in the cache
+        
+    Returns
+    -------
+    UnitsDataArray 
+        The cached data from the requested coordinates/params
+    
+    Raises
+    -------
+    CacheError
+        If the data is not in the cache and execute == False
+    '''
+```
+* This is VERY similar to the execute method... in fact, execute probably calls this function for the caching. 
+
+### definition
+```python
+def definition(self, type='dict'):
+    ''' Returns the pipeline node definition in the desired format
+    
+    Parameters
+    -----------
+    type: str, optional
+        Default is 'dict', which returns a dictionary definition of the pipeline. 
+        'json': returns a json-formatted text string of the pipeline
+        'rich': returns a javascript widget <-- should this be 'widget' instead? 
+        'node': Returns a PipelineNode instance of this object
+    
+    Returns
+    --------
+    various
+        Depends on type, see above. 
+    '''
+```
+* There are a few shortcut properties that call this function
+    * `pipeline_json`
+    * `pipeline_rich` 
+    * `pipeline_dict`
+    * `pipeline_node`
+    
+    
 ## Developer interface 
-### Attributes
+### Public Attributes
+* `native_coordinates`: Underlying data source coordiantes, when available
+* `evaluated_coordinates`: Coordinated used for evaluating the node
+* `output_coordinates`: Coordinates present in the output from the node
+* `units`: Units associated with the output of this node
+* `interpolation`: Interpolation method used with this node
 
-### Methods
+### Private Attributes
+* `_output`: Copy of last output from this node
+* `_params`: Copy of initialized/default parameters for this node
+
+### Additional public methods
+( Some of these are already documented in the code )
+* cache_obj: Used to cache an object
+* cache_path: file where object is cached
+* cache_dir: directory where objects are cached
+* clear_disk_cache: utility used to clear cache for this node
+* init: Used for initialization of derived classes
+* _first_init: Used to do any initialization before any of the core initialization is done
+* initialize_array
+* initialize_coord_array
+* initialize_output_array 
+* get_cached_object: similar go 'get', but specifies a particular filename? Maybe superceded by caching refactor? 
+* save_to_disk? 
