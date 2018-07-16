@@ -44,6 +44,11 @@
 ## User Interface
 TODO: Add user interface specs
 
+* `@cached_property(dependson, expiresin, key_spec)` 
+* `get()`
+* `put()`
+* `delete()`
+
 ## Developer interface 
 TODO: Add developer interface specs
 
@@ -57,4 +62,15 @@ TODO: Add developer interface specs
         * Using a centralized lookup server
             * central server could be bottleneck
             * retrieval becomes at least two network bassed queries (one to central server, and then one for data).
-
+* libraries to keep in mind:
+    * [pathos](https://github.com/uqfoundation/pathos) Graph Execution Manager with generic `map` (think python map) and `pipe` (aka `apply`, not sure what this is maybe reduction) operations.
+        * execution manager versions (implementations) include:
+            * MPI
+            * ssh (rpc over ssh tunnels)
+            * multiprocessors
+    * [klepto](https://github.com/uqfoundation/klepto) In-memory and archival cache. Works-with/used-by [pathos](https://github.com/uqfoundation/pathos) in conjunction with `dill` (serializer that extends pickle).
+        * Supported caching algorithms: `lfu`,`lru`,`mru`,`rr`. Does not have the something that takes into account "compute time".
+        * Supported archival systems: file, directory,sql-table,sql-database,directory of hdf5 files, single hdf5 file
+        * Supported key calculations: raw-python objects (obj), hash of obj, str(obj), pickle of obj
+    * [Dask](https://dask.pydata.org/en/latest/) Execution manager. Dataframe style computations.
+    * [cachey](https://github.com/dask/cachey) Cache that works with Dask. In-memory only. Simple dictionary style interface. Uses formula to compute priority of data abssed on size, use, and time to compute. 
