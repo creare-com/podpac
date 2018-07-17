@@ -461,7 +461,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
             tol = np.timedelta64(1, dtype=(tol.dtype))
 
         src_objs = np.array([SMAPSource(source=b + s,
-                                        interpolation_tolerance=tol,
+                                        interpolation_param=tol,
                                         auth_session=self.auth_session,
                                         layerkey=self.layerkey)
                              for s in sources])
@@ -744,6 +744,7 @@ class SMAP(podpac.OrderedCompositor):
 
         coords = SMAPDateFolder(product=self.product,
                                 folder_date=self.get_available_times_dates()[1][0],
+                                auth_session=self.auth_session,
                                 ).shared_coordinates
         self.cache_obj(coords, 'shared.coordinates')
         return coords

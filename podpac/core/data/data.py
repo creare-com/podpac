@@ -291,10 +291,10 @@ class DataSource(Node):
         
         # Nearest preview of rasters
         if self.interpolation == 'nearest_preview':
-            crd = OrderedDict()
-            for c in data_src.coords.keys():
-                crd[c] = data_dst.coords[c].sel(method=str('nearest'), **{c: data_src.coords[c]})
-            data_dst.loc[crd] = data_src.transpose(*data_dst.dims).data[:]
+            crds = OrderedDict()
+            for c in data_dst.coords.keys():
+                crds[c] = data_dst.coords[c].data.copy() 
+            data_dst.data = data_src.sel(method=str('nearest'), **crds).transpose(*crds.keys())
             return data_dst
         
         # For now, we just do nearest-neighbor interpolation for time and alt
