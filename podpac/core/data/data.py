@@ -613,10 +613,10 @@ class DataSource(Node):
             i = list(coords_dst.dims).index('lat')
             j = list(coords_dst.dims).index('lon')
             tol = np.linalg.norm([coords_dst.delta[i], coords_dst.delta[j]]) * 8
-            pts = np.stack([c.coordinates for c in coords_src.stack_dict()[order]])
+            pts = np.stack([c.coordinates for c in coords_src.stack_dict()[order]], axis=1)
             if 'lat_lon' == order:
-                pts = pts[::-1]
-            pts = KDTree(np.stack(pts, axis=1))
+                pts = pts[:, ::-1]
+            pts = KDTree(pts)
             lon, lat = np.meshgrid(coords_dst.coords['lon'],
                     coords_dst.coords['lat'])
             dist, ind = pts.query(np.stack((lon.ravel(), lat.ravel()), axis=1),
@@ -631,10 +631,10 @@ class DataSource(Node):
             dims.remove(order)
             vals = vals.transpose(order, *dims).data
             shape = vals.shape
-            vals = vals.reshape(coords_dst['lon'].size, coords_dst['lat'].size,
+            vals = vals.reshape(coords_dst['lat'].size, coords_dst['lon'].size,
                     *shape[1:])
-            vals = UnitsDataArray(vals, dims=['lon', 'lat'] + dims,
-                    coords=[coords_dst.coords['lon'], coords_dst.coords['lat']]
+            vals = UnitsDataArray(vals, dims=['lat', 'lon'] + dims,
+                    coords=[coords_dst.coords['lat'], coords_dst.coords['lon']]
                     + [coords_src[d].coordinates for d in dims])
             data_dst.data[:] = vals.transpose(*data_dst.dims).data[:]
             return data_dst
