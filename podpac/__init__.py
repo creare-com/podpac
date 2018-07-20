@@ -15,3 +15,8 @@ from podpac.core.compositor import Compositor, OrderedCompositor
 from podpac.core.pipeline import Pipeline, PipelineError, PipelineNode
 
 from podpac.settings import CACHE_DIR
+
+from podpac import version
+__version__ = version.version()
+version_info = version.VERSION_INFO
+del version
