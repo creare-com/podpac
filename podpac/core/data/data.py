@@ -35,7 +35,7 @@ from podpac.core.node import COMMON_NODE_DOC
 COMMON_DATA_DOC = {
     'get_data':
         """
-        This method is must be defined by the data source implementing the DataSource class.
+        This method must be defined by the data source implementing the DataSource class.
         When data source nodes are executing, this method is called with request coordinates and coordinate indexes.
         The implementing method can choose which input provides the most efficient method of getting data
         (i.e via coordinates or via the index of the coordinates).

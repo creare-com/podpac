@@ -128,8 +128,8 @@ class PyDAP(podpac.DataSource):
     """
     
     # required inputs
-    source = tl.Unicode(allow_none=False, default_value='')
-    datakey = tl.Unicode(allow_none=False)
+    source = tl.Unicode(allow_none=False, default_value='').tag(attr=True)
+    datakey = tl.Unicode(allow_none=False).tag(attr=True)
 
     # optional inputs and later defined traits
     auth_session = tl.Instance(authentication.SessionWithHeaderRedirection,
@@ -196,6 +196,7 @@ class PyDAP(podpac.DataSource):
                 dataset = pydap.client.open_url(source, session=self.auth_session)
             except Exception:
                 # TODO: handle 403 error
+                print ("Warning, dataset could not be opened. Check login credentials.")
                 dataset = None
 
         return dataset
