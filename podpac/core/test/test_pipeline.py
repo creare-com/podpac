@@ -75,6 +75,9 @@ class TestImageOutput(object):
         self._test('png')
 
 class TestPipeline(object):
+    
+    # Note: these tests are designed somewhat with the upcoming pipeline node refactor in mind
+
     def test_load_from_file(self):
         path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'test', 'test.json')
         pipeline = Pipeline(path)
