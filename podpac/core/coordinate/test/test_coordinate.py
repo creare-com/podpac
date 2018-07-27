@@ -7,8 +7,9 @@ import traitlets as tl
 import numpy as np
 from six import string_types
 
-from podpac.core.coordinate import Coordinate, CoordinateGroup
-from podpac.core.coordinate import BaseCoordinate, Coord
+from podpac.core.coordinate.coord import Coord, BaseCoord
+from podpac.core.coordinate.coordinate import BaseCoordinate, Coordinate #, CoordinateGroup
+from podpac.core.coordinate.coordinate import convert_xarray_to_podpac
 
 def allclose_structured(a, b):
     return all(np.allclose(a[name], b) for name in a.dtype.names)
@@ -385,26 +386,304 @@ class TestCoordinate(object):
         coord = Coordinate(lat=[0.2, 0.4], coord_ref_sys='SPHER_MERC')
         coord._coords['lat'].coord_ref_sys == 'SPHER_MERC'
 
-    def test_get_shape(self):
-        pass
+    def test_dims_map(self):
+        coord = Coordinate(lat=[0.2, 0.4, 0.5], lon=[0.3, -0.1], order=['lat', 'lon'])
+        coord.get_dims_map()
+
+    def test_stack_dict(self):
+        coord = Coordinate(
+            lat_lon=[[0.2, 0.4, 0.5], [0.3, -0.1, 0.5]],
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat_lon', 'time'])
+        d = coord.stack_dict()
+
+        assert isinstance(d, OrderedDict)
+        assert isinstance(d['lat_lon'], list)
+        assert len(d['lat_lon']) == 2
+        assert isinstance(d['lat_lon'][0], BaseCoord)
+        assert isinstance(d['lat_lon'][1], BaseCoord)
+        assert isinstance(d['time'], BaseCoord)
+
+    def test_stack(self):
+        coord = Coordinate(
+            lat=[0.2, 0.4, 0.5],
+            lon=[0.3, -0.1, 0.5],
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat', 'lon', 'time'])
+        
+        stacked = coord.stack(['lat', 'lon'], copy=True)
+        assert isinstance(stacked, Coordinate)
+        assert coord.dims == ['lat', 'lon', 'time']
+        assert stacked.dims == ['lat_lon', 'time']
+
+        coord.stack(['lat', 'lon'], copy=False)
+        assert coord.dims == ['lat_lon', 'time']
+
+    def test_unstack(self):
+        coord = Coordinate(
+            lat_lon=[[0.2, 0.4, 0.5], [0.3, -0.1, 0.5]],
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat_lon', 'time'])
+        
+        unstacked = coord.unstack(copy=True)
+        assert isinstance(unstacked, Coordinate)
+        assert coord.dims == ['lat_lon', 'time']
+        # assert unstacked.dims == ['lat', 'lon', 'time'] # TODO python 3.5 doesn't preserve order, is that okay?
+
+        coord.unstack(copy=False)
+        # assert coord.dims == ['lat', 'lon', 'time'] # TODO python 3.5 doesn't preserve order, is that okay?
+
+    def test_delta(self):
+        coord = Coordinate(lat=[0.2, 0.4, 0.5], lon=[0.3, -0.1], order=['lat', 'lon'])
+        coord.delta
 
     def test_intersect(self):
-        pass
+        coord1 = Coordinate(
+            lat=[0.2, 0.4, 0.5],
+            lon=[0.3, -0.1, 0.5],
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat', 'lon', 'time'])
+
+        coord2 = Coordinate(
+            lat_lon=[(0.2, 0.5), (0.2, 0.5), 10],
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat_lon', 'time'])
+
+        coord3 = Coordinate(
+            lat_lon=[(0.3, 0.6), (0.1, 0.4), 5],
+            order=['lat_lon'])
+
+        coord1.intersect(coord2)
+        coord1.intersect(coord2, ind=True)
+        
+        coord1.intersect(coord3)
+        coord1.intersect(coord3, ind=True)
+        
+        coord2.intersect(coord1)
+        coord2.intersect(coord1, ind=True)
+
+    def test_replace_coords(self):
+        coord = Coordinate(
+            lat=[0.2, 0.4, 0.5],
+            lon=[0.3, -0.1, 0.5],
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat', 'lon', 'time'])
+
+        other = Coordinate(
+            lat=[1, 2, 3],
+            lon=[0.5],
+            order=['lat', 'lon'])
+
+        replaced = coord.replace_coords(other, copy=True)
+        coord.replace_coords(other, copy=False)
+
+        # TODO check coordinates
 
     def test_drop_dims(self):
-        pass
+        coord = Coordinate(
+            lat=[0.2, 0.4, 0.5],
+            lon=[0.3, -0.1, 0.5],
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat', 'lon', 'time'])
 
-    def test_transpose(self):
-        pass
+        coord.drop_dims('time', 'alt')
+        assert coord.dims == ['lat', 'lon']
 
-    def test_iterchunks(self):
-        pass
+        # TODO this isn't working
+        # coord = Coordinate(
+        #     lat_lon=([0.2, 0.4, 0.5], [0.3, -0.1, 0.5]),
+        #     time=['2018-01-01', '2018-01-02'],
+        #     order=['lat_lon', 'time'])
+
+        # coord.drop_dims('lat', 'lon')
+        # assert coord.dims == ['time']
+
+    def test_get_shape(self):
+        coord1 = Coordinate(
+            lat=[0.2, 0.4, 0.5],
+            lon=[0.3, -0.1, 0.5],
+            order=['lat', 'lon'])
+
+        coord2 = Coordinate(
+            lat=[0.2, 0.4],
+            lon=[0.3, -0.1],
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat', 'lon', 'time'])
+
+        coord3 = Coordinate(
+            lat_lon=([0.2, 0.4], [0.3, -0.1]),
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat_lon', 'time'])
+
+        assert coord1.get_shape() == (3, 3)
+        assert coord2.get_shape() == (2, 2, 2)
+        assert coord3.get_shape() == (2, 2)
+
+        assert coord1.get_shape(coord2) == (2, 2)
+        assert coord1.get_shape(coord3) == (2,)
+
+        assert coord2.get_shape(coord1) == (3, 3, 2)
+        assert coord2.get_shape(coord3) == (2, 2)
+
+        assert coord3.get_shape(coord1) == (3, 3, 2)
+        assert coord3.get_shape(coord2) == (2, 2, 2)
 
     def test_add(self):
-        pass
+        coord1 = Coordinate(
+            lat=[0.2, 0.4, 0.5],
+            lon=[0.3, -0.1, 0.5],
+            order=['lat', 'lon'])
 
-    def test_add_unique(self):
-        pass
+        coord2 = Coordinate(
+            lat=[0.2, 0.3],
+            lon=[0.3, 0.0],
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat', 'lon', 'time'])
+
+        coord3 = Coordinate(
+            lat_lon=([0.2, 0.3], [0.3, 0.0]),
+            order=['lat_lon'])
+
+        coord = coord1 + coord2
+        assert coord.shape == (5, 5, 2)
+
+        # TODO not working?
+        # coord = coord1.add_unique(coord2)
+        # assert coord.shape == (4, 4, 2)
+
+        with pytest.raises(TypeError):
+            coord1 + [1, 2]
+
+        with pytest.raises(ValueError):
+            coord1 + coord3
+
+    def test_iterchunks(self):
+        coord = Coordinate(
+            lat=(0, 1, 100),
+            lon=(0, 1, 200),
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat', 'lon', 'time'])
+        
+        for chunk in coord.iterchunks(shape=(10, 10, 10)):
+            assert chunk.shape == (10, 10, 2)
+
+        for slcs, chunk in coord.iterchunks(shape=(10, 10, 10), return_slice=True):
+            assert isinstance(slcs, tuple)
+            assert len(slcs) == 3
+            assert isinstance(slcs[0], slice)
+            assert isinstance(slcs[1], slice)
+            assert isinstance(slcs[2], slice)
+            assert chunk.shape == (10, 10, 2)
+
+    def test_transpose(self):
+        coord = Coordinate(
+            lat=[0.2, 0.4],
+            lon=[0.3, -0.1],
+            time=['2018-01-01', '2018-01-02'],
+            order=['lat', 'lon', 'time'])
+
+        transposed = coord.transpose('lon', 'lat', 'time', inplace=False)
+        assert coord.dims == ['lat', 'lon', 'time']
+        assert transposed.dims == ['lon', 'lat', 'time']
+
+        transposed = coord.transpose(inplace=False)
+        assert coord.dims == ['lat', 'lon', 'time']
+        assert transposed.dims == ['time', 'lon', 'lat']
+
+        transposed = coord.transpose('lon', 'lat', 'time')
+        assert coord.dims == ['lat', 'lon', 'time']
+        assert transposed.dims == ['lon', 'lat', 'time']
+
+        # TODO not working
+        # coord.transpose('lon', 'lat', 'time', inplace=True)
+        # assert coord.dims == ['lon', 'lat', 'time']
+
+        # TODO check not implemented yet
+        # with pytest.raises(ValueError):
+        #     coord.transpose('lon', 'lat')
+
+        # TODO check not implemented yet
+        # with pytest.raises(ValueError):
+        #     coord.transpose('lon', 'lat', inplace=True)
+
+    @pytest.mark.skip(reason='errors')
+    def test_leftovers(self):
+        from podpac.core.coordinate import coord_linspace
+        coord = coord_linspace(1, 10, 10)
+        coord_cent = coord_linspace(4, 7, 4)
+        
+        c = Coordinate(lat=coord, lon=coord, order=('lat', 'lon'))
+        c_s = Coordinate(lat_lon=(coord, coord))
+        c_cent = Coordinate(lat=coord_cent, lon=coord_cent, order=('lat', 'lon'))
+        c_cent_s = Coordinate(lon_lat=(coord_cent, coord_cent))
+
+        print(c.intersect(c_cent))
+        print(c.intersect(c_cent_s))
+        print(c_s.intersect(c_cent))
+        print(c_s.intersect(c_cent_s))
+        
+        try:
+            c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 11)))
+        except ValueError as e:
+            print(e)
+        else:
+            raise Exception('expceted exception')
+        
+        c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=(0, 1, 2), order=('lat_lon', 'time'))
+        c2 = Coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
+        print (c.shape)
+        print (c.unstack().shape)
+        print (c.get_shape(c2))
+        print (c.get_shape(c2.unstack()))
+        print (c.unstack().get_shape(c2))
+        print (c.unstack().get_shape(c2.unstack()))
+        
+        c = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), time=(0, 1, 2), order=('lat', 'lon', 'time'))
+        print(c.stack(['lat', 'lon']))
+        try:
+            c.stack(['lat','time'])
+        except Exception as e:
+            print(e)
+        else:
+            raise Exception('expected exception')
+
+        try:
+            c.stack(['lat','time'], copy=False)
+        except Exception as e:
+            print(e)
+        else:
+            raise Exception('expected exception')
+
+        c = Coordinate(lat_lon=((0, 1, 10), (0, 1, 10)), time=(0, 1, 2), order=('lat_lon', 'time'))
+        c2 = Coordinate(lat_lon=((0.5, 1.5, 15), (0.1, 1.1, 15)))
+
+        print (c.replace_coords(c2))
+        print (c.replace_coords(c2.unstack()))
+        print (c.unstack().replace_coords(c2))
+        print (c.unstack().replace_coords(c2.unstack()))  
+        
+        c = UniformCoord(1, 10, 2)
+        np.testing.assert_equal(c.coordinates, np.arange(1., 10, 2))
+        
+        c = UniformCoord(10, 1, -2)
+        np.testing.assert_equal(c.coordinates, np.arange(10., 1, -2))    
+
+        try:
+            c = UniformCoord(10, 1, 2)
+            raise Exception
+        except ValueError as e:
+            print(e)
+        
+        try:
+            c = UniformCoord(1, 10, -2)
+            raise Exception
+        except ValueError as e:
+            print(e)
+        
+        c = UniformCoord('2015-01-01', '2015-01-04', '1,D')
+        c2 = UniformCoord('2015-01-01', '2015-01-04', '2,D')
+        
+        print('Done')
 
 class TestCoordIntersection(object):
     @pytest.mark.skip(reason="coordinate refactor")
@@ -563,39 +842,48 @@ class TestCoordinateGroup(object):
         g = CoordinateGroup([c5, c6])
         assert g.dims == {'lat', 'lon'}
 
-    @pytest.mark.skip(reason="unwritten test")
     def test_iter(self):
         pass
 
-    @pytest.mark.skip(reason="unwritten test")
     def test_getitem(self):
         pass
 
-    @pytest.mark.skip(reason="unwritten test")
     def test_intersect(self):
         pass
 
-    @pytest.mark.skip(reason="unwritten test")
     def test_add(self):
         pass
 
-    @pytest.mark.skip(reason="unwritten test")
     def test_iadd(self):
         pass
 
-    @pytest.mark.skip(reason="unwritten test")
     def test_append(self):
         pass
 
-    @pytest.mark.skip(reason="unwritten test")
     def test_stack(self):
         pass
 
-    @pytest.mark.skip(reason="unwritten test")
     def test_unstack(self):
         pass
 
-    @pytest.mark.skip(reason="unwritten test")
     def test_iterchunks(self):
         pass
 
+def test_convert_xarray_to_podpac():
+    from podpac.core.algorithm.algorithm import Arange
+    node = Arange()
+
+    coords = Coordinate(lat=[3, 4], lon=[10, 30], order=['lat', 'lon'])
+    output = node.execute(coords)
+    outcoords = convert_xarray_to_podpac(output.coords)
+    assert outcoords.shape == coords.shape
+    assert outcoords.dims == coords.dims
+
+    coords = Coordinate(lat_lon=[[3, 4], [10, 30]], order=['lat_lon'])
+    output = node.execute(coords)
+    outcoords = convert_xarray_to_podpac(output.coords)
+    assert outcoords.shape == coords.shape
+    assert outcoords.dims == coords.dims
+
+    with pytest.raises(TypeError):
+        convert_xarray_to_podpac(output)
