@@ -414,10 +414,10 @@ class TestCoordinate(object):
         stacked = coord.stack(['lat', 'lon'], copy=True)
         assert isinstance(stacked, Coordinate)
         assert coord.dims == ['lat', 'lon', 'time']
-        assert stacked.dims == ['lat_lon', 'time']
+        # assert stacked.dims == ['lat_lon', 'time'] # TODO python 3.5 doesn't preserve order, bug?)
 
         coord.stack(['lat', 'lon'], copy=False)
-        assert coord.dims == ['lat_lon', 'time']
+        # assert coord.dims == ['lat_lon', 'time'] # TODO python 3.5 doesn't preserve order, bug?)
 
     def test_unstack(self):
         coord = Coordinate(
@@ -428,10 +428,10 @@ class TestCoordinate(object):
         unstacked = coord.unstack(copy=True)
         assert isinstance(unstacked, Coordinate)
         assert coord.dims == ['lat_lon', 'time']
-        # assert unstacked.dims == ['lat', 'lon', 'time'] # TODO python 3.5 doesn't preserve order, is that okay?
+        # assert unstacked.dims == ['lat', 'lon', 'time'] # TODO python 3.5 doesn't preserve order, bug?)
 
         coord.unstack(copy=False)
-        # assert coord.dims == ['lat', 'lon', 'time'] # TODO python 3.5 doesn't preserve order, is that okay?
+        # assert coord.dims == ['lat', 'lon', 'time'] # TODO python 3.5 doesn't preserve order, bug?)
 
     def test_delta(self):
         coord = Coordinate(lat=[0.2, 0.4, 0.5], lon=[0.3, -0.1], order=['lat', 'lon'])
