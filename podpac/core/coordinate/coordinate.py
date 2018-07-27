@@ -853,7 +853,7 @@ class Coordinate(BaseCoordinate):
         """
 
         if len(dims) == 0:
-            dims = self._coords.keys()[::-1]
+            dims = list(self._coords.keys())[::-1]
 
         coords = OrderedDict((dim, self._coords[dim]) for dim in dims)
 
