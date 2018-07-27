@@ -74,9 +74,14 @@ class FileOutput(Output):
     outdir = tl.Unicode()
     format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default='pickle')
 
+    _path = tl.Unicode(allow_none=True, default_value=None)
+    @property
+    def path(self):
+        return self._path
+
     # TODO: docstring?
     def write(self):
-        self.node.write(self.name, outdir=self.outdir, format=self.format)
+        self._path = self.node.write(self.name, outdir=self.outdir, format=self.format)
 
 
 class FTPOutput(Output):
@@ -127,14 +132,12 @@ class ImageOutput(Output):
     format = tl.CaselessStrEnum(values=['png'], default='png')
     vmax = tl.CFloat(allow_none=True, default_value=np.nan)
     vmin = tl.CFloat(allow_none=True, default_value=np.nan)
-    image = tl.Bytes()
+    image = tl.Bytes(allow_none=True, default_value=None)
 
     # TODO: docstring?
     def write(self):
         try:
-            self.image = self.node.get_image(format=self.format,
-                                             vmin=self.vmin,
-                                             vmax=self.vmax)
+            self.image = self.node.get_image(format=self.format, vmin=self.vmin, vmax=self.vmax)
         except:
             pass
 
@@ -225,41 +228,23 @@ class Pipeline(tl.HasTraits):
         try:
             node_class = getattr(module, node_name)
         except AttributeError:
-            raise PipelineError("Node '%s' not found in module '%s'" % (
-                node_name, module_name))
+            raise PipelineError("Node '%s' not found in module '%s'" % (node_name, module_name))
 
         # parse and configure kwargs
         kwargs = {}
         whitelist = ['node', 'attrs', 'params', 'evaluate', 'plugin']
 
         try:
+            # translate node references in compositors and algorithms
             parents = inspect.getmro(node_class)
-
-            if DataSource in parents:
-                if 'source' in d:
-                    kwargs['source'] = d['source']
-                    whitelist.append('source')
-            if Compositor in parents:
-                if 'sources' in d:
-                    kwargs['sources'] = [self.nodes[source] for source in d['sources']]
-                    whitelist.append('sources')
-            if Algorithm in parents:
-                if 'inputs' in d:
-                    kwargs.update({k:self.nodes[v] for k, v in d['inputs'].items()})
-                    whitelist.append('inputs')
-            if PipelineNode in parents:
-                if 'pipeline_json' in d:
-                    kwargs['pipeline_json'] = d['pipeline_json']
-                    whitelist.append('pipeline_json')
-
-            if DataSource not in parents and\
-                   Compositor not in parents and\
-                   Algorithm not in parents and\
-                   PipelineNode not in parents:
-                raise PipelineError("node '%s' is not a DataSource, Compositor, or Algorithm" % name)
+            if Compositor in parents and 'sources' in d:
+                kwargs['sources'] = np.array([self.nodes[source] for source in d['sources']])
+                whitelist.append('sources')
+            if Algorithm in parents and 'inputs' in d:
+                kwargs.update({k:self.nodes[v] for k, v in d['inputs'].items()})
+                whitelist.append('inputs')
         except KeyError as e:
-            raise PipelineError(
-                "node '%s' definition references nonexistent node '%s'" % (name, e))
+            raise PipelineError("node '%s' definition references nonexistent node '%s'" % (name, e))
 
         kwargs['implicit_pipeline_evaluation'] = self.implicit_pipeline_evaluation
 
@@ -312,7 +297,7 @@ class Pipeline(tl.HasTraits):
             kwargs = {'url': d['url'], 'user': d['user']}
         elif d['mode'] == 'aws':
             output_class = AWSOutput
-            kwargs = {'user': d['user'], 'bucket': d['bucken']}
+            kwargs = {'user': d['user'], 'bucket': d['bucket']}
         elif d['mode'] == 'image':
             output_class = ImageOutput
             kwargs = {'format': d.get('image', 'png'),
@@ -372,7 +357,10 @@ class Pipeline(tl.HasTraits):
             used[base_ref] = True
 
             d = self.definition['nodes'][base_ref]
-            for ref in d.get('sources', []) + list(d.get('inputs', {}).values()):
+            for ref in d.get('sources', []):
+                f(ref)
+
+            for ref in d.get('inputs', {}).values():
                 f(ref)
 
         for output in self.outputs:
@@ -400,8 +388,7 @@ class Pipeline(tl.HasTraits):
 
         for node in params:
             if node not in self.nodes:
-                raise PipelineError(
-                    "params reference nonexistent node '%s'" % node)
+                raise PipelineError("params reference nonexistent node '%s'" % node)
 
     def execute(self, coordinates, params=None):
         """Summary
@@ -470,7 +457,11 @@ class PipelineNode(Node):
     output_node = tl.Unicode()
     @tl.default('output_node')
     def _output_node_default(self):
-        return self.definition['outputs'][0]['nodes'][0]
+        o = self.definition['outputs'][0]
+        if 'nodes' in o:
+            return o['nodes'][0]
+        else:
+            return o['node']
 
     pipeline_json = tl.Unicode(help="pipeline json definition")
     @tl.default('pipeline_json')
@@ -487,8 +478,7 @@ class PipelineNode(Node):
     source_pipeline = tl.Instance(Pipeline, allow_none=False)
     @tl.default('source_pipeline')
     def _source_pipeline_default(self):
-        return Pipeline(source=self.definition,
-                        implicit_pipeline_evaluation=self.implicit_pipeline_evaluation)
+        return Pipeline(source=self.definition, implicit_pipeline_evaluation=self.implicit_pipeline_evaluation)
 
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
@@ -582,7 +572,7 @@ def make_pipeline_definition(main_node):
 
         # unique ref
         ref = node.base_ref
-        if ref in refs:
+        while ref in refs:
             if re.search('_[1-9][0-9]*$', ref):
                 ref, i = ref.rsplit('_', 1)
                 i = int(i)
@@ -615,105 +605,3 @@ def make_pipeline_definition(main_node):
     d['nodes'] = OrderedDict(zip(refs, definitions))
     d['outputs'] = [output]
     return d
-
-if __name__ == '__main__':
-    import argparse
-    import podpac
-
-    def parse_param(item):
-        """Summary
-
-        Parameters
-        ----------
-        item : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-
-        Raises
-        ------
-        ValueError
-            Description
-        """
-        try:
-            key, value = item.split('=')
-            layer, param = key.split('.')
-        except:
-            raise ValueError("Invalid params argument '%s', "
-                             "expected <layer>.<param>=<value>" % item)
-
-        try:
-            value = json.loads(value)
-        except ValueError:
-            pass # leave as string
-
-        return layer, param, value
-
-    def parse_params(l):
-        """Summary
-
-        Parameters
-        ----------
-        l : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        if len(l) == 1 and os.path.isfile(l[0]):
-            with open(l) as f:
-                d = json.load(f)
-
-        else:
-            d = defaultdict(dict)
-            for item in l:
-                layer, param, value = parse_param(item)
-                d[layer][param] = value
-            d = dict(d)
-
-        return d
-
-    podpac_path = os.path.abspath(podpac.__path__[0])
-    test_pipeline = os.path.join(podpac_path, 'core', 'test', 'test.json')
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('pipeline', nargs='?', default=test_pipeline,
-                        help='path to JSON pipeline definition')
-    parser.add_argument('--params', type=str, nargs='+', default=[])
-    parser.add_argument('-d', '--dry-run', action='store_true')
-    args = parser.parse_args()
-
-    # TODO coordinate arguments and coordinate file path argument
-    coords = Coordinate(
-        lat=[43.759843545782765, 43.702536630730286, 64],
-        lon=[-72.3940658569336, -72.29999542236328, 32],
-        time='2015-04-11T06:00:00',
-        order=['lat', 'lon', 'time'])
-    params = parse_params(args.params)
-
-    pipeline = Pipeline(args.pipeline)
-
-    print('\npipeline path      \t', pipeline.path)
-    print('\npipeline definition\t', pipeline.definition)
-    print('\npipeline nodes     \t', pipeline.nodes)
-    print('\npipeline params    \t', pipeline.params)
-    print('\npipeline outputs   \t', pipeline.outputs)
-    print()
-    print('\ncoords\t', coords)
-    print('\nparams\t', params)
-
-    print('\nrebuilt pipeline definition:')
-    print(list(pipeline.nodes.values())[-1].pipeline_json)
-    rebuilt_pipeline = Pipeline(list(pipeline.nodes.values())[-1].pipeline_definition)
-
-    if args.dry_run:
-        pipeline.check_params(params)
-    else:
-        pipeline.execute(coords, params)
-
-    print('Done')

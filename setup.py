@@ -4,6 +4,11 @@
 import sys
 from setuptools import setup, find_packages
 
+# get version
+sys.path.insert(0, 'podpac')
+import version
+__version__ = version.version()
+
 install_requires = [
     'matplotlib>=2.1',
     'numpy>=1.14',
@@ -18,15 +23,15 @@ if sys.version_info.major == 2:
 extras_require = {
     'datatype': [
         'beautifulsoup4>=4.6',
-        'h5py>=2.7'
+        'h5py>=2.7',
         'lxml>=4.2',
         'pydap>=3.2',
         'rasterio>=0.36',
         'requests>=2.18',
         ],
     'aws': [
-        'awscli>=1.11'
-        'boto3>=1.4',
+        'awscli>=1.11',
+        'boto3>=1.4'
     ],
     'algorithms': [
         'numexpr>=2.6',
@@ -47,6 +52,8 @@ extras_require = {
         'sphinx-rtd-theme>=0.3.1',
         'sphinx-autobuild>=0.7',
         'coveralls>=1.3',
+        'six>=1.0',
+        'attrs>=17.4.0'
         ]
     }
 
@@ -62,7 +69,7 @@ setup(
     # ext_modules=None,
     name='podpac',
 
-    version='0.0.0',
+    version=__version__,
 
     description="Pipeline for Observational Data Processing, Analysis, and Collaboration",
     author='Creare',

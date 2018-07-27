@@ -149,22 +149,3 @@ def load_setting(key, path=None):
         except:
             return {}
     return config.get(key, None)
-
-if __name__ == "__main__":
-
-    class Dum(tl.HasTraits):
-        @cached_property
-        def test(self):
-            print("Calculating Test")
-            return 'test_prints' + str(self.lala)
-
-        lala = tl.Int(0)
-
-        @tl.observe('lala')
-        def lalaobs(self, change):
-            clear_cache(self, change, ['test'])
-
-    d = Dum()
-    print(d.test, d.test)
-    d.lala = 10
-    print(d.test, d.test)

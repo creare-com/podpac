@@ -1,20 +1,22 @@
-"""Summary
+"""Specialized PODPAC nodes use to access SMAP data via OpenDAP from nsidc.
 
 Attributes
 ----------
 SMAP_BASE_URL : str
-    Description
+    Url to nsidc openDAP server
 SMAP_INCOMPLETE_SOURCE_COORDINATES : list
-    Description
-SMAP_PRODUCT_MAP : TYPE
-    Description
+    List of products whose source coordinates are incomplete. This means any shared coordinates cannot be extracted
+SMAP_PRODUCT_DICT: dict
+    Mapping of important keys into the openDAP dataset that deals with inconsistencies across SMAP products. Used to add
+    new SMAP products.
+SMAP_PRODUCT_MAP : xr.DataArray
+    Same as SMAP_PRODUCT_DICT, but stored as a more convenient DataArray object
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import re
 import copy
-from collections import OrderedDict
 
 from bs4 import BeautifulSoup
 from six import string_types
@@ -32,6 +34,42 @@ if not hasattr(np, 'isnat'):
 import podpac
 from podpac.core.data import type as datatype
 from podpac.core import authentication
+from podpac.core.utils import common_doc
+from podpac.core.data.data import COMMON_DATA_DOC
+
+COMMON_DOC = COMMON_DATA_DOC.copy()
+COMMON_DOC.update(
+    {'smap_date': 'str\n        SMAP date string',
+     'np_date':   'np.datetime64\n        Numpy date object',
+     'auth_class': ('EarthDataSession (Class object)\n        Class used to make an authenticated session from a'
+                   ' username and password (both are defined in base class)'),
+     'auth_session' : ('Instance(EarthDataSession)\n        Authenticated session used to make http requests using'
+                      'NASA Earth Data Login credentials'),
+     'base_url' : 'str\n        Url to nsidc openDAP server', 
+     'layerkey': ('str\n        Key used to retrieve data from OpenDAP dataset. This specifies the key used to retrieve '
+                 'the data'),
+     'password': 'User\'s EarthData password',
+     'username': 'User\'s EarthData username',
+     'product': 'SMAP Product name',
+     'source_coordinates': '''Returns the coordinates that uniquely describe each source
+
+        Returns
+        -------
+        podpac.Coordinate
+            Coordinates that uniquely describe each source''',
+                                                             'keys': '''Available layers that are in the OpenDAP dataset
+
+        Returns
+        -------
+        List
+            The list of available keys from the OpenDAP dataset. Any of these keys can be set as self.datakey.
+
+        Notes
+        -----
+        This function assumes that all of the keys in the available dataset are the same for every file.
+        ''',
+       })
+
 
 # Optional Dependencies
 try:
@@ -39,19 +77,17 @@ try:
 except:
     boto3 = None
 
-
+@common_doc(COMMON_DOC)
 def smap2np_date(date):
-    """Summary
+    """Convert dates using the format in SMAP to numpy datetime64
 
     Parameters
     ----------
-    date : TYPE
-        Description
+    date : {smap_date}
 
     Returns
     -------
-    TYPE
-        Description
+    {np_date}
     """
     if isinstance(date, string_types):
         ymd = '-'.join([date[:4], date[4:6], date[6:8]])
@@ -62,64 +98,63 @@ def smap2np_date(date):
         date = np.array([ymd + HMS], dtype='datetime64')
     return date
 
-
+@common_doc(COMMON_DOC)
 def np2smap_date(date):
-    """Summary
+    """Convert dates using the numpy format to SMAP strings
 
     Parameters
     ----------
-    date : TYPE
-        Description
+    date : {np_date}
 
     Returns
     -------
-    TYPE
-        Description
+    {smap_date}
     """
     if isinstance(date, np.datetime64):
         date = str(date).replace('-', '.')
     return date
 
-SMAP_PRODUCT_MAP = xr.DataArray([
-    ['cell_lat', 'cell_lon', 'Analysis_Data_', '{rdk}sm_surface_analysis'],
-    ['cell_lat', 'cell_lon', 'Geophysical_Data_', '{rdk}sm_surface'],
-    ['{rdk}latitude', '{rdk}longitude', 'Soil_Moisture_Retrieval_Data_', '{rdk}soil_moisture'],
-    ['{rdk}latitude', '{rdk}longitude', 'Soil_Moisture_Retrieval_Data_', '{rdk}soil_moisture'],
-    ['{rdk}AM_latitude', '{rdk}AM_longitude', 'Soil_Moisture_Retrieval_Data_', '{rdk}soil_moisture'],
-    ['cell_lat', 'cell_lon', 'Land_Model_Constants_Data_', ''],
-    ['{rdk}latitude_1km', '{rdk}longitude_1km', 'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km']],
-    dims = ['product', 'attr'],
-    coords = {'product': ['SPL4SMAU.003', 'SPL4SMGP.003', 'SPL3SMA.003', 'SPL3SMAP.003', 'SPL3SMP.004',
-                          'SPL4SMLM.003', 'SPL2SMAP_S.001'],
-              'attr':['latkey', 'lonkey', 'rootdatakey', 'layerkey']
-             }
+# NOTE: {rdk} will be substituted for the entry's 'rootdatakey'
+SMAP_PRODUCT_DICT = {
+    #'<Product>.ver': ['latkey',               'lonkey',                     'rootdatakey',                       'layerkey'
+    'SPL4SMAU.003':   ['cell_lat',             'cell_lon',                   'Analysis_Data_',                    '{rdk}sm_surface_analysis'],
+    'SPL4SMGP.003':   ['cell_lat',             'cell_lon',                   'Geophysical_Data_',                 '{rdk}sm_surface'],
+    'SPL3SMA.003':    ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture'],
+    'SPL3SMAP.003':   ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture'],
+    'SPL3SMP.004':    ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}AM_soil_moisture'],
+    'SPL4SMLM.003':   ['cell_lat',             'cell_lon',                   'Land_Model_Constants_Data_',        ''],
+    'SPL2SMAP_S.001': ['{rdk}latitude_1km',    '{rdk}longitude_1km',         'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km'],
+}
+
+SMAP_PRODUCT_MAP = xr.DataArray(list(SMAP_PRODUCT_DICT.values()),
+                                dims=['product', 'attr'],
+                                coords={'product': list(SMAP_PRODUCT_DICT.keys()),
+                                        'attr':['latkey', 'lonkey', 'rootdatakey', 'layerkey']
+              }
 )
 
 SMAP_INCOMPLETE_SOURCE_COORDINATES = ['SPL2SMAP_S.001']
 SMAP_BASE_URL = 'https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP'
 
-
+@common_doc(COMMON_DOC)
 class SMAPSource(datatype.PyDAP):
-    """Summary
+    """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how 
+    to extract the correct coordinates and data keys for the soil moisture data.
 
     Attributes
     ----------
-    auth_class : TYPE
-        Description
-    auth_session : TYPE
-        Description
-    date_file_url_re : TYPE
-        Description
-    date_time_file_url_re : TYPE
-        Description
-    date_url_re : TYPE
-        Description
-    layerkey : TYPE
-        Description
+    auth_class : {auth_class}
+    auth_session : {auth_session}
+    date_file_url_re : SRE_Pattern
+        Regular expression used to retrieve date from self.source (OpenDAP Url)
+    date_time_file_url_re : SRE_Pattern
+        Regular expression used to retrieve date and time from self.source (OpenDAP Url)
+    layerkey : str
+        Key used to retrieve data from OpenDAP dataset. This specifies the key used to retrieve the data
     no_data_vals : list
-        Description
-    rootdatakey : TYPE
-        Description
+        List of values that should be treated as no-data (these are replaced by np.nan)
+    rootdatakey : str
+        String the prepends every or most keys for data in the OpenDAP dataset
     """
 
     auth_session = tl.Instance(authentication.EarthDataSession)
@@ -136,11 +171,11 @@ class SMAPSource(datatype.PyDAP):
             return None
         return session
 
-    date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
+    #date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
     date_time_file_url_re = re.compile('[0-9]{8}T[0-9]{6}')
     date_file_url_re = re.compile('[0-9]{8}')
 
-    rootdatakey = tl.Unicode(u'Soil_Moisture_Retrieval_Data_')
+    rootdatakey = tl.Unicode()
     @tl.default('rootdatakey')
     def _rootdatakey_default(self):
         return SMAP_PRODUCT_MAP.sel(product=self.product,
@@ -157,12 +192,12 @@ class SMAPSource(datatype.PyDAP):
 
     @property
     def product(self):
-        """Summary
+        """Returns the SMAP product from the OpenDAP Url
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            {product}
         """
         src = self.source.split('/')
         return src[src.index('SMAP')+1]
@@ -173,40 +208,35 @@ class SMAPSource(datatype.PyDAP):
 
     @property
     def latkey(self):
-        """Summary
+        """The key used to retrieve the latitude
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            OpenDap dataset key for latitude
         """
         return SMAP_PRODUCT_MAP.sel(product=self.product, attr='latkey') \
-                               .item().format(rdk=self.rootdatakey)
+               .item().format(rdk=self.rootdatakey)
 
     @property
     def lonkey(self):
-        """Summary
+        """The key used to retrieve the latitude
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            OpenDap dataset key for longitude
         """
         return SMAP_PRODUCT_MAP.sel(product=self.product, attr='lonkey').item().format(rdk=self.rootdatakey)
 
+    @common_doc(COMMON_DOC)
     def get_native_coordinates(self):
-        """Summary
-
-        Returns
-        -------
-        TYPE
-            Description
+        """{get_native_coordinates}
         """
         try:
             return self.load_cached_obj('native.coordinates')
         except:
             pass
-
         times = self.get_available_times()
         ds = self.dataset
         lons = np.array(ds[self.lonkey][:, :])
@@ -221,12 +251,13 @@ class SMAPSource(datatype.PyDAP):
         return coords
 
     def get_available_times(self):
-        """Summary
+        """Retrieve the available times from the SMAP file. This is primarily based on the filename, but some products 
+        have multiple times stored in a single file.
 
         Returns
         -------
-        TYPE
-            Description
+        np.ndarray(dtype=np.datetime64)
+            Available times in the SMAP source
         """
         m = self.date_time_file_url_re.search(self.source)
         if not m:
@@ -237,29 +268,18 @@ class SMAPSource(datatype.PyDAP):
             times = times + np.array([6, 18], 'timedelta64[h]')
         return times
 
-    def get_data(self, coordinates, coordinates_slice):
-        """Summary
-
-        Parameters
-        ----------
-        coordinates : TYPE
-            Description
-        coordinates_slice : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
+    @common_doc(COMMON_DOC)
+    def get_data(self, coordinates, coordinates_index):
+        """{get_data}
         """
         # We actually ignore the time slice
-        s = tuple([slc for d, slc in zip(coordinates.dims, coordinates_slice)
+        s = tuple([slc for d, slc in zip(coordinates.dims, coordinates_index)
                    if 'time' not in d])
         if 'SM_P_' in self.source:
             d = self.initialize_coord_array(coordinates, 'nan')
             am_key = self.layerkey.format(rdk=self.rootdatakey + 'AM_')
             pm_key = self.layerkey.format(rdk=self.rootdatakey + 'PM_') + '_pm'
-            
+
             try:
                 t = self.native_coordinates.coords['time'][0]
                 d.loc[dict(time=t)] = np.array(self.dataset[am_key][s])
@@ -280,19 +300,31 @@ class SMAPSource(datatype.PyDAP):
 
 
 class SMAPProperties(SMAPSource):
-    """Summary
+    """Accesses properties related to the generation of SMAP products. 
 
     Attributes
     ----------
-    property : TYPE
-        Description
-    source : TYPE
-        Description
+    property : str
+        A SMAP property, which includes: 
+                        'clsm_dzsf', 'mwrtm_bh', 'clsm_cdcr2', 'mwrtm_poros',
+                        'clsm_dzgt3', 'clsm_dzgt2', 'mwrtm_rghhmax',
+                        'mwrtm_rghpolmix', 'clsm_dzgt1', 'clsm_wp', 'mwrtm_lewt',
+                        'clsm_dzgt4', 'clsm_cdcr1', 'cell_elevation',
+                        'mwrtm_rghwmin', 'clsm_dzrz', 'mwrtm_vegcls', 'mwrtm_bv',
+                        'mwrtm_rghwmax', 'mwrtm_rghnrh', 'clsm_dztsurf',
+                        'mwrtm_rghhmin', 'mwrtm_wangwp', 'mwrtm_wangwt',
+                        'clsm_dzgt5', 'clsm_dzpr', 'clsm_poros',
+                        'cell_land_fraction', 'mwrtm_omega', 'mwrtm_soilcls',
+                        'clsm_dzgt6', 'mwrtm_rghnrv', 'mwrtm_clay', 'mwrtm_sand'
+    source : str, optional
+         Source OpenDAP url for SMAP properties. Default is ('https://n5eil01u.ecs.nsidc.org/opendap/SMAP/'
+                                                             'SPL4SMLM.003/2015.03.31/'
+                                                             'SMAP_L4_SM_lmc_00000000T000000_Vv3030_001.h5')
     """
-    
+
     source = tl.Unicode('https://n5eil01u.ecs.nsidc.org/opendap/SMAP/'
                         'SPL4SMLM.003/2015.03.31/'
-                        'SMAP_L4_SM_lmc_00000000T000000_Vv3030_001.h5')
+                        'SMAP_L4_SM_lmc_00000000T000000_Vv3030_001.h5').tag(attr=True)
 
     property = tl.Enum(['clsm_dzsf', 'mwrtm_bh', 'clsm_cdcr2', 'mwrtm_poros',
                         'clsm_dzgt3', 'clsm_dzgt2', 'mwrtm_rghhmax',
@@ -303,19 +335,15 @@ class SMAPProperties(SMAPSource):
                         'mwrtm_rghhmin', 'mwrtm_wangwp', 'mwrtm_wangwt',
                         'clsm_dzgt5', 'clsm_dzpr', 'clsm_poros',
                         'cell_land_fraction', 'mwrtm_omega', 'mwrtm_soilcls',
-                        'clsm_dzgt6', 'mwrtm_rghnrv', 'mwrtm_clay', 'mwrtm_sand'])
+                        'clsm_dzgt6', 'mwrtm_rghnrv', 'mwrtm_clay', 'mwrtm_sand']).tag(attr=True)
 
     @tl.default('layerkey')
     def _layerkey_default(self):
         return self.property
 
+    @common_doc(COMMON_DOC)
     def get_native_coordinates(self):
-        """Summary
-
-        Returns
-        -------
-        TYPE
-            Description
+        """{get_native_coordinates}
         """
         try:
             return self.load_cached_obj('native.coordinates')
@@ -335,83 +363,79 @@ class SMAPProperties(SMAPSource):
         return coords
 
 class SMAPPorosity(SMAPProperties):
-    """Summary
+    """Retrieve the specific SMAP property: Porosity
 
     Attributes
     ----------
-    property : TYPE
-        Description
+    property : str, Optional
+        Uses 'clsm_poros'
     """
     property = tl.Unicode('clsm_poros')
 
 class SMAPWilt(SMAPProperties):
-    """Summary
-    
+    """Retrieve the specific SMAP property: Wilting Point
+
     Attributes
     ----------
-    property : TYPE
-        Description
+    property : str, Optional
+        Uses 'clsm_wp'
     """
     property = tl.Unicode('clsm_wp')
 
+@common_doc(COMMON_DOC)
 class SMAPDateFolder(podpac.OrderedCompositor):
-    """Summary
-    
+    """Compositor of all the SMAP source urls present in a particular folder which is defined for a particular date
+
     Attributes
     ----------
-    auth_class : TYPE
-        Description
-    auth_session : TYPE
-        Description
-    base_url : TYPE
-        Description
-    cache_native_coordinates : TYPE
-        Description
-    date_time_url_re : TYPE
-        Description
-    date_url_re : TYPE
-        Description
-    file_url_re : TYPE
-        Description
-    file_url_re2 : TYPE
-        Description
-    folder_date : TYPE
-        Description
-    latlon_delta : TYPE
-        Description
-    latlon_url_re : TYPE
-        Description
-    layerkey : TYPE
-        Description
-    password : TYPE
-        Description
-    product : TYPE
-        Description
-    username : TYPE
-        Description
+    auth_class : {auth_class}
+    auth_session : {auth_session}
+    base_url : {base_url}
+    cache_native_coordinates : bool, optional
+        Default is False. If True, the native_coordinates will be cached to disk after being computed the first time
+    date_time_url_re : SRE_Pattern
+        Regular expression used to retrieve the date and time from the filename if file_url_re matches
+    date_url_re : SRE_Pattern
+        Regular expression used to retrieve the date from the filename if file_url_re2 matches
+    file_url_re : SRE_Pattern
+        Regular expression used to find files in a folder that match the expected format of a SMAP source file
+    file_url_re2 : SRE_Pattern
+        Same as file_url_re, but for variation of SMAP files that do not contain time in the filename
+    folder_date : str
+        The name of the folder. This is used to construct the OpenDAP URL from the base_url
+    latlon_delta : float, optional
+        Default is 1.5 degrees. For SMAP files that contain LAT-LON data (i.e. SMAP-Sentinel), how many degrees does the
+        tile cover? 
+    latlon_url_re : SRE_Pattern
+        Regular expression used to find the lat-lon coordinates associated with the file from the file name
+    layerkey : {layerkey}
+    password : {password}
+    product : str
+        {product}
+    username : {username}
     """
 
     auth_session = tl.Instance(authentication.EarthDataSession)
     auth_class = tl.Type(authentication.EarthDataSession)
-    username = tl.Unicode(None, allow_none=True)
-    password = tl.Unicode(None, allow_none=True)
+    username = tl.Unicode(None, allow_none=True).tag(attr=True)
+    password = tl.Unicode(None, allow_none=True).tag(attr=True)
 
     @tl.default('auth_session')
     def _auth_session_default(self):
         session = self.auth_class(username=self.username, password=self.password)
         return session
 
-    base_url = tl.Unicode(SMAP_BASE_URL)
-    product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist())
-    folder_date = tl.Unicode(u'')
+    base_url = tl.Unicode(SMAP_BASE_URL).tag(attr=True)
+    product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist()).tag(attr=True)
+    folder_date = tl.Unicode(u'').tag(attr=True)
 
-    file_url_re = re.compile('.*_[0-9]{8}T[0-9]{6}_.*\.h5')
-    file_url_re2 = re.compile('.*_[0-9]{8}_.*\.h5')
-    date_time_url_re = re.compile('[0-9]{8}T[0-9]{6}')
-    date_url_re = re.compile('[0-9]{8}')
-    latlon_url_re = re.compile('[0-9]{3}[E,W][0-9]{2}[N,S]')
+    file_url_re = re.compile(r'.*_[0-9]{8}T[0-9]{6}_.*\.h5')
+    file_url_re2 = re.compile(r'.*_[0-9]{8}_.*\.h5')
+    date_time_url_re = re.compile(r'[0-9]{8}T[0-9]{6}')
+    date_url_re = re.compile(r'[0-9]{8}')
+    latlon_url_re = re.compile(r'[0-9]{3}[E,W][0-9]{2}[N,S]')
 
-    latlon_delta = tl.Float(default_value=1.5)
+    latlon_delta = tl.Float(default_value=1.5).tag(attr=True)
 
     cache_native_coordinates = tl.Bool(False)
 
@@ -424,29 +448,29 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
     @tl.observe('layerkey')
     def _layerkey_change(self, change):
-        if change['old'] != change['new']:
+        if change['old'] != change['new'] and change['old'] != '':
             for s in self.sources:
                 s.layerkey = change['new']
 
     @property
     def source(self):
-        """Summary
+        """URL to OpenDAP dataset folder
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            URL to OpenDAP dataset folder
         """
         return '/'.join([self.base_url, self.product, self.folder_date])
 
     @tl.default('sources')
     def sources_default(self):
-        """Summary
+        """SMAPSource objects pointing to URLs of specific SMAP files in the folder
 
         Returns
         -------
-        TYPE
-            Description
+        np.ndarray(dtype=object(SMAPSource))
+            Array of SMAPSource instances tied to specific SMAP files
         """
         try:
             sources = self.load_cached_obj('sources')
@@ -462,7 +486,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
             tol = np.timedelta64(1, dtype=(tol.dtype))
 
         src_objs = np.array([SMAPSource(source=b + s,
-                                        interpolation_tolerance=tol,
+                                        interpolation_param=tol,
                                         auth_session=self.auth_session,
                                         layerkey=self.layerkey)
                              for s in sources])
@@ -470,22 +494,18 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
     @tl.default('is_source_coordinates_complete')
     def src_crds_complete_default(self):
-        """Summary
+        """Flag use to optimize creation of native_coordinates. If the source_coordinates are complete,
+        native_coordinates can easily be reconstructed, and same with shared coordinates. 
 
         Returns
         -------
-        TYPE
-            Description
+        bool
+            Flag indicating whether the source coordinates completely describe the source's coordinates for that dimension
         """
         return self.product not in SMAP_INCOMPLETE_SOURCE_COORDINATES
 
     def get_source_coordinates(self):
-        """Summary
-
-        Returns
-        -------
-        TYPE
-            Description
+        """{source_coordinates}
         """
         try:
             return self.load_cached_obj('source.coordinates')
@@ -498,20 +518,20 @@ class SMAPDateFolder(podpac.OrderedCompositor):
                 time_lat_lon=(times,
                               podpac.Coord(latlon[:, 0], delta=self.latlon_delta),
                               podpac.Coord(latlon[:, 1], delta=self.latlon_delta)
-                              )
-                )
+                            )
+            )
         else:
             crds = podpac.Coordinate(time=times)
         self.cache_obj(crds, 'source.coordinates')
         return crds
 
     def get_shared_coordinates(self):
-        """Summary
+        """Coordinate that are shared by all files in the folder.
 
         Returns
         -------
-        TYPE
-            Description
+        podpac.Coordinates
+            Coordinates shared by all files in the folder
         """
         if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
             return None
@@ -531,13 +551,17 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
         Returns
         -------
-        TYPE
-            Description
+        np.ndarray
+            Available times of sources in the folder
+        np.ndarray
+            Available lat lon coordinates of sources in the folder, None if empty
+        np.ndarray
+            The url's of the sources
 
         Raises
         ------
         RuntimeError
-            Description
+            If the NSIDC website cannot be accessed 
         """
         url = self.source
         r = self.auth_session.get(url)
@@ -568,7 +592,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
                 times.append(np.datetime64(
                     '%s-%s-%sT%s:%s:%s' % (date_time[:4], date_time[4:6], date_time[6:8], date_time[9:11],
                                            date_time[11:13], date_time[13:15])
-                    ))
+                ))
 
             elif m2:
                 m = m2
@@ -581,7 +605,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
                 lonlat = lonlat.group()
                 latlons.append((float(lonlat[4:6]) * (1 - 2 * (lonlat[6] == 'S')),
                                 float(lonlat[:3]) * (1 - 2 * (lonlat[3] == 'W'))
-                               ))
+                                ))
 
         times = np.array(times)
         latlons = np.array(latlons)
@@ -589,52 +613,44 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         I = np.argsort(times)
         if latlons.shape[0] == times.size:
             return times[I], latlons[I], sources[I]
-        else:
-            return times[I], None, sources[I]
+        return times[I], None, sources[I]
+
 
     @property
+    @common_doc(COMMON_DOC)
     def keys(self):
-        """Summary
-
-        Returns
-        -------
-        TYPE
-            Description
+        """{keys}
         """
         return self.sources[0].keys
 
-
+@common_doc(COMMON_DOC)
 class SMAP(podpac.OrderedCompositor):
-    """Summary
+    """Compositor of all the SMAPDateFolder's for every available SMAP date. Essentially a compositor of all SMAP data 
+    for a particular product. 
 
     Attributes
     ----------
-    auth_class : TYPE
-        Description
-    auth_session : TYPE
-        Description
-    base_url : TYPE
-        Description
-    date_url_re : TYPE
-        Description
-    layerkey : TYPE
-        Description
-    password : TYPE
-        Description
-    product : TYPE
-        Description
-    username : TYPE
-        Description
+    auth_class : {auth_class}
+    auth_session : {auth_session}
+    base_url : {base_url}
+    date_url_re : SRE_Pattern
+        Regular expression used to extract all folder dates (or folder names) for the particular SMAP product. 
+    layerkey : {layerkey}
+    password : {password}
+    product : str
+        {product}
+    username : {username}
     """
-    
-    base_url = tl.Unicode(SMAP_BASE_URL)
-    product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist())
-    date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
+
+    base_url = tl.Unicode(SMAP_BASE_URL).tag(attr=True)
+    product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist(), 
+                      default_value='SPL4SMAU.003').tag(attr=True)
+    date_url_re = re.compile(r'[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
 
     auth_session = tl.Instance(authentication.EarthDataSession)
     auth_class = tl.Type(authentication.EarthDataSession)
-    username = tl.Unicode(None, allow_none=True)
-    password = tl.Unicode(None, allow_none=True)
+    username = tl.Unicode(None, allow_none=True).tag(attr=True)
+    password = tl.Unicode(None, allow_none=True).tag(attr=True)
 
     @tl.default('auth_session')
     def _auth_session_default(self):
@@ -650,29 +666,29 @@ class SMAP(podpac.OrderedCompositor):
 
     @tl.observe('layerkey')
     def _layerkey_change(self, change):
-        if change['old'] != change['new']:
+        if change['old'] != change['new'] and change['old'] != '':
             for s in self.sources:
                 s.layerkey = change['new']
 
     @property
     def source(self):
-        """Summary
+        """The source is used for a unique name to cache SMAP products. 
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            The SMAP product name.
         """
         return self.product
 
     @tl.default('sources')
     def sources_default(self):
-        """Summary
+        """SMAPDateFolder objects pointing to specific SMAP folders
 
         Returns
         -------
-        TYPE
-            Description
+        np.ndarray(dtype=object(SMAPDateFolder))
+            Array of SMAPDateFolder instances tied to specific SMAP folders
         """
         dates = self.get_available_times_dates()[1]
         src_objs = np.array([
@@ -684,27 +700,24 @@ class SMAP(podpac.OrderedCompositor):
         return src_objs
 
     def get_source_coordinates(self):
-        """Summary
-
-        Returns
-        -------
-        TYPE
-            Description
+        """{source_coordinates}
         """
         return podpac.Coordinate(time=self.get_available_times_dates()[0])
 
     def get_available_times_dates(self):
-        """Summary
+        """Returns the available folder dates in the SMAP product
 
         Returns
         -------
-        TYPE
-            Description
-        
+        np.ndarray
+            Array of dates in numpy datetime64 format
+        list
+            list of dates in SMAP date format
+
         Raises
         ------
         RuntimeError
-            Description
+            If the http resource could not be accessed (check Earthdata login credentials)
         """
         url = '/'.join([self.base_url, self.product])
         r = self.auth_session.get(url)
@@ -728,12 +741,18 @@ class SMAP(podpac.OrderedCompositor):
         return np.array(times), dates
 
     def get_shared_coordinates(self):
-        """Summary
+        """Coordinates that are shared by all files in the SMAP product family. 
 
         Returns
         -------
-        TYPE
-            Description
+        podpac.Coordinates
+            Coordinates shared by all files in the SMAP product. 
+
+        Notes
+        ------
+        For example, the gridded SMAP data have the same lat-lon coordinates in every file (global at some resolution), 
+        and the only difference between files is the time coordinate. 
+        This is not true for the SMAP-Sentinel product, in which case this function returns None
         """
         if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
             return None
@@ -745,17 +764,26 @@ class SMAP(podpac.OrderedCompositor):
 
         coords = SMAPDateFolder(product=self.product,
                                 folder_date=self.get_available_times_dates()[1][0],
-                                ).shared_coordinates
+                                auth_session=self.auth_session,
+                               ).shared_coordinates
         self.cache_obj(coords, 'shared.coordinates')
         return coords
 
     def get_partial_native_coordinates_sources(self):
-        """Summary
+        """Returns coordinates solely based on the filenames of the sources. This function was motivated by the 
+        SMAP-Sentinel product, which does not have regularly stored tiles (in space and time). 
 
         Returns
         -------
-        TYPE
-            Description
+        podpac.Coordinates
+            Coordinates of all the sources in the product family
+        np.ndarray(dtype=object(SMAPSource))
+            Array of all the SMAPSources pointing to unique OpenDAP urls corresponding to the partial native coordinates
+
+        Notes
+        ------
+        The outputs of this function can be used to find source that overlap spatially or temporally with a subset 
+        region specified by the user.
         """
         try:
             return (self.load_cached_obj('partial_native.coordinates'),
@@ -797,187 +825,38 @@ class SMAP(podpac.OrderedCompositor):
             Description
         """
         d = self.base_definition()
-        d['attrs'] = OrderedDict()
-        d['attrs']['product'] = self.product
         if self.interpolation:
             d['attrs']['interpolation'] = self.interpolation
         return d
 
     @property
+    @common_doc(COMMON_DOC)
     def keys(self):
-        """Summary
-
-        Returns
-        -------
-        TYPE
-            Description
+        """{keys}
         """
         return self.sources[0].keys
-       
-   
+
+
 class SMAPBestAvailable(podpac.OrderedCompositor):
-    """Summary
+    """Compositor of SMAP-Sentinel and the Level 4 SMAP Analysis Update soil moisture
     """
-    
+
     @tl.default('sources')
     def sources_default(self):
-        """Summary
+        """Orders the compositor of SPL2SMAP_S.001 in front of SPL4SMAU.003
 
         Returns
         -------
-        TYPE
-            Description
+        np.ndarray(dtype=object(SMAP))
+            Array of SMAP product sources
         """
         src_objs = np.array([
             SMAP(interpolation=self.interpolation, product='SPL2SMAP_S.001'),
             SMAP(interpolation=self.interpolation, product='SPL4SMAU.003')
         ])
         return src_objs
- 
-  
 
-if __name__ == '__main__':
-    import podpac
+    def get_shared_coordinates(self):
+        return None # NO shared coordiantes
 
-    #from podpac.core.authentication import EarthDataSession
-    #eds = EarthDataSession()
-    #eds.update_login()
-        # follow the prompts
-    from podpac.core.data.type import WCS
-    coords = podpac.Coordinate(time='2015-04-06T06',
-                               lat=(-34.5, -35.25, 30), lon=(145.75, 146.5, 30),
-                               order=['time', 'lat', 'lon'])
-   
-
-    #from podpac.datalib.smap import SMAP
-    smap = SMAP(product='SPL3SMP.004')
-    #smap = SMAP(product='SPL4SMAU.003')
-    #nc = smap.native_coordinates
-    #pnc, srcs = smap.get_partial_native_coordinates_sources()
-    o = smap.execute(coords)
-
-    #%% Get data from DASSP
-    # GET THE TOP WORKING FOR RACHEL
-
-   
-    coordinates_world = \
-        podpac.Coordinate(lat=(-90, 90, 1.),
-                          lon=(-180, 180, 1.),
-                          time=['2017-11-18T00:00:00', '2017-11-19T00:00:00'],
-                          order=['lat', 'lon', 'time'])
-    sentinel = SMAP(interpolation='nearest_preview', product='SPL2SMAP_S.001')
-    smap = SMAP(product='SPL4SMAU.003')
-    pnc2, srcs2 = smap.get_partial_native_coordinates_sources()
-    o2 = smap.execute(coordinates_world)
-    pnc3, srcs3 = sentinel.get_partial_native_coordinates_sources()
-    o3 = sentinel.execute(coordinates_world)
-    s = sentinel.sources[121]
-    s.source_coordinates.intersect(coordinates_world)
-    
-    
-    source = ('https://n5eil01u.ecs.nsidc.org:443/opendap'
-              '/SMAP/SPL2SMAP_S.001/2017.02.08'
-              '/SMAP_L2_SM_SP_1AIWDV_20170208T011127_20170208T004300_079E30N_R15180_001.h5')
-    sm = SMAPSource(source=source)
-    sm.native_coordinates
-    o = sm.execute(sm.native_coordinates)
-    
-    smd = SMAPDateFolder(product='SPL2SMAP_S.001', folder_date='2017.02.08')
-    crds = smd.get_source_coordinates()
-    c = podpac.Coordinate(lat=0, lon=0)
-    a = crds.intersect(c)
-    c2 = podpac.Coordinate(lat=30, lon=119)
-    a2 = crds.intersect(c2)
-    c3 = podpac.Coordinate(lat=30.5, lon=119.5)
-    a3 = crds.intersect(c3)
-    
-    
-    from podpac.core import authentication
-    ed_session = authentication.EarthDataSession()
-    #ed_session.update_login()
-    
-    from pydap.cas.urs import setup_session
-    from pydap.client import open_url
-    source = 'https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL4SMGP.003/2015.04.07/SMAP_L4_SM_gph_20150407T013000_Vv3030_001.h5'
-    source = 'https://goldsmr4.gesdisc.eosdis.nasa.gov/opendap/MERRA2/M2T1NXSLV.5.12.4/2016/06/MERRA2_400.tavg1_2d_slv_Nx.20160601.nc4'
-    source = 'https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL4SMGP.003/2015.04.07/SMAP_L4_SM_gph_20150407T193000_Vv3030_001.h5'
-    
-    # Seems like we have to check a url in order to not get stuck in redirect land
-    #ed_session.get(source + '.dds')
-    #session = setup_session(ed_session.auth[0], ed_session.auth[1],
-                            #check_url=source)
-    #dataset = open_url(source, session=ed_session)
-
-    sm = SMAPSource(source=source) #, auth_session=ed_session)
-    sm.dataset
-    sm.native_coordinates
-    
-    coords = podpac.Coordinate(lat=sm.native_coordinates['lat'].coordinates[::10],
-                              lon=sm.native_coordinates['lon'].coordinates[::10],
-                              time=sm.native_coordinates['time'], 
-                              order=['lat', 'lon', 'time'])
-    
-    o = sm.execute(coords)
-    
-    smap = SMAP(interpolation='nearest_preview', product='SPL4SMAU.003')
-    smap.source_coordinates
-    smap.shared_coordinates 
-    o = smap.execute(coordinates_world)
-    print("done")
-    
-    
-
-    
-    porosity = SMAPPorosity()
-    o = porosity.execute(coordinates_world)    
-    
-    wilt = SMAPWilt()
-    o = wilt.execute(coordinates_world)
-    
-    
-    source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP'
-              '/SPL4SMGP.003/2015.04.07'
-              '/SMAP_L4_SM_gph_20150407T013000_Vv3030_001.h5')
-    #source2 = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL3SMP.004/'
-              #'2015.04.11/SMAP_L3_SM_P_20150411_R14010_001.h5')
-    #source = ('https://n5eil01u.ecs.nsidc.org/opendap/hyrax/SMAP/SPL4SMAU.003/'
-    #          '2015.04.03/SMAP_L4_SM_aup_20150403T030000_Vv3030_001.h5')
-    smap = SMAPSource(source=source, interpolation='nearest_preview')
-    coords = smap.native_coordinates
-    print (coords)
-    print (coords['time'].area_bounds)
-    coord_pt = podpac.Coordinate(lat=10., lon=-67., order=['lat', 'lon'])  # Not covered
-    o = smap.execute(coord_pt)
-    ##coord_pt = podpac.Coordinate(lat=66., lon=-72.)  
-    ##o = smap.execute(coord_pt)
-    
-    ##coords = podpac.Coordinate(lat=[45., 66., 50], lon=[-80., -70., 20])  
-    lat, lon = smap.native_coordinates.coords['lat'], smap.native_coordinates.coords['lon']
-    lat = lat[::10][np.isfinite(lat[::10])]
-    lon = lon[::10][np.isfinite(lon[::10])]
-    coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
-    
-    o = smap.execute(coords)    
-    
-    #t_coords = podpac.Coordinate(time=np.datetime64('2015-12-11T06'))
-    #o2 = smap.execute(t_coords)
-        
-    smap = SMAP(product='SPL4SMAU.003')
-    
-    coords = smap.native_coordinates
-    print (coords)
-    #print (coords['time'].area_bounds)
-    
-    coords = podpac.Coordinate(time=coords.coords['time'][:3],
-                               lat=[45., 66., 50], lon=[-80., -70., 20],
-                               order=['time', 'lat', 'lon'])  
-
-    o = smap.execute(coords)    
-    coords2 = podpac.Coordinate(time=coords.coords['time'][1:2],
-                               lat=[45., 66., 50], lon=[-80., -70., 20],
-                               order=['time', 'lat', 'lon'])      
-    o2 = smap.execute(coords2) 
-    
-
-    print ('Done')
 

@@ -33,18 +33,26 @@ from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
 
 COMMON_DATA_DOC = {
-    'get_data': 
-        """This should return an UnitsDataArray
-        coordinates and coordinates slice may be strided or subsets of the 
-        source data, but all coordinates will match 1:1 with the subset data
+    'get_data':
+        """
+        This method must be defined by the data source implementing the DataSource class.
+        When data source nodes are executing, this method is called with request coordinates and coordinate indexes.
+        The implementing method can choose which input provides the most efficient method of getting data
+        (i.e via coordinates or via the index of the coordinates).
+        
+        Coordinates and coordinate indexes may be strided or subsets of the
+        source data, but all coordinates and coordinate indexes will match 1:1 with the subset data.
+
+        Most methods generate the template UnitsDataArray using the inherited Node method :meth:initialize_coord_array.
+        See :meth:podpac.Node.initialize_coord_array for more details.
         
         Parameters
         ----------
         coordinates : podpac.Coordinate
-            The coordinates that need to be retrieved from the data source using the coordinate system of the data 
+            The coordinates that need to be retrieved from the data source using the coordinate system of the data
             source
-        coodinates_slice : List
-            Either a list of slices or a boolean array that give the indices of the data that needs to be retrieved from
+        coordinates_index : List
+            A list of slices or a boolean array that give the indices of the data that needs to be retrieved from
             the data source
             
         Returns
@@ -54,21 +62,25 @@ COMMON_DATA_DOC = {
         """,
     'ds_native_coordinates': 'The coordinates of the data source.',
     'get_native_coordinates':
-           """This should return a podpac.Coordinate object that describes the coordinates of the data source.
-           
-           Returns
-           --------
-           podpac.Coordinate
-               The coordinates describing the data source array.
-           
-           Notes
-           ------
-           Need to pay attention to: the order of the dimensions, the stacking of the dimension, and the type of
-           coordinates for best efficiency. Also, coordinates should be non-nan and non-repeating for best compatibility."""
+        """This should return a podpac.Coordinate object that describes the coordinates of the data source.
+
+        Returns
+        --------
+        podpac.Coordinate
+           The coordinates describing the data source array.
+
+        Notes
+        ------
+        Need to pay attention to:
+        - the order of the dimensions
+        - the stacking of the dimension
+        - the type of coordinates
+
+        Coordinates should be non-nan and non-repeating for best compatibility"""
     }
 
-COMMON_DOC = COMMON_DATA_DOC.copy()
-COMMON_DOC.update(COMMON_NODE_DOC)
+COMMON_DOC = COMMON_NODE_DOC.copy()
+COMMON_DOC.update(COMMON_DATA_DOC)      # inherit and overwrite with COMMON_DATA_DOC
 
 class DataSource(Node):
     """Base node for any data obtained directly from a single source.
@@ -84,31 +96,32 @@ class DataSource(Node):
         List of values from source data that should be interpreted as 'no data' or 'nans'
     source : Any
         The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as
-        a few examples. 
+        a few examples.
         
     Notes
     -------
-    Developers of new DataSource nodes need to implement the `get_data` and `get_native_coordinates` methods. 
+    Developers of new DataSource nodes need to implement the `get_data` and `get_native_coordinates` methods.
     """
     
     source = tl.Any(allow_none=False, help="Path to the raw data source")
     interpolation = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
                              'cubic_spline', 'lanczos', 'average', 'mode',
-                             'gauss', 'max', 'min', 'med', 'q1', 'q3'],
+                             'gauss', 'max', 'min', 'med', 'q1', 'q3'],   # TODO: gauss is not supported by rasterio
                             default_value='nearest').tag(param=True)
     interpolation_param = tl.Any()
     no_data_vals = tl.List(allow_none=True)
+
     
     @common_doc(COMMON_DOC)
     def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+        """Executes this nodes using the supplied coordinates and params.
         
         Parameters
         ----------
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
         params : dict, optional
-            {execute_params} 
+            {execute_params}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -119,6 +132,7 @@ class DataSource(Node):
         {execute_return}
         """
         self.evaluated_coordinates = deepcopy(coordinates)
+
         # remove dimensions that don't exist in native coordinates
         for dim in self.evaluated_coordinates.dims_map.keys():
             if dim not in self.native_coordinates.dims_map.keys():
@@ -151,6 +165,7 @@ class DataSource(Node):
         # + the dims that are missing from evaluated_coordinates.
         missing_dims = [dim for dim in self.native_coordinates.dims_map.keys() \
                         if dim not in self.evaluated_coordinates.dims_map.keys()]
+        missing_dims = np.unique([self.native_coordinates.dims_map[md] for md in missing_dims]).tolist()
         transpose_dims = self.evaluated_coordinates.dims + missing_dims
         self.output = self.output.transpose(*transpose_dims)
         
@@ -165,62 +180,64 @@ class DataSource(Node):
         
         Parameters
         ----------
-        coordinates : podpac.Coordinates
+        coordinates : podpac.Coordinate
             {evaluated_coordinates}
         
         Returns
         -------
         UnitsDataArray
             A nan-array in case the native_coordinates do not intersection with coordinates
-        UnitsDataArray, coords_subset
-            An array containing the subset of the datasource, along with the coordinates of the datasubset (in the 
+        UnitsDataArray, podpac.Coordinate
+            An array containing the subset of the datasource, along with the coordinates of the datasubset (in the
             coordinate system of the data source).
         """
+
         # TODO: probably need to move these lines outside of this function
         # since the coordinates we need from the datasource depends on the
         # interpolation method
         pad = 1#self.interpolation != 'nearest'
+
         coords_subset = self.native_coordinates.intersect(coordinates, pad=pad)
-        coords_subset_slc = self.native_coordinates.intersect(coordinates, pad=pad, ind=True)
+        coords_subset_idx = self.native_coordinates.intersect(coordinates, pad=pad, ind=True)
         
         # If they do not intersect, we have a shortcut
         if np.prod(coords_subset.shape) == 0:
             return self.initialize_coord_array(coordinates, init_type='nan')
 
+        # TODO: replace this with actual self.interpolation methods
         if self.interpolation == 'nearest_preview':
             # We can optimize a little
             new_coords = OrderedDict()
-            new_coords_slc = []
+            new_coords_idx = []
             for i, d in enumerate(coords_subset.dims):
                 if isinstance(coords_subset[d], UniformCoord):
                     if d in coordinates.dims:
-                        ndelta = np.round(coordinates[d].delta /
-                                          coords_subset[d].delta)
+                        ndelta = np.round(coordinates[d].delta / coords_subset[d].delta)
                         if ndelta <= 1:
                             ndelta = 1 # coords_subset[d].delta
-                        coords = tuple(coords_subset[d].coords[:2]) \
-                            + (ndelta * coords_subset[d].delta,)
+                        coords = tuple(coords_subset[d].coords[:2]) + (ndelta * coords_subset[d].delta,)
                         new_coords[d] = coords
-                        new_coords_slc.append(
-                            slice(coords_subset_slc[i].start,
-                                  coords_subset_slc[i].stop,
+                        new_coords_idx.append(
+                            slice(coords_subset_idx[i].start,
+                                  coords_subset_idx[i].stop,
                                   int(ndelta))
                             )
                     else:
                         new_coords[d] = coords_subset[d]
-                        new_coords_slc.append(coords_subset_slc[i])
+                        new_coords_idx.append(coords_subset_idx[i])
                 else:
                     new_coords[d] = coords_subset[d]
-                    new_coords_slc.append(coords_subset_slc[i])
+                    new_coords_idx.append(coords_subset_idx[i])
+
             coords_subset = Coordinate(new_coords)
-            coords_subset_slc = new_coords_slc
+            coords_subset_idx = new_coords_idx
         
-        data = self.get_data(coords_subset, coords_subset_slc)
+        data = self.get_data(coords_subset, coords_subset_idx)
         
         return data, coords_subset
     
     @common_doc(COMMON_DOC)
-    def get_data(self, coordinates, coodinates_slice):
+    def get_data(self, coordinates, coordinates_index):
         """{get_data}
         
         Raises
@@ -232,14 +249,17 @@ class DataSource(Node):
         
     @common_doc(COMMON_DOC)
     def get_native_coordinates(self):
-        """{get_native_coordinates}     
+        """{get_native_coordinates}
+        
         Raises
         ------
         NotImplementedError
             This needs to be implemented by derived classes
+
         """
+
         raise NotImplementedError
-        
+    
     @tl.default('native_coordinates')
     def _native_coordinates_default(self):
         return self.get_native_coordinates()
@@ -271,10 +291,10 @@ class DataSource(Node):
         
         # Nearest preview of rasters
         if self.interpolation == 'nearest_preview':
-            crd = OrderedDict()
-            for c in data_src.coords.keys():
-                crd[c] = data_dst.coords[c].sel(method=str('nearest'), **{c: data_src.coords[c]})
-            data_dst.loc[crd] = data_src.transpose(*data_dst.dims).data[:]
+            crds = OrderedDict()
+            for c in data_dst.coords.keys():
+                crds[c] = data_dst.coords[c].data.copy() 
+            data_dst.data = data_src.sel(method=str('nearest'), **crds).transpose(*crds.keys())
             return data_dst
         
         # For now, we just do nearest-neighbor interpolation for time and alt
@@ -286,10 +306,13 @@ class DataSource(Node):
             coords_src._coords['time'] = data_src['time'].data
             if len(coords_dst.dims) == 1:
                 return data_src
+
         if 'alt' in coords_src.dims and 'alt' in coords_dst.dims:
             data_src = data_src.reindex(alt=coords_dst.coords['alt'], method='nearest')
             coords_src._coords['alt'] = data_src['alt'].data
-            
+            if len(coords_dst.dims) == 1:
+                return data_src
+
         # Raster to Raster interpolation from regular grids to regular grids
         rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
                             'lanczos', 'average', 'mode', 'gauss', 'max', 'min',
@@ -305,8 +328,7 @@ class DataSource(Node):
             return self.rasterio_interpolation(data_src, coords_src, data_dst, coords_dst)
 
         # Raster to Raster interpolation from irregular grids to arbitrary grids
-        elif ('lat' in coords_src.dims
-                and 'lon' in coords_src.dims) \
+        elif ('lat' in coords_src.dims and 'lon' in coords_src.dims) \
                 and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)\
                 and coords_src['lat'].scipy_regularity \
                 and coords_src['lon'].scipy_regularity:
@@ -330,10 +352,31 @@ class DataSource(Node):
         
         raise NotImplementedError("The combination of source/destination coordinates has not been implemented.")
             
-    def _loop_helper(self, func, keep_dims, data_src, coords_src,
-                     data_dst, coords_dst,
-                     **kwargs):
+    def _loop_helper(self, func, keep_dims, data_src, coords_src, data_dst, coords_dst, **kwargs):
+        """ Loop helper
         
+        Parameters
+        ----------
+        func : TYPE
+            Description
+        keep_dims : TYPE
+            Description
+        data_src : TYPE
+            Description
+        coords_src : TYPE
+            Description
+        data_dst : TYPE
+            Description
+        coords_dst : TYPE
+            Description
+        **kwargs
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
         loop_dims = [d for d in data_src.dims if d not in keep_dims]
         if len(loop_dims) > 0:
             for i in data_src.coords[loop_dims[0]]:
@@ -570,10 +613,10 @@ class DataSource(Node):
             i = list(coords_dst.dims).index('lat')
             j = list(coords_dst.dims).index('lon')
             tol = np.linalg.norm([coords_dst.delta[i], coords_dst.delta[j]]) * 8
-            pts = np.stack([c.coordinates for c in coords_src.stack_dict()[order]])
+            pts = np.stack([c.coordinates for c in coords_src.stack_dict()[order]], axis=1)
             if 'lat_lon' == order:
-                pts = pts[::-1]
-            pts = KDTree(np.stack(pts, axis=1))
+                pts = pts[:, ::-1]
+            pts = KDTree(pts)
             lon, lat = np.meshgrid(coords_dst.coords['lon'],
                     coords_dst.coords['lat'])
             dist, ind = pts.query(np.stack((lon.ravel(), lat.ravel()), axis=1),
@@ -588,10 +631,10 @@ class DataSource(Node):
             dims.remove(order)
             vals = vals.transpose(order, *dims).data
             shape = vals.shape
-            vals = vals.reshape(coords_dst['lon'].size, coords_dst['lat'].size,
+            vals = vals.reshape(coords_dst['lat'].size, coords_dst['lon'].size,
                     *shape[1:])
-            vals = UnitsDataArray(vals, dims=['lon', 'lat'] + dims,
-                    coords=[coords_dst.coords['lon'], coords_dst.coords['lat']]
+            vals = UnitsDataArray(vals, dims=['lat', 'lon'] + dims,
+                    coords=[coords_dst.coords['lat'], coords_dst.coords['lon']]
                     + [coords_src[d].coordinates for d in dims])
             data_dst.data[:] = vals.transpose(*data_dst.dims).data[:]
             return data_dst
@@ -608,21 +651,3 @@ class DataSource(Node):
         d = self.base_definition()
         d['source'] = self.source
         return d
-
-
-if __name__ == "__main__":
-    # Let's make a dummy node
-    from podpac.core.data.type import NumpyArray
-    arr = np.random.rand(16, 11)
-    lat = np.random.rand(16)
-    lon = np.random.rand(16)
-    coord = Coordinate(lat_lon=(lat, lon), time=(0, 10, 11), 
-                       order=['lat_lon', 'time'])
-    node = NumpyArray(source=arr, native_coordinates=coord)
-    #a1 = node.execute(coord)
-
-    coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=('lat', 'lon'))
-    coordt = Coordinate(time=(3, 5, 2))
-
-    at = node.execute(coordt)
-    ag = node.execute(coordg)
