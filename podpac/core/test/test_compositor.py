@@ -70,10 +70,8 @@ class TestCompositor(object):
         assert True == self.orderedCompositor.evaluated
         assert self.orderedCompositor._native_coordinates_default().dims == self.coord_src.dims
 
-    @pytest.mark.skip("not-yet-working")
     def testSourceCoordinatesOrderedCompositor(self):
-        self.orderedCompositor = podpac.OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False, threaded=True, source_coordinates=self.source_coords)
+        self.orderedCompositor = podpac.OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False, threaded=True)
 
-    @pytest.mark.skip("not-yet-working")
     def testCachingOrderedCompositor(self):
         self.orderedCompositor = podpac.OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src, threaded=True)
