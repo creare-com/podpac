@@ -32,6 +32,8 @@ class Compositor(Node):
         coordinates could include the year-month-day of the source, but the actual source also has hour-minute-second
         information. In that case, source_coordinates is incomplete. This flag is used to automatically construct 
         native_coordinates
+    source: str
+        The source is used for a unique name to cache composited products. 
     sources : np.ndarray
         An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to 
         subselect the nodes that will be evaluated.
@@ -65,6 +67,7 @@ class Compositor(Node):
               "native_coordinates=source_coordinate + shared_coordinate "
               "IN THAT ORDER")).tag(attr=True)
 
+    sources = tl.Unicode().tag(attr=True)
     sources = tl.Instance(np.ndarray)
     cache_native_coordinates = tl.Bool(True).tag(attr=True)
     
@@ -72,6 +75,14 @@ class Compositor(Node):
    
     threaded = tl.Bool(False).tag(param=True)
     n_threads = tl.Int(10).tag(param=True)
+    
+    @tl.default('source')
+    def _source_default(self):
+        source = []
+        for s in self.sources[:3]:
+            source.append(str(s))
+        return '_'.join(s)
+        
     
     @tl.default('source_coordinates')
     def _source_coordinates_default(self):

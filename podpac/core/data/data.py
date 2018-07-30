@@ -458,7 +458,7 @@ class DataSource(Node):
         
             reproject(
                 source,
-                destination.squeeze(),  # Needed for legacy compatibility
+                np.atleast_2d(destination.squeeze()),  # Needed for legacy compatibility
                 src_transform=src_transform,
                 src_crs=src_crs,
                 src_nodata=np.nan,
