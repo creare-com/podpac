@@ -93,7 +93,7 @@ class TestCompositor(object):
         a = NumpyArray(source=np.random.rand(3), 
                        native_coordinates=Coordinate(lat_lon=((0, 1), (1, 2), 3)))
         b = NumpyArray(source=np.random.rand(3, 3) + 2,
-                       native_coordinates=Coordinate(lat=(-2, 3, 3), lon=(-1, 4, 3), order=['lat', 'lon'])))
+                       native_coordinates=Coordinate(lat=(-2, 3, 3), lon=(-1, 4, 3), order=['lat', 'lon']))
         c = podpac.OrderedCompositor(sources=np.array([a, b]), interpolation='bilinear')
         coords = Coordinate(lat=(-3, 4, 32), lon=(-2, 5, 32), order=['lat', 'lon'])
         o = c.execute(coords)
