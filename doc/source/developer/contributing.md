@@ -1,6 +1,6 @@
 # Contributing
 
-To get a sense of where the project is going, have a look at our [Roadmap](/roadmap)
+To get a sense of where the project is going, have a look at our [Roadmap](../roadmap)
 
 There are a number of ways to contribute:
 

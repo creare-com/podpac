@@ -1,19 +1,20 @@
-
 # Nodes
+## Introduction 
+This document describes the detailed interfaces for Pipeline nodes so that a user may know what to expect. It also documents some of the available nodes implemented as part of the core library. 
 
-TODO
+... tbd ... (for now see the [DeveloperSpec](https://github.com/creare-com/podpac/blob/develop/doc/source/developer/specs/nodes.md))
 
 ## DataSource
 
-TODO
+... tbd ...
 
 ## Compositor
 
-TODO
+... tbd ...
 
 ## Algorithm
 
-TODO
+... tbd ...
 
 ## Extending Podpac with Custom Nodes
 
@@ -21,7 +22,7 @@ In addition to the core data sources and algorithms, you may need to write your 
 
 ### Example
 
-TODO (DataSource example)
+An example of creating a simple array-based datasource can be found in the [array-data-source](https://github.com/creare-com/podpac/blob/master/doc/notebooks/array-data-source.ipynb) notebook. 
 
 ### Tagging params
 
@@ -42,7 +43,7 @@ node = MyDataSource(my_param1=0.5)
 output = node.execute(coords, {'my_param2': 75.0})
 ```
 
-You will also be able to set these tagged params in [pipelines](pipelines.md).
+You will also be able to set these tagged params in [pipelines](pipelines).
 
 ### Tagging attributes
 
@@ -65,4 +66,4 @@ node = MyDataSource(my_param1=0.5, my_attr=0.5)
 output = node.execute(coords, {'my_param2': 75.0})
 ```
 
-You will also be able to set these tagged attrs in [pipelines](pipelines.md).
+You will also be able to set these tagged attrs in [pipelines](pipelines).

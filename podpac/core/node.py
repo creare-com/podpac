@@ -585,7 +585,7 @@ class Node(tl.HasTraits):
         params: dict
             {execute_params}
             
-        Return
+        Returns
         -------
         dict
             The set of parameters that will be used for the execution of the node.

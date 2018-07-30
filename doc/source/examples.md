@@ -1,6 +1,6 @@
 # Examples
 
-See [the example notebooks](https://github.com/creare-com/podpac/doc/notebooks) for Jupyter Notebook examples. 
+See [the example notebooks](https://github.com/creare-com/podpac/tree/master/doc/notebooks) for Jupyter Notebook examples. 
 
 *Note*: Not all the examples will work because we use internal WCS sources for development. 
 
@@ -20,4 +20,4 @@ n = podpac.datalib.smap.SMAP(product=product)  # Create node
 o = n.execute(c)  # Execute node to retrieve data at the coordinates
 ```
 
-Examples of creating algorithms and pipelines can be found in the Notebooks. 
+Examples of creating algorithms and pipelines can be found in the [Notebooks](https://github.com/creare-com/podpac/tree/master/doc/notebooks). 
