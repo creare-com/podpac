@@ -142,6 +142,8 @@ class DataSource(Node):
 
         # Need to ask the interpolator what coordinates I need
         res = self.get_data_subset(self.evaluated_coordinates)
+        
+        # Empty or exact subset, shortcut
         if isinstance(res, UnitsDataArray):
             if self.output is None:
                 self.output = res
@@ -149,6 +151,7 @@ class DataSource(Node):
                 self.output[:] = res.transpose(*self.output.dims)
             return self.output
         
+        # Not empty or exact shortcut
         data_subset, coords_subset = res
         if self.no_data_vals:
             for ndv in self.no_data_vals:
@@ -292,9 +295,17 @@ class DataSource(Node):
         # Nearest preview of rasters
         if self.interpolation == 'nearest_preview':
             crds = OrderedDict()
+            tol = np.inf
             for c in data_dst.coords.keys():
-                crds[c] = data_dst.coords[c].data.copy() 
-            data_dst.data = data_src.sel(method=str('nearest'), **crds).transpose(*crds.keys())
+                crds[c] = data_dst.coords[c].data.copy()
+                if c is not 'time':
+                    tol = min(tol, np.abs(getattr(coords_dst[c], 'delta', tol)))
+            crds_keys = list(crds.keys())
+            if 'time' in crds:
+                data_src = data_src.reindex(dict(time=crds['time']), str('nearest'))
+                del crds['time']
+            data_dst.data = data_src.reindex(crds, method=str('nearest'), 
+                                         tolerance=tol).transpose(*crds_keys)
             return data_dst
         
         # For now, we just do nearest-neighbor interpolation for time and alt
