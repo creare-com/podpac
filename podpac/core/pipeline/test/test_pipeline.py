@@ -4,6 +4,8 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import os
 from json import JSONDecoder
 from collections import OrderedDict
+import warnings
+
 import numpy as np
 import pytest
 
@@ -11,8 +13,8 @@ import podpac
 from podpac.core.coordinate import Coordinate
 from podpac.core.data.type import NumpyArray
 from podpac.core.algorithm.algorithm import Arange
-from podpac.core.pipeline import NoOutput, FileOutput, FTPOutput, AWSOutput, ImageOutput
-from podpac.core.pipeline import Pipeline, PipelineNode, PipelineError, make_pipeline_definition
+from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output
+from podpac.core.pipeline.pipeline import Pipeline, PipelineNode, PipelineError, make_pipeline_definition
 
 coords = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), order=['lat', 'lon'])
 node = Arange()
@@ -22,96 +24,26 @@ class RandomData(NumpyArray):
     source = np.random.random(coords.shape)
     native_coordinates = coords
 
-class TestNoOutput(object):
-    def test(self):
-        output = NoOutput(node=node, name='test')
-        output.write()
-
-class TestFileOutput(object):
-    def _test(self, format):
-        output = FileOutput(node=node, name='test', outdir='.', format=format)
-        output.write()
-
-        assert output.path != None
-        assert os.path.isfile(output.path)
-        os.remove(output.path)
-        
-    def test_pickle(self):
-        self._test('pickle')
-
-    def test_png(self):
-        # self._test('png')
-
-        output = FileOutput(node=node, name='test', outdir='.', format='png')
-        with pytest.raises(NotImplementedError):
-            output.write()
-
-    def test_geotif(self):
-        # self._test('geotif')
-
-        output = FileOutput(node=node, name='test', outdir='.', format='geotif')
-        with pytest.raises(NotImplementedError):
-            output.write()
-
-class TestFTPOutput(object):
-    def test(self):
-        output = FTPOutput(node=node, name='test', url='none', user='none')
-        with pytest.raises(NotImplementedError):
-            output.write()
-
-class TestAWSOutput(object):
-    def test(self):
-        output = AWSOutput(node=node, name='test', user='none', bucket='none')
-        with pytest.raises(NotImplementedError):
-            output.write()
-
-class TestImageOutput(object):
-    def _test(self, format):
-        output = ImageOutput(node=node, name='test', format=format)
-        output.write()
-        assert output.image != None
-
-    def test_png(self):
-        self._test('png')
-
 class TestPipeline(object):
-    
-    # Note: these tests are designed somewhat with the upcoming pipeline node refactor in mind
-
     def test_load_from_file(self):
-        path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'test', 'test.json')
+        path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'pipeline', 'test', 'test.json')
         pipeline = Pipeline(path)
         assert pipeline.path == path
         assert pipeline.definition['nodes']
-        assert pipeline.definition['outputs']
+        assert pipeline.definition['output']
         assert isinstance(pipeline.nodes['a'], podpac.core.algorithm.algorithm.Arange)
-        assert len(pipeline.outputs) == 1
-        assert isinstance(pipeline.outputs[0], ImageOutput)
+        assert isinstance(pipeline.output, FileOutput)
 
     def test_parse_node_invalid_node(self):
         # module does not exist
-        s = '''
-        {
-            "nodes": {"a": {"node": "nonexistent.Arbitrary"} },
-            "outputs": [{"mode": "none"}]
-        }
-        '''
-
+        s = '{"nodes": {"a": {"node": "nonexistent.Arbitrary"} } }'
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        
         with pytest.raises(PipelineError):
             Pipeline(d)
 
         # node does not exist in module
-        s = '''
-        {
-            "nodes": {"a": {"node": "core.Nonexistent"} },
-            "outputs": [{"mode": "none"}]
-        }
-        '''
-
+        s = '{"nodes": {"a": {"node": "core.Nonexistent"} } }'
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        
         with pytest.raises(PipelineError):
             Pipeline(d)
 
@@ -129,8 +61,7 @@ class TestPipeline(object):
                         "B": "source2"
                     }
                 }
-            },
-            "outputs": [{"mode": "none"}]
+            }
         }
         '''
 
@@ -152,8 +83,7 @@ class TestPipeline(object):
                         "B": "source2"
                     }
                 }
-            },
-            "outputs": [{"mode": "none"}]
+            }
         }
         '''
 
@@ -175,8 +105,7 @@ class TestPipeline(object):
                     "node": "core.compositor.OrderedCompositor",
                     "sources": ["a", "b"]
                 }
-            },
-            "outputs": [{"mode": "none"}]
+            }
         }
         '''
         
@@ -195,8 +124,7 @@ class TestPipeline(object):
                     "node": "core.compositor.OrderedCompositor",
                     "sources": ["a", "b"]
                 }
-            },
-            "outputs": [{"mode": "none"}]
+            }
         }
         '''
         
@@ -215,12 +143,7 @@ class TestPipeline(object):
                         "interpolation": "bilinear"
                     }
                 }
-            },
-            "outputs": [
-                {
-                    "mode": "none"
-                }
-            ]
+            }
         }
         '''
 
@@ -240,8 +163,7 @@ class TestPipeline(object):
                         "param_b": "test"
                     }
                 }
-            },
-            "outputs": [{"mode": "none"}]
+            }
         }
         '''
 
@@ -269,13 +191,12 @@ class TestPipeline(object):
                 "d": {
                     "node": "core.algorithm.algorithm.Arange"
                 }
-            },
-            "outputs": [{"mode": "none"}]
+            }
         }
         '''
 
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        pipeline = Pipeline(d)
+        pipeline = Pipeline(d, warn=False)
         assert pipeline.skip_evaluate == ['b', 'c']
 
     def test_parse_node_invalid_property(self):
@@ -286,8 +207,7 @@ class TestPipeline(object):
                     "node": "core.algorithm.algorithm.Arange",
                     "invalid_property": "value"
                 }
-            },
-            "outputs": [{"mode": "none"}]
+            }
         }
         '''
 
@@ -297,136 +217,156 @@ class TestPipeline(object):
 
     def test_parse_node_plugin(self):
         pass
-    
+
     def test_parse_output_none(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
-            "outputs": [{
-                "mode": "none"
-            }]
+            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} }
         }
         '''
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
         pipeline = Pipeline(d)
-        assert isinstance(pipeline.outputs[0], NoOutput)
+        assert pipeline.output is None
 
     def test_parse_output_file(self):
         s = '''
         {
             "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
-            "outputs": [{
+            "output": {
                 "node": "a",
                 "mode": "file",
                 "format": "pickle",
                 "outdir": "my_directory"
-            }]
+            }
         }
         '''
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
         pipeline = Pipeline(d)
-        assert isinstance(pipeline.outputs[0], FileOutput)
-        assert pipeline.outputs[0].node is pipeline.nodes['a']
-        assert pipeline.outputs[0].name == 'a'
-        assert pipeline.outputs[0].format == 'pickle'
-        assert pipeline.outputs[0].outdir == 'my_directory'
+        assert isinstance(pipeline.output, FileOutput)
+        assert pipeline.output.node is pipeline.nodes['a']
+        assert pipeline.output.name == 'a'
+        assert pipeline.output.format == 'pickle'
+        assert pipeline.output.outdir == 'my_directory'
 
-    def test_parse_output_image(self):
+    def test_parse_output_s3(self):
         s = '''
         {
             "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
-            "outputs": [{
+            "output": {
                 "node": "a",
-                "mode": "image",
-                "format": "png"
-            }]
-        }
-        '''
-        d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        pipeline = Pipeline(d)
-        assert isinstance(pipeline.outputs[0], ImageOutput)
-        assert pipeline.outputs[0].node is pipeline.nodes['a']
-        assert pipeline.outputs[0].name == 'a'
-        assert pipeline.outputs[0].format == 'png'
-
-    def test_parse_output_aws(self):
-        s = '''
-        {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
-            "outputs": [{
-                "node": "a",
-                "mode": "aws",
+                "mode": "s3",
                 "user": "my_user",
                 "bucket": "my_bucket"
-            }]
+            }
         }
         '''
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
         pipeline = Pipeline(d)
-        assert isinstance(pipeline.outputs[0], AWSOutput)
-        assert pipeline.outputs[0].node is pipeline.nodes['a']
-        assert pipeline.outputs[0].name == 'a'
-        assert pipeline.outputs[0].user == 'my_user'
-        assert pipeline.outputs[0].bucket == 'my_bucket'
+        assert isinstance(pipeline.output, S3Output)
+        assert pipeline.output.node is pipeline.nodes['a']
+        assert pipeline.output.name == 'a'
+        assert pipeline.output.user == 'my_user'
+        assert pipeline.output.bucket == 'my_bucket'
 
     def test_parse_output_ftp(self):
         s = '''
         {
             "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
-            "outputs": [{
+            "output": {
                 "node": "a",
                 "mode": "ftp",
                 "url": "my_url",
                 "user": "my_user"
-            }]
+            }
         }
         '''
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
         pipeline = Pipeline(d)
-        assert isinstance(pipeline.outputs[0], FTPOutput)
-        assert pipeline.outputs[0].node is pipeline.nodes['a']
-        assert pipeline.outputs[0].name == 'a'
-        assert pipeline.outputs[0].user == 'my_user'
-        assert pipeline.outputs[0].url == 'my_url'
+        assert isinstance(pipeline.output, FTPOutput)
+        assert pipeline.output.node is pipeline.nodes['a']
+        assert pipeline.output.name == 'a'
+        assert pipeline.output.user == 'my_user'
+        assert pipeline.output.url == 'my_url'
+        # TODO password
 
     def test_parse_output_invalid_mode(self):
         # invalid mode
         s = '''
         {
             "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
-            "outputs": [{"mode": "nonexistent_mode"}]
+            "output": {"mode": "nonexistent_mode"}
         }
         '''
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
         with pytest.raises(PipelineError):
-            Pipeline(d)
+            Pipeline(d, warn=False)
 
         # no mode
         s = '''
         {
             "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
-            "outputs": [{ }]
+            "output": { }
+        }
+        '''
+        d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
+        with pytest.raises(PipelineError):
+            Pipeline(d, warn=False)
+
+    def test_parse_output_nonexistent_node(self):
+        s = '''
+        {
+            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "output": {
+                "node": "b",
+                "mode": "file",
+                "format": "pickle",
+                "outdir": "my_directory"
+            }
         }
         '''
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
         with pytest.raises(PipelineError):
             Pipeline(d)
 
-    def test_parse_output_nonexistent_node(self):
+    def test_parse_output_implicit_node(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
-            "outputs": [{
-                "node": "b",
+            "nodes": {
+                "source1": {"node": "core.algorithm.algorithm.Arange"},
+                "source2": {"node": "core.algorithm.algorithm.Arange"},
+                "result": {        
+                    "node": "Arithmetic",
+                    "inputs": {
+                        "A": "source1",
+                        "B": "source2"
+                    }
+                }
+            },
+            "output": {
                 "mode": "file",
                 "format": "pickle",
                 "outdir": "my_directory"
-            }]
+            }
         }
         '''
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        with pytest.raises(PipelineError):
-            Pipeline(d)
+        with pytest.warns(UserWarning, match="No output node provided, using last node 'result'"):
+            pipeline = Pipeline(d)
+        assert pipeline.output.node is pipeline.nodes['result']
+
+    def test_unused_node_warning(self):
+        s = '''
+        {
+            "nodes": {
+                "a": { "node": "core.algorithm.algorithm.Arange" },
+                "b": { "node": "core.algorithm.algorithm.Arange" }
+            }
+        }
+        '''
+
+        d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
+        with pytest.warns(UserWarning, match="Unused pipeline node 'a'"):
+            pipeline = Pipeline(d)
 
     def test_execute(self):
         s = '''
@@ -435,54 +375,46 @@ class TestPipeline(object):
                 "a": {
                     "node": "core.algorithm.algorithm.Arange"
                 }
-            },
-            "outputs": [{
-                "node": "a",
-                "mode": "image",
-                "format": "png"
-            }]
+            }
         }
         '''
 
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
         pipeline = Pipeline(d)
         pipeline.execute(coords)
-        assert pipeline.outputs[0].image is not None
+
+    def test_execute_output(self):
+        path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'pipeline', 'test')
+
+        s = '''
+        {
+            "nodes": {
+                "a": {
+                    "node": "core.algorithm.algorithm.Arange"
+                }
+            },
+            "output": {
+                "node": "a",
+                "mode": "file",
+                "format": "pickle",
+                "outdir": "%s"
+            }
+        }
+        ''' % (path)
+
+        d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
+        pipeline = Pipeline(d)
+        pipeline.execute(coords)
+        assert pipeline.output.path is not None
+        assert os.path.exists(pipeline.output.path)
+
+        try:
+            os.path.rm(pipeline.output.path)
+        except:
+            pass
 
 class TestPipelineNode(object):
     def test_pipeline_node(self):
-        path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'test', 'test.json')
+        path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'pipeline', 'test', 'test.json')
         node = PipelineNode(path=path)
         node.execute(coords)
-
-def test_make_pipeline_definition():
-    a = podpac.core.algorithm.algorithm.Arange()
-    b = podpac.core.algorithm.algorithm.CoordData()
-    c = podpac.core.compositor.OrderedCompositor(sources=np.array([a, b]))
-    d = podpac.core.algorithm.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
-    
-    definition = make_pipeline_definition(d)
-
-    # make sure it is a valid pipeline
-    pipeline = Pipeline(definition)
-
-    assert isinstance(pipeline.nodes[a.base_ref], podpac.core.algorithm.algorithm.Arange)
-    assert isinstance(pipeline.nodes[b.base_ref], podpac.core.algorithm.algorithm.CoordData)
-    assert isinstance(pipeline.nodes[c.base_ref], podpac.core.compositor.OrderedCompositor)
-    assert isinstance(pipeline.nodes[d.base_ref], podpac.core.algorithm.algorithm.Arithmetic)
-    assert isinstance(pipeline.outputs[0], ImageOutput)
-    assert pipeline.outputs[0].node == pipeline.nodes[d.base_ref]
-
-def test_make_pipeline_definition_duplicate_base_ref():
-    a = podpac.core.algorithm.algorithm.Arange()
-    b = podpac.core.algorithm.algorithm.Arange()
-    c = podpac.core.algorithm.algorithm.Arange()
-    d = podpac.core.compositor.OrderedCompositor(sources=np.array([a, b, c]))
-    
-    definition = make_pipeline_definition(d)
-
-    # make sure it is a valid pipeline
-    pipeline = Pipeline(definition)
-
-    assert len(pipeline.nodes) == 4
-    assert pipeline.outputs[0].node == pipeline.nodes[d.base_ref]

@@ -21,7 +21,7 @@ from podpac.core.data.data import DataSource
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
 
-from podpac.core.pipeline.output import Output, NoOutput, FileOutput, ImageOutput
+from podpac.core.pipeline.output import Output, FileOutput, S3Output, FTPOutput
 from podpac.core.pipeline.util import make_pipeline_definition
 
 class PipelineError(NodeException):
@@ -54,12 +54,15 @@ class Pipeline(tl.HasTraits):
     definition = tl.Instance(OrderedDict, help="pipeline definition")
     nodes = tl.Instance(OrderedDict, help="pipeline nodes")
     params = tl.Dict(trait=tl.Instance(OrderedDict), help="default parameter overrides")
-    output = tl.Instance(Output, help="pipeline output")
+    output = tl.Instance(Output, help="pipeline output", allow_none=True)
     skip_evaluate = tl.List(trait=tl.Unicode, help="nodes to skip")
     implicit_pipeline_evaluation = tl.Bool(False)
+    warn = tl.Bool(False)
 
-    def __init__(self, source, implicit_pipeline_evaluation=False):
+    def __init__(self, source, implicit_pipeline_evaluation=False, warn=True):
         self.implicit_pipeline_evaluation = implicit_pipeline_evaluation
+        self.warn = warn
+
         if isinstance(source, dict):
             self.definition = source
 
@@ -87,7 +90,8 @@ class Pipeline(tl.HasTraits):
         self.output = self._parse_output_definition(self.definition.get('output'))
 
         # check execution graph for unused nodes
-        self._check_execution_graph()
+        if self.warn:
+            self._check_execution_graph()
 
     def _parse_node_definition(self, name, d):
         """Summary
@@ -159,70 +163,33 @@ class Pipeline(tl.HasTraits):
 
     def _parse_output_definition(self, d):
         if d is None:
-            d = {}
+            return None
 
-<<<<<<< HEAD:podpac/core/pipeline/pipeline.py
         # node (uses last node by default)
         if 'node' in d:
             name = d['node']
-=======
-        kwargs = {}
-        # modes
-        if 'mode' not in d:
-            raise PipelineError("output definition requires 'mode' property")
-        elif d['mode'] == 'none':
-            output_class = NoOutput
-        elif d['mode'] == 'file':
-            output_class = FileOutput
-            kwargs = {'outdir': d.get('outdir'), 'format': d['format']}
-        elif d['mode'] == 'ftp':
-            output_class = FTPOutput
-            kwargs = {'url': d['url'], 'user': d['user']}
-        elif d['mode'] == 'aws':
-            output_class = AWSOutput
-            kwargs = {'user': d['user'], 'bucket': d['bucket']}
-        elif d['mode'] == 'image':
-            output_class = ImageOutput
-            kwargs = {'format': d.get('image', 'png'),
-                      'vmin': d.get('vmin', np.nan),
-                      'vmax': d.get('vmax', np.nan)}
-        else:
-            raise PipelineError("output definition has unexpected mode '%s'" % d['mode'])
-
-        # node references
-        if 'node' in d and 'nodes' in d:
-            raise PipelineError("output definition expects 'node' or 'nodes' property, not both")
-        elif 'node' in d:
-            refs = [d['node']]
-        elif 'nodes' in d:
-            refs = d['nodes']
-        elif d['mode'] == 'none':
-            nodes = self.nodes
-            refs = list(nodes.keys())
->>>>>>> develop:podpac/core/pipeline.py
         else:
             name = list(self.nodes.keys())[-1]
-            warnings.warn("No output node provided, using last node '%s'" % name)
+            if self.warn:
+                warnings.warn("No output node provided, using last node '%s'" % name)
 
         try:
             node = self.nodes[name]
         except KeyError as e:
             raise PipelineError("output definition references nonexistent node '%s'" % (e))
 
-        # mode (uses NoOutput by default)
-        mode = d.get('mode', 'none')
-        if mode == 'none':
-            output_class = NoOutput
-        elif mode == 'file':
+        # mode
+        if 'mode' not in d:
+            raise PipelineError("output definition missing 'mode'")
+
+        if d['mode'] == 'file':
             output_class = FileOutput
-        # elif mode == 'ftp':
-        #     output_class = FTPOutput
-        # elif mode == 's3':
-        #     output_class = S3Output
-        elif mode == 'image':
-            output_class = ImageOutput
+        elif d['mode'] == 'ftp':
+            output_class = FTPOutput
+        elif d['mode'] == 's3':
+            output_class = S3Output
         else:
-            raise PipelineError("output definition has unexpected mode '%s'" % mode)
+            raise PipelineError("output definition has unexpected mode '%s'" % d['mode'])
 
         # config
         config = {k:v for k, v in d.items() if k not in ['node', 'mode']}
@@ -232,6 +199,11 @@ class Pipeline(tl.HasTraits):
         return output
 
     def _check_execution_graph(self):
+        if self.output is not None:
+            output_node = self.output.name
+        else:
+            output_node = list(self.nodes.keys())[-1]
+        
         used = {ref:False for ref in self.nodes}
 
         def f(base_ref):
@@ -247,11 +219,11 @@ class Pipeline(tl.HasTraits):
             for ref in d.get('inputs', {}).values():
                 f(ref)
 
-        f(self.output.name)
+        f(output_node)
 
         for ref in self.nodes:
-            if not used[ref]:
-                warnings.warning("Unused pipeline node '%s'" % ref, UserWarning)
+            if not used[ref] and self.warn:
+                warnings.warn("Unused pipeline node '%s'" % ref, UserWarning)
 
     def _check_params(self, params):
         if params is None:
@@ -290,7 +262,8 @@ class Pipeline(tl.HasTraits):
 
             node.execute(coordinates, params=d)
 
-        self.output.write()
+        if self.output is not None:
+            self.output.write()
 
 class PipelineNode(Node):
     """
@@ -326,15 +299,8 @@ class PipelineNode(Node):
     output_node = tl.Unicode()
     @tl.default('output_node')
     def _output_node_default(self):
-<<<<<<< HEAD:podpac/core/pipeline/pipeline.py
+        # TODO what if it is implicit?
         return self.definition['output']['node']
-=======
-        o = self.definition['outputs'][0]
-        if 'nodes' in o:
-            return o['nodes'][0]
-        else:
-            return o['node']
->>>>>>> develop:podpac/core/pipeline.py
 
     pipeline_json = tl.Unicode(help="pipeline json definition")
     @tl.default('pipeline_json')
@@ -394,186 +360,3 @@ class PipelineNode(Node):
             self.output[:] = out
 
         return self.output
-
-<<<<<<< HEAD:podpac/core/pipeline/pipeline.py
-if __name__ == '__main__':
-    import argparse
-    import podpac
-
-    def parse_param(item):
-        """Summary
-
-        Parameters
-        ----------
-        item : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-
-        Raises
-        ------
-        ValueError
-            Description
-        """
-        try:
-            key, value = item.split('=')
-            layer, param = key.split('.')
-        except:
-            raise ValueError("Invalid params argument '%s', "
-                             "expected <layer>.<param>=<value>" % item)
-
-        try:
-            value = json.loads(value)
-        except ValueError:
-            pass # leave as string
-
-        return layer, param, value
-
-    def parse_params(l):
-=======
-def make_pipeline_definition(main_node):
-    """
-    Make a pipeline definition, including the flattened node definitions and a
-    default file output for the input node.
-
-    Parameters
-    ----------
-    main_node : TYPE
-        Description
-
-    Returns
-    -------
-    TYPE
-        Description
-    """
-
-    nodes = []
-    refs = []
-    definitions = []
-
-    def add_node(node):
->>>>>>> develop:podpac/core/pipeline.py
-        """Summary
-
-        Parameters
-        ----------
-<<<<<<< HEAD:podpac/core/pipeline/pipeline.py
-        l : TYPE
-=======
-        node : TYPE
->>>>>>> develop:podpac/core/pipeline.py
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
-<<<<<<< HEAD:podpac/core/pipeline/pipeline.py
-        if len(l) == 1 and os.path.isfile(l[0]):
-            with open(l) as f:
-                d = json.load(f)
-
-        else:
-            d = defaultdict(dict)
-            for item in l:
-                layer, param, value = parse_param(item)
-                d[layer][param] = value
-            d = dict(d)
-
-        return d
-
-    podpac_path = os.path.abspath(podpac.__path__[0])
-    test_pipeline = os.path.join(podpac_path, 'core', 'test', 'test.json')
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('pipeline', nargs='?', default=test_pipeline,
-                        help='path to JSON pipeline definition')
-    parser.add_argument('--params', type=str, nargs='+', default=[])
-    parser.add_argument('-d', '--dry-run', action='store_true')
-    args = parser.parse_args()
-
-    # TODO coordinate arguments and coordinate file path argument
-    coords = Coordinate(
-        lat=[43.759843545782765, 43.702536630730286, 64],
-        lon=[-72.3940658569336, -72.29999542236328, 32],
-        time='2015-04-11T06:00:00',
-        order=['lat', 'lon', 'time'])
-    params = parse_params(args.params)
-
-    pipeline = Pipeline(args.pipeline)
-
-    print('\npipeline path      \t', pipeline.path)
-    print('\npipeline definition\t', pipeline.definition)
-    print('\npipeline nodes     \t', pipeline.nodes)
-    print('\npipeline params    \t', pipeline.params)
-    print('\npipeline output   \t', pipeline.output)
-    print()
-    print('\ncoords\t', coords)
-    print('\nparams\t', params)
-
-    print('\nrebuilt pipeline definition:')
-    print(list(pipeline.nodes.values())[-1].pipeline_json)
-    rebuilt_pipeline = Pipeline(list(pipeline.nodes.values())[-1].pipeline_definition)
-
-    if args.dry_run:
-        pipeline.check_params(params)
-    else:
-        pipeline.execute(coords, params)
-
-    print('Done')
-=======
-        if node in nodes:
-            return refs[nodes.index(node)]
-
-        # get definition
-        d = node.definition
-
-        # replace nodes with references, adding nodes depth first
-        if 'inputs' in d:
-            for key, input_node in d['inputs'].items():
-                if input_node is not None:
-                    d['inputs'][key] = add_node(input_node)
-        if 'sources' in d:
-            for i, source_node in enumerate(d['sources']):
-                d['sources'][i] = add_node(source_node)
-
-        # unique ref
-        ref = node.base_ref
-        while ref in refs:
-            if re.search('_[1-9][0-9]*$', ref):
-                ref, i = ref.rsplit('_', 1)
-                i = int(i)
-            else:
-                i = 0
-            ref = '%s_%d' % (ref, i+1)
-
-        nodes.append(node)
-        refs.append(ref)
-        definitions.append(d)
-
-        return ref
-
-    add_node(main_node)
-
-    output = OrderedDict()
-    #output['mode'] = 'file'
-    #output['format'] = 'pickle'
-    #output['outdir'] = os.path.join(os.getcwd(), 'out')
-    #output['nodes'] = [refs[-1]]
-
-    output['mode'] = 'image'
-    output['format'] = 'png'
-    output['vmin'] = -1.2
-    output['vmax'] = 1.2
-    output['nodes'] = [refs[-1]]
-
-
-    d = OrderedDict()
-    d['nodes'] = OrderedDict(zip(refs, definitions))
-    d['outputs'] = [output]
-    return d
->>>>>>> develop:podpac/core/pipeline.py

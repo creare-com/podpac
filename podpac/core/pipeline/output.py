@@ -36,14 +36,6 @@ class Output(tl.HasTraits):
         """
         raise NotImplementedError
 
-class NoOutput(Output):
-    """Summary
-    """
-    
-    # TODO: docstring?
-    def write(self):
-        pass
-
 class FileOutput(Output):
     """Summary
 
@@ -96,34 +88,3 @@ class S3Output(Output):
 
     bucket = tl.Unicode()
     user = tl.Unicode()
-
-class ImageOutput(Output):
-    """Summary
-
-    Attributes
-    ----------
-    format : TYPE
-        Description
-    image : TYPE
-        Description
-    vmax : TYPE
-        Description
-    vmin : TYPE
-        Description
-    """
-
-    format = tl.CaselessStrEnum(values=['png'], default='png')
-    vmax = tl.CFloat(allow_none=True, default_value=np.nan)
-    vmin = tl.CFloat(allow_none=True, default_value=np.nan)
-    image = tl.Bytes()
-
-    def __init__(self, **kwargs):
-        warnings.warn("image output deprecated, use Node.get_image instead", DeprecationWarning)
-        super(ImageOutput, self).__init__(**kwargs)
-
-    # TODO: docstring?
-    def write(self):
-        try:
-            self.image = self.node.get_image(format=self.format, vmin=self.vmin, vmax=self.vmax)
-        except:
-            pass
