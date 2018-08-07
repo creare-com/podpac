@@ -528,8 +528,8 @@ class WCS(podpac.DataSource):
         dlondlat = (lonlat[1, :] - lonlat[0, :]) / size
         bottom = lonlat[:, 1].min() + dlondlat[1] / 2
         top = lonlat[:, 1].max() - dlondlat[1] / 2
-        left = lonlat[:, 1].min() + dlondlat[0] / 2
-        right = lonlat[:, 1].max() - dlondlat[0] / 2
+        left = lonlat[:, 0].min() + dlondlat[0] / 2
+        right = lonlat[:, 0].max() - dlondlat[0] / 2
 
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
