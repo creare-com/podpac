@@ -137,7 +137,7 @@ class PyDAP(podpac.DataSource):
     auth_class = tl.Type(authentication.SessionWithHeaderRedirection)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
-    dataset = tl.Instance('pydap.model.DatasetType', allow_none=True)
+    dataset = tl.Instance('pydap.model.DatasetType', allow_none=False)
 
     @tl.default('auth_session')
     def _auth_session_default(self):
