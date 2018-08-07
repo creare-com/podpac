@@ -4,10 +4,9 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import os
 import pytest
 
-import podpac
 from podpac.core.coordinate import Coordinate
 from podpac.core.algorithm.algorithm import Arange
-from podpac.core.pipeline.output import NoOutput, FileOutput, FTPOutput, S3Output
+from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output
 
 coords = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), order=['lat', 'lon'])
 node = Arange()

@@ -58,7 +58,7 @@ def make_pipeline_definition(main_node):
 
         # unique ref
         ref = node.base_ref
-        if ref in refs:
+        while ref in refs:
             if re.search('_[1-9][0-9]*$', ref):
                 ref, i = ref.rsplit('_', 1)
                 i = int(i)

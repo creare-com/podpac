@@ -8,6 +8,6 @@
         "node": "a",
         "mode": "file",
         "format": "pickle",
-        "outdir": "out_test"
+        "outdir": "."
     }
 }

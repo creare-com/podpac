@@ -14,15 +14,11 @@ from podpac.core.coordinate import Coordinate
 from podpac.core.data.type import NumpyArray
 from podpac.core.algorithm.algorithm import Arange
 from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output
-from podpac.core.pipeline.pipeline import Pipeline, PipelineNode, PipelineError, make_pipeline_definition
+from podpac.core.pipeline.pipeline import Pipeline, PipelineNode, PipelineError
 
 coords = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), order=['lat', 'lon'])
 node = Arange()
 node.execute(coords)
-
-class RandomData(NumpyArray):
-    source = np.random.random(coords.shape)
-    native_coordinates = coords
 
 class TestPipeline(object):
     def test_load_from_file(self):
@@ -33,6 +29,17 @@ class TestPipeline(object):
         assert pipeline.definition['output']
         assert isinstance(pipeline.nodes['a'], podpac.core.algorithm.algorithm.Arange)
         assert isinstance(pipeline.output, FileOutput)
+
+    def test_parse_no_nodes(self):
+        s = '{ }'
+        d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
+        with pytest.raises(PipelineError):
+            Pipeline(d)
+
+        s = '{"nodes": { } }'
+        d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
+        with pytest.raises(PipelineError):
+            Pipeline(d)
 
     def test_parse_node_invalid_node(self):
         # module does not exist
@@ -397,24 +404,65 @@ class TestPipeline(object):
                 "node": "a",
                 "mode": "file",
                 "format": "pickle",
-                "outdir": "%s"
+                "outdir": "."
             }
         }
-        ''' % (path)
+        '''
 
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
         pipeline = Pipeline(d)
         pipeline.execute(coords)
         assert pipeline.output.path is not None
-        assert os.path.exists(pipeline.output.path)
+        assert os.path.isfile(pipeline.output.path)
+        os.remove(pipeline.output.path)
 
-        try:
-            os.path.rm(pipeline.output.path)
-        except:
-            pass
+    def test_execute_params(self):
+        s = '''
+        {
+            "nodes": {
+                "source": {"node": "core.algorithm.algorithm.Arange"},
+                "result": {        
+                    "node": "Arithmetic",
+                    "inputs": {
+                        "A": "source"
+                    },
+                    "params": {
+                        "eqn": "2 * A"
+                    }
+                }
+            }
+        }
+        '''
+
+        d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
+        pipeline = Pipeline(d)
+        
+        a = Arange()
+        aout = a.execute(coords)
+
+        # no params argument
+        pipeline.execute(coords)
+        np.testing.assert_array_equal(2 * aout, pipeline.nodes['result'].output)
+        
+        # empty params argument
+        pipeline.execute(coords, params={})
+        np.testing.assert_array_equal(2 * aout, pipeline.nodes['result'].output)
+        
+        # None params argument
+        pipeline.execute(coords, params=None)
+        np.testing.assert_array_equal(2 * aout, pipeline.nodes['result'].output)
+        
+        # set params argument
+        pipeline.execute(coords, params={'result': {'eqn': "3 * A"}})
+        np.testing.assert_array_equal(3 * aout, pipeline.nodes['result'].output)
+        
+        # nonexistent node
+        with pytest.raises(PipelineError):
+            pipeline.execute(coords, params={'a': {'test': 0}})
+            
 
 class TestPipelineNode(object):
     def test_pipeline_node(self):
         path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'pipeline', 'test', 'test.json')
         node = PipelineNode(path=path)
-        node.execute(coords)
+        # node.execute(coords)

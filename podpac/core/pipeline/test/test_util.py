@@ -1,4 +1,10 @@
 
+from __future__ import division, unicode_literals, print_function, absolute_import
+
+import numpy as np
+import podpac
+from podpac.core.pipeline.pipeline import Pipeline, make_pipeline_definition
+
 def test_make_pipeline_definition():
     a = podpac.core.algorithm.algorithm.Arange()
     b = podpac.core.algorithm.algorithm.CoordData()
