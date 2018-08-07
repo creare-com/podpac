@@ -56,11 +56,16 @@ class FileOutput(Output):
     """
     
     outdir = tl.Unicode()
-    format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default_value='pickle')
+    format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default='pickle')
+
+    _path = tl.Unicode(allow_none=True, default_value=None)
+    @property
+    def path(self):
+        return self._path
 
     # TODO: docstring?
     def write(self):
-        self.node.write(self.name, outdir=self.outdir, format=self.format)
+        self._path = self.node.write(self.name, outdir=self.outdir, format=self.format)
 
 
 class FTPOutput(Output):
@@ -119,8 +124,6 @@ class ImageOutput(Output):
     # TODO: docstring?
     def write(self):
         try:
-            self.image = self.node.get_image(format=self.format,
-                                             vmin=self.vmin,
-                                             vmax=self.vmax)
+            self.image = self.node.get_image(format=self.format, vmin=self.vmin, vmax=self.vmax)
         except:
             pass

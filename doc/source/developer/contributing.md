@@ -1,6 +1,6 @@
 # Contributing
 
-To get a sense of where the project is going, have a look at our [Roadmap](/roadmap)
+To get a sense of where the project is going, have a look at our [Roadmap](../roadmap)
 
 There are a number of ways to contribute:
 
@@ -150,16 +150,47 @@ $ pytest
 $ pytest -k "TestClass"    # run only the TestClass
 ```
 
-Configuration options are specified in `setup.cfg`
+Configuration options are specified in `setup.cfg`.
 
-## Code Coverage
 
-We use [`pytest-cov`](https://github.com/pytest-dev/pytest-cov) (which uses [`coverage`](https://coverage.readthedocs.io/en/coverage-4.5.1/) underneath) to monitor code coverage of unit tests and [`coveralls`](https://github.com/coveralls-clients/coveralls-python) to provide the coverage status. To record coverage while running tests, run:
+### Integration testing
 
-```bash
-$ pytest --cov=podpac --cov-report html podpac   # outputs html coverage
+We use `pytest` to write integration tests. 
+Generally these tests should be written in seperate files from unit tests.
+To specify that a test is an integration test, use the custom pytest marker `@pytest.mark.integration`:
+
+```python
+import pytest
+
+@pytest.mark.integration
+def test_function():
+    pass
+
+@pytest.mark.integration
+class TestClass(object):
+
+    def test_method(self):
+        pass
 ```
 
+Integration tests do not run by default.
+To run integration tests from the command line:
+
+```bash
+$ pytest -m integration
+```
+
+See [working with custom markers](https://docs.pytest.org/en/latest/example/markers.html) for more details on how to use markers in pytest.
+
+### Code Coverage
+
+We use [`pytest-cov`](https://github.com/pytest-dev/pytest-cov) (which uses [`coverage`](https://coverage.readthedocs.io/en/coverage-4.5.1/) underneath) to monitor code coverage of unit tests. To record coverage while running tests, run:
+
+```bash
+$ pytest --cov=podpac --cov-report html:./artifacts/coverage podpac   # outputs html coverage to directory artifacts/coverage
+```
+
+We use [`coveralls`](https://github.com/coveralls-clients/coveralls-python) to provide [coverage status and visualization](https://coveralls.io/github/creare-com/podpac).
 
 ## Governance
 

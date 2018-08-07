@@ -27,7 +27,6 @@ from podpac.core.pipeline.util import make_pipeline_definition
 class PipelineError(NodeException):
     """Summary
     """
-
     pass
 
 class Pipeline(tl.HasTraits):
@@ -122,38 +121,21 @@ class Pipeline(tl.HasTraits):
         try:
             node_class = getattr(module, node_name)
         except AttributeError:
-            raise PipelineError("Node '%s' not found in module '%s'" % (
-                node_name, module_name))
+            raise PipelineError("Node '%s' not found in module '%s'" % (node_name, module_name))
 
         # parse and configure kwargs
         kwargs = {}
         whitelist = ['node', 'attrs', 'params', 'evaluate', 'plugin']
 
         try:
+            # translate node references in compositors and algorithms
             parents = inspect.getmro(node_class)
-
-            if DataSource in parents:
-                if 'source' in d:
-                    kwargs['source'] = d['source']
-                    whitelist.append('source')
-            if Compositor in parents:
-                if 'sources' in d:
-                    kwargs['sources'] = [self.nodes[source] for source in d['sources']]
-                    whitelist.append('sources')
-            if Algorithm in parents:
-                if 'inputs' in d:
-                    kwargs.update({k:self.nodes[v] for k, v in d['inputs'].items()})
-                    whitelist.append('inputs')
-            if PipelineNode in parents:
-                if 'pipeline_json' in d:
-                    kwargs['pipeline_json'] = d['pipeline_json']
-                    whitelist.append('pipeline_json')
-
-            if DataSource not in parents and\
-                   Compositor not in parents and\
-                   Algorithm not in parents and\
-                   PipelineNode not in parents:
-                raise PipelineError("node '%s' is not a DataSource, Compositor, or Algorithm" % name)
+            if Compositor in parents and 'sources' in d:
+                kwargs['sources'] = np.array([self.nodes[source] for source in d['sources']])
+                whitelist.append('sources')
+            if Algorithm in parents and 'inputs' in d:
+                kwargs.update({k:self.nodes[v] for k, v in d['inputs'].items()})
+                whitelist.append('inputs')
         except KeyError as e:
             raise PipelineError("node '%s' definition references nonexistent node '%s'" % (name, e))
 
@@ -179,9 +161,45 @@ class Pipeline(tl.HasTraits):
         if d is None:
             d = {}
 
+<<<<<<< HEAD:podpac/core/pipeline/pipeline.py
         # node (uses last node by default)
         if 'node' in d:
             name = d['node']
+=======
+        kwargs = {}
+        # modes
+        if 'mode' not in d:
+            raise PipelineError("output definition requires 'mode' property")
+        elif d['mode'] == 'none':
+            output_class = NoOutput
+        elif d['mode'] == 'file':
+            output_class = FileOutput
+            kwargs = {'outdir': d.get('outdir'), 'format': d['format']}
+        elif d['mode'] == 'ftp':
+            output_class = FTPOutput
+            kwargs = {'url': d['url'], 'user': d['user']}
+        elif d['mode'] == 'aws':
+            output_class = AWSOutput
+            kwargs = {'user': d['user'], 'bucket': d['bucket']}
+        elif d['mode'] == 'image':
+            output_class = ImageOutput
+            kwargs = {'format': d.get('image', 'png'),
+                      'vmin': d.get('vmin', np.nan),
+                      'vmax': d.get('vmax', np.nan)}
+        else:
+            raise PipelineError("output definition has unexpected mode '%s'" % d['mode'])
+
+        # node references
+        if 'node' in d and 'nodes' in d:
+            raise PipelineError("output definition expects 'node' or 'nodes' property, not both")
+        elif 'node' in d:
+            refs = [d['node']]
+        elif 'nodes' in d:
+            refs = d['nodes']
+        elif d['mode'] == 'none':
+            nodes = self.nodes
+            refs = list(nodes.keys())
+>>>>>>> develop:podpac/core/pipeline.py
         else:
             name = list(self.nodes.keys())[-1]
             warnings.warn("No output node provided, using last node '%s'" % name)
@@ -223,7 +241,10 @@ class Pipeline(tl.HasTraits):
             used[base_ref] = True
 
             d = self.definition['nodes'][base_ref]
-            for ref in d.get('sources', []) + list(d.get('inputs', {}).values()):
+            for ref in d.get('sources', []):
+                f(ref)
+
+            for ref in d.get('inputs', {}).values():
                 f(ref)
 
         f(self.output.name)
@@ -264,7 +285,7 @@ class Pipeline(tl.HasTraits):
             d = copy.deepcopy(self.params[key])
             d.update(params.get(key, OrderedDict()))
 
-            if node.evaluated_coordinates == coordinates and node.params == d:
+            if node.evaluated_coordinates == coordinates and node._params == d:
                 continue
 
             node.execute(coordinates, params=d)
@@ -305,7 +326,15 @@ class PipelineNode(Node):
     output_node = tl.Unicode()
     @tl.default('output_node')
     def _output_node_default(self):
+<<<<<<< HEAD:podpac/core/pipeline/pipeline.py
         return self.definition['output']['node']
+=======
+        o = self.definition['outputs'][0]
+        if 'nodes' in o:
+            return o['nodes'][0]
+        else:
+            return o['node']
+>>>>>>> develop:podpac/core/pipeline.py
 
     pipeline_json = tl.Unicode(help="pipeline json definition")
     @tl.default('pipeline_json')
@@ -322,8 +351,7 @@ class PipelineNode(Node):
     source_pipeline = tl.Instance(Pipeline, allow_none=False)
     @tl.default('source_pipeline')
     def _source_pipeline_default(self):
-        return Pipeline(source=self.definition,
-                        implicit_pipeline_evaluation=self.implicit_pipeline_evaluation)
+        return Pipeline(source=self.definition, implicit_pipeline_evaluation=self.implicit_pipeline_evaluation)
 
     @tl.default('native_coordinates')
     def get_native_coordinates(self):
@@ -367,6 +395,7 @@ class PipelineNode(Node):
 
         return self.output
 
+<<<<<<< HEAD:podpac/core/pipeline/pipeline.py
 if __name__ == '__main__':
     import argparse
     import podpac
@@ -404,11 +433,38 @@ if __name__ == '__main__':
         return layer, param, value
 
     def parse_params(l):
+=======
+def make_pipeline_definition(main_node):
+    """
+    Make a pipeline definition, including the flattened node definitions and a
+    default file output for the input node.
+
+    Parameters
+    ----------
+    main_node : TYPE
+        Description
+
+    Returns
+    -------
+    TYPE
+        Description
+    """
+
+    nodes = []
+    refs = []
+    definitions = []
+
+    def add_node(node):
+>>>>>>> develop:podpac/core/pipeline.py
         """Summary
 
         Parameters
         ----------
+<<<<<<< HEAD:podpac/core/pipeline/pipeline.py
         l : TYPE
+=======
+        node : TYPE
+>>>>>>> develop:podpac/core/pipeline.py
             Description
 
         Returns
@@ -416,6 +472,7 @@ if __name__ == '__main__':
         TYPE
             Description
         """
+<<<<<<< HEAD:podpac/core/pipeline/pipeline.py
         if len(l) == 1 and os.path.isfile(l[0]):
             with open(l) as f:
                 d = json.load(f)
@@ -468,3 +525,55 @@ if __name__ == '__main__':
         pipeline.execute(coords, params)
 
     print('Done')
+=======
+        if node in nodes:
+            return refs[nodes.index(node)]
+
+        # get definition
+        d = node.definition
+
+        # replace nodes with references, adding nodes depth first
+        if 'inputs' in d:
+            for key, input_node in d['inputs'].items():
+                if input_node is not None:
+                    d['inputs'][key] = add_node(input_node)
+        if 'sources' in d:
+            for i, source_node in enumerate(d['sources']):
+                d['sources'][i] = add_node(source_node)
+
+        # unique ref
+        ref = node.base_ref
+        while ref in refs:
+            if re.search('_[1-9][0-9]*$', ref):
+                ref, i = ref.rsplit('_', 1)
+                i = int(i)
+            else:
+                i = 0
+            ref = '%s_%d' % (ref, i+1)
+
+        nodes.append(node)
+        refs.append(ref)
+        definitions.append(d)
+
+        return ref
+
+    add_node(main_node)
+
+    output = OrderedDict()
+    #output['mode'] = 'file'
+    #output['format'] = 'pickle'
+    #output['outdir'] = os.path.join(os.getcwd(), 'out')
+    #output['nodes'] = [refs[-1]]
+
+    output['mode'] = 'image'
+    output['format'] = 'png'
+    output['vmin'] = -1.2
+    output['vmax'] = 1.2
+    output['nodes'] = [refs[-1]]
+
+
+    d = OrderedDict()
+    d['nodes'] = OrderedDict(zip(refs, definitions))
+    d['outputs'] = [output]
+    return d
+>>>>>>> develop:podpac/core/pipeline.py

@@ -33,14 +33,27 @@ from podpac import Units, UnitsDataArray
 from podpac import Coordinate
 from podpac.core.utils import common_doc
 
-COMMON_DOC = {
+COMMON_NODE_DOC = {
     'native_coordinates': 
         '''The native set of coordinates for a node. This attribute may be `None` for some nodes.''',
     'evaluated_coordinates': 
         '''The set of coordinates requested by a user. The Node will be executed using these coordinates.''',
-    'params': 'Default is None. Runtime parameters that modify any default node parameters.',
+    'execute_params': 'Default is None. Runtime parameters that modify any default node parameters.',
+    'execute_out': 
+        '''Default is None. Optional input array used to store the output data. When supplied, the node will not 
+            allocate its own memory for the output array. This array needs to have the correct dimensions and 
+            coordinates.''',
+    'execute_method': 
+        '''Default is None. How the node will be executed: serial, parallel, on aws, locally, etc. Currently only local
+            execution is supported.''',
+    'execute_return': 
+        '''UnitsDataArray
+            Unit-aware xarray DataArray containing the results of the node execution.''',
     'hash_return': 'A unique hash capturing the coordinates and parameters used to execute the node. ',
     'outdir': 'Optional output directory. Uses settings.CACHE_DIR by default',
+    'definition_return': '''OrderedDict
+            Dictionary containing the location of the Node, the name of the plugin (if required), as well as any 
+            parameters and attributes that were tagged by children.''',
     'arr_init_type': 
         '''How to initialize the array. Options are:
                 nan: uses np.full(..., np.nan) (Default option)
@@ -63,6 +76,8 @@ COMMON_DOC = {
             Unit-aware xarray DataArray of the desired size initialized using the method specified.
             """
     }
+
+COMMON_DOC = COMMON_NODE_DOC.copy()
 
 class NodeException(Exception):
     """Summary
@@ -92,7 +107,7 @@ class Style(tl.HasTraits):
 
     def __init__(self, node=None, *args, **kwargs):
         if node:
-            self.name = node.__class.__name__
+            self.name = node.__class__.__name__
             self.units = node.units
         super(Style, self).__init__(*args, **kwargs)
 
@@ -105,8 +120,8 @@ class Style(tl.HasTraits):
 
     clim = tl.List(default_value=[None, None])
     cmap = tl.Instance(matplotlib.colors.Colormap)
-    tl.default('cmap')
-
+    
+    @tl.default('cmap') 
     def _cmap_default(self):
         return matplotlib.cm.get_cmap('viridis')
 
@@ -142,6 +157,8 @@ class Node(tl.HasTraits):
         future.
     units : podpac.Units
         The units of the output data, defined using the pint unit registry `podpac.units.ureg`.
+    interpolation : str, optional
+        The interpolation type to use for the node. Not all nodes use this attribute.
     """
 
     output = tl.Instance(UnitsDataArray, allow_none=True, default_value=None)
@@ -150,17 +167,19 @@ class Node(tl.HasTraits):
         return self.initialize_output_array('nan')
 
     native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
-                                     allow_none=True)
+                                     allow_none=True, default=None)
     evaluated = tl.Bool(default_value=False)
     implicit_pipeline_evaluation = tl.Bool(default_value=True, help="Evaluate the pipeline implicitly (True, Default)")
     evaluated_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
                                         allow_none=True)
-    params = tl.Dict(default_value=None, allow_none=True)
+    _params = tl.Dict(default=None, allow_none=True)
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
 
     node_defaults = tl.Dict(allow_none=True)
+    
+    interpolation = tl.Unicode('')
 
     style = tl.Instance(Style)
     @tl.default('style')
@@ -168,49 +187,10 @@ class Node(tl.HasTraits):
         return Style()
 
     @property
-    def shape(self, coords=None):
-        """Returns the shape of the output based on the evaluated coordinates. This shape is jointly determined by the
-        input or evaluated coordinates and the native_coordinates (if present).
-
-        Parameters
-        -----------
-        coords: podpac.Coordinates, optional
-            Requested coordinates that help determine the shape of the output. Uses self.evaluated_coordinates if not 
-            supplied. 
-
-        Returns
-        -------
-        tuple/list
-            Size of the dimensions of the output
-
-        Raises
-        ------
-        NodeException
-            If the shape cannot be automatically determined, this exception is raised. 
+    def shape(self):
+        """See `get_output_shape`
         """
-
-        # Changes here likely will also require changes in initialize_output_array
-        if coords is None: 
-            ev = self.evaluated_coordinates
-        else: 
-            ev = coords
-        #nv = self._trait_values.get('native_coordinates',  None)
-        # Switching from _trait_values to hasattr because "native_coordinates"
-        # not showing up in _trait_values
-        if hasattr(self, 'native_coordinates'):
-            nv = self.native_coordinates
-        else:
-            nv = None
-        if ev is not None and nv is not None:
-            return nv.get_shape(ev)
-        elif ev is not None and nv is None:
-            return ev.shape
-        elif nv is not None:
-            return nv.shape
-        else:
-            raise NodeException("Cannot determine shape if "
-                                "evaluated_coordinates and native_coordinates"
-                                " are both None.")
+        return self.get_output_shape()
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """
@@ -261,14 +241,11 @@ class Node(tl.HasTraits):
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
         params : dict, optional
-            Default is None. Runtime parameters that modify any default node parameters.
+            {execute_params} 
         output : podpac.UnitsDataArray, optional
-            Default is None. Optional input array used to store the output data. When supplied, the node will not 
-            allocate its own memory for the output array. This array needs to have the correct dimensions and 
-            coordinates.
+            {execute_out}
         method : str, optional
-            Default is None. How the node will be executed: serial, parallel, on aws, locally, etc. Currently only local
-            execution is supported.
+            {execute_method}
 
         Raises
         ------
@@ -276,6 +253,80 @@ class Node(tl.HasTraits):
             Children need to implement this method, otherwise this error is raised. 
         """
         raise NotImplementedError
+    
+    def get_output_shape(self, coords=None):
+        """Returns the shape of the output based on the evaluated coordinates. This shape is jointly determined by the
+        input or evaluated coordinates and the native_coordinates (if present).
+
+        Parameters
+        -----------
+        coords: podpac.Coordinates, optional
+            Requested coordinates that help determine the shape of the output. Uses self.evaluated_coordinates if not 
+            supplied. 
+
+        Returns
+        -------
+        tuple/list
+            Size of the dimensions of the output
+
+        Raises
+        ------
+        NodeException
+            If the shape cannot be automatically determined, this exception is raised. 
+        """
+
+        # Changes here likely will also require changes in initialize_output_array
+        if coords is None: 
+            ev = self.evaluated_coordinates
+        else: 
+            ev = coords
+        #nv = self._trait_values.get('native_coordinates',  None)
+        # Switching from _trait_values to hasattr because "native_coordinates"
+        # not showing up in _trait_values
+        if hasattr(self, 'native_coordinates'):
+            nv = self.native_coordinates
+        else:
+            nv = None
+        if ev is not None and nv is not None:
+            return nv.get_shape(ev)
+        elif ev is not None and nv is None:
+            return ev.shape
+        elif nv is not None:
+            return nv.shape
+        else:
+            raise NodeException("Cannot determine shape if "
+                                "evaluated_coordinates and native_coordinates"
+                                " are both None.")        
+
+    def get_output_dims(self, coords=None):
+        """Returns the dimensions of the output coordinates based on the user-requested coordinates. This is jointly 
+        determined by the input or evaluated coordinates and the native_coordinates (if present).
+
+        Parameters
+        ----------
+        coords : podpac.Coordinates, optional
+            Requested coordinates that help determine the coordinates of the output. Uses self.evaluated_coordinates if 
+            not supplied.
+
+        Returns
+        -------
+        list
+            A list of the coordinates
+        """
+        # Changes here likely will also require changes in shape
+        if coords is None:
+            coords = self.evaluated_coordinates
+        if not isinstance(coords, (Coordinate)):
+            coords = Coordinate(coords)
+
+        #if self._trait_values.get("native_coordinates", None) is not None:
+        # Switching from _trait_values to hasattr because "native_coordinates"
+        # not showing up in _trait_values
+        if hasattr(self, "native_coordinates") and self.native_coordinates is not None:
+            dims = self.native_coordinates.dims
+        else:
+            dims = coords.dims
+        return dims
 
     def get_output_coords(self, coords=None):
         """Returns the output coordinates based on the user-requested coordinates. This is jointly determined by 
@@ -457,7 +508,7 @@ class Node(tl.HasTraits):
         if style is None: style = self.style
         if shape is None: shape = self.shape
         if units is None: units = self.units
-        if not isinstance(coords, (dict, OrderedDict)): coords = dict(coords)
+        if not isinstance(coords, (dict, OrderedDict, list)): coords = dict(coords)
 
         if init_type == 'empty':
             data = np.empty(shape)
@@ -480,7 +531,7 @@ class Node(tl.HasTraits):
             x.attrs['layer_style'] = style
         if units is not None:
             x.attrs['units'] = units
-        x.attrs['params'] = self.params
+        x.attrs['params'] = self._params
         return x
 
     @property
@@ -496,13 +547,12 @@ class Node(tl.HasTraits):
         return self.__class__.__name__
 
 
-    def _base_definition(self):
-        """populates 'node' and 'plugin', if necessary
+    def base_definition(self):
+        """Get the base pipeline definition.
 
         Returns
         -------
-        OrderedDict
-            Dictionary containing the location of the Node, and the name of the plugin (if required)
+        {definition_return}
         """
         d = OrderedDict()
 
@@ -514,28 +564,64 @@ class Node(tl.HasTraits):
         else:
             d['plugin'] = self.__module__
             d['node'] = self.__class__.__name__
-
+        params = {}
+        attrs = {}
+        for key, value in self.traits().items():
+            if value.metadata.get('param', False):
+                params[key] = getattr(self, key)
+            if value.metadata.get('attr', False):
+                attrs[key] = getattr(self, key)
+        if params:
+            d['params'] = params
+        if attrs:
+            d['attrs'] = attrs
         return d
+
+    def get_params(self, params=None):
+        """Helper function to update default parameters with runtime parameters. 
+        
+        Parameters
+        -----------
+        params: dict
+            {execute_params}
+            
+        Returns
+        -------
+        dict
+            The set of parameters that will be used for the execution of the node.
+        """
+        p = {}
+        for key, value in self.traits().items():
+            if value.metadata.get('param', False):
+                p[key] = getattr(self, key)
+        if params: 
+            p.update(params)
+        return p
 
     @property
     def definition(self):
         """
-        Pipeline node definition. Implemented in primary base nodes, with
-        custom implementations or extensions necessary for specific nodes.
+        Pipeline node definition.
 
-        Should be an OrderedDict with at least a 'node' attribute.
+        This property is implemented in the primary base nodes (DataSource, Algorithm, and Compositor). Node
+        subclasses with additional params or attrs will need to extend this property.
+
+        Returns
+        -------
+        definition : OrderedDct
+            full pipeline definition, including the base_defition and any additional properties
 
         Raises
         ------
         NotImplementedError
             This needs to be implemented by derived classes
+
+        See Also
+        --------
+        base_definition
         """
-        parents = inspect.getmro(self.__class__)
-        podpac_parents = [
-            '%s.%s' % (p.__module__.split('.', 1)[1:], p.__name__)
-            for p in parents
-            if p.__module__.startswith('podpac.')]
-        raise NotImplementedError('See %s' % ', '.join(podpac_parents))
+
+        raise NotImplementedError
 
     @property
     def pipeline_definition(self):
@@ -576,7 +662,7 @@ class Node(tl.HasTraits):
         podpac.Pipeline
             A pipeline node created using the self.pipeline_definition
         """
-        from pipeline import Pipeline
+        from podpac.core.pipeline import Pipeline
         return Pipeline(self.pipeline_definition)
 
     def get_hash(self, coordinates=None, params=None):
@@ -623,7 +709,7 @@ class Node(tl.HasTraits):
         if self.evaluated_coordinates is None:
             raise NodeException("node not evaluated")
 
-        return self.get_hash(self.evaluated_coordinates, self.params)
+        return self.get_hash(self.evaluated_coordinates, self._params)
 
     @property
     def latlon_bounds_str(self):
@@ -676,6 +762,11 @@ class Node(tl.HasTraits):
             {outdir}
         format : str, optional
             The file format. Currently only `pickle` is supported. 
+            
+        Returns
+        --------
+        str
+            The path of the loaded file
 
         Raises
         ------
@@ -693,9 +784,10 @@ class Node(tl.HasTraits):
                 cPickle.dump(self.output, f)
         else:
             raise NotImplementedError
+        return path
 
     def load(self, name, coordinates, params, outdir=None):
-        """Retrieves a cached file from disk. 
+        """Retrieves a cached output from disk and assigns it to self.output
 
         Parameters
         ----------
@@ -707,6 +799,11 @@ class Node(tl.HasTraits):
             {params}
         outdir : str, optional
             {outdir}
+            
+        Returns
+        --------
+        str
+            The path of the loaded file
         """
         filename = '%s_%s_%s.pkl' % (
             name,
@@ -716,21 +813,7 @@ class Node(tl.HasTraits):
 
         with open(path, 'rb') as f:
             self.output = cPickle.load(f)
-
-    def load_from_file(self, path):
-        """Retrieves a specified file from disk using pickle, and assigns it to self.output
-
-        Parameters
-        ----------
-        path : str
-            Path to file
-        """
-        with open(path, 'rb') as f:
-            output = cPickle.load(f)
-
-        self.output = output
-        self.evaluated_coordinates = self.output.coordinates
-        self.params = self.output.attrs['params']
+        return path
 
     def get_image(self, format='png', vmin=None, vmax=None):
         """Return a base64-encoded image of the output
@@ -754,9 +837,9 @@ class Node(tl.HasTraits):
 
         data = self.output.data.squeeze()
 
-        if np.isnan(vmin):
+        if vmin is None or np.isnan(vmin):
             vmin = np.nanmin(data)
-        if np.isnan(vmax):
+        if vmax is None or np.isnan(vmax):
             vmax = np.nanmax(data)
         if vmax == vmin:
             vmax += 1e-16

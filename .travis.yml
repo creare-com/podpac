@@ -31,7 +31,8 @@ cache: pip
 
 # run unit tests
 script: 
-  - pytest --ci --cov=podpac podpac
+  - pytest --ci --cov=podpac podpac        # run unit tests with coverage
+  - pytest --ci -m integration podpac      # run integration tests
 
   # run doctest
   - cd doc && ./test-docs.sh && cd ..

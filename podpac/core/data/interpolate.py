@@ -61,8 +61,8 @@ class Interpolator(tl.HasTraits):
     Description
     """
     
-    eval_coords = tl.Instance(podpac.Coordinates)
-    source_coords = tl.Instance(podpac.Coordinates)
+    eval_coords = tl.Instance(podpac.Coordinate)
+    source_coords = tl.Instance(podpac.Coordinate)
     pad = tl.Int(1)
     interpolation = tl.Unicode()
     valid_interpolations = tl.Enum([])

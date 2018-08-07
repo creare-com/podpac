@@ -1969,7 +1969,7 @@ def test_coord_linspace_numerical():
     assert c.is_descending == True
     assert c.is_datetime == False
 
-@pytest.mark.skipif(pytest.config.getoption("ci"), reason="spec uncertain")
+@pytest.mark.skip("spec uncertain")
 def test_coord_linspace_datetime():
     # ascending
     c = coord_linspace('2018-01-01', '2018-01-10', 10)

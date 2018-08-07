@@ -1,53 +1,11 @@
 {
     "nodes": {
-        "sm": {
-            "node": "datalib.smap.SMAP",
-            "attrs": {
-                "product": "SPL4SMAU.003",
-                "interpolation": "bilinear"
-            }
-        },
-        "twi": {
-            "node": "core.data.type.WCS",
-            "source": <WCS_SERVER_URL>,
-            "attrs": {
-                "layer_name": <WCS_LAYER_NAME>
-            }
-        },
-        "twi_bar": {
-            "node": "core.data.type.WCS",
-            "source": <WCS_SERVER_URL>,
-            "attrs": {
-                "layer_name": <WCS_LAYER_NAME>
-            },
-            "evaluate": false
-        },
-        "twi_bar_reprojected":{
-            "node": "core.data.type.ReprojectedSource",
-            "inputs": {
-                "source": "twi_bar",
-                "coordinates_source": "sm"
-            },
-            "attrs": {
-                "interpolation": "bilinear"
-            }
-        },
-        "downscaled_sm": {        
-            "node": "Arithmetic",
-            "inputs": {
-                "A": "sm",
-                "B": "twi",
-                "C": "twi_bar_reprojected"
-            },
-            "params": {
-                "kappa": "13",
-                "tsmtr": "0.3", 
-                "eqn": "A + {tsmtr} / {kappa} * (B - C)"
-            }
+        "a": {
+            "node": "core.algorithm.algorithm.Arange"
         }
     },
     "output": {
-        "node": "downscaled_sm",
+        "node": "a",
         "mode": "file",
         "format": "pickle",
         "outdir": "out_test"
