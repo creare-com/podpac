@@ -24,43 +24,47 @@
 
 - `source`: Any, required
     + The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as a few examples.
-- `interpolation`: Enum('nearest', 'nearest_preview', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss', 'max', 'min', 'med', 'q1', 'q3'), Default: `nearest`
-    + Type of interpolation
-- `params`: Any
-    + Includes `interpolation_param` and any other kwargs that are necessary for the DataSource
-- pick one of (`nodata`, `nonevals`, `none_vals`, `nan`, `nanvals`, `nan_vals`): List
-    + list of values from source data that should be interpreted as 'no data' or 'nans'
+- `interpolation`: `Interpolate()`  class (tbd)
+    - Should include `interpolation_param` for all dims or single dims.  i.e. Enum('nearest', 'nearest_preview', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss', 'max', 'min', 'med', 'q1', 'q3'), Default: `nearest`
+- `coordinate_index_type`: Enum('list','numpy','xarray','pandas'). By default this is `numpy`
+- `nan_vals`: List
+    + list of values from source data that should be interpreted as 'no data' or 'nans' (replaces `no_data_vals`)
 
 #### Properties
 
 #### Contructor
 
-- Take one input (i.e. `evaluate`) that will automatically execute the datasource at the native_coordinates on contruction. This will allow a shortcut when you just want to load a simple data source for processing with other more complication data sources
+- FUTURE: After implementing a govener on the request size, implement:
+    + Take one input (i.e. `evaluate`) that will automatically execute the datasource at the native_coordinates on contruction. This will allow a shortcut when you just want to load a simple data source for processing with other more complication data sources
 
 #### Methods
 
-- `execute(coordinates, params=None, output=None, method=None)` (potentially rename to or provide alias as `eval(...)`): Execute this node using the supplied coordinates
-    + `self.requested_coordinates` gets set to the input coordinates
+- `eval(coordinates, params=None, output=None, method=None)`: Evaluate this node using the supplied coordinates
+    + `self.requested_coordinates` gets set to the coordinates that are input
     + remove dims that don't exist in native coordinates
-    + `_determine_source_coordinates()` translates the requested coordinates into requested source coordinates to get requested via `get_data`
-- `get_data()`:
-    + by default, try returning the data source at the the coordinates_index. If this fails, raise a `NotImplementedError`
+    + `_determine_source_coordinates()` translates the `self.requested_coordinates` into `self.requested_source_coordinates`, `self.requested_source_coordinates_index` to get requested via `get_data`.
+    + run `get_data`
+    + Check/fix order of dims when UnitsDataArray or Xarray is returned from get_data. Otherwise create UnitsDataArray using values from get_data and requested_source_coordinates
+    + Run `_interpolate()`
+    + Output the user the UnitsDataArray passed back from interpolate
+- `get_data(coordinates=self.requested_source_coordinates, coordinates_index=requested_source_coordinates_index)`:
+    + Raise a `NotImplementedError`
     + `coordinates` and `coordinates_index` are guarenteed to exists in the datasource as calculated by `_determine_source_coordinates`
-    + potentially remove inputs and advice use of `self.requested_source_coordinates` and `self.requested_source_coordinates_index`
-    + returns a UnitsDataArray of data subset at the source coordinates
+    + return an UnitsDataArray numpy array or xarray of values. this will get turned into a UnitsDataArray aftwards using `self.requested_source_coordinates` even if the xarray passes back coordinates
+        * Need to check/fix order of dims in UnitsDataArray and Xarray case
 - `get_native_coordinates()`: return the native coordinates from the data source. By default, this should return `self.native_coordinates` if defined, otherwise raise a `NotImplementedError`
 - `definition()`: Pipeline node definition for DataSource nodes.
+    + Transport mechanism for going to the cloud
+    + Leave as is
 
 #### Private Methods
 
-- `_determine_source_coordinates()`: Use `self.requested_coordinates`, `self.native_coordinates`, `self.interpolate`, and `self.params` to determine the requested coordinates translated into the source coordinates. Alternate names: `translate_requested_coordinates`, `_interpolate_coordinates`, `_intersect_coordinates`
-    + sets `self.requested_source_coordinates` (Coordinates) to the coordinates that need to get requested from the data source via `get_data`. These coordinates MUST exists exactly in the data source native coordinates. They coordinates that get returned may be affected by the type of interpolate requested.
-    + (optionally) sets `self.requested_source_coordinates_index` (Array[int])
-- Potential: `_pre_get_data()`: method that gets called before `get_data()`
-- Potential: `_post_get_data()`: method that gets called after `get_data()`
-    + if the output from get_data is an numpy array, then try to create a UnitsDataArray from the numpy array, the source coordinates, and the source coordinates index.
+- `_determine_source_coordinates()`: Use `self.requested_coordinates`, `self.native_coordinates`, `self.interpolate` to determine the requested coordinates translated into the source coordinates.
+    + sets `self.requested_source_coordinates` (Coordinates) to the coordinates that need to get requested from the data source via `get_data`. These coordinates MUST exists exactly in the data source native coordinates. They coordinates that get returned may be affected by the type of interpolate() class used in request.
+    + Based on `coordinate_index_type`, set `self.requested_source_coordinates_index` (Array[int], Array[boolean], List[slices])
     + Returns a UnitsDataArray for the data subset
-- `_interpolate(data_subset)`: Use `self.interpolate` and call the appropriate functions in the `interpolate` module
+- `_interpolate()`: Use `self.interpolate` and call the appropriate functions in the `interpolate` module
+    + Returns a UnitDataArray which becomes the output of the eval method
 
 #### Operators
 
