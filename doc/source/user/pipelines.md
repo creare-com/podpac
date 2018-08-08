@@ -1,6 +1,6 @@
 # Pipelines
 
-A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and defines an *output* node.
+A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and the *output* for the pipeline.
 
 ### Attributes
 
@@ -15,17 +15,19 @@ A podpac pipeline can be defined using JSON. The pipeline definition describes t
         "myNode": { ... },
         "myOtherNode": { ... }
         ...
-        "myFinalNode": { ... }
+        "myResult": { ... }
     },
     "output": {
-        "node": "myFinalNode"
+        "node": "myResult",
+        "mode": "file",
+        ...
     }
 }
 ```
 
 ## Node definitions
 
-A node definition defines the node and its inputs and parameters. It also names the node so that it can be used as an input to other nodes in the pipeline. Nodes must be defined before they are referenced in a later node.
+A node definition defines the node and its inputs, attributes, and default execution parameters. It also names the node so that it can be used as an input to other nodes in the pipeline. Nodes must be defined before they are referenced in a later node.
 
 All nodes must be one of these three basic types: *DataSource*, *Compositor*, and *Algorithm*.
 
@@ -33,13 +35,11 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
  * `node`: a path to the node class. The path is relative to the podpac module, unless `plugin` is defined. See Notes. *(string, required)*
  * `plugin`: a path to a plugin module to use (prepended node path). See Notes. *(string, optional)*
- * `attrs`: explicitly set attributes in the node for custom behavior. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
+ * `attrs`: set attributes in the node for custom behavior. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
+ * `params`: set default execution parameters. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
  * `evaluate`: execute this node automatically. Setting this to `false` is useful for nodes that will be executed implicitly by a later node. *(bool, optional, default `true`)*
 
 ## DataSource
-
-###  Attributes
- * `source`: the dataset source *(string, required)*
 
 ### Sample
 
@@ -59,7 +59,7 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
 ## Compositor
 
-### Attributes
+### Additional Attributes
 
  * `sources`: nodes to composite *(list, required)*
 
@@ -84,7 +84,6 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
 ### Attributes
  * `inputs`: node inputs to the algorithm. *(object, required)*
- * `params`: non-node inputs to the algorithm. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
 
 ```
 {
@@ -121,7 +120,7 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
 ## Output Definition
 
-The output definition defines the node to output and, optionally, an output mode along with associated parameters. If an output definition is not supplied, the last defined node *nodes* is used.
+The output definition defines the node to output and, optionally, an additional output mode along with associated parameters. If an output definition is not supplied, the last defined node is used.
 
 Podpac provides several output types: *file* and *image*. Currently custom output types are not supported.
 

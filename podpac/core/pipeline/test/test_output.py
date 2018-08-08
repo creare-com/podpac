@@ -6,11 +6,16 @@ import pytest
 
 from podpac.core.coordinate import Coordinate
 from podpac.core.algorithm.algorithm import Arange
-from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output
+from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output, NoOutput
 
 coords = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), order=['lat', 'lon'])
 node = Arange()
 node.execute(coords)
+
+class TestNoOutput(object):
+    def test(self):
+        output = NoOutput(node=node, name='test')
+        output.write()
 
 class TestFileOutput(object):
     def _test(self, format):

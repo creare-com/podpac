@@ -13,7 +13,7 @@ import podpac
 from podpac.core.coordinate import Coordinate
 from podpac.core.data.type import NumpyArray
 from podpac.core.algorithm.algorithm import Arange
-from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output
+from podpac.core.pipeline.output import NoOutput, FileOutput, FTPOutput, S3Output
 from podpac.core.pipeline.pipeline import Pipeline, PipelineNode, PipelineError
 
 coords = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), order=['lat', 'lon'])
@@ -73,7 +73,7 @@ class TestPipeline(object):
         '''
 
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        pipeline = Pipeline(d)
+        pipeline = Pipeline(d, warn=False)
 
         assert pipeline.nodes['result'].A is pipeline.nodes['source1']
         assert pipeline.nodes['result'].B is pipeline.nodes['source2']
@@ -117,7 +117,7 @@ class TestPipeline(object):
         '''
         
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        pipeline = Pipeline(d)
+        pipeline = Pipeline(d, warn=False)
         assert pipeline.nodes['c'].sources[0] is pipeline.nodes['a']
         assert pipeline.nodes['c'].sources[1] is pipeline.nodes['b']
 
@@ -155,7 +155,7 @@ class TestPipeline(object):
         '''
 
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        pipeline = Pipeline(d)
+        pipeline = Pipeline(d, warn=False)
         assert pipeline.nodes['sm'].product == "SPL4SMGP.003"
         assert pipeline.nodes['sm'].interpolation == "bilinear"
 
@@ -175,7 +175,7 @@ class TestPipeline(object):
         '''
 
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        pipeline = Pipeline(d)
+        pipeline = Pipeline(d, warn=False)
         assert pipeline.params['a']['param_a'] == 0
         assert pipeline.params['a']['param_b'] == 'test'
 
@@ -228,12 +228,15 @@ class TestPipeline(object):
     def test_parse_output_none(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} }
+            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "output": {"node": "a", "mode": "none"}
         }
         '''
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
         pipeline = Pipeline(d)
-        assert pipeline.output is None
+        assert isinstance(pipeline.output, NoOutput)
+        assert pipeline.output.node is pipeline.nodes['a']
+        assert pipeline.output.name == 'a'
 
     def test_parse_output_file(self):
         s = '''
@@ -308,16 +311,18 @@ class TestPipeline(object):
         with pytest.raises(PipelineError):
             Pipeline(d, warn=False)
 
-        # no mode
+    def test_parse_output_implicit_mode(self):
         s = '''
         {
             "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
-            "output": { }
+            "output": {"node": "a"}
         }
         '''
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        with pytest.raises(PipelineError):
-            Pipeline(d, warn=False)
+        pipeline = Pipeline(d)
+        assert isinstance(pipeline.output, NoOutput)
+        assert pipeline.output.node is pipeline.nodes['a']
+        assert pipeline.output.name == 'a'
 
     def test_parse_output_nonexistent_node(self):
         s = '''
@@ -350,16 +355,27 @@ class TestPipeline(object):
                 }
             },
             "output": {
-                "mode": "file",
-                "format": "pickle",
-                "outdir": "my_directory"
+                "mode": "none"
             }
         }
         '''
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        with pytest.warns(UserWarning, match="No output node provided, using last node 'result'"):
+        with pytest.warns(UserWarning, match="No output node provided"):
             pipeline = Pipeline(d)
         assert pipeline.output.node is pipeline.nodes['result']
+
+    def test_parse_output_implicit(self):
+        s = '''
+        {
+            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} }
+        }
+        '''
+        d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
+        with pytest.warns(UserWarning, match="No output node provided"):
+            pipeline = Pipeline(d)
+        assert isinstance(pipeline.output, NoOutput)
+        assert pipeline.output.node is pipeline.nodes['a']
+        assert pipeline.output.name == 'a'
 
     def test_unused_node_warning(self):
         s = '''
@@ -387,7 +403,7 @@ class TestPipeline(object):
         '''
 
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        pipeline = Pipeline(d)
+        pipeline = Pipeline(d, warn=False)
         pipeline.execute(coords)
 
     def test_execute_output(self):
@@ -435,7 +451,7 @@ class TestPipeline(object):
         '''
 
         d = JSONDecoder(object_pairs_hook=OrderedDict).decode(s)
-        pipeline = Pipeline(d)
+        pipeline = Pipeline(d, warn=False)
         
         a = Arange()
         aout = a.execute(coords)

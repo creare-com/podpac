@@ -36,6 +36,10 @@ class Output(tl.HasTraits):
         """
         raise NotImplementedError
 
+class NoOutput(Output):
+    def write(self):
+        pass
+
 class FileOutput(Output):
     """Summary
 

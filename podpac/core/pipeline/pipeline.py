@@ -21,7 +21,7 @@ from podpac.core.data.data import DataSource
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
 
-from podpac.core.pipeline.output import Output, FileOutput, S3Output, FTPOutput
+from podpac.core.pipeline.output import Output, NoOutput, FileOutput, S3Output, FTPOutput
 from podpac.core.pipeline.util import make_pipeline_definition
 
 class PipelineError(NodeException):
@@ -54,10 +54,10 @@ class Pipeline(tl.HasTraits):
     definition = tl.Instance(OrderedDict, help="pipeline definition")
     nodes = tl.Instance(OrderedDict, help="pipeline nodes")
     params = tl.Dict(trait=tl.Instance(OrderedDict), help="default parameter overrides")
-    output = tl.Instance(Output, help="pipeline output", allow_none=True)
+    output = tl.Instance(Output, help="pipeline output")
     skip_evaluate = tl.List(trait=tl.Unicode, help="nodes to skip")
     implicit_pipeline_evaluation = tl.Bool(False)
-    warn = tl.Bool(False)
+    warn = tl.Bool(True)
 
     def __init__(self, source, implicit_pipeline_evaluation=False, warn=True):
         self.implicit_pipeline_evaluation = implicit_pipeline_evaluation
@@ -87,7 +87,7 @@ class Pipeline(tl.HasTraits):
             self.params[key] = d.get('params', OrderedDict())
 
         # parse output definition
-        self.output = self._parse_output_definition(self.definition.get('output'))
+        self.output = self._parse_output_definition(self.definition.get('output', {}))
 
         # check execution graph for unused nodes
         if self.warn:
@@ -162,9 +162,6 @@ class Pipeline(tl.HasTraits):
         return node_class(**kwargs)
 
     def _parse_output_definition(self, d):
-        if d is None:
-            return None
-
         # node (uses last node by default)
         if 'node' in d:
             name = d['node']
@@ -179,17 +176,17 @@ class Pipeline(tl.HasTraits):
             raise PipelineError("output definition references nonexistent node '%s'" % (e))
 
         # mode
-        if 'mode' not in d:
-            raise PipelineError("output definition missing 'mode'")
-
-        if d['mode'] == 'file':
+        mode = d.get('mode', 'none')
+        if mode == 'none':
+            output_class = NoOutput
+        elif mode == 'file':
             output_class = FileOutput
-        elif d['mode'] == 'ftp':
+        elif mode == 'ftp':
             output_class = FTPOutput
-        elif d['mode'] == 's3':
+        elif mode == 's3':
             output_class = S3Output
         else:
-            raise PipelineError("output definition has unexpected mode '%s'" % d['mode'])
+            raise PipelineError("output definition has unexpected mode '%s'" % mode)
 
         # config
         config = {k:v for k, v in d.items() if k not in ['node', 'mode']}
@@ -199,11 +196,6 @@ class Pipeline(tl.HasTraits):
         return output
 
     def _check_execution_graph(self):
-        if self.output is not None:
-            output_node = self.output.name
-        else:
-            output_node = list(self.nodes.keys())[-1]
-        
         used = {ref:False for ref in self.nodes}
 
         def f(base_ref):
@@ -219,7 +211,7 @@ class Pipeline(tl.HasTraits):
             for ref in d.get('inputs', {}).values():
                 f(ref)
 
-        f(output_node)
+        f(self.output.name)
 
         for ref in self.nodes:
             if not used[ref] and self.warn:
@@ -262,8 +254,7 @@ class Pipeline(tl.HasTraits):
 
             node.execute(coordinates, params=d)
 
-        if self.output is not None:
-            self.output.write()
+        self.output.write()
 
 class PipelineNode(Node):
     """
@@ -299,8 +290,7 @@ class PipelineNode(Node):
     output_node = tl.Unicode()
     @tl.default('output_node')
     def _output_node_default(self):
-        # TODO what if it is implicit?
-        return self.definition['output']['node']
+        return self.output.name
 
     pipeline_json = tl.Unicode(help="pipeline json definition")
     @tl.default('pipeline_json')
@@ -328,7 +318,7 @@ class PipelineNode(Node):
         TYPE
             Description
         """
-        return self.source_pipeline.nodes[self.output_node].native_coordinates
+        return self.source_pipeline.nodes[self.output.name].native_coordinates
 
     def execute(self, coordinates, params=None, output=None):
         """Summary
