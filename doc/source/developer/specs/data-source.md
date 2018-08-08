@@ -73,40 +73,32 @@
 Simple datasource that doesn't need its own subclass
 
 ```python
-source = np.random.rand(101, 101)
-source_coordinates = coordinates(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
-node = DataSource(source=source, native_coordinates=source_coordinates)
-output = node.eval(node.native_coordinates)
-```
-automatically execute:
-
-```
-source = np.random.rand(101, 101)
-source_coordinates = coordinates(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
-ds = DataSource(source=source, native_coordinates=source_coordinates, evaluate=True)
-```
-
-Basic subclass datasource
-
-```python
-class MockDataSource(DataSource):
-    """ Mock Data Source for testing """
-    source = np.random.rand(101, 101)
-    native_coordinates = Coordinates(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
-    interpolate = 'bilinear'
-
-    def get_native_coordinates(self):
-        """ see DataSource """
-        return self.native_coordinates
+class ArraySource(DataSource):
+    source = tl.Instance(np.ndarray)
 
     def get_data(self, coordinates, coordinates_index):
-        """ see DataSource """
-        s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
-        return d
+        return self.source[coordinates_index]
 ```
 
-More Complicated Rasterio Source. 
+Using this basic class
+
+```python
+source = np.random.rand(101, 101)
+source_coordinates = coordinates(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
+node = ArraySource(source=source, native_coordinates=source_coordinates)
+output = node.eval(node.native_coordinates)
+```
+
+FUTURE: automatically execute
+
+```python
+source = np.random.rand(101, 101)
+source_coordinates = coordinates(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
+node = ArraySource(source=source, native_coordinates=source_coordinates)
+output = node.eval()
+```
+
+More Complicated Source. 
 This datasource gets new `native_coordinates` every time the source updates.
 
 ```python
@@ -118,10 +110,7 @@ class RasterioSource(DataSource):
     
     @tl.default('dataset')
     def open_dataset(self, source):
-        return rasterio.open(source)
-    
-    def close_dataset(self):
-        self.dataset.close()
+        return module.open(source)
 
     @tl.observe('source')
     def _update_dataset(self):
@@ -137,95 +126,9 @@ class RasterioSource(DataSource):
                                  lon=(left, right, dlon),
                                  order=['lat', 'lon'])
 
-    def get_data(self):
-        data = self.initialize_coord_array(coordinates)
-        slc = coordinates_index
-        data.data.ravel()[:] = self.dataset.read(
-            self.band, window=((slc[0].start, slc[0].stop),
-                               (slc[1].start, slc[1].stop)),
-            out_shape=tuple(coordinates.shape)
-            ).ravel()
-            
+    def get_data(self, coordinates, coordinates_index):
+        data = self.dataset.read(coordinates_index)
         return data
-    
-    @cached_property
-    def band_count(self):
-        """The number of bands
-        
-        Returns
-        -------
-        int
-            The number of bands in the dataset
-        """
-        return self.dataset.count
-    
-    @cached_property
-    def band_descriptions(self):
-        """A description of each band contained in dataset.tags
-        
-        Returns
-        -------
-        OrderedDict
-            Dictionary of band_number: band_description pairs. The band_description values are a dictionary, each 
-            containing a number of keys -- depending on the metadata
-        """
-        bands = OrderedDict()
-        for i in range(self.dataset.count):
-            bands[i] = self.dataset.tags(i + 1)
-        return bands
-
-    @cached_property
-    def band_keys(self):
-        """An alternative view of band_descriptions based on the keys present in the metadata
-        
-        Returns
-        -------
-        dict
-            Dictionary of metadata keys, where the values are the value of the key for each band. 
-            For example, band_keys['TIME'] = ['2015', '2016', '2017'] for a dataset with three bands.
-        """
-        keys = {}
-        for i in range(self.band_count):
-            for k in self.band_descriptions[i].keys():
-                keys[k] = None
-        keys = keys.keys()
-        band_keys = defaultdict(lambda: [])
-        for k in keys:
-            for i in range(self.band_count):
-                band_keys[k].append(self.band_descriptions[i].get(k, None))
-        return band_keys
-    
-    @tl.observe('source')
-    def _clear_band_description(self, change):
-        clear_cache(self, change, ['band_descriptions', 'band_count',
-                                   'band_keys'])
-
-    def get_band_numbers(self, key, value):
-        """Return the bands that have a key equal to a specified value.
-        
-        Parameters
-        ----------
-        key : str / list
-            Key present in the metadata of the band. Can be a single key, or a list of keys.
-        value : str / list
-            Value of the key that should be returned. Can be a single value, or a list of values
-        
-        Returns
-        -------
-        np.ndarray
-            An array of band numbers that match the criteria
-        """
-        if (not hasattr(key, '__iter__') or isinstance(key, string_types))\
-                and (not hasattr(value, '__iter__') or isinstance(value, string_types)):
-            key = [key]
-            value = [value]
-
-        match = np.ones(self.band_count, bool)
-        for k, v in zip(key, value):
-            match = match & (np.array(self.band_keys[k]) == v)
-        matches = np.where(match)[0] + 1
-
-        return matches
 ```
 
 ## Developer interface
