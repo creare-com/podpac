@@ -92,3 +92,29 @@ class S3Output(Output):
 
     bucket = tl.Unicode()
     user = tl.Unicode()
+
+class ImageOutput(Output):
+    """Summary
+    Attributes
+    ----------
+    format : TYPE
+        Description
+    image : TYPE
+        Description
+    vmax : TYPE
+        Description
+    vmin : TYPE
+        Description
+    """
+
+    format = tl.CaselessStrEnum(values=['png'], default_value='png')
+    vmax = tl.CFloat(allow_none=True, default_value=np.nan)
+    vmin = tl.CFloat(allow_none=True, default_value=np.nan)
+    image = tl.Bytes(allow_none=True, default_value=None)
+
+    # TODO: docstring?
+    def write(self):
+        try:
+            self.image = self.node.get_image(format=self.format, vmin=self.vmin, vmax=self.vmax)
+        except:
+            pass

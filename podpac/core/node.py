@@ -166,19 +166,15 @@ class Node(tl.HasTraits):
     def _output_default(self):
         return self.initialize_output_array('nan')
 
-    native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
-                                     allow_none=True, default=None)
+    native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate', allow_none=True, default=None)
     evaluated = tl.Bool(default_value=False)
     implicit_pipeline_evaluation = tl.Bool(default_value=True, help="Evaluate the pipeline implicitly (True, Default)")
-    evaluated_coordinates = tl.Instance('podpac.core.coordinate.Coordinate',
-                                        allow_none=True)
+    evaluated_coordinates = tl.Instance('podpac.core.coordinate.Coordinate', allow_none=True)
     _params = tl.Dict(default=None, allow_none=True)
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
-
     node_defaults = tl.Dict(allow_none=True)
-    
     interpolation = tl.Unicode('')
 
     style = tl.Instance(Style)

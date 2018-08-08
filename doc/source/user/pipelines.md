@@ -29,7 +29,7 @@ A podpac pipeline can be defined using JSON. The pipeline definition describes t
 
 A node definition defines the node and its inputs, attributes, and default execution parameters. It also names the node so that it can be used as an input to other nodes in the pipeline. Nodes must be defined before they are referenced in a later node.
 
-All nodes must be one of these three basic types: *DataSource*, *Compositor*, and *Algorithm*.
+The podpac core library includes three basic types of nodes: *DataSource*, *Compositor*, and *Algorithm*. A *Pipeline* node can also be used an an input to a pipeline. These nodes and their additional attributes are described below.
 
 ### Common Attributes
 
@@ -82,8 +82,10 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
 ## Algorithm
 
-### Attributes
+### Additional Attributes
  * `inputs`: node inputs to the algorithm. *(object, required)*
+
+### Sample
 
 ```
 {
@@ -108,6 +110,37 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
     }
 }
 ```
+
+## Pipeline
+
+### Additional Attributes
+ * `path`: path to another pipeline JSON definition. *(string, required)*
+
+### Sample
+
+```
+{
+    "nodes": {
+        "MyDataSource": {
+            ...
+        },
+        
+        "MyOtherPipeline": {
+            "path": "path to pipeline"
+        },
+        
+        "result": {
+            "node": "Arithmetic",
+            "inputs": {
+                "A": "MyDataSource",
+                "B": "MyOtherPipeline",
+            },
+            "params": {
+                "eqn": "A + B"
+            }
+        }
+    }
+}
 
 ### Notes
 

@@ -6,7 +6,7 @@ import pytest
 
 from podpac.core.coordinate import Coordinate
 from podpac.core.algorithm.algorithm import Arange
-from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output, NoOutput
+from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output, NoOutput, ImageOutput
 
 coords = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), order=['lat', 'lon'])
 node = Arange()
@@ -54,3 +54,9 @@ class TestS3Output(object):
         output = S3Output(node=node, name='test', user='none', bucket='none')
         with pytest.raises(NotImplementedError):
             output.write()
+
+class TestImageOutput(object):
+    def test(self):
+        output = ImageOutput(node=node, name='test')
+        output.write()
+        assert output.image is not None
