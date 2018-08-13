@@ -9,10 +9,14 @@ from traitlets import TraitError
 from xarray.core.coordinates import DataArrayCoordinates
 
 from podpac.core.units import UnitsDataArray
-from podpac.core.data.data import DataSource, COMMON_DATA_DOC, COMMON_DOC, rasterio
-from podpac.core.data import data
+from podpac.core.data import DataSource, COMMON_DATA_DOC
 from podpac.core.node import Style, COMMON_NODE_DOC
 from podpac.core.coordinate import Coordinate
+
+# not generally public imports
+from podpac.core.data.datasource import DATA_DOC
+from podpac.core.data.type import rasterio
+from podpac.core.data import datasource
 
 ####
 # Mock test fixtures
@@ -82,23 +86,23 @@ class MockEmptyDataSource(DataSource):
 # Tests
 ####
 class TestDataSource(object):
-    """Test podpac.core.data.data module"""
+    """Test datasource.py module"""
 
     def test_allow_missing_modules(self):
         """TODO: Allow user to be missing rasterio and scipy"""
         pass
 
     def test_common_doc(self):
-        """Test that all COMMON_DATA_DOC keys make it into the COMMON_DOC and overwrite COMMON_NODE_DOC keys"""
+        """Test that all DATA_DOC keys make it into the COMMON_DATA_DOC and overwrite COMMON_NODE_DOC keys"""
 
-        for key in COMMON_DATA_DOC:
-            assert key in COMMON_DOC and COMMON_DOC[key] == COMMON_DATA_DOC[key]
+        for key in DATA_DOC:
+            assert key in COMMON_DATA_DOC and COMMON_DATA_DOC[key] == DATA_DOC[key]
 
         for key in COMMON_NODE_DOC:
-            if key in COMMON_DATA_DOC:
-                assert key in COMMON_DOC and COMMON_DOC[key] != COMMON_NODE_DOC[key]
+            if key in DATA_DOC:
+                assert key in COMMON_DATA_DOC and COMMON_DATA_DOC[key] != COMMON_NODE_DOC[key]
             else:
-                assert key in COMMON_DOC and COMMON_DOC[key] == COMMON_NODE_DOC[key]
+                assert key in COMMON_DATA_DOC and COMMON_DATA_DOC[key] == COMMON_NODE_DOC[key]
 
     @pytest.mark.skip(reason="traitlets does not currently honor the `allow_none` field")
     def test_traitlets_allow_none(self):
@@ -487,7 +491,7 @@ class TestDataSource(object):
             """ irregular interpolation """
 
             # suppress module to force statement
-            data.rasterio = None
+            datasource.rasterio = None
 
             rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
                                 'lanczos', 'average', 'mode', 'max', 'min',
@@ -509,7 +513,7 @@ class TestDataSource(object):
         def test_interpolate_irregular_arbitrary_2dims(self):
             """ irregular interpolation """
 
-            data.rasterio = None
+            datasource.rasterio = None
 
             # try >2 dims
             source = np.random.rand(5, 5, 3)
@@ -528,7 +532,7 @@ class TestDataSource(object):
         def test_interpolate_irregular_arbitrary_descending(self):
             """should handle descending"""
 
-            data.rasterio = None
+            datasource.rasterio = None
 
             source = np.random.rand(5, 5)
             coords_src = Coordinate(lat=(10, 0, 5), lon=(10, 0, 5), order=['lat', 'lon'])
@@ -545,7 +549,7 @@ class TestDataSource(object):
         def test_interpolate_irregular_arbitrary_swap(self):
             """should handle descending"""
 
-            data.rasterio = None
+            datasource.rasterio = None
 
             source = np.random.rand(5, 5)
             coords_src = Coordinate(lon=(10, 0, 5), lat=(10, 0, 5), order=['lon', 'lat'])
@@ -562,7 +566,7 @@ class TestDataSource(object):
         def test_interpolate_irregular_lat_lon(self):
             """ irregular interpolation """
 
-            data.rasterio = None
+            datasource.rasterio = None
 
             source = np.random.rand(5, 5)
             coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), order=['lat', 'lon'])
@@ -581,7 +585,7 @@ class TestDataSource(object):
         def test_interpolate_point(self):
             """ interpolate point data to nearest neighbor with various coords_dst"""
 
-            data.rasterio = None
+            datasource.rasterio = None
 
             source = np.random.rand(5)
             coords_src = Coordinate(lat_lon=([0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]))

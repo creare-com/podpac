@@ -23,9 +23,9 @@ import requests
 import podpac.settings
 from podpac.core import data
 from podpac.core.units import UnitsDataArray
-from podpac.core.data.data import COMMON_DATA_DOC, DataSource
+from podpac.core.data import COMMON_DATA_DOC, DataSource
 from podpac.core.node import COMMON_NODE_DOC, Node
-from podpac.core.data.type import COMMON_DOC, NumpyArray, PyDAP, RasterioSource, \
+from podpac.core.data.type import Array, PyDAP, RasterioSource, \
                                     WCS, WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS, \
                                     ReprojectedSource, S3Source
 from podpac.core.coordinate import Coordinate
@@ -41,20 +41,9 @@ class TestType(object):
         """TODO: Allow user to be missing rasterio and scipy"""
         pass
 
-    def test_common_doc(self):
-        """Test that all COMMON_DATA_DOC keys make it into the COMMON_DOC and overwrite COMMON_NODE_DOC keys"""
-
-        for key in COMMON_DATA_DOC:
-            assert key in COMMON_DOC and COMMON_DOC[key] == COMMON_DATA_DOC[key]
-
-        for key in COMMON_NODE_DOC:
-            if key in COMMON_DATA_DOC:
-                assert key in COMMON_DOC and COMMON_DOC[key] != COMMON_NODE_DOC[key]
-            else:
-                assert key in COMMON_DOC and COMMON_DOC[key] == COMMON_NODE_DOC[key]
 
     class TestArray(object):
-        """Test Array datasource class (formerly NumpyArray)"""
+        """Test Array datasource class (formerly Array)"""
 
         data = np.random.rand(11, 11)
         coordinates = Coordinate(lat=(-25, 25, 11), lon=(-25, 25, 11), order=['lat', 'lon'])
@@ -62,17 +51,17 @@ class TestType(object):
         def test_source_trait(self):
             """ must be an ndarry """
             
-            node = NumpyArray(source=self.data, native_coordinates=self.coordinates)
-            assert isinstance(node, NumpyArray)
+            node = Array(source=self.data, native_coordinates=self.coordinates)
+            assert isinstance(node, Array)
 
             with pytest.raises(TraitError):
-                node = NumpyArray(source=[0, 1, 1], native_coordinates=self.coordinates)
+                node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
 
         def test_get_data(self):
             """ defined get_data function"""
             
             source = self.data
-            node = NumpyArray(source=source, native_coordinates=self.coordinates)
+            node = Array(source=source, native_coordinates=self.coordinates)
             output = node.execute(self.coordinates)
 
             assert isinstance(output, UnitsDataArray)
@@ -82,11 +71,11 @@ class TestType(object):
         def test_native_coordinates(self):
             """test that native coordinates get defined"""
             
-            node = NumpyArray(source=self.data)
+            node = Array(source=self.data)
             with pytest.raises(NotImplementedError):
                 node.get_native_coordinates()
 
-            node = NumpyArray(source=self.data, native_coordinates=self.coordinates)
+            node = Array(source=self.data, native_coordinates=self.coordinates)
             assert node.native_coordinates
 
             # TODO: get rid of this when this returns native_coordinates by default
@@ -566,7 +555,7 @@ class TestType(object):
 
         def test_get_data(self):
             """test get data from reprojected source"""
-            datanode = NumpyArray(source=self.data, native_coordinates=self.coordinates_source)
+            datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
             node = ReprojectedSource(source=datanode, coordinates_source=datanode)
             output = node.execute(node.native_coordinates)
             assert isinstance(output, UnitsDataArray)
@@ -575,7 +564,7 @@ class TestType(object):
         def test_base_ref(self):
             """test base ref"""
 
-            datanode = NumpyArray(source=self.data, native_coordinates=self.coordinates_source)
+            datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
             node = ReprojectedSource(source=datanode, coordinates_source=datanode)
             ref = node.base_ref
 
@@ -584,7 +573,7 @@ class TestType(object):
         def test_definition(self):
             """test definition"""
 
-            datanode = NumpyArray(source=self.data, native_coordinates=self.coordinates_source)
+            datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
             node = ReprojectedSource(source=datanode, coordinates_source=datanode)
             definition = node.definition
             assert 'attrs' in definition
