@@ -155,12 +155,12 @@ The podpac core library includes three basic types of nodes: *DataSource*, *Comp
 
 The output definition defines the node to output and, optionally, an additional output mode along with associated parameters. If an output definition is not supplied, the last defined node is used.
 
-Podpac provides several output types: *file* and *image*. Currently custom output types are not supported.
+Podpac provides several builtin output types, *file* and *image*. You can also define custom outputs in a plugins.
 
 ### Common Attributes
 
  * `node`: The nodes to output. *(list, required)*
- * `mode`: The output mode, options are 'none' (default), 'file', 'image'. *(string, optional)*
+ * `mode`: For builtin outputs, options are 'none' (default), 'file', 'image'. *(string, optional)*
 
 ## None (default)
 
@@ -170,7 +170,7 @@ No additional output. The output will be returned from the `Pipeline.execute` me
 
 Nodes can be output to file in a variety of formats.
 
-### Attributes
+### Additional Attributes
 
  * `format`: file format, options are 'pickle' (default), 'geotif', 'png'. *(string, optional)*
  * `outdir`: destination path for the output file *(string, required)*
@@ -197,7 +197,7 @@ Nodes can be output to file in a variety of formats.
 
 Nodes can be output to a png image (in memory).
 
-### Attributes
+### Additional Attributes
 
  * `format`: image format, options are 'png' (default). *(string, optional)*
  * `vmin`: min value for the colormap *(number, optional)*
@@ -218,6 +218,55 @@ Nodes can be output to a png image (in memory).
         "format": "png",
         "vmin": 0.1,
         "vmax": 0.35
+    }
+}
+```
+
+## Custom Outputs
+
+Custom outputs can be defined in a plugin by subclassing the `Output` base class found in `core.pipeline.output`. Custom 
+outputs must define the `write` method with no arguments, and may define additional parameters.
+
+### Attributes
+
+Replace the 'mode' parameter with a plugin path and output class name:
+
+ * `plugin`: path to a plugin module to use *(string, required)*
+ * `output`: output class name *(string, required)*
+
+### Sample Custom Output Class
+
+File: **my_plugin/outputs.py**
+
+```
+import numpy as np
+import traitlets as tl
+import podpac
+
+class NpyOutput(podpac.core.pipeline.output.Output):
+    path = tl.String()
+    allow_pickle = tl.Bool(True)
+    fix_imports = tl.Bool(True)
+
+    def write(self):
+        numpy.save(self.path, self.node.output.data, allow_pickle=self.allow_pickle, fix_imports=self.fix_imports)
+```
+
+### Sample Pipeline
+
+```
+{
+    "nodes": {
+        "MyNode1": { ... },
+        "MyNode2": { ... }
+    },
+
+    "output": {
+        "nodes": "MyNode2",
+        "plugin": "my_plugin",
+        "output": "NpyOutput",
+        "path": "my_pipeline_output.npy",
+        "allow_pickle": false
     }
 }
 ```
