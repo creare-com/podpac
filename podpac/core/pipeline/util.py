@@ -15,7 +15,7 @@ import numpy as np
 from podpac.core.node import NodeException
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
-from podpac.core.pipeline.output import NoOutput, FileOutput, S3Output, FTPOutput, ImageOutput
+from podpac.core.pipeline.output import Output, NoOutput, FileOutput, S3Output, FTPOutput, ImageOutput
 
 class PipelineError(NodeException):
     """Summary
@@ -96,26 +96,49 @@ def _parse_output_definition(nodes, d):
     except KeyError as e:
         raise PipelineError("output definition references nonexistent node '%s'" % (e))
 
-    # mode
-    mode = d.get('mode', 'none')
-    if mode == 'none':
-        output_class = NoOutput
-    elif mode == 'file':
-        output_class = FileOutput
-    elif mode == 'ftp':
-        output_class = FTPOutput
-    elif mode == 's3':
-        output_class = S3Output
-    elif mode == 'image':
-        output_class = ImageOutput
-    else:
-        raise PipelineError("output definition has unexpected mode '%s'" % mode)
+    # output parameters
+    config = {k:v for k, v in d.items() if k not in ['node', 'mode', 'plugin', 'output']}
 
-    # config
-    config = {k:v for k, v in d.items() if k not in ['node', 'mode']}
-    
-    # output
-    output = output_class(node=node, name=name, **config)
+    # get output class from mode
+    if 'plugin' not in d:
+        # core output (from mode)
+        mode = d.get('mode', 'none')
+        if mode == 'none':
+            output_class = NoOutput
+        elif mode == 'file':
+            output_class = FileOutput
+        elif mode == 'ftp':
+            output_class = FTPOutput
+        elif mode == 's3':
+            output_class = S3Output
+        elif mode == 'image':
+            output_class = ImageOutput
+        else:
+            raise PipelineError("output definition has unexpected mode '%s'" % mode)
+
+        output = output_class(node=node, name=name, **config)
+
+    else:
+        # custom output (from plugin)
+        custom_output = '%s.%s' % (d['plugin'], d['output'])
+        module_name, class_name = custom_output.rsplit('.', 1)
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            raise PipelineError("No module found '%s'" % module_name)
+        try:
+            output_class = getattr(module, class_name)
+        except AttributeError:
+            raise PipelineError("Output '%s' not found in module '%s'" % (class_name, module_name))
+
+        try:
+            output = output_class(node=node, name=name, **config)
+        except Exception as e:
+            raise PipelineError("Could not create custom output '%s': %s" % (custom_output, e))
+
+        if not isinstance(output, Output):
+            raise PipelineError("Custom output '%s' must subclass 'podpac.core.pipeline.output.Output'" % custom_output)
+
     return output
 
 def _check_execution_graph(definition, nodes, output):
