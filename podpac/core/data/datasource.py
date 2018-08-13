@@ -1,5 +1,8 @@
 """
-Data Summary
+Generic Data Source Class
+
+DataSource is the root class for all other podpac defined data sources,
+including user defined data sources.
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
@@ -11,18 +14,17 @@ import numpy as np
 import traitlets as tl
 
 # Optional dependencies
-try: 
+try:
     import rasterio
     from rasterio import transform
     from rasterio.warp import reproject, Resampling
-except:
+except ImportError:
     rasterio = None
-try: 
-    import scipy
-    from scipy.interpolate import (griddata, RectBivariateSpline,
-                                   RegularGridInterpolator)
+
+try:
+    from scipy.interpolate import (RectBivariateSpline, RegularGridInterpolator)
     from scipy.spatial import KDTree
-except:
+except ImportError:
     scipy = None
 
 # Internal imports
@@ -32,7 +34,7 @@ from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
 
-COMMON_DATA_DOC = {
+DATA_DOC = {
     'get_data':
         """
         This method must be defined by the data source implementing the DataSource class.
@@ -44,11 +46,11 @@ COMMON_DATA_DOC = {
         source data, but all coordinates and coordinate indexes will match 1:1 with the subset data.
 
         Most methods generate the template UnitsDataArray using the inherited Node method :meth:initialize_coord_array.
-        See :meth:podpac.Node.initialize_coord_array for more details.
+        See :meth:Node.initialize_coord_array for more details.
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
+        coordinates : Coordinate
             The coordinates that need to be retrieved from the data source using the coordinate system of the data
             source
         coordinates_index : List
@@ -62,11 +64,11 @@ COMMON_DATA_DOC = {
         """,
     'ds_native_coordinates': 'The coordinates of the data source.',
     'get_native_coordinates':
-        """This should return a podpac.Coordinate object that describes the coordinates of the data source.
+        """This should return a Coordinate object that describes the coordinates of the data source.
 
         Returns
         --------
-        podpac.Coordinate
+        Coordinate
            The coordinates describing the data source array.
 
         Notes
@@ -79,8 +81,8 @@ COMMON_DATA_DOC = {
         Coordinates should be non-nan and non-repeating for best compatibility"""
     }
 
-COMMON_DOC = COMMON_NODE_DOC.copy()
-COMMON_DOC.update(COMMON_DATA_DOC)      # inherit and overwrite with COMMON_DATA_DOC
+COMMON_DATA_DOC = COMMON_NODE_DOC.copy()
+COMMON_DATA_DOC.update(DATA_DOC)      # inherit and overwrite with DATA_DOC
 
 class DataSource(Node):
     """Base node for any data obtained directly from a single source.
@@ -112,17 +114,17 @@ class DataSource(Node):
     no_data_vals = tl.List(allow_none=True)
 
     
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def execute(self, coordinates, params=None, output=None, method=None):
         """Executes this nodes using the supplied coordinates and params.
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
+        coordinates : Coordinate
             {evaluated_coordinates}
         params : dict, optional
             {execute_params}
-        output : podpac.UnitsDataArray, optional
+        output : UnitsDataArray, optional
             {execute_out}
         method : str, optional
             {execute_method}
@@ -175,7 +177,7 @@ class DataSource(Node):
         self.evaluated = True
         return self.output
         
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_data_subset(self, coordinates):
         """
         This should return an UnitsDataArray, and A Coordinate object, unless
@@ -183,14 +185,14 @@ class DataSource(Node):
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
+        coordinates : Coordinate
             {evaluated_coordinates}
         
         Returns
         -------
         UnitsDataArray
             A nan-array in case the native_coordinates do not intersection with coordinates
-        UnitsDataArray, podpac.Coordinate
+        UnitsDataArray, Coordinate
             An array containing the subset of the datasource, along with the coordinates of the datasubset (in the
             coordinate system of the data source).
         """
@@ -239,7 +241,7 @@ class DataSource(Node):
         
         return data, coords_subset
     
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         
@@ -250,7 +252,7 @@ class DataSource(Node):
         """
         raise NotImplementedError
         
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
         
@@ -274,9 +276,9 @@ class DataSource(Node):
         ----------
         data_src : UnitsDataArray
             Source data to be interpolated
-        coords_src : podpac.Coordinate
+        coords_src : Coordinate
             Source coordinates
-        coords_dst : podpac.Coordinate
+        coords_dst : Coordinate
             Destination coordinate
         
         Returns
@@ -651,7 +653,7 @@ class DataSource(Node):
             return data_dst
 
     @property
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def definition(self):
         """Pipeline node defintion for DataSource nodes. 
         

@@ -11,6 +11,7 @@ WCS_DEFAULT_VERSION : str
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import warnings
 import os
 import re
 from io import BytesIO
@@ -19,63 +20,60 @@ from six import string_types
 
 import bs4
 import numpy as np
-import xarray as xp
 import traitlets as tl
-from podpac.core.units import ureg
 
 # Optional dependencies
 try:
     import pydap.client
-except:
+except ImportError:
     pydap = None
 
 try:
     import rasterio
-except:
+except ImportError:
     rasterio = None
+
     try:
         from arcpy import RasterToNumPyArray
-    except:
+    except ImportError:
         RasterToNumPyArray = None
     
 try:
     import boto3
-except:
+except ImportError:
     boto3 = None
     
 try:
     import requests
-except:
+except ImportError:
     requests = None
     try:
-        # TODO: remove support urllib3 - requests is sufficient
         import urllib3
-    except:
+    except ImportError:
         urllib3 = None
         
     try:
         import certifi
-    except:
+    except ImportError:
         certifi = None
 
 # Not used directly, but used indirectly by bs4 so want to check if it's available
 try:
     import lxml
-except:
+except ImportError:
     lxml = None
 
 # Internal dependencies
-import podpac
+from podpac import settings
 from podpac.core import authentication
 from podpac.core.utils import cached_property, clear_cache, common_doc
-from podpac.core.data.data import COMMON_DATA_DOC
-from podpac.core.node import COMMON_NODE_DOC 
+from podpac.core.data import COMMON_DATA_DOC, DataSource
+from podpac.core.node import Node
+from podpac.core.coordinate import Coordinate, UniformCoord
+from podpac.core.algorithm.algorithm import Algorithm
 
-COMMON_DOC = COMMON_NODE_DOC.copy()
-COMMON_DOC.update(COMMON_DATA_DOC)      # inherit and overwrite with COMMON_DATA_DOC
-
-class NumpyArray(podpac.DataSource):
-    """Create a DataSource from a numpy array
+class Array(DataSource):
+    """Create a DataSource from an array
     
     Attributes
     ----------
@@ -84,12 +82,12 @@ class NumpyArray(podpac.DataSource):
         
     Notes
     ------
-    `native_coordinates` need to supplied by the user when instantiating this node. 
+    `native_coordinates` need to supplied by the user when instantiating this node.
     """
     
     source = tl.Instance(np.ndarray)
     
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
@@ -98,16 +96,30 @@ class NumpyArray(podpac.DataSource):
                                         fillval=self.source[s])
         return d
 
+class NumpyArray(Array):
+
+    """Create a DataSource from a numpy array.
+
+    .. deprecated:: 0.2.0
+          `NumpyArray` will be removed in podpac 0.2.0, it is replaced by
+          `Array` to be more general.
+    """
+    
+    def __init__(self):
+        warnings.warn('NumpyArray been renamed Array. ' +
+                      'Backwards compatibility will be removed in future releases', DeprecationWarning)
+        super(NumpyArray, self).__init__()
+
 @common_doc(COMMON_DATA_DOC)
-class PyDAP(podpac.DataSource):
+class PyDAP(DataSource):
     """Create a DataSource from an OpenDAP server feed.
     
     Attributes
     ----------
-    auth_class : podpac.core.authentication.SessionWithHeaderRedirection
+    auth_class : authentication.SessionWithHeaderRedirection
         A request.Session-derived class that has header redirection. This is used to authenticate using an EarthData
         login. When username and password are provided, an auth_session is created using this class.
-    auth_session : podpac.core.authentication.SessionWithHeaderRedirection
+    auth_session : authentication.SessionWithHeaderRedirection
         Instance of the auth_class. This is created if username and password is supplied, but this object can also be
         supplied directly
     datakey : str
@@ -115,7 +127,7 @@ class PyDAP(podpac.DataSource):
         determines which variable is returned from the source.
     dataset : pydap.model.DatasetType
         The open pydap dataset. This is provided for troubleshooting.
-    native_coordinates : podpac.Coordinate
+    native_coordinates : Coordinate
         {ds_native_coordinates}
     password : str, optional
         Password used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
@@ -221,7 +233,7 @@ class PyDAP(podpac.DataSource):
             pass
 
   
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
         
@@ -234,7 +246,7 @@ class PyDAP(podpac.DataSource):
                                   ", so this is left up to child class " +
                                   "implementations.")
 
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
@@ -255,8 +267,8 @@ class PyDAP(podpac.DataSource):
         return self.dataset.keys()
 
 # TODO: rename "Rasterio" to be more consistent with other naming conventions
-@common_doc(COMMON_DOC)
-class RasterioSource(podpac.DataSource):
+@common_doc(COMMON_DATA_DOC)
+class RasterioSource(DataSource):
     """Create a DataSource using Rasterio.
     
     Attributes
@@ -265,7 +277,7 @@ class RasterioSource(podpac.DataSource):
         The 'band' or index for the variable being accessed in files such as GeoTIFFs
     dataset : Any
         A reference to the datasource opened by rasterio
-    native_coordinates : podpac.Coordinates
+    native_coordinates : Coordinates
         {ds_native_coordinates}
     source : str
         Path to the data source
@@ -309,7 +321,7 @@ class RasterioSource(podpac.DataSource):
             self.dataset = self.open_dataset(change['new'])
         self.native_coordinates = self.get_native_coordinates()
         
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
         
@@ -330,11 +342,11 @@ class RasterioSource(podpac.DataSource):
         if affine[1] != 0.0 or affine[3] != 0.0:
             raise NotImplementedError("Rotated coordinates are not yet supported")
 
-        return podpac.Coordinate(lat=(top, bottom, dlat),
+        return Coordinate(lat=(top, bottom, dlat),
                                  lon=(left, right, dlon),
                                  order=['lat', 'lon'])
 
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
@@ -431,7 +443,7 @@ class RasterioSource(podpac.DataSource):
 WCS_DEFAULT_VERSION = u'1.0.0'
 WCS_DEFAULT_CRS = 'EPSG:4326'
 
-class WCS(podpac.DataSource):
+class WCS(DataSource):
     """Create a DataSource from an OGC-complient WCS service
     
     Attributes
@@ -445,7 +457,7 @@ class WCS(podpac.DataSource):
         URL of the WCS server endpoint
     version : str
         Default is 1.0.0. WCS version string.
-    wcs_coordinates : podpac.Coordinates
+    wcs_coordinates : Coordinates
         The coordinates of the WCS source
     """
     
@@ -453,7 +465,7 @@ class WCS(podpac.DataSource):
     layer_name = tl.Unicode().tag(attr=True)
     version = tl.Unicode(WCS_DEFAULT_VERSION).tag(attr=True)
     crs = tl.Unicode(WCS_DEFAULT_CRS).tag(attr=True)
-    wcs_coordinates = tl.Instance(podpac.Coordinate)   # default below
+    wcs_coordinates = tl.Instance(Coordinate)   # default below
 
     _get_capabilities_qs = tl.Unicode('SERVICE=WCS&REQUEST=DescribeCoverage&'
                                       'VERSION={version}&COVERAGE={layer}')
@@ -481,7 +493,7 @@ class WCS(podpac.DataSource):
         
         Returns
         -------
-        podpac.Coordinates
+        Coordinates
             The native coordinates reported by the WCS service.
         
         Notes
@@ -533,27 +545,27 @@ class WCS(podpac.DataSource):
 
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
-            return podpac.Coordinate(lat=(top, bottom, size[1]),
+            return Coordinate(lat=(top, bottom, size[1]),
                                      lon=(left, right, size[0]), order=['lat', 'lon'])
         
         date_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')
         times = np.array([t for t in times if date_re.match(t)], np.datetime64)
         
-        return podpac.Coordinate(time=times,
+        return Coordinate(time=times,
                                  lat=(top, bottom, size[1]),
                                  lon=(left, right, size[0]),
                                  order=['time', 'lat', 'lon'])
         
 
     @property
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def native_coordinates(self):
         """{native_coordinates}
         
         Returns
         -------
-        podpac.Coordinates
+        Coordinates
             {native_coordinates}
             
         Notes
@@ -568,20 +580,20 @@ class WCS(podpac.DataSource):
             for c in wcs_c.dims:
                 if c in ev.dims and ev[c].size == 1:
                     cs[c] = ev[c].coords
-                elif c in ev.dims and not isinstance(ev[c], podpac.UniformCoord):
+                elif c in ev.dims and not isinstance(ev[c], UniformCoord):
                     # This is rough, we have to use a regular grid for WCS calls,
                     # Otherwise we have to do multiple WCS calls...
                     # TODO: generalize/fix this
                     cs[c] = (np.min(ev[c].coords),
                              np.max(ev[c].coords), np.abs(ev[c].delta))
-                elif c in ev.dims and isinstance(ev[c], podpac.UniformCoord):
+                elif c in ev.dims and isinstance(ev[c], UniformCoord):
                     cs[c] = (np.min(ev[c].coords[:2]),
                              np.max(ev[c].coords[:2]), np.abs(ev[c].delta))
                 else:
                     cs[c] = wcs_c[c]
                     # TODO: OrderedDict() has no append method
                     # cs.append(wcs_c[c])
-            c = podpac.Coordinate(cs)
+            c = Coordinate(cs)
             return c
         else:
             return self.wcs_coordinates
@@ -753,29 +765,29 @@ class WCS(podpac.DataSource):
 # In particular, this is required for providing coordinates_source
 # We should be able to to remove this requirement of attributes in the pipeline 
 # can have nodes specified... 
-class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
+class ReprojectedSource(DataSource, Algorithm):
     """Create a DataSource with a different resolution from another Node. This can be used to bilinearly interpolated a
     dataset after averaging over a larger area.
     
     Attributes
     ----------
-    coordinates_source : podpac.Node
+    coordinates_source : Node
         Node which is used as the source
-    reprojected_coordinates : podpac.Coordinate
+    reprojected_coordinates : Coordinate
         Coordinates where the source node should be evaluated. 
-    source : podpac.Node
+    source : Node
         The source node
     source_interpolation : str
         Type of interpolation method to use for the source node
     """
     
     source_interpolation = tl.Unicode('nearest_preview').tag(param=True)
-    source = tl.Instance(podpac.Node)
+    source = tl.Instance(Node)
     # Specify either one of the next two
-    # TODO: should this be of type podpac.Coordinate?
+    # TODO: should this be of type Coordinate?
     # This doesn't make much sense
-    coordinates_source = tl.Instance(podpac.Node, allow_none=True).tag(attr=True)
-    reprojected_coordinates = tl.Instance(podpac.Coordinate).tag(attr=True)
+    coordinates_source = tl.Instance(Node, allow_none=True).tag(attr=True)
+    reprojected_coordinates = tl.Instance(Coordinate).tag(attr=True)
 
     @tl.default('reprojected_coordinates')
     def get_reprojected_coordinates(self):
@@ -783,7 +795,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
         
         Returns
         -------
-        podpac.Coordinate
+        Coordinate
             Coordinates where the source node should be evaluated. 
         
         Raises
@@ -797,12 +809,12 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
             raise Exception("Either reprojected_coordinates or coordinates"
                             "_source must be specified")
 
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
         """
         coords = OrderedDict()
-        if isinstance(self.source, podpac.DataSource):
+        if isinstance(self.source, DataSource):
             sc = self.source.native_coordinates
         else: # Otherwise we cannot guarantee that native_coordinates exist
             sc = self.reprojected_coordinates
@@ -812,9 +824,9 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
                 coords[d] = rc.stack_dict()[d]
             else:
                 coords[d] = sc.stack_dict()[d]
-        return podpac.Coordinate(coords)
+        return Coordinate(coords)
 
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
@@ -858,7 +870,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
             is not implemented
         """
         
-        d = podpac.Algorithm.definition.fget(self)
+        d = Algorithm.definition.fget(self)
         d['attrs'] = OrderedDict()
         if self.interpolation:
             d['attrs']['interpolation'] = self.interpolation
@@ -867,14 +879,14 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
             raise NotImplementedError
         return d
 
-class S3Source(podpac.DataSource):
+class S3Source(DataSource):
     """Create a DataSource from a file on an S3 Bucket. 
     
     Attributes
     ----------
-    node : podpac.Node, optional
+    node : Node, optional
         The DataSource node used to interpret the S3 file
-    node_class : podpac.DataSource, optional
+    node_class : DataSource, optional
         The class type of self.node. This is used to create self.node if self.node is not specified
     node_kwargs : dict, optional
         Keyword arguments passed to `node_class` when automatically creating `node`
@@ -891,8 +903,8 @@ class S3Source(podpac.DataSource):
     """
     
     source = tl.Unicode()
-    node = tl.Instance(podpac.Node)
-    node_class = tl.Type(podpac.DataSource)  # A class
+    node = tl.Instance(Node)
+    node_class = tl.Type(DataSource)  # A class
     node_kwargs = tl.Dict(default_value={})
     s3_bucket = tl.Unicode(allow_none=True)
     s3_data = tl.Any(allow_none=True)
@@ -928,7 +940,7 @@ class S3Source(podpac.DataSource):
         Str
             Name of the S3 bucket
         """
-        return podpac.settings.S3_BUCKET_NAME
+        return settings.S3_BUCKET_NAME
 
     @tl.default('s3_data')
     def s3_data_default(self):
@@ -975,7 +987,7 @@ class S3Source(podpac.DataSource):
             #self._temp_file_cleanup.append(tmppath)
             return tmppath
 
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
@@ -983,7 +995,7 @@ class S3Source(podpac.DataSource):
         return self.node.get_data(coordinates, coordinates_index)
 
     @property
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_DATA_DOC)
     def native_coordinates(self):
         """{native_coordinates}
         """
