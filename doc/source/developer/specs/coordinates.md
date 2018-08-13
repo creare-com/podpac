@@ -115,30 +115,21 @@ UniformCoordinates1D(start, stop, step=None, size=None, ...)
 
 ### Shorthand
 
-For ease-of-use, the following aliases will be defined (one of these options):
+For ease-of-use, the following aliases will be defined:
  
- - `_ca`, `_cm`, `_cu`, `_cl`
- - `A1D`, `M1D`, `U1D`, `L1D`
+ - `_ca`: ArrayCoordinates1D
+ - `_cm`: MonotonicCoordinates1D
+ - `_cu`: UniformCoordinates1D
+ - `_cl`: LinspaceCoordinates1D
 
-Also, consider named versions, 16 in total (one of these options):
+The named versions proposal was rejected (`_calat`, `_cutime`, ...)
 
- - `_alat`, `_utime`, ...
- - `ALat`, `UTime`, ...
-
-So that the following are equivalent
+Thus the following are equivalent
 
 ```
 UniformCoordinates1D(0, 1, 0.1, name='lat')
 _cu(0, 1, 0.1, name='lat')
-_ulat(0, 1, 0.1)
-```
-
-or possibly
-
-```
-UniformCoordinates1D(0, 1, 0.1, name='lat')
-U1D(0, 1, 0.1, name='lat')
-ULat(0, 1, 0.1)
+_culat(0, 1, 0.1) # rejected
 ```
 
 ## Stacked Coordinates
@@ -187,23 +178,13 @@ StackedCoordinates(lat, lon, alt)
 
 For ease-of-use, the following aliases will be defined (on of these options):
  
- - `_s` and `_sl`
- - `Stacked`, `SL`
-
+ - `_stacked`: StackedCoordinates
+ 
 So that the above can be rewritten:
 
 ```
-_sl((0, 0, 20), (1, 1, 100), 100, names='lat', 'lon', 'alt')
-```
-
-```
-_s(_ulat(0, 1, 100), _ulon(0, 1, 100), _ualt(20, 100, 100))
-```
-
-or possibly, depending on which scheme we choose:
-
-```
-Stacked(ULat(0, 1, 100), ULon(0, 1, 100), UAlt(20, 100, 100))
+_stacked(_cu(0, 1, 100, name='lat'), _cu(0, 1, 100, name='lon'), _cu(20, 100, 100, name='alt'))
+_stacked(_culat(0, 1, 100), _culon(0, 1, 100)), _cualt(20, 100, 100)) # rejected
 ```
  
 ## Multidemensional Coordinates
