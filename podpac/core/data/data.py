@@ -162,7 +162,9 @@ class DataSource(Node):
             self.output = self.initialize_output_array()
 
         # sets self.output
-        self._interpolate_data(data_subset, coords_subset, self.evaluated_coordinates)
+        o = self._interpolate_data(data_subset, coords_subset, self.evaluated_coordinates)
+        if o is not None:
+            self.output = o  # should already be self.output
         
         # set the order of dims to be the same as that of evaluated_coordinates
         # + the dims that are missing from evaluated_coordinates.
