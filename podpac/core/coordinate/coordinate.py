@@ -567,7 +567,12 @@ class Coordinate(BaseCoordinate):
         for c in coords:
             if c in other._coords:
                 coords[c] = other._coords[c]
+                old_stack = dims_map[c]
                 dims_map[c] = other.dims_map[c]
+                fix_stack = [o for o in old_stack.split('_') 
+                             if o not in dims_map[c].split('_')]
+                for f in fix_stack:
+                    dims_map[f] = '_'.join(fix_stack)
         
         if copy:
             stack_dict = self.stack_dict(coords, dims_map=dims_map)
