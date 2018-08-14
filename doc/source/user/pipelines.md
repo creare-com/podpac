@@ -1,11 +1,11 @@
 # Pipelines
 
-A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and, optionally, *outputs* to produce when executing the pipeline.
+A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and the *output* for the pipeline.
 
 ### Attributes
 
  * `nodes`: node definitions  *(object, required)*
- * `outputs`: output definitions *(list, optional)* 
+ * `output`: output definition *(object, optional)*
 
 ### Sample
 
@@ -14,31 +14,32 @@ A podpac pipeline can be defined using JSON. The pipeline definition describes t
     "nodes": {
         "myNode": { ... },
         "myOtherNode": { ... }
+        ...
+        "myResult": { ... }
     },
-    "outputs": [
-        { ... },
-        { ... }
-    ]
+    "output": {
+        "node": "myResult",
+        "mode": "file",
+        ...
+    }
 }
 ```
 
 ## Node definitions
 
-A node definition defines the node and its inputs and parameters. It also names the node so that it can be used as an input to other nodes in the pipeline. Nodes must be defined before they are referenced in a later node.
+A node definition defines the node and its inputs, attributes, and default execution parameters. It also names the node so that it can be used as an input to other nodes in the pipeline. Nodes must be defined before they are referenced in a later node.
 
-All nodes must be one of these three basic types: *DataSource*, *Compositor*, and *Algorithm*.
+The podpac core library includes three basic types of nodes: *DataSource*, *Compositor*, and *Algorithm*. A *Pipeline* node can also be used an an input to a pipeline. These nodes and their additional attributes are described below.
 
 ### Common Attributes
 
  * `node`: a path to the node class. The path is relative to the podpac module, unless `plugin` is defined. See Notes. *(string, required)*
  * `plugin`: a path to a plugin module to use (prepended node path). See Notes. *(string, optional)*
- * `attrs`: explicitly set attributes in the node for custom behavior. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
+ * `attrs`: set attributes in the node for custom behavior. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
+ * `params`: set default execution parameters. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
  * `evaluate`: execute this node automatically. Setting this to `false` is useful for nodes that will be executed implicitly by a later node. *(bool, optional, default `true`)*
 
 ## DataSource
-
-###  Attributes
- * `source`: the dataset source *(string, required)*
 
 ### Sample
 
@@ -58,7 +59,7 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
 ## Compositor
 
-### Attributes
+### Additional Attributes
 
  * `sources`: nodes to composite *(list, required)*
 
@@ -81,9 +82,10 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
 ## Algorithm
 
-### Attributes
+### Additional Attributes
  * `inputs`: node inputs to the algorithm. *(object, required)*
- * `params`: non-node inputs to the algorithm. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
+
+### Sample
 
 ```
 {
@@ -109,6 +111,37 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 }
 ```
 
+## Pipeline
+
+### Additional Attributes
+ * `path`: path to another pipeline JSON definition. *(string, required)*
+
+### Sample
+
+```
+{
+    "nodes": {
+        "MyDataSource": {
+            ...
+        },
+        
+        "MyOtherPipeline": {
+            "path": "path to pipeline"
+        },
+        
+        "result": {
+            "node": "Arithmetic",
+            "inputs": {
+                "A": "MyDataSource",
+                "B": "MyOtherPipeline",
+            },
+            "params": {
+                "eqn": "A + B"
+            }
+        }
+    }
+}
+
 ### Notes
 
  * The `node` path should include the submodule path and the node class. The submodule path is omitted for top-level classes. For example:
@@ -118,16 +151,20 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
    - `"plugin": "path.to.myplugin", "node": "mymodule.MyCustomNode"` is equivalent to `from path.to.myplugin.mymodule import MyCustomNode`.
    - `"plugin": "myplugin", "node": "MyCustomNode"` is equivalent to `from myplugin import MyCustomNode`
 
-## Output Definitions
+## Output Definition
 
-An output definition defines a type of output, the nodes to output, and other parameters such as output location. Outputs are not required, but each output definition should contain a list of one or more nodes (by name) to output.
+The output definition defines the node to output and, optionally, an additional output mode along with associated parameters. If an output definition is not supplied, the last defined node is used.
 
-Podpac provides several output types: *file*, *image*, *ftp*, and *aws*. Currently custom output types are not supported.
+Podpac provides several output types: *file* and *image*. Currently custom output types are not supported.
 
 ### Common Attributes
 
- * `mode`: The output type, options are 'file', 'image', 'ftp', and 'aws'. *(string, required)*
- * `nodes`: The nodes to output. *(list, required)*
+ * `node`: The nodes to output. *(list, required)*
+ * `mode`: The output mode, options are 'none' (default), 'file', 'image'. *(string, optional)*
+
+## None (default)
+
+No additional output. The output will be returned from the `Pipeline.execute` method.
 
 ## Files
 
@@ -147,14 +184,12 @@ Nodes can be output to file in a variety of formats.
         "MyNode2": { ... }
     },
 
-    "outputs": [
-        {
-            "mode": "file",
-            "format": "png",
-            "outdir": "C:\Path\To\OutputData",
-            "nodes": ["MyNode2"]
-        }
-    ]
+    "output": {
+        "nodes": "MyNode2",
+        "mode": "file",
+        "format": "png",
+        "outdir": "C:\Path\To\OutputData"
+    }
 }
 ```
 
@@ -177,22 +212,12 @@ Nodes can be output to a png image (in memory).
         "MyNode2": { ... }
     },
 
-    "outputs": [
-         {
-            "mode": "image",
-            "format": "png",
-            "vmin": 0.1,
-            "vmax": 0.35,
-            "nodes": ["MyNode1", "MyNode2"]
-        }
-    ]
+    "output": {
+        "nodes": "MyNode2",
+        "mode": "image",
+        "format": "png",
+        "vmin": 0.1,
+        "vmax": 0.35
+    }
 }
 ```
-
-## AWS
-
-*Not yet implemented*
-
-## FTP
-
-*Not yet implemented*

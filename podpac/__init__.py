@@ -12,7 +12,7 @@ from podpac.core.algorithm.signal import (
     Convolution, SpatialConvolution, TimeConvolution)
 from podpac.core.data.data import DataSource
 from podpac.core.compositor import Compositor, OrderedCompositor
-from podpac.core.pipeline import Pipeline, PipelineError, PipelineNode
+from podpac.core.pipeline import Pipeline, PipelineError
 
 from podpac.settings import CACHE_DIR
 

@@ -82,7 +82,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     from podpac import Coordinate
     from podpac.core.pipeline import Pipeline
     try:
-        pipeline = Pipeline(source=pipeline)
+        pipeline = Pipeline(definition=pipeline)
         
         w, s, e, n = np.array(bbox, float)     
         dwe = (w-e)/width/2.
@@ -94,10 +94,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         pipeline.execute(coord, {})
         if ret_pipeline:
             return pipeline
-        for output in pipeline.outputs:
-            if output.format == 'png':
-                break
-        return img_response(output.image)
+        return img_response(pipeline.pipeline_output.image)
     except Exception as e:
         return return_exception(e, event, context, pipeline)        
 
