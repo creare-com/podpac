@@ -41,10 +41,10 @@ class ExpandCoordinates(Algorithm):
     source = tl.Instance(Node)
     native_coordinates_source = tl.Instance(Node, allow_none=True)
     input_coordinates = tl.Instance(Coordinate, allow_none=True)
-    lat = tl.List().tag(param=True)
-    lon = tl.List().tag(param=True)
-    time = tl.List().tag(param=True)
-    alt = tl.List().tag(param=True)
+    lat = tl.List().tag(attr=True)
+    lon = tl.List().tag(attr=True)
+    time = tl.List().tag(attr=True)
+    alt = tl.List().tag(attr=True)
 
     @property
     def native_coordinates(self):
@@ -86,20 +86,22 @@ class ExpandCoordinates(Algorithm):
         ValueError
             In case dimension is not in the parameters.
         """
-        icoords = self.input_coordinates[dim]
         
-        if not self._params[dim]:  # i.e. if list is empty
+        icoords = self.input_coordinates[dim]
+        coords = getattr(self, dim)
+        
+        if not coords:  # i.e. if list is empty
             # no expansion in this dimension
             return icoords
 
-        if len(self._params[dim]) not in [2, 3]:
+        if len(coords) not in [2, 3]:
             raise ValueError("Invalid expansion params for '%s'" % dim)
 
         # get start and stop offsets
-        dstart = make_coord_delta(self._params[dim][0])
-        dstop = make_coord_delta(self._params[dim][1])
+        dstart = make_coord_delta(coords[0])
+        dstop = make_coord_delta(coords[1])
 
-        if len(self._params[dim]) == 2:
+        if len(coords) == 2:
             # expand and use native coordinates
             ncoord = self.native_coordinates[dim]
             
@@ -110,9 +112,9 @@ class ExpandCoordinates(Algorithm):
             ]
             xcoord = sum(xcoords[1:], xcoords[0])
 
-        elif len(self._params[dim]) == 3:
+        elif len(coords) == 3:
             # or expand explicitly
-            delta = make_coord_delta(self._params[dim][2])
+            delta = make_coord_delta(coords[2])
             
             # TODO GroupCoord
             xcoords = [
@@ -215,31 +217,33 @@ class SelectCoordinates(ExpandCoordinates):
             Description
         """
         icoords = self.input_coordinates[dim]
+        coords = getattr(self, dim)
         
-        if not self._params[dim]:
+        if not coords:
             # no selection in this dimension
             return icoords
 
-        if len(self._params[dim]) not in [1, 2, 3]:
+        if len(coords) not in [1, 2, 3]:
             raise ValueError("Invalid expansion params for '%s'" % dim)
 
         # get start offset
-        start = make_coord_value(self._params[dim][0])
+        start = make_coord_value(coords[0])
         
-        if len(self._params[dim]) == 1:
+        if len(coords) == 1:
             xcoord = Coord(start)
-        elif len(self._params[dim]) == 2:
+            
+        elif len(coords) == 2:
             # Get stop offset
-            stop = make_coord_value(self._params[dim][1])
+            stop = make_coord_value(coords[1])
             # select and use native coordinates
             ncoord = self.native_coordinates[dim]
             xcoord = ncoord.select([start, stop])
 
-        elif len(self._params[dim]) == 3:
+        elif len(coords) == 3:
             # Get stop offset
-            stop = make_coord_value(self._params[dim][1])            
+            stop = make_coord_value(coords[1])            
             # or select explicitly
-            delta = make_coord_delta(self._params[dim][2])
+            delta = make_coord_delta(coords[2])
             xcoord = UniformCoord(start, stop, delta)
 
         return xcoord
