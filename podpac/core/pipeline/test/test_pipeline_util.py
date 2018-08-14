@@ -351,6 +351,90 @@ class TestParsePipelineDefinition(object):
         assert output.node is nodes['a']
         assert output.name == 'a'
 
+    def test_parse_custom_output(self):
+        s = ''' {
+            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "output": {
+                "plugin": "podpac.core.pipeline.output",
+                "output": "ImageOutput"
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        nodes, output = parse_pipeline_definition(d)
+        assert isinstance(output, ImageOutput)
+
+        s = ''' {
+            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "output": {
+                "plugin": "podpac",
+                "output": "core.pipeline.output.ImageOutput"
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        nodes, output = parse_pipeline_definition(d)
+        assert isinstance(output, ImageOutput)
+
+    def test_parse_custom_output_invalid(self):
+        # no module
+        s = ''' {
+            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "output": {
+                "plugin": "nonexistent_module",
+                "output": "arbitrary"
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        with pytest.raises(PipelineError):
+            parse_pipeline_definition(d)
+
+        # module okay, but no such class
+        s = ''' {
+            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "output": {
+                "plugin": "podpac.core.pipeline.output",
+                "output": "Nonexistent"
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        with pytest.raises(PipelineError):
+            parse_pipeline_definition(d)
+
+        # module okay, class found, could not create
+        s = ''' {
+            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "output": {
+                "plugin": "numpy",
+                "output": "ndarray"
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        with pytest.raises(PipelineError):
+            parse_pipeline_definition(d)
+
+        # module okay, class found, incorrect type
+        s = ''' {
+            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "output": {
+                "plugin": "collections",
+                "output": "OrderedDict"
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        with pytest.raises(PipelineError):
+            parse_pipeline_definition(d)
+        
     def test_unused_node_warning(self):
         s = '''
         {
