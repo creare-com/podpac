@@ -900,7 +900,7 @@ class Percentile(Reduce2):
         Description
     """
     
-    percentile = tl.Float(default=50.0).tag(param=True)
+    percentile = tl.Float(default=50.0).tag(attr=True)
 
     def reduce(self, x):
         """Computes the percentile across dimension(s)
@@ -915,8 +915,8 @@ class Percentile(Reduce2):
         UnitsDataArray
             Percentile of the source data over self.dims
         """
-        percentile = self._params.get('percentile', self.percentile)
-        return np.nanpercentile(x, percentile, self.dims_axes(x))
+
+        return np.nanpercentile(x, self.percentile, self.dims_axes(x))
 
 # =============================================================================
 # Time-Grouped Reduce
