@@ -53,18 +53,15 @@ node = Node()
 ### Methods
 #### __init__(...)
 * Any attributes set at this stage are constant for all executions
-* Any parameters set at this stage are used as default parameters, but can be overwritten during execution. After execution, it reverts to the defaults
 
-#### execute(coordinates, params=None, output=None, method=None)  # Tempted to rename to evaluate or eval
+#### execute(coordinates, output=None, method=None)  # Tempted to rename to evaluate or eval
 ```python
-def execute(coordinates, params=None, output=None, method=None):
+def execute(coordinates, output=None, method=None):
     '''
     Parameters
     -----------
     coordinates : podpac.Coordinate
         The set of coordinates requested by a user. The Node will be executed using these coordinates.
-    params : dict, optional
-        Default is None. Runtime parameters that modify any default node parameters.
     output : podpac.UnitsDataArray, optional
         Default is None. Optional input array used to store the output data. When supplied, the node will not allocate its own memory for the output array. This array needs to have the correct dimensions and coordinates.
     method : str, optional
@@ -151,7 +148,7 @@ def execute(coordinates, params=None, output=None, method=None):
     >>> node.initialize_output_array().dims
     ('lon', 'lat')
     ```
-* If the underlying Node has dimensions not in the request, an exception is raised
+* If the underlying Node has unstacked dimensions not in the request, an exception is raised
     * eg. Node has `['lat', 'lon', 'time']` dimensions, but coordinates only have `['time']`
     ```python
     >>> node.native_coordinates = Coordinate(lat=(90, -90, -1.), lon=(-180, 180, 2.), order=['lat', 'lon'])
@@ -160,7 +157,9 @@ def execute(coordinates, params=None, output=None, method=None):
     CoordinateError: 'Dimension "lat" not present in requested coordinates with dims ["lon"]'
     ```
     * Because some datasets may be huge, and without information about the subset, the safest behaviour is to throw an exception
-* If the underlying Node does not have dimensions present in the request, just return without those dimensions
+* If the underlying Node has *stacked* dimensions not in the request, raise an exception if the Node native_coordinates contains duplicates for the requested dimensions, otherwise just drop the missing dimension from the coordinates.
+  * eg. Node has `[lat_lon_time]` dimensions, but coordinates only have `['time'`], we can drop the lat and lon portion of the stacked coordinates as long as that doesn't result in duplicate times. Note that this doesn't change the dimensionality, but is required for correct xarray broadcasting.
+* If the request has unstacked dimensions not in the Node, just return without those dimensions
     * eg. Node has `['lat', 'lon']` dimensions, but evaluated coordinates have `['time', 'lon', 'lat']` then `UnitsDataArray` will have dimensions `['lon', 'lat']`
     ```python
     >>> node.native_coordinates = Coordinate(lat=45, lon=0, order=['lat', 'lon'])
@@ -172,6 +171,9 @@ def execute(coordinates, params=None, output=None, method=None):
       * lat      (lat) float64 45.0
       * lon      (lon) float64 0.0
     ```
+* If the request has *stacked* dimensions not in the underlying Node, add the missing coordinates.
+    * eg. Node has `[lat_lon]` dimensions, but coordinates have `['lat_lon_time'`], we need to add the time portion to the stacked coordinates for correct xarray broadcasting.
+
 * [**???FUTURE FEATURE???**] If `isinstance(coordinates, GroupCoordinates)` then a `UnitsDataArray` with a single `group` dimension is return. Each `group` is indexed by the the coordinates group in `GroupCoordinates`, and contains a `UnitsDataArray` that matches the above rules.
     ```python
     >>> from podpac.core.coordinate import GroupCoordinate
@@ -215,51 +217,6 @@ def execute(coordinates, params=None, output=None, method=None):
     * Styling? 
     * Parameters used for execution
     * Other metadata to track provenance? 
-
-**Notes on parameters: **
-* Nodes can implement default values for parameters
-* These can be overwritten at runitime 
-* If a parameter is specified in the call, but not present in the node, a warning is raised
-    * The settings file could have an option to escalate this to an Exception
-* A parameter can be passed down to inputs of a node pipeline by referencing it's with it's own dictionary
-    * Eg. 
-    ```python
-    from podpac.core.algorithm.algorithm import Algorithm
-    class MyNode(Algorithm):
-        my_param = tl.Int(default_value=0).tag(param=True)
-        input = tl.Instance(Node, allow_none=True)
-        def algorithm(self):
-            output = self.initialize_output_array()
-            if self.input is not None:
-                output[0] = self.input._params['my_param'] + self._params['my_param']
-                # TODO: Should refactor so that the following is possible
-                # output[0] = self.input.my_param + self.my_param
-            return output
-    my_node = MyNode(input=MyNode(my_param=1))
-    ```
-    ```python
-    >>> my_node.execute(Coordinate(time=0)).data
-    array([1.])
-    >>> my_node.execute(Coordinate(time=0), params={'my_param': 2}).data
-    array([3.])
-    >>> my_node.execute(Coordinate(time=0), params={'input': {'my_param': 5}}).data
-    array([5.])
-    >>> my_node.execute(Coordinate(time=0), params={'my_param': 4, 'input': {'my_param': 3}}).data
-    array([7.])
-    >>> my_node.execute(Coordinate(time=0)).data
-    array([1.])
-    ```
-    * Note, the default or instantiated parameters are not overwritten by subsequent executes
-* We could also suppored paths such as the following, where both are equivalent:
-    ```python 
-    params = {'input.my_param'=1}
-    params = {'input': {'my_param'=1}}
-    ```
-* The special key `'*'` could be reserved for passing a parameter to ALL nodes in the pipeline, unless overwritten by a specific node. 
-    ```python
-    params = {'*': {interpolation='nearest'}, 'input.interpolation'='bilinear'}, 
-    ```
-    
     
 #### find_coordinates
 ```python
@@ -317,9 +274,9 @@ def __get__item__(self, key)
     '''
 ```
 
-#### get(self, str, coordinates, params, execute=False)
+#### get(self, str, coordinates, execute=False)
 ```python
-def get(self, key, coordinates, params, execute=False):
+def get(self, key, coordinates, execute=False):
     '''Retrieves execution results from the node
     Parameters
     ------------
@@ -327,15 +284,13 @@ def get(self, key, coordinates, params, execute=False):
        Path to the cached object (within the node pipeline). If empty or '.', returns data for the current node.
     coordinates: Coordinate 
         Coordinates for which cached data should be retrieved
-    params : dict
-        Parameters used to execute the node for which data should be retrieved. These parameters should be relative to the current node from which get is called. E.g. key = .input.source, to set a param on source, use params={'input.source.param'=<value>}
     execute : bool, optional
         Default is False. If True, will execute the node to retrieve data if the data is not within the cache. Otherwise, will raise an exception if data is not in the cache
         
     Returns
     -------
     UnitsDataArray 
-        The cached data from the requested coordinates/params
+        The cached data from the requested coordinates/attrs
     
     Raises
     -------
@@ -374,14 +329,13 @@ def definition(self, type='dict'):
 ## Developer interface 
 ### Public Attributes
 * `native_coordinates`: Underlying data source coordiantes, when available
-* `evaluated_coordinates`: Coordinated used for evaluating the node
-* `output_coordinates`: Coordinates present in the output from the node
 * `units`: Units associated with the output of this node
 * `interpolation`: Interpolation method used with this node
 
 ### Private Attributes
 * `_output`: Copy of last output from this node
-* `_params`: Copy of initialized/default parameters for this node
+* `_evaluated_coordinates`: copy of last coordinates used for evaluating the node
+* ~~`_output_coordinates`: copy of coordinates present in the output from the node~~ (can't we just use `._output.coordinates`?)
 
 ### Additional public methods
 ( Some of these are already documented in the code )
