@@ -71,9 +71,9 @@ class Compositor(Node):
     sources = tl.Instance(np.ndarray)
     cache_native_coordinates = tl.Bool(True).tag(attr=True)
     
-    interpolation = tl.Unicode('').tag(param=True)
+    interpolation = tl.Unicode('').tag(attr=True)
    
-    threaded = tl.Bool(False).tag(param=True)
+    threaded = tl.Bool(False).tag(attr=True)
     n_threads = tl.Int(10).tag(param=True)
     
     @tl.default('source')
