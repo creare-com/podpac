@@ -71,46 +71,6 @@ class TestPipeline(object):
         assert os.path.isfile(pipeline.pipeline_output.path)
         os.remove(pipeline.pipeline_output.path)
 
-    def test_execute_params(self):
-        s = '''
-        {
-            "nodes": {
-                "source": {"node": "core.algorithm.algorithm.Arange"},
-                "result": {        
-                    "node": "Arithmetic",
-                    "inputs": {
-                        "A": "source"
-                    },
-                    "params": {
-                        "eqn": "2 * A"
-                    }
-                }
-            }
-        }
-        '''
-
-        d = json.loads(s, object_pairs_hook=OrderedDict)
-        pipeline = Pipeline(definition=d)
-        
-        a = Arange()
-        aout = a.execute(coords)
-
-        # no params argument
-        out = pipeline.execute(coords)
-        np.testing.assert_array_equal(2 * aout, out)
-        
-        # empty params argument
-        out = pipeline.execute(coords, params={})
-        np.testing.assert_array_equal(2 * aout, out)
-        
-        # None params argument
-        out = pipeline.execute(coords, params=None)
-        np.testing.assert_array_equal(2 * aout, out)
-        
-        # set params argument
-        out = pipeline.execute(coords, params={'eqn': "3 * A"})
-        np.testing.assert_array_equal(3 * aout, out)
-
     def test_execute_from_file(self):
         path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'pipeline', 'test', 'test.json')
         pipeline = Pipeline(path=path)
