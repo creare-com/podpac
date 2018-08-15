@@ -1,5 +1,5 @@
 # Requirements
-* Must provide an execution interface with consistent rules for outputs
+* Must provide an evaluation interface with consistent rules for outputs
 * Must provide a way of instantiating outputs following these rules
 * Provide methods to test if these rules are obeyed for child classes
 * Provide a consistent interface/rules for passing runtime parameters
@@ -9,10 +9,10 @@
     * Ouput json formatted text used to reproduce it
     * Report inconsistencies or inabilities to produce pipelines
     * Evaluate pipelines at a point with indications of where data came from (which nodes are active within compositors)
-* Must give the same output if evaluated from a newly instantiated node, or previously instantiated and executed node
+* Must give the same output if evaluated from a newly instantiated node, or previously instantiated and evaluated node
 * Must define public attributes that should be implemented/available to all nodes
 * Must define public parameters that should be implemented/available to all nodes
-* Potentially provide a mechanism to execute nodes in parallel or remotely on the cloud (This may be handled by an execution manager)
+* Potentially provide a mechanism to evaluate nodes in parallel or remotely on the cloud (This may be handled by an evaluation manager)
 * Could provide a method to estimate cost of executing a job over given coordinates using AWS cloud
 * Provide a standard methods for creators of child nodes to:
     * Specify defaults for attributes and parameters
@@ -21,12 +21,12 @@
 
 # Example Use cases
 ## Typical
-* The primary use case is essentially: A user executes nodes written by various authors with the same set of coordinates and the results can interact together using common mathematical operators (e.g. +-/*)
+* The primary use case is essentially: A user evaluates nodes written by various authors with the same set of coordinates and the results can interact together using common mathematical operators (e.g. +-/*)
 * A users wants to retrieve all of the available times for a complex node pipeline in the native coordinates of the underlying datasets
     * In this case, there may be multiple datasets spanning different times with different temporal resolutions
 * After interactively creating a complex processing pipeline, a users wants to:
     * share their work using the .json format
-    * execute the node for a larger region using cloud-resources
+    * evaluate the node for a larger region using cloud-resources
     * inspect outputs from various stages of the algorithm to debug/analyze the results
     
 ## Advanced
@@ -37,7 +37,7 @@
 * Advanced users create new nodes to implement custom algorithms (see Algorithm Node spec)
 * Advanced users create new nodes to composite various nodes together following custom rules (see Compositor Node spec)
 * Advanced users create new nodes to construct pipelines from custom json (see Pipeline Node spec)
-* Advanced users inspect results from an execution by examining the cached data quantities (see caching spec)
+* Advanced users inspect results from an evaluation by examining the cached data quantities (see caching spec)
 
 # Specification
 ## User Interface
@@ -54,18 +54,18 @@ node = Node()
 #### __init__(...)
 * Any attributes set at this stage are constant for all executions
 
-#### execute(coordinates, output=None, method=None)  # Tempted to rename to evaluate or eval
+#### eval(coordinates, output=None, method=None)
 ```python
-def execute(coordinates, output=None, method=None):
+def eval(coordinates, output=None, method=None):
     '''
     Parameters
     -----------
     coordinates : podpac.Coordinate
-        The set of coordinates requested by a user. The Node will be executed using these coordinates.
+        The set of coordinates requested by a user. The Node will be evaluated using these coordinates.
     output : podpac.UnitsDataArray, optional
         Default is None. Optional input array used to store the output data. When supplied, the node will not allocate its own memory for the output array. This array needs to have the correct dimensions and coordinates.
     method : str, optional
-        Default is None. How the node will be executed: serial, parallel, on aws, locally, etc. Currently only local execution is supported.
+        Default is None. How the node will be evaluated: serial, parallel, on aws, locally, etc. Currently only local evaluation is supported.
         
     Returns
     --------
@@ -206,16 +206,15 @@ def execute(coordinates, output=None, method=None):
       * group    (group) <U144 'Coordinate\n\tlat: UniformCoord: Bounds[-90.0, 0.0], N[46], ctype["segment"]\n\tlon: UniformCoord: Bounds[-180.0, 0.0], N[46], ctype["segment"]' ...    
     ```
     * This will break any node that uses `o.data`... 
-    * Alternatively, we could disallow execution of `GroupCoordinates` -- raising an exception
-        * This leaves it up to the user to loop through all the coordinates in `GroupCoordinates` and execute the node that way
+    * Alternatively, we could disallow evaluation of `GroupCoordinates` -- raising an exception
+        * This leaves it up to the user to loop through all the coordinates in `GroupCoordinates` and evaluate the node that way
         * Perhaps we can do that? In that case only the bottom node returns the `group` dataarray, and anything internal should be fine
         * This will break if an internal node uses a group coordinate as part of the pipeline
         * Safest is just to disallow this behaviour... 
-    * Alternatively (Currently the favorite): WE could raise an exception, and provide a execute_group method that will do the looping for the user. This avoids any group coordinates executed within the pipeline, but still let's a user evaluate a group in a consistent manner. 
+    * Alternatively (Currently the favorite): WE could raise an exception, and provide a eval_group method that will do the looping for the user. This avoids any group coordinates evaluated within the pipeline, but still let's a user evaluate a group in a consistent manner. 
 * The output will contain metadata on the: 
     * Units
     * Styling? 
-    * Parameters used for execution
     * Other metadata to track provenance? 
     
 #### find_coordinates
@@ -259,33 +258,33 @@ def find_coordinates(dims=None, bounds=None, number=None, sortby='size', stop_ty
 #### __get_item__(self, ...)
 ```python
 def __get__item__(self, key)
-    ''' Returns any slice of the data for the last execution
+    ''' Returns any slice of the data for the last evaluation
     Paramters
     ----------
     key : slice, np.ndarray, dict, list, str
         * If isinstance (key, [slice, np.ndarray, dict, list]), then the keys gets passed down to the last output of the node output[key].
-        * If isinstance(key, str) then the string points to a path node pipeline, and the data for that node for the last execution is returned (Calls `get` function with execute=True)
+        * If isinstance(key, str) then the string points to a path node pipeline, and the data for that node for the last evaluation is returned (Calls `get` function with evaluate=True)
 
     Returns
     --------
     UnitsDataArray 
-        The data from the most recent execution
+        The data from the most recent evaluation
 
     '''
 ```
 
-#### get(self, str, coordinates, execute=False)
+#### get(self, str, coordinates, evaluate=False)
 ```python
-def get(self, key, coordinates, execute=False):
-    '''Retrieves execution results from the node
+def get(self, key, coordinates, evaluate=False):
+    '''Retrieves evaluation results from the node
     Parameters
     ------------
     key : str
        Path to the cached object (within the node pipeline). If empty or '.', returns data for the current node.
     coordinates: Coordinate 
         Coordinates for which cached data should be retrieved
-    execute : bool, optional
-        Default is False. If True, will execute the node to retrieve data if the data is not within the cache. Otherwise, will raise an exception if data is not in the cache
+    evaluate : bool, optional
+        Default is False. If True, will evaluate the node to retrieve data if the data is not within the cache. Otherwise, will raise an exception if data is not in the cache
         
     Returns
     -------
@@ -295,10 +294,10 @@ def get(self, key, coordinates, execute=False):
     Raises
     -------
     CacheError
-        If the data is not in the cache and execute == False
+        If the data is not in the cache and evaluate == False
     '''
 ```
-* This is VERY similar to the execute method... in fact, execute probably calls this function for the caching. 
+* This is VERY similar to the eval method... in fact, eval probably calls this function for the caching. 
 
 ### definition
 ```python
