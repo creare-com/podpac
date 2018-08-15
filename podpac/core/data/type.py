@@ -769,7 +769,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
         Type of interpolation method to use for the source node
     """
     
-    source_interpolation = tl.Unicode('nearest_preview').tag(param=True)
+    source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     source = tl.Instance(podpac.Node)
     # Specify either one of the next two
     # TODO: should this be of type podpac.Coordinate?
