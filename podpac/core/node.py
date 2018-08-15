@@ -38,7 +38,6 @@ COMMON_NODE_DOC = {
         '''The native set of coordinates for a node. This attribute may be `None` for some nodes.''',
     'evaluated_coordinates': 
         '''The set of coordinates requested by a user. The Node will be executed using these coordinates.''',
-    'execute_params': 'Default is None. Runtime parameters that modify any default node parameters.',
     'execute_out': 
         '''Default is None. Optional input array used to store the output data. When supplied, the node will not 
             allocate its own memory for the output array. This array needs to have the correct dimensions and 
@@ -149,9 +148,6 @@ class Node(tl.HasTraits):
         Dictionary of defaults values for attributes of a Node. 
     output : podpac.UnitsDataArray
         Output data from the last evaluation of the node. 
-    params : dict
-        Dictionary of parameters that control the output of a node. For example, these can be coefficients in an 
-        equation, or the interpolation type. This attribute is planned for deprecation in the future.
     style : podpac.Style
         Object discribing how the output of a node should be displayed. This attribute is planned for deprecation in the
         future.
@@ -170,7 +166,6 @@ class Node(tl.HasTraits):
     evaluated = tl.Bool(default_value=False)
     implicit_pipeline_evaluation = tl.Bool(default_value=True, help="Evaluate the pipeline implicitly (True, Default)")
     evaluated_coordinates = tl.Instance('podpac.core.coordinate.Coordinate', allow_none=True)
-    _params = tl.Dict(default=None, allow_none=True)
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
@@ -228,7 +223,7 @@ class Node(tl.HasTraits):
         pass
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
+    def execute(self, coordinates, output=None, method=None):
         """This is the common interface used for ALL nodes. Pipelines only
         understand this method and get_description.
 
@@ -236,8 +231,6 @@ class Node(tl.HasTraits):
         ----------
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -527,7 +520,6 @@ class Node(tl.HasTraits):
             x.attrs['layer_style'] = style
         if units is not None:
             x.attrs['units'] = units
-        x.attrs['params'] = self._params
         return x
 
     @property
@@ -560,39 +552,13 @@ class Node(tl.HasTraits):
         else:
             d['plugin'] = self.__module__
             d['node'] = self.__class__.__name__
-        params = {}
         attrs = {}
         for key, value in self.traits().items():
-            if value.metadata.get('param', False):
-                params[key] = getattr(self, key)
             if value.metadata.get('attr', False):
                 attrs[key] = getattr(self, key)
-        if params:
-            d['params'] = params
         if attrs:
             d['attrs'] = attrs
         return d
-
-    def get_params(self, params=None):
-        """Helper function to update default parameters with runtime parameters. 
-        
-        Parameters
-        -----------
-        params: dict
-            {execute_params}
-            
-        Returns
-        -------
-        dict
-            The set of parameters that will be used for the execution of the node.
-        """
-        p = {}
-        for key, value in self.traits().items():
-            if value.metadata.get('param', False):
-                p[key] = getattr(self, key)
-        if params: 
-            p.update(params)
-        return p
 
     @property
     def definition(self):
@@ -600,7 +566,7 @@ class Node(tl.HasTraits):
         Pipeline node definition.
 
         This property is implemented in the primary base nodes (DataSource, Algorithm, and Compositor). Node
-        subclasses with additional params or attrs will need to extend this property.
+        subclasses with additional attrs will need to extend this property.
 
         Returns
         -------
@@ -661,32 +627,22 @@ class Node(tl.HasTraits):
         from podpac.core.pipeline import Pipeline
         return Pipeline(self.pipeline_definition)
 
-    def get_hash(self, coordinates=None, params=None):
+    def get_hash(self, coordinates=None):
         """Hash used for caching node outputs.
 
         Parameters
         ----------
         coordinates : None, optional
             {evaluated_coordinates}
-        params : None, optional
-            {params}
 
         Returns
         -------
         str
             {hash_return}
         """
-        if params is not None:
-            # convert to OrderedDict with consistent keys
-            if not isinstance(params, OrderedDict):
-                params = OrderedDict(sorted(params.items()))
-
-            # convert dict values to OrderedDict with consistent keys
-            for key, value in params.items():
-                if isinstance(value, dict) and not isinstance(value, OrderedDict):
-                    params[key] = OrderedDict(sorted(value.items()))
-
-        return hash((str(coordinates), str(params)))
+        
+        # TODO this needs to include the tagged node attrs
+        return hash(str(coordinates))
 
     @property
     def evaluated_hash(self):
@@ -705,7 +661,7 @@ class Node(tl.HasTraits):
         if self.evaluated_coordinates is None:
             raise NodeException("node not evaluated")
 
-        return self.get_hash(self.evaluated_coordinates, self._params)
+        return self.get_hash(self.evaluated_coordinates)
 
     @property
     def latlon_bounds_str(self):
@@ -782,7 +738,7 @@ class Node(tl.HasTraits):
             raise NotImplementedError
         return path
 
-    def load(self, name, coordinates, params, outdir=None):
+    def load(self, name, coordinates, outdir=None):
         """Retrieves a cached output from disk and assigns it to self.output
 
         Parameters
@@ -791,8 +747,6 @@ class Node(tl.HasTraits):
             Name of the file prefix.
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
-        params : dict
-            {params}
         outdir : str, optional
             {outdir}
             
@@ -801,10 +755,7 @@ class Node(tl.HasTraits):
         str
             The path of the loaded file
         """
-        filename = '%s_%s_%s.pkl' % (
-            name,
-            self.get_hash(coordinates, params),
-            coordinates.latlon_bounds_str)
+        filename = '%s_%s_%s.pkl' % (name, self.get_hash(coordinates), coordinates.latlon_bounds_str)
         path = self.get_output_path(filename, outdir=outdir)
 
         with open(path, 'rb') as f:

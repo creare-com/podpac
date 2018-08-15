@@ -144,28 +144,6 @@ class TestParsePipelineDefinition(object):
         assert nodes['sm'].product == "SPL4SMGP.003"
         assert nodes['sm'].interpolation == "bilinear"
 
-    def test_params(self):
-        s = '''
-        {
-            "nodes": {
-                "source": {"node": "core.algorithm.algorithm.Arange"},
-                "result": {        
-                    "node": "Arithmetic",
-                    "inputs": {
-                        "A": "source"
-                    },
-                    "params": {
-                        "eqn": "2 * A"
-                    }
-                }
-            }
-        }
-        '''
-
-        d = json.loads(s, object_pairs_hook=OrderedDict)
-        nodes, output = parse_pipeline_definition(d)
-        assert nodes['result'].eqn == "2 * A"
-
     def test_invalid_property(self):
         s = '''
         {

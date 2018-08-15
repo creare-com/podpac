@@ -107,21 +107,19 @@ class DataSource(Node):
     interpolation = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
                              'cubic_spline', 'lanczos', 'average', 'mode',
                              'gauss', 'max', 'min', 'med', 'q1', 'q3'],   # TODO: gauss is not supported by rasterio
-                            default_value='nearest').tag(param=True)
+                            default_value='nearest').tag(attr=True)
     interpolation_param = tl.Any()
     no_data_vals = tl.List(allow_none=True)
 
     
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params.
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates.
         
         Parameters
         ----------
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
-        params : dict, optional
-            {execute_params}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -137,7 +135,6 @@ class DataSource(Node):
         for dim in self.evaluated_coordinates.dims_map.keys():
             if dim not in self.native_coordinates.dims_map.keys():
                 self.evaluated_coordinates.drop_dims(dim)
-        self._params = self.get_params(params)
         self.output = output
 
         # Need to ask the interpolator what coordinates I need
@@ -304,18 +301,16 @@ class DataSource(Node):
                     tol = min(tol, np.abs(getattr(coords_dst[c], 'delta', tol)))
             crds_keys = list(crds.keys())
             if 'time' in crds:
-                data_src = data_src.reindex(dict(time=crds['time']), str('nearest'))
+                data_src = data_src.reindex(time=crds['time'], method=str('nearest'))
                 del crds['time']
-            data_dst.data = data_src.reindex(crds, method=str('nearest'), 
-                                         tolerance=tol).transpose(*crds_keys)
+            data_dst.data = data_src.reindex(method=str('nearest'), tolerance=tol, **crds).transpose(*crds_keys)
             return data_dst
         
         # For now, we just do nearest-neighbor interpolation for time and alt
         # coordinates
         if 'time' in coords_src.dims and 'time' in coords_dst.dims:
-            data_src = data_src.reindex(time=coords_dst.coords['time'],
-                                        method='nearest',
-                                        tolerance=self.interpolation_param)
+            data_src = data_src.reindex(
+                time=coords_dst.coords['time'], method='nearest', tolerance=self.interpolation_param)
             coords_src._coords['time'] = data_src['time'].data
             if len(coords_dst.dims) == 1:
                 return data_src

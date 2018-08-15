@@ -24,37 +24,14 @@ In addition to the core data sources and algorithms, you may need to write your 
 
 An example of creating a simple array-based datasource can be found in the [array-data-source](https://github.com/creare-com/podpac/blob/master/doc/notebooks/array-data-source.ipynb) notebook. 
 
-### Tagging params
-
-Execution parameters are passed in when the node is executed. For each parameter, the class definition should include a traitlets attribute that is tagged as a `param`. You can optionally include a default value for the param.
-
-```
-class MyDataSource(DataSource):
-    my_param1 = tl.Integer(allow_none=False).tag(param=True)
-    my_param2 = tl.Integer(default_value=100.0).tag(param=True)
-
-    ...
-```
-
-You will be able to set params when instantiating the node and when executing the node:
-
-```
-node = MyDataSource(my_param1=0.5)
-output = node.execute(coords, {'my_param2': 75.0})
-```
-
-You will also be able to set these tagged params in [pipelines](pipelines).
-
 ### Tagging attributes
 
-Unlike params, node attributes are defined when instantiating the node, but cannot be set when later executing the node. Again, for each attribute, the class definition should include a traitlets attribute that is tagged as an `attr`, and you can optionally include a default value.
+Node attributes are defined when instantiating the node. For each attribute, the class definition should include a traitlets attribute that is tagged as an `attr`, and you can optionally include a default value.
 
 ```
 class MyDataSource(DataSource):
-    my_param1 = tl.Integer(allow_none=False).tag(param=True)
-    my_param2 = tl.Integer(default_value=100.0).tag(param=True)
-
-    my_attr = tl.Integer(default_value=0.1).tag(attr=True)
+    my_attr1 = tl.Float(allow_none=False).tag(attr=True)
+    my_attr2 = tl.Float(default_value=0.1).tag(attr=True)
 
     ...
 ```
@@ -62,8 +39,8 @@ class MyDataSource(DataSource):
 You will be able to set attrs when instantiating the node:
 
 ```
-node = MyDataSource(my_param1=0.5, my_attr=0.5)
-output = node.execute(coords, {'my_param2': 75.0})
+node = MyDataSource(my_attr1=0.3, my_attr2=0.5)
+output = node.execute(coords)
 ```
 
 You will also be able to set these tagged attrs in [pipelines](pipelines).

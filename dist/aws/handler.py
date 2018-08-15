@@ -91,7 +91,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
                            lon=(w+dwe, e-dwe, width),
                            time=np.datetime64(time), 
                            order=['time', 'lat', 'lon'])
-        pipeline.execute(coord, {})
+        pipeline.execute(coord)
         if ret_pipeline:
             return pipeline
         return img_response(pipeline.pipeline_output.image)
