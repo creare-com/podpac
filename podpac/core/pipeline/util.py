@@ -29,7 +29,7 @@ def parse_pipeline_definition(definition):
     if len(definition['nodes']) == 0:
         raise PipelineError("Pipeline definition 'nodes' property cannot be empty")
 
-    # parse node definitions and default params
+    # parse node definitions
     nodes = OrderedDict()
     for key, d in definition['nodes'].items():
         nodes[key] = _parse_node_definition(nodes, key, d)
@@ -57,7 +57,7 @@ def _parse_node_definition(nodes, name, d):
 
     # parse and configure kwargs
     kwargs = {}
-    whitelist = ['node', 'attrs', 'params', 'evaluate', 'plugin']
+    whitelist = ['node', 'attrs', 'evaluate', 'plugin']
 
     try:
         # translate node references in compositors and algorithms
@@ -70,9 +70,6 @@ def _parse_node_definition(nodes, name, d):
             whitelist.append('inputs')
     except KeyError as e:
         raise PipelineError("node '%s' definition references nonexistent node '%s'" % (name, e))
-
-    if 'params' in d:
-        kwargs.update(d['params'])
 
     if 'attrs' in d:
         kwargs.update(d['attrs'])

@@ -198,18 +198,16 @@ class Reduce(Algorithm):
             Output for this chunk
         """
         for chunk in self.input_coordinates.iterchunks(self.chunk_shape):
-            yield self.source.execute(chunk, self._params, method=method)
+            yield self.source.execute(chunk, method=method)
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates. 
         
         Parameters
         ----------
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -220,7 +218,6 @@ class Reduce(Algorithm):
         {execute_return}
         """
         self.input_coordinates = coordinates
-        self._params = self.get_params(params)
         self.output = output
         
         self.evaluated_coordinates = coordinates
@@ -235,7 +232,7 @@ class Reduce(Algorithm):
             result = self.reduce_chunked(self.iteroutputs(method), method)
         else:
             if self.implicit_pipeline_evaluation:
-                self.source.execute(coordinates, self._params, method=method)
+                self.source.execute(coordinates, method=method)
             result = self.reduce(self.source.output)
 
         if self.output.shape is (): # or self.evaluated_coordinates is None
@@ -284,7 +281,7 @@ class Reduce(Algorithm):
         """
 
         warnings.warn("No reduce_chunked method defined, using one-step reduce")
-        x = self.source.execute(self.input_coordinates, self._params, method=method)
+        x = self.source.execute(self.input_coordinates, method=method)
         return self.reduce(x)
 
     @property
@@ -304,7 +301,7 @@ class Reduce(Algorithm):
         if self.input_coordinates is None:
             raise Exception("node not evaluated")
             
-        return self.get_hash(self.input_coordinates, self._params)
+        return self.get_hash(self.input_coordinates)
 
     @property
     def latlon_bounds_str(self):
@@ -840,7 +837,7 @@ class Reduce2(Reduce):
         """
         chunks = self.input_coordinates.iterchunks(self.chunk_shape, return_slice=True)
         for slc, chunk in chunks:
-            yield slc, self.source.execute(chunk, self._params, method=method)
+            yield slc, self.source.execute(chunk, method=method)
 
     def reduce_chunked(self, xs, method=None):
         """
@@ -991,15 +988,13 @@ class GroupReduce(Algorithm):
         return coords
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates. 
         
         Parameters
         ----------
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -1015,7 +1010,6 @@ class GroupReduce(Algorithm):
             If source it not time-depended (required by this node).
         """
         self.evaluated_coordinates = coordinates
-        self._params = self.get_params(params)
         self.output = output
 
         if self.output is None:
@@ -1025,7 +1019,7 @@ class GroupReduce(Algorithm):
             raise ValueError("GroupReduce source node must be time-dependent")
         
         if self.implicit_pipeline_evaluation:
-            self.source.execute(self.source_coordinates, params, method=method)
+            self.source.execute(self.source_coordinates, method=method)
 
         # group
         grouped = self.source.output.groupby('time.%s' % self.groupby)

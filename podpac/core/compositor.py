@@ -172,14 +172,12 @@ class Compositor(Node):
             self.cache_obj(crds, 'native.coordinates')
         return crds
     
-    def iteroutputs(self, coordinates, params, method=None):
+    def iteroutputs(self, coordinates, method=None):
         """Summary
         
         Parameters
         ----------
         coordinates : TYPE
-            Description
-        params : TYPE
             Description
         
         Yields
@@ -228,7 +226,7 @@ class Compositor(Node):
             # TODO pool of pre-allocated scratch space
             # TODO: docstring?
             def f(src):
-                return src.execute(coordinates, params, method=method)
+                return src.execute(coordinates, method=method)
             pool = ThreadPool(processes=self.n_threads)
             results = [pool.apply_async(f, [src]) for src in src_subset]
             
@@ -239,20 +237,18 @@ class Compositor(Node):
         else:
             output = None # scratch space
             for src in src_subset:
-                output = src.execute(coordinates, params, output, method)
+                output = src.execute(coordinates, output, method)
                 yield output
                 output[:] = np.nan
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates. 
 
         Parameters
         ----------
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -263,10 +259,9 @@ class Compositor(Node):
         {execute_return}
         """
         self.evaluated_coordinates = coordinates
-        self.params = params
         self.output = output
         
-        outputs = self.iteroutputs(coordinates, params, method=method)
+        outputs = self.iteroutputs(coordinates, method=method)
         self.output = self.composite(outputs, self.output)
         self.evaluated = True
 

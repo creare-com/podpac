@@ -95,7 +95,7 @@ class ExpandCoordinates(Algorithm):
             return icoords
 
         if len(coords) not in [2, 3]:
-            raise ValueError("Invalid expansion params for '%s'" % dim)
+            raise ValueError("Invalid expansion attrs for '%s'" % dim)
 
         # get start and stop offsets
         dstart = make_coord_delta(coords[0])
@@ -160,15 +160,13 @@ class ExpandCoordinates(Algorithm):
         return self.source.output
  
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates.
 
         Parameters
         ----------
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -182,11 +180,10 @@ class ExpandCoordinates(Algorithm):
         -------
         The input coordinates are modified and the passed to the base class implementation of execute.
         """
-        self._params = self.get_params(params)
         self.input_coordinates = coordinates
         coordinates = self.expanded_coordinates
 
-        return super(ExpandCoordinates, self).execute(coordinates, params, output, method)
+        return super(ExpandCoordinates, self).execute(coordinates, output, method)
 
 
 class SelectCoordinates(ExpandCoordinates):
@@ -224,7 +221,7 @@ class SelectCoordinates(ExpandCoordinates):
             return icoords
 
         if len(coords) not in [1, 2, 3]:
-            raise ValueError("Invalid expansion params for '%s'" % dim)
+            raise ValueError("Invalid expansion attrs for '%s'" % dim)
 
         # get start offset
         start = make_coord_value(coords[0])

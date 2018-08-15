@@ -45,10 +45,6 @@ class Pipeline(Node):
         return self.pipeline_output.node.output
     
     @property
-    def evaluated_params(self):
-        return self.pipeline_output.node.evaluated_params
-    
-    @property
     def evaluated(self):
         return self.pipeline_output.node.evaluated
     
@@ -95,22 +91,17 @@ class Pipeline(Node):
         self.nodes, self.pipeline_output = parse_pipeline_definition(definition)
         return definition
 
-    def execute(self, coordinates, params=None, output=None):
+    def execute(self, coordinates, output=None):
         """Execute the pipeline, writing the output if one is defined.
 
         Parameters
         ----------
         coordinates : TYPE
             Description
-        params : None, optional
-            Description
         """
         
-        if params is None:
-            params = {}
-
         if self.implicit_pipeline_evaluation:
-            self.pipeline_output.node.execute(coordinates, params, output)
+            self.pipeline_output.node.execute(coordinates, output)
         
         self.pipeline_output.write()
 

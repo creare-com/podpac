@@ -819,7 +819,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
         """{get_data}
         """
         self.source.interpolation = self.source_interpolation
-        data = self.source.execute(coordinates, self._params)
+        data = self.source.execute(coordinates)
         
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of

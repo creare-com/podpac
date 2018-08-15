@@ -30,15 +30,13 @@ class Algorithm(Node):
     """
     
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates. 
         
         Parameters
         ----------
         coordinates : podpac.Coordinate
             {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -49,7 +47,6 @@ class Algorithm(Node):
         {execute_return}
         """
         self.evaluated_coordinates = coordinates
-        self._params = self.get_params(params)
         self.output = output
 
         coords = None
@@ -57,7 +54,7 @@ class Algorithm(Node):
             node = getattr(self, name)
             if isinstance(node, Node):
                 if self.implicit_pipeline_evaluation:
-                    node.execute(coordinates, self._params.get(name, {}), method)
+                    node.execute(coordinates, method)
                 # accumulate coordinates
                 if coords is None:
                     coords = convert_xarray_to_podpac(node.output.coords)
@@ -223,8 +220,7 @@ class Arithmetic(Algorithm):
     ----------
     a = SinCoords()
     b = Arange()
-    arith = Arithmetic(A=a, B=b, eqn = 'A * B + {offset}')
-    arith.execute(coordinates, params={'offset': 1})
+    arith = Arithmetic(A=a, B=b, eqn = 'A * B + {offset}', params={'offset': 1})
     """
     
     A = tl.Instance(Node)

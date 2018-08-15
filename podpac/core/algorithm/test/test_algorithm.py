@@ -15,7 +15,7 @@ class TestAlgorithm(object):
             node.execute(c)
 
     def test_pipeline_definition(self):
-        # note: any algorithm node with params and inputs would be fine here
+        # note: any algorithm node with attrs and inputs would be fine here
         node = Arithmetic(A=Arange(), B=Arange(), eqn='A+B')
         d = node.definition
         

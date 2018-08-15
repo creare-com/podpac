@@ -37,7 +37,6 @@ class TestPipeline(object):
         pipeline.execute(coords)
 
         pipeline.native_coordinates
-        # pipeline.evaluated_params
         pipeline.evaluated
         pipeline.units
         pipeline.dtype

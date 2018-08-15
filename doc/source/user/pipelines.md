@@ -36,8 +36,6 @@ The podpac core library includes three basic types of nodes: *DataSource*, *Comp
  * `node`: a path to the node class. The path is relative to the podpac module, unless `plugin` is defined. See Notes. *(string, required)*
  * `plugin`: a path to a plugin module to use (prepended node path). See Notes. *(string, optional)*
  * `attrs`: set attributes in the node for custom behavior. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
- * `params`: set default execution parameters. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
- * `evaluate`: execute this node automatically. Setting this to `false` is useful for nodes that will be executed implicitly by a later node. *(bool, optional, default `true`)*
 
 ## DataSource
 
@@ -101,10 +99,12 @@ The podpac core library includes three basic types of nodes: *DataSource*, *Comp
                 "B": "MyOtherNode",
                 "C": "MyThirdNode"
             },
-            "params": {
-                "kappa": "13",
-                "tsmtr": "0.3", 
-                "eqn": "A + {tsmtr} / {kappa} * (B - C)"
+            "attrs": {
+                "eqn": "A + {tsmtr} / {kappa} * (B - C)",
+                "params": {
+                    "kappa": "13",
+                    "tsmtr": "0.3"
+                }
             }
         }
     }
@@ -135,7 +135,7 @@ The podpac core library includes three basic types of nodes: *DataSource*, *Comp
                 "A": "MyDataSource",
                 "B": "MyOtherPipeline",
             },
-            "params": {
+            "attrs": {
                 "eqn": "A + B"
             }
         }
