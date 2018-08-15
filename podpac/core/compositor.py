@@ -73,8 +73,8 @@ class Compositor(Node):
     
     interpolation = tl.Unicode('').tag(attr=True)
    
-    threaded = tl.Bool(False).tag(attr=True)
-    n_threads = tl.Int(10).tag(param=True)
+    threaded = tl.Bool(False)
+    n_threads = tl.Int(10)
     
     @tl.default('source')
     def _source_default(self):
