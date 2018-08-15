@@ -28,16 +28,6 @@ def setup_module():
 
 class TestReduce(object):
     """ Tests the Reduce class """
-    
-    def test_invalid_dims(self):
-        # valid dim
-        node = Min(source=source, dims='lat')
-        node.execute(coords)
-        
-        # invalid dim (because it is not in coords)
-        with pytest.raises(ValueError):
-            node = Min(source=source, dims='alt')
-            node.execute(coords)
 
     def test_auto_chunk(self):
         # any reduce node would do here

@@ -57,7 +57,7 @@ class Reduce(Algorithm):
 
     def get_dims(self, out):
         """
-        Validates and translates requested reduction dimensions.
+        Translates requested reduction dimensions.
         
         Parameters
         ----------
@@ -68,32 +68,15 @@ class Reduce(Algorithm):
         -------
         list
             List of dimensions after reduction
-        
-        Raises
-        ------
-        ValueError
-            If dimension is not valid, raises this error. 
         """
         # Using self.output.dims does a lot of work for us comparing
         # native_coordinates to evaluated coordinates
         input_dims = list(out.dims)
-        valid_dims = self.input_coordinates.dims
-
+        
         if not self.dims:
             return input_dims
 
-        params_dims = self.dims
-        if not isinstance(params_dims, (list, tuple)):
-            params_dims = [params_dims]
-
-        dims = []
-        for dim in params_dims:
-            if dim not in valid_dims:
-                raise ValueError("Invalid Reduce dimension: %s" % dim)
-            elif dim in input_dims:
-                dims.append(dim)
-        
-        return dims
+        return [dim for dim in self.dims if dim in input_dims]
     
     def dims_axes(self, output):
         """Finds the indices for the dimensions that will be reduced. This is passed to numpy. 
