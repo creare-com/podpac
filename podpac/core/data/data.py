@@ -107,7 +107,7 @@ class DataSource(Node):
     interpolation = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
                              'cubic_spline', 'lanczos', 'average', 'mode',
                              'gauss', 'max', 'min', 'med', 'q1', 'q3'],   # TODO: gauss is not supported by rasterio
-                            default_value='nearest').tag(param=True)
+                            default_value='nearest').tag(attr=True)
     interpolation_param = tl.Any()
     no_data_vals = tl.List(allow_none=True)
 
