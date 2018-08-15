@@ -12,6 +12,7 @@ import xarray as xr
 import numpy as np
 import scipy.stats
 import traitlets as tl
+from six import string_types
 
 from podpac.core.coordinate import Coordinate
 from podpac.core.node import Node
@@ -41,8 +42,13 @@ class Reduce(Algorithm):
     input_coordinates = tl.Instance(Coordinate)
     source = tl.Instance(Node)
 
-    dims = tl.List().tag(param=True)
-    iter_chunk_size = tl.Union([tl.Int(), tl.Unicode()], allow_none=True, default_value=None).tag(param=True)
+    dims = tl.List().tag(attr=True)
+    iter_chunk_size = tl.Union([tl.Int(), tl.Unicode()], allow_none=True, default_value=None)
+
+    def _first_init(self, **kwargs):
+        if 'dims' in kwargs and isinstance(kwargs['dims'], string_types):
+            kwargs['dims'] = [kwargs['dims']]
+        return super(Reduce, self)._first_init(**kwargs)
 
     @property
     def native_coordinates(self):
@@ -73,10 +79,10 @@ class Reduce(Algorithm):
         input_dims = list(out.dims)
         valid_dims = self.input_coordinates.dims
 
-        if self._params is None or not self._params['dims']:
+        if not self.dims:
             return input_dims
 
-        params_dims = self._params['dims']
+        params_dims = self.dims
         if not isinstance(params_dims, (list, tuple)):
             params_dims = [params_dims]
 
@@ -139,10 +145,10 @@ class Reduce(Algorithm):
             Size of chunks
         """
 
-        if self._params['iter_chunk_size'] == 'auto':
+        if self.iter_chunk_size == 'auto':
             return 1024**2 # TODO
 
-        return self._params['iter_chunk_size']
+        return self.iter_chunk_size
 
     @property
     def chunk_shape(self):
