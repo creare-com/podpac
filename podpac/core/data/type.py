@@ -104,11 +104,9 @@ class NumpyArray(Array):
           `Array`.
     """
 
-    # TODO: this should move to some kind of __init__ function
-    def get_data(self, coordinates, coordinates_index):
+    def init(self, coordinates, coordinates_index):
         warnings.warn('NumpyArray been renamed Array. ' +
                       'Backwards compatibility will be removed in future releases', DeprecationWarning)
-        return super(NumpyArray, self).get_data(coordinates, coordinates_index)
 
 
 @common_doc(COMMON_DATA_DOC)
