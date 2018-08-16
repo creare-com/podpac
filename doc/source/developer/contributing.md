@@ -141,6 +141,114 @@ $ pylint podpac/settings.py     # lint single file
 
 Configuration options are specified in `.pylintrc`.
 
+## Import Convetions / API Conventions
+
+> The modules `podpac.settings` and `podpac.units.ureg` MUST be imported without using the `from` syntax. For example:
+> ```python
+> import podpac.settings                 # yes
+> from podpac.settings import CACHE_CIR  # no
+> ```
+
+### Public API
+
+The client facing public API should be available on the root `podpac` module. For example:
+
+```python
+import podpac
+
+dir(podpac)
+['Algorithm',
+ 'Arithmetic',
+ 'CACHE_DIR',
+ 'Compositor',
+ 'Convolution',
+ 'Coord',
+ 'Coordinate',
+ 'Count',
+ 'DataSource',
+ 'ExpandCoordinates',
+ 'Kurtosis',
+ 'Max',
+ 'Mean',
+ 'Median',
+ 'Min',
+ 'MonotonicCoord',
+ 'Node',
+ 'OrderedCompositor',
+ 'Pipeline',
+ 'PipelineError',
+ 'PipelineNode',
+ 'SinCoords',
+ 'Skew',
+ 'SpatialConvolution',
+ 'StandardDeviation',
+ 'Style',
+ 'Sum',
+ 'TimeConvolution',
+ 'UniformCoord',
+ 'Units',
+ 'UnitsDataArray',
+ 'UnitsNode',
+ 'Variance',
+ 'coord_linspace',
+ 'core',
+ 'settings']
+```
+
+These imports should be defined in the root level `podpac/__init__.py` file.
+
+### Developer API
+
+Developer APIs (i.e. documented APIs for complex pipelines and podpac extensions) should be nested no more than one hierarchical level down from the root `podpac` module. The hierarchical naming convention is dictated by the directory and file structure within the `/podpac/core/` directory.
+
+For example:
+
+```python
+import podpac
+
+# files
+dir(podpac.node)
+[
+'Node',
+...
+]
+
+dir(podpac.units)
+[
+'UnitsDataArray',
+...
+]
+
+# directories
+dir(podpac.algorithm)
+[
+'Algorithm',
+...
+]
+
+dir(podpac.coordinate)
+[
+'Coordinate',
+...
+]
+
+dir(podpac.data)
+[
+'DataSource', 
+...
+]
+
+dir(podpac.pipeline)
+[
+'Pipeline', 
+...
+]
+```
+
+This import structure should be defined in the `/podpac/core/__init__.py` file.
+The contents of the `core` module is put on the `podpac` module in `/podpac/__init__.py` file.
+
+
 ## Testing
 
 We use `pytest` to run unit tests. To run tests, run from the root of the repository:
