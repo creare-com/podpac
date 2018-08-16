@@ -201,6 +201,8 @@ These imports should be defined in the root level `podpac/__init__.py` file.
 
 Developer APIs (i.e. documented APIs for complex pipelines and podpac extensions) should be nested no more than one hierarchical level down from the root `podpac` module. The hierarchical naming convention is dictated by the directory and file structure within the `/podpac/core/` directory.
 
+All code written into the `core` podpac module should reference other modules using the developer API to maintain consistency. 
+
 For example:
 
 ```python
@@ -245,8 +247,7 @@ dir(podpac.pipeline)
 ]
 ```
 
-This import structure should be defined in the `/podpac/core/__init__.py` file.
-The contents of the `core` module is put on the `podpac` module in `/podpac/__init__.py` file.
+This import structure should be defined in the `/podpac/__init__.py` file.
 
 
 ## Testing
