@@ -348,8 +348,8 @@ class TestType(object):
 
             requests.get = mock_get
 
-        def test_params(self):
-            """test global WCS params"""
+        def test_wcs_defaults(self):
+            """test global WCS defaults"""
 
             assert WCS_DEFAULT_VERSION
             assert WCS_DEFAULT_CRS

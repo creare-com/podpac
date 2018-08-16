@@ -190,7 +190,7 @@ We use [`pytest-cov`](https://github.com/pytest-dev/pytest-cov) (which uses [`co
 $ pytest --cov=podpac --cov-report html:./artifacts/coverage podpac   # outputs html coverage to directory artifacts/coverage
 ```
 
-We use [`coveralls`](https://github.com/coveralls-clients/coveralls-python) to provide [coverage status and visualization](https://coveralls.io/github/creare-com/podpac).
+We use [`coveralls`](https://github.com/coveralls-clients/coveralls-python) to provide [coverage status and visualization](https://coveralls.io/github/creare-com/podpac). Commits will be marked as failing if coverage drops below 90% or drops by more than 0.5%.
 
 ## Governance
 

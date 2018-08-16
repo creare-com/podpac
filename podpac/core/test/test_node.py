@@ -8,6 +8,9 @@ ureg = UnitRegistry()
 import traitlets as tl
 
 from podpac.core.node import *
+import podpac.core.common_test_utils as ctu
+import podpac.core.coordinate as pcoord
+
 from podpac.core.units import UnitsDataArray
 
 class TestStyleCreation(object):
@@ -202,45 +205,22 @@ class TestPipelineDefinition(object):
     def test_base_definition(self):
         class N(Node):
             attr = tl.Int().tag(attr=True)
-            param = tl.Float().tag(param=True)
-        n = N(param=1.1, attr=7)
+        n = N(attr=7)
         bd = n.base_definition()
         assert(bd.get('node', '') == 'N')
-        assert(bd.get('params', {}).get('param', {}) == 1.1)
         assert(bd.get('attrs', {}).get('attr', {}) == 7)
-
-class TestExecuteParams(object):
-    def test_default_params(self):
-        class N(Node):
-            param1 = tl.Int(7).tag(param=True)
-            param2 = tl.Float(3.14).tag(param=True)
-        n = N()
-        p = n.get_params()
-        assert(p.get('param1') == 7)
-        assert(p.get('param2') == 3.14)
-    def test_runtime_params(self):
-        class N(Node):
-            param1 = tl.Int(7).tag(param=True)
-            param2 = tl.Float(3.14).tag(param=True)
-        n = N()
-        p = n.get_params(dict(param1=-13))
-        assert(p.get('param1') == -13)
-        assert(p.get('param2') == 3.14)  
-        assert(n.param1 == 7)
 
 class TestFilesAndCaching(object):
     def test_get_hash(self):
+        # TODO attrs should result in different hashes
         crds1 = Coordinate(lat=1)
         crds2 = Coordinate(lat=2)
         crds3 = Coordinate(lon=1)
         n1 = Node()
         n2 = Node()
-        params = {'param1': 1}
-        assert(n1.get_hash(crds1, params) == n2.get_hash(crds1, params))
-        assert(n1.get_hash(crds1, params) != n2.get_hash(crds1, {'param2':{'p2.2': 2.2}}))
-        assert(n1.get_hash(crds2, params) != n2.get_hash(crds1, params))
-        assert(n1.get_hash(crds3, params) != n2.get_hash(crds1, params))
-        
+        assert(n1.get_hash(crds1) == n2.get_hash(crds1))
+        assert(n1.get_hash(crds2) != n2.get_hash(crds1))
+        assert(n1.get_hash(crds3) != n2.get_hash(crds1))
         
     def test_evaluated_hash(self):
         n = Node()
@@ -270,7 +250,7 @@ class TestFilesAndCaching(object):
         fn = 'temp_test'
         p = n.write(fn)
         o = n.output
-        _ = n.load(fn, n.native_coordinates, {})
+        _ = n.load(fn, n.native_coordinates)
         np.testing.assert_array_equal(o, n.output.data)
         os.remove(p)
         
@@ -298,9 +278,41 @@ class TestGetImage(object):
         n.output[:] = 1
         im = n.get_image()
         assert(im == b'iVBORw0KGgoAAAANSUhEUgAAAAUAAAADCAYAAABbNsX4AAAABHNCSVQICAgIfAhkiAAAABVJREFUCJljdGEM+c+ABpjQBXAKAgBgJgGe5UsCaQAAAABJRU5ErkJggg==')
+
+class TestNodeOutputCoordinates(object):
+    @pytest.mark.xfail(reason="This defines part of the node spec, which still needs to be implemented")
+    def test_node_output_coordinates(self):
+        ev = ctu.make_coordinate_combinations()
+        kwargs = {}
+        kwargs['lat'] = pcoord.UniformCoord(start=-1, stop=1, delta=1.0)
+        kwargs['lon'] = pcoord.UniformCoord(start=-1, stop=1, delta=1.0)
+        kwargs['alt'] = pcoord.UniformCoord(start=-1, stop=1, delta=1.0)
+        kwargs['time'] = pcoord.UniformCoord(start='2000-01-01T00:00:00', stop='2000-02-01T00:00:00', delta='1,M')        
+        nc = ctu.make_coordinate_combinations(**kwargs)
         
-        
-        
+        node = Node()
+        for e in ev.values():
+            for n in nc.values():
+                node.native_coordinates = n
+                
+                # The request must contain all the dimensions in the native coordinates
+                allcovered = True
+                for d in n.dims:
+                    if d not in e.dims:
+                        allcovered = False
+                if allcovered: # If request contains all dimensions, the order should be in the evaluated coordinates
+                    c = node.get_output_coords(e)
+                    i = 0
+                    for d in e.dims:
+                        if d in n.dims:
+                            print (d, c.dims, i, e, n)
+                            assert(d == c.dims[i])
+                            i += 1
+                else:  # We throw an exception
+                    with pytest.raises(Exception):
+                        c = node.get_output_coords(e)
+                    
+                    
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)
 @pytest.mark.integration

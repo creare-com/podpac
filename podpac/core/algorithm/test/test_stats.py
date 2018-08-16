@@ -28,22 +28,11 @@ def setup_module():
 
 class TestReduce(object):
     """ Tests the Reduce class """
-    
-    def test_invalid_dims(self):
-        # any reduce node would do here
-        node = Min(source=source)
-        
-        # valid dim
-        node.execute(coords, {'dims': 'lat'})
-        
-        # invalid dim
-        with pytest.raises(ValueError):
-            node.execute(coords, {'dims': 'alt'})
 
     def test_auto_chunk(self):
         # any reduce node would do here
-        node = Min(source=source)
-        node.execute(coords, {'iter_chunk_size': 'auto'})
+        node = Min(source=source, iter_chunk_size='auto')
+        node.execute(coords)
 
     def test_not_implemented(self):
         from podpac.core.algorithm.stats import Reduce
@@ -59,14 +48,14 @@ class TestReduce(object):
             def reduce(self, x):
                 return x.isel(**{dim:0 for dim in self.dims})
 
-        node = First(source=source)
-        
         # use reduce function
-        output = node.execute(coords, {'dims': 'time'})
+        node = First(source=source, dims='time')
+        output = node.execute(coords)
         
         # fall back on reduce function with warning
+        node = First(source=source, dims='time', iter_chunk_size=100)
         with pytest.warns(UserWarning):
-            output_chunked = node.execute(coords, {'dims': 'time', 'iter_chunk_size': 100})
+            output_chunked = node.execute(coords)
 
         # should be the same
         xr.testing.assert_allclose(output, output_chunked)
@@ -75,40 +64,47 @@ class BaseTests(object):
     """ Common tests for Reduce subclasses """
 
     def test_full(self):
-        output = self.node.execute(coords)
+        node = self.NodeClass(source=source)
+        output = node.execute(coords)
         # xr.testing.assert_allclose(output, self.expected_full)
         np.testing.assert_allclose(output.data, self.expected_full.data)
 
-        output = self.node.execute(coords, {'dims': coords.dims})
+        node = self.NodeClass(source=source, dims=coords.dims)
+        output = node.execute(coords)
         # xr.testing.assert_allclose(output, self.expected_full)
         np.testing.assert_allclose(output.data, self.expected_full.data)
 
-        output = self.node.execute(coords, {'iter_chunk_size': 100})
+        node = self.NodeClass(source=source, dims=coords.dims, iter_chunk_size=100)
+        output = node.execute(coords)
         # xr.testing.assert_allclose(output, self.expected_full)
         np.testing.assert_allclose(output.data, self.expected_full.data)
 
     def test_lat_lon(self):
-        output = self.node.execute(coords, {'dims': ['lat', 'lon']})
+        node = self.NodeClass(source=source, dims=['lat', 'lon'])
+        output = node.execute(coords)
         # xr.testing.assert_allclose(output, self.expected_latlon)
         np.testing.assert_allclose(output.data, self.expected_latlon.data)
 
-        output = self.node.execute(coords, {'dims': ['lat', 'lon'], 'iter_chunk_size': 100})
+        node = self.NodeClass(source=source, dims=['lat', 'lon'], iter_chunk_size=100)
+        output = node.execute(coords)
         # xr.testing.assert_allclose(output, self.expected_latlon)
         np.testing.assert_allclose(output.data, self.expected_latlon.data)
 
     def test_time(self):
-        output = self.node.execute(coords, {'dims': 'time'})
+        node = self.NodeClass(source=source, dims='time')
+        output = node.execute(coords)
         # xr.testing.assert_allclose(output, self.expected_time)
         np.testing.assert_allclose(output.data, self.expected_time.data)
 
-        output = self.node.execute(coords, {'dims': 'time', 'iter_chunk_size': 100})
+        node = self.NodeClass(source=source, dims='time', iter_chunk_size=100)
+        output = node.execute(coords)
         # xr.testing.assert_allclose(output, self.expected_time)
         np.testing.assert_allclose(output.data, self.expected_time.data)
 
 class TestMin(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = Min(source=source)
+        cls.NodeClass = Min
         cls.expected_full = data.min()
         cls.expected_latlon = data.min(dim=['lat', 'lon'])
         cls.expected_time = data.min(dim='time')
@@ -116,7 +112,7 @@ class TestMin(BaseTests):
 class TestMax(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = Max(source=source)
+        cls.NodeClass = Max
         cls.expected_full = data.max()
         cls.expected_latlon = data.max(dim=['lat', 'lon'])
         cls.expected_time = data.max(dim='time')
@@ -124,7 +120,7 @@ class TestMax(BaseTests):
 class TestSum(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = Sum(source=source)
+        cls.NodeClass = Sum
         cls.expected_full = data.sum()
         cls.expected_latlon = data.sum(dim=['lat', 'lon'])
         cls.expected_time = data.sum(dim='time')
@@ -132,7 +128,7 @@ class TestSum(BaseTests):
 class TestCount(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = Count(source=source)
+        cls.NodeClass = Count
         cls.expected_full = np.isfinite(data).sum()
         cls.expected_latlon = np.isfinite(data).sum(dim=['lat', 'lon'])
         cls.expected_time = np.isfinite(data).sum(dim='time')
@@ -140,7 +136,7 @@ class TestCount(BaseTests):
 class TestMean(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = Mean(source=source)
+        cls.NodeClass = Mean
         cls.expected_full = data.mean()
         cls.expected_latlon = data.mean(dim=['lat', 'lon'])
         cls.expected_time = data.mean(dim='time')
@@ -148,7 +144,7 @@ class TestMean(BaseTests):
 class TestVariance(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = Variance(source=source)
+        cls.NodeClass = Variance
         cls.expected_full = data.var()
         cls.expected_latlon = data.var(dim=['lat', 'lon'])
         cls.expected_time = data.var(dim='time')
@@ -156,7 +152,7 @@ class TestVariance(BaseTests):
 class TestStandardDeviation(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = StandardDeviation(source=source)
+        cls.NodeClass = StandardDeviation
         cls.expected_full = data.std()
         cls.expected_latlon = data.std(dim=['lat', 'lon'])
         cls.expected_time = data.std(dim='time')
@@ -164,7 +160,7 @@ class TestStandardDeviation(BaseTests):
 class TestSkew(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = Skew(source=source)
+        cls.NodeClass = Skew
         n, m, l = data.shape
         cls.expected_full = xr.DataArray(scipy.stats.skew(data.data.reshape(n*m*l), nan_policy='omit'))
         cls.expected_latlon = scipy.stats.skew(data.data.reshape((n*m, l)), axis=0, nan_policy='omit')
@@ -173,7 +169,7 @@ class TestSkew(BaseTests):
 class TestKurtosis(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = Kurtosis(source=source)
+        cls.NodeClass = Kurtosis
         n, m, l = data.shape
         cls.expected_full = xr.DataArray(scipy.stats.kurtosis(data.data.reshape(n*m*l), nan_policy='omit'))
         cls.expected_latlon = scipy.stats.kurtosis(data.data.reshape((n*m, l)), axis=0, nan_policy='omit')
@@ -182,7 +178,7 @@ class TestKurtosis(BaseTests):
 class TestMedian(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = Median(source=source)
+        cls.NodeClass = Median
         cls.expected_full = data.median()
         cls.expected_latlon = data.median(dim=['lat', 'lon'])
         cls.expected_time = data.median(dim='time')
@@ -191,7 +187,7 @@ class TestMedian(BaseTests):
 class TestPercentile(BaseTests):
     @classmethod
     def setup_class(cls):
-        cls.node = Percentile(source=source)
+        cls.NodeClass = Percentile
 
 @pytest.mark.skip("TODO")
 class TestGroupReduce(object):

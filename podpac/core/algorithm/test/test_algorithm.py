@@ -15,7 +15,7 @@ class TestAlgorithm(object):
             node.execute(c)
 
     def test_pipeline_definition(self):
-        # note: any algorithm node with params and inputs would be fine here
+        # note: any algorithm node with attrs and inputs would be fine here
         node = Arithmetic(A=Arange(), B=Arange(), eqn='A+B')
         d = node.definition
         
@@ -23,7 +23,7 @@ class TestAlgorithm(object):
         
         # base (node, params)
         assert d['node'] == 'core.algorithm.algorithm.Arithmetic'
-        assert d['params']['eqn'] == 'A+B'
+        assert d['attrs']['eqn'] == 'A+B'
         
         # inputs
         assert 'inputs' in d
@@ -63,8 +63,12 @@ class TestArithmetic(object):
     def test_Arithmetic(self):
         c = Coordinate(lat=(-90, 90, 1.), lon=(-180, 180, 1.), order=['lat', 'lon'])
         sine_node = SinCoords()
-        node = Arithmetic(A=sine_node, B=sine_node)
-        output = node.execute(c, params={'eqn': '2*abs(A) - B + {offset}', 'offset': 1})
+        node = Arithmetic(
+            A=sine_node,
+            B=sine_node,
+            eqn='2*abs(A) - B + {offset}',
+            params={'offset': 1})
+        output = node.execute(c)
 
         a = sine_node.execute(c)
         b = sine_node.execute(c)
