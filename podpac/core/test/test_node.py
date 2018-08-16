@@ -8,6 +8,9 @@ ureg = UnitRegistry()
 import traitlets as tl
 
 from podpac.core.node import *
+import podpac.core.common_test_utils as ctu
+import podpac.core.coordinate as pcoord
+
 from podpac.core.units import UnitsDataArray
 
 class TestStyleCreation(object):
@@ -275,9 +278,41 @@ class TestGetImage(object):
         n.output[:] = 1
         im = n.get_image()
         assert(im == b'iVBORw0KGgoAAAANSUhEUgAAAAUAAAADCAYAAABbNsX4AAAABHNCSVQICAgIfAhkiAAAABVJREFUCJljdGEM+c+ABpjQBXAKAgBgJgGe5UsCaQAAAABJRU5ErkJggg==')
+
+class TestNodeOutputCoordinates(object):
+    @pytest.mark.xfail(reason="This defines part of the node spec, which still needs to be implemented")
+    def test_node_output_coordinates(self):
+        ev = ctu.make_coordinate_combinations()
+        kwargs = {}
+        kwargs['lat'] = pcoord.UniformCoord(start=-1, stop=1, delta=1.0)
+        kwargs['lon'] = pcoord.UniformCoord(start=-1, stop=1, delta=1.0)
+        kwargs['alt'] = pcoord.UniformCoord(start=-1, stop=1, delta=1.0)
+        kwargs['time'] = pcoord.UniformCoord(start='2000-01-01T00:00:00', stop='2000-02-01T00:00:00', delta='1,M')        
+        nc = ctu.make_coordinate_combinations(**kwargs)
         
-        
-        
+        node = Node()
+        for e in ev.values():
+            for n in nc.values():
+                node.native_coordinates = n
+                
+                # The request must contain all the dimensions in the native coordinates
+                allcovered = True
+                for d in n.dims:
+                    if d not in e.dims:
+                        allcovered = False
+                if allcovered: # If request contains all dimensions, the order should be in the evaluated coordinates
+                    c = node.get_output_coords(e)
+                    i = 0
+                    for d in e.dims:
+                        if d in n.dims:
+                            print (d, c.dims, i, e, n)
+                            assert(d == c.dims[i])
+                            i += 1
+                else:  # We throw an exception
+                    with pytest.raises(Exception):
+                        c = node.get_output_coords(e)
+                    
+                    
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)
 @pytest.mark.integration
