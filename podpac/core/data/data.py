@@ -214,7 +214,7 @@ class DataSource(Node):
             # We can optimize a little
             new_coords = OrderedDict()
             new_coords_idx = []
-            for i, d in enumerate(coords_subset.dims):
+            for i, d in enumerate(coords_subset.dims_map):
                 if isinstance(coords_subset[d], UniformCoord):
                     if d in coordinates.dims:
                         ndelta = np.round(coordinates[d].delta / coords_subset[d].delta)
