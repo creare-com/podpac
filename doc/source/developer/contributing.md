@@ -152,7 +152,9 @@ Configuration options are specified in `.pylintrc`.
 ### Public API
 
 The client facing public API should be available on the root `podpac` module. 
-These imports defined in the root level `podpac/__init__.py` file.
+These imports are defined in the root level `podpac/__init__.py` file.
+
+The public API will contain a top level of primary imports (i.e. `Node`, `Coordinate`) and a second level of imports that wrap more advanced public functionality. For example, `podpac.algorithm` will contain "advanced user" public imports from `podpac.core.algorithm`.  The goal here is to keep the public namespace of `podpac` lean while providing organized access to higher level functionality.  The most advanced users can always access the full functionality of the package via the `podpac.core` module ([Developer API](#developer-api)). All of this configuration and organization should be contained in `podpac/__init__.py`, if possible.
 
 For example:
 
@@ -222,6 +224,7 @@ from podpac.core.units import Units, UnitsDataArray
 from podpac.core.coordinate import Coordinate
 from podpac.core.utils import common_doc
 ```
+
 ## Testing
 
 We use `pytest` to run unit tests. To run tests, run from the root of the repository:
