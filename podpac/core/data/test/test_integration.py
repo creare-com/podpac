@@ -10,7 +10,7 @@ import boto3
 
 import podpac
 from podpac.core.coordinate import Coordinate
-from podpac.core.data.type import NumpyArray, S3Source, ReprojectedSource, WCS
+from podpac.core.data.types import Array, S3, ReprojectedSource, WCS
 # from podpac.datalib.smap import SMAPSentinelSource
 
 # @pytest.mark.integration
@@ -22,14 +22,14 @@ class TestDataSourceIntegration():
     def test_array(self):
         """Test array data source"""
         
-        from podpac.core.data.type import NumpyArray
+        from podpac.core.data.types import Array
 
         arr = np.random.rand(16, 11)
         lat = np.random.rand(16)
         lon = np.random.rand(16)
         coord = Coordinate(lat_lon=(lat, lon), time=(0, 10, 11),
                            order=['lat_lon', 'time'])
-        node = NumpyArray(source=arr, native_coordinates=coord)
+        node = Array(source=arr, native_coordinates=coord)
 
         coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=('lat', 'lon'))
         coordt = Coordinate(time=(3, 5, 2))
@@ -41,7 +41,7 @@ class TestDataSourceIntegration():
     def test_s3_source(self):
         """test s3 data source"""
         source = r'SMAPSentinel/SMAP_L2_SM_SP_1AIWDV_20170801T000000_20170731T114719_094E21N_T15110_002.h5'
-        s3 = S3Source(source=source)
+        s3 = S3(source=source)
 
         assert s3.s3_data
 
@@ -123,17 +123,17 @@ class TestDataSourceIntegration():
             self.lonSource = LON
             self.timeSource = TIME
             
-            self.nasLat = NumpyArray(
+            self.nasLat = Array(
                 source=LAT.astype(float),
                 native_coordinates=self.coord_src,
                 interpolation='bilinear')
             
-            self.nasLon = NumpyArray(
+            self.nasLon = Array(
                 source=LON.astype(float),
                 native_coordinates=self.coord_src,
                 interpolation='bilinear')
 
-            self.nasTime = NumpyArray(source=TIME.astype(float),
+            self.nasTime = Array(source=TIME.astype(float),
                 native_coordinates=self.coord_src,
                 interpolation='bilinear')
 

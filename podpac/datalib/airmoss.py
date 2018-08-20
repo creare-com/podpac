@@ -14,7 +14,7 @@ import traitlets as tl
 
 # Internal dependencies
 import podpac
-from podpac.core.data import type as datatype
+from podpac.core.data import types as datatype
 
 class AirMOSS_Source(datatype.PyDAP):
     """Summary

@@ -108,7 +108,6 @@ class NumpyArray(Array):
         warnings.warn('NumpyArray been renamed Array. ' +
                       'Backwards compatibility will be removed in future releases', DeprecationWarning)
 
-
 @common_doc(COMMON_DATA_DOC)
 class PyDAP(DataSource):
     """Create a DataSource from an OpenDAP server feed.
@@ -267,7 +266,7 @@ class PyDAP(DataSource):
 
 # TODO: rename "Rasterio" to be more consistent with other naming conventions
 @common_doc(COMMON_DATA_DOC)
-class RasterioSource(DataSource):
+class Rasterio(DataSource):
     """Create a DataSource using Rasterio.
     
     Attributes
@@ -437,7 +436,6 @@ class RasterioSource(DataSource):
         matches = np.where(match)[0] + 1
 
         return matches
-
 
 WCS_DEFAULT_VERSION = u'1.0.0'
 WCS_DEFAULT_CRS = 'EPSG:4326'
@@ -758,7 +756,6 @@ class WCS(DataSource):
         """
         return self.layer_name.rsplit('.', 1)[1]
 
-
 # We mark this as an algorithm node for the sake of the pipeline, although
 # the "algorithm" portion is not being used / is overwritten by the DataSource
 # In particular, this is required for providing coordinates_source
@@ -878,7 +875,7 @@ class ReprojectedSource(DataSource, Algorithm):
             raise NotImplementedError
         return d
 
-class S3Source(DataSource):
+class S3(DataSource):
     """Create a DataSource from a file on an S3 Bucket. 
     
     Attributes
@@ -926,7 +923,7 @@ class S3Source(DataSource):
             This function sets the source in the node, so 'source' cannot be present in node_kwargs
         """
         if 'source' in self.node_kwargs:
-            raise Exception("'source' present in node_kwargs for S3Source")
+            raise Exception("'source' present in node_kwargs for S3")
 
         return self.node_class(source=self.s3_data, **self.node_kwargs)
 
@@ -1001,7 +998,7 @@ class S3Source(DataSource):
         return self.node.native_coordinates
 
     def __del__(self):
-        if hasattr(super(S3Source), '__del__'):
-            super(S3Source).__del__(self)
+        if hasattr(super(S3), '__del__'):
+            super(S3).__del__(self)
         for f in self._temp_file_cleanup:
             os.remove(f)

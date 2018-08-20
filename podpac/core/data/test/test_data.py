@@ -15,7 +15,7 @@ from podpac.core.coordinate import Coordinate
 
 # not generally public imports
 from podpac.core.data.datasource import DATA_DOC
-from podpac.core.data.type import rasterio
+from podpac.core.data.types import rasterio
 from podpac.core.data import datasource
 
 ####

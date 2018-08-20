@@ -6,7 +6,7 @@ import xarray as xr
 import scipy.stats
 
 from podpac.core.coordinate import Coordinate
-from podpac.core.data.type import NumpyArray
+from podpac.core.data.types import Array
 from podpac.core.algorithm.stats import Min, Max, Sum, Count, Mean, Variance, Skew, Kurtosis, StandardDeviation
 from podpac.core.algorithm.stats import Median, Percentile
 from podpac.core.algorithm.stats import GroupReduce, DayOfYear
@@ -23,7 +23,7 @@ def setup_module():
     a[3, 0, 0] = np.nan
     a[0, 3, 0] = np.nan
     a[0, 0, 3] = np.nan
-    source = NumpyArray(source=a, native_coordinates=coords)
+    source = Array(source=a, native_coordinates=coords)
     data = source.execute(coords)
 
 class TestReduce(object):

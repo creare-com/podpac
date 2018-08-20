@@ -7,7 +7,7 @@ import podpac
 from podpac import Coordinate
 from podpac import OrderedCompositor
 import numpy as np
-from podpac.core.data.type import NumpyArray
+from podpac.core.data.types import Array
 
 class TestCompositor(object):
 
@@ -28,17 +28,17 @@ class TestCompositor(object):
         self.lonSource = LON
         self.timeSource = TIME
 
-        self.nasLat = NumpyArray(
+        self.nasLat = Array(
             source=LAT.astype(float),
             native_coordinates=self.coord_src,
             interpolation='bilinear')
 
-        self.nasLon = NumpyArray(
+        self.nasLon = Array(
             source=LON.astype(float),
             native_coordinates=self.coord_src,
             interpolation='bilinear')
 
-        self.nasTime = NumpyArray(source=TIME.astype(float),
+        self.nasTime = Array(source=TIME.astype(float),
             native_coordinates=self.coord_src,
             interpolation='bilinear')
 
@@ -64,8 +64,8 @@ class TestCompositor(object):
         bcoords = Coordinate(lat=(2, 3, 10), lon=(2, 3, 10), order=['lat', 'lon'])
         scoords = Coordinate(lat_lon=[[0.5, 2.5], [0.5, 2.5]])
         
-        a = NumpyArray(source=np.random.random(acoords.shape), native_coordinates=acoords)
-        b = NumpyArray(source=-np.random.random(bcoords.shape), native_coordinates=bcoords)
+        a = Array(source=np.random.random(acoords.shape), native_coordinates=acoords)
+        b = Array(source=-np.random.random(bcoords.shape), native_coordinates=bcoords)
         composited = OrderedCompositor(sources=np.array([a, b]), cache_native_coordinates=True, 
                                                                  source_coordinates=scoords, 
                                                                  interpolation='nearest')
@@ -90,9 +90,9 @@ class TestCompositor(object):
                                                           threaded=True)
         
     def test_heterogeous_sources_composited(self):
-        a = NumpyArray(source=np.random.rand(3), 
+        a = Array(source=np.random.rand(3), 
                        native_coordinates=Coordinate(lat_lon=((0, 1), (1, 2), 3)))
-        b = NumpyArray(source=np.random.rand(3, 3) + 2,
+        b = Array(source=np.random.rand(3, 3) + 2,
                        native_coordinates=Coordinate(lat=(-2, 3, 3), lon=(-1, 4, 3), order=['lat', 'lon']))
         c = podpac.OrderedCompositor(sources=np.array([a, b]), interpolation='bilinear')
         coords = Coordinate(lat=(-3, 4, 32), lon=(-2, 5, 32), order=['lat', 'lon'])
