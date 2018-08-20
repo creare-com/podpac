@@ -151,105 +151,77 @@ Configuration options are specified in `.pylintrc`.
 
 ### Public API
 
-The client facing public API should be available on the root `podpac` module. For example:
-
-```python
-import podpac
-
-dir(podpac)
-['Algorithm',
- 'Arithmetic',
- 'CACHE_DIR',
- 'Compositor',
- 'Convolution',
- 'Coord',
- 'Coordinate',
- 'Count',
- 'DataSource',
- 'ExpandCoordinates',
- 'Kurtosis',
- 'Max',
- 'Mean',
- 'Median',
- 'Min',
- 'MonotonicCoord',
- 'Node',
- 'OrderedCompositor',
- 'Pipeline',
- 'PipelineError',
- 'PipelineNode',
- 'SinCoords',
- 'Skew',
- 'SpatialConvolution',
- 'StandardDeviation',
- 'Style',
- 'Sum',
- 'TimeConvolution',
- 'UniformCoord',
- 'Units',
- 'UnitsDataArray',
- 'UnitsNode',
- 'Variance',
- 'coord_linspace',
- 'core',
- 'settings']
-```
-
-These imports should be defined in the root level `podpac/__init__.py` file.
-
-### Developer API
-
-Developer APIs (i.e. documented APIs for complex pipelines and podpac extensions) should be nested no more than one hierarchical level down from the root `podpac` module. The hierarchical naming convention is dictated by the directory and file structure within the `/podpac/core/` directory.
-
-All code written into the `core` podpac module should reference other modules using the developer API to maintain consistency. 
+The client facing public API should be available on the root `podpac` module. 
+These imports defined in the root level `podpac/__init__.py` file.
 
 For example:
 
 ```python
 import podpac
 
-# files
-dir(podpac.node)
+dir(podpac)
 [
-'Node',
-...
-]
+ # Public Classes, Functions exposed here for users
+ 'Algorithm',
+ 'Node',
+ 'Coorindate',
+ ...
 
-dir(podpac.units)
-[
-'UnitsDataArray',
-...
-]
+ # organized submodules
+ 'algorithm,
+ 'data'
+ 'compositor'
+ 'pipeline'
+ 'alglib'
+ 'datalib'
 
-# directories
-dir(podpac.algorithm)
-[
-'Algorithm',
-...
-]
+ # the settings module
+ 'settings',
 
-dir(podpac.coordinate)
-[
-'Coordinate',
-...
-]
-
-dir(podpac.data)
-[
-'DataSource', 
-...
-]
-
-dir(podpac.pipeline)
-[
-'Pipeline', 
-...
-]
+ # developer API goes here. i.e. any non-public functions, or rarely used utility functions etc.
+ 'core'
+ ]
 ```
 
-This import structure should be defined in the `/podpac/__init__.py` file.
+### Developer API
 
+The Developer API follows the hierarchical structure of the `core` directory. 
+All source code written into the `core` podpac module should reference other modules using the full path to the module to maintain consistency. 
+All docstrings should also use the full path to the module being referenced.
 
+For example:
+
+```python
+import podpac
+
+dir(podac.core)
+[
+ 'algorithm',
+ 'compositor',
+ 'coordinate',
+ 'data',
+ 'node',
+ 'pipeline',
+ 'units',
+ 'utils'
+ ...
+ ]
+```
+
+In source code `/podpac/core/node.py`:
+
+```python
+"""
+Node Module
+"""
+
+...
+
+from podpac import settings
+from podpac.core.units import Units, UnitsDataArray
+from podpac.core.coordinate import Coordinate
+from podpac.core.utils import common_doc
+```
 ## Testing
 
 We use `pytest` to run unit tests. To run tests, run from the root of the repository:
