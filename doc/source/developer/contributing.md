@@ -141,6 +141,90 @@ $ pylint podpac/settings.py     # lint single file
 
 Configuration options are specified in `.pylintrc`.
 
+## Import Convetions / API Conventions
+
+> The modules `podpac.settings` and `podpac.units.ureg` MUST be imported without using the `from` syntax. For example:
+> ```python
+> import podpac.settings                 # yes
+> from podpac.settings import CACHE_CIR  # no
+> ```
+
+### Public API
+
+The client facing public API should be available on the root `podpac` module. 
+These imports are defined in the root level `podpac/__init__.py` file.
+
+The public API will contain a top level of primary imports (i.e. `Node`, `Coordinate`) and a second level of imports that wrap more advanced public functionality. For example, `podpac.algorithm` will contain "advanced user" public imports from `podpac.core.algorithm`.  The goal here is to keep the public namespace of `podpac` lean while providing organized access to higher level functionality.  The most advanced users can always access the full functionality of the package via the `podpac.core` module ([Developer API](#developer-api)). All of this configuration and organization should be contained in `podpac/__init__.py`, if possible.
+
+For example:
+
+```python
+import podpac
+
+dir(podpac)
+[
+ # Public Classes, Functions exposed here for users
+ 'Algorithm',
+ 'Node',
+ 'Coorindate',
+ ...
+
+ # organized submodules
+ 'algorithm,
+ 'data'
+ 'compositor'
+ 'pipeline'
+ 'alglib'
+ 'datalib'
+
+ # the settings module
+ 'settings',
+
+ # developer API goes here. i.e. any non-public functions, or rarely used utility functions etc.
+ 'core'
+ ]
+```
+
+### Developer API
+
+The Developer API follows the hierarchical structure of the `core` directory. 
+All source code written into the `core` podpac module should reference other modules using the full path to the module to maintain consistency. 
+All docstrings should also use the full path to the module being referenced.
+
+For example:
+
+```python
+import podpac
+
+dir(podac.core)
+[
+ 'algorithm',
+ 'compositor',
+ 'coordinate',
+ 'data',
+ 'node',
+ 'pipeline',
+ 'units',
+ 'utils'
+ ...
+ ]
+```
+
+In source code `/podpac/core/node.py`:
+
+```python
+"""
+Node Module
+"""
+
+...
+
+from podpac import settings
+from podpac.core.units import Units, UnitsDataArray
+from podpac.core.coordinate import Coordinate
+from podpac.core.utils import common_doc
+```
+
 ## Testing
 
 We use `pytest` to run unit tests. To run tests, run from the root of the repository:
