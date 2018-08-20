@@ -9,12 +9,9 @@ from traitlets import TraitError
 from xarray.core.coordinates import DataArrayCoordinates
 
 from podpac.core.units import UnitsDataArray
-from podpac.core.data import DataSource, COMMON_DATA_DOC
 from podpac.core.node import Style, COMMON_NODE_DOC
-from podpac.core.coordinate import Coordinate
-
-# not generally public imports
-from podpac.core.data.datasource import DATA_DOC
+from podpac.core.coordinate.coordinate import Coordinate
+from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.types import rasterio
 from podpac.core.data import datasource
 

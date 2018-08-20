@@ -29,10 +29,11 @@ except ImportError:
 
 # Internal imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinate import Coordinate, UniformCoord
+from podpac.core.coordinate.coordinate import Coordinate, UniformCoord
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.data.interpolate import Interpolator
 
 DATA_DOC = {
     'get_data':

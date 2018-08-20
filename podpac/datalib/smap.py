@@ -35,7 +35,7 @@ import podpac
 from podpac.core.data import types as datatype
 from podpac.core import authentication
 from podpac.core.utils import common_doc
-from podpac.core.data import COMMON_DATA_DOC
+from podpac.core.data.datasource import COMMON_DATA_DOC
 
 COMMON_DOC = COMMON_DATA_DOC.copy()
 COMMON_DOC.update(

@@ -66,10 +66,10 @@ except ImportError:
 # Internal dependencies
 from podpac import settings
 from podpac.core import authentication
-from podpac.core.utils import cached_property, clear_cache, common_doc
-from podpac.core.data import COMMON_DATA_DOC, DataSource
 from podpac.core.node import Node
-from podpac.core.coordinate import Coordinate, UniformCoord
+from podpac.core.utils import cached_property, clear_cache, common_doc
+from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
+from podpac.core.coordinate.coordinate import Coordinate, UniformCoord
 from podpac.core.algorithm.algorithm import Algorithm
 
 class Array(DataSource):

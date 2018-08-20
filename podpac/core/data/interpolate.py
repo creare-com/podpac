@@ -1,4 +1,5 @@
-"""Summary
+"""
+Interpolation handling
 
 Attributes
 ----------
@@ -25,8 +26,9 @@ try:
     from scipy.spatial import KDTree
 except:
     scipy = None
-    
-import podpac
+
+from podpac.core.coordinate.coordinate import Coordinate, UniformCoord
+
 
 class InterpolationException(Exception):
     """Summary
@@ -61,8 +63,8 @@ class Interpolator(tl.HasTraits):
     Description
     """
     
-    eval_coords = tl.Instance(podpac.Coordinate)
-    source_coords = tl.Instance(podpac.Coordinate)
+    eval_coords = tl.Instance(Coordinate)
+    source_coords = tl.Instance(Coordinate)
     pad = tl.Int(1)
     interpolation = tl.Unicode()
     valid_interpolations = tl.Enum([])

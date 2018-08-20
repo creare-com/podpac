@@ -23,12 +23,12 @@ import requests
 import podpac.settings
 from podpac.core import data
 from podpac.core.units import UnitsDataArray
-from podpac.core.data import COMMON_DATA_DOC, DataSource
+from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.types import Array, PyDAP, Rasterio, \
                                     WCS, WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS, \
                                     ReprojectedSource, S3
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinate.coordinate import Coordinate
 
 
 ####
