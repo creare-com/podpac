@@ -1,3 +1,17 @@
+"""
+Podpac Module
+
+Public API
+See https://creare-com.github.io/podpac-docs/developer/contributing.html#public-api
+for more information about import conventions
+
+Attributes
+----------
+version_info : TYPE
+    Description
+"""
+
+# Public API
 from podpac.core.units import Units, UnitsDataArray, UnitsNode
 from podpac.core.coordinate import (
     Coordinate, Coord, MonotonicCoord, UniformCoord, coord_linspace)
@@ -16,6 +30,13 @@ from podpac.core.pipeline import Pipeline, PipelineError
 
 from podpac.settings import CACHE_DIR
 
+# Organized submodules
+# TODO
+
+# Developer API
+import podpac.core
+
+# version handling
 from podpac import version
 __version__ = version.version()
 version_info = version.VERSION_INFO
