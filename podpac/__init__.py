@@ -31,7 +31,12 @@ from podpac.core.pipeline import Pipeline, PipelineError
 from podpac.settings import CACHE_DIR
 
 # Organized submodules
-# TODO
+# These files are simply wrappers to create
+# a curated namespace of podpac modules
+import podpac.algorithm
+import podpac.data
+import podpac.coordinate
+import podpac.datalib   # handles imports in datalib/__init__.py
 
 # Developer API
 import podpac.core
