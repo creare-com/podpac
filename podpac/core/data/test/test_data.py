@@ -1,5 +1,5 @@
 """
-Test podpac.core.data.data module
+Test podpac.core.data.datasource module
 """
 
 import pytest

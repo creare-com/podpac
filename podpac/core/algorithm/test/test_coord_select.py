@@ -1,7 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from podpac.core.coordinate import Coordinate
-from podpac.core.data.data import DataSource
+from podpac.core.data import DataSource
 from podpac.core.algorithm.algorithm import Arange
 from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates
 

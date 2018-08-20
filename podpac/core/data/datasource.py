@@ -50,7 +50,7 @@ DATA_DOC = {
         
         Parameters
         ----------
-        coordinates : Coordinate
+        coordinates : podpac.core.coordinate.Coordinate
             The coordinates that need to be retrieved from the data source using the coordinate system of the data
             source
         coordinates_index : List
@@ -59,7 +59,7 @@ DATA_DOC = {
             
         Returns
         --------
-        UnitsDataArray
+        podpac.core.units.UnitsDataArray
             A subset of the returned data
         """,
     'ds_native_coordinates': 'The coordinates of the data source.',
@@ -68,7 +68,7 @@ DATA_DOC = {
 
         Returns
         --------
-        Coordinate
+        podpac.core.coordinate.Coordinate
            The coordinates describing the data source array.
 
         Notes

@@ -393,7 +393,7 @@ class TestType(object):
         def test_get_wcs_coordinates(self):
             """get wcs coordinates"""
 
-            import podpac.core.data.type
+            import podpac.core.data.types
 
             # requests
             self.mock_requests()
@@ -412,7 +412,7 @@ class TestType(object):
                 coordinates = node.wcs_coordinates
 
             # no lxml
-            podpac.core.data.type.lxml = None
+            podpac.core.data.types.lxml = None
             
             self.mock_requests()
             node = WCS(source=self.source)
@@ -424,19 +424,19 @@ class TestType(object):
             assert coordinates['time']
 
             # urllib3
-            podpac.core.data.type.requests = None
+            podpac.core.data.types.requests = None
 
             # no requests, urllib3
-            podpac.core.data.type.urllib3 = None
+            podpac.core.data.types.urllib3 = None
             
             node = WCS(source=self.source)
             with pytest.raises(Exception):
                 node.get_wcs_coordinates()
 
             # put all dependencies back
-            podpac.core.data.type.requests = requests
-            podpac.core.data.type.urllib3 = urllib3
-            podpac.core.data.type.lxml = lxml
+            podpac.core.data.types.requests = requests
+            podpac.core.data.types.urllib3 = urllib3
+            podpac.core.data.types.lxml = lxml
 
         def test_get_native_coordinates(self):
             """get native coordinates"""
