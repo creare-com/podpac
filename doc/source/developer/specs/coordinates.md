@@ -50,7 +50,7 @@ Traits:
 - `name`: Enum('lat', 'lon', 'time', 'alt'), required, *read-only*
 - `units`: Units, *read-only*
 - `coord_ref_sys`: Unicode, *read-only*
-- `ctype`: Enum('segment', 'point'), default: 'segment', *read-only*
+- `ctype`: Enum('segment', 'point'), default: 'segment' for numerical, 'point' for datetime, *read-only*
 - `segment_position`: Float, default: 0.5 for 'segment' and None for 'point', *read-only*
 - `extents`: shape (2,), optional, *read-only*
 
@@ -59,13 +59,10 @@ Properties
 - `coordinates`: read-only array
 - `dtype`: `np.datetime64` or `np.float64`
 - `size`: Int
-- `bounds`: read-only array, [Float, Float]
-- `area_bounds`: read-only array, [Float, Float]
+- `bounds`: read-only array, [Float, Float]. Coordinate values min and max.
+- `area_bounds`: read-only array, [Float, Float]. For point coordinates, this is just the `bounds`. For segmentment coordinates, use `extents` when available, otherwise calculated from the segment position.
 - `is_monotonic`: Boolean
 - `is_descending`: Boolean
-- ~~`is_datetime`: Boolean~~ *just using dtype instead*
-- ~~`rasterio_regularity`: Boolean~~ *handle this in the interpolation*
-- ~~`scipy_regularity`: Boolean~~ *handle this in the interpolation*
 
 Methods
  - `select(bounds)`: select coordinates within the given bounds
@@ -92,19 +89,25 @@ Operators
 
 ### ArrayCoordinates1D(Coordinates1D)
 
-An arbitrary list of coordinates, where `values` is array-like.
+An arbitrary list of coordinates, where `values` is array-like. The `ctype` must be 'point'.
 
 ```
 ArrayCoordinates1D(values, ...)
 ```
 
-### MonotonicCoordinates1D(Coordinates1D)
+Notes:
+ - `ctype` must be 'point'
 
-A sorted list of coordinates, where `values` is array-like and sorted (in either direction)
+### MonotonicCoordinates1D(ArrayCoordinates1D)
+
+A sorted list of coordinates, where `values` is array-like and sorted (in either direction).
 
 ```
 MonotonicCoordinates1D(values, ...)
 ```
+ 
+Notes:
+ - *TODO `area_bounds` calculation for segment coordinates without explicit extents*
 
 ### UniformCoordinates1D(Coordinates1D)
 
@@ -113,6 +116,9 @@ Uniformly-spaced coordinates, defined by a start, stop, and step/size.
 ```
 UniformCoordinates1D(start, stop, step=None, size=None, ...)
 ```
+
+Notes:
+ - use `segment_position` and `step` for the `area_bounds` calculation for segment coordinates without explicit extents
 
 ### Shorthand
 
