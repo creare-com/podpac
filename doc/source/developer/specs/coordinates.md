@@ -47,24 +47,25 @@
 `Coordinates1D` is the base class for coordinates in a single dimension and defines the common interface.
 
 Traits:
-- `name`: Enum('lat', 'lon', 'time', 'alt')
-- `units`: Units
-- `coord_ref_sys`: Unicode
-- `ctype`: Enum('segment', 'point')
-- `segment_position`: Float
-- `extents`: array, [Float, Float]
+- `name`: Enum('lat', 'lon', 'time', 'alt'), required, *read-only*
+- `units`: Units, *read-only*
+- `coord_ref_sys`: Unicode, *read-only*
+- `ctype`: Enum('segment', 'point'), default: 'segment', *read-only*
+- `segment_position`: Float, default: 0.5 for 'segment' and None for 'point', *read-only*
+- `extents`: shape (2,), optional, *read-only*
 
 Properties
+- `properties`: dictionary of coordinate properties
 - `coordinates`: read-only array
 - `dtype`: `np.datetime64` or `np.float64`
 - `size`: Int
 - `bounds`: read-only array, [Float, Float]
 - `area_bounds`: read-only array, [Float, Float]
-- `is_datetime`: Boolean
 - `is_monotonic`: Boolean
 - `is_descending`: Boolean
-- `rasterio_regularity`: Boolean *note: can this be moved into the interpolation?*
-- `scipy_regularity`: Boolean *note: can this be moved into the interpolation?*
+- ~~`is_datetime`: Boolean~~ *just using dtype instead*
+- ~~`rasterio_regularity`: Boolean~~ *handle this in the interpolation*
+- ~~`scipy_regularity`: Boolean~~ *handle this in the interpolation*
 
 Methods
  - `select(bounds)`: select coordinates within the given bounds
