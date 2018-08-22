@@ -122,21 +122,31 @@ Notes:
 
 ### Shorthand
 
-For ease-of-use, the following aliases will be defined:
+For ease-of-use, the following aliases will be available in the toplevel `podpac` package:
  
  - `_ca`: ArrayCoordinates1D
  - `_cm`: MonotonicCoordinates1D
- - `_cu`: UniformCoordinates1D
- - `_cl`: LinspaceCoordinates1D
+ - `_cu`: UniformCoordinates1D(start, stop, step)
+ - `_cl`: UniformCoordinates1D(start, stop, size=size)
 
-The named versions proposal was rejected (`_calat`, `_cutime`, ...)
+16 shortcut functions will also be defined, e.g.
 
-Thus the following are equivalent
+ - `_cu_lat`
+ - `_cm_time`
 
+So that the following are equivalent
 ```
 UniformCoordinates1D(0, 1, 0.1, name='lat')
 _cu(0, 1, 0.1, name='lat')
-_culat(0, 1, 0.1) # rejected
+_cu_lat(0, 1, 0.1)
+```
+
+While we're at it, the following are also equivalent to the above:
+
+```
+UniformCoordinates1D(0, 1, size=10, name='lat')
+_cl(0, 1, 10, name='lat')
+_cl_lat(0, 1, 10)
 ```
 
 ## Stacked Coordinates
@@ -183,7 +193,7 @@ StackedCoordinates(lat, lon, alt)
 
 ### Shorthand
 
-For ease-of-use, the following aliases will be defined (on of these options):
+For ease-of-use, the following aliases will be defined in the toplevel podpac package:
  
  - `_stacked`: StackedCoordinates
  
@@ -191,7 +201,7 @@ So that the above can be rewritten:
 
 ```
 _stacked(_cu(0, 1, 100, name='lat'), _cu(0, 1, 100, name='lon'), _cu(20, 100, 100, name='alt'))
-_stacked(_culat(0, 1, 100), _culon(0, 1, 100)), _cualt(20, 100, 100)) # rejected
+_stacked(_culat(0, 1, 100), _culon(0, 1, 100)), _cualt(20, 100, 100))
 ```
  
 ## Multidemensional Coordinates
