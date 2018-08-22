@@ -10,7 +10,7 @@ import numpy as np
 import traitlets as tl
 
 # Internal imports
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinates import Coordinate
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC 

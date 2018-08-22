@@ -27,7 +27,7 @@ except:
 
 # Internal imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinate import Coordinate, UniformCoord
+from podpac.core.coordinates import Coordinate, UniformCoordinates1d
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
@@ -212,7 +212,7 @@ class DataSource(Node):
             new_coords = OrderedDict()
             new_coords_idx = []
             for i, d in enumerate(coords_subset.dims):
-                if isinstance(coords_subset[d], UniformCoord):
+                if isinstance(coords_subset[d], UniformCoordinates1d):
                     if d in coordinates.dims:
                         ndelta = np.round(coordinates[d].delta / coords_subset[d].delta)
                         if ndelta <= 1:

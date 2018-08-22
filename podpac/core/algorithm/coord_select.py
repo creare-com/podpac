@@ -1,13 +1,14 @@
 """
-Coord Select Summary
+CoordSelect Summary
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import traitlets as tl
 
-from podpac.core.coordinate import Coordinate, UniformCoord, Coord
-from podpac.core.coordinate import make_coord_value, make_coord_delta, add_coord
+from podpac.core.coordinates import Coordinate
+from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.coordinates import make_coord_value, make_coord_delta, add_coord
 from podpac.core.node import Node, COMMON_NODE_DOC
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc
@@ -78,7 +79,7 @@ class ExpandCoordinates(Algorithm):
         
         Returns
         -------
-        podpac.Coord
+        podpac.ArrayCoordinates1d
             Expanded coordinate
         
         Raises
@@ -114,11 +115,11 @@ class ExpandCoordinates(Algorithm):
 
         elif len(coords) == 3:
             # or expand explicitly
-            delta = make_coord_delta(coords[2])
+            step = make_coord_delta(coords[2])
             
             # TODO GroupCoord
             xcoords = [
-                UniformCoord(add_coord(c, dstart), add_coord(c, dstop), delta)
+                UniformCoordinates1d(add_coord(c, dstart), add_coord(c, dstop), step)
                 for c in icoords.coordinates]
             xcoord = sum(xcoords[1:], xcoords[0])
 
@@ -205,7 +206,7 @@ class SelectCoordinates(ExpandCoordinates):
         
         Returns
         -------
-        podpac.Coord
+        podpac.ArrayCoordinates1d
             The selected coordinate
         
         Raises
@@ -227,7 +228,7 @@ class SelectCoordinates(ExpandCoordinates):
         start = make_coord_value(coords[0])
         
         if len(coords) == 1:
-            xcoord = Coord(start)
+            xcoord = ArrayCoordinates1d(start)
             
         elif len(coords) == 2:
             # Get stop offset
@@ -239,9 +240,9 @@ class SelectCoordinates(ExpandCoordinates):
         elif len(coords) == 3:
             # Get stop offset
             stop = make_coord_value(coords[1])            
-            # or select explicitly
-            delta = make_coord_delta(coords[2])
-            xcoord = UniformCoord(start, stop, delta)
+            # select explicitly
+            step = make_coord_delta(coords[2])
+            xcoord = UniformCoordinates1d(start, stop, step)
 
         return xcoord
 
