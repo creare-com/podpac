@@ -127,7 +127,7 @@ def make_coord_value(val):
     
     Parameters
     ----------
-    val : str, number, datetime.date, np.array
+    val : str, number, datetime.date, np.ndarray
         Input coordinate value.
     
     Returns
@@ -144,15 +144,17 @@ def make_coord_value(val):
     
     Raises
     ------
-    TypeError
-        Description
+    Value
+        val is an unsupported type
     
     """
 
     # extract value from singleton and 0-dimensional arrays
     if isinstance(val, np.ndarray):
-        if val.size == 1:
+        try:
             val = val.item()
+        except ValueError:
+            raise ValueError("Invalid coordinate value, unsupported type '%s'" % type(val))
 
     # type checking and conversion
     if isinstance(val, (string_types, datetime.date)):
@@ -162,7 +164,7 @@ def make_coord_value(val):
     elif isinstance(val, numbers.Number):
         val = float(val)
     else:
-        raise TypeError("Invalid coordinate value '%s'" % type(val))
+        raise ValueError("Invalid coordinate value, unsupported type '%s'" % type(val))
 
     return val
 
@@ -172,7 +174,7 @@ def make_coord_delta(val):
     
     Parameters
     ----------
-    val : str, number, datetime.timedelta, np.array
+    val : str, number, datetime.timedelta, np.ndarray
         Input coordinate delta.
     
     Returns
@@ -196,8 +198,10 @@ def make_coord_delta(val):
 
     # extract value from singleton and 0-dimensional arrays
     if isinstance(val, np.ndarray):
-        if val.size == 1:
+        try:
             val = val.item()
+        except ValueError:
+            raise TypeError("Invalid coordinate delta, unsuported type '%s'" % type(val))
 
     # type checking and conversion
     if isinstance(val, string_types):
@@ -209,9 +213,49 @@ def make_coord_delta(val):
     elif isinstance(val, numbers.Number):
         val = float(val)
     else:
-        raise TypeError("Invalid coordinate delta '%s'" % type(val))
+        raise TypeError("Invalid coordinate delta, unsuported type '%s'" % type(val))
 
     return val
+
+def make_coord_array(values):
+    """
+    Make an array of podpac coordinate values by casting to the correct type.
+
+    Parameters
+    ----------
+    values : array-like
+        Input coordinates.
+    
+    Returns
+    -------
+    a : np.ndarray
+        Cast coordinate values.
+    
+    Notes
+    -----
+     * all of the values must be of the same type
+     * strings and datetimes are converted to numpy datetimes
+     * numbers are converted to floats
+    
+    Raises
+    ------
+    ValueError
+        Description
+    """
+
+    try:
+        a = np.array(values, dtype=float)
+    except ValueError:
+        try:
+            a = np.array(values, dtype=np.datetime64)
+        except ValueError:
+            raise ValueError("Invalid coordinate values (must be all numbers or all datetimes)")
+
+    a = np.atleast_1d(a.squeeze())
+    if a.ndim != 1:
+        raise ValueError("Invalid coordinate values (ndim=%d, must be ndim=1)" % a.ndim)
+
+    return a
 
 def add_coord(base, delta):
     """

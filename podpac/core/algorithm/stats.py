@@ -14,7 +14,7 @@ import scipy.stats
 import traitlets as tl
 from six import string_types
 
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinates import Coordinate
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc

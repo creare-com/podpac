@@ -18,8 +18,10 @@ import traitlets as tl
 from collections import OrderedDict
 from xarray.core.coordinates import DataArrayCoordinates
 
-from podpac.core.coordinate.coord import (
-    BaseCoord, Coord, MonotonicCoord, UniformCoord, coord_linspace)
+from podpac.core.coordinates.coordinates1d import Coordinates1d
+from podpac.core.coordinates.coordinates1d import ArrayCoordinates1d
+from podpac.core.coordinates.coordinates1d import MonotonicCoordinates1d
+from podpac.core.coordinates.coordinates1d import UniformCoordinates1d
 
 class BaseCoordinate(tl.HasTraits):
     """
@@ -61,9 +63,6 @@ class Coordinate(BaseCoordinate):
          - 'point': single point
     dims_map : dict
         Maps unstacked dimensions to the correct (potentiall stacked) dimension'
-    segment_position : float
-        For segment coordinates, where along the segment the coordinate is
-        specified, between 0 and 1 (default 0.5). Unused for point.
     kwargs :
         TODO
     is_stacked :
@@ -79,13 +78,11 @@ class Coordinate(BaseCoordinate):
 
     # default val set in constructor
     ctype = tl.Enum(['segment', 'point'])
-    segment_position = tl.Float()  # default val set in constructor
     coord_ref_sys = tl.CUnicode()
     _coords = tl.Instance(OrderedDict)
     dims_map = tl.Dict()
 
-    def __init__(self, coords=None, order=None, coord_ref_sys="WGS84",
-                 segment_position=0.5, ctype='segment', **kwargs):
+    def __init__(self, coords=None, order=None, coord_ref_sys="WGS84", ctype='segment', **kwargs):
         """
         Initialize a multidimensional coords object.
 
@@ -102,7 +99,7 @@ class Coordinate(BaseCoordinate):
              * 'lon'
              * 'alt'
             Valid values are::
-             * an explicit BaseCoord object (Coord, UniformCoord, etc)
+             * an explicit Coordinates1d object (ArrayCoordinates1d, UniformCoordinates1d, etc)
              * a single number/datetime value
              * an array-like object of numbers/datetimes
              * tuple in the form (start, stop, size) where size is an integer
@@ -126,9 +123,6 @@ class Coordinate(BaseCoordinate):
             Python <3.6 if providing more than one dimension via keyword arguments.
         ctype : str
             Coordinate type, passed to individual coord objects during
-            initialization.
-        segment_position : float
-            Segment position, passed to individual coord objects during
             initialization.
         coord_ref_sys : str
             Coordinate reference system, passed to individual coord objects
@@ -167,11 +161,11 @@ class Coordinate(BaseCoordinate):
         
         kw = {
             'ctype': ctype,
-            'coord_ref_sys': coord_ref_sys,
-            'segment_position':segment_position}
+            'coord_ref_sys': coord_ref_sys
+        }
 
         for key, val in _coords.items():
-            if isinstance(val, BaseCoord):
+            if isinstance(val, Coordinates1d):
                 continue
 
             # make coord helper
@@ -180,12 +174,12 @@ class Coordinate(BaseCoordinate):
                     not isinstance(val[2], (np.timedelta64))):
                     _coords[key] = coord_linspace(*val, **kw)
                 else:
-                    _coords[key] = UniformCoord(*val, **kw)
+                    _coords[key] = UniformCoordinates1d(*val, **kw)
             else:
                 try:
-                    _coords[key] = MonotonicCoord(val, **kw)
+                    _coords[key] = MonotonicCoordinates1d(val, **kw)
                 except:
-                    _coords[key] = Coord(val, **kw)
+                    _coords[key] = ArrayCoordinates1d(val, **kw)
 
         super(Coordinate, self).__init__(_coords=_coords, **kw)
     
@@ -240,7 +234,7 @@ class Coordinate(BaseCoordinate):
         seen_dims.append(dim)
     
     def _validate_val(self, val, dim='', dims=[]):
-        if not isinstance(val, BaseCoord):
+        if not isinstance(val, Coordinates1d):
             raise TypeError("Invalid coord type '%s'" % val.__class__.__name__)
    
     def get_dims_map(self, coords=None):
@@ -533,10 +527,9 @@ class Coordinate(BaseCoordinate):
         '''
 
         return {
-                'coord_ref_sys': self.coord_ref_sys,
-                'segment_position': self.segment_position,
-                'ctype': self.ctype
-                }
+            'coord_ref_sys': self.coord_ref_sys,
+            'ctype': self.ctype
+        }
     
     def replace_coords(self, other, copy=True):
         '''

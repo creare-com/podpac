@@ -16,8 +16,8 @@ import numpy as np
 import xarray as xr
 import scipy.signal
 
-from podpac.core.coordinate import Coordinate, UniformCoord
-from podpac.core.coordinate import add_coord
+from podpac.core.coordinates import Coordinate, UniformCoordinates1d
+from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc
