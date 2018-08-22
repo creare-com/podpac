@@ -47,12 +47,11 @@
 `Coordinates1D` is the base class for coordinates in a single dimension and defines the common interface.
 
 Traits:
-- `name`: Enum('lat', 'lon', 'time', 'alt'), required, *read-only*
-- `units`: Units, *read-only*
-- `coord_ref_sys`: Unicode, *read-only*
-- `ctype`: Enum('segment', 'point'), default: 'segment' for numerical, 'point' for datetime, *read-only*
-- `segment_position`: Float, default: 0.5 for 'segment' and None for 'point', *read-only*
-- `extents`: shape (2,), optional, *read-only*
+- `name`: Enum('lat', 'lon', 'time', 'alt'), required
+- `units`: Units
+- `coord_ref_sys`: Unicode
+- `ctype`: Enum('point', 'left', 'rigth', 'midpoint'), default: 'segment'
+- `extents`: shape (2,), optional
 
 Properties
 - `properties`: dictionary of coordinate properties
@@ -60,7 +59,7 @@ Properties
 - `dtype`: `np.datetime64` or `np.float64`
 - `size`: Int
 - `bounds`: read-only array, [Float, Float]. Coordinate values min and max.
-- `area_bounds`: read-only array, [Float, Float]. For point coordinates, this is just the `bounds`. For segmentment coordinates, use `extents` when available, otherwise calculated from the segment position.
+- `area_bounds`: read-only array, [Float, Float]. For point coordinates, this is just the `bounds`. Otherwise, use `extents` when available, otherwise calculated depending on the ctype mode.
 - `is_monotonic`: Boolean
 - `is_descending`: Boolean
 
