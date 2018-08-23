@@ -509,9 +509,12 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def dtype(self):
-        if not (self.coords.dtype is np.datetime64 or self.coords.dtype is np.float64):
+        if self.coords.dtype == float:
+            return float
+        elif np.issubdtype(self.coords.dtype, np.datetime64):
+            return np.datetime64
+        else:
             raise ValueError("Invalid coords dtype '%s'" % self.coords.dtype)
-        return self.coords.dtype
 
     @property
     def is_monotonic(self):

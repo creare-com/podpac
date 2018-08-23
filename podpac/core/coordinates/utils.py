@@ -243,17 +243,18 @@ def make_coord_array(values):
         Description
     """
 
-    try:
-        a = np.array(values, dtype=float)
-    except ValueError:
-        try:
-            a = np.array(values, dtype=np.datetime64)
-        except ValueError:
-            raise ValueError("Invalid coordinate values (must be all numbers or all datetimes)")
-
-    a = np.atleast_1d(a.squeeze())
+    a = np.atleast_1d(np.squeeze(values))
     if a.ndim != 1:
         raise ValueError("Invalid coordinate values (ndim=%d, must be ndim=1)" % a.ndim)
+
+    if not (a.dtype == float or np.issubdtype(a.dtype, np.datetime64)):
+        try:
+            a = a.astype(float)
+        except (TypeError, ValueError):
+            try:
+                a = a.astype(np.datetime64)
+            except ValueError:
+                raise ValueError("Invalid coordinate values (must be all numbers or all datetimes)")
 
     return a
 

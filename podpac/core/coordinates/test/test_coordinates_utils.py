@@ -3,10 +3,11 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import pytest
 import numpy as np
+from datetime import datetime
 
-from podpac.core.coordinate.util import (
-    get_timedelta, get_timedelta_unit, make_timedelta_string,
-    make_coord_value, make_coord_delta, add_coord)
+from podpac.core.coordinates.utils import get_timedelta, get_timedelta_unit, make_timedelta_string
+from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_array
+from podpac.core.coordinates.utils import add_coord
 
 def test_get_timedelta():
     td64 = np.timedelta64
@@ -70,10 +71,10 @@ def test_make_coord_value():
     assert make_coord_value(np.array(['2018-01-01'])) == dt
 
     # arrays and lists 
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         make_coord_value(np.arange(5))
     
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         make_coord_value(range(5))
 
     # invalid strings
@@ -114,6 +115,84 @@ def test_make_coord_delta():
     with pytest.raises(ValueError):
         make_coord_delta('not a valid timedelta')
 
+def test_make_coord_array():
+    # single number
+    a = np.array([5.0])
+    np.testing.assert_array_equal(make_coord_array(5), a)
+    np.testing.assert_array_equal(make_coord_array([5]), a)
+    np.testing.assert_array_equal(make_coord_array([[5]]), a)
+    np.testing.assert_array_equal(make_coord_array(np.array(5)), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([5])), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([[5]])), a)
+    
+    # list of numbers
+    a = np.array([5.0, 5.5])
+    np.testing.assert_array_equal(make_coord_array([5, 5.5]), a)
+    np.testing.assert_array_equal(make_coord_array([[5, 5.5]]), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([5, 5.5])), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([[5, 5.5]])), a)
+    
+    # single time
+    a = np.array(['2018-01-01']).astype(np.datetime64)
+    np.testing.assert_array_equal(make_coord_array('2018-01-01'), a)
+    np.testing.assert_array_equal(make_coord_array(u'2018-01-01'), a)
+    np.testing.assert_array_equal(make_coord_array(np.datetime64('2018-01-01')), a)
+    np.testing.assert_array_equal(make_coord_array(np.datetime64('2018-01-01').item()), a)
+    np.testing.assert_array_equal(make_coord_array(['2018-01-01']), a)
+    np.testing.assert_array_equal(make_coord_array([u'2018-01-01']), a)
+    np.testing.assert_array_equal(make_coord_array([np.datetime64('2018-01-01')]), a)
+    np.testing.assert_array_equal(make_coord_array([np.datetime64('2018-01-01').item()]), a)
+    np.testing.assert_array_equal(make_coord_array([['2018-01-01']]), a)
+    np.testing.assert_array_equal(make_coord_array([[u'2018-01-01']]), a)
+    np.testing.assert_array_equal(make_coord_array([[np.datetime64('2018-01-01')]]), a)
+    np.testing.assert_array_equal(make_coord_array([[np.datetime64('2018-01-01').item()]]), a)
+
+    # list of times
+    a = np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64)
+    np.testing.assert_array_equal(make_coord_array(['2018-01-01', '2018-01-02']), a)
+    np.testing.assert_array_equal(make_coord_array([u'2018-01-01', u'2018-01-02']), a)
+    np.testing.assert_array_equal(make_coord_array([np.datetime64('2018-01-01').item(), np.datetime64('2018-01-02').item()]), a)
+    np.testing.assert_array_equal(make_coord_array([np.datetime64('2018-01-01'), np.datetime64('2018-01-02')]), a)
+    np.testing.assert_array_equal(make_coord_array(np.array(['2018-01-01', '2018-01-02'])), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([u'2018-01-01', u'2018-01-02'])), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([np.datetime64('2018-01-01').item(), np.datetime64('2018-01-02').item()])), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([np.datetime64('2018-01-01'), np.datetime64('2018-01-02')])), a)
+    np.testing.assert_array_equal(make_coord_array(np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64)), a)
+    np.testing.assert_array_equal(make_coord_array([['2018-01-01', '2018-01-02']]), a)
+    np.testing.assert_array_equal(make_coord_array([[u'2018-01-01', u'2018-01-02']]), a)
+    np.testing.assert_array_equal(make_coord_array([[np.datetime64('2018-01-01').item(), np.datetime64('2018-01-02').item()]]), a)
+    np.testing.assert_array_equal(make_coord_array([[np.datetime64('2018-01-01'), np.datetime64('2018-01-02')]]), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([['2018-01-01', '2018-01-02']])), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([[u'2018-01-01', u'2018-01-02']])), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([[np.datetime64('2018-01-01').item(), np.datetime64('2018-01-02').item()]])), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([[np.datetime64('2018-01-01'), np.datetime64('2018-01-02')]])), a)
+    np.testing.assert_array_equal(make_coord_array(np.array([['2018-01-01', '2018-01-02']]).astype(np.datetime64)), a)
+
+    # mixed
+    with pytest.raises(ValueError):
+        make_coord_array([5.0, '2018-01-01'])
+    with pytest.raises(ValueError):
+        make_coord_array(['2018-01-01', 5.0])
+    with pytest.raises(ValueError):
+        make_coord_array([5.0, np.datetime64('2018-01-01')])
+    with pytest.raises(ValueError):
+        make_coord_array([np.datetime64('2018-01-01'), 5.0])
+    
+    # invalid time string
+    with pytest.raises(ValueError):
+        make_coord_array(['invalid'])
+
+    # invalid type
+    with pytest.raises(ValueError):
+        make_coord_array([{}])
+
+    # multi dimensional
+    with pytest.raises(ValueError):
+        make_coord_array([[0, 1], [5, 6]])
+
+    with pytest.raises(ValueError):
+        make_coord_array(np.array([[0, 1], [5, 6]]))
+
 def test_add_coord():
     # numbers
     assert add_coord(5, 1) == 6
@@ -149,6 +228,6 @@ def test_add_coord():
     with pytest.raises(TypeError):
         add_coord(25.0, dt64('2020-01-31'))
 
-    # this case is generally not encountered
-    from podpac.core.coordinate.util import _add_nominal_timedelta
+    # this base case is generally not encountered
+    from podpac.core.coordinates.utils import _add_nominal_timedelta
     assert _add_nominal_timedelta(dt64('2018-01-30'), td64( 1, 'D')) == dt64('2018-01-31')
