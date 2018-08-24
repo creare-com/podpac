@@ -244,8 +244,6 @@ def make_coord_array(values):
     """
 
     a = np.atleast_1d(np.squeeze(values))
-    if a.ndim != 1:
-        raise ValueError("Invalid coordinate values (ndim=%d, must be ndim=1)" % a.ndim)
 
     if not (a.dtype == float or np.issubdtype(a.dtype, np.datetime64)):
         try:
@@ -254,7 +252,10 @@ def make_coord_array(values):
             try:
                 a = a.astype(np.datetime64)
             except ValueError:
-                raise ValueError("Invalid coordinate values (must be all numbers or all datetimes)")
+                raise TypeError("Invalid coordinate values (must be all numbers or all datetimes)")
+
+    if a.ndim != 1:
+        raise ValueError("Invalid coordinate values (ndim=%d, must be ndim=1)" % a.ndim)
 
     return a
 

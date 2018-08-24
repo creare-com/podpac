@@ -169,21 +169,21 @@ def test_make_coord_array():
     np.testing.assert_array_equal(make_coord_array(np.array([['2018-01-01', '2018-01-02']]).astype(np.datetime64)), a)
 
     # mixed
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         make_coord_array([5.0, '2018-01-01'])
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         make_coord_array(['2018-01-01', 5.0])
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         make_coord_array([5.0, np.datetime64('2018-01-01')])
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         make_coord_array([np.datetime64('2018-01-01'), 5.0])
     
     # invalid time string
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         make_coord_array(['invalid'])
 
     # invalid type
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         make_coord_array([{}])
 
     # multi dimensional

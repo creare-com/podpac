@@ -77,7 +77,7 @@ class Coordinates1d(BaseCoordinates1d):
         if extents is not None:
             kwargs['extents'] = make_coord_array(extents)
 
-        super(Coordinates1d, self).__init__(**kwargs)
+        super(Coordinates1d, self).__init__(name=name, **kwargs)
 
     @tl.validate('extents')
     def _validate_extents(self, d):
@@ -86,7 +86,7 @@ class Coordinates1d(BaseCoordinates1d):
             raise TypeError("extents must be None when ctype='point'")
         if val.shape != (2,):
             raise ValueError("Invalid extents shape, %s != (2,)" % val.shape)
-        if val.dtype != self.dtype:
+        if val.dtype != self.coords.dtype:
             raise ValueError("Invalid extents dtype, '%s' != '%s'" % (val.dtype, self.dtype))
         return val
 
@@ -113,7 +113,6 @@ class Coordinates1d(BaseCoordinates1d):
             d['extents'] = self.extents
         return d
 
-    @cached_property
     @property
     def coordinates(self):
         ''' Full coordinates array. '''
@@ -138,7 +137,6 @@ class Coordinates1d(BaseCoordinates1d):
 
         raise NotImplementedError
 
-    @cached_property
     @property
     def bounds(self):
         ''' Coordinate bounds. '''
@@ -189,7 +187,7 @@ class Coordinates1d(BaseCoordinates1d):
         raise NotImplementedError
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Properties
+    # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
     def intersect(self, other, coord_ref_sys=None, ind=False, **kwargs):
@@ -431,8 +429,9 @@ class Coordinates1d(BaseCoordinates1d):
         return self.intersect(other)
 
     def __repr__(self):
-        return '%s: Bounds[%s, %s], N[%d], ctype["%s"]' % (
+        return "%s: '%s', Bounds[%s, %s], N[%d], ctype['%s']" % (
             self.__class__.__name__,
+            self.name,
             self.bounds[0], self.bounds[1],
             self.size,
             self.ctype)
@@ -469,7 +468,7 @@ class ArrayCoordinates1d(Coordinates1d):
             Description
         """
 
-        coords = make_coord_array(coord)
+        coords = make_coord_array(coords)
         super(ArrayCoordinates1d, self).__init__(coords=coords, **kwargs)
 
     @tl.validate('coords')
@@ -477,7 +476,7 @@ class ArrayCoordinates1d(Coordinates1d):
         val = d['value']
         if val.ndim != 1:
             raise ValueError("Invalid coords (ndim='%d', must be ndim=1" % val.ndim)
-        if val.dtype not in (np.float64, np.datetime64):
+        if val.dtype != float and not np.issubdtype(val.dtype, np.datetime64):
             raise ValueError("Invalid coords (dtype='%s', must be np.float64 or np.datetime64)")
         return val
 
@@ -509,7 +508,9 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def dtype(self):
-        if self.coords.dtype == float:
+        if self.size == 0:
+            return None
+        elif self.coords.dtype == float:
             return float
         elif np.issubdtype(self.coords.dtype, np.datetime64):
             return np.datetime64
@@ -614,7 +615,7 @@ class MonotonicCoordinates1d(ArrayCoordinates1d):
 
     def _segment_area_bounds(self):
         if self.size == 0:
-            return np.nan. np.nan
+            return np.nan, np.nan
 
         if self.ctype == 'left':
             lo = self.coords[0]
@@ -642,6 +643,8 @@ class MonotonicCoordinates1d(ArrayCoordinates1d):
         ''' True if the coordinates are descending, False if ascending, and None if empty. '''
 
         if self.size == 0:
+            return None
+        elif self.size == 1:
             return None
         return self.coords[0] > self.coords[-1]
 
