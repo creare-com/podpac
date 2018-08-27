@@ -1105,3 +1105,67 @@ class UniformCoordinates1d(Coordinates1d):
                 return MonotonicCoordinates1d(coords, name=self.name, **self.properties)
             except ValueError:
                 return ArrayCoordinates1d(coords, name=self.name, **self.properties)
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Shorthand
+# ---------------------------------------------------------------------------------------------------------------------
+
+def _ca(coords=[], **kwargs):
+    return ArrayCoordinates1d(coords, **kwargs)
+
+def _cm(coords=[], **kwargs):
+    return MonotonicCoordinates1d(coords, **kwargs)
+
+def _cu(start, stop, step, **kwargs):
+    return UniformCoordinates1d(start, stop, step, **kwargs)
+
+def _cl(start, stop, size, **kwargs):
+    return ArrayCoordinates1d(start, stop, size=size, **kwargs)
+
+def _ca_lat(self, coords=[], **kwargs):
+    return ArrayCoordinates1d(coords, name='lat', **kwargs)
+
+def _ca_lon(self, coords=[], **kwargs):
+    return ArrayCoordinates1d(coords, name='lon', **kwargs)
+
+def _ca_alt(self, coords=[], **kwargs):
+    return ArrayCoordinates1d(coords, name='alt', **kwargs)
+
+def _ca_time(self, coords=[], **kwargs):
+    return ArrayCoordinates1d(coords, name='time', **kwargs)
+
+def _cm_lat(self, coords=[], **kwargs):
+    return MonotonicCoordinates1d(coords, name='lat', **kwargs)
+    
+def _cm_lon(self, coords=[], **kwargs):
+    return MonotonicCoordinates1d(coords, name='lon', **kwargs)
+
+def _cm_alt(self, coords=[], **kwargs):
+    return MonotonicCoordinates1d(coords, name='alt', **kwargs)
+
+def _cm_time(self, coords=[], **kwargs):
+    return MonotonicCoordinates1d(coords, name='time', **kwargs)
+
+def _cu_lat(self, start, stop, step, **kwargs):
+    return MonotonicCoordinates1d(start, stop, step, name='lat', **kwargs)
+    
+def _cu_lon(self, start, stop, step, **kwargs):
+    return MonotonicCoordinates1d(start, stop, step, name='lon', **kwargs)
+
+def _cu_alt(self, start, stop, step, **kwargs):
+    return MonotonicCoordinates1d(start, stop, step, name='alt', **kwargs)
+
+def _cu_time(self, start, stop, step, **kwargs):
+    return MonotonicCoordinates1d(start, stop, step, name='time', **kwargs)
+
+def _cl_lat(self, start, stop, size, **kwargs):
+    return MonotonicCoordinates1d(start, stop, size=size, name='lat', **kwargs)
+    
+def _cl_lon(self, start, stop, size, **kwargs):
+    return MonotonicCoordinates1d(start, stop, size=size, name='lon', **kwargs)
+
+def _cl_alt(self, start, stop, size, **kwargs):
+    return MonotonicCoordinates1d(start, stop, size=size, name='alt', **kwargs)
+
+def _cl_time(self, start, stop, size, **kwargs):
+    return MonotonicCoordinates1d(start, stop, size=size, name='time', **kwargs)
