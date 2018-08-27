@@ -86,8 +86,10 @@ class Coordinates1d(BaseCoordinates1d):
             raise TypeError("extents must be None when ctype='point'")
         if val.shape != (2,):
             raise ValueError("Invalid extents shape, %s != (2,)" % val.shape)
-        if val.dtype != self.coords.dtype:
-            raise ValueError("Invalid extents dtype, '%s' != '%s'" % (val.dtype, self.dtype))
+        if self.dtype == float and val.dtype != float:
+            raise ValueError("Invalid extents dtype, coordinates are numerical but extents are '%s'" % val.dtype)
+        if self.dtype == np.datetime64 and not np.issubdtype(val.dtype, np.datetime64):
+            raise ValueError("Invalid extents dtype, coordinates are datetime but extents are '%s'" % val.dtype)
         return val
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -617,15 +619,18 @@ class MonotonicCoordinates1d(ArrayCoordinates1d):
         if self.size == 0:
             return np.nan, np.nan
 
-        if self.ctype == 'left':
-            lo = self.coords[0]
-            hi = add_coord(self.coords[-1], (self.coords[-1] - self.coords[-2]))
-        elif self.ctype == 'right':
-            lo = add_coord(self.coords[0], -(self.coords[ 1] - self.coords[ 0]))
-            hi = self.coords[-1]
-        elif self.ctype == 'midpoint':
+        elif self.size == 1:
+            return self.coords[0], self.coords[0]
+
+        if self.ctype == 'midpoint':
             lo = add_coord(self.coords[0], -(self.coords[ 1] - self.coords[ 0]) / 2.)
             hi = add_coord(self.coords[-1], (self.coords[-1] - self.coords[-2]) / 2.)
+        elif (self.ctype == 'left' and not self.is_descending) or (self.ctype == 'right' and self.is_descending):
+            lo = self.coords[0]
+            hi = add_coord(self.coords[-1], (self.coords[-1] - self.coords[-2]))
+        else:
+            lo = add_coord(self.coords[0], -(self.coords[ 1] - self.coords[ 0]))
+            hi = self.coords[-1]
 
         if self.is_descending:
             lo, hi = hi, lo
@@ -800,7 +805,7 @@ class UniformCoordinates1d(Coordinates1d):
             number of coordinates (either step or size required)
         """
 
-        if step is None and size is None:
+        if step is not None and size is not None:
             raise TypeError("only one of 'step' and 'size' is allowed")
         elif step is None and size is None:
             raise TypeError("'step' or 'size' is required")
@@ -828,28 +833,25 @@ class UniformCoordinates1d(Coordinates1d):
 
     @tl.validate('step')
     def _validate_step(self, d):
-        self._validate_start_stop_step(self.start, self.step, d['value'])
+        self._validate_start_stop_step(self.start, self.stop, d['value'])
         if d['value'] == 0 * d['value']:
             raise ValueError("UniformCoordinates1d step must be nonzero")
         return d['value']
 
     def _validate_start_stop_step(self, start, stop, step):
-        val = d['value']
-
         if isinstance(start, float) and isinstance(stop, float) and isinstance(step, float):
             fstep = step
-        elif isinstance(start, np.datetime64) and isinstance(stop, datetime64) and isinstance(step, np.timedelta64):
+        elif isinstance(start, np.datetime64) and isinstance(stop, np.datetime64) and isinstance(step, np.timedelta64):
             fstep = step.astype(float)
         else:
             raise TypeError("UniformCoordinates1d mismatching types (start '%s', stop '%s', step '%s')." % (
                 type(start), type(stop), type(step)))
 
-        if fval < 0 and start > stop:
+        if fstep < 0 and start < stop:
             raise ValueError("UniformCoordinates1d step must be less than zero if start > stop.")
-        if fval > 0 and start < stop:
+
+        if fstep > 0 and start > stop:
             raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
-        
-        return val
 
     @tl.observe('start', 'stop', 'step')
     def _clear_cache(self, change):
@@ -869,7 +871,7 @@ class UniformCoordinates1d(Coordinates1d):
         if isinstance(self.start, np.datetime64):
             return np.datetime64
         else:
-            return np.float64
+            return float
 
     @property
     def size(self):
@@ -908,10 +910,10 @@ class UniformCoordinates1d(Coordinates1d):
         if self.ctype == 'left':
             hi = add_coord(hi, np.abs(self.step))
         elif self.ctype == 'right':
-            lo = add_coord(hi, -np.abs(self.step))
+            lo = add_coord(lo, -np.abs(self.step))
         elif self.ctype == 'midpoint':
             lo = add_coord(lo, -0.5*np.abs(self.step)) # TODO datetimes
-            hi = add_coord(lo,  0.5*np.abs(self.step)) # TODO datetimes
+            hi = add_coord(hi,  0.5*np.abs(self.step)) # TODO datetimes
         return lo, hi
     
     @property
@@ -924,6 +926,9 @@ class UniformCoordinates1d(Coordinates1d):
     def is_descending(self):
         ''' True if the coordinates are descending, False if ascending. '''
 
+        if self.start == self.stop:
+            return None
+        
         return self.stop < self.start
 
     # ------------------------------------------------------------------------------------------------------------------
