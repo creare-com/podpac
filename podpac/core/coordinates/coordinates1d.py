@@ -573,6 +573,10 @@ class ArrayCoordinates1d(Coordinates1d):
 
         return self
 
+    def __getitem__(self, index):
+        coords = self.coords[index]
+        return ArrayCoordinates1d(coords, name=self.name, **self.properties)
+
 class MonotonicCoordinates1d(ArrayCoordinates1d):
     """
     An array of monotonically increasing or decreasing coordinates. The coordinates are guaranteed to be sorted and
@@ -764,6 +768,13 @@ class MonotonicCoordinates1d(ArrayCoordinates1d):
 
     def _add(self, other):
         return MonotonicCoordinates1d(self.coords + other, **self.properties)
+
+    def __getitem__(self, index):
+        coords = self.coords[index]
+        try:
+            return MonotonicCoordinates1d(coords, name=self.name, **self.properties)
+        except ValueError:
+            return ArrayCoordinates1d(coords, name=self.name, **self.properties)
         
 
 class UniformCoordinates1d(Coordinates1d):
@@ -1052,3 +1063,45 @@ class UniformCoordinates1d(Coordinates1d):
         size = np.floor((last - start) / self.step) + 1
 
         return start, stop, last, size
+
+    def __getitem__(self, index):
+        if isinstance(index, int):
+            if index >= self.size or index < -self.size:
+                raise IndexError('index %d is out of bounds for coordinates with size %d' % (index, self.size))
+            if index > 0:
+                value = add_coord(self.start, self.step * index)
+            else:
+                value = add_coord(self.start, self.step * (self.size+index))
+
+            return UniformCoordinates1d(value, value, self.step, name=self.name, **self.properties)
+
+        elif isinstance(index, slice):
+            if index.start is None:
+                start = self.start
+            elif index.start >= 0:
+                start = add_coord(self.start, self.step * min(index.start, self.size-1))
+            else:
+                start = add_coord(self.start, self.step * max(0, self.size+index.start))
+
+            if index.stop is None:
+                stop = self.stop
+            elif index.stop >= 0:
+                stop = add_coord(self.start, self.step * (min(index.stop, self.size)-1))
+            else:
+                stop = add_coord(self.start, self.step * max(0, self.size+index.stop-1))
+
+            if index.step is None:
+                step = self.step
+            else:
+                step = index.step * self.step
+                if index.step < 0:
+                    start, stop = stop, start
+
+            return UniformCoordinates1d(start, stop, step, name=self.name, **self.properties)
+
+        else:
+            coords = self.coordinates[index]
+            try:
+                return MonotonicCoordinates1d(coords, name=self.name, **self.properties)
+            except ValueError:
+                return ArrayCoordinates1d(coords, name=self.name, **self.properties)

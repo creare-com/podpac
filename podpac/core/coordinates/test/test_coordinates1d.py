@@ -29,6 +29,8 @@ class TestCoordinates1d(object):
             c.is_descending
         with pytest.raises(NotImplementedError):
             c.select([0, 1])
+        with pytest.raises(NotImplementedError):
+            c[0]
 
     def test_name(self):
         Coordinates1d(name='lat')
@@ -144,6 +146,68 @@ class TestArrayCoordinates1d(object):
         c = ArrayCoordinates1d(name='lat')
         assert isinstance(c.properties, dict)
         assert set(c.properties.keys()) == set(['units', 'ctype', 'coord_ref_sys'])
+
+    def test_index(self):
+        c = ArrayCoordinates1d([20, 50, 60, 90, 40, 10], name='lat')
+        
+        # int
+        c2 = c[2]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([60], dtype=float))
+
+        c2 = c[-2]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([40], dtype=float))
+
+        # slice
+        c2 = c[:2]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([20, 50], dtype=float))
+        
+        c2 = c[::2]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([20, 60, 40], dtype=float))
+        
+        c2 = c[1:-1]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([50, 60, 90, 40], dtype=float))
+        
+        c2 = c[::-1]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([10, 40, 90, 60, 50, 20], dtype=float))
+        
+        # array
+        c2 = c[[0, 3, 1]]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([20, 90, 50], dtype=float))
+
+        # boolean array
+        c2 = c[[True, True, True, False, True, False]]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, np.array([20, 50, 60, 40], dtype=float))
+
+        # invalid
+        with pytest.raises(IndexError):
+            c[0.3]
+
+        with pytest.raises(IndexError):
+            c[10]
 
 #     def test_select(self):
 #         c = ArrayCoordinates1d([20., 50., 60., 90., 40., 10.])
@@ -515,12 +579,6 @@ class TestArrayCoordinates1d(object):
 #         assert isinstance(r, ArrayCoordinates1d)
 #         assert_equal(r.coordinates, [55., 45.])
 
-#     def test___getitem__(self):
-#         c = ArrayCoordinates1d([20., 50., 60., 10.])
-        
-#         assert c[0] == 20.
-#         assert_equal(c[1:3], [50., 60.])
-
     def test___len__(self):
         c = ArrayCoordinates1d([20., 50., 60., 10.], name='lat')
         assert len(c) == 4
@@ -781,6 +839,85 @@ class TestMonotonicCoordinates1d(object):
         assert_equal(c.area_bounds, np.array([value, value]).astype(np.datetime64))
         c = MonotonicCoordinates1d(value, name='time', ctype='midpoint')
         assert_equal(c.area_bounds, np.array([value, value]).astype(np.datetime64))
+
+    def test_index(self):
+        c = MonotonicCoordinates1d([10, 20, 40, 50, 60, 90], name='lat')
+        
+        # int
+        c2 = c[2]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([40], dtype=float))
+
+        c2 = c[-2]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([60], dtype=float))
+
+        # slice
+        c2 = c[:2]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([10, 20], dtype=float))
+        
+        c2 = c[::2]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([10, 40, 60], dtype=float))
+        
+        c2 = c[1:-1]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([20, 40, 50, 60], dtype=float))
+        
+        c2 = c[::-1]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([90, 60, 50, 40, 20, 10], dtype=float))
+        
+        # ordered array
+        c2 = c[[0, 1, 3]]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([10, 20, 50], dtype=float))
+
+        c2 = c[[3, 1, 0]]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coords, np.array([50, 20, 10], dtype=float))
+
+        # unordered array (tries to return ArrayCoordinates1d instead)
+        with pytest.raises(tl.TraitError):
+            c[[0, 3, 1]] # must be ctype=point
+
+        cpoints = MonotonicCoordinates1d([10, 20, 40, 50, 60, 90], name='lat', ctype='point')
+        c2 = cpoints[[0, 3, 1]]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == cpoints.name
+        assert c2.properties == cpoints.properties
+        assert_equal(c2.coords, np.array([10, 50, 20], dtype=float))
+
+        # boolean array
+        c2 = c[[True, True, True, False, True, False]]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, np.array([10, 20, 40, 60], dtype=float))
+
+        # invalid
+        with pytest.raises(IndexError):
+            c[0.3]
+
+        with pytest.raises(IndexError):
+            c[10]
     
 #     def test_select_ascending(self):
 #         c = MonotonicCoordinates1d([10., 20., 40., 50., 60., 90.])
@@ -1641,6 +1778,220 @@ class TestUniformCoordinates1d(object):
         assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
         c = UniformCoordinates1d('2018-01-01', '2018-01-01', '-1,D', name='time', ctype='midpoint')
         assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
+
+    def test_index(self):
+        c = UniformCoordinates1d(0, 50, 10, name='lat')
+        
+        # int
+        c2 = c[2]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 20
+        assert c2.stop == 20
+        assert c2.step == 10
+
+        c2 = c[-2]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 40
+        assert c2.stop == 40
+        assert c2.step == 10
+
+        # slice
+        c2 = c[:2]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 0
+        assert c2.stop == 10
+        assert c2.step == 10
+
+        c2 = c[2:]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 20
+        assert c2.stop == 50
+        assert c2.step == 10
+        
+        c2 = c[::2]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 0
+        assert c2.stop == 50
+        assert c2.step == 20
+        
+        c2 = c[1:-1]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 10
+        assert c2.stop == 40
+        assert c2.step == 10
+
+        c2 = c[-3:5]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 30
+        assert c2.stop == 40
+        assert c2.step == 10
+        
+        c2 = c[::-1]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 50
+        assert c2.stop == 0
+        assert c2.step == -10
+        
+        # ordered array
+        c2 = c[[0, 1, 3]]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, np.array([0, 10, 30], dtype=float))
+
+        c2 = c[[3, 1, 0]]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, np.array([30, 10, 0], dtype=float))
+
+        # unordered array (tries to return ArrayCoordinates1d instead)
+        with pytest.raises(tl.TraitError):
+            c[[0, 3, 1]] # must be ctype=point
+
+        cpoints = UniformCoordinates1d(0, 50, 10, name='lat', ctype='point')
+        c2 = cpoints[[0, 3, 1]]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == cpoints.name
+        assert c2.properties == cpoints.properties
+        assert_equal(c2.coordinates, np.array([0, 30, 10], dtype=float))
+
+        # boolean array
+        c2 = c[[True, True, True, False, True, False]]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, np.array([0, 10, 20, 40], dtype=float))
+
+        # invalid
+        with pytest.raises(IndexError):
+            c[0.3]
+
+        with pytest.raises(IndexError):
+            c[10]
+
+    def test_index_descending(self):
+        c = UniformCoordinates1d(50, 0, -10, name='lat')
+        
+        # int
+        c2 = c[2]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 30
+        assert c2.stop == 30
+        assert c2.step == -10
+
+        c2 = c[-2]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 10
+        assert c2.stop == 10
+        assert c2.step == -10
+
+        # slice
+        c2 = c[:2]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 50
+        assert c2.stop == 40
+        assert c2.step == -10
+
+        c2 = c[2:]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 30
+        assert c2.stop == 0
+        assert c2.step == -10
+        
+        c2 = c[::2]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 50
+        assert c2.stop == 0
+        assert c2.step == -20
+        
+        c2 = c[1:-1]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 40
+        assert c2.stop == 10
+        assert c2.step == -10
+
+        c2 = c[-3:5]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 20
+        assert c2.stop == 10
+        assert c2.step == -10
+        
+        c2 = c[::-1]
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert c2.start == 0
+        assert c2.stop == 50
+        assert c2.step == 10
+        
+        # ordered array
+        c2 = c[[0, 1, 3]]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, np.array([50, 40, 20], dtype=float))
+
+        c2 = c[[3, 1, 0]]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, np.array([20, 40, 50], dtype=float))
+
+        # unordered array (tries to return ArrayCoordinates1d instead)
+        with pytest.raises(tl.TraitError):
+            c[[0, 3, 1]] # must be ctype=point
+
+        cpoints = UniformCoordinates1d(50, 0, -10, name='lat', ctype='point')
+        c2 = cpoints[[0, 3, 1]]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == cpoints.name
+        assert c2.properties == cpoints.properties
+        assert_equal(c2.coordinates, np.array([50, 20, 40], dtype=float))
+
+        # boolean array
+        c2 = c[[True, True, True, False, True, False]]
+        assert isinstance(c2, MonotonicCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, np.array([50, 40, 30, 10], dtype=float))
+
+        # invalid
+        with pytest.raises(IndexError):
+            c[0.3]
+
+        with pytest.raises(IndexError):
+            c[10]
         
 #     def test_select_ascending(self):
 #         c = UniformCoordinates1d(20., 70., 10.)
