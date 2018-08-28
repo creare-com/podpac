@@ -47,21 +47,21 @@
 `Coordinates1D` is the base class for coordinates in a single dimension and defines the common interface.
 
 Traits:
-- `name`: Enum('lat', 'lon', 'time', 'alt'), required
+- `name`: Enum('lat', 'lon', 'time', 'alt')
 - `units`: Units
-- `coord_ref_sys`: Unicode
-- `ctype`: Enum('point', 'left', 'rigth', 'midpoint'), default: 'segment'
-- `extents`: shape (2,), optional
+- `coord_ref_sys`: string, default: 'WGS84
+- `ctype`: Enum('point', 'left', 'rigth', 'midpoint'), default: 'midpoint'
+- `extents`: array, shape (2,), optional
 
 Properties
 - `properties`: dictionary of coordinate properties
 - `coordinates`: read-only array
-- `dtype`: `np.datetime64` or `np.float64`
-- `size`: Int
-- `bounds`: read-only array, [Float, Float]. Coordinate values min and max.
-- `area_bounds`: read-only array, [Float, Float]. For point coordinates, this is just the `bounds`. Otherwise, use `extents` when available, otherwise calculated depending on the ctype mode.
-- `is_monotonic`: Boolean
-- `is_descending`: Boolean
+- `dtype`: `np.datetime64` or `float`
+- `size`: int
+- `bounds`: read-only array, `[float, float]`. Coordinate values min and max.
+- `area_bounds`: read-only array, `[float, float]`. For point coordinates, this is just the `bounds`. Otherwise, use `extents` when available, otherwise calculated depending on the ctype mode.
+- `is_monotonic`: bool
+- `is_descending`: bool
 
 Methods
  - `select(bounds)`: select coordinates within the given bounds
@@ -81,7 +81,7 @@ Operators
  - `len`: size
  - `[]`: index the coordinate values
     - returns a new Coordinates1D object
-    - supports a single index, a slice, an index array, or a boolean array
+    - supports an integer, a slice, an index array, or a boolean array
  - `+`, `+=`: either concat Coordinates1D or add value
  - `-`, `-=`: subtract value
  - `&`: intersect
@@ -104,9 +104,6 @@ A sorted list of coordinates, where `values` is array-like and sorted (in either
 ```
 MonotonicCoordinates1D(values, ...)
 ```
- 
-Notes:
- - *TODO `area_bounds` calculation for segment coordinates without explicit extents*
 
 ### UniformCoordinates1D(Coordinates1D)
 
@@ -115,9 +112,6 @@ Uniformly-spaced coordinates, defined by a start, stop, and step/size.
 ```
 UniformCoordinates1D(start, stop, step=None, size=None, ...)
 ```
-
-Notes:
- - use `segment_position` and `step` for the `area_bounds` calculation for segment coordinates without explicit extents
 
 ### Shorthand
 
@@ -128,7 +122,7 @@ For ease-of-use, the following aliases will be available in the toplevel `podpac
  - `_cu`: UniformCoordinates1D(start, stop, step)
  - `_cl`: UniformCoordinates1D(start, stop, size=size)
 
-16 shortcut functions will also be defined, e.g.
+16 shortcut functions *may* also be defined, e.g.
 
  - `_cu_lat`
  - `_cm_time`
@@ -155,8 +149,10 @@ _cl_lat(0, 1, 10)
 Coordinates for two or more physical dimensions that are indexed together (aligned, as opposed to defining a grid). This class should be considered an implementation detail that behaves like a tuple (is iterable) but also facilitates a common interface with Coordinates1D by mapping indexing and other methods to its Coordinates1D objects.
 
 Properties
+- `coords1d`: Tuple(trait=Coordinate1d), len >= 2, all the `size`
+- `dims`: tuple of dimension names
 - `name`: dimension names joined by an underscore, e.g. `'lat_lon'`
-- `coordinates`: read-only DataArray or MultiIndex
+- `coordinates`: read-only DataArray with MultiIndex
 - `size`: Int
 
 Methods
@@ -173,7 +169,7 @@ Methods
 Operators
  - `[]`: index each of coordinates values
     - returns a new StackedCoordinates object
-    - supports a single index, a slice, an index array, or a boolean array
+    - supports an integer, a slice, an index array, or a boolean array
 
 ### Helper Functions
 
@@ -242,26 +238,24 @@ c2 = Coordinates({'lat_lon': (lat, lon), 'time': time}, **traits)
 - `distance_units`: Units
 - `segment_position`: Float
 - `ctype`: Enum('segment', 'point')
-
-*TODO: defaults, passing on to Coordinates1D, overriding with Coordinates1D*
+- `coords1d`: OrderedDict mapping dimension names to 1d coordinates (Coordinate1D or StackedCoordinates)
 
 ### Properties
 
- * `ndim`: Int
- * `dims`: tuple(str, str, ...)
- * `shape`: tuple(int, int, ...)
- * `coords`: OrderedDict mapping dimension names to Coordinate1D or StackedCoordinates
- * `coordinates`: xarray Coordinates (dictionary-like mapping dimension names to named DataArrays) 
+ - `ndim`: Int
+ - `dims`: tuple(str, str, ...)
+ - `shape`: tuple(int, int, ...)
+ * `coords`: xarray.core.DataArrayCoordinates type (dictionary-like mapping dimension names to named DataArrays) 
 
 For stacked dimensions, the dimension names are combined by an underscore, and the coordinates are implemented as a pandas MultiIndex:
 
 ```
 coords.dims -> ('lat_lon', 'time')
-coords.coords.keys() -> ('lat_lon', 'time')
-coords.coords['lat_lon'] -> (UniformCoordinates1D, UniformCoordinates1D) # this is actually a StackedCoordinates object
-coords.coords['lat'] -> KeyError
-coords.coordinates['lat_lon'] -> DataArray with MultiIndex
-coords.coordinates['lat'] -> DataArray # we get this for free due to the MultiIndex
+coords.coords1d.keys() -> ('lat_lon', 'time')
+coords.coords1d['lat_lon'] -> (UniformCoordinates1D, UniformCoordinates1D) # this is actually a StackedCoordinates object
+coords.coords1d['lat'] -> KeyError
+coords.coords['lat_lon'] -> DataArray with MultiIndex
+coords.coords['lat'] -> DataArray # we get this for free due to the MultiIndex
 ```
 
 ### Methods
@@ -309,27 +303,27 @@ Some equivalent ways to copy:
 
 ```
 coords_copy = Coordinates(other) # I'm not sure we need this one
-coords_copy = Coordinates(other.coords)
-coords_copy = Coordinates(other.coords.values())
+coords_copy = Coordinates(other.coords1d)
+coords_copy = Coordinates(other.coords1d.values())
 ```
 
 Select specific dimensions
 
 ```
 dims = ['lat', 'lon']
-c1 = Coordinates([other.coords[dim] for dim in dims])
+c1 = Coordinates([other.coords1d[dim] for dim in dims])
 ```
 
 Downsample (even if some dimensions are stacked)
 
 ```
-c2 = Coordinates([c[::10] for c in other.coords.values()])
+c2 = Coordinates([c[::10] for c in other.coords1d.values()])
 ```
 
 Downsample only the time dimension (only works if time is not stacked)
 
 ```
-d = other.coords.copy()
+d = other.coords1d.copy()
 d['time'] = d['time'][::10]
 c3 = Coordinates(d)
 ```
@@ -337,8 +331,8 @@ c3 = Coordinates(d)
 The safe way would would be:
 
 ```
-d = other.coords.copy()
-k = d.get_dim('time')
+d = other.coords1d.copy()
+k = d.get('time')
 d[k] = d[k][::10]
 c3 = Coordinates(d)
 ```
