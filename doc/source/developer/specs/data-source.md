@@ -33,23 +33,25 @@
 
 #### Contructor
 
-- FUTURE: After implementing a govener on the request size, implement:
+- FUTURE: After implementing a limiter on the request size, implement:
     + Take one input (i.e. `evaluate`) that will automatically execute the datasource at the native_coordinates on contruction. This will allow a shortcut when you just want to load a simple data source for processing with other more complication data sources
 
 #### Methods
 
-- `eval(coordinates, params=None, output=None, method=None)`: Evaluate this node using the supplied coordinates
+- `eval(coordinates, output=None, method=None)`: Evaluate this node using the supplied coordinates
     + `self.requested_coordinates` gets set to the coordinates that are input
     + remove dims that don't exist in native coordinates
-    + `_determine_source_coordinates()` translates the `self.requested_coordinates` into `self.requested_source_coordinates`, `self.requested_source_coordinates_index` to get requested via `get_data`.
-    + run `get_data`
-    + Check/fix order of dims when UnitsDataArray or Xarray is returned from get_data. Otherwise create UnitsDataArray using values from get_data and requested_source_coordinates
+    + intersect the `self.requested_coordinates` with `self.native_coordinates` to create `self.requested_source_coordinates` and `self.requested_source_coordinates_index` to get requested via `get_data`.  DataSource `coordinate_index_type` informs `self.requested_source_coordinates_index` (Array[int], Array[boolean], List[slices])
+    + interpolate requested coordinates `self.requested_source_coordinates` using `_interpolate_requested_coordinates()`.
+    + `self.requested_source_coordinates` coordinates MUST exists exactly in the data source native coordinates.
+    + run `_get_data` which runs the user defined `get_data()` and check/fix order of dims when UnitsDataArray or Xarray is returned from get_data. Otherwise create UnitsDataArray using values from get_data and requested_source_coordinates. This return from `_get_data()` sets `self.requested_source_data`
     + Run `_interpolate()`
+    + Set `self.evaluated` to True
     + Output the user the UnitsDataArray passed back from interpolate
-- `get_data(coordinates=self.requested_source_coordinates, coordinates_index=requested_source_coordinates_index)`:
+- `get_data(coordinates, coordinates_index)`:
     + Raise a `NotImplementedError`
-    + `coordinates` and `coordinates_index` are guarenteed to exists in the datasource as calculated by `_determine_source_coordinates`
-    + return an UnitsDataArray numpy array or xarray of values. this will get turned into a UnitsDataArray aftwards using `self.requested_source_coordinates` even if the xarray passes back coordinates
+    + `coordinates` and `coordinates_index` are guarenteed to exists in the datasource
+    + return an UnitsDataArray, numpy array, or xarray of values. this will get turned into a UnitsDataArray aftwards using `self.requested_source_coordinates` even if the xarray passes back coordinates
         * Need to check/fix order of dims in UnitsDataArray and Xarray case
 - `get_native_coordinates()`: return the native coordinates from the data source. By default, this should return `self.native_coordinates` if defined, otherwise raise a `NotImplementedError`
 - `definition()`: Pipeline node definition for DataSource nodes.
@@ -58,10 +60,10 @@
 
 #### Private Methods
 
-- `_determine_source_coordinates()`: Use `self.requested_coordinates`, `self.native_coordinates`, `self.interpolate` to determine the requested coordinates translated into the source coordinates.
-    + sets `self.requested_source_coordinates` (Coordinates) to the coordinates that need to get requested from the data source via `get_data`. These coordinates MUST exists exactly in the data source native coordinates. They coordinates that get returned may be affected by the type of interpolate() class used in request.
-    + Based on `coordinate_index_type`, set `self.requested_source_coordinates_index` (Array[int], Array[boolean], List[slices])
-    + Returns a UnitsDataArray for the data subset
+- `_interpolate_requested_coordinates()`: Use `self.requested_coordinates`, `self.native_coordinates`, `self.interpolate` to determine the requested coordinates interpolated into the source coordinates.
+    + overwrites `self.requested_source_coordinates` (Coordinates) to interpolated coordinates that need to get requested from the data source via `get_data`. 
+    + These coordinates MUST exists exactly in the data source native coordinates
+    + Returns None
 - `_interpolate()`: Use `self.interpolate` and call the appropriate functions in the `interpolate` module
     + Returns a UnitDataArray which becomes the output of the eval method
 
