@@ -24,8 +24,7 @@
 
 - `source`: Any, required
     + The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as a few examples.
-- `interpolation`: `Interpolate()`  class (tbd)
-    - Should include `interpolation_param` for all dims or single dims.  i.e. Enum('nearest', 'nearest_preview', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss', 'max', 'min', 'med', 'q1', 'q3'), Default: `nearest`
+- `interpolation`: `Interpolator()`  class
 - `coordinate_index_type`: Enum('list','numpy','xarray','pandas'). By default this is `numpy`
 - `nan_vals`: List
     + list of values from source data that should be interpreted as 'no data' or 'nans' (replaces `no_data_vals`)
