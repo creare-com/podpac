@@ -987,7 +987,7 @@ class S3(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        self.no_data_vals = getattr(self.node, 'no_data_vals', [])
+        self.nan_vals = getattr(self.node, 'nan_vals', [])
         return self.node.get_data(coordinates, coordinates_index)
 
     @property

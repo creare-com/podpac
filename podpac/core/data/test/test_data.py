@@ -109,13 +109,14 @@ class TestDataSource(object):
             DataSource(source=None)
 
         with pytest.raises(TraitError):
-            DataSource(no_data_vals=None)
+            DataSource(nan_vals=None)
 
     def test_traitlets_errors(self):
         """ make sure traitlet errors are reased with improper inputs """
 
         with pytest.raises(TraitError):
-            DataSource(interpolation=None)
+            other_class = DataSource(nan_vals=None)
+            DataSource(interpolation=other_class)
 
         with pytest.raises(TraitError):
             DataSource(interpolation='myowninterp')
@@ -338,10 +339,10 @@ class TestDataSource(object):
 
             assert np.all(np.isnan(output))
         
-        def test_no_data_vals(self):
-            """ execute note with no_data_vals """
+        def test_nan_vals(self):
+            """ execute note with nan_vals """
 
-            node = MockDataSource(no_data_vals=[10, None])
+            node = MockDataSource(nan_vals=[10, None])
             output = node.execute(node.native_coordinates)
 
             assert output.values[np.isnan(output)].shape == (2,)

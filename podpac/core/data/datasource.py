@@ -47,7 +47,7 @@ DATA_DOC = {
         source data, but all coordinates and coordinate indexes will match 1:1 with the subset data.
 
         Most methods generate the template UnitsDataArray using the inherited Node method :meth:initialize_coord_array.
-        See :meth:Node.initialize_coord_array for more details.
+        See :meth:podpac.core.node.Node.initialize_coord_array for more details.
         
         Parameters
         ----------
@@ -90,38 +90,46 @@ class DataSource(Node):
     
     Attributes
     ----------
-
-    interpolation : str
-        Type of interpolation
-    interpolation_param : Any
-        Parameter used for the interpolation, usually indicating a tolerance
-    no_data_vals : List
+    coordinate_index_type : str, optional
+        Type of index to use for data source. Possible values are ['list','numpy','xarray','pandas']
+        Default is 'numpy'
+    interpolation : podpac.core.data.Interpolator, optional
+        Type of interpolation to apply to each dimension
+    nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
     source : Any
-        The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as
-        a few examples.
-        
+        The location of the source. Depending on the child node this can be a filepath,
+        numpy array, or dictionary as a few examples.
+    
     Notes
-    -------
+    -----
     Developers of new DataSource nodes need to implement the `get_data` and `get_native_coordinates` methods.
     """
     
-    source = tl.Any(allow_none=False, help="Path to the raw data source")
-    interpolation = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
-                             'cubic_spline', 'lanczos', 'average', 'mode',
-                             'gauss', 'max', 'min', 'med', 'q1', 'q3'],   # TODO: gauss is not supported by rasterio
-                            default_value='nearest').tag(attr=True)
-    interpolation_param = tl.Any()
-    no_data_vals = tl.List(allow_none=True)
+    # TODO: which of these get tagged with attr?
+    source = tl.Any(allow_none=False, help='Path to the raw data source')
 
+    # TODO: decide how to handle once we implement Interpolation
+    interpolation = tl.Union([
+        tl.Instance(Interpolator, allow_none=True),
+        tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
+                 'cubic_spline', 'lanczos', 'average', 'mode',
+                 'gauss', 'max', 'min', 'med', 'q1', 'q3']   # TODO: gauss is not supported by rasterio
+               )], default_value='nearest').tag(attr=True)
+
+    coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
+    nan_vals = tl.List(allow_none=True)
     
+    # TODO: remove when we have interpolation spec. This replaces interpolation_param for now.
+    interpolation_tolerance = tl.Instance(np.timedelta64, allow_none=True)
+
     @common_doc(COMMON_DATA_DOC)
     def execute(self, coordinates, output=None, method=None):
-        """Executes this nodes using the supplied coordinates.
+        """Evaluates this node using the supplied coordinates.
         
         Parameters
         ----------
-        coordinates : Coordinate
+        coordinates : podpac.core.coordinate.coordinate.Coordinates
             {evaluated_coordinates}
         output : UnitsDataArray, optional
             {execute_out}
@@ -153,8 +161,8 @@ class DataSource(Node):
         
         # Not empty or exact shortcut
         data_subset, coords_subset = res
-        if self.no_data_vals:
-            for ndv in self.no_data_vals:
+        if self.nan_vals:
+            for ndv in self.nan_vals:
                 data_subset.data[data_subset.data == ndv] = np.nan
         
         # interpolate_data requires self.output to be initialized
@@ -313,7 +321,7 @@ class DataSource(Node):
         # coordinates
         if 'time' in coords_src.dims and 'time' in coords_dst.dims:
             data_src = data_src.reindex(
-                time=coords_dst.coords['time'], method='nearest', tolerance=self.interpolation_param)
+                time=coords_dst.coords['time'], method='nearest', tolerance=self.interpolation_tolerance)
             coords_src._coords['time'] = data_src['time'].data
             if len(coords_dst.dims) == 1:
                 return data_src
