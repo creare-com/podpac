@@ -33,6 +33,15 @@
 * Support cache tiers:
     * respond from "better" tier when possible (e.g. RAM)
     * fall back on "worse" tier (e.g. local disk then s3 or some other networked storage)
+* Support saving "providence" of data with the stored data
+    * For archived data (local disk, s3, database, HDFS) this could be the json pipeline definition and should include:
+        * version of podpac that was used to create it
+        * timestamp when it was created
+        * information about the root datasources (version if they have it)
+        * computational graph definition
+    * For in memory we may not want to be so robust but we may want include:
+        * Timestamp when it was computed/stored (to support expiration)
+        * Possibly information about the function call that created the data (for a cached property). This maybe could be a lambda function wrapping the original function with the original args/kwargs. But would have to be careful about args/kwargs that have state that may have changed. Could we maybe force these to be "static".
 
 # Example Use cases
 1. SMAP data retrieved from NASA servers while serving a request is stored on local disk for future requests.
@@ -74,3 +83,7 @@ TODO: Add developer interface specs
         * Supported key calculations: raw-python objects (obj), hash of obj, str(obj), pickle of obj
     * [Dask](https://dask.pydata.org/en/latest/) Execution manager. Dataframe style computations.
     * [cachey](https://github.com/dask/cachey) Cache that works with Dask. In-memory only. Simple dictionary style interface. Uses formula to compute priority of data abssed on size, use, and time to compute. 
+    * key/value memory caching servises from the database-driven website community:
+        * [memcached](http://memcached.org/) ([wikipedia](https://en.wikipedia.org/wiki/Memcached))
+        * [redis](https://redis.io/) ([wikipedia](https://en.wikipedia.org/wiki/Redis))
+            * [geohash](https://en.wikipedia.org/wiki/Geohash)
