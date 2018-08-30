@@ -570,8 +570,8 @@ class WCS(DataSource):
         This is a little tricky and doesn't fit into the usual PODPAC method, as the service is actually doing the 
         data wrangling for us...
         """
-        if self.evaluated_coordinates:
-            ev = self.evaluated_coordinates
+        if self.requested_coordinates:
+            ev = self.requested_coordinates
             wcs_c = self.wcs_coordinates
             cs = OrderedDict()
             for c in wcs_c.dims:

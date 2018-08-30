@@ -451,12 +451,12 @@ class TestType(object):
 
             # with eval coordinates
             # TODO: use real eval coordinates
-            node.evaluated_coordinates = native_coordinates
+            node.requested_coordinates = native_coordinates
             native_coordinates = node.native_coordinates
 
             assert isinstance(native_coordinates, Coordinate)
             # TODO: one returns monotonic, the other returns uniform
-            # assert native_coordinates == node.evaluated_coordinates
+            # assert native_coordinates == node.requested_coordinates
             assert native_coordinates['lat']
             assert native_coordinates['lon']
             assert native_coordinates['time']

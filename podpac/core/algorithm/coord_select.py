@@ -166,7 +166,7 @@ class ExpandCoordinates(Algorithm):
         Parameters
         ----------
         coordinates : podpac.Coordinate
-            {evaluated_coordinates}
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional

@@ -36,7 +36,7 @@ class Algorithm(Node):
         Parameters
         ----------
         coordinates : podpac.Coordinate
-            {evaluated_coordinates}
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -46,7 +46,7 @@ class Algorithm(Node):
         -------
         {execute_return}
         """
-        self.evaluated_coordinates = coordinates
+        self.requested_coordinates = coordinates
         self.output = output
 
         coords = None
@@ -70,7 +70,7 @@ class Algorithm(Node):
                 self.output = self.initialize_coord_array(coords)
             self.output.data[:] = result
         else:
-            dims = [d for d in self.evaluated_coordinates.dims if d in result.dims]
+            dims = [d for d in self.requested_coordinates.dims if d in result.dims]
             if self.output is None:
                 coords = convert_xarray_to_podpac(result.coords)
                 self.output = self.initialize_coord_array(coords)
@@ -157,7 +157,7 @@ class CoordData(Algorithm):
             The coordinates as data for the requested coordinate.
         """
         coord_name = self.coord_name
-        ec = self.evaluated_coordinates
+        ec = self.requested_coordinates
         if coord_name not in ec.dims:
             raise ValueError('Coordinate name not in evaluated coordinates')
        

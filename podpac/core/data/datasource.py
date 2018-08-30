@@ -162,7 +162,7 @@ class DataSource(Node):
         Parameters
         ----------
         coordinates : podpac.core.coordinate.coordinate.Coordinates
-            {evaluated_coordinates}
+            {requested_coordinates}
         output : podpac.core.units.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -211,8 +211,8 @@ class DataSource(Node):
         if o is not None:
             self.output = o  # should already be self.output
 
-        # set the order of dims to be the same as that of evaluated_coordinates
-        # + the dims that are missing from evaluated_coordinates.
+        # set the order of dims to be the same as that of requested_coordinates
+        # + the dims that are missing from requested_coordinates.
         missing_dims = [dim for dim in self.native_coordinates.dims_map.keys() \
                         if dim not in self.requested_coordinates.dims_map.keys()]
         missing_dims = np.unique([self.native_coordinates.dims_map[md] for md in missing_dims]).tolist()

@@ -90,7 +90,7 @@ class Convolution(Algorithm):
         Parameters
         ----------
         coordinates : podpac.Coordinate
-            {evaluated_coordinates}
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -100,7 +100,7 @@ class Convolution(Algorithm):
         -------
         {execute_return}
         """
-        self.evaluated_coordinates = coordinates
+        self.requested_coordinates = coordinates
         self.output = output
         # This is needed to get the full_kernel
         self.output_coordinates = self.source.get_output_coords(coordinates)

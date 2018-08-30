@@ -248,7 +248,7 @@ class Compositor(Node):
         Parameters
         ----------
         coordinates : podpac.Coordinate
-            {evaluated_coordinates}
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -258,7 +258,7 @@ class Compositor(Node):
         -------
         {execute_return}
         """
-        self.evaluated_coordinates = coordinates
+        self.requested_coordinates = coordinates
         self.output = output
         
         outputs = self.iteroutputs(coordinates, method=method)

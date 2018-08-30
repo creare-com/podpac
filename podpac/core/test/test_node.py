@@ -59,7 +59,7 @@ class TestNodeProperties(object):
         Node().base_ref
         
     def test_latlon_bounds_str(self):
-        n = Node(evaluated_coordinates=Coordinate(lat=(0, 1, 3), lon=(0, 1, 3), order=['lat', 'lon']))
+        n = Node(requested_coordinates=Coordinate(lat=(0, 1, 3), lon=(0, 1, 3), order=['lat', 'lon']))
         assert(n.latlon_bounds_str == '0.0_0.0_x_1.0_1.0')
         
     def test_cache_dir(self):
@@ -123,7 +123,7 @@ class TestNodeMethods(object):
                                           crd.dims)
             np.testing.assert_array_equal(n2.get_output_dims(crd), 
                                           ['alt'])            
-            n3.evaluated_coordinates = crd
+            n3.requested_coordinates = crd
             np.testing.assert_array_equal(n3.get_output_dims(), 
                                           crd.dims)
             assert(n1.get_output_dims(OrderedDict([('lat',0)])) == ['lat'])
@@ -161,8 +161,8 @@ class TestNodeOutputArrayCreation(object):
         np.testing.assert_array_equal(o.shape, self.c1.shape)
         assert(np.all(np.isnan(o)))
 
-    def test_default_output_evaluated_coordinates(self):
-        n = Node(evaluated_coordinates=self.c1)
+    def test_default_output_requested_coordinates(self):
+        n = Node(requested_coordinates=self.c1)
         o = n.output
         np.testing.assert_array_equal(o.shape, self.c1.shape)
         assert(np.all(np.isnan(o)))
@@ -171,10 +171,10 @@ class TestNodeOutputArrayCreation(object):
         n = Node(native_coordinates=self.c1)
         s1 = n.initialize_output_array().shape
         assert((10, 2) == s1)
-        n.evaluated_coordinates = self.c2
+        n.requested_coordinates = self.c2
         s2 = n.initialize_output_array().shape
         assert((15, 2) == s2)
-        n.evaluated_coordinates = self.c2.unstack()
+        n.requested_coordinates = self.c2.unstack()
         s3 = n.initialize_output_array().shape
         assert((15, 15, 2) == s3)
         
@@ -182,10 +182,10 @@ class TestNodeOutputArrayCreation(object):
         n = Node(native_coordinates=self.c1.unstack())
         s1 = n.initialize_output_array().shape
         assert((10, 10, 2) == s1)
-        n.evaluated_coordinates = self.c2
+        n.requested_coordinates = self.c2
         s2 = n.initialize_output_array().shape
         assert((15, 2) == s2)
-        n.evaluated_coordinates = self.c2.unstack()
+        n.requested_coordinates = self.c2.unstack()
         s3 = n.initialize_output_array().shape
         assert((15, 15, 2) == s3)    
         
@@ -226,7 +226,7 @@ class TestFilesAndCaching(object):
         n = Node()
         with pytest.raises(NodeException):
             n.evaluated_hash
-        n.evaluated_coordinates = Coordinate(lat=0)
+        n.requested_coordinates = Coordinate(lat=0)
         n.evaluated_hash
         
     def test_get_output_path(self):
@@ -236,7 +236,7 @@ class TestFilesAndCaching(object):
         
     def test_write_file(self):
         n = Node(native_coordinates=Coordinate(lat=0, lon=1, order=['lat', 'lon']))
-        n.evaluated_coordinates = n.native_coordinates
+        n.requested_coordinates = n.native_coordinates
         fn = 'temp_test'
         p = n.write(fn)
         assert(os.path.exists(p))
@@ -246,7 +246,7 @@ class TestFilesAndCaching(object):
     
     def test_load_file(self):
         n = Node(native_coordinates=Coordinate(lat=0, lon=1, order=['lat', 'lon']))
-        n.evaluated_coordinates = n.native_coordinates
+        n.requested_coordinates = n.native_coordinates
         fn = 'temp_test'
         p = n.write(fn)
         o = n.output
