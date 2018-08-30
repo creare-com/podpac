@@ -133,7 +133,7 @@ class DataSource(Node):
     interpolation_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
     # TODO: include these attributes out here? How else do we document existence?
-    requested_coordinates = tl.Instance(Coordinate)
+    requested_coordinates = tl.Instance(Coordinate, allow_none=True)
     requested_source_coordinates = tl.Instance(Coordinate)
     requested_source_coordinates_index = tl.List()
     requested_source_data = tl.Instance(UnitsDataArray)
