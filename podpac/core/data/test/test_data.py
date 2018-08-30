@@ -201,63 +201,6 @@ class TestDataSource(object):
             assert get_native_coordinates == new_native_coordinates
 
 
-    class TestGetDataSubset(object):
-        """Test Get Data Subset """
-        
-        def test_no_intersect(self):
-            """Test where the requested coordinates have no intersection with the native coordinates """
-            node = MockDataSource()
-            coords = Coordinate(lat=(-30, -27, 5), lon=(-30, -27, 5), order=['lat', 'lon'])
-            data = node.get_data_subset(coords)
-            
-            assert isinstance(data, UnitsDataArray)     # should return a UnitsDataArray
-            assert np.all(np.isnan(data.values))        # all values should be nan
-
-
-        def test_subset(self):
-            """Test the standard operation of get_subset """
-
-            node = MockDataSource()
-            coords = Coordinate(lat=(-25, 0, 50), lon=(-25, 0, 50), order=['lat', 'lon'])
-            data, coords_subset = node.get_data_subset(coords)
-
-            assert isinstance(data, UnitsDataArray)             # should return a UnitsDataArray
-            assert isinstance(coords_subset, Coordinate)        # should return the coordinates subset
-
-            assert not np.all(np.isnan(data.values))            # all values should not be nan
-            assert data.shape == (52, 52)
-            assert np.min(data.lat.values) == -25
-            assert np.max(data.lat.values) == .5
-            assert np.min(data.lon.values) == -25
-            assert np.max(data.lon.values) == 0.5
-
-        def test_interpolate_nearest_preview(self):
-            """test nearest_preview interpolation method. this runs before get_data_subset"""
-
-            # test with same dims as native coords
-            node = MockDataSource(interpolation='nearest_preview')
-            coords = Coordinate(lat=(-25, 0, 20), lon=(-25, 0, 20), order=['lat', 'lon'])
-            data, coords_subset = node.get_data_subset(coords)
-
-            assert data.shape == (18, 18)
-            assert coords_subset.shape == (18, 18)
-
-            # test with different dims and uniform coordinates
-            node = MockDataSource(interpolation='nearest_preview')
-            coords = Coordinate(lat=(-25, 0, 20), order=['lat'])
-            data, coords_subset = node.get_data_subset(coords)
-
-            assert data.shape == (18, 101)
-            assert coords_subset.shape == (18, 101)
-
-            # test with different dims and non uniform coordinates
-            node = MockNonuniformDataSource(interpolation='nearest_preview')
-            coords = Coordinate(lat=[-25, -10, -2], order=['lat'])
-            data, coords_subset = node.get_data_subset(coords)
-
-            assert data.shape == (3, 3)
-            assert coords_subset.shape == (3, 3)
-
 
     class TestExecute(object):
         """Test execute methods"""
@@ -355,18 +298,7 @@ class TestDataSource(object):
             """ test when there is only one data point """
             # TODO: as this is currently written, this would never make it to the interpolater
             
-            source = np.random.rand(1,1)
-            coords_src = Coordinate(lat=[20], lon=[20], order=['lat', 'lon'])
-            coords_dst = Coordinate(lat=[20], lon=[20], order=['lat', 'lon'])
-
-            # TODO: this doesn't work, but I feel like it shold
-            # coords_dst = Coordinate(lat=[21], lon=[21], order=['lat', 'lon'])
-
-            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
-            data, coords_subset = node.get_data_subset(coords_dst)
-            output = node._interpolate_data(data, coords_subset, coords_dst)
-
-            assert isinstance(output, UnitsDataArray)
+            pass
 
         def test_nearest_preview(self):
             """ test interpolation == 'nearest_preview' """

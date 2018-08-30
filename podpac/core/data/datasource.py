@@ -179,7 +179,7 @@ class DataSource(Node):
             if dim not in self.native_coordinates.dims_map.keys():
                 self.requested_coordinates.drop_dims(dim)
 
-        # handle output
+        # initiate/reset output
         self.output = output
 
         # intersect the native coordinates with requested coordinates
@@ -187,7 +187,7 @@ class DataSource(Node):
         self.requested_source_coordinates = self.native_coordinates.intersect(self.requested_coordinates)
         self.requested_source_coordinates_index = self.native_coordinates.intersect(self.requested_coordinates, ind=True)
 
-        # If requested and native coordinates do not intersect, shortcut with nan UnitsDataArary
+        # If requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
         if np.prod(self.requested_source_coordinates.shape) == 0:
             udata_array = self.initialize_coord_array(self.requested_coordinates, init_type='nan')
             if self.output is None:
@@ -206,8 +206,11 @@ class DataSource(Node):
         self.requested_source_data = self._get_data()
 
         # interpolate data into self.output
-        self._interpolate()
-        
+        # TODO: streamline with interpolation methods
+        o = self._interpolate()
+        if o is not None:
+            self.output = o  # should already be self.output
+
         # set the order of dims to be the same as that of evaluated_coordinates
         # + the dims that are missing from evaluated_coordinates.
         missing_dims = [dim for dim in self.native_coordinates.dims_map.keys() \
@@ -258,8 +261,9 @@ class DataSource(Node):
             self.requested_source_coordinates = Coordinate(new_coords)
             self.requested_source_coordinates_index = new_coords_idx
     
+
     def _get_data(self):
-        """Wrapper for `self.get_data`
+        """Wrapper for `self.get_data` with pre and post processing
         
         Returns
         -------
@@ -270,21 +274,24 @@ class DataSource(Node):
         ------
         ValueError
             Raised if unknown data is passed by from self.get_data
+        NotImplementedError
+            Raised if get_data is not implemented by derived classes
+
         """
         # get data from data source at requested source coordinates and requested source coordinates index
         data = self.get_data(self.requested_source_coordinates, self.requested_source_coordinates_index)
 
         # convert data into UnitsDataArray depending on format
-        # TODO: what other processing needs to happen here?
-        if isinstance(data, np.ndarray):
-            udata_array = self.initialize_coord_array(self.requested_source_coordinates, 'data', fillval=data)
+        # TODO: what other processing needs to happen here? 
+        if isinstance(data, UnitsDataArray):
+            udata_array = data
         elif isinstance(data, xr.DataArray):
             # TODO: check order or coordinates here
-            udata_array = self.initialize_coord_array(self.requested_source_coordinates, 'data', fillval=data)
-        elif isinstance(data, UnitsDataArray):
-            udata_array = data
+            udata_array = self.initialize_coord_array(self.requested_coordinates, 'data', fillval=data)
+        elif isinstance(data, np.ndarray):
+            udata_array = self.initialize_coord_array(self.requested_coordinates, 'data', fillval=data)
         else:
-            raise ValueError('Unknown data type passed back from {}.get_data(). '.format(type(self)) +
+            raise ValueError('Unknown data type passed back from {}.get_data(): {}. '.format(type(self).__name__, type(data)) +
                              'Must be one of numpy.ndarray, xarray.DataArray, or podpac.UnitsDataArray')
 
         # fill nan_vals in data array
@@ -341,9 +348,9 @@ class DataSource(Node):
 
         # assign shortnames
         data_src = self.requested_source_data
-        data_dst = self.output
-        coords_dst = self.requested_coordinates
         coords_src = self.requested_source_coordinates
+        coords_dst = self.requested_coordinates
+        data_dst = self.output
         
         # This a big switch, funneling data to various interpolation routines
         if data_src.size == 1 and np.prod(coords_dst.shape) == 1:
