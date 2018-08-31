@@ -221,7 +221,7 @@ class DataSource(Node):
         
         self.evaluated = True
         return self.output
-    
+
     def _interpolate_requested_coordinates(self):
         """
         Interpolate the source coordinates based on the requested coordinates.
@@ -286,7 +286,7 @@ class DataSource(Node):
         if isinstance(data, UnitsDataArray):
             udata_array = data
         elif isinstance(data, xr.DataArray):
-            # TODO: check order or coordinates here
+            # TODO: check order of coordinates here
             udata_array = self.initialize_coord_array(self.requested_coordinates, 'data', fillval=data)
         elif isinstance(data, np.ndarray):
             udata_array = self.initialize_coord_array(self.requested_coordinates, 'data', fillval=data)
