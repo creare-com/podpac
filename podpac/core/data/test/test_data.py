@@ -5,6 +5,7 @@ Test podpac.core.data.datasource module
 import pytest
 
 import numpy as np
+import xarray as xr
 from traitlets import TraitError
 from xarray.core.coordinates import DataArrayCoordinates
 
@@ -63,7 +64,7 @@ class MockNonuniformDataSource(DataSource):
         return d
 
 class MockEmptyDataSource(DataSource):
-    """ Mock Empty Data Source for testing 
+    """ Mock Empty Data Source for testing
         requires passing in source, native_coordinates to work correctly
     """
 
@@ -78,6 +79,40 @@ class MockEmptyDataSource(DataSource):
         s = coordinates_index
         d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
         return d
+
+class MockDataSourceReturnsArray(DataSource):
+    """ Mock Data Source for testing that returns np.ndarray """
+
+    # mock 101 x 101 grid of random values, and some specified values
+    source = DATA
+    native_coordinates = COORDINATES
+
+    def get_native_coordinates(self):
+        """ see DataSource """
+
+        return self.native_coordinates
+
+    def get_data(self, coordinates, coordinates_index):
+        """ returns an np.ndarray from get data"""
+
+        return self.source[coordinates_index]
+
+class MockDataSourceReturnsDataArray(DataSource):
+    """ Mock Data Source for testing returns xarray DataArray """
+
+    # mock 101 x 101 grid of random values, and some specified values
+    source = DATA
+    native_coordinates = COORDINATES
+
+    def get_native_coordinates(self):
+        """ see DataSource """
+
+        return self.native_coordinates
+
+    def get_data(self, coordinates, coordinates_index):
+        """ returns an xr.DataArray """
+
+        return xr.DataArray(self.source[coordinates_index])
 
 ####
 # Tests
@@ -159,18 +194,12 @@ class TestDataSource(object):
             with pytest.raises(TraitError):
                 node = DataSource(source='test', native_coordinates='not a coordinate')
 
-            # define with native_coordinates keyword, but get_native_coordinates will still raise error
-            node = DataSource(source='test',
-                              native_coordinates=Coordinate(lat=(-10, 0, 5), lon=(-10, 0, 5), order=['lat', 'lon']))
-            assert node.native_coordinates
-
-            with pytest.raises(NotImplementedError):
-                node.get_native_coordinates()
-
-            # define with native_coordinates as None in keyword
+            # define with native_coordinates as None in keyword - overrides deault to get_native_coordinates
             node = DataSource(source='test', native_coordinates=None)
             assert node.native_coordinates is None
 
+            with pytest.raises(NotImplementedError):
+                node.get_native_coordinates()
 
         def test_get_native_coordinates(self):
             """by default `native_coordinates` property should map to get_native_coordinates via _native_coordinates_default"""
@@ -200,14 +229,31 @@ class TestDataSource(object):
 
             assert get_native_coordinates == new_native_coordinates
 
+        def test_no_get_native_coordinates(self):
+            """implementing data source class can leave off get_native_coordinates if the user defines them on init"""
+
+            # define without native_coordinates keyword, get_native_coordinates will throw error
+            node = DataSource(source='test')
+            with pytest.raises(NotImplementedError):
+                node.get_native_coordinates()
+
+            # define with native_coordinates keyword, get_native_coordinates will use default
+            node = DataSource(source='test',
+                              native_coordinates=Coordinate(lat=(-10, 0, 5), lon=(-10, 0, 5), order=['lat', 'lon']))
+            
+            with pytest.raises(NotImplementedError):
+                node.get_native_coordinates()
+
+            # TODO: in the future this should have default to pass back native_coordinates
+            # assert node.get_native_coordinates()
 
 
-    class TestExecute(object):
-        """Test execute methods"""
+    class TestEvaluate(object):
+        """Test evaluate methods"""
 
 
         def test_requires_coordinates(self):
-            """execute requires coordinates input"""
+            """evaluate requires coordinates input"""
             
             node = MockDataSource()
             
@@ -215,7 +261,7 @@ class TestDataSource(object):
                 node.execute()
 
         def test_execute_at_native_coordinates(self):
-            """execute node at native coordinates"""
+            """evaluate node at native coordinates"""
 
             node = MockDataSource()
             output = node.execute(node.native_coordinates)
@@ -238,7 +284,7 @@ class TestDataSource(object):
             assert node.evaluated
 
         def test_execute_with_output(self):
-            """execute node at native coordinates passing in output to store in"""
+            """evaluate node at native coordinates passing in output to store in"""
             
             node = MockDataSource()
             output = UnitsDataArray(np.zeros(node.source.shape),
@@ -252,7 +298,7 @@ class TestDataSource(object):
 
 
         def test_execute_with_output_no_overlap(self):
-            """execute node at native coordinates passing output that does not overlap"""
+            """evaluate node at native coordinates passing output that does not overlap"""
             
             node = MockDataSource()
             coords = Coordinate(lat=(-55, -45, 101), lon=(-55, -45, 101), order=['lat', 'lon'])
@@ -265,7 +311,7 @@ class TestDataSource(object):
             assert np.all(np.isnan(output[0, 0]))
 
         def test_remove_dims(self):
-            """execute node with coordinates that have more dims that data source"""
+            """evaluate node with coordinates that have more dims that data source"""
 
             node = MockDataSource()
             coords = Coordinate(lat=(-25, 0, 20), lon=(-25, 0, 20), time=(1, 10, 10), order=['lat', 'lon', 'time'])
@@ -274,7 +320,7 @@ class TestDataSource(object):
             assert output.coords.dims == ('lat', 'lon')  # coordinates of the DataSource, no the evaluated coordinates
 
         def test_no_overlap(self):
-            """execute node with coordinates that do not overlap"""
+            """evaluate node with coordinates that do not overlap"""
 
             node = MockDataSource()
             coords = Coordinate(lat=(-55, -45, 20), lon=(-55, -45, 20), order=['lat', 'lon'])
@@ -283,12 +329,27 @@ class TestDataSource(object):
             assert np.all(np.isnan(output))
         
         def test_nan_vals(self):
-            """ execute note with nan_vals """
+            """ evaluate note with nan_vals """
 
             node = MockDataSource(nan_vals=[10, None])
             output = node.execute(node.native_coordinates)
 
             assert output.values[np.isnan(output)].shape == (2,)
+
+        def test_return_ndarray(self):
+            
+            node = MockDataSourceReturnsArray()
+            output = node.execute(node.native_coordinates)
+
+            assert isinstance(output, UnitsDataArray)
+            assert node.native_coordinates['lat'][4] == output.coords['lat'].values[4]
+
+        def test_return_DataArray(self):
+            node = MockDataSourceReturnsDataArray()
+            output = node.execute(node.native_coordinates)
+
+            assert isinstance(output, UnitsDataArray)
+            assert node.native_coordinates['lat'][4] == output.coords['lat'].values[4]
 
 
     class TestInterpolateData(object):

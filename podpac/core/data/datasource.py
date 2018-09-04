@@ -52,7 +52,7 @@ DATA_DOC = {
         cast the data into a `UnitsDataArray` using the requested source coordinates.
         If a podpac UnitsDataArray is passed back, the :meth:podpac.core.data.datasource.DataSource.evaluate
         method will not do any further processing.
-        The inherited Node method `initialize_coord_array` can be used to generate the template UnitsDataArray 
+        The inherited Node method `initialize_coord_array` can be used to generate the template UnitsDataArray
         in your DataSource.
         See :meth:podpac.core.node.Node.initialize_coord_array for more details.
         
@@ -72,14 +72,25 @@ DATA_DOC = {
             the data will be cast into  UnitsDataArray using the returned data as the fill value
             at the requested source coordinates.
         """,
-        'ds_native_coordinates': 'The coordinates of the data source.',
-        'get_native_coordinates':
-        """This should return a Coordinate object that describes the coordinates of the data source.
+    'ds_native_coordinates': 'The coordinates of the data source.',
+    'get_native_coordinates':
+        """
+        Returns a Coordinate object that describes the native coordinates of the data source.
+
+        In most cases, this method is defined by the data source implementing the DataSource class.
+        If this method is not implemented by the data source, this method will try to return `self.native_coordinates`,
+        if they are defined and are an instance of a Coordinate class.
+        Otherwise, this method will raise a NotImplementedError.
 
         Returns
         --------
         podpac.core.coordinate.Coordinate
            The coordinates describing the data source array.
+
+        Raises
+        --------
+        NotImplementedError
+            Raised if get_native_coordinates is not implemented by data source subclass.
 
         Notes
         ------
@@ -88,7 +99,8 @@ DATA_DOC = {
         - the stacking of the dimension
         - the type of coordinates
 
-        Coordinates should be non-nan and non-repeating for best compatibility"""
+        Coordinates should be non-nan and non-repeating for best compatibility
+        """
     }
 
 COMMON_DATA_DOC = COMMON_NODE_DOC.copy()
@@ -117,6 +129,7 @@ class DataSource(Node):
     
     # TODO: which of these get tagged with attr?
     source = tl.Any(allow_none=False, help='Path to the raw data source')
+    native_coordinates = tl.Instance(Coordinate, allow_none=True)
 
     # TODO: decide how to handle once we implement Interpolation
     interpolation = tl.Union([
@@ -137,6 +150,11 @@ class DataSource(Node):
     requested_source_coordinates = tl.Instance(Coordinate)
     requested_source_coordinates_index = tl.List()
     requested_source_data = tl.Instance(UnitsDataArray)
+
+    # default native_coordinates calls get_native_coordinates
+    @tl.default('native_coordinates')
+    def _native_coordinates_default(self):
+        return self.get_native_coordinates()
 
     @common_doc(COMMON_DATA_DOC)
     def execute(self, coordinates, output=None, method=None):
@@ -275,7 +293,7 @@ class DataSource(Node):
         ValueError
             Raised if unknown data is passed by from self.get_data
         NotImplementedError
-            Raised if get_data is not implemented by derived classes
+            Raised if get_data is not implemented by data source subclass
 
         """
         # get data from data source at requested source coordinates and requested source coordinates index
@@ -324,11 +342,12 @@ class DataSource(Node):
 
         """
 
+        # TODO: This results in a recursive loop in the case of a default
+        # if isinstance(self.native_coordinates, Coordinate):
+        #     return self.native_coordinates
+
         raise NotImplementedError
-    
-    @tl.default('native_coordinates')
-    def _native_coordinates_default(self):
-        return self.get_native_coordinates()
+
     
     def _interpolate(self):
         """Interpolates the source data to the destination using self.interpolation as the interpolation method.
