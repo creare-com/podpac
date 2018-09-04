@@ -129,7 +129,6 @@ class DataSource(Node):
     
     # TODO: which of these get tagged with attr?
     source = tl.Any(allow_none=False, help='Path to the raw data source')
-    native_coordinates = tl.Instance(Coordinate, allow_none=True)
 
     # TODO: decide how to handle once we implement Interpolation
     interpolation = tl.Union([
