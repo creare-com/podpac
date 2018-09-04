@@ -7,6 +7,7 @@ including user defined data sources.
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import warnings
 from copy import deepcopy
 from collections import OrderedDict
 
@@ -63,13 +64,14 @@ DATA_DOC = {
             source
         coordinates_index : List
             A list of slices or a boolean array that give the indices of the data that needs to be retrieved from
-            the data source
+            the data source. The values in the coordinate_index will vary depending on the `coordinate_index_type`
+            defined for the data source.
             
         Returns
         --------
         np.ndarray, xr.DataArray, podpac.core.units.UnitsDataArray
             A subset of the returned data. If a numpy array or xarray DataArray is returned,
-            the data will be cast into  UnitsDataArray using the returned data as the fill value
+            the data will be cast into  UnitsDataArray using the returned data to fill values
             at the requested source coordinates.
         """,
     'ds_native_coordinates': 'The coordinates of the data source.',
@@ -122,6 +124,17 @@ class DataSource(Node):
         The location of the source. Depending on the child node this can be a filepath,
         numpy array, or dictionary as a few examples.
     
+    Members
+    -------
+    requested_coordinates : podpac.core.coordinate.coordinate.Coordinates
+        Coordinates requested by the data source when evalulating a node.
+    requested_source_coordinates : podpac.core.coordinate.coordinate.Coordinates
+        The `requested_coordinates` transformed into the native coordinate system
+    requested_source_coordinates_index : list
+        the index of the requested source coordinates based on `coordinate_index_type`
+    requested_source_data : podpac.core.units.UnitsDataArray
+        the data requested from the data source before being interpolated into self.output
+
     Notes
     -----
     Developers of new DataSource nodes need to implement the `get_data` and `get_native_coordinates` methods.
@@ -155,26 +168,19 @@ class DataSource(Node):
     def _native_coordinates_default(self):
         return self.get_native_coordinates()
 
+
     @common_doc(COMMON_DATA_DOC)
     def execute(self, coordinates, output=None, method=None):
         """Evaluates this node using the supplied coordinates.
 
-        Sets `self.requested_source_coordinates` (Coordinates) to the coordinates
-        that need to get requested from the data source via `get_data`.
-        These coordinates MUST exists exactly in the data source native coordinates.
-        `self.requested_source_coordinates` will be affected by the type of interpolate() class used in request.
-        This method sets `self.requested_source_coordinates_index` based on `coordinate_index_type`
+        The evaluation process start by setting `requested_coordinates` to the supplied input coordinates.
+        The native coordinates are mapped to the requested coordinates, interpolated if necessary, and set
+        to `requested_source_coordinates` with associated index `requested_source_coordinates_index`.
+        The requested souce coordinates and index are passed to `get_data()` returning the source data at
+        the native coordinatesset to `requested_source_data`.
+        Finally `requested_source_data` is interpolated using the `interpolate` method and set to 
+        the `output` attribute of the node.
 
-        Members
-        -------
-        requested_coordinates : podpac.core.coordinate.coordinate.Coordinates
-            Coordinates requested by the data source
-        requested_source_coordinates : podpac.core.coordinate.coordinate.Coordinates
-            The `requested_coordinates` transformed into the native coordinate system
-        requested_source_coordinates_index : list
-            the index of the requested source coordinates based on `coordinate_index_type`
-        requested_source_data : podpac.core.units.UnitsDataArray
-            the data requested from the data source before being interpolated into self.output
 
         Parameters
         ----------
@@ -189,6 +195,13 @@ class DataSource(Node):
         -------
         {execute_return}
         """
+
+        # initial checks
+        if self.coordinate_index_type != 'numpy':
+            warnings.warn('Coordinate index type {} is not yet supported.'.format(self.coordinate_index_type) +
+                          '`coordinate_index_type` is set to `numpy`', UserWarning)
+        
+        # set input coordinates to requested_coordinates
         self.requested_coordinates = deepcopy(coordinates)
 
         # remove dimensions that don't exist in native coordinates
@@ -202,6 +215,8 @@ class DataSource(Node):
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
         self.requested_source_coordinates = self.native_coordinates.intersect(self.requested_coordinates)
+
+        # TODO: support coordinate_index_type parameter to define other index types
         self.requested_source_coordinates_index = self.native_coordinates.intersect(self.requested_coordinates, ind=True)
 
         # If requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
