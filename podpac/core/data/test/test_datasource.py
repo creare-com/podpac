@@ -1,18 +1,20 @@
 """
-Test podpac.core.data.data module
+Test podpac.core.data.datasource module
 """
 
 import pytest
 
 import numpy as np
+import xarray as xr
 from traitlets import TraitError
 from xarray.core.coordinates import DataArrayCoordinates
 
 from podpac.core.units import UnitsDataArray
-from podpac.core.data.data import DataSource, COMMON_DATA_DOC, COMMON_DOC, rasterio
-from podpac.core.data import data
 from podpac.core.node import Style, COMMON_NODE_DOC
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
+from podpac.core.data.types import rasterio
+from podpac.core.data import datasource
 
 ####
 # Mock test fixtures
@@ -68,7 +70,7 @@ class MockNonuniformDataSource(DataSource):
         return d
 
 class MockEmptyDataSource(DataSource):
-    """ Mock Empty Data Source for testing 
+    """ Mock Empty Data Source for testing
         requires passing in source, native_coordinates to work correctly
     """
 
@@ -84,27 +86,61 @@ class MockEmptyDataSource(DataSource):
         d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
         return d
 
+class MockDataSourceReturnsArray(DataSource):
+    """ Mock Data Source for testing that returns np.ndarray """
+
+    # mock 101 x 101 grid of random values, and some specified values
+    source = DATA
+    native_coordinates = COORDINATES
+
+    def get_native_coordinates(self):
+        """ see DataSource """
+
+        return self.native_coordinates
+
+    def get_data(self, coordinates, coordinates_index):
+        """ returns an np.ndarray from get data"""
+
+        return self.source[coordinates_index]
+
+class MockDataSourceReturnsDataArray(DataSource):
+    """ Mock Data Source for testing returns xarray DataArray """
+
+    # mock 101 x 101 grid of random values, and some specified values
+    source = DATA
+    native_coordinates = COORDINATES
+
+    def get_native_coordinates(self):
+        """ see DataSource """
+
+        return self.native_coordinates
+
+    def get_data(self, coordinates, coordinates_index):
+        """ returns an xr.DataArray """
+
+        return xr.DataArray(self.source[coordinates_index])
+
 ####
 # Tests
 ####
 class TestDataSource(object):
-    """Test podpac.core.data.data module"""
+    """Test datasource.py module"""
 
     def test_allow_missing_modules(self):
         """TODO: Allow user to be missing rasterio and scipy"""
         pass
 
     def test_common_doc(self):
-        """Test that all COMMON_DATA_DOC keys make it into the COMMON_DOC and overwrite COMMON_NODE_DOC keys"""
+        """Test that all DATA_DOC keys make it into the COMMON_DATA_DOC and overwrite COMMON_NODE_DOC keys"""
 
-        for key in COMMON_DATA_DOC:
-            assert key in COMMON_DOC and COMMON_DOC[key] == COMMON_DATA_DOC[key]
+        for key in DATA_DOC:
+            assert key in COMMON_DATA_DOC and COMMON_DATA_DOC[key] == DATA_DOC[key]
 
         for key in COMMON_NODE_DOC:
-            if key in COMMON_DATA_DOC:
-                assert key in COMMON_DOC and COMMON_DOC[key] != COMMON_NODE_DOC[key]
+            if key in DATA_DOC:
+                assert key in COMMON_DATA_DOC and COMMON_DATA_DOC[key] != COMMON_NODE_DOC[key]
             else:
-                assert key in COMMON_DOC and COMMON_DOC[key] == COMMON_NODE_DOC[key]
+                assert key in COMMON_DATA_DOC and COMMON_DATA_DOC[key] == COMMON_NODE_DOC[key]
 
     @pytest.mark.skip(reason="traitlets does not currently honor the `allow_none` field")
     def test_traitlets_allow_none(self):
@@ -114,13 +150,14 @@ class TestDataSource(object):
             DataSource(source=None)
 
         with pytest.raises(TraitError):
-            DataSource(no_data_vals=None)
+            DataSource(nan_vals=None)
 
     def test_traitlets_errors(self):
         """ make sure traitlet errors are reased with improper inputs """
 
         with pytest.raises(TraitError):
-            DataSource(interpolation=None)
+            other_class = DataSource(nan_vals=None)
+            DataSource(interpolation=other_class)
 
         with pytest.raises(TraitError):
             DataSource(interpolation='myowninterp')
@@ -157,26 +194,17 @@ class TestDataSource(object):
     class TestNativeCoordinates(object):
         """Test Get Data Subset """
 
-        def test_native_coordinates_trait(self):
+        def test_missing_native_coordinates(self):
             """must be a coordinate or None """
 
             with pytest.raises(TraitError):
                 node = DataSource(source='test', native_coordinates='not a coordinate')
 
-            # define with native_coordinates keyword, but get_native_coordinates will still raise error
-            coords = Coordinates([
-                UniformCoordinates1d(-10, 0, size=5, name='lat'),
-                UniformCoordinates1d(-10, 0, size=5, name='lon')])
-            node = DataSource(source='test', native_coordinates=coords)
-            assert node.native_coordinates
+            node = DataSource(source='test')
+            assert node.native_coordinates is None
 
             with pytest.raises(NotImplementedError):
                 node.get_native_coordinates()
-
-            # define with native_coordinates as None in keyword
-            node = DataSource(source='test', native_coordinates=None)
-            assert node.native_coordinates is None
-
 
         def test_get_native_coordinates(self):
             """by default `native_coordinates` property should map to get_native_coordinates via _native_coordinates_default"""
@@ -208,6 +236,8 @@ class TestDataSource(object):
 
             assert get_native_coordinates == new_native_coordinates
 
+        def test_no_get_native_coordinates(self):
+            """implementing data source class can leave off get_native_coordinates if the user defines them on init"""
 
     class TestGetDataSubset(object):
         """Test Get Data Subset """
@@ -269,16 +299,16 @@ class TestDataSource(object):
             coords = Coordinates(ArrayCoordinates1d([-25, -10, -2], name='lat'))
             data, coords_subset = node.get_data_subset(coords)
 
-            assert data.shape == (3, 3)
-            assert coords_subset.shape == (3, 3)
+            # TODO: in the future this should have default to pass back native_coordinates
+            # assert node.get_native_coordinates()
 
 
-    class TestExecute(object):
-        """Test execute methods"""
+    class TestEvaluate(object):
+        """Test evaluate methods"""
 
 
         def test_requires_coordinates(self):
-            """execute requires coordinates input"""
+            """evaluate requires coordinates input"""
             
             node = MockDataSource()
             
@@ -286,7 +316,7 @@ class TestDataSource(object):
                 node.execute()
 
         def test_execute_at_native_coordinates(self):
-            """execute node at native coordinates"""
+            """evaluate node at native coordinates"""
 
             node = MockDataSource()
             output = node.execute(node.native_coordinates)
@@ -309,7 +339,7 @@ class TestDataSource(object):
             assert node.evaluated
 
         def test_execute_with_output(self):
-            """execute node at native coordinates passing in output to store in"""
+            """evaluate node at native coordinates passing in output to store in"""
             
             node = MockDataSource()
             output = UnitsDataArray(np.zeros(node.source.shape),
@@ -323,7 +353,7 @@ class TestDataSource(object):
 
 
         def test_execute_with_output_no_overlap(self):
-            """execute node at native coordinates passing output that does not overlap"""
+            """evaluate node at native coordinates passing output that does not overlap"""
             
             node = MockDataSource()
             coords = Coordinates([
@@ -338,7 +368,7 @@ class TestDataSource(object):
             assert np.all(np.isnan(output[0, 0]))
 
         def test_remove_dims(self):
-            """execute node with coordinates that have more dims that data source"""
+            """evaluate node with coordinates that have more dims that data source"""
 
             node = MockDataSource()
             coords = Coordinates([
@@ -350,7 +380,7 @@ class TestDataSource(object):
             assert output.coords.dims == ('lat', 'lon')  # coordinates of the DataSource, no the evaluated coordinates
 
         def test_no_overlap(self):
-            """execute node with coordinates that do not overlap"""
+            """evaluate node with coordinates that do not overlap"""
 
             node = MockDataSource()
             coords = Coordinates([
@@ -360,13 +390,28 @@ class TestDataSource(object):
 
             assert np.all(np.isnan(output))
         
-        def test_no_data_vals(self):
-            """ execute note with no_data_vals """
+        def test_nan_vals(self):
+            """ evaluate note with nan_vals """
 
-            node = MockDataSource(no_data_vals=[10, None])
+            node = MockDataSource(nan_vals=[10, None])
             output = node.execute(node.native_coordinates)
 
             assert output.values[np.isnan(output)].shape == (2,)
+
+        def test_return_ndarray(self):
+            
+            node = MockDataSourceReturnsArray()
+            output = node.execute(node.native_coordinates)
+
+            assert isinstance(output, UnitsDataArray)
+            assert node.native_coordinates['lat'][4] == output.coords['lat'].values[4]
+
+        def test_return_DataArray(self):
+            node = MockDataSourceReturnsDataArray()
+            output = node.execute(node.native_coordinates)
+
+            assert isinstance(output, UnitsDataArray)
+            assert node.native_coordinates['lat'][4] == output.coords['lat'].values[4]
 
 
     class TestInterpolateData(object):
@@ -375,29 +420,8 @@ class TestDataSource(object):
         def test_one_data_point(self):
             """ test when there is only one data point """
             # TODO: as this is currently written, this would never make it to the interpolater
+            pass
             
-            source = np.random.rand(1,1)
-            coords_src = Coordinates([ArrayCoordinates1d(20, name='lat'), ArrayCoordinates1d(20, name='lon')])
-            coords_dst = Coordinates([ArrayCoordinates1d(20, name='lat'), ArrayCoordinates1d(20, name='lon')])
-
-            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
-            data, coords_subset = node.get_data_subset(coords_dst)
-            output = node._interpolate_data(data, coords_subset, coords_dst)
-
-            assert isinstance(output, UnitsDataArray)
-
-        @pytest.mark.skip("TODO")
-        def test_one_data_point_mismatch(self):
-            source = np.random.rand(1,1)
-            coords_src = Coordinates([ArrayCoordinates1d(20, name='lat'), ArrayCoordinates1d(20, name='lon')])
-            coords_dst = Coordinates([ArrayCoordinates1d(21, name='lat'), ArrayCoordinates1d(21, name='lon')])
-
-            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
-            data, coords_subset = node.get_data_subset(coords_dst)
-            output = node._interpolate_data(data, coords_subset, coords_dst)
-
-            assert isinstance(output, UnitsDataArray)
-
         def test_nearest_preview(self):
             """ test interpolation == 'nearest_preview' """
             source = np.random.rand(5)
@@ -531,7 +555,7 @@ class TestDataSource(object):
             """ irregular interpolation """
 
             # suppress module to force statement
-            data.rasterio = None
+            datasource.rasterio = None
 
             rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
                                 'lanczos', 'average', 'mode', 'max', 'min',
@@ -557,7 +581,7 @@ class TestDataSource(object):
         def test_interpolate_irregular_arbitrary_2dims(self):
             """ irregular interpolation """
 
-            data.rasterio = None
+            datasource.rasterio = None
 
             # try >2 dims
             source = np.random.rand(5, 5, 3)
@@ -582,7 +606,7 @@ class TestDataSource(object):
         def test_interpolate_irregular_arbitrary_descending(self):
             """should handle descending"""
 
-            data.rasterio = None
+            datasource.rasterio = None
 
             source = np.random.rand(5, 5)
             coords_src = Coordinates([
@@ -603,7 +627,7 @@ class TestDataSource(object):
         def test_interpolate_irregular_arbitrary_swap(self):
             """should handle descending"""
 
-            data.rasterio = None
+            datasource.rasterio = None
 
             source = np.random.rand(5, 5)
             coords_src = Coordinates([
@@ -624,7 +648,7 @@ class TestDataSource(object):
         def test_interpolate_irregular_lat_lon(self):
             """ irregular interpolation """
 
-            data.rasterio = None
+            datasource.rasterio = None
 
             source = np.random.rand(5, 5)
             coords_src = Coordinates([
@@ -648,7 +672,7 @@ class TestDataSource(object):
         def test_interpolate_point(self):
             """ interpolate point data to nearest neighbor with various coords_dst"""
 
-            data.rasterio = None
+            datasource.rasterio = None
 
             source = np.random.rand(5)
             coords_src = Coordinates(

@@ -4,7 +4,7 @@ import pytest
 
 from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
-from podpac.core.data.data import DataSource
+from podpac.core.data.datasource import DataSource
 from podpac.core.algorithm.algorithm import Arange
 from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates
 

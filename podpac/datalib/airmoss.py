@@ -14,7 +14,7 @@ import traitlets as tl
 
 # Internal dependencies
 import podpac
-from podpac.core.data import type as datatype
+from podpac.core.data import types as datatype
 
 class AirMOSS_Source(datatype.PyDAP):
     """Summary
@@ -25,7 +25,7 @@ class AirMOSS_Source(datatype.PyDAP):
         Description
     date_url_re : TYPE
         Description
-    no_data_vals : list
+    nan_vals : list
         Description
     product : TYPE
         Description
@@ -34,7 +34,7 @@ class AirMOSS_Source(datatype.PyDAP):
     product = tl.Enum(['L4RZSM'], default_value='L4RZSM')
     date_url_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}')
     datakey = tl.Unicode(u'sm1')
-    no_data_vals = [-9999.0]
+    nan_vals = [-9999.0]
 
     def get_native_coordinates(self):
         """Summary

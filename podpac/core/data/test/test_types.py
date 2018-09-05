@@ -1,5 +1,5 @@
 """
-Test podpac.core.data.type module
+Test podpac.core.data.types module
 """
 
 import os
@@ -22,38 +22,24 @@ import requests
 
 import podpac.settings
 from podpac.core.units import UnitsDataArray
-from podpac.core.data.data import COMMON_DATA_DOC, DataSource
+from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.type import COMMON_DOC, WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
-from podpac.core.data.type import NumpyArray, PyDAP, RasterioSource, WCS, ReprojectedSource, S3Source
+from podpac.core.data.type import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
-
 
 ####
 # Tests
 ####
 class TestType(object):
-    """Test podpac.core.data.type module"""
+    """Test podpac.core.data.types module"""
 
     def test_allow_missing_modules(self):
         """TODO: Allow user to be missing rasterio and scipy"""
         pass
 
-    def test_common_doc(self):
-        """Test that all COMMON_DATA_DOC keys make it into the COMMON_DOC and overwrite COMMON_NODE_DOC keys"""
-
-        for key in COMMON_DATA_DOC:
-            assert key in COMMON_DOC and COMMON_DOC[key] == COMMON_DATA_DOC[key]
-
-        for key in COMMON_NODE_DOC:
-            assert key in COMMON_DOC
-            if key in COMMON_DATA_DOC:
-                assert COMMON_DOC[key] != COMMON_NODE_DOC[key]
-            else:
-                assert COMMON_DOC[key] == COMMON_NODE_DOC[key]
-
     class TestArray(object):
-        """Test Array datasource class (formerly NumpyArray)"""
+        """Test Array datasource class (formerly Array)"""
 
         data = np.random.rand(11, 11)
         coordinates = Coordinates([
@@ -64,17 +50,17 @@ class TestType(object):
         def test_source_trait(self):
             """ must be an ndarry """
             
-            node = NumpyArray(source=self.data, native_coordinates=self.coordinates)
-            assert isinstance(node, NumpyArray)
+            node = Array(source=self.data, native_coordinates=self.coordinates)
+            assert isinstance(node, Array)
 
             with pytest.raises(TraitError):
-                node = NumpyArray(source=[0, 1, 1], native_coordinates=self.coordinates)
+                node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
 
         def test_get_data(self):
             """ defined get_data function"""
             
             source = self.data
-            node = NumpyArray(source=source, native_coordinates=self.coordinates)
+            node = Array(source=source, native_coordinates=self.coordinates)
             output = node.execute(self.coordinates)
 
             assert isinstance(output, UnitsDataArray)
@@ -84,11 +70,11 @@ class TestType(object):
         def test_native_coordinates(self):
             """test that native coordinates get defined"""
             
-            node = NumpyArray(source=self.data)
+            node = Array(source=self.data)
             with pytest.raises(NotImplementedError):
                 node.get_native_coordinates()
 
-            node = NumpyArray(source=self.data, native_coordinates=self.coordinates)
+            node = Array(source=self.data, native_coordinates=self.coordinates)
             assert node.native_coordinates
 
             # TODO: get rid of this when this returns native_coordinates by default
@@ -241,25 +227,25 @@ class TestType(object):
         def test_init(self):
             """test basic init of class"""
 
-            node = RasterioSource(source=self.source, band=self.band)
-            assert isinstance(node, RasterioSource)
+            node = Rasterio(source=self.source, band=self.band)
+            assert isinstance(node, Rasterio)
 
-            node = MockRasterioSource()
-            assert isinstance(node, MockRasterioSource)
+            node = MockRasterio()
+            assert isinstance(node, MockRasterio)
 
         def test_traits(self):
             """ check each of the rasterio traits """
 
             with pytest.raises(TraitError):
-                RasterioSource(source=5, band=self.band)
+                Rasterio(source=5, band=self.band)
 
             with pytest.raises(TraitError):
-                RasterioSource(source=self.source, band='test')
+                Rasterio(source=self.source, band='test')
 
         def test_dataset(self):
             """test dataset attribute and trait default """
             
-            node = RasterioSource(source=self.source, band=self.band)
+            node = Rasterio(source=self.source, band=self.band)
             try:
                 RasterReader = rasterio._io.RasterReader  # Rasterio < v1.0
             except:
@@ -277,7 +263,7 @@ class TestType(object):
         def test_default_native_coordinates(self):
             """test default native coordinates implementations"""
             
-            node = RasterioSource(source=self.source)
+            node = Rasterio(source=self.source)
             native_coordinates = node.get_native_coordinates()
             assert isinstance(native_coordinates, Coordinates)
             assert len(native_coordinates['lat']) == 718
@@ -285,7 +271,7 @@ class TestType(object):
         def test_get_data(self):
             """test default get_data method"""
 
-            node = RasterioSource(source=self.source)
+            node = Rasterio(source=self.source)
             native_coordinates = node.get_native_coordinates()
             output = node.execute(native_coordinates)
 
@@ -293,25 +279,25 @@ class TestType(object):
 
         def test_band_descriptions(self):
             """test band count method"""
-            node = RasterioSource(source=self.source)
+            node = Rasterio(source=self.source)
             bands = node.band_descriptions
             assert bands and isinstance(bands, OrderedDict)
 
         def test_band_count(self):
             """test band descriptions methods"""
-            node = RasterioSource(source=self.source)
+            node = Rasterio(source=self.source)
             count = node.band_count
             assert count and isinstance(count, int)
 
         def test_band_keys(self):
             """test band keys methods"""
-            node = RasterioSource(source=self.source)
+            node = Rasterio(source=self.source)
             keys = node.band_keys
             assert keys and isinstance(keys, dict)
 
         def test_get_band_numbers(self):
             """test band numbers methods"""
-            node = RasterioSource(source=self.source)
+            node = Rasterio(source=self.source)
             numbers = node.get_band_numbers('STATISTICS_MINIMUM', '0')
             assert isinstance(numbers, np.ndarray)
             np.testing.assert_array_equal(numbers, np.arange(3) + 1)
@@ -319,7 +305,7 @@ class TestType(object):
         def tests_source(self):
             """test source attribute and trailets observe"""
             
-            node = RasterioSource(source=self.source)
+            node = Rasterio(source=self.source)
             assert node.source == self.source
 
             # clear cache when source changes
@@ -406,7 +392,7 @@ class TestType(object):
         def test_get_wcs_coordinates(self):
             """get wcs coordinates"""
 
-            import podpac.core.data.type
+            import podpac.core.data.types
 
             # requests
             self.mock_requests()
@@ -425,7 +411,7 @@ class TestType(object):
                 coordinates = node.wcs_coordinates
 
             # no lxml
-            podpac.core.data.type.lxml = None
+            podpac.core.data.types.lxml = None
             
             self.mock_requests()
             node = WCS(source=self.source)
@@ -437,19 +423,19 @@ class TestType(object):
             assert coordinates['time']
 
             # urllib3
-            podpac.core.data.type.requests = None
+            podpac.core.data.types.requests = None
 
             # no requests, urllib3
-            podpac.core.data.type.urllib3 = None
+            podpac.core.data.types.urllib3 = None
             
             node = WCS(source=self.source)
             with pytest.raises(Exception):
                 node.get_wcs_coordinates()
 
             # put all dependencies back
-            podpac.core.data.type.requests = requests
-            podpac.core.data.type.urllib3 = urllib3
-            podpac.core.data.type.lxml = lxml
+            podpac.core.data.types.requests = requests
+            podpac.core.data.types.urllib3 = urllib3
+            podpac.core.data.types.lxml = lxml
 
         def test_get_native_coordinates(self):
             """get native coordinates"""
@@ -464,12 +450,12 @@ class TestType(object):
 
             # with eval coordinates
             # TODO: use real eval coordinates
-            node.evaluated_coordinates = native_coordinates
+            node.requested_coordinates = native_coordinates
             native_coordinates = node.native_coordinates
 
             assert isinstance(native_coordinates, Coordinates)
             # TODO: one returns monotonic, the other returns uniform
-            # assert native_coordinates == node.evaluated_coordinates
+            # assert native_coordinates == node.requested_coordinates
             assert native_coordinates['lat']
             assert native_coordinates['lon']
             assert native_coordinates['time']
@@ -579,7 +565,7 @@ class TestType(object):
         @pytest.mark.skip('stack_dict')
         def test_get_data(self):
             """test get data from reprojected source"""
-            datanode = NumpyArray(source=self.data, native_coordinates=self.coordinates_source)
+            datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
             node = ReprojectedSource(source=datanode, coordinates_source=datanode)
             output = node.execute(node.native_coordinates)
             assert isinstance(output, UnitsDataArray)
@@ -588,7 +574,7 @@ class TestType(object):
         def test_base_ref(self):
             """test base ref"""
 
-            datanode = NumpyArray(source=self.data, native_coordinates=self.coordinates_source)
+            datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
             node = ReprojectedSource(source=datanode, coordinates_source=datanode)
             ref = node.base_ref
 
@@ -597,7 +583,7 @@ class TestType(object):
         def test_definition(self):
             """test definition"""
 
-            datanode = NumpyArray(source=self.data, native_coordinates=self.coordinates_source)
+            datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
             node = ReprojectedSource(source=datanode, coordinates_source=datanode)
             definition = node.definition
             assert 'attrs' in definition
@@ -608,7 +594,7 @@ class TestType(object):
             with pytest.raises(NotImplementedError):
                 definition = node.definition
 
-class TestS3Source(object):
+class TestS3(object):
     """test S3 data source"""
 
     source = 's3://bucket.aws.com/file'
@@ -621,59 +607,59 @@ class TestS3Source(object):
     def test_init(self):
         """test basic init of class"""
 
-        node = S3Source(source=self.source)
-        assert isinstance(node, S3Source)
+        node = S3(source=self.source)
+        assert isinstance(node, S3)
 
     def test_traits(self):
         """ check each of the s3 traits """
 
-        S3Source(source=self.source, s3_bucket=self.bucket)
+        S3(source=self.source, s3_bucket=self.bucket)
         with pytest.raises(TraitError):
-            S3Source(source=self.source, s3_bucket=5)
+            S3(source=self.source, s3_bucket=5)
 
-        S3Source(source=self.source, node=Node())
+        S3(source=self.source, node=Node())
         with pytest.raises(TraitError):
-            S3Source(source=self.source, node='not a node')
+            S3(source=self.source, node='not a node')
 
-        S3Source(source=self.source, node_kwargs={})
+        S3(source=self.source, node_kwargs={})
         with pytest.raises(TraitError):
-            S3Source(source=self.source, node_kwargs=5)
+            S3(source=self.source, node_kwargs=5)
 
-        S3Source(source=self.source, node_class=DataSource)
+        S3(source=self.source, node_class=DataSource)
         with pytest.raises(TraitError):
-            S3Source(source=self.source, node_class=5)
+            S3(source=self.source, node_class=5)
 
-        S3Source(source=self.source, s3_bucket='testbucket')
+        S3(source=self.source, s3_bucket='testbucket')
         with pytest.raises(TraitError):
-            S3Source(source=self.source, s3_bucket=5)
+            S3(source=self.source, s3_bucket=5)
 
-        S3Source(source=self.source, return_type='path')
+        S3(source=self.source, return_type='path')
         with pytest.raises(TraitError):
-            S3Source(source=self.source, return_type='notpath')
+            S3(source=self.source, return_type='notpath')
 
     def test_node(self):
         """test node attribute and defaults"""
 
         parent_node = Node()
-        node = S3Source(source=self.source, node=parent_node)
+        node = S3(source=self.source, node=parent_node)
 
         assert node.node_class
 
         # TODO: this should raise
         # with pytest.raises(Exception): 
-        #     S3Source(source=self.source, node_kwargs={'source': 'test'})
+        #     S3(source=self.source, node_kwargs={'source': 'test'})
         #     node.node_default
 
     def test_s3_bucket(self):
         """test s3_bucket attribute and default"""
 
-        node = S3Source()
+        node = S3()
 
         # default
         assert node.s3_bucket == podpac.settings.S3_BUCKET_NAME
 
         # set value
-        node = S3Source(s3_bucket=self.bucket)
+        node = S3(s3_bucket=self.bucket)
         assert node.s3_bucket == self.bucket
 
     def test_s3_data(self):
@@ -681,17 +667,17 @@ class TestS3Source(object):
 
         # requires s3 bucket to be set
         with pytest.raises(ValueError):
-            node = S3Source(source=self.source, return_type='file_handle')
+            node = S3(source=self.source, return_type='file_handle')
             node.s3_data
 
         # path
-        node = S3Source(source=self.source, s3_bucket=self.bucket)
+        node = S3(source=self.source, s3_bucket=self.bucket)
         # TODO: figure out how to mock S3 response
         with pytest.raises(botocore.auth.NoCredentialsError):
             node.s3_data
         
         # file handle
-        node = S3Source(source=self.source, s3_bucket=self.bucket, return_type='file_handle')
+        node = S3(source=self.source, s3_bucket=self.bucket, return_type='file_handle')
         # TODO: figure out how to mock S3 response
         with pytest.raises(botocore.auth.NoCredentialsError):
             node.s3_data
@@ -705,7 +691,7 @@ class TestS3Source(object):
 
         # TODO: figure out how to mock S3 response
         with pytest.raises(botocore.auth.NoCredentialsError):
-            node = S3Source(source=self.source, native_coordinates=self.coordinates, s3_bucket=self.bucket)
+            node = S3(source=self.source, native_coordinates=self.coordinates, s3_bucket=self.bucket)
             output = node.execute(self.coordinates)
 
             assert isinstance(output, UnitsDataArray)
@@ -714,20 +700,17 @@ class TestS3Source(object):
         """test destructor"""
 
         # smoke test
-        node = S3Source()
+        node = S3()
         del node
         assert True
 
         # should remove tmp files
         filepath = os.path.join(os.path.dirname(__file__), '.temp')
         open(filepath, 'a').close()
-        node = S3Source()
+        node = S3()
         node._temp_file_cleanup = [filepath]
         del node
         assert ~os.path.exists(filepath)
-
-
-
 
 #####
 # Implemented Data Source Classes
@@ -744,7 +727,7 @@ class MockPyDAP(PyDAP):
         return self.native_coordinates
 
 
-class MockRasterioSource(RasterioSource):
+class MockRasterio(Rasterio):
     """mock rasterio data source """
     
     source = os.path.join(os.path.dirname(__file__), 'assets/RGB.byte.tif')

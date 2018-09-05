@@ -32,10 +32,10 @@ if not hasattr(np, 'isnat'):
 
 # Internal dependencies
 import podpac
-from podpac.core.data import type as datatype
+from podpac.core.data import types as datatype
 from podpac.core import authentication
 from podpac.core.utils import common_doc
-from podpac.core.data.data import COMMON_DATA_DOC
+from podpac.core.data.datasource import COMMON_DATA_DOC
 
 COMMON_DOC = COMMON_DATA_DOC.copy()
 COMMON_DOC.update(
@@ -151,7 +151,7 @@ class SMAPSource(datatype.PyDAP):
         Regular expression used to retrieve date and time from self.source (OpenDAP Url)
     layerkey : str
         Key used to retrieve data from OpenDAP dataset. This specifies the key used to retrieve the data
-    no_data_vals : list
+    nan_vals : list
         List of values that should be treated as no-data (these are replaced by np.nan)
     rootdatakey : str
         String the prepends every or most keys for data in the OpenDAP dataset
@@ -188,7 +188,7 @@ class SMAPSource(datatype.PyDAP):
             product=self.product,
             attr='layerkey').item()
 
-    no_data_vals = [-9999.0]
+    nan_vals = [-9999.0]
 
     @property
     def product(self):
@@ -241,8 +241,8 @@ class SMAPSource(datatype.PyDAP):
         ds = self.dataset
         lons = np.array(ds[self.lonkey][:, :])
         lats = np.array(ds[self.latkey][:, :])
-        lons[lons == self.no_data_vals[0]] = np.nan
-        lats[lats == self.no_data_vals[0]] = np.nan
+        lons[lons == self.nan_vals[0]] = np.nan
+        lats[lats == self.nan_vals[0]] = np.nan
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
         coords = podpac.Coordinate(lat=lats, lon=lons, time=np.array(times),
@@ -353,8 +353,8 @@ class SMAPProperties(SMAPSource):
         ds = self.dataset
         lons = np.array(ds[self.lonkey][:, :])
         lats = np.array(ds[self.latkey][:, :])
-        lons[lons == self.no_data_vals[0]] = np.nan
-        lats[lats == self.no_data_vals[0]] = np.nan
+        lons[lons == self.nan_vals[0]] = np.nan
+        lats[lats == self.nan_vals[0]] = np.nan
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
         coords = podpac.Coordinate(lat=lats, lon=lons,
@@ -486,7 +486,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
             tol = np.timedelta64(1, dtype=(tol.dtype))
 
         src_objs = np.array([SMAPSource(source=b + s,
-                                        interpolation_param=tol,
+                                        interpolation_tolerance=tol,
                                         auth_session=self.auth_session,
                                         layerkey=self.layerkey)
                              for s in sources])

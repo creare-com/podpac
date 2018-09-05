@@ -183,7 +183,7 @@ class Reduce(Algorithm):
         Parameters
         ----------
         coordinates : podpac.Coordinates
-            {evaluated_coordinates}
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -196,13 +196,13 @@ class Reduce(Algorithm):
         self.input_coordinates = coordinates
         self.output = output
         
-        self.evaluated_coordinates = coordinates
+        self.requested_coordinates = coordinates
         test_out = self.get_output_coords(coords=coordinates)
         self.dims = self.get_dims(test_out)
  
-        self.evaluated_coordinates = self.evaluated_coordinates.drop(self.dims)
+        self.requested_coordinates = self.evaluated_coordinates.drop(self.dims)
         if self.output is None:
-            self.output = self.initialize_coord_array(self.evaluated_coordinates)
+            self.output = self.initialize_coord_array(self.requested_coordinates)
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
             result = self.reduce_chunked(self.iteroutputs(method), method)
@@ -211,7 +211,7 @@ class Reduce(Algorithm):
                 self.source.execute(coordinates, method=method)
             result = self.reduce(self.source.output)
 
-        if self.output.shape is (): # or self.evaluated_coordinates is None
+        if self.output.shape is (): # or self.requested_coordinates is None
             self.output.data = result
         else:
             self.output[:] = result #.transpose(*self.output.dims) # is this necessary?
@@ -832,11 +832,11 @@ class Reduce2(Reduce):
             Reduced output.
         """
         # special case for full reduce
-        if not self.evaluated_coordinates.dims:
+        if not self.requested_coordinates.dims:
             xslc, x = next(xs)
             return self.reduce(x)
 
-        I = [self.input_coordinates.dims.index(dim) for dim in self.evaluated_coordinates.dims]
+        I = [self.input_coordinates.dims.index(dim) for dim in self.requested_coordinates.dims]
         y = xr.full_like(self.output, np.nan)
         for xslc, x in xs:
             yslc = [xslc[i] for i in I]
@@ -949,7 +949,7 @@ class GroupReduce(Algorithm):
         """
         # intersect grouped time coordinates using groupby DatetimeAccessor
         native_time = xr.DataArray(self.native_coordinates.coords['time'])
-        eval_time = xr.DataArray(self.evaluated_coordinates.coords['time'])
+        eval_time = xr.DataArray(self.requested_coordinates.coords['time'])
         N = getattr(native_time.dt, self.groupby)
         E = getattr(eval_time.dt, self.groupby)
         native_time_mask = np.in1d(N, E)
@@ -957,8 +957,8 @@ class GroupReduce(Algorithm):
         # use requested spatial coordinates and filtered native times
         coords = Coordinates(
             time=native_time.data[native_time_mask],
-            lat=self.evaluated_coordinates['lat'],
-            lon=self.evaluated_coordinates['lon'],
+            lat=self.requested_coordinates['lat'],
+            lon=self.requested_coordinates['lon'],
             order=('time', 'lat', 'lon'))
 
         return coords
@@ -970,7 +970,7 @@ class GroupReduce(Algorithm):
         Parameters
         ----------
         coordinates : podpac.Coordinates
-            {evaluated_coordinates}
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -985,7 +985,7 @@ class GroupReduce(Algorithm):
         ValueError
             If source it not time-depended (required by this node).
         """
-        self.evaluated_coordinates = coordinates
+        self.requested_coordinates = coordinates
         self.output = output
 
         if self.output is None:
@@ -1008,7 +1008,7 @@ class GroupReduce(Algorithm):
             out = getattr(grouped, self.reduce_fn)('time')
 
         # map
-        eval_time = xr.DataArray(self.evaluated_coordinates.coords['time'])
+        eval_time = xr.DataArray(self.requested_coordinates.coords['time'])
         E = getattr(eval_time.dt, self.groupby)
         out = out.sel(**{self.groupby:E}).rename({self.groupby: 'time'})
         self.output[:] = out.transpose(*self.output.dims).data

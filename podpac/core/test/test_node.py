@@ -77,7 +77,7 @@ class TestNodeProperties(object):
     def test_latlon_bounds_str(self):
         lat = UniformCoordinates1d(0, 1, size=3, name='lat')
         lon = UniformCoordinates1d(0, 1, size=3, name='lon')
-        n = Node(evaluated_coordinates=Coordinates([lat, lon]))
+        n = Node(requested_coordinates=Coordinates([lat, lon]))
         assert(n.latlon_bounds_str == '0.0_0.0_x_1.0_1.0')
         
     def test_cache_dir(self):
@@ -190,8 +190,8 @@ class TestNodeOutputArrayCreation(object):
         np.testing.assert_array_equal(o.shape, self.c1.shape)
         assert(np.all(np.isnan(o)))
 
-    def test_default_output_evaluated_coordinates(self):
-        n = Node(evaluated_coordinates=self.c1)
+    def test_default_output_requested_coordinates(self):
+        n = Node(requested_coordinates=self.c1)
         o = n.output
         np.testing.assert_array_equal(o.shape, self.c1.shape)
         assert(np.all(np.isnan(o)))
@@ -200,10 +200,10 @@ class TestNodeOutputArrayCreation(object):
         n = Node(native_coordinates=self.c1)
         s1 = n.initialize_output_array().shape
         assert((10, 2) == s1)
-        n.evaluated_coordinates = self.c2
+        n.requested_coordinates = self.c2
         s2 = n.initialize_output_array().shape
         assert((15, 2) == s2)
-        n.evaluated_coordinates = self.c2.unstack()
+        n.requested_coordinates = self.c2.unstack()
         s3 = n.initialize_output_array().shape
         assert((15, 15, 2) == s3)
         
@@ -211,10 +211,10 @@ class TestNodeOutputArrayCreation(object):
         n = Node(native_coordinates=self.c1.unstack())
         s1 = n.initialize_output_array().shape
         assert((10, 10, 2) == s1)
-        n.evaluated_coordinates = self.c2
+        n.requested_coordinates = self.c2
         s2 = n.initialize_output_array().shape
         assert((15, 2) == s2)
-        n.evaluated_coordinates = self.c2.unstack()
+        n.requested_coordinates = self.c2.unstack()
         s3 = n.initialize_output_array().shape
         assert((15, 15, 2) == s3)    
         
@@ -255,7 +255,7 @@ class TestFilesAndCaching(object):
         n = Node()
         with pytest.raises(NodeException):
             n.evaluated_hash
-        n.evaluated_coordinates = Coordinates(ArrayCoordinates1d(0, name='lat'))
+        n.requested_coordinates = Coordinates(ArrayCoordinates1d(0, name='lat'))
         n.evaluated_hash
         
     def test_get_output_path(self):
@@ -264,10 +264,10 @@ class TestFilesAndCaching(object):
         assert(os.path.exists(os.path.dirname(p)))
         
     @pytest.mark.skip('get_output_coords, replace_coords')
-    def test_write_file(self):
+    dfef test_write_file(self):
         nc = Coordinates([ArrayCoordinates1d(0, name='lat'), ArrayCoordinates1d(1, name='lon')])
         n = Node(native_coordinates=nc)
-        n.evaluated_coordinates = n.native_coordinates
+        n.requested_coordinates = n.native_coordinates
         fn = 'temp_test'
         p = n.write(fn)
         assert(os.path.exists(p))
@@ -279,7 +279,7 @@ class TestFilesAndCaching(object):
     def test_load_file(self):
         nc = Coordinates([ArrayCoordinates1d(0, name='lat'), ArrayCoordinates1d(1, name='lon')])
         n = Node(native_coordinates=nc)
-        n.evaluated_coordinates = n.native_coordinates
+        n.requested_coordinates = n.native_coordinates
         fn = 'temp_test'
         p = n.write(fn)
         o = n.output

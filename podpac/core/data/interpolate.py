@@ -1,4 +1,5 @@
-"""Summary
+"""
+Interpolation handling
 
 Attributes
 ----------
@@ -25,7 +26,7 @@ try:
     from scipy.spatial import KDTree
 except:
     scipy = None
-    
+
 from podpac.core.coordinates import Coordinates
 
 class InterpolationException(Exception):
@@ -60,6 +61,11 @@ class Interpolator(tl.HasTraits):
     valid_interpolations : TYPE
     Description
     """
+
+    method = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
+                         'cubic_spline', 'lanczos', 'average', 'mode',
+                         'gauss', 'max', 'min', 'med', 'q1', 'q3'],   # TODO: gauss is not supported by rasterio
+                        default_value='nearest').tag(attr=True)
     
     eval_coords = tl.Instance(Coordinates)
     source_coords = tl.Instance(Coordinates)

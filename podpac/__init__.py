@@ -23,7 +23,7 @@ from podpac.core.algorithm.stats import (
 from podpac.core.algorithm.coord_select import ExpandCoordinates
 from podpac.core.algorithm.signal import (
     Convolution, SpatialConvolution, TimeConvolution)
-from podpac.core.data.data import DataSource
+from podpac.core.data.datasource import DataSource
 from podpac.core.compositor import Compositor, OrderedCompositor
 from podpac.core.pipeline import Pipeline, PipelineError
 

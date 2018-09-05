@@ -36,7 +36,7 @@ from podpac.core.coordinates import Coordinates
 COMMON_NODE_DOC = {
     'native_coordinates': 
         '''The native set of coordinates for a node. This attribute may be `None` for some nodes.''',
-    'evaluated_coordinates': 
+    'requested_coordinates': 
         '''The set of coordinates requested by a user. The Node will be executed using these coordinates.''',
     'execute_out': 
         '''Default is None. Optional input array used to store the output data. When supplied, the node will not 
@@ -136,8 +136,8 @@ class Node(tl.HasTraits):
         The numpy datatype of the output. Currently only `float` is supported.
     evaluated : Bool
         Flag indicating if the node has been evaluated.
-    evaluated_coordinates : Coordinates
-        {evaluated_coordinates}
+    requested_coordinates : podpac.Coordinates
+        {requested_coordinates}
         This attribute stores the coordinates that were last used to evaluate the node.
     implicit_pipeline_evaluation : Bool
         Flag indicating if nodes as part of a pipeline should be automatically evaluated when
@@ -157,17 +157,17 @@ class Node(tl.HasTraits):
         The interpolation type to use for the node. Not all nodes use this attribute.
     """
 
-    output = tl.Instance(UnitsDataArray, allow_none=True, default_value=None)
+    output = tl.Instance(UnitsDataArray, allow_none=True)
     @tl.default('output')
     def _output_default(self):
         return self.initialize_output_array('nan')
 
-    native_coordinates = tl.Instance(Coordinates, allow_none=True, default=None)
+    native_coordinates = tl.Instance(Coordinates, allow_none=True)
     evaluated = tl.Bool(default_value=False)
-    implicit_pipeline_evaluation = tl.Bool(default_value=True, help="Evaluate the pipeline implicitly (True, Default)")
-    evaluated_coordinates = tl.Instance(Coordinates, allow_none=True)
+    implicit_pipeline_evaluation = tl.Bool(default_value=True)
+    requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     units = Units(default_value=None, allow_none=True)
-    dtype = tl.Any(default_value=float)
+    dtype = tl.Any(default_value=float) # TODO JXM
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
     node_defaults = tl.Dict(allow_none=True)
     interpolation = tl.Unicode('')
@@ -230,7 +230,7 @@ class Node(tl.HasTraits):
         Parameters
         ----------
         coordinates : podpac.Coordinates
-            {evaluated_coordinates}
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -250,7 +250,7 @@ class Node(tl.HasTraits):
         Parameters
         ----------
         coords : podpac.Coordinates, optional
-            Requested coordinates that help determine the coordinates of the output. Uses self.evaluated_coordinates if 
+            Requested coordinates that help determine the coordinates of the output. Uses self.requested_coordinates if 
             not supplied.
 
         Returns
@@ -261,7 +261,7 @@ class Node(tl.HasTraits):
 
         # Changes here likely will also require changes in shape
         if coords is None:
-            coords = self.evaluated_coordinates
+            coords = self.requested_coordinates
 
         if coords is None:
             coords = Coordinates()
@@ -570,7 +570,7 @@ class Node(tl.HasTraits):
         Parameters
         ----------
         coordinates : None, optional
-            {evaluated_coordinates}
+            {requested_coordinates}
 
         Returns
         -------
@@ -595,10 +595,10 @@ class Node(tl.HasTraits):
         NodeException
             Gets raised if node has not been evaluated
         """
-        if self.evaluated_coordinates is None:
+        if self.requested_coordinates is None:
             raise NodeException("node not evaluated")
 
-        return self.get_hash(self.evaluated_coordinates)
+        return self.get_hash(self.requested_coordinates)
 
     @property
     def latlon_bounds_str(self):
@@ -609,7 +609,7 @@ class Node(tl.HasTraits):
         str
             String containing the latitude/longitude bounds of a set of coordinates
         """
-        return self.evaluated_coordinates.latlon_bounds_str
+        return self.requested_coordinates.latlon_bounds_str
 
 
     def get_output_path(self, filename, outdir=None):
@@ -683,7 +683,7 @@ class Node(tl.HasTraits):
         name : str
             Name of the file prefix.
         coordinates : podpac.Coordinates
-            {evaluated_coordinates}
+            {requested_coordinates}
         outdir : str, optional
             {outdir}
             
