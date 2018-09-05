@@ -1,10 +1,10 @@
 """
 Utilities functions for handling podpac coordinates.
 
-.. testsetup:: podpac.core.coordinate.util
+.. testsetup:: podpac.core.coordinates.utils
     
     import numpy as np
-    from podpac.core.coordinate.util import *
+    from podpac.core.coordinates.util import *
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
@@ -35,7 +35,7 @@ def get_timedelta(s):
     Examples
     --------
 
-    .. doctest:: podpac.core.coordinate.util
+    .. doctest:: podpac.core.coordinates.utils
 
         >>> get_timedelta('2,D')
         numpy.timedelta64(2,'D')
@@ -65,7 +65,7 @@ def get_timedelta_unit(delta):
     Examples
     --------
     
-    .. doctest:: podpac.core.coordinate.util
+    .. doctest:: podpac.core.coordinates.utils
 
         >>> get_timedelta_unit(np.timedelta64(1, 'D'))
         'D'
@@ -102,7 +102,7 @@ def make_timedelta_string(delta):
     Examples
     --------
     
-    .. doctest:: podpac.core.coordinate.util
+    .. doctest:: podpac.core.coordinates.utils
 
         >>> make_timedelta_string(np.timedelta64(2, 'D'))
         '2,D'
@@ -286,7 +286,7 @@ def add_coord(base, delta):
     Examples
     --------
     
-    .. doctest:: podpac.core.coordinate.util
+    .. doctest:: podpac.core.coordinates.utils
 
         >>> add_coord(1.5, 1.0)
         2.5
@@ -353,3 +353,8 @@ def _replace_safe(dt, year=None, month=None):
     month = (month-1) % 12 + 1
     day = min(dt.day, calendar.monthrange(year, month)[1])
     return dt.replace(year=year, month=month, day=day)
+
+GDAL_CRS = {
+    'WGS84': 'EPSG:4326',
+    'SPHER_MERC': 'EPSG:3857'
+}
