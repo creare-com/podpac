@@ -14,7 +14,7 @@ import scipy.stats
 import traitlets as tl
 from six import string_types
 
-from podpac.core.coordinates import Coordinate
+from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc
@@ -33,13 +33,13 @@ class Reduce(Algorithm):
     ----------
     dims : list
         List of strings that give the dimensions which should be reduced
-    input_coordinates : podpac.Coordinate
+    input_coordinates : podpac.Coordinates
         The input coordinates before reduction
     source : podpac.Node
         The source node that will be reduced. 
     """
     
-    input_coordinates = tl.Instance(Coordinate)
+    input_coordinates = tl.Instance(Coordinates)
     source = tl.Instance(Node)
 
     dims = tl.List().tag(attr=True)
@@ -93,30 +93,6 @@ class Reduce(Algorithm):
         """
         axes = [i for i in range(len(output.dims)) if output.dims[i] in self.dims]
         return axes
-
-    def get_reduced_coordinates(self):
-        """Returns the coordinates with the reduced dimensions removed
-        
-        Returns
-        -------
-        podpac.Coordinate
-            Reduced coordinates
-        """
-        coordinates = self.input_coordinates
-        dims = self.dims
-        kwargs = {}
-        order = []
-        for dim in coordinates.dims:
-            if dim in self.dims:
-                continue
-            
-            kwargs[dim] = coordinates[dim]
-            order.append(dim)
-        
-        if order:
-            kwargs['order'] = order
-
-        return Coordinate(**kwargs)
 
     @property
     def chunk_size(self):
@@ -206,7 +182,7 @@ class Reduce(Algorithm):
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
+        coordinates : podpac.Coordinates
             {evaluated_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
@@ -224,7 +200,7 @@ class Reduce(Algorithm):
         test_out = self.get_output_coords(coords=coordinates)
         self.dims = self.get_dims(test_out)
  
-        self.evaluated_coordinates = self.get_reduced_coordinates()
+        self.evaluated_coordinates = self.evaluated_coordinates.drop(self.dims)
         if self.output is None:
             self.output = self.initialize_coord_array(self.evaluated_coordinates)
 
@@ -788,7 +764,7 @@ class Reduce2(Reduce):
     The base Reduce node ensures that each chunk is at least as big as the
     reduced output, which works for statistics that can be calculated in O(1)
     space. For statistics that require O(n) space, the node must iterate
-    through the Coordinate orthogonally to the reduce dimension, using chunks
+    through the Coordinates orthogonally to the reduce dimension, using chunks
     that only cover a portion of the output array.
     
     Note that the above nodes *could* be implemented to allow small chunks.
@@ -979,7 +955,7 @@ class GroupReduce(Algorithm):
         native_time_mask = np.in1d(N, E)
 
         # use requested spatial coordinates and filtered native times
-        coords = Coordinate(
+        coords = Coordinates(
             time=native_time.data[native_time_mask],
             lat=self.evaluated_coordinates['lat'],
             lon=self.evaluated_coordinates['lon'],
@@ -993,7 +969,7 @@ class GroupReduce(Algorithm):
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
+        coordinates : podpac.Coordinates
             {evaluated_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}

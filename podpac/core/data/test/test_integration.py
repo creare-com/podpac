@@ -9,7 +9,7 @@ import pytest
 import boto3
 
 import podpac
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinates import Coordinates
 from podpac.core.data.type import NumpyArray, S3Source, ReprojectedSource, WCS
 # from podpac.datalib.smap import SMAPSentinelSource
 

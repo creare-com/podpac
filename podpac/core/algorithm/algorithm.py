@@ -14,7 +14,7 @@ try:
 except: 
     ne = None
 
-from podpac.core.coordinates import Coordinate, convert_xarray_to_podpac
+from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.utils import common_doc
@@ -35,7 +35,7 @@ class Algorithm(Node):
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
+        coordinates : Coordinates
             {evaluated_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
@@ -57,10 +57,9 @@ class Algorithm(Node):
                     node.execute(coordinates, method)
                 # accumulate coordinates
                 if coords is None:
-                    coords = convert_xarray_to_podpac(node.output.coords)
+                    coords = Coordinates.from_xarray(node.output.coords)
                 else:
-                    coords = coords.add_unique(
-                        convert_xarray_to_podpac(node.output.coords))
+                    coords = coords.add_unique(Coordinates.from_xaray(node.output.coords))
         if coords is None:
             coords = coordinates
 
@@ -72,7 +71,7 @@ class Algorithm(Node):
         else:
             dims = [d for d in self.evaluated_coordinates.dims if d in result.dims]
             if self.output is None:
-                coords = convert_xarray_to_podpac(result.coords)
+                coords = Coordinates.from_xarray(result.coords)
                 self.output = self.initialize_coord_array(coords)
             self.output[:] = result
             self.output = self.output.transpose(*dims) # split into 2nd line to avoid broadcasting issues with slice [:]
@@ -158,13 +157,12 @@ class CoordData(Algorithm):
         """
         coord_name = self.coord_name
         ec = self.evaluated_coordinates
-        if coord_name not in ec.dims:
+        if coord_name not in ec.udims:
             raise ValueError('Coordinate name not in evaluated coordinates')
        
         c = ec[coord_name]
-        data = c.coordinates
-        coords = Coordinate(order=[coord_name], **{coord_name: c})
-        return self.initialize_coord_array(coords, init_type='data', fillval=data)
+        coords = Coordinates([c])
+        return self.initialize_coord_array(coords, init_type='data', fillval=c.coordinates)
 
 
 class SinCoords(Algorithm):

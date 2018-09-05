@@ -12,14 +12,18 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.data.data import DataSource, COMMON_DATA_DOC, COMMON_DOC, rasterio
 from podpac.core.data import data
 from podpac.core.node import Style, COMMON_NODE_DOC
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 
 ####
 # Mock test fixtures
 ####
 
+
 DATA = np.random.rand(101, 101)
-COORDINATES = Coordinate(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
+COORDINATES = Coordinates([
+    UniformCoordinates1d(-25, 25, size=101, name='lat'),
+    UniformCoordinates1d(-25, 25, size=101, name='lon')
+])
 
 class MockDataSource(DataSource):
     """ Mock Data Source for testing """
@@ -49,7 +53,9 @@ class MockNonuniformDataSource(DataSource):
 
     # mock 3 x 3 grid of random values
     source = np.random.rand(3, 3)
-    native_coordinates = Coordinate(lat=[-10, -2, -1], lon=[4, 32, 1], order=['lat', 'lon'])
+    native_coordinates = Coordinates([
+        ArrayCoordinates1d([-10, -2, -1], name='lat'),
+        ArrayCoordinates1d([4, 32, 1], name='lon')])
 
     def get_native_coordinates(self):
         """ """
@@ -158,8 +164,10 @@ class TestDataSource(object):
                 node = DataSource(source='test', native_coordinates='not a coordinate')
 
             # define with native_coordinates keyword, but get_native_coordinates will still raise error
-            node = DataSource(source='test',
-                              native_coordinates=Coordinate(lat=(-10, 0, 5), lon=(-10, 0, 5), order=['lat', 'lon']))
+            coords = Coordinates([
+                UniformCoordinates1d(-10, 0, size=5, name='lat'),
+                UniformCoordinates1d(-10, 0, size=5, name='lon')])
+            node = DataSource(source='test', native_coordinates=coords)
             assert node.native_coordinates
 
             with pytest.raises(NotImplementedError):
@@ -192,7 +200,9 @@ class TestDataSource(object):
             # with pytest.raises(TraitError):
             #     node.native_coordinates = 'not a coordinate'
 
-            new_native_coordinates = Coordinate(lat=(-10, 0, 5), lon=(-10, 0, 5), order=['lat', 'lon'])
+            new_native_coordinates = Coordinates([
+                UniformCoordinates1d(-10, 0, size=5, name='lat'),
+                UniformCoordinates1d(-10, 0, size=5, name='lon')])
             node.native_coordinates = new_native_coordinates
             get_native_coordinates = node.get_native_coordinates()
 
@@ -202,25 +212,29 @@ class TestDataSource(object):
     class TestGetDataSubset(object):
         """Test Get Data Subset """
         
-        def test_no_intersect(self):
-            """Test where the requested coordinates have no intersection with the native coordinates """
-            node = MockDataSource()
-            coords = Coordinate(lat=(-30, -27, 5), lon=(-30, -27, 5), order=['lat', 'lon'])
-            data = node.get_data_subset(coords)
+        # def test_no_intersect(self):
+        #     """Test where the requested coordinates have no intersection with the native coordinates """
+        #     node = MockDataSource()
+        #     coords = Coordinates([
+        #         UniformCoordinates1d(-30, -27, size=5, name='lat'),
+        #         UniformCoordinates1d(-30, -27, size=5, name='lon')])
+        #     data = node.get_data_subset(coords)
             
-            assert isinstance(data, UnitsDataArray)     # should return a UnitsDataArray
-            assert np.all(np.isnan(data.values))        # all values should be nan
+        #     assert isinstance(data, UnitsDataArray)     # should return a UnitsDataArray
+        #     assert np.all(np.isnan(data.values))        # all values should be nan
 
 
         def test_subset(self):
             """Test the standard operation of get_subset """
 
             node = MockDataSource()
-            coords = Coordinate(lat=(-25, 0, 50), lon=(-25, 0, 50), order=['lat', 'lon'])
+            coords = Coordinates([
+                UniformCoordinates1d(-25, 0, size=50, name='lat'),
+                UniformCoordinates1d(-25, 0, size=50, name='lon')])
             data, coords_subset = node.get_data_subset(coords)
 
             assert isinstance(data, UnitsDataArray)             # should return a UnitsDataArray
-            assert isinstance(coords_subset, Coordinate)        # should return the coordinates subset
+            assert isinstance(coords_subset, Coordinates)       # should return the coordinates subset
 
             assert not np.all(np.isnan(data.values))            # all values should not be nan
             assert data.shape == (52, 52)
@@ -234,7 +248,9 @@ class TestDataSource(object):
 
             # test with same dims as native coords
             node = MockDataSource(interpolation='nearest_preview')
-            coords = Coordinate(lat=(-25, 0, 20), lon=(-25, 0, 20), order=['lat', 'lon'])
+            coords = Coordinates([
+                UniformCoordinates1d(-25, 0, size=20, name='lat'),
+                UniformCoordinates1d(-25, 0, size=20, name='lon')])
             data, coords_subset = node.get_data_subset(coords)
 
             assert data.shape == (18, 18)
@@ -242,7 +258,7 @@ class TestDataSource(object):
 
             # test with different dims and uniform coordinates
             node = MockDataSource(interpolation='nearest_preview')
-            coords = Coordinate(lat=(-25, 0, 20), order=['lat'])
+            coords = Coordinates(UniformCoordinates1d(-25, 0, size=20, name='lat'))
             data, coords_subset = node.get_data_subset(coords)
 
             assert data.shape == (18, 101)
@@ -250,7 +266,7 @@ class TestDataSource(object):
 
             # test with different dims and non uniform coordinates
             node = MockNonuniformDataSource(interpolation='nearest_preview')
-            coords = Coordinate(lat=[-25, -10, -2], order=['lat'])
+            coords = Coordinates(ArrayCoordinates1d([-25, -10, -2], name='lat'))
             data, coords_subset = node.get_data_subset(coords)
 
             assert data.shape == (3, 3)
@@ -310,7 +326,9 @@ class TestDataSource(object):
             """execute node at native coordinates passing output that does not overlap"""
             
             node = MockDataSource()
-            coords = Coordinate(lat=(-55, -45, 101), lon=(-55, -45, 101), order=['lat', 'lon'])
+            coords = Coordinates([
+                UniformCoordinates1d(-55, -45, size=101, name='lat'),
+                UniformCoordinates1d(-55, -45, size=101, name='lon')])
             data = np.zeros(node.source.shape)
             output = UnitsDataArray(data, coords=coords.coords, dims=coords.dims)
             node.execute(coords, output=output)
@@ -323,7 +341,10 @@ class TestDataSource(object):
             """execute node with coordinates that have more dims that data source"""
 
             node = MockDataSource()
-            coords = Coordinate(lat=(-25, 0, 20), lon=(-25, 0, 20), time=(1, 10, 10), order=['lat', 'lon', 'time'])
+            coords = Coordinates([
+                UniformCoordinates1d(-25, 0, size=20, name='lat'),
+                UniformCoordinates1d(-25, 0, size=20, name='lon'),
+                UniformCoordinates1d(1, 10, size=10, name='time')])
             output = node.execute(coords)
 
             assert output.coords.dims == ('lat', 'lon')  # coordinates of the DataSource, no the evaluated coordinates
@@ -332,7 +353,9 @@ class TestDataSource(object):
             """execute node with coordinates that do not overlap"""
 
             node = MockDataSource()
-            coords = Coordinate(lat=(-55, -45, 20), lon=(-55, -45, 20), order=['lat', 'lon'])
+            coords = Coordinates([
+                UniformCoordinates1d(-55, -45, size=20, name='lat'),
+                UniformCoordinates1d(-55, -45, size=20, name='lon')])
             output = node.execute(coords)
 
             assert np.all(np.isnan(output))
@@ -354,11 +377,20 @@ class TestDataSource(object):
             # TODO: as this is currently written, this would never make it to the interpolater
             
             source = np.random.rand(1,1)
-            coords_src = Coordinate(lat=[20], lon=[20], order=['lat', 'lon'])
-            coords_dst = Coordinate(lat=[20], lon=[20], order=['lat', 'lon'])
+            coords_src = Coordinates([ArrayCoordinates1d(20, name='lat'), ArrayCoordinates1d(20, name='lon')])
+            coords_dst = Coordinates([ArrayCoordinates1d(20, name='lat'), ArrayCoordinates1d(20, name='lon')])
 
-            # TODO: this doesn't work, but I feel like it shold
-            # coords_dst = Coordinate(lat=[21], lon=[21], order=['lat', 'lon'])
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
+            data, coords_subset = node.get_data_subset(coords_dst)
+            output = node._interpolate_data(data, coords_subset, coords_dst)
+
+            assert isinstance(output, UnitsDataArray)
+
+        @pytest.mark.skip("TODO")
+        def test_one_data_point_mismatch(self):
+            source = np.random.rand(1,1)
+            coords_src = Coordinates([ArrayCoordinates1d(20, name='lat'), ArrayCoordinates1d(20, name='lon')])
+            coords_dst = Coordinates([ArrayCoordinates1d(21, name='lat'), ArrayCoordinates1d(21, name='lon')])
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             data, coords_subset = node.get_data_subset(coords_dst)
@@ -369,8 +401,8 @@ class TestDataSource(object):
         def test_nearest_preview(self):
             """ test interpolation == 'nearest_preview' """
             source = np.random.rand(5)
-            coords_src = Coordinate(lat=(0, 10, 5), order=['lat'])
-            coords_dst = Coordinate(lat=[1, 1.2, 1.5, 5, 9], order=['lat'])
+            coords_src = Coordinates(UniformCoordinates1d(0, 10, size=5, name='lat'))
+            coords_dst = Coordinates(ArrayCoordinates1d([1, 1.2, 1.5, 5, 9], name='lat'))
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest_preview'
@@ -384,8 +416,8 @@ class TestDataSource(object):
             """ for now time uses nearest neighbor """
 
             source = np.random.rand(5)
-            coords_src = Coordinate(time=(0, 10, 5), order=['time'])
-            coords_dst = Coordinate(time=(1, 11, 5), order=['time'])
+            coords_src = Coordinates(UniformCoordinates1d(0, 10, size=5, name='time'))
+            coords_dst = Coordinates(UniformCoordinates1d(1, 11, size=5, name='time'))
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             output = node.execute(coords_dst)
@@ -402,8 +434,8 @@ class TestDataSource(object):
             """ for now alt uses nearest neighbor """
 
             source = np.random.rand(5)
-            coords_src = Coordinate(alt=(0, 10, 5), order=['alt'])
-            coords_dst = Coordinate(alt=(1, 11, 5), order=['alt'])
+            coords_src = Coordinates(UniformCoordinates1d(0, 10, size=5, name='alt'))
+            coords_dst = Coordinates(UniformCoordinates1d(1, 11, size=5, name='alt'))
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             output = node.execute(coords_dst)
@@ -416,8 +448,12 @@ class TestDataSource(object):
             """ regular nearest interpolation """
 
             source = np.random.rand(5, 5)
-            coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), order=['lat', 'lon'])
-            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
+            coords_src = Coordinates([
+                UniformCoordinates1d(0, 10, size=5, name='lat'),
+                UniformCoordinates1d(0, 10, size=5, name='lon')])
+            coords_dst = Coordinates([
+                UniformCoordinates1d(2, 12, size=5, name='lat'),
+                UniformCoordinates1d(2, 12, size=5, name='lon')])
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
@@ -439,8 +475,12 @@ class TestDataSource(object):
                                 'lanczos', 'average', 'mode', 'max', 'min',
                                 'med', 'q1', 'q3']
             source = np.random.rand(5, 5)
-            coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), order=['lat', 'lon'])
-            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
+            coords_src = Coordinates([
+                UniformCoordinates1d(0, 10, size=5, name='lat'),
+                UniformCoordinates1d(0, 10, size=5, name='lon')])
+            coords_dst = Coordinates([
+                UniformCoordinates1d(2, 12, size=5, name='lat'),
+                UniformCoordinates1d(2, 12, size=5, name='lon')])
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
 
@@ -451,7 +491,7 @@ class TestDataSource(object):
 
             # make sure rasterio_interpolation method requires lat and lon
             # with pytest.raises(ValueError):
-            #     coords_not_lon = Coordinate(lat=(0, 10, 5), order=['lat'])
+            #     coords_not_lon = Coordinates(UniformCoordinates1d(0, 10, size=5name='lat'))
             #     node = MockEmptyDataSource(source=source, native_coordinates=coords_not_lon)
             #     node.rasterio_interpolation(node, coords_src, coords_dst)
 
@@ -469,8 +509,12 @@ class TestDataSource(object):
             """should handle descending"""
 
             source = np.random.rand(5, 5)
-            coords_src = Coordinate(lat=(10, 0, 5), lon=(10, 0, 5), order=['lat', 'lon'])
-            coords_dst = Coordinate(lat=(12, 2, 5), lon=(12, 2, 5), order=['lat', 'lon'])
+            coords_src = Coordinates([
+                UniformCoordinates1d(10, 0, size=5, name='lat'),
+                UniformCoordinates1d(10, 0, size=5, name='lon')])
+            coords_dst = Coordinates([
+                UniformCoordinates1d(12, 2, size=5, name='lat'),
+                UniformCoordinates1d(12, 2, size=5, name='lon')])
             
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             output = node.execute(coords_dst)
@@ -493,8 +537,12 @@ class TestDataSource(object):
                                 'lanczos', 'average', 'mode', 'max', 'min',
                                 'med', 'q1', 'q3']
             source = np.random.rand(5, 5)
-            coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), order=['lat', 'lon'])
-            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
+            coords_src = Coordinates([
+                UniformCoordinates1d(0, 10, size=5, name='lat'),
+                UniformCoordinates1d(0, 10, size=5, name='lon')])
+            coords_dst = Coordinates([
+                UniformCoordinates1d(2, 12, size=5, name='lat'),
+                UniformCoordinates1d(2, 12, size=5, name='lon')])
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
 
@@ -513,8 +561,14 @@ class TestDataSource(object):
 
             # try >2 dims
             source = np.random.rand(5, 5, 3)
-            coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), time=(2, 5, 3), order=['lat', 'lon', 'time'])
-            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), time=(2, 5, 3), order=['lat', 'lon', 'time'])
+            coords_src = Coordinates([
+                UniformCoordinates1d(0, 10, size=5, name='lat'),
+                UniformCoordinates1d(0, 10, size=5, name='lon'),
+                UniformCoordinates1d(2, 5, size=3, name='time')])
+            coords_dst = Coordinates([
+                UniformCoordinates1d(2, 12, size=5, name='lat'),
+                UniformCoordinates1d(2, 12, size=5, name='lon'),
+                UniformCoordinates1d(2, 5, size=3, name='time')])
             
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
@@ -531,8 +585,12 @@ class TestDataSource(object):
             data.rasterio = None
 
             source = np.random.rand(5, 5)
-            coords_src = Coordinate(lat=(10, 0, 5), lon=(10, 0, 5), order=['lat', 'lon'])
-            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
+            coords_src = Coordinates([
+                UniformCoordinates1d(10, 0, size=5, name='lat'),
+                UniformCoordinates1d(10, 0, size=5, name='lon')])
+            coords_dst = Coordinates([
+                UniformCoordinates1d(2, 12, size=5, name='lat'),
+                UniformCoordinates1d(2, 12, size=5, name='lon')])
             
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
@@ -548,8 +606,12 @@ class TestDataSource(object):
             data.rasterio = None
 
             source = np.random.rand(5, 5)
-            coords_src = Coordinate(lon=(10, 0, 5), lat=(10, 0, 5), order=['lon', 'lat'])
-            coords_dst = Coordinate(lat=(2, 12, 5), lon=(2, 12, 5), order=['lat', 'lon'])
+            coords_src = Coordinates([
+                UniformCoordinates1d(10, 0, size=5, name='lon'),
+                UniformCoordinates1d(10, 0, size=5, name='lat')])
+            coords_dst = Coordinates([
+                UniformCoordinates1d(2, 12, size=5, name='lat'),
+                UniformCoordinates1d(2, 12, size=5, name='lon')])
             
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
@@ -565,8 +627,13 @@ class TestDataSource(object):
             data.rasterio = None
 
             source = np.random.rand(5, 5)
-            coords_src = Coordinate(lat=(0, 10, 5), lon=(0, 10, 5), order=['lat', 'lon'])
-            coords_dst = Coordinate(lat_lon=([0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]))
+            coords_src = Coordinates([
+                UniformCoordinates1d(0, 10, size=5, name='lat'),
+                UniformCoordinates1d(0, 10, size=5, name='lon')])
+            coords_dst = Coordinates(
+                StackedCoordinates([
+                    ArrayCoordinates1d([0, 2, 4, 6, 8, 10], name='lat'),
+                    ArrayCoordinates1d([0, 2, 4, 5, 6, 10], name='lon')]))
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
@@ -584,8 +651,14 @@ class TestDataSource(object):
             data.rasterio = None
 
             source = np.random.rand(5)
-            coords_src = Coordinate(lat_lon=([0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]))
-            coords_dst = Coordinate(lat_lon=([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]))
+            coords_src = Coordinates(
+                StackedCoordinates([
+                    ArrayCoordinates1d([0, 2, 4, 6, 8, 10], name='lat'),
+                    ArrayCoordinates1d([0, 2, 4, 5, 6, 10], name='lon')]))
+            coords_dst = Coordinates(
+                StackedCoordinates([
+                    ArrayCoordinates1d([1, 2, 3, 4, 5], name='lat'),
+                    ArrayCoordinates1d([1, 2, 3, 4, 5], name='lon')]))
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
 
             output = node.execute(coords_dst)
@@ -595,7 +668,9 @@ class TestDataSource(object):
             assert output.values[-1] == source[3]
 
 
-            coords_dst = Coordinate(lat=[1, 2, 3, 4, 5], lon=[1, 2, 3, 4, 5], order=['lat', 'lon'])
+            coords_dst = Coordinates([
+                ArrayCoordinates1d([1, 2, 3, 4, 5], name='lat'),
+                ArrayCoordinates1d([1, 2, 3, 4, 5], name='lon')])
             output = node.execute(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])

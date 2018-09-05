@@ -3,7 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import numpy as np
 import pytest
 
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d
 from podpac.core.algorithm.algorithm import Arange
 from podpac.core.algorithm.signal import Convolution, TimeConvolution, SpatialConvolution
 
@@ -11,18 +11,13 @@ class TestSignal(object):
     # TODO break this into unit tests
     # TODO add assertions
     def test_signal(self):
-        coords = Coordinate(
-            time=('2017-09-01', '2017-10-31', '1,D'),
-            lat=[45., 66., 30], lon=[-80., -70., 40],
-            order=['time', 'lat', 'lon'])
-        
-        coords_spatial = Coordinate(
-            lat=[45., 66., 30], lon=[-80., -70., 40],
-            order=['lat', 'lon'])
-        
-        coords_time = Coordinate(
-            time=('2017-09-01', '2017-10-31', '1,D'),
-            order=['time'])
+        lat = UniformCoordinates1d(45, 66, size=30, name='lat')
+        lon = UniformCoordinates1d(-80, 70, size=40, name='lon')
+        time = UniformCoordinates1d('2017-09-01', '2017-10-31', '1,D', name='time')
+
+        coords = Coordinates([time, lat, lon])
+        coords_spatial = Coordinates([lat, lon])
+        coords_time = Coordinates([time])
         
         kernel3 = np.array([[[1, 2, 1]]])
         kernel2 = np.array([[1, 2, 1]])

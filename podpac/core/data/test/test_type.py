@@ -21,14 +21,12 @@ import botocore
 import requests
 
 import podpac.settings
-from podpac.core import data
 from podpac.core.units import UnitsDataArray
 from podpac.core.data.data import COMMON_DATA_DOC, DataSource
 from podpac.core.node import COMMON_NODE_DOC, Node
-from podpac.core.data.type import COMMON_DOC, NumpyArray, PyDAP, RasterioSource, \
-                                    WCS, WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS, \
-                                    ReprojectedSource, S3Source
-from podpac.core.coordinate import Coordinate
+from podpac.core.data.type import COMMON_DOC, WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
+from podpac.core.data.type import NumpyArray, PyDAP, RasterioSource, WCS, ReprojectedSource, S3Source
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 
 
 ####
@@ -48,16 +46,20 @@ class TestType(object):
             assert key in COMMON_DOC and COMMON_DOC[key] == COMMON_DATA_DOC[key]
 
         for key in COMMON_NODE_DOC:
+            assert key in COMMON_DOC
             if key in COMMON_DATA_DOC:
-                assert key in COMMON_DOC and COMMON_DOC[key] != COMMON_NODE_DOC[key]
+                assert COMMON_DOC[key] != COMMON_NODE_DOC[key]
             else:
-                assert key in COMMON_DOC and COMMON_DOC[key] == COMMON_NODE_DOC[key]
+                assert COMMON_DOC[key] == COMMON_NODE_DOC[key]
 
     class TestArray(object):
         """Test Array datasource class (formerly NumpyArray)"""
 
         data = np.random.rand(11, 11)
-        coordinates = Coordinate(lat=(-25, 25, 11), lon=(-25, 25, 11), order=['lat', 'lon'])
+        coordinates = Coordinates([
+            UniformCoordinates1d(-25, 25, size=11, name='lat'),
+            UniformCoordinates1d(-25, 25, size=11, name='lon')
+        ])
 
         def test_source_trait(self):
             """ must be an ndarry """
@@ -104,7 +106,10 @@ class TestType(object):
 
         # mock parameters and data
         data = np.random.rand(11, 11)   # mocked from pydap endpoint
-        coordinates = Coordinate(lat=(-25, 25, 11), lon=(-25, 25, 11), order=['lat', 'lon'])
+        coordinates = Coordinates([
+            UniformCoordinates1d(-25, 25, size=11, name='lat'),
+            UniformCoordinates1d(-25, 25, size=11, name='lon')
+        ])
 
         def mock_pydap(self):
 
@@ -168,8 +173,7 @@ class TestType(object):
             assert node.auth_session is None
 
             # default to none if no auth_class
-            node = PyDAP(source=self.source, datakey=self.datakey,
-                         username=self.username, password=self.password)
+            node = PyDAP(source=self.source, datakey=self.datakey, username=self.username, password=self.password)
             assert node.auth_session is None
 
         def test_dataset(self):
@@ -204,9 +208,7 @@ class TestType(object):
             """test get_data function of pydap"""
             self.mock_pydap()
 
-            node = PyDAP(source=self.source,
-                         datakey=self.datakey,
-                         native_coordinates=self.coordinates)
+            node = PyDAP(source=self.source, datakey=self.datakey, native_coordinates=self.coordinates)
             output = node.execute(self.coordinates)
             assert isinstance(output, UnitsDataArray)
             assert output.values[0, 0] == self.data[0, 0]
@@ -277,7 +279,7 @@ class TestType(object):
             
             node = RasterioSource(source=self.source)
             native_coordinates = node.get_native_coordinates()
-            assert isinstance(native_coordinates, Coordinate)
+            assert isinstance(native_coordinates, Coordinates)
             assert len(native_coordinates['lat']) == 718
 
         def test_get_data(self):
@@ -411,7 +413,7 @@ class TestType(object):
             node = WCS(source=self.source)
             coordinates = node.wcs_coordinates
 
-            assert isinstance(coordinates, Coordinate)
+            assert isinstance(coordinates, Coordinates)
             assert coordinates['lat']
             assert coordinates['lon']
             assert coordinates['time']
@@ -429,7 +431,7 @@ class TestType(object):
             node = WCS(source=self.source)
             coordinates = node.wcs_coordinates
 
-            assert isinstance(coordinates, Coordinate)
+            assert isinstance(coordinates, Coordinates)
             assert coordinates['lat']
             assert coordinates['lon']
             assert coordinates['time']
@@ -465,7 +467,7 @@ class TestType(object):
             node.evaluated_coordinates = native_coordinates
             native_coordinates = node.native_coordinates
 
-            assert isinstance(native_coordinates, Coordinate)
+            assert isinstance(native_coordinates, Coordinates)
             # TODO: one returns monotonic, the other returns uniform
             # assert native_coordinates == node.evaluated_coordinates
             assert native_coordinates['lat']
@@ -477,14 +479,16 @@ class TestType(object):
 
             self.mock_requests()
             node = WCS(source=self.source)
-            lat = node.native_coordinates['lat']
-            lon = node.native_coordinates['lon']
-            time = node.native_coordinates['time']
+            lat = node.native_coordinates['lat'].coordinates
+            lon = node.native_coordinates['lon'].coordinates
+            time = node.native_coordinates['time'].coordinates
 
             # no time
-            notime_coordinates = Coordinate(lat=(lat[0], lat[-2], 10),
-                                            lon=(lon[0], lon[-2], 10),
-                                            time=['2006-06-14T17:00:00'], order=['lat', 'lon', 'time'])
+            notime_coordinates = Coordinates([
+                UniformCoordinates1d(lat[0], lat[-2], size=10, name='lat'),
+                UniformCoordinates1d(lon[0], lon[-2], size=10, name='lon'),
+                ArrayCoordinates1d('2006-06-14T17:00:00', name='time')
+            ])
 
             with pytest.raises(ValueError):
                 output = node.execute(notime_coordinates)
@@ -492,9 +496,11 @@ class TestType(object):
                 assert output.native_coordinates['lat'][0] == node.native_coordinates['lat'][0]
 
             # time
-            time_coordinates = Coordinate(lat=(lat[0], lat[-2], 10),
-                                            lon=(lon[0], lon[-2], 10),
-                                            time=(time[0], time[-1], len(time)), order=['lat', 'lon', 'time'])
+            time_coordinates = Coordinates([
+                UniformCoordinates1d(lat[0], lat[-2], size=10, name='lat'),
+                UniformCoordinates1d(lon[0], lon[-2], size=10, name='lon'),
+                UniformCoordinates1d(time[0], time[-1], size=len(time), name='time')
+            ])
 
             with pytest.raises(ValueError):
                 output = node.execute(time_coordinates)
@@ -516,8 +522,14 @@ class TestType(object):
 
         source = Node()
         data = np.random.rand(11, 11)
-        coordinates_source = Coordinate(lat=(-25, 25, 11), lon=(-25, 25, 11), order=['lat', 'lon'])
-        reprojected_coordinates = Coordinate(lat=(25, 50, 11), lon=(25, 50, 11), order=['lat', 'lon'])
+        coordinates_source = Coordinates([
+            UniformCoordinates1d(-25, 25, size=11, name='lat'),
+            UniformCoordinates1d(-25, 25, size=11, name='lon')
+        ])
+        reprojected_coordinates = Coordinates([
+            UniformCoordinates1d(25, 50, size=11, name='lat'),
+            UniformCoordinates1d(25, 50, size=11, name='lon')
+        ])
 
         def test_init(self):
             """test basic init of class"""
@@ -544,6 +556,7 @@ class TestType(object):
             with pytest.raises(TraitError):
                 ReprojectedSource(reprojected_coordinates=5)
 
+        @pytest.mark.skip('stack_dict')
         def test_native_coordinates(self):
             """test native coordinates"""
 
@@ -554,16 +567,16 @@ class TestType(object):
 
             # source as Node
             node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
-            assert isinstance(node.native_coordinates, Coordinate)
+            assert isinstance(node.native_coordinates, Coordinates)
             assert node.native_coordinates['lat'][0] == self.reprojected_coordinates['lat'][0]
 
             # source as DataSource
             datanode = DataSource(source='test', native_coordinates=self.coordinates_source)
             node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-            assert isinstance(node.native_coordinates, Coordinate)
+            assert isinstance(node.native_coordinates, Coordinates)
             assert node.native_coordinates['lat'][0] == self.coordinates_source['lat'][0]
 
-
+        @pytest.mark.skip('stack_dict')
         def test_get_data(self):
             """test get data from reprojected source"""
             datanode = NumpyArray(source=self.data, native_coordinates=self.coordinates_source)
@@ -595,120 +608,123 @@ class TestType(object):
             with pytest.raises(NotImplementedError):
                 definition = node.definition
 
-    class TestS3Source(object):
-        """test S3 data source"""
+class TestS3Source(object):
+    """test S3 data source"""
 
-        source = 's3://bucket.aws.com/file'
-        bucket = 'bucket'
-        coordinates = Coordinate(lat=(-25, 25, 11), lon=(-25, 25, 11), order=['lat', 'lon'])
+    source = 's3://bucket.aws.com/file'
+    bucket = 'bucket'
+    coordinates = Coordinates([
+        UniformCoordinates1d(-25, 25, size=11, name='lat'),
+        UniformCoordinates1d(-25, 25, size=11, name='lon')
+    ])
 
-        def test_init(self):
-            """test basic init of class"""
+    def test_init(self):
+        """test basic init of class"""
 
-            node = S3Source(source=self.source)
-            assert isinstance(node, S3Source)
+        node = S3Source(source=self.source)
+        assert isinstance(node, S3Source)
 
-        def test_traits(self):
-            """ check each of the s3 traits """
+    def test_traits(self):
+        """ check each of the s3 traits """
 
-            S3Source(source=self.source, s3_bucket=self.bucket)
-            with pytest.raises(TraitError):
-                S3Source(source=self.source, s3_bucket=5)
+        S3Source(source=self.source, s3_bucket=self.bucket)
+        with pytest.raises(TraitError):
+            S3Source(source=self.source, s3_bucket=5)
 
-            S3Source(source=self.source, node=Node())
-            with pytest.raises(TraitError):
-                S3Source(source=self.source, node='not a node')
+        S3Source(source=self.source, node=Node())
+        with pytest.raises(TraitError):
+            S3Source(source=self.source, node='not a node')
 
-            S3Source(source=self.source, node_kwargs={})
-            with pytest.raises(TraitError):
-                S3Source(source=self.source, node_kwargs=5)
+        S3Source(source=self.source, node_kwargs={})
+        with pytest.raises(TraitError):
+            S3Source(source=self.source, node_kwargs=5)
 
-            S3Source(source=self.source, node_class=DataSource)
-            with pytest.raises(TraitError):
-                S3Source(source=self.source, node_class=5)
+        S3Source(source=self.source, node_class=DataSource)
+        with pytest.raises(TraitError):
+            S3Source(source=self.source, node_class=5)
 
-            S3Source(source=self.source, s3_bucket='testbucket')
-            with pytest.raises(TraitError):
-                S3Source(source=self.source, s3_bucket=5)
+        S3Source(source=self.source, s3_bucket='testbucket')
+        with pytest.raises(TraitError):
+            S3Source(source=self.source, s3_bucket=5)
 
-            S3Source(source=self.source, return_type='path')
-            with pytest.raises(TraitError):
-                S3Source(source=self.source, return_type='notpath')
+        S3Source(source=self.source, return_type='path')
+        with pytest.raises(TraitError):
+            S3Source(source=self.source, return_type='notpath')
 
-        def test_node(self):
-            """test node attribute and defaults"""
+    def test_node(self):
+        """test node attribute and defaults"""
 
-            parent_node = Node()
-            node = S3Source(source=self.source, node=parent_node)
+        parent_node = Node()
+        node = S3Source(source=self.source, node=parent_node)
 
-            assert node.node_class
+        assert node.node_class
 
-            # TODO: this should raise
-            # with pytest.raises(Exception): 
-            #     S3Source(source=self.source, node_kwargs={'source': 'test'})
-            #     node.node_default
+        # TODO: this should raise
+        # with pytest.raises(Exception): 
+        #     S3Source(source=self.source, node_kwargs={'source': 'test'})
+        #     node.node_default
 
-        def test_s3_bucket(self):
-            """test s3_bucket attribute and default"""
+    def test_s3_bucket(self):
+        """test s3_bucket attribute and default"""
 
-            node = S3Source()
+        node = S3Source()
 
-            # default
-            assert node.s3_bucket == podpac.settings.S3_BUCKET_NAME
+        # default
+        assert node.s3_bucket == podpac.settings.S3_BUCKET_NAME
 
-            # set value
-            node = S3Source(s3_bucket=self.bucket)
-            assert node.s3_bucket == self.bucket
+        # set value
+        node = S3Source(s3_bucket=self.bucket)
+        assert node.s3_bucket == self.bucket
 
-        def test_s3_data(self):
-            """test s3_data attribute and default"""
+    def test_s3_data(self):
+        """test s3_data attribute and default"""
 
-            # requires s3 bucket to be set
-            with pytest.raises(ValueError):
-                node = S3Source(source=self.source, return_type='file_handle')
-                node.s3_data
+        # requires s3 bucket to be set
+        with pytest.raises(ValueError):
+            node = S3Source(source=self.source, return_type='file_handle')
+            node.s3_data
 
-            # path
-            node = S3Source(source=self.source, s3_bucket=self.bucket)
-            # TODO: figure out how to mock S3 response
-            with pytest.raises(botocore.auth.NoCredentialsError):
-                node.s3_data
-            
-            # file handle
-            node = S3Source(source=self.source, s3_bucket=self.bucket, return_type='file_handle')
-            # TODO: figure out how to mock S3 response
-            with pytest.raises(botocore.auth.NoCredentialsError):
-                node.s3_data
+        # path
+        node = S3Source(source=self.source, s3_bucket=self.bucket)
+        # TODO: figure out how to mock S3 response
+        with pytest.raises(botocore.auth.NoCredentialsError):
+            node.s3_data
+        
+        # file handle
+        node = S3Source(source=self.source, s3_bucket=self.bucket, return_type='file_handle')
+        # TODO: figure out how to mock S3 response
+        with pytest.raises(botocore.auth.NoCredentialsError):
+            node.s3_data
 
-        def test_path_exists(self):
-            """test when the tmppath exists for the file to download to"""
-            pass
+    def test_path_exists(self):
+        """test when the tmppath exists for the file to download to"""
+        pass
 
-        def test_get_data(self):
-            """test get_data method"""
+    def test_get_data(self):
+        """test get_data method"""
 
-            # TODO: figure out how to mock S3 response
-            with pytest.raises(botocore.auth.NoCredentialsError):
-                node = S3Source(source=self.source, native_coordinates=self.coordinates, s3_bucket=self.bucket)
-                output = node.execute(self.coordinates)
+        # TODO: figure out how to mock S3 response
+        with pytest.raises(botocore.auth.NoCredentialsError):
+            node = S3Source(source=self.source, native_coordinates=self.coordinates, s3_bucket=self.bucket)
+            output = node.execute(self.coordinates)
 
-                assert isinstance(output, UnitsDataArray)
+            assert isinstance(output, UnitsDataArray)
 
-        def test_del(self):
-            """test destructor"""
+    def test_del(self):
+        """test destructor"""
 
-            # smoke test
-            node = S3Source()
-            del node
-            assert True
+        # smoke test
+        node = S3Source()
+        del node
+        assert True
 
-            # should remove tmp files
-            filepath = os.path.join(os.path.dirname(__file__), '.temp')
-            open(filepath, 'a').close()
-            node = S3Source()
-            node._temp_file_cleanup = [filepath]
-            del node
-            assert ~os.path.exists(filepath)
+        # should remove tmp files
+        filepath = os.path.join(os.path.dirname(__file__), '.temp')
+        open(filepath, 'a').close()
+        node = S3Source()
+        node._temp_file_cleanup = [filepath]
+        del node
+        assert ~os.path.exists(filepath)
 
 
 

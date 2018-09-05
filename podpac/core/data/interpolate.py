@@ -26,7 +26,7 @@ try:
 except:
     scipy = None
     
-import podpac
+from podpac.core.coordinates import Coordinates
 
 class InterpolationException(Exception):
     """Summary
@@ -61,8 +61,8 @@ class Interpolator(tl.HasTraits):
     Description
     """
     
-    eval_coords = tl.Instance(podpac.Coordinate)
-    source_coords = tl.Instance(podpac.Coordinate)
+    eval_coords = tl.Instance(Coordinates)
+    source_coords = tl.Instance(Coordinates)
     pad = tl.Int(1)
     interpolation = tl.Unicode()
     valid_interpolations = tl.Enum([])

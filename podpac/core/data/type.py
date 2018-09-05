@@ -70,6 +70,7 @@ from podpac.core import authentication
 from podpac.core.utils import cached_property, clear_cache, common_doc
 from podpac.core.data.data import COMMON_DATA_DOC
 from podpac.core.node import COMMON_NODE_DOC 
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 COMMON_DOC.update(COMMON_DATA_DOC)      # inherit and overwrite with COMMON_DATA_DOC
@@ -115,7 +116,7 @@ class PyDAP(podpac.DataSource):
         determines which variable is returned from the source.
     dataset : pydap.model.DatasetType
         The open pydap dataset. This is provided for troubleshooting.
-    native_coordinates : podpac.Coordinate
+    native_coordinates : podpac.Coordinates
         {ds_native_coordinates}
     password : str, optional
         Password used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
@@ -317,9 +318,7 @@ class RasterioSource(podpac.DataSource):
         (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
         have to overload this method.
         """
-        dlon = self.dataset.width
-        dlat = self.dataset.height
-
+        
         if hasattr(self.dataset, 'affine'):
             affine = self.dataset.affine
         else:
@@ -330,9 +329,10 @@ class RasterioSource(podpac.DataSource):
         if affine[1] != 0.0 or affine[3] != 0.0:
             raise NotImplementedError("Rotated coordinates are not yet supported")
 
-        return podpac.Coordinate(lat=(top, bottom, dlat),
-                                 lon=(left, right, dlon),
-                                 order=['lat', 'lon'])
+        return podpac.Coordinates([
+            UniformCoordinates1d(bottom, top, size=self.dataset.height, name='lat'),
+            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon')
+        ])
 
     @common_doc(COMMON_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -453,7 +453,7 @@ class WCS(podpac.DataSource):
     layer_name = tl.Unicode().tag(attr=True)
     version = tl.Unicode(WCS_DEFAULT_VERSION).tag(attr=True)
     crs = tl.Unicode(WCS_DEFAULT_CRS).tag(attr=True)
-    wcs_coordinates = tl.Instance(podpac.Coordinate)   # default below
+    wcs_coordinates = tl.Instance(podpac.Coordinates)   # default below
 
     _get_capabilities_qs = tl.Unicode('SERVICE=WCS&REQUEST=DescribeCoverage&'
                                       'VERSION={version}&COVERAGE={layer}')
@@ -533,17 +533,18 @@ class WCS(podpac.DataSource):
 
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
-            return podpac.Coordinate(lat=(top, bottom, size[1]),
+            return podpac.Coordinates(lat=(top, bottom, size[1]),
                                      lon=(left, right, size[0]), order=['lat', 'lon'])
         
         date_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')
         times = np.array([t for t in times if date_re.match(t)], np.datetime64)
         
-        return podpac.Coordinate(time=times,
-                                 lat=(top, bottom, size[1]),
-                                 lon=(left, right, size[0]),
-                                 order=['time', 'lat', 'lon'])
+        return podpac.Coordinates([
+            ArrayCoordinates1d(times, name='time'),
+            UniformCoordinates1d(top, bottom, size=size[1], name='lat'),
+            UniformCoordinates1d(left, right, size=size[0], name='lon')
+        ])
         
 
     @property
@@ -561,30 +562,28 @@ class WCS(podpac.DataSource):
         This is a little tricky and doesn't fit into the usual PODPAC method, as the service is actually doing the 
         data wrangling for us...
         """
-        if self.evaluated_coordinates:
-            ev = self.evaluated_coordinates
-            wcs_c = self.wcs_coordinates
-            cs = OrderedDict()
-            for c in wcs_c.dims:
-                if c in ev.dims and ev[c].size == 1:
-                    cs[c] = ev[c].coords
-                elif c in ev.dims and not isinstance(ev[c], podpac.UniformCoord):
-                    # This is rough, we have to use a regular grid for WCS calls,
-                    # Otherwise we have to do multiple WCS calls...
-                    # TODO: generalize/fix this
-                    cs[c] = (np.min(ev[c].coords),
-                             np.max(ev[c].coords), np.abs(ev[c].delta))
-                elif c in ev.dims and isinstance(ev[c], podpac.UniformCoord):
-                    cs[c] = (np.min(ev[c].coords[:2]),
-                             np.max(ev[c].coords[:2]), np.abs(ev[c].delta))
-                else:
-                    cs[c] = wcs_c[c]
-                    # TODO: OrderedDict() has no append method
-                    # cs.append(wcs_c[c])
-            c = podpac.Coordinate(cs)
-            return c
-        else:
+
+        if not self.evaluated_coordinates:
             return self.wcs_coordinates
+
+        ev = self.evaluated_coordinates
+        wcs_c = self.wcs_coordinates
+        cs = []
+        for dim in wcs_c.dims:
+            if dim in ev.dims:
+                c = ev[dim]
+                if c.size == 1:
+                    cs.append(ArrayCoordinates1d(c.coordinates[0], name=dim))
+                elif isinstance(c, UniformCoordinates1d):
+                    cs.append(UniformCoordinates1d(c.bounds[0], c.bounds[1], abs(c.step), name=dim))
+                else:
+                    # TODO: generalize/fix this
+                    # WCS calls require a regular grid, could (otherwise we have to do multiple WCS calls)
+                    cs.append(UniformCoordinates1d(c.bounds[0], c.bounds[1], size=c.size, name=dim))
+            else:
+                cs.append(wcs_c[dim])
+        c = podpac.Coordinates(cs)
+        return c
 
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
@@ -761,7 +760,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
     ----------
     coordinates_source : podpac.Node
         Node which is used as the source
-    reprojected_coordinates : podpac.Coordinate
+    reprojected_coordinates : podpac.Coordinates
         Coordinates where the source node should be evaluated. 
     source : podpac.Node
         The source node
@@ -772,10 +771,10 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
     source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     source = tl.Instance(podpac.Node)
     # Specify either one of the next two
-    # TODO: should this be of type podpac.Coordinate?
+    # TODO: should this be of type podpac.Coordinates?
     # This doesn't make much sense
     coordinates_source = tl.Instance(podpac.Node, allow_none=True).tag(attr=True)
-    reprojected_coordinates = tl.Instance(podpac.Coordinate).tag(attr=True)
+    reprojected_coordinates = tl.Instance(podpac.Coordinates).tag(attr=True)
 
     @tl.default('reprojected_coordinates')
     def get_reprojected_coordinates(self):
@@ -783,7 +782,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
         
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             Coordinates where the source node should be evaluated. 
         
         Raises
@@ -812,7 +811,7 @@ class ReprojectedSource(podpac.DataSource, podpac.Algorithm):
                 coords[d] = rc.stack_dict()[d]
             else:
                 coords[d] = sc.stack_dict()[d]
-        return podpac.Coordinate(coords)
+        return podpac.Coordinates(coords)
 
     @common_doc(COMMON_DOC)
     def get_data(self, coordinates, coordinates_index):

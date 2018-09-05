@@ -4,11 +4,14 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import os
 import pytest
 
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d
 from podpac.core.algorithm.algorithm import Arange
 from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output, NoOutput, ImageOutput
 
-coords = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), order=['lat', 'lon'])
+coords = Coordinates([
+    UniformCoordinates1d(0, 1, size=10, name='lat'),
+    UniformCoordinates1d(0, 1, size=10, name='lon')
+])
 node = Arange()
 node.execute(coords)
 

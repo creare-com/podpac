@@ -30,8 +30,8 @@ except:
 
 from podpac import settings
 from podpac import Units, UnitsDataArray
-from podpac import Coordinate
 from podpac.core.utils import common_doc
+from podpac.core.coordinates import Coordinates
 
 COMMON_NODE_DOC = {
     'native_coordinates': 
@@ -136,13 +136,13 @@ class Node(tl.HasTraits):
         The numpy datatype of the output. Currently only `float` is supported.
     evaluated : Bool
         Flag indicating if the node has been evaluated.
-    evaluated_coordinates : podpac.Coordinate
+    evaluated_coordinates : Coordinates
         {evaluated_coordinates}
         This attribute stores the coordinates that were last used to evaluate the node.
     implicit_pipeline_evaluation : Bool
         Flag indicating if nodes as part of a pipeline should be automatically evaluated when
         the root node is evaluated. This attribute is planned for deprecation in the future.
-    native_coordinates : podpac.Coordinate, optional
+    native_coordinates : Coordinates, optional
         {native_coordinates} 
     node_defaults : dict
         Dictionary of defaults values for attributes of a Node. 
@@ -162,10 +162,10 @@ class Node(tl.HasTraits):
     def _output_default(self):
         return self.initialize_output_array('nan')
 
-    native_coordinates = tl.Instance('podpac.core.coordinate.Coordinate', allow_none=True, default=None)
+    native_coordinates = tl.Instance(Coordinates, allow_none=True, default=None)
     evaluated = tl.Bool(default_value=False)
     implicit_pipeline_evaluation = tl.Bool(default_value=True, help="Evaluate the pipeline implicitly (True, Default)")
-    evaluated_coordinates = tl.Instance('podpac.core.coordinate.Coordinate', allow_none=True)
+    evaluated_coordinates = tl.Instance(Coordinates, allow_none=True)
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
@@ -181,7 +181,7 @@ class Node(tl.HasTraits):
     def shape(self):
         """See `get_output_shape`
         """
-        return self.get_output_shape()
+        return self.evaluated_coordinates.shape
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """
@@ -229,7 +229,7 @@ class Node(tl.HasTraits):
 
         Parameters
         ----------
-        coordinates : podpac.Coordinate
+        coordinates : podpac.Coordinates
             {evaluated_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
@@ -242,80 +242,6 @@ class Node(tl.HasTraits):
             Children need to implement this method, otherwise this error is raised. 
         """
         raise NotImplementedError
-    
-    def get_output_shape(self, coords=None):
-        """Returns the shape of the output based on the evaluated coordinates. This shape is jointly determined by the
-        input or evaluated coordinates and the native_coordinates (if present).
-
-        Parameters
-        -----------
-        coords: podpac.Coordinates, optional
-            Requested coordinates that help determine the shape of the output. Uses self.evaluated_coordinates if not 
-            supplied. 
-
-        Returns
-        -------
-        tuple/list
-            Size of the dimensions of the output
-
-        Raises
-        ------
-        NodeException
-            If the shape cannot be automatically determined, this exception is raised. 
-        """
-
-        # Changes here likely will also require changes in initialize_output_array
-        if coords is None: 
-            ev = self.evaluated_coordinates
-        else: 
-            ev = coords
-        #nv = self._trait_values.get('native_coordinates',  None)
-        # Switching from _trait_values to hasattr because "native_coordinates"
-        # not showing up in _trait_values
-        if hasattr(self, 'native_coordinates'):
-            nv = self.native_coordinates
-        else:
-            nv = None
-        if ev is not None and nv is not None:
-            return nv.get_shape(ev)
-        elif ev is not None and nv is None:
-            return ev.shape
-        elif nv is not None:
-            return nv.shape
-        else:
-            raise NodeException("Cannot determine shape if "
-                                "evaluated_coordinates and native_coordinates"
-                                " are both None.")        
-
-    def get_output_dims(self, coords=None):
-        """Returns the dimensions of the output coordinates based on the user-requested coordinates. This is jointly 
-        determined by the input or evaluated coordinates and the native_coordinates (if present).
-
-        Parameters
-        ----------
-        coords : podpac.Coordinates, optional
-            Requested coordinates that help determine the coordinates of the output. Uses self.evaluated_coordinates if 
-            not supplied.
-
-        Returns
-        -------
-        list
-            A list of the coordinates
-        """
-        # Changes here likely will also require changes in shape
-        if coords is None:
-            coords = self.evaluated_coordinates
-        if not isinstance(coords, (Coordinate)):
-            coords = Coordinate(coords)
-
-        #if self._trait_values.get("native_coordinates", None) is not None:
-        # Switching from _trait_values to hasattr because "native_coordinates"
-        # not showing up in _trait_values
-        if hasattr(self, "native_coordinates") and self.native_coordinates is not None:
-            dims = self.native_coordinates.dims
-        else:
-            dims = coords.dims
-        return dims
 
     def get_output_coords(self, coords=None):
         """Returns the output coordinates based on the user-requested coordinates. This is jointly determined by 
@@ -329,24 +255,33 @@ class Node(tl.HasTraits):
 
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             The coordinates of the output if the node is executed with `coords`
         """
 
         # Changes here likely will also require changes in shape
         if coords is None:
             coords = self.evaluated_coordinates
-        if not isinstance(coords, (Coordinate)):
-            coords = Coordinate(coords)
+
+        if coords is None:
+            coords = Coordinates()
+
+        if not isinstance(coords, Coordinates):
+            assert False
+            coords = Coordinates(coords)
 
         #if self._trait_values.get("native_coordinates", None) is not None:
         # Switching from _trait_values to hasattr because "native_coordinates"
         # not showing up in _trait_values
         if hasattr(self, "native_coordinates") and self.native_coordinates is not None:
-            crds = self.native_coordinates.replace_coords(coords)
-        else:
-            crds = coords
-        return crds
+            for dim in coords.udims:
+                if dim not in self.native_coordinates.udims:
+                    assert False
+            for dim in self.native_coordinates.udims:
+                if dim not in coords.udims:
+                    assert False
+        
+        return coords
 
     @common_doc(COMMON_DOC)
     def initialize_output_array(self, init_type='nan', fillval=0, style=None,
@@ -366,7 +301,7 @@ class Node(tl.HasTraits):
             {arr_no_style}
         shape : list/tuple, optional
             {arr_shape}
-        coords : Coordinate, optional
+        coords : Coordinates, optional
             {arr_coords}
         dims : None, optional
             {arr_dims}
@@ -381,10 +316,9 @@ class Node(tl.HasTraits):
         -------
         {arr_return}
         """
-        crds = self.get_output_coords(coords).coords
-        dims = list(crds.keys())
-        return self.initialize_array(init_type, fillval, style, no_style, shape,
-                                     crds, dims, units, dtype, **kwargs)
+        crds = self.get_output_coords(coords)
+        return self.initialize_array(
+            init_type, fillval, style, no_style, shape, crds.coords, crds.dims, units, dtype, **kwargs)
     
     @common_doc(COMMON_DOC)
     def copy_output_array(self, init_type='nan'):
@@ -425,11 +359,11 @@ class Node(tl.HasTraits):
     def initialize_coord_array(self, coords, init_type='nan', fillval=0,
                                style=None, no_style=False, units=None,
                                dtype=np.float, **kwargs):
-        """Initialize an output array using a podpac.Coordinate object.
+        """Initialize an output array using a podpac.Coordinates object.
 
         Parameters
         ----------
-        coords : podpac.Coordinate
+        coords : podpac.Coordinates
             Coordinates descriping the size of the data array that will be initialized
         init_type : str, optional
             {arr_init_type}
@@ -450,9 +384,8 @@ class Node(tl.HasTraits):
         -------
         {arr_return}
         """
-        return self.initialize_array(init_type, fillval, style, no_style,
-                                     coords.shape, coords.coords, coords.dims,
-                                     units, dtype, **kwargs)
+        return self.initialize_array(
+            init_type, fillval, style, no_style, coords.shape, coords.coords, coords.dims, units, dtype, **kwargs)
 
     @common_doc(COMMON_DOC)
     def initialize_array(self, init_type='nan', fillval=0, style=None,
@@ -497,7 +430,11 @@ class Node(tl.HasTraits):
         if style is None: style = self.style
         if shape is None: shape = self.shape
         if units is None: units = self.units
-        if not isinstance(coords, (dict, OrderedDict, list)): coords = dict(coords)
+        if not isinstance(coords, (dict, OrderedDict, list)):
+            from xarray.core.coordinates import DataArrayCoordinates
+            if not isinstance(coords, DataArrayCoordinates):
+                assert False
+                coords = dict(coords)
 
         if init_type == 'empty':
             data = np.empty(shape)
@@ -745,7 +682,7 @@ class Node(tl.HasTraits):
         ----------
         name : str
             Name of the file prefix.
-        coordinates : podpac.Coordinate
+        coordinates : podpac.Coordinates
             {evaluated_coordinates}
         outdir : str, optional
             {outdir}

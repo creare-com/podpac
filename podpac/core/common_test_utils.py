@@ -9,23 +9,23 @@ from collections import OrderedDict
 
 import numpy as np
 
-import podpac.core.coordinate as pcoord
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d
 
 def make_coordinate_combinations(lat=None, lon=None, alt=None, time=None):
     ''' Generates every combination of stacked and unstacked coordinates podpac expects to handle
     
     Parameters
     -----------
-    lat: podpac.core.coordinate.coord.BaseCoord, optional
+    lat: podpac.core.coordinates.Coordinates1d, optional
         1D coordinate object used to create the Coordinate objects that contain the latitude dimension. By default uses:
         UniformCoord(start=0, stop=2, delta=1.0)
-    lon: podpac.core.coordinate.coord.BaseCoord, optional
+    lon: podpac.core.coordinates.Coordinates1d, optional
         Same as above but for longitude. By default uses:
         UniformCoord(start=2, stop=6, delta=2.0)
-    alt: podpac.core.coordinate.coord.BaseCoord, optional
+    alt: podpac.core.coordinates.Coordinates1d, optional
         Same as above but for longitude. By default uses:
         UniformCoord(start=6, stop=12, delta=3.0)
-    time: podpac.core.coordinate.coord.BaseCoord, optional
+    time: podpac.core.coordinates.Coordinates1d, optional
         Same as above but for longitude. By default uses:
         UniformCoord(start='2018-01-01T00:00:00', stop='2018-03-01T00:00:00', delta='1,M')
 
@@ -41,38 +41,34 @@ def make_coordinate_combinations(lat=None, lon=None, alt=None, time=None):
     stacked together. For example, if lat, lon, alt, and time have sizes 3, 4, 5, and 6, respectively, no stacked 
     coordinates are created. Also, no exception or warning is thrown for this case. 
     '''
-    coord1d_type=pcoord.UniformCoord
     
     coord_collection = OrderedDict()
-    coord1d = OrderedDict((['lat', lat], 
-                           ['lon', lon],
-                           ['alt', alt],
-                           ['time', time]))
+    d = OrderedDict((['lat', lat], ['lon', lon], ['alt', alt], ['time', time]))
     
     # Make all of the 1D coordinates
     if lat is None:
-        coord1d['lat'] = coord1d_type(start=0, stop=2, delta=1.0)
+        d['lat'] = UniformCoordinates1d(0, 2, 1.0)
     if lon is None:
-        coord1d['lon'] = coord1d_type(start=2, stop=6, delta=2.0)
+        d['lon'] = UniformCoordinates1d(2, 6, 2.0)
     if alt is None:
-        coord1d['alt'] = coord1d_type(start=6, stop=12, delta=3.0)
+        d['alt'] = UniformCoordinates1d(6, 12, 3.0)
     if time is None:
-        coord1d['time'] = coord1d_type(start='2018-01-01T00:00:00', stop='2018-03-01T00:00:00', delta='1,M')
+        d['time'] = UniformCoordinates1d('2018-01-01T00:00:00', '2018-03-01T00:00:00', '1,M')
     
     
     # Make the singular and unstacked coordinate combinations
     # Create recursive helper function
-    def recurse_coord(coord_collection, indep_coords, kwargs=OrderedDict(), depth=0):
+    def recurse_coord(coord_collection, indep_coords, coords1d=OrderedDict(), depth=0):
         #print ("Depth", depth)
         if len(indep_coords) == depth:
-            coord_collection[tuple(kwargs.keys())] = pcoord.Coordinate(order=list(kwargs.keys()), **kwargs)
-            kwargs = OrderedDict()
+            coord_collection[tuple(coords1d.keys())] = Coordinates(coords1d)
+            coords1d = OrderedDict()
             return coord_collection
         else:
             for i in range(len(indep_coords)):
                 crd = indep_coords[i]
-                kwargs_plus = kwargs.copy()
-                kwargs_plus.update(OrderedDict([[c, coord1d[c]] for c in crd]))
+                kwargs_plus = coords1d.copy()
+                kwargs_plus.update(OrderedDict([[c, d[c]] for c in crd]))
                 #print ("Depth", depth, ', i', i)
                 coord_collection = recurse_coord(coord_collection, indep_coords, kwargs_plus, depth+1)
             return coord_collection

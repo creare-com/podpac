@@ -6,7 +6,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import traitlets as tl
 
-from podpac.core.coordinates import Coordinate
+from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.coordinates import make_coord_value, make_coord_delta, add_coord
 from podpac.core.node import Node, COMMON_NODE_DOC
@@ -22,9 +22,9 @@ class ExpandCoordinates(Algorithm):
     
     Attributes
     ----------
-    input_coordinates : podpac.Coordinate
+    input_coordinates : podpac.Coordinates
         The coordinates that were used to execute the node
-    native_coordinates_source : podpac.Coordinate
+    native_coordinates_source : podpac.Coordinates
         The native coordinates of the source node whose coordinates are being expanded. This is needed in case the
         source doesn't have native coordinates (e.g. an Algorithm node).
     source : podpac.Node
@@ -41,7 +41,7 @@ class ExpandCoordinates(Algorithm):
     
     source = tl.Instance(Node)
     native_coordinates_source = tl.Instance(Node, allow_none=True)
-    input_coordinates = tl.Instance(Coordinate, allow_none=True)
+    input_coordinates = tl.Instance(Coordinates, allow_none=True)
     lat = tl.List().tag(attr=True)
     lon = tl.List().tag(attr=True)
     time = tl.List().tag(attr=True)
@@ -53,7 +53,7 @@ class ExpandCoordinates(Algorithm):
         
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             Native coordinates of the source node
         
         Raises
@@ -107,10 +107,7 @@ class ExpandCoordinates(Algorithm):
             ncoord = self.native_coordinates[dim]
             
             # TODO GroupCoord
-            xcoords = [
-                ncoord.select((add_coord(c, dstart), add_coord(c, dstop)))
-                for c in icoords.coordinates
-            ]
+            xcoords = [ncoord.select((add_coord(c, dstart), add_coord(c, dstop))) for c in icoords.coordinates]
             xcoord = sum(xcoords[1:], xcoords[0])
 
         elif len(coords) == 3:
@@ -119,19 +116,19 @@ class ExpandCoordinates(Algorithm):
             
             # TODO GroupCoord
             xcoords = [
-                UniformCoordinates1d(add_coord(c, dstart), add_coord(c, dstop), step)
+                UniformCoordinates1d(add_coord(c, dstart), add_coord(c, dstop), step, **c.properties)
                 for c in icoords.coordinates]
             xcoord = sum(xcoords[1:], xcoords[0])
 
+        assert xcoord.name is not None
         return xcoord
 
-    @property
-    def expanded_coordinates(self):
+    def get_expanded_coordinates(self):
         """The expanded coordinates
         
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             The expanded coordinates
         
         Raises
@@ -140,15 +137,8 @@ class ExpandCoordinates(Algorithm):
             Raised if expanded coordinates do not intersect with the source data. For example if a date in the future
             is selected.
         """
-        kwargs = {}
-        for dim in self.input_coordinates.dims:
-            ec = self.get_expanded_coord(dim)
-            if ec.size == 0:
-                raise ValueError("Expanded/selected coordinates do not"
-                                 " intersect with source data.")
-            kwargs[dim] = ec
-        kwargs['order'] = self.input_coordinates.dims
-        return Coordinate(**kwargs)
+        coords = [self.get_expanded_coord(dim) for dim in self.input_coordinates.dims]
+        return Coordinates(coords)
    
     def algorithm(self):
         """Passthrough of the source data
@@ -166,7 +156,7 @@ class ExpandCoordinates(Algorithm):
 
         Parameters
         ----------
-        coordinates : podpac.Coordinate
+        coordinates : podpac.Coordinates
             {evaluated_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
@@ -182,8 +172,10 @@ class ExpandCoordinates(Algorithm):
         The input coordinates are modified and the passed to the base class implementation of execute.
         """
         self.input_coordinates = coordinates
-        coordinates = self.expanded_coordinates
-
+        coordinates = self.get_expanded_coordinates()
+        for dim, c in coordinates.unstacked.items():
+            if c.size == 0:
+                raise ValueError("Expanded/selected coordinates do not intersect with source data (dim '%s')" % dim)
         return super(ExpandCoordinates, self).execute(coordinates, output, method)
 
 
