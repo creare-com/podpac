@@ -31,7 +31,9 @@ except ImportError:
 
 # Internal imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates, Coordinates1d, ArrayCoordinates1d, UniformCoordinates1d
+from podpac.core.coordinates import Coordinates
+from podpac.core.coordinates import StackedCoordinates
+from podpac.core.coordinates import Coordinates1d, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
@@ -225,7 +227,7 @@ class DataSource(Node):
                 if c.name not in self.native_coordinates.udims:
                     extra.append(c.name)
             elif isinstance(c, StackedCoordinates):
-                if all(dim not in self.native_coordinates.udims for dim in c.udims):
+                if all(dim not in self.native_coordinates.udims for dim in c.dims):
                     extra.append(c.name)
         self.requested_coordinates = coordinates.drop(extra)
 
@@ -284,21 +286,39 @@ class DataSource(Node):
             new_coords = []
             new_coords_idx = []
 
-            for c, idx in zip(self.requested_source_coordinates, self.requested_source_coordinates_index):
-                if c.name in self.requested_coordinates.dims and c.is_uniform:
-                    if isinstance(c, UniformCoordinates1d):
-                        ndelta = np.round(self.requested_coordinates[c.name].step / c.step)
-                        if ndelta <= 1:
-                            ndelta = 1 # c.step
-                        # TODO maybe this should be a size?
-                        c = UniformCoordinates1d(c.start, c.stop, ndelta*c.step, **c.properties)
+            for dim, idx in zip(self.requested_source_coordinates, self.requested_source_coordinates_index):
+                if dim in self.requested_coordinates.dims:
+                    src_coords = self.requested_source_coordinates[dim]
+                    dst_coords = self.requested_coordinates[dim]
+
+                    if isinstance(dst_coords, UniformCoordinates1d):
+                        dst_start = dst_coords.start
+                        dst_stop = dst_coords.stop
+                        dst_delta = dst_coords.step
+                    else:
+                        dst_start = dst_coords.coordinates[0]
+                        dst_stop = dst_coords.coordinates[-1]
+                        dst_delta = (dst_stop-dst_start) / (dst_coords.size - 1)
+
+                    if isinstance(src_coords, UniformCoordinates1d):
+                        src_start = src_coords.start
+                        src_stop = src_coords.stop
+                        src_delta = src_coords.step
+                    else:
+                        src_start = src_coords.coordinates[0]
+                        src_stop = src_coords.coordinates[-1]
+                        src_delta = (src_stop-src_start) / (src_coords.size - 1)
+
+                    ndelta = max(1, np.round(dst_delta / src_delta))
+                    
+                    c = UniformCoordinates1d(src_start, src_stop, ndelta*src_delta, **src_coords.properties)
+                    
+                    if isinstance(idx, slice):
                         idx = slice(idx.start, idx.stop, int(ndelta))
                     else:
-                        ndelta = np.round(self.requested_coordinates[c.name].step / c[1]-c[0])
-                        if ndelta <= 1:
-                            ndelta = 1 # c.step
-                        c = UniformCoordinates1d(c[0], c[-1], ndelta*c.step, **c.properties)
                         idx = slice(idx[0], idx[-1], int(ndelta))
+                else:
+                    c = self.requested_source_coordiates[dim]
 
                 new_coords.append(c)
                 new_coords_idx.append(idx)
