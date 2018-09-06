@@ -31,7 +31,7 @@ except ImportError:
 
 # Internal imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates, Coordinates1d, UniformCoordinates1d
+from podpac.core.coordinates import Coordinates, Coordinates1d, ArrayCoordinates1d, UniformCoordinates1d
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
@@ -423,40 +423,34 @@ class DataSource(Node):
         if 'time' in coords_src.dims and 'time' in coords_dst.dims:
             data_src = data_src.reindex(
                 time=coords_dst.coords['time'], method='nearest', tolerance=self.interpolation_tolerance)
-            coords_src._coords['time'] = data_src['time'].data
+            coords_src['time'] = ArrayCoordinates1d.from_xarray(data_src['time'])
             if len(coords_dst.dims) == 1:
                 return data_src
 
         if 'alt' in coords_src.dims and 'alt' in coords_dst.dims:
             data_src = data_src.reindex(alt=coords_dst.coords['alt'], method='nearest')
-            coords_src._coords['alt'] = data_src['alt'].data
+            coords_src['alt'] = ArrayCoordinates1d.from_xarray(data_src['alt'])
             if len(coords_dst.dims) == 1:
                 return data_src
 
         # Raster to Raster interpolation from regular grids to regular grids
         
-        if rasterio is not None \
-                and self.interpolation in RASTERIO_INTERPS \
-                and ('lat' in coords_src.dims and 'lon' in coords_src.dims) \
-                and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims) \
-                and coords_src['lat'].rasterio_regularity \
-                and coords_src['lon'].rasterio_regularity \
-                and coords_dst['lat'].rasterio_regularity \
-                and coords_dst['lon'].rasterio_regularity:
+        if (rasterio is not None
+                and self.interpolation in RASTERIO_INTERPS
+                and 'lat' in coords_src.dims and 'lon' in coords_src.dims
+                and 'lat' in coords_dst.dims and 'lon' in coords_dst.dims
+                and coords_src['lat'].is_uniform and coords_src['lon'].is_uniform
+                and coords_dst['lat'].is_uniform and coords_dst['lon'].is_uniform):
             return self.rasterio_interpolation(data_src, coords_src, data_dst, coords_dst)
 
         # Raster to Raster interpolation from irregular grids to arbitrary grids
-        elif ('lat' in coords_src.dims and 'lon' in coords_src.dims) \
-                and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)\
-                and coords_src['lat'].scipy_regularity \
-                and coords_src['lon'].scipy_regularity:
+        elif (('lat' in coords_src.dims and 'lon' in coords_src.dims)
+                and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)):
             
             return self.interpolate_irregular_grid(data_src, coords_src, data_dst, coords_dst, grid=True)
         # Raster to lat_lon point interpolation
         elif (('lat' in coords_src.dims and 'lon' in coords_src.dims)
-              and coords_src['lat'].scipy_regularity
-              and coords_src['lon'].scipy_regularity
-              and ('lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims)):
+                and ('lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims)):
             coords_dst_us = coords_dst.unstack()
             return self.interpolate_irregular_grid(data_src, coords_src, data_dst, coords_dst_us, grid=False)
 

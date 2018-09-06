@@ -16,6 +16,7 @@ import pandas as pd
 import xarray as xr
 import xarray.core.coordinates
 
+from podpac.core.coordinates.utils import GDAL_CRS
 from podpac.core.coordinates.base_coordinates1d import BaseCoordinates1d
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -223,8 +224,10 @@ class Coordinates(tl.HasTraits):
         if not dim in self.dims:
             raise KeyError("cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
             
+        # TODO allow setting an array (cast it to ArrayCoordinates1d)
         if not isinstance(c, BaseCoordinates1d):
             raise TypeError("todo")
+
 
         if c.name is None:
             c.name = dim
@@ -356,9 +359,14 @@ class Coordinates(tl.HasTraits):
     def intersect(self, other, outer=False, return_indices=False):
         intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self.values()]
         if return_indices:
-            return Coordinates([c for c, I in intersections]), [I for c, I in intersections]
+            c = Coordinates([c for c, I in intersections])
+            idx = [I for c, I in intersections]
+            c.dims
+            return c, idx
         else:
-            return Coordinates(intersections)
+            c = Coordinates(intersections)
+            c.dims
+            return c
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
@@ -399,11 +407,17 @@ class Coordinates(tl.HasTraits):
         '''
 
         # TODO JXM
-
+        # return {
+        #     'coord_ref_sys': self.coord_ref_sys,
+        #     'ctype': self.ctype
+        # }
+        
+        c = self[self.dims[0]]
         return {
-            'coord_ref_sys': self.coord_ref_sys,
-            'ctype': self.ctype
+            'coord_ref_sys': c.coord_ref_sys,
+            'ctype': c.ctype
         }
+
     
     # #@property
     # #def gdal_transform(self):
@@ -426,7 +440,8 @@ class Coordinates(tl.HasTraits):
         """
 
         # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
-        return GDAL_CRS[self.coord_ref_sys]
+        # return GDAL_CRS[self.coord_ref_sys]
+        return GDAL_CRS[self[self.dims[0]].coord_ref_sys]
     
     # def add_unique(self, other):
     #     """
