@@ -291,8 +291,11 @@ In general, methods will return a new Coordinates object by default, with an opt
 ### Operators
 
  * `[dim]`: Get the BaseCoordinates1d object for the given dimension, stacked or unstacked
- * `[dim] = <Coordinates1d>`: Set the coordinates for this dimension.
-   - If this dimension is part of stacked dimensions, raises an exception (we could change this)
+ * `[dim] = <BaseCoordinates1d>`: Set the coordinates for this dimension.
+   - If the dimension is part of stacked dimensions, raises an exception (*we could change this to allow setting part of stacked coordinates and just validate that the size is the same*)
+   - If the dimension is missing, raises an exception (*we could change this to add dimensions*)
+
+TODO: `coords['lat_lon']['lat'] = ArrayCoordinates(...)` vs `coords[lat] = ArrayCoordinates(...)`
 
 ### Example
 
