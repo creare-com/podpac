@@ -375,77 +375,6 @@ class Coordinates(tl.HasTraits):
                     rep += '\n\t%s[%s]: %s' % (c.name, _c.name, _c)
         return rep
 
-    # def stack_dict(self, coords=None, dims_map=None):
-    #     """
-    #     TODO
-        
-    #     Parameters
-    #     ----------
-    #     coords : OrderedDict, optional
-    #         TODO
-    #     dims_map : OrderedDict, optional
-    #         TODO
-        
-    #     Returns
-    #     -------
-    #     stacked_coords : OrderedDict
-    #         TODO
-    #     """
-
-    #     if coords is None:
-    #         coords = self._coords
-    #     if dims_map is None:
-    #         dims_map = self.dims_map
-
-    #     stacked_coords = OrderedDict()
-    #     for key, val in dims_map.items():
-    #         if val in stacked_coords:
-    #             temp = stacked_coords[val]
-    #             if not isinstance(temp, list):
-    #                 temp = [temp]
-    #             temp.append(coords[key])
-    #             stacked_coords[val] = temp
-    #         else:
-    #             stacked_coords[val] = coords[key]
-    #     return stacked_coords
-   
-    # def stack(self, stack_dims, copy=True):
-    #     """
-    #     Stack the coordinates in of given dimensions.
-        
-    #     Parameters
-    #     ----------
-    #     stack_dims : list
-    #         dimensions to stack
-    #     copy : boolean, optional
-    #         If True, stack dimensions in-place.
-        
-    #     Returns
-    #     -------
-    #     coord : Coordinates
-    #         If copy=False, a new coordinate object with stacked dimensions.
-    #         If copy=True, this object with its dimensions stacked.
-    #     """
-
-    #     stack_dim = '_'.join(stack_dims)
-    #     dims_map = {k:v for k,v in self.dims_map.items()}
-    #     for k in stack_dims:
-    #         dims_map[k] = stack_dim
-    #     stack_dict = self.stack_dict(self._coords.copy(), dims_map=dims_map)
-    #     if copy:
-    #         return self.__class__(coords=stack_dict, **self.kwargs)
-    #     else:
-    #         # Check for correct dimensions
-    #         tmp = self.dims_map
-    #         self.dims_map = dims_map
-    #         try:
-    #             self._coords_validate({'value': self._coords})
-    #         except Exception as e:
-    #             self.dims_map = tmp
-    #             raise(e)
-            
-    #         return self
-
     def unstack(self):
         """
         Unstack the coordinates of all of the dimensions.
@@ -475,22 +404,6 @@ class Coordinates(tl.HasTraits):
             'coord_ref_sys': self.coord_ref_sys,
             'ctype': self.ctype
         }
-    
-    # @property
-    # def delta(self):
-    #     """to be deprecated 
-        
-    #     Returns
-    #     -------
-    #     TYPE
-    #         Description
-    #     """
-
-    #     try:
-    #         return np.array([c.delta for c in self._coords.values()]).squeeze()
-    #     except ValueError as e:
-    #         return np.array([c.delta for c in self._coords.values()], 
-    #                 object).squeeze()
     
     # #@property
     # #def gdal_transform(self):
