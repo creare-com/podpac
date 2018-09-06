@@ -279,33 +279,31 @@ class DataSource(Node):
         # TODO: replace this with actual self.interpolation methods
         if self.interpolation == 'nearest_preview':
             # We can optimize a little
-            new_coords = OrderedDict()
+            new_coords = []
             new_coords_idx = []
 
-            for i, d in enumerate(self.requested_source_coordinates.dims):
-                if isinstance(self.requested_source_coordinates[d], UniformCoordinates1d):
-                    if d in self.requested_coordinates.dims:
-                        ndelta = np.round(self.requested_coordinates[d].step / self.requested_source_coordinates[d].step)
+            for c, idx in zip(self.requested_source_coordinates, self.requested_source_coordinates_index):
+                if c.name in self.requested_coordinates.dims and c.is_uniform:
+                    if isinstance(c, UniformCoordinates1d):
+                        ndelta = np.round(self.requested_coordinates[c.name].step / c.step)
                         if ndelta <= 1:
-                            ndelta = 1 # self.requested_source_coordinates[d].delta
-                        coords = tuple(self.requested_source_coordinates[d].coords[:2]) + (ndelta * self.requested_source_coordinates[d].delta,)
-                        new_coords[d] = coords
-                        new_coords_idx.append(
-                            slice(self.requested_source_coordinates_index[i].start,
-                                  self.requested_source_coordinates_index[i].stop,
-                                  int(ndelta))
-                            )
+                            ndelta = 1 # c.step
+                        # TODO maybe this should be a size?
+                        c = UniformCoordinates1d(c.start, c.stop, ndelta*c.step, **c.properties)
+                        idx = slice(idx.start, idx.stop, int(ndelta))
                     else:
-                        new_coords[d] = self.requested_source_coordinates[d]
-                        new_coords_idx.append(self.requested_source_coordinates_index[i])
-                else:
-                    new_coords[d] = self.requested_source_coordinates[d]
-                    new_coords_idx.append(self.requested_source_coordinates_index[i])
+                        ndelta = np.round(self.requested_coordinates[c.name].step / c[1]-c[0])
+                        if ndelta <= 1:
+                            ndelta = 1 # c.step
+                        c = UniformCoordinates1d(c[0], c[-1], ndelta*c.step, **c.properties)
+                        idx = slice(idx[0], idx[-1], int(ndelta))
 
+                new_coords.append(c)
+                new_coords_idx.append(idx)
+                
             # updates requested source coordinates and index
             self.requested_source_coordinates = Coordinates(new_coords)
             self.requested_source_coordinates_index = new_coords_idx
-    
 
     def _get_data(self):
         """Wrapper for `self.get_data` with pre and post processing
@@ -703,8 +701,7 @@ class DataSource(Node):
 
             # there is a bug here that is not yet fixed
             if order != dst_order:
-                raise NotImplementedError('%s -> %s interpolation not currently supported' % (
-                    order, dst_order))
+                raise NotImplementedError('%s -> %s interpolation not currently supported' % (order, dst_order))
 
             i = list(coords_dst.dims).index(dst_order)
             new_crds = Coordinates(**{order: [coords_dst.unstack()[c].coordinates for c in order.split('_')]})
