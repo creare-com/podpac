@@ -190,7 +190,7 @@ class Compositor(Node):
             src_subset = self.sources # all
         else:
             # intersecting sources only
-            I = self.source_coordinates.intersect(coordinates, pad=1, ind=True)
+            _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
             src_subset = self.sources[I]
 
         if len(src_subset) == 0:

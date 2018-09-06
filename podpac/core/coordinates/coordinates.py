@@ -353,8 +353,8 @@ class Coordinates(tl.HasTraits):
 
         return Coordinates(cs)
 
-    def intersect(self, other, pad=1, return_indices=False):
-        intersections = [c.intersect(other, pad=pad, return_indices=return_indices) for c in self.values()]
+    def intersect(self, other, outer=False, return_indices=False):
+        intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self.values()]
         if return_indices:
             return Coordinates([c for c, I in intersections]), [I for c, I in intersections]
         else:

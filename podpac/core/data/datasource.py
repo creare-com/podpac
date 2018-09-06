@@ -151,7 +151,7 @@ class DataSource(Node):
     interpolation = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
                              'cubic_spline', 'lanczos', 'average', 'mode',
                              'gauss', 'max', 'min', 'med', 'q1', 'q3'],
-                           , default_value='nearest').tag(attr=True)
+                             default_value='nearest').tag(attr=True)
 
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
     nan_vals = tl.List(allow_none=True)
@@ -231,10 +231,9 @@ class DataSource(Node):
 
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
-        self.requested_source_coordinates = self.native_coordinates.intersect(self.requested_coordinates)
-
         # TODO: support coordinate_index_type parameter to define other index types
-        self.requested_source_coordinates_index = self.native_coordinates.intersect(self.requested_coordinates, ind=True)
+        self.requested_source_coordinates, self.requested_source_coordinates_index = \
+            self.native_coordinates.intersect(self.requested_coordinates, outer=True, return_indices=True)
 
         # If requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
         if np.prod(self.requested_source_coordinates.shape) == 0:
@@ -696,18 +695,22 @@ class DataSource(Node):
 
         order = 'lat_lon' if 'lat_lon' in coords_src.dims else 'lon_lat'
         
+        # calculate tolerance
+        if isinstance(coords_dst['lat'], UniformCoordinates1d):
+            dlat = coords_dst['lat'].step
+        else:
+            dlat = (coords_dst['lat'].bounds[1] - coords_dst['lat'].bounds[0]) / (coords_dst['lat'].size-1)
+
+        if isinstance(coords_dst['lon'], UniformCoordinates1d):
+            dlon = coords_dst['lon'].step
+        else:
+            dlon = (coords_dst['lon'].bounds[1] - coords_dst['lon'].bounds[0]) / (coords_dst['lon'].size-1)
+        
+        tol = np.linalg.norm([dlat, dlon]) * 8
+
         if 'lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims:
-            dst_order = 'lat_lon' if 'lat_lon' in coords_dst.dims else 'lon_lat'
-
-            # there is a bug here that is not yet fixed
-            if order != dst_order:
-                raise NotImplementedError('%s -> %s interpolation not currently supported' % (order, dst_order))
-
-            i = list(coords_dst.dims).index(dst_order)
-            new_crds = Coordinates(**{order: [coords_dst.unstack()[c].coordinates for c in order.split('_')]})
-            tol = np.linalg.norm(coords_dst.delta[i]) * 8
-            src_stacked = np.stack([c.coordinates for c in coords_src.stack_dict()[order]], axis=1)
-            new_stacked = np.stack([c.coordinates for c in new_crds.stack_dict()[order]], axis=1) 
+            src_stacked = np.stack([coords_src[dim].coordinates for dim in coords_src[order].dims], axis=1)
+            new_stacked = np.stack([coords_dst[dim].coordinates for dim in coords_src[order].dims], axis=1)
             pts = KDTree(src_stacked)
             dist, ind = pts.query(new_stacked, distance_upper_bound=tol)
             mask = ind == data_src[order].size
@@ -718,11 +721,9 @@ class DataSource(Node):
             dims[i] = order
             data_dst.data[:] = vals.transpose(*dims).data[:]
             return data_dst
+
         elif 'lat' in coords_dst.dims and 'lon' in coords_dst.dims:
-            i = list(coords_dst.dims).index('lat')
-            j = list(coords_dst.dims).index('lon')
-            tol = np.linalg.norm([coords_dst.delta[i], coords_dst.delta[j]]) * 8
-            pts = np.stack([c.coordinates for c in coords_src.stack_dict()[order]], axis=1)
+            pts = np.stack([coords_src[dim].coordinates for dim in coords_src[order].dims], axis=1)
             if 'lat_lon' == order:
                 pts = pts[:, ::-1]
             pts = KDTree(pts)
@@ -734,14 +735,14 @@ class DataSource(Node):
             vals = data_src[{order: ind}]
             vals[mask] = np.nan
             # make sure 'lat_lon' or 'lon_lat' is the first dimension
-            dims = list(data_src.dims)
-            dims.remove(order)
+            dims = [dim for dim in data_src.dims if dim != order]
             vals = vals.transpose(order, *dims).data
             shape = vals.shape
+            coords = [coords_dst['lat'].coordinates, coords_dst['lon'].coordinates]
+            coords += [coords_src[d].coordinates for d in dims]
             vals = vals.reshape(coords_dst['lat'].size, coords_dst['lon'].size, *shape[1:])
-            vals = UnitsDataArray(vals, dims=['lat', 'lon'] + dims,
-                    coords=[coords_dst.coords['lat'], coords_dst.coords['lon']]
-                    + [coords_src[d].coordinates for d in dims])
+            vals = UnitsDataArray(vals, coords=coords, dims=['lat', 'lon'] + dims)
+            # and transpose back to the destination order
             data_dst.data[:] = vals.transpose(*data_dst.dims).data[:]
             return data_dst
 

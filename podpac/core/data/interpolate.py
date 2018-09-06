@@ -97,7 +97,7 @@ class Interpolator(tl.HasTraits):
         """
         raise NotImplementedError()
     
-    def source_coords_subset(self, pad=None):
+    def source_coords_subset(self):
         """Returns the subset of coordinates needed from the source data
         to interpolate onto the destination data. 
         
@@ -116,8 +116,8 @@ class Interpolator(tl.HasTraits):
         """
         if pad is None:
             pad = self.pad
-        return [self.source_coords.intersect(self.eval_coords, pad=pad),
-                self.source.intersect_ind_slice(self.eval_coords, pad=pad)]
+        return [self.source_coords.intersect(self.eval_coords, outer=True),
+                self.source.intersect_ind_slice(self.eval_coords)]
     
     def __call__(self, source_data):
         """should return evaluated data 
