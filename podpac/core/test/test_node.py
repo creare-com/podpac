@@ -148,7 +148,7 @@ class TestNodeMethods(object):
         for crd in self.crds:
             np.testing.assert_array_equal(n1.get_output_dims(crd), crd.dims)
             np.testing.assert_array_equal(n2.get_output_dims(crd), ['alt'])
-            n3.evaluated_coordinates = crd
+            n3.requested_coordinates = crd
             np.testing.assert_array_equal(n3.get_output_dims(), crd.dims)
             assert(n1.get_output_dims(OrderedDict([('lat',0)])) == ['lat'])
         
@@ -264,7 +264,7 @@ class TestFilesAndCaching(object):
         assert(os.path.exists(os.path.dirname(p)))
         
     @pytest.mark.skip('get_output_coords, replace_coords')
-    dfef test_write_file(self):
+    def test_write_file(self):
         nc = Coordinates([ArrayCoordinates1d(0, name='lat'), ArrayCoordinates1d(1, name='lon')])
         n = Node(native_coordinates=nc)
         n.requested_coordinates = n.native_coordinates

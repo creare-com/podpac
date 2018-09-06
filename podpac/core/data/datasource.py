@@ -59,7 +59,7 @@ DATA_DOC = {
         
         Parameters
         ----------
-        coordinates : podpac.core.coordinate.Coordinate
+        coordinates : Coordinates
             The coordinates that need to be retrieved from the data source using the coordinate system of the data
             source
         coordinates_index : List
@@ -77,16 +77,16 @@ DATA_DOC = {
     'ds_native_coordinates': 'The coordinates of the data source.',
     'get_native_coordinates':
         """
-        Returns a Coordinate object that describes the native coordinates of the data source.
+        Returns a Coordinates object that describes the native coordinates of the data source.
 
         In most cases, this method is defined by the data source implementing the DataSource class.
         If this method is not implemented by the data source, this method will try to return `self.native_coordinates`,
-        if they are defined and are an instance of a Coordinate class.
+        if they are defined and are an instance of a Coordinates class.
         Otherwise, this method will raise a NotImplementedError.
 
         Returns
         --------
-        podpac.core.coordinate.Coordinate
+        Coordinates
            The coordinates describing the data source array.
 
         Raises
@@ -126,9 +126,9 @@ class DataSource(Node):
     
     Members
     -------
-    requested_coordinates : podpac.core.coordinate.coordinate.Coordinates
+    requested_coordinates : Coordinates
         Coordinates requested by the data source when evalulating a node.
-    requested_source_coordinates : podpac.core.coordinate.coordinate.Coordinates
+    requested_source_coordinates : Coordinates
         The `requested_coordinates` transformed into the native coordinate system
     requested_source_coordinates_index : list
         the index of the requested source coordinates based on `coordinate_index_type`
@@ -158,8 +158,8 @@ class DataSource(Node):
     interpolation_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
     # TODO: include these attributes out here? How else do we document existence?
-    requested_coordinates = tl.Instance(Coordinate, allow_none=True)
-    requested_source_coordinates = tl.Instance(Coordinate)
+    requested_coordinates = tl.Instance(Coordinates, allow_none=True)
+    requested_source_coordinates = tl.Instance(Coordinates)
     requested_source_coordinates_index = tl.List()
     requested_source_data = tl.Instance(UnitsDataArray)
 
@@ -184,7 +184,7 @@ class DataSource(Node):
 
         Parameters
         ----------
-        coordinates : podpac.core.coordinate.coordinate.Coordinates
+        coordinates : Coordinates
             {requested_coordinates}
         output : podpac.core.units.UnitsDataArray, optional
             {execute_out}
@@ -198,7 +198,7 @@ class DataSource(Node):
 
         # initial checks
         if self.coordinate_index_type != 'numpy':
-            warnings.warn('Coordinate index type {} is not yet supported.'.format(self.coordinate_index_type) +
+            warnings.warn('Coordinates index type {} is not yet supported.'.format(self.coordinate_index_type) +
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
         
         # set input coordinates to requested_coordinates
@@ -291,7 +291,7 @@ class DataSource(Node):
                     new_coords_idx.append(self.requested_source_coordinates_index[i])
 
             # updates requested source coordinates and index
-            self.requested_source_coordinates = Coordinate(new_coords)
+            self.requested_source_coordinates = Coordinates(new_coords)
             self.requested_source_coordinates_index = new_coords_idx
     
 
@@ -358,7 +358,7 @@ class DataSource(Node):
         """
 
         # TODO: This results in a recursive loop in the case of a default
-        # if isinstance(self.native_coordinates, Coordinate):
+        # if isinstance(self.native_coordinates, Coordinates):
         #     return self.native_coordinates
 
         raise NotImplementedError
@@ -701,7 +701,7 @@ class DataSource(Node):
                     order, dst_order))
 
             i = list(coords_dst.dims).index(dst_order)
-            new_crds = Coordinate(**{order: [coords_dst.unstack()[c].coordinates
+            new_crds = Coordinates(**{order: [coords_dst.unstack()[c].coordinates
                 for c in order.split('_')]})
             tol = np.linalg.norm(coords_dst.delta[i]) * 8
             src_stacked = np.stack([c.coordinates for c in coords_src.stack_dict()[order]], axis=1)

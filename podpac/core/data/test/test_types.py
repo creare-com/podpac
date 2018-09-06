@@ -22,577 +22,572 @@ import requests
 
 import podpac.settings
 from podpac.core.units import UnitsDataArray
-from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.node import COMMON_NODE_DOC, Node
-from podpac.core.data.type import COMMON_DOC, WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
-from podpac.core.data.type import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
+from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
+from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3
 
-####
-# Tests
-####
-class TestType(object):
-    """Test podpac.core.data.types module"""
+@pytest.mark.skip("TODO")
+def test_allow_missing_modules(self):
+    """TODO: Allow user to be missing rasterio and scipy"""
+    pass
 
-    def test_allow_missing_modules(self):
-        """TODO: Allow user to be missing rasterio and scipy"""
+class TestArray(object):
+    """Test Array datasource class (formerly Array)"""
+
+    data = np.random.rand(11, 11)
+    coordinates = Coordinates([
+        UniformCoordinates1d(-25, 25, size=11, name='lat'),
+        UniformCoordinates1d(-25, 25, size=11, name='lon')
+    ])
+
+    def test_source_trait(self):
+        """ must be an ndarry """
+        
+        node = Array(source=self.data, native_coordinates=self.coordinates)
+        assert isinstance(node, Array)
+
+        with pytest.raises(TraitError):
+            node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
+
+    def test_get_data(self):
+        """ defined get_data function"""
+        
+        source = self.data
+        node = Array(source=source, native_coordinates=self.coordinates)
+        output = node.execute(self.coordinates)
+
+        assert isinstance(output, UnitsDataArray)
+        assert output.values[0, 0] == source[0, 0]
+        assert output.values[4, 5] == source[4, 5]
+
+    def test_native_coordinates(self):
+        """test that native coordinates get defined"""
+        
+        node = Array(source=self.data)
+        with pytest.raises(NotImplementedError):
+            node.get_native_coordinates()
+
+        node = Array(source=self.data, native_coordinates=self.coordinates)
+        assert node.native_coordinates
+
+        # TODO: get rid of this when this returns native_coordinates by default
+        with pytest.raises(NotImplementedError):
+            node.get_native_coordinates()
+
+
+class TestPyDAP(object):
+    """test pydap datasource"""
+
+    source = 'http://demo.opendap.org'
+    username = 'username'
+    password = 'password'
+    datakey = 'key'
+
+    # mock parameters and data
+    data = np.random.rand(11, 11)   # mocked from pydap endpoint
+    coordinates = Coordinates([
+        UniformCoordinates1d(-25, 25, size=11, name='lat'),
+        UniformCoordinates1d(-25, 25, size=11, name='lon')
+    ])
+
+    def mock_pydap(self):
+
+        def open_url(url, session=None):
+            base = pydap.model.BaseType(name='key', data=self.data)
+            dataset = pydap.model.DatasetType(name='dataset')
+            dataset['key'] = base
+            return dataset
+
+        pydap.client.open_url = open_url
+
+    def test_init(self):
+        """test basic init of class"""
+
+        node = PyDAP(source=self.source,
+                     datakey=self.datakey,
+                     username=self.username,
+                     password=self.password)
+        assert isinstance(node, PyDAP)
+
+        node = MockPyDAP()
+        assert isinstance(node, MockPyDAP)
+
+    def test_traits(self):
+        """ check each of the pydap traits """
+
+        with pytest.raises(TraitError):
+            PyDAP(source=5, datakey=self.datakey)
+
+        with pytest.raises(TraitError):
+            PyDAP(source=self.source, datakey=5)
+
+        nodes = [
+            PyDAP(source=self.source, datakey=self.datakey),
+            MockPyDAP()
+        ]
+
+        # TODO: in traitlets, if you already define variable, it won't enforce case on
+        # redefinition
+        with pytest.raises(TraitError):
+            nodes[0].username = 5
+
+        with pytest.raises(TraitError):
+            nodes[0].password = 5
+
+        for node in nodes:
+            with pytest.raises(TraitError):
+                node.auth_class = 'auth_class'
+
+            with pytest.raises(TraitError):
+                node.auth_session = 'auth_class'
+
+            with pytest.raises(TraitError):
+                node.dataset = [1, 2, 3]
+
+    def test_auth_session(self):
+        """test auth_session attribute and traitlet default """
+
+        # default to none if no username and password
+        node = PyDAP(source=self.source, datakey=self.datakey)
+        assert node.auth_session is None
+
+        # default to none if no auth_class
+        node = PyDAP(source=self.source, datakey=self.datakey, username=self.username, password=self.password)
+        assert node.auth_session is None
+
+    def test_dataset(self):
+        """test dataset attribute and traitlet default """
+        self.mock_pydap()
+
+        node = PyDAP(source=self.source, datakey=self.datakey)
+
+        # override/reset source on dataset opening
+        node._open_dataset(source='newsource')
+        assert node.source == 'newsource'
+        assert isinstance(node.dataset, pydap.model.DatasetType)
+
+    def test_source(self):
+        """test source attribute and trailet observer """
+        self.mock_pydap()
+
+        node = PyDAP(source=self.source,
+                     datakey=self.datakey,
+                     native_coordinates=self.coordinates)
+
+        # observe source
+        node._update_dataset(change={'old': None})
+        assert node.source == self.source
+
+        output = node._update_dataset(change={'new': 'newsource', 'old': 'oldsource'})
+        assert node.source == 'newsource'
+        assert node.native_coordinates == self.coordinates
+        assert isinstance(node.dataset, pydap.model.DatasetType)
+
+    def test_get_data(self):
+        """test get_data function of pydap"""
+        self.mock_pydap()
+
+        node = PyDAP(source=self.source, datakey=self.datakey, native_coordinates=self.coordinates)
+        output = node.execute(self.coordinates)
+        assert isinstance(output, UnitsDataArray)
+        assert output.values[0, 0] == self.data[0, 0]
+
+        node = MockPyDAP(native_coordinates=self.coordinates)
+        output = node.execute(self.coordinates)
+        assert isinstance(output, UnitsDataArray)
+
+
+    def test_native_coordinates(self):
+        """test native coordinates of pydap datasource"""
         pass
 
-    class TestArray(object):
-        """Test Array datasource class (formerly Array)"""
-
-        data = np.random.rand(11, 11)
-        coordinates = Coordinates([
-            UniformCoordinates1d(-25, 25, size=11, name='lat'),
-            UniformCoordinates1d(-25, 25, size=11, name='lon')
-        ])
-
-        def test_source_trait(self):
-            """ must be an ndarry """
-            
-            node = Array(source=self.data, native_coordinates=self.coordinates)
-            assert isinstance(node, Array)
-
-            with pytest.raises(TraitError):
-                node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
-
-        def test_get_data(self):
-            """ defined get_data function"""
-            
-            source = self.data
-            node = Array(source=source, native_coordinates=self.coordinates)
-            output = node.execute(self.coordinates)
+    def test_keys(self):
+        """test return of dataset keys"""
+        self.mock_pydap()
 
-            assert isinstance(output, UnitsDataArray)
-            assert output.values[0, 0] == source[0, 0]
-            assert output.values[4, 5] == source[4, 5]
+        node = MockPyDAP(native_coordinates=self.coordinates)
+        keys = node.keys
+        assert 'key' in keys
 
-        def test_native_coordinates(self):
-            """test that native coordinates get defined"""
-            
-            node = Array(source=self.data)
-            with pytest.raises(NotImplementedError):
-                node.get_native_coordinates()
 
-            node = Array(source=self.data, native_coordinates=self.coordinates)
-            assert node.native_coordinates
-
-            # TODO: get rid of this when this returns native_coordinates by default
-            with pytest.raises(NotImplementedError):
-                node.get_native_coordinates()
-
+class TestRasterio(object):
+    """test rasterio data source"""
 
-    class TestPyDAP(object):
-        """test pydap datasource"""
-
-        source = 'http://demo.opendap.org'
-        username = 'username'
-        password = 'password'
-        datakey = 'key'
-
-        # mock parameters and data
-        data = np.random.rand(11, 11)   # mocked from pydap endpoint
-        coordinates = Coordinates([
-            UniformCoordinates1d(-25, 25, size=11, name='lat'),
-            UniformCoordinates1d(-25, 25, size=11, name='lon')
-        ])
-
-        def mock_pydap(self):
-
-            def open_url(url, session=None):
-                base = pydap.model.BaseType(name='key', data=self.data)
-                dataset = pydap.model.DatasetType(name='dataset')
-                dataset['key'] = base
-                return dataset
+    source = os.path.join(os.path.dirname(__file__), 'assets/RGB.byte.tif')
+    band = 1
 
-            pydap.client.open_url = open_url
 
-        def test_init(self):
-            """test basic init of class"""
+    def test_init(self):
+        """test basic init of class"""
 
-            node = PyDAP(source=self.source,
-                         datakey=self.datakey,
-                         username=self.username,
-                         password=self.password)
-            assert isinstance(node, PyDAP)
-
-            node = MockPyDAP()
-            assert isinstance(node, MockPyDAP)
+        node = Rasterio(source=self.source, band=self.band)
+        assert isinstance(node, Rasterio)
 
-        def test_traits(self):
-            """ check each of the pydap traits """
+        node = MockRasterio()
+        assert isinstance(node, MockRasterio)
 
-            with pytest.raises(TraitError):
-                PyDAP(source=5, datakey=self.datakey)
+    def test_traits(self):
+        """ check each of the rasterio traits """
 
-            with pytest.raises(TraitError):
-                PyDAP(source=self.source, datakey=5)
+        with pytest.raises(TraitError):
+            Rasterio(source=5, band=self.band)
+
+        with pytest.raises(TraitError):
+            Rasterio(source=self.source, band='test')
+
+    def test_dataset(self):
+        """test dataset attribute and trait default """
+        
+        node = Rasterio(source=self.source, band=self.band)
+        try:
+            RasterReader = rasterio._io.RasterReader  # Rasterio < v1.0
+        except:
+            RasterReader = rasterio.io.DatasetReader  # Rasterio >= v1.0
+        assert isinstance(node.dataset, RasterReader)
 
-            nodes = [
-                PyDAP(source=self.source, datakey=self.datakey),
-                MockPyDAP()
-            ]
+        # update source when asked
+        with pytest.raises(rasterio.errors.RasterioIOError):
+            node.open_dataset(source='assets/not-tiff')
 
-            # TODO: in traitlets, if you already define variable, it won't enforce case on
-            # redefinition
-            with pytest.raises(TraitError):
-                nodes[0].username = 5
+        assert node.source == 'assets/not-tiff'
 
-            with pytest.raises(TraitError):
-                nodes[0].password = 5
+        node.close_dataset()
 
-            for node in nodes:
-                with pytest.raises(TraitError):
-                    node.auth_class = 'auth_class'
+    def test_default_native_coordinates(self):
+        """test default native coordinates implementations"""
+        
+        node = Rasterio(source=self.source)
+        native_coordinates = node.get_native_coordinates()
+        assert isinstance(native_coordinates, Coordinates)
+        assert len(native_coordinates['lat']) == 718
 
-                with pytest.raises(TraitError):
-                    node.auth_session = 'auth_class'
+    def test_get_data(self):
+        """test default get_data method"""
 
-                with pytest.raises(TraitError):
-                    node.dataset = [1, 2, 3]
+        node = Rasterio(source=self.source)
+        native_coordinates = node.get_native_coordinates()
+        output = node.execute(native_coordinates)
 
-        def test_auth_session(self):
-            """test auth_session attribute and traitlet default """
+        assert isinstance(output, UnitsDataArray)
 
-            # default to none if no username and password
-            node = PyDAP(source=self.source, datakey=self.datakey)
-            assert node.auth_session is None
+    def test_band_descriptions(self):
+        """test band count method"""
+        node = Rasterio(source=self.source)
+        bands = node.band_descriptions
+        assert bands and isinstance(bands, OrderedDict)
 
-            # default to none if no auth_class
-            node = PyDAP(source=self.source, datakey=self.datakey, username=self.username, password=self.password)
-            assert node.auth_session is None
+    def test_band_count(self):
+        """test band descriptions methods"""
+        node = Rasterio(source=self.source)
+        count = node.band_count
+        assert count and isinstance(count, int)
 
-        def test_dataset(self):
-            """test dataset attribute and traitlet default """
-            self.mock_pydap()
+    def test_band_keys(self):
+        """test band keys methods"""
+        node = Rasterio(source=self.source)
+        keys = node.band_keys
+        assert keys and isinstance(keys, dict)
 
-            node = PyDAP(source=self.source, datakey=self.datakey)
+    def test_get_band_numbers(self):
+        """test band numbers methods"""
+        node = Rasterio(source=self.source)
+        numbers = node.get_band_numbers('STATISTICS_MINIMUM', '0')
+        assert isinstance(numbers, np.ndarray)
+        np.testing.assert_array_equal(numbers, np.arange(3) + 1)
 
-            # override/reset source on dataset opening
-            node._open_dataset(source='newsource')
-            assert node.source == 'newsource'
-            assert isinstance(node.dataset, pydap.model.DatasetType)
+    def tests_source(self):
+        """test source attribute and trailets observe"""
+        
+        node = Rasterio(source=self.source)
+        assert node.source == self.source
 
-        def test_source(self):
-            """test source attribute and trailet observer """
-            self.mock_pydap()
+        # clear cache when source changes
+        node._clear_band_description(change={'old': None, 'new': None})
 
-            node = PyDAP(source=self.source,
-                         datakey=self.datakey,
-                         native_coordinates=self.coordinates)
 
-            # observe source
-            node._update_dataset(change={'old': None})
-            assert node.source == self.source
+class TestWCS(object):
+    """test WCS data source
+    TODO: this needs to be reworked with real examples
+    """
 
-            output = node._update_dataset(change={'new': 'newsource', 'old': 'oldsource'})
-            assert node.source == 'newsource'
-            assert node.native_coordinates == self.coordinates
-            assert isinstance(node.dataset, pydap.model.DatasetType)
+    source = 'WCSsource'
+    layer_name = 'layer'
 
-        def test_get_data(self):
-            """test get_data function of pydap"""
-            self.mock_pydap()
+    with open(os.path.join(os.path.dirname(__file__), 'assets/capabilites.xml'), 'r') as f:
+        capabilities = f.read()
 
-            node = PyDAP(source=self.source, datakey=self.datakey, native_coordinates=self.coordinates)
-            output = node.execute(self.coordinates)
-            assert isinstance(output, UnitsDataArray)
-            assert output.values[0, 0] == self.data[0, 0]
+    # TODO load a better geotiff example so get_data works below
+    with open(os.path.join(os.path.dirname(__file__), 'assets/RGB.byte.tif'), 'rb') as f:
+        geotiff = f.read()
 
-            node = MockPyDAP(native_coordinates=self.coordinates)
-            output = node.execute(self.coordinates)
-            assert isinstance(output, UnitsDataArray)
+    def mock_requests(self, cap_status_code=200, data_status_code=200):
+        def mock_get(url=None):
+            r = requests.Response()
 
+            # get capabilities
+            if ('REQUEST=DescribeCoverage' in url):
+                r.status_code = cap_status_code
+                try:
+                    r._content = bytes(self.capabilities, 'utf-8')
+                except:  # Python 2.7
+                    r._content = bytes(self.capabilities)
+            # get geotiff
+            else:
+                r.status_code = data_status_code
+                r._content = self.geotiff
 
-        def test_native_coordinates(self):
-            """test native coordinates of pydap datasource"""
-            pass
+            return r
 
-        def test_keys(self):
-            """test return of dataset keys"""
-            self.mock_pydap()
+        requests.get = mock_get
 
-            node = MockPyDAP(native_coordinates=self.coordinates)
-            keys = node.keys
-            assert 'key' in keys
+    def test_wcs_defaults(self):
+        """test global WCS defaults"""
 
+        assert WCS_DEFAULT_VERSION
+        assert WCS_DEFAULT_CRS
 
-    class TestRasterio(object):
-        """test rasterio data source"""
+    def test_init(self):
+        """test basic init of class"""
 
-        source = os.path.join(os.path.dirname(__file__), 'assets/RGB.byte.tif')
-        band = 1
+        node = WCS(source=self.source)
+        assert isinstance(node, WCS)
 
 
-        def test_init(self):
-            """test basic init of class"""
+    def test_traits(self):
+        """ check each of the WCS traits """
 
-            node = Rasterio(source=self.source, band=self.band)
-            assert isinstance(node, Rasterio)
+        WCS(source=self.source)
+        with pytest.raises(TraitError):
+            WCS(source=5)
 
-            node = MockRasterio()
-            assert isinstance(node, MockRasterio)
+        WCS(layer_name=self.layer_name)
+        with pytest.raises(TraitError):
+            WCS(layer_name=5)
 
-        def test_traits(self):
-            """ check each of the rasterio traits """
+        node = WCS()
+        assert node.version == WCS_DEFAULT_VERSION
+        with pytest.raises(TraitError):
+            WCS(version=5)
 
-            with pytest.raises(TraitError):
-                Rasterio(source=5, band=self.band)
+        node = WCS()
+        assert node.crs == WCS_DEFAULT_CRS
+        with pytest.raises(TraitError):
+            WCS(crs=5)
 
-            with pytest.raises(TraitError):
-                Rasterio(source=self.source, band='test')
+    def test_get_capabilities_url(self):
+        """test the capabilities url generation"""
+        
+        node = WCS(source=self.source)
+        url = node.get_capabilities_url
+        assert isinstance(url, string_types)
+        assert node.source in url
 
-        def test_dataset(self):
-            """test dataset attribute and trait default """
-            
-            node = Rasterio(source=self.source, band=self.band)
-            try:
-                RasterReader = rasterio._io.RasterReader  # Rasterio < v1.0
-            except:
-                RasterReader = rasterio.io.DatasetReader  # Rasterio >= v1.0
-            assert isinstance(node.dataset, RasterReader)
+    def test_get_wcs_coordinates(self):
+        """get wcs coordinates"""
 
-            # update source when asked
-            with pytest.raises(rasterio.errors.RasterioIOError):
-                node.open_dataset(source='assets/not-tiff')
+        import podpac.core.data.types
 
-            assert node.source == 'assets/not-tiff'
+        # requests
+        self.mock_requests()
+        node = WCS(source=self.source)
+        coordinates = node.wcs_coordinates
 
-            node.close_dataset()
+        assert isinstance(coordinates, Coordinates)
+        assert coordinates['lat']
+        assert coordinates['lon']
+        assert coordinates['time']
 
-        def test_default_native_coordinates(self):
-            """test default native coordinates implementations"""
-            
-            node = Rasterio(source=self.source)
-            native_coordinates = node.get_native_coordinates()
-            assert isinstance(native_coordinates, Coordinates)
-            assert len(native_coordinates['lat']) == 718
-
-        def test_get_data(self):
-            """test default get_data method"""
-
-            node = Rasterio(source=self.source)
-            native_coordinates = node.get_native_coordinates()
-            output = node.execute(native_coordinates)
-
-            assert isinstance(output, UnitsDataArray)
-
-        def test_band_descriptions(self):
-            """test band count method"""
-            node = Rasterio(source=self.source)
-            bands = node.band_descriptions
-            assert bands and isinstance(bands, OrderedDict)
-
-        def test_band_count(self):
-            """test band descriptions methods"""
-            node = Rasterio(source=self.source)
-            count = node.band_count
-            assert count and isinstance(count, int)
-
-        def test_band_keys(self):
-            """test band keys methods"""
-            node = Rasterio(source=self.source)
-            keys = node.band_keys
-            assert keys and isinstance(keys, dict)
-
-        def test_get_band_numbers(self):
-            """test band numbers methods"""
-            node = Rasterio(source=self.source)
-            numbers = node.get_band_numbers('STATISTICS_MINIMUM', '0')
-            assert isinstance(numbers, np.ndarray)
-            np.testing.assert_array_equal(numbers, np.arange(3) + 1)
-
-        def tests_source(self):
-            """test source attribute and trailets observe"""
-            
-            node = Rasterio(source=self.source)
-            assert node.source == self.source
-
-            # clear cache when source changes
-            node._clear_band_description(change={'old': None, 'new': None})
-
-
-    class TestWCS(object):
-        """test WCS data source
-        TODO: this needs to be reworked with real examples
-        """
-
-        source = 'WCSsource'
-        layer_name = 'layer'
-
-        with open(os.path.join(os.path.dirname(__file__), 'assets/capabilites.xml'), 'r') as f:
-            capabilities = f.read()
-
-        # TODO load a better geotiff example so get_data works below
-        with open(os.path.join(os.path.dirname(__file__), 'assets/RGB.byte.tif'), 'rb') as f:
-            geotiff = f.read()
-
-        def mock_requests(self, cap_status_code=200, data_status_code=200):
-            def mock_get(url=None):
-                r = requests.Response()
-
-                # get capabilities
-                if ('REQUEST=DescribeCoverage' in url):
-                    r.status_code = cap_status_code
-                    try:
-                        r._content = bytes(self.capabilities, 'utf-8')
-                    except:  # Python 2.7
-                        r._content = bytes(self.capabilities)
-                # get geotiff
-                else:
-                    r.status_code = data_status_code
-                    r._content = self.geotiff
-
-                return r
-
-            requests.get = mock_get
-
-        def test_wcs_defaults(self):
-            """test global WCS defaults"""
-
-            assert WCS_DEFAULT_VERSION
-            assert WCS_DEFAULT_CRS
-
-        def test_init(self):
-            """test basic init of class"""
-
-            node = WCS(source=self.source)
-            assert isinstance(node, WCS)
-
-
-        def test_traits(self):
-            """ check each of the WCS traits """
-
-            WCS(source=self.source)
-            with pytest.raises(TraitError):
-                WCS(source=5)
-
-            WCS(layer_name=self.layer_name)
-            with pytest.raises(TraitError):
-                WCS(layer_name=5)
-
-            node = WCS()
-            assert node.version == WCS_DEFAULT_VERSION
-            with pytest.raises(TraitError):
-                WCS(version=5)
-
-            node = WCS()
-            assert node.crs == WCS_DEFAULT_CRS
-            with pytest.raises(TraitError):
-                WCS(crs=5)
-
-        def test_get_capabilities_url(self):
-            """test the capabilities url generation"""
-            
-            node = WCS(source=self.source)
-            url = node.get_capabilities_url
-            assert isinstance(url, string_types)
-            assert node.source in url
-
-        def test_get_wcs_coordinates(self):
-            """get wcs coordinates"""
-
-            import podpac.core.data.types
-
-            # requests
-            self.mock_requests()
+        # bad status code return
+        self.mock_requests(cap_status_code=400)
+        with pytest.raises(Exception):
             node = WCS(source=self.source)
             coordinates = node.wcs_coordinates
 
-            assert isinstance(coordinates, Coordinates)
-            assert coordinates['lat']
-            assert coordinates['lon']
-            assert coordinates['time']
+        # no lxml
+        podpac.core.data.types.lxml = None
+        
+        self.mock_requests()
+        node = WCS(source=self.source)
+        coordinates = node.wcs_coordinates
 
-            # bad status code return
-            self.mock_requests(cap_status_code=400)
-            with pytest.raises(Exception):
-                node = WCS(source=self.source)
-                coordinates = node.wcs_coordinates
+        assert isinstance(coordinates, Coordinates)
+        assert coordinates['lat']
+        assert coordinates['lon']
+        assert coordinates['time']
 
-            # no lxml
-            podpac.core.data.types.lxml = None
-            
-            self.mock_requests()
-            node = WCS(source=self.source)
-            coordinates = node.wcs_coordinates
+        # urllib3
+        podpac.core.data.types.requests = None
 
-            assert isinstance(coordinates, Coordinates)
-            assert coordinates['lat']
-            assert coordinates['lon']
-            assert coordinates['time']
+        # no requests, urllib3
+        podpac.core.data.types.urllib3 = None
+        
+        node = WCS(source=self.source)
+        with pytest.raises(Exception):
+            node.get_wcs_coordinates()
 
-            # urllib3
-            podpac.core.data.types.requests = None
+        # put all dependencies back
+        podpac.core.data.types.requests = requests
+        podpac.core.data.types.urllib3 = urllib3
+        podpac.core.data.types.lxml = lxml
 
-            # no requests, urllib3
-            podpac.core.data.types.urllib3 = None
-            
-            node = WCS(source=self.source)
-            with pytest.raises(Exception):
-                node.get_wcs_coordinates()
+    def test_get_native_coordinates(self):
+        """get native coordinates"""
 
-            # put all dependencies back
-            podpac.core.data.types.requests = requests
-            podpac.core.data.types.urllib3 = urllib3
-            podpac.core.data.types.lxml = lxml
+        self.mock_requests()
+        node = WCS(source=self.source)
 
-        def test_get_native_coordinates(self):
-            """get native coordinates"""
+        # equal to wcs coordinates when no eval coordinates
+        native_coordinates = node.native_coordinates
+        wcs_coordinates = node.wcs_coordinates
+        assert native_coordinates == wcs_coordinates
 
-            self.mock_requests()
-            node = WCS(source=self.source)
+        # with eval coordinates
+        # TODO: use real eval coordinates
+        node.requested_coordinates = native_coordinates
+        native_coordinates = node.native_coordinates
 
-            # equal to wcs coordinates when no eval coordinates
-            native_coordinates = node.native_coordinates
-            wcs_coordinates = node.wcs_coordinates
-            assert native_coordinates == wcs_coordinates
+        assert isinstance(native_coordinates, Coordinates)
+        # TODO: one returns monotonic, the other returns uniform
+        # assert native_coordinates == node.requested_coordinates
+        assert native_coordinates['lat']
+        assert native_coordinates['lon']
+        assert native_coordinates['time']
 
-            # with eval coordinates
-            # TODO: use real eval coordinates
-            node.requested_coordinates = native_coordinates
-            native_coordinates = node.native_coordinates
+    def test_get_data(self):
+        """get data from wcs server"""
 
-            assert isinstance(native_coordinates, Coordinates)
-            # TODO: one returns monotonic, the other returns uniform
-            # assert native_coordinates == node.requested_coordinates
-            assert native_coordinates['lat']
-            assert native_coordinates['lon']
-            assert native_coordinates['time']
+        self.mock_requests()
+        node = WCS(source=self.source)
+        lat = node.native_coordinates['lat'].coordinates
+        lon = node.native_coordinates['lon'].coordinates
+        time = node.native_coordinates['time'].coordinates
 
-        def test_get_data(self):
-            """get data from wcs server"""
-
-            self.mock_requests()
-            node = WCS(source=self.source)
-            lat = node.native_coordinates['lat'].coordinates
-            lon = node.native_coordinates['lon'].coordinates
-            time = node.native_coordinates['time'].coordinates
-
-            # no time
-            notime_coordinates = Coordinates([
-                UniformCoordinates1d(lat[0], lat[-2], size=10, name='lat'),
-                UniformCoordinates1d(lon[0], lon[-2], size=10, name='lon'),
-                ArrayCoordinates1d('2006-06-14T17:00:00', name='time')
-            ])
-
-            with pytest.raises(ValueError):
-                output = node.execute(notime_coordinates)
-                assert isinstance(output, UnitsDataArray)
-                assert output.native_coordinates['lat'][0] == node.native_coordinates['lat'][0]
-
-            # time
-            time_coordinates = Coordinates([
-                UniformCoordinates1d(lat[0], lat[-2], size=10, name='lat'),
-                UniformCoordinates1d(lon[0], lon[-2], size=10, name='lon'),
-                UniformCoordinates1d(time[0], time[-1], size=len(time), name='time')
-            ])
-
-            with pytest.raises(ValueError):
-                output = node.execute(time_coordinates)
-                assert isinstance(output, UnitsDataArray)
-
-            # requests exceptions
-            self.mock_requests(data_status_code=400)
-            with pytest.raises(Exception):
-                output = node.execute(time_coordinates)
-            with pytest.raises(Exception):
-                output = node.execute(time_coordinates)
-
-            
-    class TestReprojectedSource(object):
-
-        """Test Reprojected Source
-        TODO: this needs to be reworked with real examples
-        """
-
-        source = Node()
-        data = np.random.rand(11, 11)
-        coordinates_source = Coordinates([
-            UniformCoordinates1d(-25, 25, size=11, name='lat'),
-            UniformCoordinates1d(-25, 25, size=11, name='lon')
-        ])
-        reprojected_coordinates = Coordinates([
-            UniformCoordinates1d(25, 50, size=11, name='lat'),
-            UniformCoordinates1d(25, 50, size=11, name='lon')
+        # no time
+        notime_coordinates = Coordinates([
+            UniformCoordinates1d(lat[0], lat[-2], size=10, name='lat'),
+            UniformCoordinates1d(lon[0], lon[-2], size=10, name='lon'),
+            ArrayCoordinates1d('2006-06-14T17:00:00', name='time')
         ])
 
-        def test_init(self):
-            """test basic init of class"""
+        with pytest.raises(ValueError):
+            output = node.execute(notime_coordinates)
+            assert isinstance(output, UnitsDataArray)
+            assert output.native_coordinates['lat'][0] == node.native_coordinates['lat'][0]
 
-            node = ReprojectedSource(source=self.source)
-            assert isinstance(node, ReprojectedSource)
+        # time
+        time_coordinates = Coordinates([
+            UniformCoordinates1d(lat[0], lat[-2], size=10, name='lat'),
+            UniformCoordinates1d(lon[0], lon[-2], size=10, name='lon'),
+            UniformCoordinates1d(time[0], time[-1], size=len(time), name='time')
+        ])
 
-        def test_traits(self):
-            """ check each of the s3 traits """
-
-            ReprojectedSource(source=self.source)
-            with pytest.raises(TraitError):
-                ReprojectedSource(source=5)
-
-            ReprojectedSource(source_interpolation='bilinear')
-            with pytest.raises(TraitError):
-                ReprojectedSource(source_interpolation=5)
-
-            ReprojectedSource(coordinates_source=Node())
-            with pytest.raises(TraitError):
-                ReprojectedSource(coordinates_source=5)
-
-            ReprojectedSource(reprojected_coordinates=self.reprojected_coordinates)
-            with pytest.raises(TraitError):
-                ReprojectedSource(reprojected_coordinates=5)
-
-        @pytest.mark.skip('stack_dict')
-        def test_native_coordinates(self):
-            """test native coordinates"""
-
-            # error if no source has coordinates
-            with pytest.raises(Exception):
-                node = ReprojectedSource(source=Node())
-                node.native_coordinates
-
-            # source as Node
-            node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
-            assert isinstance(node.native_coordinates, Coordinates)
-            assert node.native_coordinates['lat'][0] == self.reprojected_coordinates['lat'][0]
-
-            # source as DataSource
-            datanode = DataSource(source='test', native_coordinates=self.coordinates_source)
-            node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-            assert isinstance(node.native_coordinates, Coordinates)
-            assert node.native_coordinates['lat'][0] == self.coordinates_source['lat'][0]
-
-        @pytest.mark.skip('stack_dict')
-        def test_get_data(self):
-            """test get data from reprojected source"""
-            datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-            node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-            output = node.execute(node.native_coordinates)
+        with pytest.raises(ValueError):
+            output = node.execute(time_coordinates)
             assert isinstance(output, UnitsDataArray)
 
+        # requests exceptions
+        self.mock_requests(data_status_code=400)
+        with pytest.raises(Exception):
+            output = node.execute(time_coordinates)
+        with pytest.raises(Exception):
+            output = node.execute(time_coordinates)
 
-        def test_base_ref(self):
-            """test base ref"""
+        
+class TestReprojectedSource(object):
 
-            datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-            node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-            ref = node.base_ref
+    """Test Reprojected Source
+    TODO: this needs to be reworked with real examples
+    """
 
-            assert '_reprojected' in ref
+    source = Node()
+    data = np.random.rand(11, 11)
+    coordinates_source = Coordinates([
+        UniformCoordinates1d(-25, 25, size=11, name='lat'),
+        UniformCoordinates1d(-25, 25, size=11, name='lon')
+    ])
+    reprojected_coordinates = Coordinates([
+        UniformCoordinates1d(25, 50, size=11, name='lat'),
+        UniformCoordinates1d(25, 50, size=11, name='lon')
+    ])
 
-        def test_definition(self):
-            """test definition"""
+    def test_init(self):
+        """test basic init of class"""
 
-            datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-            node = ReprojectedSource(source=datanode, coordinates_source=datanode)
+        node = ReprojectedSource(source=self.source)
+        assert isinstance(node, ReprojectedSource)
+
+    def test_traits(self):
+        """ check each of the s3 traits """
+
+        ReprojectedSource(source=self.source)
+        with pytest.raises(TraitError):
+            ReprojectedSource(source=5)
+
+        ReprojectedSource(source_interpolation='bilinear')
+        with pytest.raises(TraitError):
+            ReprojectedSource(source_interpolation=5)
+
+        ReprojectedSource(coordinates_source=Node())
+        with pytest.raises(TraitError):
+            ReprojectedSource(coordinates_source=5)
+
+        ReprojectedSource(reprojected_coordinates=self.reprojected_coordinates)
+        with pytest.raises(TraitError):
+            ReprojectedSource(reprojected_coordinates=5)
+
+    @pytest.mark.skip('stack_dict')
+    def test_native_coordinates(self):
+        """test native coordinates"""
+
+        # error if no source has coordinates
+        with pytest.raises(Exception):
+            node = ReprojectedSource(source=Node())
+            node.native_coordinates
+
+        # source as Node
+        node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
+        assert isinstance(node.native_coordinates, Coordinates)
+        assert node.native_coordinates['lat'][0] == self.reprojected_coordinates['lat'][0]
+
+        # source as DataSource
+        datanode = DataSource(source='test', native_coordinates=self.coordinates_source)
+        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
+        assert isinstance(node.native_coordinates, Coordinates)
+        assert node.native_coordinates['lat'][0] == self.coordinates_source['lat'][0]
+
+    @pytest.mark.skip('stack_dict')
+    def test_get_data(self):
+        """test get data from reprojected source"""
+        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
+        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
+        output = node.execute(node.native_coordinates)
+        assert isinstance(output, UnitsDataArray)
+
+
+    def test_base_ref(self):
+        """test base ref"""
+
+        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
+        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
+        ref = node.base_ref
+
+        assert '_reprojected' in ref
+
+    def test_definition(self):
+        """test definition"""
+
+        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
+        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
+        definition = node.definition
+        assert 'attrs' in definition
+        assert 'interpolation' in definition['attrs']
+
+        # no coordinates source
+        node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
+        with pytest.raises(NotImplementedError):
             definition = node.definition
-            assert 'attrs' in definition
-            assert 'interpolation' in definition['attrs']
-
-            # no coordinates source
-            node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
-            with pytest.raises(NotImplementedError):
-                definition = node.definition
 
 class TestS3(object):
     """test S3 data source"""

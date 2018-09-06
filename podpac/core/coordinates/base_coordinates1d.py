@@ -57,3 +57,6 @@ class BaseCoordinates1d(tl.HasTraits):
 
     def __len__(self):
         return self.size
+
+    def __repr__(self):
+        raise NotImplementedError

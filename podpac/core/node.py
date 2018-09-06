@@ -181,7 +181,7 @@ class Node(tl.HasTraits):
     def shape(self):
         """See `get_output_shape`
         """
-        return self.evaluated_coordinates.shape
+        return self.requested_coordinates.shape
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """

@@ -199,6 +199,12 @@ class Coordinates(tl.HasTraits):
     def items(self):
         return self._coords.items()
 
+    def get(self, dim, default=None):
+        try:
+            return self[dim]
+        except KeyError:
+            return default
+
     def __iter__(self):
         return iter(self._coords)
 
@@ -231,9 +237,9 @@ class Coordinates(tl.HasTraits):
         
         # TODO we could also support setting individal coords in stacked coords
         # if dim in self.udims:
-        #     for c in self._coords.values():
+        #     for _c in self._coords.values():
         #         if isinstance(c, StackedCoordinates) and dim in c.dims:
-        #             c[dim] = c
+        #             _c[dim] = c # this will validate the size
         
         # TODO we could also support adding new coords (need to check for duplicate dimensions)
         # else:
@@ -252,12 +258,6 @@ class Coordinates(tl.HasTraits):
 
     def __len__(self):
         return len(self._coords)
-
-    def get(self, dim):
-        try:
-            return self[dim]
-        except KeyError:
-            return None
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -288,38 +288,56 @@ class Coordinates(tl.HasTraits):
         # TODO don't recompute this every time (but also don't compute it until requested)
         x = xr.DataArray(np.empty(self.shape), coords=[c.coordinates for c in self._coords.values()], dims=self.dims)
         return x.coords
+
+    @property
+    def latlon_bounds_str(self):
+        if 'lat' in self.udims and 'lon' in self.udims:
+            # Where is this really used? Shouldn't this be area_bounds?
+            return '%s_%s_x_%s_%s' % (
+                self['lat'].bounds[0],
+                self['lon'].bounds[0],
+                self['lat'].bounds[1],
+                self['lon'].bounds[1])
+        else:
+            return 'NA'
     
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def drop(self, dims):
+    def drop(self, dims, ignore_missing=False):
         """
         Remove the given dimensions from the Coordinates.
         
         Parameters
         ----------
-        dims
+        dims : str, list
             Description
+        ignore_missing : bool
+
         """
 
         if not isinstance(dims, (tuple, list)):
-            dims = [dims]
+            dims = (dims,)
 
         for dim in dims:
-            if dim not in self.dims:
-                raise ValueError("Dimension '%s' not found in Coordinates with %s" % (dim, self.dims))
+            if not isinstance(dim, str):
+                raise TypeError("Invalid drop dimension type '%s'" % type(dim))
+            if dim not in self.dims and not ignore_missing:
+                raise KeyError("Dimension '%s' not found in Coordinates with %s" % (dim, self.dims))
 
         return Coordinates([c for c in self._coords.values() if c.name not in dims])
 
     # do we ever need this?
-    def drop2(self, dims):
+    def udrop(self, dims, ignore_missing=False):
         if not isinstance(dims, (tuple, list)):
-            dims = [dims]
+            dims = (dims,)
 
         for dim in dims:
-            if dim not in self.dims:
-                raise ValueError("Dimension '%s' not found in Coordinates with %s" % (dim, self.dims))
+            if not isinstance(dim, str):
+                raise TypeError("Invalid drop dimension type '%s'" % type(dim))
+            if dim not in self.udims and not ignore_missing:
+                raise KeyError("Dimension '%s' not found in Coordinates with %s" % (dim, self.udims))
 
         cs = []
         for c in self.coords.values():
@@ -332,6 +350,7 @@ class Coordinates(tl.HasTraits):
                     cs.append(StackedCoordinates(stacked))
                 elif len(stacked) == 1:
                     cs.append(stacked[0])
+
         return Coordinates(cs)
 
     def intersect(self, other, pad=1, return_indices=False):
@@ -355,94 +374,6 @@ class Coordinates(tl.HasTraits):
                 for _c in c:
                     rep += '\n\t%s[%s]: %s' % (c.name, _c.name, _c)
         return rep
-
-
-    # def get_dims_map(self, coords=None):
-    #     """
-    #     TODO
-        
-    #     Parameters
-    #     ----------
-    #     coords : dict, optional
-    #         TODO
-        
-    #     Returns
-    #     -------
-    #     stacked_coords : OrderedDict
-    #         TODO
-    #     """
-
-    #     if coords is None:
-    #         coords = self.coords
-
-    #     stacked_coords = OrderedDict()
-    #     for c in coords:
-    #         if '_' in c:
-    #             for cc in c.split('_'):
-    #                 stacked_coords[cc] = c
-    #         else:
-    #             stacked_coords[c] = c
-    #     return stacked_coords
-    
-    # def unstack_dict(self, coords=None, check_dim_repeat=False):
-    #     """
-    #     TODO
-        
-    #     Parameters
-    #     ----------
-    #     coords : dict, optional
-    #         TODO
-    #     check_dim_repeat : boolean
-    #         TODO
-        
-    #     Returns
-    #     -------
-    #     new_crds : OrderedDict
-    #         TODO
-        
-    #     Raises
-    #     ------
-    #     TypeError
-    #         Description
-    #     ValueError
-    #         Description
-    #     """
-
-    #     if coords is None:
-    #         coords = self._coords
-
-    #     dims_map = self.get_dims_map(coords)
-       
-    #     new_crds = OrderedDict()
-    #     seen_dims = []
-    #     for key, val in coords.items():
-    #         if key not in self.dims_map:  # stacked
-    #             keys = key.split('_')
-    #             for i, k in enumerate(keys):
-    #                 new_crds[k] = val[i]
-
-    #                 # parse uniform coords tuple and append size
-    #                 if isinstance(val[i], tuple):
-    #                     if len(val) != len(keys) + 1:
-    #                         raise ValueError("missing size for stacked uniform coordinates")
-    #                     if (not isinstance(val[-1], (int, np.long, np.integer)) or
-    #                         isinstance(val[-1], (np.timedelta64))):
-    #                         raise TypeError("invalid size for stacked uniform coordinates \
-    #                                          (expected integer, not '%s')" % type(val[-1]))
-    #                     new_crds[k] += (val[-1],)
-                    
-    #                 if check_dim_repeat and k in seen_dims:
-    #                     raise ValueError(
-    #                         "The dimension '%s' cannot be repeated." % dim)
-    #                 seen_dims.append(k)
-    #         else:
-    #             new_crds[key] = val
-    #             if check_dim_repeat and key in seen_dims:
-    #                 raise ValueError(
-    #                     "The dimension '%s' cannot be repeated." % key)
-    #             seen_dims.append(key)
-
-    #     return new_crds
 
     # def stack_dict(self, coords=None, dims_map=None):
     #     """
@@ -477,22 +408,6 @@ class Coordinates(tl.HasTraits):
     #         else:
     #             stacked_coords[val] = coords[key]
     #     return stacked_coords
-   
-    # @property
-    # def is_stacked(self):
-    #     """
-    #     True if any of the coordinates are stacked; False if none are stacked.
-        
-    #     Returns
-    #     -------
-    #     TYPE
-    #         Description
-    #     """
-
-    #     for k, v in self.dims_map.items():
-    #         if k != v:
-    #             return True
-    #     return False
    
     # def stack(self, stack_dims, copy=True):
     #     """
@@ -553,115 +468,23 @@ class Coordinates(tl.HasTraits):
     #         self.dims_map = {v:v for v in self.dims_map}
     #         return self
     
-    # @property
-    # def kwargs(self):
-    #     '''
-    #     Dictionary specifying the coordinate properties.
+    @property
+    def properties(self):
+        '''
+        Dictionary specifying the coordinate properties.
         
-    #     Returns
-    #     -------
-    #     TYPE
-    #         Description
-    #     '''
+        Returns
+        -------
+        TYPE
+            Description
+        '''
 
-    #     return {
-    #         'coord_ref_sys': self.coord_ref_sys,
-    #         'ctype': self.ctype
-    #     }
-    
-    # def replace_coords(self, other, copy=True):
-    #     '''
-    #     TODO
-        
-    #     Parameters
-    #     ----------
-    #     other : Coordinates
-    #         Replacement Coordinates.
-    #     copy : boolean, optional
-    #         If True (default), make a new Coordinates object. If False, replace
-    #         coordinates in-place.
-        
-    #     Returns
-    #     -------
-    #     coord : Coordinates
-    #         If copy=True, a new Coordinates with replaced coordinates.
-    #         If copy=False, this object with its coordinates replaced.
-    #     '''
+        # TODO JXM
 
-    #     if copy:
-    #         coords = self._coords.copy()
-    #         dims_map = self.dims_map.copy()
-    #     else:
-    #         coords = self._coords
-    #         dims_map = self.dims_map
-            
-    #     for c in coords:
-    #         if c in other._coords:
-    #             coords[c] = other._coords[c]
-    #             old_stack = dims_map[c]
-    #             dims_map[c] = other.dims_map[c]
-    #             fix_stack = [o for o in old_stack.split('_') 
-    #                          if o not in dims_map[c].split('_')]
-    #             for f in fix_stack:
-    #                 dims_map[f] = '_'.join(fix_stack)
-        
-    #     if copy:
-    #         stack_dict = self.stack_dict(coords, dims_map=dims_map)
-    #         return self.__class__(coords=stack_dict)
-    #     else:
-    #         return self   
- 
-    # def get_shape(self, other_coords=None):
-    #     """
-    #     Coordinates shape, corresponding to dims attribute.
-        
-    #     Parameters
-    #     ----------
-    #     other_coords : Coordinates, optional
-    #         TODO
-        
-    #     Returns
-    #     -------
-    #     shape : tuple
-    #         Number of coordinates in each dimension.
-    #     """
-
-    #     if other_coords is None:
-    #         other_coords = self
-    #     # Create shape for each dimension
-    #     shape = []
-    #     seen_dims = []
-    #     self_seen_dims = []
-    #     for k in self._coords:
-    #         if k in other_coords._coords:
-    #             shape.append(other_coords._coords[k].size)
-    #             # Remove stacked duplicates
-    #             if other_coords.dims_map[k] in seen_dims:
-    #                 shape.pop()
-    #             else:
-    #                 seen_dims.append(other_coords.dims_map[k])
-    #         else:
-    #             shape.append(self._coords[k].size)
-    #             # Remove stacked duplicates
-    #             if self.dims_map[k] in self_seen_dims:
-    #                 shape.pop()
-    #             else:
-    #                 self_seen_dims.append(self.dims_map[k])
-                
-
-    #     return tuple(shape)
-        
-    # @property
-    # def shape(self):
-    #     """Coordinates shape, corresponding to dims attribute. 
-        
-    #     Returns
-    #     -------
-    #     TYPE
-    #         Description
-    #     """
-
-    #     return self.get_shape()
+        return {
+            'coord_ref_sys': self.coord_ref_sys,
+            'ctype': self.ctype
+        }
     
     # @property
     # def delta(self):
@@ -679,61 +502,15 @@ class Coordinates(tl.HasTraits):
     #         return np.array([c.delta for c in self._coords.values()], 
     #                 object).squeeze()
     
-    # @property
-    # def dims(self):
-    #     """Coordinates dimensions. 
-        
-    #     Returns
-    #     -------
-    #     TYPE
-    #         Description
-    #     """
-
-    #     dims = []
-    #     for v in self.dims_map.values():
-    #         if v not in dims:
-    #             dims.append(v)
-    #     return dims
-    
-    # @property
-    # def coords(self):
-    #     """TODO 
-        
-    #     Returns
-    #     -------
-    #     TYPE
-    #         Description
-    #     """
-
-    #     crds = OrderedDict()
-    #     for k in self.dims:
-    #         if k in self.dims_map:  # not stacked
-    #             crds[k] = self._coords[k].coordinates
-    #         else:
-    #             coordinates = [self._coords[kk].coordinates
-    #                            for kk in k.split('_')]
-    #             dtype = [(str(kk), coordinates[i].dtype) 
-    #                      for i, kk in enumerate(k.split('_'))]
-    #             n_coords = len(coordinates)
-    #             s_coords = len(coordinates[0])
-    #             crds[k] = np.atleast_1d(np.array([[tuple([coordinates[j][i]
-    #                                  for j in range(n_coords)])]
-    #                                for i in range(s_coords)],
-    #                 dtype=dtype).squeeze())
-    #     return crds
-    
     # #@property
     # #def gdal_transform(self):
-    #     #if self['lon'].regularity == 'regular' \
-    #            #and self['lat'].regularity == 'regular':
-    #         #lon_bounds = self['lon'].area_bounds
-    #         #lat_bounds = self['lat'].area_bounds
-        
-    #         #transform = [lon_bounds[0], self['lon'].delta, 0,
-    #                      #lat_bounds[0], 0, -self['lat'].delta]
-    #     #else:
-    #         #raise NotImplementedError
-    #     #return transform
+    #     if self['lon'].regularity == 'regular' and self['lat'].regularity == 'regular':
+    #         lon_bounds = self['lon'].area_bounds
+    #         lat_bounds = self['lat'].area_bounds
+    #         transform = [lon_bounds[0], self['lon'].delta, 0, lat_bounds[0], 0, -self['lat'].delta]
+    #     else:
+    #         raise NotImplementedError
+    #     return transform
     
     @property
     def gdal_crs(self):
@@ -878,148 +655,3 @@ class Coordinates(tl.HasTraits):
     #         kwargs = coords
     #         kwargs.update(self.kwargs)
     #         return Coordinates(order=dims, **kwargs)
-
-    @property
-    def latlon_bounds_str(self):
-        if 'lat' in self.dims and 'lon' in self.dims:
-            # Where is this really used? Shouldn't this be area_bounds?
-            return '%s_%s_x_%s_%s' % (
-                self['lat'].bounds[0],
-                self['lon'].bounds[0],
-                self['lat'].bounds[1],
-                self['lon'].bounds[1])
-        else:
-            return 'NA'
-
-# TODO spec here is uncertain, not in use yet
-# class CoordinateGroup(BaseCoordinates):
-#     """CoordinateGroup Summary
-#     """
-    
-#     # TODO list or array?
-#     _items = tl.List(trait=tl.Instance(Coordinates))
-
-#     @tl.validate('_items')
-#     def _validate_items(self, d):
-#         items = d['value']
-#         if not items:
-#             return items
-
-#         # unstacked dims must match, but not necessarily in order
-#         dims = set(items[0].dims_map)
-#         for g in items:
-#             if set(g.dims_map) != dims:
-#                 raise ValueError(
-#                     "Mismatching dims: '%s != %s" % (dims, set(g.dims)))
-
-#         return items
-
-#     def __init__(self, items=[], **kwargs):
-#         return super(CoordinateGroup, self).__init__(_items=items, **kwargs)
-
-#     def __repr__(self):
-#         rep = self.__class__.__name__
-#         rep += '\n' + '\n'.join([repr(g) for g in self._items])
-#         return rep
-    
-#     def __getitem__(self, key):
-#         if isinstance(key, (int, slice)):
-#             return self._items[key]
-        
-#         elif isinstance(key, tuple):
-#             if len(key) != 2:
-#                 raise IndexError("Too many indices for CoordinateGroup")
-            
-#             k, dim = key
-#             # TODO list or array?
-#             return [item[dim] for item in self._items[k]]
-        
-#         else:
-#             raise IndexError(
-#                 "invalid CoordinateGroup index type '%s'" % type(key))
-
-#     def __len__(self):
-#         return len(self._items)
-
-#     def __iter__(self):
-#         return self._items.__iter__()
-
-#     def append(self, c):
-#         if not isinstance(c, Coordinates):
-#             raise TypeError(
-#                 "Can only append Coordinates objects, not '%s'" % type(c))
-        
-#         self._items.append(c)
-   
-#     def stack(self, stack_dims, copy=True):
-#         """ stack all """
-
-#         if copy:
-#             return CoordinateGroup(
-#                 [c.stack(stack_dims, copy=True) for c in self._items])
-#         else:
-#             for c in self._items:
-#                 c.stack(stack_dims)
-#             return self
-
-#     def unstack(self, copy=True):
-#         """ unstack all"""
-#         if copy:
-#             return CoordinateGroup(
-#                 [c.unstack(stack_dims, copy=True) for c in self._items])
-#         else:
-#             for c in self._items:
-#                 c.unstack(stack_dims)
-#             return self            
-
-#     def intersect(self, other, coord_ref_sys=None, pad=1, ind=False):
-#         return CoordinateGroup([c.intersect(other) for c in self._items])
-    
-#     @property
-#     def dims(self):
-#         """ unordered (set) and unstacked """
-#         if len(self._items) == 0:
-#             return {}
-#         return set(self._items[0].dims_map)
-
-#     def add_unique(self, other):
-#         return self._add(other, unique=True)
-    
-#     def __add__(self, other):
-#         return self._add(other)
-    
-#     def _add(self, other, unique=False):
-#         if unique:
-#             raise NotImplementedError("TODO")
-
-#         if isinstance(other, Coordinates):
-#             # TODO should this concat, fail, or do something else?
-#             # items = self._items + [other]
-#             raise NotImplementedError("TODO")
-#         elif isinstance(other, CoordinateGroup):
-#             items = self._items + g._items
-#         else:
-#             raise TypeError("Cannot add '%s', only BaseCoordinates" % type(c))
-        
-#         return CoordinateGroup(self._items + [other])
-
-#     def __iadd__(self, other):
-#         if isinstance(other, Coordinates):
-#             # TODO should this append, fail, or do something else?
-#             # TypeError("Cannot add individual Coordinates, use 'append'")
-#             # self._items.append(other)
-#             raise NotImplementedError("TODO")
-#         elif isinstance(other, CoordinateGroup):
-#             self._items += g._items
-#         else:
-#             raise TypeError("Cannot add '%s' to CoordinateGroup" % type(c))
-
-#         return self
-
-#     def iterchunks(self, shape, return_slice=False):
-#         raise NotImplementedError("TODO")
-
-#     @property
-#     def latlon_bounds_str(self):
-#         # TODO should this be a single latlon bounds or a list of bounds?
-#         raise NotImplementedError("TODO")

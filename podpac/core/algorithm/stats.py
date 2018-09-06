@@ -200,7 +200,7 @@ class Reduce(Algorithm):
         test_out = self.get_output_coords(coords=coordinates)
         self.dims = self.get_dims(test_out)
  
-        self.requested_coordinates = self.evaluated_coordinates.drop(self.dims)
+        self.requested_coordinates = self.requested_coordinates.drop(self.dims)
         if self.output is None:
             self.output = self.initialize_coord_array(self.requested_coordinates)
 

@@ -69,7 +69,7 @@ from podpac.core import authentication
 from podpac.core.node import Node
 from podpac.core.utils import cached_property, clear_cache, common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.coordinate import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.algorithm.algorithm import Algorithm
 
 class Array(DataSource):
@@ -540,7 +540,7 @@ class WCS(DataSource):
 
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
-            return Coordinates(lat=(top, bottom, size[1]),
+            return Coordinates([UniformCoordinates1d(top, bottom, size=size[1], name='lat')])
         
         date_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')
@@ -571,12 +571,10 @@ class WCS(DataSource):
         if not self.requested_coordinates:
             return self.wcs_coordinates
 
-        ev = self.evaluated_coordinates
-        wcs_c = self.wcs_coordinates
         cs = []
-        for dim in wcs_c.dims:
-            if dim in ev.dims:
-                c = ev[dim]
+        for dim in self.wcs_coordinates.dims:
+            if dim in self.requested_coordinates.dims:
+                c = self.requested_coordinates[dim]
                 if c.size == 1:
                     cs.append(ArrayCoordinates1d(c.coordinates[0], name=dim))
                 elif isinstance(c, UniformCoordinates1d):
@@ -586,7 +584,7 @@ class WCS(DataSource):
                     # WCS calls require a regular grid, could (otherwise we have to do multiple WCS calls)
                     cs.append(UniformCoordinates1d(c.bounds[0], c.bounds[1], size=c.size, name=dim))
             else:
-                cs.append(wcs_c[dim])
+                cs.append(self.wcs_coordinates[dim])
         c = podpac.Coordinates(cs)
         return c
 
@@ -775,8 +773,6 @@ class ReprojectedSource(DataSource, Algorithm):
     source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     source = tl.Instance(Node)
     # Specify either one of the next two
-    # TODO: should this be of type Coordinate?
-    # This doesn't make much sense
     coordinates_source = tl.Instance(Node, allow_none=True).tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
@@ -786,7 +782,7 @@ class ReprojectedSource(DataSource, Algorithm):
         
         Returns
         -------
-        Coordinate
+        reprojected_coordinates : Coordinates
             Coordinates where the source node should be evaluated. 
         
         Raises
@@ -794,10 +790,10 @@ class ReprojectedSource(DataSource, Algorithm):
         Exception
             If neither coordinates_source or reproject_coordinates are specified
         """
-        try:
-            return self.coordinates_source.native_coordinates
-        except AttributeError:
+        if not hasattr(self.coordinate_source):
             raise Exception("Either reprojected_coordinates or coordinates_source must be specified")
+        
+        return self.coordinates_source.native_coordinates
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
