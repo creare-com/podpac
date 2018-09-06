@@ -446,27 +446,17 @@ class Coordinates(tl.HasTraits):
             
     #         return self
 
-    # def unstack(self, copy=True):
-    #     """
-    #     Unstack the coordinates of all of the dimensions.
+    def unstack(self):
+        """
+        Unstack the coordinates of all of the dimensions.
         
-    #     Parameters
-    #     ----------
-    #     copy : boolean, optional
-    #         If True, unstack dimensions in-place.
-        
-    #     Returns
-    #     -------
-    #     coord : Coordinates
-    #         If copy=False, a new coordinate object with unstacked dimensions.
-    #         If copy=True, this object with its dimensions unstacked.
-    #     """
+        Returns
+        -------
+        unstacked : Coordinates
+            A new coordinate object with unstacked dimensions.
+        """
 
-    #     if copy:
-    #         return self.__class__(coords=self._coords.copy())
-    #     else:
-    #         self.dims_map = {v:v for v in self.dims_map}
-    #         return self
+        return Coordinates([self[dim] for dim in self.udims], **self.properties)
     
     @property
     def properties(self):

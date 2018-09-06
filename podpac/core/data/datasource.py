@@ -108,6 +108,9 @@ DATA_DOC = {
 COMMON_DATA_DOC = COMMON_NODE_DOC.copy()
 COMMON_DATA_DOC.update(DATA_DOC)      # inherit and overwrite with DATA_DOC
 
+RASTERIO_INTERPS = ['nearest', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss',
+                    'max', 'min', 'med', 'q1', 'q3']
+
 class DataSource(Node):
     """Base node for any data obtained directly from a single source.
     
@@ -431,11 +434,9 @@ class DataSource(Node):
                 return data_src
 
         # Raster to Raster interpolation from regular grids to regular grids
-        rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
-                            'lanczos', 'average', 'mode', 'gauss', 'max', 'min',
-                            'med', 'q1', 'q3']
+        
         if rasterio is not None \
-                and self.interpolation in rasterio_interps \
+                and self.interpolation in RASTERIO_INTERPS \
                 and ('lat' in coords_src.dims and 'lon' in coords_src.dims) \
                 and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims) \
                 and coords_src['lat'].rasterio_regularity \
@@ -450,22 +451,17 @@ class DataSource(Node):
                 and coords_src['lat'].scipy_regularity \
                 and coords_src['lon'].scipy_regularity:
             
-            return self.interpolate_irregular_grid(data_src, coords_src,
-                                                   data_dst, coords_dst,
-                                                   grid=True)
+            return self.interpolate_irregular_grid(data_src, coords_src, data_dst, coords_dst, grid=True)
         # Raster to lat_lon point interpolation
         elif (('lat' in coords_src.dims and 'lon' in coords_src.dims)
               and coords_src['lat'].scipy_regularity
               and coords_src['lon'].scipy_regularity
               and ('lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims)):
-            coords_dst_us = coords_dst.unstack() # TODO don't have to return
-            return self.interpolate_irregular_grid(data_src, coords_src,
-                                                   data_dst, coords_dst_us,
-                                                   grid=False)
+            coords_dst_us = coords_dst.unstack()
+            return self.interpolate_irregular_grid(data_src, coords_src, data_dst, coords_dst_us, grid=False)
 
         elif 'lat_lon' in coords_src.dims or 'lon_lat' in coords_src.dims:
-            return self.interpolate_point_data(data_src, coords_src,
-                                               data_dst, coords_dst)
+            return self.interpolate_point_data(data_src, coords_src, data_dst, coords_dst)
         
         raise NotImplementedError("The combination of source/destination coordinates has not been implemented.")
             
