@@ -393,6 +393,7 @@ class Coordinates(tl.HasTraits):
             A new coordinate object with unstacked dimensions.
         """
 
+        # TODO JXM would like to remove this again actually
         return Coordinates([self[dim] for dim in self.udims], **self.properties)
     
     @property
@@ -412,7 +413,7 @@ class Coordinates(tl.HasTraits):
         #     'ctype': self.ctype
         # }
         
-        c = self[self.dims[0]]
+        c = self[self.udims[0]]
         return {
             'coord_ref_sys': c.coord_ref_sys,
             'ctype': c.ctype
@@ -441,7 +442,7 @@ class Coordinates(tl.HasTraits):
 
         # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
         # return GDAL_CRS[self.coord_ref_sys]
-        return GDAL_CRS[self[self.dims[0]].coord_ref_sys]
+        return GDAL_CRS[self[self.udims[0]].coord_ref_sys]
     
     # def add_unique(self, other):
     #     """

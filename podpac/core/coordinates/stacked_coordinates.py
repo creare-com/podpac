@@ -4,6 +4,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import copy
 
 import numpy as np
+import pandas as pd
 import traitlets as tl
 from six import string_types
 
@@ -103,8 +104,7 @@ class StackedCoordinates(BaseCoordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __getitem__(self, index):
-        coords = tuple(c[index] for c in self.coords1d)
-        return StackedCoordinates(coords1d)
+        return StackedCoordinates([c[index] for c in self._coords])
 
     def __repr__(self):
         # TODO
@@ -140,24 +140,15 @@ class StackedCoordinates(BaseCoordinates1d):
 
     @property
     def size(self):
-        return self.coords1d[0].size
+        return self._coords[0].size
 
     @property
     def coordinates(self):
         # TODO don't recompute this every time (but also don't compute it until requested)
-        return pd.MultiIndex.from_arrays([c.coordinates for c in self._coords], names=self.dims)
+        return pd.MultiIndex.from_arrays([np.array(c.coordinates) for c in self._coords], names=self.dims)
 
     @property
     def coords(self):
         # TODO don't recompute this every time (but also don't compute it until requested)
         x = xr.DataArray(np.empty(self.size), coords=[self.coordinates], dims=self.name)
         return x[self.name].coords
-
-def stacked_linspace(starts, stops, size, names, **kwargs):
-    coords = []
-    for start, stop, name in zip(starts, stops, names):
-        coords.append(UniformCoordinates1d(start, stop, size=size, name=name))
-    return StackedCoordinates(coords, **kwargs)
-
-def _stacked(coords):
-    return
