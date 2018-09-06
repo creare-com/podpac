@@ -201,7 +201,9 @@ class TestDataSource(object):
                 node = DataSource(source='test', native_coordinates='not a coordinate')
 
             node = DataSource(source='test')
-            assert node.native_coordinates is None
+            
+            with pytest.raises(NotImplementedError):
+                node.native_coordinates
 
             with pytest.raises(NotImplementedError):
                 node.get_native_coordinates()
