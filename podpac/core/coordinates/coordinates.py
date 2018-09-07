@@ -530,41 +530,35 @@ class Coordinates(tl.HasTraits):
             else:
                 yield coords
 
-    # def transpose(self, *dims, **kwargs):
-    #     """
-    #     Transpose (re-order) the Coordinates dimensions.
+    def transpose(self, *dims, **kwargs):
+        """
+        Transpose (re-order) the Coordinates dimensions.
               
-    #     Parameters
-    #     ----------
-    #     in_place : boolean, optional
-    #         If False, return a new, transposed Coordinates object (default).
-    #         If True, transpose the dimensions in-place.
-    #     *dims : str, optional
-    #         Reorder dims to this order. By default, reverse the dims.
-    #     **kwargs
-    #         Description
+        Parameters
+        ----------
+        in_place : boolean, optional
+            If False, return a new, transposed Coordinates object (default).
+            If True, transpose the dimensions in-place.
+        *dims : str, optional
+            Reorder dims to this order. By default, reverse the dims.
 
-    #     Returns
-    #     -------
-    #     transposed : Coordinates
-    #         The transposed Coordinates object.
+        Returns
+        -------
+        transposed : Coordinates
+            The transposed Coordinates object.
         
-    #     See Also
-    #     --------
-    #     xarray.DataArray.transpose : return a transposed DataArray
+        See Also
+        --------
+        xarray.DataArray.transpose : return a transposed DataArray
         
-    #     """
+        """
 
-    #     if len(dims) == 0:
-    #         dims = list(self._coords.keys())[::-1]
+        if len(dims) == 0:
+            dims = list(self._coords.keys())[::-1]
 
-    #     coords = OrderedDict((dim, self._coords[dim]) for dim in dims)
+        if kwargs.get('in_place', False):
+            self._coords = OrderedDict([(dim, self._coords[dim]) for dim in dims])
+            return self
 
-    #     if kwargs.get('in_place', False):
-    #         self._coords = coords
-    #         return self
-
-    #     else:
-    #         kwargs = coords
-    #         kwargs.update(self.kwargs)
-    #         return Coordinates(order=dims, **kwargs)
+        else:
+            return Coordinates([self._coord[dim] for dim in dims], **self.properties)
