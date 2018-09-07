@@ -124,7 +124,7 @@ class PyDAP(DataSource):
         determines which variable is returned from the source.
     dataset : pydap.model.DatasetType
         The open pydap dataset. This is provided for troubleshooting.
-    native_coordinates : podpac.Coordinates
+    native_coordinates : Coordinates
         {ds_native_coordinates}
     password : str, optional
         Password used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
@@ -585,7 +585,7 @@ class WCS(DataSource):
                     cs.append(UniformCoordinates1d(c.bounds[0], c.bounds[1], size=c.size, name=dim))
             else:
                 cs.append(self.wcs_coordinates[dim])
-        c = podpac.Coordinates(cs)
+        c = Coordinates(cs)
         return c
 
     def get_data(self, coordinates, coordinates_index):
@@ -790,7 +790,7 @@ class ReprojectedSource(DataSource, Algorithm):
         Exception
             If neither coordinates_source or reproject_coordinates are specified
         """
-        if not hasattr(self.coordinate_source):
+        if not hasattr(self, 'coordinates_source'):
             raise Exception("Either reprojected_coordinates or coordinates_source must be specified")
         
         return self.coordinates_source.native_coordinates
