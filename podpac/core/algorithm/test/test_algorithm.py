@@ -75,7 +75,7 @@ class TestSinCoords(object):
         assert output.shape == coords.shape
         
 class TestArithmetic(object):
-    @pytest.mark.skip("add_unique, plus algorithm execute weirdness")
+    @pytest.mark.skip("add_unique")
     def test_Arithmetic(self):
         coords = Coordinates([
             UniformCoordinates1d(-90, 90, 1.0, name='lat'),
@@ -89,15 +89,8 @@ class TestArithmetic(object):
         b = sine_node.execute(coords)
         np.testing.assert_allclose(output, 2*abs(a) - b + 1)
 
-    @pytest.mark.skip("add_unique, plus algorithm execute weirdness")
+    # @pytest.mark.skip("add_unique")
     def test_missing_equation(self):
-        coords = Coordinates([
-            UniformCoordinates1d(-90, 90, 1.0, name='lat'),
-            UniformCoordinates1d(-180, 180, 1.0, name='lon')
-        ])
-
         sine_node = SinCoords()
-        node = Arithmetic(A=sine_node, B=sine_node)
-        
         with pytest.raises(ValueError):
-            node.execute(coords)
+            node = Arithmetic(A=sine_node, B=sine_node)

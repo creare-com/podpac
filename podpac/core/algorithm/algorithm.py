@@ -59,7 +59,7 @@ class Algorithm(Node):
                 if coords is None:
                     coords = Coordinates.from_xarray(node.output.coords)
                 else:
-                    coords = coords.add_unique(Coordinates.from_xaray(node.output.coords))
+                    coords = coords.add_unique(Coordinates.from_xarray(node.output.coords))
         if coords is None:
             coords = coordinates
 
@@ -229,6 +229,10 @@ class Arithmetic(Algorithm):
     G = tl.Instance(Node, allow_none=True)
     eqn = tl.Unicode().tag(attr=True)
     params = tl.Dict().tag(attr=True)
+
+    def init(self):
+        if self.eqn == '':
+            raise ValueError("Arithmetic eqn cannot be empty")
     
     def algorithm(self):
         """Summary
@@ -239,9 +243,6 @@ class Arithmetic(Algorithm):
             Description
         """
         
-        if self.eqn == '':
-            raise ValueError("Cannot evaluate Arithmetic node: 'eqn' attribute missing or empty")
-
         eqn = self.eqn.format(**self.params)        
         
         fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
