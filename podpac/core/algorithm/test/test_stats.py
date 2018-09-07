@@ -60,7 +60,6 @@ class TestReduce(object):
         # should be the same
         xr.testing.assert_allclose(output, output_chunked)
 
-@pytest.mark.skip('???')
 class BaseTests(object):
     """ Common tests for Reduce subclasses """
 
@@ -75,7 +74,6 @@ class BaseTests(object):
         # xr.testing.assert_allclose(output, self.expected_full)
         np.testing.assert_allclose(output.data, self.expected_full.data)
 
-    @pytest.mark.skip('iterchunks')
     def test_full_chunked(self):
         node = self.NodeClass(source=source, dims=coords.dims, iter_chunk_size=100)
         output = node.execute(coords)
@@ -88,7 +86,7 @@ class BaseTests(object):
         # xr.testing.assert_allclose(output, self.expected_latlon)
         np.testing.assert_allclose(output.data, self.expected_latlon.data)
 
-    @pytest.mark.skip('iterchunks')
+    @pytest.mark.xfail(reason="bug, to fix")
     def test_lat_lon_chunked(self):
         node = self.NodeClass(source=source, dims=['lat', 'lon'], iter_chunk_size=100)
         output = node.execute(coords)
@@ -101,7 +99,6 @@ class BaseTests(object):
         # xr.testing.assert_allclose(output, self.expected_time)
         np.testing.assert_allclose(output.data, self.expected_time.data)
 
-    @pytest.mark.skip('iterchunks')
     def test_time_chunked(self):
         node = self.NodeClass(source=source, dims='time', iter_chunk_size=100)
         output = node.execute(coords)
@@ -190,18 +187,13 @@ class TestMedian(BaseTests):
         cls.expected_latlon = data.median(dim=['lat', 'lon'])
         cls.expected_time = data.median(dim='time')
 
-@pytest.mark.skip("TODO")
-class TestPercentile(BaseTests):
-    @classmethod
-    def setup_class(cls):
-        cls.NodeClass = Percentile
+# class TestPercentile(BaseTests):
+#     @classmethod
+#     def setup_class(cls):
+#         cls.NodeClass = Percentile
 
-@pytest.mark.skip("TODO")
 class TestGroupReduce(object):
-    def test(self):
-        pass
+    pass
 
-@pytest.mark.skip("TODO")
 class TestDayOfYear(object):
-    def test(self):
-        pass
+    pass

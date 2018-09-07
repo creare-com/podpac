@@ -503,41 +503,32 @@ class Coordinates(tl.HasTraits):
     #             new_coords[key] = copy.deepcopy(other._coords[key])
     #     return self.__class__(coords=self.stack_dict(new_coords, dims_map))
 
-    # def iterchunks(self, shape, return_slice=False):
-    #     """
-    #     TODO
+    def iterchunks(self, shape, return_slices=False):
+        """
+        TODO
         
-    #     Parameters
-    #     ----------
-    #     shape : tuple
-    #         TODO
-    #     return_slice : boolean, optional
-    #         Return slice in addition to Coordinates chunk.
+        Parameters
+        ----------
+        shape : tuple
+            TODO
+        return_slice : boolean, optional
+            Return slice in addition to Coordinates chunk.
         
-    #     Yields
-    #     ------
-    #     l : slice
-    #         If return_slice=True, slice for this Coordinates chunk.
-    #     coords : Coordinates
-    #         A Coordinates object with one chunk of the coordinates.
-    #     """
+        Yields
+        ------
+        coords : Coordinates
+            A Coordinates object with one chunk of the coordinates.
+        slices : list
+            slices for this Coordinates chunk, only if return_slices is True
+        """
         
-    #     # TODO assumes the input shape dimension and order matches
-    #     # TODO replace self[k].coords[slc] with self[k][slc] (and implement the slice)
-
-    #     slices = [
-    #         [slice(i, i+n) for i in range(0, m, n)]
-    #         for m, n
-    #         in zip(self.shape, shape)]
-
-    #     for l in itertools.product(*slices):
-    #         kwargs = {k:self.coords[k][slc] for k, slc in zip(self.dims, l)}
-    #         kwargs['order'] = self.dims
-    #         coords = Coordinates(**kwargs)
-    #         if return_slice:
-    #             yield l, coords
-    #         else:
-    #             yield coords
+        l = [[slice(i, i+n) for i in range(0, m, n)] for m, n in zip(self.shape, shape)]
+        for slices in itertools.product(*l):
+            coords = Coordinates([self._coords[dim][slc] for dim, slc in zip(self.dims, slices)])
+            if return_slices:
+                yield coords, slices
+            else:
+                yield coords
 
     # def transpose(self, *dims, **kwargs):
     #     """

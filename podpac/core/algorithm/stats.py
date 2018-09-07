@@ -811,9 +811,8 @@ class Reduce2(Reduce):
         UnitsDataArray
             Output for this chunk
         """
-        chunks = self.input_coordinates.iterchunks(self.chunk_shape, return_slice=True)
-        for slc, chunk in chunks:
-            yield slc, self.source.execute(chunk, method=method)
+        for chunk, slices in self.input_coordinates.iterchunks(self.chunk_shape, return_slices=True):
+            yield self.source.execute(chunk, method=method), slices
 
     def reduce_chunked(self, xs, method=None):
         """
@@ -833,13 +832,13 @@ class Reduce2(Reduce):
         """
         # special case for full reduce
         if not self.requested_coordinates.dims:
-            xslc, x = next(xs)
+            x, xslices = next(xs)
             return self.reduce(x)
 
         I = [self.input_coordinates.dims.index(dim) for dim in self.requested_coordinates.dims]
         y = xr.full_like(self.output, np.nan)
-        for xslc, x in xs:
-            yslc = [xslc[i] for i in I]
+        for x, xslices in xs:
+            yslc = [xslices[i] for i in I]
             y.data[yslc] = self.reduce(x)
         return y
 

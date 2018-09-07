@@ -567,12 +567,12 @@
 #         for chunk in coord.iterchunks(shape=(10, 10, 10)):
 #             assert chunk.shape == (10, 10, 2)
 
-#         for slcs, chunk in coord.iterchunks(shape=(10, 10, 10), return_slice=True):
-#             assert isinstance(slcs, tuple)
-#             assert len(slcs) == 3
-#             assert isinstance(slcs[0], slice)
-#             assert isinstance(slcs[1], slice)
-#             assert isinstance(slcs[2], slice)
+#         for chunk, slices in coord.iterchunks(shape=(10, 10, 10), return_slices=True):
+#             assert isinstance(slices, tuple)
+#             assert len(slices) == 3
+#             assert isinstance(slices[0], slice)
+#             assert isinstance(slices[1], slice)
+#             assert isinstance(slices[2], slice)
 #             assert chunk.shape == (10, 10, 2)
 
 #     def test_transpose(self):
