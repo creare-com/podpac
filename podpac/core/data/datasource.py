@@ -208,17 +208,18 @@ class DataSource(Node):
             warnings.warn('Coordinates index type {} is not yet supported.'.format(self.coordinate_index_type) +
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
         
-        # check for missing dimensions
-        for c in self.native_coordinates.values():
-            if isinstance(c, Coordinates1d):
-                if c.name not in coordinates.udims:
-                    raise Exception("missing dim '%s'" % c.name)
-            elif isinstance(c, StackedCoordinates):
-                stacked = [s for s in c if s.name not in coordinates.udims]
-                if not stacked:
-                    raise Exception("missing all dims in '%s'" % c.name)
-                if any(s for s in stacked if not s.is_monotonic):
-                    raise Exception("cannot unambiguously map '%s' to %s" % coordinates.udims)
+        # # JXM: pending the node refactor
+        # # check for missing dimensions
+        # for c in self.native_coordinates.values():
+        #     if isinstance(c, Coordinates1d):
+        #         if c.name not in coordinates.udims:
+        #             raise Exception("missing dim '%s'" % c.name)
+        #     elif isinstance(c, StackedCoordinates):
+        #         stacked = [s for s in c if s.name not in coordinates.udims]
+        #         if not stacked:
+        #             raise Exception("missing all dims in '%s'" % c.name)
+        #         if any(s for s in stacked if not s.is_monotonic):
+        #             raise Exception("cannot unambiguously map '%s' to %s" % coordinates.udims)
         
         # remove extra dimensions
         extra = []
@@ -265,7 +266,13 @@ class DataSource(Node):
             self.output = o  # should already be self.output
 
         # set the order of dims to be the same as that of requested_coordinates
-        self.output = self.output.transpose(*self.requested_coordinates.dims)
+        # JXM: pending the node refactor
+        nc = self.native_coordinates
+        rc = self.requested_coordinates
+        missing_dims = tuple(dim for dim, c in nc.items() if all(_dim not in rc.udims for _dim in c.dims))
+        transpose_dims = self.requested_coordinates.dims + missing_dims
+        self.output = self.output.transpose(*transpose_dims)
+        # self.output = self.output.transpose(*self.requested_coordinates.dims)
         
         self.evaluated = True
         return self.output

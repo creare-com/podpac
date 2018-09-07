@@ -152,3 +152,30 @@ class StackedCoordinates(BaseCoordinates1d):
         # TODO don't recompute this every time (but also don't compute it until requested)
         x = xr.DataArray(np.empty(self.size), coords=[self.coordinates], dims=self.name)
         return x[self.name].coords
+
+    # -----------------------------------------------------------------------------------------------------------------
+    # Methods
+    # -----------------------------------------------------------------------------------------------------------------
+
+    def intersect(self, other, outer=False, return_indices=False):
+        Is = [c.intersect(other, outer=outer, return_indices=True)[1] for c in self._coords]
+
+        I = Is[0]
+        for J in Is[1:]:
+            if isinstance(I, slice) and isinstance(J, slice):
+                I = slice(max(I.start or 0, J.start or 0), min(I.stop or self.size, J.stop or self.size))
+            else:
+                if isinstance(I, slice):
+                    I = np.arange(self.size)[I]
+                if isinstance(J, slice):
+                    J = np.arange(self.size)[I]
+                I = [i for i in I if i in J]
+        
+        # for consistency
+        if isinstance(I, slice) and I.start == 0 and I.stop == self.size:
+            I = slice(None, None)
+
+        if return_indices:
+            return self[I], I
+        else:
+            return self[I]

@@ -679,7 +679,7 @@ class TestDataSource(object):
 
             datasource.rasterio = None
 
-            source = np.random.rand(5)
+            source = np.random.rand(6)
             coords_src = Coordinates(
                 StackedCoordinates([
                     ArrayCoordinates1d([0, 2, 4, 6, 8, 10], name='lat'),
