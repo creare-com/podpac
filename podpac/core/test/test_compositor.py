@@ -4,7 +4,7 @@ warnings.filterwarnings('ignore')
 import unittest
 import pytest
 import podpac
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates, ArrayCoordinates1d
 from podpac import OrderedCompositor
 import numpy as np
 from podpac.core.data.types import Array
@@ -59,7 +59,6 @@ class TestCompositor(object):
     # TODO Test non None (basic cases) just to call unstable methods.
     # These functions are volatile, and may be difficult to test until their
     # spec is complete.
-    @pytest.mark.skip('stacked')
     def test_compositor_implemented_functions(self):
         acoords = Coordinates([
             UniformCoordinates1d(0, 1, size=11, name='lat'),
@@ -67,7 +66,10 @@ class TestCompositor(object):
         bcoords = Coordinates([
             UniformCoordinates1d(2, 3, size=10, name='lat'),
             UniformCoordinates1d(2, 3, size=10, name='lon')])
-        scoords = Coordinates(lat_lon=[[0.5, 2.5], [0.5, 2.5]]) # TODO JXM
+        scoords = Coordinates([
+            StackedCoordinates([
+                ArrayCoordinates1d([0.5, 2.5], name='lat'),
+                ArrayCoordinates1d([0.5, 2.5], name='lon')])])
         
         a = Array(source=np.random.random(acoords.shape), native_coordinates=acoords)
         b = Array(source=-np.random.random(bcoords.shape), native_coordinates=bcoords)
@@ -97,13 +99,14 @@ class TestCompositor(object):
         self.orderedCompositor = podpac.OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src,
                                                           threaded=True)
         
-    @ pytest.mark.skip('stacked')
     def test_heterogeous_sources_composited(self):
-        anative = Coordinates(lat_lon=((0, 1), (1, 2), 3)) # TODO JXM
+        anative = Coordinates([
+            StackedCoordinates([
+                UniformCoordinates1d(0, 1, size=3, name='lat'),
+                UniformCoordinates1d(1, 2, size=3, name='lon')])])
         bnative = Coordinates([
             UniformCoordinates1d(-2, 3, size=3, name='lat'),
-            UniformCoordinates1d(-1, 4, size=3, name='lon')
-        ])
+            UniformCoordinates1d(-1, 4, size=3, name='lon')])
         a = Array(source=np.random.rand(3), native_coordinates=anative)
         b = Array(source=np.random.rand(3, 3) + 2, native_coordinates=bnative)
         c = podpac.OrderedCompositor(sources=np.array([a, b]), interpolation='bilinear')
