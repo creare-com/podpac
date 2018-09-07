@@ -726,6 +726,7 @@ class DataSource(Node):
         tol = np.linalg.norm([dlat, dlon]) * 8
 
         if 'lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims:
+            dst_order = 'lat_lon' if 'lat_lon' in coords_dst.dims else 'lon_lat'
             src_stacked = np.stack([coords_src[dim].coordinates for dim in coords_src[order].dims], axis=1)
             new_stacked = np.stack([coords_dst[dim].coordinates for dim in coords_src[order].dims], axis=1)
             pts = KDTree(src_stacked)
@@ -735,7 +736,7 @@ class DataSource(Node):
             vals = data_src[{order: ind}]
             vals[{order: mask}] = np.nan
             dims = list(data_dst.dims)
-            dims[i] = order
+            dims[dims.index(dst_order)] = order
             data_dst.data[:] = vals.transpose(*dims).data[:]
             return data_dst
 
