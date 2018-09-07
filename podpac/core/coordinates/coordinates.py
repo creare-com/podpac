@@ -391,9 +391,12 @@ class Coordinates(tl.HasTraits):
         -------
         unstacked : Coordinates
             A new coordinate object with unstacked dimensions.
+
+        See Also
+        --------
+        xr.DataArray.unstack
         """
 
-        # TODO JXM would like to remove this again actually
         return Coordinates([self[dim] for dim in self.udims], **self.properties)
     
     @property
