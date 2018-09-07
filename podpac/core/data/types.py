@@ -799,17 +799,12 @@ class ReprojectedSource(DataSource, Algorithm):
     def get_native_coordinates(self):
         """{get_native_coordinates}
         """
-        coords = OrderedDict()
         if isinstance(self.source, DataSource):
             sc = self.source.native_coordinates
         else: # Otherwise we cannot guarantee that native_coordinates exist
             sc = self.reprojected_coordinates
         rc = self.reprojected_coordinates
-        for d in sc.dims:
-            if d in rc.dims:
-                coords[d] = rc.stack_dict()[d]
-            else:
-                coords[d] = sc.stack_dict()[d]
+        coords = [rc[dim] if dim in rc.dims else sc[dim] for dim in sc.dims]
         return Coordinates(coords)
 
     @common_doc(COMMON_DATA_DOC)
@@ -822,11 +817,10 @@ class ReprojectedSource(DataSource, Algorithm):
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of
         # the reprojected coordinates
-        # TODO: What if data has coordinates that reprojected_coordinates
-        #       doesn't have
+        # TODO: What if data has coordinates that reprojected_coordinates doesn't have
         keep_dims = list(data.coords.keys())
         drop_dims = [d for d in coordinates.dims if d not in keep_dims]
-        coordinates.drop_dims(*drop_dims)
+        coordinates.drop(drop_dims)
         return data
 
     @property

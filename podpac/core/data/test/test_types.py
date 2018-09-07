@@ -537,7 +537,6 @@ class TestReprojectedSource(object):
         with pytest.raises(TraitError):
             ReprojectedSource(reprojected_coordinates=5)
 
-    @pytest.mark.skip('stack_dict')
     def test_native_coordinates(self):
         """test native coordinates"""
 
@@ -549,15 +548,14 @@ class TestReprojectedSource(object):
         # source as Node
         node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         assert isinstance(node.native_coordinates, Coordinates)
-        assert node.native_coordinates['lat'][0] == self.reprojected_coordinates['lat'][0]
+        assert node.native_coordinates['lat'].coordinates[0] == self.reprojected_coordinates['lat'].coordinates[0]
 
         # source as DataSource
         datanode = DataSource(source='test', native_coordinates=self.coordinates_source)
         node = ReprojectedSource(source=datanode, coordinates_source=datanode)
         assert isinstance(node.native_coordinates, Coordinates)
-        assert node.native_coordinates['lat'][0] == self.coordinates_source['lat'][0]
+        assert node.native_coordinates['lat'].coordinates[0] == self.coordinates_source['lat'].coordinates[0]
 
-    @pytest.mark.skip('stack_dict')
     def test_get_data(self):
         """test get data from reprojected source"""
         datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
