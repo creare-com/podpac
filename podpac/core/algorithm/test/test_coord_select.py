@@ -15,12 +15,12 @@ coords = Coordinates([
     UniformCoordinates1d(-80, -70, size=5, name='lon')
 ])
 
-class MyDataSource(DataSource): # TODO better to use a NumpyArray
+class MyDataSource(DataSource):
     def get_native_coordinates(self):
         return Coordinates([
             UniformCoordinates1d('2010-01-01', '2018-01-01', '4,h', name='time'),
-            UniformCoordinates1d(180, 180, size=6, name='lat'),
-            UniformCoordinates1d(80, -70, size=6, name='lon')
+            UniformCoordinates1d(-180, 180, size=6, name='lat'),
+            UniformCoordinates1d(-80, -70, size=6, name='lon')
         ])
 
     def get_data(self, coordinates, slc):
@@ -28,8 +28,6 @@ class MyDataSource(DataSource): # TODO better to use a NumpyArray
         return node.execute(coordinates)
 
 # TODO add assertions to tests
-
-@pytest.mark.skip("TODO")
 class TestExpandCoordinates(object):
     def test_no_expansion(self):
         node = ExpandCoordinates(source=Arange())
@@ -49,7 +47,7 @@ class TestExpandCoordinates(object):
         
         node = ExpandCoordinates(source=MyDataSource(), time=('-15,Y', '0,D', '1,Y'))
         o = node.execute(coords)
-        node.get_expanded_coord('time') # TODO what are we checking here
+        node.get_expanded_coordinates1d('time') # TODO what are we checking here
     
         node = ExpandCoordinates(source=MyDataSource(), time=('-5,M', '0,D', '1,M'))
         o = node.execute(coords)
@@ -57,17 +55,16 @@ class TestExpandCoordinates(object):
         # Behaviour a little strange on these?
         node = ExpandCoordinates(source=MyDataSource(), time=('-15,Y', '0,D', '4,Y'))
         o = node.execute(coords)
-        node.get_expanded_coord('time') # TODO what are we checking here
+        node.get_expanded_coordinates1d('time') # TODO what are we checking here
         
         node = ExpandCoordinates(source=MyDataSource(), time=('-15,Y', '0,D', '13,M'))
         o = node.execute(coords)
-        node.get_expanded_coord('time') # TODO what are we checking here
+        node.get_expanded_coordinates1d('time') # TODO what are we checking here
     
         node = ExpandCoordinates(source=MyDataSource(), time=('-144,M', '0,D', '13,M'))
         o = node.execute(coords)
-        node.get_expanded_coord('time') # TODO what are we checking here
+        node.get_expanded_coordinates1d('time') # TODO what are we checking here
     
-@pytest.mark.skip("TODO")
 class TestSelectCoordinates(object):
     def test_no_expansion(self):
         node = SelectCoordinates(source=Arange())
@@ -87,4 +84,4 @@ class TestSelectCoordinates(object):
         
         node = SelectCoordinates(source=MyDataSource(), time=('2011-01-01', '2017-01-01', '1,Y'))
         o = node.execute(coords)
-        node.get_expanded_coord('time') # TODO what are we checking here
+        node.get_expanded_coordinates1d('time') # TODO what are we checking here
