@@ -120,12 +120,16 @@ class UniformCoordinates1d(Coordinates1d):
     def from_tuple(cls, items, **kwargs):
         if len(items) != 3:
             raise ValueError("Cannot parse, todo better message")
-        elif isinstance(items[2], float):
-            return cls(items[0], items[1], items[2], **kwargs)
         elif isinstance(items[2], int):
             return cls(items[0], items[1], size=items[2], **kwargs)
         else:
-            raise TypeError("Cannot parse, todo better message")
+            step = make_coord_delta(items[2])
+            return cls(items[0], items[1], step, **kwargs)
+
+    def copy(self, **kwargs):
+        properties = self.properties
+        properties.update(kwargs)
+        return UniformCoordinates1d(self.start, self.stop, self.step, **properties)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties

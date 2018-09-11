@@ -8,7 +8,9 @@ import pandas as pd
 import traitlets as tl
 from six import string_types
 
-from podpac.core.coordinates.coordinates1d import BaseCoordinates1d, Coordinates1d
+from podpac.core.coordinates.base_coordinates1d import BaseCoordinates1d
+from podpac.core.coordinates.coordinates1d import Coordinates1d
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
 class StackedCoordinates(BaseCoordinates1d):
    
@@ -76,7 +78,7 @@ class StackedCoordinates(BaseCoordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_xarray(cls, xcoord, coord_ref_sys=None, ctype=None, distance_units=None):
+    def from_xarray(cls, xcoord, coord_ref_sys=None, ctype=None, distance_units=None, **kwargs):
         """
         Convert an xarray coord to Stacked
         
@@ -96,8 +98,11 @@ class StackedCoordinates(BaseCoordinates1d):
             Description
         """
 
-        dim = xcoord.dims[0]
-        return cls([from_xarray_1d(xcoord[name]) for name in xcoord.indexes[dim].names], **kwargs)
+        dims = xcoord.indexes[xcoord.dims[0]].names
+        return cls([ArrayCoordinates1d.from_xarray(xcoord[dims]) for dims in dims], **kwargs)
+
+    def copy(self, name=None, **kwargs):
+        return StackedCoordinates([c.copy() for c in self._coords], **kwargs)
     
     # ------------------------------------------------------------------------------------------------------------------
     # standard (tuple-like) methods

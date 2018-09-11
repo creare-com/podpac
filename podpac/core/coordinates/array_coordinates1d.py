@@ -87,6 +87,11 @@ class ArrayCoordinates1d(Coordinates1d):
     @classmethod
     def from_xarray(cls, x, **kwargs):
         return cls(x.data, name=x.name)
+
+    def copy(self, **kwargs):
+        properties = self.properties
+        properties.update(kwargs)
+        return ArrayCoordinates1d(self.coords, **properties)
     
     # ------------------------------------------------------------------------------------------------------------------
     # Properties

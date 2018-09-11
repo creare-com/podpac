@@ -173,6 +173,9 @@ class Coordinates1d(BaseCoordinates1d):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
+    def copy(self, **kwargs):
+        raise NotImplementedError
+        
     def _select_empty(self, return_indices):
         from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
         c = ArrayCoordinates1d([], **self.properties)

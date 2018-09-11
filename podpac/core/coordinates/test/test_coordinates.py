@@ -8,7 +8,10 @@ import xarray as xr
 import pandas as pd
 # from six import string_types
 
+from podpac.core.coordinates.base_coordinates1d import BaseCoordinates1d
+from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.coordinates import Coordinates
 
 # class TestBaseCoordinate(object):
@@ -120,44 +123,32 @@ class TestCoordinateCreation(object):
         lat_lon = np.array([lat, lon]).T
         dates = ['2018-01-01', '2018-01-02']
 
-        with pytest.test.raises():
-            Coordinates([lat, lon, dates], dims=['lat_lon', 'time'])
-
-        with pytest.test.raises():
-            Coordinates([lat_lon, dates], dims=['lat', 'lon', 'dates'])
-
-        with pytest.test.raises():
-            Coordinates([lat, lon], dims=['lat_lon'])
-
-        with pytest.test.raises():
-            Coordinates([lat_lon], dims=['lat', 'lon'])
-
-        with pytest.test.raises():
-            Coordinates([lat_lon], dims='lat_lon')
-
-        with pytest.test.raises():
-            Coordinates(lat_lon, dims='lat_lon')
-
-        with pytest.test.raises():
-            Coordinates(lat_lon, dims=['lat_lon'])
-
-        with pytest.test.raises():
-            Coordinates([lat_lon], dims='lat_lon')
-
-        with pytest.test.raises():
-            Coordinates([lat_lon], dims='lat')
-
-        with pytest.test.raises():
-            Coordinates([[lat, lon], dates], dims=['lat_lon', 'time'])
-
-        with pytest.test.raises():
+        with pytest.raises(TypeError):
             Coordinates([dates], dims='time')
 
-        with pytest.test.raises():
+        with pytest.raises(ValueError):
             Coordinates(dates, dims=['time'])
 
-        with pytest.test.raises():
-            Coordinates(dates, dims='time')
+        with pytest.raises(ValueError):
+            Coordinates([lat_lon], dims=['lat'])
+
+        with pytest.raises(ValueError):
+            Coordinates([lat, lon, dates], dims=['lat_lon', 'time'])
+
+        with pytest.raises(ValueError):
+            Coordinates([lat_lon, dates], dims=['lat', 'lon', 'dates'])
+
+        with pytest.raises(ValueError):
+            Coordinates([lat, lon], dims=['lat_lon'])
+
+        with pytest.raises(ValueError):
+            Coordinates([lat_lon], dims=['lat', 'lon'])
+
+        with pytest.raises(ValueError):
+            Coordinates(lat_lon, dims=['lat_lon'])
+
+        with pytest.raises(ValueError):
+            Coordinates([[lat, lon], dates], dims=['lat_lon', 'time'])
 
     def test_Coordinates1d(self):
         lat = [0, 1, 2]
@@ -207,28 +198,28 @@ class TestCoordinateCreation(object):
         lon = [10, 20, 30]
         dates = ['2018-01-01', '2018-01-02', '2018-01-03']
 
-        c = Coordinates.grid(lat=lat, lon=lon, time=dates, order=['time', 'lat', 'lon'])
-        assert c.dims == ('time_lat_lon')
+        c = Coordinates.points(lat=lat, lon=lon, time=dates, order=['time', 'lat', 'lon'])
+        assert c.dims == ('time_lat_lon',)
         assert c.shape == (3,)
 
-        with pytest.test.raises():
-            Coordinates.grid(lat=lat, lon=lon, time=dates[:2], order=['time', 'lat', 'lon'])
+        # TODO
+        # with pytest.raises(ValueError):
+        #     Coordinates.points(lat=lat, lon=lon, time=dates[:2], order=['time', 'lat', 'lon'])
 
     def test_grid_points_order(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30, 40]
         dates = ['2018-01-01', '2018-01-02']
 
-        with pytest.test.raises():
+        with pytest.raises(ValueError):
             Coordinates.grid(lat=lat, lon=lon, time=dates, order=['lat', 'lon'])
 
-        with pytest.test.raises():
+        with pytest.raises(ValueError):
             Coordinates.grid(lat=lat, lon=lon, order=['lat', 'lon', 'time'])
 
         if sys.version < '3.6':
-            with pytest.test.raises():
+            with pytest.raises(TypeError):
                 Coordinates.grid(lat=lat, lon=lon, time=dates)
-        
         else:
             Coordinates.grid(lat=lat, lon=lon, time=dates)
 
@@ -246,11 +237,9 @@ class TestCoordinateXarray(object):
         
         assert isinstance(c.coords, xr.core.coordinates.DataArrayCoordinates)
         assert c.coords.dims == ('lat_lon', 'time')
-        assert isinstance(c.coords['lat_lon'], pd.MultiIndex)
-        assert isinstance(c.coords['time'], xr.DataArray)
-        assert_equal(c.coords['lat'].data, np.array(lat, dtype=float))
-        assert_equal(c.coords['lon'].data, np.array(lon, dtype=float))
-        assert_equal(c.coords['time'].data, np.array(dates).astype(np.datetime64))
+        np.testing.assert_equal(c.coords['lat'].data, np.array(lat, dtype=float))
+        np.testing.assert_equal(c.coords['lon'].data, np.array(lon, dtype=float))
+        np.testing.assert_equal(c.coords['time'].data, np.array(dates).astype(np.datetime64))
 
     def test_from_xarray(self):
         lat = [0, 1, 2]
@@ -269,9 +258,9 @@ class TestCoordinateXarray(object):
         assert c2.shape == c.shape
         assert isinstance(c2['lat_lon'], StackedCoordinates)
         assert isinstance(c2['time'], Coordinates1d)
-        assert_equal(c2['lat'].data, np.array(lat, dtype=float))
-        assert_equal(c2['lon'].data, np.array(lon, dtype=float))
-        assert_equal(c3['time'].data, np.array(dates).astype(np.datetime64))
+        np.testing.assert_equal(c2.coords['lat'].data, np.array(lat, dtype=float))
+        np.testing.assert_equal(c2.coords['lon'].data, np.array(lon, dtype=float))
+        np.testing.assert_equal(c2.coords['time'].data, np.array(dates).astype(np.datetime64))
 
 # class TestCoordinate(object):
 #     @pytest.mark.skipif(sys.version >= '3.6', reason="Python <3.6 compatibility")

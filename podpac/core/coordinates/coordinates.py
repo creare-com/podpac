@@ -59,7 +59,7 @@ class Coordinates(tl.HasTraits):
     else:
         _coords = tl.Dict(trait=tl.Instance(BaseCoordinates1d))
 
-    def __init__(self, coords=[], coord_ref_sys=None, ctype=None, distance_units=None):
+    def __init__(self, coords=[], dims=None, coord_ref_sys=None, ctype=None, distance_units=None):
         """
         Initialize a multidimensional coords object.
 
@@ -73,34 +73,56 @@ class Coordinates(tl.HasTraits):
             Default coordinates reference system (optional)
         """
 
-        if isinstance(coords, BaseCoordinates1d):
-            coords = [coords]
+        if not isinstance(coords, (list, tuple, np.ndarray, xr.DataArray)):
+            raise TypeError("Invalid coords, expected list or array, not '%s'" % type(coords))
 
-        if isinstance(coords, list):
-            d = OrderedDict()
+        if dims is not None and not isinstance(dims, (tuple, list)):
+            raise TypeError("Invalid dims type '%s'" % type(dims))
+
+        if dims is None:
             for i, c in enumerate(coords):
-                if c.name is None:
-                    raise ValueError("missing dimension name in coords list at position %d" % i)
-                if c.name in d:
-                    raise ValueError("duplicate dimension name '%s' in coords list at position %d" % (c.name, i))
-                d[c.name] = c
-            coords = d
+                if not isinstance(c, (BaseCoordinates1d, xr.DataArray)):
+                    raise TypeError("Cannot get dim for coordinates at position %d with type '%s'"
+                                    "(expected 'Coordinates1d' or 'DataArray')" % (i, type(c)))
 
-        else:
-            raise TypeError("Unrecognized coords type '%s'" % type(coords))
+            dims = [c.name for c in coords]
+
+        if len(dims) != len(coords):
+            raise ValueError("coords and dims size mismatch, %d != %d" % (len(dims), len(coords)))
+
+        dcoords = OrderedDict()
+        for i, dim in enumerate(dims):
+            if dim in dcoords:
+                raise ValueError("duplicate dimension name at position %d" % i)
+
+            if isinstance(coords[i], BaseCoordinates1d):
+                # TODO default properties
+                c = coords[i].copy(name=dim)
+            elif '_' in dim:
+                a = np.atleast_1d(coords[i]).T
+                sdims = dim.split('_')
+                if len(a) != len(sdims):
+                    raise ValueError("TODO error message")
+                # TODO default properties
+                c = StackedCoordinates([ArrayCoordinates1d(values, name=sdim) for values, sdim in zip(a, sdims)])
+            else:
+                # TODO default properties
+                c = ArrayCoordinates1d(coords[i], name=dim)
+
+            dcoords[dim] = c
 
         # set 1d coordinates defaults
         # TODO factor out, store as default_* traits, and pass on through StackedCoordinates as well
         # maybe move to observe so that it gets validated first
-        for c in coords.values():
-            if 'ctype' not in c._trait_values and ctype is not None:
-                c.ctype = ctype
-            if 'coord_ref_sys' not in c._trait_values and coord_ref_sys is not None:
-                c.coord_ref_sys = coord_ref_sys
-            if 'units' not in c._trait_values and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
-                c.units = distance_units
+        # for c in coords.values():
+        #     if 'ctype' not in c._trait_values and ctype is not None:
+        #         c.ctype = ctype
+        #     if 'coord_ref_sys' not in c._trait_values and coord_ref_sys is not None:
+        #         c.coord_ref_sys = coord_ref_sys
+        #     if 'units' not in c._trait_values and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
+        #         c.units = distance_units
         
-        super(Coordinates, self).__init__(_coords=coords)
+        super(Coordinates, self).__init__(_coords=dcoords)
 
     @tl.validate('_coords')
     def _validate_coords(self, d):
@@ -148,10 +170,10 @@ class Coordinates(tl.HasTraits):
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
-    def point(cls, coord_ref_sys=None, ctype=None, distance_units=None, order=None, **kwargs):
+    def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, order=None, **kwargs):
         coords = cls._coords_from_dict(kwargs, order)
         stacked = StackedCoordinates(coords)
-        return cls(stacked, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
+        return cls([stacked], coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
     def from_xarray(cls, xcoord, coord_ref_sys=None, ctype=None, distance_units=None):
