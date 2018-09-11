@@ -280,6 +280,8 @@ class Coordinates(tl.HasTraits):
 
     @property
     def size(self):
+        if len(self.shape) == 0:
+            return 0
         return np.prod(self.shape)
 
     @property
