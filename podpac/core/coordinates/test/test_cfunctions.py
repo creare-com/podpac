@@ -19,31 +19,6 @@ def test_crange():
     assert c.stop == np.datetime64('2018-01-05')
     assert c.step == np.timedelta64(1, 'D')
 
-def test_crange_stacked():
-    c = crange((0, 10, '2018-01-01'), (1, 20, '2018-01-05'), (0.2, 1, '1,D'))
-    assert isinstance(c, StackedCoordinates)
-    
-    c1, c2, c3 = c
-    assert isinstance(c1, UniformCoordinates1d)
-    assert c1.start == 0.0
-    assert c1.stop == 1.0
-    assert c1.step == 0.2
-    assert isinstance(c2, UniformCoordinates1d)
-    assert c2.start == 10.0
-    assert c2.stop == 20.0
-    assert c2.step == 1.0
-    assert isinstance(c3, UniformCoordinates1d)
-    assert c3.start == np.datetime64('2018-01-01')
-    assert c3.stop == np.datetime64('2018-01-05')
-    assert c3.step == np.timedelta64(1, 'D')
-
-    # shape mismatch
-    with pytest.raises(ValueError):
-        crange((0, 10), (1, 20), 0.2)
-
-    with pytest.raises(ValueError):
-        crange((0, 10), (1, 20), (0.2, 1, '1,D'))
-
 def test_clinspace():
     c = clinspace(0, 1, 6)
     assert isinstance(c, UniformCoordinates1d)
