@@ -20,50 +20,6 @@ are `'lat'`, `'lon'`, `'time'`, and `'alt'`.
 
 ## Coordinate Creation
 
-### Quick Reference
-
-Unstacked (grid of points):
-
-```
-lat = [0, 1, 2]
-lon = [10, 20, 30, 40]
-Coordinates([lat, lon], dims=['lat', 'lon'])
-```
-
-Stacked (list of points):
-
-```
-lat = [0, 1, 2]
-lon = [10, 20, 30]
-Coordinates([np.stack([lat, lon]).T], dims=['lat_lon',])
-```
-
-Mixed:
-
-```
-lat = [0, 1, 2]
-lon = [10, 20, 30]
-time = ['2018-01-01', '2018-01-02']
-Coordinates([np.stack([lat, lon]).T, time], dims=['lat_lon', 'time'])
-```
-
-Coordinate Range:
-
-```
-lat = podpac.crange(0, 1, 0.2)
-lon = podpac.crange(10, 20, 2.0)
-time = podpac.crange('2018-01-01', '2018-12-01', '1,M')
-Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
-```
-
-Coordinate Linspace:
-
-```
-lat_lon = podpac.clinspace((0, 10), (1, 20), 100)
-time = podpac.clinspace('2018-01-01', '2018-01-10', 5)
-Coordinates([lat_lon, time], dims=['lat_lon', 'time'])
-```
-
 ### Unstacked Coordinates
 
 Unstacked multidimensional coordinates form a grid of points. For example, the following Coordinates contain three dimensions and a total of 24 points.
@@ -113,36 +69,40 @@ c = Coordinates([np.stack([lat, lon]).T, time], dims=['lat_lon', 'time'])
 
 Podpac provides two convenience functions `crange` and `clinspace` for creating uniformly-spaced coordinates, similar to the `arange` and `linspace` functions provided by numpy.
 
-**`crange`**
+**Coordinates Range**
 
-Creates uniformly-spaced coordinates from a start, stop, and step. Unlike `np.arange`:
+`podpac.crange` creates uniformly-spaced coordinates from a start, stop, and step.
+
+Unlike `np.arange`:
  * string inputs are supported for datetimes and timedeltas
  * the stop value will be included in the coordinates if it falls an exact number of steps from the start
 
 ```
->>> c = crange(0, 9, 2)
+>>> c = podpac.crange(0, 9, 2)
 >>> c.coordinates
 [0.0, 2.0, 4.0, 6.0, 8.0]
->>> c = crange(0, 10, 2)
+>>> c = podpac.crange(0, 10, 2)
 >>> c.coordinates
 [0.0, 2.0, 4.0, 6.0, 8.0, 10.0]
->>> c = crange('2018-01-01', '2018-3-01', '1,M')
+>>> c = podpac.crange('2018-01-01', '2018-3-01', '1,M')
 >>> c.coordinates
  ```
 
-**`clinspace`**
+**Coordinates Linspace**
 
-Creates uniformly-spaced coordinates from a start, stop, and size. Unlike `np.linspace`:
+`podpac.clinspace` creates uniformly-spaced coordinates from a start, stop, and size.
+
+Unlike `np.linspace`:
  * string inputs are supported for datetimes
  * tuple inputs are supported for stacked coordinates
 
 ```
->>> c = clinspace(0, 10, 6)
+>>> c = podpac.clinspace(0, 10, 6)
 >>> c.coordinates
 [0.0, 2.0, 4.0, 6.0, 8.0, 10.0]
->>> c = clinspace('2018-01-01', '2018-3-01', 4)
+>>> c = podpac.clinspace('2018-01-01', '2018-3-01', 4)
 >>> c.coordinates
->>> c = clinspace((0, 10), (1, 20), 3)
+>>> c = podpac.clinspace((0, 10), (1, 20), 3)
 >>> c.coordinates
  ```
 
@@ -153,7 +113,7 @@ extremely large number of points.
 
 TODO ctype, etc
 
-### Alternate Constructors: `grid` and `points`
+### Alternate Constructors
 
 Unstacked coordinates can also be created using the `Coordinates.grid` alternate constructor:
 
