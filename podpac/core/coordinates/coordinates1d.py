@@ -175,7 +175,7 @@ class Coordinates1d(BaseCoordinates1d):
 
     def copy(self, **kwargs):
         raise NotImplementedError
-        
+
     def _select_empty(self, return_indices):
         from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
         c = ArrayCoordinates1d([], **self.properties)
@@ -223,8 +223,7 @@ class Coordinates1d(BaseCoordinates1d):
             Description
         """
 
-        from podpac.core.coordinates.coordinates import Coordinates
-        from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
+        from podpac.core.coordinates import Coordinates, StackedCoordinates
 
         if not isinstance(other, (BaseCoordinates1d, Coordinates)):
             raise TypeError("Cannot intersect with type '%s'" % type(other))

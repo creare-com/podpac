@@ -63,13 +63,13 @@ class StackedCoordinates(BaseCoordinates1d):
 
         names = []
         for i, c in enumerate(val):
-            if c.name is None:
-                raise ValueError("missing dimension name in coords list at position %d" % i)
-            if c.name in names:
-                raise ValueError("duplicate dimension name '%s' in stacked coords at position %d" % (c.name, i))
             if c.size != val[0].size:
                 raise ValueError("mismatch size in stacked coords %d != %d at position %d" % (c.size, val[0].size, i))
-            names.append(c.name)
+                
+            if c.name is not None:
+                if c.name in names:
+                    raise ValueError("duplicate dimension name '%s' in stacked coords at position %d" % (c.name, i))
+                names.append(c.name)
 
         return val
     

@@ -21,7 +21,7 @@ from podpac.core.coordinates.base_coordinates1d import BaseCoordinates1d
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
-from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
+from podpac.core.coordinates.stacked_coordinates1d import StackedCoordinates
 
 class OrderedDictTrait(tl.Dict):
     """ OrderedDict trait for Python < 3.6 (including Python 2) compatibility """

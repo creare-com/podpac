@@ -15,6 +15,11 @@ import numbers
 import numpy as np
 from six import string_types
 
+GDAL_CRS = {
+    'WGS84': 'EPSG:4326',
+    'SPHER_MERC': 'EPSG:3857'
+}
+
 def get_timedelta(s):
     """
     Make a numpy timedelta from a podpac timedelta string.
@@ -353,8 +358,3 @@ def _replace_safe(dt, year=None, month=None):
     month = (month-1) % 12 + 1
     day = min(dt.day, calendar.monthrange(year, month)[1])
     return dt.replace(year=year, month=month, day=day)
-
-GDAL_CRS = {
-    'WGS84': 'EPSG:4326',
-    'SPHER_MERC': 'EPSG:3857'
-}
