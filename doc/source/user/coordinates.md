@@ -15,7 +15,7 @@ podpac.Coordinates(values, dims=dims, ...)
 ```
 
 Unlike xarray, podpac coordinate values are always either `float` or `np.datetime64`. For convenience, podpac
-automatically converts datetime strings (such as `'2018-01-01'` to np.datetime64. In addition, the allowed dimensions
+automatically converts datetime strings such as `'2018-01-01'` to `np.datetime64`. In addition, the allowed dimensions
 are `'lat'`, `'lon'`, `'time'`, and `'alt'`.
 
 ## Coordinate Creation
@@ -44,11 +44,7 @@ Mixed:
 lat = [0, 1, 2]
 lon = [10, 20, 30]
 time = ['2018-01-01', '2018-01-02']
-
-c = Coordinates([np.stack([lat, lon]).T, time], dims=['lat_lon', 'time'])
->>> c
->>> c.shape
-(3, 2)
+Coordinates([np.stack([lat, lon]).T, time], dims=['lat_lon', 'time'])
 ```
 
 Coordinate Range:
@@ -99,8 +95,6 @@ lat = [0, 1, 2]
 lon = [10, 20, 30]
 c = Coordinates([np.stack([lat, lon]).T], dims=['lat_lon'])
 >>> c
->>> c.shape
-(3,)
 >>> c.coords[0]
 ```
 
@@ -112,16 +106,16 @@ lon = [10, 20, 30]
 >>> time = ['2018-01-01', '2018-01-02']
 c = Coordinates([np.stack([lat, lon]).T, time], dims=['lat_lon', 'time'])
 >>> c
->>> c.shape
-(3, 2)
 >>> c.coords[0]
 ```
 
-### crange and clinspace
+### Uniformly-Spaced Coordinates
 
 Podpac provides two convenience functions `crange` and `clinspace` for creating uniformly-spaced coordinates, similar to the `arange` and `linspace` functions provided by numpy.
 
-`crange(start, stop, step)`: creates uniformly-spaced coordinates with the given step. Unlike `np.arange`:
+**`crange`**
+
+Creates uniformly-spaced coordinates from a start, stop, and step. Unlike `np.arange`:
  * string inputs are supported for datetimes and timedeltas
  * the stop value will be included in the coordinates if it falls an exact number of steps from the start
 
@@ -136,7 +130,9 @@ Podpac provides two convenience functions `crange` and `clinspace` for creating 
 >>> c.coordinates
  ```
 
-`clinspace(start, stop, size)`: creates uniformly-spaced coordinates with the given size. Unlike `np.linspace`:
+**`clinspace`**
+
+Creates uniformly-spaced coordinates from a start, stop, and size. Unlike `np.linspace`:
  * string inputs are supported for datetimes
  * tuple inputs are supported for stacked coordinates
 
@@ -159,21 +155,21 @@ TODO ctype, etc
 
 ### Alternate Constructors: `grid` and `points`
 
-Unstacked coordinates can also be created using the `grid` alternate constructor:
+Unstacked coordinates can also be created using the `Coordinates.grid` alternate constructor:
 
 ```
 >>> Coordinates.grid(lat=[0, 1, 2], lon=[10, 20, 30, 40])
 >>> Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=['lat', 'lon'])
 ```
 
-Stacked coordinates can be created using the `points` alternate constructor:
+Stacked coordinates can be created using the `Coordinates.points` alternate constructor:
 
 ```
 >>> Coordinates.points(lat=[0, 1, 2], lon=[10, 20, 30])
 >>> Coordinates([np.stack([0, 1, 2], [10, 20, 30, 40]).T], dims=['lat_lon'])
 ```
 
-For convenience, a `tuple` can be used to generate uniformly-spaced coordinates. If the third item is an integer, it
+For convenience, a tuple can be used to generate uniformly-spaced coordinates. If the third item is an integer, it
 is interpreted as a size, otherwise it is interpreted as a step. The following will all be equivalent:
 
 ```
@@ -203,8 +199,6 @@ Coordinates([StackedCoordinates([lat, lon]), time])
 
 TODO mixed ctypes, etc...
 
-### Coordinate Groups
-
 ## Coordinate API
 
 TODO
@@ -220,3 +214,7 @@ Coordinates contain some useful properties relating to its dimensions and underl
 ```
 
 Coordinates are dict-like. The `keys()`, `values()`, and `items()`
+
+## Coordinates Groups
+
+TODO
