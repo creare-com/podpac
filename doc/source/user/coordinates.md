@@ -3,23 +3,20 @@
 
 ## Overview
 
-`Coordinates` are used to: 
+Coordinates are used to: 
 1. Evaluate [nodes](nodes.md) which retrieve and process data
-2. Define the coordinates of [data sources](nodes.md#DataSource)
+2. Define the coordinates of [data sources](nodes.md#datasource)
 
-Podpac Coordinates are modeled after the coords in xarray DataArrays, with some additional restrictions and enhancements.
+Podpac Coordinates are modeled after the coords in [xarray](http://xarray.pydata.org/en/stable/data-structures.html),
+with some additional restrictions and enhancements. Coordinates are created from a list of coordinate `values` and a corresponding list of `dims`:
 
 ```
-podpac.Coordinates(coords, dims=dims, ...)
+podpac.Coordinates(values, dims=dims, ...)
 ```
 
- * `coords` is a list of coordinates in each dimension
- * `dims` is the list of dimension names
-
-Some key differences in podpac Coordinates include:
- 
- * Coordinate values are always either `float` or `np.datetime64`. For convenience, podpac automatically converts datetime strings (such as `'2018-01-01'` to np.datetime64.
- * The only allowed dimensions are 'lat', 'lon', 'time', and 'alt'
+Unlike xarray, podpac coordinate values are always either `float` or `np.datetime64`. For convenience, podpac
+automatically converts datetime strings (such as `'2018-01-01'` to np.datetime64. In addition, the allowed dimensions
+are `'lat'`, `'lon'`, `'time'`, and `'alt'`.
 
 ## Coordinate Creation
 
@@ -52,6 +49,7 @@ c = Coordinates([np.stack([lat, lon]).T, time], dims=['lat_lon', 'time'])
 >>> c
 >>> c.shape
 (3, 2)
+```
 
 Coordinate Range:
 
