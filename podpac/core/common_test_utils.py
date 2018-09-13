@@ -9,7 +9,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from podpac.core.coordinates import Coordinates, StackedCoordinates, UniformCoordinates1d
+from podpac.core.coordinates import Coordinates, StackedCoordinates, ArrayCoordinates1d
 
 def get_dims_list():
     return [
@@ -97,13 +97,13 @@ def make_coordinate_combinations(lat=None, lon=None, alt=None, time=None):
     
     # make the 1D coordinates
     if lat is None:
-        lat = UniformCoordinates1d(0, 2, 1.0, name='lat')
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat')
     if lon is None:
-        lon = UniformCoordinates1d(2, 6, 2.0, name='lon')
+        lon = ArrayCoordinates1d([2, 4, 6], name='lon')
     if alt is None:
-        alt = UniformCoordinates1d(6, 12, 3.0, name='alt')
+        alt = ArrayCoordinates1d([6, 9, 12], name='alt')
     if time is None:
-        time = UniformCoordinates1d('2018-01-01T00:00:00', '2018-03-01T00:00:00', '1,M', name='time')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-02-01', '2018-03-01'], name='time')
 
     d = dict([('lat', lat), ('lon', lon), ('alt', alt), ('tim', time)])
     

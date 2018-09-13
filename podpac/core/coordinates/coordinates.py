@@ -15,6 +15,7 @@ import traitlets as tl
 import pandas as pd
 import xarray as xr
 import xarray.core.coordinates
+from six import string_types
 
 from podpac.core.coordinates.utils import GDAL_CRS
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
@@ -348,7 +349,7 @@ class Coordinates(tl.HasTraits):
             dims = (dims,)
 
         for dim in dims:
-            if not isinstance(dim, str):
+            if not isinstance(dim, string_types):
                 raise TypeError("Invalid drop dimension type '%s'" % type(dim))
             if dim not in self.dims and not ignore_missing:
                 raise KeyError("Dimension '%s' not found in Coordinates with %s" % (dim, self.dims))
@@ -383,14 +384,11 @@ class Coordinates(tl.HasTraits):
     def intersect(self, other, outer=False, return_indices=False):
         intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self.values()]
         if return_indices:
-            c = Coordinates([c for c, I in intersections])
+            coords = Coordinates([c for c, I in intersections])
             idx = [I for c, I in intersections]
-            c.dims
-            return c, idx
+            return coords, idx
         else:
-            c = Coordinates(intersections)
-            c.dims
-            return c
+            return Coordinates(intersections)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods

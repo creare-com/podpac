@@ -19,3 +19,13 @@ def clinspace(start, stop, size):
         return StackedCoordinates([UniformCoordinates1d(start[i], stop[i], size=size) for i in range(a[0].size)])
     else:
         return UniformCoordinates1d(start, stop, size=size)
+
+def cstack(a):
+    if len(a) == 0:
+        return ArrayCoordinates()
+
+    if len(a) == 1:
+        return a[0].copy() if isinstance(a[0], Coordinates1d) else ArrayCoordinates1d(a[0])
+    
+    cs = [e.copy() if isinstance(e, Coordinates1d) else ArrayCoordinates1d(e) for e in a]
+    return StackedCoordinates(cs)

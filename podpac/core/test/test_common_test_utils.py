@@ -13,25 +13,24 @@ class TestMakeCoordinates(object):
         assert(len(coords) == 168)
         
     def test_custom_creation_no_stack(self):
-        kwargs = {}
-        kwargs['lat'] = UniformCoordinates1d(0, 2, 1.0, name='lat')
-        kwargs['lon'] = UniformCoordinates1d(2, 6, 1.0, name='lon')
-        kwargs['alt'] = UniformCoordinates1d(6, 12, 1.0, name='alt')
-        kwargs['time'] = UniformCoordinates1d('2018-01-01T00:00:00', '2018-02-01T00:00:00', '1,M', name='time')
-        coords = ctu.make_coordinate_combinations(**kwargs)
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat')
+        lon = ArrayCoordinates1d([2, 3, 4, 5, 6], name='lon')
+        alt = ArrayCoordinates1d([6, 7, 8, 9, 10, 11, 12], name='alt')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-02-01'], name='time')
+        coords = ctu.make_coordinate_combinations(lat=lat, lon=lon, alt=alt, time=time)
         assert(len(coords) > 0)
         assert(len(coords) == 48)        
         
     def test_custom_creation_latlon_stack(self):
-        kwargs = {}
-        kwargs['alt'] = UniformCoordinates1d(6, 12, 1.0, name='alt')
-        kwargs['time'] = UniformCoordinates1d('2018-01-01T00:00:00', '2018-02-01T00:00:00', '1,M', name='time')
-        coords = ctu.make_coordinate_combinations(**kwargs)
+        alt = ArrayCoordinates1d([6, 7, 8, 9, 10, 11, 12], name='alt')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-02-01'], name='time')
+        coords = ctu.make_coordinate_combinations(alt=alt, time=time)
         assert(len(coords) > 0)
         assert(len(coords) == 70)
         
     def test_custom_creation_mixed_type_1d(self):
-        coords = ctu.make_coordinate_combinations(lat=ArrayCoordinates1d([0.0, 1.0, 2.0, 4.0], name='lat'))
+        lat = ArrayCoordinates1d([0.0, 1.0, 2.0, 4.0], name='lat')
+        coords = ctu.make_coordinate_combinations(lat=lat)
         assert(len(coords) > 0)
         assert(len(coords) == 84)
         

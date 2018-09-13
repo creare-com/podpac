@@ -21,9 +21,9 @@ import botocore
 import requests
 
 import podpac.settings
+from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, Node
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
 from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3
@@ -37,10 +37,7 @@ class TestArray(object):
     """Test Array datasource class (formerly Array)"""
 
     data = np.random.rand(11, 11)
-    coordinates = Coordinates([
-        UniformCoordinates1d(-25, 25, size=11, name='lat'),
-        UniformCoordinates1d(-25, 25, size=11, name='lon')
-    ])
+    coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
 
     def test_source_trait(self):
         """ must be an ndarry """
@@ -87,10 +84,7 @@ class TestPyDAP(object):
 
     # mock parameters and data
     data = np.random.rand(11, 11)   # mocked from pydap endpoint
-    coordinates = Coordinates([
-        UniformCoordinates1d(-25, 25, size=11, name='lat'),
-        UniformCoordinates1d(-25, 25, size=11, name='lon')
-    ])
+    coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
 
     def mock_pydap(self):
 
@@ -105,10 +99,7 @@ class TestPyDAP(object):
     def test_init(self):
         """test basic init of class"""
 
-        node = PyDAP(source=self.source,
-                     datakey=self.datakey,
-                     username=self.username,
-                     password=self.password)
+        node = PyDAP(source=self.source, datakey=self.datakey, username=self.username, password=self.password)
         assert isinstance(node, PyDAP)
 
         node = MockPyDAP()
@@ -466,10 +457,10 @@ class TestWCS(object):
 
         # no time
         notime_coordinates = Coordinates([
-            UniformCoordinates1d(lat[0], lat[-2], size=10, name='lat'),
-            UniformCoordinates1d(lon[0], lon[-2], size=10, name='lon'),
-            ArrayCoordinates1d('2006-06-14T17:00:00', name='time')
-        ])
+            clinspace(lat[0], lat[-2], 10),
+            clinspace(lon[0], lon[-2], 10),
+            '2006-06-14T17:00:00'],
+            dims=['lat', 'lon', 'time'])
 
         with pytest.raises(ValueError):
             output = node.execute(notime_coordinates)
@@ -478,10 +469,10 @@ class TestWCS(object):
 
         # time
         time_coordinates = Coordinates([
-            UniformCoordinates1d(lat[0], lat[-2], size=10, name='lat'),
-            UniformCoordinates1d(lon[0], lon[-2], size=10, name='lon'),
-            UniformCoordinates1d(time[0], time[-1], size=len(time), name='time')
-        ])
+            clinspace(lat[0], lat[-2], 10),
+            clinspace(lon[0], lon[-2], 10),
+            clinspace(time[0], time[-1], len(time))],
+            dims=['lat', 'lon', 'time'])
 
         with pytest.raises(ValueError):
             output = node.execute(time_coordinates)
@@ -503,14 +494,8 @@ class TestReprojectedSource(object):
 
     source = Node()
     data = np.random.rand(11, 11)
-    coordinates_source = Coordinates([
-        UniformCoordinates1d(-25, 25, size=11, name='lat'),
-        UniformCoordinates1d(-25, 25, size=11, name='lon')
-    ])
-    reprojected_coordinates = Coordinates([
-        UniformCoordinates1d(25, 50, size=11, name='lat'),
-        UniformCoordinates1d(25, 50, size=11, name='lon')
-    ])
+    coordinates_source = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
+    reprojected_coordinates = Coordinates([clinspace(-25, 50, 11), clinspace(-25, 50, 11)], dims=['lat', 'lon'])
 
     def test_init(self):
         """test basic init of class"""
@@ -592,10 +577,7 @@ class TestS3(object):
 
     source = 's3://bucket.aws.com/file'
     bucket = 'bucket'
-    coordinates = Coordinates([
-        UniformCoordinates1d(-25, 25, size=11, name='lat'),
-        UniformCoordinates1d(-25, 25, size=11, name='lon')
-    ])
+    coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
 
     def test_init(self):
         """test basic init of class"""

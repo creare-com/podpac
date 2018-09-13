@@ -13,7 +13,7 @@ version_info : TYPE
 
 # Public API
 from podpac.core.units import Units, UnitsDataArray, UnitsNode
-from podpac.core.coordinates import Coordinates
+from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, Style
 from podpac.core.algorithm.algorithm import (
     Algorithm, Arithmetic, SinCoords)

@@ -2,26 +2,23 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import pytest
 
-from podpac.core.coordinates import Coordinates
-from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
+import podpac
 from podpac.core.data.datasource import DataSource
 from podpac.core.algorithm.algorithm import Arange
 from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates
 
 # TODO move to test setup
-coords = Coordinates([
-    ArrayCoordinates1d('2017-09-01', name='time'),
-    UniformCoordinates1d(45, 66, size=4, name='lat'),
-    UniformCoordinates1d(-80, -70, size=5, name='lon')
-])
+coords = podpac.Coordinates(
+    ['2017-09-01', podpac.clinspace(45, 66, 4), podpac.clinspace(-80, -70, 5)],
+    dims=['time', 'lat', 'lon'])
 
 class MyDataSource(DataSource):
     def get_native_coordinates(self):
-        return Coordinates([
-            UniformCoordinates1d('2010-01-01', '2018-01-01', '4,h', name='time'),
-            UniformCoordinates1d(-180, 180, size=6, name='lat'),
-            UniformCoordinates1d(-80, -70, size=6, name='lon')
-        ])
+        return podpac.Coordinates([
+            podpac.crange('2010-01-01', '2018-01-01', '4,h'),
+            podpac.clinspace(-180, 180, 6),
+            podpac.clinspace(-80, -70, 6)],
+            dims=['time', 'lat', 'lon'])
 
     def get_data(self, coordinates, slc):
         node = Arange()

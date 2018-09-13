@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 import scipy.stats
 
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d
+import podpac
 from podpac.core.data.types import Array
 from podpac.core.algorithm.stats import Min, Max, Sum, Count, Mean, Variance, Skew, Kurtosis, StandardDeviation
 from podpac.core.algorithm.stats import Median, Percentile
@@ -13,11 +13,9 @@ from podpac.core.algorithm.stats import GroupReduce, DayOfYear
 
 def setup_module():
     global coords, source, data
-    coords = Coordinates([
-        UniformCoordinates1d(0, 1, size=10, name='lat'),
-        UniformCoordinates1d(0, 1, size=10, name='lon'),
-        UniformCoordinates1d('2018-01-01', '2018-01-10', '1,D', name='time')
-    ])
+    coords = podpac.Coordinates(
+        [podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 10), podpac.crange('2018-01-01', '2018-01-10', '1,D')],
+        dims=['lat', 'lon', 'time'])
 
     a = np.random.random(coords.shape)
     a[3, 0, 0] = np.nan

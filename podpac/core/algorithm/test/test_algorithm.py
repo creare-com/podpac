@@ -3,14 +3,14 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import pytest
 import numpy as np
 
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d
+import podpac
 from podpac.core.algorithm.algorithm import Algorithm, Arange, CoordData, SinCoords, Arithmetic
 
 class TestAlgorithm(object):
     def test_not_implemented(self):
         node = Algorithm()
         with pytest.raises(NotImplementedError):
-            node.execute(Coordinates())
+            node.execute(podpac.Coordinates())
 
     def test_pipeline_definition(self):
         # note: any algorithm node with attrs and inputs would be fine here
@@ -33,20 +33,14 @@ class TestAlgorithm(object):
 
 class TestArange(object):
     def test_Arange(self):
-        coords = Coordinates([
-            UniformCoordinates1d(0, 1, size=10, name='lat'),
-            UniformCoordinates1d(0, 1, size=20, name='lon')
-        ])
+        coords = podpac.Coordinates([[0, 1, 2], [0, 1, 2, 3, 4]], dims=['lat', 'lon'])
         node = Arange()
         output = node.execute(coords)
         assert output.shape == coords.shape
 
 class TestCoordData(object):
     def test_CoordData(self):
-        coords = Coordinates([
-            UniformCoordinates1d(0, 1, size=10, name='lat'),
-            UniformCoordinates1d(0, 1, size=20, name='lon')
-        ])
+        coords = podpac.Coordinates([[0, 1, 2], [0, 1, 2, 3, 4]], dims=['lat', 'lon'])
 
         node = CoordData(coord_name='lat')
         np.testing.assert_array_equal(node.execute(coords), coords.coords['lat'])
@@ -55,21 +49,16 @@ class TestCoordData(object):
         np.testing.assert_array_equal(node.execute(coords), coords.coords['lon'])
 
     def test_invalid_dimension(self):
-        coords = Coordinates([
-            UniformCoordinates1d(0, 1, size=10, name='lat'),
-            UniformCoordinates1d(0, 1, size=20, name='lon')
-        ])
-
+        coords = podpac.Coordinates([[0, 1, 2], [0, 1, 2, 3, 4]], dims=['lat', 'lon'])
         node = CoordData(coord_name='time')
         with pytest.raises(ValueError):
             node.execute(coords)
 
 class TestSinCoords(object):
     def test_SinCoords(self):
-        coords = Coordinates([
-            UniformCoordinates1d(-90, 90, 1.0, name='lat'),
-            UniformCoordinates1d('2018-01-01', '2018-01-30', '1,D', name='time')
-        ])
+        coords = podpac.Coordinates(
+            [podpac.crange(-90, 90, 1.0), podpac.crange('2018-01-01', '2018-01-30', '1,D')],
+            dims=['lat', 'time'])
         node = SinCoords()
         output = node.execute(coords)
         assert output.shape == coords.shape
@@ -77,10 +66,7 @@ class TestSinCoords(object):
 class TestArithmetic(object):
     @pytest.mark.skip("add_unique")
     def test_Arithmetic(self):
-        coords = Coordinates([
-            UniformCoordinates1d(-90, 90, 1.0, name='lat'),
-            UniformCoordinates1d(-180, 180, 1.0, name='lon')
-        ])
+        coords = podpac.Coordinates([podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)], dims=['lat', 'lon'])
         sine_node = SinCoords()
         node = Arithmetic(A=sine_node, B=sine_node, eqn='2*abs(A) - B + {offset}', params={'offset': 1})
         output = node.execute(coords)

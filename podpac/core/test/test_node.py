@@ -8,8 +8,8 @@ from pint.errors import DimensionalityError
 from pint import UnitRegistry; ureg = UnitRegistry()
 import traitlets as tl
 
+import podpac
 from podpac.core import common_test_utils as ctu
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Style, Node, NodeException
 
@@ -32,33 +32,31 @@ class TestNodeProperties(object):
     def test_shape_no_nc(self):
         n = Node()
         
-        lat = UniformCoordinates1d(0.5, 1.5, size=15, name='lat')
-        lon = UniformCoordinates1d(0.1, 1.1, size=15, name='lon')
-        time = UniformCoordinates1d(0, 1, size=2, name='time')
+        lat = podpac.clinspace(0.5, 1.5, 15)
+        lon = podpac.clinspace(0.1, 1.1, 15)
+        time = podpac.clinspace(0, 1, 2)
 
         # lat, lon, time
-        coords = Coordinates([lat, lon, time])
+        coords = podpac.Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
         np.testing.assert_array_equal(coords.shape, n.get_output_shape(coords))
 
         # lat_lon
-        coords = Coordinates.points([lat, lon])
+        coords = podpac.Coordinates([podpac.cstack([lat, lon])], dims=['lat_lon', 'time'])
         np.testing.assert_array_equal(coords.shape, n.get_output_shape(coords))
         
         # lat_lon, time
-        coords = Coordinates([StackedCoordinates(lat, lon), time])
+        coords = podpac.Coordinates([podpac.cstack([lat, lon]), time], dims=['lat_lon', 'time'])
         np.testing.assert_array_equal(coords.shape, n.get_output_shape(coords))
     
     @pytest.mark.xfail(reason="get_output_shape removed, pending node refactor")
     def test_shape_with_nc(self):
-        lat = UniformCoordinates1d(0.5, 1.5, size=15, name='lat')
-        lon = UniformCoordinates1d(0.1, 1.1, size=15, name='lon')
-        time = UniformCoordinates1d(0, 1, size=2, name='time')
-        lat_lon = StackedCoordinates([lat, lon])
+        lat_lon = podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)
+        time = podpac.clinspace(0, 1, 2)
 
-        crd_fine = Coordinates(lat_lon)
-        crd_coarse = Coordinates(lat_lon[::3])
-        crd_time = Coordinates(time)
-        crd_coarse_time = Coordinates([lat_lon[::3], crd_time])
+        crd_fine = podpac.Coordinates(lat_lon, dims=['lat_lon'])
+        crd_coarse = podpac.Coordinates(lat_lon[::3], dims=['lat_lon'])
+        crd_time = podpac.Coordinates(time, dims=['time'])
+        crd_coarse_time = podpac.Coordinates([lat_lon[::3], crd_time], dims=['lat_lon', 'time'])
         
         n = Node(native_coordinates=crd_fine)
         np.testing.assert_array_equal(crd_coarse.shape, n.get_output_shape(crd_coarse))
@@ -75,9 +73,7 @@ class TestNodeProperties(object):
         Node().base_ref
         
     def test_latlon_bounds_str(self):
-        lat = UniformCoordinates1d(0, 1, size=3, name='lat')
-        lon = UniformCoordinates1d(0, 1, size=3, name='lon')
-        n = Node(requested_coordinates=Coordinates([lat, lon]))
+        n = Node(requested_coordinates=podpac.Coordinates([[0, 0.5, 1], [0, 0.5, 1]], dims=['lat', 'lon']))
         assert(n.latlon_bounds_str == '0.0_0.0_x_1.0_1.0')
         
     def test_cache_dir(self):
@@ -125,25 +121,14 @@ class TestNotImplementedMethods(object):
 class TestNodeMethods(object):
     @classmethod
     def setup_class(cls):
-        c1 = Coordinates([
-            StackedCoordinates([
-                UniformCoordinates1d(0, 1, size=10, name='lat'),
-                UniformCoordinates1d(0, 1, size=10, name='lon')
-            ]),
-            UniformCoordinates1d(0, 1, size=2, name='time')
-        ])
-        c2 = Coordinates([
-            StackedCoordinates([
-                UniformCoordinates1d(0.5, 1.5, size=15, name='lat'),
-                UniformCoordinates1d(0.1, 1.1, size=15, name='lon')
-            ])
-        ])
+        c1 = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
+        c2 = podpac.Coordinates([podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)], dims=['lat_lon'])
         cls.crds = [c1, c2]
     
     @pytest.mark.xfail(reason="get_output_shape removed, pending node refactor")
     def test_get_output_dims(self):
         n1 = Node()
-        n2 = Node(native_coordinates=Coordinates(UniformCoordinates1d(0, 1, size=3, name='alt')))
+        n2 = Node(native_coordinates=podpac.Coordinates([[0, .5, 1.]], dims=['alt']))
         n3 = Node()
         for crd in self.crds:
             np.testing.assert_array_equal(n1.get_output_dims(crd), crd.dims)
@@ -156,19 +141,8 @@ class TestNodeMethods(object):
 class TestNodeOutputArrayCreation(object):
     @classmethod
     def setup_class(cls):
-        cls.c1 = Coordinates([
-            StackedCoordinates([
-                UniformCoordinates1d(0, 1, size=10, name='lat'),
-                UniformCoordinates1d(0, 1, size=10, name='lon')
-            ]),
-            UniformCoordinates1d(0, 1, size=2, name='time')
-        ])
-        cls.c2 = Coordinates([
-            StackedCoordinates([
-                UniformCoordinates1d(0.5, 1.5, size=15, name='lat'),
-                UniformCoordinates1d(0.1, 1.1, size=15, name='lon')
-            ])
-        ])
+        cls.c1 = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
+        cls.c2 = podpac.Coordinates([podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)], dims=['lat_lon'])
         cls.crds = [cls.c1, cls.c2]
         cls.init_types = ['empty', 'nan', 'zeros', 'ones', 'full', 'data']
     
@@ -242,9 +216,9 @@ class TestPipelineDefinition(object):
 class TestFilesAndCaching(object):
     def test_get_hash(self):
         # TODO attrs should result in different hashes
-        crds1 = Coordinates(ArrayCoordinates1d(1, name='lat'))
-        crds2 = Coordinates(ArrayCoordinates1d(2, name='lat'))
-        crds3 = Coordinates(ArrayCoordinates1d(1, name='lon'))
+        crds1 = podpac.Coordinates([1], dims=['lat'])
+        crds2 = podpac.Coordinates([2], dims=['lat'])
+        crds3 = podpac.Coordinates([1], dims=['lon'])
         n1 = Node()
         n2 = Node()
         assert(n1.get_hash(crds1) == n2.get_hash(crds1))
@@ -255,7 +229,7 @@ class TestFilesAndCaching(object):
         n = Node()
         with pytest.raises(NodeException):
             n.evaluated_hash
-        n.requested_coordinates = Coordinates(ArrayCoordinates1d(0, name='lat'))
+        n.requested_coordinates = podpac.Coordinates([0], dims=['lat'])
         n.evaluated_hash
         
     def test_get_output_path(self):
@@ -263,10 +237,8 @@ class TestFilesAndCaching(object):
         assert(p.endswith('testfilename.txt'))
         assert(os.path.exists(os.path.dirname(p)))
         
-    @pytest.mark.skip('get_output_coords, replace_coords')
     def test_write_file(self):
-        nc = Coordinates([ArrayCoordinates1d(0, name='lat'), ArrayCoordinates1d(1, name='lon')])
-        n = Node(native_coordinates=nc)
+        n = Node(native_coordinates=podpac.Coordinates([0, 1], dims=['lat', 'lon']))
         n.requested_coordinates = n.native_coordinates
         fn = 'temp_test'
         p = n.write(fn)
@@ -275,10 +247,8 @@ class TestFilesAndCaching(object):
         with pytest.raises(NotImplementedError):
             n.write(fn, format='notARealFormat')
     
-    @pytest.mark.skip('get_output_coords, replace_coords')
     def test_load_file(self):
-        nc = Coordinates([ArrayCoordinates1d(0, name='lat'), ArrayCoordinates1d(1, name='lon')])
-        n = Node(native_coordinates=nc)
+        n = Node(native_coordinates=podpac.Coordinates([0, 1], dims=['lat', 'lon']))
         n.requested_coordinates = n.native_coordinates
         fn = 'temp_test'
         p = n.write(fn)
@@ -308,10 +278,7 @@ class TestFilesAndCaching(object):
 @pytest.mark.skip("???")
 class TestGetImage(object):
     def test_get_image(self):
-        nc = Coordinates([
-            UniformCoordinates1d(0, 1, size=3, name='lat'),
-            UniformCoordinates1d(0, 1, size=5, name='lon')
-        ])
+        nc = podpac.Coordinates([podpac.clinspace(0, 1, 3), podpac.clinspace(0, 1, 5)], dims=['lat', 'lon'])
         n = Node(native_coordinates=nc)
         n.output[:] = 1
         im = n.get_image()
@@ -322,10 +289,10 @@ class TestNodeOutputCoordinates(object):
     def test_node_output_coordinates(self):
         ev = ctu.make_coordinate_combinations()
         kwargs = {}
-        kwargs['lat'] = UniformCoordinates1d(-1, 1, 1.0)
-        kwargs['lon'] = UniformCoordinates1d(-1, 1, 1.0)
-        kwargs['alt'] = UniformCoordinates1d(-1, 1, 1.0)
-        kwargs['time'] = UniformCoordinates1d('2000-01-01T00:00:00', '2000-02-01T00:00:00', '1,M')        
+        kwargs['lat'] = [-1, 0, 1]
+        kwargs['lon'] = [-1, 0, 1]
+        kwargs['alt'] = [-1, 0, 1]
+        kwargs['time'] = ['2000-01-01T00:00:00', '2000-02-01T00:00:00']
         nc = ctu.make_coordinate_combinations(**kwargs)
         
         node = Node()
