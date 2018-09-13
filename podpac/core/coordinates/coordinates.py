@@ -96,20 +96,15 @@ class Coordinates(tl.HasTraits):
             if dim in dcoords:
                 raise ValueError("duplicate dimension name at position %d" % i)
 
+            # TODO default properties
             if isinstance(coords[i], BaseCoordinates):
-                # TODO default properties
-                c = coords[i].copy(name=dim)
+                c = coords[i].copy()
             elif '_' in dim:
-                a = np.atleast_1d(coords[i]).T
-                sdims = dim.split('_')
-                if len(a) != len(sdims):
-                    raise ValueError("TODO error message")
-                # TODO default properties
-                c = StackedCoordinates([ArrayCoordinates1d(values, name=sdim) for values, sdim in zip(a, sdims)])
+                c = StackedCoordinates([ArrayCoordinates1d(values) for values in np.atleast_1d(coords[i])])
             else:
-                # TODO default properties
-                c = ArrayCoordinates1d(coords[i], name=dim)
+                c = ArrayCoordinates1d(coords[i])
 
+            c.name = dim
             dcoords[dim] = c
 
         # set 1d coordinates defaults

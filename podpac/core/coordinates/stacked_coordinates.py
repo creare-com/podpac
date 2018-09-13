@@ -102,7 +102,10 @@ class StackedCoordinates(BaseCoordinates):
         return cls([ArrayCoordinates1d.from_xarray(xcoord[dims]) for dims in dims], **kwargs)
 
     def copy(self, name=None, **kwargs):
-        return StackedCoordinates([c.copy() for c in self._coords], **kwargs)
+        c = StackedCoordinates([c.copy() for c in self._coords], **kwargs)
+        if name is not None:
+            c.name = name
+        return c
     
     # ------------------------------------------------------------------------------------------------------------------
     # standard (tuple-like) methods
@@ -112,8 +115,10 @@ class StackedCoordinates(BaseCoordinates):
         return StackedCoordinates([c[index] for c in self._coords])
 
     def __repr__(self):
-        # TODO
-        raise NotImplementedError
+        rep = str(self.__class__.__name__)
+        for c in self._coords:
+            rep += '\n\t%s[%s]: %s' % (self.name, c.name or '?', c)
+        return rep
 
     def __iter__(self):
         return iter(self._coords)
@@ -141,7 +146,15 @@ class StackedCoordinates(BaseCoordinates):
 
     @property
     def name(self):
-        return '_'.join(self.dims)
+        return '_'.join(dim or '?' for dim in self.dims)
+
+    @name.setter
+    def name(self, value):
+        names = value.split('_')
+        if len(names) != len(self._coords):
+            raise ValueError("Invalid name '%s' for StackedCoordinates with length %d" % (value, len(self._corods)))
+        for c, name in zip(self._coords, names):
+            c.name = name
 
     @property
     def size(self):

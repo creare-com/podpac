@@ -99,9 +99,7 @@ class TestCoordinateCreation(object):
         # arrays
         lat = [0, 1, 2]
         lon = [10, 20, 30]
-        lat_lon = np.array([lat, lon]).T
-
-        c = Coordinates([lat_lon], dims=['lat_lon'])
+        c = Coordinates([[lat, lon]], dims=['lat_lon'])
         assert c.dims == ('lat_lon',)
         assert c.shape == (3,)
 
@@ -110,17 +108,15 @@ class TestCoordinateCreation(object):
     def test_mixed(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
-        lat_lon = np.array([lat, lon]).T
         dates = ['2018-01-01', '2018-01-02']
 
-        c = Coordinates([lat_lon, dates], dims=['lat_lon', 'time'])
+        c = Coordinates([[lat, lon], dates], dims=['lat_lon', 'time'])
         assert c.dims == ('lat_lon', 'time')
         assert c.shape == (3, 2)
 
     def test_invalid_dims(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
-        lat_lon = np.array([lat, lon]).T
         dates = ['2018-01-01', '2018-01-02']
 
         with pytest.raises(TypeError):
@@ -130,25 +126,22 @@ class TestCoordinateCreation(object):
             Coordinates(dates, dims=['time'])
 
         with pytest.raises(ValueError):
-            Coordinates([lat_lon], dims=['lat'])
+            Coordinates([[lat, lon]], dims=['lat'])
 
         with pytest.raises(ValueError):
             Coordinates([lat, lon, dates], dims=['lat_lon', 'time'])
 
         with pytest.raises(ValueError):
-            Coordinates([lat_lon, dates], dims=['lat', 'lon', 'dates'])
+            Coordinates([[lat, lon], dates], dims=['lat', 'lon', 'dates'])
 
         with pytest.raises(ValueError):
             Coordinates([lat, lon], dims=['lat_lon'])
 
         with pytest.raises(ValueError):
-            Coordinates([lat_lon], dims=['lat', 'lon'])
+            Coordinates([[lat, lon]], dims=['lat', 'lon'])
 
         with pytest.raises(ValueError):
-            Coordinates(lat_lon, dims=['lat_lon'])
-
-        with pytest.raises(ValueError):
-            Coordinates([[lat, lon], dates], dims=['lat_lon', 'time'])
+            Coordinates([lat, lon], dims=['lat_lon'])
 
     def test_Coordinates1d(self):
         lat = [0, 1, 2]

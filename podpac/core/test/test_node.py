@@ -41,11 +41,11 @@ class TestNodeProperties(object):
         np.testing.assert_array_equal(coords.shape, n.get_output_shape(coords))
 
         # lat_lon
-        coords = podpac.Coordinates([podpac.cstack([lat, lon])], dims=['lat_lon', 'time'])
+        coords = podpac.Coordinates([[lat, lon]], dims=['lat_lon', 'time'])
         np.testing.assert_array_equal(coords.shape, n.get_output_shape(coords))
         
         # lat_lon, time
-        coords = podpac.Coordinates([podpac.cstack([lat, lon]), time], dims=['lat_lon', 'time'])
+        coords = podpac.Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
         np.testing.assert_array_equal(coords.shape, n.get_output_shape(coords))
     
     @pytest.mark.xfail(reason="get_output_shape removed, pending node refactor")

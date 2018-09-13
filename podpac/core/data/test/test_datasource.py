@@ -608,7 +608,7 @@ class TestDataSource(object):
 
             source = np.random.rand(5, 5)
             coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=['lat', 'lon'])
-            coords_dst = Coordinates([np.stack([[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]).T], dims=['lat_lon'])
+            coords_dst = Coordinates([[[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]], dims=['lat_lon'])
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
@@ -626,8 +626,8 @@ class TestDataSource(object):
             datasource.rasterio = None
 
             source = np.random.rand(6)
-            coords_src = Coordinates([np.stack([[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]).T], dims=['lat_lon'])
-            coords_dst = Coordinates([np.stack([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]).T], dims=['lat_lon'])
+            coords_src = Coordinates([[[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]], dims=['lat_lon'])
+            coords_dst = Coordinates([[[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]], dims=['lat_lon'])
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
 
             output = node.execute(coords_dst)
