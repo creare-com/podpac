@@ -3,7 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import traitlets as tl
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
-class RotatedCoordinatesCoordinates(BaseCoordinates):
+class RotatedCoordinates(BaseCoordinates):
     """
     Base class for single or stacked one-dimensional coordinates.
 
