@@ -54,7 +54,7 @@ c = Coordinates([np.stack([lat, lon]).T], dims=['lat_lon'])
 >>> c.coords[0]
 ```
 
-Coordinates can contain combine stacked dimensions and unstacked dimensions. For example, in the following Coordinates the `(lat, lon)` values and the `time` values form a grid of 6 total points.
+Coordinates can combine stacked dimensions and unstacked dimensions. For example, in the following Coordinates the `(lat, lon)` values and the `time` values form a grid of 6 total points.
 
 ```
 lat = [0, 1, 2]
@@ -108,6 +108,10 @@ Unlike `np.linspace`:
 
 These functions wrap UniformCoordinates1d (see Advanced Usage), which is particularly useful for coordinates with an
 extremely large number of points.
+
+### Rotated Coordinates
+
+TODO
 
 ### Coordinate Properties
 

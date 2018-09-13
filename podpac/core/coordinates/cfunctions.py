@@ -4,7 +4,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import numpy as np
 
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
-from podpac.core.coordinates.stacked_coordinates1d import StackedCoordinates
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 def crange(start, stop, step):
     return UniformCoordinates1d(start, stop, step)

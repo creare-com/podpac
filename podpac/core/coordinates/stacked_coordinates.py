@@ -8,11 +8,11 @@ import pandas as pd
 import traitlets as tl
 from six import string_types
 
-from podpac.core.coordinates.base_coordinates1d import BaseCoordinates1d
+from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
-class StackedCoordinates(BaseCoordinates1d):
+class StackedCoordinates(BaseCoordinates):
    
     # TODO dict vs tuple
     _coords = tl.Tuple(trait=tl.Instance(Coordinates1d))
@@ -27,8 +27,8 @@ class StackedCoordinates(BaseCoordinates1d):
         ----------
         coords : list, dict, or Coordinates
             Coordinates, either
-             * list of named BaseCoordinates1d objects
-             * dictionary of BaseCoordinates1d objects, with dimension names as the keys
+             * list of named BaseCoordinates objects
+             * dictionary of BaseCoordinates objects, with dimension names as the keys
              * Coordinates object to be copied
         ctype : str
             Default coordinates type (optional).

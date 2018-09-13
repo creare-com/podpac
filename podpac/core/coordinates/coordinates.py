@@ -17,11 +17,11 @@ import xarray as xr
 import xarray.core.coordinates
 
 from podpac.core.coordinates.utils import GDAL_CRS
-from podpac.core.coordinates.base_coordinates1d import BaseCoordinates1d
+from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
-from podpac.core.coordinates.stacked_coordinates1d import StackedCoordinates
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 class OrderedDictTrait(tl.Dict):
     """ OrderedDict trait for Python < 3.6 (including Python 2) compatibility """
@@ -55,9 +55,9 @@ class Coordinates(tl.HasTraits):
     """
 
     if sys.version < '3.6':
-        _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates1d))
+        _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates))
     else:
-        _coords = tl.Dict(trait=tl.Instance(BaseCoordinates1d))
+        _coords = tl.Dict(trait=tl.Instance(BaseCoordinates))
 
     def __init__(self, coords=[], dims=None, coord_ref_sys=None, ctype=None, distance_units=None):
         """
@@ -66,7 +66,7 @@ class Coordinates(tl.HasTraits):
         Parameters
         ----------
         coords : list, dict, or Coordinates
-            List of named BaseCoordinates1d objects
+            List of named BaseCoordinates objects
         ctype : str
             Default coordinates type (optional).
         coord_ref_sys : str
@@ -81,7 +81,7 @@ class Coordinates(tl.HasTraits):
 
         if dims is None:
             for i, c in enumerate(coords):
-                if not isinstance(c, (BaseCoordinates1d, xr.DataArray)):
+                if not isinstance(c, (BaseCoordinates, xr.DataArray)):
                     raise TypeError("Cannot get dim for coordinates at position %d with type '%s'"
                                     "(expected 'Coordinates1d' or 'DataArray')" % (i, type(c)))
 
@@ -95,7 +95,7 @@ class Coordinates(tl.HasTraits):
             if dim in dcoords:
                 raise ValueError("duplicate dimension name at position %d" % i)
 
-            if isinstance(coords[i], BaseCoordinates1d):
+            if isinstance(coords[i], BaseCoordinates):
                 # TODO default properties
                 c = coords[i].copy(name=dim)
             elif '_' in dim:
@@ -247,7 +247,7 @@ class Coordinates(tl.HasTraits):
             raise KeyError("cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
             
         # TODO allow setting an array (cast it to ArrayCoordinates1d)
-        if not isinstance(c, BaseCoordinates1d):
+        if not isinstance(c, BaseCoordinates):
             raise TypeError("todo")
 
 

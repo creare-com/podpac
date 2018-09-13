@@ -2,7 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import traitlets as tl
 
-class BaseCoordinates1d(tl.HasTraits):
+class BaseCoordinates(tl.HasTraits):
     """
     Base class for single or stacked one-dimensional coordinates.
 

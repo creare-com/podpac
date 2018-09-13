@@ -8,11 +8,10 @@ import xarray as xr
 import pandas as pd
 # from six import string_types
 
-from podpac.core.coordinates.base_coordinates1d import BaseCoordinates1d
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import ArrayCoordinates1d
-from podpac.core.coordinates.stacked_coordinates1d import StackedCoordinates
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.coordinates import Coordinates
 
 # class TestBaseCoordinate(object):

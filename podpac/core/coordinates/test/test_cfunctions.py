@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
-from podpac.core.coordinates.stacked_coordinates1d import StackedCoordinates
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.cfunctions import crange, clinspace
 
 def test_crange():

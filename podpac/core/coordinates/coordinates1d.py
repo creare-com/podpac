@@ -13,11 +13,11 @@ import traitlets as tl
 from podpac.core.units import Units
 # from podpac.core.utils import cached_property, clear_cache
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_array, add_coord
-from podpac.core.coordinates.base_coordinates1d import BaseCoordinates1d
+from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
 DEFAULT_COORD_REF_SYS = 'WGS84'
 
-class Coordinates1d(BaseCoordinates1d):
+class Coordinates1d(BaseCoordinates):
     """
     Base class for one-dimensional single coordinates.
     
@@ -225,7 +225,7 @@ class Coordinates1d(BaseCoordinates1d):
 
         from podpac.core.coordinates import Coordinates, StackedCoordinates
 
-        if not isinstance(other, (BaseCoordinates1d, Coordinates)):
+        if not isinstance(other, (BaseCoordinates, Coordinates)):
             raise TypeError("Cannot intersect with type '%s'" % type(other))
 
         # short-circuit
