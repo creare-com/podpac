@@ -109,7 +109,7 @@ class StackedCoordinates(BaseCoordinates):
         return c
     
     # ------------------------------------------------------------------------------------------------------------------
-    # standard (tuple-like) methods
+    # standard methods, tuple-like
     # ------------------------------------------------------------------------------------------------------------------
 
     def __getitem__(self, index):
@@ -127,7 +127,6 @@ class StackedCoordinates(BaseCoordinates):
     def __len__(self):
         return len(self._coords)
 
-    # TODO [] vs get/isel?
     def __getitem__(self, index):
         if isinstance(index, string_types):
             if index not in self.dims:

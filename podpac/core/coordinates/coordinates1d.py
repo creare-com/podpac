@@ -104,6 +104,10 @@ class Coordinates1d(BaseCoordinates):
     def _default_ctype(self):
         return 'midpoint'
 
+    def __repr__(self):
+        return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
+            self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)
+
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
@@ -269,132 +273,3 @@ class Coordinates1d(BaseCoordinates):
         """
 
         raise NotImplementedError
-
-    # def add(self, delta, inplace=False):
-    #     """
-    #     Add a delta value to each coordinate.
-        
-    #     Parameters
-    #     ----------
-    #     delta : TYPE
-    #         Description
-    #     inplace : bool (optional)
-    #         If True, update coordinates in-place. Default False.
-        
-    #     Returns
-    #     -------
-    #     result : Coordinates1d
-    #         If inplace, this object with resulting coordinates.
-    #         Otherwise, new Coordinates1d object with resulting coordinates.
-        
-    #     Raises
-    #     ------
-    #     TypeError
-    #         Description
-    #     """
-
-    #     delta = make_coord_delta(delta)
-        
-    #     if self.dtype is np.datetime64 and not isinstance(delta, np.timedelta64):
-    #         raise TypeError("Cannot add '%s' to datetime coord" % type(delta))
-        
-    #     if self.dtype is float and isinstance(delta, np.timedelta64):
-    #         raise TypeError("Cannot add timedelta to numerical coord")
-
-    #     if inplace:
-    #         return self._add_equal(delta)
-    #     else:
-    #         return self._add(delta)
-
-    # def _add(self, other):
-    #     raise NotImplementedError
-
-    # def _add_equal(self, other):
-    #     raise NotImplementedError
-    
-    # def concat(self, other, inplace=False):
-    #     """
-    #     Concatenate coordinates.
-        
-    #     Parameters
-    #     ----------
-    #     other : Coordinates1d
-    #         coords object to concatenate
-    #     inplace : bool (optional)
-    #         If True, update coordinates in-place. Default False.
-        
-    #     Returns
-    #     -------
-    #     result : Coordinates1d
-    #         If inplace, this object with concatenated coordinates.
-    #         New coords object with concatenated coordinates.
-        
-    #     Raises
-    #     ------
-    #     TypeError
-    #         Description
-    #     """
-
-    #     if not isinstance(other, Coordinates1d):
-    #         raise TypeError("Cannot concatenate '%s' to '%s'" % (other.__class__.__name__, self.__class__.__name__))
-
-    #     if self.dtype is np.datetime64 and other.dtype is np.float64:
-    #         raise TypeError("Cannot concatenate numerical coords to datetime coords")
-        
-    #     if self.dtype is np.float64 and other.dtype is np.datetime64:
-    #         raise TypeError("Cannot concatenate datetime coords to numerical coords")
-
-    #     # empty cases
-    #     if other.size == 0:
-    #         if inplace:
-    #             return self
-    #         else:
-    #             return copy.deepcopy(self)
-
-    #     # standard case
-    #     if inplace:
-    #         return self._concat_equal(other)
-    #     else:
-    #         return self._concat(other)
-
-    # def _concat(self, other):
-    #     raise NotImplementedError
-
-    # def _concat_equal(self, other):
-    #     raise NotImplementedError
-    
-    # # ------------------------------------------------------------------------------------------------------------------
-    # # Operators ("magic methods")
-    # # ------------------------------------------------------------------------------------------------------------------
-
-    def __add__(self, other):
-        """ add a delta """
-
-        if isinstance(other, Coordinates1d):
-            raise RuntimeError("concatenating Coordinates1d with + has been removed, use 'concat' instead")
-
-        raise Exception("JXM checking if this is used anywhere")
-        return self.add(other)
-
-    def __iadd__(self, other):
-        """ add a delta in-place """
-
-        if isinstance(other, Coordinates1d):
-            raise RuntimeError("concatenating Coordinates1d with += has been removed, use 'concat' instead")
-        
-        raise Exception("JXM checking if this is used anywhere")
-        return self.add(other, inplace=True)
-
-    # def __sub__(self, other):
-    #     """ subtract a delta """
-    #     _other = -make_coord_delta(other)
-    #     return self.add(_other)
-
-    # def __isub__(self, other):
-    #     """ subtract a delta in place """
-    #     _other = -make_coord_delta(other)
-    #     return self.add(_other, inplace=True)
-
-    def __repr__(self):
-        return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
-            self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)

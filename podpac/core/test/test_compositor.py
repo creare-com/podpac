@@ -56,7 +56,6 @@ class TestCompositor(object):
 
     # TODO Test non None (basic cases) just to call unstable methods.
     # These functions are volatile, and may be difficult to test until their
-    @pytest.mark.skip("?")
     # spec is complete.
     def test_compositor_implemented_functions(self):
         acoords = podpac.Coordinates([podpac.clinspace(0, 1, 11), podpac.clinspace(0, 1, 11)], dims=['lat', 'lon'])
