@@ -49,7 +49,7 @@ The following example has a single stacked dimension and a total of 3 points.
 ```
 lat = [0, 1, 2]
 lon = [10, 20, 30]
-c = Coordinates([np.stack([lat, lon]).T], dims=['lat_lon'])
+c = Coordinates([[lat, lon]], dims=['lat_lon'])
 >>> c
 >>> c.coords[0]
 ```
@@ -60,7 +60,7 @@ Coordinates can combine stacked dimensions and unstacked dimensions. For example
 lat = [0, 1, 2]
 lon = [10, 20, 30]
 >>> time = ['2018-01-01', '2018-01-02']
-c = Coordinates([np.stack([lat, lon]).T, time], dims=['lat_lon', 'time'])
+c = Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
 >>> c
 >>> c.coords[0]
 ```
@@ -130,7 +130,7 @@ Stacked coordinates can be created using the `Coordinates.points` alternate cons
 
 ```
 >>> Coordinates.points(lat=[0, 1, 2], lon=[10, 20, 30])
->>> Coordinates([np.stack([0, 1, 2], [10, 20, 30, 40]).T], dims=['lat_lon'])
+>>> Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=['lat_lon'])
 ```
 
 For convenience, a tuple can be used to generate uniformly-spaced coordinates. If the third item is an integer, it
