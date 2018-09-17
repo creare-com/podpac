@@ -64,7 +64,6 @@ class TestSinCoords(object):
         assert output.shape == coords.shape
         
 class TestArithmetic(object):
-    @pytest.mark.skip("add_unique")
     def test_Arithmetic(self):
         coords = podpac.Coordinates([podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)], dims=['lat', 'lon'])
         sine_node = SinCoords()
@@ -75,7 +74,6 @@ class TestArithmetic(object):
         b = sine_node.execute(coords)
         np.testing.assert_allclose(output, 2*abs(a) - b + 1)
 
-    # @pytest.mark.skip("add_unique")
     def test_missing_equation(self):
         sine_node = SinCoords()
         with pytest.raises(ValueError):

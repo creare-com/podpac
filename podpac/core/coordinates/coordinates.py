@@ -94,7 +94,7 @@ class Coordinates(tl.HasTraits):
         dcoords = OrderedDict()
         for i, dim in enumerate(dims):
             if dim in dcoords:
-                raise ValueError("duplicate dimension name at position %d" % i)
+                raise ValueError("duplicate dimension name '%s' at position %d" % (dim, i))
 
             # TODO default properties
             if isinstance(coords[i], BaseCoordinates):
@@ -280,6 +280,14 @@ class Coordinates(tl.HasTraits):
     def __len__(self):
         return len(self._coords)
 
+    def update(self, other):
+        if not isinstance(other, Coordinates):
+            raise TypeError("Cannot update '%s' with Coordinates" % type(other))
+
+        d = c._coords
+        d.update(other._coords)
+        self._coords = d
+
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
@@ -377,6 +385,10 @@ class Coordinates(tl.HasTraits):
         return Coordinates(cs)
 
     def intersect(self, other, outer=False, return_indices=False):
+        """
+        TODO
+        """
+
         intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self.values()]
         if return_indices:
             coords = Coordinates([c for c, I in intersections])
@@ -384,6 +396,18 @@ class Coordinates(tl.HasTraits):
             return coords, idx
         else:
             return Coordinates(intersections)
+
+    def unique(self):
+        """
+        Remove duplicate coordinate values from each dimension.
+
+        Returns
+        -------
+        coords : Coordinates
+            New Coordinates object with unique, sorted coordinate values in each dimension.
+        """
+
+        return Coordinates([c[np.unique(c.coordinates, return_index=True)[1]] for c in self.values()])
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
@@ -579,3 +603,78 @@ class Coordinates(tl.HasTraits):
 
         else:
             return Coordinates([self._coord[dim] for dim in dims], **self.properties)
+
+def merge_dims(coords_list):
+    """
+    Merge the dimensions of the given coordinates. Throws an error if dimensions are duplicated.
+
+    Arguments
+    ---------
+    coords_list : list
+        List of Coordinates objects
+
+    Returns
+    -------
+    coords : Coordinates
+        Coordinates object with the dimension(s) from each set of coordinates in the list.
+    """
+
+    for coords in coords_list:
+        if not isinstance(coords, Coordinates):
+            raise TypeError("Cannot merge '%s' with Coordinates" % type(coords))
+
+    coords = sum([list(coords.values()) for coords in coords_list], [])
+    return Coordinates(coords)
+
+def concat(coords_list):
+    """
+    Combine the given coordinates by concatenating coordinate values in each dimension.
+
+    Arguments
+    ---------
+    coords_list : list
+        List of Coordinates objects.
+
+    Returns
+    -------
+    coords : Coordinates
+        Coordinates object with concatenated coordinate values in each dimension.
+    """
+
+    coords_list = list(coords_list)
+    for coords in coords_list:
+        if not isinstance(coords, Coordinates):
+            raise TypeError("Cannot concat '%s' with Coordinates" % type(coords))
+
+    d = OrderedDict()
+    for coords in coords_list:
+        for dim, c in coords.items():
+            d[dim] = d.get(dim, []) + [c.coordinates]
+
+    dims = []
+    coords = []
+    for dim, cs in d.items():
+        values = np.concatenate(cs)
+        if '_' in dim:
+            values = np.array([e for e in values]).T # transpose StackedCoordinates
+        coords.append(values)
+        dims.append(dim)
+
+    return Coordinates(coords, dims=dims)
+
+def union(coords_list):
+    """
+    Combine the given coordinates by collecting the unique, sorted coordinate values in each dimension.
+
+    Arguments
+    ---------
+    coords_list : list
+        List of Coordinates objects
+
+    Returns
+    -------
+    coords : Coordinates
+        Coordinates object with unique, sorted coordinate values in each dimension.
+    """
+
+    return concat(coords_list).unique()

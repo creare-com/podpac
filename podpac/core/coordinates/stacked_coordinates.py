@@ -4,6 +4,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import copy
 
 import numpy as np
+import xarray as xr
 import pandas as pd
 import traitlets as tl
 from six import string_types
