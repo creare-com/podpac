@@ -100,9 +100,15 @@ Unlike `np.arange`:
 >>> c = podpac.crange(0, 7, 2)
 >>> c.coordinates
 array([0., 2., 4., 6.])
+```
+
+```
 >>> c = podpac.crange(0, 8, 2)
 >>> c.coordinates
 array([0., 2., 4., 6., 8.])
+```
+
+```
 >>> c = podpac.crange('2018-01-01', '2018-03-01', '1,M')
 >>> c.coordinates
 array(['2018-01-01', '2018-02-01', '2018-03-01'], dtype='datetime64[D]')
@@ -120,9 +126,14 @@ Unlike `np.linspace`:
 >>> c = podpac.clinspace(0, 8, 5)
 >>> c.coordinates
 array([0., 2., 4., 6., 8.])
->>> c = podpac.clinspace('2018-01-01', '2018-03-01', 3)
+```
+
+```>>> c = podpac.clinspace('2018-01-01', '2018-03-01', 3)
 >>> c.coordinates
 array(['2018-01-01', '2018-01-30', '2018-02-28'], dtype='datetime64[D]')
+```
+
+```
 >>> c = podpac.clinspace((0, 10), (1, 20), 3)
 >>> c.coordinates
 MultiIndex(levels=[[0.0, 0.5, 1.0], [10.0, 15.0, 20.0]],
@@ -149,22 +160,12 @@ Unstacked coordinates can also be created using the `Coordinates.grid` alternate
 Coordinates
     lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
     lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
-
->>> Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=['lat', 'lon'])
-Coordinates
-    lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
-    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
 ```
 
 Stacked coordinates can be created using the `Coordinates.points` alternate constructor:
 
 ```
 >>> Coordinates.points(lat=[0, 1, 2], lon=[10, 20, 30])
-Coordinates
-    lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
-    lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
-
->>> Coordinates([[0, 1, 2], [10, 20, 30]], dims=['lat_lon'])
 Coordinates
     lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
     lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
@@ -175,8 +176,8 @@ is interpreted as a size, otherwise it is interpreted as a step. The following w
 
 ```
 Coordinates.grid(lat=(0, 2, 3), lon=(10, 40, 4))
-Coordinates.grid(lat=clinspace(0, 2, 3), lon=clinspace(10, 40, 4))
 Coordinates.grid(lat=(0, 2, 1.0), lon=(10, 40, 10.0))
+Coordinates.grid(lat=clinspace(0, 2, 3), lon=clinspace(10, 40, 4))
 Coordinates.grid(lat=crange(0, 2, 1), lon=crange(10, 40, 10))
 ```
 
