@@ -10,7 +10,7 @@ import numpy as np
 import traitlets as tl
 
 # Internal imports
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinates import Coordinates, union
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC 
@@ -22,9 +22,9 @@ class Compositor(Node):
 
     Attributes
     ----------
-    shared_coordinates : podpac.Coordinate, optional
+    shared_coordinates : podpac.Coordinates, optional
         Coordinates that are shared amongst all of the composited sources
-    source_coordinates = podpac.Coordinate, optional
+    source_coordinates = podpac.Coordinates, optional
         Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the 
         user-requested coordinates. It is an optimization. 
     is_source_coordinates_complete : Bool
@@ -60,8 +60,8 @@ class Compositor(Node):
     ------
     Developers of new Compositor nodes need to implement the `composite` method.
     """
-    shared_coordinates = tl.Instance(Coordinate, allow_none=True)
-    source_coordinates = tl.Instance(Coordinate, allow_none=True)
+    shared_coordinates = tl.Instance(Coordinates, allow_none=True)
+    source_coordinates = tl.Instance(Coordinates, allow_none=True)
     is_source_coordinates_complete = tl.Bool(False,
         help=("This allows some optimizations but assumes that a node's "
               "native_coordinates=source_coordinate + shared_coordinate "
@@ -94,7 +94,7 @@ class Compositor(Node):
         
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             Coordinates describing each source.
         """
         return None
@@ -139,7 +139,7 @@ class Compositor(Node):
         
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             Description
             Native coordinates of the entire dataset.
             
@@ -158,18 +158,20 @@ class Compositor(Node):
         GroupCoordinates? 
         
         """
+
         try: 
             return self.load_cached_obj('native.coordinates')
         except: 
             pass
+
         if self.shared_coordinates is not None and self.is_source_coordinates_complete:
-            crds = self.source_coordinates + self.shared_coordinates
+            crds = union([self.source_coordinates, self.shared_coordinates])
         else:
-            crds = self.sources[0].native_coordinates
-            for s in self.sources[1:]:
-                crds = crds.add_unique(s.native_coordinates)
+            crds = union(source.native_coordinates for source in self.sources)
+
         if self.cache_native_coordinates:
             self.cache_obj(crds, 'native.coordinates')
+
         return crds
     
     def iteroutputs(self, coordinates, method=None):
@@ -190,7 +192,7 @@ class Compositor(Node):
             src_subset = self.sources # all
         else:
             # intersecting sources only
-            I = self.source_coordinates.intersect(coordinates, pad=1, ind=True)
+            _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
             src_subset = self.sources[I]
 
         if len(src_subset) == 0:
@@ -208,13 +210,11 @@ class Compositor(Node):
         # WARNING: this assumes
         #              native_coords = source_coords + shared_coordinates
         #         NOT  native_coords = shared_coords + source_coords
-        if self.is_source_coordinates_complete \
-                and len(self.source_coordinates.shape) == 1:
-            coords_subset = list(self.source_coordinates.intersect(coordinates,
-                    pad=1).coords.values())[0]
+        if self.is_source_coordinates_complete and len(self.source_coordinates.shape) == 1:
+            coords_subset = list(self.source_coordinates.intersect(coordinates, pad=1).coords.values())[0]
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
-                nc = Coordinate(**{coords_dim: c}) + self.shared_coordinates
+                nc = Coordinates(**{coords_dim: c}) + self.shared_coordinates
                 # Switching from _trait_values to hasattr because "native_coordinates"
                 # sometimes not showing up in _trait_values in other locations
                 # Not confirmed here
@@ -247,7 +247,7 @@ class Compositor(Node):
 
         Parameters
         ----------
-        coordinates : podpac.Coordinate
+        coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}

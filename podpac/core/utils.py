@@ -52,7 +52,8 @@ def cached_property(func):
         cache_name = '_cached_' + func.__name__
         if hasattr(self, cache_name):
             cache_val = getattr(self, cache_name)
-        else: cache_val = None
+        else:
+            cache_val = None
         if cache_val is not None:
             return cache_val
         cache_val = func(self)

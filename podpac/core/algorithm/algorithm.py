@@ -14,7 +14,7 @@ try:
 except: 
     ne = None
 
-from podpac.core.coordinate import Coordinate, convert_xarray_to_podpac
+from podpac.core.coordinates import Coordinates, union
 from podpac.core.node import Node
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.utils import common_doc
@@ -35,7 +35,7 @@ class Algorithm(Node):
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
+        coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
@@ -49,20 +49,14 @@ class Algorithm(Node):
         self.requested_coordinates = coordinates
         self.output = output
 
-        coords = None
+        coords_list = [coordinates]
         for name in self.trait_names():
             node = getattr(self, name)
             if isinstance(node, Node):
                 if self.implicit_pipeline_evaluation:
                     node.execute(coordinates, method)
-                # accumulate coordinates
-                if coords is None:
-                    coords = convert_xarray_to_podpac(node.output.coords)
-                else:
-                    coords = coords.add_unique(
-                        convert_xarray_to_podpac(node.output.coords))
-        if coords is None:
-            coords = coordinates
+                coords_list.append(Coordinates.from_xarray(node.output.coords))
+        coords = union(coords_list)
 
         result = self.algorithm()
         if isinstance(result, np.ndarray):
@@ -72,7 +66,7 @@ class Algorithm(Node):
         else:
             dims = [d for d in self.requested_coordinates.dims if d in result.dims]
             if self.output is None:
-                coords = convert_xarray_to_podpac(result.coords)
+                coords = Coordinates.from_xarray(result.coords)
                 self.output = self.initialize_coord_array(coords)
             self.output[:] = result
             self.output = self.output.transpose(*dims) # split into 2nd line to avoid broadcasting issues with slice [:]
@@ -156,15 +150,13 @@ class CoordData(Algorithm):
         UnitsDataArray
             The coordinates as data for the requested coordinate.
         """
-        coord_name = self.coord_name
-        ec = self.requested_coordinates
-        if coord_name not in ec.dims:
+        
+        if self.coord_name not in self.requested_coordinates.udims:
             raise ValueError('Coordinate name not in evaluated coordinates')
        
-        c = ec[coord_name]
-        data = c.coordinates
-        coords = Coordinate(order=[coord_name], **{coord_name: c})
-        return self.initialize_coord_array(coords, init_type='data', fillval=data)
+        c = self.requested_coordinates[self.coord_name]
+        coords = Coordinates([c])
+        return self.initialize_coord_array(coords, init_type='data', fillval=c.coordinates)
 
 
 class SinCoords(Algorithm):
@@ -232,6 +224,10 @@ class Arithmetic(Algorithm):
     G = tl.Instance(Node, allow_none=True)
     eqn = tl.Unicode().tag(attr=True)
     params = tl.Dict().tag(attr=True)
+
+    def init(self):
+        if self.eqn == '':
+            raise ValueError("Arithmetic eqn cannot be empty")
     
     def algorithm(self):
         """Summary
@@ -242,9 +238,6 @@ class Arithmetic(Algorithm):
             Description
         """
         
-        if self.eqn == '':
-            raise ValueError("Cannot evaluate Arithmetic node: 'eqn' attribute missing or empty")
-
         eqn = self.eqn.format(**self.params)        
         
         fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
