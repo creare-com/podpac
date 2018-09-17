@@ -129,6 +129,25 @@ Podpac adheres to the [numpy format for docstrings](https://numpydoc.readthedocs
     """
 ```
 
+> **Note:** all internal references to podpac modules etc. should use the full path to the reference. For example:
+> 
+> ```python
+>   def method():
+>       """Class Method
+>       
+>       Parameters
+>       ----------
+>       coordinates : podpac.core.coordinate.coordinate.Coordinates
+>           Coordinate input
+>       output : podpac.core.units.UnitsDataArray, optional
+>           Container for output
+>      
+>       Returns
+>       --------
+>       podpac.core.units.UnitsDataArray
+>           Returns a UnitsDataArray
+>       """
+> ```
 
 ### Lint
 
