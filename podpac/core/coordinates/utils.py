@@ -1,10 +1,10 @@
 """
 Utilities functions for handling podpac coordinates.
 
-.. testsetup:: podpac.core.coordinate.util
+.. testsetup:: podpac.core.coordinates.utils
     
     import numpy as np
-    from podpac.core.coordinate.util import *
+    from podpac.core.coordinates.util import *
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
@@ -14,6 +14,11 @@ import calendar
 import numbers
 import numpy as np
 from six import string_types
+
+GDAL_CRS = {
+    'WGS84': 'EPSG:4326',
+    'SPHER_MERC': 'EPSG:3857'
+}
 
 def get_timedelta(s):
     """
@@ -35,7 +40,7 @@ def get_timedelta(s):
     Examples
     --------
 
-    .. doctest:: podpac.core.coordinate.util
+    .. doctest:: podpac.core.coordinates.utils
 
         >>> get_timedelta('2,D')
         numpy.timedelta64(2,'D')
@@ -65,7 +70,7 @@ def get_timedelta_unit(delta):
     Examples
     --------
     
-    .. doctest:: podpac.core.coordinate.util
+    .. doctest:: podpac.core.coordinates.utils
 
         >>> get_timedelta_unit(np.timedelta64(1, 'D'))
         'D'
@@ -102,7 +107,7 @@ def make_timedelta_string(delta):
     Examples
     --------
     
-    .. doctest:: podpac.core.coordinate.util
+    .. doctest:: podpac.core.coordinates.utils
 
         >>> make_timedelta_string(np.timedelta64(2, 'D'))
         '2,D'
@@ -127,7 +132,7 @@ def make_coord_value(val):
     
     Parameters
     ----------
-    val : str, number, datetime.date, np.array
+    val : str, number, datetime.date, np.ndarray
         Input coordinate value.
     
     Returns
@@ -144,15 +149,17 @@ def make_coord_value(val):
     
     Raises
     ------
-    TypeError
-        Description
+    Value
+        val is an unsupported type
     
     """
 
     # extract value from singleton and 0-dimensional arrays
     if isinstance(val, np.ndarray):
-        if val.size == 1:
+        try:
             val = val.item()
+        except ValueError:
+            raise ValueError("Invalid coordinate value, unsupported type '%s'" % type(val))
 
     # type checking and conversion
     if isinstance(val, (string_types, datetime.date)):
@@ -162,7 +169,7 @@ def make_coord_value(val):
     elif isinstance(val, numbers.Number):
         val = float(val)
     else:
-        raise TypeError("Invalid coordinate value '%s'" % type(val))
+        raise ValueError("Invalid coordinate value, unsupported type '%s'" % type(val))
 
     return val
 
@@ -172,7 +179,7 @@ def make_coord_delta(val):
     
     Parameters
     ----------
-    val : str, number, datetime.timedelta, np.array
+    val : str, number, datetime.timedelta, np.ndarray
         Input coordinate delta.
     
     Returns
@@ -196,8 +203,10 @@ def make_coord_delta(val):
 
     # extract value from singleton and 0-dimensional arrays
     if isinstance(val, np.ndarray):
-        if val.size == 1:
+        try:
             val = val.item()
+        except ValueError:
+            raise TypeError("Invalid coordinate delta, unsuported type '%s'" % type(val))
 
     # type checking and conversion
     if isinstance(val, string_types):
@@ -209,9 +218,51 @@ def make_coord_delta(val):
     elif isinstance(val, numbers.Number):
         val = float(val)
     else:
-        raise TypeError("Invalid coordinate delta '%s'" % type(val))
+        raise TypeError("Invalid coordinate delta, unsuported type '%s'" % type(val))
 
     return val
+
+def make_coord_array(values):
+    """
+    Make an array of podpac coordinate values by casting to the correct type.
+
+    Parameters
+    ----------
+    values : array-like
+        Input coordinates.
+    
+    Returns
+    -------
+    a : np.ndarray
+        Cast coordinate values.
+    
+    Notes
+    -----
+     * all of the values must be of the same type
+     * strings and datetimes are converted to numpy datetimes
+     * numbers are converted to floats
+    
+    Raises
+    ------
+    ValueError
+        Description
+    """
+
+    a = np.atleast_1d(np.squeeze(values))
+
+    if not (a.dtype == float or np.issubdtype(a.dtype, np.datetime64)):
+        try:
+            a = a.astype(float)
+        except (TypeError, ValueError):
+            try:
+                a = a.astype(np.datetime64)
+            except ValueError:
+                raise TypeError("Invalid coordinate values (must be all numbers or all datetimes)")
+
+    if a.ndim != 1:
+        raise ValueError("Invalid coordinate values (ndim=%d, must be ndim=1)" % a.ndim)
+
+    return a
 
 def add_coord(base, delta):
     """
@@ -240,7 +291,7 @@ def add_coord(base, delta):
     Examples
     --------
     
-    .. doctest:: podpac.core.coordinate.util
+    .. doctest:: podpac.core.coordinates.utils
 
         >>> add_coord(1.5, 1.0)
         2.5

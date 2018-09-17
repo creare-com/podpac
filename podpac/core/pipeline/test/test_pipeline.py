@@ -10,13 +10,12 @@ import numpy as np
 import pytest
 
 import podpac
-from podpac.core.coordinate import Coordinate
 from podpac.core.algorithm.algorithm import Arange
 from podpac.core.pipeline.pipeline import Pipeline
 from podpac.core.pipeline.output import FileOutput
 from podpac.core.pipeline.util import PipelineError
 
-coords = Coordinate(lat=(0, 1, 10), lon=(0, 1, 10), order=['lat', 'lon'])
+coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=['lat', 'lon'])
 node = Arange()
 node.execute(coords)
 

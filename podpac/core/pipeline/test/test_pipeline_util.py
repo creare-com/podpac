@@ -51,6 +51,9 @@ class TestParsePipelineDefinition(object):
                     "inputs": {
                         "A": "source1",
                         "B": "source2"
+                    },
+                    "attrs": {
+                        "eqn": "A + B"
                     }
                 }
             }
@@ -73,6 +76,9 @@ class TestParsePipelineDefinition(object):
                     "inputs": {
                         "A": "source1",
                         "B": "source2"
+                    },
+                    "attrs": {
+                        "eqn": "A + B"
                     }
                 }
             }
@@ -305,6 +311,9 @@ class TestParsePipelineDefinition(object):
                     "inputs": {
                         "A": "source1",
                         "B": "source2"
+                    },
+                    "attrs": {
+                        "eqn": "A + B"
                     }
                 }
             },

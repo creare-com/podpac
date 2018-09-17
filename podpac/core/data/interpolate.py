@@ -27,8 +27,7 @@ try:
 except:
     scipy = None
 
-from podpac.core.coordinate.coordinate import Coordinate, UniformCoord
-
+from podpac.core.coordinates import Coordinates
 
 class InterpolationException(Exception):
     """Summary
@@ -68,8 +67,8 @@ class Interpolator(tl.HasTraits):
                          'gauss', 'max', 'min', 'med', 'q1', 'q3'],   # TODO: gauss is not supported by rasterio
                         default_value='nearest').tag(attr=True)
     
-    eval_coords = tl.Instance(Coordinate)
-    source_coords = tl.Instance(Coordinate)
+    eval_coords = tl.Instance(Coordinates)
+    source_coords = tl.Instance(Coordinates)
     pad = tl.Int(1)
     interpolation = tl.Unicode()
     valid_interpolations = tl.Enum([])
@@ -98,7 +97,7 @@ class Interpolator(tl.HasTraits):
         """
         raise NotImplementedError()
     
-    def source_coords_subset(self, pad=None):
+    def source_coords_subset(self):
         """Returns the subset of coordinates needed from the source data
         to interpolate onto the destination data. 
         
@@ -117,8 +116,8 @@ class Interpolator(tl.HasTraits):
         """
         if pad is None:
             pad = self.pad
-        return [self.source_coords.intersect(self.eval_coords, pad=pad),
-                self.source.intersect_ind_slice(self.eval_coords, pad=pad)]
+        return [self.source_coords.intersect(self.eval_coords, outer=True),
+                self.source.intersect_ind_slice(self.eval_coords)]
     
     def __call__(self, source_data):
         """should return evaluated data 

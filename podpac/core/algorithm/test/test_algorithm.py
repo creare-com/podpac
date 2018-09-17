@@ -3,16 +3,14 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import pytest
 import numpy as np
 
-from podpac.core.coordinate import Coordinate
+import podpac
 from podpac.core.algorithm.algorithm import Algorithm, Arange, CoordData, SinCoords, Arithmetic
 
 class TestAlgorithm(object):
     def test_not_implemented(self):
-        c = Coordinate(lat=[0, 1, 10], lon=[0, 1, 20], order=['lat', 'lon'])
-        
         node = Algorithm()
         with pytest.raises(NotImplementedError):
-            node.execute(c)
+            node.execute(podpac.Coordinates())
 
     def test_pipeline_definition(self):
         # note: any algorithm node with attrs and inputs would be fine here
@@ -35,49 +33,50 @@ class TestAlgorithm(object):
 
 class TestArange(object):
     def test_Arange(self):
-        c = Coordinate(lat=(0, 1, 10), lon=(0, 1, 20), order=['lat', 'lon'])
+        coords = podpac.Coordinates([[0, 1, 2], [0, 1, 2, 3, 4]], dims=['lat', 'lon'])
         node = Arange()
-        output = node.execute(c)
-        assert output.shape == c.shape
+        output = node.execute(coords)
+        assert output.shape == coords.shape
 
 class TestCoordData(object):
     def test_CoordData(self):
-        c = Coordinate(lat=(0, 1, 10), lon=(0, 1, 20), order=['lat', 'lon'])
+        coords = podpac.Coordinates([[0, 1, 2], [0, 1, 2, 3, 4]], dims=['lat', 'lon'])
+
         node = CoordData(coord_name='lat')
-        np.testing.assert_array_equal(node.execute(c), c.coords['lat'])
+        np.testing.assert_array_equal(node.execute(coords), coords.coords['lat'])
+
+        node = CoordData(coord_name='lon')
+        np.testing.assert_array_equal(node.execute(coords), coords.coords['lon'])
 
     def test_invalid_dimension(self):
-        c = Coordinate(lat=(0, 1, 10), lon=(0, 1, 20), order=['lat', 'lon'])
+        coords = podpac.Coordinates([[0, 1, 2], [0, 1, 2, 3, 4]], dims=['lat', 'lon'])
         node = CoordData(coord_name='time')
         with pytest.raises(ValueError):
-            node.execute(c)
+            node.execute(coords)
 
 class TestSinCoords(object):
     def test_SinCoords(self):
-        c = Coordinate(lat=(-90, 90, 1.), time=('2018-01-01', '2018-01-30', '1,D'), order=['lat', 'time'])
+        coords = podpac.Coordinates(
+            [podpac.crange(-90, 90, 1.0), podpac.crange('2018-01-01', '2018-01-30', '1,D')],
+            dims=['lat', 'time'])
         node = SinCoords()
-        output = node.execute(c)
-        assert output.shape == c.shape
+        output = node.execute(coords)
+        assert output.shape == coords.shape
         
 class TestArithmetic(object):
+    @pytest.mark.skip("add_unique")
     def test_Arithmetic(self):
-        c = Coordinate(lat=(-90, 90, 1.), lon=(-180, 180, 1.), order=['lat', 'lon'])
+        coords = podpac.Coordinates([podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)], dims=['lat', 'lon'])
         sine_node = SinCoords()
-        node = Arithmetic(
-            A=sine_node,
-            B=sine_node,
-            eqn='2*abs(A) - B + {offset}',
-            params={'offset': 1})
-        output = node.execute(c)
+        node = Arithmetic(A=sine_node, B=sine_node, eqn='2*abs(A) - B + {offset}', params={'offset': 1})
+        output = node.execute(coords)
 
-        a = sine_node.execute(c)
-        b = sine_node.execute(c)
+        a = sine_node.execute(coords)
+        b = sine_node.execute(coords)
         np.testing.assert_allclose(output, 2*abs(a) - b + 1)
 
+    # @pytest.mark.skip("add_unique")
     def test_missing_equation(self):
-        c = Coordinate(lat=(0, 1, 10), lon=(0, 1, 20), order=['lat', 'lon'])
         sine_node = SinCoords()
-        node = Arithmetic(A=sine_node, B=sine_node)
-        
         with pytest.raises(ValueError):
-            node.execute(c)
+            node = Arithmetic(A=sine_node, B=sine_node)

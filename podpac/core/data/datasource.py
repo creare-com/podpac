@@ -31,7 +31,9 @@ except ImportError:
 
 # Internal imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinate.coordinate import Coordinate, UniformCoord
+from podpac.core.coordinates import Coordinates
+from podpac.core.coordinates import StackedCoordinates
+from podpac.core.coordinates import Coordinates1d, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
@@ -59,7 +61,7 @@ DATA_DOC = {
         
         Parameters
         ----------
-        coordinates : podpac.core.coordinate.Coordinate
+        coordinates : Coordinates
             The coordinates that need to be retrieved from the data source using the coordinate system of the data
             source
         coordinates_index : List
@@ -77,16 +79,16 @@ DATA_DOC = {
     'ds_native_coordinates': 'The coordinates of the data source.',
     'get_native_coordinates':
         """
-        Returns a Coordinate object that describes the native coordinates of the data source.
+        Returns a Coordinates object that describes the native coordinates of the data source.
 
         In most cases, this method is defined by the data source implementing the DataSource class.
         If this method is not implemented by the data source, this method will try to return `self.native_coordinates`,
-        if they are defined and are an instance of a Coordinate class.
+        if they are defined and are an instance of a Coordinates class.
         Otherwise, this method will raise a NotImplementedError.
 
         Returns
         --------
-        podpac.core.coordinate.Coordinate
+        Coordinates
            The coordinates describing the data source array.
 
         Raises
@@ -108,6 +110,9 @@ DATA_DOC = {
 COMMON_DATA_DOC = COMMON_NODE_DOC.copy()
 COMMON_DATA_DOC.update(DATA_DOC)      # inherit and overwrite with DATA_DOC
 
+RASTERIO_INTERPS = ['nearest', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss',
+                    'max', 'min', 'med', 'q1', 'q3']
+
 class DataSource(Node):
     """Base node for any data obtained directly from a single source.
     
@@ -126,9 +131,9 @@ class DataSource(Node):
     
     Members
     -------
-    requested_coordinates : podpac.core.coordinate.coordinate.Coordinates
+    requested_coordinates : Coordinates
         Coordinates requested by the data source when evalulating a node.
-    requested_source_coordinates : podpac.core.coordinate.coordinate.Coordinates
+    requested_source_coordinates : Coordinates
         The `requested_coordinates` transformed into the native coordinate system
     requested_source_coordinates_index : list
         the index of the requested source coordinates based on `coordinate_index_type`
@@ -144,12 +149,14 @@ class DataSource(Node):
     source = tl.Any(allow_none=False, help='Path to the raw data source')
 
     # TODO: decide how to handle once we implement Interpolation
-    interpolation = tl.Union([
-        tl.Instance(Interpolator, allow_none=True),
-        tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
-                 'cubic_spline', 'lanczos', 'average', 'mode',
-                 'gauss', 'max', 'min', 'med', 'q1', 'q3']   # TODO: gauss is not supported by rasterio
-               )], default_value='nearest').tag(attr=True)
+    # TODO: gauss is not supported by rasterio
+    # JXM: I separated these mainly because only interpolation can be an attr;
+    #      the interpolator should probably have a @tl.default that gets mapped from the interpolation enum
+    interpolator = tl.Instance(Interpolator)
+    interpolation = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
+                             'cubic_spline', 'lanczos', 'average', 'mode',
+                             'gauss', 'max', 'min', 'med', 'q1', 'q3'],
+                             default_value='nearest').tag(attr=True)
 
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
     nan_vals = tl.List(allow_none=True)
@@ -158,8 +165,8 @@ class DataSource(Node):
     interpolation_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
     # TODO: include these attributes out here? How else do we document existence?
-    requested_coordinates = tl.Instance(Coordinate, allow_none=True)
-    requested_source_coordinates = tl.Instance(Coordinate)
+    requested_coordinates = tl.Instance(Coordinates, allow_none=True)
+    requested_source_coordinates = tl.Instance(Coordinates)
     requested_source_coordinates_index = tl.List()
     requested_source_data = tl.Instance(UnitsDataArray)
 
@@ -184,7 +191,7 @@ class DataSource(Node):
 
         Parameters
         ----------
-        coordinates : podpac.core.coordinate.coordinate.Coordinates
+        coordinates : Coordinates
             {requested_coordinates}
         output : podpac.core.units.UnitsDataArray, optional
             {execute_out}
@@ -198,26 +205,41 @@ class DataSource(Node):
 
         # initial checks
         if self.coordinate_index_type != 'numpy':
-            warnings.warn('Coordinate index type {} is not yet supported.'.format(self.coordinate_index_type) +
+            warnings.warn('Coordinates index type {} is not yet supported.'.format(self.coordinate_index_type) +
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
         
-        # set input coordinates to requested_coordinates
-        self.requested_coordinates = deepcopy(coordinates)
-
-        # remove dimensions that don't exist in native coordinates
-        for dim in self.requested_coordinates.dims_map.keys():
-            if dim not in self.native_coordinates.dims_map.keys():
-                self.requested_coordinates.drop_dims(dim)
+        # # JXM: pending the node refactor
+        # # check for missing dimensions
+        # for c in self.native_coordinates.values():
+        #     if isinstance(c, Coordinates1d):
+        #         if c.name not in coordinates.udims:
+        #             raise Exception("missing dim '%s'" % c.name)
+        #     elif isinstance(c, StackedCoordinates):
+        #         stacked = [s for s in c if s.name not in coordinates.udims]
+        #         if not stacked:
+        #             raise Exception("missing all dims in '%s'" % c.name)
+        #         if any(s for s in stacked if not s.is_monotonic):
+        #             raise Exception("cannot unambiguously map '%s' to %s" % coordinates.udims)
+        
+        # remove extra dimensions
+        extra = []
+        for c in coordinates.values():
+            if isinstance(c, Coordinates1d):
+                if c.name not in self.native_coordinates.udims:
+                    extra.append(c.name)
+            elif isinstance(c, StackedCoordinates):
+                if all(dim not in self.native_coordinates.udims for dim in c.dims):
+                    extra.append(c.name)
+        self.requested_coordinates = coordinates.drop(extra)
 
         # initiate/reset output
         self.output = output
 
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
-        self.requested_source_coordinates = self.native_coordinates.intersect(self.requested_coordinates)
-
         # TODO: support coordinate_index_type parameter to define other index types
-        self.requested_source_coordinates_index = self.native_coordinates.intersect(self.requested_coordinates, ind=True)
+        self.requested_source_coordinates, self.requested_source_coordinates_index = \
+            self.native_coordinates.intersect(self.requested_coordinates, outer=True, return_indices=True)
 
         # If requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
         if np.prod(self.requested_source_coordinates.shape) == 0:
@@ -244,12 +266,13 @@ class DataSource(Node):
             self.output = o  # should already be self.output
 
         # set the order of dims to be the same as that of requested_coordinates
-        # + the dims that are missing from requested_coordinates.
-        missing_dims = [dim for dim in self.native_coordinates.dims_map.keys() \
-                        if dim not in self.requested_coordinates.dims_map.keys()]
-        missing_dims = np.unique([self.native_coordinates.dims_map[md] for md in missing_dims]).tolist()
+        # JXM: pending the node refactor
+        nc = self.native_coordinates
+        rc = self.requested_coordinates
+        missing_dims = tuple(dim for dim, c in nc.items() if all(_dim not in rc.udims for _dim in c.dims))
         transpose_dims = self.requested_coordinates.dims + missing_dims
         self.output = self.output.transpose(*transpose_dims)
+        # self.output = self.output.transpose(*self.requested_coordinates.dims)
         
         self.evaluated = True
         return self.output
@@ -267,32 +290,49 @@ class DataSource(Node):
         # TODO: replace this with actual self.interpolation methods
         if self.interpolation == 'nearest_preview':
             # We can optimize a little
-            new_coords = OrderedDict()
+            new_coords = []
             new_coords_idx = []
-            for i, d in enumerate(self.requested_source_coordinates.dims):
-                if isinstance(self.requested_source_coordinates[d], UniformCoord):
-                    if d in self.requested_coordinates.dims:
-                        ndelta = np.round(self.requested_coordinates[d].delta / self.requested_source_coordinates[d].delta)
-                        if ndelta <= 1:
-                            ndelta = 1 # self.requested_source_coordinates[d].delta
-                        coords = tuple(self.requested_source_coordinates[d].coords[:2]) + (ndelta * self.requested_source_coordinates[d].delta,)
-                        new_coords[d] = coords
-                        new_coords_idx.append(
-                            slice(self.requested_source_coordinates_index[i].start,
-                                  self.requested_source_coordinates_index[i].stop,
-                                  int(ndelta))
-                            )
-                    else:
-                        new_coords[d] = self.requested_source_coordinates[d]
-                        new_coords_idx.append(self.requested_source_coordinates_index[i])
-                else:
-                    new_coords[d] = self.requested_source_coordinates[d]
-                    new_coords_idx.append(self.requested_source_coordinates_index[i])
 
+            for dim, idx in zip(self.requested_source_coordinates, self.requested_source_coordinates_index):
+                if dim in self.requested_coordinates.dims:
+                    src_coords = self.requested_source_coordinates[dim]
+                    dst_coords = self.requested_coordinates[dim]
+
+                    if isinstance(dst_coords, UniformCoordinates1d):
+                        dst_start = dst_coords.start
+                        dst_stop = dst_coords.stop
+                        dst_delta = dst_coords.step
+                    else:
+                        dst_start = dst_coords.coordinates[0]
+                        dst_stop = dst_coords.coordinates[-1]
+                        dst_delta = (dst_stop-dst_start) / (dst_coords.size - 1)
+
+                    if isinstance(src_coords, UniformCoordinates1d):
+                        src_start = src_coords.start
+                        src_stop = src_coords.stop
+                        src_delta = src_coords.step
+                    else:
+                        src_start = src_coords.coordinates[0]
+                        src_stop = src_coords.coordinates[-1]
+                        src_delta = (src_stop-src_start) / (src_coords.size - 1)
+
+                    ndelta = max(1, np.round(dst_delta / src_delta))
+                    
+                    c = UniformCoordinates1d(src_start, src_stop, ndelta*src_delta, **src_coords.properties)
+                    
+                    if isinstance(idx, slice):
+                        idx = slice(idx.start, idx.stop, int(ndelta))
+                    else:
+                        idx = slice(idx[0], idx[-1], int(ndelta))
+                else:
+                    c = self.requested_source_coordiates[dim]
+
+                new_coords.append(c)
+                new_coords_idx.append(idx)
+                
             # updates requested source coordinates and index
-            self.requested_source_coordinates = Coordinate(new_coords)
+            self.requested_source_coordinates = Coordinates(new_coords)
             self.requested_source_coordinates_index = new_coords_idx
-    
 
     def _get_data(self):
         """Wrapper for `self.get_data` with pre and post processing
@@ -357,7 +397,7 @@ class DataSource(Node):
         """
 
         # TODO: This results in a recursive loop in the case of a default
-        # if isinstance(self.native_coordinates, Coordinate):
+        # if isinstance(self.native_coordinates, Coordinates):
         #     return self.native_coordinates
 
         raise NotImplementedError
@@ -410,52 +450,39 @@ class DataSource(Node):
         if 'time' in coords_src.dims and 'time' in coords_dst.dims:
             data_src = data_src.reindex(
                 time=coords_dst.coords['time'], method='nearest', tolerance=self.interpolation_tolerance)
-            coords_src._coords['time'] = data_src['time'].data
+            coords_src['time'] = ArrayCoordinates1d.from_xarray(data_src['time'])
             if len(coords_dst.dims) == 1:
                 return data_src
 
         if 'alt' in coords_src.dims and 'alt' in coords_dst.dims:
             data_src = data_src.reindex(alt=coords_dst.coords['alt'], method='nearest')
-            coords_src._coords['alt'] = data_src['alt'].data
+            coords_src['alt'] = ArrayCoordinates1d.from_xarray(data_src['alt'])
             if len(coords_dst.dims) == 1:
                 return data_src
 
         # Raster to Raster interpolation from regular grids to regular grids
-        rasterio_interps = ['nearest', 'bilinear', 'cubic', 'cubic_spline',
-                            'lanczos', 'average', 'mode', 'gauss', 'max', 'min',
-                            'med', 'q1', 'q3']
-        if rasterio is not None \
-                and self.interpolation in rasterio_interps \
-                and ('lat' in coords_src.dims and 'lon' in coords_src.dims) \
-                and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims) \
-                and coords_src['lat'].rasterio_regularity \
-                and coords_src['lon'].rasterio_regularity \
-                and coords_dst['lat'].rasterio_regularity \
-                and coords_dst['lon'].rasterio_regularity:
+        
+        if (rasterio is not None
+                and self.interpolation in RASTERIO_INTERPS
+                and 'lat' in coords_src.dims and 'lon' in coords_src.dims
+                and 'lat' in coords_dst.dims and 'lon' in coords_dst.dims
+                and coords_src['lat'].is_uniform and coords_src['lon'].is_uniform
+                and coords_dst['lat'].is_uniform and coords_dst['lon'].is_uniform):
             return self.rasterio_interpolation(data_src, coords_src, data_dst, coords_dst)
 
         # Raster to Raster interpolation from irregular grids to arbitrary grids
-        elif ('lat' in coords_src.dims and 'lon' in coords_src.dims) \
-                and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)\
-                and coords_src['lat'].scipy_regularity \
-                and coords_src['lon'].scipy_regularity:
+        elif (('lat' in coords_src.dims and 'lon' in coords_src.dims)
+                and ('lat' in coords_dst.dims and 'lon' in coords_dst.dims)):
             
-            return self.interpolate_irregular_grid(data_src, coords_src,
-                                                   data_dst, coords_dst,
-                                                   grid=True)
+            return self.interpolate_irregular_grid(data_src, coords_src, data_dst, coords_dst, grid=True)
         # Raster to lat_lon point interpolation
         elif (('lat' in coords_src.dims and 'lon' in coords_src.dims)
-              and coords_src['lat'].scipy_regularity
-              and coords_src['lon'].scipy_regularity
-              and ('lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims)):
-            coords_dst_us = coords_dst.unstack() # TODO don't have to return
-            return self.interpolate_irregular_grid(data_src, coords_src,
-                                                   data_dst, coords_dst_us,
-                                                   grid=False)
+                and ('lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims)):
+            coords_dst_us = coords_dst.unstack()
+            return self.interpolate_irregular_grid(data_src, coords_src, data_dst, coords_dst_us, grid=False)
 
         elif 'lat_lon' in coords_src.dims or 'lon_lat' in coords_src.dims:
-            return self.interpolate_point_data(data_src, coords_src,
-                                               data_dst, coords_dst)
+            return self.interpolate_point_data(data_src, coords_src, data_dst, coords_dst)
         
         raise NotImplementedError("The combination of source/destination coordinates has not been implemented.")
             
@@ -645,9 +672,8 @@ class DataSource(Node):
         data = data[I, :][:, J]
         
         if interp in ['bilinear', 'nearest']:
-            f = RegularGridInterpolator(coords_i, data,
-                                        method=interp.replace('bi', ''),
-                                        bounds_error=False, fill_value=np.nan)
+            f = RegularGridInterpolator(
+                coords_i, data, method=interp.replace('bi', ''), bounds_error=False, fill_value=np.nan)
             if grid:
                 x, y = np.meshgrid(*coords_i_dst)
             else:
@@ -658,17 +684,11 @@ class DataSource(Node):
                 order = 3
             else:
                 order = int(interp.split('_')[-1])
-            f = RectBivariateSpline(coords_i[0], coords_i[1],
-                                    data,
-                                    kx=max(1, order),
-                                    ky=max(1, order))
-            data_dst.data[:] = f(coords_i_dst[1],
-                                 coords_i_dst[0],
-                                 grid=grid).reshape(data_dst.shape)
+            f = RectBivariateSpline(coords_i[0], coords_i[1], data, kx=max(1, order), ky=max(1, order))
+            data_dst.data[:] = f(coords_i_dst[1], coords_i_dst[0], grid=grid).reshape(data_dst.shape)
         return data_dst
 
-    def interpolate_point_data(self, data_src, coords_src,
-                               data_dst, coords_dst, grid=True):
+    def interpolate_point_data(self, data_src, coords_src, data_dst, coords_dst, grid=True):
         """Summary
         
         Parameters
@@ -689,22 +709,26 @@ class DataSource(Node):
         TYPE
             Description
         """
+
+        order = 'lat_lon' if 'lat_lon' in coords_src.dims else 'lon_lat'
+        
+        # calculate tolerance
+        if isinstance(coords_dst['lat'], UniformCoordinates1d):
+            dlat = coords_dst['lat'].step
+        else:
+            dlat = (coords_dst['lat'].bounds[1] - coords_dst['lat'].bounds[0]) / (coords_dst['lat'].size-1)
+
+        if isinstance(coords_dst['lon'], UniformCoordinates1d):
+            dlon = coords_dst['lon'].step
+        else:
+            dlon = (coords_dst['lon'].bounds[1] - coords_dst['lon'].bounds[0]) / (coords_dst['lon'].size-1)
+        
+        tol = np.linalg.norm([dlat, dlon]) * 8
+
         if 'lat_lon' in coords_dst.dims or 'lon_lat' in coords_dst.dims:
-            order = coords_src.dims_map['lat']
-            dst_order = coords_dst.dims_map['lat']
-
-
-            # there is a bug here that is not yet fixed
-            if order != dst_order:
-                raise NotImplementedError('%s -> %s interpolation not currently supported' % (
-                    order, dst_order))
-
-            i = list(coords_dst.dims).index(dst_order)
-            new_crds = Coordinate(**{order: [coords_dst.unstack()[c].coordinates
-                for c in order.split('_')]})
-            tol = np.linalg.norm(coords_dst.delta[i]) * 8
-            src_stacked = np.stack([c.coordinates for c in coords_src.stack_dict()[order]], axis=1)
-            new_stacked = np.stack([c.coordinates for c in new_crds.stack_dict()[order]], axis=1) 
+            dst_order = 'lat_lon' if 'lat_lon' in coords_dst.dims else 'lon_lat'
+            src_stacked = np.stack([coords_src[dim].coordinates for dim in coords_src[order].dims], axis=1)
+            new_stacked = np.stack([coords_dst[dim].coordinates for dim in coords_src[order].dims], axis=1)
             pts = KDTree(src_stacked)
             dist, ind = pts.query(new_stacked, distance_upper_bound=tol)
             mask = ind == data_src[order].size
@@ -712,37 +736,31 @@ class DataSource(Node):
             vals = data_src[{order: ind}]
             vals[{order: mask}] = np.nan
             dims = list(data_dst.dims)
-            dims[i] = order
+            dims[dims.index(dst_order)] = order
             data_dst.data[:] = vals.transpose(*dims).data[:]
             return data_dst
+
         elif 'lat' in coords_dst.dims and 'lon' in coords_dst.dims:
-            order = coords_src.dims_map['lat']
-            i = list(coords_dst.dims).index('lat')
-            j = list(coords_dst.dims).index('lon')
-            tol = np.linalg.norm([coords_dst.delta[i], coords_dst.delta[j]]) * 8
-            pts = np.stack([c.coordinates for c in coords_src.stack_dict()[order]], axis=1)
+            pts = np.stack([coords_src[dim].coordinates for dim in coords_src[order].dims], axis=1)
             if 'lat_lon' == order:
                 pts = pts[:, ::-1]
             pts = KDTree(pts)
-            lon, lat = np.meshgrid(coords_dst.coords['lon'],
-                    coords_dst.coords['lat'])
-            dist, ind = pts.query(np.stack((lon.ravel(), lat.ravel()), axis=1),
-                    distance_upper_bound=tol)
+            lon, lat = np.meshgrid(coords_dst.coords['lon'], coords_dst.coords['lat'])
+            dist, ind = pts.query(np.stack((lon.ravel(), lat.ravel()), axis=1), distance_upper_bound=tol)
             mask = ind == data_src[order].size
             ind[mask] = 0 # This is a hack to make the select on the next line work
                           # (the masked values are set to NaN on the following line)
             vals = data_src[{order: ind}]
             vals[mask] = np.nan
             # make sure 'lat_lon' or 'lon_lat' is the first dimension
-            dims = list(data_src.dims)
-            dims.remove(order)
+            dims = [dim for dim in data_src.dims if dim != order]
             vals = vals.transpose(order, *dims).data
             shape = vals.shape
-            vals = vals.reshape(coords_dst['lat'].size, coords_dst['lon'].size,
-                    *shape[1:])
-            vals = UnitsDataArray(vals, dims=['lat', 'lon'] + dims,
-                    coords=[coords_dst.coords['lat'], coords_dst.coords['lon']]
-                    + [coords_src[d].coordinates for d in dims])
+            coords = [coords_dst['lat'].coordinates, coords_dst['lon'].coordinates]
+            coords += [coords_src[d].coordinates for d in dims]
+            vals = vals.reshape(coords_dst['lat'].size, coords_dst['lon'].size, *shape[1:])
+            vals = UnitsDataArray(vals, coords=coords, dims=['lat', 'lon'] + dims)
+            # and transpose back to the destination order
             data_dst.data[:] = vals.transpose(*data_dst.dims).data[:]
             return data_dst
 

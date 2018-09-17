@@ -1,31 +1,30 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from podpac.core.coordinate import Coordinate
+import pytest
+
+import podpac
 from podpac.core.data.datasource import DataSource
 from podpac.core.algorithm.algorithm import Arange
 from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates
 
-# TODO move these to test setup
-coords = Coordinate(
-    time='2017-09-01',
-    lat=(45., 66., 4),
-    lon=(-80., -70., 5),
-    order=('time', 'lat', 'lon'))
+# TODO move to test setup
+coords = podpac.Coordinates(
+    ['2017-09-01', podpac.clinspace(45, 66, 4), podpac.clinspace(-80, -70, 5)],
+    dims=['time', 'lat', 'lon'])
 
-class MyDataSource(DataSource): # TODO better to use a NumpyArray
+class MyDataSource(DataSource):
     def get_native_coordinates(self):
-        return Coordinate(
-            time=('2010-01-01', '2018-01-01', '4,h'),
-            lat=(-180., 180., 6),
-            lon=(-80., -70., 6),
-            order=('time', 'lat', 'lon'))
+        return podpac.Coordinates([
+            podpac.crange('2010-01-01', '2018-01-01', '4,h'),
+            podpac.clinspace(-180, 180, 6),
+            podpac.clinspace(-80, -70, 6)],
+            dims=['time', 'lat', 'lon'])
 
     def get_data(self, coordinates, slc):
         node = Arange()
         return node.execute(coordinates)
 
 # TODO add assertions to tests
-
 class TestExpandCoordinates(object):
     def test_no_expansion(self):
         node = ExpandCoordinates(source=Arange())
@@ -45,7 +44,7 @@ class TestExpandCoordinates(object):
         
         node = ExpandCoordinates(source=MyDataSource(), time=('-15,Y', '0,D', '1,Y'))
         o = node.execute(coords)
-        node.get_expanded_coord('time') # TODO what are we checking here
+        node.get_expanded_coordinates1d('time') # TODO what are we checking here
     
         node = ExpandCoordinates(source=MyDataSource(), time=('-5,M', '0,D', '1,M'))
         o = node.execute(coords)
@@ -53,15 +52,15 @@ class TestExpandCoordinates(object):
         # Behaviour a little strange on these?
         node = ExpandCoordinates(source=MyDataSource(), time=('-15,Y', '0,D', '4,Y'))
         o = node.execute(coords)
-        node.get_expanded_coord('time') # TODO what are we checking here
+        node.get_expanded_coordinates1d('time') # TODO what are we checking here
         
         node = ExpandCoordinates(source=MyDataSource(), time=('-15,Y', '0,D', '13,M'))
         o = node.execute(coords)
-        node.get_expanded_coord('time') # TODO what are we checking here
+        node.get_expanded_coordinates1d('time') # TODO what are we checking here
     
         node = ExpandCoordinates(source=MyDataSource(), time=('-144,M', '0,D', '13,M'))
         o = node.execute(coords)
-        node.get_expanded_coord('time') # TODO what are we checking here
+        node.get_expanded_coordinates1d('time') # TODO what are we checking here
     
 class TestSelectCoordinates(object):
     def test_no_expansion(self):
@@ -82,4 +81,4 @@ class TestSelectCoordinates(object):
         
         node = SelectCoordinates(source=MyDataSource(), time=('2011-01-01', '2017-01-01', '1,Y'))
         o = node.execute(coords)
-        node.get_expanded_coord('time') # TODO what are we checking here
+        node.get_expanded_coordinates1d('time') # TODO what are we checking here

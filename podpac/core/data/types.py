@@ -69,7 +69,7 @@ from podpac.core import authentication
 from podpac.core.node import Node
 from podpac.core.utils import cached_property, clear_cache, common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.coordinate.coordinate import Coordinate, UniformCoord
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.algorithm.algorithm import Algorithm
 
 class Array(DataSource):
@@ -92,8 +92,7 @@ class Array(DataSource):
         """{get_data}
         """
         s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data',
-                                        fillval=self.source[s])
+        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
         return d
 
 class NumpyArray(Array):
@@ -125,7 +124,7 @@ class PyDAP(DataSource):
         determines which variable is returned from the source.
     dataset : pydap.model.DatasetType
         The open pydap dataset. This is provided for troubleshooting.
-    native_coordinates : Coordinate
+    native_coordinates : Coordinates
         {ds_native_coordinates}
     password : str, optional
         Password used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
@@ -327,9 +326,7 @@ class Rasterio(DataSource):
         (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
         have to overload this method.
         """
-        dlon = self.dataset.width
-        dlat = self.dataset.height
-
+        
         if hasattr(self.dataset, 'affine'):
             affine = self.dataset.affine
         else:
@@ -340,9 +337,10 @@ class Rasterio(DataSource):
         if affine[1] != 0.0 or affine[3] != 0.0:
             raise NotImplementedError("Rotated coordinates are not yet supported")
 
-        return Coordinate(lat=(top, bottom, dlat),
-                                 lon=(left, right, dlon),
-                                 order=['lat', 'lon'])
+        return Coordinates([
+            UniformCoordinates1d(bottom, top, size=self.dataset.height, name='lat'),
+            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon')
+        ])
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -462,7 +460,7 @@ class WCS(DataSource):
     layer_name = tl.Unicode().tag(attr=True)
     version = tl.Unicode(WCS_DEFAULT_VERSION).tag(attr=True)
     crs = tl.Unicode(WCS_DEFAULT_CRS).tag(attr=True)
-    wcs_coordinates = tl.Instance(Coordinate)   # default below
+    wcs_coordinates = tl.Instance(Coordinates)   # default below
 
     _get_capabilities_qs = tl.Unicode('SERVICE=WCS&REQUEST=DescribeCoverage&'
                                       'VERSION={version}&COVERAGE={layer}')
@@ -542,18 +540,17 @@ class WCS(DataSource):
 
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
-            return Coordinate(lat=(top, bottom, size[1]),
-                                     lon=(left, right, size[0]), order=['lat', 'lon'])
+            return Coordinates([UniformCoordinates1d(top, bottom, size=size[1], name='lat')])
         
         date_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')
         times = np.array([t for t in times if date_re.match(t)], np.datetime64)
         
-        return Coordinate(time=times,
-                                 lat=(top, bottom, size[1]),
-                                 lon=(left, right, size[0]),
-                                 order=['time', 'lat', 'lon'])
-        
+        return Coordinates([
+            ArrayCoordinates1d(times, name='time'),
+            UniformCoordinates1d(top, bottom, size=size[1], name='lat'),
+            UniformCoordinates1d(left, right, size=size[0], name='lon')
+        ])        
 
     @property
     @common_doc(COMMON_DATA_DOC)
@@ -570,30 +567,26 @@ class WCS(DataSource):
         This is a little tricky and doesn't fit into the usual PODPAC method, as the service is actually doing the 
         data wrangling for us...
         """
-        if self.requested_coordinates:
-            ev = self.requested_coordinates
-            wcs_c = self.wcs_coordinates
-            cs = OrderedDict()
-            for c in wcs_c.dims:
-                if c in ev.dims and ev[c].size == 1:
-                    cs[c] = ev[c].coords
-                elif c in ev.dims and not isinstance(ev[c], UniformCoord):
-                    # This is rough, we have to use a regular grid for WCS calls,
-                    # Otherwise we have to do multiple WCS calls...
-                    # TODO: generalize/fix this
-                    cs[c] = (np.min(ev[c].coords),
-                             np.max(ev[c].coords), np.abs(ev[c].delta))
-                elif c in ev.dims and isinstance(ev[c], UniformCoord):
-                    cs[c] = (np.min(ev[c].coords[:2]),
-                             np.max(ev[c].coords[:2]), np.abs(ev[c].delta))
-                else:
-                    cs[c] = wcs_c[c]
-                    # TODO: OrderedDict() has no append method
-                    # cs.append(wcs_c[c])
-            c = Coordinate(cs)
-            return c
-        else:
+
+        if not self.requested_coordinates:
             return self.wcs_coordinates
+
+        cs = []
+        for dim in self.wcs_coordinates.dims:
+            if dim in self.requested_coordinates.dims:
+                c = self.requested_coordinates[dim]
+                if c.size == 1:
+                    cs.append(ArrayCoordinates1d(c.coordinates[0], name=dim))
+                elif isinstance(c, UniformCoordinates1d):
+                    cs.append(UniformCoordinates1d(c.bounds[0], c.bounds[1], abs(c.step), name=dim))
+                else:
+                    # TODO: generalize/fix this
+                    # WCS calls require a regular grid, could (otherwise we have to do multiple WCS calls)
+                    cs.append(UniformCoordinates1d(c.bounds[0], c.bounds[1], size=c.size, name=dim))
+            else:
+                cs.append(self.wcs_coordinates[dim])
+        c = Coordinates(cs)
+        return c
 
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
@@ -769,7 +762,7 @@ class ReprojectedSource(DataSource, Algorithm):
     ----------
     coordinates_source : Node
         Node which is used as the source
-    reprojected_coordinates : Coordinate
+    reprojected_coordinates : Coordinates
         Coordinates where the source node should be evaluated. 
     source : Node
         The source node
@@ -780,10 +773,8 @@ class ReprojectedSource(DataSource, Algorithm):
     source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     source = tl.Instance(Node)
     # Specify either one of the next two
-    # TODO: should this be of type Coordinate?
-    # This doesn't make much sense
     coordinates_source = tl.Instance(Node, allow_none=True).tag(attr=True)
-    reprojected_coordinates = tl.Instance(Coordinate).tag(attr=True)
+    reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     @tl.default('reprojected_coordinates')
     def get_reprojected_coordinates(self):
@@ -791,7 +782,7 @@ class ReprojectedSource(DataSource, Algorithm):
         
         Returns
         -------
-        Coordinate
+        reprojected_coordinates : Coordinates
             Coordinates where the source node should be evaluated. 
         
         Raises
@@ -799,28 +790,22 @@ class ReprojectedSource(DataSource, Algorithm):
         Exception
             If neither coordinates_source or reproject_coordinates are specified
         """
-        try:
-            return self.coordinates_source.native_coordinates
-        except AttributeError:
-            raise Exception("Either reprojected_coordinates or coordinates"
-                            "_source must be specified")
+        if not hasattr(self, 'coordinates_source'):
+            raise Exception("Either reprojected_coordinates or coordinates_source must be specified")
+        
+        return self.coordinates_source.native_coordinates
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
         """
-        coords = OrderedDict()
         if isinstance(self.source, DataSource):
             sc = self.source.native_coordinates
         else: # Otherwise we cannot guarantee that native_coordinates exist
             sc = self.reprojected_coordinates
         rc = self.reprojected_coordinates
-        for d in sc.dims:
-            if d in rc.dims:
-                coords[d] = rc.stack_dict()[d]
-            else:
-                coords[d] = sc.stack_dict()[d]
-        return Coordinate(coords)
+        coords = [rc[dim] if dim in rc.dims else sc[dim] for dim in sc.dims]
+        return Coordinates(coords)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -832,11 +817,10 @@ class ReprojectedSource(DataSource, Algorithm):
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of
         # the reprojected coordinates
-        # TODO: What if data has coordinates that reprojected_coordinates
-        #       doesn't have
+        # TODO: What if data has coordinates that reprojected_coordinates doesn't have
         keep_dims = list(data.coords.keys())
         drop_dims = [d for d in coordinates.dims if d not in keep_dims]
-        coordinates.drop_dims(*drop_dims)
+        coordinates.drop(drop_dims)
         return data
 
     @property
