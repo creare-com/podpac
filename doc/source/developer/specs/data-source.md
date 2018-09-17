@@ -24,10 +24,21 @@
 
 - `source`: Any, required
     + The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as a few examples.
-- `interpolation`: `Interpolator()`  class
+- `interpolator`: `Interpolator()` or Dict({`dim`: `Interpolator()`})
+- `interpolation`: Enum(`interpolate.INTERPOLATION_OPTIONS`)
+    - Dict({`dim`: Enum(`interpolate.INTERPOLATION_OPTIONS`)})
+        - For all dims or single dims.
 - `coordinate_index_type`: Enum('list','numpy','xarray','pandas'). By default this is `numpy`
 - `nan_vals`: List
     + list of values from source data that should be interpreted as 'no data' or 'nans' (replaces `no_data_vals`)
+
+#### Private Properties
+
+- `_interpolator` - interpolator chosen from `interpolator` and `interpolation`
+- `_requested_coordinates` = tl.Instance(Coordinates, allow_none=True)
+- `_requested_source_coordinates` = tl.Instance(Coordinates)
+- `_requested_source_coordinates_index` = tl.List()
+- `_requested_source_data` = tl.Instance(UnitsDataArray)
 
 #### Properties
 
@@ -35,6 +46,7 @@
 
 - FUTURE: After implementing a limiter on the request size, implement:
     + Take one input (i.e. `evaluate`) that will automatically execute the datasource at the native_coordinates on contruction. This will allow a shortcut when you just want to load a simple data source for processing with other more complication data sources
+- Choose a default interpolation option if neither interpolator or interpolation is defined
 
 #### Methods
 
