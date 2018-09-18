@@ -10,7 +10,7 @@ import numpy as np
 import traitlets as tl
 
 # Internal imports
-from podpac.core.coordinates import Coordinates
+from podpac.core.coordinates import Coordinates, union
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC 
@@ -158,18 +158,20 @@ class Compositor(Node):
         GroupCoordinates? 
         
         """
+
         try: 
             return self.load_cached_obj('native.coordinates')
         except: 
             pass
+
         if self.shared_coordinates is not None and self.is_source_coordinates_complete:
-            crds = self.source_coordinates + self.shared_coordinates
+            crds = union([self.source_coordinates, self.shared_coordinates])
         else:
-            crds = self.sources[0].native_coordinates
-            for s in self.sources[1:]:
-                crds = crds.add_unique(s.native_coordinates)
+            crds = union(source.native_coordinates for source in self.sources)
+
         if self.cache_native_coordinates:
             self.cache_obj(crds, 'native.coordinates')
+
         return crds
     
     def iteroutputs(self, coordinates, method=None):

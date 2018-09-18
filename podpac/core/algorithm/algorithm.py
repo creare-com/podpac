@@ -14,7 +14,7 @@ try:
 except: 
     ne = None
 
-from podpac.core.coordinates import Coordinates
+from podpac.core.coordinates import Coordinates, union
 from podpac.core.node import Node
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.utils import common_doc
@@ -49,19 +49,14 @@ class Algorithm(Node):
         self.requested_coordinates = coordinates
         self.output = output
 
-        coords = None
+        coords_list = [coordinates]
         for name in self.trait_names():
             node = getattr(self, name)
             if isinstance(node, Node):
                 if self.implicit_pipeline_evaluation:
                     node.execute(coordinates, method)
-                # accumulate coordinates
-                if coords is None:
-                    coords = Coordinates.from_xarray(node.output.coords)
-                else:
-                    coords = coords.add_unique(Coordinates.from_xarray(node.output.coords))
-        if coords is None:
-            coords = coordinates
+                coords_list.append(Coordinates.from_xarray(node.output.coords))
+        coords = union(coords_list)
 
         result = self.algorithm()
         if isinstance(result, np.ndarray):

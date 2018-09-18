@@ -4,6 +4,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import copy
 
 import numpy as np
+import xarray as xr
 import pandas as pd
 import traitlets as tl
 from six import string_types
@@ -108,7 +109,7 @@ class StackedCoordinates(BaseCoordinates):
         return c
     
     # ------------------------------------------------------------------------------------------------------------------
-    # standard (tuple-like) methods
+    # standard methods, tuple-like
     # ------------------------------------------------------------------------------------------------------------------
 
     def __getitem__(self, index):
@@ -126,7 +127,6 @@ class StackedCoordinates(BaseCoordinates):
     def __len__(self):
         return len(self._coords)
 
-    # TODO [] vs get/isel?
     def __getitem__(self, index):
         if isinstance(index, string_types):
             if index not in self.dims:

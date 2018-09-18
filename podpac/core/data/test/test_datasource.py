@@ -234,7 +234,7 @@ class TestDataSource(object):
         def test_no_get_native_coordinates(self):
             """implementing data source class can leave off get_native_coordinates if the user defines them on init"""
 
-    @pytest.mark.skip("TODO")
+    @pytest.mark.xfail(reason="MockDataSource has no attribute get_data_subset")
     class TestGetDataSubset(object):
         """Test Get Data Subset """
         
@@ -433,7 +433,6 @@ class TestDataSource(object):
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.time.values == coords_dst.coords['time'])
 
-        @pytest.mark.skip(reason="not implemented yet")
         def test_interpolate_lat_time(self):
             """interpolate with n dims and time"""
             pass

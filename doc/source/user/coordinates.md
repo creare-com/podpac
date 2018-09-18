@@ -29,13 +29,22 @@ Unstacked multidimensional coordinates form a grid of points. For example, the f
 >>> lon = [10, 20, 30, 40]
 >>> time = ['2018-01-01', '2018-01-02']
 >>> Coordinates([lat, lon], dims=['lat', 'lon'])
+Coordinates
+    lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
+    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
 >>> Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
+Coordinates
+    lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
+    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
+    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']
 ```
 
 You can also create coordinates with just one dimension the same way:
 
 ```
 >>> Coordinates([time], dims=['time'])
+Coordinates
+    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']
 ```
 
 ### Stacked Coordinates
@@ -47,22 +56,32 @@ that the name for this stacked dimension is 'lat_lon', using an underscore to co
 The following example has a single stacked dimension and a total of 3 points.
 
 ```
-lat = [0, 1, 2]
-lon = [10, 20, 30]
-c = Coordinates([np.stack([lat, lon]).T], dims=['lat_lon'])
+>>> lat = [0, 1, 2]
+>>> lon = [10, 20, 30]
+>>> c = Coordinates([[lat, lon]], dims=['lat_lon'])
 >>> c
->>> c.coords[0]
+Coordinates
+    lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
+    lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
+>>> c['lat_lon'].coordinates[0]
+(0.0, 10.0)
 ```
 
 Coordinates can combine stacked dimensions and unstacked dimensions. For example, in the following Coordinates the `(lat, lon)` values and the `time` values form a grid of 6 total points.
 
 ```
-lat = [0, 1, 2]
-lon = [10, 20, 30]
+>>> lat = [0, 1, 2]
+>>> lon = [10, 20, 30]
 >>> time = ['2018-01-01', '2018-01-02']
-c = Coordinates([np.stack([lat, lon]).T, time], dims=['lat_lon', 'time'])
->>> c
->>> c.coords[0]
+>>> c = Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
+Coordinates
+    lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
+    lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
+    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']
+>>> c['lat_lon'].coordinates[0]
+(0.0, 10.0)
+>>> c['time'].coordinates[0]
+numpy.datetime64('2018-01-01')
 ```
 
 ### Uniformly-Spaced Coordinates
@@ -78,14 +97,21 @@ Unlike `np.arange`:
  * the stop value will be included in the coordinates if it falls an exact number of steps from the start
 
 ```
->>> c = podpac.crange(0, 9, 2)
+>>> c = podpac.crange(0, 7, 2)
 >>> c.coordinates
-[0.0, 2.0, 4.0, 6.0, 8.0]
->>> c = podpac.crange(0, 10, 2)
+array([0., 2., 4., 6.])
+```
+
+```
+>>> c = podpac.crange(0, 8, 2)
 >>> c.coordinates
-[0.0, 2.0, 4.0, 6.0, 8.0, 10.0]
->>> c = podpac.crange('2018-01-01', '2018-3-01', '1,M')
+array([0., 2., 4., 6., 8.])
+```
+
+```
+>>> c = podpac.crange('2018-01-01', '2018-03-01', '1,M')
 >>> c.coordinates
+array(['2018-01-01', '2018-02-01', '2018-03-01'], dtype='datetime64[D]')
  ```
 
 **Coordinates Linspace**
@@ -97,14 +123,22 @@ Unlike `np.linspace`:
  * tuple inputs are supported for stacked coordinates
 
 ```
->>> c = podpac.clinspace(0, 10, 6)
+>>> c = podpac.clinspace(0, 8, 5)
 >>> c.coordinates
-[0.0, 2.0, 4.0, 6.0, 8.0, 10.0]
->>> c = podpac.clinspace('2018-01-01', '2018-3-01', 4)
+array([0., 2., 4., 6., 8.])
+```
+
+```>>> c = podpac.clinspace('2018-01-01', '2018-03-01', 3)
 >>> c.coordinates
+array(['2018-01-01', '2018-01-30', '2018-02-28'], dtype='datetime64[D]')
+```
+
+```
 >>> c = podpac.clinspace((0, 10), (1, 20), 3)
 >>> c.coordinates
- ```
+MultiIndex(levels=[[0.0, 0.5, 1.0], [10.0, 15.0, 20.0]],
+           labels=[[0, 1, 2], [0, 1, 2]])
+```
 
 These functions wrap UniformCoordinates1d (see Advanced Usage), which is particularly useful for coordinates with an
 extremely large number of points.
@@ -123,31 +157,35 @@ Unstacked coordinates can also be created using the `Coordinates.grid` alternate
 
 ```
 >>> Coordinates.grid(lat=[0, 1, 2], lon=[10, 20, 30, 40])
->>> Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=['lat', 'lon'])
+Coordinates
+    lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
+    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
 ```
 
 Stacked coordinates can be created using the `Coordinates.points` alternate constructor:
 
 ```
 >>> Coordinates.points(lat=[0, 1, 2], lon=[10, 20, 30])
->>> Coordinates([np.stack([0, 1, 2], [10, 20, 30, 40]).T], dims=['lat_lon'])
+Coordinates
+    lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
+    lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
 ```
 
 For convenience, a tuple can be used to generate uniformly-spaced coordinates. If the third item is an integer, it
 is interpreted as a size, otherwise it is interpreted as a step. The following will all be equivalent:
 
 ```
->>> Coordinates.grid(lat=(0, 2, 3), lon=(10, 40, 4))
->>> Coordinates.grid(lat=clinspace(0, 2, 3), lon=clinspace(10, 40, 4))
->>> Coordinates.grid(lat=(0, 2, 1.0), lon=(10, 40, 10.0))
->>> Coordinates.grid(lat=crange(0, 2, 1), lon=crange(10, 40, 10))
+Coordinates.grid(lat=(0, 2, 3), lon=(10, 40, 4))
+Coordinates.grid(lat=(0, 2, 1.0), lon=(10, 40, 10.0))
+Coordinates.grid(lat=clinspace(0, 2, 3), lon=clinspace(10, 40, 4))
+Coordinates.grid(lat=crange(0, 2, 1), lon=crange(10, 40, 10))
 ```
 
 Note that in Python 3.5 and below, the `order` argument is required to both `grid` and `points`
 
 ```
->>> Coordinates.grid(lat=[0, 1, 2], lon=[10, 20, 30], order=['lat', 'lon'])
->>> Coordinates.grid(lat=[0, 1, 2], lon=[10, 20, 30], order=['lat', 'lon'])
+Coordinates.grid(lat=[0, 1, 2], lon=[10, 20, 30], order=['lat', 'lon'])
+Coordinates.points(lat=[0, 1, 2], lon=[10, 20, 30], order=['lat', 'lon'])
 ```
 
 ### Advanced Usage
@@ -155,10 +193,14 @@ Note that in Python 3.5 and below, the `order` argument is required to both `gri
 TODO
 
 ```
-lat = UniformCoordinates1d(0, 1, size=100, name='lat')
-lon = UniformCoordinates1d(10, 20, size=100, name='lon')
-time = ArrayCoordinates1d(['2018-01-01', '2018-02-03'], name='time')
-Coordinates([StackedCoordinates([lat, lon]), time])
+>>> lat = UniformCoordinates1d(0, 1, size=100, name='lat')
+>>> lon = UniformCoordinates1d(10, 20, size=100, name='lon')
+>>> time = ArrayCoordinates1d(['2018-01-01', '2018-02-03'], name='time')
+>>> Coordinates([StackedCoordinates([lat, lon]), time])
+Coordinates
+    lat_lon[lat]: UniformCoordinates1d(lat): Bounds[0.0, 1.0], N[100], ctype['midpoint']
+    lat_lon[lon]: UniformCoordinates1d(lon): Bounds[10.0, 20.0], N[100], ctype['midpoint']
+    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-02-03], N[2], ctype['midpoint']
 ```
 
 TODO mixed ctypes, etc...

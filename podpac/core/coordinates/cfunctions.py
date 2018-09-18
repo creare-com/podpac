@@ -11,7 +11,7 @@ def crange(start, stop, step):
 
 def clinspace(start, stop, size):
     try:
-        a = np.stack([start, stop])
+        a = np.array([start, stop])
     except ValueError:
         raise ValueError("start, stop, and step must have the same shape")
 

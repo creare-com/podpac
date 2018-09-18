@@ -92,6 +92,17 @@ class ArrayCoordinates1d(Coordinates1d):
         properties = self.properties
         properties.update(kwargs)
         return ArrayCoordinates1d(self.coords, **properties)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # standard methods, array-like
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def __len__(self):
+        return self.size
+
+    def __getitem__(self, index):
+        coords = self.coords[index]
+        return ArrayCoordinates1d(coords, **self.properties)
     
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -109,7 +120,6 @@ class ArrayCoordinates1d(Coordinates1d):
     @property
     def size(self):
         ''' Number of coordinates. '''
-
         return self.coords.size
 
     @property
@@ -215,131 +225,3 @@ class ArrayCoordinates1d(Coordinates1d):
             return c, I
         else:
             return c
-
-    # def _add(self, other):
-    #     return ArrayCoordinates1d(self.coords + other, **self.properties)
-
-    # def _add_equal(self, other):
-    #     self.coords += other
-    #     return self
-
-    # def _concat(self, other):
-    #     # always returns a ArrayCoordinates1d object
-    #     if self.size == 0:
-    #         coords = other.coordinates
-    #     else:
-    #         coords = np.concatenate([self.coordinates, other.coordinates])
-
-    #     return ArrayCoordinates1d(coords, **self.properties)
-
-    # def _concat_equal(self, other):
-    #     if self.size == 0:
-    #         self.coords = other.coordinates
-    #     else:
-    #         self.coords = np.concatenate([self.coordinates, other.coordinates])
-
-    #     return self
-
-    def __getitem__(self, index):
-        coords = self.coords[index]
-        return ArrayCoordinates1d(coords, **self.properties)
-
-class ToRemoveMonotonicCoordinates1d(ArrayCoordinates1d):
-    """
-    An array of monotonically increasing or decreasing coordinates. The coordinates are guaranteed to be sorted and
-    unique, but not guaranteed to be uniformly spaced.
-    
-    Attributes
-    ----------
-    coords : ndarray
-        Input coordinate array. Values must all be the same type, and must be unique and sorted.
-        Numerical values are converted to floats, and datetime values are converted to np.datetime64.
-    
-    See Also
-    --------
-    ArrayCoordinates1d : A basic array of coordinates.
-    UniformCoordinates1d : An array of sorted, uniformly-spaced coordinates.
-    """
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Methods
-    # ------------------------------------------------------------------------------------------------------------------
-
-
-
-    def _concat(self, other):
-        # returns a MonotonicCoordinates1d if possible, else ArrayCoordinates1d
-
-        # TODO check matching properties (units, ctype, etc)
-
-        if self.size == 0:
-            return copy.deepcopy(other)
-
-        if other.is_monotonic:
-            other_coords = other.coordinates
-            
-            # Let's match self.is_descending for the output
-            if self.is_descending != other.is_descending:
-                other_coords = other_coords[::-1]
-            
-            concat_list = [self.coordinates, other_coords]
-            overlap = False
-            if self.is_descending:
-                if concat_list[0][-1] > concat_list[1][0]: # then we're good!
-                    coords = np.concatenate(concat_list)
-                elif concat_list[1][-1] > concat_list[0][0]: # need to reverse
-                    coords = np.concatenate(concat_list[::-1])
-                else: 
-                    overlap = True
-            else:
-                if concat_list[0][-1] < concat_list[1][0]: # then we're good!
-                    coords = np.concatenate(concat_list)
-                elif concat_list[1][-1] < concat_list[0][0]: # need to reverse
-                    coords = np.concatenate(concat_list[::-1])
-                else: 
-                    overlap = True
-                
-            if not overlap:
-                return MonotonicCoordinates1d(coords, **self.properties)
-            
-        # otherwise return a plain ArrayCoordinates1d object
-        coords = np.concatenate([self.coordinates, other.coordinates])
-        return ArrayCoordinates1d(coords, **self.properties)
-
-    def _concat_equal(self, other):
-        if not other.is_monotonic:
-            raise TypeError("Cannot concatenate '%s' to '%s' in-place" % (
-                other.__class__.__name__, self.__class__.__name__))
-        
-        if self.size == 0:
-            self.coords = other.coordinates
-            return self
-
-        other_coords = other.coordinates
-        
-        # Let's match self.is_descending for the output
-        if self.is_descending != other.is_descending:
-            other_coords = other_coords[::-1]
-        
-        concat_list = [self.coordinates, other_coords]
-        overlap = False
-        if self.is_descending:
-            if concat_list[0][-1] > concat_list[1][0]: # then we're good!
-                coords = np.concatenate(concat_list)
-            elif concat_list[1][-1] > concat_list[0][0]: # need to reverse
-                coords = np.concatenate(concat_list[::-1])
-            else:
-                overlap = True
-        else:
-            if concat_list[0][-1] < concat_list[1][0]: # then we're good!
-                coords = np.concatenate(concat_list)
-            elif concat_list[1][-1] < concat_list[0][0]: # need to reverse
-                coords = np.concatenate(concat_list[::-1])
-            else:
-                overlap = True
-            
-        if overlap:
-            raise ValueError("Cannot concatenate overlapping monotonic coords")
-
-        self.coords = coords
-        return self

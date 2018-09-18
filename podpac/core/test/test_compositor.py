@@ -73,7 +73,6 @@ class TestCompositor(object):
         o = composited.execute(c)
         np.testing.assert_array_equal(o.data, a.source[5, 5])
 
-    @pytest.mark.skip('add_unique')
     # Simple test of creating and executing an OrderedCompositor
     def test_ordered_compositor(self):
         self.orderedCompositor = podpac.OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src,

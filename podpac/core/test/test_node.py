@@ -275,7 +275,7 @@ class TestFilesAndCaching(object):
             n.clear_disk_cache(node_cache=True)
         
 
-@pytest.mark.skip("???")
+@pytest.mark.xfail(reason="not sure why this is failing")
 class TestGetImage(object):
     def test_get_image(self):
         nc = podpac.Coordinates([podpac.clinspace(0, 1, 3), podpac.clinspace(0, 1, 5)], dims=['lat', 'lon'])

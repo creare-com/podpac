@@ -28,8 +28,7 @@ from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
 from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3
 
-@pytest.mark.skip("TODO")
-def test_allow_missing_modules(self):
+def test_allow_missing_modules():
     """TODO: Allow user to be missing rasterio and scipy"""
     pass
 
