@@ -28,6 +28,13 @@ Multiple interpolators may be required for each request:
 
 # Specification
 
+## Constants
+
+- `INTERPOLATORS`: List
+- `INTERPOLATION_OPTIONS`: List
+    - ['nearest', 'nearest_preview', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss', 'max', 'min', 'med', 'q1', 'q3']
+    - Only include the supported interpolation options
+
 ## Utility methods
 
 - `get_interpolator(interpolator<str>)`: Return interpolator class given a string shortname
@@ -36,28 +43,34 @@ Multiple interpolators may be required for each request:
 
 #### Constants
 
-- `interpolate_options`:
-    - Enum('nearest', 'nearest_preview', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss', 'max', 'min', 'med', 'q1', 'q3'), 
-    - Default: `nearest`
-    - Only include the supported interpolation options
-
 #### Traits
 
 - `method`: one of:
-    - str: Enum(`interpolate_options`)
+    - str: Enum(`INTERPOLATION_OPTIONS`)
     - Dict({`dim`: Enum(`interpolate_options`)})
     - For all dims or single dims.
-- `tolerance`: 
+- `tolerance`: tl.CFloat(np.inf)
+    + optional tolerance for specifying when to exclude interpolated data
+    + Units?
+
+#### Private members
+
+- `_requested_coordinates` = tl.Instance(Coordinates, allow_none=True)
+- `_source_coordinates` = tl.Instance(Coordinates)
+- `_source_coordinates_index` = tl.List()
+- `_source_data` = tl.Instance(UnitsDataArray)
 
 **Cost Optimization**
 
-- `cost_func`
-- `cost_setup`
-- 
+- `cost_func`: tl.CFloat(-1)
+    + rough cost FLOPS/DOF to do interpolation
+- `cost_setup`: tl.CFloat(-1)
+    + rough cost FLOPS/DOF to set up the interpolator
 #### Methods
 
 - `interpolate`: run the interpolator
     + `Interpolator` raises a `NotImplemented` if child does not overide
+- `to_pipeline()`: export interpolator class to pipeline
 
 ## Implementations
 
