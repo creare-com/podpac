@@ -121,10 +121,6 @@ class MockDataSourceReturnsDataArray(DataSource):
 class TestDataSource(object):
     """Test datasource.py module"""
 
-    def test_allow_missing_modules(self):
-        """TODO: Allow user to be missing rasterio and scipy"""
-        pass
-
     def test_common_doc(self):
         """Test that all DATA_DOC keys make it into the COMMON_DATA_DOC and overwrite COMMON_NODE_DOC keys"""
 

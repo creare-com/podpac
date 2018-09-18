@@ -24,7 +24,7 @@
 
 - `source`: Any, required
     + The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as a few examples.
-- `interpolator`: 
+- `interpolation`: 
     - `Interpolator()` - NearestNeighbor
     - Dict({`dim` (not stacked): `Interpolator()` NearestNeighbor})
     - string - Enum(`interpolate.INTERPOLATION_OPTIONS`)
@@ -51,12 +51,12 @@
 - FUTURE: After implementing a limiter on the request size, implement:
     + Take one input (i.e. `evaluate`) that will automatically execute the datasource at the native_coordinates on contruction. This will allow a shortcut when you just want to load a simple data source for processing with other more complication data sources
 - Choose a default interpolation option if neither interpolator or interpolation is defined
-- Instantiate `_interpolator`  classes with data sources based on input to `interpolator`
 
 #### Methods
 
 - `eval(coordinates, output=None, method=None)`: Evaluate this node using the supplied coordinates
     + `self.requested_coordinates` gets set to the coordinates that are input
+    + Instantiate `_interpolator`  classes with data sources based on input to `interpolation`
     + remove dims that don't exist in native coordinates
     + intersect the `self.requested_coordinates` with `self.native_coordinates` to create `self.requested_source_coordinates` and `self.requested_source_coordinates_index` to get requested via `get_data`.  DataSource `coordinate_index_type` informs `self.requested_source_coordinates_index` (Array[int], Array[boolean], List[slices])
     + interpolate requested coordinates `self.requested_source_coordinates` using `_interpolate_requested_coordinates()`.

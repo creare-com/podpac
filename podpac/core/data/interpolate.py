@@ -8,6 +8,7 @@ Description
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
+from copy import deepcopy
 
 import numpy as np
 import traitlets as tl
@@ -27,215 +28,184 @@ try:
 except:
     scipy = None
 
+# podac imports
 from podpac.core.coordinates import Coordinates
 
+
 class InterpolationException(Exception):
-    """Summary
     """
-    
+    Custom label for interpolator exceptions
+    """
     pass
     
-class Interpolator(tl.HasTraits):
+
+class InterpolationMethod(tl.HasTraits):
     """Summary
     
     Attributes
     ----------
-    cost_func : TYPE
-    Description
-    cost_setup : TYPE
-    Description
-    eval_coords : TYPE
-    Description
-    extrapolation : TYPE
-    Description
-    interpolation : TYPE
-    Description
-    pad : TYPE
-    Description
-    source_coords : TYPE
-    Description
-    supported_dims : TYPE
-    Description
-    tolerance : TYPE
-    Description
-    valid_interpolations : TYPE
-    Description
+    method : TYPE
+        Description
     """
+    
+    method = tl.Unicode()
+    tolerance = tl.CFloat(np.inf)
 
-    method = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
-                         'cubic_spline', 'lanczos', 'average', 'mode',
-                         'gauss', 'max', 'min', 'med', 'q1', 'q3'],   # TODO: gauss is not supported by rasterio
-                        default_value='nearest').tag(attr=True)
-    
-    eval_coords = tl.Instance(Coordinates)
-    source_coords = tl.Instance(Coordinates)
-    pad = tl.Int(1)
-    interpolation = tl.Unicode()
-    valid_interpolations = tl.Enum([])
-    tolerance = tl.CFloat(np.inf)  # if any, or needed
-    supported_dims = tl.List([])  # if empty, supports all of them
-    extrapolation = tl.Bool(False)
-    
     # Next are used for optimizing the interpolation pipeline
     # If -1, it's cost is assume the same as a competing interpolator in the
     # stack, and the determination is made based on the number of DOF before
     # and after each interpolation step.
     cost_func = tl.CFloat(-1)  # The rough cost FLOPS/DOF to do interpolation
     cost_setup = tl.CFloat(-1)  # The rough cost FLOPS/DOF to set up the interpolator
-    
-    def validate(self):
+
+    def interpolate_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
+        """Summary
         """
-        Should return two lists
+        pass
 
-        valid_dims, (I can interpolated these)
-        invalid_dims (I cannot interpolate these)
-        
-        Raises
-        ------
-        NotImplementedError
-        Description
+    def interpolate(self, source_coordinates, source_data, requested_coordinates, output):
+        """Summary
         """
-        raise NotImplementedError()
-    
-    def source_coords_subset(self):
-        """Returns the subset of coordinates needed from the source data
-        to interpolate onto the destination data. 
-        
-        This implements the basic functionality. Specialized interpolators 
-        likely want to optimize this, and should overwrite this function. 
-        
-        Parameters
-        ----------
-        pad : None, optional
-            Description
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        if pad is None:
-            pad = self.pad
-        return [self.source_coords.intersect(self.eval_coords, outer=True),
-                self.source.intersect_ind_slice(self.eval_coords)]
-    
-    def __call__(self, source_data):
-        """should return evaluated data 
-        
-        Parameters
-        ----------
-        source_data : TYPE
-            Description
-        
-        Raises
-        ------
-        NotImplementedError
-        Description
-        """
-        raise NotImplementedError()
-        
-    def __add__(self, other):
-        if not isinstance(other, (Interpolator, InterpolationPipeline)):
-            raise InterpolationException("Cannot add %s and %s" % (
-                    self.__class__, other.__class__))
-        if isinstance(other, InterpolationPipeline):
-            other = other.interpolators
-        else:
-            other = [other]
-        return InterpolationPipeline(interpolators=[self] + other)
+        pass
 
-class NearestNeighbor(Interpolator):
+
+class NearestNeighbor(InterpolationMethod):
     pass
 
-class Rasterio(Interpolator):
+class NearestPreview(InterpolationMethod):
     pass
 
-class ScipyGrid(Interpolator):
+class Rasterio(InterpolationMethod):
     pass
 
-class ScipyPoint(Interpolator):
+class ScipyGrid(InterpolationMethod):
     pass
 
-class Radial(Interpolator):
+class ScipyPoint(InterpolationMethod):
     pass
 
-class OptimalInterpolation(Interpolator):
+class Radial(InterpolationMethod):
+    pass
+
+class OptimalInterpolation(InterpolationMethod):
     """ I.E. Kriging """
     pass
 
-AVAILABLE_INTERPOLATORS = [
-        NearestNeighbor, 
-        ScipyGrid, 
-        ScipyPoint,
-        Radial,
-        OptimalInterpolation
-]
+# List of available interpolators
+INTERPOLATION_METHODS = {
+    'nearest': NearestNeighbor,
+    'nearest_preview': NearestPreview,
+    'rasterio': Rasterio,
+    'scipygrid': ScipyGrid,
+    'scipypoint': ScipyPoint,
+    'radial': Radial,
+    'optimal': OptimalInterpolation,
+}
 
-class InterpolationPipeline(tl.HasTraits):
-    """
-    This class is supposed to do the interpolation in the most efficient
-    manner.
-    
-    Attributes
-    ----------
-    cost_tol : TYPE
-    Description
-    fixed_order : TYPE
-    Description
-    interpolators : TYPE
-    Description
-    """
 
-    interpolators = tl.List([])
-    # in case the order of interpolation needs to be controlled
-    # (probably for accuracy of validation) instead of
-    # optimized for performance
-    fixed_order = tl.Bool(False)
-    # Because the cost calculations can be dubious, prefer the higher-ordered
-    # interpolants over others when the costs are within this tolerance
-    cost_tol = tl.CFloat()
-    
-    def __add__(self, other):
-        if not isinstance(other, (Interpolator, InterpolationPipeline)):
-            raise InterpolationException("Cannot add %s and %s" % (
-                self.__class__, other.__class__))
-        if isinstance(other, InterpolationPipeline):
-            other = other.interpolators
-        else:
-            other = [other]
-        return InterpolationPipeline(interpolators=self.interpolators + other,
-                                     **self.kwargs)
-        
-    @property
-    def kwargs(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        keep = ['fixed_order']
-        return {k: getattr(self, k) for k in keep}
-    
-    def __call__(self, source_data):
-        """should return evaluated data
+# TODO: how to handle these?
+# = ['nearest', 'nearest_preview', 'bilinear', 'cubic',
+#                       'cubic_spline', 'lanczos', 'average', 'mode',
+#                       'gauss', 'max', 'min', 'med', 'q1', 'q3']   # TODO: gauss is not supported by rasterio
+INTERPOLATION_SHORTCUTS = INTERPOLATION_METHODS.keys()
+
+class Interpolator():
+    """
+    Meta class to handle interpolation across dimensions
+    """
+ 
+    _stacked = []     # container for stacked dims in interpolator
+    _definition = {}  # container for interpolation methods for each dimension
+
+    def __init__(self, definition, dims, default_method='nearest'):
+        """Construct the Interpolator class to handle interpolations across all dimensions
         
         Parameters
         ----------
-        source_data : TYPE
-            Description
+        definition : str, podpac.core.data.interpolate.InterpolationMethod, dict
+            Definition object to construct the interpolator.
+        dims : list<str>
+            List of string dimension names
         
-        Returns
-        -------
-        TYPE
+        Raises
+        ------
+        InterpolationException
             Description
         """
-        out = source_data
-        if not self.fixed_order:
-            self.order_interpolators()
-            
-        for i in self.interpolators:
-            out = i(out)
-        return out
+
+        # see if default method is in INTERPOLATION_METHODS
+        if isinstance(default_method, str):
+            if default_method not in INTERPOLATION_SHORTCUTS:
+                raise InterpolationException('"{}" is not a valid interpolation method shortcut. '.format(default_method) +
+                                             'Valid interpolation shortcuts: {}'.format(INTERPOLATION_SHORTCUTS))
+        elif isinstance(default_method, InterpolationMethod):
+            pass
+
+
+        # set each dim to interpolator
+        if isinstance(definition, (str, InterpolationMethod)):
+            method = self._parse_interpolation_method(definition)
+
+            for dim in dims:
+                self._set_interpolation_method(dim, method)
+
+        elif isinstance(definition, dict):
+            for dim in dims:
+                if dim not in definition.keys():
+                    self._set_interpolation_method(dim, default_method)
+                else:
+                    method = self._parse_interpolation_method(definition[dim])
+                    self._set_interpolation_method(dim, method)
+
+
+    def _parse_interpolation_method(self, definition):
         
+        if isinstance(definition, str):
+            if definition not in INTERPOLATION_SHORTCUTS:
+                raise InterpolationException('"{}" is not a valid interpolation shortcut. '.format(definition) +
+                                             'Valid interpolation shortcuts: {}'.format(INTERPOLATION_SHORTCUTS))
+            return INTERPOLATION_METHODS[definition]
+
+        elif isinstance(definition, InterpolationMethod):
+            return definition
+        else:
+            raise ValueError('{} is not a valid interpolation definition. '.format(type(definition)) +
+                             'Interpolation definiton must be a string or InterpolationMethod.')
+
+    def _set_interpolation_method(self, dim, Method):
+        
+        # keep track of stacked dims, but store the interpolator methods seperately by independent dimension
+        if '_' in dim:
+            stacked_dims = dim.split('_')
+            for stacked_dim in stacked_dims:
+                self._stacked += [stacked_dim]
+                self._set_interpolation_method(stacked_dim, Method)
+
+        # store the Method for the given dimension in the interpolator definition dictionary
+        self._definition[dim] = Method
+
+
+    def interpolate_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
+        """
+        Decide if we can interpolate coordinates
+        
+        Parameters
+        ----------
+        requested_coordinates : podpac.core.coordinates.Coordinates
+            Requested coordinates to execute
+        source_coordinates : podpac.core.coordinates.Coordinates
+            Intersected source coordinates
+        source_coordinates_index : List
+            Index of intersected source coordinates. See :ref:podpac.core.data.datasource.DataSource for 
+            more information about valid values for the source_coordinates_index
+        """
+        pass
+
+    def interpolate(self, source_coordinates, source_data, requested_coordinates, output):
+        pass
+
+    def to_pipeline(self):
+        pass
+
+    def from_pipeline(self):
+        pass

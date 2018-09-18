@@ -30,35 +30,54 @@ Multiple interpolators may be required for each request:
 
 ## Constants
 
-- `INTERPOLATORS`: List
-- `INTERPOLATION_OPTIONS`: List
-    - ['nearest', 'nearest_preview', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss', 'max', 'min', 'med', 'q1', 'q3']
+- `INTERPOLATION_METHODS`: dict of shortcut: InterpolationMethod class
+- `INTERPOLATION_SHORTCUTS`: List
     - Only include the supported interpolation options
 
 ## Utility methods
 
-- `get_interpolator(interpolator<str>)`: Return interpolator class given a string shortname
 
-## Interpolator Class
+
+
+
+## InterpolationMethod Class
 
 #### Constants
 
 #### Traits
 
-- `method`: one of:
-    - str: Enum(`INTERPOLATION_OPTIONS`)
-    - Dict({`dim`: Enum(`interpolate_options`)})
-    - For all dims or single dims.
+- `method`: string
+    + name of interpolation method
 - `tolerance`: tl.CFloat(np.inf)
     + optional tolerance for specifying when to exclude interpolated data
     + Units?
+
+#### Private members
+#### Methods
+
+- `interpolate(source_coordinates, source_data, requested_coordinates, requested_data)`
+    + `InterpolationMethod` raises a `NotImplemented` if child does not overide
+- `interpolate_coordinates(requested_coordinates, source_coordinates, source_coordinates_idx)`
+    + `InterpolationMethod` raises a `NotImplemented` if child does not overide
+
+#### Private Methods
+
+
+## Interpolator Class
+
+#### Constructor
+
+- `__init__(definition)`:
+    + definition (InterpolationMethod, str, dict)
+
+#### Members
 
 #### Private members
 
 - `_requested_coordinates` = tl.Instance(Coordinates, allow_none=True)
 - `_source_coordinates` = tl.Instance(Coordinates)
 - `_source_coordinates_index` = tl.List()
-- `_source_data` = tl.Instance(UnitsDataArray)
+- `_source_data` = tl.Instance(UnitsDataArray) 
 
 **Cost Optimization**
 
@@ -66,11 +85,22 @@ Multiple interpolators may be required for each request:
     + rough cost FLOPS/DOF to do interpolation
 - `cost_setup`: tl.CFloat(-1)
     + rough cost FLOPS/DOF to set up the interpolator
+
 #### Methods
 
-- `interpolate`: run the interpolator
-    + `Interpolator` raises a `NotImplemented` if child does not overide
+- `interpolate(source_coordinates, source_data, requested_coordinates, requested_data)`: run the interpolator
+- `interpolate_coordinates(requested_coordinates, source_coordinates, source_coordinates_idx)`: interpolate child coordinates
 - `to_pipeline()`: export interpolator class to pipeline
+- `from_pipeline()`
+
+#### Private Methods
+
+- `_parse_interpolation_method(definition)`: 
+    + variable input definition (str, InterpolationMethod) returns an InterpolationMethod
+- `_set_interpolation_method(dim, definition)`:
+    + set the InterpolationMethod to be associated iwth the current dimension
+    + if `dim` is stacked, split it up and run `_set_interpolation_method` for each part independently
+    + store a record that `dim` was stacked
 
 ## Implementations
 
@@ -79,8 +109,6 @@ Multiple interpolators may be required for each request:
 ### Rasterio
 
 ### Scipy
-
-
 
 
 ## InterpolatorException
