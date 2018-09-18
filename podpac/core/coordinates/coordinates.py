@@ -152,7 +152,9 @@ class Coordinates(tl.HasTraits):
 
         coords = []
         for dim in order:
-            if isinstance(d[dim], tuple):
+            if isinstance(d[dim], Coordinates1d):
+                c = d[dim].copy(name=dim)
+            elif isinstance(d[dim], tuple):
                 c = UniformCoordinates1d.from_tuple(d[dim], name=dim)
             else:
                 c = ArrayCoordinates1d(d[dim], name=dim)
