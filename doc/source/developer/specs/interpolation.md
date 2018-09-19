@@ -67,15 +67,18 @@ Multiple interpolators may be required for each request:
 
 #### Constructor
 
-- `__init__(definition)`:
-    + definition (InterpolationMethod, str, dict)
+- `__init__(definition, source_coordinates)`:
+    + `definition`: (InterpolationMethod, str, dict)
+    + `source_coordinates`
+    + `default_method`: (InterpolationMethod, str)
 
 #### Members
 
 #### Private members
 
-- `_requested_coordinates` = tl.Instance(Coordinates, allow_none=True)
+- `_definition`: dict { dim: InterpolationMethod }
 - `_source_coordinates` = tl.Instance(Coordinates)
+- `_requested_coordinates` = tl.Instance(Coordinates, allow_none=True)
 - `_source_coordinates_index` = tl.List()
 - `_source_data` = tl.Instance(UnitsDataArray) 
 

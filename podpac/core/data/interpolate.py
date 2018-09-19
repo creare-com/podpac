@@ -32,6 +32,10 @@ except:
 from podpac.core.coordinates import Coordinates
 
 
+RASTERIO_INTERPS = ['nearest', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss',
+                    'max', 'min', 'med', 'q1', 'q3']
+
+
 class InterpolationException(Exception):
     """
     Custom label for interpolator exceptions
@@ -114,29 +118,38 @@ class Interpolator():
     Meta class to handle interpolation across dimensions
     """
  
-    _stacked = []     # container for stacked dims in interpolator
-    _definition = {}  # container for interpolation methods for each dimension
+    _source_coordinates = None  # container for the source coordinates attached to the interpolator
+                                # TODO: this could just be dims instead of the full coordinates
+    _definition = {}            # container for interpolation methods for each dimension
 
-    def __init__(self, definition, dims, default_method='nearest'):
-        """Construct the Interpolator class to handle interpolations across all dimensions
+    def __init__(self, definition, source_coordinates, default_method='nearest'):
+        """Create an interpolator class to handle one interpolation method per unstacked dimension. 
+        Used to interpolate data within a datasource. 
         
         Parameters
         ----------
         definition : str, podpac.core.data.interpolate.InterpolationMethod, dict
-            Definition object to construct the interpolator.
-        dims : list<str>
-            List of string dimension names
+            Interpolator definition used to define interpolation methods for each definiton.
+            See :ref:podpac.core.data.datasource.DataSource.interpolation for more details.
+        source_coordinates : podpac.core.coordinates.Coordinates
+            Coordinates where DataSource has existing values. Requested coordinates will be interpolated based on
+                the source coordinates
+        default_method : str, optional
+            Interpolation method used for any dimensions not explicity defined in the interpolation definition.
+            Only applies when a dictionary is used to define the interpolator.
         
         Raises
         ------
         InterpolationException
-            Description
+        ValueError
+
         """
 
-        # see if default method is in INTERPOLATION_METHODS
+        # check default method is in INTERPOLATION_METHODS
         if isinstance(default_method, str):
             if default_method not in INTERPOLATION_SHORTCUTS:
-                raise InterpolationException('"{}" is not a valid interpolation method shortcut. '.format(default_method) +
+                raise InterpolationException('Default interpolation method "{}" is not a '.format(default_method) +
+                                             'valid interpolation method shortcut. ' +
                                              'Valid interpolation shortcuts: {}'.format(INTERPOLATION_SHORTCUTS))
         elif isinstance(default_method, InterpolationMethod):
             pass
@@ -146,20 +159,44 @@ class Interpolator():
         if isinstance(definition, (str, InterpolationMethod)):
             method = self._parse_interpolation_method(definition)
 
-            for dim in dims:
+            for dim in source_coordinates.udims:
                 self._set_interpolation_method(dim, method)
 
         elif isinstance(definition, dict):
-            for dim in dims:
+            for dim in source_coordinates.udims:
+
+                # if coordinate dim is not included in definition, use default method
                 if dim not in definition.keys():
-                    self._set_interpolation_method(dim, default_method)
+                    self._set_interpolation_method(dim, INTERPOLATION_METHODS[default_method])
+
+                # otherwise use the interpolation method specified in the definition
                 else:
                     method = self._parse_interpolation_method(definition[dim])
                     self._set_interpolation_method(dim, method)
-
+        else:
+            raise ValueError('{} is not a valid interpolation definition. '.format(type(definition)) +
+                             'Interpolation definiton must be a string, InterpolationMethod, or dict')
 
     def _parse_interpolation_method(self, definition):
+        """Summary
         
+        Parameters
+        ----------
+        definition : TYPE
+            Description
+        
+        Returns
+        -------
+        TYPE
+            Description
+        
+        Raises
+        ------
+        InterpolationException
+            Description
+        ValueError
+            Description
+        """
         if isinstance(definition, str):
             if definition not in INTERPOLATION_SHORTCUTS:
                 raise InterpolationException('"{}" is not a valid interpolation shortcut. '.format(definition) +
@@ -172,17 +209,10 @@ class Interpolator():
             raise ValueError('{} is not a valid interpolation definition. '.format(type(definition)) +
                              'Interpolation definiton must be a string or InterpolationMethod.')
 
-    def _set_interpolation_method(self, dim, Method):
-        
-        # keep track of stacked dims, but store the interpolator methods seperately by independent dimension
-        if '_' in dim:
-            stacked_dims = dim.split('_')
-            for stacked_dim in stacked_dims:
-                self._stacked += [stacked_dim]
-                self._set_interpolation_method(stacked_dim, Method)
+    def _set_interpolation_method(self, dim, method):
 
-        # store the Method for the given dimension in the interpolator definition dictionary
-        self._definition[dim] = Method
+        # store the method for the given dimension in the interpolator definition dictionary
+        self._definition[dim] = method
 
 
     def interpolate_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
