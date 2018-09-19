@@ -14,8 +14,7 @@ from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
 class StackedCoordinates(BaseCoordinates):
-   
-    # TODO dict vs tuple
+    # TODO dict vs tuple?
     _coords = tl.Tuple(trait=tl.Instance(Coordinates1d))
 
     # TODO default coord_ref_sys, ctype, distance_units, time_units
@@ -56,9 +55,9 @@ class StackedCoordinates(BaseCoordinates):
         
         super(StackedCoordinates, self).__init__(_coords=coords)
 
-    @tl.validate('coords')
+    @tl.validate('_coords')
     def _validate_coords(self, d):
-        val = d['val']
+        val = d['value']
         if len(val) < 2:
             raise ValueError('stacked coords must have at least 2 coords, got %d' % len(val))
 
