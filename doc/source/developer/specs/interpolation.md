@@ -33,6 +33,8 @@ Multiple interpolators may be required for each request:
 - `INTERPOLATION_METHODS`: dict of shortcut: InterpolationMethod class
 - `INTERPOLATION_SHORTCUTS`: List
     - Only include the supported interpolation options
+- `TOLERANCE_DEFAULTS`: dict of deafult tolerance for each dim
+    + TODO: how to handle units?
 
 ## Utility methods
 
@@ -46,18 +48,13 @@ Multiple interpolators may be required for each request:
 
 #### Traits
 
-- `method`: string
-    + name of interpolation method
-- `tolerance`: tl.CFloat(np.inf)
-    + optional tolerance for specifying when to exclude interpolated data
-    + Units?
 
 #### Private members
 #### Methods
 
 - `interpolate(source_coordinates, source_data, requested_coordinates, requested_data)`
     + `InterpolationMethod` raises a `NotImplemented` if child does not overide
-- `interpolate_coordinates(requested_coordinates, source_coordinates, source_coordinates_idx)`
+- `select_coordinates(requested_coordinates, source_coordinates, source_coordinates_idx)`
     + `InterpolationMethod` raises a `NotImplemented` if child does not overide
 
 #### Private Methods
@@ -67,8 +64,8 @@ Multiple interpolators may be required for each request:
 
 #### Constructor
 
-- `__init__(definition, source_coordinates)`:
-    + `definition`: (InterpolationMethod, str, dict)
+- `__init__(definition, coordinates, default_method=, tolerance=)`:
+    + `definition`: (InterpolationMethod, str, dict, list)
     + `source_coordinates`
     + `default_method`: (InterpolationMethod, str)
 
@@ -76,6 +73,9 @@ Multiple interpolators may be required for each request:
 
 #### Private members
 
+- `_tolerance`: dict
+    + optional tolerance for specifying when to exclude interpolated data
+    + Units?
 - `_definition`: dict { dim: InterpolationMethod }
 - `_source_coordinates` = tl.Instance(Coordinates)
 - `_requested_coordinates` = tl.Instance(Coordinates, allow_none=True)
@@ -92,22 +92,33 @@ Multiple interpolators may be required for each request:
 #### Methods
 
 - `interpolate(source_coordinates, source_data, requested_coordinates, requested_data)`: run the interpolator
-- `interpolate_coordinates(requested_coordinates, source_coordinates, source_coordinates_idx)`: interpolate child coordinates
+- `select_coordinates(requested_coordinates, source_coordinates, source_coordinates_idx)`: interpolate child coordinates
 - `to_pipeline()`: export interpolator class to pipeline
-- `from_pipeline()`
+- `from_pipeline()`: create interpolator class from pipeline
 
 #### Private Methods
 
-- `_parse_interpolation_method(definition)`: 
+- `_parse_interpolation_definition(definition, coordinates, default_method)`:
+- `_parse_tolerance(tolerance, coordinates)`:
+- `_parse_interpolation_methods(definition)`: 
     + variable input definition (str, InterpolationMethod) returns an InterpolationMethod
+- `_validate_interpolation_method(method)`:
 - `_set_interpolation_method(dim, definition)`:
     + set the InterpolationMethod to be associated iwth the current dimension
     + if `dim` is stacked, split it up and run `_set_interpolation_method` for each part independently
     + store a record that `dim` was stacked
+- `_set_interpolation_tolerance(dim, tolerance)`:
+
+
+
 
 ## Implementations
 
 ### NearestNeighbor
+
+### NearestPreview
+
+- can select coordinates
 
 ### Rasterio
 
