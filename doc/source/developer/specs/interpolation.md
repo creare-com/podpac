@@ -44,7 +44,7 @@ DataSource(... interpolation={
         'time': ('nearest', [Nearest, Rasterio])
     })
 
-# specify an interpolation class itself
+# specify an interpolation class itself (useful when you need to override args to Interpolators)
 DataSource(... interpolation=Interpolation() )
 ```
 
@@ -58,27 +58,28 @@ Used to organize multiple interpolators across the dimensions of a DataSource
 Interpolation(definition, coordinates, **kwargs)
 
 # simple string definition applies to all dimensions
+# this string must be a member of INTERPOLATION_SHORTCUTS
 Interpolation('nearest', coordinates)
 
-# more complicated specify a tuple with a method name and the order of Interpolators
+# more complicated specify a tuple with a method name and the order of Interpolators to use this method with
+# the method string in the tuple does not necessarily have to be a member of INTERPOLATION_SHORTCUTS
 Interpolation( ('nearest', [Rasterio, Nearest]), coordinates)
 
-
-# more complicated dict defines dimensions
+# more complicated dict definition specifies interpolators for each dimension
 # raises Exception if dimension is not included
 Interpolation({
     'lat': 'bilinear',
     'lon': 'bilinear'
     }, coordinates)
 
-# most complicated defines method and order of interpolators
+# most complicated dict definition specifies tuple interpolators for dimensions
 Interpolation({
     'lat': 'nearest',
     'lon': ('nearest', [Rasterio, ...])
     'time': ('nearest', [Nearest, ...])
     }, coordinates)
 
-# include kwargs that get passed on to inteprolation methods
+# can include kwargs that get passed on to Interpolator methods
 Interpolation({
     'lat': 'nearest',
     'lon': ('nearest', [Rasterio, ...])
@@ -89,7 +90,9 @@ Interpolation({
 
 ## `Interpolator`
 
-Create Interpolator classes
+Create **Interpolator** classes that can be assigned in **Interpolation** definitions.
+
+Examples: `NearestNeighbor`, `Rasterio`, `Scipy`
 
 ```python
 
@@ -107,13 +110,13 @@ class MyInterpolator(Interpolator):
     
     validate(self, requested_coordinates, source_coordinates):
         # validate requested coordinates and source_coordinates can 
-        # be interpolated with current "method"
+        # be interpolated with`self.method`
     
     select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
-        # down select coordinates (if valid) based on method
+        # down select coordinates (if valid) based on `self.method`
     
     interpolate(source_coordinates, source_data, requested_coordinates, output):
-        # interpolate data (if valid) based on method
+        # interpolate data (if valid) based on `self.method`
 ```
 
 
@@ -128,8 +131,6 @@ class MyInterpolator(Interpolator):
 - `INTERPOLATION_METHODS`: dict of shortcut: InterpolationMethod class
 - `INTERPOLATION_SHORTCUTS`: List
     - Only include the supported interpolation options
-- `TOLERANCE_DEFAULTS`: dict of deafult tolerance for each dim
-    + TODO: how to handle units?
 
 ## Utility methods
 
