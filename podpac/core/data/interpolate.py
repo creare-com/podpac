@@ -39,17 +39,37 @@ class InterpolationException(Exception):
     pass
     
 
-class InterpolationMethod(tl.HasTraits):
-    """Interpolation Method 
+class Interpolator(tl.HasTraits):
+    """Interpolation Method
+    
+    Attributes
+    ----------
+    method : str
+        current interpolation method to use in Interpolator (i.e. 'nearest')
     
     """
+
+    method = tl.Unicode(allow_none=False)
 
     # Next are used for optimizing the interpolation pipeline
     # If -1, it's cost is assume the same as a competing interpolator in the
     # stack, and the determination is made based on the number of DOF before
     # and after each interpolation step.
-    cost_func = tl.CFloat(-1)  # The rough cost FLOPS/DOF to do interpolation
-    cost_setup = tl.CFloat(-1)  # The rough cost FLOPS/DOF to set up the interpolator
+    # cost_func = tl.CFloat(-1)  # The rough cost FLOPS/DOF to do interpolation
+    # cost_setup = tl.CFloat(-1)  # The rough cost FLOPS/DOF to set up the interpolator
+
+    def __init__(self, **kwargs):
+        
+        # Call traitlets constructor
+        super(Interpolator, self).__init__(**kwargs)
+        self.init()
+
+    def init(self):
+        """
+        Overwrite this method if a Interpolator needs to do any
+        additional initialization after the standard initialization.
+        """
+        pass
 
     def validate(self, requested_coordinates, source_coordinates):
         """Validate that this interpolation method can handle the requested coordinates and source_coordinates
@@ -61,6 +81,12 @@ class InterpolationMethod(tl.HasTraits):
         source_coordinates : TYPE
             Description
         
+        Returns
+        -------
+        Bool
+            True if the current interpolator can handle the requested coordinates and source coordinates for the
+            currently defined method
+
         Raises
         ------
         NotImplementedError
@@ -119,10 +145,11 @@ class InterpolationMethod(tl.HasTraits):
         raise NotImplementedError
 
 
-class NearestNeighbor(InterpolationMethod):
-    pass
+class NearestNeighbor(Interpolator):
+    tolerance = tl.Int()
 
-class NearestPreview(InterpolationMethod):
+class NearestPreview(Interpolator):
+    tolerance = tl.Int()
 
     def validate(self, requested_coordinates, source_coordinates):
         pass
@@ -179,26 +206,26 @@ class NearestPreview(InterpolationMethod):
         pass
 
 
-class Rasterio(InterpolationMethod):
+class Rasterio(Interpolator):
     pass
 
-class ScipyGrid(InterpolationMethod):
+class ScipyGrid(Interpolator):
     pass
 
-class ScipyPoint(InterpolationMethod):
+class ScipyPoint(Interpolator):
     pass
 
-class Radial(InterpolationMethod):
+class Radial(Interpolator):
     pass
 
-class OptimalInterpolation(InterpolationMethod):
+class OptimalInterpolation(Interpolator):
     """ I.E. Kriging """
     pass
 
 # List of available interpolators
 INTERPOLATION_METHODS = {
     'optimal': [OptimalInterpolation],
-    'nearest': [NearestNeighbor, NearestPreview, Rasterio, ScipyGrid],
+    'nearest': [NearestNeighbor, NearestPreview],
     'bilinear':[Rasterio, ScipyGrid],
     'cubic':[Rasterio, ScipyGrid],
     'cubic_spline':[Rasterio, ScipyGrid],
@@ -246,27 +273,21 @@ TOLERANCE_PRESETS = {
 
 
 
-class Interpolator():
-    """Create an interpolator class to handle one interpolation method per unstacked dimension.
+class Interpolation():
+    """Create an interpolation class to handle one interpolation method per unstacked dimension.
     Used to interpolate data within a datasource.
     
     Parameters
     ----------
     definition : str,
-                 podpac.core.data.interpolate.InterpolationMethod,
-                 dict,
-                 list of podpac.core.data.interpolate.InterpolationMethod
-        Interpolator definition used to define interpolation methods for each definiton.
+                 tuple (str, list of podpac.core.data.interpolate.Interpolator),
+                 dict
+        Interpolation definition used to define interpolation methods for each definiton.
         See :ref:podpac.core.data.datasource.DataSource.interpolation for more details.
     coordinates : podpac.core.coordinates.Coordinates
         source coordinates to be interpolated
-    default_method : str, optional
-        Interpolation method used for any dimensions not explicity defined in the interpolation definition.
-        Only applies when a dictionary is used to define the interpolator.
-    tolerance : int, float, dict, optional
-        If tolerance is in an int, it will act for all dimensions.
-        If tolerance is a dict, the keys specify the coordinate dimension and the value specicifies the tolerance.
-        When using a dict, unspecified dimensions will get default tolerances.
+    **kwargs :
+        Keyword arguments passed on to each :ref:podpac.core.data.interpolate.Interpolator
     
     Raises
     ------
@@ -275,96 +296,51 @@ class Interpolator():
     
     """
  
-    _tolerance = {}             # container for interpolation tolerance for each dimension
     _definition = {}            # container for interpolation methods for each dimension
 
-    def __init__(self, definition, coordinates, default_method='nearest', tolerance=None):
-
-        # parse definition
-        self._parse_interpolation_definition(definition, coordinates, default_method)
-
-        # parse tolerance definition
-        self._parse_tolerance(tolerance, coordinates)
-
-
-    def _parse_interpolation_definition(self, definition, coordinates, default_method):
-        """parse interpolation definition object"""
+    def __init__(self, definition, coordinates, **kwargs):
 
         # set each dim to interpolator definition
         if isinstance(definition, dict):
             for dim in coordinates.udims:
 
-                # if coordinate dim is not included in definition, use default method
+                # if coordinate dim is not included in definition, raise an error
                 if dim not in definition.keys():
-                    methods = self._parse_interpolation_methods(default_method)
-                    self._set_interpolation_methods(dim, methods)
+                    raise InterpolationException('coordinate dim "{}" is not defined in interpolation '.format(dim) +
+                                                 'dictionary. All coordinate dimensions must have an interoplation ' +
+                                                 'method defined.')
 
                 # otherwise use the interpolation method specified in the definition
                 else:
-                    method = self._parse_interpolation_methods(definition[dim])
-                    self._set_interpolation_methods(dim, method)
+                    method = self._parse_interpolation_method(definition[dim])
+                    self._set_interpolation_method(dim, method, **kwargs)
 
-        elif isinstance(definition, (str, list, object)):
-            methods = self._parse_interpolation_methods(definition)
+        elif isinstance(definition, (str, tuple)):
+            method = self._parse_interpolation_method(definition)
 
             for dim in coordinates.udims:
-                self._set_interpolation_methods(dim, methods)
+                self._set_interpolation_method(dim, method, **kwargs)
 
         else:
-            raise TypeError('{} is not a valid definition type. '.format(type(definition)) +
-                            'Interpolation definiton must be a string, InterpolationMethod, dict, or list')
-
-    def _parse_tolerance(self, tolerance, coordinates):
-        """parse input tolerance  """
-
-        # if tolerance is not defined, use the defaults for the known dims,
-        # if there is no default tolerance for dim in coordinates, set to None
-        if tolerance is None:
-            for dim in coordinates.udims:
-                if dim in TOLERANCE_DEFAULTS.keys():
-                    self._set_interpolation_tolerance(dim, TOLERANCE_DEFAULTS[dim])
-                else:
-                    self._set_interpolation_tolerance(dim, None)
-
-        # if tolerance is a number, set it to all dims
-        elif isinstance(tolerance, (int, float)):
-            for dim in coordinates.udims:
-                self._set_interpolation_tolerance(dim, tolerance)
-        
-        # if tolerance is a dict, set dict keys to values, otherwise use default
-        # if there is no default tolerance for dim in coordinates, set to None
-        elif isinstance(tolerance, dict):
-            for dim in coordinates.udims:
-
-                # if coordinate dim is not included in tolerance, use default tolerance if it exists
-                if dim not in tolerance.keys():
-                    if dim in TOLERANCE_DEFAULTS.keys():
-                        self._set_interpolation_tolerance(dim, TOLERANCE_DEFAULTS[dim])
-                    else:
-                        self._set_interpolation_tolerance(dim, None)
-                else:
-                    self._set_interpolation_tolerance(dim, tolerance[dim])
-        
-        else:
-            raise TypeError('{} is not a valid tolerance. '.format(tolerance) +
-                            'Tolerance must be a int, float, or a dict')
+            raise TypeError('{} is not a valid interpolation definition type. '.format(type(definition)) +
+                            'Interpolation definiton must be a string, dict, or tuple')
 
 
-    def _parse_interpolation_methods(self, definition):
-        """parse string, list, and InterpolationMethod definitions into a list of InterpolationMethod
+    def _parse_interpolation_method(self, definition):
+        """parse interpolation definitions into a tuple of (method, Interpolator)
         
         Parameters
         ----------
         definition : str,
-                     podpac.core.data.interpolate.InterpolationMethod,
-                     list of podpac.core.data.interpolate.InterpolationMethod
+                     tuple (str, list of podpac.core.data.interpolate.Interpolator),
             interpolation definition for a single dimension.
             See :ref:podpac.core.data.datasource.DataSource.interpolation for more details.
         
         Returns
         -------
-        list of InterpolatioMethod
-            list of InterpolationMethod classes to parsed from input definition
+        tuple (str, list of podpac.core.data.interpolate.Interpolator)
+            tuple with the first element the string method and second element a
+            list of :ref:podpac.core.data.interpolate.Interpolator classes
         
         Raises
         ------
@@ -375,71 +351,75 @@ class Interpolator():
             if definition not in INTERPOLATION_SHORTCUTS:
                 raise InterpolationException('"{}" is not a valid interpolation shortcut. '.format(definition) +
                                              'Valid interpolation shortcuts: {}'.format(INTERPOLATION_SHORTCUTS))
-            return INTERPOLATION_METHODS[definition]
+            return (definition, INTERPOLATION_METHODS[definition])
 
-        elif isinstance(definition, list):
+        elif isinstance(definition, tuple):
+            method_string = definition[0]
+            interpolators = definition[1]
 
-            # confirm that all items are InterpolationMethods
-            for method in definition:
-                self._validate_interpolation_method(method)
+            # confirm types
+            if not isinstance(method_string, str):
+                raise TypeError('{} is not a valid interpolation method. '.format(method_string) +
+                                'Interpolation method must be a string')
 
+            if not isinstance(interpolators, list):
+                raise TypeError('{} is not a valid interpolator definition. '.format(interpolators) +
+                                'Interpolator definition must be of type list containing Interpolator')
+
+            for interpolator in interpolators:
+                self._validate_interpolator(interpolator)
+
+            # if all checks pass, return the definition
             return definition
 
-        elif isinstance(definition, object):
-            self._validate_interpolation_method(definition)
-            return [definition]
         else:
-            raise TypeError('{} is not a valid interpolation definition. '.format(type(definition)) +
-                            'Interpolation definiton must be a string or InterpolationMethod.')
+            raise TypeError('{} is not a valid interpolation definition. '.format(definition) +
+                            'Interpolation definiton must be a string or Interpolator.')
 
-    def _validate_interpolation_method(self, method):
-        """Make sure method is a subclass of InterpolationMethod
+    def _validate_interpolator(self, interpolator):
+        """Make sure interpolator is a subclass of Interpolator
         
         Parameters
         ----------
-        method : any
+        interpolator : any
             input definition to validate
         
         Raises
         ------
         TypeError
-            Raises a type error if method is not a subclass of InterpolationMethod
+            Raises a type error if interpolator is not a subclass of Interpolator
         """
         try:
-            valid = issubclass(method, InterpolationMethod)
+            valid = issubclass(interpolator, Interpolator)
             if not valid:
                 raise TypeError()
         except TypeError:
-            raise TypeError('"{}" is not a vlidate input  '.format(method) +
-                            'Interpolation items must be of type: ' +
-                            '{}'.format(InterpolationMethod))
+            raise TypeError('{} is not a valid interpolator type. '.format(interpolator) +
+                            'Interpolator must be of type {}'.format(Interpolator))
 
-    def _set_interpolation_methods(self, dim, methods):
+    def _set_interpolation_method(self, dim, method, **kwargs):
         """Set the list of interpolation methods to the input dimension
         
         Parameters
         ----------
         dim : string
             dimension to assign
-        methods : list of podpac.core.data.interpolate.InterpolationMethod
-            methods to assign to dimension
+        method : tuple (str, list of podpac.core.data.interpolate.Interpolator)
+            method and list of interpolators to assign to dimension
+        **kwargs :
+            keyword arguments passed into Interpolation class
         """
 
-        self._definition[dim] = methods
+        method_string = method[0]
+        interpolators = deepcopy(method[1])
 
-    def _set_interpolation_tolerance(self, dim, tolerance):
-        """Set the prescribed tolerance to the input dimension
-        
-        Parameters
-        ----------
-        dim : string
-            dimension to assign
-        tolerance : int, float
-            tolerance to assign to dimension
-        """
+        # instantiate interpolators
+        for (idx, interpolator) in enumerate(interpolators):
+            kwargs['method'] = method_string
+            interpolators[idx] = interpolator(**kwargs)
 
-        self._tolerance[dim] = tolerance
-
+        # set to interpolation dictionary
+        self._definition[dim] = (method_string, interpolators)
 
 
 

@@ -26,6 +26,101 @@ Multiple interpolators may be required for each request:
 - user requests data at coordinates that overlap the extent of the native dataset
 - user requests a different type of interpolation for lat/long and time
 
+
+# User Interface
+
+**DataSource** usage (primary):
+
+```python
+
+# specify method
+DataSource(... interpolation='nearest')
+
+# specify dict of methods for each dimension
+# value can be a method string, or a tuple which overrides the default method InterpolationMethods
+DataSource(... interpolation={
+        'lat': 'bilinear',
+        'lon': 'bilinear',
+        'time': ('nearest', [Nearest, Rasterio])
+    })
+
+# specify an interpolation class itself
+DataSource(... interpolation=Interpolation() )
+```
+
+## `Interpolation`
+
+Used to organize multiple interpolators across the dimensions of a DataSource
+
+```python
+# definition generally comes from DataSource `interpolation`
+# **kwargs will get passed on to interpolators
+Interpolation(definition, coordinates, **kwargs)
+
+# simple string definition applies to all dimensions
+Interpolation('nearest', coordinates)
+
+# more complicated specify a tuple with a method name and the order of Interpolators
+Interpolation( ('nearest', [Rasterio, Nearest]), coordinates)
+
+
+# more complicated dict defines dimensions
+# raises Exception if dimension is not included
+Interpolation({
+    'lat': 'bilinear',
+    'lon': 'bilinear'
+    }, coordinates)
+
+# most complicated defines method and order of interpolators
+Interpolation({
+    'lat': 'nearest',
+    'lon': ('nearest', [Rasterio, ...])
+    'time': ('nearest', [Nearest, ...])
+    }, coordinates)
+
+# include kwargs that get passed on to inteprolation methods
+Interpolation({
+    'lat': 'nearest',
+    'lon': ('nearest', [Rasterio, ...])
+    'time': ('nearest', [Nearest, ...])
+    }, coordinates, tolerance=1, arg='for interpolator')
+```
+
+
+## `Interpolator`
+
+Create Interpolator classes
+
+```python
+
+class MyInterpolator(Interpolator):
+    """ 
+    class has traits 
+    """
+
+    # method = tl.Unicode() defined by Interpolator base class
+    tolerance = tl.Int()
+    kwarg = tl.Any()
+
+    init(self):
+        # act on inputs after traits have been set up
+    
+    validate(self, requested_coordinates, source_coordinates):
+        # validate requested coordinates and source_coordinates can 
+        # be interpolated with current "method"
+    
+    select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
+        # down select coordinates (if valid) based on method
+    
+    interpolate(source_coordinates, source_data, requested_coordinates, output):
+        # interpolate data (if valid) based on method
+```
+
+
+
+
+
+
 # Specification
 
 ## Constants
@@ -38,52 +133,57 @@ Multiple interpolators may be required for each request:
 
 ## Utility methods
 
+## `Interpolator` Abstract Class
 
-
-
-
-## InterpolationMethod Class
-
-#### Constants
+This is a traits based class since users may be expected to define Interoplator subclasses
 
 #### Traits
 
+- `method`: tl.Unicode() - current interpolation method name
 
-#### Private members
+
 #### Methods
 
+- `validate(requested_coordinates, source_coordinates)`
+    + check to see if the Interpolator supports the requested/soruce coordinate pair for the current method
+    + `InterpolationMethod` raises a `NotImplemented` if child does not overide
 - `interpolate(source_coordinates, source_data, requested_coordinates, requested_data)`
     + `InterpolationMethod` raises a `NotImplemented` if child does not overide
 - `select_coordinates(requested_coordinates, source_coordinates, source_coordinates_idx)`
     + `InterpolationMethod` raises a `NotImplemented` if child does not overide
 
-#### Private Methods
+### `NearestNeighbor`
+
+### `NearestPreview`
+
+- can select coordinates
+
+### `Rasterio`
+
+### `Scipy`
 
 
-## Interpolator Class
+
+## `Interpolation` Class
 
 #### Constructor
 
-- `__init__(definition, coordinates, default_method=, tolerance=)`:
-    + `definition`: (InterpolationMethod, str, dict, list)
-    + `source_coordinates`
-    + `default_method`: (InterpolationMethod, str)
+- `__init__(definition, coordinates, **kwargs)`:
+    + `definition`: (str, dict, tuple)
+    + `coordinates`
+    + kwargs will get passed through the Interpolator classes
 
 #### Members
 
 #### Private members
 
-- `_tolerance`: dict
-    + optional tolerance for specifying when to exclude interpolated data
-    + Units?
-- `_definition`: dict { dim: InterpolationMethod }
-- `_source_coordinates` = tl.Instance(Coordinates)
-- `_requested_coordinates` = tl.Instance(Coordinates, allow_none=True)
-- `_source_coordinates_index` = tl.List()
-- `_source_data` = tl.Instance(UnitsDataArray) 
+
+- `_definition`: dict { dim: ('method', [Interpolator]) }
+
 
 **Cost Optimization**
 
+TODO: figure out where to implement optimization steps
 - `cost_func`: tl.CFloat(-1)
     + rough cost FLOPS/DOF to do interpolation
 - `cost_setup`: tl.CFloat(-1)
@@ -96,44 +196,12 @@ Multiple interpolators may be required for each request:
 - `to_pipeline()`: export interpolator class to pipeline
 - `from_pipeline()`: create interpolator class from pipeline
 
-#### Private Methods
-
-- `_parse_interpolation_definition(definition, coordinates, default_method)`:
-- `_parse_tolerance(tolerance, coordinates)`:
-- `_parse_interpolation_methods(definition)`: 
-    + variable input definition (str, InterpolationMethod) returns an InterpolationMethod
-- `_validate_interpolation_method(method)`:
-- `_set_interpolation_method(dim, definition)`:
-    + set the InterpolationMethod to be associated iwth the current dimension
-    + if `dim` is stacked, split it up and run `_set_interpolation_method` for each part independently
-    + store a record that `dim` was stacked
-- `_set_interpolation_tolerance(dim, tolerance)`:
-
-
-
-
-## Implementations
-
-### NearestNeighbor
-
-### NearestPreview
-
-- can select coordinates
-
-### Rasterio
-
-### Scipy
-
 
 ## InterpolatorException
 
 - custom exception for interpolation errors
 
-## User Interface
 
-TODO
 
-## Developer interface
 
-TODO
 

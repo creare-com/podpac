@@ -7,8 +7,8 @@ from traitlets import TraitError
 
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data import interpolate
-from podpac.core.data.interpolate import (Interpolator, InterpolationException,
-                                          InterpolationMethod, INTERPOLATION_METHODS, TOLERANCE_DEFAULTS,
+from podpac.core.data.interpolate import (Interpolation, InterpolationException,
+                                          Interpolator, INTERPOLATION_METHODS,
                                           INTERPOLATION_SHORTCUTS, NearestNeighbor, NearestPreview,
                                           Rasterio)
 
@@ -30,9 +30,9 @@ class TestInterpolate(object):
         pass
 
 
-    class TestInterpolator(object):
+    class TestInterpolation(object):
 
-        """ Test Interpolator class
+        """ Test Interpolation class
         """
             
 
@@ -41,107 +41,95 @@ class TestInterpolate(object):
             """test constructor
             """
 
-            # should throw an error if definition is not str, dict, or InterpolationMethod
+            # should throw an error if definition is not str, dict, or Interpolator
             with pytest.raises(TypeError):
-                Interpolator(5, COORDINATES)
+                Interpolation(5, COORDINATES)
 
         
         def test_str_definition(self):
             # should throw an error if string input is not one of the INTERPOLATION_SHORTCUTS
             with pytest.raises(InterpolationException):
-                Interpolator('test', COORDINATES)
+                Interpolation('test', COORDINATES)
 
-            interp = Interpolator('nearest', COORDINATES)
+            interp = Interpolation('nearest', COORDINATES)
             assert interp._definition['lat']
-            assert isinstance(interp._definition['lat'], list)
-            assert interp._definition['lat'] == INTERPOLATION_METHODS['nearest']
-            assert interp._definition['lon'] == INTERPOLATION_METHODS['nearest']
+            assert isinstance(interp._definition['lat'], tuple)
+            assert interp._definition['lat'][0] == 'nearest'
+            assert interp._definition['lon'][0] == 'nearest'
+            assert isinstance(interp._definition['lat'][1][0], Interpolator)
+            assert isinstance(interp._definition['lon'][1][0], Interpolator)
 
         def test_dict_definition(self):
 
             # should throw an error on _parse_interpolation_method(definition) 
             # if definition is not in INTERPOLATION_SHORTCUTS
             with pytest.raises(InterpolationException):
-                Interpolator({'lat': 'test'}, COORDINATES)
+                Interpolation({'lat': 'test'}, COORDINATES)
 
             # handle string methods
-            interp = Interpolator({'lat': 'nearest'}, COORDINATES)
-            assert isinstance(interp._definition['lat'], list)
-            assert interp._definition['lat'] == INTERPOLATION_METHODS['nearest']
+            interp = Interpolation({'lat': 'nearest', 'lon': 'nearest'}, COORDINATES)
+            assert isinstance(interp._definition['lat'], tuple)
+            assert interp._definition['lat'][0] == 'nearest'
+            assert interp._definition['lon'][0] == 'nearest'
+            assert isinstance(interp._definition['lat'][1][0], Interpolator)
+            assert isinstance(interp._definition['lon'][1][0], Interpolator)
+
+            # handle tuple methods
+            interp = Interpolation({'lat': ('nearest', [NearestNeighbor]), 
+                                    'lon': ('nearest', [NearestNeighbor])}, COORDINATES)
+            assert isinstance(interp._definition['lat'], tuple)
+            assert interp._definition['lat'][0] == 'nearest'
+            assert interp._definition['lon'][0] == 'nearest'
+            assert isinstance(interp._definition['lat'][1][0], Interpolator)
+            assert isinstance(interp._definition['lon'][1][0], Interpolator)
 
             
-            # should throw an error if default_method is not in INTERPOLATION_SHORTCUTS
-            Interpolator({'lat': 'nearest'}, COORDINATES, default_method='nearest')
+            # should throw an error if not all dimensions are supplied
             with pytest.raises(InterpolationException):
-                Interpolator({'lat': 'nearest'}, COORDINATES, default_method='test')
-
-            # should fill in methods not included in definition dictionary
-            interp = Interpolator({'lat': 'nearest'}, COORDINATES, default_method='bilinear')
-            assert interp._definition['lon']
-            assert isinstance(interp._definition['lon'], list)
-            assert interp._definition['lon'] == INTERPOLATION_METHODS['bilinear']
+                Interpolation({'lat': 'nearest'}, COORDINATES)
 
 
-        def test_interpolation_method_definition(self):
+        def test_tuple_definition(self):
 
-            interp = Interpolator(NearestNeighbor, COORDINATES)
+            interp_tuple = ('myinterp', [NearestNeighbor, Rasterio, NearestPreview])
+            interp = Interpolation(interp_tuple, COORDINATES)
             assert interp._definition['lat']
-            assert isinstance(interp._definition['lat'], list)
-            assert interp._definition['lat'] == [NearestNeighbor]
+            assert isinstance(interp._definition['lat'], tuple)
+            assert isinstance(interp._definition['lat'][1][1], Rasterio)
+            assert isinstance(interp._definition['lon'][1][1], Rasterio)
 
 
-            # should throw an error if items are not InterpolationMethods
+            # should throw an error if items are not in a list
             with pytest.raises(TypeError):
-                Interpolator(['nearest'], COORDINATES)
-
-        def test_list_definition(self):
-
-            interp_list = [NearestNeighbor, Rasterio, NearestPreview]
-            interp = Interpolator(interp_list, COORDINATES)
-            assert interp._definition['lat']
-            assert isinstance(interp._definition['lat'], list)
-            assert interp._definition['lat'] == interp_list
+                Interpolation(('myinter', 'test'), COORDINATES)
 
 
-            # should throw an error if items are not InterpolationMethods
+            # should throw an error if items are not Interpolators
             with pytest.raises(TypeError):
-                Interpolator(['nearest'], COORDINATES)
+                Interpolation(('myinter', ['test']), COORDINATES)
 
-
-        def test_wrong_tolerance_type(self):
-
+            # should throw an error if method is not a string are not Interpolators
             with pytest.raises(TypeError):
-                Interpolator('nearest', COORDINATES, tolerance='test')
- 
+                Interpolation((5, [NearestNeighbor, Rasterio, NearestPreview]), COORDINATES)
 
-        def test_number_tolerance(self):
-            interp = Interpolator('nearest', COORDINATES, tolerance=5)
-            assert interp._tolerance['lat']
-            assert interp._tolerance['lat'] == 5
-            assert interp._tolerance['lon'] == 5
+        def test_interpolator_init(self):
+
+            interp = Interpolation('nearest', COORDINATES)
+            assert interp._definition['lat'][1][0].method == 'nearest'
+            assert interp._definition['lat'][1][1].method == 'nearest'
+
+        def test_init_kwargs(self):
+            
+            interp = Interpolation('nearest', COORDINATES, tolerance=1)
+            assert interp._definition['lat'][1][0].tolerance == 1
+
+            # should throw TraitErrors defined by Interpolator
+            with pytest.raises(TraitError):
+                Interpolation('nearest', COORDINATES, tolerance='tol')
+
+            # should allow other properties, but it won't put them on the 
+            interp = Interpolation('nearest', COORDINATES, myarg='tol')
+            with pytest.raises(AttributeError):
+                assert interp._definition['lat'][1][0].myarg == 'tol'
 
 
-        def test_dict_tolerance(self):
-
-            # test defaults
-            interp = Interpolator('nearest', COORDINATES, tolerance={'lat': 5})
-            assert interp._tolerance['lat'] == 5
-            assert interp._tolerance['lon'] == TOLERANCE_DEFAULTS['lon']
-
-            # coords don't allow this yet
-            # coords = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'other'])
-            # interp = Interpolator('nearest', coords, tolerance={'lat': 5})
-            # assert interp._tolerance['lat'] == 5
-            # assert interp._tolerance['other'] is None
-
-        def test_none_tolerance(self):
-
-            # test defaults
-            interp = Interpolator('nearest', COORDINATES)
-            assert interp._tolerance['lat'] == TOLERANCE_DEFAULTS['lat']
-            assert interp._tolerance['lon'] == TOLERANCE_DEFAULTS['lon']
-
-            # coords = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'other'])
-            # interp = Interpolator('nearest', coords)
-            # assert interp._tolerance['lat'] == TOLERANCE_DEFAULTS['lat']
-            # assert interp._tolerance['other'] is None
