@@ -22,8 +22,18 @@ RUN curl https://www.python.org/ftp/python/3.6.1/Python-3.6.1.tar.xz | tar -xJ \
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # Some python modules needs numpy (sources) and cython
-RUN pip3 install cython numpy
+RUN pip3 install cython numpy -t /tmp/vendored
 
 RUN git clone -b develop https://github.com/creare-com/podpac.git && \
     cd podpac/ && \
     pip3 install -e .
+
+RUN cp -r /podpac/ /tmp/vendored/
+
+# We can remove all tests/ script and other unused files
+RUN find /tmp/vendored -name "*-info" -type d -exec rm -rdf {} +
+RUN find /tmp/vendored -name "tests" -type d -exec rm -rdf {} +
+
+# Zip things up and display the size of the zip
+RUN cd /tmp/vendored && zip -r9q /tmp/package.zip * lib/*
+RUN du -sh /tmp/package.zip
