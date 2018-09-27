@@ -8,7 +8,7 @@ from traitlets import TraitError
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data import interpolate
 from podpac.core.data.interpolate import (Interpolation, InterpolationException,
-                                          Interpolator, INTERPOLATION_METHODS,
+                                          Interpolator, INTERPOLATION_METHODS, INTERPOLATION_DEFAULT,
                                           INTERPOLATION_SHORTCUTS, NearestNeighbor, NearestPreview,
                                           Rasterio)
 
@@ -36,7 +36,6 @@ class TestInterpolate(object):
         """
             
 
-        
         def test_interpolator_init_type(self):
             """test constructor
             """
@@ -84,9 +83,14 @@ class TestInterpolate(object):
             assert isinstance(interp._definition['lon'][1][0], Interpolator)
 
             
-            # should throw an error if not all dimensions are supplied
-            with pytest.raises(InterpolationException):
-                Interpolation({'lat': 'nearest'}, COORDINATES)
+            # use default if not all dimensions are supplied
+            interp = Interpolation({'lat': 'bilinear'}, COORDINATES)
+            assert interp._definition['lon'][0] == INTERPOLATION_DEFAULT
+
+
+            # use default with override if not all dimensions are supplied
+            interp = Interpolation({'lat': 'bilinear'}, COORDINATES, default='optimal')
+            assert interp._definition['lon'][0] == 'optimal'
 
 
         def test_tuple_definition(self):

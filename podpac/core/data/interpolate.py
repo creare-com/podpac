@@ -148,11 +148,20 @@ class Interpolator(tl.HasTraits):
 class NearestNeighbor(Interpolator):
     tolerance = tl.Int()
 
+    def validate(self, requested_coordinates, source_coordinates):
+        return None
+
+    def select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
+        return None
+
+    def interpolate(self, source_coordinates, source_data, requested_coordinates, output):
+        return None
+
 class NearestPreview(Interpolator):
     tolerance = tl.Int()
 
     def validate(self, requested_coordinates, source_coordinates):
-        pass
+        return None
     
     def select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
         # We can optimize a little
@@ -203,24 +212,68 @@ class NearestPreview(Interpolator):
         return new_source_coordinates, new_source_coordinates_index
             
     def interpolate(self, source_coordinates, source_data, requested_coordinates, output):
-        pass
+        return None
 
 
 class Rasterio(Interpolator):
-    pass
+
+    def validate(self, requested_coordinates, source_coordinates):
+        return None
+
+    def select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
+        return None
+
+    def interpolate(self, source_coordinates, source_data, requested_coordinates, output):
+        return None
+
 
 class ScipyGrid(Interpolator):
-    pass
+    
+    def validate(self, requested_coordinates, source_coordinates):
+        return None
+
+    def select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
+        return None
+
+    def interpolate(self, source_coordinates, source_data, requested_coordinates, output):
+        return None
+
 
 class ScipyPoint(Interpolator):
-    pass
+    
+    def validate(self, requested_coordinates, source_coordinates):
+        return None
+
+    def select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
+        return None
+
+    def interpolate(self, source_coordinates, source_data, requested_coordinates, output):
+        return None
+
 
 class Radial(Interpolator):
-    pass
+    
+    def validate(self, requested_coordinates, source_coordinates):
+        return None
+
+    def select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
+        return None
+
+    def interpolate(self, source_coordinates, source_data, requested_coordinates, output):
+        return None
+
 
 class OptimalInterpolation(Interpolator):
     """ I.E. Kriging """
-    pass
+    
+    def validate(self, requested_coordinates, source_coordinates):
+        return None
+
+    def select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
+        return None
+
+    def interpolate(self, source_coordinates, source_data, requested_coordinates, output):
+        return None
 
 # List of available interpolators
 INTERPOLATION_METHODS = {
@@ -244,8 +297,8 @@ INTERPOLATION_METHODS = {
 # create shortcut list based on methods keys
 INTERPOLATION_SHORTCUTS = INTERPOLATION_METHODS.keys()
 
-
-
+# default interoplation
+INTERPOLATION_DEFAULT = 'nearest'
 
 class Interpolation():
     """Create an interpolation class to handle one interpolation method per unstacked dimension.
@@ -270,19 +323,19 @@ class Interpolation():
     
     """
  
+    _dims = []                  # container for inteporlation key dims
     _definition = {}            # container for interpolation methods for each dimension
 
-    def __init__(self, definition, coordinates, **kwargs):
+    def __init__(self, definition, coordinates, default=INTERPOLATION_DEFAULT, **kwargs):
 
         # set each dim to interpolator definition
         if isinstance(definition, dict):
             for dim in coordinates.udims:
 
-                # if coordinate dim is not included in definition, raise an error
+                # if coordinate dim is not included in definition, use the default interpolation method
                 if dim not in definition.keys():
-                    raise InterpolationException('coordinate dim "{}" is not defined in interpolation '.format(dim) +
-                                                 'dictionary. All coordinate dimensions must have an interoplation ' +
-                                                 'method defined.')
+                    method = self._parse_interpolation_method(default)
+                    self._set_interpolation_method(dim, method, **kwargs)
 
                 # otherwise use the interpolation method specified in the definition
                 else:
@@ -393,13 +446,17 @@ class Interpolation():
             interpolators[idx] = interpolator(**kwargs)
 
         # set to interpolation dictionary
+        self._dims += [dim]
         self._definition[dim] = (method_string, interpolators)
 
 
 
     def select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
         """
-        Decide if we can interpolate coordinates
+        Decide if we can interpolate coordinates.
+        At this point, we have selected a subset of source_coordinates that intersects with the requested coordinates.
+        We have dropped any extra dimensions from requested coordinates and we have confirmed that source coordinates
+        are not missing any dimensions.
         
         Parameters
         ----------
@@ -411,10 +468,14 @@ class Interpolation():
             Index of intersected source coordinates. See :ref:podpac.core.data.datasource.DataSource for
             more information about valid values for the source_coordinates_index
         """
+        
         pass
+        # for dim in requested_coordinates.udims:
 
         # for methods in each dimension, run validate. if true, then run select_coordinates in that interpolation method
 
+    def _iterate_dims(self):
+        pass
 
     def interpolate(self, source_coordinates, source_data, requested_coordinates, output):
         pass

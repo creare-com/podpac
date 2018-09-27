@@ -66,7 +66,6 @@ Interpolation('nearest', coordinates)
 Interpolation( ('nearest', [Rasterio, Nearest]), coordinates)
 
 # more complicated dict definition specifies interpolators for each dimension
-# raises Exception if dimension is not included
 Interpolation({
     'lat': 'bilinear',
     'lon': 'bilinear'
@@ -131,6 +130,7 @@ class MyInterpolator(Interpolator):
 - `INTERPOLATION_METHODS`: dict of shortcut: InterpolationMethod class
 - `INTERPOLATION_SHORTCUTS`: List
     - Only include the supported interpolation options
+- `INTERPOLATION_DEFAULT`: 'nearest', interpolation method if none is specified to datasource or if dimensions are left out of the dict
 
 ## Utility methods
 
