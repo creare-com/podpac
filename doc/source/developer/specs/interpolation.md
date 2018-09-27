@@ -22,7 +22,7 @@ Multiple interpolators may be required for each request:
 # Example Use cases
 
 - user requests a single value at a point between coordinates in a datasource
-- user requests an array of coordinates from a dataset from a dataset with a different coordinate system
+- user requests an array of coordinates from a dataset with a different coordinate system
 - user requests data at coordinates that overlap the extent of the native dataset
 - user requests a different type of interpolation for lat/long and time
 

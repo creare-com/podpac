@@ -24,18 +24,29 @@
 
 - `source`: Any, required
     + The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as a few examples.
-- `interpolation`: 
-    - `Interpolator()` - NearestNeighbor
-    - Dict({`dim` (not stacked): `Interpolator()` NearestNeighbor})
-    - string - Enum(`interpolate.INTERPOLATION_OPTIONS`)
-    - Dict({`dim` (not stacked): string - Enum(`interpolate.INTERPOLATION_OPTIONS`)})
+- `interpolation`:  
+     - str, tuple (str, list of podpac.core.data.interpolate.Interpolator)
+    - Definition of interpolation methods for each dimension of the native coordinates. If input is a string, it must match one of the interpolation shortcuts defined in
+    :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS. The interpolation method associated
+    with this string will be applied to all dimensions in the native coordinates.
+    - If input is a tuple, the first element of the tuple must be a string interpolation method name.
+    The second element must be a list of :ref:podpac.core.data.interpolate.Interpolator. This list specifies
+    the order in which the interpolators will be applied.
+    The interpolation method defined by this tuple will be applied to all dimensions in the native coordinates.
+    - If input is a dict, the key must be string dimension names. The value can be a string or tuple following
+    the same convention as specified above. The string or tuple will be applied
+    to the dimension specied by the key. An exception will be raised if the dictionary
+    does not contain a key for all unstacked dimensions of the native coodrinates.
+    All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
+    - If input is a podpac.core.data.interpolate.Interpolation, this interpolator will be used without modication.
+    - By default, the interpolation method is set to `'nearest'` for all dimensions.
 - `coordinate_index_type`: Enum('list','numpy','xarray','pandas'). By default this is `numpy`
 - `nan_vals`: List
     + list of values from source data that should be interpreted as 'no data' or 'nans' (replaces `no_data_vals`)
 
 #### Private Members
 
-- `_interpolator` - interpolator chosen from `interpolator` and `interpolation`
+- `_interpolation` - tl.Instance(Interpolation).  Interpolation method returned from Interpolation(`interpolation`) constructor
 
 *TODO* : the names of these memebers will be changed
 
@@ -50,13 +61,12 @@
 
 - FUTURE: After implementing a limiter on the request size, implement:
     + Take one input (i.e. `evaluate`) that will automatically execute the datasource at the native_coordinates on contruction. This will allow a shortcut when you just want to load a simple data source for processing with other more complication data sources
-- Choose a default interpolation option if neither interpolator or interpolation is defined
 
 #### Methods
 
 - `eval(coordinates, output=None, method=None)`: Evaluate this node using the supplied coordinates
     + `self.requested_coordinates` gets set to the coordinates that are input
-    + Instantiate `_interpolator`  classes with data sources based on input to `interpolation`
+    + Instantiate `_interpolation`  classes with data sources based on input to `interpolation`
     + remove dims that don't exist in native coordinates
     + intersect the `self.requested_coordinates` with `self.native_coordinates` to create `self.requested_source_coordinates` and `self.requested_source_coordinates_index` to get requested via `get_data`.  DataSource `coordinate_index_type` informs `self.requested_source_coordinates_index` (Array[int], Array[boolean], List[slices])
     + interpolate requested coordinates `self.requested_source_coordinates` using `_interpolate_requested_coordinates()`.
