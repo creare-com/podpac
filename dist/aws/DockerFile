@@ -26,9 +26,8 @@ RUN pip3 install cython numpy -t /tmp/vendored
 
 RUN git clone -b develop https://github.com/creare-com/podpac.git && \
     cd podpac/ && \
-    pip3 install -e .
-
-RUN cp -r /podpac/ /tmp/vendored/
+    pip3 install -e . && \
+    cp -r /podpac/ /tmp/vendored/
 
 # We can remove all tests/ script and other unused files
 RUN find /tmp/vendored -name "*-info" -type d -exec rm -rdf {} +
