@@ -245,32 +245,6 @@ INTERPOLATION_METHODS = {
 INTERPOLATION_SHORTCUTS = INTERPOLATION_METHODS.keys()
 
 
-# default tolerance for each dimension
-# TODO: units?
-TOLERANCE_DEFAULTS = {
-    'lat': 1,
-    'lon': 1,
-    'alt': 1,
-    'time': 1
-}
-
-# TODO: do we want some kind of string preset?
-TOLERANCE_PRESETS = {
-    'high': {
-        'lat': 1,
-        'lon': 1,
-        'alt': 1,
-        'time': 1
-    },
-    'low': {
-        'lat': 1,
-        'lon': 1,
-        'alt': 1,
-        'time': 1
-    }
-}
-
-
 
 
 class Interpolation():
