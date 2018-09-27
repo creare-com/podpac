@@ -323,35 +323,56 @@ class Interpolation():
     
     """
  
-    _dims = []                  # container for inteporlation key dims
     _definition = {}            # container for interpolation methods for each dimension
 
     def __init__(self, definition, coordinates, default=INTERPOLATION_DEFAULT, **kwargs):
 
+        self._definition = {}
+
         # set each dim to interpolator definition
         if isinstance(definition, dict):
-            for dim in coordinates.udims:
 
-                # if coordinate dim is not included in definition, use the default interpolation method
-                if dim not in definition.keys():
-                    method = self._parse_interpolation_method(default)
-                    self._set_interpolation_method(dim, method, **kwargs)
+            defined_udims = []
+            for udims in definition.keys():
 
-                # otherwise use the interpolation method specified in the definition
-                else:
-                    method = self._parse_interpolation_method(definition[dim])
-                    self._set_interpolation_method(dim, method, **kwargs)
+                # get interpolation method
+                method = self._parse_interpolation_method(definition[udims])
+
+                # if udims is not a tuple, convert it to one
+                if not isinstance(udims, tuple):
+                    udims = (udims,)
+
+
+                # add all udims to definition
+                self._set_interpolation_method(udims, method, **kwargs)
+
+                # create list of all udimss defined
+                defined_udims += list(udims)
+
+            # determine dims missing from definitions
+            missing_udims = tuple(set(coordinates.udims) - set(defined_udims))
+
+            # set default method to missing dims
+            if not missing_udims:
+                default_method = self._parse_interpolation_method(default)
+                self._set_interpolation_method(missing_udims, default_method, **kwargs)
+            
 
         elif isinstance(definition, (str, tuple)):
             method = self._parse_interpolation_method(definition)
-
-            for dim in coordinates.udims:
-                self._set_interpolation_method(dim, method, **kwargs)
+            self._set_interpolation_method(coordinates.udims, method, **kwargs)
 
         else:
             raise TypeError('{} is not a valid interpolation definition type. '.format(type(definition)) +
                             'Interpolation definiton must be a string, dict, or tuple')
 
+
+    def __repr__(self):
+        rep = str(self.__class__.__name__)
+        for udims in self._definition.keys():
+            rep += '\n\t%s: (%s, %s)' % (udims, self._definition[udims][0],
+                                        [i.__class__.__name__ for i in self._definition[udims][1]])
+        return rep
 
     def _parse_interpolation_method(self, definition):
         """parse interpolation definitions into a tuple of (method, Interpolator)
@@ -424,13 +445,13 @@ class Interpolation():
             raise TypeError('{} is not a valid interpolator type. '.format(interpolator) +
                             'Interpolator must be of type {}'.format(Interpolator))
 
-    def _set_interpolation_method(self, dim, method, **kwargs):
+    def _set_interpolation_method(self, udims, method, **kwargs):
         """Set the list of interpolation methods to the input dimension
         
         Parameters
         ----------
-        dim : string
-            dimension to assign
+        udims : tuple
+            tuple of dimensiosn to assign method to
         method : tuple (str, list of podpac.core.data.interpolate.Interpolator)
             method and list of interpolators to assign to dimension
         **kwargs :
@@ -446,8 +467,7 @@ class Interpolation():
             interpolators[idx] = interpolator(**kwargs)
 
         # set to interpolation dictionary
-        self._dims += [dim]
-        self._definition[dim] = (method_string, interpolators)
+        self._definition[udims] = (method_string, interpolators)
 
 
 
@@ -469,7 +489,19 @@ class Interpolation():
             more information about valid values for the source_coordinates_index
         """
         
-        pass
+        for udims in self._definition.keys():
+            method = self._definition[udims]
+
+            method_string = method[0]
+            interpolators = method[1]
+
+            for interpolator in interpolators:
+                cost = interpolator.evaluate_select(udims, 
+                                                    requested_coordinates, 
+                                                    source_coordinates, 
+                                                    source_coordinates_index)
+                if can_select_coordinates:
+                    pass
         # for dim in requested_coordinates.udims:
 
         # for methods in each dimension, run validate. if true, then run select_coordinates in that interpolation method

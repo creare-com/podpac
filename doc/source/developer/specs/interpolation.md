@@ -67,8 +67,7 @@ Interpolation( ('nearest', [Rasterio, Nearest]), coordinates)
 
 # more complicated dict definition specifies interpolators for each dimension
 Interpolation({
-    'lat': 'bilinear',
-    'lon': 'bilinear'
+    ('lat', 'lon'): 'bilinear',
     }, coordinates)
 
 # most complicated dict definition specifies tuple interpolators for dimensions
@@ -77,6 +76,13 @@ Interpolation({
     'lon': ('nearest', [Rasterio, ...])
     'time': ('nearest', [Nearest, ...])
     }, coordinates)
+
+# most complicated dict definition specifies tuple interpolators for dimensions
+Interpolation({
+    ('lat', 'lon'): 'nearest',
+    'time': ('nearest', [Nearest, ...])
+    }, coordinates)
+
 
 # can include kwargs that get passed on to Interpolator methods
 Interpolation({
