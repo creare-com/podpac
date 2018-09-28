@@ -170,7 +170,6 @@ class Node(tl.HasTraits):
     dtype = tl.Any(default_value=float) # TODO JXM
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
     node_defaults = tl.Dict(allow_none=True)
-    interpolation = tl.Unicode('')
 
     style = tl.Instance(Style)
     @tl.default('style')

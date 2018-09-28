@@ -265,7 +265,7 @@ class TestDataSource(object):
             """test nearest_preview interpolation method. this runs before get_data_subset"""
 
             # test with same dims as native coords
-            node = MockDataSource(interpolation='nearest_preview')
+            node = MockDataSource(interpolation='nearest')
             coords = Coordinates([clinspace(-25, 0, 20), clinspace(-25, 0, 20)], dims=['lat', 'lon'])
             data, coords_subset = node.get_data_subset(coords)
 
@@ -273,7 +273,7 @@ class TestDataSource(object):
             assert coords_subset.shape == (18, 18)
 
             # test with different dims and uniform coordinates
-            node = MockDataSource(interpolation='nearest_preview')
+            node = MockDataSource(interpolation='nearest')
             coords = Coordinates([clinspace(-25, 0, 20)], dims=['lat'])
             data, coords_subset = node.get_data_subset(coords)
 
@@ -281,7 +281,7 @@ class TestDataSource(object):
             assert coords_subset.shape == (18, 101)
 
             # test with different dims and non uniform coordinates
-            node = MockNonuniformDataSource(interpolation='nearest_preview')
+            node = MockNonuniformDataSource(interpolation='nearest')
             coords = Coordinates([[-25, -10, -2]], dims=['lat'])
             data, coords_subset = node.get_data_subset(coords)
 
@@ -409,7 +409,7 @@ class TestDataSource(object):
             coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=['lat'])
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
-            node.interpolation = 'nearest_preview'
+            node.interpolation = 'nearest'
             output = node.execute(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
