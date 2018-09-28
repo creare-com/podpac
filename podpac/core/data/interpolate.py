@@ -353,7 +353,7 @@ class Interpolation():
             missing_udims = tuple(set(coordinates.udims) - set(defined_udims))
 
             # set default method to missing dims
-            if not missing_udims:
+            if missing_udims:
                 default_method = self._parse_interpolation_method(default)
                 self._set_interpolation_method(missing_udims, default_method, **kwargs)
             
