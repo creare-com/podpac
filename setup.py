@@ -9,14 +9,14 @@ sys.path.insert(0, 'podpac')
 import version
 __version__ = version.version()
 
-install_requires = [
-    'matplotlib>=2.1',
-    'numpy>=1.14',
-    'pint>=0.8',
-    'scipy>=1.0',
-    'traitlets>=4.3',
-    'xarray>=0.10',
-    ]
+def requirements_to_array(filePath):
+    lines = open(filePath).readlines()
+    result = []
+    for index in range(len(lines)):
+        result.append(lines[index].rtrip('\n'))
+    return result
+
+install_requires = requirements_to_array("requirements.txt")
 if sys.version_info.major == 2:
     install_requires += ['future>=0.16']
 

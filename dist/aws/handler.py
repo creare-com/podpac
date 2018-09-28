@@ -12,6 +12,7 @@ if sys.version_info.major == 2:
 else:
     import urllib.parse as urllib
 sys.path.append('/tmp')
+sys.path.append(os.getcwd() + '/podpac/')
 
 api_root = 'https://.'
 s3_bucket = 'podpac-s3'
@@ -44,7 +45,7 @@ def return_exception(e, event, context, pipeline=None):
         'isBase64Encoded': False,
     }    
 
-def handler(event, context, get_deps=True, ret_pipeline=False):
+def handler(event, context, get_deps=False, ret_pipeline=False):
 
     # Get request arguments
     try:
@@ -77,9 +78,10 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
 
     import numpy as np
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
-    import matplotlib 
-    matplotlib.use('agg')
-    from podpac import Coordinate
+    #import matplotlib 
+    #matplotlib.use('agg')
+    #from podpac import coordinate
+    import podpac
     from podpac.core.pipeline import Pipeline
     try:
         pipeline = Pipeline(definition=pipeline)
