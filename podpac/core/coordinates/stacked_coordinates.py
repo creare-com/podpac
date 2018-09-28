@@ -111,9 +111,6 @@ class StackedCoordinates(BaseCoordinates):
     # standard methods, tuple-like
     # ------------------------------------------------------------------------------------------------------------------
 
-    def __getitem__(self, index):
-        return StackedCoordinates([c[index] for c in self._coords])
-
     def __repr__(self):
         rep = str(self.__class__.__name__)
         for c in self._coords:
@@ -151,7 +148,7 @@ class StackedCoordinates(BaseCoordinates):
     def name(self, value):
         names = value.split('_')
         if len(names) != len(self._coords):
-            raise ValueError("Invalid name '%s' for StackedCoordinates with length %d" % (value, len(self._corods)))
+            raise ValueError("Invalid name '%s' for StackedCoordinates with length %d" % (value, len(self._coords)))
         for c, name in zip(self._coords, names):
             c.name = name
 

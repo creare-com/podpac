@@ -240,7 +240,7 @@ class Coordinates1d(BaseCoordinates):
             other = other[self.name]
 
         if self.name != other.name:
-            raise ValueError("Cannot intersect mismatched dimensions ('%s' != '%s')" % (selfename, other.name))
+            raise ValueError("Cannot intersect mismatched dimensions ('%s' != '%s')" % (self.name, other.name))
 
         if self.units != other.units:
             raise NotImplementedError("Still need to implement handling different units")

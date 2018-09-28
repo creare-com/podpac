@@ -213,8 +213,8 @@ class ArrayCoordinates1d(Coordinates1d):
             lt = np.where(self.coords <= bounds[1])[0]
             if self.is_descending:
                 lt, gt = gt, lt
-            start = max(0, lt[0]-1)
-            stop = min(self.size-1, gt[-1]+1)
+            start = max(0, gt[0]-1)
+            stop = min(self.size-1, lt[-1]+1)
             I = slice(start, stop+1)
 
         else:
