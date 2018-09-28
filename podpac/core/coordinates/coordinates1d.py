@@ -61,6 +61,9 @@ class Coordinates1d(BaseCoordinates):
     is_uniform : bool
         True if the coordinates are uniformly-spaced (and monotonic).
         False if the coordinates are not uniformly-spaced, unsorted, or empty.
+    is_stacked : bool
+        True if the coordinates are partnered with another stacked coordinate.
+        False if the coordinates are partnered with another stacked coordinate.
 
     Methods
     -------
@@ -75,6 +78,7 @@ class Coordinates1d(BaseCoordinates):
     is_monotonic = tl.CBool(allow_none=True, readonly=True)
     is_descending = tl.CBool(allow_none=True, readonly=True)
     is_uniform = tl.CBool(allow_none=True, readonly=True)
+    is_stacked = tl.CBool(allow_none=True, readonly=True)
 
     def __init__(self, extents=None, **kwargs):
         if extents is not None:
@@ -272,4 +276,4 @@ class Coordinates1d(BaseCoordinates):
             index or slice for the selected coordinates (if return_indices=True)
         """
 
-        raise NotImplementedError
+        raise NotImplementedError
