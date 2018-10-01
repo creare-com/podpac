@@ -24,6 +24,7 @@ from podpac.core.data import datasource
 DATA = np.random.rand(101, 101)
 COORDINATES = Coordinates([clinspace(-25, 25, 101), clinspace(-25, 25, 101)], dims=['lat', 'lon'])
 
+
 class MockDataSource(DataSource):
     """ Mock Data Source for testing """
 
@@ -34,6 +35,24 @@ class MockDataSource(DataSource):
     source[1, 0] = 5
     source[1, 1] = None
     native_coordinates = COORDINATES
+
+    def get_native_coordinates(self):
+        """ see DataSource """
+
+        return self.native_coordinates
+
+    def get_data(self, coordinates, coordinates_index):
+        """ see DataSource """
+
+        s = coordinates_index
+        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
+        return d
+
+
+class MockEmptyDataSource(DataSource):
+    """ Mock Empty Data Source for testing
+        requires passing in source, native_coordinates to work correctly
+    """
 
     def get_native_coordinates(self):
         """ see DataSource """
@@ -60,23 +79,6 @@ class MockNonuniformDataSource(DataSource):
 
     def get_data(self, coordinates, coordinates_index):
         """ """
-        s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
-        return d
-
-class MockEmptyDataSource(DataSource):
-    """ Mock Empty Data Source for testing
-        requires passing in source, native_coordinates to work correctly
-    """
-
-    def get_native_coordinates(self):
-        """ see DataSource """
-
-        return self.native_coordinates
-
-    def get_data(self, coordinates, coordinates_index):
-        """ see DataSource """
-
         s = coordinates_index
         d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
         return d
@@ -138,20 +140,19 @@ class TestDataSource(object):
         """TODO: it seems like allow_none = False doesn't work
         """
         with pytest.raises(TraitError):
-            DataSource(source=None)
+            MockEmptyDataSource(source=None)
 
         with pytest.raises(TraitError):
-            DataSource(nan_vals=None)
+            MockEmptyDataSource(nan_vals=None)
 
     def test_traitlets_errors(self):
         """ make sure traitlet errors are reased with improper inputs """
 
         with pytest.raises(TraitError):
-            other_class = DataSource(nan_vals=None)
-            DataSource(interpolation=other_class)
+            MockEmptyDataSource(nan_vals={})
 
         with pytest.raises(TraitError):
-            DataSource(interpolation='myowninterp')
+            MockEmptyDataSource(interpolation='myowninterp')
 
     def test_methods_must_be_implemented(self):
         """These class methods must be implemented"""
@@ -179,7 +180,8 @@ class TestDataSource(object):
         assert d
         assert 'node' in d
         assert d['source'] == node.source
-        assert d['attrs']['interpolation'] == node.interpolation
+
+        # TODO: add interpolation definition testing
 
 
     class TestNativeCoordinates(object):
@@ -191,25 +193,28 @@ class TestDataSource(object):
             with pytest.raises(TraitError):
                 node = DataSource(source='test', native_coordinates='not a coordinate')
 
-            node = DataSource(source='test')
-            
-            with pytest.raises(NotImplementedError):
-                node.native_coordinates
+            # if get_native_coordinates is not defined on data source class, try to return native_coordinates
+            node = DataSource(source='test', native_coordinates=COORDINATES)
 
+            # raise if native coordinates are not defined on input and get_native_coordinates is not defined on class
+            with pytest.raises(NotImplementedError):
+                node = DataSource(source='test')
+
+            # raise if native_coordinates are none
+            node = DataSource(source='test', native_coordinates=None)
             with pytest.raises(NotImplementedError):
                 node.get_native_coordinates()
 
         def test_get_native_coordinates(self):
-            """by default `native_coordinates` property should map to get_native_coordinates via _native_coordinates_default"""
+            """if native_coordinates is None, get_native_coordinates should set native_coordiantes property"""
 
             node = MockDataSource(source='test')
             get_native_coordinates = node.get_native_coordinates()
-            native_coordinates_default = node._native_coordinates_default()
             native_coordinates = node.native_coordinates
 
             assert get_native_coordinates
             assert native_coordinates
-            assert get_native_coordinates == native_coordinates and native_coordinates_default == native_coordinates
+            assert get_native_coordinates == native_coordinates
 
 
         def test_native_coordinates_overwrite(self):
@@ -218,8 +223,8 @@ class TestDataSource(object):
             node = MockDataSource(source='test')
 
             # TODO: this does not throw an error - should traitlets stop you after the fact?
-            # with pytest.raises(TraitError):
-            #     node.native_coordinates = 'not a coordinate'
+            with pytest.raises(TraitError):
+                node.native_coordinates = 'not a coordinate'
 
             new_native_coordinates = Coordinates([clinspace(-10, 0, 5), clinspace(-10, 0, 5)], dims=['lat', 'lon'])
             node.native_coordinates = new_native_coordinates

@@ -68,8 +68,9 @@ DATA_DOC = {
         Returns a Coordinates object that describes the native coordinates of the data source.
 
         In most cases, this method is defined by the data source implementing the DataSource class.
-        If this method is not implemented by the data source, this method will try to return `self.native_coordinates`,
-        if they are defined and are an instance of a Coordinates class.
+        If method is not implemented by the data source, it will try to return `self.native_coordinates` 
+        if `self.native_coordinates` is not None.
+
         Otherwise, this method will raise a NotImplementedError.
 
         Returns
@@ -142,9 +143,8 @@ class DataSource(Node):
     Developers of new DataSource nodes need to implement the `get_data` and `get_native_coordinates` methods.
     """
     
-    source = tl.Any(allow_none=False, help='Path to the raw data source')
+    source = tl.Any(help='Path to the raw data source')
 
-    # TODO: refactor this?
     interpolation = tl.Union([
         tl.Enum(INTERPOLATION_SHORTCUTS),
         tl.Tuple(tl.Unicode(), tl.List(trait=tl.Instance(Interpolator))),
@@ -164,13 +164,18 @@ class DataSource(Node):
     requested_source_data = tl.Instance(UnitsDataArray)
 
     # privates
-    # TODO: FIX THIS
     _interpolation = tl.Instance(Interpolation)
 
-    # default native_coordinates calls get_native_coordinates
+    # when native_coordinates is not defined, default calls get_native_coordinates
     @tl.default('native_coordinates')
     def _native_coordinates_default(self):
-        return self.get_native_coordinates()
+        self.native_coordinates = self.get_native_coordinates()
+        return self.native_coordinates
+
+    # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
+    @tl.default('_interpolation')
+    def _interpolation_default(self):
+        raise tl.TraitError('DataSource _interpolation property set during evaluate')
 
 
     @common_doc(COMMON_DATA_DOC)
@@ -277,15 +282,20 @@ class DataSource(Node):
         return self.output
 
 
-    def _set_interpoloation(self, coordinates=self.native_coordinates):
+    def _set_interpolation(self, coordinates=None):
+        """Update _interpolation property
+        
+        Parameters
+        ----------
+        coordinates : podpac.core.coordinates.Coordinates, optional
+            source coordinates to use to assign interpolation method
+        """
 
         # define interpolator with source coordinates dimensions
         if isinstance(self.interpolation, Interpolation):
             self._interpolation = self.interpolation
-        elif self.interpolation is not None:
-            self._interpolation = Interpolation(self.interpolation, self.requested_source_coordinates)
-
-        # TODO: FIX THIS
+        else:
+            self._interpolation = Interpolation(self.interpolation, coordinates)
 
 
     def _select_coordinates(self):
@@ -364,13 +374,18 @@ class DataSource(Node):
             This needs to be implemented by derived classes
 
         """
+        
+        try:
+            # trick to make sure we don't trigger recursion via @tl.default for native_coordinates
+            # native_coordinates is guarenteed to be a Coordinates instance or None by Node trait
+            val = self._trait_values['native_coordinates']
+            if val is not None:
+                return self.native_coordinates
+        except (KeyError, RuntimeError, tl.TraitError):
+            pass
 
-        # TODO: This results in a recursive loop in the case of a default
-        # if isinstance(self.native_coordinates, Coordinates):
-        #     return self.native_coordinates
-
-        raise NotImplementedError
-
+        raise NotImplementedError('{0}.native_coordinates is not defined and '  \
+                                  '{0}.get_native_coordinates() is not implemented'.format(self.__class__.__name__))
     
     def _interpolate(self):
         """Interpolates the source data to the destination using self.interpolation as the interpolation method.
@@ -752,5 +767,8 @@ class DataSource(Node):
         """
         d = self.base_definition()
         d['source'] = self.source
-        d['interpolator'] = self._interpolation.to_pipeline()
+
+        # TODO: cast interpolation to string in way that can be recreated here
+        # should this move to interpolation class? It causes issues when the _interpolation class has not been set up yet
+        d['interpolation'] = self.interpolation
         return d
