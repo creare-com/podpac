@@ -16,9 +16,9 @@ import os
 
 S3_BUCKET_NAME = None
 CACHE_TO_S3 = False
-ROOT_PATH = None
+ROOT_PATH = "/tmp/"
 
-
+# TODO for now we'll just cache in /tmp/, but this will change with the new caching spec.
 if S3_BUCKET_NAME and CACHE_TO_S3:
     CACHE_DIR = 'cache'
 else:
