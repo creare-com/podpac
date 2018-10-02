@@ -49,7 +49,8 @@ class Interpolator(tl.HasTraits):
     method : str
         current interpolation method to use in Interpolator (i.e. 'nearest')
     dims_supported : list
-        list of supported dimensions by the interpolator
+        list of supported dimensions by the interpolator. Used by default :ref:self.can_select 
+        and self.can_interpolate methods if not overwritten by specific Interpolator
     
     """
 
@@ -78,7 +79,7 @@ class Interpolator(tl.HasTraits):
 
     def _validate_udims(self, udims):
         
-        # try each dim and return False if one of the dims is not allowed
+        # try each dim and return False if one of the dims is not supported
         for dim in udims:
             if dim not in self.dims_supported:
                 return False
@@ -306,7 +307,7 @@ class NearestPreview(Interpolator):
     def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
         
         crds = OrderedDict()
-        tol = np.inf
+        tol = np.inf  # TODO: make property
 
         for c in udims:
             crds[c] = output_data.coords[c].data.copy()
@@ -335,12 +336,12 @@ class Rasterio(Interpolator):
         return False
 
     def can_interpolate(self, udims, requested_coordinates, source_coordinates):
-
-        return self.method in self.rasterio_interpolators 
-               and 'lat' in coords_src.dims and 'lon' in coords_src.dims
-               and 'lat' in coords_dst.dims and 'lon' in coords_dst.dims
-               and coords_src['lat'].is_uniform and coords_src['lon'].is_uniform
-               and coords_dst['lat'].is_uniform and coords_dst['lon'].is_uniform):
+        pass
+        # return self.method in self.rasterio_interpolators 
+        #        and self.dim_in('lat' in source_coordinates.dims and 'lon' in source_coordinates.dims
+        #        and 'lat' in requested_coordinates.dims and 'lon' in requested_coordinates.dims
+        #        and source_coordinates['lat'].is_uniform and source_coordinates['lon'].is_uniform
+        #        and requested_coordinates['lat'].is_uniform and requested_coordinates['lon'].is_uniform
 
     def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
         return None
@@ -434,19 +435,14 @@ class Interpolation():
     definition = None
     _config = {}            # container for interpolation methods for each dimension
 
-    def __init__(self, definition=INTERPOLATION_DEFAULT, coordinates=None, default=INTERPOLATION_DEFAULT, **kwargs):
+    def __init__(self, definition=INTERPOLATION_DEFAULT, default=INTERPOLATION_DEFAULT, **kwargs):
 
         self.definition = definition
         self._config = {}
 
-        # init coordinates if not passed in
-        if coordinates is None:
-            coordinates = Coordinates()
-
         # set each dim to interpolator definition
         if isinstance(definition, dict):
 
-            defined_udims = []
             for udims in iter(definition):
 
                 # get interpolation method
@@ -460,21 +456,16 @@ class Interpolation():
                 # add all udims to definition
                 self._set_interpolation_method(udims, method, **kwargs)
 
-                # create list of all udimss defined
-                defined_udims += list(udims)
 
-            # determine dims missing from definitions
-            missing_udims = tuple(set(coordinates.udims) - set(defined_udims))
 
-            # set default method to missing dims
-            if missing_udims:
-                default_method = self._parse_interpolation_method(default)
-                self._set_interpolation_method(missing_udims, default_method, **kwargs)
+            # set default method to empty tuple
+            default_method = self._parse_interpolation_method(default)
+            self._set_interpolation_method(tuple(), default_method, **kwargs)
             
 
         elif isinstance(definition, (string_types, tuple)):
             method = self._parse_interpolation_method(definition)
-            self._set_interpolation_method(coordinates.udims, method, **kwargs)
+            self._set_interpolation_method(tuple(), method, **kwargs)
 
         else:
             raise TypeError('"{}" is not a valid interpolation definition type. '.format(definition) +
@@ -665,6 +656,12 @@ class Interpolation():
             interpolators = self._config[udims][1]
             interpolator_options = []
             for idx, interpolator in enumerate(interpolators):
+                # should return dimensions that it can interpolate
+                # {
+                #  ('lat', 'lon'): Nearest,
+                #  ('time'): Nearest
+                #  }
+
                 can_interpolate = interpolator.can_interpolate(udims, source_coordinates, requested_coordinates)
 
                 if can_interpolate:
