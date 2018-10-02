@@ -81,21 +81,6 @@ class TestNodeProperties(object):
         assert(d.endswith('Node'))
         assert('cache' in d)
         
-
-class TestNodeDefaults(object):
-    def test_node_defaults(self):
-        class N2(Node):
-            node_defaults={'interpolation': 'testDefault'}
-        
-        n = N2(interpolation='testInput')
-        assert(n.interpolation == 'testInput')
-        n = N2()
-        assert(n.interpolation == 'testDefault')
-    
-    def test_node_defaults_as_input(self):
-        n = Node(node_defaults={'interpolation': 'testDefault'}, 
-                 interpolation="testInput")
-        assert(n.interpolation == 'testInput')
         
 class TestNotImplementedMethods(object):
     def test_execute(self):

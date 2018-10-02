@@ -68,9 +68,12 @@ class TestArray(object):
         node = Array(source=self.data, native_coordinates=self.coordinates)
         assert node.native_coordinates
 
-        # TODO: get rid of this when this returns native_coordinates by default
-        with pytest.raises(NotImplementedError):
-            node.get_native_coordinates()
+        node = Array(source=self.data, native_coordinates=self.coordinates)
+        native_coordinates = node.native_coordinates
+        get_native_coordinates = node.get_native_coordinates()
+        assert native_coordinates
+        assert get_native_coordinates
+        assert native_coordinates == get_native_coordinates
 
 
 class TestPyDAP(object):

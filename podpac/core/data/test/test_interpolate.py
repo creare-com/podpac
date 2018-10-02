@@ -51,10 +51,10 @@ class TestInterpolate(object):
                 Interpolation('test', COORDINATES)
 
             interp = Interpolation('nearest', COORDINATES)
-            assert interp._definition[('lat', 'lon')]
-            assert isinstance(interp._definition[('lat', 'lon')], tuple)
-            assert interp._definition[('lat', 'lon')][0] == 'nearest'
-            assert isinstance(interp._definition[('lat', 'lon')][1][0], Interpolator)
+            assert interp._config[('lat', 'lon')]
+            assert isinstance(interp._config[('lat', 'lon')], tuple)
+            assert interp._config[('lat', 'lon')][0] == 'nearest'
+            assert isinstance(interp._config[('lat', 'lon')][1][0], Interpolator)
 
         def test_dict_definition(self):
 
@@ -65,34 +65,34 @@ class TestInterpolate(object):
 
             # handle string methods
             interp = Interpolation({('lat', 'lon'): 'nearest'}, COORDINATES)
-            assert isinstance(interp._definition[('lat', 'lon')], tuple)
-            assert interp._definition[('lat', 'lon')][0] == 'nearest'
-            assert isinstance(interp._definition[('lat', 'lon')][1][0], Interpolator)
+            assert isinstance(interp._config[('lat', 'lon')], tuple)
+            assert interp._config[('lat', 'lon')][0] == 'nearest'
+            assert isinstance(interp._config[('lat', 'lon')][1][0], Interpolator)
 
             # handle tuple methods
             interp = Interpolation({('lat', 'lon'): ('nearest', [NearestNeighbor])}, COORDINATES)
-            assert isinstance(interp._definition[('lat', 'lon')], tuple)
-            assert interp._definition[('lat', 'lon')][0] == 'nearest'
-            assert isinstance(interp._definition[('lat', 'lon')][1][0], Interpolator)
+            assert isinstance(interp._config[('lat', 'lon')], tuple)
+            assert interp._config[('lat', 'lon')][0] == 'nearest'
+            assert isinstance(interp._config[('lat', 'lon')][1][0], Interpolator)
 
             
             # use default if not all dimensions are supplied
             interp = Interpolation({'lat': 'bilinear'}, COORDINATES)
-            assert interp._definition[('lon',)][0] == INTERPOLATION_DEFAULT
+            assert interp._config[('lon',)][0] == INTERPOLATION_DEFAULT
 
 
             # use default with override if not all dimensions are supplied
             interp = Interpolation({'lat': 'bilinear'}, COORDINATES, default='optimal')
-            assert interp._definition[('lon',)][0] == 'optimal'
+            assert interp._config[('lon',)][0] == 'optimal'
 
 
         def test_tuple_definition(self):
 
             interp_tuple = ('myinterp', [NearestNeighbor, Rasterio, NearestPreview])
             interp = Interpolation(interp_tuple, COORDINATES)
-            assert interp._definition[('lat', 'lon')]
-            assert isinstance(interp._definition[('lat', 'lon')], tuple)
-            assert isinstance(interp._definition[('lat', 'lon')][1][1], Rasterio)
+            assert interp._config[('lat', 'lon')]
+            assert isinstance(interp._config[('lat', 'lon')], tuple)
+            assert isinstance(interp._config[('lat', 'lon')][1][1], Rasterio)
 
 
             # should throw an error if items are not in a list
@@ -111,12 +111,12 @@ class TestInterpolate(object):
         def test_interpolator_init(self):
 
             interp = Interpolation('nearest', COORDINATES)
-            assert interp._definition[('lat', 'lon')][1][0].method == 'nearest'
+            assert interp._config[('lat', 'lon')][1][0].method == 'nearest'
 
         def test_init_kwargs(self):
             
             interp = Interpolation('nearest', COORDINATES, tolerance=1)
-            assert interp._definition[('lat', 'lon')][1][0].tolerance == 1
+            assert interp._config[('lat', 'lon')][1][0].tolerance == 1
 
             # should throw TraitErrors defined by Interpolator
             with pytest.raises(TraitError):
@@ -125,6 +125,6 @@ class TestInterpolate(object):
             # should allow other properties, but it won't put them on the 
             interp = Interpolation('nearest', COORDINATES, myarg='tol')
             with pytest.raises(AttributeError):
-                assert interp._definition[('lat', 'lon')][1][0].myarg == 'tol'
+                assert interp._config[('lat', 'lon')][1][0].myarg == 'tol'
 
 

@@ -14,6 +14,21 @@ import numpy as np
 import xarray as xr
 import traitlets as tl
 
+# Optional dependencies
+try:
+    import rasterio
+    from rasterio import transform
+    from rasterio.warp import reproject, Resampling
+except:
+    rasterio = None
+try:
+    import scipy
+    from scipy.interpolate import (griddata, RectBivariateSpline,
+                                   RegularGridInterpolator)
+    from scipy.spatial import KDTree
+except:
+    scipy = None
+
 # Internal imports
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates
@@ -163,18 +178,22 @@ class DataSource(Node):
     requested_source_coordinates_index = tl.List()
     requested_source_data = tl.Instance(UnitsDataArray)
 
+    # TODO: remove in the 2nd stage of interpolation refactor
+    # self.source_coordinates['time'].delta / 2
+    interpolation_tolerance = tl.Float(default_value=1)
+
     # privates
     _interpolation = tl.Instance(Interpolation)
 
     # when native_coordinates is not defined, default calls get_native_coordinates
     @tl.default('native_coordinates')
-    def _native_coordinates_default(self):
+    def _default_native_coordinates(self):
         self.native_coordinates = self.get_native_coordinates()
         return self.native_coordinates
 
     # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
     @tl.default('_interpolation')
-    def _interpolation_default(self):
+    def _default_interpolation(self):
         raise tl.TraitError('DataSource _interpolation property set during evaluate')
 
 
@@ -254,11 +273,13 @@ class DataSource(Node):
             return self.output
         
         # reset interpolation
-        self._set_interpolation()
+        self._set_interpolation(self.requested_source_coordinates)
 
         # interpolate coordinates before getting data
         self.requested_source_coordinates, self.requested_source_coordinates_index = \
-            self._select_coordinates()
+            self._interpolation.select_coordinates(self.requested_coordinates,
+                                                   self.requested_source_coordinates,
+                                                   self.requested_source_coordinates_index)
 
         # get data from data source
         self.requested_source_data = self._get_data()
@@ -296,20 +317,6 @@ class DataSource(Node):
             self._interpolation = self.interpolation
         else:
             self._interpolation = Interpolation(self.interpolation, coordinates)
-
-
-    def _select_coordinates(self):
-        """
-        Interpolate the source coordinates based on the requested coordinates.
-
-        Returns
-        -------
-        None
-        """
-
-        return self._interpolation.select_coordinates(self.requested_coordinates,
-                                                      self.requested_source_coordinates,
-                                                      self.requested_source_coordinates_index)
 
 
 
@@ -409,7 +416,6 @@ class DataSource(Node):
         #                                       self.output)
 
 
-
         #### MOVE THIS TO INTERPOLATER
         # assign shortnames
         data_src = self.requested_source_data
@@ -423,7 +429,7 @@ class DataSource(Node):
             return data_dst
         
         # Nearest preview of rasters
-        if self.interpolation.method == 'nearest_preview':
+        if self._interpolation.definition == 'nearest_preview':
             crds = OrderedDict()
             tol = np.inf
             for c in data_dst.coords.keys():
@@ -455,7 +461,7 @@ class DataSource(Node):
         # Raster to Raster interpolation from regular grids to regular grids
         
         if (rasterio is not None
-                and self.interpolation.method in RASTERIO_INTERPS
+                and self._interpolation.definition in INTERPOLATION_SHORTCUTS
                 and 'lat' in coords_src.dims and 'lon' in coords_src.dims
                 and 'lat' in coords_dst.dims and 'lon' in coords_dst.dims
                 and coords_src['lat'].is_uniform and coords_src['lon'].is_uniform
@@ -591,7 +597,7 @@ class DataSource(Node):
                 dst_transform=dst_transform,
                 dst_crs=dst_crs,
                 dst_nodata=np.nan,
-                resampling=getattr(Resampling, self.interpolation.method)
+                resampling=getattr(Resampling, self._interpolation.definition)
             )
             if coords_dst['lat'].is_descending:
                 data_dst.data[:] = destination
@@ -634,7 +640,7 @@ class DataSource(Node):
         elif 'lat' not in data_src.dims or 'lon' not in data_src.dims:
             raise ValueError
         
-        interp = self.interpolation.method
+        interp = self._interpolation.definition
         s = []
         if coords_src['lat'].is_descending:
             lat = coords_src['lat'].coordinates[::-1]

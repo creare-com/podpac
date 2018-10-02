@@ -103,6 +103,7 @@ class TestDataSourceIntegration():
 
 
 
+    @pytest.mark.skip('TODO: implement integration tests')
     class TestBasicInterpolation(object):
 
         """ Test interpolation methods"""

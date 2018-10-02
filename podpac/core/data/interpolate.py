@@ -190,6 +190,7 @@ class NearestNeighbor(Interpolator):
     def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output):
         return None
 
+
 class NearestPreview(Interpolator):
     tolerance = tl.Int()
 
@@ -338,7 +339,8 @@ class OptimalInterpolation(Interpolator):
 # List of available interpolators
 INTERPOLATION_METHODS = {
     'optimal': [OptimalInterpolation],
-    'nearest': [NearestNeighbor, NearestPreview],
+    'nearest_preview': [NearestPreview],
+    'nearest': [NearestNeighbor],
     'bilinear':[Rasterio, ScipyGrid],
     'cubic':[Rasterio, ScipyGrid],
     'cubic_spline':[Rasterio, ScipyGrid],
@@ -383,11 +385,17 @@ class Interpolation():
     
     """
  
-    _definition = {}            # container for interpolation methods for each dimension
+    definition = None
+    _config = {}            # container for interpolation methods for each dimension
 
-    def __init__(self, definition, coordinates, default=INTERPOLATION_DEFAULT, **kwargs):
+    def __init__(self, definition=INTERPOLATION_DEFAULT, coordinates=None, default=INTERPOLATION_DEFAULT, **kwargs):
 
-        self._definition = {}
+        self.definition = definition
+        self._config = {}
+
+        # init coordinates if not passed in
+        if coordinates is None:
+            coordinates = Coordinates()
 
         # set each dim to interpolator definition
         if isinstance(definition, dict):
@@ -427,11 +435,12 @@ class Interpolation():
                             'Interpolation definiton must be a string, dict, or tuple')
 
 
+
     def __repr__(self):
         rep = str(self.__class__.__name__)
-        for udims in iter(self._definition):
-            rep += '\n\t%s: (%s, %s)' % (udims, self._definition[udims][0],
-                                         [i.__class__.__name__ for i in self._definition[udims][1]])
+        for udims in iter(self._config):
+            rep += '\n\t%s: (%s, %s)' % (udims, self._config[udims][0],
+                                         [i.__class__.__name__ for i in self._config[udims][1]])
         return rep
 
     def _parse_interpolation_method(self, definition):
@@ -527,7 +536,7 @@ class Interpolation():
             interpolators[idx] = interpolator(**kwargs)
 
         # set to interpolation dictionary
-        self._definition[udims] = (method_string, interpolators)
+        self._config[udims] = (method_string, interpolators)
 
 
     def select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
@@ -552,10 +561,10 @@ class Interpolation():
         selected_coords_idx = deepcopy(source_coordinates_index)
 
         # TODO: this does not yet work with udims - will not work correctly if udims specified
-        for udims in iter(self._definition):
+        for udims in iter(self._config):
 
             # iterate through interpolators until one can_select all udims
-            interpolators = self._definition[udims][1]
+            interpolators = self._config[udims][1]
             options = []
             for idx, interpolator in enumerate(interpolators):
                 can_select = interpolator.can_select(udims, requested_coordinates, selected_coords)
@@ -600,10 +609,10 @@ class Interpolation():
             returns the new output UnitDataArray of interpolated data
         """
 
-        for udims in iter(self._definition):
+        for udims in iter(self._config):
 
             # iterate through interpolators until one can_select all udims
-            interpolators = self._definition[udims][1]
+            interpolators = self._config[udims][1]
             options = []
             for idx, interpolator in enumerate(interpolators):
                 can_interpolate = interpolator.can_interpolate(udims, source_coordinates, requested_coordinates)

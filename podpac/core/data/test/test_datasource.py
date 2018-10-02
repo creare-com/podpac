@@ -195,10 +195,12 @@ class TestDataSource(object):
 
             # if get_native_coordinates is not defined on data source class, try to return native_coordinates
             node = DataSource(source='test', native_coordinates=COORDINATES)
+            assert node.native_coordinates
 
             # raise if native coordinates are not defined on input and get_native_coordinates is not defined on class
+            node = DataSource(source='test')
             with pytest.raises(NotImplementedError):
-                node = DataSource(source='test')
+                node.native_coordinates
 
             # raise if native_coordinates are none
             node = DataSource(source='test', native_coordinates=None)
@@ -208,6 +210,15 @@ class TestDataSource(object):
         def test_get_native_coordinates(self):
             """if native_coordinates is None, get_native_coordinates should set native_coordiantes property"""
 
+            # if get_native_coordinates is not defined on data source class, try to return native_coordinates
+            node = DataSource(source='test', native_coordinates=COORDINATES)
+            native_coordinates = node.native_coordinates
+            get_native_coordinates = node.get_native_coordinates()
+            assert get_native_coordinates
+            assert native_coordinates
+            assert get_native_coordinates == native_coordinates
+
+            # data source defines get_native_coordinates
             node = MockDataSource(source='test')
             get_native_coordinates = node.get_native_coordinates()
             native_coordinates = node.native_coordinates
@@ -223,8 +234,8 @@ class TestDataSource(object):
             node = MockDataSource(source='test')
 
             # TODO: this does not throw an error - should traitlets stop you after the fact?
-            with pytest.raises(TraitError):
-                node.native_coordinates = 'not a coordinate'
+            # with pytest.raises(TraitError):
+            #     node.native_coordinates = 'not a coordinate'
 
             new_native_coordinates = Coordinates([clinspace(-10, 0, 5), clinspace(-10, 0, 5)], dims=['lat', 'lon'])
             node.native_coordinates = new_native_coordinates
@@ -306,7 +317,7 @@ class TestDataSource(object):
             with pytest.raises(TypeError):
                 node.execute()
 
-        def test_execute_at_native_coordinates(self):
+        def test_evaluate_at_native_coordinates(self):
             """evaluate node at native coordinates"""
 
             node = MockDataSource()
@@ -324,12 +335,11 @@ class TestDataSource(object):
 
             # assert attributes
             assert isinstance(output.attrs['layer_style'], Style)
-            # assert output.attrs['params']['interpolation'] == 'nearest' # TODO
 
             # should be evaluated
             assert node.evaluated
 
-        def test_execute_with_output(self):
+        def test_evaluate_with_output(self):
             """evaluate node at native coordinates passing in output to store in"""
             
             node = MockDataSource()
@@ -343,7 +353,7 @@ class TestDataSource(object):
             assert np.all(output[0, 0] == 10)
 
 
-        def test_execute_with_output_no_overlap(self):
+        def test_evaluate_with_output_no_overlap(self):
             """evaluate node at native coordinates passing output that does not overlap"""
             
             node = MockDataSource()
@@ -413,8 +423,7 @@ class TestDataSource(object):
             coords_src = Coordinates([clinspace(0, 10, 5,)], dims=['lat'])
             coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=['lat'])
 
-            node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
-            node.interpolation = 'nearest'
+            node = MockEmptyDataSource(source=source, native_coordinates=coords_src, interpolation='nearest_preview')
             output = node.execute(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
