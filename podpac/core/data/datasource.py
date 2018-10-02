@@ -285,10 +285,9 @@ class DataSource(Node):
         self.requested_source_data = self._get_data()
 
         # interpolate data into self.output
-        # TODO: streamline with interpolation methods
-        o = self._interpolate()
-        if o is not None:
-            self.output = o  # should already be self.output
+        output = self._interpolate()
+        if output is not None:
+            self.output = output  # should already be self.output
 
         # set the order of dims to be the same as that of requested_coordinates
         # JXM: pending the node refactor
@@ -775,6 +774,7 @@ class DataSource(Node):
         d['source'] = self.source
 
         # TODO: cast interpolation to string in way that can be recreated here
-        # should this move to interpolation class? It causes issues when the _interpolation class has not been set up yet
+        # should this move to interpolation class? 
+        # It causes issues when the _interpolation class has not been set up yet
         d['interpolation'] = self.interpolation
         return d
