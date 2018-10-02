@@ -122,28 +122,30 @@ class DataSource(Node):
         Type of index to use for data source. Possible values are ['list','numpy','xarray','pandas']
         Default is 'numpy'
     interpolation : str,
-                    tuple (str, list of podpac.core.data.interpolate.Interpolator)
+                    tuple (str, list of podpac.core.data.interpolate.Interpolator),
+                    dict
                     optional
             Definition of interpolation methods for each dimension of the native coordinates.
             
             If input is a string, it must match one of the interpolation shortcuts defined in
             :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS. The interpolation method associated
-            with this string will be applied to all dimensions in the native coordinates.
+            with this string will be applied to all dimensions.
 
             If input is a tuple, the first element of the tuple must be a string interpolation method name.
             The second element must be a list of :ref:podpac.core.data.interpolate.Interpolator. This list specifies
             the order in which the interpolators will be applied.
-            The interpolation method defined by this tuple will be applied to all dimensions in the native coordinates.
+            The interpolation method defined by this tuple will be applied to all dimensions.
 
             If input is a dict, the key must be a string or tuple of dimension names.
             The value can be a string or tuple following the same convention as specified above.
-            The string or tuple ivalue will be applied
+            The string or tuple value will be applied
             to the dimension(s) specied by the key. If the dictionary
             does not contain a key for all unstacked dimensions of the native coodrinates, the
             :ref:podpac.core.data.interpolate.INTERPOLATION_DEFAULT value will be used.
             All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
 
-            If input is a podpac.core.data.interpolate.Interpolation, this interpolator will be used without modication.
+            If input is a podpac.core.data.interpolate.Interpolation, this interpolation
+            class will be used without modication.
             
             By default, the interpolation method is set to `'nearest'` for all dimensions.
     nan_vals : List, optional
@@ -161,11 +163,9 @@ class DataSource(Node):
     source = tl.Any(help='Path to the raw data source')
 
     interpolation = tl.Union([
-        tl.Enum(INTERPOLATION_SHORTCUTS),
-        tl.Tuple(tl.Unicode(), tl.List(trait=tl.Instance(Interpolator))),
-        tl.Dict(trait=tl.Union([tl.Enum(INTERPOLATION_SHORTCUTS),
-                                tl.Tuple(tl.Unicode(), tl.List(trait=tl.Instance(Interpolator))),
-                               ]))
+        tl.Dict(),
+        tl.Tuple(),
+        tl.Enum(INTERPOLATION_SHORTCUTS)
     ], default_value=INTERPOLATION_DEFAULT)
 
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
@@ -273,7 +273,7 @@ class DataSource(Node):
             return self.output
         
         # reset interpolation
-        self._set_interpolation(self.requested_source_coordinates)
+        self._set_interpolation()
 
         # interpolate coordinates before getting data
         self.requested_source_coordinates, self.requested_source_coordinates_index = \
@@ -302,20 +302,15 @@ class DataSource(Node):
         return self.output
 
 
-    def _set_interpolation(self, coordinates=None):
+    def _set_interpolation(self):
         """Update _interpolation property
-        
-        Parameters
-        ----------
-        coordinates : podpac.core.coordinates.Coordinates, optional
-            source coordinates to use to assign interpolation method
         """
 
         # define interpolator with source coordinates dimensions
         if isinstance(self.interpolation, Interpolation):
             self._interpolation = self.interpolation
         else:
-            self._interpolation = Interpolation(self.interpolation, coordinates)
+            self._interpolation = Interpolation(self.interpolation)
 
 
 

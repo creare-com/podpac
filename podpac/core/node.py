@@ -153,8 +153,6 @@ class Node(tl.HasTraits):
         future.
     units : podpac.Units
         The units of the output data, defined using the pint unit registry `podpac.units.ureg`.
-    interpolation : str, optional
-        The interpolation type to use for the node. Not all nodes use this attribute.
     """
 
     output = tl.Instance(UnitsDataArray, allow_none=True)
