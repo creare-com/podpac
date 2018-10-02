@@ -34,7 +34,7 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import StackedCoordinates
 from podpac.core.coordinates import Coordinates1d, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.node import Node
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.data.interpolate import (Interpolation, Interpolator, NearestNeighbor, INTERPOLATION_SHORTCUTS,
                                           INTERPOLATION_DEFAULT)
@@ -380,17 +380,11 @@ class DataSource(Node):
 
         """
         
-        try:
-            # trick to make sure we don't trigger recursion via @tl.default for native_coordinates
-            # native_coordinates is guarenteed to be a Coordinates instance or None by Node trait
-            val = self._trait_values['native_coordinates']
-            if val is not None:
-                return self.native_coordinates
-        except (KeyError, RuntimeError, tl.TraitError):
-            pass
-
-        raise NotImplementedError('{0}.native_coordinates is not defined and '  \
-                                  '{0}.get_native_coordinates() is not implemented'.format(self.__class__.__name__))
+        if trait_is_defined(self, 'native_coordinates'):
+            return self.native_coordinates
+        else:
+            raise NotImplementedError('{0}.native_coordinates is not defined and '  \
+                                      '{0}.get_native_coordinates() is not implemented'.format(self.__class__.__name__))
     
     def _interpolate(self):
         """Interpolates the source data to the destination using self.interpolation as the interpolation method.
