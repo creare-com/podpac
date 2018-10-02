@@ -10,6 +10,7 @@ Description
 from __future__ import division, unicode_literals, print_function, absolute_import
 from copy import deepcopy
 from collections import OrderedDict
+from six import string_types
 
 import numpy as np
 import traitlets as tl
@@ -471,12 +472,12 @@ class Interpolation():
                 self._set_interpolation_method(missing_udims, default_method, **kwargs)
             
 
-        elif isinstance(definition, (str, tuple)):
+        elif isinstance(definition, (string_types, tuple)):
             method = self._parse_interpolation_method(definition)
             self._set_interpolation_method(coordinates.udims, method, **kwargs)
 
         else:
-            raise TypeError('{} is not a valid interpolation definition type. '.format(type(definition)) +
+            raise TypeError('"{}" is not a valid interpolation definition type. '.format(definition) +
                             'Interpolation definiton must be a string, dict, or tuple')
 
 
@@ -509,7 +510,7 @@ class Interpolation():
         InterpolationException
         TypeError
         """
-        if isinstance(definition, str):
+        if isinstance(definition, string_types):
             if definition not in INTERPOLATION_SHORTCUTS:
                 raise InterpolationException('"{}" is not a valid interpolation shortcut. '.format(definition) +
                                              'Valid interpolation shortcuts: {}'.format(INTERPOLATION_SHORTCUTS))
@@ -520,7 +521,7 @@ class Interpolation():
             interpolators = definition[1]
 
             # confirm types
-            if not isinstance(method_string, str):
+            if not isinstance(method_string, string_types):
                 raise TypeError('{} is not a valid interpolation method. '.format(method_string) +
                                 'Interpolation method must be a string')
 
@@ -535,7 +536,7 @@ class Interpolation():
             return definition
 
         else:
-            raise TypeError('{} is not a valid interpolation definition. '.format(definition) +
+            raise TypeError('"{}" is not a valid Interpolator definition. '.format(definition) +
                             'Interpolation definiton must be a string or Interpolator.')
 
     def _validate_interpolator(self, interpolator):
