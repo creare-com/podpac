@@ -8,7 +8,6 @@ including user defined data sources.
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import warnings
-from collections import OrderedDict
 
 import numpy as np
 import xarray as xr
@@ -409,10 +408,10 @@ class DataSource(Node):
             # TODO: confirm that output is the right size ?
             pass
 
-        # return self._interpolation.interpolate(self.requested_source_coordinates,
-        #                                       self.requested_source_data,
-        #                                       self.requested_coordinates,
-        #                                       self.output)
+        return self._interpolation.interpolate(self.requested_source_coordinates,
+                                               self.requested_source_data,
+                                               self.requested_coordinates,
+                                               self.output)
 
 
         #### MOVE THIS TO INTERPOLATER
@@ -422,40 +421,40 @@ class DataSource(Node):
         coords_dst = self.requested_coordinates
         data_dst = self.output
         
-        # This a big switch, funneling data to various interpolation routines
-        if data_src.size == 1 and np.prod(coords_dst.shape) == 1:
-            data_dst[:] = data_src
-            return data_dst
+        # # This a big switch, funneling data to various interpolation routines
+        # if data_src.size == 1 and np.prod(coords_dst.shape) == 1:
+        #     data_dst[:] = data_src
+        #     return data_dst
         
-        # Nearest preview of rasters
-        if self._interpolation.definition == 'nearest_preview':
-            crds = OrderedDict()
-            tol = np.inf
-            for c in data_dst.coords.keys():
-                crds[c] = data_dst.coords[c].data.copy()
-                if c is not 'time':
-                    tol = min(tol, np.abs(getattr(coords_dst[c], 'delta', tol)))
-            crds_keys = list(crds.keys())
-            if 'time' in crds:
-                data_src = data_src.reindex(time=crds['time'], method=str('nearest'))
-                del crds['time']
-            data_dst.data = data_src.reindex(method=str('nearest'), tolerance=tol, **crds).transpose(*crds_keys)
-            return data_dst
+        # # Nearest preview of rasters
+        # if self._interpolation.definition == 'nearest_preview':
+        #     crds = OrderedDict()
+        #     tol = np.inf
+        #     for c in data_dst.coords.keys():
+        #         crds[c] = data_dst.coords[c].data.copy()
+        #         if c is not 'time':
+        #             tol = min(tol, np.abs(getattr(coords_dst[c], 'delta', tol)))
+        #     crds_keys = list(crds.keys())
+        #     if 'time' in crds:
+        #         data_src = data_src.reindex(time=crds['time'], method=str('nearest'))
+        #         del crds['time']
+        #     data_dst.data = data_src.reindex(method=str('nearest'), tolerance=tol, **crds).transpose(*crds_keys)
+        #     return data_dst
         
         # For now, we just do nearest-neighbor interpolation for time and alt
         # coordinates
-        if 'time' in coords_src.dims and 'time' in coords_dst.dims:
-            data_src = data_src.reindex(
-                time=coords_dst.coords['time'], method='nearest', tolerance=self.interpolation_tolerance)
-            coords_src['time'] = ArrayCoordinates1d.from_xarray(data_src['time'])
-            if len(coords_dst.dims) == 1:
-                return data_src
+        # if 'time' in coords_src.dims and 'time' in coords_dst.dims:
+        #     data_src = data_src.reindex(
+        #         time=coords_dst.coords['time'], method='nearest', tolerance=self.interpolation_tolerance)
+        #     coords_src['time'] = ArrayCoordinates1d.from_xarray(data_src['time'])
+        #     if len(coords_dst.dims) == 1:
+        #         return data_src
 
-        if 'alt' in coords_src.dims and 'alt' in coords_dst.dims:
-            data_src = data_src.reindex(alt=coords_dst.coords['alt'], method='nearest')
-            coords_src['alt'] = ArrayCoordinates1d.from_xarray(data_src['alt'])
-            if len(coords_dst.dims) == 1:
-                return data_src
+        # if 'alt' in coords_src.dims and 'alt' in coords_dst.dims:
+        #     data_src = data_src.reindex(alt=coords_dst.coords['alt'], method='nearest')
+        #     coords_src['alt'] = ArrayCoordinates1d.from_xarray(data_src['alt'])
+        #     if len(coords_dst.dims) == 1:
+        #         return data_src
 
         # Raster to Raster interpolation from regular grids to regular grids
         
