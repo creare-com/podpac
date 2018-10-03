@@ -7,7 +7,6 @@ from __future__ import division, print_function, absolute_import
 import os
 import glob
 import shutil
-import inspect
 from collections import OrderedDict
 from io import BytesIO
 import base64
@@ -32,6 +31,7 @@ from podpac import settings
 from podpac import Units, UnitsDataArray
 from podpac.core.utils import common_doc
 from podpac.core.coordinates import Coordinates
+from podpac.core.style import Style
 
 COMMON_NODE_DOC = {
     'native_coordinates': 
@@ -83,46 +83,7 @@ class NodeException(Exception):
     """
     pass
 
-class Style(tl.HasTraits):
-    """Summary
 
-    Attributes
-    ----------
-    clim : TYPE
-        Description
-    cmap : TYPE
-        Description
-    enumeration_colors : TYPE
-        Description
-    enumeration_legend : TYPE
-        Description
-    is_enumerated : TYPE
-        Description
-    name : TYPE
-        Description
-    units : TYPE
-        Description
-    """
-
-    def __init__(self, node=None, *args, **kwargs):
-        if node:
-            self.name = node.__class__.__name__
-            self.units = node.units
-        super(Style, self).__init__(*args, **kwargs)
-
-    name = tl.Unicode()
-    units = Units(allow_none=True)
-
-    is_enumerated = tl.Bool(default_value=False)
-    enumeration_legend = tl.Tuple(trait=tl.Unicode)
-    enumeration_colors = tl.Tuple(trait=tl.Tuple)
-
-    clim = tl.List(default_value=[None, None])
-    cmap = tl.Instance(matplotlib.colors.Colormap)
-    
-    @tl.default('cmap') 
-    def _cmap_default(self):
-        return matplotlib.cm.get_cmap('viridis')
 
 @common_doc(COMMON_DOC)
 class Node(tl.HasTraits):

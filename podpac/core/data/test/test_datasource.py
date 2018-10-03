@@ -10,7 +10,8 @@ from traitlets import TraitError
 from xarray.core.coordinates import DataArrayCoordinates
 
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import Style, COMMON_NODE_DOC
+from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.style import Style
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.types import rasterio

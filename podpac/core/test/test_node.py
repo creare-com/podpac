@@ -11,15 +11,7 @@ import traitlets as tl
 import podpac
 from podpac.core import common_test_utils as ctu
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import Style, Node, NodeException
-
-class TestStyleCreation(object):
-    def test_basic_creation(self):
-        s = Style()
-    def test_create_with_node(self):
-        s = Style(Node())
-    def test_get_default_cmap(self):
-        Style().cmap
+from podpac.core.node import Node, NodeException
         
 class TestNodeProperties(object):
     @pytest.mark.xfail(reason="get_output_shape removed, pending node refactor")
