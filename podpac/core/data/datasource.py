@@ -122,27 +122,31 @@ class DataSource(Node):
         Type of index to use for data source. Possible values are ['list','numpy','xarray','pandas']
         Default is 'numpy'
     interpolation : str,
-                    tuple (str, list of podpac.core.data.interpolate.Interpolator),
                     dict
                     optional
             Definition of interpolation methods for each dimension of the native coordinates.
             
             If input is a string, it must match one of the interpolation shortcuts defined in
             :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS. The interpolation method associated
-            with this string will be applied to all dimensions.
+            with this string will be applied to all dimensions at the same time.
 
-            If input is a tuple, the first element of the tuple must be a string interpolation method name.
-            The second element must be a list of :ref:podpac.core.data.interpolate.Interpolator. This list specifies
-            the order in which the interpolators will be applied.
-            The interpolation method defined by this tuple will be applied to all dimensions.
-
-            If input is a dict, the key must be a string or tuple of dimension names.
-            The value can be a string or tuple following the same convention as specified above.
-            The string or tuple value will be applied
-            to the dimension(s) specied by the key. If the dictionary
-            does not contain a key for all unstacked dimensions of the native coodrinates, the
+            If input is a dict, the dict must contain ordered set of keys defining dimensions and values
+            defining the interpolation method to use with the dimensions.
+            The key must be a string or tuple of dimension names (i.e. `'time'` or `('lat', 'lon')` ).
+            The value can either be a string matching one of the interpolation shortcuts defined in
+            :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS or a dictionary.
+            If the value is a dictionary, the dictionary must contain a key `'method'`
+            defining the interpolation method name.
+            If the interpolation method is not one of :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS, a
+            second key `'interpolators'` must be defined with a list of
+            :ref:podpac.core.data.interpolate.Interpolator classes to use in order of uages.
+            The dictionary may contain an option `'params'` key which contains a dict of parameters to pass along to
+            the :ref:podpac.core.data.interpolate.Interpolator classes associated with the interpolation method.
+            
+            If the dictionary does not contain a key for all unstacked dimensions of the source coordinates, the
             :ref:podpac.core.data.interpolate.INTERPOLATION_DEFAULT value will be used.
             All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
+            Any extra dimensions included but not found in the source coordinates will be ignored.
 
             If input is a podpac.core.data.interpolate.Interpolation, this interpolation
             class will be used without modication.
@@ -164,7 +168,6 @@ class DataSource(Node):
 
     interpolation = tl.Union([
         tl.Dict(),
-        tl.Tuple(),
         tl.Enum(INTERPOLATION_SHORTCUTS)
     ], default_value=INTERPOLATION_DEFAULT)
 
@@ -194,7 +197,8 @@ class DataSource(Node):
     # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
     @tl.default('_interpolation')
     def _default_interpolation(self):
-        raise tl.TraitError('DataSource _interpolation property set during evaluate')
+        self._set_interpolation()
+        return self._interpolation
 
 
     @common_doc(COMMON_DATA_DOC)
@@ -301,6 +305,20 @@ class DataSource(Node):
         self.evaluated = True
         return self.output
 
+    def get_interpolation_class(self):
+        """Get the interpolation class currently set for this data source.
+        
+        The DataSource `interpolation` property is used to define the 
+        :ref:podpac.core.data.interpolate.Interpolation class that will handle interpolation for requested coordinates.
+        
+        Returns
+        -------
+        podpac.core.data.interpolate.Interpolation
+            Interpolation class defined by DataSource `interpolation` definition
+        """
+
+        return self._interpolation
+        
 
     def _set_interpolation(self):
         """Update _interpolation property
