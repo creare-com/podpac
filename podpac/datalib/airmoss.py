@@ -52,16 +52,11 @@ class AirMOSS_Source(datatype.PyDAP):
         ds = self.dataset
         base_date = ds['time'].attributes['units']
         base_date = self.date_url_re.search(base_date).group()
-        times = (ds['time'][:]).astype('timedelta64[h]')\
-            + np.array(base_date, 'datetime64')
+        times = (ds['time'][:]).astype('timedelta64[h]') + np.array(base_date, 'datetime64')
 
-        lons = (ds['lon'][0], ds['lon'][-1],
-                ds['lon'][1] - ds['lon'][0])
-        lats = (ds['lat'][0], ds['lat'][-1],
-                ds['lat'][1] - ds['lat'][0])
-
-        coords = podpac.Coordinate(time=np.array(times), lat=lats, lon=lons,
-                                   coord_order=['time', 'lat', 'lon'])
+        lons = podpac.crange(ds['lon'][0], ds['lon'][-1], ds['lon'][1] - ds['lon'][0])
+        lats = podpac.crange(ds['lat'][0], ds['lat'][-1], ds['lat'][1] - ds['lat'][0])
+        coords = podpac.Coordinates([times, lats, lons], dims=['time', 'lat', 'lon'])
         self.cache_obj(coords, 'native.coordinates')
 
         return coords
@@ -82,8 +77,7 @@ class AirMOSS_Source(datatype.PyDAP):
             Description
         """
         data = self.dataset[self.datakey].array[tuple(coordinates_index)]
-        d = self.initialize_coord_array(coordinates, 'data',
-                                        fillval=data.reshape(coordinates.shape))
+        d = self.initialize_coord_array(coordinates, 'data', fillval=data.reshape(coordinates.shape))
         return d
 
 
@@ -105,10 +99,8 @@ class AirMOSS_Site(podpac.OrderedCompositor):
     """
 
     product = tl.Enum(['L4RZSM'], default_value='L4RZSM')
-    base_url = tl.Unicode(    u'https://thredds.daac.ornl.gov/thredds/dodsC/'
-                              u'ornldaac/1421')
-    base_dir_url = tl.Unicode(u'https://thredds.daac.ornl.gov/thredds/catalog/'
-                              u'ornldaac/1421/catalog.html')
+    base_url = tl.Unicode(u'https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1421')
+    base_dir_url = tl.Unicode(u'https://thredds.daac.ornl.gov/thredds/catalog/ornldaac/1421/catalog.html')
     site = tl.Unicode('')
     date_url_re = re.compile('[0-9]{8}')
 
@@ -127,13 +119,9 @@ class AirMOSS_Site(podpac.OrderedCompositor):
 
         ds = self.dataset
         times = self.get_available_dates()
-        lons = (ds['lon'][0], ds['lon'][-1],
-                ds['lon'][1] - ds['lon'][0])
-        lats = (ds['lat'][0], ds['lat'][-1],
-                ds['lat'][1] - ds['lat'][0])
-
-        coords = podpac.Coordinate(time=np.array(times), lat=lats, lon=lons,
-                                   coord_order=['time', 'lat', 'lon'])
+        lons = podpac.crange(ds['lon'][0], ds['lon'][-1], ds['lon'][1] - ds['lon'][0])
+        lats = podpac.crange(ds['lat'][0], ds['lat'][-1], ds['lat'][1] - ds['lat'][0])
+        coords = podpac.Coordinates([times, lats, lons], dims=['time', 'lat', 'lon'])
         self.cache_obj(coords, 'native.coordinates')
 
         return coords
@@ -215,8 +203,7 @@ if __name__ == '__main__':
                        site='BermsP')
     print(ams.native_coordinates)
 
-    source = ('https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1421/'
-              'L4RZSM_BermsP_20121025_v5.nc4')
+    source = 'https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1421/L4RZSM_BermsP_20121025_v5.nc4'
     am = AirMOSS_Source(source=source, interpolation='nearest_preview')
     coords = am.native_coordinates
     print(coords)
@@ -225,7 +212,7 @@ if __name__ == '__main__':
     lat, lon = am.native_coordinates.coords['lat'], am.native_coordinates.coords['lon']
     lat = lat[::10][np.isfinite(lat[::10])]
     lon = lon[::10][np.isfinite(lon[::10])]
-    coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
+    coords = podpac.Coordinates([lat, lon], order=['lat', 'lon'])
     o = am.execute(coords)
 
     print('Done')
