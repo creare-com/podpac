@@ -20,6 +20,8 @@ class BaseCoordinates(tl.HasTraits):
         If the coordinates are monotonically increasing or decreasing.
     is_uniform : bool
         If the coordinates are uniformly spaced.
+    is_stacked : bool
+        If the coordinates are uniformly spaced.
     """
 
     @property
@@ -44,6 +46,10 @@ class BaseCoordinates(tl.HasTraits):
 
     @property
     def is_uniform(self):
+        raise NotImplementedError
+
+    @property
+    def is_stacked(self):
         raise NotImplementedError
 
     def select(self, bounds, outer=False, return_indices=False):

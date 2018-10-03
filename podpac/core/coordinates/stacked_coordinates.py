@@ -46,12 +46,15 @@ class StackedCoordinates(BaseCoordinates):
         # set 1d coordinates defaults
         # TODO JXM factor out, etc, maybe move to observe so that it gets validated first
         for c in coords:
+            c.is_stacked = True
+
             if 'ctype' not in c._trait_values and ctype is not None:
                 c.ctype = ctype
             if 'coord_ref_sys' not in c._trait_values and coord_ref_sys is not None:
                 c.coord_ref_sys = coord_ref_sys
             if 'units' not in c._trait_values and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
                 c.units = distance_units
+
         
         super(StackedCoordinates, self).__init__(_coords=coords)
 
