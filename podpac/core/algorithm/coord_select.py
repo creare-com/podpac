@@ -24,7 +24,7 @@ class ExpandCoordinates(Algorithm):
     Attributes
     ----------
     input_coordinates : podpac.Coordinates
-        The coordinates that were used to execute the node
+        The coordinates that were used to evaluate the node
     native_coordinates_source : podpac.Coordinates
         The native coordinates of the source node whose coordinates are being expanded. This is needed in case the
         source doesn't have native coordinates (e.g. an Algorithm node).
@@ -143,32 +143,32 @@ class ExpandCoordinates(Algorithm):
         return self.source.output
  
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
-        """Executes this nodes using the supplied coordinates.
+    def eval(self, coordinates, output=None, method=None):
+        """Evaluates this nodes using the supplied coordinates.
 
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
-            {execute_out}
+            {eval_output}
         method : str, optional
-            {execute_method}
+            {eval_method}
             
         Returns
         -------
-        {execute_return}
+        {eval_return}
         
         Notes
         -------
-        The input coordinates are modified and the passed to the base class implementation of execute.
+        The input coordinates are modified and the passed to the base class implementation of eval.
         """
         self.input_coordinates = coordinates
         coordinates = self.get_expanded_coordinates()
         for dim in coordinates.udims:
             if coordinates[dim].size == 0:
                 raise ValueError("Expanded/selected coordinates do not intersect with source data (dim '%s')" % dim)
-        return super(ExpandCoordinates, self).execute(coordinates, output, method)
+        return super(ExpandCoordinates, self).eval(coordinates, output, method)
 
 
 class SelectCoordinates(ExpandCoordinates):

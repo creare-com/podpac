@@ -37,7 +37,7 @@ def parse_pipeline_definition(definition):
     # parse output definition
     output = _parse_output_definition(nodes, definition.get('output', {}))
 
-    _check_execution_graph(definition, nodes, output)
+    _check_evaluation_graph(definition, nodes, output)
 
     return nodes, output
 
@@ -138,7 +138,7 @@ def _parse_output_definition(nodes, d):
 
     return output
 
-def _check_execution_graph(definition, nodes, output):
+def _check_evaluation_graph(definition, nodes, output):
     used = {ref:False for ref in nodes}
 
     def f(base_ref):

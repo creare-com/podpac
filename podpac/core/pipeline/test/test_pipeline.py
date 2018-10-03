@@ -17,10 +17,10 @@ from podpac.core.pipeline.util import PipelineError
 
 coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=['lat', 'lon'])
 node = Arange()
-node.execute(coords)
+node.eval(coords)
 
 class TestPipeline(object):
-    def test_execute(self):
+    def test_eval(self):
         s = '''
         {
             "nodes": {
@@ -33,7 +33,7 @@ class TestPipeline(object):
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         pipeline = Pipeline(definition=d)
-        pipeline.execute(coords)
+        pipeline.eval(coords)
 
         pipeline.native_coordinates
         pipeline.evaluated
@@ -43,7 +43,7 @@ class TestPipeline(object):
         pipeline.interpolation
         pipeline.style
 
-    def test_execute_output(self):
+    def test_eval_output(self):
         path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'pipeline', 'test')
 
         s = '''
@@ -64,15 +64,15 @@ class TestPipeline(object):
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         pipeline = Pipeline(definition=d)
-        pipeline.execute(coords)
+        pipeline.eval(coords)
         assert pipeline.pipeline_output.path is not None
         assert os.path.isfile(pipeline.pipeline_output.path)
         os.remove(pipeline.pipeline_output.path)
 
-    def test_execute_from_file(self):
+    def test_eval_from_file(self):
         path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'pipeline', 'test', 'test.json')
         pipeline = Pipeline(path=path)
-        pipeline.execute(coords)
+        pipeline.eval(coords)
 
         assert pipeline.definition['nodes']
         assert pipeline.definition['output']
@@ -82,7 +82,7 @@ class TestPipeline(object):
         assert os.path.isfile(pipeline.pipeline_output.path)
         os.remove(pipeline.pipeline_output.path)
 
-    def test_execute_from_json(self):
+    def test_eval_from_json(self):
         s = '''
         {
             "nodes": {
@@ -94,4 +94,4 @@ class TestPipeline(object):
         '''
 
         pipeline = Pipeline(json=s)
-        pipeline.execute(coords)
+        pipeline.eval(coords)

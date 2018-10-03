@@ -44,7 +44,7 @@ DATA_DOC = {
     'get_data':
         """
         This method must be defined by the data source implementing the DataSource class.
-        When data source nodes are executing, this method is called with request coordinates and coordinate indexes.
+        When data source nodes are evaluated, this method is called with request coordinates and coordinate indexes.
         The implementing method can choose which input provides the most efficient method of getting data
         (i.e via coordinates or via the index of the coordinates).
         
@@ -202,7 +202,7 @@ class DataSource(Node):
 
 
     @common_doc(COMMON_DATA_DOC)
-    def execute(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None, method=None):
         """Evaluates this node using the supplied coordinates.
 
         The evaluation process start by setting `requested_coordinates` to the supplied input coordinates.
@@ -219,13 +219,13 @@ class DataSource(Node):
         coordinates : Coordinates
             {requested_coordinates}
         output : podpac.core.units.UnitsDataArray, optional
-            {execute_out}
+            {eval_output}
         method : str, optional
-            {execute_method}
+            {eval_method}
         
         Returns
         -------
-        {execute_return}
+        {eval_return}
         """
 
         # initial checks

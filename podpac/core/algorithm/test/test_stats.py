@@ -22,7 +22,7 @@ def setup_module():
     a[0, 3, 0] = np.nan
     a[0, 0, 3] = np.nan
     source = Array(source=a, native_coordinates=coords)
-    data = source.execute(coords)
+    data = source.eval(coords)
 
 class TestReduce(object):
     """ Tests the Reduce class """
@@ -30,14 +30,14 @@ class TestReduce(object):
     def test_auto_chunk(self):
         # any reduce node would do here
         node = Min(source=source, iter_chunk_size='auto')
-        node.execute(coords)
+        node.eval(coords)
 
     def test_not_implemented(self):
         from podpac.core.algorithm.stats import Reduce
 
         node = Reduce(source=source)
         with pytest.raises(NotImplementedError):
-            node.execute(coords)
+            node.eval(coords)
 
     def test_chunked_fallback(self):
         from podpac.core.algorithm.stats import Reduce
@@ -48,12 +48,12 @@ class TestReduce(object):
 
         # use reduce function
         node = First(source=source, dims='time')
-        output = node.execute(coords)
+        output = node.eval(coords)
         
         # fall back on reduce function with warning
         node = First(source=source, dims='time', iter_chunk_size=100)
         with pytest.warns(UserWarning):
-            output_chunked = node.execute(coords)
+            output_chunked = node.eval(coords)
 
         # should be the same
         xr.testing.assert_allclose(output, output_chunked)
@@ -63,43 +63,43 @@ class BaseTests(object):
 
     def test_full(self):
         node = self.NodeClass(source=source)
-        output = node.execute(coords)
+        output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_full)
         np.testing.assert_allclose(output.data, self.expected_full.data)
 
         node = self.NodeClass(source=source, dims=coords.dims)
-        output = node.execute(coords)
+        output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_full)
         np.testing.assert_allclose(output.data, self.expected_full.data)
 
     def test_full_chunked(self):
         node = self.NodeClass(source=source, dims=coords.dims, iter_chunk_size=100)
-        output = node.execute(coords)
+        output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_full)
         np.testing.assert_allclose(output.data, self.expected_full.data)
 
     def test_lat_lon(self):
         node = self.NodeClass(source=source, dims=['lat', 'lon'])
-        output = node.execute(coords)
+        output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_latlon)
         np.testing.assert_allclose(output.data, self.expected_latlon.data)
 
     @pytest.mark.xfail(reason="bug, to fix")
     def test_lat_lon_chunked(self):
         node = self.NodeClass(source=source, dims=['lat', 'lon'], iter_chunk_size=100)
-        output = node.execute(coords)
+        output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_latlon)
         np.testing.assert_allclose(output.data, self.expected_latlon.data)
 
     def test_time(self):
         node = self.NodeClass(source=source, dims='time')
-        output = node.execute(coords)
+        output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_time)
         np.testing.assert_allclose(output.data, self.expected_time.data)
 
     def test_time_chunked(self):
         node = self.NodeClass(source=source, dims='time', iter_chunk_size=100)
-        output = node.execute(coords)
+        output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_time)
         np.testing.assert_allclose(output.data, self.expected_time.data)
 

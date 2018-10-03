@@ -84,21 +84,21 @@ class Convolution(Algorithm):
         return self.source.native_coordinates
  
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
-        """Executes this nodes using the supplied coordinates.
+    def eval(self, coordinates, output=None, method=None):
+        """Evaluates this nodes using the supplied coordinates.
         
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
-            {execute_out}
+            {eval_output}
         method : str, optional
-            {execute_method}
+            {eval_method}
         
         Returns
         -------
-        {execute_return}
+        {eval_return}
         """
         self.requested_coordinates = coordinates
         self.output = output
@@ -136,8 +136,8 @@ class Convolution(Algorithm):
         self.expanded_coordinates = exp_coords
         exp_slice = tuple(exp_slice)
 
-        # execute using expanded coordinates
-        out = super(Convolution, self).execute(exp_coords, output, method)
+        # evaluate using expanded coordinates
+        out = super(Convolution, self).eval(exp_coords, output, method)
 
         # reduce down to originally requested coordinates
         self.output = out[exp_slice]

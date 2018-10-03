@@ -174,24 +174,24 @@ class Reduce(Algorithm):
             Output for this chunk
         """
         for chunk in self.input_coordinates.iterchunks(self.chunk_shape):
-            yield self.source.execute(chunk, method=method)
+            yield self.source.eval(chunk, method=method)
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
-        """Executes this nodes using the supplied coordinates. 
+    def eval(self, coordinates, output=None, method=None):
+        """Evaluates this nodes using the supplied coordinates. 
         
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
-            {execute_out}
+            {eval_output}
         method : str, optional
-            {execute_method}
+            {eval_method}
         
         Returns
         -------
-        {execute_return}
+        {eval_return}
         """
         self.input_coordinates = coordinates
         self.output = output
@@ -208,7 +208,7 @@ class Reduce(Algorithm):
             result = self.reduce_chunked(self.iteroutputs(method), method)
         else:
             if self.implicit_pipeline_evaluation:
-                self.source.execute(coordinates, method=method)
+                self.source.eval(coordinates, method=method)
             result = self.reduce(self.source.output)
 
         if self.output.shape is (): # or self.requested_coordinates is None
@@ -257,7 +257,7 @@ class Reduce(Algorithm):
         """
 
         warnings.warn("No reduce_chunked method defined, using one-step reduce")
-        x = self.source.execute(self.input_coordinates, method=method)
+        x = self.source.eval(self.input_coordinates, method=method)
         return self.reduce(x)
 
     @property
@@ -812,7 +812,7 @@ class Reduce2(Reduce):
             Output for this chunk
         """
         for chunk, slices in self.input_coordinates.iterchunks(self.chunk_shape, return_slices=True):
-            yield self.source.execute(chunk, method=method), slices
+            yield self.source.eval(chunk, method=method), slices
 
     def reduce_chunked(self, xs, method=None):
         """
@@ -963,21 +963,21 @@ class GroupReduce(Algorithm):
         return coords
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
-        """Executes this nodes using the supplied coordinates. 
+    def eval(self, coordinates, output=None, method=None):
+        """Evaluates this nodes using the supplied coordinates. 
         
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
-            {execute_out}
+            {eval_output}
         method : str, optional
-            {execute_method}
+            {eval_method}
         
         Returns
         -------
-        {execute_return}
+        {eval_return}
         
         Raises
         ------
@@ -994,7 +994,7 @@ class GroupReduce(Algorithm):
             raise ValueError("GroupReduce source node must be time-dependent")
         
         if self.implicit_pipeline_evaluation:
-            self.source.execute(self.source_coordinates, method=method)
+            self.source.eval(self.source_coordinates, method=method)
 
         # group
         grouped = self.source.output.groupby('time.%s' % self.groupby)

@@ -45,13 +45,11 @@ class Compositor(Node):
         Indicates the interpolation type. This gets passed down to the DataSources as part of the compositor. 
     threaded : bool, optional
         Default if False.
-        When threaded is False, the compositor stops executing sources once the
-        output is completely filled for efficiency. When threaded is True, the
-        compositor must execute every source. The result is the same, but note
-        that because of this, threaded=False could be faster than threaded=True,
-        especially if n_threads is low. For example, threaded with n_threads=1
-        could be much slower than non-threaded if the output is completely filled
-        after the first few sources.
+        When threaded is False, the compositor stops evaluated sources once the output is completely filled.
+        When threaded is True, the compositor must evaluate every source.
+        The result is the same, but note that because of this, threaded=False could be faster than threaded=True,
+        especially if n_threads is low. For example, threaded with n_threads=1 could be much slower than non-threaded
+        if the output is completely filled after the first few sources.
     n_threads : int
         Default is 10 -- used when threaded is True. 
         NASA data servers seem to have a hard limit of 10 simultaneous requests, which determined the default value.
@@ -89,8 +87,9 @@ class Compositor(Node):
         return self.get_source_coordinates()
 
     def get_source_coordinates(self):
-        """Returns the coordinates describing each source. 
-        This may be implemented by derived classes, and is an optimization that allows a subset of source to be executed.
+        """
+        Returns the coordinates describing each source. 
+        This may be implemented by derived classes, and is an optimization that allows evaluation subsets of source.
         
         Returns
         -------
@@ -226,7 +225,7 @@ class Compositor(Node):
             # TODO pool of pre-allocated scratch space
             # TODO: docstring?
             def f(src):
-                return src.execute(coordinates, method=method)
+                return src.eval(coordinates, method=method)
             pool = ThreadPool(processes=self.n_threads)
             results = [pool.apply_async(f, [src]) for src in src_subset]
             
@@ -237,26 +236,26 @@ class Compositor(Node):
         else:
             output = None # scratch space
             for src in src_subset:
-                output = src.execute(coordinates, output, method)
+                output = src.eval(coordinates, output, method)
                 yield output
                 output[:] = np.nan
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
-        """Executes this nodes using the supplied coordinates. 
+    def eval(self, coordinates, output=None, method=None):
+        """Evaluates this nodes using the supplied coordinates. 
 
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
-            {execute_out}
+            {eval_output}
         method : str, optional
-            {execute_method}
+            {eval_method}
             
         Returns
         -------
-        {execute_return}
+        {eval_return}
         """
         self.requested_coordinates = coordinates
         self.output = output
@@ -298,7 +297,7 @@ class OrderedCompositor(Compositor):
         
         Returns
         -------
-        {execute_return} This composites the sources together until there are no nans or no more sources.
+        {eval_return} This composites the sources together until there are no nans or no more sources.
         """
         if result is None:
             # consume the first source output

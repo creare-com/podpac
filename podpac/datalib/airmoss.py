@@ -226,6 +226,6 @@ if __name__ == '__main__':
     lat = lat[::10][np.isfinite(lat[::10])]
     lon = lon[::10][np.isfinite(lon[::10])]
     coords = podpac.Coordinate(lat=lat, lon=lon, order=['lat', 'lon'])
-    o = am.execute(coords)
+    o = am.eval(coords)
 
     print('Done')

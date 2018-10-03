@@ -91,8 +91,8 @@ class Pipeline(Node):
         self.nodes, self.pipeline_output = parse_pipeline_definition(definition)
         return definition
 
-    def execute(self, coordinates, output=None):
-        """Execute the pipeline, writing the output if one is defined.
+    def eval(self, coordinates, output=None):
+        """Evaluate the pipeline, writing the output if one is defined.
 
         Parameters
         ----------
@@ -101,7 +101,7 @@ class Pipeline(Node):
         """
         
         if self.implicit_pipeline_evaluation:
-            self.pipeline_output.node.execute(coordinates, output)
+            self.pipeline_output.node.eval(coordinates, output)
         
         self.pipeline_output.write()
 

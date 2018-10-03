@@ -16,7 +16,6 @@ import traitlets as tl
 import matplotlib
 import matplotlib.cm
 
-
 try:
     import cPickle  # Python 2.7
 except:
@@ -37,18 +36,18 @@ COMMON_NODE_DOC = {
     'native_coordinates': 
         '''The native set of coordinates for a node. This attribute may be `None` for some nodes.''',
     'requested_coordinates': 
-        '''The set of coordinates requested by a user. The Node will be executed using these coordinates.''',
-    'execute_out': 
+        '''The set of coordinates requested by a user. The Node will be evaluated using these coordinates.''',
+    'eval_output': 
         '''Default is None. Optional input array used to store the output data. When supplied, the node will not 
             allocate its own memory for the output array. This array needs to have the correct dimensions and 
             coordinates.''',
-    'execute_method': 
-        '''Default is None. How the node will be executed: serial, parallel, on aws, locally, etc. Currently only local
-            execution is supported.''',
-    'execute_return': 
+    'eval_method': 
+        '''Default is None. How the node will be evaluated: serial, parallel, on aws, locally, etc. Currently only
+           local evaluation is supported.''',
+    'eval_return': 
         '''UnitsDataArray
-            Unit-aware xarray DataArray containing the results of the node execution.''',
-    'hash_return': 'A unique hash capturing the coordinates and parameters used to execute the node. ',
+            Unit-aware xarray DataArray containing the results of the node evaluation.''',
+    'hash_return': 'A unique hash capturing the coordinates and parameters used to evaluate the node. ',
     'outdir': 'Optional output directory. Uses settings.CACHE_DIR by default',
     'definition_return': '''OrderedDict
             Dictionary containing the location of the Node, the name of the plugin (if required), as well as any 
@@ -79,11 +78,8 @@ COMMON_NODE_DOC = {
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
 class NodeException(Exception):
-    """Summary
-    """
+    """ Summary """
     pass
-
-
 
 @common_doc(COMMON_DOC)
 class Node(tl.HasTraits):
@@ -181,18 +177,18 @@ class Node(tl.HasTraits):
         pass
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
-        """This is the common interface used for ALL nodes. Pipelines only
-        understand this method and get_description.
+    def eval(self, coordinates, output=None, method=None):
+        """
+        This is the common interface used for ALL nodes. Pipelines only understand this method and get_description.
 
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
-            {execute_out}
+            {eval_output}
         method : str, optional
-            {execute_method}
+            {eval_method}
 
         Raises
         ------
@@ -214,7 +210,7 @@ class Node(tl.HasTraits):
         Returns
         -------
         podpac.Coordinates
-            The coordinates of the output if the node is executed with `coords`
+            The coordinates of the output if the node is evaluated with `coords`
         """
 
         # Changes here likely will also require changes in shape

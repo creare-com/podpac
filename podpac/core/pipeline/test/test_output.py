@@ -10,7 +10,7 @@ from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output, NoOutpu
 
 coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=['lat', 'lon'])
 node = Arange()
-node.execute(coords)
+node.eval(coords)
 
 class TestNoOutput(object):
     def test(self):

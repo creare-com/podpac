@@ -316,13 +316,13 @@ class TestDataSource(object):
             node = MockDataSource()
             
             with pytest.raises(TypeError):
-                node.execute()
+                node.eval()
 
         def test_evaluate_at_native_coordinates(self):
             """evaluate node at native coordinates"""
 
             node = MockDataSource()
-            output = node.execute(node.native_coordinates)
+            output = node.eval(node.native_coordinates)
 
             assert isinstance(output, UnitsDataArray)
             assert output.shape == (101, 101)
@@ -347,7 +347,7 @@ class TestDataSource(object):
             output = UnitsDataArray(np.zeros(node.source.shape),
                                     coords=node.native_coordinates.coords,
                                     dims=node.native_coordinates.dims)
-            node.execute(node.native_coordinates, output=output)
+            node.eval(node.native_coordinates, output=output)
 
             assert isinstance(output, UnitsDataArray)
             assert output.shape == (101, 101)
@@ -361,7 +361,7 @@ class TestDataSource(object):
             coords = Coordinates([clinspace(-55, -45, 101), clinspace(-55, -45, 101)], dims=['lat', 'lon'])
             data = np.zeros(node.source.shape)
             output = UnitsDataArray(data, coords=coords.coords, dims=coords.dims)
-            node.execute(coords, output=output)
+            node.eval(coords, output=output)
 
             assert isinstance(output, UnitsDataArray)
             assert output.shape == (101, 101)
@@ -373,7 +373,7 @@ class TestDataSource(object):
             node = MockDataSource()
             coords = Coordinates(
                 [clinspace(-25, 0, 20), clinspace(-25, 0, 20), clinspace(1, 10, 10)], dims=['lat', 'lon', 'time'])
-            output = node.execute(coords)
+            output = node.eval(coords)
 
             assert output.coords.dims == ('lat', 'lon')  # coordinates of the DataSource, no the evaluated coordinates
 
@@ -382,7 +382,7 @@ class TestDataSource(object):
 
             node = MockDataSource()
             coords = Coordinates([clinspace(-55, -45, 20), clinspace(-55, -45, 20)], dims=['lat', 'lon'])
-            output = node.execute(coords)
+            output = node.eval(coords)
 
             assert np.all(np.isnan(output))
         
@@ -390,21 +390,21 @@ class TestDataSource(object):
             """ evaluate note with nan_vals """
 
             node = MockDataSource(nan_vals=[10, None])
-            output = node.execute(node.native_coordinates)
+            output = node.eval(node.native_coordinates)
 
             assert output.values[np.isnan(output)].shape == (2,)
 
         def test_return_ndarray(self):
             
             node = MockDataSourceReturnsArray()
-            output = node.execute(node.native_coordinates)
+            output = node.eval(node.native_coordinates)
 
             assert isinstance(output, UnitsDataArray)
             assert node.native_coordinates['lat'].coordinates[4] == output.coords['lat'].values[4]
 
         def test_return_DataArray(self):
             node = MockDataSourceReturnsDataArray()
-            output = node.execute(node.native_coordinates)
+            output = node.eval(node.native_coordinates)
 
             assert isinstance(output, UnitsDataArray)
             assert node.native_coordinates['lat'].coordinates[4] == output.coords['lat'].values[4]
@@ -425,7 +425,7 @@ class TestDataSource(object):
             coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=['lat'])
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src, interpolation='nearest_preview')
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
@@ -439,7 +439,7 @@ class TestDataSource(object):
             coords_dst = Coordinates([clinspace(1, 11, 5,)], dims=['time'])
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.time.values == coords_dst.coords['time'])
@@ -456,7 +456,7 @@ class TestDataSource(object):
             coords_dst = Coordinates([clinspace(1, 11, 5)], dims=['alt'])
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.alt.values == coords_dst.coords['alt'])
@@ -471,7 +471,7 @@ class TestDataSource(object):
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
@@ -497,7 +497,7 @@ class TestDataSource(object):
             # make sure it raises trait error
             with pytest.raises(TraitError):
                 node.interpolation = 'myowninterp'
-                output = node.execute(coords_dst)
+                output = node.eval(coords_dst)
 
             # make sure rasterio_interpolation method requires lat and lon
             # with pytest.raises(ValueError):
@@ -509,7 +509,7 @@ class TestDataSource(object):
             for interp in rasterio_interps:
                 node.interpolation = interp
                 print(interp)
-                output = node.execute(coords_dst)
+                output = node.eval(coords_dst)
 
                 assert isinstance(output, UnitsDataArray)
                 assert np.all(output.lat.values == coords_dst.coords['lat'])
@@ -523,7 +523,7 @@ class TestDataSource(object):
             coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=['lat', 'lon'])
             
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
             
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
@@ -551,7 +551,7 @@ class TestDataSource(object):
             for interp in rasterio_interps:
                 node.interpolation = interp
                 print(interp)
-                output = node.execute(coords_dst)
+                output = node.eval(coords_dst)
 
                 assert isinstance(output, UnitsDataArray)
                 assert np.all(output.lat.values == coords_dst.coords['lat'])
@@ -570,7 +570,7 @@ class TestDataSource(object):
             
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
             
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
@@ -588,7 +588,7 @@ class TestDataSource(object):
             
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
             
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
@@ -605,7 +605,7 @@ class TestDataSource(object):
             
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
             
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
@@ -622,7 +622,7 @@ class TestDataSource(object):
 
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
             node.interpolation = 'nearest'
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat_lon.values == coords_dst.coords['lat_lon'])
@@ -640,7 +640,7 @@ class TestDataSource(object):
             coords_dst = Coordinates([[[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]], dims=['lat_lon'])
             node = MockEmptyDataSource(source=source, native_coordinates=coords_src)
 
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat_lon.values == coords_dst.coords['lat_lon'])
             assert output.values[0] == source[0]
@@ -648,7 +648,7 @@ class TestDataSource(object):
 
 
             coords_dst = Coordinates([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]], dims=['lat', 'lon'])
-            output = node.execute(coords_dst)
+            output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
             assert output.values[0, 0] == source[0]

@@ -812,7 +812,7 @@ class ReprojectedSource(DataSource, Algorithm):
         """{get_data}
         """
         self.source.interpolation = self.source_interpolation
-        data = self.source.execute(coordinates)
+        data = self.source.eval(coordinates)
         
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of

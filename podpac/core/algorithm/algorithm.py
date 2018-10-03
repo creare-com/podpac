@@ -30,21 +30,21 @@ class Algorithm(Node):
     """
     
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
-        """Executes this nodes using the supplied coordinates. 
+    def eval(self, coordinates, output=None, method=None):
+        """Evalutes this nodes using the supplied coordinates. 
         
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
-            {execute_out}
+            {eval_output}
         method : str, optional
-            {execute_method}
+            {eval_method}
         
         Returns
         -------
-        {execute_return}
+        {eval_return}
         """
         self.requested_coordinates = coordinates
         self.output = output
@@ -54,7 +54,7 @@ class Algorithm(Node):
             node = getattr(self, name)
             if isinstance(node, Node):
                 if self.implicit_pipeline_evaluation:
-                    node.execute(coordinates, method)
+                    node.eval(coordinates, method)
                 coords_list.append(Coordinates.from_xarray(node.output.coords))
         coords = union(coords_list)
 

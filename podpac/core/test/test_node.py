@@ -75,9 +75,9 @@ class TestNodeProperties(object):
         
         
 class TestNotImplementedMethods(object):
-    def test_execute(self):
+    def test_eval(self):
         with pytest.raises(NotImplementedError):
-            Node().execute(None)
+            Node().eval(None)
     
     def test_definition(self):
         with pytest.raises(NotImplementedError):
