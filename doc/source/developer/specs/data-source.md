@@ -18,88 +18,148 @@
 
 `DataSource(Node)` is the base class from which all data other data sources are implemented. Extends the `Node` base class.
 
-Potentailly execute datasource @ native_coordinates
+#### Traits
 
-Traits:
+(See [Node documentation](https://creare-com.github.io/podpac-docs/user/api/podpac.core.node.html#podpac.core.node.Node) for nodes attributes)
+
 - `source`: Any, required
     + The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as a few examples.
-- `interpolation`: Enum('nearest', 'nearest_preview', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss', 'max', 'min', 'med', 'q1', 'q3'), Default: `nearest`
-    + Type of interpolation
-- `params`: Any
-    + Includes `interpolation_param` and any other kwargs that are necessary for the DataSource
-- pick one of (`nodata`, `nonevals`, `none_vals`, `nan`, `nanvals`, `nan_vals`): List
-    + list of values from source data that should be interpreted as 'no data' or 'nans'
+- `interpolation`:  
+     - str, tuple (str, list of podpac.core.data.interpolate.Interpolator)
+    - Definition of interpolation methods for each dimension of the native coordinates. If input is a string, it must match one of the interpolation shortcuts defined in
+    :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS. The interpolation method associated
+    with this string will be applied to all dimensions in the native coordinates.
+    - If input is a tuple, the first element of the tuple must be a string interpolation method name.
+    The second element must be a list of :ref:podpac.core.data.interpolate.Interpolator. This list specifies
+    the order in which the interpolators will be applied.
+    The interpolation method defined by this tuple will be applied to all dimensions in the native coordinates.
+    - If input is a dict, the key must be string dimension names. The value can be a string or tuple following
+    the same convention as specified above. The string or tuple will be applied
+    to the dimension specied by the key. An exception will be raised if the dictionary
+    does not contain a key for all unstacked dimensions of the native coodrinates.
+    All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
+    - If input is a podpac.core.data.interpolate.Interpolation, this interpolator will be used without modication.
+    - By default, the interpolation method is set to `'nearest'` for all dimensions.
+- `coordinate_index_type`: Enum('list','numpy','xarray','pandas'). By default this is `numpy`
+- `nan_vals`: List
+    + list of values from source data that should be interpreted as 'no data' or 'nans' (replaces `no_data_vals`)
 
-Properties
+#### Private Members
 
-Contructor
-- Take one input (i.e. `auto`) that will automatically execute the datasource at the native_coordinates on contruction. This will allow a shortcut when you just want to load a simple data source for processing with other more complication data sources
+- `_interpolation` - tl.Instance(Interpolation).  Interpolation method returned from Interpolation(`interpolation`) constructor
 
-Methods
-- `execute(coordinates, params=None, output=None, method=None)` (potentially rename to or provide alias as `request(...)`): Execute this node using the supplied coordinates
-    + `self.requested_coordinates` gets set to the input coordinates
+*TODO* : the names of these memebers will be changed
+
+- `_requested_coordinates` = tl.Instance(Coordinates, allow_none=True)
+- `_requested_source_coordinates` = tl.Instance(Coordinates)
+- `_requested_source_coordinates_index` = tl.List()
+- `_requested_source_data` = tl.Instance(UnitsDataArray)
+
+#### Properties
+
+#### Contructor
+
+- FUTURE: After implementing a limiter on the request size, implement:
+    + Take one input (i.e. `evaluate`) that will automatically execute the datasource at the native_coordinates on contruction. This will allow a shortcut when you just want to load a simple data source for processing with other more complication data sources
+
+#### Methods
+
+- `eval(coordinates, output=None, method=None)`: Evaluate this node using the supplied coordinates
+    + `self.requested_coordinates` gets set to the coordinates that are input
+    + Instantiate `_interpolation`  classes with data sources based on input to `interpolation`
     + remove dims that don't exist in native coordinates
-    + `_determine_source_coordinates()` translates the requested coordinates into coordinates to get requested via `get_data`
-- `get_data(coordinates, coordinates_index=None)`:
-    + by default, try returning the data source at the the coordinates_index. If this fails, raise a `NotImplementedError`
-    + `coordinates` and `coordinates_index` are guarenteed to exists in the datasource as calculated by `_determine_source_coordinates`
-    + potentially remove inputs and advice use of `self.requested_source_coordinates` and `self.requested_source_coordinates_index`
-    + returns a UnitsDataArray of data subset at the source coordinates
+    + intersect the `self.requested_coordinates` with `self.native_coordinates` to create `self.requested_source_coordinates` and `self.requested_source_coordinates_index` to get requested via `get_data`.  DataSource `coordinate_index_type` informs `self.requested_source_coordinates_index` (Array[int], Array[boolean], List[slices])
+    + interpolate requested coordinates `self.requested_source_coordinates` using `_interpolate_requested_coordinates()`.
+    + `self.requested_source_coordinates` coordinates MUST exists exactly in the data source native coordinates.
+    + run `_get_data` which runs the user defined `get_data()` and check/fix order of dims when UnitsDataArray or Xarray is returned from get_data. Otherwise create UnitsDataArray using values from get_data and requested_source_coordinates. This return from `_get_data()` sets `self.requested_source_data`
+    + Run `_interpolate()`
+    + Set `self.evaluated` to True
+    + Output the user the UnitsDataArray passed back from interpolate
+- `get_data(coordinates, coordinates_index)`:
+    + Raise a `NotImplementedError`
+    + `coordinates` and `coordinates_index` are guarenteed to exists in the datasource
+    + return an UnitsDataArray, numpy array, or xarray of values. this will get turned into a UnitsDataArray aftwards using `self.requested_source_coordinates` even if the xarray passes back coordinates
+        * Need to check/fix order of dims in UnitsDataArray and Xarray case
 - `get_native_coordinates()`: return the native coordinates from the data source. By default, this should return `self.native_coordinates` if defined, otherwise raise a `NotImplementedError`
 - `definition()`: Pipeline node definition for DataSource nodes.
+    + Transport mechanism for going to the cloud
+    + Leave as is
 
-Private Methods
-- `_determine_source_coordinates()`: Use `self.requested_coordinates`, `self.interpolate`, and `self.params` to determine the requested coordinates translated into the source coordinates. This could also be a non-class method that takes inputs `(requested_coordinates, native_coordinates, interpolate, params)`. Alternate names: `translate_requested_coordinates`, `_interpolate_coordinates`, `_intersect_coordinates`
-    + sets `self.requested_source_coordinates` (Coordinates) to the coordinates that need to get requested from the data source via `get_data`. These coordinates MUST exists exactly in the data source native coordinates. They coordinates that get returned may be affected by the type of interpolate requested.
-    + (optionally) sets `self.requested_source_coordinates_index` (Array[int])
-    + If we use a non-class method, this would return `requested_source_coordinates` and `requested_source_coordinates_index`
-- Potential: `_pre_get_data()`: method that gets called before `get_data()`
-- Potential: `_post_get_data()`: method that gets called after `get_data()`
-    + if the output from get_data is an numpy array, then try to create a UnitsDataArray from the numpy array, the source coordinates, and the source coordinates index.
-    + Returns a UnitsDataArray for the data subset
-- `_interpolate(data_subset)`: Use `self.interpolate` and call the appropriate functions in the `interpolate` module
+#### Private Methods
 
-Operators
+- `_interpolate_requested_coordinates()`: Use `self.requested_coordinates`, `self.native_coordinates`, `self.interpolate` to determine the requested coordinates interpolated into the source coordinates.
+    + overwrites `self.requested_source_coordinates` (Coordinates) to interpolated coordinates that need to get requested from the data source via `get_data`. 
+    + These coordinates MUST exists exactly in the data source native coordinates
+    + Returns None
+- `_interpolate()`: Use `self.interpolate` and call the appropriate functions in the `interpolate` module
+    + Returns a UnitDataArray which becomes the output of the eval method
+
+#### Operators
 
 ## User Interface
 
 Simple datasource that doesn't need its own subclass
 
 ```python
-source = np.random.rand(101, 101)
-source_coordinates = coordinates(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
-node = DataSource(source=source, native_coordinates=source_coordinates)
-output = node.request(node.native_coordinates)
-```
-automatically execute:
-
-```
-source = np.random.rand(101, 101)
-source_coordinates = coordinates(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
-ds = DataSource(source=source, native_coordinates=source_coordinates, execute=True)
-```
-
-Basic subclass datasource
-
-```python
-class MockDataSource(DataSource):
-    """ Mock Data Source for testing """
-    source = np.random.rand(101, 101)
-    native_coordinates = Coordinates(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
-    interpolate = 'bilinear'
-
-    def get_native_coordinates(self):
-        """ see DataSource """
-        return self.native_coordinates
+class ArraySource(DataSource):
+    source = tl.Instance(np.ndarray)
 
     def get_data(self, coordinates, coordinates_index):
-        """ see DataSource """
-        s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
-        return d
+        return self.source[coordinates_index]
 ```
 
-TODO: add more complicated implementations
+Using this basic class
 
-## Developer interface 
+```python
+source = np.random.rand(101, 101)
+source_coordinates = coordinates(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
+node = ArraySource(source=source, native_coordinates=source_coordinates)
+output = node.eval(node.native_coordinates)
+```
+
+FUTURE: automatically execute
+
+```python
+source = np.random.rand(101, 101)
+source_coordinates = coordinates(lat=(-25, 25, 101), lon=(-25, 25, 101), order=['lat', 'lon'])
+node = ArraySource(source=source, native_coordinates=source_coordinates)
+output = node.eval()
+```
+
+More Complicated Source. 
+This datasource gets new `native_coordinates` every time the source updates.
+
+```python
+class RasterioSource(DataSource):
+    
+    source = tl.Unicode(allow_none=False)  # specifies source MUST be a Unicode
+    dataset = tl.Any(allow_none=True)
+    band = tl.CInt(1).tag(attr=True)
+    
+    @tl.default('dataset')
+    def open_dataset(self, source):
+        return module.open(source)
+
+    @tl.observe('source')
+    def _update_dataset(self):
+        self.dataset = self.open_dataset()
+        self.native_coordinates = self.get_native_coordinates()
+        
+    def get_native_coordinates(self):
+        dlon = self.dataset.width
+        dlat = self.dataset.height
+        left, bottom, right, top = self.dataset.bounds
+
+        return podpac.Coordinate(lat=(top, bottom, dlat),
+                                 lon=(left, right, dlon),
+                                 order=['lat', 'lon'])
+
+    def get_data(self, coordinates, coordinates_index):
+        data = self.dataset.read(coordinates_index)
+        return data
+```
+
+## Developer interface
+
+
 TODO: Add developer interface specs

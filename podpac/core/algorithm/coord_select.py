@@ -1,13 +1,15 @@
 """
-Coord Select Summary
+CoordSelect Summary
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import traitlets as tl
+import numpy as np
 
-from podpac.core.coordinate import Coordinate, UniformCoord, Coord
-from podpac.core.coordinate import make_coord_value, make_coord_delta, add_coord
+from podpac.core.coordinates import Coordinates
+from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.coordinates import make_coord_value, make_coord_delta, add_coord
 from podpac.core.node import Node, COMMON_NODE_DOC
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc
@@ -21,9 +23,9 @@ class ExpandCoordinates(Algorithm):
     
     Attributes
     ----------
-    input_coordinates : podpac.Coordinate
+    input_coordinates : podpac.Coordinates
         The coordinates that were used to execute the node
-    native_coordinates_source : podpac.Coordinate
+    native_coordinates_source : podpac.Coordinates
         The native coordinates of the source node whose coordinates are being expanded. This is needed in case the
         source doesn't have native coordinates (e.g. an Algorithm node).
     source : podpac.Node
@@ -40,11 +42,11 @@ class ExpandCoordinates(Algorithm):
     
     source = tl.Instance(Node)
     native_coordinates_source = tl.Instance(Node, allow_none=True)
-    input_coordinates = tl.Instance(Coordinate, allow_none=True)
-    lat = tl.List().tag(param=True)
-    lon = tl.List().tag(param=True)
-    time = tl.List().tag(param=True)
-    alt = tl.List().tag(param=True)
+    input_coordinates = tl.Instance(Coordinates, allow_none=True)
+    lat = tl.List().tag(attr=True)
+    lon = tl.List().tag(attr=True)
+    time = tl.List().tag(attr=True)
+    alt = tl.List().tag(attr=True)
 
     @property
     def native_coordinates(self):
@@ -52,7 +54,7 @@ class ExpandCoordinates(Algorithm):
         
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             Native coordinates of the source node
         
         Raises
@@ -68,7 +70,7 @@ class ExpandCoordinates(Algorithm):
         except:
             raise Exception("no native coordinates found")
 
-    def get_expanded_coord(self, dim):
+    def get_expanded_coordinates1d(self, dim):
         """Returns the expanded coordinates for the requested dimension
         
         Parameters
@@ -78,57 +80,47 @@ class ExpandCoordinates(Algorithm):
         
         Returns
         -------
-        podpac.Coord
-            Expanded coordinate
+        expanded : Coordinates1d
+            Expanded coordinates
         
         Raises
         ------
         ValueError
             In case dimension is not in the parameters.
         """
-        icoords = self.input_coordinates[dim]
         
-        if not self._params[dim]:  # i.e. if list is empty
+        icoords = self.input_coordinates[dim]
+        expansion = getattr(self, dim)
+        
+        if not expansion:  # i.e. if list is empty
             # no expansion in this dimension
             return icoords
 
-        if len(self._params[dim]) not in [2, 3]:
-            raise ValueError("Invalid expansion params for '%s'" % dim)
+        if len(expansion) not in [2, 3]:
+            raise ValueError("Invalid expansion attrs for '%s'" % dim)
 
         # get start and stop offsets
-        dstart = make_coord_delta(self._params[dim][0])
-        dstop = make_coord_delta(self._params[dim][1])
+        dstart = make_coord_delta(expansion[0])
+        dstop = make_coord_delta(expansion[1])
 
-        if len(self._params[dim]) == 2:
+        if len(expansion) == 2:
             # expand and use native coordinates
-            ncoord = self.native_coordinates[dim]
-            
-            # TODO GroupCoord
-            xcoords = [
-                ncoord.select((add_coord(c, dstart), add_coord(c, dstop)))
-                for c in icoords.coordinates
-            ]
-            xcoord = sum(xcoords[1:], xcoords[0])
+            ncoords = self.native_coordinates[dim]
+            cs = [ncoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in icoords.coordinates]
 
-        elif len(self._params[dim]) == 3:
+        elif len(expansion) == 3:
             # or expand explicitly
-            delta = make_coord_delta(self._params[dim][2])
-            
-            # TODO GroupCoord
-            xcoords = [
-                UniformCoord(add_coord(c, dstart), add_coord(c, dstop), delta)
-                for c in icoords.coordinates]
-            xcoord = sum(xcoords[1:], xcoords[0])
+            step = make_coord_delta(expansion[2])
+            cs = [UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step) for x in icoords.coordinates]
 
-        return xcoord
+        return ArrayCoordinates1d(np.concatenate([c.coordinates for c in cs]), **icoords.properties)
 
-    @property
-    def expanded_coordinates(self):
+    def get_expanded_coordinates(self):
         """The expanded coordinates
         
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             The expanded coordinates
         
         Raises
@@ -137,15 +129,8 @@ class ExpandCoordinates(Algorithm):
             Raised if expanded coordinates do not intersect with the source data. For example if a date in the future
             is selected.
         """
-        kwargs = {}
-        for dim in self.input_coordinates.dims:
-            ec = self.get_expanded_coord(dim)
-            if ec.size == 0:
-                raise ValueError("Expanded/selected coordinates do not"
-                                 " intersect with source data.")
-            kwargs[dim] = ec
-        kwargs['order'] = self.input_coordinates.dims
-        return Coordinate(**kwargs)
+        coords = [self.get_expanded_coordinates1d(dim) for dim in self.input_coordinates.dims]
+        return Coordinates(coords)
    
     def algorithm(self):
         """Passthrough of the source data
@@ -158,15 +143,13 @@ class ExpandCoordinates(Algorithm):
         return self.source.output
  
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates.
 
         Parameters
         ----------
-        coordinates : podpac.Coordinate
-            {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
+        coordinates : podpac.Coordinates
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -180,11 +163,12 @@ class ExpandCoordinates(Algorithm):
         -------
         The input coordinates are modified and the passed to the base class implementation of execute.
         """
-        self._params = self.get_params(params)
         self.input_coordinates = coordinates
-        coordinates = self.expanded_coordinates
-
-        return super(ExpandCoordinates, self).execute(coordinates, params, output, method)
+        coordinates = self.get_expanded_coordinates()
+        for dim in coordinates.udims:
+            if coordinates[dim].size == 0:
+                raise ValueError("Expanded/selected coordinates do not intersect with source data (dim '%s')" % dim)
+        return super(ExpandCoordinates, self).execute(coordinates, output, method)
 
 
 class SelectCoordinates(ExpandCoordinates):
@@ -195,7 +179,7 @@ class SelectCoordinates(ExpandCoordinates):
     
     """
     
-    def get_expanded_coord(self, dim):
+    def get_expanded_coordinates1d(self, dim):
         """Function name is a misnomer -- should be get_selected_coord, but we are using a lot of the
         functionality of the ExpandCoordinates node. 
         
@@ -206,7 +190,7 @@ class SelectCoordinates(ExpandCoordinates):
         
         Returns
         -------
-        podpac.Coord
+        ArrayCoordinates1d
             The selected coordinate
         
         Raises
@@ -215,32 +199,32 @@ class SelectCoordinates(ExpandCoordinates):
             Description
         """
         icoords = self.input_coordinates[dim]
+        coords = getattr(self, dim)
         
-        if not self._params[dim]:
+        if not coords:
             # no selection in this dimension
             return icoords
 
-        if len(self._params[dim]) not in [1, 2, 3]:
-            raise ValueError("Invalid expansion params for '%s'" % dim)
+        if len(coords) not in [1, 2, 3]:
+            raise ValueError("Invalid expansion attrs for '%s'" % dim)
 
         # get start offset
-        start = make_coord_value(self._params[dim][0])
+        start = make_coord_value(coords[0])
         
-        if len(self._params[dim]) == 1:
-            xcoord = Coord(start)
-        elif len(self._params[dim]) == 2:
-            # Get stop offset
-            stop = make_coord_value(self._params[dim][1])
+        if len(coords) == 1:
+            xcoord = ArrayCoordinates1d(start, **icoords.properties)
+            
+        elif len(coords) == 2:
             # select and use native coordinates
+            stop = make_coord_value(coords[1])
             ncoord = self.native_coordinates[dim]
             xcoord = ncoord.select([start, stop])
 
-        elif len(self._params[dim]) == 3:
-            # Get stop offset
-            stop = make_coord_value(self._params[dim][1])            
-            # or select explicitly
-            delta = make_coord_delta(self._params[dim][2])
-            xcoord = UniformCoord(start, stop, delta)
+        elif len(coords) == 3:
+            # select explicitly
+            stop = make_coord_value(coords[1])            
+            step = make_coord_delta(coords[2])
+            xcoord = UniformCoordinates1d(start, stop, step, **icoords.properties)
 
         return xcoord
 

@@ -1,11 +1,11 @@
 # Pipelines
 
-A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and, optionally, *outputs* to produce when executing the pipeline.
+A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and the *output* for the pipeline.
 
 ### Attributes
 
  * `nodes`: node definitions  *(object, required)*
- * `outputs`: output definitions *(list, optional)* 
+ * `output`: output definition *(object, optional)*
 
 ### Sample
 
@@ -14,31 +14,30 @@ A podpac pipeline can be defined using JSON. The pipeline definition describes t
     "nodes": {
         "myNode": { ... },
         "myOtherNode": { ... }
+        ...
+        "myResult": { ... }
     },
-    "outputs": [
-        { ... },
-        { ... }
-    ]
+    "output": {
+        "node": "myResult",
+        "mode": "file",
+        ...
+    }
 }
 ```
 
 ## Node definitions
 
-A node definition defines the node and its inputs and parameters. It also names the node so that it can be used as an input to other nodes in the pipeline. Nodes must be defined before they are referenced in a later node.
+A node definition defines the node and its inputs, attributes, and default execution parameters. It also names the node so that it can be used as an input to other nodes in the pipeline. Nodes must be defined before they are referenced in a later node.
 
-All nodes must be one of these three basic types: *DataSource*, *Compositor*, and *Algorithm*.
+The podpac core library includes three basic types of nodes: *DataSource*, *Compositor*, and *Algorithm*. A *Pipeline* node can also be used an an input to a pipeline. These nodes and their additional attributes are described below.
 
 ### Common Attributes
 
  * `node`: a path to the node class. The path is relative to the podpac module, unless `plugin` is defined. See Notes. *(string, required)*
  * `plugin`: a path to a plugin module to use (prepended node path). See Notes. *(string, optional)*
- * `attrs`: explicitly set attributes in the node for custom behavior. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
- * `evaluate`: execute this node automatically. Setting this to `false` is useful for nodes that will be executed implicitly by a later node. *(bool, optional, default `true`)*
+ * `attrs`: set attributes in the node for custom behavior. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
 
 ## DataSource
-
-###  Attributes
- * `source`: the dataset source *(string, required)*
 
 ### Sample
 
@@ -58,7 +57,7 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
 ## Compositor
 
-### Attributes
+### Additional Attributes
 
  * `sources`: nodes to composite *(list, required)*
 
@@ -81,9 +80,10 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
 
 ## Algorithm
 
-### Attributes
+### Additional Attributes
  * `inputs`: node inputs to the algorithm. *(object, required)*
- * `params`: non-node inputs to the algorithm. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
+
+### Sample
 
 ```
 {
@@ -99,15 +99,48 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
                 "B": "MyOtherNode",
                 "C": "MyThirdNode"
             },
-            "params": {
-                "kappa": "13",
-                "tsmtr": "0.3", 
-                "eqn": "A + {tsmtr} / {kappa} * (B - C)"
+            "attrs": {
+                "eqn": "A + {tsmtr} / {kappa} * (B - C)",
+                "params": {
+                    "kappa": "13",
+                    "tsmtr": "0.3"
+                }
             }
         }
     }
 }
 ```
+
+## Pipeline
+
+### Additional Attributes
+ * `path`: path to another pipeline JSON definition. *(string, required)*
+
+### Sample
+
+```
+{
+    "nodes": {
+        "MyDataSource": {
+            ...
+        },
+        
+        "MyOtherPipeline": {
+            "path": "path to pipeline"
+        },
+        
+        "result": {
+            "node": "Arithmetic",
+            "inputs": {
+                "A": "MyDataSource",
+                "B": "MyOtherPipeline",
+            },
+            "attrs": {
+                "eqn": "A + B"
+            }
+        }
+    }
+}
 
 ### Notes
 
@@ -118,22 +151,26 @@ All nodes must be one of these three basic types: *DataSource*, *Compositor*, an
    - `"plugin": "path.to.myplugin", "node": "mymodule.MyCustomNode"` is equivalent to `from path.to.myplugin.mymodule import MyCustomNode`.
    - `"plugin": "myplugin", "node": "MyCustomNode"` is equivalent to `from myplugin import MyCustomNode`
 
-## Output Definitions
+## Output Definition
 
-An output definition defines a type of output, the nodes to output, and other parameters such as output location. Outputs are not required, but each output definition should contain a list of one or more nodes (by name) to output.
+The output definition defines the node to output and, optionally, an additional output mode along with associated parameters. If an output definition is not supplied, the last defined node is used.
 
-Podpac provides several output types: *file*, *image*, *ftp*, and *aws*. Currently custom output types are not supported.
+Podpac provides several builtin output types, *file* and *image*. You can also define custom outputs in a plugins.
 
 ### Common Attributes
 
- * `mode`: The output type, options are 'file', 'image', 'ftp', and 'aws'. *(string, required)*
- * `nodes`: The nodes to output. *(list, required)*
+ * `node`: The nodes to output. *(list, required)*
+ * `mode`: For builtin outputs, options are 'none' (default), 'file', 'image'. *(string, optional)*
+
+## None (default)
+
+No additional output. The output will be returned from the `Pipeline.execute` method.
 
 ## Files
 
 Nodes can be output to file in a variety of formats.
 
-### Attributes
+### Additional Attributes
 
  * `format`: file format, options are 'pickle' (default), 'geotif', 'png'. *(string, optional)*
  * `outdir`: destination path for the output file *(string, required)*
@@ -147,14 +184,12 @@ Nodes can be output to file in a variety of formats.
         "MyNode2": { ... }
     },
 
-    "outputs": [
-        {
-            "mode": "file",
-            "format": "png",
-            "outdir": "C:\Path\To\OutputData",
-            "nodes": ["MyNode2"]
-        }
-    ]
+    "output": {
+        "nodes": "MyNode2",
+        "mode": "file",
+        "format": "png",
+        "outdir": "C:\Path\To\OutputData"
+    }
 }
 ```
 
@@ -162,7 +197,7 @@ Nodes can be output to file in a variety of formats.
 
 Nodes can be output to a png image (in memory).
 
-### Attributes
+### Additional Attributes
 
  * `format`: image format, options are 'png' (default). *(string, optional)*
  * `vmin`: min value for the colormap *(number, optional)*
@@ -177,22 +212,61 @@ Nodes can be output to a png image (in memory).
         "MyNode2": { ... }
     },
 
-    "outputs": [
-         {
-            "mode": "image",
-            "format": "png",
-            "vmin": 0.1,
-            "vmax": 0.35,
-            "nodes": ["MyNode1", "MyNode2"]
-        }
-    ]
+    "output": {
+        "nodes": "MyNode2",
+        "mode": "image",
+        "format": "png",
+        "vmin": 0.1,
+        "vmax": 0.35
+    }
 }
 ```
 
-## AWS
+## Custom Outputs
 
-*Not yet implemented*
+Custom outputs can be defined in a plugin by subclassing the `Output` base class found in `core.pipeline.output`. Custom 
+outputs must define the `write` method with no arguments, and may define additional parameters.
 
-## FTP
+### Attributes
 
-*Not yet implemented*
+Replace the 'mode' parameter with a plugin path and output class name:
+
+ * `plugin`: path to a plugin module to use *(string, required)*
+ * `output`: output class name *(string, required)*
+
+### Sample Custom Output Class
+
+File: **my_plugin/outputs.py**
+
+```
+import numpy as np
+import traitlets as tl
+import podpac
+
+class NpyOutput(podpac.core.pipeline.output.Output):
+    path = tl.String()
+    allow_pickle = tl.Bool(True)
+    fix_imports = tl.Bool(True)
+
+    def write(self):
+        numpy.save(self.path, self.node.output.data, allow_pickle=self.allow_pickle, fix_imports=self.fix_imports)
+```
+
+### Sample Pipeline
+
+```
+{
+    "nodes": {
+        "MyNode1": { ... },
+        "MyNode2": { ... }
+    },
+
+    "output": {
+        "nodes": "MyNode2",
+        "plugin": "my_plugin",
+        "output": "NpyOutput",
+        "path": "my_pipeline_output.npy",
+        "allow_pickle": false
+    }
+}
+```

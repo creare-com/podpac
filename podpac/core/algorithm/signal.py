@@ -16,8 +16,8 @@ import numpy as np
 import xarray as xr
 import scipy.signal
 
-from podpac.core.coordinate import Coordinate, UniformCoord
-from podpac.core.coordinate import add_coord
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d
+from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc
@@ -52,7 +52,7 @@ class Convolution(Algorithm):
     
     Attributes
     ----------
-    expanded_coordinates : podpac.Coordinate
+    expanded_coordinates : podpac.Coordinates
         The expanded coordinates needed to avoid edge effects.
     source : podpac.Node
         Source node on which convolution will be performed. 
@@ -66,7 +66,7 @@ class Convolution(Algorithm):
         Any kernel defined in `scipy.signal` as well as `mean` can be used. For example:
         kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid. 
         Note: These kernels are automatically normalized such that kernel.sum() == 1
-    output_coordinates : podpac.Coordinate
+    output_coordinates : podpac.Coordinates
         The non-expanded coordinates
     """
     
@@ -74,8 +74,8 @@ class Convolution(Algorithm):
     kernel = tl.Instance(np.ndarray)  # Would like to tag this, but arrays are not yet supported
     kernel_type = tl.Unicode().tag(attr=True)
     kernel_ndim = tl.Int().tag(attr=True)
-    output_coordinates = tl.Instance(Coordinate)
-    expanded_coordinates = tl.Instance(Coordinate)
+    output_coordinates = tl.Instance(Coordinates)
+    expanded_coordinates = tl.Instance(Coordinates)
    
     @property
     def native_coordinates(self):
@@ -84,15 +84,13 @@ class Convolution(Algorithm):
         return self.source.native_coordinates
  
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates.
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
-            {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
+        coordinates : podpac.Coordinates
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -102,8 +100,7 @@ class Convolution(Algorithm):
         -------
         {execute_return}
         """
-        self.evaluated_coordinates = coordinates
-        self._params = self.get_params(params)
+        self.requested_coordinates = coordinates
         self.output = output
         # This is needed to get the full_kernel
         self.output_coordinates = self.source.get_output_coords(coordinates)
@@ -116,29 +113,31 @@ class Convolution(Algorithm):
             raise ValueError("Kernel shape does not match source data shape")
 
         # expand the coordinates
-        exp_coords = OrderedDict()
+        exp_coords = []
         exp_slice = []
-        for c, s in zip(coordinates._coords, shape):
-            coord = coordinates[c]
-            if s == 1 or (not isinstance(coord, UniformCoord)):
-                exp_coords[c] = coord
+        for dim, s in zip(coordinates.dims, shape):
+            coord = coordinates[dim]
+            if s == 1 or not isinstance(coord, UniformCoordinates1d):
+                exp_coords.append(coord)
                 exp_slice.append(slice(None))
                 continue
+
             s_start = -s // 2
             s_end = s // 2 - ((s + 1) % 2)
             # The 1e-07 is for floating point error because if endpoint is slightly
-            # in front of delta * N then the endpoint is excluded
-            exp_coords[c] = UniformCoord(
-                start=add_coord(coord.start, s_start * coord.delta),
-                stop=add_coord(coord.stop, s_end * coord.delta + 1e-07*coord.delta),
-                delta=coord.delta)
+            # in front of step * N then the endpoint is excluded
+            exp_coords.append(UniformCoordinates1d(
+                add_coord(coord.start, s_start * coord.step),
+                add_coord(coord.stop, s_end * coord.step + 1e-07*coord.step),
+                coord.step,
+                **coord.properties))
             exp_slice.append(slice(-s_start, -s_end))
-        exp_coords = Coordinate(exp_coords)
+        exp_coords = Coordinates(exp_coords)
         self.expanded_coordinates = exp_coords
         exp_slice = tuple(exp_slice)
 
         # execute using expanded coordinates
-        out = super(Convolution, self).execute(exp_coords, params, output, method)
+        out = super(Convolution, self).execute(exp_coords, output, method)
 
         # reduce down to originally requested coordinates
         self.output = out[exp_slice]

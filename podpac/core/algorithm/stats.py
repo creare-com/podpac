@@ -12,8 +12,9 @@ import xarray as xr
 import numpy as np
 import scipy.stats
 import traitlets as tl
+from six import string_types
 
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc
@@ -32,17 +33,22 @@ class Reduce(Algorithm):
     ----------
     dims : list
         List of strings that give the dimensions which should be reduced
-    input_coordinates : podpac.Coordinate
+    input_coordinates : podpac.Coordinates
         The input coordinates before reduction
     source : podpac.Node
         The source node that will be reduced. 
     """
     
-    input_coordinates = tl.Instance(Coordinate)
+    input_coordinates = tl.Instance(Coordinates)
     source = tl.Instance(Node)
 
-    dims = tl.List().tag(param=True)
-    iter_chunk_size = tl.Union([tl.Int(), tl.Unicode()], allow_none=True, default_value=None).tag(param=True)
+    dims = tl.List().tag(attr=True)
+    iter_chunk_size = tl.Union([tl.Int(), tl.Unicode()], allow_none=True, default_value=None)
+
+    def _first_init(self, **kwargs):
+        if 'dims' in kwargs and isinstance(kwargs['dims'], string_types):
+            kwargs['dims'] = [kwargs['dims']]
+        return super(Reduce, self)._first_init(**kwargs)
 
     @property
     def native_coordinates(self):
@@ -51,7 +57,7 @@ class Reduce(Algorithm):
 
     def get_dims(self, out):
         """
-        Validates and translates requested reduction dimensions.
+        Translates requested reduction dimensions.
         
         Parameters
         ----------
@@ -62,32 +68,15 @@ class Reduce(Algorithm):
         -------
         list
             List of dimensions after reduction
-        
-        Raises
-        ------
-        ValueError
-            If dimension is not valid, raises this error. 
         """
         # Using self.output.dims does a lot of work for us comparing
         # native_coordinates to evaluated coordinates
         input_dims = list(out.dims)
-        valid_dims = self.input_coordinates.dims
-
-        if self._params is None or not self._params['dims']:
+        
+        if not self.dims:
             return input_dims
 
-        params_dims = self._params['dims']
-        if not isinstance(params_dims, (list, tuple)):
-            params_dims = [params_dims]
-
-        dims = []
-        for dim in params_dims:
-            if dim not in valid_dims:
-                raise ValueError("Invalid Reduce dimension: %s" % dim)
-            elif dim in input_dims:
-                dims.append(dim)
-        
-        return dims
+        return [dim for dim in self.dims if dim in input_dims]
     
     def dims_axes(self, output):
         """Finds the indices for the dimensions that will be reduced. This is passed to numpy. 
@@ -105,30 +94,6 @@ class Reduce(Algorithm):
         axes = [i for i in range(len(output.dims)) if output.dims[i] in self.dims]
         return axes
 
-    def get_reduced_coordinates(self):
-        """Returns the coordinates with the reduced dimensions removed
-        
-        Returns
-        -------
-        podpac.Coordinate
-            Reduced coordinates
-        """
-        coordinates = self.input_coordinates
-        dims = self.dims
-        kwargs = {}
-        order = []
-        for dim in coordinates.dims:
-            if dim in self.dims:
-                continue
-            
-            kwargs[dim] = coordinates[dim]
-            order.append(dim)
-        
-        if order:
-            kwargs['order'] = order
-
-        return Coordinate(**kwargs)
-
     @property
     def chunk_size(self):
         """Size of chunks for parallel processing or large arrays that do not fit in memory
@@ -139,10 +104,10 @@ class Reduce(Algorithm):
             Size of chunks
         """
 
-        if self._params['iter_chunk_size'] == 'auto':
+        if self.iter_chunk_size == 'auto':
             return 1024**2 # TODO
 
-        return self._params['iter_chunk_size']
+        return self.iter_chunk_size
 
     @property
     def chunk_shape(self):
@@ -209,18 +174,16 @@ class Reduce(Algorithm):
             Output for this chunk
         """
         for chunk in self.input_coordinates.iterchunks(self.chunk_shape):
-            yield self.source.execute(chunk, self._params, method=method)
+            yield self.source.execute(chunk, method=method)
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates. 
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
-            {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
+        coordinates : podpac.Coordinates
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -231,25 +194,24 @@ class Reduce(Algorithm):
         {execute_return}
         """
         self.input_coordinates = coordinates
-        self._params = self.get_params(params)
         self.output = output
         
-        self.evaluated_coordinates = coordinates
+        self.requested_coordinates = coordinates
         test_out = self.get_output_coords(coords=coordinates)
         self.dims = self.get_dims(test_out)
  
-        self.evaluated_coordinates = self.get_reduced_coordinates()
+        self.requested_coordinates = self.requested_coordinates.drop(self.dims)
         if self.output is None:
-            self.output = self.initialize_coord_array(self.evaluated_coordinates)
+            self.output = self.initialize_coord_array(self.requested_coordinates)
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
             result = self.reduce_chunked(self.iteroutputs(method), method)
         else:
             if self.implicit_pipeline_evaluation:
-                self.source.execute(coordinates, self._params, method=method)
+                self.source.execute(coordinates, method=method)
             result = self.reduce(self.source.output)
 
-        if self.output.shape is (): # or self.evaluated_coordinates is None
+        if self.output.shape is (): # or self.requested_coordinates is None
             self.output.data = result
         else:
             self.output[:] = result #.transpose(*self.output.dims) # is this necessary?
@@ -295,7 +257,7 @@ class Reduce(Algorithm):
         """
 
         warnings.warn("No reduce_chunked method defined, using one-step reduce")
-        x = self.source.execute(self.input_coordinates, self._params, method=method)
+        x = self.source.execute(self.input_coordinates, method=method)
         return self.reduce(x)
 
     @property
@@ -315,7 +277,7 @@ class Reduce(Algorithm):
         if self.input_coordinates is None:
             raise Exception("node not evaluated")
             
-        return self.get_hash(self.input_coordinates, self._params)
+        return self.get_hash(self.input_coordinates)
 
     @property
     def latlon_bounds_str(self):
@@ -802,7 +764,7 @@ class Reduce2(Reduce):
     The base Reduce node ensures that each chunk is at least as big as the
     reduced output, which works for statistics that can be calculated in O(1)
     space. For statistics that require O(n) space, the node must iterate
-    through the Coordinate orthogonally to the reduce dimension, using chunks
+    through the Coordinates orthogonally to the reduce dimension, using chunks
     that only cover a portion of the output array.
     
     Note that the above nodes *could* be implemented to allow small chunks.
@@ -849,9 +811,8 @@ class Reduce2(Reduce):
         UnitsDataArray
             Output for this chunk
         """
-        chunks = self.input_coordinates.iterchunks(self.chunk_shape, return_slice=True)
-        for slc, chunk in chunks:
-            yield slc, self.source.execute(chunk, self._params, method=method)
+        for chunk, slices in self.input_coordinates.iterchunks(self.chunk_shape, return_slices=True):
+            yield self.source.execute(chunk, method=method), slices
 
     def reduce_chunked(self, xs, method=None):
         """
@@ -870,14 +831,14 @@ class Reduce2(Reduce):
             Reduced output.
         """
         # special case for full reduce
-        if not self.evaluated_coordinates.dims:
-            xslc, x = next(xs)
+        if not self.requested_coordinates.dims:
+            x, xslices = next(xs)
             return self.reduce(x)
 
-        I = [self.input_coordinates.dims.index(dim) for dim in self.evaluated_coordinates.dims]
+        I = [self.input_coordinates.dims.index(dim) for dim in self.requested_coordinates.dims]
         y = xr.full_like(self.output, np.nan)
-        for xslc, x in xs:
-            yslc = [xslc[i] for i in I]
+        for x, xslices in xs:
+            yslc = [xslices[i] for i in I]
             y.data[yslc] = self.reduce(x)
         return y
 
@@ -911,7 +872,7 @@ class Percentile(Reduce2):
         Description
     """
     
-    percentile = tl.Float(default=50.0).tag(param=True)
+    percentile = tl.Float(default=50.0).tag(attr=True)
 
     def reduce(self, x):
         """Computes the percentile across dimension(s)
@@ -926,8 +887,8 @@ class Percentile(Reduce2):
         UnitsDataArray
             Percentile of the source data over self.dims
         """
-        percentile = self._params.get('percentile', self.percentile)
-        return np.nanpercentile(x, percentile, self.dims_axes(x))
+
+        return np.nanpercentile(x, self.percentile, self.dims_axes(x))
 
 # =============================================================================
 # Time-Grouped Reduce
@@ -987,30 +948,28 @@ class GroupReduce(Algorithm):
         """
         # intersect grouped time coordinates using groupby DatetimeAccessor
         native_time = xr.DataArray(self.native_coordinates.coords['time'])
-        eval_time = xr.DataArray(self.evaluated_coordinates.coords['time'])
+        eval_time = xr.DataArray(self.requested_coordinates.coords['time'])
         N = getattr(native_time.dt, self.groupby)
         E = getattr(eval_time.dt, self.groupby)
         native_time_mask = np.in1d(N, E)
 
         # use requested spatial coordinates and filtered native times
-        coords = Coordinate(
+        coords = Coordinates(
             time=native_time.data[native_time_mask],
-            lat=self.evaluated_coordinates['lat'],
-            lon=self.evaluated_coordinates['lon'],
+            lat=self.requested_coordinates['lat'],
+            lon=self.requested_coordinates['lon'],
             order=('time', 'lat', 'lon'))
 
         return coords
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates. 
         
         Parameters
         ----------
-        coordinates : podpac.Coordinate
-            {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
+        coordinates : podpac.Coordinates
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -1025,8 +984,7 @@ class GroupReduce(Algorithm):
         ValueError
             If source it not time-depended (required by this node).
         """
-        self.evaluated_coordinates = coordinates
-        self._params = self.get_params(params)
+        self.requested_coordinates = coordinates
         self.output = output
 
         if self.output is None:
@@ -1036,7 +994,7 @@ class GroupReduce(Algorithm):
             raise ValueError("GroupReduce source node must be time-dependent")
         
         if self.implicit_pipeline_evaluation:
-            self.source.execute(self.source_coordinates, params, method=method)
+            self.source.execute(self.source_coordinates, method=method)
 
         # group
         grouped = self.source.output.groupby('time.%s' % self.groupby)
@@ -1049,7 +1007,7 @@ class GroupReduce(Algorithm):
             out = getattr(grouped, self.reduce_fn)('time')
 
         # map
-        eval_time = xr.DataArray(self.evaluated_coordinates.coords['time'])
+        eval_time = xr.DataArray(self.requested_coordinates.coords['time'])
         E = getattr(eval_time.dt, self.groupby)
         out = out.sel(**{self.groupby:E}).rename({self.groupby: 'time'})
         self.output[:] = out.transpose(*self.output.dims).data

@@ -4,6 +4,11 @@
 import sys
 from setuptools import setup, find_packages
 
+# get version
+sys.path.insert(0, 'podpac')
+import version
+__version__ = version.version()
+
 install_requires = [
     'matplotlib>=2.1',
     'numpy>=1.14',
@@ -64,7 +69,7 @@ setup(
     # ext_modules=None,
     name='podpac',
 
-    version='0.0.0',
+    version=__version__,
 
     description="Pipeline for Observational Data Processing, Analysis, and Collaboration",
     author='Creare',

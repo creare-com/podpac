@@ -22,7 +22,7 @@ $ source activate podpac # Linux / Mac
 
 ### Clone the Repository
 
-Clone the [podpac repository]() onto your machine:
+Clone the [podpac repository](https://github.com/creare-com/podpac) onto your machine:
 
 ```bash
 $ cd <install-path>
@@ -48,7 +48,7 @@ $ pip install -e .
 $ pip install -e .[devall]
 ```
 
-Some users may experience issues installing [rasterio](https://mapbox.github.io/rasterio/installation.html#installing-with-anaconda) (included in the `datatype`, `all`, and `devall` installations). If you encounter issues, we recommend trying to install from the **conda-forge** channel. Depending on your platform, this may be simpler than letting `podpac` install `rasterio` using pip:
+Some users may experience issues installing [rasterio]https://rasterio.readthedocs.io/en/latest/installation.html#installing-with-anaconda) (included in the `datatype`, `all`, and `devall` installations). If you encounter issues, we recommend trying to install from the **conda-forge** channel. Depending on your platform, this may be simpler than letting `podpac` install `rasterio` using pip:
 
 ```bash
 $ conda install rasterio --channel conda-forge

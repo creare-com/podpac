@@ -52,7 +52,8 @@ def cached_property(func):
         cache_name = '_cached_' + func.__name__
         if hasattr(self, cache_name):
             cache_val = getattr(self, cache_name)
-        else: cache_val = None
+        else:
+            cache_val = None
         if cache_val is not None:
             return cache_val
         cache_val = func(self)
@@ -149,3 +150,27 @@ def load_setting(key, path=None):
         except:
             return {}
     return config.get(key, None)
+
+
+def trait_is_defined(obj, trait):
+    """Utility method to determine if trait is defined on object without
+    call to default (@tl.default)
+    
+    Parameters
+    ----------
+    object : object
+        Class with traits
+    trait : str
+        Class property to investigate
+    
+    Returns
+    -------
+    bool
+        True if the trait exists on the object, is defined, and is not None
+        False if the trait does not exist on the object or is defined as None
+    """
+    try:
+        val = obj._trait_values[trait]
+        return val is not None
+    except (KeyError, RuntimeError, tl.TraitError):
+        return False

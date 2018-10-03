@@ -10,7 +10,7 @@ import numpy as np
 import traitlets as tl
 
 # Internal imports
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinates import Coordinates, union
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC 
@@ -22,9 +22,9 @@ class Compositor(Node):
 
     Attributes
     ----------
-    shared_coordinates : podpac.Coordinate, optional
+    shared_coordinates : podpac.Coordinates, optional
         Coordinates that are shared amongst all of the composited sources
-    source_coordinates = podpac.Coordinate, optional
+    source_coordinates = podpac.Coordinates, optional
         Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the 
         user-requested coordinates. It is an optimization. 
     is_source_coordinates_complete : Bool
@@ -32,6 +32,8 @@ class Compositor(Node):
         coordinates could include the year-month-day of the source, but the actual source also has hour-minute-second
         information. In that case, source_coordinates is incomplete. This flag is used to automatically construct 
         native_coordinates
+    source: str
+        The source is used for a unique name to cache composited products. 
     sources : np.ndarray
         An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to 
         subselect the nodes that will be evaluated.
@@ -58,20 +60,29 @@ class Compositor(Node):
     ------
     Developers of new Compositor nodes need to implement the `composite` method.
     """
-    shared_coordinates = tl.Instance(Coordinate, allow_none=True)
-    source_coordinates = tl.Instance(Coordinate, allow_none=True)
+    shared_coordinates = tl.Instance(Coordinates, allow_none=True)
+    source_coordinates = tl.Instance(Coordinates, allow_none=True)
     is_source_coordinates_complete = tl.Bool(False,
         help=("This allows some optimizations but assumes that a node's "
               "native_coordinates=source_coordinate + shared_coordinate "
               "IN THAT ORDER")).tag(attr=True)
 
+    sources = tl.Unicode().tag(attr=True)
     sources = tl.Instance(np.ndarray)
     cache_native_coordinates = tl.Bool(True).tag(attr=True)
     
-    interpolation = tl.Unicode('').tag(param=True)
+    interpolation = tl.Unicode('').tag(attr=True)
    
-    threaded = tl.Bool(False).tag(param=True)
-    n_threads = tl.Int(10).tag(param=True)
+    threaded = tl.Bool(False)
+    n_threads = tl.Int(10)
+    
+    @tl.default('source')
+    def _source_default(self):
+        source = []
+        for s in self.sources[:3]:
+            source.append(str(s))
+        return '_'.join(s)
+        
     
     @tl.default('source_coordinates')
     def _source_coordinates_default(self):
@@ -83,7 +94,7 @@ class Compositor(Node):
         
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             Coordinates describing each source.
         """
         return None
@@ -128,7 +139,7 @@ class Compositor(Node):
         
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             Description
             Native coordinates of the entire dataset.
             
@@ -147,28 +158,28 @@ class Compositor(Node):
         GroupCoordinates? 
         
         """
+
         try: 
             return self.load_cached_obj('native.coordinates')
         except: 
             pass
+
         if self.shared_coordinates is not None and self.is_source_coordinates_complete:
-            crds = self.source_coordinates + self.shared_coordinates
+            crds = union([self.source_coordinates, self.shared_coordinates])
         else:
-            crds = self.sources[0].native_coordinates
-            for s in self.sources[1:]:
-                crds = crds.add_unique(s.native_coordinates)
+            crds = union(source.native_coordinates for source in self.sources)
+
         if self.cache_native_coordinates:
             self.cache_obj(crds, 'native.coordinates')
+
         return crds
     
-    def iteroutputs(self, coordinates, params, method=None):
+    def iteroutputs(self, coordinates, method=None):
         """Summary
         
         Parameters
         ----------
         coordinates : TYPE
-            Description
-        params : TYPE
             Description
         
         Yields
@@ -181,7 +192,7 @@ class Compositor(Node):
             src_subset = self.sources # all
         else:
             # intersecting sources only
-            I = self.source_coordinates.intersect(coordinates, pad=1, ind=True)
+            _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
             src_subset = self.sources[I]
 
         if len(src_subset) == 0:
@@ -199,13 +210,11 @@ class Compositor(Node):
         # WARNING: this assumes
         #              native_coords = source_coords + shared_coordinates
         #         NOT  native_coords = shared_coords + source_coords
-        if self.is_source_coordinates_complete \
-                and len(self.source_coordinates.shape) == 1:
-            coords_subset = list(self.source_coordinates.intersect(coordinates,
-                    pad=1).coords.values())[0]
+        if self.is_source_coordinates_complete and len(self.source_coordinates.shape) == 1:
+            coords_subset = list(self.source_coordinates.intersect(coordinates, pad=1).coords.values())[0]
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
-                nc = Coordinate(**{coords_dim: c}) + self.shared_coordinates
+                nc = Coordinates(**{coords_dim: c}) + self.shared_coordinates
                 # Switching from _trait_values to hasattr because "native_coordinates"
                 # sometimes not showing up in _trait_values in other locations
                 # Not confirmed here
@@ -217,7 +226,7 @@ class Compositor(Node):
             # TODO pool of pre-allocated scratch space
             # TODO: docstring?
             def f(src):
-                return src.execute(coordinates, params, method=method)
+                return src.execute(coordinates, method=method)
             pool = ThreadPool(processes=self.n_threads)
             results = [pool.apply_async(f, [src]) for src in src_subset]
             
@@ -228,20 +237,18 @@ class Compositor(Node):
         else:
             output = None # scratch space
             for src in src_subset:
-                output = src.execute(coordinates, params, output, method)
+                output = src.execute(coordinates, output, method)
                 yield output
                 output[:] = np.nan
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, params=None, output=None, method=None):
-        """Executes this nodes using the supplied coordinates and params. 
+    def execute(self, coordinates, output=None, method=None):
+        """Executes this nodes using the supplied coordinates. 
 
         Parameters
         ----------
-        coordinates : podpac.Coordinate
-            {evaluated_coordinates}
-        params : dict, optional
-            {execute_params} 
+        coordinates : podpac.Coordinates
+            {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {execute_out}
         method : str, optional
@@ -251,11 +258,10 @@ class Compositor(Node):
         -------
         {execute_return}
         """
-        self.evaluated_coordinates = coordinates
-        self.params = params
+        self.requested_coordinates = coordinates
         self.output = output
         
-        outputs = self.iteroutputs(coordinates, params, method=method)
+        outputs = self.iteroutputs(coordinates, method=method)
         self.output = self.composite(outputs, self.output)
         self.evaluated = True
 
