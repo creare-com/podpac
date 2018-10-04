@@ -227,7 +227,7 @@ class Node(tl.HasTraits):
                 if c.name not in requested_coordinates.udims:
                     raise NodeException("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
             elif isinstance(c, StackedCoordinates):
-                stacked = [s for s in c if s.name not in requested_coordinates.udims]
+                stacked = [s for s in c if s.name in requested_coordinates.udims]
                 if not stacked:
                     raise NodeException("Cannot evaluate these coordinates, missing all dims in '%s'" % c.name)
                 if any(s for s in stacked if not s.is_monotonic):
