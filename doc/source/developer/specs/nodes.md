@@ -173,49 +173,30 @@ def eval(coordinates, output=None, method=None):
     ```
 * If the request has *stacked* dimensions not in the underlying Node, add the missing coordinates.
     * eg. Node has `[lat_lon]` dimensions, but coordinates have `['lat_lon_time'`], we need to add the time portion to the stacked coordinates for correct xarray broadcasting.
-
-* [**???FUTURE FEATURE???**] If `isinstance(coordinates, GroupCoordinates)` then a `UnitsDataArray` with a single `group` dimension is return. Each `group` is indexed by the the coordinates group in `GroupCoordinates`, and contains a `UnitsDataArray` that matches the above rules.
-    ```python
-    >>> from podpac.core.coordinate import GroupCoordinate
-    >>> node.native_coordinates = Coordinate(lat=(90, -90, -1.), lon=(-180, 180, 2.), order=['lat', 'lon'])
-    >>> node.evaluated_coordinates = GroupCoordinate([Coordinate(lat=(90, 0, -1.), lon=(-180, 0, 2.), order=['lat', 'lon']), Coordinate(lat=(0, -90, -2.), lon=(0, 180, 4.), order=['lat', 'lon'])])
-    >>> o = node.initialize_output_array()
-    >>> o[0] + o; o + o  # This all works fine
-    <xarray.UnitsDataArray (group: 2)>
-    array([<xarray.UnitsDataArray (lat: 91, lon: 91)>
-    array([[nan, nan, nan, ..., nan, nan, nan],
-           ...,
-           [nan, nan, nan, ..., nan, nan, nan]])
-    Coordinates:
-      * lat      (lat) float64 90.0 89.0 88.0 87.0 86.0 85.0 84.0 83.0 82.0 81.0 ...
-      * lon      (lon) float64 -180.0 -178.0 -176.0 -174.0 -172.0 -170.0 -168.0 ...
-    Attributes:
-        layer_style:  <podpac.core.node.Style object at 0x0000022DEE17AB38>
-        params:       {},
-           <xarray.UnitsDataArray (lat: 46, lon: 46)>
-    array([[nan, nan, nan, ..., nan, nan, nan],
-           ...,
-           [nan, nan, nan, ..., nan, nan, nan]])
-    Coordinates:
-      * lat      (lat) float64 0.0 -2.0 -4.0 -6.0 -8.0 -10.0 -12.0 -14.0 -16.0 ...
-      * lon      (lon) float64 0.0 4.0 8.0 12.0 16.0 20.0 24.0 28.0 32.0 36.0 ...
-    Attributes:
-        layer_style:  <podpac.core.node.Style object at 0x0000022DEE17AB38>
-        params:       {}], dtype=object)
-    Coordinates:
-      * group    (group) <U144 'Coordinate\n\tlat: UniformCoord: Bounds[-90.0, 0.0], N[46], ctype["segment"]\n\tlon: UniformCoord: Bounds[-180.0, 0.0], N[46], ctype["segment"]' ...    
-    ```
-    * This will break any node that uses `o.data`... 
-    * Alternatively, we could disallow evaluation of `GroupCoordinates` -- raising an exception
-        * This leaves it up to the user to loop through all the coordinates in `GroupCoordinates` and evaluate the node that way
-        * Perhaps we can do that? In that case only the bottom node returns the `group` dataarray, and anything internal should be fine
-        * This will break if an internal node uses a group coordinate as part of the pipeline
-        * Safest is just to disallow this behaviour... 
-    * Alternatively (Currently the favorite): WE could raise an exception, and provide a eval_group method that will do the looping for the user. This avoids any group coordinates evaluated within the pipeline, but still let's a user evaluate a group in a consistent manner. 
 * The output will contain metadata on the: 
     * Units
     * Styling? 
-    * Other metadata to track provenance? 
+    * Other metadata to track provenance?
+
+#### eval_group(group_coordinates, method=None)
+
+This is just a helper function that loops through the coordinates in the group calling eval.
+
+```python
+    def eval_group(self, group_coordinates, method=None):
+        '''Evaluate GroupCoordinates in a loop.
+        
+        Parameters
+        ----------
+        group_coordinates : GroupCoordinates
+            coordinates group to evaluate
+        
+        Returns
+        -------
+        outputs : list
+            list of UnitsDataArray, one for each Coordinates in the group.
+        '''
+```
     
 #### find_coordinates
 ```python
