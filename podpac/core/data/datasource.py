@@ -56,9 +56,9 @@ DATA_DOC = {
         cast the data into a `UnitsDataArray` using the requested source coordinates.
         If a podpac UnitsDataArray is passed back, the :meth:podpac.core.data.datasource.DataSource.evaluate
         method will not do any further processing.
-        The inherited Node method `initialize_coord_array` can be used to generate the template UnitsDataArray
+        The inherited Node method `create_output_array` can be used to generate the template UnitsDataArray
         in your DataSource.
-        See :meth:podpac.core.node.Node.initialize_coord_array for more details.
+        See :meth:podpac.core.node.Node.create_output_array for more details.
         
         Parameters
         ----------
@@ -268,11 +268,11 @@ class DataSource(Node):
 
         # If requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
         if np.prod(self.requested_source_coordinates.shape) == 0:
-            udata_array = self.initialize_coord_array(self.requested_coordinates, init_type='nan')
+            udata_array = self.create_output_array(self.requested_coordinates)
             if self.output is None:
                 self.output = udata_array
             else:
-                self.output[:] = udata_array.transpose(*self.output.dims)
+                self.output[:] = udata_array.transpose(*self.output.dims) # TODO JXM
 
             return self.output
         
@@ -357,9 +357,9 @@ class DataSource(Node):
             udata_array = data
         elif isinstance(data, xr.DataArray):
             # TODO: check order of coordinates here
-            udata_array = self.initialize_coord_array(self.requested_coordinates, 'data', fillval=data)
+            udata_array = self.create_output_array(self.requested_coordinates, data=data.data)
         elif isinstance(data, np.ndarray):
-            udata_array = self.initialize_coord_array(self.requested_coordinates, 'data', fillval=data)
+            udata_array = self.create_output_array(self.requested_coordinates, data=data)
         else:
             raise ValueError('Unknown data type passed back from {}.get_data(): {}. '.format(type(self).__name__, type(data)) +
                              'Must be one of numpy.ndarray, xarray.DataArray, or podpac.UnitsDataArray')
@@ -411,7 +411,7 @@ class DataSource(Node):
 
         # initialize output if not already input
         if self.output is None:
-            self.output = self.initialize_output_array()   # TODO: caution this uses low level node functions 
+            self.output = self.create_output_array(self.requested_coordinates) # TODO: caution this uses low level node functions 
         else:
             # TODO: confirm that output is the right size ?
             pass

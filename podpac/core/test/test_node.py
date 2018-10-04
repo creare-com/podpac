@@ -98,9 +98,9 @@ class TestNotImplementedMethods(object):
 class TestNodeMethods(object):
     @classmethod
     def setup_class(cls):
-        c1 = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
-        c2 = podpac.Coordinates([podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)], dims=['lat_lon'])
-        cls.crds = [c1, c2]
+        cls.c1 = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
+        cls.c2 = podpac.Coordinates([podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)], dims=['lat_lon'])
+        cls.crds = [cls.c1, cls.c2]
     
     @pytest.mark.xfail(reason="get_output_shape removed, pending node refactor")
     def test_get_output_dims(self):
@@ -113,6 +113,34 @@ class TestNodeMethods(object):
             n3.requested_coordinates = crd
             np.testing.assert_array_equal(n3.get_output_dims(), crd.dims)
             assert(n1.get_output_dims(OrderedDict([('lat',0)])) == ['lat'])
+
+    def test_create_output_array_default(self):
+        node = Node()
+
+        for crd in self.crds:
+            output = node.create_output_array(crd)
+            assert isinstance(output, UnitsDataArray)
+            assert output.shape == crd.shape
+            assert output.dtype == node.dtype
+            assert np.all(np.isnan(output))
+
+    def test_create_output_array_data(self):
+        node = Node()
+
+        output = node.create_output_array(self.c1, data=0)
+        assert isinstance(output, UnitsDataArray)
+        assert output.shape == self.c1.shape
+        assert output.dtype == node.dtype
+        assert np.all(output == 0.0)
+
+    def test_create_output_array_dtype(self):
+        node = Node(dtype=bool)
+
+        output = node.create_output_array(self.c1, data=0)
+        assert isinstance(output, UnitsDataArray)
+        assert output.shape == self.c1.shape
+        assert output.dtype == node.dtype
+        assert np.all(~output)
         
 @pytest.mark.skip(reason="pending node refactor")
 class TestNodeOutputArrayCreation(object):
@@ -122,18 +150,6 @@ class TestNodeOutputArrayCreation(object):
         cls.c2 = podpac.Coordinates([podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)], dims=['lat_lon'])
         cls.crds = [cls.c1, cls.c2]
         cls.init_types = ['empty', 'nan', 'zeros', 'ones', 'full', 'data']
-    
-    def test_copy_output_array(self):
-        crd = self.crds[0]
-        n1 = Node(native_coordinates=crd)
-        np.testing.assert_array_equal(n1.copy_output_array(), n1.output)
-        assert(id(n1.output) != id(n1.copy_output_array()))
-        # Just run through the different creating methods
-        for init_type in self.init_types[:4]:
-            n1.copy_output_array(init_type)
-        
-        with pytest.raises(ValueError):
-            n1.copy_output_array('notValidInitType')
                 
     def test_default_output_native_coordinates(self):
         n = Node(native_coordinates=self.c1)

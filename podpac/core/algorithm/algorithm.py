@@ -61,13 +61,13 @@ class Algorithm(Node):
         result = self.algorithm()
         if isinstance(result, np.ndarray):
             if self.output is None:
-                self.output = self.initialize_coord_array(coords)
+                self.output = self.create_output_array(coords)
             self.output.data[:] = result
         else:
             dims = [d for d in self.requested_coordinates.dims if d in result.dims]
             if self.output is None:
                 coords = Coordinates.from_xarray(result.coords)
-                self.output = self.initialize_coord_array(coords)
+                self.output = self.create_output_array(coords)
             self.output[:] = result
             self.output = self.output.transpose(*dims) # split into 2nd line to avoid broadcasting issues with slice [:]
         self.evaluated = True
@@ -127,8 +127,8 @@ class Arange(Algorithm):
         UnitsDataArray
             A row-majored numbered array of the requested size. 
         """
-        out = self.initialize_output_array('ones')
-        return out * np.arange(out.size).reshape(out.shape)
+        data = np.arange(self.requested_coordinates.size).reshape(self.requested_coordinates.shape)
+        return self.create_output_array(self.requested_coordinates, data=data)
       
 
 class CoordData(Algorithm):
@@ -156,7 +156,7 @@ class CoordData(Algorithm):
        
         c = self.requested_coordinates[self.coord_name]
         coords = Coordinates([c])
-        return self.initialize_coord_array(coords, init_type='data', fillval=c.coordinates)
+        return self.create_output_array(coords, data=c.coordinates)
 
 
 class SinCoords(Algorithm):
@@ -171,7 +171,8 @@ class SinCoords(Algorithm):
         UnitsDataArray
             Sinusoids of a certain period for all of the requested coordinates
         """
-        out = self.initialize_output_array('ones')
+        # TODO JXM calculate crds from self.requested_coordinates instead of created output array
+        out = self.create_output_array(self.requested_coordinates, data=1.0)
         crds = list(out.coords.values())
         try:
             i_time = list(out.coords.keys()).index('time')

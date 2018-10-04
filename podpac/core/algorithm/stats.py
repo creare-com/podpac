@@ -202,7 +202,7 @@ class Reduce(Algorithm):
  
         self.requested_coordinates = self.requested_coordinates.drop(self.dims)
         if self.output is None:
-            self.output = self.initialize_coord_array(self.requested_coordinates)
+            self.output = self.create_output_array(self.requested_coordinates)
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
             result = self.reduce_chunked(self.iteroutputs(method), method)
@@ -988,7 +988,7 @@ class GroupReduce(Algorithm):
         self.output = output
 
         if self.output is None:
-            self.output = self.initialize_output_array()
+            self.output = self.create_output_array(coordinates)
 
         if 'time' not in self.native_coordinates.dims:
             raise ValueError("GroupReduce source node must be time-dependent")

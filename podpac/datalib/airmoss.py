@@ -77,7 +77,7 @@ class AirMOSS_Source(datatype.PyDAP):
             Description
         """
         data = self.dataset[self.datakey].array[tuple(coordinates_index)]
-        d = self.initialize_coord_array(coordinates, 'data', fillval=data.reshape(coordinates.shape))
+        d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
         return d
 
 

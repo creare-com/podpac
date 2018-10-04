@@ -27,7 +27,7 @@ except:
     boto3 = None
 
 from podpac import settings
-from podpac import Units, UnitsDataArray
+from podpac.core.units import Units, UnitsDataArray, create_data_array
 from podpac.core.utils import common_doc
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
@@ -115,14 +115,14 @@ class Node(tl.HasTraits):
     output = tl.Instance(UnitsDataArray, allow_none=True)
     @tl.default('output')
     def _output_default(self):
-        return self.initialize_output_array('nan')
+        return self.create_output_array(self.requested_coordinates)
 
     native_coordinates = tl.Instance(Coordinates, allow_none=True)
     evaluated = tl.Bool(default_value=False)
     implicit_pipeline_evaluation = tl.Bool(default_value=True)
     requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     units = Units(default_value=None, allow_none=True)
-    dtype = tl.Any(default_value=float) # TODO JXM
+    dtype = tl.Any(default_value=float)
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
     node_defaults = tl.Dict(allow_none=True)
 
@@ -238,180 +238,26 @@ class Node(tl.HasTraits):
         return coords
 
     @common_doc(COMMON_DOC)
-    def initialize_output_array(self, init_type='nan', fillval=0, style=None,
-                                no_style=False, shape=None, coords=None,
-                                dims=None, units=None, dtype=np.float, **kwargs):
-        """Initializes the UnitsDataArray with the expected output size.
-
-        Parameters
-        ----------
-        init_type : str, optional
-            {arr_init_type}
-        fillval : number/np.ndarray, optional
-            {arr_fillval}
-        style : podpac.Style, optional
-            {arr_style}
-        no_style : bool, optional
-            {arr_no_style}
-        shape : list/tuple, optional
-            {arr_shape}
-        coords : Coordinates, optional
-            {arr_coords}
-        dims : None, optional
-            {arr_dims}
-        units : Unit, optional
-            {arr_units}
-        dtype : TYPE, optional
-            {arr_dtype}
-        **kwargs
-            {arr_kwargs}
-
-        Returns
-        -------
-        {arr_return}
+    def create_output_array(self, coords, data=np.nan, **kwargs):
         """
-        crds = self.get_output_coords(coords)
-        return self.initialize_array(
-            init_type, fillval, style, no_style, shape, crds.coords, crds.dims, units, dtype, **kwargs)
-    
-    @common_doc(COMMON_DOC)
-    def copy_output_array(self, init_type='nan'):
-        """Create a copy of the output array, initialized using the specified method.
-
-        Parameters
-        ----------
-        init_type : str, optional
-            {arr_init_type}
-
-        Returns
-        -------
-        UnitsDataArray
-            A copy of the `self.output` array, initialized with the specified method.
-
-        Raises
-        ------
-        ValueError
-            Raises this error if the init_type specified is not supported.
-        """
-        x = self.output.copy(True)
-        shape = x.data.shape
-
-        if init_type == 'empty':
-            x.data = np.empty(shape)
-        elif init_type == 'nan':
-            x.data = np.full(shape, np.nan)
-        elif init_type == 'zeros':
-            x.data = np.zeros(shape)
-        elif init_type == 'ones':
-            x.data = np.ones(shape)
-        else:
-            raise ValueError('Unknown init_type={}'.format(init_type))
-
-        return x
-
-    @common_doc(COMMON_DOC)
-    def initialize_coord_array(self, coords, init_type='nan', fillval=0,
-                               style=None, no_style=False, units=None,
-                               dtype=np.float, **kwargs):
-        """Initialize an output array using a podpac.Coordinates object.
+        Initialize an output data array
 
         Parameters
         ----------
         coords : podpac.Coordinates
-            Coordinates descriping the size of the data array that will be initialized
-        init_type : str, optional
-            {arr_init_type}
-        fillval : number/np.ndarray, optional
-            {arr_fillval}
-        style : podpac.Style, optional
-            {arr_style}
-        no_style : bool, optional
-            {arr_no_style}
-        units : podpac.Unit, optional
-            {arr_units}
-        dtype : TYPE, optional
-            {arr_dtype}
-        **kwargs
-            {arr_kwargs}
-
-        Returns
-        -------
-        {arr_return}
-        """
-        return self.initialize_array(
-            init_type, fillval, style, no_style, coords.shape, coords.coords, coords.dims, units, dtype, **kwargs)
-
-    @common_doc(COMMON_DOC)
-    def initialize_array(self, init_type='nan', fillval=0, style=None,
-                         no_style=False, shape=None, coords=None,
-                         dims=None, units=None, dtype=np.float, **kwargs):
-        """Initialize output data array
-
-        Parameters
-        ----------
-        init_type : str, optional
-            {arr_init_type}
-        fillval : number, optional
-            {arr_fillval}
-        style : Style, optional
-            {arr_style}
-        no_style : bool, optional
-            {arr_no_style}
-        shape : tuple
-            {arr_shape}
-        coords : dict/list
             {arr_coords}
-        dims : list(str)
-            {arr_dims}
-        units : pint.unit.Unit, optional
-            {arr_units}
-        dtype : type, optional
-            {arr_dtype}
+        data : None, number, or array-like (optional)
+            {arr_init_type}
         **kwargs
             {arr_kwargs}
 
         Returns
         -------
         {arr_return}
-            
-
-        Raises
-        ------
-        ValueError
-            Raises this error if the init_type specified is not supported.
         """
 
-        if style is None: style = self.style
-        if shape is None: shape = self.shape
-        if units is None: units = self.units
-        if not isinstance(coords, (dict, OrderedDict, list)):
-            from xarray.core.coordinates import DataArrayCoordinates
-            if not isinstance(coords, DataArrayCoordinates):
-                assert False
-                coords = dict(coords)
-
-        if init_type == 'empty':
-            data = np.empty(shape)
-        elif init_type == 'nan':
-            data = np.full(shape, np.nan)
-        elif init_type == 'zeros':
-            data = np.zeros(shape)
-        elif init_type == 'ones':
-            data = np.ones(shape)
-        elif init_type == 'full':
-            data = np.full(shape, fillval)
-        elif init_type == 'data':
-            data = fillval
-        else:
-            raise ValueError('Unknown init_type={}'.format(init_type))
-
-        x = UnitsDataArray(data, coords=coords, dims=dims, **kwargs)
-
-        if not no_style:
-            x.attrs['layer_style'] = style
-        if units is not None:
-            x.attrs['units'] = units
-        return x
+        attrs = {'layer_style': self.style, 'units': self.units}
+        return create_data_array(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
 
     @property
     def base_ref(self):

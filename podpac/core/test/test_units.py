@@ -5,15 +5,15 @@ import numpy as np
 from pint.errors import DimensionalityError
 import traitlets as tl
 
-import podpac.core.node as node
-
 from podpac.core.units import ureg
 
+from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 
 from podpac.core.units import Units
 from podpac.core.units import UnitsNode
 from podpac.core.units import UnitsDataArray
+from podpac.core.units import create_data_array
 
 class Length(Node):
     units = Units(ureg.meter)
@@ -334,3 +334,80 @@ class TestUnitDataArray(object):
         np.std(a1)
         np.var(a1)        
 
+class TestCreateDataArray(object):
+    @classmethod
+    def setup_class(cls):
+        cls.coords = Coordinates([[0, 1, 2], [0, 1, 2, 3]], dims=['lat', 'lon'])
+
+    def test_default(self):
+        a = create_data_array(self.coords)
+        assert isinstance(a, UnitsDataArray)
+        assert a.shape == self.coords.shape
+        assert np.all(np.isnan(a))
+
+    def test_empty(self):
+        a = create_data_array(self.coords, data=None)
+        assert isinstance(a, UnitsDataArray)
+        assert a.shape == self.coords.shape
+        assert a.dtype == float
+
+        a = create_data_array(self.coords, data=None, dtype=bool)
+        assert isinstance(a, UnitsDataArray)
+        assert a.shape == self.coords.shape
+        assert a.dtype == bool
+
+    def test_zeros(self):
+        a = create_data_array(self.coords, data=0)
+        assert isinstance(a, UnitsDataArray)
+        assert a.shape == self.coords.shape
+        assert a.dtype == float
+        assert np.all(a == 0.0)
+
+        a = create_data_array(self.coords, data=0, dtype=bool)
+        assert isinstance(a, UnitsDataArray)
+        assert a.shape == self.coords.shape
+        assert a.dtype == bool
+        assert np.all(~a)
+
+    def test_ones(self):
+        a = create_data_array(self.coords, data=1)
+        assert isinstance(a, UnitsDataArray)
+        assert a.shape == self.coords.shape
+        assert a.dtype == float
+        assert np.all(a == 1.0)
+
+        a = create_data_array(self.coords, data=1, dtype=bool)
+        assert isinstance(a, UnitsDataArray)
+        assert a.shape == self.coords.shape
+        assert a.dtype == bool
+        assert np.all(a)
+
+    def test_full(self):
+        a = create_data_array(self.coords, data=10)
+        assert isinstance(a, UnitsDataArray)
+        assert a.shape == self.coords.shape
+        assert a.dtype == float
+        assert np.all(a == 10)
+
+        a = create_data_array(self.coords, data=10, dtype=int)
+        assert isinstance(a, UnitsDataArray)
+        assert a.shape == self.coords.shape
+        assert a.dtype == int
+        assert np.all(a == 10)
+
+    def test_array(self):
+        data = np.random.random(self.coords.shape)
+        a = create_data_array(self.coords, data=data)
+        assert isinstance(a, UnitsDataArray)
+        assert a.dtype == float
+        np.testing.assert_equal(a.data, data)
+
+        data = np.round(10*np.random.random(self.coords.shape))
+        a = create_data_array(self.coords, data=data, dtype=int)
+        assert isinstance(a, UnitsDataArray)
+        assert a.dtype == int
+        np.testing.assert_equal(a.data, data.astype(int))
+
+    def test_invalid_coords(self):
+        with pytest.raises(TypeError):
+            create_data_array((3, 4))

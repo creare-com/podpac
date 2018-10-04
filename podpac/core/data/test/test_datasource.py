@@ -46,7 +46,7 @@ class MockDataSource(DataSource):
         """ see DataSource """
 
         s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
+        d = self.create_output_array(coordinates, data=self.source[s])
         return d
 
 
@@ -64,7 +64,7 @@ class MockEmptyDataSource(DataSource):
         """ see DataSource """
 
         s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
+        d = self.create_output_array(coordinates, data=self.source[s])
         return d
 
 class MockNonuniformDataSource(DataSource):
@@ -81,7 +81,7 @@ class MockNonuniformDataSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """ """
         s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
+        d = self.create_output_array(coordinates, data=self.source[s])
         return d
 
 class MockDataSourceReturnsArray(DataSource):

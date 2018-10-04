@@ -92,7 +92,7 @@ class Array(DataSource):
         """{get_data}
         """
         s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
+        d = self.create_output_array(coordinates, data=self.source[s])
         return d
 
 
@@ -247,9 +247,8 @@ class PyDAP(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.dataset[self.datakey][tuple(coordinates_index)]
-        d = self.initialize_coord_array(coordinates, 'data',
-                                        fillval=data.reshape(coordinates.shape))
+        data = self.dataset[self.datakey][tuple(coordinates_index)].data
+        d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
         return d
     
     @property
@@ -346,14 +345,11 @@ class Rasterio(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.initialize_coord_array(coordinates)
+        data = self.create_output_array(coordinates)
         slc = coordinates_index
-        data.data.ravel()[:] = self.dataset.read(
-            self.band, window=((slc[0].start, slc[0].stop),
-                               (slc[1].start, slc[1].stop)),
-            out_shape=tuple(coordinates.shape)
-            ).ravel()
-            
+        window = window=((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
+        a = self.dataset.read(self.band, out_shape=tuple(coordinates.shape))
+        data.data.ravel()[:] = a.ravel()
         return data
     
     @cached_property
@@ -596,7 +592,7 @@ class WCS(DataSource):
         Exception
             Raises this if there is a network error or required dependencies are not installed.
         """
-        output = self.initialize_coord_array(coordinates)
+        output = self.create_output_array(coordinates)
         dotime = 'time' in self.wcs_coordinates.dims
 
         if 'time' in coordinates.dims and dotime:

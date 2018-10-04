@@ -195,7 +195,7 @@ class Compositor(Node):
             src_subset = self.sources[I]
 
         if len(src_subset) == 0:
-            yield self.initialize_coord_array(coordinates, init_type='nan')
+            yield self.create_output_array(coordinates)
             return
 
         # Set the interpolation properties for sources
