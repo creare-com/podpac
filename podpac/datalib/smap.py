@@ -55,9 +55,9 @@ COMMON_DOC.update(
 
         Returns
         -------
-        podpac.Coordinate
+        podpac.Coordinates
             Coordinates that uniquely describe each source''',
-                                                             'keys': '''Available layers that are in the OpenDAP dataset
+     'keys': '''Available layers that are in the OpenDAP dataset
 
         Returns
         -------
@@ -245,8 +245,7 @@ class SMAPSource(datatype.PyDAP):
         lats[lats == self.nan_vals[0]] = np.nan
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
-        coords = podpac.Coordinate(lat=lats, lon=lons, time=np.array(times),
-                                   order=['time', 'lat', 'lon'])
+        coords = podpac.Coordinates([lat, lon, time], dims=['time', 'lat', 'lon'])
         self.cache_obj(coords, 'native.coordinates')
         return coords
 
@@ -346,20 +345,18 @@ class SMAPProperties(SMAPSource):
         """{get_native_coordinates}
         """
         try:
-            return self.load_cached_obj('native.coordinates')
+            coords = self.load_cached_obj('native.coordinates')
         except:
-            pass
-
-        ds = self.dataset
-        lons = np.array(ds[self.lonkey][:, :])
-        lats = np.array(ds[self.latkey][:, :])
-        lons[lons == self.nan_vals[0]] = np.nan
-        lats[lats == self.nan_vals[0]] = np.nan
-        lons = np.nanmean(lons, axis=0)
-        lats = np.nanmean(lats, axis=1)
-        coords = podpac.Coordinate(lat=lats, lon=lons,
-                                   order=['lat', 'lon'])
-        self.cache_obj(coords, 'native.coordinates')
+            ds = self.dataset
+            lons = np.array(ds[self.lonkey][:, :])
+            lats = np.array(ds[self.latkey][:, :])
+            lons[lons == self.nan_vals[0]] = np.nan
+            lats[lats == self.nan_vals[0]] = np.nan
+            lons = np.nanmean(lons, axis=0)
+            lats = np.nanmean(lats, axis=1)
+            coords = podpac.Coordinates([lats, lons], dims=['lat', 'lon'])
+            self.cache_obj(coords, 'native.coordinates')
+        
         return coords
 
 class SMAPPorosity(SMAPProperties):
@@ -442,9 +439,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
     layerkey = tl.Unicode()
     @tl.default('layerkey')
     def _layerkey_default(self):
-        return SMAP_PRODUCT_MAP.sel(
-            product=self.product,
-            attr='layerkey').item()
+        return SMAP_PRODUCT_MAP.sel(product=self.product, attr='layerkey').item()
 
     @tl.observe('layerkey')
     def _layerkey_change(self, change):
@@ -485,12 +480,10 @@ class SMAPDateFolder(podpac.OrderedCompositor):
             tol = tol - tol
             tol = np.timedelta64(1, dtype=(tol.dtype))
 
-        src_objs = np.array([SMAPSource(source=b + s,
-                                        interpolation_tolerance=tol,
-                                        auth_session=self.auth_session,
-                                        layerkey=self.layerkey)
-                             for s in sources])
-        return src_objs
+        src_objs = [
+            SMAPSource(source=b+s, interpolation_tolerance=tol, auth_session=self.auth_session, layerkey=self.layerkey)
+            for s in sources]
+        return np.array(src_objs)
 
     @tl.default('is_source_coordinates_complete')
     def src_crds_complete_default(self):
@@ -514,19 +507,16 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         times, latlon, _ = self.get_available_coords_sources()
 
         if latlon is not None and latlon.size > 0:
-            crds = podpac.Coordinate(
-                time_lat_lon=(times,
-                              podpac.Coord(latlon[:, 0], delta=self.latlon_delta),
-                              podpac.Coord(latlon[:, 1], delta=self.latlon_delta)
-                            )
-            )
+            lat = podpac.Coord(latlon[:, 0], delta=self.latlon_delta) # TODO
+            lon = podpac.Coord(latlon[:, 1], delta=self.latlon_delta) # TODO
+            crds = podpac.Coordinates([[times, lat, lon]], dims=['lat_lon_time'])
         else:
-            crds = podpac.Coordinate(time=times)
+            crds = podpac.Coordinates([times], dims=['times'])
         self.cache_obj(crds, 'source.coordinates')
         return crds
 
     def get_shared_coordinates(self):
-        """Coordinate that are shared by all files in the folder.
+        """Coordinates that are shared by all files in the folder.
 
         Returns
         -------
@@ -702,7 +692,7 @@ class SMAP(podpac.OrderedCompositor):
     def get_source_coordinates(self):
         """{source_coordinates}
         """
-        return podpac.Coordinate(time=self.get_available_times_dates()[0])
+        return podpac.Coordinates([self.get_available_times_dates()[0]], dims=['time'])
 
     def get_available_times_dates(self):
         """Returns the available folder dates in the SMAP product
