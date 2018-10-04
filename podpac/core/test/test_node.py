@@ -14,52 +14,6 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node, NodeException
         
 class TestNodeProperties(object):
-    @pytest.mark.xfail(reason="get_output_shape removed, pending node refactor")
-    def test_shape_not_Valid(self):
-        n = Node()
-        with pytest.raises(NodeException):
-            n.get_output_shape()
-
-    @pytest.mark.xfail(reason="get_output_shape removed, pending node refactor")
-    def test_shape_no_nc(self):
-        n = Node()
-        
-        lat = podpac.clinspace(0.5, 1.5, 15)
-        lon = podpac.clinspace(0.1, 1.1, 15)
-        time = podpac.clinspace(0, 1, 2)
-
-        # lat, lon, time
-        coords = podpac.Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
-        np.testing.assert_array_equal(coords.shape, n.get_output_shape(coords))
-
-        # lat_lon
-        coords = podpac.Coordinates([[lat, lon]], dims=['lat_lon', 'time'])
-        np.testing.assert_array_equal(coords.shape, n.get_output_shape(coords))
-        
-        # lat_lon, time
-        coords = podpac.Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
-        np.testing.assert_array_equal(coords.shape, n.get_output_shape(coords))
-    
-    @pytest.mark.xfail(reason="get_output_shape removed, pending node refactor")
-    def test_shape_with_nc(self):
-        lat_lon = podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)
-        time = podpac.clinspace(0, 1, 2)
-
-        crd_fine = podpac.Coordinates(lat_lon, dims=['lat_lon'])
-        crd_coarse = podpac.Coordinates(lat_lon[::3], dims=['lat_lon'])
-        crd_time = podpac.Coordinates(time, dims=['time'])
-        crd_coarse_time = podpac.Coordinates([lat_lon[::3], crd_time], dims=['lat_lon', 'time'])
-        
-        n = Node(native_coordinates=crd_fine)
-        np.testing.assert_array_equal(crd_coarse.shape, n.get_output_shape(crd_coarse))
-        
-        # WE SHOULD FIX THE SPEC: This really should be [3, 5] # TODO JXM
-        # TODO actually this should fail
-        # TODO also, remove __add__? it's weird
-        n = Node(native_coordinates=crd_coarse_time)
-        np.testing.assert_array_equal([5, 3], n.get_output_shape(crd_time))
-        np.testing.assert_array_equal(n.native_coordinates.shape, n.shape)
-    
     def test_base_ref(self):
         # Just make sure this doesn't error out
         Node().base_ref
@@ -101,18 +55,6 @@ class TestNodeMethods(object):
         cls.c1 = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
         cls.c2 = podpac.Coordinates([podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)], dims=['lat_lon'])
         cls.crds = [cls.c1, cls.c2]
-    
-    @pytest.mark.xfail(reason="get_output_shape removed, pending node refactor")
-    def test_get_output_dims(self):
-        n1 = Node()
-        n2 = Node(native_coordinates=podpac.Coordinates([[0, .5, 1.]], dims=['alt']))
-        n3 = Node()
-        for crd in self.crds:
-            np.testing.assert_array_equal(n1.get_output_dims(crd), crd.dims)
-            np.testing.assert_array_equal(n2.get_output_dims(crd), ['alt'])
-            n3.requested_coordinates = crd
-            np.testing.assert_array_equal(n3.get_output_dims(), crd.dims)
-            assert(n1.get_output_dims(OrderedDict([('lat',0)])) == ['lat'])
 
     def test_get_output_coords(self):
         # TODO

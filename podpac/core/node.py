@@ -131,12 +131,6 @@ class Node(tl.HasTraits):
     def _style_default(self):
         return Style()
 
-    @property
-    def shape(self):
-        """See `get_output_shape`
-        """
-        return self.requested_coordinates.shape
-
     def __init__(self, **kwargs):
         """ Do not overwrite me """
         tkwargs = self._first_init(**kwargs)
