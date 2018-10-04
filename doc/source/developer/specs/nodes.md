@@ -257,69 +257,81 @@ def find_coordinates(dims=None, bounds=None, number=None, sortby='size', stop_ty
 
 #### public cache interface
 
+Put data into the cache:
+
 ```python
-def get_cache(self, key, coordinates):
+def put_cache(self, data, key, coordinates=None):
+    '''Cache data for this node.
+    
+    Parameters
+    ------------
+    data : any
+        Data to cache
+    key : str
+        Cached object key, e.g. 'output'.
+    coordinates : Coordinates, optional
+        Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
+    '''
+```
+
+Get data from the cache:
+
+```python
+def get_cache(self, key, coordinates=None):
     '''Get cached data for this node.
     
     Parameters
     ------------
     key : str
         Cached object key, e.g. 'output'.
-    coordinates : Coordinates
-        Coordinates for which cached object should be retrieved
+    coordinates : Coordinates, optional
+        Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         
     Returns
     -------
-    UnitsDataArray 
-        The cached data from the requested coordinates/attrs
+    data : any
+        The cached data.
     
     Raises
     -------
     CacheError
-        If the data is not in the cache and evaluate == False
+        If the data is not in the cache.
     '''
 ```
 
+Clear the cache:
+
 ```python
-def del_cache(self, key, coordinates):
-    '''Delete cached data for this node
+def del_cache(self, key=None, coordinates=None):
+    '''Delete cached data for this node.
     
     Parameters
     ------------
-    key : str
-        Cached object key, e.g. 'output'.
+    key : str, optional
+        Delete only cached objects with this key.
     coordinates : Coordinates
-        Coordinates for which cached object should be retrieved
+        Delete only cached objects for these coordinates.
     '''
 ```
 
+ * delete the entire cache for this node: `node.del_cache()`
+ * delete a specific cached object (coordinate-depedent): `node.del_cache(key=mykey, coordinates=coords)`
+ * delete a specific cached object (coordinate-independent): `node.del_cache(key=mykey)`
+ * delete all cached data for this node for specific coordinates: `node.del_cache(coordinates=coords)`
+ * delete all cached objects for this node with a given key for any coordinates: `node.del_cache(key=mykey)`
+
+Just check the cache:
 
 ```python
-def put_cache(self, key, coordinates, data):
-    '''Cache data for this node
-    
-    Parameters
-    ------------
-    key : str
-        Cached object key, e.g. 'output'.
-    coordinates : Coordinates
-        Coordinates for which cached object should be retrieved
-    data : any
-        Data to cache
-    '''
-```
-
-
-```python
-def has_cache(self, key, coordinates):
+def has_cache(self, key, coordinates=None):
     '''Check for cached data for this node
     
     Parameters
     ------------
     key : str
         Cached object key, e.g. 'output'.
-    coordinates: Coordinate 
-        Coordinates for which cached object should be retrieved
+    coordinates: Coordinate, optional
+        Coordinates for which cached object should be checked
     
     Returns
     -------
