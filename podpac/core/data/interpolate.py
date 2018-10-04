@@ -82,7 +82,7 @@ class Interpolator(tl.HasTraits):
         # find the intersection between dims_supported and udims, return tuple of intersection
         return tuple(set(self.dims_supported) & set(udims))
 
-    def dim_exists(self, dim, source_coordinates, requested_coordinates):
+    def dim_available(self, dim, source_coordinates, requested_coordinates):
         """Verify the dim exists on source and requested coordinates
         
         Parameters
@@ -127,13 +127,13 @@ class Interpolator(tl.HasTraits):
         else:
             raise NotImplementedError
 
-    def select_coordinates(self, dim, requested_coordinates, source_coordinates, source_coordinates_index):
+    def select_coordinates(self, udims, requested_coordinates, source_coordinates, source_coordinates_index):
         """Downselect coordinates with interpolator method
         
         Parameters
         ----------
-        dim : str
-            dimension to select coordinates
+        udims : tuple
+            dimensions to select coordinates
         requested_coordinates : podpac.core.coordinates.Coordinates
             Description
         source_coordinates : podpac.core.coordinates.Coordinates
@@ -182,30 +182,30 @@ class Interpolator(tl.HasTraits):
         else:
             raise NotImplementedError
 
-    def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
+    def interpolate(self, udims, requested_coordinates, source_coordinates, source_data, output_data):
         """Interpolate data from requested coordinates to source coordinates. 
         
         Parameters
         ----------
         udims : tuple
             dimensions to interpolate
+        requested_coordinates : podpac.core.coordinates.Coordinates
+            Description
         source_coordinates : podpac.core.coordinates.Coordinates
             Description
         source_data : podpac.core.units.UnitsDataArray
             Description
-        requested_coordinates : podpac.core.coordinates.Coordinates
-            Description
-        output : podpac.core.units.UnitsDataArray
+        output_data : TYPE
             Description
         
-        Returns
-        -------
-        podpac.core.units.UnitDataArray
-            returns the new output UnitDataArray of interpolated data
-
         Raises
         ------
         NotImplementedError
+
+        Returns
+        -------
+        (podpac.core.coordinates.Coordinates, podpac.core.units.UnitDataArraym podpac.core.units.UnitDataArray)
+            returns the updated (source_coordinates, source_data, and output_data) of interpolated data
         """
         raise NotImplementedError
 
@@ -216,24 +216,28 @@ class NearestNeighbor(Interpolator):
     tolerance = tl.Int()
 
     # nearest neighbor can't select coordinates
-    def can_select_coordinates(self, udims, requested_coordinates, source_coordinates):
+    def can_select(self, udims, requested_coordinates, source_coordinates):
         """NearestNeighbor can't select coordinates"""
         return False
 
-    def interpolate(self, dim, source_coordinates, source_data, requested_coordinates, output_data):
+    def interpolate(self, udims, requested_coordinates, source_coordinates, source_data, output_data):
         
 
-        if dim == 'time' and self.dim_exists(dim, source_coordinates, requested_coordinates):
-            source_data = source_data.reindex(
-                time=requested_coordinates.coords['time'], method='nearest', tolerance=self.tolerance)
+        # if ... 
+
+
+        # if dim == 'time' and self.dim_available(dim, source_coordinates, requested_coordinates):
+        #     source_data = source_data.reindex(
+        #         time=requested_coordinates.coords['time'], method='nearest', tolerance=self.tolerance)
             
-            source_coordinates['time'] = ArrayCoordinates1d.from_xarray(source_data['time'])
+        #     source_coordinates['time'] = ArrayCoordinates1d.from_xarray(source_data['time'])
 
 
-        if dim == 'alt' and self.dim_exists(dim, source_coordinates, requested_coordinates):
-            source_data = source_data.reindex(alt=requested_coordinates.coords['alt'], method='nearest')
-            source_coordinates['alt'] = ArrayCoordinates1d.from_xarray(source_data['alt'])
+        # if dim == 'alt' and self.dim_available(dim, source_coordinates, requested_coordinates):
+        #     source_data = source_data.reindex(alt=requested_coordinates.coords['alt'], method='nearest')
+        #     source_coordinates['alt'] = ArrayCoordinates1d.from_xarray(source_data['alt'])
 
+        return source_coordinates, source_data, output_data
 
 
 class NearestPreview(Interpolator):
@@ -241,7 +245,7 @@ class NearestPreview(Interpolator):
     dims_supported = ['lat', 'lon', 'alt', 'time']
     tolerance = tl.Int()
 
-    def select_coordinates(self, dim, requested_coordinates, source_coordinates, source_coordinates_index):
+    def select_coordinates(self, udims, requested_coordinates, source_coordinates, source_coordinates_index):
 
         # iterate over the source coordinate dims in case they are stacked
         for src_dim, idx in zip(source_coordinates, source_coordinates_index):
@@ -288,7 +292,7 @@ class NearestPreview(Interpolator):
         return new_source_coordinates, new_source_coordinates_index
 
 
-    def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
+    def interpolate(self, udims, requested_coordinates, source_coordinates, source_data, output_data):
         
         crds = OrderedDict()
         tol = np.inf  # TODO: make property
@@ -306,7 +310,7 @@ class NearestPreview(Interpolator):
         crds_keys = list(crds.keys())
         output_data.data = source_data.reindex(method=str('nearest'), tolerance=tol, **crds).transpose(*crds_keys)
 
-        return output_data
+        return source_coordinates, source_data, output_data
 
 
 class Rasterio(Interpolator):
@@ -315,19 +319,19 @@ class Rasterio(Interpolator):
     rasterio_interpolators = ['nearest', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss',
                               'max', 'min', 'med', 'q1', 'q3']
 
-    def can_select_coordinates(self, udims, requested_coordinates, source_coordinates):
+    def can_select(self, udims, requested_coordinates, source_coordinates):
         """Rasterio can't select coordinates"""
         return False
 
     def can_interpolate(self, udims, requested_coordinates, source_coordinates):
-        pass
+        return False
         # return self.method in self.rasterio_interpolators 
         #        and self.dim_in('lat' in source_coordinates.dims and 'lon' in source_coordinates.dims
         #        and 'lat' in requested_coordinates.dims and 'lon' in requested_coordinates.dims
         #        and source_coordinates['lat'].is_uniform and source_coordinates['lon'].is_uniform
         #        and requested_coordinates['lat'].is_uniform and requested_coordinates['lon'].is_uniform
 
-    def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
+    def interpolate(self, udims, requested_coordinates, source_coordinates, source_data, output_data):
         return None
 
 
@@ -336,7 +340,7 @@ class ScipyGrid(Interpolator):
     def can_interpolate(self, udims, requested_coordinates, source_coordinates):
         return None
 
-    def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
+    def interpolate(self, udims, requested_coordinates, source_coordinates, source_data, output_data):
         return None
 
 
@@ -345,7 +349,7 @@ class ScipyPoint(Interpolator):
     def can_interpolate(self, udims, requested_coordinates, source_coordinates):
         return None
 
-    def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
+    def interpolate(self, udims, requested_coordinates, source_coordinates, source_data, output_data):
         return None
 
 
@@ -354,7 +358,7 @@ class Radial(Interpolator):
     def can_interpolate(self, udims, requested_coordinates, source_coordinates):
         return None
 
-    def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
+    def interpolate(self, udims, requested_coordinates, source_coordinates, source_data, output_data):
         return None
 
 
@@ -364,7 +368,7 @@ class OptimalInterpolation(Interpolator):
     def can_interpolate(self, udims, requested_coordinates, source_coordinates):
         return None
 
-    def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
+    def interpolate(self, udims, requested_coordinates, source_coordinates, source_data, output_data):
         return None
 
 # List of available interpolators
@@ -390,7 +394,7 @@ INTERPOLATION_METHODS = {
 # create shortcut list based on methods keys
 INTERPOLATION_SHORTCUTS = INTERPOLATION_METHODS.keys()
 
-# default interoplation
+# default interpolation
 INTERPOLATION_DEFAULT = 'nearest'
 
 class Interpolation():
@@ -419,7 +423,7 @@ class Interpolation():
     definition = None
     _config = {}            # container for interpolation methods for each dimension
 
-    def __init__(self, definition=INTERPOLATION_DEFAULT, default=INTERPOLATION_DEFAULT, **kwargs):
+    def __init__(self, definition=INTERPOLATION_DEFAULT):
 
         self.definition = definition
         self._config = OrderedDict()
@@ -427,38 +431,59 @@ class Interpolation():
         # set each dim to interpolator definition
         if isinstance(definition, dict):
 
-            for udims in iter(definition):
+            # covert input to an ordered dict to preserve order of dimensions
+            definition = OrderedDict(definition)
 
-                # get interpolation method
-                method = self._parse_interpolation_method(definition[udims])
+            for key in iter(definition):
 
                 # if udims is not a tuple, convert it to one
-                if not isinstance(udims, tuple):
-                    udims = (udims,)
+                if not isinstance(key, tuple):
+                    udims = (key,)
+                else:
+                    udims = key
+
+                # make sure udims are not already specified in config
+                for config_dims in iter(self._config):
+                    print(set(config_dims))
+                    print(set(udims))
+                    if set(config_dims) & set(udims):
+                        raise InterpolationException('Dimensions "{}" cannot be defined '.format(udims) +
+                                                     'multiple times in interpolation definition {}'.format(definition))
+
+                # get interpolation method
+                method = self._parse_interpolation_method(definition[key])
 
 
                 # add all udims to definition
-                self._set_interpolation_method(udims, method, **kwargs)
+                self._set_interpolation_method(udims, method)
 
 
-            # at the end, set default method to empty tuple representing method for any other dimensions
-            default_method = self._parse_interpolation_method(default)
-            self._set_interpolation_method(tuple(), default_method, **kwargs)
+            # set default if its not been specified in the dict
+            if ('default',) not in self._config:
+
+                default_method = self._parse_interpolation_method(INTERPOLATION_DEFAULT)
+                self._set_interpolation_method(('default',), default_method)
             
 
-        elif isinstance(definition, (string_types, tuple)):
+        elif isinstance(definition, string_types):
             method = self._parse_interpolation_method(definition)
-            self._set_interpolation_method(tuple(), method, **kwargs)
+            self._set_interpolation_method(('default',), method)
 
         else:
             raise TypeError('"{}" is not a valid interpolation definition type. '.format(definition) +
-                            'Interpolation definiton must be a string, dict, or tuple')
+                            'Interpolation definiton must be a string or dict')
 
     def __repr__(self):
         rep = str(self.__class__.__name__)
         for udims in iter(self._config):
-            rep += '\n\t%s: (%s, %s)' % (udims, self._config[udims][0],
-                                         [i.__class__.__name__ for i in self._config[udims][1]])
+            # rep += '\n\t%s:\n\t\tmethod: %s\n\t\tinterpolators: %s\n\t\tparams: %s' % \
+            rep += '\n\t%s: %s, %s, %s' % \
+                (udims,
+                 self._config[udims]['method'],
+                 [i.__class__.__name__ for i in self._config[udims]['interpolators']],
+                 self._config[udims]['params']
+                )
+
         return rep
 
     def _parse_interpolation_method(self, definition):
@@ -473,9 +498,8 @@ class Interpolation():
         
         Returns
         -------
-        tuple (str, list of podpac.core.data.interpolate.Interpolator)
-            tuple with the first element the string method and second element a
-            list of :ref:podpac.core.data.interpolate.Interpolator classes
+        dict
+            dict with keys 'method', 'interpolators', and 'params'
         
         Raises
         ------
@@ -486,11 +510,37 @@ class Interpolation():
             if definition not in INTERPOLATION_SHORTCUTS:
                 raise InterpolationException('"{}" is not a valid interpolation shortcut. '.format(definition) +
                                              'Valid interpolation shortcuts: {}'.format(INTERPOLATION_SHORTCUTS))
-            return (definition, INTERPOLATION_METHODS[definition])
+            return {
+                'method': definition,
+                'interpolators': INTERPOLATION_METHODS[definition],
+                'params': {}
+            }
 
-        elif isinstance(definition, tuple):
-            method_string = definition[0]
-            interpolators = definition[1]
+        elif isinstance(definition, dict):
+
+            # confirm method in dict
+            if 'method' not in definition:
+                raise InterpolationException('{} is not a valid interpolation definition. '.format(definition) +
+                                             'Interpolation definition dict must contain key "method" string value')
+            else:
+                method_string = definition['method']
+
+            # if specifying custom method, user must include interpolators
+            if 'interpolators' not in definition and method_string not in INTERPOLATION_SHORTCUTS:
+                raise InterpolationException('"{}" is not a valid interpolation shortcut. '.format(method_string) +
+                                             'Specify list "interpolators" or change "method" ' +
+                                             'to a valid interpolation shortcut: {}'.format(INTERPOLATION_SHORTCUTS))
+            elif 'interpolators' not in definition:
+                interpolators = INTERPOLATION_METHODS[method_string]
+            else:
+                interpolators = definition['interpolators']
+
+            # default for params
+            if 'params' in definition:
+                params = definition['params']
+            else:
+                params = {}
+
 
             # confirm types
             if not isinstance(method_string, string_types):
@@ -501,15 +551,23 @@ class Interpolation():
                 raise TypeError('{} is not a valid interpolator definition. '.format(interpolators) +
                                 'Interpolator definition must be of type list containing Interpolator')
 
+            if not isinstance(params, dict):
+                raise TypeError('{} is not a valid interpolation params definition. '.format(params) +
+                                'Interpolation params must be a dict')
+
             for interpolator in interpolators:
                 self._validate_interpolator(interpolator)
 
             # if all checks pass, return the definition
-            return definition
+            return {
+                'method': method_string,
+                'interpolators': interpolators,
+                'params': params
+            }
 
         else:
             raise TypeError('"{}" is not a valid Interpolator definition. '.format(definition) +
-                            'Interpolation definiton must be a string or Interpolator.')
+                            'Interpolation definiton must be a string or dict.')
 
     def _validate_interpolator(self, interpolator):
         """Make sure interpolator is a subclass of Interpolator
@@ -532,29 +590,101 @@ class Interpolation():
             raise TypeError('{} is not a valid interpolator type. '.format(interpolator) +
                             'Interpolator must be of type {}'.format(Interpolator))
 
-    def _set_interpolation_method(self, udims, method, **kwargs):
+    def _set_interpolation_method(self, udims, method):
         """Set the list of interpolation methods to the input dimension
         
         Parameters
         ----------
         udims : tuple
             tuple of dimensiosn to assign method to
-        method : tuple (str, list of podpac.core.data.interpolate.Interpolator)
-            method and list of interpolators to assign to dimension
-        **kwargs :
-            keyword arguments passed into Interpolation class
+        method : dict
+            dict method returned from _parse_interpolation_method
         """
 
-        method_string = method[0]
-        interpolators = deepcopy(method[1])
+        method_string = deepcopy(method['method'])
+        interpolators = deepcopy(method['interpolators'])
+        params = deepcopy(method['params'])
 
         # instantiate interpolators
         for (idx, interpolator) in enumerate(interpolators):
-            kwargs['method'] = method_string
-            interpolators[idx] = interpolator(**kwargs)
+            interpolators[idx] = interpolator(method=method_string, **params)
 
-        # set to interpolation dictionary with tuple of dims as key
-        self._config[udims] = (method_string, interpolators)
+        method['interpolators'] = interpolators
+
+        # set to interpolation configuration for dims
+        self._config[udims] = method
+
+    def _select_interpolator_queue(self, requested_coordinates, source_coordinates, select_method, strict=False):
+        """Summary
+        
+        Parameters
+        ----------
+        requested_coordinates : podpac.core.coordinates.Coordinates
+            Description
+        source_coordinates : podpac.core.coordinates.Coordinates
+            Description
+        select_method : function
+            method used to determine if interpolator can handle dimensions
+        strict : bool, optional
+            Raise an error if all dimensions can't be handled
+        
+        Returns
+        -------
+        OrderedDict
+            Dict of (udims: Interpolator) to run in order
+        
+        Raises
+        ------
+        InterpolationException
+            If `strict` is True, InterpolationException is raised when all dimensions cannot be handled
+        """
+        requested_dims = set(requested_coordinates.udims)
+        handled_dims = set()
+
+        interpolator_queue = OrderedDict()
+
+        # go through all dims in config
+        for key in iter(self._config):
+
+            # if the key are set to (default,), it represents all the remaining dimensions that have not been handled
+            # this will always happen as the only or last entry in a dictionary definition
+            if key == ('default',):
+                udims = tuple(requested_dims - handled_dims)
+            else:
+                udims = key
+
+            # get configured list of interpolators for dim definition
+            interpolators = self._config[key]['interpolators']
+
+            # iterate through interpolators recording which dims they support
+            for interpolator in interpolators:
+                # if all dims have been handled already, skip the rest
+                if not udims:
+                    break
+
+                # see which dims the interpolator can handle
+                can_handle = getattr(interpolator, select_method)(udims, requested_coordinates, source_coordinates)
+
+                # if interpolator can handle all udims
+                if not set(udims) - set(can_handle):
+
+                    # union of dims that can be handled by this interpolator and already supported dims
+                    handled_dims = handled_dims | set(can_handle)
+
+                    # set interpolator to work on that dimension in the interpolator_queue if dim has no interpolator
+                    if udims not in interpolator_queue:
+                        interpolator_queue[udims] = interpolator
+
+        # throw error if the requested_dims don't encompass all the supported dims
+        # this should happen rarely because of default
+        if len(requested_dims) > len(handled_dims) and strict:
+            missing_dims = list(requested_dims - handled_dims)
+            raise InterpolationException('Requested dimensions {} '.format(missing_dims) +
+                                         'can\'t be handled by node interpolation definition {}'.format(self._config))
+
+        # TODO: adjust by interpolation cost
+        return interpolator_queue
+
 
     def select_coordinates(self, requested_coordinates, source_coordinates, source_coordinates_index):
         """
@@ -581,61 +711,19 @@ class Interpolation():
             of the selected coordinates
         """
         
+        interpolator_queue = \
+            self._select_interpolator_queue(self, requested_coordinates, source_coordinates, 'can_select')
+
         selected_coords = deepcopy(source_coordinates)
         selected_coords_idx = deepcopy(source_coordinates_index)
-        
-        # specifies order to run interpolator through selection
-        interpolator_queue = OrderedDict({
-            'time': None,
-            'alt': None,
-            'lat': None,
-            'lon': None
-        })
 
-        requested_dims = set(requested_coordinates.udims)
-        supported_dims = set()                          # assume no dims are supported to start
-
-        for udims in iter(self._config):
-
-            # get configured list of interpolators for dim definition
-            interpolators = self._config[udims][1]
-
-            # if the udims are an empty tuple, it represents all the remaining dimensions that have not been handled
-            # this will only happen as the last entry in a dictionary definition
-            if not udims:
-                udims = tuple(requested_dims - supported_dims)
-
-                # if all dims have been handled already, skip the rest
-                if not udims:
-                    return
-
-            # iterate through interpolators recording which dims they support
-            for interpolator in interpolators:
-                can_select = interpolator.can_select(udims, requested_coordinates, selected_coords)
-
-                # union of dims that can be handled by this interpolator and already supported dims
-                supported_dims = supported_dims | set(can_select)
-
-                # set interpolator to work on that dimension in the interpolator_queue if dim has no interpolator
-                for dim in can_select:
-
-                    # support dimensions that we don't preload into interpolator_queue (put at the end)
-                    if dim not in interpolator_queue.keys():
-                        interpolator_queue[dim] = interpolator
-                    elif interpolator_queue[dim] is None:
-                        interpolator_queue[dim] = interpolator
-                    
-
-
-        # TODO: adjust `can_select` by interpolation cost
-        for dim, interpolator in interpolator_queue:
+        for udims, interpolator in interpolator_queue:
 
             # run interpolation. mutates selected coordinates and selected coordinates index
-            selected_coords, selected_coords_idx = interpolator.select_coordinates(dim,
+            selected_coords, selected_coords_idx = interpolator.select_coordinates(udims,
                                                                                    requested_coordinates,
                                                                                    selected_coords,
                                                                                    selected_coords_idx)
-
 
         return selected_coords, selected_coords_idx
 
@@ -670,61 +758,13 @@ class Interpolation():
             output_data[:] = source_data
             return output_data
 
-        requested_dims = set(requested_coordinates.udims)
-        supported_dims = set()                          # assume no dims are supported to start
-        
-        # specifies order to run interpolator through selection
-        # TODO: should the keys of this should be tuples so that we can pass them in to the Interpolators
-        interpolator_queue = OrderedDict({
-            'time': None,
-            'alt': None,
-            'lat': None,
-            'lon': None
-        })
+        interpolator_queue = \
+            self._select_interpolator_queue(self, requested_coordinates, source_coordinates, 'can_interpolate')
 
-        for udims in iter(self._config):
-
-            # get configured list of interpolators for dim definition
-            interpolators = self._config[udims][1]
-
-            # if the udims are an empty tuple, it represents all the remaining dimensions that have not been handled
-            # this will only happen as the last entry in a dictionary definition
-            if not udims:
-                udims = tuple(requested_dims - supported_dims)
-
-                # if all dims have been handled already, skip the rest
-                if not udims:
-                    return
-
-            # iterate through interpolators recording which dims they support
-            for interpolator in interpolators:
-                can_interpolate = interpolator.can_interpolate(udims, requested_coordinates, source_coordinates)
-
-                # union of dims that can be handled by this interpolator and already supported dims
-                supported_dims = supported_dims | set(can_interpolate)
-
-                # set interpolator to work on that dimension in the interpolator_queue if dim has no interpolator
-                for dim in can_interpolate:
-
-                    # support dimensions that we don't preload into interpolator_queue (put at the end)
-                    if dim not in interpolator_queue.keys():
-                        interpolator_queue[dim] = interpolator
-                    elif interpolator_queue[dim] is None:
-                        interpolator_queue[dim] = interpolator
-                    
-
-        # throw error if the requested_dims don't encompass all the supported dims
-        if len(requested_dims) > len(supported_dims):
-            missing_dims = list(requested_dims - supported_dims)
-            raise InterpolationException('Requested dimensions {} '.format(missing_dims) +
-                                         'can\'t be handled by node interpolation definition {}'.format(self._config))
-
-
-        # TODO: adjust `can_interpolate` by interpolation cost
-        for dim, interpolator in interpolator_queue:
+        for udims, interpolator in interpolator_queue:
 
             # run interpolation. mutates output.
-            source_coordinates, source_data, output_data = interpolator.interpolate(dim,
+            source_coordinates, source_data, output_data = interpolator.interpolate(udims,
                                                                                     source_coordinates,
                                                                                     source_data,
                                                                                     requested_coordinates,
