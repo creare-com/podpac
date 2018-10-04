@@ -507,7 +507,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         times, latlon, _ = self.get_available_coords_sources()
 
         if latlon is not None and latlon.size > 0:
-            crds = podpac.Coordinates([[latlon[:, 0], latlon[:, 1], times]], dims=['lat_lon_time'])
+            crds = podpac.Coordinates([[times, latlon[:, 0], latlon[:, 1]]], dims=['time_lat_lon'])
         else:
             crds = podpac.Coordinates([times], dims=['time'])
         self.cache_obj(crds, 'source.coordinates')
