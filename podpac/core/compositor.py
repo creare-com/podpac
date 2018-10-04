@@ -79,7 +79,7 @@ class Compositor(Node):
         source = []
         for s in self.sources[:3]:
             source.append(str(s))
-        return '_'.join(s)
+        return '_'.join(source) # TODO this is a bit weird
         
     
     @tl.default('source_coordinates')
