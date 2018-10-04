@@ -3,6 +3,8 @@ Test interpolation methods
 """
 # pylint: disable=C0111,W0212
 
+from collections import OrderedDict
+
 import pytest
 from traitlets import TraitError
 
@@ -35,7 +37,9 @@ class TestInterpolate(object):
 
         """ Test Interpolation class
         """
-            
+        
+        def test_interpolation_methods(self):
+            assert INTERPOLATION_SHORTCUTS == INTERPOLATION_METHODS.keys()
 
         def test_interpolator_init_type(self):
             """test constructor
@@ -219,3 +223,101 @@ class TestInterpolate(object):
             })
             with pytest.raises(AttributeError):
                 assert interp._config[('default',)]['interpolators'][0].myarg == 'tol'
+
+
+
+        def test_select_interpolator_queue(self):
+
+            reqcoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=['lat', 'lon', 'time', 'alt'])
+            srccoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=['lat', 'lon', 'time', 'alt'])
+
+            # create a few dummy interpolators that handle certain dimensions
+            # (can_select is defined by default to look at dims_supported)
+            class TimeLat(Interpolator):
+                dims_supported = ['time', 'lat']
+
+            class LatLon(Interpolator):
+                dims_supported = ['lat', 'lon']
+                
+            class Lon(Interpolator):
+                dims_supported = ['lon']
+
+
+            # set up a strange interpolation definition
+            # we want to interpolate (lat, lon) first, then after (time, alt)
+            interp = Interpolation({
+                ('lat', 'lon'): {
+                    'method': 'myinterp',
+                    'interpolators': [LatLon, TimeLat]
+                },
+                ('time', 'alt'): {
+                    'method': 'myinterp',
+                    'interpolators': [TimeLat, Lon]
+                }
+            })
+
+            # default = Nearest, which always returns () for can_select
+            interpolator_queue = interp._select_interpolator_queue(reqcoords, srccoords, 'can_select')
+            assert isinstance(interpolator_queue, OrderedDict)
+            assert isinstance(interpolator_queue[('lat', 'lon')], LatLon)
+            assert ('time', 'alt') not in interpolator_queue
+
+            # should throw an error if strict is set and not all dimensions can be handled
+            with pytest.raises(InterpolationException):
+                interpolator_queue = interp._select_interpolator_queue(reqcoords, srccoords, 'can_select', strict=True)
+
+            # default = Nearest, which can handle all dims for can_interpolate
+            interpolator_queue = interp._select_interpolator_queue(reqcoords, srccoords, 'can_interpolate')
+            assert isinstance(interpolator_queue, OrderedDict)
+            assert isinstance(interpolator_queue[('lat', 'lon')], LatLon)
+            if ('alt', 'time') in interpolator_queue:
+                assert isinstance(interpolator_queue[('alt', 'time')], NearestNeighbor)
+            else:
+                assert isinstance(interpolator_queue[('time', 'alt')], NearestNeighbor)
+
+
+        def test_can_select(self):
+
+            reqcoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=['lat', 'lon', 'time', 'alt'])
+            srccoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=['lat', 'lon', 'time', 'alt'])
+
+            # create a few dummy interpolators that handle certain dimensions
+            # (can_select is defined by default to look at dims_supported)
+            class TimeLat(Interpolator):
+                dims_supported = ['time', 'lat']
+
+                def select_coordinates(self, udims, reqcoords, srccoords, srccoords_idx):
+                    return srccoords, srccoords_idx
+
+            class LatLon(Interpolator):
+                dims_supported = ['lat', 'lon']
+
+                def select_coordinates(self, udims, reqcoords, srccoords, srccoords_idx):
+                    return srccoords, srccoords_idx
+
+            class Lon(Interpolator):
+                dims_supported = ['lon']
+
+                def select_coordinates(self, udims, reqcoords, srccoords, srccoords_idx):
+                    return srccoords, srccoords_idx
+
+            # set up a strange interpolation definition
+            # we want to interpolate (lat, lon) first, then after (time, alt)
+            interp = Interpolation({
+                ('lat', 'lon'): {
+                    'method': 'myinterp',
+                    'interpolators': [LatLon, TimeLat]
+                },
+                ('time', 'alt'): {
+                    'method': 'myinterp',
+                    'interpolators': [TimeLat, Lon]
+                }
+            })
+
+            coords, cidx = interp.select_coordinates(reqcoords, srccoords, [])
+
+            assert len(coords) == len(srccoords)
+            assert len(coords['lat']) == len(srccoords['lat'])
+            assert cidx == []
+
+
