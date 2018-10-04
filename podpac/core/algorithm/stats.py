@@ -193,14 +193,11 @@ class Reduce(Algorithm):
         -------
         {eval_return}
         """
-        self.input_coordinates = coordinates
+        self.input_coordinates = self.get_output_coords(coordinates)
+        self.dims = self.get_dims(self.input_coordinates)
+        self.requested_coordinates = self.input_coordinates.drop(self.dims)
+
         self.output = output
-        
-        self.requested_coordinates = coordinates
-        test_out = self.get_output_coords(coords=coordinates)
-        self.dims = self.get_dims(test_out)
- 
-        self.requested_coordinates = self.requested_coordinates.drop(self.dims)
         if self.output is None:
             self.output = self.create_output_array(self.requested_coordinates)
 
@@ -214,7 +211,7 @@ class Reduce(Algorithm):
         if self.output.shape is (): # or self.requested_coordinates is None
             self.output.data = result
         else:
-            self.output[:] = result #.transpose(*self.output.dims) # is this necessary?
+            self.output[:] = result #.transpose(*self.output.dims)
         
         self.evaluated = True
 

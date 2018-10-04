@@ -114,6 +114,10 @@ class TestNodeMethods(object):
             np.testing.assert_array_equal(n3.get_output_dims(), crd.dims)
             assert(n1.get_output_dims(OrderedDict([('lat',0)])) == ['lat'])
 
+    def test_get_output_coords(self):
+        # TODO
+        pass
+
     def test_create_output_array_default(self):
         node = Node()
 
@@ -141,61 +145,6 @@ class TestNodeMethods(object):
         assert output.shape == self.c1.shape
         assert output.dtype == node.dtype
         assert np.all(~output)
-        
-@pytest.mark.skip(reason="pending node refactor")
-class TestNodeOutputArrayCreation(object):
-    @classmethod
-    def setup_class(cls):
-        cls.c1 = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
-        cls.c2 = podpac.Coordinates([podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)], dims=['lat_lon'])
-        cls.crds = [cls.c1, cls.c2]
-        cls.init_types = ['empty', 'nan', 'zeros', 'ones', 'full', 'data']
-                
-    def test_default_output_native_coordinates(self):
-        n = Node(native_coordinates=self.c1)
-        o = n.output
-        np.testing.assert_array_equal(o.shape, self.c1.shape)
-        assert(np.all(np.isnan(o)))
-
-    def test_default_output_requested_coordinates(self):
-        n = Node(requested_coordinates=self.c1)
-        o = n.output
-        np.testing.assert_array_equal(o.shape, self.c1.shape)
-        assert(np.all(np.isnan(o)))
-
-    def test_output_creation_stacked_native(self):
-        n = Node(native_coordinates=self.c1)
-        s1 = n.initialize_output_array().shape
-        assert((10, 2) == s1)
-        n.requested_coordinates = self.c2
-        s2 = n.initialize_output_array().shape
-        assert((15, 2) == s2)
-        n.requested_coordinates = self.c2.unstack()
-        s3 = n.initialize_output_array().shape
-        assert((15, 15, 2) == s3)
-        
-    def test_output_creation_unstacked_native(self):
-        n = Node(native_coordinates=self.c1.unstack())
-        s1 = n.initialize_output_array().shape
-        assert((10, 10, 2) == s1)
-        n.requested_coordinates = self.c2
-        s2 = n.initialize_output_array().shape
-        assert((15, 2) == s2)
-        n.requested_coordinates = self.c2.unstack()
-        s3 = n.initialize_output_array().shape
-        assert((15, 15, 2) == s3)    
-        
-    def test_init_array_types(self):
-        n1 = Node(native_coordinates=self.crds[0])
-        crdvals = list(self.crds[0].coords.values())
-        for init_type in self.init_types[:4]:
-            n1.initialize_array(init_type, coords=crdvals)
-        o = n1.initialize_array(init_type='full', fillval=3.14159, coords=crdvals)
-        assert(np.all(o.data == 3.14159))
-        o = n1.initialize_array(init_type='data', fillval=o.data, units='m', coords=crdvals)
-        assert(np.all(o.data == 3.14159))
-        with pytest.raises(ValueError):
-            n1.initialize_array(init_type="doesn't exist", coords=crdvals)
 
 class TestPipelineDefinition(object):
     def test_base_definition(self):
@@ -280,7 +229,7 @@ class TestGetImage(object):
 class TestNodeOutputCoordinates(object):
     @pytest.mark.xfail(reason="This defines part of the node spec, which still needs to be implemented")
     def test_node_output_coordinates(self):
-        ev = ctu.make_coordinate_combinations()
+        coords_list = ctu.make_coordinate_combinations()
         kwargs = {}
         kwargs['lat'] = [-1, 0, 1]
         kwargs['lon'] = [-1, 0, 1]
@@ -289,26 +238,26 @@ class TestNodeOutputCoordinates(object):
         nc = ctu.make_coordinate_combinations(**kwargs)
         
         node = Node()
-        for e in ev.values():
+        for coords in coords_list.values():
             for n in nc.values():
                 node.native_coordinates = n
                 
                 # The request must contain all the dimensions in the native coordinates
                 allcovered = True
                 for d in n.dims:
-                    if d not in e.dims:
+                    if d not in coords.dims:
                         allcovered = False
                 if allcovered: # If request contains all dimensions, the order should be in the evaluated coordinates
-                    c = node.get_output_coords(e)
+                    c = node.get_output_coords(coords)
                     i = 0
-                    for d in e.dims:
+                    for d in coords.dims:
                         if d in n.dims:
-                            print (d, c.dims, i, e, n)
+                            print (d, c.dims, i, coords, n)
                             assert(d == c.dims[i])
                             i += 1
                 else:  # We throw an exception
                     with pytest.raises(Exception):
-                        c = node.get_output_coords(e)
+                        c = node.get_output_coords(coords)
                     
                     
 

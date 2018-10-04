@@ -29,7 +29,7 @@ except:
 from podpac import settings
 from podpac.core.units import Units, UnitsDataArray, create_data_array
 from podpac.core.utils import common_doc
-from podpac.core.coordinates import Coordinates
+from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.style import Style
 
 COMMON_NODE_DOC = {
@@ -197,45 +197,55 @@ class Node(tl.HasTraits):
         """
         raise NotImplementedError
 
-    def get_output_coords(self, coords=None):
-        """Returns the output coordinates based on the user-requested coordinates. This is jointly determined by 
-        the input or evaluated coordinates and the native_coordinates (if present).
+    def get_output_coords(self, requested_coordinates):
+        """
+        Get the node output coords based on the requested coordinates and node's native_coordinates, if present. The
+        requested coordinates must include all unstacked native dimensions. Extra dimensions are dropped.
 
         Parameters
         ----------
-        coords : podpac.Coordinates, optional
-            Requested coordinates that help determine the coordinates of the output. Uses self.requested_coordinates if 
-            not supplied.
+        requested_coordinates : podpac.Coordinates
+            Requested coordinates.
 
         Returns
         -------
-        podpac.Coordinates
+        output_coordinates : podpac.Coordinates
             The coordinates of the output if the node is evaluated with `coords`
+
+        Raises
+        ------
+        NodeException
+            If the requested_coordinates cannot be evaluated for this node.
         """
 
-        # Changes here likely will also require changes in shape
-        if coords is None:
-            coords = self.requested_coordinates
+        if self.native_coordinates is None:
+            return requested_coordinates
 
-        if coords is None:
-            coords = Coordinates()
-
-        if not isinstance(coords, Coordinates):
-            assert False
-            coords = Coordinates(coords)
-
-        #if self._trait_values.get("native_coordinates", None) is not None:
-        # Switching from _trait_values to hasattr because "native_coordinates"
-        # not showing up in _trait_values
-        if hasattr(self, "native_coordinates") and self.native_coordinates is not None:
-            for dim in coords.udims:
-                if dim not in self.native_coordinates.udims:
-                    assert False
-            for dim in self.native_coordinates.udims:
-                if dim not in coords.udims:
-                    assert False
+        # check for missing dimensions
+        for c in self.native_coordinates.values():
+            if isinstance(c, Coordinates1d):
+                if c.name not in requested_coordinates.udims:
+                    raise NodeException("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
+            elif isinstance(c, StackedCoordinates):
+                stacked = [s for s in c if s.name not in requested_coordinates.udims]
+                if not stacked:
+                    raise NodeException("Cannot evaluate these coordinates, missing all dims in '%s'" % c.name)
+                if any(s for s in stacked if not s.is_monotonic):
+                    raise NodeException("Cannot evaluate these coordinates, cannot unambiguously map '%s' to %s" % (
+                        requested_coordinates.udims, self.native_coordinates.udims))
         
-        return coords
+        # remove extra dimensions
+        extra = []
+        for c in requested_coordinates.values():
+            if isinstance(c, Coordinates1d):
+                if c.name not in self.native_coordinates.udims:
+                    extra.append(c.name)
+            elif isinstance(c, StackedCoordinates):
+                if all(dim not in self.native_coordinates.udims for dim in c.dims):
+                    extra.append(c.name)
+        output_coordinates = requested_coordinates.drop(extra)
+
+        return output_coordinates
 
     @common_doc(COMMON_DOC)
     def create_output_array(self, coords, data=np.nan, **kwargs):
