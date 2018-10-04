@@ -245,7 +245,7 @@ class SMAPSource(datatype.PyDAP):
         lats[lats == self.nan_vals[0]] = np.nan
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
-        coords = podpac.Coordinates([lat, lon, time], dims=['time', 'lat', 'lon'])
+        coords = podpac.Coordinates([times, lats, lons], dims=['time', 'lat', 'lon'])
         self.cache_obj(coords, 'native.coordinates')
         return coords
 
@@ -509,9 +509,9 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         if latlon is not None and latlon.size > 0:
             lat = podpac.Coord(latlon[:, 0], delta=self.latlon_delta) # TODO
             lon = podpac.Coord(latlon[:, 1], delta=self.latlon_delta) # TODO
-            crds = podpac.Coordinates([[times, lat, lon]], dims=['lat_lon_time'])
+            crds = podpac.Coordinates([[times, lat, lon]], dims=['time_lat_lon'])
         else:
-            crds = podpac.Coordinates([times], dims=['times'])
+            crds = podpac.Coordinates([times], dims=['time'])
         self.cache_obj(crds, 'source.coordinates')
         return crds
 

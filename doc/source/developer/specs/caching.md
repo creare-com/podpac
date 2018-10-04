@@ -77,7 +77,7 @@ TODO: Add developer interface specs
             * MPI
             * ssh (rpc over ssh tunnels)
             * multiprocessors
-    * [klepto](https://github.com/uqfoundation/klepto) In-memory and archival cache. Works-with/used-by [pathos](https://github.com/uqfoundation/pathos) in conjunction with `dill` (serializer that extends pickle).
+    * [klepto](https://github.com/uqfoundation/klepto) In-memory and archival cache. Works-with/used-by [pathos](https://github.com/uqfoundation/pathos) in conjunction with [`dill`](https://github.com/uqfoundation/dill) (serializer that extends pickle).
         * Supported caching algorithms: `lfu`,`lru`,`mru`,`rr`. Does not have the something that takes into account "compute time".
         * Supported archival systems: file, directory,sql-table,sql-database,directory of hdf5 files, single hdf5 file
         * Supported key calculations: raw-python objects (obj), hash of obj, str(obj), pickle of obj
@@ -87,3 +87,4 @@ TODO: Add developer interface specs
         * [memcached](http://memcached.org/) ([wikipedia](https://en.wikipedia.org/wiki/Memcached))
         * [redis](https://redis.io/) ([wikipedia](https://en.wikipedia.org/wiki/Redis))
             * [geohash](https://en.wikipedia.org/wiki/Geohash)
+    * [Thespian](https://github.com/kquick/Thespian) Python Actor package. Supports several underlying communication systems, including TCP and UDP network bassed communication for multiprocess, either single or multi-computer, systems. Communication is restricted to objects that can be pickled and there is no shared memory. Looks like a mature but not neglected package, and the Actor model of parallel/concurrent execution can be pretty easy to reason about.
