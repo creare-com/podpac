@@ -212,7 +212,6 @@ if __name__ == '__main__':
     lat, lon = am.native_coordinates.coords['lat'], am.native_coordinates.coords['lon']
     lat = lat[::10][np.isfinite(lat[::10])]
     lon = lon[::10][np.isfinite(lon[::10])]
-    coords = podpac.Coordinates([lat, lon], order=['lat', 'lon'])
+    coords = podpac.Coordinates([lat, lon], dims=['lat', 'lon'])
     o = am.eval(coords)
-
     print('Done')
