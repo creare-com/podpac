@@ -131,6 +131,7 @@ class TestFilesAndCaching(object):
         with pytest.raises(NotImplementedError):
             n.write(fn, format='notARealFormat')
     
+    @pytest.mark.skip(reason="spec changes")
     def test_load_file(self):
         n = Node(native_coordinates=podpac.Coordinates([0, 1], dims=['lat', 'lon']))
         n.requested_coordinates = n.native_coordinates
