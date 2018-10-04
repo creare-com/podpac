@@ -255,36 +255,18 @@ def find_coordinates(dims=None, bounds=None, number=None, sortby='size', stop_ty
     pass
 ```
 
-#### __get_item__(self, ...)
+#### public cache interface
+
 ```python
-def __get__item__(self, key)
-    ''' Returns any slice of the data for the last evaluation
-    Paramters
-    ----------
-    key : slice, np.ndarray, dict, list, str
-        * If isinstance (key, [slice, np.ndarray, dict, list]), then the keys gets passed down to the last output of the node output[key].
-        * If isinstance(key, str) then the string points to a path node pipeline, and the data for that node for the last evaluation is returned (Calls `get` function with evaluate=True)
-
-    Returns
-    --------
-    UnitsDataArray 
-        The data from the most recent evaluation
-
-    '''
-```
-
-#### get(self, str, coordinates, evaluate=False)
-```python
-def get(self, key, coordinates, evaluate=False):
-    '''Retrieves evaluation results from the node
+def get_cache(self, key, coordinates):
+    '''Get cached data for this node.
+    
     Parameters
     ------------
     key : str
-       Path to the cached object (within the node pipeline). If empty or '.', returns data for the current node.
-    coordinates: Coordinate 
-        Coordinates for which cached data should be retrieved
-    evaluate : bool, optional
-        Default is False. If True, will evaluate the node to retrieve data if the data is not within the cache. Otherwise, will raise an exception if data is not in the cache
+        Cached object key, e.g. 'output'.
+    coordinates : Coordinates
+        Coordinates for which cached object should be retrieved
         
     Returns
     -------
@@ -297,7 +279,54 @@ def get(self, key, coordinates, evaluate=False):
         If the data is not in the cache and evaluate == False
     '''
 ```
-* This is VERY similar to the eval method... in fact, eval probably calls this function for the caching. 
+
+```python
+def del_cache(self, key, coordinates):
+    '''Delete cached data for this node
+    
+    Parameters
+    ------------
+    key : str
+        Cached object key, e.g. 'output'.
+    coordinates : Coordinates
+        Coordinates for which cached object should be retrieved
+    '''
+```
+
+
+```python
+def put_cache(self, key, coordinates, data):
+    '''Cache data for this node
+    
+    Parameters
+    ------------
+    key : str
+        Cached object key, e.g. 'output'.
+    coordinates : Coordinates
+        Coordinates for which cached object should be retrieved
+    data : any
+        Data to cache
+    '''
+```
+
+
+```python
+def has_cache(self, key, coordinates):
+    '''Check for cached data for this node
+    
+    Parameters
+    ------------
+    key : str
+        Cached object key, e.g. 'output'.
+    coordinates: Coordinate 
+        Coordinates for which cached object should be retrieved
+    
+    Returns
+    -------
+    has_cache : bool
+         True if there as a cached object for this node for the given key and coordinates.
+    '''
+```
 
 ### definition
 ```python
@@ -332,22 +361,18 @@ def definition(self, type='dict'):
 * `interpolation`: Interpolation method used with this node
 
 ### Private Attributes
-* `_output`: Copy of last output from this node
-* `_evaluated_coordinates`: copy of last coordinates used for evaluating the node
-* ~~`_output_coordinates`: copy of coordinates present in the output from the node~~ (can't we just use `._output.coordinates`?)
+* `_output`: last output from this node - property, looks in cache
+* `_requested_coordinates`: last coordinates used for evaluating the node
+* `_output_coordinates`: output coordinates from the last evaluation
 
 ### Additional public methods
 ( Some of these are already documented in the code )
-* cache_obj: Used to cache an object
 * cache_path: file where object is cached
 * cache_dir: directory where objects are cached
-* clear_disk_cache: utility used to clear cache for this node
 * init: Used for initialization of derived classes
 * _first_init: Used to do any initialization before any of the core initialization is done
-* initialize_array
-* initialize_coord_array
-* initialize_output_array 
-* get_cached_object: similar go 'get', but specifies a particular filename? Maybe superceded by caching refactor? 
+* create_output_array
+* get_cached_object: similar go 'get', but specifies a particular filename? Maybe superceded by caching refactor?
 * save_to_disk? 
 
 ### Testing
