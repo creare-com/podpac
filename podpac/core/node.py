@@ -112,24 +112,22 @@ class Node(tl.HasTraits):
         The units of the output data, defined using the pint unit registry `podpac.units.ureg`.
     """
 
-    output = tl.Instance(UnitsDataArray, allow_none=True)
-    @tl.default('output')
-    def _output_default(self):
-        return self.create_output_array(self.requested_coordinates)
-
     native_coordinates = tl.Instance(Coordinates, allow_none=True)
-    evaluated = tl.Bool(default_value=False)
-    implicit_pipeline_evaluation = tl.Bool(default_value=True)
-    requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
     node_defaults = tl.Dict(allow_none=True)
-
     style = tl.Instance(Style)
+
     @tl.default('style')
     def _style_default(self):
         return Style()
+    
+    # TODO remove these (at least from public api)
+    output = tl.Instance(UnitsDataArray, allow_none=True)
+    evaluated = tl.Bool(default_value=False)
+    implicit_pipeline_evaluation = tl.Bool(default_value=True)
+    requested_coordinates = tl.Instance(Coordinates, allow_none=True)
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """
