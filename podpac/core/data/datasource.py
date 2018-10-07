@@ -8,7 +8,6 @@ including user defined data sources.
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import warnings
-from copy import deepcopy
 from collections import OrderedDict
 
 import numpy as np
@@ -20,13 +19,14 @@ try:
     import rasterio
     from rasterio import transform
     from rasterio.warp import reproject, Resampling
-except ImportError:
+except:
     rasterio = None
-
 try:
-    from scipy.interpolate import (RectBivariateSpline, RegularGridInterpolator)
+    import scipy
+    from scipy.interpolate import (griddata, RectBivariateSpline,
+                                   RegularGridInterpolator)
     from scipy.spatial import KDTree
-except ImportError:
+except:
     scipy = None
 
 # Internal imports
@@ -35,9 +35,10 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import StackedCoordinates
 from podpac.core.coordinates import Coordinates1d, UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.node import Node
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
-from podpac.core.data.interpolate import Interpolator
+from podpac.core.data.interpolate import (Interpolation, Interpolator, NearestNeighbor, INTERPOLATION_SHORTCUTS,
+                                          INTERPOLATION_DEFAULT)
 
 DATA_DOC = {
     'get_data':
@@ -82,8 +83,9 @@ DATA_DOC = {
         Returns a Coordinates object that describes the native coordinates of the data source.
 
         In most cases, this method is defined by the data source implementing the DataSource class.
-        If this method is not implemented by the data source, this method will try to return `self.native_coordinates`,
-        if they are defined and are an instance of a Coordinates class.
+        If method is not implemented by the data source, it will try to return `self.native_coordinates` 
+        if `self.native_coordinates` is not None.
+
         Otherwise, this method will raise a NotImplementedError.
 
         Returns
@@ -110,8 +112,6 @@ DATA_DOC = {
 COMMON_DATA_DOC = COMMON_NODE_DOC.copy()
 COMMON_DATA_DOC.update(DATA_DOC)      # inherit and overwrite with DATA_DOC
 
-RASTERIO_INTERPS = ['nearest', 'bilinear', 'cubic', 'cubic_spline', 'lanczos', 'average', 'mode', 'gauss',
-                    'max', 'min', 'med', 'q1', 'q3']
 
 class DataSource(Node):
     """Base node for any data obtained directly from a single source.
@@ -121,59 +121,84 @@ class DataSource(Node):
     coordinate_index_type : str, optional
         Type of index to use for data source. Possible values are ['list','numpy','xarray','pandas']
         Default is 'numpy'
-    interpolation : podpac.core.data.Interpolator, optional
-        Type of interpolation to apply to each dimension
+    interpolation : str,
+                    dict
+                    optional
+            Definition of interpolation methods for each dimension of the native coordinates.
+            
+            If input is a string, it must match one of the interpolation shortcuts defined in
+            :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS. The interpolation method associated
+            with this string will be applied to all dimensions at the same time.
+
+            If input is a dict, the dict must contain ordered set of keys defining dimensions and values
+            defining the interpolation method to use with the dimensions.
+            The key must be a string or tuple of dimension names (i.e. `'time'` or `('lat', 'lon')` ).
+            The value can either be a string matching one of the interpolation shortcuts defined in
+            :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS or a dictionary.
+            If the value is a dictionary, the dictionary must contain a key `'method'`
+            defining the interpolation method name.
+            If the interpolation method is not one of :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS, a
+            second key `'interpolators'` must be defined with a list of
+            :ref:podpac.core.data.interpolate.Interpolator classes to use in order of uages.
+            The dictionary may contain an option `'params'` key which contains a dict of parameters to pass along to
+            the :ref:podpac.core.data.interpolate.Interpolator classes associated with the interpolation method.
+            
+            If the dictionary does not contain a key for all unstacked dimensions of the source coordinates, the
+            :ref:podpac.core.data.interpolate.INTERPOLATION_DEFAULT value will be used.
+            All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
+            Any extra dimensions included but not found in the source coordinates will be ignored.
+
+            If input is a podpac.core.data.interpolate.Interpolation, this interpolation
+            class will be used without modication.
+            
+            By default, the interpolation method is set to `'nearest'` for all dimensions.
     nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
     source : Any
         The location of the source. Depending on the child node this can be a filepath,
         numpy array, or dictionary as a few examples.
-    
-    Members
-    -------
-    requested_coordinates : Coordinates
-        Coordinates requested by the data source when evalulating a node.
-    requested_source_coordinates : Coordinates
-        The `requested_coordinates` transformed into the native coordinate system
-    requested_source_coordinates_index : list
-        the index of the requested source coordinates based on `coordinate_index_type`
-    requested_source_data : podpac.core.units.UnitsDataArray
-        the data requested from the data source before being interpolated into self.output
+
 
     Notes
     -----
     Developers of new DataSource nodes need to implement the `get_data` and `get_native_coordinates` methods.
     """
     
-    # TODO: which of these get tagged with attr?
-    source = tl.Any(allow_none=False, help='Path to the raw data source')
+    source = tl.Any(help='Path to the raw data source')
 
-    # TODO: decide how to handle once we implement Interpolation
-    # TODO: gauss is not supported by rasterio
-    # JXM: I separated these mainly because only interpolation can be an attr;
-    #      the interpolator should probably have a @tl.default that gets mapped from the interpolation enum
-    interpolator = tl.Instance(Interpolator)
-    interpolation = tl.Enum(['nearest', 'nearest_preview', 'bilinear', 'cubic',
-                             'cubic_spline', 'lanczos', 'average', 'mode',
-                             'gauss', 'max', 'min', 'med', 'q1', 'q3'],
-                             default_value='nearest').tag(attr=True)
+    interpolation = tl.Union([
+        tl.Dict(),
+        tl.Enum(INTERPOLATION_SHORTCUTS)
+    ], default_value=INTERPOLATION_DEFAULT)
 
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
     nan_vals = tl.List(allow_none=True)
-    
-    # TODO: remove when we have interpolation spec. This replaces interpolation_param for now.
-    interpolation_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
     # TODO: include these attributes out here? How else do we document existence?
+    # TODO: remove with node refactor?
     requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     requested_source_coordinates = tl.Instance(Coordinates)
     requested_source_coordinates_index = tl.List()
     requested_source_data = tl.Instance(UnitsDataArray)
 
-    # default native_coordinates calls get_native_coordinates
+    # TODO: remove in the 2nd stage of interpolation refactor
+    # self.source_coordinates['time'].delta / 2
+    interpolation_tolerance = tl.Float(default_value=1)
+
+    # privates
+    _interpolation = tl.Instance(Interpolation)
+
+    # when native_coordinates is not defined, default calls get_native_coordinates
     @tl.default('native_coordinates')
-    def _native_coordinates_default(self):
-        return self.get_native_coordinates()
+    def _default_native_coordinates(self):
+        self.native_coordinates = self.get_native_coordinates()
+        return self.native_coordinates
+
+    # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
+    @tl.default('_interpolation')
+    def _default_interpolation(self):
+        self._set_interpolation()
+        return self._interpolation
 
 
     @common_doc(COMMON_DATA_DOC)
@@ -185,7 +210,7 @@ class DataSource(Node):
         to `requested_source_coordinates` with associated index `requested_source_coordinates_index`.
         The requested souce coordinates and index are passed to `get_data()` returning the source data at
         the native coordinatesset to `requested_source_data`.
-        Finally `requested_source_data` is interpolated using the `interpolate` method and set to 
+        Finally `requested_source_data` is interpolated using the `interpolate` method and set to
         the `output` attribute of the node.
 
 
@@ -251,19 +276,22 @@ class DataSource(Node):
 
             return self.output
         
+        # reset interpolation
+        self._set_interpolation()
+
         # interpolate coordinates before getting data
-        # TODO: extend when we edit interpolation methods
-        if self.interpolation == 'nearest_preview':
-            self._interpolate_requested_coordinates()
+        self.requested_source_coordinates, self.requested_source_coordinates_index = \
+            self._interpolation.select_coordinates(self.requested_coordinates,
+                                                   self.requested_source_coordinates,
+                                                   self.requested_source_coordinates_index)
 
         # get data from data source
         self.requested_source_data = self._get_data()
 
         # interpolate data into self.output
-        # TODO: streamline with interpolation methods
-        o = self._interpolate()
-        if o is not None:
-            self.output = o  # should already be self.output
+        output = self._interpolate()
+        if output is not None:
+            self.output = output  # should already be self.output
 
         # set the order of dims to be the same as that of requested_coordinates
         # JXM: pending the node refactor
@@ -277,62 +305,32 @@ class DataSource(Node):
         self.evaluated = True
         return self.output
 
-    def _interpolate_requested_coordinates(self):
-        """
-        Interpolate the source coordinates based on the requested coordinates.
-        Mutates `self.requested_source_coordinates` and `self.requested_source_coordinates_index`
-
+    def get_interpolation_class(self):
+        """Get the interpolation class currently set for this data source.
+        
+        The DataSource `interpolation` property is used to define the 
+        :ref:podpac.core.data.interpolate.Interpolation class that will handle interpolation for requested coordinates.
+        
         Returns
         -------
-        None
+        podpac.core.data.interpolate.Interpolation
+            Interpolation class defined by DataSource `interpolation` definition
         """
 
-        # TODO: replace this with actual self.interpolation methods
-        if self.interpolation == 'nearest_preview':
-            # We can optimize a little
-            new_coords = []
-            new_coords_idx = []
+        return self._interpolation
+        
 
-            for dim, idx in zip(self.requested_source_coordinates, self.requested_source_coordinates_index):
-                if dim in self.requested_coordinates.dims:
-                    src_coords = self.requested_source_coordinates[dim]
-                    dst_coords = self.requested_coordinates[dim]
+    def _set_interpolation(self):
+        """Update _interpolation property
+        """
 
-                    if isinstance(dst_coords, UniformCoordinates1d):
-                        dst_start = dst_coords.start
-                        dst_stop = dst_coords.stop
-                        dst_delta = dst_coords.step
-                    else:
-                        dst_start = dst_coords.coordinates[0]
-                        dst_stop = dst_coords.coordinates[-1]
-                        dst_delta = (dst_stop-dst_start) / (dst_coords.size - 1)
+        # define interpolator with source coordinates dimensions
+        if isinstance(self.interpolation, Interpolation):
+            self._interpolation = self.interpolation
+        else:
+            self._interpolation = Interpolation(self.interpolation)
 
-                    if isinstance(src_coords, UniformCoordinates1d):
-                        src_start = src_coords.start
-                        src_stop = src_coords.stop
-                        src_delta = src_coords.step
-                    else:
-                        src_start = src_coords.coordinates[0]
-                        src_stop = src_coords.coordinates[-1]
-                        src_delta = (src_stop-src_start) / (src_coords.size - 1)
 
-                    ndelta = max(1, np.round(dst_delta / src_delta))
-                    
-                    c = UniformCoordinates1d(src_start, src_stop, ndelta*src_delta, **src_coords.properties)
-                    
-                    if isinstance(idx, slice):
-                        idx = slice(idx.start, idx.stop, int(ndelta))
-                    else:
-                        idx = slice(idx[0], idx[-1], int(ndelta))
-                else:
-                    c = self.requested_source_coordiates[dim]
-
-                new_coords.append(c)
-                new_coords_idx.append(idx)
-                
-            # updates requested source coordinates and index
-            self.requested_source_coordinates = Coordinates(new_coords)
-            self.requested_source_coordinates_index = new_coords_idx
 
     def _get_data(self):
         """Wrapper for `self.get_data` with pre and post processing
@@ -395,13 +393,12 @@ class DataSource(Node):
             This needs to be implemented by derived classes
 
         """
-
-        # TODO: This results in a recursive loop in the case of a default
-        # if isinstance(self.native_coordinates, Coordinates):
-        #     return self.native_coordinates
-
-        raise NotImplementedError
-
+        
+        if trait_is_defined(self, 'native_coordinates'):
+            return self.native_coordinates
+        else:
+            raise NotImplementedError('{0}.native_coordinates is not defined and '  \
+                                      '{0}.get_native_coordinates() is not implemented'.format(self.__class__.__name__))
     
     def _interpolate(self):
         """Interpolates the source data to the destination using self.interpolation as the interpolation method.
@@ -414,11 +411,18 @@ class DataSource(Node):
 
         # initialize output if not already input
         if self.output is None:
-            self.output = self.initialize_output_array()
+            self.output = self.initialize_output_array()   # TODO: caution this uses low level node functions 
         else:
             # TODO: confirm that output is the right size ?
             pass
 
+        # return self._interpolation.interpolate(self.requested_source_coordinates,
+        #                                       self.requested_source_data,
+        #                                       self.requested_coordinates,
+        #                                       self.output)
+
+
+        #### MOVE THIS TO INTERPOLATER
         # assign shortnames
         data_src = self.requested_source_data
         coords_src = self.requested_source_coordinates
@@ -431,7 +435,7 @@ class DataSource(Node):
             return data_dst
         
         # Nearest preview of rasters
-        if self.interpolation == 'nearest_preview':
+        if self._interpolation.definition == 'nearest_preview':
             crds = OrderedDict()
             tol = np.inf
             for c in data_dst.coords.keys():
@@ -463,7 +467,7 @@ class DataSource(Node):
         # Raster to Raster interpolation from regular grids to regular grids
         
         if (rasterio is not None
-                and self.interpolation in RASTERIO_INTERPS
+                and self._interpolation.definition in INTERPOLATION_SHORTCUTS
                 and 'lat' in coords_src.dims and 'lon' in coords_src.dims
                 and 'lat' in coords_dst.dims and 'lon' in coords_dst.dims
                 and coords_src['lat'].is_uniform and coords_src['lon'].is_uniform
@@ -599,7 +603,7 @@ class DataSource(Node):
                 dst_transform=dst_transform,
                 dst_crs=dst_crs,
                 dst_nodata=np.nan,
-                resampling=getattr(Resampling, self.interpolation)
+                resampling=getattr(Resampling, self._interpolation.definition)
             )
             if coords_dst['lat'].is_descending:
                 data_dst.data[:] = destination
@@ -642,7 +646,7 @@ class DataSource(Node):
         elif 'lat' not in data_src.dims or 'lon' not in data_src.dims:
             raise ValueError
         
-        interp = self.interpolation
+        interp = self._interpolation.definition
         s = []
         if coords_src['lat'].is_descending:
             lat = coords_src['lat'].coordinates[::-1]
@@ -775,4 +779,9 @@ class DataSource(Node):
         """
         d = self.base_definition()
         d['source'] = self.source
+
+        # TODO: cast interpolation to string in way that can be recreated here
+        # should this move to interpolation class? 
+        # It causes issues when the _interpolation class has not been set up yet
+        d['interpolation'] = self.interpolation
         return d

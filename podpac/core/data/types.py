@@ -95,6 +95,7 @@ class Array(DataSource):
         d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
         return d
 
+
 class NumpyArray(Array):
     """Create a DataSource from a numpy array.
 
@@ -103,7 +104,7 @@ class NumpyArray(Array):
           `Array`.
     """
 
-    def init(self, coordinates, coordinates_index):
+    def init(self):
         warnings.warn('NumpyArray been renamed Array. ' +
                       'Backwards compatibility will be removed in future releases', DeprecationWarning)
 
@@ -211,7 +212,6 @@ class PyDAP(DataSource):
         return dataset
         
 
-    # TODO: where does "change" get passed in from?
     @tl.observe('source')
     def _update_dataset(self, change=None):
         if change is None:
