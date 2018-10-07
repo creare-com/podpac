@@ -565,8 +565,10 @@ class SMAPDateFolder(podpac.OrderedCompositor):
             self.cache_obj(sources, 'sources')
 
         b = self.source + '/'
-        tol = self.source_coordinates['time'].delta / 2
-        if np.isnat(tol):
+        time_crds = self.source_coordinates['time']
+        if time_crds.is_monotonic and time_crds.is_uniform:
+            tol = time_crds.coordinates[1] - time_crds.coordinates[0]
+        else:
             tol = self.source_coordinates['time'].coordinates[0]
             tol = tol - tol
             tol = np.timedelta64(1, dtype=(tol.dtype))
