@@ -7,7 +7,10 @@ from collections import OrderedDict
 
 import pytest
 from traitlets import TraitError
+import numpy as np
 
+from podpac.core.data.datasource import DataSource
+from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data import interpolate
 from podpac.core.data.interpolate import (Interpolation, InterpolationException,
@@ -15,8 +18,6 @@ from podpac.core.data.interpolate import (Interpolation, InterpolationException,
                                           INTERPOLATION_SHORTCUTS, NearestNeighbor, NearestPreview,
                                           Rasterio)
 
-COORDINATES = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
-STACKED_COORDINATES = Coordinates([([1, 2, 3, 4, 5], [0, 1, 2, 3, 4])], dims=['lat_lon'])
 
 class TestInterpolate(object):
 
@@ -182,13 +183,12 @@ class TestInterpolate(object):
             assert interp._config[('default',)]['method'] == 'optimal'
 
 
-        def test_interpolator_init(self):
-
-            interp = Interpolation('nearest')
-            assert interp._config[('default',)]['interpolators'][0].method == 'nearest'
-
 
         def test_init_interpolators(self):
+
+            # should set method
+            interp = Interpolation('nearest')
+            assert interp._config[('default',)]['interpolators'][0].method == 'nearest'
 
             # Interpolation init should init all interpolators in the list
             interp = Interpolation({
@@ -223,7 +223,6 @@ class TestInterpolate(object):
             })
             with pytest.raises(AttributeError):
                 assert interp._config[('default',)]['interpolators'][0].myarg == 'tol'
-
 
 
         def test_select_interpolator_queue(self):
@@ -276,7 +275,7 @@ class TestInterpolate(object):
                 assert isinstance(interpolator_queue[('time', 'alt')], NearestNeighbor)
 
 
-        def test_can_select(self):
+        def test_select_coordinates(self):
 
             reqcoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=['lat', 'lon', 'time', 'alt'])
             srccoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=['lat', 'lon', 'time', 'alt'])
@@ -301,6 +300,7 @@ class TestInterpolate(object):
                 def select_coordinates(self, udims, reqcoords, srccoords, srccoords_idx):
                     return srccoords, srccoords_idx
 
+
             # set up a strange interpolation definition
             # we want to interpolate (lat, lon) first, then after (time, alt)
             interp = Interpolation({
@@ -320,4 +320,147 @@ class TestInterpolate(object):
             assert len(coords['lat']) == len(srccoords['lat'])
             assert cidx == []
 
+
+        def test_interpolate(self):
+
+            class TestInterp(Interpolator):
+                dims_supported = ['lat', 'lon']
+                def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
+                    output_data = source_data
+                    return source_coordinates, source_data, output_data
+
+            # test basic functionality
+            reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
+            srccoords = Coordinates([[0, 2, 4], [0, 3, 4]], dims=['lat', 'lon'])
+            srcdata = UnitsDataArray(np.random.rand(3, 3),
+                                     coords=[srccoords[c].coordinates for c in srccoords],
+                                     dims=srccoords.dims)
+            outdata = UnitsDataArray(np.zeros(srcdata.shape),
+                                     coords=[reqcoords[c].coordinates for c in reqcoords],
+                                     dims=reqcoords.dims)
+
+            interp = Interpolation({('lat', 'lon'): {'method': 'test', 'interpolators': [TestInterp]}})
+            outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
+
+            assert np.all(outdata == srcdata)
+
+            # test if data is size 1
+            class TestFakeInterp(Interpolator):
+                dims_supported = ['lat']
+                def interpolate(self, udims, source_coordinates, source_data, requested_coordinates, output_data):
+                    return None
+                    
+            reqcoords = Coordinates([[1]], dims=['lat'])
+            srccoords = Coordinates([[1]], dims=['lat'])
+            srcdata = UnitsDataArray(np.random.rand(1),
+                                     coords=[srccoords[c].coordinates for c in srccoords],
+                                     dims=srccoords.dims)
+            outdata = UnitsDataArray(np.zeros(srcdata.shape),
+                                     coords=[reqcoords[c].coordinates for c in reqcoords],
+                                     dims=reqcoords.dims)
+
+            interp = Interpolation({('lat', 'lon'): {'method': 'test', 'interpolators': [TestFakeInterp]}})
+            outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
+
+            assert np.all(outdata == srcdata)
+
+
+        def test_nearest_preview_select(self):
+            # TODO: move to DataSource tests to meet other tests
+            
+            # test straight ahead functionality
+            reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
+            srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=['lat', 'lon'])
+
+            interp = Interpolation('nearest_preview')
+
+            srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+            coords, cidx = interp.select_coordinates(reqcoords, srccoords, srccoords_index)
+
+            assert len(coords) == len(srccoords) == len(cidx)
+            assert len(coords['lat']) == len(reqcoords['lat'])
+            assert len(coords['lon']) == len(reqcoords['lon'])
+            assert np.all(coords['lat'].coordinates == np.array([0, 2, 4]))
+
+
+            # test when selection is applied serially
+            # this is equivalent to above
+            reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
+            srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=['lat', 'lon'])
+
+            interp = Interpolation({
+                'lat': 'nearest_preview',
+                'lon': 'nearest_preview'
+            })
+
+            srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+            coords, cidx = interp.select_coordinates(reqcoords, srccoords, srccoords_index)
+
+            assert len(coords) == len(srccoords) == len(cidx)
+            assert len(coords['lat']) == len(reqcoords['lat'])
+            assert len(coords['lon']) == len(reqcoords['lon'])
+            assert np.all(coords['lat'].coordinates == np.array([0, 2, 4]))
+
+
+            # test when coordinates are stacked and unstacked
+            # TODO: how to handle stacked/unstacked coordinate asynchrony?
+            # reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])
+            # srccoords = Coordinates([([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5])], dims=['lat_lon'])
+
+            # interp = Interpolation('nearest_preview')
+
+            # srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+            # coords, cidx = interp.select_coordinates(reqcoords, srccoords, srccoords_index)
+
+            # assert len(coords) == len(srcoords) == len(cidx)
+            # assert len(coords['lat']) == len(reqcoords['lat'])
+            # assert len(coords['lon']) == len(reqcoords['lon'])
+            # assert np.all(coords['lat'].coordinates == np.array([0, 2, 4]))
+
+        def test_nearest_preview_interpolate(self):
+            # TODO: implement in DataSource class
+            pass
+
+
+    class TestInterpolators(object):
+
+        def test_can_select(self):
+
+            class NoDimsSupported(Interpolator):
+                method = 'mymthod'
+
+
+            class DimsSupported(Interpolator):
+                dims_supported = ['time', 'lat']
+
+            class CanAlwaysSelect(Interpolator):
+
+                def can_select(self, udims, reqcoords, srccoords):
+                    return udims
+            
+            class CanNeverSelect(Interpolator):
+
+                def can_select(self, udims, reqcoords, srccoords):
+                    return tuple()
+
+            interp = DimsSupported(method='method')
+            can_select = interp.can_select(('time', 'lat'),  None, None)
+            assert 'lat' in can_select and 'time' in can_select
+
+            with pytest.raises(NotImplementedError):
+                interp = NoDimsSupported(method='method')
+                can_select = interp.can_select(('lat'), None, None)
+
+            interp = CanAlwaysSelect(method='method')
+            can_select = interp.can_select(('time', 'lat'), None, None)
+            assert 'lat' in can_select and 'time' in can_select
+
+            interp = CanNeverSelect(method='method')
+            can_select = interp.can_select(('time', 'lat'), None, None)
+            assert not can_select
+
+        # def test_nearest_preview(self):
+            # reqcoords = Coordinates([[-.5, .5, 1.5, 2.5, 3.5, 4.5], [-.5, .5, 1.5, 2.5, 3.5, 4.5]], dims=['lat', 'lon'])
+            # srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=['lat', 'lon'])
+            # STACKED_COORDINATES = Coordinates([([1, 2, 3, 4, 5], [0, 1, 2, 3, 4])], dims=['lat_lon'])
 

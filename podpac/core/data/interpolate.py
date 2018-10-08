@@ -248,6 +248,11 @@ class NearestPreview(Interpolator):
 
     def select_coordinates(self, udims, requested_coordinates, source_coordinates, source_coordinates_index):
 
+        # TODO: handle stacked coordinates 
+        
+        new_coords = []
+        new_coords_idx = []
+
         # iterate over the source coordinate dims in case they are stacked
         for src_dim, idx in zip(source_coordinates, source_coordinates_index):
             if src_dim in requested_coordinates.dims:
@@ -286,30 +291,28 @@ class NearestPreview(Interpolator):
             new_coords.append(c)
             new_coords_idx.append(idx)
 
-        # updates requested source coordinates and index
-        new_source_coordinates = Coordinates(new_coords)
-        new_source_coordinates_index = new_coords_idx
-
-        return new_source_coordinates, new_source_coordinates_index
+        return Coordinates(new_coords), new_coords_idx
 
 
     def interpolate(self, udims, requested_coordinates, source_coordinates, source_data, output_data):
         
+        # TODO: handle stacked/unstacked asynchrony
+        
         crds = OrderedDict()
-        tol = np.inf  # TODO: make property
 
         for c in udims:
             crds[c] = output_data.coords[c].data.copy()
             if c != 'time':
                 # TODO: do we still use the `delta` attribute?
-                tol = min(tol, np.abs(getattr(requested_coordinates[c], 'delta', tol)))
+                self.tolerance = min(self.tolerance, np.abs(getattr(requested_coordinates[c], 'delta', self.tolerance)))
         
         if 'time' in crds:
             source_data = source_data.reindex(time=crds['time'], method=str('nearest'))
             del crds['time']
 
         crds_keys = list(crds.keys())
-        output_data.data = source_data.reindex(method=str('nearest'), tolerance=tol, **crds).transpose(*crds_keys)
+        output_data.data = source_data.reindex(method=str('nearest'), tolerance=self.tolerance, **crds) \
+                                      .transpose(*crds_keys)
 
         return source_coordinates, source_data, output_data
 
@@ -410,7 +413,9 @@ class Interpolation():
     """
  
     definition = None
-    _config = {}            # container for interpolation methods for each dimension
+    _config = {}                        # container for interpolation methods for each dimension
+    _last_interpolator_queue = None     # container for the last run interpolator queue - useful for debugging
+    _last_select_queue = None           # container for the last run select queue - useful for debugging
 
     def __init__(self, definition=INTERPOLATION_DEFAULT):
 
@@ -704,6 +709,8 @@ class Interpolation():
         interpolator_queue = \
             self._select_interpolator_queue(requested_coordinates, source_coordinates, 'can_select')
 
+        self._last_select_queue = interpolator_queue
+
         selected_coords = deepcopy(source_coordinates)
         selected_coords_idx = deepcopy(source_coordinates_index)
 
@@ -752,7 +759,11 @@ class Interpolation():
         interpolator_queue = \
             self._select_interpolator_queue(requested_coordinates, source_coordinates, 'can_interpolate')
 
-        for udims, interpolator in interpolator_queue:
+        # for debugging purposes, save the last defined interpolator queue
+        self._last_interpolator_queue = interpolator_queue
+
+        for udims in interpolator_queue:
+            interpolator = interpolator_queue[udims]
 
             # run interpolation. mutates output.
             source_coordinates, source_data, output_data = interpolator.interpolate(udims,
