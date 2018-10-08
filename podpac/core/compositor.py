@@ -67,7 +67,7 @@ class Compositor(Node):
               "native_coordinates=source_coordinate + shared_coordinate "
               "IN THAT ORDER")).tag(attr=True)
 
-    sources = tl.Unicode().tag(attr=True)
+    source = tl.Unicode().tag(attr=True)
     sources = tl.Instance(np.ndarray)
     cache_native_coordinates = tl.Bool(True).tag(attr=True)
     
