@@ -31,7 +31,7 @@ def return_exception(e, event, context, pipeline=None):
             pipeline = ''
     except:
         pass
-    
+
     return {
         'statusCode': 200,
         'headers': {
@@ -43,7 +43,7 @@ def return_exception(e, event, context, pipeline=None):
                 + '<h1>Pipeline</h1><br><br><br>' + str(pipeline)
                 + '<h1>Exception</h1><br><br><br>' + str(e),
         'isBase64Encoded': False,
-    }    
+    }
 
 def handler(event, context, get_deps=False, ret_pipeline=False):
 
@@ -62,7 +62,7 @@ def handler(event, context, get_deps=False, ret_pipeline=False):
         height = int(urllib.unquote(qs['HEIGHT']))
         params = urllib.unquote(qs['PARAMS'])
         pipeline = json.loads(params, object_pairs_hook=OrderedDict)['pipeline']
-        try: 
+        try:
             pipeline = json.loads(pipeline, object_pairs_hook=OrderedDict)
         except:
             pass
@@ -78,27 +78,24 @@ def handler(event, context, get_deps=False, ret_pipeline=False):
 
     import numpy as np
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
-    #import matplotlib 
+    #import matplotlib
     #matplotlib.use('agg')
     #from podpac import coordinate
     import podpac
     from podpac.core.pipeline import Pipeline
     try:
         pipeline = Pipeline(definition=pipeline)
-        
-        w, s, e, n = np.array(bbox, float)     
+
+        w, s, e, n = np.array(bbox, float)
         dwe = (w-e)/width/2.
         dns = (n-s)/height/2.
-        coord = Coordinate(lat=(n-dns, s+dns, height),
-                           lon=(w+dwe, e-dwe, width),
-                           time=np.datetime64(time), 
-                           order=['time', 'lat', 'lon'])
+        coord = podpac.Coordinates([np.datetime64(time), (n-dns, s+dns, height), (w+dwe, e-dwe, width)], dims=['time', 'lat', 'lon'])
         pipeline.execute(coord)
         if ret_pipeline:
             return pipeline
         return img_response(pipeline.pipeline_output.image)
     except Exception as e:
-        return return_exception(e, event, context, pipeline)        
+        return return_exception(e, event, context, pipeline)
 
 def img_response(img):
     return {
@@ -111,24 +108,22 @@ def img_response(img):
         'isBase64Encoded': True,
     }
 
-if __name__ == '__main__' and len(sys.argv) >= 2 and sys.argv[1] == 'test':
+if __name__ == '__main__': #and len(sys.argv) >= 2 and sys.argv[1] == 'test'
     event = {
-        "SERVICE": "WMS",                                                                 
-        "VERSION": "1.0.0",                                                               
-        "REQUEST": "GetCoverage",                                                         
-        "FORMAT": "image/png",                                                            
-        "COVERAGE": "PIPELINE",                                                           
+        "SERVICE": "WMS",
+        "VERSION": "1.0.0",
+        "REQUEST": "GetCoverage",
+        "FORMAT": "image/png",
+        "COVERAGE": "PIPELINE",
         "TIME": "2017-08-08T12:00:00",
         "BBOX": "-77.1,39.0,-76.8,39.3",
         "CRS": "EPSG:4326",
         "RESPONSE_CRS": "EPSG:4326",
         "WIDTH": "256",
         "HEIGHT": "256",
-        "PARAMS": "%7B%22pipeline%22%3A%22%7B%5Cn%20%20%5C%22nodes%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%5C%22sm%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22node%5C%22%3A%20%5C%22datalib.smap.SMAP%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22attrs%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%5C%22product%5C%22%3A%20%5C%22SPL4SMAU.003%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%5C%22interpolation%5C%22%3A%20%5C%22nearest%5C%22%5Cn%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%5Cn%20%20%7D%2C%5Cn%20%20%5C%22outputs%5C%22%3A%20%5B%5Cn%20%20%20%20%20%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22mode%5C%22%3A%20%5C%22image%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22format%5C%22%3A%20%5C%22png%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22nodes%5C%22%3A%20%5B%5C%22sm%5C%22%5D%5Cn%20%20%20%20%20%20%7D%20%20%20%5Cn%20%20%5D%5Cn%7D%5Cn%22%7D" 
+        "PARAMS": "%7B%22pipeline%22%3A%22%7B%5Cn%20%20%5C%22nodes%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%5C%22sm%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22node%5C%22%3A%20%5C%22datalib.smap.SMAP%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22attrs%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%5C%22product%5C%22%3A%20%5C%22SPL4SMAU.003%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%5C%22interpolation%5C%22%3A%20%5C%22nearest%5C%22%5Cn%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%5Cn%20%20%7D%2C%5Cn%20%20%5C%22outputs%5C%22%3A%20%5B%5Cn%20%20%20%20%20%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22mode%5C%22%3A%20%5C%22image%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22format%5C%22%3A%20%5C%22png%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22nodes%5C%22%3A%20%5B%5C%22sm%5C%22%5D%5Cn%20%20%20%20%20%20%7D%20%20%20%5Cn%20%20%5D%5Cn%7D%5Cn%22%7D"
         }
     # %7B%22pipeline%22%3A%22%7B%5Cn%20%20%5C%22nodes%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%5C%22sm%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22node%5C%22%3A%20%5C%22datalib.smap.SMAP%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22attrs%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%5C%22product%5C%22%3A%20%5C%22SPL4SMAU.003%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%5C%22interpolation%5C%22%3A%20%5C%22nearest%5C%22%5Cn%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%5Cn%20%20%7D%2C%5Cn%20%20%5C%22outputs%5C%22%3A%20%5B%5Cn%20%20%20%20%20%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22mode%5C%22%3A%20%5C%22image%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22format%5C%22%3A%20%5C%22png%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22nodes%5C%22%3A%20%5B%5C%22sm%5C%22%5D%5Cn%20%20%20%20%20%20%7D%20%20%20%5Cn%20%20%5D%5Cn%7D%5Cn%22%7D
     # -77.1,39.0,-76.8,39.3
     # https://22d3a0pwlf.execute-api.us-east-1.amazonaws.com/prod/?SERVICE=WMS&VERSION=1.0.0&REQUEST=GetCoverage&FORMAT=image%2Fpng&COVERAGE=PIPELINE&TIME=2017-08-08T12%3A00%3A00&BBOX=-77.1%2C39.0%2C-76.8%2C39.3&CRS=EPSG:4326&RESPONSE_CRS=EPSG:4326&WIDTH=256&HEIGHT=256&PARAMS=%7B%22pipeline%22%3A%22%7B%5Cn%20%20%5C%22nodes%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%5C%22sm%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22node%5C%22%3A%20%5C%22datalib.smap.SMAP%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22attrs%5C%22%3A%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%5C%22product%5C%22%3A%20%5C%22SPL4SMAU.003%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%5C%22interpolation%5C%22%3A%20%5C%22bilinear%5C%22%5Cn%20%20%20%20%20%20%20%20%20%20%7D%5Cn%20%20%20%20%20%20%7D%5Cn%20%20%7D%2C%5Cn%20%20%5C%22outputs%5C%22%3A%20%5B%5Cn%20%20%20%20%20%20%7B%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22mode%5C%22%3A%20%5C%22image%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22format%5C%22%3A%20%5C%22png%5C%22%2C%5Cn%20%20%20%20%20%20%20%20%20%20%5C%22nodes%5C%22%3A%20%5B%5C%22sm%5C%22%5D%5Cn%20%20%20%20%20%20%7D%20%20%20%5Cn%20%20%5D%5Cn%7D%5Cn%22%7D
     pipeline = handler(event, {}, get_deps=False, ret_pipeline=True)
-
-
