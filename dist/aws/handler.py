@@ -126,7 +126,7 @@ if __name__ == '__main__':
                     "key": "json/example.json"
                 },
                 "bucket": {
-                    "name": "creare-podpac-lambda",
+                    "name": "podpac-s3",
                 }
             }
         }]
