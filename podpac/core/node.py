@@ -34,26 +34,26 @@ from podpac.core.utils import common_doc
 from podpac.core.coordinates import Coordinates
 
 COMMON_NODE_DOC = {
-    'native_coordinates': 
+    'native_coordinates':
         '''The native set of coordinates for a node. This attribute may be `None` for some nodes.''',
-    'requested_coordinates': 
+    'requested_coordinates':
         '''The set of coordinates requested by a user. The Node will be executed using these coordinates.''',
-    'execute_out': 
-        '''Default is None. Optional input array used to store the output data. When supplied, the node will not 
-            allocate its own memory for the output array. This array needs to have the correct dimensions and 
+    'execute_out':
+        '''Default is None. Optional input array used to store the output data. When supplied, the node will not
+            allocate its own memory for the output array. This array needs to have the correct dimensions and
             coordinates.''',
-    'execute_method': 
+    'execute_method':
         '''Default is None. How the node will be executed: serial, parallel, on aws, locally, etc. Currently only local
             execution is supported.''',
-    'execute_return': 
+    'execute_return':
         '''UnitsDataArray
             Unit-aware xarray DataArray containing the results of the node execution.''',
     'hash_return': 'A unique hash capturing the coordinates and parameters used to execute the node. ',
     'outdir': 'Optional output directory. Uses settings.CACHE_DIR by default',
     'definition_return': '''OrderedDict
-            Dictionary containing the location of the Node, the name of the plugin (if required), as well as any 
+            Dictionary containing the location of the Node, the name of the plugin (if required), as well as any
             parameters and attributes that were tagged by children.''',
-    'arr_init_type': 
+    'arr_init_type':
         '''How to initialize the array. Options are:
                 nan: uses np.full(..., np.nan) (Default option)
                 empty: uses np.empty
@@ -70,7 +70,7 @@ COMMON_NODE_DOC = {
     'arr_units' : "Default is self.units The Units for the data contained in the DataArray.",
     'arr_dtype' :"Default is np.float. Datatype used by default",
     'arr_kwargs' : "Dictioary of any additional keyword arguments that will be passed to UnitsDataArray.",
-    'arr_return' : 
+    'arr_return' :
         """UnitsDataArray
             Unit-aware xarray DataArray of the desired size initialized using the method specified.
             """
@@ -119,8 +119,8 @@ class Style(tl.HasTraits):
 
     clim = tl.List(default_value=[None, None])
     cmap = tl.Instance(matplotlib.colors.Colormap)
-    
-    @tl.default('cmap') 
+
+    @tl.default('cmap')
     def _cmap_default(self):
         return matplotlib.cm.get_cmap('viridis')
 
@@ -143,11 +143,11 @@ class Node(tl.HasTraits):
         Flag indicating if nodes as part of a pipeline should be automatically evaluated when
         the root node is evaluated. This attribute is planned for deprecation in the future.
     native_coordinates : Coordinates, optional
-        {native_coordinates} 
+        {native_coordinates}
     node_defaults : dict
-        Dictionary of defaults values for attributes of a Node. 
+        Dictionary of defaults values for attributes of a Node.
     output : podpac.UnitsDataArray
-        Output data from the last evaluation of the node. 
+        Output data from the last evaluation of the node.
     style : podpac.Style
         Object discribing how the output of a node should be displayed. This attribute is planned for deprecation in the
         future.
@@ -236,18 +236,18 @@ class Node(tl.HasTraits):
         Raises
         ------
         NotImplementedError
-            Children need to implement this method, otherwise this error is raised. 
+            Children need to implement this method, otherwise this error is raised.
         """
         raise NotImplementedError
 
     def get_output_coords(self, coords=None):
-        """Returns the output coordinates based on the user-requested coordinates. This is jointly determined by 
+        """Returns the output coordinates based on the user-requested coordinates. This is jointly determined by
         the input or evaluated coordinates and the native_coordinates (if present).
 
         Parameters
         ----------
         coords : podpac.Coordinates, optional
-            Requested coordinates that help determine the coordinates of the output. Uses self.requested_coordinates if 
+            Requested coordinates that help determine the coordinates of the output. Uses self.requested_coordinates if
             not supplied.
 
         Returns
@@ -277,7 +277,7 @@ class Node(tl.HasTraits):
             for dim in self.native_coordinates.udims:
                 if dim not in coords.udims:
                     assert False
-        
+
         return coords
 
     @common_doc(COMMON_DOC)
@@ -316,7 +316,7 @@ class Node(tl.HasTraits):
         crds = self.get_output_coords(coords)
         return self.initialize_array(
             init_type, fillval, style, no_style, shape, crds.coords, crds.dims, units, dtype, **kwargs)
-    
+
     @common_doc(COMMON_DOC)
     def copy_output_array(self, init_type='nan'):
         """Create a copy of the output array, initialized using the specified method.
@@ -416,7 +416,7 @@ class Node(tl.HasTraits):
         Returns
         -------
         {arr_return}
-            
+
 
         Raises
         ------
@@ -527,7 +527,7 @@ class Node(tl.HasTraits):
         Returns
         -------
         OrderedDict
-            Dictionary-formatted definition of a PODPAC pipeline. 
+            Dictionary-formatted definition of a PODPAC pipeline.
         """
 
         from podpac.core.pipeline import make_pipeline_definition
@@ -541,11 +541,11 @@ class Node(tl.HasTraits):
         -------
         str
             JSON-formatted definition of a PODPAC pipeline.
-            
+
         Notes
         ------
-        This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to 
-        share algorithms and pipelines, or run code on cloud services. 
+        This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to
+        share algorithms and pipelines, or run code on cloud services.
         """
         return json.dumps(self.pipeline_definition, indent=4)
 
@@ -574,7 +574,7 @@ class Node(tl.HasTraits):
         str
             {hash_return}
         """
-        
+
         # TODO this needs to include the tagged node attrs
         return hash(str(coordinates))
 
@@ -623,7 +623,7 @@ class Node(tl.HasTraits):
         -------
         str
             Path to location where data is cached
-            
+
         Notes
         ------
         If the output directory doesn't exist, it will be created.
@@ -647,8 +647,8 @@ class Node(tl.HasTraits):
         outdir : None, optional
             {outdir}
         format : str, optional
-            The file format. Currently only `pickle` is supported. 
-            
+            The file format. Currently only `pickle` is supported.
+
         Returns
         --------
         str
@@ -683,7 +683,7 @@ class Node(tl.HasTraits):
             {requested_coordinates}
         outdir : str, optional
             {outdir}
-            
+
         Returns
         --------
         str
@@ -696,13 +696,14 @@ class Node(tl.HasTraits):
             self.output = cPickle.load(f)
         return path
 
-    def get_image(self, format='png', vmin=None, vmax=None):
-        """Return a base64-encoded image of the output
+    def get_image(self, format='png', vmin=None, vmax=None, encode_base_64=False):
+        """Return an image of the output. Returned as a BytesIO by default,
+        or a base 64 encoded byte string if encode_base_64 is set to True
 
         Parameters
         ----------
         format : str, optional
-            Default is 'png'. Type of image. 
+            Default is 'png'. Type of image.
         vmin : number, optional
             Minimum value of colormap
         vmax : vmax, optional
@@ -711,7 +712,7 @@ class Node(tl.HasTraits):
         Returns
         -------
         str
-            Base64 encoded image. 
+            Base64 encoded image.
         """
         matplotlib.use('agg')
         from matplotlib.image import imsave
@@ -730,7 +731,9 @@ class Node(tl.HasTraits):
         im_data = BytesIO()
         imsave(im_data, i, format=format)
         im_data.seek(0)
-        return base64.b64encode(im_data.getvalue())
+        if encode_base_64:
+            return base64.b64encode(im_data.getvalue())
+        return im_data
 
     @property
     def cache_dir(self):
@@ -812,7 +815,7 @@ class Node(tl.HasTraits):
         """Helper function to clear disk cache.
 
         WARNING: This function will permanently delete cached values
-        
+
         Parameters
         ----------
         attr : str, optional
@@ -831,4 +834,3 @@ class Node(tl.HasTraits):
         else:
             for f in glob.glob(self.cache_path(attr)):
                 os.remove(f)
-
