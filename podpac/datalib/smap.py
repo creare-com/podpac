@@ -35,6 +35,7 @@ if not hasattr(np, 'isnat'):
 
 # Internal dependencies
 import podpac
+from podpac.core.coordinates import Coordinates, union, merge_dims
 from podpac.core.data import types as datatype
 from podpac.core import authentication
 from podpac.core.utils import common_doc
@@ -175,6 +176,7 @@ SMAP_PRODUCT_MAP = xr.DataArray(list(SMAP_PRODUCT_DICT.values()),
 )
 
 SMAP_INCOMPLETE_SOURCE_COORDINATES = ['SPL2SMAP_S']
+SMAP_IRREGULAR_COORDINATES = ['SPL2SMAP_S']
 
 # Discover SMAP OpenDAP url from podpac s3 server
 SMAP_BASE_URL_FILE = os.path.join(os.path.dirname(__file__), 'nsidc_smap_opendap_url.txt')
@@ -182,7 +184,7 @@ SMAP_BASE_URL = 'https://n5eil01u.ecs.nsidc.org/opendap/SMAP'
 try:
     with open(SMAP_BASE_URL_FILE, 'r') as fid: 
         rf = fid.read()
-    if 'https://' in r and 'nsidc.org' in r:
+    if 'https://' in rf and 'nsidc.org' in rf:
         SMAP_BASE_URL = rf
 except Exception as e:
     warnings.warn("Could not retrieve SMAP url from %s: " % (SMAP_BASE_URL_FILE) + str(e))
@@ -558,11 +560,14 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         np.ndarray(dtype=object(SMAPSource))
             Array of SMAPSource instances tied to specific SMAP files
         """
+        # Swapped the try and except blocks. SMAP filenames may change version numbers, which causes cached source to 
+        # break. Hence, try to get the new source everytime, unless data is offline, in which case rely on the cache.
         try:
-            sources = self.load_cached_obj('sources')
-        except:
             _, _, sources = self.get_available_coords_sources()
-            self.cache_obj(sources, 'sources')
+            self.cache_obj(sources, 'sources')            
+        except: #
+            sources = self.load_cached_obj('sources')
+            
 
         b = self.source + '/'
         time_crds = self.source_coordinates['time']
@@ -594,10 +599,9 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         """{source_coordinates}
         """
         try:
-            return self.load_cached_obj('source.coordinates')
+            times, latlon, _ = self.get_available_coords_sources()
         except:
-            pass
-        times, latlon, _ = self.get_available_coords_sources()
+            return self.load_cached_obj('source.coordinates')
 
         if latlon is not None and latlon.size > 0:
             crds = podpac.Coordinates([[times, latlon[:, 0], latlon[:, 1]]], dims=['time_lat_lon'])
@@ -628,7 +632,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         return coords
 
     def get_available_coords_sources(self):
-        """Summary
+        """Read NSIDC site for available coordinate sources
 
         Returns
         -------
@@ -781,6 +785,26 @@ class SMAP(podpac.OrderedCompositor):
             for date in dates])
         return src_objs
 
+    @common_doc(COMMON_DOC)
+    def get_native_coordinates(self):
+        '''
+        {native_coordinates}
+        
+        Notes
+        -----
+        These coordinates are computed, assuming dataset is regular. 
+        '''
+        if self.product in SMAP_IRREGULAR_COORDINATES:
+            raise Exception("Native coordinates too large. Try using partial native coordinates.")
+        
+        shared = self.get_shared_coordinates()
+        partial_sources = self.get_source_coordinates()['time'].coordinates
+        complete_source_0 = self.sources[0].get_source_coordinates()['time'].coordinates
+        offset = complete_source_0 - partial_sources[0]
+        full_times = (partial_sources[:, None] + offset[None, :]).ravel()
+        return merge_dims([podpac.Coordinates([full_times], ['time']), shared])
+
+    @common_doc(COMMON_DOC)
     def get_source_coordinates(self):
         """{source_coordinates}
         """
