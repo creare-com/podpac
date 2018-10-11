@@ -38,14 +38,6 @@ class Coordinates(tl.HasTraits):
     """
     Multidimensional Coordinates.
     
-        >>> Coordinates(lat=1)                                       # doctest: +SKIP
-        >>> Coordinates(lat_lon=((1, 2)))                            # doctest: +SKIP
-        >>> Coordinates(lat=(49.1, 50.2, 100))                       # doctest: +SKIP
-        >>> Coordinates(lat_lon=((49.1, -120), (50.2, -122), 100))   # doctest: +SKIP
-        >>> Coordinates(lat=(49.1, 50.1, 0.1))                       # doctest: +SKIP
-        >>> Coordinates(lat=np.array([50, 50.1, 50.4, 50.8, 50.9]))  # doctest: +SKIP
-        >>> Coordinates(lat_lon=([50, 50.1, 50.4, 50.8, 50.9], [-120, -125, -126, -127, -130])) # doctest: +SKIP
-
     Attributes
     ----------
     coords

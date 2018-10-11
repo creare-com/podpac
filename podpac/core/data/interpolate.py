@@ -238,8 +238,10 @@ class NearestPreview(Interpolator):
                     src_delta = (src_stop-src_start) / (src_coords.size - 1)
 
                 ndelta = max(1, np.round(dst_delta / src_delta))
-                
-                c = UniformCoordinates1d(src_start, src_stop, ndelta*src_delta, **src_coords.properties)
+                if src_coords.size == 1:
+                    c = src_coords.copy()
+                else:
+                    c = UniformCoordinates1d(src_start, src_stop, ndelta*src_delta, **src_coords.properties)
                 
                 if isinstance(idx, slice):
                     idx = slice(idx.start, idx.stop, int(ndelta))
