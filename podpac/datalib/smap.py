@@ -189,7 +189,7 @@ try:
 except Exception as e:
     warnings.warn("Could not retrieve SMAP url from %s: " % (SMAP_BASE_URL_FILE) + str(e))
 try: 
-    r = requests.get('https://s3.amazonaws.com/podpac-s3/nsidc_smap_opendap_url.txt').text
+    r = requests.get('https://s3.amazonaws.com/podpac-s3/settings/nsidc_smap_opendap_url.txt').text
     if 'https://' in r and 'nsidc.org' in r:
         if rf != r:
             warnings.warn("Updating SMAP url from PODPAC S3 Server.")
