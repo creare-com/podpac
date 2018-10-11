@@ -16,7 +16,8 @@ import os
 
 S3_BUCKET_NAME = None
 CACHE_TO_S3 = False
-ROOT_PATH = None
+#TODO for now we'll just cache in /tmp/, but this will change with the new caching spec.
+ROOT_PATH = "/tmp/"
 # Some settings for testing AWS Lambda function handlers locally
 aws_access_key_id = None
 aws_secret_access_key = None
