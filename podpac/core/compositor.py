@@ -192,7 +192,10 @@ class Compositor(Node):
             src_subset = self.sources # all
         else:
             # intersecting sources only
-            _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
+            try:
+                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
+            except: # Likely non-monotonic coordinates
+                _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
             src_subset = self.sources[I]
 
         if len(src_subset) == 0:
