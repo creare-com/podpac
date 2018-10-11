@@ -571,7 +571,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
         b = self.source + '/'
         time_crds = self.source_coordinates['time']
-        if time_crds.is_monotonic and time_crds.is_uniform:
+        if time_crds.is_monotonic and time_crds.is_uniform and time_crds.size > 1:
             tol = time_crds.coordinates[1] - time_crds.coordinates[0]
         else:
             tol = self.source_coordinates['time'].coordinates[0]
@@ -896,7 +896,7 @@ class SMAP(podpac.OrderedCompositor):
         sources = [self.sources[0].sources]
         for s in self.sources[1:]:
             if np.prod(s.source_coordinates.shape) > 0:
-                crds = crds + s.source_coordinates
+                crds = union([crds, s.source_coordinates])
                 sources.append(s.sources)
         #if self.shared_coordinates is not None:
             #crds = crds + self.shared_coordinates
