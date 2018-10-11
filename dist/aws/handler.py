@@ -68,6 +68,7 @@ def handler(event, context, ret_pipeline=False):
 
     import numpy as np
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
+    sys.path.append(os.getcwd() + '/matplotlib/')
     import matplotlib
     matplotlib.use('agg')
     from podpac.core.pipeline import Pipeline
