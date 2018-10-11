@@ -22,7 +22,7 @@ RUN curl https://www.python.org/ftp/python/3.6.1/Python-3.6.1.tar.xz | tar -xJ \
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # Some python modules needs numpy (sources) and cython
-RUN pip3 install cython numpy xarray -t /tmp/vendored --no-binary numpy
+RUN pip3 install cython numpy xarray matplotlib -t /tmp/vendored --no-binary numpy
 
 RUN git clone -b feature/aws https://github.com/creare-com/podpac.git && \
     cd podpac/ && \
@@ -51,5 +51,5 @@ RUN cp -r /podpac/ /tmp/vendored/ && \
     mv /tmp/vendored/podpac/dist/aws/settings.py /tmp/vendored/podpac/podpac/settings.py
 
 # Zip things up and display the size of the zip
-RUN cd /tmp/vendored && zip -r9q /tmp/package.zip * lib/*
+RUN cd /tmp/vendored && zip -r9q /tmp/package.zip *
 RUN du -sh /tmp/package.zip
