@@ -92,7 +92,7 @@ class Coordinates(tl.HasTraits):
             if isinstance(coords[i], BaseCoordinates):
                 c = coords[i].copy()
             elif '_' in dim:
-                c = StackedCoordinates([ArrayCoordinates1d(values) for values in np.atleast_1d(coords[i])])
+                c = StackedCoordinates([ArrayCoordinates1d(values) for values in coords[i]])
             else:
                 c = ArrayCoordinates1d(coords[i])
 
