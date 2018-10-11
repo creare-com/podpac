@@ -15,12 +15,12 @@ We're now set up to create an AWS Lambda function "out of the box". Assuming you
 
 - Run `docker build -f DockerFile --tag $NAME:$TAG .` from the `dist/aws` directory
 - Create a Lambda using the resulting `podpac:latest/tmp/package.zip`
-  - For example, we've chosen to do this as follows:
+  - For example, we've chosen to do this as follows: 
     - ```bash
       docker run --name lambda -itd $NAME:$TAG
-      docker cp lambda:/tmp/package.zip package_rio.zip
-    	docker stop lambda
-    	docker rm lambda
+      docker cp lambda:/tmp/package.zip package.zip
+      docker stop lambda
+      docker rm lambda
       ```
     - Upload package.zip (~63 MB) to S3.
     - Create a Lambda function from the AWS developer console
