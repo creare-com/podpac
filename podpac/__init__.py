@@ -22,7 +22,7 @@ from podpac import settings
 # a curated namespace of podpac modules
 from podpac import algorithm
 from podpac import data
-from podpac import coordinate
+from podpac import coordinates
 from podpac import compositor
 from podpac import pipeline
 from podpac import datalib   # handles imports in datalib/__init__.py
