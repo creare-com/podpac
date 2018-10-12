@@ -47,7 +47,7 @@ class TestParsePipelineDefinition(object):
                 "source1": {"node": "core.algorithm.algorithm.Arange"},
                 "source2": {"node": "core.algorithm.algorithm.Arange"},
                 "result": {        
-                    "node": "Arithmetic",
+                    "node": "algorithm.Arithmetic",
                     "inputs": {
                         "A": "source1",
                         "B": "source2"
@@ -307,7 +307,7 @@ class TestParsePipelineDefinition(object):
                 "source1": {"node": "core.algorithm.algorithm.Arange"},
                 "source2": {"node": "core.algorithm.algorithm.Arange"},
                 "result": {        
-                    "node": "Arithmetic",
+                    "node": "algorithm.Arithmetic",
                     "inputs": {
                         "A": "source1",
                         "B": "source2"

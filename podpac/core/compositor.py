@@ -236,7 +236,7 @@ class Compositor(Node):
             
             for src, res in zip(src_subset, results):
                 yield res.get()
-                src.output = None # free up memory
+                #src.output = None # free up memory
 
         else:
             output = None # scratch space

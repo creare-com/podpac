@@ -164,7 +164,7 @@ class TestCoordinateCreation(object):
         lon = [10, 20, 30, 40]
         dates = ['2018-01-01', '2018-01-02']
             
-        c = Coordinates.grid(lat=lat, lon=lon, time=dates, order=['time', 'lat', 'lon'])
+        c = Coordinates.grid(lat=lat, lon=lon, time=dates, dims=['time', 'lat', 'lon'])
         assert c.dims == ('time', 'lat', 'lon')
         assert c.shape == (2, 3, 4)
 
@@ -173,7 +173,7 @@ class TestCoordinateCreation(object):
         lon = (10, 40, 4)
         dates = ('2018-01-01', '2018-01-05', 5)
 
-        c = Coordinates.grid(lat=lat, lon=lon, time=dates, order=['time', 'lat', 'lon'])
+        c = Coordinates.grid(lat=lat, lon=lon, time=dates, dims=['time', 'lat', 'lon'])
         assert c.dims == ('time', 'lat', 'lon')
         assert c.shape == (5, 3, 4)
 
@@ -182,7 +182,7 @@ class TestCoordinateCreation(object):
         lon = (10, 40, 10.0)
         dates = ('2018-01-01', '2018-01-05', '1,D')
         
-        c = Coordinates.grid(lat=lat, lon=lon, time=dates, order=['time', 'lat', 'lon'])
+        c = Coordinates.grid(lat=lat, lon=lon, time=dates, dims=['time', 'lat', 'lon'])
         assert c.dims == ('time', 'lat', 'lon')
         assert c.shape == (5, 3, 4)
 
@@ -191,7 +191,7 @@ class TestCoordinateCreation(object):
         lon = [10, 20, 30]
         dates = ['2018-01-01', '2018-01-02', '2018-01-03']
 
-        c = Coordinates.points(lat=lat, lon=lon, time=dates, order=['time', 'lat', 'lon'])
+        c = Coordinates.points(lat=lat, lon=lon, time=dates, dims=['time', 'lat', 'lon'])
         assert c.dims == ('time_lat_lon',)
         assert c.shape == (3,)
 
@@ -205,10 +205,10 @@ class TestCoordinateCreation(object):
         dates = ['2018-01-01', '2018-01-02']
 
         with pytest.raises(ValueError):
-            Coordinates.grid(lat=lat, lon=lon, time=dates, order=['lat', 'lon'])
+            Coordinates.grid(lat=lat, lon=lon, time=dates, dims=['lat', 'lon'])
 
         with pytest.raises(ValueError):
-            Coordinates.grid(lat=lat, lon=lon, order=['lat', 'lon', 'time'])
+            Coordinates.grid(lat=lat, lon=lon, dims=['lat', 'lon', 'time'])
 
         if sys.version < '3.6':
             with pytest.raises(TypeError):

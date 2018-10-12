@@ -155,13 +155,13 @@ class Coordinates(tl.HasTraits):
         return coords
 
     @classmethod
-    def grid(cls, coord_ref_sys=None, ctype=None, distance_units=None, order=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, order)
+    def grid(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
+        coords = cls._coords_from_dict(kwargs, dims)
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
-    def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, order=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, order)
+    def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
+        coords = cls._coords_from_dict(kwargs, dims)
         stacked = StackedCoordinates(coords)
         return cls([stacked], coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 

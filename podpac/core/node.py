@@ -29,7 +29,7 @@ except:
     boto3 = None
 
 from podpac import settings
-from podpac import Units, UnitsDataArray
+from podpac.core.units import Units, UnitsDataArray
 from podpac.core.utils import common_doc
 from podpac.core.coordinates import Coordinates
 
