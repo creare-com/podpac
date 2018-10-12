@@ -45,10 +45,9 @@ The podpac core library includes three basic types of nodes: *DataSource*, *Comp
 {
     "nodes": {
         "sm": {
-            "node": "datalib.smap.SMAP",
+            "node": "algorithm.CoordData",
             "attrs": {
-                "product": "SPL4SMAU.003",
-                "interpolation": "bilinear"
+                "coord_name": "time"
             }
         }
     }
@@ -146,7 +145,7 @@ The podpac core library includes three basic types of nodes: *DataSource*, *Comp
 
  * The `node` path should include the submodule path and the node class. The submodule path is omitted for top-level classes. For example:
    - `"node": "datalib.smap.SMAP"` is equivalent to `from podpac.datalib.smap import SMAP`.
-   - `"node": "OrderedCompositor"` is equivalent to `from podpac import OrderedCompositor`.
+   - `"node": "compositor.OrderedCompositor"` is equivalent to `from podpac.compositor import OrderedCompositor`.
  * The `plugin` path replaces 'podpac' in the full node path. For example
    - `"plugin": "path.to.myplugin", "node": "mymodule.MyCustomNode"` is equivalent to `from path.to.myplugin.mymodule import MyCustomNode`.
    - `"plugin": "myplugin", "node": "MyCustomNode"` is equivalent to `from myplugin import MyCustomNode`
