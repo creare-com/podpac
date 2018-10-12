@@ -65,11 +65,11 @@ class Compositor(Node):
     is_source_coordinates_complete = tl.Bool(False,
         help=("This allows some optimizations but assumes that a node's "
               "native_coordinates=source_coordinate + shared_coordinate "
-              "IN THAT ORDER")).tag(attr=True)
+              "IN THAT ORDER"))
 
     source = tl.Unicode().tag(attr=True)
     sources = tl.Instance(np.ndarray)
-    cache_native_coordinates = tl.Bool(True).tag(attr=True)
+    cache_native_coordinates = tl.Bool(True)
     
     interpolation = tl.Unicode('').tag(attr=True)
    
