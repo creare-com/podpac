@@ -13,7 +13,7 @@ def requirements_to_array(filePath):
     lines = open(filePath).readlines()
     result = []
     for index in range(len(lines)):
-        result.append(lines[index].rtrip('\n'))
+        result.append(lines[index].strip('\n'))
     return result
 
 install_requires = requirements_to_array("requirements.txt")
@@ -39,7 +39,7 @@ extras_require = {
     'notebook': [
         'jupyterlab',
         'ipyleaflet',
-        'ipywidgets', 
+        'ipywidgets',
         'ipympl',
         'nodejs',
         ],
