@@ -1,7 +1,6 @@
-# Description #
+# AWS Lambda #
 
 Podpac includes a package to create an Amazon Web Services Lambda function to execute nodes in a server-less environment. This package can be altered to handle events according to the developer's use case.
-
 
 ## AWS Architecture ##
 
@@ -15,7 +14,7 @@ We're now set up to create an AWS Lambda function "out of the box". Assuming you
 
 - Run `docker build -f DockerFile --tag $NAME:$TAG .` from the `dist/aws` directory
 - Create a Lambda using the resulting `podpac:latest/tmp/package.zip`
-  - For example, we've chosen to do this as follows: 
+  - For example, we've chosen to do this as follows:
     - ```bash
       docker run --name lambda -itd $NAME:$TAG
       docker cp lambda:/tmp/package.zip package.zip
