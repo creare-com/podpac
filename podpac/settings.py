@@ -18,9 +18,12 @@ S3_BUCKET_NAME = None
 CACHE_TO_S3 = False
 ROOT_PATH = None
 # Some settings for testing AWS Lambda function handlers locally
-aws_access_key_id = None
-aws_secret_access_key = None
-aws_region_name = None
+AWS_ACCESS_KEY_ID = None
+AWS_SECRET_ACCESS_KEY = None
+AWS_REGION_NAME = None
+S3_BUCKET_NAME = None
+S3_JSON_FOLDER = None
+S3_OUTPUT_FOLDER = None
 
 
 if S3_BUCKET_NAME and CACHE_TO_S3:

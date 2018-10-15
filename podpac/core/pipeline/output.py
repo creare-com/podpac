@@ -9,6 +9,7 @@ import warnings
 import traitlets as tl
 import numpy as np
 
+from collections import OrderedDict
 from podpac.core.node import Node
 
 class Output(tl.HasTraits):
@@ -34,6 +35,10 @@ class Output(tl.HasTraits):
         NotImplementedError
             Description
         """
+        raise NotImplementedError
+
+    @property
+    def pipeline_definition(self):
         raise NotImplementedError
 
 class NoOutput(Output):
@@ -118,3 +123,13 @@ class ImageOutput(Output):
             self.image = self.node.get_image(format=self.format, vmin=self.vmin, vmax=self.vmax)
         except:
             pass
+
+    @property
+    def pipeline_definition(self):
+        d = OrderedDict()
+        d['mode'] = "image"
+        d['format'] = self.format
+        d['vmin'] = self.vmin
+        d['vmax'] = self.vmax
+        d['nodes'] = [self.name]
+        return d
