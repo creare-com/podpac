@@ -325,6 +325,10 @@ class Coordinates(tl.HasTraits):
                 self['lon'].bounds[1])
         else:
             return 'NA'
+
+    @property
+    def json(self):
+        return [c.json for c in self._coords.values())]
     
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -481,62 +485,6 @@ class Coordinates(tl.HasTraits):
         # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
         # return GDAL_CRS[self.coord_ref_sys]
         return GDAL_CRS[self[self.udims[0]].coord_ref_sys]
-    
-    # def add_unique(self, other):
-    #     """
-    #     Concatenate coordinates, skipping duplicates.
-        
-    #     Parameters
-    #     ----------
-    #     other : Coordinates
-    #         Coordinates to concatenate.
-        
-    #     Returns
-    #     -------
-    #     coord : Coordinates
-    #         New Coordinates object with concatenated coordinates.
-    #     """
-
-    #     return self._add(other, unique=True)
-    
-    # def __add__(self, other):
-    #     """
-    #     Concatenate coordinates.
-        
-    #     Parameters
-    #     ----------
-    #     other : Coordinates
-    #         Coordinates to concatenate.
-        
-    #     Returns
-    #     -------
-    #     coord : Coordinates
-    #         New Coordinates object with concatenated coordinates.
-    #     """
-
-    #     return self._add(other)
-    
-    # def _add(self, other, unique=False):
-    #     if not isinstance(other, Coordinates):
-    #         raise TypeError(
-    #             "Unsupported type '%s', can only add Coordinates object" % (
-    #                 other.__class__.__name__))
-    #     new_coords = copy.deepcopy(self._coords)
-    #     dims_map = self.dims_map
-    #     for key in other._coords:
-    #         if key in self._coords:
-    #             if dims_map[key] != other.dims_map[key]:
-    #                 raise ValueError(
-    #                     "Cannot add coordinates with different stacking. "
-    #                     "%s != %s." % (dims_map[key], other.dims_map[key])
-    #                 )
-    #             if np.all(np.array(self._coords[key].coords) !=
-    #                     np.array(other._coords[key].coords)) or not unique:
-    #                 new_coords[key] = self._coords[key] + other._coords[key]
-    #         else:
-    #             dims_map[key] = other.dims_map[key]
-    #             new_coords[key] = copy.deepcopy(other._coords[key])
-    #     return self.__class__(coords=self.stack_dict(new_coords, dims_map))
 
     def iterchunks(self, shape, return_slices=False):
         """

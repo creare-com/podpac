@@ -167,6 +167,10 @@ class StackedCoordinates(BaseCoordinates):
         x = xr.DataArray(np.empty(self.size), coords=[self.coordinates], dims=self.name)
         return x[self.name].coords
 
+    @property
+    def json(self):
+        return [c.json for c in self._coords]
+
     # -----------------------------------------------------------------------------------------------------------------
     # Methods
     # -----------------------------------------------------------------------------------------------------------------

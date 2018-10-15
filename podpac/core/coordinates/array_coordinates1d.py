@@ -186,6 +186,16 @@ class ArrayCoordinates1d(Coordinates1d):
         area_bounds.setflags(write=False)
         return area_bounds
 
+    @property
+    def json(self):
+        d = OrderedDict()
+        if self.dtype == float:
+            d['values'] = self.coords.to_list()
+        else:
+            d['values'] = self.coords.astype('str').to_list()
+        d.update(self.properties)
+        return d
+
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
