@@ -124,7 +124,7 @@ class Lambda(Node):
         """
         lambda_json = OrderedDict()
         lambda_json['pipeline'] = self.pipeline_definition
-        lambda_json['output'] = [self.source_output.pipeline_definition]
+        lambda_json['pipeline']['output'] = self.source_output.pipeline_definition
         lambda_json['coordinates'] = coordinates.pipeline_definition
 
         data = json.loads(b64decode(lambda_json))

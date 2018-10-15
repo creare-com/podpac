@@ -29,7 +29,7 @@ class Output(tl.HasTraits):
 
     def write(self):
         """Summary
-        
+
         Raises
         ------
         NotImplementedError
@@ -39,7 +39,12 @@ class Output(tl.HasTraits):
 
     @property
     def pipeline_definition(self):
-        raise NotImplementedError
+        d = OrderedDict()
+        for key, value in self.traits().items():
+            if value.metadata.get('attr', False):
+                d[key] = getattr(self, key)
+        d['nodes'] = [self.name]
+        return d
 
 class NoOutput(Output):
     def write(self):
@@ -112,9 +117,10 @@ class ImageOutput(Output):
         Description
     """
 
-    format = tl.CaselessStrEnum(values=['png'], default_value='png')
-    vmax = tl.CFloat(allow_none=True, default_value=np.nan)
-    vmin = tl.CFloat(allow_none=True, default_value=np.nan)
+    format = tl.CaselessStrEnum(values=['png'], default_value='png').tag(attr=True)
+    mode = tl.Unicode(default_value="image").tag(attr=True)
+    vmax = tl.CFloat(allow_none=True, default_value=np.nan).tag(attr=True)
+    vmin = tl.CFloat(allow_none=True, default_value=np.nan).tag(attr=True)
     image = tl.Bytes(allow_none=True, default_value=None)
 
     # TODO: docstring?
@@ -123,13 +129,3 @@ class ImageOutput(Output):
             self.image = self.node.get_image(format=self.format, vmin=self.vmin, vmax=self.vmax)
         except:
             pass
-
-    @property
-    def pipeline_definition(self):
-        d = OrderedDict()
-        d['mode'] = "image"
-        d['format'] = self.format
-        d['vmin'] = self.vmin
-        d['vmax'] = self.vmax
-        d['nodes'] = [self.name]
-        return d

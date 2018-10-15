@@ -89,13 +89,10 @@ def handler(event, context, ret_pipeline=False):
         pipeline.execute(coords)
         if ret_pipeline:
             return pipeline
-        format = _json['output'][0]['format']
-        vmin = int(_json['output'][0]['vmin'])
-        vmax = int(_json['output'][0]['vmax'])
-        image = pipeline.get_image(format=format, vmin=vmin, vmax=vmax)
+        pipeline.pipeline_output.write()
         s3.put_object(Bucket=bucket_name,
-                      Key='output/' + _json['output'][0]['nodes'][0] + '.' + format, Body=image)
-        return img_response(image)
+                      Key='output/' + pipeline.pipeline_output.name + '.' + pipeline.pipeline_output.format, Body=pipeline.pipeline_output.image)
+        return img_response(pipeline.pipeline_output.image)
     except Exception as e:
         return return_exception(e, event, context, pipeline)
 
