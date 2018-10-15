@@ -645,13 +645,14 @@ def concat(coords_list):
         for dim, c in coords.items():
             if isinstance(c, Coordinates1d):
                 if dim not in d:
-                    d[dim] = []
-                d[dim].append(c.coordinates)
+                    d[dim] = c.coordinates
+                else:
+                    d[dim] = np.concatenate([d[dim], c.coordinates])
             elif isinstance(c, StackedCoordinates):
                 if dim not in d:
-                    d[dim] = [[] for s in c]
-                for i, s in enumerate(c):
-                    d[dim][i].append(s.coordinates)
+                    d[dim] = [s.coordinates for s in c]
+                else:
+                    d[dim] = [np.concatenate([d[dim][i], s.coordinates]) for i, s in enumerate(c)]
 
     return Coordinates(list(d.values()), list(d.keys()))
 
