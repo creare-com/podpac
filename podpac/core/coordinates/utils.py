@@ -255,9 +255,11 @@ def make_coord_array(values):
             a = a.astype(float)
         except (TypeError, ValueError):
             try:
-                a = a.astype(str).astype(np.datetime64)
+                a.astype(np.datetime64)
             except ValueError:
                 raise TypeError("Invalid coordinate values (must be all numbers or all datetimes)")
+            else:
+                a = np.array([np.datetime64(e) for e in a])
 
     if a.ndim != 1:
         raise ValueError("Invalid coordinate values (ndim=%d, must be ndim=1)" % a.ndim)
@@ -343,7 +345,7 @@ def _add_nominal_timedelta(base, delta):
             date = _replace_safe(base, month=base.month+td)
         dates.append(date)
 
-    dates = np.array(dates).astype(str).astype(np.datetime64).reshape(shape)
+    dates = np.array([np.datetime64(date) for date in dates]).reshape(shape)
     if shape == ():
         dates = dates[()]
     return dates

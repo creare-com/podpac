@@ -643,18 +643,17 @@ def concat(coords_list):
     d = OrderedDict()
     for coords in coords_list:
         for dim, c in coords.items():
-            d[dim] = d.get(dim, []) + [c.coordinates]
+            if isinstance(c, Coordinates1d):
+                if dim not in d:
+                    d[dim] = []
+                d[dim].append(c.coordinates)
+            elif isinstance(c, StackedCoordinates):
+                if dim not in d:
+                    d[dim] = [[] for s in c]
+                for i, s in enumerate(c):
+                    d[dim][i].append(s.coordinates)
 
-    dims = []
-    coords = []
-    for dim, cs in d.items():
-        values = np.concatenate(cs)
-        if '_' in dim:
-            values = np.array([e for e in values]).T # transpose StackedCoordinates
-        coords.append(values)
-        dims.append(dim)
-
-    return Coordinates(coords, dims=dims)
+    return Coordinates(list(d.values()), list(d.keys()))
 
 def union(coords_list):
     """

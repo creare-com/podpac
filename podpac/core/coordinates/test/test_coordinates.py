@@ -10,9 +10,9 @@ import pandas as pd
 
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
-from podpac.core.coordinates.uniform_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.coordinates import Coordinates
+from podpac.core.coordinates.coordinates import concat
 
 # class TestBaseCoordinate(object):
 #     def test_abstract_methods(self):
@@ -254,6 +254,27 @@ class TestCoordinateXarray(object):
         np.testing.assert_equal(c2.coords['lat'].data, np.array(lat, dtype=float))
         np.testing.assert_equal(c2.coords['lon'].data, np.array(lon, dtype=float))
         np.testing.assert_equal(c2.coords['time'].data, np.array(dates).astype(np.datetime64))
+
+class TestConcat(object):
+    def test_concat_stacked_datetimes(self):
+        c1 = Coordinates([[0, 0.5, '2018-01-01']], dims=['lat_lon_time'])
+        c2 = Coordinates([[1, 1.5, '2018-01-02']], dims=['lat_lon_time'])
+        c = concat([c1, c2])
+        np.testing.assert_array_equal(c['lat'].coordinates, np.array([0.0, 1.0]))
+        np.testing.assert_array_equal(c['lon'].coordinates, np.array([0.5, 1.5]))
+        np.testing.assert_array_equal(
+            c['time'].coordinates,
+            np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64))
+
+        c1 = Coordinates([[0, 0.5, '2018-01-01T01:01:01']], dims=['lat_lon_time'])
+        c2 = Coordinates([[1, 1.5, '2018-01-01T01:01:02']], dims=['lat_lon_time'])
+        c = concat([c1, c2])
+        np.testing.assert_array_equal(c['lat'].coordinates, np.array([0.0, 1.0]))
+        np.testing.assert_array_equal(c['lon'].coordinates, np.array([0.5, 1.5]))
+        np.testing.assert_array_equal(
+            c['time'].coordinates,
+            np.array(['2018-01-01T01:01:01', '2018-01-01T01:01:02']).astype(np.datetime64))
+
 
 # class TestCoordinate(object):
 #     @pytest.mark.skipif(sys.version >= '3.6', reason="Python <3.6 compatibility")
