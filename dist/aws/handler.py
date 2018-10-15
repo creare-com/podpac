@@ -113,10 +113,10 @@ if __name__ == '__main__':
     # Need to authorize our s3 client when running locally.
     from podpac import settings
     s3 = boto3.client('s3',
-                      aws_access_key_id=settings.aws_access_key_id,
-                      aws_secret_access_key=settings.aws_secret_access_key,
-                      region_name=settings.aws_region_name
-                      )
+                      aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                      aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                      region_name=settings.AWS_REGION_NAME
+                     )
     event = {
         "Records": [{
             "s3": {
