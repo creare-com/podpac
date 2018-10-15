@@ -101,6 +101,21 @@ class StackedCoordinates(BaseCoordinates):
         dims = xcoord.indexes[xcoord.dims[0]].names
         return cls([ArrayCoordinates1d.from_xarray(xcoord[dims]) for dims in dims], **kwargs)
 
+    @classmethod
+    def from_json(self, d):
+        coords = []
+        for elem in d:
+            if 'start' in elem and 'stop' in elem and 'step' in elem:
+                c = UniformCoordinates1d.from_json(elem)
+            elif 'values' in elem:
+                c = ArrayCoordinates1d.from_json(elem)
+            else:
+                raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
+            
+            coords.append(c)
+
+        return cls(coords)
+
     def copy(self, name=None, **kwargs):
         c = StackedCoordinates([c.copy() for c in self._coords], **kwargs)
         if name is not None:

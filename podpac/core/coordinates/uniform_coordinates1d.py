@@ -126,6 +126,13 @@ class UniformCoordinates1d(Coordinates1d):
             step = make_coord_delta(items[2])
             return cls(items[0], items[1], step, **kwargs)
 
+    @classmethod
+    def from_json(self, d):
+        start = d.pop('start')
+        stop = d.pop('stop')
+        step = d.pop('step')
+        return cls(start, stop, step, **d)
+
     def copy(self, **kwargs):
         properties = self.properties
         properties.update(kwargs)

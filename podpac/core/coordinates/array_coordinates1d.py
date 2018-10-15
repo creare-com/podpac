@@ -88,6 +88,11 @@ class ArrayCoordinates1d(Coordinates1d):
     def from_xarray(cls, x, **kwargs):
         return cls(x.data, name=x.name)
 
+    @classmethod
+    def from_json(self, d):
+        coords = d.pop('values')
+        return cls(coords, **d)
+
     def copy(self, **kwargs):
         properties = self.properties
         properties.update(kwargs)

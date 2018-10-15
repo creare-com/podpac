@@ -198,6 +198,23 @@ class Coordinates(tl.HasTraits):
             coords.append(c)
 
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
+
+    @classmethod
+    def from_json(self, d):
+        coords = []
+        for elem in d:
+            if isinstance(elem, list):
+                c = StackedCoordinates.from_json(elem)
+            elif 'start' in elem and 'stop' in elem and 'step' in elem:
+                c = UniformCoordinates1d.from_json(elem)
+            elif 'values' in elem:
+                c = ArrayCoordinates1d.from_json(elem)
+            else:
+                raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
+            
+            coords.append(c)
+
+        return cls(coords)
     
     # ------------------------------------------------------------------------------------------------------------------
     # standard dict-like methods
