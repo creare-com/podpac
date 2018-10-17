@@ -36,6 +36,13 @@ extras_require = {
     'algorithms': [
         'numexpr>=2.6',
         ],
+    'notebook': [
+        'jupyterlab',
+        'ipyleaflet',
+        'ipywidgets', 
+        'ipympl',
+        'nodejs',
+        ],
     'esri': [
         # 'arcpy',
         'certifi>=2018.1.18',

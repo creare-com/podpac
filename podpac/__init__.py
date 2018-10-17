@@ -12,34 +12,22 @@ version_info : TYPE
 """
 
 # Public API
-from podpac.core.units import Units, UnitsDataArray, UnitsNode
 from podpac.core.coordinates import Coordinates, crange, clinspace
-from podpac.core.node import Node
-from podpac.core.style import Style
-from podpac.core.algorithm.algorithm import (
-    Algorithm, Arithmetic, SinCoords)
-from podpac.core.algorithm.stats import (
-    Min, Max, Sum, Count, Mean, Median,
-    Variance, StandardDeviation, Skew, Kurtosis)
-from podpac.core.algorithm.coord_select import ExpandCoordinates
-from podpac.core.algorithm.signal import (
-    Convolution, SpatialConvolution, TimeConvolution)
-from podpac.core.data.datasource import DataSource
-from podpac.core.compositor import Compositor, OrderedCompositor
-from podpac.core.pipeline import Pipeline, PipelineError
-
-from podpac.settings import CACHE_DIR
+from podpac.core.node import Node, NodeException
+import podpac.core.authentication as authentication
+from podpac import settings
 
 # Organized submodules
-# These files are simply wrappers to create
-# a curated namespace of podpac modules
-import podpac.algorithm
-import podpac.data
-import podpac.coordinate
-import podpac.datalib   # handles imports in datalib/__init__.py
+# These files are simply wrappers to create a curated namespace of podpac modules
+from podpac import algorithm
+from podpac import data
+from podpac import coordinates
+from podpac import compositor
+from podpac import pipeline
+from podpac import datalib   # handles imports in datalib/__init__.py
 
-# Developer API
-import podpac.core
+## Developer API
+from podpac import core
 
 # version handling
 from podpac import version

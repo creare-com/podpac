@@ -38,14 +38,6 @@ class Coordinates(tl.HasTraits):
     """
     Multidimensional Coordinates.
     
-        >>> Coordinates(lat=1)                                       # doctest: +SKIP
-        >>> Coordinates(lat_lon=((1, 2)))                            # doctest: +SKIP
-        >>> Coordinates(lat=(49.1, 50.2, 100))                       # doctest: +SKIP
-        >>> Coordinates(lat_lon=((49.1, -120), (50.2, -122), 100))   # doctest: +SKIP
-        >>> Coordinates(lat=(49.1, 50.1, 0.1))                       # doctest: +SKIP
-        >>> Coordinates(lat=np.array([50, 50.1, 50.4, 50.8, 50.9]))  # doctest: +SKIP
-        >>> Coordinates(lat_lon=([50, 50.1, 50.4, 50.8, 50.9], [-120, -125, -126, -127, -130])) # doctest: +SKIP
-
     Attributes
     ----------
     coords
@@ -100,7 +92,7 @@ class Coordinates(tl.HasTraits):
             if isinstance(coords[i], BaseCoordinates):
                 c = coords[i].copy()
             elif '_' in dim:
-                c = StackedCoordinates([ArrayCoordinates1d(values) for values in np.atleast_1d(coords[i])])
+                c = StackedCoordinates([ArrayCoordinates1d(values) for values in coords[i]])
             else:
                 c = ArrayCoordinates1d(coords[i])
 
@@ -163,13 +155,13 @@ class Coordinates(tl.HasTraits):
         return coords
 
     @classmethod
-    def grid(cls, coord_ref_sys=None, ctype=None, distance_units=None, order=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, order)
+    def grid(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
+        coords = cls._coords_from_dict(kwargs, dims)
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
-    def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, order=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, order)
+    def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
+        coords = cls._coords_from_dict(kwargs, dims)
         stacked = StackedCoordinates(coords)
         return cls([stacked], coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
@@ -651,18 +643,18 @@ def concat(coords_list):
     d = OrderedDict()
     for coords in coords_list:
         for dim, c in coords.items():
-            d[dim] = d.get(dim, []) + [c.coordinates]
+            if isinstance(c, Coordinates1d):
+                if dim not in d:
+                    d[dim] = c.coordinates
+                else:
+                    d[dim] = np.concatenate([d[dim], c.coordinates])
+            elif isinstance(c, StackedCoordinates):
+                if dim not in d:
+                    d[dim] = [s.coordinates for s in c]
+                else:
+                    d[dim] = [np.concatenate([d[dim][i], s.coordinates]) for i, s in enumerate(c)]
 
-    dims = []
-    coords = []
-    for dim, cs in d.items():
-        values = np.concatenate(cs)
-        if '_' in dim:
-            values = np.array([e for e in values]).T # transpose StackedCoordinates
-        coords.append(values)
-        dims.append(dim)
-
-    return Coordinates(coords, dims=dims)
+    return Coordinates(list(d.values()), list(d.keys()))
 
 def union(coords_list):
     """

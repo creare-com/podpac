@@ -10,7 +10,7 @@ import numpy as np
 import traitlets as tl
 
 # Internal imports
-from podpac.core.coordinates import Coordinates, union
+from podpac.core.coordinates import Coordinates, union, merge_dims
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC 
@@ -63,11 +63,11 @@ class Compositor(Node):
     is_source_coordinates_complete = tl.Bool(False,
         help=("This allows some optimizations but assumes that a node's "
               "native_coordinates=source_coordinate + shared_coordinate "
-              "IN THAT ORDER")).tag(attr=True)
+              "IN THAT ORDER"))
 
     source = tl.Unicode().tag(attr=True)
     sources = tl.Instance(np.ndarray)
-    cache_native_coordinates = tl.Bool(True).tag(attr=True)
+    cache_native_coordinates = tl.Bool(True)
     
     interpolation = tl.Unicode('').tag(attr=True)
    
@@ -79,8 +79,7 @@ class Compositor(Node):
         source = []
         for s in self.sources[:3]:
             source.append(str(s))
-        return '_'.join(source) # TODO this is a bit weird
-        
+        return '_'.join(source)
     
     @tl.default('source_coordinates')
     def _source_coordinates_default(self):
@@ -191,7 +190,10 @@ class Compositor(Node):
             src_subset = self.sources # all
         else:
             # intersecting sources only
-            _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
+            try:
+                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
+            except: # Likely non-monotonic coordinates
+                _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
             src_subset = self.sources[I]
 
         if len(src_subset) == 0:
@@ -210,10 +212,11 @@ class Compositor(Node):
         #              native_coords = source_coords + shared_coordinates
         #         NOT  native_coords = shared_coords + source_coords
         if self.is_source_coordinates_complete and len(self.source_coordinates.shape) == 1:
-            coords_subset = list(self.source_coordinates.intersect(coordinates, pad=1).coords.values())[0]
+            coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
-                nc = Coordinates(**{coords_dim: c}) + self.shared_coordinates
+                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]),
+                                 self.shared_coordinates])
                 # Switching from _trait_values to hasattr because "native_coordinates"
                 # sometimes not showing up in _trait_values in other locations
                 # Not confirmed here
@@ -231,7 +234,7 @@ class Compositor(Node):
             
             for src, res in zip(src_subset, results):
                 yield res.get()
-                src.output = None # free up memory
+                #src.output = None # free up memory
 
         else:
             output = None # scratch space

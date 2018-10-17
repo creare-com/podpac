@@ -180,7 +180,7 @@ class DataSource(Node):
 
     # TODO: remove in the 2nd stage of interpolation refactor
     # self.source_coordinates['time'].delta / 2
-    interpolation_tolerance = tl.Float(default_value=1)
+    interpolation_tolerance = tl.Union([tl.Float(default_value=1), tl.Instance(np.timedelta64)])
 
     # privates
     _interpolation = tl.Instance(Interpolation)
@@ -410,8 +410,10 @@ class DataSource(Node):
             tol = np.inf
             for c in data_dst.coords.keys():
                 crds[c] = data_dst.coords[c].data.copy()
-                if c is not 'time':
-                    tol = min(tol, np.abs(getattr(coords_dst[c], 'delta', tol)))
+                if c is not 'time' and coords_dst[c].size > 0:
+                    area_bounds = getattr(coords_dst[c], 'area_bounds', [-np.inf, np.inf])
+                    delta = np.abs(area_bounds[1] - area_bounds[0]) / coords_dst[c].size
+                    tol = min(tol, delta)
             crds_keys = list(crds.keys())
             if 'time' in crds:
                 data_src = data_src.reindex(time=crds['time'], method=str('nearest'))

@@ -5,7 +5,7 @@ import traitlets as tl
 import matplotlib
 import matplotlib.cm
 
-from podpac import Units
+from podpac.core.units import Units
 
 class Style(tl.HasTraits):
     """Summary
