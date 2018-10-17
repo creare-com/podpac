@@ -50,11 +50,6 @@ class Reduce(Algorithm):
             kwargs['dims'] = [kwargs['dims']]
         return super(Reduce, self)._first_init(**kwargs)
 
-    @property
-    def native_coordinates(self):
-        """Pass through for source.native_coordinates or self.native_coordinates_source.native_coordinates (preferred)        """
-        return self.source.native_coordinates
-
     def get_dims(self, out):
         """
         Translates requested reduction dimensions.
@@ -69,8 +64,7 @@ class Reduce(Algorithm):
         list
             List of dimensions after reduction
         """
-        # Using self.output.dims does a lot of work for us comparing
-        # native_coordinates to evaluated coordinates
+        # Using self.output.dims helps compare the evaluated coordinates to the source coordinates
         input_dims = list(out.dims)
         
         if not self.dims:
@@ -193,7 +187,7 @@ class Reduce(Algorithm):
         -------
         {eval_return}
         """
-        self.input_coordinates = self.get_output_coords(coordinates)
+        self.input_coordinates = coordinates
         self.dims = self.get_dims(self.input_coordinates)
         self.requested_coordinates = self.input_coordinates.drop(self.dims)
 
@@ -891,8 +885,6 @@ class Percentile(Reduce2):
 # Time-Grouped Reduce
 # =============================================================================
 
-# TODO native_coordinates_source as an attribute
-
 class GroupReduce(Algorithm):
     """
     Group a time-dependent source node by a datetime accessor and reduce.
@@ -903,36 +895,20 @@ class GroupReduce(Algorithm):
         required if reduce_fn is 'custom'.
     groupby : str
         datetime sub-accessor. Currently 'dayofyear' is the enabled option.
-    native_coordinates_source : podpac.Node
-        Node that acts as the source for the native_coordinates of this node. 
     reduce_fn : str
         builtin xarray groupby reduce function, or 'custom'.
     source : podpac.Node
-        Source node, must have native_coordinates
+        Source node
     """
 
     source = tl.Instance(Node)
-    native_coordinates_source = tl.Instance(Node, allow_none=True)
-
+    
     # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
     groupby = tl.CaselessStrEnum(['dayofyear']) # could add season, month, etc
 
-    reduce_fn = tl.CaselessStrEnum(['all', 'any', 'count', 'max', 'mean',
-                                    'median', 'min', 'prod', 'std',
-                                    'sum', 'var', 'custom'])
+    reduce_fn = tl.CaselessStrEnum(
+        ['all', 'any', 'count', 'max', 'mean', 'median', 'min', 'prod', 'std', 'sum', 'var', 'custom'])
     custom_reduce_fn = tl.Any()
-
-    @property
-    def native_coordinates(self):
-        """Pass through for source.native_coordinates or self.native_coordinates_source.native_coordinates (preferred)
-        """
-        try:
-            if self.native_coordinates_source:
-                return self.native_coordinates_source.native_coordinates
-            else:
-                return self.source.native_coordinates
-        except:
-            raise Exception("no native coordinates found")
 
     @property
     def source_coordinates(self):
@@ -944,7 +920,13 @@ class GroupReduce(Algorithm):
             Description
         """
         # intersect grouped time coordinates using groupby DatetimeAccessor
-        native_time = xr.DataArray(self.native_coordinates.coords['time'])
+        time = self.source.find_coordinates('time') # TODO
+        # c = self.source.find_coordinates('time')
+        # if len(c['time']) == 0:
+        #     raise ValueError("GroupReduce source node must be time-dependent")
+        # if len(c['time']) > 1:
+        #     raise ValueError("GroupReduce source node time coordinates are ambiguous")
+        native_time = xr.DataArray(time.coordinates)
         eval_time = xr.DataArray(self.requested_coordinates.coords['time'])
         N = getattr(native_time.dt, self.groupby)
         E = getattr(eval_time.dt, self.groupby)
@@ -986,9 +968,6 @@ class GroupReduce(Algorithm):
 
         if self.output is None:
             self.output = self.create_output_array(coordinates)
-
-        if 'time' not in self.native_coordinates.dims:
-            raise ValueError("GroupReduce source node must be time-dependent")
         
         if self.implicit_pipeline_evaluation:
             self.source.eval(self.source_coordinates, method=method)
@@ -1031,12 +1010,10 @@ class DayOfYear(GroupReduce):
     ----------
     custom_reduce_fn : function
         required if reduce_fn is 'custom'.
-    native_coordinates_source : podpac.Node
-        Node that acts as the source for the native_coordinates of this node. 
     reduce_fn : str
         builtin xarray groupby reduce function, or 'custom'.
     source : podpac.Node
-        Source node, must have native_coordinates
+        Source node
     """
 
     groupby = 'dayofyear'

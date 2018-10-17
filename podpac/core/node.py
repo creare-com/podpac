@@ -29,12 +29,10 @@ except:
 from podpac import settings
 from podpac.core.units import Units, UnitsDataArray, create_data_array
 from podpac.core.utils import common_doc
-from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
+from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 
 COMMON_NODE_DOC = {
-    'native_coordinates': 
-        '''The native set of coordinates for a node. This attribute may be `None` for some nodes.''',
     'requested_coordinates': 
         '''The set of coordinates requested by a user. The Node will be evaluated using these coordinates.''',
     'eval_output': 
@@ -99,8 +97,6 @@ class Node(tl.HasTraits):
     implicit_pipeline_evaluation : Bool
         Flag indicating if nodes as part of a pipeline should be automatically evaluated when
         the root node is evaluated. This attribute is planned for deprecation in the future.
-    native_coordinates : Coordinates, optional
-        {native_coordinates} 
     node_defaults : dict
         Dictionary of defaults values for attributes of a Node. 
     output : podpac.UnitsDataArray
@@ -112,7 +108,6 @@ class Node(tl.HasTraits):
         The units of the output data, defined using the pint unit registry `podpac.units.ureg`.
     """
 
-    native_coordinates = tl.Instance(Coordinates, allow_none=True)
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
@@ -188,56 +183,6 @@ class Node(tl.HasTraits):
             Children need to implement this method, otherwise this error is raised. 
         """
         raise NotImplementedError
-
-    def get_output_coords(self, requested_coordinates):
-        """
-        Get the node output coords based on the requested coordinates and node's native_coordinates, if present. The
-        requested coordinates must include all unstacked native dimensions. Extra dimensions are dropped.
-
-        Parameters
-        ----------
-        requested_coordinates : podpac.Coordinates
-            Requested coordinates.
-
-        Returns
-        -------
-        output_coordinates : podpac.Coordinates
-            The coordinates of the output if the node is evaluated with `coords`
-
-        Raises
-        ------
-        NodeException
-            If the requested_coordinates cannot be evaluated for this node.
-        """
-
-        if self.native_coordinates is None:
-            return requested_coordinates
-
-        # check for missing dimensions
-        for c in self.native_coordinates.values():
-            if isinstance(c, Coordinates1d):
-                if c.name not in requested_coordinates.udims:
-                    raise NodeException("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
-            elif isinstance(c, StackedCoordinates):
-                stacked = [s for s in c if s.name in requested_coordinates.udims]
-                if not stacked:
-                    raise NodeException("Cannot evaluate these coordinates, missing all dims in '%s'" % c.name)
-                if any(s for s in stacked if not s.is_monotonic):
-                    raise NodeException("Cannot evaluate these coordinates, cannot unambiguously map '%s' to %s" % (
-                        requested_coordinates.udims, self.native_coordinates.udims))
-        
-        # remove extra dimensions
-        extra = []
-        for c in requested_coordinates.values():
-            if isinstance(c, Coordinates1d):
-                if c.name not in self.native_coordinates.udims:
-                    extra.append(c.name)
-            elif isinstance(c, StackedCoordinates):
-                if all(dim not in self.native_coordinates.udims for dim in c.dims):
-                    extra.append(c.name)
-        output_coordinates = requested_coordinates.drop(extra)
-
-        return output_coordinates
 
     @common_doc(COMMON_DOC)
     def create_output_array(self, coords, data=np.nan, **kwargs):

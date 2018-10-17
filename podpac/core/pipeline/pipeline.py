@@ -35,10 +35,6 @@ class Pipeline(Node):
     nodes = tl.Instance(OrderedDict, help="pipeline nodes")
     pipeline_output = tl.Instance(Output, help="pipeline output")
     implicit_pipeline_evaluation = tl.Bool(True)
-
-    @property
-    def native_coordinates(self):
-        return self.pipeline_output.node.native_coordinates
     
     @property
     def output(self):
@@ -59,10 +55,6 @@ class Pipeline(Node):
     @property
     def cache_type(self):
         return self.pipeline_output.node.cache_type
-    
-    @property
-    def interpolation(self):
-        return self.pipeline_output.node.interpolation
     
     @property
     def style(self):

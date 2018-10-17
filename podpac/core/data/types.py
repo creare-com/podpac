@@ -126,7 +126,7 @@ class PyDAP(DataSource):
     dataset : pydap.model.DatasetType
         The open pydap dataset. This is provided for troubleshooting.
     native_coordinates : Coordinates
-        {ds_native_coordinates}
+        {native_coordinates}
     password : str, optional
         Password used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
         auth_session instead if you have security concerns.
@@ -274,7 +274,7 @@ class Rasterio(DataSource):
     dataset : Any
         A reference to the datasource opened by rasterio
     native_coordinates : Coordinates
-        {ds_native_coordinates}
+        {native_coordinates}
     source : str
         Path to the data source
     """

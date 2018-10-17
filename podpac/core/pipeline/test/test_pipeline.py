@@ -34,13 +34,11 @@ class TestPipeline(object):
         d = json.loads(s, object_pairs_hook=OrderedDict)
         pipeline = Pipeline(definition=d)
         pipeline.eval(coords)
-
-        pipeline.native_coordinates
+        
         pipeline.evaluated
         pipeline.units
         pipeline.dtype
         pipeline.cache_type
-        # pipeline.interpolation # TODO
         pipeline.style
 
     def test_eval_output(self):

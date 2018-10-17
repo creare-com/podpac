@@ -122,8 +122,8 @@ class TestFilesAndCaching(object):
         assert(os.path.exists(os.path.dirname(p)))
         
     def test_write_file(self):
-        n = Node(native_coordinates=podpac.Coordinates([0, 1], dims=['lat', 'lon']))
-        n.requested_coordinates = n.native_coordinates
+        n = Node()
+        n.requested_coordinates = podpac.Coordinates([0, 1], dims=['lat', 'lon'])
         fn = 'temp_test'
         p = n.write(fn)
         assert(os.path.exists(p))
@@ -133,12 +133,13 @@ class TestFilesAndCaching(object):
     
     @pytest.mark.skip(reason="spec changes")
     def test_load_file(self):
-        n = Node(native_coordinates=podpac.Coordinates([0, 1], dims=['lat', 'lon']))
-        n.requested_coordinates = n.native_coordinates
+        c = podpac.Coordinates([0, 1], dims=['lat', 'lon'])
+        n = Node()
+        n.requested_coordinates = c
         fn = 'temp_test'
         p = n.write(fn)
         o = n.output
-        _ = n.load(fn, n.native_coordinates)
+        _ = n.load(fn, c)
         np.testing.assert_array_equal(o, n.output.data)
         os.remove(p)
         
@@ -163,12 +164,12 @@ class TestFilesAndCaching(object):
 @pytest.mark.xfail(reason="not sure why this is failing")
 class TestGetImage(object):
     def test_get_image(self):
-        nc = podpac.Coordinates([podpac.clinspace(0, 1, 3), podpac.clinspace(0, 1, 5)], dims=['lat', 'lon'])
-        n = Node(native_coordinates=nc)
+        n = Node()
         n.output[:] = 1
         im = n.get_image()
         assert im == b'iVBORw0KGgoAAAANSUhEUgAAAAUAAAADCAYAAABbNsX4AAAABHNCSVQICAgIfAhkiAAAABVJREFUCJljdGEM+c+ABpjQBXAKAgBgJgGe5UsCaQAAAABJRU5ErkJggg=='
 
+@pytest.mark.skip("spec has changed")
 class TestNodeOutputCoordinates(object):
     @pytest.mark.xfail(reason="This defines part of the node spec, which still needs to be implemented")
     def test_node_output_coordinates(self):

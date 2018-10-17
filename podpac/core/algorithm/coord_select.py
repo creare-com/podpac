@@ -25,9 +25,6 @@ class ExpandCoordinates(Algorithm):
     ----------
     input_coordinates : podpac.Coordinates
         The coordinates that were used to evaluate the node
-    native_coordinates_source : podpac.Coordinates
-        The native coordinates of the source node whose coordinates are being expanded. This is needed in case the
-        source doesn't have native coordinates (e.g. an Algorithm node).
     source : podpac.Node
         Source node that will be evaluated with the expanded coordinates.
     lat : List
@@ -41,34 +38,11 @@ class ExpandCoordinates(Algorithm):
     """
     
     source = tl.Instance(Node)
-    native_coordinates_source = tl.Instance(Node, allow_none=True)
     input_coordinates = tl.Instance(Coordinates, allow_none=True)
     lat = tl.List().tag(attr=True)
     lon = tl.List().tag(attr=True)
     time = tl.List().tag(attr=True)
     alt = tl.List().tag(attr=True)
-
-    @property
-    def native_coordinates(self):
-        """Native coordinates of the source node, if available
-        
-        Returns
-        -------
-        podpac.Coordinates
-            Native coordinates of the source node
-        
-        Raises
-        ------
-        Exception
-            Is thrown if no suitable native_coordinates can be found
-        """
-        try:
-            if self.native_coordinates_source:
-                return self.native_coordinates_source.native_coordinates
-            else:
-                return self.source.native_coordinates
-        except:
-            raise Exception("no native coordinates found")
 
     def get_expanded_coordinates1d(self, dim):
         """Returns the expanded coordinates for the requested dimension
@@ -105,7 +79,7 @@ class ExpandCoordinates(Algorithm):
 
         if len(expansion) == 2:
             # expand and use native coordinates
-            ncoords = self.native_coordinates[dim]
+            ncoords = self.source.find_coordinates(dim) # TODO
             cs = [ncoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in icoords.coordinates]
 
         elif len(expansion) == 3:
@@ -217,7 +191,7 @@ class SelectCoordinates(ExpandCoordinates):
         elif len(coords) == 2:
             # select and use native coordinates
             stop = make_coord_value(coords[1])
-            ncoord = self.native_coordinates[dim]
+            ncoords = self.source.find_coordinates(dim) #TODO
             xcoord = ncoord.select([start, stop])
 
         elif len(coords) == 3:

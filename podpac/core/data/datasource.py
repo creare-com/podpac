@@ -30,7 +30,8 @@ except:
 
 # Internal imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.coordinates import Coordinates
+from podpac.core.coordinates import Coordinates1d, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.node import Node
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
@@ -38,6 +39,8 @@ from podpac.core.data.interpolate import (Interpolation, Interpolator, NearestNe
                                           INTERPOLATION_DEFAULT)
 
 DATA_DOC = {
+    'native_coordinates': 'The coordinates of the data source.',
+
     'get_data':
         """
         This method must be defined by the data source implementing the DataSource class.
@@ -74,7 +77,7 @@ DATA_DOC = {
             the data will be cast into  UnitsDataArray using the returned data to fill values
             at the requested source coordinates.
         """,
-    'ds_native_coordinates': 'The coordinates of the data source.',
+    
     'get_native_coordinates':
         """
         Returns a Coordinates object that describes the native coordinates of the data source.
@@ -115,6 +118,11 @@ class DataSource(Node):
     
     Attributes
     ----------
+    source : Any
+        The location of the source. Depending on the child node this can be a filepath,
+        numpy array, or dictionary as a few examples.
+    native_coordinates : Coordinates
+        {native_coordinates} 
     coordinate_index_type : str, optional
         Type of index to use for data source. Possible values are ['list','numpy','xarray','pandas']
         Default is 'numpy'
@@ -151,10 +159,6 @@ class DataSource(Node):
             By default, the interpolation method is set to `'nearest'` for all dimensions.
     nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
-    source : Any
-        The location of the source. Depending on the child node this can be a filepath,
-        numpy array, or dictionary as a few examples.
-
 
     Notes
     -----
@@ -162,6 +166,7 @@ class DataSource(Node):
     """
     
     source = tl.Any(help='Path to the raw data source')
+    native_coordinates = tl.Instance(Coordinates)
 
     interpolation = tl.Union([
         tl.Dict(),
@@ -274,6 +279,56 @@ class DataSource(Node):
         
         self.evaluated = True
         return self.output
+
+    def get_output_coords(self, requested_coordinates):
+        """
+        Get the node output coords based on the requested coordinates and node's native_coordinates, if present. The
+        requested coordinates must include all unstacked native dimensions. Extra dimensions are dropped.
+
+        Parameters
+        ----------
+        requested_coordinates : podpac.Coordinates
+            Requested coordinates.
+
+        Returns
+        -------
+        output_coordinates : podpac.Coordinates
+            The coordinates of the output if the node is evaluated with `coords`
+
+        Raises
+        ------
+        NodeException
+            If the requested_coordinates cannot be evaluated for this node.
+        """
+
+        if self.native_coordinates is None:
+            return requested_coordinates
+
+        # check for missing dimensions
+        for c in self.native_coordinates.values():
+            if isinstance(c, Coordinates1d):
+                if c.name not in requested_coordinates.udims:
+                    raise NodeException("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
+            elif isinstance(c, StackedCoordinates):
+                stacked = [s for s in c if s.name in requested_coordinates.udims]
+                if not stacked:
+                    raise NodeException("Cannot evaluate these coordinates, missing all dims in '%s'" % c.name)
+                if any(s for s in stacked if not s.is_monotonic):
+                    raise NodeException("Cannot evaluate these coordinates, cannot unambiguously map '%s' to %s" % (
+                        requested_coordinates.udims, self.native_coordinates.udims))
+        
+        # remove extra dimensions
+        extra = []
+        for c in requested_coordinates.values():
+            if isinstance(c, Coordinates1d):
+                if c.name not in self.native_coordinates.udims:
+                    extra.append(c.name)
+            elif isinstance(c, StackedCoordinates):
+                if all(dim not in self.native_coordinates.udims for dim in c.dims):
+                    extra.append(c.name)
+        output_coordinates = requested_coordinates.drop(extra)
+
+        return output_coordinates
 
     def get_interpolation_class(self):
         """Get the interpolation class currently set for this data source.

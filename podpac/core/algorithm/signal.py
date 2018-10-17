@@ -76,12 +76,6 @@ class Convolution(Algorithm):
     kernel_ndim = tl.Int().tag(attr=True)
     output_coordinates = tl.Instance(Coordinates)
     expanded_coordinates = tl.Instance(Coordinates)
-   
-    @property
-    def native_coordinates(self):
-        """Returns the native coordinates of the source node. 
-        """
-        return self.source.native_coordinates
  
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None, method=None):
@@ -102,8 +96,7 @@ class Convolution(Algorithm):
         """
         self.requested_coordinates = coordinates
         self.output = output
-        # This is needed to get the full_kernel
-        self.output_coordinates = self.source.get_output_coords(coordinates)
+        self.output_coordinates = coordinates
 
         # This should be aligned with coordinates' dimension order
         # The size of this kernel is used to figure out the expanded size

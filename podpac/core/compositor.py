@@ -128,50 +128,6 @@ class Compositor(Node):
         """
         raise NotImplementedError()
     
-    @tl.default('native_coordinates')
-    def _native_coordinates_default(self):
-        return self.get_native_coordinates()
-
-    def get_native_coordinates(self):
-        """Returns the native coordinates of the entire dataset.
-        
-        Returns
-        -------
-        podpac.Coordinates
-            Description
-            Native coordinates of the entire dataset.
-            
-        Notes
-        -------
-        This one is tricky... you can have multi-level compositors
-        One for a folder described by a date
-        One for all the folders over all dates. 
-        The single folder one has time coordinates that are actually
-        more accurate than just the folder time coordinate, so you want
-        to replace the time coordinate in native coordinate -- does this 
-        rule hold? 
-        
-        Also, you could have datasource with wildly different coordinates -- how are the native coordinates described
-        in that case? This is the usecase for the GroupCoordinates, but then how to evaluate nodes with
-        GroupCoordinates? 
-        
-        """
-
-        try: 
-            return self.load_cached_obj('native.coordinates')
-        except: 
-            pass
-
-        if self.shared_coordinates is not None and self.is_source_coordinates_complete:
-            crds = union([self.source_coordinates, self.shared_coordinates])
-        else:
-            crds = union(source.native_coordinates for source in self.sources)
-
-        if self.cache_native_coordinates:
-            self.cache_obj(crds, 'native.coordinates')
-
-        return crds
-    
     def iteroutputs(self, coordinates, method=None):
         """Summary
         
