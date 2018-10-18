@@ -12,7 +12,7 @@ from xarray.core.coordinates import DataArrayCoordinates
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.style import Style
-from podpac.core.coordinates import Coordinates, clinspace
+from podpac.core.coordinates import Coordinates, clinspace, crange
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.types import rasterio
 from podpac.core.data import datasource
@@ -22,7 +22,7 @@ class MockArrayDataSource(DataSource):
         return self.create_output_array(coordinates, data=self.source[coordinates_index])
 
 class MockDataSource(DataSource):
-    data = np.empty((101, 101))
+    data = np.zeros((101, 101))
     data[0, 0] = 10
     data[0, 1] = 1
     data[1, 0] = 5
@@ -128,7 +128,6 @@ class TestDataSource(object):
 
         # TODO: add interpolation definition testing
 
-    # TODO JXM
     def test_evaluate_at_native_coordinates(self):
         """evaluate node at native coordinates"""
 
@@ -152,47 +151,119 @@ class TestDataSource(object):
         assert node.evaluated
 
     def test_evaluate_with_output(self):
-        """evaluate node at native coordinates passing in output to store in"""
-        
         node = MockDataSource()
-        nc = node.native_coordinates
-        output = UnitsDataArray(np.zeros(nc.shape), coords=nc.coords, dims=nc.dims)
-        node.eval(nc, output=output)
 
-        assert isinstance(output, UnitsDataArray)
-        assert output.shape == nc.shape
-        assert np.all(output[0, 0] == 10) # TODO JXM
-
-    # TODO JXM
-    def test_evaluate_with_output_no_overlap(self):
-        """evaluate node at native coordinates passing output that does not overlap"""
+        # initialize a large output array
+        fullcoords = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=['lat', 'lon'])
+        output = UnitsDataArray(np.ones(fullcoords.shape), coords=fullcoords.coords, dims=fullcoords.dims)
         
+        # evaluate a subset of the full coordinates
+        coords = Coordinates([fullcoords['lat'][3:8], fullcoords['lon'][3:8]])
+        
+        # after evaluation, the output should be
+        # - the same where it was not evaluated
+        # - NaN where it was evaluated but doesn't intersect with the data source
+        # - 0 where it was evaluated and does intersect with the data source (because this datasource is all 0)
+        expected = output.copy()
+        expected[3:8, 3:8] = np.nan
+        expected[3:6, 3:6] = 0
+
+        # evaluate the subset coords, passing in the cooresponding slice of the initialized output array
+        node.eval(coords, output=output[3:8, 3:8])
+        np.testing.assert_equal(output.data, expected.data)
+
+    def test_evaluate_with_output_no_intersect(self):
+        # there is a shortcut if there is no intersect, so we test that here
         node = MockDataSource()
-        coords = Coordinates([clinspace(-55, -45, 101), clinspace(-55, -45, 101)], dims=['lat', 'lon'])
-        data = np.zeros(node.data.shape)
-        output = UnitsDataArray(data, coords=coords.coords, dims=coords.dims)
+        coords = Coordinates([clinspace(30, 40, 10), clinspace(30, 40, 10)], dims=['lat', 'lon'])
+        output = UnitsDataArray(np.ones(coords.shape), coords=coords.coords, dims=coords.dims)
         node.eval(coords, output=output)
+        np.testing.assert_equal(output.data, np.full(output.shape, np.nan))
 
-        assert isinstance(output, UnitsDataArray)
-        assert output.shape == (101, 101)
-        assert np.all(np.isnan(output[0, 0]))
-
-    # TODO JXM
-    def test_evaluate_extra_unstacked_dims(self):
-        """evaluate node with coordinates that have more dims that data source"""
-
+    def test_evaluate_with_output_transpose(self):
+        # initialize coords with dims=[lon, lat]
+        lat = clinspace(10, 20, 11)
+        lon = clinspace(10, 15, 6)
+        coords = Coordinates([lon, lat], dims=['lon', 'lat'])
+        output = UnitsDataArray(np.ones(coords.shape), coords=coords.coords, dims=coords.dims)
+        
+        # evaluate with dims=[lat, lon], passing in the output
         node = MockDataSource()
-        coords = Coordinates(
-            [clinspace(-25, 0, 20), clinspace(-25, 0, 20), clinspace(1, 10, 10)], dims=['lat', 'lon', 'time'])
-        output = node.eval(coords)
+        node.eval(coords.transpose('lat', 'lon'), output=output)
+        
+        # dims should stay in the order of the output, rather than the order of the requested coordinates
+        assert output.dims == ('lon', 'lat')
 
-        assert output.coords.dims == ('lat', 'lon')  # coordinates of the DataSource, no the evaluated coordinates
+    def test_evaluate_extra_dims(self):
+        # drop extra dimension
+        node = MockArrayDataSource(
+            source=np.empty((3, 2)),
+            native_coordinates=Coordinates([[0, 1, 2], [10, 11]], dims=['lat', 'lon']),
+            interpolation='nearest_preview')
 
-    # TODO JXM
+        output = node.eval(Coordinates([1, 11, '2018-01-01'], dims=['lat', 'lon', 'time']))
+        assert output.dims == ('lat', 'lon') # time dropped
+
+        # drop extra stacked dimension if none of its dimensions are needed 
+        node = MockArrayDataSource(
+            source=np.empty((2)),
+            native_coordinates=Coordinates([['2018-01-01', '2018-01-02']], dims=['time']),
+            interpolation='nearest_preview')
+        
+        output = node.eval(Coordinates([[1, 11], '2018-01-01'], dims=['lat_lon', 'time']))
+        assert output.dims == ('time',) # lat_lon dropped
+
+        # don't drop extra stacked dimension if any of its dimensions are needed
+        # TODO interpolation is not working here
+        node = MockArrayDataSource(
+            source=np.empty(3),
+            native_coordinates=Coordinates([[0, 1, 2]], dims=['lat']))
+        output = node.eval(Coordinates([[1, 11]], dims=['lat_lon']))
+        assert output.dims == ('lat_lon') # lon portion not dropped
+
     def test_evaluate_missing_dims(self):
-        pass
+        # missing unstacked dimension
+        node = MockArrayDataSource(
+            source=np.empty((3, 2)),
+            native_coordinates=Coordinates([[0, 1, 2], [10, 11]], dims=['lat', 'lon']))
 
-    # TODO JXM
+        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+            node.eval(Coordinates([1], dims=['lat']))
+        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+            node.eval(Coordinates([11], dims=['lon']))
+        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+            node.eval(Coordinates(['2018-01-01'], dims=['time']))
+
+        # missing entire stacked dimension
+        node = MockArrayDataSource(
+            source=np.empty(3),
+            native_coordinates=Coordinates([[[0, 1, 2], [10, 11, 12]]], dims=['lat_lon']))
+        
+        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+            node.eval(Coordinates([1], dims=['time']))
+
+        # missing part of a non-monotonic stacked dimension
+        node = MockArrayDataSource(
+            source=np.empty(3),
+            native_coordinates=Coordinates([[[0, 2, 1], [10, 11, 12]]], dims=['lat_lon']))
+
+        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+            node.eval(Coordinates([1], dims=['lat']))
+        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
+            node.eval(Coordinates([11], dims=['time']))
+        
+        # but missing part of a monotonic stacked dimension is okay
+        node = MockArrayDataSource(
+            source=np.empty(3),
+            native_coordinates=Coordinates([[[0, 1, 2], [10, 11, 12]]], dims=['lat_lon']))
+        
+        # TODO interpolation not working here
+        output = node.eval(Coordinates([1], dims=['lat']))
+        assert output.coords.dims == ('lat_lon')
+
+        output = node.eval(Coordinates([11], dims=['lon']))
+        assert output.coords.dims == ('lat_lon')
+
     def test_evaluate_no_overlap(self):
         """evaluate node with coordinates that do not overlap"""
 
@@ -209,7 +280,6 @@ class TestDataSource(object):
         output = node.eval(node.native_coordinates)
 
         assert output.values[np.isnan(output)].shape == (2,)
-        # TODO JXM
 
     def test_get_data_np_array(self):
         class MockDataSourceReturnsArray(MockDataSource):

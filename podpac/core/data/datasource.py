@@ -193,8 +193,7 @@ class DataSource(Node):
     # when native_coordinates is not defined, default calls get_native_coordinates
     @tl.default('native_coordinates')
     def _default_native_coordinates(self):
-        self.native_coordinates = self.get_native_coordinates()
-        return self.native_coordinates
+        return self.get_native_coordinates()
 
     # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
     @tl.default('_interpolation')
@@ -235,7 +234,29 @@ class DataSource(Node):
             warnings.warn('Coordinates index type {} is not yet supported.'.format(self.coordinate_index_type) +
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
         
-        self.requested_coordinates = self.get_output_coords(coordinates)
+        # check for missing dimensions
+        for c in self.native_coordinates.values():
+            if isinstance(c, Coordinates1d):
+                if c.name not in coordinates.udims:
+                    raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
+            elif isinstance(c, StackedCoordinates):
+                stacked = [s for s in c if s.name in coordinates.udims]
+                if not stacked:
+                    raise ValueError("Cannot evaluate these coordinates, missing all dims in '%s'" % c.name)
+                if any(s for s in stacked if not s.is_monotonic):
+                    raise ValueError("Cannot evaluate these coordinates, cannot unambiguously map '%s' to %s" % (
+                        coordinates.udims, self.native_coordinates.udims))
+        
+        # remove extra dimensions
+        extra = []
+        for c in coordinates.values():
+            if isinstance(c, Coordinates1d):
+                if c.name not in self.native_coordinates.udims:
+                    extra.append(c.name)
+            elif isinstance(c, StackedCoordinates):
+                if all(dim not in self.native_coordinates.udims for dim in c.dims):
+                    extra.append(c.name)
+        self.requested_coordinates = coordinates.drop(extra)
 
         # initiate/reset output
         self.output = output
@@ -280,56 +301,6 @@ class DataSource(Node):
         self.evaluated = True
         return self.output
 
-    def get_output_coords(self, requested_coordinates):
-        """
-        Get the node output coords based on the requested coordinates and node's native_coordinates, if present. The
-        requested coordinates must include all unstacked native dimensions. Extra dimensions are dropped.
-
-        Parameters
-        ----------
-        requested_coordinates : podpac.Coordinates
-            Requested coordinates.
-
-        Returns
-        -------
-        output_coordinates : podpac.Coordinates
-            The coordinates of the output if the node is evaluated with `coords`
-
-        Raises
-        ------
-        NodeException
-            If the requested_coordinates cannot be evaluated for this node.
-        """
-
-        if self.native_coordinates is None:
-            return requested_coordinates
-
-        # check for missing dimensions
-        for c in self.native_coordinates.values():
-            if isinstance(c, Coordinates1d):
-                if c.name not in requested_coordinates.udims:
-                    raise NodeException("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
-            elif isinstance(c, StackedCoordinates):
-                stacked = [s for s in c if s.name in requested_coordinates.udims]
-                if not stacked:
-                    raise NodeException("Cannot evaluate these coordinates, missing all dims in '%s'" % c.name)
-                if any(s for s in stacked if not s.is_monotonic):
-                    raise NodeException("Cannot evaluate these coordinates, cannot unambiguously map '%s' to %s" % (
-                        requested_coordinates.udims, self.native_coordinates.udims))
-        
-        # remove extra dimensions
-        extra = []
-        for c in requested_coordinates.values():
-            if isinstance(c, Coordinates1d):
-                if c.name not in self.native_coordinates.udims:
-                    extra.append(c.name)
-            elif isinstance(c, StackedCoordinates):
-                if all(dim not in self.native_coordinates.udims for dim in c.dims):
-                    extra.append(c.name)
-        output_coordinates = requested_coordinates.drop(extra)
-
-        return output_coordinates
-
     def get_interpolation_class(self):
         """Get the interpolation class currently set for this data source.
         
@@ -343,7 +314,6 @@ class DataSource(Node):
         """
 
         return self._interpolation
-        
 
     def _set_interpolation(self):
         """Update _interpolation property
@@ -419,11 +389,8 @@ class DataSource(Node):
 
         """
         
-        if trait_is_defined(self, 'native_coordinates'):
-            return self.native_coordinates
-        else:
-            raise NotImplementedError('{0}.native_coordinates is not defined and '  \
-                                      '{0}.get_native_coordinates() is not implemented'.format(self.__class__.__name__))
+        raise NotImplementedError('{0}.native_coordinates is not defined and '  \
+                                  '{0}.get_native_coordinates() is not implemented'.format(self.__class__.__name__))
     
     def _interpolate(self):
         """Interpolates the source data to the destination using self.interpolation as the interpolation method.
