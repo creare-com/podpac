@@ -596,7 +596,7 @@ class Coordinates(tl.HasTraits):
             return self
 
         else:
-            return Coordinates([self._coord[dim] for dim in dims], **self.properties)
+            return Coordinates([self._coords[dim] for dim in dims], **self.properties)
 
 def merge_dims(coords_list):
     """
