@@ -214,7 +214,7 @@ class TestDataSource(object):
         assert output.dims == ('time',) # lat_lon dropped
 
         # don't drop extra stacked dimension if any of its dimensions are needed
-        # TODO interpolation is not working here
+        # TODO interpolation is not yet implemented
         node = MockArrayDataSource(
             source=np.empty(3),
             native_coordinates=Coordinates([[0, 1, 2]], dims=['lat']))
@@ -259,10 +259,10 @@ class TestDataSource(object):
         
         # TODO interpolation not working here
         output = node.eval(Coordinates([1], dims=['lat']))
-        assert output.coords.dims == ('lat_lon')
+        assert output.coords.dims == ('lat',)
 
         output = node.eval(Coordinates([11], dims=['lon']))
-        assert output.coords.dims == ('lat_lon')
+        assert output.coords.dims == ('lon',)
 
     def test_evaluate_no_overlap(self):
         """evaluate node with coordinates that do not overlap"""
@@ -291,7 +291,6 @@ class TestDataSource(object):
 
         assert isinstance(output, UnitsDataArray)
         assert node.native_coordinates['lat'].coordinates[4] == output.coords['lat'].values[4]
-        # TODO JXM
 
     def test_get_data_DataArray(self):
         class MockDataSourceReturnsDataArray(MockDataSource):
@@ -303,7 +302,6 @@ class TestDataSource(object):
 
         assert isinstance(output, UnitsDataArray)
         assert node.native_coordinates['lat'].coordinates[4] == output.coords['lat'].values[4]
-        # TODO JXM
 
 class TestInterpolateData(object):
     """test interpolation functions"""
