@@ -193,7 +193,8 @@ class DataSource(Node):
     # when native_coordinates is not defined, default calls get_native_coordinates
     @tl.default('native_coordinates')
     def _default_native_coordinates(self):
-        return self.get_native_coordinates()
+        self.native_coordinates = self.get_native_coordinates()
+        return self.native_coordinates
 
     # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
     @tl.default('_interpolation')
@@ -386,11 +387,13 @@ class DataSource(Node):
         ------
         NotImplementedError
             This needs to be implemented by derived classes
-
         """
         
-        raise NotImplementedError('{0}.native_coordinates is not defined and '  \
-                                  '{0}.get_native_coordinates() is not implemented'.format(self.__class__.__name__))
+        if trait_is_defined(self, 'native_coordinates'):
+            return self.native_coordinates
+        else:
+            raise NotImplementedError('{0}.native_coordinates is not defined and '  \
+                                      '{0}.get_native_coordinates() is not implemented'.format(self.__class__.__name__))
     
     def _interpolate(self):
         """Interpolates the source data to the destination using self.interpolation as the interpolation method.
