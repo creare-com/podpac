@@ -166,7 +166,7 @@ class Node(tl.HasTraits):
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None, method=None):
         """
-        This is the common interface used for ALL nodes. Pipelines only understand this method and get_description.
+        Evaluate the node at the given coordinates.
 
         Parameters
         ----------
@@ -176,13 +176,32 @@ class Node(tl.HasTraits):
             {eval_output}
         method : str, optional
             {eval_method}
-
-        Raises
-        ------
-        NotImplementedError
-            Children need to implement this method, otherwise this error is raised. 
+        
+        Returns
+        -------
+        output : {eval_return}
         """
+
         raise NotImplementedError
+
+    def eval_group(self, group, method=None):
+        """
+        Evaluate the node for each of the coordinates in the group.
+        
+        Parameters
+        ----------
+        group : podpac.CoordinatesGroup
+            Group of coordinates to evaluate.
+        method : str, optional
+            {eval_method}
+
+        Returns
+        -------
+        outputs : list
+            evaluation output, list of UnitsDataArray objects
+        """
+
+        return [self.eval(coords, method=method) for coords in group]
 
     def find_coordinates(self):
         """
