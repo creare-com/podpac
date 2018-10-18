@@ -171,8 +171,7 @@ class Compositor(Node):
             coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
-                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]),
-                                 self.shared_coordinates])
+                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
                 # Switching from _trait_values to hasattr because "native_coordinates"
                 # sometimes not showing up in _trait_values in other locations
                 # Not confirmed here
@@ -224,6 +223,18 @@ class Compositor(Node):
         self.evaluated = True
 
         return self.output
+
+    def find_coordinates(self):
+        """
+        Get the available native coordinates for the Node.
+
+        Returns
+        -------
+        coords_list : list
+            list of available coordinates (Coordinate objects)
+        """
+
+        raise NotImplementedError("TODO")
 
     @property
     @common_doc(COMMON_DOC)

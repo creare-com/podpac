@@ -261,6 +261,8 @@ class UniformCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     def select(self, bounds, outer=False, return_indices=False):
+        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
+
         # full
         if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
             return self._select_full(return_indices)

@@ -902,6 +902,7 @@ class GroupReduce(Algorithm):
     """
 
     source = tl.Instance(Node)
+    coordinates_source = tl.Instance(Node, allow_none=True)
     
     # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
     groupby = tl.CaselessStrEnum(['dayofyear']) # could add season, month, etc
@@ -909,6 +910,10 @@ class GroupReduce(Algorithm):
     reduce_fn = tl.CaselessStrEnum(
         ['all', 'any', 'count', 'max', 'mean', 'median', 'min', 'prod', 'std', 'sum', 'var', 'custom'])
     custom_reduce_fn = tl.Any()
+
+    @tl.default('coordinates_source')
+    def _default_coordinates_source(self):
+        return self.source
 
     @property
     def source_coordinates(self):
@@ -919,22 +924,26 @@ class GroupReduce(Algorithm):
         TYPE
             Description
         """
+        
+        # get available time coordinates
+        # TODO do these two checks during node initialization
+        available_coordinates = self.coordinates_source.find_coordinates()
+        if len(available_coordinates) != 1:
+            raise ValueError("Cannot evaluate this node; too many available coordinates")
+        avail_coords = available_coordinates[0]
+        if 'time' not in avail_coords.udims:
+            raise ValueError("GroupReduce coordinates source node must be time-dependent")
+
         # intersect grouped time coordinates using groupby DatetimeAccessor
-        time = self.source.find_coordinates('time') # TODO
-        # c = self.source.find_coordinates('time')
-        # if len(c['time']) == 0:
-        #     raise ValueError("GroupReduce source node must be time-dependent")
-        # if len(c['time']) > 1:
-        #     raise ValueError("GroupReduce source node time coordinates are ambiguous")
-        native_time = xr.DataArray(time.coordinates)
+        avail_time = xr.DataArray(avail_coords.coords['time'])
         eval_time = xr.DataArray(self.requested_coordinates.coords['time'])
-        N = getattr(native_time.dt, self.groupby)
+        N = getattr(avail_time.dt, self.groupby)
         E = getattr(eval_time.dt, self.groupby)
         native_time_mask = np.in1d(N, E)
 
-        # use requested spatial coordinates and filtered native times
+        # use requested spatial coordinates and filtered available times
         coords = Coordinates(
-            time=native_time.data[native_time_mask],
+            time=avail_time.data[native_time_mask],
             lat=self.requested_coordinates['lat'],
             lon=self.requested_coordinates['lon'],
             order=('time', 'lat', 'lon'))

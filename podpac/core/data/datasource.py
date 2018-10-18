@@ -302,6 +302,18 @@ class DataSource(Node):
         self.evaluated = True
         return self.output
 
+    def find_coordinates(self):
+        """
+        Get the available native coordinates for the Node. For a DataSource, this is just the native_coordinates.
+
+        Returns
+        -------
+        coords_list : list
+            singleton list containing the native_coordinates (Coordinates object)
+        """
+
+        return [self.native_coordinates]
+
     def get_interpolation_class(self):
         """Get the interpolation class currently set for this data source.
         

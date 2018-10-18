@@ -184,6 +184,18 @@ class Node(tl.HasTraits):
         """
         raise NotImplementedError
 
+    def find_coordinates(self):
+        """
+        Get all available native coordinates for the Node. Implemented in child classes.
+
+        Returns
+        -------
+        coord_list : list
+            list of available coordinates (Coordinates objects)
+        """
+
+        raise NotImplementedError
+
     @common_doc(COMMON_DOC)
     def create_output_array(self, coords, data=np.nan, **kwargs):
         """

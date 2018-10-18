@@ -38,13 +38,12 @@ class TestExpandCoordinates(object):
         node = ExpandCoordinates(source=Arange(), lat=(-1, 1, 0.1))
         o = node.eval(coords)
 
-    def test_time_expansion_native_coordinates(self):
+    def test_time_expansion_implicit_coordinates(self):
         node = ExpandCoordinates(source=MyDataSource(), time=('-15,D', '0,D'))
         o = node.eval(coords)
         
         node = ExpandCoordinates(source=MyDataSource(), time=('-15,Y', '0,D', '1,Y'))
         o = node.eval(coords)
-        node.get_expanded_coordinates1d('time') # TODO what are we checking here
     
         node = ExpandCoordinates(source=MyDataSource(), time=('-5,M', '0,D', '1,M'))
         o = node.eval(coords)
@@ -52,16 +51,13 @@ class TestExpandCoordinates(object):
         # Behaviour a little strange on these?
         node = ExpandCoordinates(source=MyDataSource(), time=('-15,Y', '0,D', '4,Y'))
         o = node.eval(coords)
-        node.get_expanded_coordinates1d('time') # TODO what are we checking here
         
         node = ExpandCoordinates(source=MyDataSource(), time=('-15,Y', '0,D', '13,M'))
         o = node.eval(coords)
-        node.get_expanded_coordinates1d('time') # TODO what are we checking here
-    
+        
         node = ExpandCoordinates(source=MyDataSource(), time=('-144,M', '0,D', '13,M'))
         o = node.eval(coords)
-        node.get_expanded_coordinates1d('time') # TODO what are we checking here
-    
+        
 class TestSelectCoordinates(object):
     def test_no_expansion(self):
         node = SelectCoordinates(source=Arange())
@@ -75,10 +71,9 @@ class TestSelectCoordinates(object):
         node = SelectCoordinates(source=Arange(), lat=(46, 56, 1))
         o = node.eval(coords)
 
-    def test_time_selection_native_coordinates(self):
+    def test_time_selection_implicit_coordinates(self):
         node = SelectCoordinates(source=MyDataSource(), time=('2011-01-01', '2011-02-01'))
         o = node.eval(coords)
         
         node = SelectCoordinates(source=MyDataSource(), time=('2011-01-01', '2017-01-01', '1,Y'))
         o = node.eval(coords)
-        node.get_expanded_coordinates1d('time') # TODO what are we checking here

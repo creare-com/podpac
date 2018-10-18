@@ -29,6 +29,23 @@ class Algorithm(Node):
     Developers of new Algorithm nodes need to implement the `algorithm` method. 
     """
     
+    @property
+    def _inputs(self):
+        # this first version is nicer, but the gettattr(self, ref) can take a
+        # a long time if it is has a default value or is a property
+
+        # return = {
+        #     ref:getattr(self, ref)
+        #     for ref in self.trait_names()
+        #     if isinstance(getattr(self, ref, None), Node)
+        # }
+        
+        return {
+            ref:getattr(self, ref)
+            for ref, trait in self.traits().items()
+            if hasattr(trait, 'klass') and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
+        }
+
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None, method=None):
         """Evalutes this nodes using the supplied coordinates. 
@@ -50,12 +67,10 @@ class Algorithm(Node):
         self.output = output
 
         coords_list = [coordinates]
-        for name in self.trait_names():
-            node = getattr(self, name)
-            if isinstance(node, Node):
-                if self.implicit_pipeline_evaluation:
-                    node.eval(coordinates, method)
-                coords_list.append(Coordinates.from_xarray(node.output.coords))
+        for node in self._inputs.values():
+            if self.implicit_pipeline_evaluation:
+                node.eval(coordinates, method)
+            coords_list.append(Coordinates.from_xarray(node.output.coords))
         coords = union(coords_list)
 
         result = self.algorithm()
@@ -72,6 +87,18 @@ class Algorithm(Node):
             self.output = self.output.transpose(*dims) # split into 2nd line to avoid broadcasting issues with slice [:]
         self.evaluated = True
         return self.output
+
+    def find_coordinates(self)
+        """
+        Get the available native coordinates for the inputs to the Node.
+
+        Returns
+        -------
+        coords_list : list
+            list of available coordinates (Coordinate objects)
+        """
+
+        return [c.find_coordinates() for node in self._inputs.values() for c in node.find_coordinates()]
         
     def algorithm(self, **kwargs):
         """
@@ -96,23 +123,9 @@ class Algorithm(Node):
         OrderedDict
             Extends base description by adding 'inputs'
         """
-        d = self.base_definition()
-        
-        # this first version is nicer, but the gettattr(self, ref) can take a
-        # a long time if it is has a default value or is a property
 
-        # d['inputs'] = {
-        #     ref:getattr(self, ref)
-        #     for ref in self.trait_names()
-        #     if isinstance(getattr(self, ref, None), Node)
-        # }
-        
-        d['inputs'] = {
-            ref:getattr(self, ref)
-            for ref, trait in self.traits().items()
-            if hasattr(trait, 'klass') and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
-        }
-        
+        d = self.base_definition()
+        d['inputs'] = self._inputs
         return d
 
 class Arange(Algorithm):

@@ -16,80 +16,35 @@ from podpac.core.utils import common_doc
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
-class ExpandCoordinates(Algorithm):
-    """Algorithm node used to expand requested coordinates. This is normally used in conjunction with a reduce operation
-    to calculate, for example, the average temperature over the last month. While this is simple to do when evaluating
-    a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a pipeline.
+class ModifyCoordinates(Algorithm):
+    """
+    Base class for nodes that modify the requested coordinates before evaluation.
     
     Attributes
     ----------
     input_coordinates : podpac.Coordinates
         The coordinates that were used to evaluate the node
     source : podpac.Node
-        Source node that will be evaluated with the expanded coordinates.
-    lat : List
-        Expansion parameters for latitude. Format is ['start_offset', 'end_offset', 'step_size'].
-    lon : List
-        Expansion parameters for longitude. Format is ['start_offset', 'end_offset', 'step_size'].
-    time : List
-        Expansion parameters for time. Format is ['start_offset', 'end_offset', 'step_size'].
-    alt : List
-        Expansion parameters for altitude. Format is ['start_offset', 'end_offset', 'step_size'].
+        Source node that will be evaluated with the modified coordinates.
+    coordinates_source : podpac.Node
+        Node that supplies the available coordinates when necessary, optional. The source node is used by default.
+    lat, lon, time, alt : List
+        Modification parameters for given dimension. Varies by node.
     """
     
     source = tl.Instance(Node)
+    coordinates_source = tl.Instance(Node)
     input_coordinates = tl.Instance(Coordinates, allow_none=True)
     lat = tl.List().tag(attr=True)
     lon = tl.List().tag(attr=True)
     time = tl.List().tag(attr=True)
     alt = tl.List().tag(attr=True)
 
-    def get_expanded_coordinates1d(self, dim):
-        """Returns the expanded coordinates for the requested dimension
-        
-        Parameters
-        ----------
-        dim : str
-            Dimension to expand
-        
-        Returns
-        -------
-        expanded : Coordinates1d
-            Expanded coordinates
-        
-        Raises
-        ------
-        ValueError
-            In case dimension is not in the parameters.
-        """
-        
-        icoords = self.input_coordinates[dim]
-        expansion = getattr(self, dim)
-        
-        if not expansion:  # i.e. if list is empty
-            # no expansion in this dimension
-            return icoords
-
-        if len(expansion) not in [2, 3]:
-            raise ValueError("Invalid expansion attrs for '%s'" % dim)
-
-        # get start and stop offsets
-        dstart = make_coord_delta(expansion[0])
-        dstop = make_coord_delta(expansion[1])
-
-        if len(expansion) == 2:
-            # expand and use native coordinates
-            ncoords = self.source.find_coordinates(dim) # TODO
-            cs = [ncoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in icoords.coordinates]
-
-        elif len(expansion) == 3:
-            # or expand explicitly
-            step = make_coord_delta(expansion[2])
-            cs = [UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step) for x in icoords.coordinates]
-
-        return ArrayCoordinates1d(np.concatenate([c.coordinates for c in cs]), **icoords.properties)
-
-    def get_expanded_coordinates(self):
+    @tl.default('coordinates_source')
+    def _default_coordinates_source(self):
+        return self.source
+    
+    def get_modified_coordinates(self):
         """The expanded coordinates
         
         Returns
@@ -103,7 +58,7 @@ class ExpandCoordinates(Algorithm):
             Raised if expanded coordinates do not intersect with the source data. For example if a date in the future
             is selected.
         """
-        coords = [self.get_expanded_coordinates1d(dim) for dim in self.input_coordinates.dims]
+        coords = [self.get_modified_coordinates1d(dim) for dim in self.input_coordinates.dims]
         return Coordinates(coords)
    
     def algorithm(self):
@@ -138,25 +93,86 @@ class ExpandCoordinates(Algorithm):
         The input coordinates are modified and the passed to the base class implementation of eval.
         """
         self.input_coordinates = coordinates
-        coordinates = self.get_expanded_coordinates()
+        coordinates = self.get_modified_coordinates()
         for dim in coordinates.udims:
             if coordinates[dim].size == 0:
-                raise ValueError("Expanded/selected coordinates do not intersect with source data (dim '%s')" % dim)
-        return super(ExpandCoordinates, self).eval(coordinates, output, method)
+                raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
+        return super(ModifyCoordinates, self).eval(coordinates, output, method)
 
+class ExpandCoordinates(ModifyCoordinates):
+    """Algorithm node used to expand requested coordinates. This is normally used in conjunction with a reduce operation
+    to calculate, for example, the average temperature over the last month. While this is simple to do when evaluating
+    a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a pipeline.
 
-class SelectCoordinates(ExpandCoordinates):
+    lat, lon, time, alt : List
+        Expansion parameters for the given dimension: The options are::
+         * [start_offset, end_offset, step] to expand uniformly around each input coordinate.
+         * [start_offset, end_offset] to expand using the available source coordinates around each input coordinate.
+    """
+
+    def get_modified_coordinates1d(self, dim):
+        """Returns the expanded coordinates for the requested dimension, depending on the expansion parameter for the
+        given dimension.
+        
+        Parameters
+        ----------
+        dim : str
+            Dimension to expand
+        
+        Returns
+        -------
+        expanded : Coordinates1d
+            Expanded coordinates
+        """
+        
+        icoords = self.input_coordinates[dim]
+        expansion = getattr(self, dim)
+        
+        if not expansion:  # i.e. if list is empty
+            # no expansion in this dimension
+            return icoords
+
+        if len(expansion) == 2:
+            # use available native coordinates
+            dstart = make_coord_delta(expansion[0])
+            dstop = make_coord_delta(expansion[1])
+            
+            available_coordinates = self.coordinates_source.find_coordinates()
+            if len(available_coordinates) != 1:
+                raise ValueError("Cannot implicity expand coordinates; too many available coordinates")
+            acoords = available_coordinates[0][dim]
+            cs = [acoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in icoords.coordinates]
+
+        elif len(expansion) == 3:
+            # use a explicit step size
+            dstart = make_coord_delta(expansion[0])
+            dstop = make_coord_delta(expansion[1])
+            step = make_coord_delta(expansion[2])
+            cs = [UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step) for x in icoords.coordinates]
+
+        else:
+            raise ValueError("Invalid expansion attrs for '%s'" % dim)
+
+        return ArrayCoordinates1d(np.concatenate([c.coordinates for c in cs]), **icoords.properties)
+
+class SelectCoordinates(ModifyCoordinates):
     """Algorithm node used to select coordinates different from the input coordinates. While this is simple to do when 
     evaluating a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a 
     pipeline. For example, if a single spatial reference point is used for a particular comparison, and this reference
-    point is different than the requested coordinates, we need to explicitly select those coordinates using this Node. 
-    
+    point is different than the requested coordinates, we need to explicitly select those coordinates using this Node.
+
+    lat, lon, time, alt : List
+        Selection parameters for the given dimension: The options are::
+         * [value]: select this coordinate value
+         * [start, stop]: select the available source coordinates within the given bounds
+         * [start, stop, step]: select uniform coordinates defined by the given start, stop, and step
     """
     
-    def get_expanded_coordinates1d(self, dim):
-        """Function name is a misnomer -- should be get_selected_coord, but we are using a lot of the
-        functionality of the ExpandCoordinates node. 
-        
+    def get_modified_coordinates1d(self, dim):
+        """
+        Get the desired 1d coordinates for the given dimension, depending on the selection attr for the given
+        dimension::
+
         Parameters
         ----------
         dim : str
@@ -164,41 +180,33 @@ class SelectCoordinates(ExpandCoordinates):
         
         Returns
         -------
-        ArrayCoordinates1d
-            The selected coordinate
-        
-        Raises
-        ------
-        ValueError
-            Description
+        coords1d : ArrayCoordinates1d
+            The selected coordinates for the given dimension.
         """
+
         icoords = self.input_coordinates[dim]
-        coords = getattr(self, dim)
+        selection = getattr(self, dim)
         
-        if not coords:
+        if not selection:
             # no selection in this dimension
             return icoords
 
-        if len(coords) not in [1, 2, 3]:
-            raise ValueError("Invalid expansion attrs for '%s'" % dim)
-
-        # get start offset
-        start = make_coord_value(coords[0])
-        
-        if len(coords) == 1:
-            xcoord = ArrayCoordinates1d(start, **icoords.properties)
+        if len(selection) == 1:
+            # a single value
+            coords1d = ArrayCoordinates1d(selection, **icoords.properties)
             
-        elif len(coords) == 2:
-            # select and use native coordinates
-            stop = make_coord_value(coords[1])
-            ncoords = self.source.find_coordinates(dim) #TODO
-            xcoord = ncoord.select([start, stop])
+        elif len(selection) == 2:
+            # use available source coordinates within the selected bounds
+            available_coordinates = self.coordinates_source.find_coordinates()
+            if len(available_coordinates) != 1:
+                raise ValueError("Cannot select within bounds; too many available coordinates")
+            coords1d = available_coordinates[0][dim].select(selection)
 
-        elif len(coords) == 3:
-            # select explicitly
-            stop = make_coord_value(coords[1])            
-            step = make_coord_delta(coords[2])
-            xcoord = UniformCoordinates1d(start, stop, step, **icoords.properties)
+        elif len(selection) == 3:
+            # uniform coordinates using start, stop, and step
+            coords1d = UniformCoordinates1d(*selection, **icoords.properties)
 
-        return xcoord
+        else:
+            raise ValueError("Invalid selection attrs for '%s'" % dim)
 
+        return coords1d
