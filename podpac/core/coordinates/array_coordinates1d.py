@@ -88,6 +88,11 @@ class ArrayCoordinates1d(Coordinates1d):
     def from_xarray(cls, x, **kwargs):
         return cls(x.data, name=x.name)
 
+    @classmethod
+    def from_json(self, d):
+        coords = d.pop('values')
+        return cls(coords, **d)
+
     def copy(self, **kwargs):
         properties = self.properties
         properties.update(kwargs)
@@ -185,6 +190,16 @@ class ArrayCoordinates1d(Coordinates1d):
         area_bounds = np.array([lo, hi], dtype=self.dtype)
         area_bounds.setflags(write=False)
         return area_bounds
+
+    @property
+    def json(self):
+        d = OrderedDict()
+        if self.dtype == float:
+            d['values'] = self.coords.to_list()
+        else:
+            d['values'] = self.coords.astype('str').to_list()
+        d.update(self.properties)
+        return d
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods

@@ -108,6 +108,9 @@ class Coordinates1d(BaseCoordinates):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
             self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)
 
+    def from_json(self, d):
+        raise NotImplementedError
+
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
@@ -172,6 +175,12 @@ class Coordinates1d(BaseCoordinates):
         Low and high area bounds. When ctype != 'point', this includes the portions of the segments beyond the
         coordinate bounds.
         '''
+
+    @property
+    def json(self):
+        '''
+        '''
+        raise NotImplementedError
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
