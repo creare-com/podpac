@@ -917,7 +917,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         return '{0}_{1}'.format(self.__class__.__name__, self.product)
 
     @property
-    def definition(self):
+    def base_definition(self):
         """Summary
 
         Returns
@@ -925,7 +925,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         TYPE
             Description
         """
-        d = self.base_definition()
+        d = super(SMAP, self).base_definition
         if self.interpolation:
             d['attrs']['interpolation'] = self.interpolation
         return d

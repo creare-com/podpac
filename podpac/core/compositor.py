@@ -238,14 +238,14 @@ class Compositor(Node):
 
     @property
     @common_doc(COMMON_DOC)
-    def definition(self):
-        """Pipeline node defintion for Compositor nodes. 
+    def base_definition(self):
+        """Base node defintion for Compositor nodes. 
         
         Returns
         -------
         {definition_return}
         """
-        d = self.base_definition()
+        d = super(Compositor, self).base_definition
         d['sources'] = self.sources
         return d
 

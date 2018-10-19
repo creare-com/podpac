@@ -779,14 +779,14 @@ class DataSource(Node):
 
     @property
     @common_doc(COMMON_DATA_DOC)
-    def definition(self):
-        """Pipeline node defintion for DataSource nodes. 
+    def base_definition(self):
+        """Base node defintion for DataSource nodes. 
         
         Returns
         -------
         {definition_return}
         """
-        d = self.base_definition()
+        d = super(DataSource, self).base_definition
         d['source'] = self.source
 
         # TODO: cast interpolation to string in way that can be recreated here

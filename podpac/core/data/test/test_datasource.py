@@ -116,11 +116,11 @@ class TestDataSource(object):
         with pytest.raises(TraitError):
             MockDataSource(nan_vals=10)
 
-    def test_definition(self):
+    def test_base_definition(self):
         """Test definition property method"""
 
         node = DataSource(source='test')
-        d = node.definition
+        d = node.base_definition
 
         assert d
         assert 'node' in d

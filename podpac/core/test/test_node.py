@@ -1,6 +1,8 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
+from collections import OrderedDict
+import json
 
 import pytest
 import numpy as np
@@ -12,53 +14,83 @@ import podpac
 from podpac.core import common_test_utils as ctu
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node, NodeException
-        
+from podpac.core.pipeline import Pipeline
+    
+class TestInit(object):
+    pass # TODO
+
 class TestNodeProperties(object):
     def test_base_ref(self):
-        # Just make sure this doesn't error out
-        Node().base_ref
-        
-    def test_latlon_bounds_str(self):
-        n = Node(requested_coordinates=podpac.Coordinates([[0, 0.5, 1], [0, 0.5, 1]], dims=['lat', 'lon']))
-        assert(n.latlon_bounds_str == '0.0_0.0_x_1.0_1.0')
-        
-    def test_cache_dir(self):
-        d = Node().cache_dir
-        assert(d.endswith('Node'))
-        assert('cache' in d)
-        
-        
-class TestNotImplementedMethods(object):
-    def test_eval(self):
-        with pytest.raises(NotImplementedError):
-            Node().eval(None)
-    
+        n = Node()
+        assert isinstance(n.base_ref, str)
+
+    def test_base_definition(self):
+        class N(Node):
+            attr = tl.Int().tag(attr=True)
+        n = N(attr=7)
+
+        d = n.base_definition
+        assert isinstance(d, OrderedDict)
+        assert 'node' in d
+        assert isinstance(d['node'], str)
+        assert 'attrs' in d
+        assert isinstance(d['attrs'], OrderedDict)
+        assert 'attr' in d['attrs']
+        assert d['attrs']['attr'] == 7
+
     def test_definition(self):
-        with pytest.raises(NotImplementedError):
-            Node().definition()
-    
-    def test_pipeline_definition(self):
-        with pytest.raises(NotImplementedError):
-            Node().pipeline_definition
-        
-    def test_pipeline_json(self):
-        with pytest.raises(NotImplementedError):
-            Node().pipeline_json
+        n = Node()
+        d = n.definition
+        assert isinstance(d, OrderedDict)
+        assert list(d.keys()) == ['nodes']
     
     def test_pipeline(self):
-        with pytest.raises(NotImplementedError):
-            Node().pipeline
+        n = Node()
+        p = n.pipeline
+        assert isinstance(p, Pipeline)
     
-class TestNodeMethods(object):
+    def test_json(self):
+        n = Node()
+        s = n.json
+        assert isinstance(s, str)
+        json.loads(s)
+
+    def test_hash(self):
+        class N(Node):
+            attr = tl.Int().tag(attr=True)
+
+        class M(Node):
+            attr = tl.Int().tag(attr=True)
+
+        n1 = N(attr=1)
+        n2 = N(attr=1)
+        n3 = N(attr=2)
+        m1 = M(attr=1)
+
+        assert n1.hash == n2.hash
+        assert n1.hash != n3.hash
+        assert n1.hash != m1.hash
+
+class TestNotImplementedMethods(object):
+    def test_eval(self):
+        n = Node()
+        with pytest.raises(NotImplementedError):
+            n.eval(None)
+
+        with pytest.raises(NotImplementedError):
+            n.eval(None, output=None, method=None)
+
+    def test_find_coordinates(self):
+        n = Node()
+        with pytest.raises(NotImplementedError):
+            n.find_coordinates()
+
+class TestCreateOutputArray(object):
     @classmethod
     def setup_class(cls):
         cls.c1 = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
         cls.c2 = podpac.Coordinates([podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)], dims=['lat_lon'])
         cls.crds = [cls.c1, cls.c2]
-
-    def test_get_output_coords(self):
-        # TODO
-        pass
 
     def test_create_output_array_default(self):
         node = Node()
@@ -88,113 +120,206 @@ class TestNodeMethods(object):
         assert output.dtype == node.dtype
         assert np.all(~output)
 
-class TestPipelineDefinition(object):
-    def test_base_definition(self):
-        class N(Node):
-            attr = tl.Int().tag(attr=True)
-        n = N(attr=7)
-        bd = n.base_definition()
-        assert(bd.get('node', '') == 'N')
-        assert(bd.get('attrs', {}).get('attr', {}) == 7)
+@pytest.mark.skip("TODO")
+class TestCaching(object):
+    @classmethod
+    def setup_class(cls):
+        class MyNode(Node):
+            pass
 
-class TestFilesAndCaching(object):
-    def test_get_hash(self):
-        # TODO attrs should result in different hashes
-        crds1 = podpac.Coordinates([1], dims=['lat'])
-        crds2 = podpac.Coordinates([2], dims=['lat'])
-        crds3 = podpac.Coordinates([1], dims=['lon'])
-        n1 = Node()
-        n2 = Node()
-        assert(n1.get_hash(crds1) == n2.get_hash(crds1))
-        assert(n1.get_hash(crds2) != n2.get_hash(crds1))
-        assert(n1.get_hash(crds3) != n2.get_hash(crds1))
-        
-    def test_evaluated_hash(self):
-        n = Node()
+        cls.node = MyNode()
+        cls.node.del_cache()
+
+        cls.coords = podpac.Coordinates([0, 0], dims=['lat', 'lon'])
+        cls.coords2 = podpac.Coordinates([1, 1], dims=['lat', 'lon'])
+
+    @classmethod
+    def teardown_class(cls):
+        cls.node.del_cache()
+
+    def setup_method(self):
+        self.node.del_cache()
+
+    def teardown_method(self):
+        self.node.del_cache()
+
+    def test_has(self):
+        assert not self.node.has('test')
+
+        self.node.put(0, 'test')
+        assert self.node.has('test')
+        assert not self.node.has('test', coordinates=self.coords)
+
+    def test_has_coordinates(self):
+        assert not self.node.has('test', coordinates=self.coords)
+
+        self.node.put(0, 'test', coordinates=self.coords)
+
+        assert not self.node.has('test')
+        assert self.node.has('test', coordinates=self.coords)
+        assert not self.node.has('test', coordinates=self.coords2)
+
+    def test_get_put(self):
         with pytest.raises(NodeException):
-            n.evaluated_hash
-        n.requested_coordinates = podpac.Coordinates([0], dims=['lat'])
-        n.evaluated_hash
-        
-    def test_get_output_path(self):
-        p = Node().get_output_path('testfilename.txt')
-        assert(p.endswith('testfilename.txt'))
-        assert(os.path.exists(os.path.dirname(p)))
-        
+            self.node.get('test')
+
+        self.node.put(0, 'test')
+        assert self.node.get('test') == 0
+
+    def test_get_put_coordinates(self):
+        with pytest.raises(NodeException):
+            self.node.get('test')
+        with pytest.raises(NodeException):
+            self.node.get('test', coordinates=self.coords)
+        with pytest.raises(NodeException):
+            self.node.get('test', coordinates=self.coords2)
+
+        self.node.put(0, 'test')
+        self.node.put(1, 'test', coordinates=self.coords)
+        self.node.put(2, 'test', coordinates=self.coords2)
+
+        assert self.node.get('test') == 0
+        assert self.node.get('test', coordinates=self.coords) == 1
+        assert self.node.get('test', coordinates=self.coords2) == 2
+
+    def test_put_overwrite(self):
+        self.node.put(0, 'test')
+        assert self.node.get('test') == 0
+
+        with pytest.raises(NodeException):
+            self.node.put('test', 1)
+
+        self.node.put(1, 'test', overwrite=True)
+        assert self.node.get('test') == 1
+
+    def test_del_all(self):
+        self.node.put(0, 'a')
+        self.node.put(0, 'b')
+        self.node.put(0, 'a', coordinates=self.coords)
+        self.node.put(0, 'c', coordinates=self.coords)
+        self.node.put(0, 'c', coordinates=self.coords2)
+        self.node.put(0, 'd', coordinates=self.coords)
+
+        self.node.del_cache()
+        assert not self.has_cache('a')
+        assert not self.has_cache('b')
+        assert not self.has_cache('a', coordinates=self.coords)
+        assert not self.has_cache('c', coordinates=self.coords)
+        assert not self.has_cache('c', coordinates=self.coords2)
+        assert not self.has_cache('d', coordinates=self.coords)
+
+    def test_del_key(self):
+        self.node.put(0, 'a')
+        self.node.put(0, 'b')
+        self.node.put(0, 'a', coordinates=self.coords)
+        self.node.put(0, 'c', coordinates=self.coords)
+        self.node.put(0, 'c', coordinates=self.coords2)
+        self.node.put(0, 'd', coordinates=self.coords)
+
+        self.node.del_cache(key='a')
+
+        assert not self.has_cache('a')
+        assert not self.has_cache('a', coordinates=self.coords)
+        assert self.has_cache('b')
+        assert self.has_cache('c', coordinates=self.coords)
+        assert self.has_cache('c', coordinates=self.coords2)
+        assert self.has_cache('d', coordinates=self.coords)
+
+    def test_del_coordinates(self):
+        self.node.put(0, 'a')
+        self.node.put(0, 'b')
+        self.node.put(0, 'a', coordinates=self.coords)
+        self.node.put(0, 'c', coordinates=self.coords)
+        self.node.put(0, 'c', coordinates=self.coords2)
+        self.node.put(0, 'd', coordinates=self.coords)
+
+        self.node.del_cache(coordinates=self.coords)
+
+        assert self.has_cache('a')
+        assert not self.has_cache('a', coordinates=self.coords)
+        assert self.has_cache('b')
+        assert not self.has_cache('c', coordinates=self.coords)
+        assert self.has_cache('c', coordinates=self.coords2)
+        assert not self.has_cache('d', coordinates=self.coords)
+
+    def test_del_key_coordinates(self):
+        self.node.put(0, 'a')
+        self.node.put(0, 'b')
+        self.node.put(0, 'a', coordinates=self.coords)
+        self.node.put(0, 'c', coordinates=self.coords)
+        self.node.put(0, 'c', coordinates=self.coords2)
+        self.node.put(0, 'd', coordinates=self.coords)
+
+        self.node.del_cache(key='a', cordinates=self.coords)
+
+        assert self.has_cache('a')
+        assert not self.has_cache('a', coordinates=self.coords)
+        assert self.has_cache('b')
+        assert self.has_cache('c', coordinates=self.coords)
+        assert self.has_cache('c', coordinates=self.coords2)
+        assert self.has_cache('d', coordinates=self.coords)
+
+class TestDeprecatedMethods(object):
+    def setup_method(self):
+        self.paths_to_remove = []
+
+    def teardown_method(self):
+        for path in self.paths_to_remove:
+            try:
+                os.remove(path)
+            except:
+                pass
+
     def test_write_file(self):
         n = Node()
-        n.requested_coordinates = podpac.Coordinates([0, 1], dims=['lat', 'lon'])
-        fn = 'temp_test'
-        p = n.write(fn)
-        assert(os.path.exists(p))
-        os.remove(p)
-        with pytest.raises(NotImplementedError):
-            n.write(fn, format='notARealFormat')
+        c = podpac.Coordinates([0, 1], dims=['lat', 'lon'])
+        p = n.write('temp_test', c)
+        self.paths_to_remove.append(p)
+        
+        assert os.path.exists(p)
     
-    @pytest.mark.skip(reason="spec changes")
     def test_load_file(self):
         c = podpac.Coordinates([0, 1], dims=['lat', 'lon'])
-        n = Node()
-        n.requested_coordinates = c
         fn = 'temp_test'
-        p = n.write(fn)
-        o = n.output
-        _ = n.load(fn, c)
-        np.testing.assert_array_equal(o, n.output.data)
-        os.remove(p)
         
-    def test_cache_path(self):
-        with pytest.raises(AttributeError):
-            p = Node().cache_path('testfile')
-        with pytest.raises(AttributeError):
-            p = Node().cache_obj('testObject', 'testFileName')
-        with pytest.raises(AttributeError):
-            p = Node().load_cached_obj('testFileName')    
-    
-    @pytest.mark.skip("This doesn't really work without self.source")
-    def test_clear_cache(self):
+        n1 = Node()
+        n1.output = UnitsDataArray([0, 1])
+        p1 = n1.write(fn, c)
+        self.paths_to_remove.append(p1)
+
+        n2 = Node()
+        p2 = n2.load(fn, c)
+        
+        assert p1 == p2
+        np.testing.assert_array_equal(n1.output.data, n2.output.data)
+        
+
+    def test_cache_dir(self):
         n = Node()
+        assert isinstance(n.cache_dir, str)
+        assert n.cache_dir.endswith('Node')
+        assert 'cache' in n.cache_dir
+
+    def test_cache_path(self):
+        n = Node()
+        with pytest.raises(AttributeError):
+            n.cache_path('testfile')
+        with pytest.raises(AttributeError):
+            n.cache_obj('testObject', 'testFileName')
+        with pytest.raises(AttributeError):
+            n.load_cached_obj('testFileName')    
+    
+    @pytest.mark.skip()
+    def test_clear_disk_cache(self):
+        class N(Node):
+            source = 'test'
+
+        n = N()
         with pytest.raises(AttributeError):
             n.clear_disk_cache()
         n.clear_disk_cache(all_cache=True)
         with pytest.raises(AttributeError):
             n.clear_disk_cache(node_cache=True)
-
-@pytest.mark.skip("spec has changed")
-class TestNodeOutputCoordinates(object):
-    @pytest.mark.xfail(reason="This defines part of the node spec, which still needs to be implemented")
-    def test_node_output_coordinates(self):
-        coords_list = ctu.make_coordinate_combinations()
-        kwargs = {}
-        kwargs['lat'] = [-1, 0, 1]
-        kwargs['lon'] = [-1, 0, 1]
-        kwargs['alt'] = [-1, 0, 1]
-        kwargs['time'] = ['2000-01-01T00:00:00', '2000-02-01T00:00:00']
-        nc = ctu.make_coordinate_combinations(**kwargs)
-        
-        node = Node()
-        for coords in coords_list.values():
-            for n in nc.values():
-                node.native_coordinates = n
-                
-                # The request must contain all the dimensions in the native coordinates
-                allcovered = True
-                for d in n.dims:
-                    if d not in coords.dims:
-                        allcovered = False
-                if allcovered: # If request contains all dimensions, the order should be in the evaluated coordinates
-                    c = node.get_output_coords(coords)
-                    i = 0
-                    for d in coords.dims:
-                        if d in n.dims:
-                            print (d, c.dims, i, coords, n)
-                            assert(d == c.dims[i])
-                            i += 1
-                else:  # We throw an exception
-                    with pytest.raises(Exception):
-                        c = node.get_output_coords(coords)
-                    
-                    
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)
 @pytest.mark.integration

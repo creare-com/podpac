@@ -830,13 +830,13 @@ class ReprojectedSource(DataSource, Algorithm):
         return '{}_reprojected'.format(self.source.base_ref)
 
     @property
-    def definition(self):
-        """ Pipeline node definition. 
+    def base_definition(self):
+        """ Base node definition. 
         
         Returns
         -------
         OrderedDict
-            Pipeline node definition. 
+            Base node definition. 
         
         Raises
         ------
@@ -845,7 +845,7 @@ class ReprojectedSource(DataSource, Algorithm):
             is not implemented
         """
         
-        d = Algorithm.definition.fget(self)
+        d = Algorithm.base_definition.fget(self)
         d['attrs'] = OrderedDict()
         if self.interpolation:
             d['attrs']['interpolation'] = self.interpolation

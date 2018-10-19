@@ -62,7 +62,7 @@ class FileOutput(Output):
 
     # TODO: docstring?
     def write(self):
-        self._path = self.node.write(self.name, outdir=self.outdir, format=self.format)
+        self._path = self.node.write(self.name, outdir=self.outdir, fmt=self.format)
 
 
 class FTPOutput(Output):

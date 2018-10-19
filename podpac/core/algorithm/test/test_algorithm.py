@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import pytest
 import numpy as np
+from collections import OrderedDict
 
 import podpac
 from podpac.core.algorithm.algorithm import Algorithm, Arange, CoordData, SinCoords, Arithmetic
@@ -12,12 +13,14 @@ class TestAlgorithm(object):
         with pytest.raises(NotImplementedError):
             node.eval(podpac.Coordinates())
 
-    def test_pipeline_definition(self):
+    def test_base_definition(self):
         # note: any algorithm node with attrs and inputs would be fine here
         node = Arithmetic(A=Arange(), B=Arange(), eqn='A+B')
-        d = node.definition
+        d = node.base_definition
         
-        assert isinstance(d, dict)
+        assert isinstance(d, OrderedDict)
+        assert 'node' in d
+        assert 'attrs' in d
         
         # base (node, params)
         assert d['node'] == 'core.algorithm.algorithm.Arithmetic'

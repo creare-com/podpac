@@ -4,6 +4,7 @@ Algorithm Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+from collections import OrderedDict
 import inspect
 import numpy as np
 import xarray as xr
@@ -115,8 +116,8 @@ class Algorithm(Node):
         raise NotImplementedError
 
     @property
-    def definition(self):
-        """Pipeline node definition. 
+    def base_definition(self):
+        """Base node definition. 
 
         Returns
         -------
@@ -124,8 +125,9 @@ class Algorithm(Node):
             Extends base description by adding 'inputs'
         """
 
-        d = self.base_definition()
-        d['inputs'] = self._inputs
+        d = super(Algorithm, self).base_definition
+        inputs = self._inputs
+        d['inputs'] = OrderedDict([(key, inputs[key]) for key in sorted(inputs.keys())])
         return d
 
 class Arange(Algorithm):

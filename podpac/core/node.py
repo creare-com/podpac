@@ -235,7 +235,7 @@ class Node(tl.HasTraits):
         return create_data_array(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
-    # Pipeline Interface
+    # Serialization properties
     # -----------------------------------------------------------------------------------------------------------------
 
     @property
@@ -250,14 +250,20 @@ class Node(tl.HasTraits):
         """
         return self.__class__.__name__
 
-
+    @property
     def base_definition(self):
-        """Get the base pipeline definition.
+        """
+        Pipeline node definition.
+
+        This property is implemented in the primary base nodes (DataSource, Algorithm, and Compositor). Node
+        subclasses with additional attrs will need to extend this property.
 
         Returns
         -------
         {definition_return}
+        
         """
+
         d = OrderedDict()
 
         if self.__module__ == 'podpac':
@@ -273,36 +279,12 @@ class Node(tl.HasTraits):
             if value.metadata.get('attr', False):
                 attrs[key] = getattr(self, key)
         if attrs:
-            d['attrs'] = attrs
+            d['attrs'] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
+
         return d
 
     @property
     def definition(self):
-        """
-        Pipeline node definition.
-
-        This property is implemented in the primary base nodes (DataSource, Algorithm, and Compositor). Node
-        subclasses with additional attrs will need to extend this property.
-
-        Returns
-        -------
-        definition : OrderedDct
-            full pipeline definition, including the base_defition and any additional properties
-
-        Raises
-        ------
-        NotImplementedError
-            This needs to be implemented by derived classes
-
-        See Also
-        --------
-        base_definition
-        """
-
-        raise NotImplementedError
-
-    @property
-    def pipeline_definition(self):
         """
         Full pipeline definition for this node.
 
@@ -316,8 +298,20 @@ class Node(tl.HasTraits):
         return make_pipeline_definition(self)
 
     @property
-    def pipeline_json(self):
-        """Full pipeline definition for this node in json format
+    def pipeline(self):
+        """Create a pipeline node from this node
+
+        Returns
+        -------
+        podpac.Pipeline
+            A pipeline node that wraps this node
+        """
+        from podpac.core.pipeline import Pipeline
+        return Pipeline(definition=self.definition)
+
+    @property
+    def json(self):
+        """definition for this node in json format
 
         Returns
         -------
@@ -329,19 +323,11 @@ class Node(tl.HasTraits):
         This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to 
         share algorithms and pipelines, or run code on cloud services. 
         """
-        return json.dumps(self.pipeline_definition, indent=4)
+        return json.dumps(self.definition, indent=4)
 
     @property
-    def pipeline(self):
-        """Create a pipeline node from this node
-
-        Returns
-        -------
-        podpac.Pipeline
-            A pipeline node created using the self.pipeline_definition
-        """
-        from podpac.core.pipeline import Pipeline
-        return Pipeline(self.pipeline_definition)
+    def hash(self):
+        return hash(self.json)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface
@@ -372,7 +358,7 @@ class Node(tl.HasTraits):
         if not self.has_cache(key, coordinates=coordinates):
             raise NodeException("cached data not found for key '%s' and cooordinates %s" % (key, coordinates))
 
-        # return cache.put(self, data, key, coordinates=coordinates)
+        # return cache.get(self, data, key, coordinates=coordinates)
 
     def put_cache(self, data, key, coordinates=None, overwrite=False):
         """
@@ -418,7 +404,7 @@ class Node(tl.HasTraits):
         """
 
         return False
-        # return cache.exists(self, data, key, coordinates=coordinates)
+        # return cache.has(self, data, key, coordinates=coordinates)
 
     def del_cache(self, key=None, coordinates=None):
         """
@@ -434,121 +420,33 @@ class Node(tl.HasTraits):
         """
 
         pass
-        # return cache.clear(self, data, key, coordinates=coordinates)
+        # return cache.rem(self, data, key, coordinates=coordinates)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Deprecated methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def get_hash(self, coordinates=None):
-        """Hash used for caching node outputs.
+    def _get_filename(self, name, coordinates):
+        return '%s_%s_%s' % (name, self.hash, coordinates.hash)
 
-        Parameters
-        ----------
-        coordinates : None, optional
-            {requested_coordinates}
-
-        Returns
-        -------
-        str
-            {hash_return}
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-    
-        warnings.warn('Node.get_hash will be removed in a later release', DeprecationWarning)
-
-        return hash(str(coordinates))
-
-    @property
-    def evaluated_hash(self):
-        """Get hash for node after being evaluated
-
-        Returns
-        -------
-        str
-            {hash_return}
-
-        Raises
-        ------
-        NodeException
-            Gets raised if node has not been evaluated
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-        
-        warnings.warn('Node.evaluated_hash will be removed in a later release', DeprecationWarning)
-
-        if self.requested_coordinates is None:
-            raise NodeException("node not evaluated")
-
-        return self.get_hash(self.requested_coordinates)
-
-    @property
-    def latlon_bounds_str(self):
-        """Helper property used for naming cached files
-
-        Returns
-        -------
-        str
-            String containing the latitude/longitude bounds of a set of coordinates
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-
-        warnings.warn('Node.latlon_bounds_str will be removed in a later release', DeprecationWarning)
-
-        return self.requested_coordinates.latlon_bounds_str
-
-
-    def get_output_path(self, filename, outdir=None):
-        """Get the output path where data is cached to disk
-
-        Parameters
-        ----------
-        filename : str
-            Name of the file in the cache.
-        outdir : None, optional
-            {out_dir}
-
-        Returns
-        -------
-        str
-            Path to location where data is cached
-            
-        Notes
-        ------
-        If the output directory doesn't exist, it will be created.
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-
-        warnings.warn('Node.get_output_path will be removed in a later release', DeprecationWarning)
-
+    def _get_output_path(self, outdir=None):
         if outdir is None:
             outdir = settings.CACHE_DIR
-
         if not os.path.exists(outdir):
             os.makedirs(outdir)
+        return outdir
 
-        return os.path.join(outdir, filename)
-
-
-    def write(self, name, outdir=None, format='pickle'):
+    def write(self, name, coordinates=None, outdir=None, fmt='pickle'):
         """Write self.output to disk using the specified format
 
         Parameters
         ----------
         name : str
-            Name of the file prefix. The final filename will have <name>_<hash>_<latlon_bounds_str>.<format>
+            Name of the file prefix. The final filename will have <name>_<node_hash>_<coordinates_hash>.<ext>
         outdir : None, optional
             {outdir}
-        format : str, optional
-            The file format. Currently only `pickle` is supported. 
+        fmt : str
+            Output format, default 'pickle'
             
         Returns
         --------
@@ -558,7 +456,9 @@ class Node(tl.HasTraits):
         Raises
         ------
         NotImplementedError
-            Raised if an unsupported format is specified
+            format not yet implemented
+        ValueError
+            invalid format
 
         .. deprecated:: 0.2.0
             This method will be removed and replaced by the caching module by version 0.2.0.
@@ -566,17 +466,22 @@ class Node(tl.HasTraits):
 
         warnings.warn('Node.write will be removed in a later release', DeprecationWarning)
 
-        filename = '%s_%s_%s.pkl' % (
-            name,
-            self.evaluated_hash,
-            self.latlon_bounds_str)
-        path = self.get_output_path(filename, outdir=outdir)
+        if coordinates is None:
+            coordinates = self.requested_coordinates
 
-        if format == 'pickle':
+        path = os.path.join(self._get_output_path(outdir=outdir), self._get_filename(name, coordinates=coordinates))
+
+        if fmt == 'pickle':
+            path = '%s.pkl' % path
             with open(path, 'wb') as f:
                 cPickle.dump(self.output, f)
+        elif fmt == 'png':
+            raise NotImplementedError("format '%s' not yet implemented" % fmt)
+        elif fmt == 'geotif':
+            raise NotImplementedError("format '%s' not yet implemented" % fmt)
         else:
-            raise NotImplementedError
+            raise ValueError("invalid format, '%s' not recognized" % fmt)
+
         return path
 
     def load(self, name, coordinates, outdir=None):
@@ -602,9 +507,11 @@ class Node(tl.HasTraits):
 
         warnings.warn('Node.load will be removed in a later release', DeprecationWarning)
 
-        filename = '%s_%s_%s.pkl' % (name, self.get_hash(coordinates), coordinates.latlon_bounds_str)
-        path = self.get_output_path(filename, outdir=outdir)
-
+        if coordinates is None:
+            coordinates = self.requested_coordinates
+        
+        path = os.path.join(self._get_output_path(outdir=outdir), self._get_filename(name, coordinates=coordinates))
+        path = '%s.pkl' % path # assumes pickle
         with open(path, 'rb') as f:
             self.output = cPickle.load(f)
         return path

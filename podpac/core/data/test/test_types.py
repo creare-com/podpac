@@ -560,19 +560,19 @@ class TestReprojectedSource(object):
 
         assert '_reprojected' in ref
 
-    def test_definition(self):
+    def test_base_definition(self):
         """test definition"""
 
         datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
         node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-        definition = node.definition
-        assert 'attrs' in definition
-        assert 'interpolation' in definition['attrs']
+        d = node.base_definition
+        assert 'attrs' in d
+        assert 'interpolation' in d['attrs']
 
         # no coordinates source
         node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         with pytest.raises(NotImplementedError):
-            definition = node.definition
+            node.base_definition
 
 class TestS3(object):
     """test S3 data source"""

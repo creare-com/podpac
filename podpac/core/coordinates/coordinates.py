@@ -8,6 +8,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import copy
 import sys
 import itertools
+import json
 from collections import OrderedDict
 
 import numpy as np
@@ -345,7 +346,11 @@ class Coordinates(tl.HasTraits):
 
     @property
     def json(self):
-        return [c.json for c in self._coords.values())]
+        return json.dumps([c.json for c in self._coords.values()])
+
+    @property
+    def hash(self):
+        return hash(json.dumps(self.json))
     
     # ------------------------------------------------------------------------------------------------------------------
     # Methods

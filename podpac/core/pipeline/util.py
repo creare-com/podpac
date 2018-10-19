@@ -196,10 +196,8 @@ def make_pipeline_definition(output_node):
         if node in nodes:
             return refs[nodes.index(node)]
 
-        # get definition
-        d = node.definition
-
-        # replace nodes with references, adding nodes depth first
+        # get base definition and then replace nodes with references, adding nodes depth first
+        d = node.base_definition
         if 'inputs' in d:
             for key, input_node in d['inputs'].items():
                 if input_node is not None:
@@ -208,7 +206,7 @@ def make_pipeline_definition(output_node):
             for i, source_node in enumerate(d['sources']):
                 d['sources'][i] = add_node(source_node)
 
-        # unique ref
+        # get base ref and then ensure it is unique
         ref = node.base_ref
         while ref in refs:
             if re.search('_[1-9][0-9]*$', ref):

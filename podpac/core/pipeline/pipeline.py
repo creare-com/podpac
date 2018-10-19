@@ -21,6 +21,8 @@ class Pipeline(Node):
     ----------
     path : string
         path to pipeline JSON definition
+    json : string
+        pipeline JSON definition
     definition : OrderedDict
         pipeline definition
     nodes : OrderedDict
