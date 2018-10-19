@@ -5,6 +5,7 @@ Node Summary
 from __future__ import division, print_function, absolute_import
 
 import os
+import warnings
 import glob
 import shutil
 from collections import OrderedDict
@@ -237,6 +238,10 @@ class Node(tl.HasTraits):
         attrs = {'layer_style': self.style, 'units': self.units}
         return create_data_array(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
 
+    # -----------------------------------------------------------------------------------------------------------------
+    # Pipeline Interface
+    # -----------------------------------------------------------------------------------------------------------------
+
     @property
     def base_ref(self):
         """
@@ -342,6 +347,145 @@ class Node(tl.HasTraits):
         from podpac.core.pipeline import Pipeline
         return Pipeline(self.pipeline_definition)
 
+    # -----------------------------------------------------------------------------------------------------------------
+    # Caching Interface
+    # -----------------------------------------------------------------------------------------------------------------
+
+    def get_cache(self, key, coordinates=None):
+        """
+        Get cached data for this node.
+
+        Parameters
+        ----------
+        key : str
+            Key for the cached data, e.g. 'output'
+        coordinates : podpac.Coordinates, optional
+            Coordinates for which the cached data should be retrieved. Omit for coordinate-independent data.
+
+        Returns
+        -------
+        data : any
+            The cached data.
+        
+        Raises
+        ------
+        NodeException
+            Cached data not found.
+        """
+
+        if not self.has_cache(key, coordinates=coordinates):
+            raise NodeException("cached data not found for key '%s' and cooordinates %s" % (key, coordinates))
+
+        # return cache.put(self, data, key, coordinates=coordinates)
+
+    def put_cache(self, data, key, coordinates=None, overwrite=False):
+        """
+        Cache data for this node.
+
+        Parameters
+        ----------
+        data : any
+            The data to cache.
+        key : str
+            Unique key for the data, e.g. 'output'
+        coordinates : podpac.Coordinates, optional
+            Coordinates that the cached data depends on. Omit for coordinate-independent data.
+        overwrite : bool
+            Overwrite existing data, default False
+
+        Raises
+        ------
+        NodeException
+            Cached data already exists (and overwrite is False)
+        """
+
+        if not overwrite and self.has_cache(key, coordinates=coordinates):
+            raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
+
+        # cache.put(self, data, key, coordinates=coordinates, overwrite=overwrite)
+
+    def has_cache(self, key, coordinates=None):
+        """
+        Check for cached data for this node.
+
+        Parameters
+        ----------
+        key : str
+            Key for the cached data, e.g. 'output'
+        coordinates : podpac.Coordinates, optional
+            Coordinates for which the cached data should be retrieved. Omit for coordinate-independent data.
+
+        Returns
+        -------
+        bool
+            True if there is cached data for this node, key, and coordinates.
+        """
+
+        return False
+        # return cache.exists(self, data, key, coordinates=coordinates)
+
+    def del_cache(self, key=None, coordinates=None):
+        """
+        Clear cached data for this node.
+
+        Parameters
+        ----------
+        key : str, optional
+            Delete cached objects with this key. If None, cached data is deleted for all keys.
+        coordinates : podpac.Coordinates, optional
+            Delete cached objects for these coordinates. If None, cached data is deleted for all coordinates, including
+            coordinate-independent data.
+        """
+
+        pass
+        # return cache.clear(self, data, key, coordinates=coordinates)
+
+    # -----------------------------------------------------------------------------------------------------------------
+    # Deprecated methods
+    # -----------------------------------------------------------------------------------------------------------------
+
+    def get_image(self, format='png', vmin=None, vmax=None):
+        """Return a base64-encoded image of the output
+
+        Parameters
+        ----------
+        format : str, optional
+            Default is 'png'. Type of image. 
+        vmin : number, optional
+            Minimum value of colormap
+        vmax : vmax, optional
+            Maximum value of colormap
+
+        Returns
+        -------
+        str
+            Base64 encoded image. 
+
+        .. deprecated:: 0.2.0
+            This method will be removed in a future release.
+        """
+
+        warnings.warn('Node.get_image will be removed in a later release', DeprecationWarning)
+
+        matplotlib.use('agg')
+        from matplotlib.image import imsave
+
+        data = self.output.data.squeeze()
+
+        if vmin is None or np.isnan(vmin):
+            vmin = np.nanmin(data)
+        if vmax is None or np.isnan(vmax):
+            vmax = np.nanmax(data)
+        if vmax == vmin:
+            vmax += 1e-16
+
+        c = (data - vmin) / (vmax - vmin)
+        i = matplotlib.cm.viridis(c, bytes=True)
+        im_data = BytesIO()
+        imsave(im_data, i, format=format)
+        im_data.seek(0)
+        return base64.b64encode(im_data.getvalue())
+
     def get_hash(self, coordinates=None):
         """Hash used for caching node outputs.
 
@@ -354,9 +498,13 @@ class Node(tl.HasTraits):
         -------
         str
             {hash_return}
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
-        
-        # TODO this needs to include the tagged node attrs
+    
+        warnings.warn('Node.get_hash will be removed in a later release', DeprecationWarning)
+
         return hash(str(coordinates))
 
     @property
@@ -372,7 +520,13 @@ class Node(tl.HasTraits):
         ------
         NodeException
             Gets raised if node has not been evaluated
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
+        
+        warnings.warn('Node.evaluated_hash will be removed in a later release', DeprecationWarning)
+
         if self.requested_coordinates is None:
             raise NodeException("node not evaluated")
 
@@ -386,7 +540,13 @@ class Node(tl.HasTraits):
         -------
         str
             String containing the latitude/longitude bounds of a set of coordinates
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
+
+        warnings.warn('Node.latlon_bounds_str will be removed in a later release', DeprecationWarning)
+
         return self.requested_coordinates.latlon_bounds_str
 
 
@@ -408,7 +568,13 @@ class Node(tl.HasTraits):
         Notes
         ------
         If the output directory doesn't exist, it will be created.
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
+
+        warnings.warn('Node.get_output_path will be removed in a later release', DeprecationWarning)
+
         if outdir is None:
             outdir = settings.CACHE_DIR
 
@@ -439,7 +605,13 @@ class Node(tl.HasTraits):
         ------
         NotImplementedError
             Raised if an unsupported format is specified
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
+
+        warnings.warn('Node.write will be removed in a later release', DeprecationWarning)
+
         filename = '%s_%s_%s.pkl' % (
             name,
             self.evaluated_hash,
@@ -469,49 +641,19 @@ class Node(tl.HasTraits):
         --------
         str
             The path of the loaded file
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
+
+        warnings.warn('Node.load will be removed in a later release', DeprecationWarning)
+
         filename = '%s_%s_%s.pkl' % (name, self.get_hash(coordinates), coordinates.latlon_bounds_str)
         path = self.get_output_path(filename, outdir=outdir)
 
         with open(path, 'rb') as f:
             self.output = cPickle.load(f)
         return path
-
-    def get_image(self, format='png', vmin=None, vmax=None):
-        """Return a base64-encoded image of the output
-
-        Parameters
-        ----------
-        format : str, optional
-            Default is 'png'. Type of image. 
-        vmin : number, optional
-            Minimum value of colormap
-        vmax : vmax, optional
-            Maximum value of colormap
-
-        Returns
-        -------
-        str
-            Base64 encoded image. 
-        """
-        matplotlib.use('agg')
-        from matplotlib.image import imsave
-
-        data = self.output.data.squeeze()
-
-        if vmin is None or np.isnan(vmin):
-            vmin = np.nanmin(data)
-        if vmax is None or np.isnan(vmax):
-            vmax = np.nanmax(data)
-        if vmax == vmin:
-            vmax += 1e-16
-
-        c = (data - vmin) / (vmax - vmin)
-        i = matplotlib.cm.viridis(c, bytes=True)
-        im_data = BytesIO()
-        imsave(im_data, i, format=format)
-        im_data.seek(0)
-        return base64.b64encode(im_data.getvalue())
 
     @property
     def cache_dir(self):
@@ -521,7 +663,13 @@ class Node(tl.HasTraits):
         -------
         str
             Path to the default cache directory
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
+
+        warnings.warn('Node.cache_dir will be removed in a later release', DeprecationWarning)
+
         basedir = settings.CACHE_DIR
         subdir = str(self.__class__)[8:-2].split('.')
         dirs = [basedir] + subdir
@@ -539,7 +687,13 @@ class Node(tl.HasTraits):
         -------
         str
             Path to the cached file
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
+
+        warnings.warn('Node.cache_path will be removed in a later release', DeprecationWarning)
+
         pre = str(self.source).replace('/', '_').replace('\\', '_').replace(':', '_')
         return os.path.join(self.cache_dir, pre  + '_' + filename)
 
@@ -552,7 +706,13 @@ class Node(tl.HasTraits):
             Object to be cached to disk
         filename : str
             File name for the object to be cached
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
+        
+        warnings.warn('Node.cache_obj will be replaced by put_cache in a later release', DeprecationWarning)
+
         path = self.cache_path(filename)
         if settings.S3_BUCKET_NAME is None or settings.CACHE_TO_S3 == False:
             if not os.path.exists(self.cache_dir):
@@ -576,7 +736,13 @@ class Node(tl.HasTraits):
         -------
         object
             Object loaded from cache
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
+        
+        warnings.warn('Node.load_cached_obj will be replaced by get_cache in a later release', DeprecationWarning)
+
         path = self.cache_path(filename)
         if settings.S3_BUCKET_NAME is None or not settings.CACHE_TO_S3:
             with open(path, 'rb') as fid:
@@ -604,7 +770,13 @@ class Node(tl.HasTraits):
             for all variants/instances of this Node.
         all_cache : bool, optional
             Default False. If True, will clear the entire podpac cache.
+
+        .. deprecated:: 0.2.0
+            This method will be removed and replaced by the caching module by version 0.2.0.
         """
+        
+        warnings.warn('Node.clear_disk_cache will be replaced by del_cache in a later release', DeprecationWarning)
+
         if all_cache:
             shutil.rmtree(settings.CACHE_DIR)
         elif node_cache:

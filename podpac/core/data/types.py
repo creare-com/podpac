@@ -100,8 +100,7 @@ class NumpyArray(Array):
     """Create a DataSource from a numpy array.
 
     .. deprecated:: 0.2.0
-          `NumpyArray` will be removed in podpac 0.2.0, it is replaced by
-          `Array`.
+          `NumpyArray` will be removed in podpac 0.2.0, it is replaced by `Array`.
     """
 
     def init(self):

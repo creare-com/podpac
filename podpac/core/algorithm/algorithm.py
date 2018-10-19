@@ -88,7 +88,7 @@ class Algorithm(Node):
         self.evaluated = True
         return self.output
 
-    def find_coordinates(self)
+    def find_coordinates(self):
         """
         Get the available native coordinates for the inputs to the Node.
 
