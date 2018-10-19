@@ -159,15 +159,6 @@ class TestFilesAndCaching(object):
         n.clear_disk_cache(all_cache=True)
         with pytest.raises(AttributeError):
             n.clear_disk_cache(node_cache=True)
-        
-
-@pytest.mark.xfail(reason="not sure why this is failing")
-class TestGetImage(object):
-    def test_get_image(self):
-        n = Node()
-        n.output[:] = 1
-        im = n.get_image()
-        assert im == b'iVBORw0KGgoAAAANSUhEUgAAAAUAAAADCAYAAABbNsX4AAAABHNCSVQICAgIfAhkiAAAABVJREFUCJljdGEM+c+ABpjQBXAKAgBgJgGe5UsCaQAAAABJRU5ErkJggg=='
 
 @pytest.mark.skip("spec has changed")
 class TestNodeOutputCoordinates(object):

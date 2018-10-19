@@ -9,13 +9,9 @@ import warnings
 import glob
 import shutil
 from collections import OrderedDict
-from io import BytesIO
-import base64
 import json
 import numpy as np
 import traitlets as tl
-import matplotlib
-import matplotlib.cm
 
 try:
     import cPickle  # Python 2.7
@@ -444,48 +440,6 @@ class Node(tl.HasTraits):
     # Deprecated methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def get_image(self, format='png', vmin=None, vmax=None):
-        """Return a base64-encoded image of the output
-
-        Parameters
-        ----------
-        format : str, optional
-            Default is 'png'. Type of image. 
-        vmin : number, optional
-            Minimum value of colormap
-        vmax : vmax, optional
-            Maximum value of colormap
-
-        Returns
-        -------
-        str
-            Base64 encoded image. 
-
-        .. deprecated:: 0.2.0
-            This method will be removed in a future release.
-        """
-
-        warnings.warn('Node.get_image will be removed in a later release', DeprecationWarning)
-
-        matplotlib.use('agg')
-        from matplotlib.image import imsave
-
-        data = self.output.data.squeeze()
-
-        if vmin is None or np.isnan(vmin):
-            vmin = np.nanmin(data)
-        if vmax is None or np.isnan(vmax):
-            vmax = np.nanmax(data)
-        if vmax == vmin:
-            vmax += 1e-16
-
-        c = (data - vmin) / (vmax - vmin)
-        i = matplotlib.cm.viridis(c, bytes=True)
-        im_data = BytesIO()
-        imsave(im_data, i, format=format)
-        im_data.seek(0)
-        return base64.b64encode(im_data.getvalue())
-
     def get_hash(self, coordinates=None):
         """Hash used for caching node outputs.
 
@@ -784,4 +738,3 @@ class Node(tl.HasTraits):
         else:
             for f in glob.glob(self.cache_path(attr)):
                 os.remove(f)
-

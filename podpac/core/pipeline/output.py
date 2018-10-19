@@ -10,6 +10,7 @@ import traitlets as tl
 import numpy as np
 
 from podpac.core.node import Node
+from podpac.core.units import get_image
 
 class Output(tl.HasTraits):
     """
@@ -115,6 +116,6 @@ class ImageOutput(Output):
     # TODO: docstring?
     def write(self):
         try:
-            self.image = self.node.get_image(format=self.format, vmin=self.vmin, vmax=self.vmax)
+            self.image = get_image(self.node.output, format=self.format, vmin=self.vmin, vmax=self.vmax)
         except:
             pass

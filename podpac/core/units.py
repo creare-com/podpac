@@ -10,6 +10,9 @@ from copy import deepcopy
 from numbers import Number
 import operator
 
+from io import BytesIO
+import base64
+
 import numpy as np
 import xarray as xr
 import traitlets as tl
@@ -303,3 +306,50 @@ def create_data_array(coords, data=np.nan, dtype=float, **kwargs):
         data = data.astype(dtype)
 
     return UnitsDataArray(data, coords=coords.coords, dims=coords.dims, **kwargs)
+
+def get_image(data, format='png', vmin=None, vmax=None):
+    """Return a base64-encoded image of the data
+
+    Parameters
+    ----------
+    data : array-like
+        data to output, usually a UnitsDataArray
+    format : str, optional
+        Default is 'png'. Type of image. 
+    vmin : number, optional
+        Minimum value of colormap
+    vmax : vmax, optional
+        Maximum value of colormap
+
+    Returns
+    -------
+    str
+        Base64 encoded image. 
+    """
+
+    import matplotlib
+    import matplotlib.cm
+    from matplotlib.image import imsave
+    matplotlib.use('agg')
+
+    if format != 'png':
+        raise ValueError("Invalid image format '%s', must be 'png'" % format)
+
+    if isinstance(data, xr.DataArray):
+        data = data.data
+
+    data = data.squeeze()
+
+    if vmin is None or np.isnan(vmin):
+        vmin = np.nanmin(data)
+    if vmax is None or np.isnan(vmax):
+        vmax = np.nanmax(data)
+    if vmax == vmin:
+        vmax += 1e-15
+
+    c = (data - vmin) / (vmax - vmin)
+    i = matplotlib.cm.viridis(c, bytes=True)
+    im_data = BytesIO()
+    imsave(im_data, i, format=format)
+    im_data.seek(0)
+    return base64.b64encode(im_data.getvalue())

@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import pytest
 import numpy as np
+import xarray as xr
 from pint.errors import DimensionalityError
 import traitlets as tl
 
@@ -14,6 +15,7 @@ from podpac.core.units import Units
 from podpac.core.units import UnitsNode
 from podpac.core.units import UnitsDataArray
 from podpac.core.units import create_data_array
+from podpac.core.units import get_image
 
 class Length(Node):
     units = Units(ureg.meter)
@@ -412,3 +414,18 @@ class TestCreateDataArray(object):
     def test_invalid_coords(self):
         with pytest.raises(TypeError):
             create_data_array((3, 4))
+
+class TestGetImage(object):
+    def test_get_image(self):
+        expected = b'iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAABHNCSVQICAgIfAhkiAAAABhJREFUGJVjdGEM+c9ABGAiRtGoQuopBACZ7gGsphUM4AAAAABJRU5ErkJggg=='
+        
+        data = np.ones((10, 10))
+        assert get_image(UnitsDataArray(data)) == expected # UnitsDataArray input
+        assert get_image(xr.DataArray(data)) == expected # xr.DataArray input
+        assert get_image(data) == expected # np.ndarray input
+        assert get_image(np.array([data])) == expected # squeeze
+
+    def test_get_image_vmin_vmax(self):
+        expected = b'iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAABHNCSVQICAgIfAhkiAAAABhJREFUGJVjVJjQ85+BCMBEjKJRhdRTCACdaQJPU0rxWgAAAABJRU5ErkJggg=='
+        data = np.ones((10, 10))
+        assert get_image(data, vmin=0, vmax=2) == expected
