@@ -147,9 +147,6 @@ class TestDataSource(object):
         # assert attributes
         assert isinstance(output.attrs['layer_style'], Style)
 
-        # should be evaluated
-        assert node.evaluated
-
     def test_evaluate_with_output(self):
         node = MockDataSource()
 

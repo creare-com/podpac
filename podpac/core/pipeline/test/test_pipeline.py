@@ -35,7 +35,6 @@ class TestPipeline(object):
         pipeline = Pipeline(definition=d)
         pipeline.eval(coords)
         
-        pipeline.evaluated
         pipeline.units
         pipeline.dtype
         pipeline.cache_type

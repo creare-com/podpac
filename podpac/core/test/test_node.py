@@ -270,21 +270,24 @@ class TestDeprecatedMethods(object):
             except:
                 pass
 
-    def test_write_file(self):
+    def test_write(self):
         n = Node()
         c = podpac.Coordinates([0, 1], dims=['lat', 'lon'])
-        p = n.write('temp_test', c)
+        n._requested_coordinates = c # hack instead of evaluating the node
+        n.output = UnitsDataArray([0, 1])
+        p = n.write('temp_test')
         self.paths_to_remove.append(p)
         
         assert os.path.exists(p)
     
-    def test_load_file(self):
+    def test_load(self):
         c = podpac.Coordinates([0, 1], dims=['lat', 'lon'])
         fn = 'temp_test'
         
         n1 = Node()
         n1.output = UnitsDataArray([0, 1])
-        p1 = n1.write(fn, c)
+        n1._requested_coordinates = c # hack instead of evaluating the node
+        p1 = n1.write(fn)
         self.paths_to_remove.append(p1)
 
         n2 = Node()
@@ -292,7 +295,6 @@ class TestDeprecatedMethods(object):
         
         assert p1 == p2
         np.testing.assert_array_equal(n1.output.data, n2.output.data)
-        
 
     def test_cache_dir(self):
         n = Node()

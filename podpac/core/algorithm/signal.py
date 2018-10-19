@@ -52,8 +52,6 @@ class Convolution(Algorithm):
     
     Attributes
     ----------
-    expanded_coordinates : podpac.Coordinates
-        The expanded coordinates needed to avoid edge effects.
     source : podpac.Node
         Source node on which convolution will be performed. 
     kernel : np.ndarray
@@ -74,8 +72,8 @@ class Convolution(Algorithm):
     kernel = tl.Instance(np.ndarray)  # Would like to tag this, but arrays are not yet supported
     kernel_type = tl.Unicode().tag(attr=True)
     kernel_ndim = tl.Int().tag(attr=True)
-    output_coordinates = tl.Instance(Coordinates)
-    expanded_coordinates = tl.Instance(Coordinates)
+
+    _expanded_coordinates = tl.Instance(Coordinates)
  
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None, method=None):
@@ -94,15 +92,15 @@ class Convolution(Algorithm):
         -------
         {eval_return}
         """
-        self.requested_coordinates = coordinates
+        self._requested_coordinates = coordinates
+        self._output_coordinates = coordinates
         self.output = output
-        self.output_coordinates = coordinates
 
         # This should be aligned with coordinates' dimension order
         # The size of this kernel is used to figure out the expanded size
         shape = self.full_kernel.shape
         
-        if len(shape) != len(self.output_coordinates.shape):
+        if len(shape) != len(self._output_coordinates.shape):
             raise ValueError("Kernel shape does not match source data shape")
 
         # expand the coordinates
@@ -126,13 +124,11 @@ class Convolution(Algorithm):
                 **coord.properties))
             exp_slice.append(slice(-s_start, -s_end))
         exp_coords = Coordinates(exp_coords)
-        self.expanded_coordinates = exp_coords
         exp_slice = tuple(exp_slice)
 
-        # evaluate using expanded coordinates
+        # evaluate using expanded coordinates and then reduce down to originally requested coordinates
+        self._expanded_coordinates = exp_coords
         out = super(Convolution, self).eval(exp_coords, output, method)
-
-        # reduce down to originally requested coordinates
         self.output = out[exp_slice]
 
         return self.output
@@ -209,14 +205,14 @@ class TimeConvolution(Convolution):
         ValueError
             If source data doesn't have time dimension.
         """
-        if 'time' not in self.output_coordinates.dims:
+        if 'time' not in self._output_coordinates.dims:
             raise ValueError('cannot compute time convolution from time-indepedendent input')
-        if 'lat' not in self.output_coordinates.dims and 'lon' not in self.output_coordinates.dims:
+        if 'lat' not in self._output_coordinates.dims and 'lon' not in self._output_coordinates.dims:
             return self.kernel
  
         kernel = np.array([[self.kernel]])
         kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
-        kernel = kernel.transpose(*self.output_coordinates.dims)
+        kernel = kernel.transpose(*self._output_coordinates.dims)
         return kernel.data
 
 
@@ -243,11 +239,11 @@ class SpatialConvolution(Convolution):
     def full_kernel(self):
         """{full_kernel}
         """
-        if 'time' not in self.output_coordinates.dims:
+        if 'time' not in self._output_coordinates.dims:
             return self.kernel
 
         kernel = np.array([self.kernel]).T
         kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
-        kernel = kernel.transpose(*self.output_coordinates.dims)
+        kernel = kernel.transpose(*self._output_coordinates.dims)
 
         return kernel.data

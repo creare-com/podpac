@@ -86,11 +86,6 @@ class Node(tl.HasTraits):
         How the output of the nodes should be cached. By default, outputs are not cached.
     dtype : type
         The numpy datatype of the output. Currently only `float` is supported.
-    evaluated : Bool
-        Flag indicating if the node has been evaluated.
-    requested_coordinates : podpac.Coordinates
-        {requested_coordinates}
-        This attribute stores the coordinates that were last used to evaluate the node.
     implicit_pipeline_evaluation : Bool
         Flag indicating if nodes as part of a pipeline should be automatically evaluated when
         the root node is evaluated. This attribute is planned for deprecation in the future.
@@ -115,12 +110,23 @@ class Node(tl.HasTraits):
     def _style_default(self):
         return Style()
     
-    # TODO remove these (at least from public api)
+    # debugging
+    _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
+    _output_coordinates = tl.Instance(Coordinates, allow_none=True)
     output = tl.Instance(UnitsDataArray, allow_none=True)
-    evaluated = tl.Bool(default_value=False)
-    implicit_pipeline_evaluation = tl.Bool(default_value=True)
-    requested_coordinates = tl.Instance(Coordinates, allow_none=True)
 
+    # temporary messages
+    @property
+    def requested_coordinates(self):
+        raise AttributeError("requested_coordinates has been removed."
+                             "_requested_coordinates and _output_coordinates may be available for debugging.")
+    @request_coordinates.setter
+    def requested_coordinates(self, value):
+        raise AttributeError("requested_coordinates has been removed")
+    
+    # TODO
+    implicit_pipeline_evaluation = tl.Bool(default_value=True)
+    
     def __init__(self, **kwargs):
         """ Do not overwrite me """
         tkwargs = self._first_init(**kwargs)
@@ -436,7 +442,7 @@ class Node(tl.HasTraits):
             os.makedirs(outdir)
         return outdir
 
-    def write(self, name, coordinates=None, outdir=None, fmt='pickle'):
+    def write(self, name, outdir=None, fmt='pickle'):
         """Write self.output to disk using the specified format
 
         Parameters
@@ -466,9 +472,7 @@ class Node(tl.HasTraits):
 
         warnings.warn('Node.write will be removed in a later release', DeprecationWarning)
 
-        if coordinates is None:
-            coordinates = self.requested_coordinates
-
+        coordinates = self._requested_coordinates
         path = os.path.join(self._get_output_path(outdir=outdir), self._get_filename(name, coordinates=coordinates))
 
         if fmt == 'pickle':
@@ -507,9 +511,6 @@ class Node(tl.HasTraits):
 
         warnings.warn('Node.load will be removed in a later release', DeprecationWarning)
 
-        if coordinates is None:
-            coordinates = self.requested_coordinates
-        
         path = os.path.join(self._get_output_path(outdir=outdir), self._get_filename(name, coordinates=coordinates))
         path = '%s.pkl' % path # assumes pickle
         with open(path, 'rb') as f:

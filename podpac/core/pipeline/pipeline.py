@@ -43,10 +43,6 @@ class Pipeline(Node):
         return self.pipeline_output.node.output
     
     @property
-    def evaluated(self):
-        return self.pipeline_output.node.evaluated
-    
-    @property
     def units(self):
         return self.pipeline_output.node.units
     

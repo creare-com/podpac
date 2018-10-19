@@ -64,7 +64,8 @@ class Algorithm(Node):
         -------
         {eval_return}
         """
-        self.requested_coordinates = coordinates
+
+        self._requested_coordinates = coordinates
         self.output = output
 
         coords_list = [coordinates]
@@ -72,21 +73,20 @@ class Algorithm(Node):
             if self.implicit_pipeline_evaluation:
                 node.eval(coordinates, method)
             coords_list.append(Coordinates.from_xarray(node.output.coords))
-        coords = union(coords_list)
+        self._output_coordinates = union(coords_list)
 
         result = self.algorithm()
         if isinstance(result, np.ndarray):
             if self.output is None:
-                self.output = self.create_output_array(coords)
+                self.output = self.create_output_array(self._output_coordinates)
             self.output.data[:] = result
         else:
-            dims = [d for d in self.requested_coordinates.dims if d in result.dims]
             if self.output is None:
-                coords = Coordinates.from_xarray(result.coords)
-                self.output = self.create_output_array(coords)
+                self._output_coordinates = Coordinates.from_xarray(result.coords)
+                self.output = self.create_output_array(self._output_coordinates)
             self.output[:] = result
-            self.output = self.output.transpose(*dims) # split into 2nd line to avoid broadcasting issues with slice [:]
-        self.evaluated = True
+            self.output = self.output.transpose(*[dim for dim in coordinates.dims if dim in result.dims])
+
         return self.output
 
     def find_coordinates(self):
@@ -142,8 +142,8 @@ class Arange(Algorithm):
         UnitsDataArray
             A row-majored numbered array of the requested size. 
         """
-        data = np.arange(self.requested_coordinates.size).reshape(self.requested_coordinates.shape)
-        return self.create_output_array(self.requested_coordinates, data=data)
+        data = np.arange(self._requested_coordinates.size).reshape(self._requested_coordinates.shape)
+        return self.create_output_array(self._requested_coordinates, data=data)
       
 
 class CoordData(Algorithm):
@@ -166,10 +166,10 @@ class CoordData(Algorithm):
             The coordinates as data for the requested coordinate.
         """
         
-        if self.coord_name not in self.requested_coordinates.udims:
+        if self.coord_name not in self._requested_coordinates.udims:
             raise ValueError('Coordinate name not in evaluated coordinates')
        
-        c = self.requested_coordinates[self.coord_name]
+        c = self._requested_coordinates[self.coord_name]
         coords = Coordinates([c])
         return self.create_output_array(coords, data=c.coordinates)
 
@@ -186,8 +186,7 @@ class SinCoords(Algorithm):
         UnitsDataArray
             Sinusoids of a certain period for all of the requested coordinates
         """
-        # TODO JXM calculate crds from self.requested_coordinates instead of created output array
-        out = self.create_output_array(self.requested_coordinates, data=1.0)
+        out = self.create_output_array(self._requested_coordinates, data=1.0)
         crds = list(out.coords.values())
         try:
             i_time = list(out.coords.keys()).index('time')

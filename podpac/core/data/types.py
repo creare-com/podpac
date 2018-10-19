@@ -474,8 +474,7 @@ class WCS(DataSource):
         str
             The url that requests the WCS capabilities
         """
-        return self.source + '?' + self._get_capabilities_qs.format(
-            version=self.version, layer=self.layer_name)
+        return self.source + '?' + self._get_capabilities_qs.format(version=self.version, layer=self.layer_name)
 
     @tl.default('wcs_coordinates')
     def get_wcs_coordinates(self):
@@ -563,13 +562,13 @@ class WCS(DataSource):
         data wrangling for us...
         """
 
-        if not self.requested_coordinates:
+        if not self._output_coordinates:
             return self.wcs_coordinates
 
         cs = []
         for dim in self.wcs_coordinates.dims:
-            if dim in self.requested_coordinates.dims:
-                c = self.requested_coordinates[dim]
+            if dim in self._output_coordinates.dims:
+                c = self._output_coordinates[dim]
                 if c.size == 1:
                     cs.append(ArrayCoordinates1d(c.coordinates[0], name=dim))
                 elif isinstance(c, UniformCoordinates1d):
