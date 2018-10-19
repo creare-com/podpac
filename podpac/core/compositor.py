@@ -167,7 +167,7 @@ class Compositor(Node):
         # WARNING: this assumes
         #              native_coords = source_coords + shared_coordinates
         #         NOT  native_coords = shared_coords + source_coords
-        if self.is_source_coordinates_complete and len(self.source_coordinates.shape) == 1:
+        if self.is_source_coordinates_complete and self.source_coordinates.ndim == 1:
             coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
