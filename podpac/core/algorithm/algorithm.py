@@ -26,12 +26,17 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 class Algorithm(Node):
     """Base node for any algorithm or computation node. 
     
+    Attributes
+    ----------
+    outputs : dict
+        evaluated outputs of the input nodes. The keys are the attribute names.
+
     Notes
     ------
     Developers of new Algorithm nodes need to implement the `algorithm` method. 
     """
 
-    _outputs = tl.Dict(tl.Instance(UnitsDataArray))
+    outputs = tl.Dict(trait=tl.Instance(UnitsDataArray))
     
     @property
     def _inputs(self):
@@ -70,15 +75,15 @@ class Algorithm(Node):
 
         self._requested_coordinates = coordinates
 
-        # evaluate input nodes and keep outputs in self._outputs
-        self._outputs = {}
+        # evaluate input nodes and keep outputs in self.outputs
+        self.outputs = {}
         for key, node in self._inputs.items():
             if self.implicit_pipeline_evaluation:
                 o = node.eval(coordinates, method)
-            self._outputs[key] = o
+            self.outputs[key] = o
         
         # accumulate output coordinates
-        coords_list = [Coordinates.from_xarray(o.coords) for o in self._outputs.values()]
+        coords_list = [Coordinates.from_xarray(o.coords) for o in self.outputs.values()]
         self._output_coordinates = union([coordinates] + coords_list)
 
         result = self.algorithm()
@@ -263,7 +268,7 @@ class Arithmetic(Algorithm):
         eqn = self.eqn.format(**self.params)        
         
         fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
-        res = xr.broadcast(*[self._outputs[f] for f in fields])
+        res = xr.broadcast(*[self.outputs[f] for f in fields])
         f_locals = dict(zip(fields, res))
 
         if ne is None:
