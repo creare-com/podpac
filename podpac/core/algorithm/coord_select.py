@@ -22,8 +22,6 @@ class ModifyCoordinates(Algorithm):
     
     Attributes
     ----------
-    input_coordinates : podpac.Coordinates
-        The coordinates that were used to evaluate the node
     source : podpac.Node
         Source node that will be evaluated with the modified coordinates.
     coordinates_source : podpac.Node
@@ -34,7 +32,6 @@ class ModifyCoordinates(Algorithm):
     
     source = tl.Instance(Node)
     coordinates_source = tl.Instance(Node)
-    input_coordinates = tl.Instance(Coordinates, allow_none=True)
     lat = tl.List().tag(attr=True)
     lon = tl.List().tag(attr=True)
     time = tl.List().tag(attr=True)
@@ -43,23 +40,6 @@ class ModifyCoordinates(Algorithm):
     @tl.default('coordinates_source')
     def _default_coordinates_source(self):
         return self.source
-    
-    def get_modified_coordinates(self):
-        """The expanded coordinates
-        
-        Returns
-        -------
-        podpac.Coordinates
-            The expanded coordinates
-        
-        Raises
-        ------
-        ValueError
-            Raised if expanded coordinates do not intersect with the source data. For example if a date in the future
-            is selected.
-        """
-        coords = [self.get_modified_coordinates1d(dim) for dim in self.input_coordinates.dims]
-        return Coordinates(coords)
    
     def algorithm(self):
         """Passthrough of the source data
@@ -69,7 +49,7 @@ class ModifyCoordinates(Algorithm):
         UnitDataArray
             Source evaluated at the expanded coordinates
         """
-        return self.source.output
+        return self._outputs['source']
  
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None, method=None):
@@ -92,12 +72,20 @@ class ModifyCoordinates(Algorithm):
         -------
         The input coordinates are modified and the passed to the base class implementation of eval.
         """
-        self.input_coordinates = coordinates
-        coordinates = self.get_modified_coordinates()
-        for dim in coordinates.udims:
-            if coordinates[dim].size == 0:
+        
+        self._requested_coordinates = coordinates
+        
+        modified_coordinates = Coordinates([self.get_modified_coordinates1d(dim) for dim in coordinates.dims])
+        for dim in modified_coordinates.udims:
+            if modified_coordinates[dim].size == 0:
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
-        return super(ModifyCoordinates, self).eval(coordinates, output, method)
+        output = super(ModifyCoordinates, self).eval(modified_coordinates, output=output, method=method)
+
+        # debugging
+        self._output_coordinates = modified_coordinates
+        self._output = output
+
+        return output
 
 class ExpandCoordinates(ModifyCoordinates):
     """Algorithm node used to expand requested coordinates. This is normally used in conjunction with a reduce operation
@@ -125,12 +113,12 @@ class ExpandCoordinates(ModifyCoordinates):
             Expanded coordinates
         """
         
-        icoords = self.input_coordinates[dim]
+        coords1d = self._requested_coordinates[dim]
         expansion = getattr(self, dim)
         
         if not expansion:  # i.e. if list is empty
             # no expansion in this dimension
-            return icoords
+            return coords1d
 
         if len(expansion) == 2:
             # use available native coordinates
@@ -141,19 +129,19 @@ class ExpandCoordinates(ModifyCoordinates):
             if len(available_coordinates) != 1:
                 raise ValueError("Cannot implicity expand coordinates; too many available coordinates")
             acoords = available_coordinates[0][dim]
-            cs = [acoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in icoords.coordinates]
+            cs = [acoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in coords1d.coordinates]
 
         elif len(expansion) == 3:
             # use a explicit step size
             dstart = make_coord_delta(expansion[0])
             dstop = make_coord_delta(expansion[1])
             step = make_coord_delta(expansion[2])
-            cs = [UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step) for x in icoords.coordinates]
+            cs = [UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step) for x in coords1d.coordinates]
 
         else:
             raise ValueError("Invalid expansion attrs for '%s'" % dim)
 
-        return ArrayCoordinates1d(np.concatenate([c.coordinates for c in cs]), **icoords.properties)
+        return ArrayCoordinates1d(np.concatenate([c.coordinates for c in cs]), **coords1d.properties)
 
 class SelectCoordinates(ModifyCoordinates):
     """Algorithm node used to select coordinates different from the input coordinates. While this is simple to do when 
@@ -184,16 +172,16 @@ class SelectCoordinates(ModifyCoordinates):
             The selected coordinates for the given dimension.
         """
 
-        icoords = self.input_coordinates[dim]
+        coords1d = self._requested_coordinates[dim]
         selection = getattr(self, dim)
         
         if not selection:
             # no selection in this dimension
-            return icoords
+            return coords1d
 
         if len(selection) == 1:
             # a single value
-            coords1d = ArrayCoordinates1d(selection, **icoords.properties)
+            coords1d = ArrayCoordinates1d(selection, **coords1d.properties)
             
         elif len(selection) == 2:
             # use available source coordinates within the selected bounds
@@ -204,7 +192,7 @@ class SelectCoordinates(ModifyCoordinates):
 
         elif len(selection) == 3:
             # uniform coordinates using start, stop, and step
-            coords1d = UniformCoordinates1d(*selection, **icoords.properties)
+            coords1d = UniformCoordinates1d(*selection, **coords1d.properties)
 
         else:
             raise ValueError("Invalid selection attrs for '%s'" % dim)

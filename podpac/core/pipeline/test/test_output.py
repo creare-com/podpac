@@ -10,17 +10,17 @@ from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output, NoOutpu
 
 coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=['lat', 'lon'])
 node = Arange()
-node.eval(coords)
+node_output = node.eval(coords)
 
 class TestNoOutput(object):
     def test(self):
         output = NoOutput(node=node, name='test')
-        output.write()
+        output.write(node_output, coords)
 
 class TestFileOutput(object):
     def _test(self, format):
         output = FileOutput(node=node, name='test', outdir='.', format=format)
-        output.write()
+        output.write(node_output, coords)
 
         assert output.path != None
         assert os.path.isfile(output.path)
@@ -34,29 +34,29 @@ class TestFileOutput(object):
 
         output = FileOutput(node=node, name='test', outdir='.', format='png')
         with pytest.raises(NotImplementedError):
-            output.write()
+            output.write(node_output, coords)
 
     def test_geotif(self):
         # self._test('geotif')
 
         output = FileOutput(node=node, name='test', outdir='.', format='geotif')
         with pytest.raises(NotImplementedError):
-            output.write()
+            output.write(node_output, coords)
 
 class TestFTPOutput(object):
     def test(self):
         output = FTPOutput(node=node, name='test', url='none', user='none')
         with pytest.raises(NotImplementedError):
-            output.write()
+            output.write(node_output, coords)
 
 class TestS3Output(object):
     def test(self):
         output = S3Output(node=node, name='test', user='none', bucket='none')
         with pytest.raises(NotImplementedError):
-            output.write()
+            output.write(node_output, coords)
 
 class TestImageOutput(object):
     def test(self):
         output = ImageOutput(node=node, name='test')
-        output.write()
+        output.write(node_output, coords)
         assert output.image is not None

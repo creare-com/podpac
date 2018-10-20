@@ -16,6 +16,7 @@ except:
     ne = None
 
 from podpac.core.coordinates import Coordinates, union
+from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.utils import common_doc
@@ -29,6 +30,8 @@ class Algorithm(Node):
     ------
     Developers of new Algorithm nodes need to implement the `algorithm` method. 
     """
+
+    _outputs = tl.Dict(tl.Instance(UnitsDataArray))
     
     @property
     def _inputs(self):
@@ -66,28 +69,32 @@ class Algorithm(Node):
         """
 
         self._requested_coordinates = coordinates
-        self.output = output
 
-        coords_list = [coordinates]
-        for node in self._inputs.values():
+        # evaluate input nodes and keep outputs in self._outputs
+        self._outputs = {}
+        for key, node in self._inputs.items():
             if self.implicit_pipeline_evaluation:
-                node.eval(coordinates, method)
-            coords_list.append(Coordinates.from_xarray(node.output.coords))
-        self._output_coordinates = union(coords_list)
+                o = node.eval(coordinates, method)
+            self._outputs[key] = o
+        
+        # accumulate output coordinates
+        coords_list = [Coordinates.from_xarray(o.coords) for o in self._outputs.values()]
+        self._output_coordinates = union([coordinates] + coords_list)
 
         result = self.algorithm()
         if isinstance(result, np.ndarray):
-            if self.output is None:
-                self.output = self.create_output_array(self._output_coordinates)
-            self.output.data[:] = result
+            if output is None:
+                output = self.create_output_array(self._output_coordinates)
+            output.data[:] = result
         else:
-            if self.output is None:
+            if output is None:
                 self._output_coordinates = Coordinates.from_xarray(result.coords)
-                self.output = self.create_output_array(self._output_coordinates)
-            self.output[:] = result
-            self.output = self.output.transpose(*[dim for dim in coordinates.dims if dim in result.dims])
+                output = self.create_output_array(self._output_coordinates)
+            output[:] = result
+            output = output.transpose(*[dim for dim in coordinates.dims if dim in result.dims])
 
-        return self.output
+        self._output = output
+        return output
 
     def find_coordinates(self):
         """
@@ -256,8 +263,7 @@ class Arithmetic(Algorithm):
         eqn = self.eqn.format(**self.params)        
         
         fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
-          
-        res = xr.broadcast(*[getattr(self, f).output for f in fields])
+        res = xr.broadcast(*[self._outputs[f] for f in fields])
         f_locals = dict(zip(fields, res))
 
         if ne is None:

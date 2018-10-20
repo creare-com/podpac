@@ -264,9 +264,6 @@ class DataSource(Node):
                     extra.append(c.name)
         self._output_coordinates = coordinates.drop(extra)
 
-        # initiate/reset output
-        self.output = output
-
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
@@ -276,12 +273,13 @@ class DataSource(Node):
         # If requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
         if np.prod(self._requested_source_coordinates.shape) == 0:
             udata_array = self.create_output_array(self._output_coordinates)
-            if self.output is None:
-                self.output = udata_array
+            if output is None:
+                output = udata_array
             else:
-                self.output[:] = udata_array.transpose(*self.output.dims) # TODO JXM
+                output[:] = udata_array.transpose(*output.dims) # TODO JXM
 
-            return self.output
+            self._output = output
+            return output
         
         # reset interpolation
         self._set_interpolation()
@@ -295,16 +293,17 @@ class DataSource(Node):
         # get data from data source
         self._requested_source_data = self._get_data()
 
-        # interpolate data into self.output
-        result = self._interpolate()
-        if output is not None:
-            self.output = result
-
+        # interpolate data into output
+        if output is None:
+            output = self.create_output_array(self._output_coordinates)
+        output = self._interpolate(output)
+        
         # set the order of dims to be the same as that of requested_coordinates
         # this is required in case the user supplied an output object with a different dims order
-        self.output = self.output.transpose(*self._output_coordinates.dims)
+        output = output.transpose(*self._output_coordinates.dims)
         
-        return self.output
+        self._output = output
+        return output
 
     def find_coordinates(self):
         """
@@ -411,7 +410,7 @@ class DataSource(Node):
             raise NotImplementedError('{0}.native_coordinates is not defined and '  \
                                       '{0}.get_native_coordinates() is not implemented'.format(self.__class__.__name__))
     
-    def _interpolate(self):
+    def _interpolate(self, output):
         """Interpolates the source data to the destination using self.interpolation as the interpolation method.
         
         Returns
@@ -420,17 +419,10 @@ class DataSource(Node):
             Result of interpolating the source data to the destination coordinates
         """
 
-        # initialize output if not already input
-        if self.output is None:
-            self.output = self.create_output_array(self._output_coordinates) # TODO: caution this uses low level node functions 
-        else:
-            # TODO: confirm that output is the right size ?
-            pass
-
         # return self._interpolation.interpolate(self._requested_source_coordinates,
         #                                       self._requested_source_data,
         #                                       self._output_coordinates,
-        #                                       self.output)
+        #                                       output)
 
 
         #### MOVE THIS TO INTERPOLATER
@@ -438,7 +430,7 @@ class DataSource(Node):
         data_src = self._requested_source_data
         coords_src = self._requested_source_coordinates
         coords_dst = self._output_coordinates
-        data_dst = self.output
+        data_dst = output
         
         # This a big switch, funneling data to various interpolation routines
         if data_src.size == 1 and np.prod(coords_dst.shape) == 1:

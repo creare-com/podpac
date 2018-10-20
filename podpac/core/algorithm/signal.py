@@ -64,8 +64,6 @@ class Convolution(Algorithm):
         Any kernel defined in `scipy.signal` as well as `mean` can be used. For example:
         kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid. 
         Note: These kernels are automatically normalized such that kernel.sum() == 1
-    output_coordinates : podpac.Coordinates
-        The non-expanded coordinates
     """
     
     source = tl.Instance(Node)
@@ -94,8 +92,7 @@ class Convolution(Algorithm):
         """
         self._requested_coordinates = coordinates
         self._output_coordinates = coordinates
-        self.output = output
-
+        
         # This should be aligned with coordinates' dimension order
         # The size of this kernel is used to figure out the expanded size
         shape = self.full_kernel.shape
@@ -127,11 +124,18 @@ class Convolution(Algorithm):
         exp_slice = tuple(exp_slice)
 
         # evaluate using expanded coordinates and then reduce down to originally requested coordinates
-        self._expanded_coordinates = exp_coords
-        out = super(Convolution, self).eval(exp_coords, output, method)
-        self.output = out[exp_slice]
+        out = super(Convolution, self).eval(exp_coords, method=method)
+        result = out[exp_slice]
+        if output is None:
+            output = result
+        else:
+            output[:] = result
 
-        return self.output
+        # debugging
+        self._expanded_coordinates = exp_coords
+        self._output = output
+
+        return output
 
     @tl.default('kernel')
     def _kernel_default(self):
@@ -167,12 +171,10 @@ class Convolution(Algorithm):
         np.ndarray
             Resultant array. 
         """
-        if np.isnan(np.max(self.source.output)):
+        if np.isnan(np.max(self.source._output)):
             method = 'direct'
         else: method = 'auto'
-        res = scipy.signal.convolve(self.source.output,
-                                    self.full_kernel,
-                                    mode='same', method=method)
+        res = scipy.signal.convolve(self.source._output, self.full_kernel, mode='same', method=method)
         return res
 
 

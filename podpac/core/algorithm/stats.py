@@ -61,7 +61,7 @@ class Reduce(Algorithm):
         list
             List of dimensions after reduction
         """
-        # Using self.output.dims helps compare the evaluated coordinates to the source coordinates
+        # Using output dims helps compare the evaluated coordinates to the source coordinates
         input_dims = list(out.dims)
         
         if not self.dims:
@@ -188,23 +188,24 @@ class Reduce(Algorithm):
         self.dims = self.get_dims(self._requested_coordinates)
         self._output_coordinates = self._requested_coordinates.drop(self.dims)
 
-        self.output = output
-        if self.output is None:
-            self.output = self.create_output_array(self._output_coordinates)
+        if output is None:
+            output = self.create_output_array(self._output_coordinates)
+
+        self._output = output
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
             result = self.reduce_chunked(self.iteroutputs(method), method)
         else:
             if self.implicit_pipeline_evaluation:
                 self.source.eval(coordinates, method=method)
-            result = self.reduce(self.source.output)
+            result = self.reduce(self.source._output)
 
-        if self.output.shape is (): # or self._output_coordinates is None
-            self.output.data = result
+        if output.shape is ():
+            output.data = result
         else:
-            self.output[:] = result #.transpose(*self.output.dims)
+            output[:] = result
 
-        return self.output
+        return output
 
     def reduce(self, x):
         """
@@ -279,7 +280,7 @@ class Min(Reduce):
             Minimum of the source data over self.dims
         """
         # note: np.fmin ignores NaNs, np.minimum propagates NaNs
-        y = xr.full_like(self.output, np.nan)
+        y = xr.full_like(self._output, np.nan)
         for x in xs:
             y = np.fmin(y, x.min(dim=self.dims))
         return y
@@ -318,7 +319,7 @@ class Max(Reduce):
             Maximum of the source data over self.dims
         """
         # note: np.fmax ignores NaNs, np.maximum propagates NaNs
-        y = xr.full_like(self.output, np.nan)
+        y = xr.full_like(self._output, np.nan)
         for x in xs:
             y = np.fmax(y, x.max(dim=self.dims))
         return y
@@ -356,7 +357,7 @@ class Sum(Reduce):
         UnitsDataArray
             Sum of the source data over self.dims
         """
-        s = xr.zeros_like(self.output)
+        s = xr.zeros_like(self._output)
         for x in xs:
             s += x.sum(dim=self.dims)
         return s
@@ -394,7 +395,7 @@ class Count(Reduce):
         UnitsDataArray
             Number of finite values of the source data over self.dims
         """
-        n = xr.zeros_like(self.output)
+        n = xr.zeros_like(self._output)
         for x in xs:
             n += np.isfinite(x).sum(dim=self.dims)
         return n
@@ -432,8 +433,8 @@ class Mean(Reduce):
         UnitsDataArray
             Mean of the source data over self.dims
         """
-        s = xr.zeros_like(self.output) # alt: s = np.zeros(self.shape)
-        n = xr.zeros_like(self.output)
+        s = xr.zeros_like(self._output)
+        n = xr.zeros_like(self._output)
         for x in xs:
             # TODO efficency
             s += x.sum(dim=self.dims)
@@ -474,9 +475,9 @@ class Variance(Reduce):
         UnitsDataArray
             Variance of the source data over self.dims
         """
-        n = xr.zeros_like(self.output)
-        m = xr.zeros_like(self.output)
-        m2 = xr.zeros_like(self.output)
+        n = xr.zeros_like(self._output)
+        m = xr.zeros_like(self._output)
+        m2 = xr.zeros_like(self._output)
 
         # Welford, adapted to handle multiple data points in each iteration
         for x in xs:
@@ -535,10 +536,10 @@ class Skew(Reduce):
         UnitsDataArray
             Skew of the source data over self.dims
         """
-        N = xr.zeros_like(self.output)
-        M1 = xr.zeros_like(self.output)
-        M2 = xr.zeros_like(self.output)
-        M3 = xr.zeros_like(self.output)
+        N = xr.zeros_like(self._output)
+        M1 = xr.zeros_like(self._output)
+        M2 = xr.zeros_like(self._output)
+        M3 = xr.zeros_like(self._output)
         check_empty = True
 
         for x in xs:
@@ -621,11 +622,11 @@ class Kurtosis(Reduce):
         UnitsDataArray
             Kurtosis of the source data over self.dims
         """
-        N = xr.zeros_like(self.output)
-        M1 = xr.zeros_like(self.output)
-        M2 = xr.zeros_like(self.output)
-        M3 = xr.zeros_like(self.output)
-        M4 = xr.zeros_like(self.output)
+        N = xr.zeros_like(self._output)
+        M1 = xr.zeros_like(self._output)
+        M2 = xr.zeros_like(self._output)
+        M3 = xr.zeros_like(self._output)
+        M4 = xr.zeros_like(self._output)
 
         for x in xs:
             Nx = np.isfinite(x).sum(dim=self.dims)
@@ -791,7 +792,7 @@ class Reduce2(Reduce):
             return self.reduce(x)
 
         I = [self._requested_coordinates.dims.index(dim) for dim in self._output_coordinates.dims]
-        y = xr.full_like(self.output, np.nan)
+        y = xr.full_like(self._output, np.nan)
         for x, xslices in xs:
             yslc = [xslices[i] for i in I]
             y.data[yslc] = self.reduce(x)
@@ -932,16 +933,15 @@ class GroupReduce(Algorithm):
         self._requested_coordinates = coordinates
         self._output_coordinates = coordinates
         self._source_coordinates = self._get_source_coordinates(coordinates)
-        self.output = output
-
-        if self.output is None:
-            self.output = self.create_output_array(self._output_coordinates)
+        
+        if output is None:
+            output = self.create_output_array(self._output_coordinates)
         
         if self.implicit_pipeline_evaluation:
             self.source.eval(self._source_coordinates, method=method)
 
         # group
-        grouped = self.source.output.groupby('time.%s' % self.groupby)
+        grouped = self.source._output.groupby('time.%s' % self.groupby)
         
         # reduce
         if self.reduce_fn is 'custom':
@@ -954,9 +954,10 @@ class GroupReduce(Algorithm):
         eval_time = xr.DataArray(self._output_coordinates.coords['time'])
         E = getattr(eval_time.dt, self.groupby)
         out = out.sel(**{self.groupby:E}).rename({self.groupby: 'time'})
-        self.output[:] = out.transpose(*self.output.dims).data
+        output[:] = out.transpose(*output.dims).data
 
-        return self.output
+        self._output = output
+        return output
 
     def base_ref(self):
         """

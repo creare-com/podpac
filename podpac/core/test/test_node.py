@@ -274,7 +274,7 @@ class TestDeprecatedMethods(object):
         n = Node()
         c = podpac.Coordinates([0, 1], dims=['lat', 'lon'])
         n._requested_coordinates = c # hack instead of evaluating the node
-        n.output = UnitsDataArray([0, 1])
+        n._output = UnitsDataArray([0, 1])
         p = n.write('temp_test')
         self.paths_to_remove.append(p)
         
@@ -285,7 +285,7 @@ class TestDeprecatedMethods(object):
         fn = 'temp_test'
         
         n1 = Node()
-        n1.output = UnitsDataArray([0, 1])
+        n1._output = UnitsDataArray([0, 1])
         n1._requested_coordinates = c # hack instead of evaluating the node
         p1 = n1.write(fn)
         self.paths_to_remove.append(p1)
@@ -294,7 +294,7 @@ class TestDeprecatedMethods(object):
         p2 = n2.load(fn, c)
         
         assert p1 == p2
-        np.testing.assert_array_equal(n1.output.data, n2.output.data)
+        np.testing.assert_array_equal(n1._output.data, n2._output.data)
 
     def test_cache_dir(self):
         n = Node()

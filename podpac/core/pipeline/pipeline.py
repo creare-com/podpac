@@ -39,10 +39,6 @@ class Pipeline(Node):
     implicit_pipeline_evaluation = tl.Bool(True)
     
     @property
-    def output(self):
-        return self.pipeline_output.node.output
-    
-    @property
     def units(self):
         return self.pipeline_output.node.units
     
@@ -90,9 +86,12 @@ class Pipeline(Node):
             Description
         """
         
-        if self.implicit_pipeline_evaluation:
-            self.pipeline_output.node.eval(coordinates, output)
+        output = self.pipeline_output.node.eval(coordinates, output)
+        self.pipeline_output.write(output, coordinates)
         
-        self.pipeline_output.write()
+        # debugging
+        self._requested_coordinates = coordinates
+        self._output_coordinates = self.pipeline_output.node._output_coordinates
+        self._output = output
 
-        return self.output
+        return output

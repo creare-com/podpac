@@ -5,23 +5,10 @@ Node Summary
 from __future__ import division, print_function, absolute_import
 
 import os
-import warnings
-import glob
-import shutil
 from collections import OrderedDict
 import json
 import numpy as np
 import traitlets as tl
-
-try:
-    import cPickle  # Python 2.7
-except:
-    import _pickle as cPickle
-
-try:
-    import boto3
-except:
-    boto3 = None
 
 from podpac import settings
 from podpac.core.units import Units, UnitsDataArray, create_data_array
@@ -91,13 +78,18 @@ class Node(tl.HasTraits):
         the root node is evaluated. This attribute is planned for deprecation in the future.
     node_defaults : dict
         Dictionary of defaults values for attributes of a Node. 
-    output : podpac.UnitsDataArray
-        Output data from the last evaluation of the node. 
     style : podpac.Style
         Object discribing how the output of a node should be displayed. This attribute is planned for deprecation in the
         future.
     units : podpac.Units
         The units of the output data, defined using the pint unit registry `podpac.units.ureg`.
+
+    Notes
+    -----
+    Additional attributes are available for debugging after evaluation, including::
+     * _requested_coordinates: the requested coordinates of the most recent call to eval
+     * _output_coordinates: the output coordinates of the most recent call to eval
+     * _output: the output of the most recent call to eval
     """
 
     units = Units(default_value=None, allow_none=True)
@@ -113,16 +105,24 @@ class Node(tl.HasTraits):
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _output_coordinates = tl.Instance(Coordinates, allow_none=True)
-    output = tl.Instance(UnitsDataArray, allow_none=True)
+    _output = tl.Instance(UnitsDataArray, allow_none=True)
 
     # temporary messages
     @property
     def requested_coordinates(self):
-        raise AttributeError("requested_coordinates has been removed."
-                             "_requested_coordinates and _output_coordinates may be available for debugging.")
-    @request_coordinates.setter
+        raise AttributeError("The 'requested_coordinates' attribute has been removed"
+                             "(_requested_coordinates and _output_coordinates may be available for debugging)")
+    @requested_coordinates.setter
     def requested_coordinates(self, value):
-        raise AttributeError("requested_coordinates has been removed")
+        raise AttributeError("The 'requested_coordinates' attribute has been removed")
+
+    @property
+    def output(self):
+        raise AttributeError("The 'output' attribute has been removed; use the output returned by eval instead."
+                             "('_output' may be available for debugging)")
+    @output.setter
+    def output(self, value):
+        raise AttributeError("The 'output' attribute has been removed.")
     
     # TODO
     implicit_pipeline_evaluation = tl.Bool(default_value=True)
@@ -443,7 +443,7 @@ class Node(tl.HasTraits):
         return outdir
 
     def write(self, name, outdir=None, fmt='pickle'):
-        """Write self.output to disk using the specified format
+        """Write the most recent evaluation output to disk using the specified format
 
         Parameters
         ----------
@@ -470,7 +470,13 @@ class Node(tl.HasTraits):
             This method will be removed and replaced by the caching module by version 0.2.0.
         """
 
+        import warnings
         warnings.warn('Node.write will be removed in a later release', DeprecationWarning)
+
+        try:
+            import cPickle  # Python 2.7
+        except:
+            import _pickle as cPickle
 
         coordinates = self._requested_coordinates
         path = os.path.join(self._get_output_path(outdir=outdir), self._get_filename(name, coordinates=coordinates))
@@ -478,7 +484,7 @@ class Node(tl.HasTraits):
         if fmt == 'pickle':
             path = '%s.pkl' % path
             with open(path, 'wb') as f:
-                cPickle.dump(self.output, f)
+                cPickle.dump(self._output, f)
         elif fmt == 'png':
             raise NotImplementedError("format '%s' not yet implemented" % fmt)
         elif fmt == 'geotif':
@@ -489,7 +495,7 @@ class Node(tl.HasTraits):
         return path
 
     def load(self, name, coordinates, outdir=None):
-        """Retrieves a cached output from disk and assigns it to self.output
+        """Retrieves cached output from disk as though the node has been evaluated
 
         Parameters
         ----------
@@ -509,12 +515,18 @@ class Node(tl.HasTraits):
             This method will be removed and replaced by the caching module by version 0.2.0.
         """
 
+        import warnings
         warnings.warn('Node.load will be removed in a later release', DeprecationWarning)
+
+        try:
+            import cPickle  # Python 2.7
+        except:
+            import _pickle as cPickle
 
         path = os.path.join(self._get_output_path(outdir=outdir), self._get_filename(name, coordinates=coordinates))
         path = '%s.pkl' % path # assumes pickle
         with open(path, 'rb') as f:
-            self.output = cPickle.load(f)
+            self._output = cPickle.load(f)
         return path
 
     @property
@@ -530,6 +542,7 @@ class Node(tl.HasTraits):
             This method will be removed and replaced by the caching module by version 0.2.0.
         """
 
+        import warnings
         warnings.warn('Node.cache_dir will be removed in a later release', DeprecationWarning)
 
         basedir = settings.CACHE_DIR
@@ -554,6 +567,7 @@ class Node(tl.HasTraits):
             This method will be removed and replaced by the caching module by version 0.2.0.
         """
 
+        import warnings
         warnings.warn('Node.cache_path will be removed in a later release', DeprecationWarning)
 
         pre = str(self.source).replace('/', '_').replace('\\', '_').replace(':', '_')
@@ -573,7 +587,18 @@ class Node(tl.HasTraits):
             This method will be removed and replaced by the caching module by version 0.2.0.
         """
         
+        import warnings
         warnings.warn('Node.cache_obj will be replaced by put_cache in a later release', DeprecationWarning)
+
+        try:
+            import cPickle  # Python 2.7
+        except:
+            import _pickle as cPickle
+
+        try:
+            import boto3
+        except:
+            boto3 = None
 
         path = self.cache_path(filename)
         if settings.S3_BUCKET_NAME is None or settings.CACHE_TO_S3 == False:
@@ -603,7 +628,18 @@ class Node(tl.HasTraits):
             This method will be removed and replaced by the caching module by version 0.2.0.
         """
         
+        import warnings
         warnings.warn('Node.load_cached_obj will be replaced by get_cache in a later release', DeprecationWarning)
+
+        try:
+            import cPickle  # Python 2.7
+        except:
+            import _pickle as cPickle
+
+        try:
+            import boto3
+        except:
+            boto3 = None
 
         path = self.cache_path(filename)
         if settings.S3_BUCKET_NAME is None or not settings.CACHE_TO_S3:
@@ -637,7 +673,11 @@ class Node(tl.HasTraits):
             This method will be removed and replaced by the caching module by version 0.2.0.
         """
         
+        import warnings
         warnings.warn('Node.clear_disk_cache will be replaced by del_cache in a later release', DeprecationWarning)
+
+        import glob
+        import shutil
 
         if all_cache:
             shutil.rmtree(settings.CACHE_DIR)

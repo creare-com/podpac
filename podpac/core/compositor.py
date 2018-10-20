@@ -189,7 +189,7 @@ class Compositor(Node):
             
             for src, res in zip(src_subset, results):
                 yield res.get()
-                #src.output = None # free up memory
+                #src._output = None # free up memory
 
         else:
             output = None # scratch space
@@ -215,16 +215,16 @@ class Compositor(Node):
         -------
         {eval_return}
         """
-        self.output = output
         
         outputs = self.iteroutputs(coordinates, method=method)
-        self.output = self.composite(outputs, self.output)
+        output = self.composite(outputs, output)
         
         # for debugging
         self._requested_coordinates = coordinates
-        self._output_coordinates = coordinates.drop([dim for dim in coordinates.dims if dim not in self.output.dims])
+        self._output_coordinates = coordinates.drop([dim for dim in coordinates.dims if dim not in output.dims])
+        self._output = output
 
-        return self.output
+        return output
 
     def find_coordinates(self):
         """
