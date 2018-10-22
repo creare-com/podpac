@@ -64,7 +64,7 @@ class Lambda(Node):
 
     @tl.default('source_output')
     def _source_output_default(self):
-        return ImageOutput(node=self.source_node)
+        return ImageOutput(node=self.source_node, name=self.source_node.__class__.__name__)
 
     s3_bucket_name = tl.Unicode(
         allow_none=False, help="Name of AWS s3 bucket.")
@@ -117,21 +117,16 @@ class Lambda(Node):
     def pipeline_definition(self):
         return self.source_node.pipeline_definition
 
-    @property
-    def pipeline_json(self):
-        return self.source_node.pipeline_json
-
     @common_doc(COMMON_DOC)
     def execute(self, coordinates, output=None, method=None):
         """
         TODO: Docstring
         """
         lambda_json = OrderedDict()
-        lambda_json['pipeline'] = self.pipeline_json
-        lambda_json['pipeline']['output'] = self.source_output.pipeline_json
-        lambda_json['coordinates'] = coordinates.json
-
-        data = json.loads(b64decode(lambda_json))
+        lambda_json['pipeline'] = self.pipeline_definition
+        lambda_json['pipeline']['output'] = self.source_output.pipeline_definition
+        lambda_json['coordinates'] = json.loads(coordinates.json)
+        data = json.loads(json.dumps(lambda_json, indent=4))
         self.s3.put_object(
             Body=(bytes(json.dumps(data, indent=4).encode('UTF-8'))),
             Bucket=self.s3_bucket_name,
