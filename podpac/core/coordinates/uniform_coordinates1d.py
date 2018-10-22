@@ -5,6 +5,7 @@ import copy
 
 import numpy as np
 import traitlets as tl
+from collections import OrderedDict
 
 # from podpac.core.utils import cached_property, clear_cache
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord
@@ -127,7 +128,7 @@ class UniformCoordinates1d(Coordinates1d):
             return cls(items[0], items[1], step, **kwargs)
 
     @classmethod
-    def from_json(self, d):
+    def from_json(cls, d):
         start = d.pop('start')
         stop = d.pop('stop')
         step = d.pop('step')
@@ -263,6 +264,7 @@ class UniformCoordinates1d(Coordinates1d):
         area_bounds.setflags(write=False)
         return area_bounds
 
+    @property
     def json(self):
         d = OrderedDict()
         if self.dtype == float:

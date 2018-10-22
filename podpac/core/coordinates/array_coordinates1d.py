@@ -9,6 +9,7 @@ import copy
 
 import numpy as np
 import traitlets as tl
+from collections import OrderedDict
 
 # from podpac.core.utils import cached_property, clear_cache
 from podpac.core.coordinates.utils import make_coord_array, add_coord
@@ -89,7 +90,7 @@ class ArrayCoordinates1d(Coordinates1d):
         return cls(x.data, name=x.name)
 
     @classmethod
-    def from_json(self, d):
+    def from_json(cls, d):
         coords = d.pop('values')
         return cls(coords, **d)
 
@@ -195,9 +196,9 @@ class ArrayCoordinates1d(Coordinates1d):
     def json(self):
         d = OrderedDict()
         if self.dtype == float:
-            d['values'] = self.coords.to_list()
+            d['values'] = self.coords.tolist()
         else:
-            d['values'] = self.coords.astype('str').to_list()
+            d['values'] = self.coords.astype('str').tolist()
         d.update(self.properties)
         return d
 
