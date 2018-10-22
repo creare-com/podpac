@@ -102,8 +102,7 @@ class Reduce(Algorithm):
 
         return self.iter_chunk_size
 
-    @property
-    def chunk_shape(self):
+    def _get_chunk_shape(self, coords):
         """Shape of chunks for parallel processing or large arrays that do not fit in memory.
         
         Returns
@@ -115,7 +114,6 @@ class Reduce(Algorithm):
             return None
 
         chunk_size = self.chunk_size
-        coords = self._requested_coordinates
         
         d = {k:coords[k].size for k in coords.dims if k not in self.dims}
         s = reduce(mul, d.values(), 1)
@@ -157,7 +155,7 @@ class Reduce(Algorithm):
         a = x.data.reshape(-1, *x.shape[n:])
         return a
 
-    def iteroutputs(self, method=None):
+    def iteroutputs(self, coordinates, method=None):
         """Generator for the chunks of the output
         
         Yields
@@ -165,7 +163,8 @@ class Reduce(Algorithm):
         UnitsDataArray
             Output for this chunk
         """
-        for chunk in self._requested_coordinates.iterchunks(self.chunk_shape):
+        chunk_shape = self._get_chunk_shape(coordinates)
+        for chunk in coordinates.iterchunks(chunk_shape):
             yield self.source.eval(chunk, method=method)
 
     @common_doc(COMMON_DOC)
@@ -197,7 +196,7 @@ class Reduce(Algorithm):
         self._output = output
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
-            result = self.reduce_chunked(self.iteroutputs(method), method)
+            result = self.reduce_chunked(self.iteroutputs(coordinates, method=method), method)
         else:
             source_output = self.source.eval(coordinates, method=method)
             result = self.reduce(source_output)
@@ -730,8 +729,7 @@ class Reduce2(Reduce):
     Note that the above nodes *could* be implemented to allow small chunks.
     """
 
-    @property
-    def chunk_shape(self):
+    def _get_chunk_shape(self, coords):
         """Shape of chunks for parallel processing or large arrays that do not fit in memory.
         
         Returns
@@ -743,7 +741,6 @@ class Reduce2(Reduce):
             return None
 
         chunk_size = self.chunk_size
-        coords = self._requested_coordinates
         
         # here, the minimum size is the reduce-dimensions size
         d = {k:coords[k].size for k in self.dims}
@@ -762,7 +759,7 @@ class Reduce2(Reduce):
 
         return [d[dim] for dim in coords.dims]
 
-    def iteroutputs(self, method):
+    def iteroutputs(self, coordinates, method=None):
         """Generator for the chunks of the output
         
         Yields
@@ -770,7 +767,9 @@ class Reduce2(Reduce):
         UnitsDataArray
             Output for this chunk
         """
-        for chunk, slices in self._requested_coordinates.iterchunks(self.chunk_shape, return_slices=True):
+
+        chunk_shape = self._get_chunk_shape(coordinates)
+        for chunk, slices in coordinates.iterchunks(chunk_shape, return_slices=True):
             yield self.source.eval(chunk, method=method), slices
 
     def reduce_chunked(self, xs, method=None):

@@ -77,7 +77,8 @@ class ModifyCoordinates(Algorithm):
         
         self._requested_coordinates = coordinates
         
-        modified_coordinates = Coordinates([self.get_modified_coordinates1d(dim) for dim in coordinates.dims])
+        modified_coordinates = Coordinates(
+            [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims])
         for dim in modified_coordinates.udims:
             if modified_coordinates[dim].size == 0:
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
@@ -100,7 +101,7 @@ class ExpandCoordinates(ModifyCoordinates):
          * [start_offset, end_offset] to expand using the available source coordinates around each input coordinate.
     """
 
-    def get_modified_coordinates1d(self, dim):
+    def get_modified_coordinates1d(self, coords, dim):
         """Returns the expanded coordinates for the requested dimension, depending on the expansion parameter for the
         given dimension.
         
@@ -115,7 +116,7 @@ class ExpandCoordinates(ModifyCoordinates):
             Expanded coordinates
         """
         
-        coords1d = self._requested_coordinates[dim]
+        coords1d = coords[dim]
         expansion = getattr(self, dim)
         
         if not expansion:  # i.e. if list is empty
@@ -158,7 +159,7 @@ class SelectCoordinates(ModifyCoordinates):
          * [start, stop, step]: select uniform coordinates defined by the given start, stop, and step
     """
     
-    def get_modified_coordinates1d(self, dim):
+    def get_modified_coordinates1d(self, coords, dim):
         """
         Get the desired 1d coordinates for the given dimension, depending on the selection attr for the given
         dimension::
@@ -174,7 +175,7 @@ class SelectCoordinates(ModifyCoordinates):
             The selected coordinates for the given dimension.
         """
 
-        coords1d = self._requested_coordinates[dim]
+        coords1d = coords[dim]
         selection = getattr(self, dim)
         
         if not selection:
