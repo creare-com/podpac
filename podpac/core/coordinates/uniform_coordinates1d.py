@@ -126,6 +126,13 @@ class UniformCoordinates1d(Coordinates1d):
             step = make_coord_delta(items[2])
             return cls(items[0], items[1], step, **kwargs)
 
+    @classmethod
+    def from_json(self, d):
+        start = d.pop('start')
+        stop = d.pop('stop')
+        step = d.pop('step')
+        return cls(start, stop, step, **d)
+
     def copy(self, **kwargs):
         properties = self.properties
         properties.update(kwargs)
@@ -255,6 +262,19 @@ class UniformCoordinates1d(Coordinates1d):
         area_bounds = np.array([lo, hi], dtype=self.dtype)
         area_bounds.setflags(write=False)
         return area_bounds
+
+    def json(self):
+        d = OrderedDict()
+        if self.dtype == float:
+            d['start'] = self.start
+            d['stop'] = self.stop
+            d['step'] = self.step
+        else:
+            d['start'] = str(self.start)
+            d['stop'] = str(self.stop)
+            d['step'] = str(self.step)
+        d.update(self.properties)
+        return d
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
