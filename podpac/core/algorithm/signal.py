@@ -171,10 +171,10 @@ class Convolution(Algorithm):
         np.ndarray
             Resultant array. 
         """
-        if np.isnan(np.max(self.source._output)):
+        if np.isnan(np.max(self.outputs['source'])):
             method = 'direct'
         else: method = 'auto'
-        res = scipy.signal.convolve(self.source._output, self.full_kernel, mode='same', method=method)
+        res = scipy.signal.convolve(self.outputs['source'], self.full_kernel, mode='same', method=method)
         return res
 
 

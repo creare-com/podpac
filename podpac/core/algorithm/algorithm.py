@@ -78,9 +78,7 @@ class Algorithm(Node):
         # evaluate input nodes and keep outputs in self.outputs
         self.outputs = {}
         for key, node in self._inputs.items():
-            if self.implicit_pipeline_evaluation:
-                o = node.eval(coordinates, method)
-            self.outputs[key] = o
+            self.outputs[key] = node.eval(coordinates, method)
         
         # accumulate output coordinates
         coords_list = [Coordinates.from_xarray(o.coords) for o in self.outputs.values()]

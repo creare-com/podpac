@@ -73,9 +73,6 @@ class Node(tl.HasTraits):
         How the output of the nodes should be cached. By default, outputs are not cached.
     dtype : type
         The numpy datatype of the output. Currently only `float` is supported.
-    implicit_pipeline_evaluation : Bool
-        Flag indicating if nodes as part of a pipeline should be automatically evaluated when
-        the root node is evaluated. This attribute is planned for deprecation in the future.
     node_defaults : dict
         Dictionary of defaults values for attributes of a Node. 
     style : podpac.Style
@@ -123,9 +120,6 @@ class Node(tl.HasTraits):
     @output.setter
     def output(self, value):
         raise AttributeError("The 'output' attribute has been removed.")
-    
-    # TODO
-    implicit_pipeline_evaluation = tl.Bool(default_value=True)
     
     def __init__(self, **kwargs):
         """ Do not overwrite me """

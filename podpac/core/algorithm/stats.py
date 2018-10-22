@@ -191,20 +191,21 @@ class Reduce(Algorithm):
         if output is None:
             output = self.create_output_array(self._output_coordinates)
 
+        # TODO pass output into reduce and reduce_chunked instead of relying on _output attribute
         self._output = output
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
             result = self.reduce_chunked(self.iteroutputs(method), method)
         else:
-            if self.implicit_pipeline_evaluation:
-                self.source.eval(coordinates, method=method)
-            result = self.reduce(self.source._output)
+            source_output = self.source.eval(coordinates, method=method)
+            result = self.reduce(source_output)
 
         if output.shape is ():
             output.data = result
         else:
             output[:] = result
 
+        self._output = output
         return output
 
     def reduce(self, x):
@@ -937,11 +938,10 @@ class GroupReduce(Algorithm):
         if output is None:
             output = self.create_output_array(self._output_coordinates)
         
-        if self.implicit_pipeline_evaluation:
-            self.source.eval(self._source_coordinates, method=method)
+        source_output = self.source.eval(self._source_coordinates, method=method)
 
         # group
-        grouped = self.source._output.groupby('time.%s' % self.groupby)
+        grouped = source_output.groupby('time.%s' % self.groupby)
         
         # reduce
         if self.reduce_fn is 'custom':

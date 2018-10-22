@@ -36,7 +36,6 @@ class Pipeline(Node):
     definition = tl.Instance(OrderedDict, help="pipeline definition")
     nodes = tl.Instance(OrderedDict, help="pipeline nodes")
     pipeline_output = tl.Instance(Output, help="pipeline output")
-    implicit_pipeline_evaluation = tl.Bool(True)
     
     @property
     def units(self):

@@ -272,11 +272,10 @@ class DataSource(Node):
 
         # If requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
         if np.prod(self._requested_source_coordinates.shape) == 0:
-            udata_array = self.create_output_array(self._output_coordinates)
             if output is None:
-                output = udata_array
+                output = self.create_output_array(self._output_coordinates)
             else:
-                output[:] = udata_array.transpose(*output.dims) # TODO JXM
+                output[:] = np.nan
 
             self._output = output
             return output
