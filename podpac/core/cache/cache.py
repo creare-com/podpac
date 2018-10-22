@@ -14,6 +14,8 @@ except:
 
 import podpac.settings
 
+_cache_types = set('ram','disk','network','all')
+
 class CacheException(Exception):
     """Summary
     """
@@ -202,16 +204,16 @@ class CacheStore(object):
 
 class CacheListing(object):
 
-    def __init__(self, node_def, key, coordinate_def, data):
-        self.node_def = node_def
+    def __init__(self, node, key, coordinates, data=None):
+        self.node_def = node.json
         self.key = key
-        self.coordinate_def = coordinate_def
+        self.coordinate_def = None if coordinates is None else coordinates.json
         self.data = data
 
     def __eq__(self, other):
-        return self.node_def == other.node_def and 
-          self.key == other.key and 
-          self.coordinate_def == other.coordinate_def
+        return self.node_def == other.node_def and \
+               self.key == other.key and \
+               self.coordinate_def == other.coordinate_def
 
 class CachePickleContainer(object):
 
@@ -223,7 +225,7 @@ class CachePickleContainer(object):
             cPickle.dump(self, f)
 
     @staticmethod
-    def load(filepath):
+    def load(path):
         with open(path, 'rb') as f:
             return cPickle.load(f)
 
@@ -251,6 +253,7 @@ class CachePickleContainer(object):
 class DiskCacheStore(CacheStore):
 
     def __init__(self, root_cache_dir_path=None, storage_format='pickle'):
+        self._cache_modes = set(['disk','all'])
         if root_cache_dir_path is None:
             root_cache_dir_path = podpac.settings.CACHE_DIR
         self._root_dir_path = root_cache_dir_path
@@ -259,6 +262,11 @@ class DiskCacheStore(CacheStore):
         else:
             raise NotImplementedError
         self._storage_format = storage_format
+
+    def cache_modes_matches(modes):
+        if len(self._cache_modes.intersection(modes)) > 0:
+            return True
+        return False
 
     def cache_dir(self, node):
         basedir = self._root_dir_path
@@ -290,27 +298,57 @@ class DiskCacheStore(CacheStore):
 
     def cleanse_filename_str(self, s):
         s = s.replace('/', '_').replace('\\', '_').replace(':', '_')
-        s = s.replace('nKeY': 'xxxx').replace('kKeY': 'xxxx').replace('cKeY': 'xxxx')
+        s = s.replace('nKeY', 'xxxx').replace('kKeY', 'xxxx').replace('cKeY', 'xxxx')
         return s
 
     def put(self, node, data, key, coordinates=None, update=False):
-        if not update and self.has(node, key, coordinates):
-            raise CacheException("Existing cache entry. Call put() with `update` argument set to True if you wish to overwrite.")
-
+        listing = CacheListing(node=node, key=key, coordinates=coordinates, data=data)
+        if self.has(node, key, coordinates): # a little inefficient when this is an update but will do for now
+            if not update:
+                raise CacheException("Existing cache entry. Call put() with `update` argument set to True if you wish to overwrite.")
+            else:
+                paths = glob(self.cache_glob(node, key, coordinates))
+                for p in paths:
+                    c = CachePickleContainer.load(p)
+                    if c.has(listing):
+                        c.rem(listing)
+                        c.put(listing)
+                        c.save(p)
+                        return True
+                raise CacheException("Data is cached, but unable to find for update.")
+        path = self.cache_path(node, key, coordinates)
+        CachePickleContainer(listings=[listing]).save(path)
+        return True
 
     def get(self, node, key, coordinates=None):
-        raise NotImplementedError
+        listing = CacheListing(node=node, key=key, coordinates=coordinates)
+        paths = glob(self.cache_glob(node, key, coordinates))
+        for p in paths:
+            c = CachePickleContainer.load(p)
+            if c.has(listing):
+                data = c.get(listing).data
+                if data is None:
+                     CacheException("Stored data is None.")
+                return data
+        raise CacheException("Cache miss. Requested data not found.")
 
     def rem(self, node=None, key=None, coordinates=None):
-        raise NotImplementedError
+        # need to handle cases for removing all entrie for a node
+        # and for removing everything in this disk cache
+        # for future update
+        removed_something = False
+        listing = CacheListing(node=node, key=key, coordinates=coordinates)
+        paths = glob(self.cache_glob(node, key, coordinates))
+        for p in paths:
+            c = CachePickleContainer.load(p)
+            if c.has(listing):
+                c.rem(listing)
+                removed_something = True
+        return removed_something
+        
 
     def has(self, node, key, coordinates=None):
-        node_def = node.json()
-        if coordinates is None:
-            coordinate_def = None
-        else:
-            coordinate_def = coordinates.json()
-        listing = CacheListing(node_def=node_def, key=key, coordinate_def=coordinate_def)
+        listing = CacheListing(node=node, key=key, coordinates=coordinates)
         paths = glob(self.cache_glob(node, key, coordinates))
         for p in paths:
             c = CachePickleContainer.load(p)
