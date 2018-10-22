@@ -82,17 +82,17 @@ class Algorithm(Node):
         
         # accumulate output coordinates
         coords_list = [Coordinates.from_xarray(o.coords) for o in self.outputs.values()]
-        self._output_coordinates = union([coordinates] + coords_list)
+        output_coordinates = union([coordinates] + coords_list)
 
         result = self.algorithm()
         if isinstance(result, np.ndarray):
             if output is None:
-                output = self.create_output_array(self._output_coordinates)
+                output = self.create_output_array(output_coordinates)
             output.data[:] = result
         else:
             if output is None:
-                self._output_coordinates = Coordinates.from_xarray(result.coords)
-                output = self.create_output_array(self._output_coordinates)
+                output_coordinates = Coordinates.from_xarray(result.coords)
+                output = self.create_output_array(output_coordinates)
             output[:] = result
             output = output.transpose(*[dim for dim in coordinates.dims if dim in result.dims])
 

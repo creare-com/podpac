@@ -42,6 +42,8 @@ class Reduce(Algorithm):
     dims = tl.List().tag(attr=True)
     iter_chunk_size = tl.Union([tl.Int(), tl.Unicode()], allow_none=True, default_value=None)
 
+    _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
+
     def _first_init(self, **kwargs):
         if 'dims' in kwargs and isinstance(kwargs['dims'], string_types):
             kwargs['dims'] = [kwargs['dims']]
@@ -186,10 +188,10 @@ class Reduce(Algorithm):
 
         self._requested_coordinates = coordinates
         self.dims = self.get_dims(self._requested_coordinates)
-        self._output_coordinates = self._requested_coordinates.drop(self.dims)
+        self._reduced_coordinates = self._requested_coordinates.drop(self.dims)
 
         if output is None:
-            output = self.create_output_array(self._output_coordinates)
+            output = self.create_output_array(self._reduced_coordinates)
 
         # TODO pass output into reduce and reduce_chunked instead of relying on _output attribute
         self._output = output
@@ -788,11 +790,11 @@ class Reduce2(Reduce):
             Reduced output.
         """
         # special case for full reduce
-        if not self._output_coordinates.dims:
+        if not self._reduced_coordinates.dims:
             x, xslices = next(xs)
             return self.reduce(x)
 
-        I = [self._requested_coordinates.dims.index(dim) for dim in self._output_coordinates.dims]
+        I = [self._requested_coordinates.dims.index(dim) for dim in self._reduced_coordinates.dims]
         y = xr.full_like(self._output, np.nan)
         for x, xslices in xs:
             yslc = [xslices[i] for i in I]
@@ -932,11 +934,10 @@ class GroupReduce(Algorithm):
             If source it not time-depended (required by this node).
         """
         self._requested_coordinates = coordinates
-        self._output_coordinates = coordinates
         self._source_coordinates = self._get_source_coordinates(coordinates)
         
         if output is None:
-            output = self.create_output_array(self._output_coordinates)
+            output = self.create_output_array(coordinates)
         
         source_output = self.source.eval(self._source_coordinates, method=method)
 
@@ -951,7 +952,7 @@ class GroupReduce(Algorithm):
             out = getattr(grouped, self.reduce_fn)('time')
 
         # map
-        eval_time = xr.DataArray(self._output_coordinates.coords['time'])
+        eval_time = xr.DataArray(coordinates.coords['time'])
         E = getattr(eval_time.dt, self.groupby)
         out = out.sel(**{self.groupby:E}).rename({self.groupby: 'time'})
         output[:] = out.transpose(*output.dims).data

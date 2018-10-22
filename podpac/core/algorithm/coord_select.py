@@ -37,6 +37,8 @@ class ModifyCoordinates(Algorithm):
     time = tl.List().tag(attr=True)
     alt = tl.List().tag(attr=True)
 
+    _modified_coordinates = tl.Instance(Coordinates, allow_none=True)
+
     @tl.default('coordinates_source')
     def _default_coordinates_source(self):
         return self.source
@@ -49,7 +51,7 @@ class ModifyCoordinates(Algorithm):
         UnitDataArray
             Source evaluated at the expanded coordinates
         """
-        return self._outputs['source']
+        return self.outputs['source']
  
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None, method=None):
@@ -82,7 +84,7 @@ class ModifyCoordinates(Algorithm):
         output = super(ModifyCoordinates, self).eval(modified_coordinates, output=output, method=method)
 
         # debugging
-        self._output_coordinates = modified_coordinates
+        self._modified_coordinates = modified_coordinates
         self._output = output
 
         return output

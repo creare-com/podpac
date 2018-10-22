@@ -216,14 +216,12 @@ class Compositor(Node):
         {eval_return}
         """
         
+        self._requested_coordinates = coordinates
+        
         outputs = self.iteroutputs(coordinates, method=method)
         output = self.composite(outputs, output)
         
-        # for debugging
-        self._requested_coordinates = coordinates
-        self._output_coordinates = coordinates.drop([dim for dim in coordinates.dims if dim not in output.dims])
         self._output = output
-
         return output
 
     def find_coordinates(self):

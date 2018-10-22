@@ -72,6 +72,7 @@ class Convolution(Algorithm):
     kernel_ndim = tl.Int().tag(attr=True)
 
     _expanded_coordinates = tl.Instance(Coordinates)
+    _full_kernel = tl.Instance(np.ndarray)
  
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None, method=None):
@@ -91,13 +92,13 @@ class Convolution(Algorithm):
         {eval_return}
         """
         self._requested_coordinates = coordinates
-        self._output_coordinates = coordinates
         
         # This should be aligned with coordinates' dimension order
         # The size of this kernel is used to figure out the expanded size
-        shape = self.full_kernel.shape
+        self._full_kernel = self.get_full_kernel(coordinates)
+        shape = self._full_kernel.shape
         
-        if len(shape) != len(self._output_coordinates.shape):
+        if len(shape) != len(coordinates.shape):
             raise ValueError("Kernel shape does not match source data shape")
 
         # expand the coordinates
@@ -157,8 +158,7 @@ class Convolution(Algorithm):
         
         return k / k.sum()
  
-    @property
-    def full_kernel(self):
+    def get_full_kernel(self, coordinates):
         """{full_kernel}
         """
         return self.kernel
@@ -174,7 +174,7 @@ class Convolution(Algorithm):
         if np.isnan(np.max(self.outputs['source'])):
             method = 'direct'
         else: method = 'auto'
-        res = scipy.signal.convolve(self.outputs['source'], self.full_kernel, mode='same', method=method)
+        res = scipy.signal.convolve(self.outputs['source'], self._full_kernel, mode='same', method=method)
         return res
 
 
@@ -198,8 +198,7 @@ class TimeConvolution(Convolution):
 
         return proposal['value']
 
-    @property
-    def full_kernel(self):
+    def get_full_kernel(self, coordinates):
         """{full_kernel}
         
         Raises
@@ -207,14 +206,14 @@ class TimeConvolution(Convolution):
         ValueError
             If source data doesn't have time dimension.
         """
-        if 'time' not in self._output_coordinates.dims:
+        if 'time' not in coordinates.dims:
             raise ValueError('cannot compute time convolution from time-indepedendent input')
-        if 'lat' not in self._output_coordinates.dims and 'lon' not in self._output_coordinates.dims:
+        if 'lat' not in coordinates.dims and 'lon' not in coordinates.dims:
             return self.kernel
  
         kernel = np.array([[self.kernel]])
         kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
-        kernel = kernel.transpose(*self._output_coordinates.dims)
+        kernel = kernel.transpose(*coordinates.dims)
         return kernel.data
 
 
@@ -237,15 +236,14 @@ class SpatialConvolution(Convolution):
 
         return proposal['value']
 
-    @property
-    def full_kernel(self):
+    def get_full_kernel(self, coordinates):
         """{full_kernel}
         """
-        if 'time' not in self._output_coordinates.dims:
+        if 'time' not in coordinates.dims:
             return self.kernel
 
         kernel = np.array([self.kernel]).T
         kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
-        kernel = kernel.transpose(*self._output_coordinates.dims)
+        kernel = kernel.transpose(*coordinates.dims)
 
         return kernel.data

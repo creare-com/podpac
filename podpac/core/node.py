@@ -85,7 +85,6 @@ class Node(tl.HasTraits):
     -----
     Additional attributes are available for debugging after evaluation, including::
      * _requested_coordinates: the requested coordinates of the most recent call to eval
-     * _output_coordinates: the output coordinates of the most recent call to eval
      * _output: the output of the most recent call to eval
     """
 
@@ -101,14 +100,13 @@ class Node(tl.HasTraits):
     
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
-    _output_coordinates = tl.Instance(Coordinates, allow_none=True)
     _output = tl.Instance(UnitsDataArray, allow_none=True)
 
     # temporary messages
     @property
     def requested_coordinates(self):
         raise AttributeError("The 'requested_coordinates' attribute has been removed"
-                             "(_requested_coordinates and _output_coordinates may be available for debugging)")
+                             "(_requested_coordinates may be available for debugging)")
     @requested_coordinates.setter
     def requested_coordinates(self, value):
         raise AttributeError("The 'requested_coordinates' attribute has been removed")

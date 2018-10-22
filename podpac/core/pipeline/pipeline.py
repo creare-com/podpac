@@ -85,12 +85,10 @@ class Pipeline(Node):
             Description
         """
         
+        self._requested_coordinates = coordinates
+
         output = self.pipeline_output.node.eval(coordinates, output)
         self.pipeline_output.write(output, coordinates)
         
-        # debugging
-        self._requested_coordinates = coordinates
-        self._output_coordinates = self.pipeline_output.node._output_coordinates
         self._output = output
-
         return output
