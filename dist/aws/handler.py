@@ -13,10 +13,7 @@ import boto3
 sys.path.append('/tmp')
 sys.path.append(os.getcwd() + '/podpac/')
 
-api_root = 'https://.'
-# s3_bucket = 'creare-podpac-lambda'
 s3 = boto3.client('s3')
-deps = 'podpac_deps.zip'
 
 
 def return_exception(e, event, context, pipeline=None):
@@ -66,7 +63,6 @@ def handler(event, context, ret_pipeline=False):
     except Exception as e:
         return return_exception(e, event, context)
 
-    import numpy as np
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
     sys.path.append(os.getcwd() + '/matplotlib/')
     import matplotlib
@@ -75,23 +71,14 @@ def handler(event, context, ret_pipeline=False):
     from podpac.core.coordinates import Coordinates
     try:
         pipeline = Pipeline(definition=pipeline_json)
-
-        time = _json['coordinates']['TIME']
-        bbox = _json['coordinates']['BBOX'].split(',')
-        width = int(_json['coordinates']['WIDTH'])
-        height = int(_json['coordinates']['WIDTH'])
-
-        w, s, e, n = np.array(bbox, float)
-        dwe = (w - e) / width / 2.
-        dns = (n - s) / height / 2.
-        coords = Coordinates.grid(time=np.datetime64(time), lat=(n - dns, s + dns, height),
-                                  lon=(w + dwe, e - dwe, width), order=['lat', 'lon', 'time'])
+        coords = Coordinates.from_json(_json['coordinates'])
         pipeline.execute(coords)
         if ret_pipeline:
             return pipeline
         pipeline.pipeline_output.write()
         s3.put_object(Bucket=bucket_name,
-                      Key='output/' + pipeline.pipeline_output.name + '.' + pipeline.pipeline_output.format, Body=pipeline.pipeline_output.image)
+                      Key='output/' + pipeline.pipeline_output.name + '.' +
+                      pipeline.pipeline_output.format, Body=pipeline.pipeline_output.image)
         return img_response(pipeline.pipeline_output.image)
     except Exception as e:
         return return_exception(e, event, context, pipeline)

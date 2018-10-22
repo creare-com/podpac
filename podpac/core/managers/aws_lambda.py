@@ -23,11 +23,11 @@ class Lambda(Node):
 
     Attributes
     ----------
-    aws_access_key_id : string
+    AWS_ACCESS_KEY_ID : string
         access key id from AWS credentials
-    aws_secret_access_key : string`
+    AWS_SECRET_ACCESS_KEY : string`
         access key value from AWS credentials
-    aws_region_name : string
+    AWS_REGION_NAME : string
         name of the AWS region
     source_node: Node
         node to be evaluated
@@ -35,26 +35,26 @@ class Lambda(Node):
         how to output the evaluated results of `source_node`
     """
 
-    aws_access_key_id = tl.Unicode(
+    AWS_ACCESS_KEY_ID = tl.Unicode(
         allow_none=False, help="Access key ID from AWS for S3 bucket.")
 
-    @tl.default('aws_access_key_id')
-    def _aws_access_key_id_default(self):
-        return settings.aws_access_key_id
+    @tl.default('AWS_ACCESS_KEY_ID')
+    def _AWS_ACCESS_KEY_ID_default(self):
+        return settings.AWS_ACCESS_KEY_ID
 
-    aws_secret_access_key = tl.Unicode(
+    AWS_SECRET_ACCESS_KEY = tl.Unicode(
         allow_none=False, help="Access key value from AWS for S3 bucket.")
 
-    @tl.default('aws_secret_access_key')
-    def _aws_secret_access_key_default(self):
-        return settings.aws_secret_access_key
+    @tl.default('AWS_SECRET_ACCESS_KEY')
+    def _AWS_SECRET_ACCESS_KEY_default(self):
+        return settings.AWS_SECRET_ACCESS_KEY
 
-    aws_region_name = tl.Unicode(
+    AWS_REGION_NAME = tl.Unicode(
         allow_none=False, help="Region name of AWS S3 bucket.")
 
-    @tl.default('aws_region_name')
-    def _aws_region_name_default(self):
-        return settings.aws_region_name
+    @tl.default('AWS_REGION_NAME')
+    def _AWS_REGION_NAME_default(self):
+        return settings.AWS_REGION_NAME
 
     source_node = tl.Instance(Node, allow_none=False,
                               help="Node to evaluate in a Lambda function.")
@@ -117,19 +117,24 @@ class Lambda(Node):
     def pipeline_definition(self):
         return self.source_node.pipeline_definition
 
+    @property
+    def pipeline_json(self):
+        return self.source_node.pipeline_json
+
     @common_doc(COMMON_DOC)
     def execute(self, coordinates, output=None, method=None):
         """
         TODO: Docstring
         """
         lambda_json = OrderedDict()
-        lambda_json['pipeline'] = self.pipeline_definition
-        lambda_json['pipeline']['output'] = self.source_output.pipeline_definition
-        lambda_json['coordinates'] = coordinates.pipeline_definition
+        lambda_json['pipeline'] = self.pipeline_json
+        lambda_json['pipeline']['output'] = self.source_output.pipeline_json
+        lambda_json['coordinates'] = coordinates.json
 
         data = json.loads(b64decode(lambda_json))
         self.s3.put_object(
             Body=(bytes(json.dumps(data, indent=4).encode('UTF-8'))),
             Bucket=self.s3_bucket_name,
-            Key=self.s3_json_folder + self.source_output.name + '.json'
+            Key=self.s3_json_folder + self.source_output
+            .name + '.json'
         )
