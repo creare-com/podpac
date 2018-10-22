@@ -466,7 +466,7 @@ class SMAPWilt(SMAPProperties):
     property = tl.Unicode('clsm_wp')
 
 @common_doc(COMMON_DOC)
-class SMAPDateFolder(podpac.OrderedCompositor):
+class SMAPDateFolder(podpac.compositor.OrderedCompositor):
     """Compositor of all the SMAP source urls present in a particular folder which is defined for a particular date
 
     Attributes
@@ -705,7 +705,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         return self.sources[0].keys
 
 @common_doc(COMMON_DOC)
-class SMAP(podpac.OrderedCompositor):
+class SMAP(podpac.compositor.OrderedCompositor):
     """Compositor of all the SMAPDateFolder's for every available SMAP date. Essentially a compositor of all SMAP data 
     for a particular product. 
 
@@ -938,7 +938,7 @@ class SMAP(podpac.OrderedCompositor):
         return self.sources[0].keys
 
 
-class SMAPBestAvailable(podpac.OrderedCompositor):
+class SMAPBestAvailable(podpac.compositor.OrderedCompositor):
     """Compositor of SMAP-Sentinel and the Level 4 SMAP Analysis Update soil moisture
     """
 

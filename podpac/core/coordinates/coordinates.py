@@ -155,13 +155,13 @@ class Coordinates(tl.HasTraits):
         return coords
 
     @classmethod
-    def grid(cls, coord_ref_sys=None, ctype=None, distance_units=None, order=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, order)
+    def grid(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
+        coords = cls._coords_from_dict(kwargs, dims)
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
-    def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, order=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, order)
+    def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
+        coords = cls._coords_from_dict(kwargs, dims)
         stacked = StackedCoordinates(coords)
         return cls([stacked], coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
@@ -643,18 +643,18 @@ def concat(coords_list):
     d = OrderedDict()
     for coords in coords_list:
         for dim, c in coords.items():
-            d[dim] = d.get(dim, []) + [c.coordinates]
+            if isinstance(c, Coordinates1d):
+                if dim not in d:
+                    d[dim] = c.coordinates
+                else:
+                    d[dim] = np.concatenate([d[dim], c.coordinates])
+            elif isinstance(c, StackedCoordinates):
+                if dim not in d:
+                    d[dim] = [s.coordinates for s in c]
+                else:
+                    d[dim] = [np.concatenate([d[dim][i], s.coordinates]) for i, s in enumerate(c)]
 
-    dims = []
-    coords = []
-    for dim, cs in d.items():
-        values = np.concatenate(cs)
-        if '_' in dim:
-            values = np.array([e for e in values]).T # transpose StackedCoordinates
-        coords.append(values)
-        dims.append(dim)
-
-    return Coordinates(coords, dims=dims)
+    return Coordinates(list(d.values()), list(d.keys()))
 
 def union(coords_list):
     """
