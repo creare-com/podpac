@@ -21,11 +21,16 @@ import copy
 import warnings
 
 import requests
-from bs4 import BeautifulSoup
 from six import string_types
 import numpy as np
 import xarray as xr
 import traitlets as tl
+
+# Helper utility for optional imports
+from podpac.core.utils import optional_import
+
+# Optional dependencies
+bs4 = optional_import('bs4.BeautifulSoup')
 
 # fixing problem with older versions of numpy
 if not hasattr(np, 'isnat'):

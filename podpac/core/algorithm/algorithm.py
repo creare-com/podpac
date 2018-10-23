@@ -9,11 +9,13 @@ import numpy as np
 import xarray as xr
 import traitlets as tl
 
-try:
-    import numexpr as ne
-except: 
-    ne = None
+# Helper utility for optional imports
+from podpac.core.utils import optional_import
 
+# Optional dependencies
+ne = optional_import('numexpr')
+
+# Internal dependencies
 from podpac.core.coordinates import Coordinates, union
 from podpac.core.node import Node
 from podpac.core.node import COMMON_NODE_DOC
