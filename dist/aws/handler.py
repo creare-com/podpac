@@ -67,8 +67,8 @@ def handler(event, context, ret_pipeline=False):
     sys.path.append(os.getcwd() + '/matplotlib/')
     import matplotlib
     matplotlib.use('agg')
-    from podpac.pipeline import Pipeline
-    from podpac.coordinates import Coordinates
+    from podpac.core.pipeline import Pipeline
+    from podpac.core.coordinates import Coordinates
     try:
         pipeline = Pipeline(definition=pipeline_json)
         coords = Coordinates.from_json(json.dumps(_json['coordinates'], indent=4))
