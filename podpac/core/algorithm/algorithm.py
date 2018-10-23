@@ -109,7 +109,7 @@ class Algorithm(Node):
             list of available coordinates (Coordinate objects)
         """
 
-        return [c.find_coordinates() for node in self._inputs.values() for c in node.find_coordinates()]
+        return [c for node in self._inputs.values() for c in node.find_coordinates()]
         
     def algorithm(self, **kwargs):
         """
