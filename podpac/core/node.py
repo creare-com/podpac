@@ -5,6 +5,7 @@ Node Summary
 from __future__ import division, print_function, absolute_import
 
 import os
+import re
 from collections import OrderedDict
 import json
 import numpy as np
@@ -285,8 +286,45 @@ class Node(tl.HasTraits):
             Dictionary-formatted definition of a PODPAC pipeline. 
         """
 
-        from podpac.core.pipeline import make_pipeline_definition
-        return make_pipeline_definition(self)
+        nodes = []
+        refs = []
+        definitions = []
+
+        def add_node(node):
+            if node in nodes:
+                return refs[nodes.index(node)]
+
+            # get base definition and then replace nodes with references, adding nodes depth first
+            d = node.base_definition
+            if 'inputs' in d:
+                for key, input_node in d['inputs'].items():
+                    if input_node is not None:
+                        d['inputs'][key] = add_node(input_node)
+            if 'sources' in d:
+                for i, source_node in enumerate(d['sources']):
+                    d['sources'][i] = add_node(source_node)
+
+            # get base ref and then ensure it is unique
+            ref = node.base_ref
+            while ref in refs:
+                if re.search('_[1-9][0-9]*$', ref):
+                    ref, i = ref.rsplit('_', 1)
+                    i = int(i)
+                else:
+                    i = 0
+                ref = '%s_%d' % (ref, i+1)
+
+            nodes.append(node)
+            refs.append(ref)
+            definitions.append(d)
+
+            return ref
+
+        add_node(self)
+
+        d = OrderedDict()
+        d['nodes'] = OrderedDict(zip(refs, definitions))
+        return d
 
     @property
     def pipeline(self):

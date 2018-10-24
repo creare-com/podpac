@@ -14,7 +14,6 @@ import podpac
 from podpac.core import common_test_utils as ctu
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node, NodeException
-from podpac.core.pipeline import Pipeline
     
 class TestInit(object):
     pass # TODO
@@ -43,11 +42,45 @@ class TestNodeProperties(object):
         d = n.definition
         assert isinstance(d, OrderedDict)
         assert list(d.keys()) == ['nodes']
+
+    def test_make_pipeline_definition(self):
+        a = podpac.algorithm.Arange()
+        b = podpac.algorithm.CoordData()
+        c = podpac.compositor.OrderedCompositor(sources=np.array([a, b]))
+        
+        node = podpac.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
+        definition = node.definition
+
+        # make sure it is a valid pipeline
+        pipeline = podpac.pipeline.Pipeline(definition=definition)
+
+        assert isinstance(pipeline.nodes[a.base_ref], podpac.algorithm.Arange)
+        assert isinstance(pipeline.nodes[b.base_ref], podpac.algorithm.CoordData)
+        assert isinstance(pipeline.nodes[c.base_ref], podpac.compositor.OrderedCompositor)
+        assert isinstance(pipeline.nodes[node.base_ref], podpac.algorithm.Arithmetic)
+        assert isinstance(pipeline.pipeline_output, podpac.pipeline.NoOutput)
+
+        assert pipeline.pipeline_output.node is pipeline.nodes[node.base_ref]
+        assert pipeline.pipeline_output.name == node.base_ref
+
+    def test_make_pipeline_definition_duplicate_ref(self):
+        a = podpac.algorithm.Arange()
+        b = podpac.algorithm.Arange()
+        c = podpac.algorithm.Arange()
+        
+        node = podpac.compositor.OrderedCompositor(sources=np.array([a, b, c]))
+        definition = node.definition
+
+        # make sure it is a valid pipeline
+        pipeline = podpac.pipeline.Pipeline(definition=definition)
+
+        # check that the arange refs are unique
+        assert len(pipeline.nodes) == 4
     
     def test_pipeline(self):
         n = Node()
         p = n.pipeline
-        assert isinstance(p, Pipeline)
+        assert isinstance(p, podpac.pipeline.Pipeline)
     
     def test_json(self):
         n = Node()
