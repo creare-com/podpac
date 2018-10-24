@@ -43,15 +43,20 @@ class ModifyCoordinates(Algorithm):
     def _default_coordinates_source(self):
         return self.source
    
-    def algorithm(self):
+    def algorithm(self, inputs):
         """Passthrough of the source data
         
+        Arguments
+        ----------
+        inputs : dict
+            Evaluated output of the input nodes. The keys are the attribute names.
+
         Returns
         -------
         UnitDataArray
             Source evaluated at the expanded coordinates
         """
-        return self.outputs['source']
+        return inputs['source']
  
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None):

@@ -161,19 +161,24 @@ class Convolution(Algorithm):
         """
         return self.kernel
 
-    def algorithm(self):
+    def algorithm(self, inputs):
         """Computes the convolution of the source and the kernel
         
+        Arguments
+        ----------
+        inputs : dict
+            evaluated outputs of the input nodes. The keys are the attribute names.
+
         Returns
         -------
         np.ndarray
             Resultant array. 
         """
-        if np.isnan(np.max(self.outputs['source'])):
+        if np.isnan(np.max(inputs['source'])):
             method = 'direct'
         else:
             method = 'auto'
-        res = scipy.signal.convolve(self.outputs['source'], self._full_kernel, mode='same', method=method)
+        res = scipy.signal.convolve(inputs['source'], self._full_kernel, mode='same', method=method)
         return res
 
 
