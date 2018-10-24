@@ -190,11 +190,8 @@ class Reduce(Algorithm):
         if output is None:
             output = self.create_output_array(self._reduced_coordinates)
 
-        # TODO pass output into reduce and reduce_chunked instead of relying on _output attribute
-        self._output = output
-
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
-            result = self.reduce_chunked(self.iteroutputs(coordinates))
+            result = self.reduce_chunked(self.iteroutputs(coordinates), output)
         else:
             source_output = self.source.eval(coordinates)
             result = self.reduce(source_output)
@@ -226,7 +223,7 @@ class Reduce(Algorithm):
 
         raise NotImplementedError
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """
         Reduce a list of xs with a memory-effecient iterative algorithm.
         
@@ -266,7 +263,7 @@ class Min(Reduce):
         """
         return x.min(dim=self.dims)
     
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """Computes the minimum across a chunk
         
         Parameters
@@ -280,7 +277,7 @@ class Min(Reduce):
             Minimum of the source data over self.dims
         """
         # note: np.fmin ignores NaNs, np.minimum propagates NaNs
-        y = xr.full_like(self._output, np.nan)
+        y = xr.full_like(output, np.nan)
         for x in xs:
             y = np.fmin(y, x.min(dim=self.dims))
         return y
@@ -305,7 +302,7 @@ class Max(Reduce):
         """
         return x.max(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """Computes the maximum across a chunk
         
         Parameters
@@ -319,7 +316,7 @@ class Max(Reduce):
             Maximum of the source data over self.dims
         """
         # note: np.fmax ignores NaNs, np.maximum propagates NaNs
-        y = xr.full_like(self._output, np.nan)
+        y = xr.full_like(output, np.nan)
         for x in xs:
             y = np.fmax(y, x.max(dim=self.dims))
         return y
@@ -344,7 +341,7 @@ class Sum(Reduce):
         """
         return x.sum(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """Computes the sum across a chunk
         
         Parameters
@@ -357,7 +354,7 @@ class Sum(Reduce):
         UnitsDataArray
             Sum of the source data over self.dims
         """
-        s = xr.zeros_like(self._output)
+        s = xr.zeros_like(output)
         for x in xs:
             s += x.sum(dim=self.dims)
         return s
@@ -382,7 +379,7 @@ class Count(Reduce):
         """
         return np.isfinite(x).sum(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """Counts the finite values across a chunk
         
         Parameters
@@ -395,7 +392,7 @@ class Count(Reduce):
         UnitsDataArray
             Number of finite values of the source data over self.dims
         """
-        n = xr.zeros_like(self._output)
+        n = xr.zeros_like(output)
         for x in xs:
             n += np.isfinite(x).sum(dim=self.dims)
         return n
@@ -420,7 +417,7 @@ class Mean(Reduce):
         """
         return x.mean(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """Computes the mean across a chunk
         
         Parameters
@@ -433,8 +430,8 @@ class Mean(Reduce):
         UnitsDataArray
             Mean of the source data over self.dims
         """
-        s = xr.zeros_like(self._output)
-        n = xr.zeros_like(self._output)
+        s = xr.zeros_like(output)
+        n = xr.zeros_like(output)
         for x in xs:
             # TODO efficency
             s += x.sum(dim=self.dims)
@@ -462,7 +459,7 @@ class Variance(Reduce):
         """
         return x.var(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """Computes the variance across a chunk
         
         Parameters
@@ -475,9 +472,9 @@ class Variance(Reduce):
         UnitsDataArray
             Variance of the source data over self.dims
         """
-        n = xr.zeros_like(self._output)
-        m = xr.zeros_like(self._output)
-        m2 = xr.zeros_like(self._output)
+        n = xr.zeros_like(output)
+        m = xr.zeros_like(output)
+        m2 = xr.zeros_like(output)
 
         # Welford, adapted to handle multiple data points in each iteration
         for x in xs:
@@ -523,7 +520,7 @@ class Skew(Reduce):
         skew = scipy.stats.skew(a, nan_policy='omit')
         return skew
         
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """Computes the skew across a chunk
         
         Parameters
@@ -536,10 +533,10 @@ class Skew(Reduce):
         UnitsDataArray
             Skew of the source data over self.dims
         """
-        N = xr.zeros_like(self._output)
-        M1 = xr.zeros_like(self._output)
-        M2 = xr.zeros_like(self._output)
-        M3 = xr.zeros_like(self._output)
+        N = xr.zeros_like(output)
+        M1 = xr.zeros_like(output)
+        M2 = xr.zeros_like(output)
+        M3 = xr.zeros_like(output)
         check_empty = True
 
         for x in xs:
@@ -609,7 +606,7 @@ class Kurtosis(Reduce):
         kurtosis = scipy.stats.kurtosis(a, nan_policy='omit')
         return kurtosis
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """Computes the kurtosis across a chunk
         
         Parameters
@@ -622,11 +619,11 @@ class Kurtosis(Reduce):
         UnitsDataArray
             Kurtosis of the source data over self.dims
         """
-        N = xr.zeros_like(self._output)
-        M1 = xr.zeros_like(self._output)
-        M2 = xr.zeros_like(self._output)
-        M3 = xr.zeros_like(self._output)
-        M4 = xr.zeros_like(self._output)
+        N = xr.zeros_like(output)
+        M1 = xr.zeros_like(output)
+        M2 = xr.zeros_like(output)
+        M3 = xr.zeros_like(output)
+        M4 = xr.zeros_like(output)
 
         for x in xs:
             Nx = np.isfinite(x).sum(dim=self.dims)
@@ -693,7 +690,7 @@ class StandardDeviation(Variance):
         """
         return x.std(dim=self.dims)
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """Computes the standard deviation across a chunk
         
         Parameters
@@ -706,7 +703,7 @@ class StandardDeviation(Variance):
         UnitsDataArray
             Standard deviation of the source data over self.dims
         """
-        var = super(StandardDeviation, self).reduce_chunked(xs)
+        var = super(StandardDeviation, self).reduce_chunked(xs, output)
         return np.sqrt(var)
 
 # =============================================================================
@@ -770,7 +767,7 @@ class Reduce2(Reduce):
         for chunk, slices in coordinates.iterchunks(chunk_shape, return_slices=True):
             yield self.source.eval(chunk), slices
 
-    def reduce_chunked(self, xs):
+    def reduce_chunked(self, xs, output):
         """
         Reduce a list of xs with a memory-effecient iterative algorithm.
         
@@ -792,7 +789,7 @@ class Reduce2(Reduce):
             return self.reduce(x)
 
         I = [self._requested_coordinates.dims.index(dim) for dim in self._reduced_coordinates.dims]
-        y = xr.full_like(self._output, np.nan)
+        y = xr.full_like(output, np.nan)
         for x, xslices in xs:
             yslc = [xslices[i] for i in I]
             y.data[yslc] = self.reduce(x)
