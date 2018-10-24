@@ -1122,13 +1122,13 @@ class TestConcat(object):
 #     node = Arange()
 
 #     coords = Coordinate(lat=[3, 4], lon=[10, 30], order=['lat', 'lon'])
-#     output = node.execute(coords)
+#     output = node.eval(coords)
 #     outcoords = convert_xarray_to_podpac(output.coords)
 #     assert outcoords.shape == coords.shape
 #     assert outcoords.dims == coords.dims
 
 #     coords = Coordinate(lat_lon=[[3, 4], [10, 30]], order=['lat_lon'])
-#     output = node.execute(coords)
+#     output = node.eval(coords)
 #     outcoords = convert_xarray_to_podpac(output.coords)
 #     assert outcoords.shape == coords.shape
 #     assert outcoords.dims == coords.dims

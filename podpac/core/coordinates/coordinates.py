@@ -347,6 +347,10 @@ class Coordinates(tl.HasTraits):
     @property
     def json(self):
         return json.dumps([c.json for c in self._coords.values()])
+
+    @property
+    def hash(self):
+        return hash(json.dumps(self.json))
     
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -562,7 +566,7 @@ class Coordinates(tl.HasTraits):
             return self
 
         else:
-            return Coordinates([self._coord[dim] for dim in dims], **self.properties)
+            return Coordinates([self._coords[dim] for dim in dims], **self.properties)
 
 def merge_dims(coords_list):
     """

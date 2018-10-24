@@ -52,7 +52,7 @@ class TestArray(object):
         
         source = self.data
         node = Array(source=source, native_coordinates=self.coordinates)
-        output = node.execute(self.coordinates)
+        output = node.eval(self.coordinates)
 
         assert isinstance(output, UnitsDataArray)
         assert output.values[0, 0] == source[0, 0]
@@ -183,12 +183,12 @@ class TestPyDAP(object):
         self.mock_pydap()
 
         node = PyDAP(source=self.source, datakey=self.datakey, native_coordinates=self.coordinates)
-        output = node.execute(self.coordinates)
+        output = node.eval(self.coordinates)
         assert isinstance(output, UnitsDataArray)
         assert output.values[0, 0] == self.data[0, 0]
 
         node = MockPyDAP(native_coordinates=self.coordinates)
-        output = node.execute(self.coordinates)
+        output = node.eval(self.coordinates)
         assert isinstance(output, UnitsDataArray)
 
 
@@ -261,7 +261,7 @@ class TestRasterio(object):
 
         node = Rasterio(source=self.source)
         native_coordinates = node.get_native_coordinates()
-        output = node.execute(native_coordinates)
+        output = node.eval(native_coordinates)
 
         assert isinstance(output, UnitsDataArray)
 
@@ -438,12 +438,12 @@ class TestWCS(object):
 
         # with eval coordinates
         # TODO: use real eval coordinates
-        node.requested_coordinates = native_coordinates
+        node._output_coordinates = native_coordinates
         native_coordinates = node.native_coordinates
 
         assert isinstance(native_coordinates, Coordinates)
         # TODO: one returns monotonic, the other returns uniform
-        # assert native_coordinates == node.requested_coordinates
+        # assert native_coordinates == node._output_coordinates
         assert native_coordinates['lat']
         assert native_coordinates['lon']
         assert native_coordinates['time']
@@ -465,7 +465,7 @@ class TestWCS(object):
             dims=['lat', 'lon', 'time'])
 
         with pytest.raises(ValueError):
-            output = node.execute(notime_coordinates)
+            output = node.eval(notime_coordinates)
             assert isinstance(output, UnitsDataArray)
             assert output.native_coordinates['lat'][0] == node.native_coordinates['lat'][0]
 
@@ -477,15 +477,15 @@ class TestWCS(object):
             dims=['lat', 'lon', 'time'])
 
         with pytest.raises(ValueError):
-            output = node.execute(time_coordinates)
+            output = node.eval(time_coordinates)
             assert isinstance(output, UnitsDataArray)
 
         # requests exceptions
         self.mock_requests(data_status_code=400)
         with pytest.raises(Exception):
-            output = node.execute(time_coordinates)
+            output = node.eval(time_coordinates)
         with pytest.raises(Exception):
-            output = node.execute(time_coordinates)
+            output = node.eval(time_coordinates)
 
         
 class TestReprojectedSource(object):
@@ -547,7 +547,7 @@ class TestReprojectedSource(object):
         """test get data from reprojected source"""
         datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
         node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-        output = node.execute(node.native_coordinates)
+        output = node.eval(node.native_coordinates)
         assert isinstance(output, UnitsDataArray)
 
 
@@ -560,19 +560,19 @@ class TestReprojectedSource(object):
 
         assert '_reprojected' in ref
 
-    def test_definition(self):
+    def test_base_definition(self):
         """test definition"""
 
         datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
         node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-        definition = node.definition
-        assert 'attrs' in definition
-        assert 'interpolation' in definition['attrs']
+        d = node.base_definition
+        assert 'attrs' in d
+        assert 'interpolation' in d['attrs']
 
         # no coordinates source
         node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         with pytest.raises(NotImplementedError):
-            definition = node.definition
+            node.base_definition
 
 class TestS3(object):
     """test S3 data source"""
@@ -669,7 +669,7 @@ class TestS3(object):
         # TODO: figure out how to mock S3 response
         with pytest.raises(botocore.auth.NoCredentialsError):
             node = S3(source=self.source, native_coordinates=self.coordinates, s3_bucket=self.bucket)
-            output = node.execute(self.coordinates)
+            output = node.eval(self.coordinates)
 
             assert isinstance(output, UnitsDataArray)
 

@@ -18,8 +18,7 @@ import podpac.core.authentication as authentication
 from podpac import settings
 
 # Organized submodules
-# These files are simply wrappers to create
-# a curated namespace of podpac modules
+# These files are simply wrappers to create a curated namespace of podpac modules
 from podpac import algorithm
 from podpac import data
 from podpac import coordinates

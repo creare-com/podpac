@@ -92,7 +92,7 @@ class Array(DataSource):
         """{get_data}
         """
         s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
+        d = self.create_output_array(coordinates, data=self.source[s])
         return d
 
 
@@ -100,8 +100,7 @@ class NumpyArray(Array):
     """Create a DataSource from a numpy array.
 
     .. deprecated:: 0.2.0
-          `NumpyArray` will be removed in podpac 0.2.0, it is replaced by
-          `Array`.
+          `NumpyArray` will be removed in podpac 0.2.0, it is replaced by `Array`.
     """
 
     def init(self):
@@ -126,7 +125,7 @@ class PyDAP(DataSource):
     dataset : pydap.model.DatasetType
         The open pydap dataset. This is provided for troubleshooting.
     native_coordinates : Coordinates
-        {ds_native_coordinates}
+        {native_coordinates}
     password : str, optional
         Password used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
         auth_session instead if you have security concerns.
@@ -248,8 +247,10 @@ class PyDAP(DataSource):
         """{get_data}
         """
         data = self.dataset[self.datakey][tuple(coordinates_index)]
-        d = self.initialize_coord_array(coordinates, 'data',
-                                        fillval=data.reshape(coordinates.shape))
+        # PyDAP 3.2.1 gives a numpy array for the above, whereas 3.2.2 needs the .data attribute to get a numpy array
+        if not isinstance(data, np.ndarray) and hasattr(data, 'data'):
+            data = data.data
+        d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
         return d
     
     @property
@@ -275,7 +276,7 @@ class Rasterio(DataSource):
     dataset : Any
         A reference to the datasource opened by rasterio
     native_coordinates : Coordinates
-        {ds_native_coordinates}
+        {native_coordinates}
     source : str
         Path to the data source
     """
@@ -346,14 +347,11 @@ class Rasterio(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.initialize_coord_array(coordinates)
+        data = self.create_output_array(coordinates)
         slc = coordinates_index
-        data.data.ravel()[:] = self.dataset.read(
-            self.band, window=((slc[0].start, slc[0].stop),
-                               (slc[1].start, slc[1].stop)),
-            out_shape=tuple(coordinates.shape)
-            ).ravel()
-            
+        window = window=((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
+        a = self.dataset.read(self.band, out_shape=tuple(coordinates.shape))
+        data.data.ravel()[:] = a.ravel()
         return data
     
     @cached_property
@@ -479,8 +477,7 @@ class WCS(DataSource):
         str
             The url that requests the WCS capabilities
         """
-        return self.source + '?' + self._get_capabilities_qs.format(
-            version=self.version, layer=self.layer_name)
+        return self.source + '?' + self._get_capabilities_qs.format(version=self.version, layer=self.layer_name)
 
     @tl.default('wcs_coordinates')
     def get_wcs_coordinates(self):
@@ -568,13 +565,14 @@ class WCS(DataSource):
         data wrangling for us...
         """
 
-        if not self.requested_coordinates:
+        # TODO update so that we don't rely on _evaluated_coordinates
+        if not self._evaluated_coordinates:
             return self.wcs_coordinates
 
         cs = []
         for dim in self.wcs_coordinates.dims:
-            if dim in self.requested_coordinates.dims:
-                c = self.requested_coordinates[dim]
+            if dim in self._evaluated_coordinates.dims:
+                c = self._evaluated_coordinates[dim]
                 if c.size == 1:
                     cs.append(ArrayCoordinates1d(c.coordinates[0], name=dim))
                 elif isinstance(c, UniformCoordinates1d):
@@ -596,7 +594,7 @@ class WCS(DataSource):
         Exception
             Raises this if there is a network error or required dependencies are not installed.
         """
-        output = self.initialize_coord_array(coordinates)
+        output = self.create_output_array(coordinates)
         dotime = 'time' in self.wcs_coordinates.dims
 
         if 'time' in coordinates.dims and dotime:
@@ -812,7 +810,7 @@ class ReprojectedSource(DataSource, Algorithm):
         """{get_data}
         """
         self.source.interpolation = self.source_interpolation
-        data = self.source.execute(coordinates)
+        data = self.source.eval(coordinates)
         
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of
@@ -835,13 +833,13 @@ class ReprojectedSource(DataSource, Algorithm):
         return '{}_reprojected'.format(self.source.base_ref)
 
     @property
-    def definition(self):
-        """ Pipeline node definition. 
+    def base_definition(self):
+        """ Base node definition. 
         
         Returns
         -------
         OrderedDict
-            Pipeline node definition. 
+            Base node definition. 
         
         Raises
         ------
@@ -850,7 +848,7 @@ class ReprojectedSource(DataSource, Algorithm):
             is not implemented
         """
         
-        d = Algorithm.definition.fget(self)
+        d = Algorithm.base_definition.fget(self)
         d['attrs'] = OrderedDict()
         if self.interpolation:
             d['attrs']['interpolation'] = self.interpolation
