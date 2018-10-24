@@ -246,7 +246,10 @@ class PyDAP(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.dataset[self.datakey][tuple(coordinates_index)].data
+        data = self.dataset[self.datakey][tuple(coordinates_index)]
+        # PyDAP 3.2.1 gives a numpy array for the above, whereas 3.2.2 needs the .data attribute to get a numpy array
+        if not isinstance(data, np.ndarray) and hasattr(data, 'data'):
+            data = data.data
         d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
         return d
     
