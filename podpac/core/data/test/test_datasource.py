@@ -231,7 +231,7 @@ class TestDataSource(object):
         with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
             node.eval(Coordinates(['2018-01-01'], dims=['time']))
 
-        # missing entire stacked dimension
+        # missing any part of stacked dimension
         node = MockArrayDataSource(
             source=np.empty(3),
             native_coordinates=Coordinates([[[0, 1, 2], [10, 11, 12]]], dims=['lat_lon']))
@@ -239,27 +239,8 @@ class TestDataSource(object):
         with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
             node.eval(Coordinates([1], dims=['time']))
 
-        # missing part of a non-monotonic stacked dimension
-        node = MockArrayDataSource(
-            source=np.empty(3),
-            native_coordinates=Coordinates([[[0, 2, 1], [10, 11, 12]]], dims=['lat_lon']))
-
         with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
             node.eval(Coordinates([1], dims=['lat']))
-        with pytest.raises(ValueError, match="Cannot evaluate these coordinates.*"):
-            node.eval(Coordinates([11], dims=['time']))
-        
-        # but missing part of a monotonic stacked dimension is okay
-        node = MockArrayDataSource(
-            source=np.empty(3),
-            native_coordinates=Coordinates([[[0, 1, 2], [10, 11, 12]]], dims=['lat_lon']))
-        
-        # TODO interpolation not working here
-        output = node.eval(Coordinates([1], dims=['lat']))
-        assert output.coords.dims == ('lat',)
-
-        output = node.eval(Coordinates([11], dims=['lon']))
-        assert output.coords.dims == ('lon',)
 
     def test_evaluate_no_overlap(self):
         """evaluate node with coordinates that do not overlap"""
