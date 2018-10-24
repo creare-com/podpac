@@ -246,7 +246,7 @@ class PyDAP(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.dataset[self.datakey][tuple(coordinates_index)]
+        data = self.dataset[self.datakey][tuple(coordinates_index)].data
         d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
         return d
     
