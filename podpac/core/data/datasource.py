@@ -437,7 +437,7 @@ class DataSource(Node):
             tol = np.inf
             for c in data_dst.coords.keys():
                 crds[c] = data_dst.coords[c].data.copy()
-                if c is not 'time' and coords_dst[c].size > 0:
+                if c != 'time' and coords_dst[c].size > 0:
                     area_bounds = getattr(coords_dst[c], 'area_bounds', [-np.inf, np.inf])
                     delta = np.abs(area_bounds[1] - area_bounds[0]) / coords_dst[c].size
                     tol = min(tol, delta)

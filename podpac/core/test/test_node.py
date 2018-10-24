@@ -3,6 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import os
 from collections import OrderedDict
 import json
+import six
 
 import pytest
 import numpy as np
@@ -331,7 +332,7 @@ class TestDeprecatedMethods(object):
 
     def test_cache_dir(self):
         n = Node()
-        assert isinstance(n.cache_dir, str)
+        assert isinstance(n.cache_dir, six.string_types)
         assert n.cache_dir.endswith('Node')
         assert 'cache' in n.cache_dir
 
