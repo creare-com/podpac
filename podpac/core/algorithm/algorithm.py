@@ -56,7 +56,7 @@ class Algorithm(Node):
         }
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evalutes this nodes using the supplied coordinates. 
         
         Parameters
@@ -65,8 +65,6 @@ class Algorithm(Node):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
         
         Returns
         -------
@@ -78,7 +76,7 @@ class Algorithm(Node):
         # evaluate input nodes and keep outputs in self.outputs
         self.outputs = {}
         for key, node in self._inputs.items():
-            self.outputs[key] = node.eval(coordinates, method)
+            self.outputs[key] = node.eval(coordinates)
         
         # accumulate output coordinates
         coords_list = [Coordinates.from_xarray(o.coords) for o in self.outputs.values()]

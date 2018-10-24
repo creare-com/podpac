@@ -23,9 +23,6 @@ COMMON_NODE_DOC = {
         '''Default is None. Optional input array used to store the output data. When supplied, the node will not 
             allocate its own memory for the output array. This array needs to have the correct dimensions and 
             coordinates.''',
-    'eval_method': 
-        '''Default is None. How the node will be evaluated: serial, parallel, on aws, locally, etc. Currently only
-           local evaluation is supported.''',
     'eval_return': 
         '''UnitsDataArray
             Unit-aware xarray DataArray containing the results of the node evaluation.''',
@@ -159,7 +156,7 @@ class Node(tl.HasTraits):
         pass
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """
         Evaluate the node at the given coordinates.
 
@@ -169,8 +166,6 @@ class Node(tl.HasTraits):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
         
         Returns
         -------
@@ -179,7 +174,7 @@ class Node(tl.HasTraits):
 
         raise NotImplementedError
 
-    def eval_group(self, group, method=None):
+    def eval_group(self, group):
         """
         Evaluate the node for each of the coordinates in the group.
         
@@ -187,16 +182,14 @@ class Node(tl.HasTraits):
         ----------
         group : podpac.CoordinatesGroup
             Group of coordinates to evaluate.
-        method : str, optional
-            {eval_method}
-
+        
         Returns
         -------
         outputs : list
             evaluation output, list of UnitsDataArray objects
         """
 
-        return [self.eval(coords, method=method) for coords in group]
+        return [self.eval(coords) for coords in group]
 
     def find_coordinates(self):
         """

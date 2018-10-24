@@ -128,7 +128,7 @@ class Compositor(Node):
         """
         raise NotImplementedError()
     
-    def iteroutputs(self, coordinates, method=None):
+    def iteroutputs(self, coordinates):
         """Summary
         
         Parameters
@@ -183,7 +183,7 @@ class Compositor(Node):
             # TODO pool of pre-allocated scratch space
             # TODO: docstring?
             def f(src):
-                return src.eval(coordinates, method=method)
+                return src.eval(coordinates)
             pool = ThreadPool(processes=self.n_threads)
             results = [pool.apply_async(f, [src]) for src in src_subset]
             
@@ -194,12 +194,12 @@ class Compositor(Node):
         else:
             output = None # scratch space
             for src in src_subset:
-                output = src.eval(coordinates, output, method)
+                output = src.eval(coordinates, output)
                 yield output
                 output[:] = np.nan
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates. 
 
         Parameters
@@ -208,8 +208,6 @@ class Compositor(Node):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
             
         Returns
         -------
@@ -218,7 +216,7 @@ class Compositor(Node):
         
         self._requested_coordinates = coordinates
         
-        outputs = self.iteroutputs(coordinates, method=method)
+        outputs = self.iteroutputs(coordinates)
         output = self.composite(outputs, output)
         
         self._output = output

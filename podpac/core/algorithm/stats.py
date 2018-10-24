@@ -155,7 +155,7 @@ class Reduce(Algorithm):
         a = x.data.reshape(-1, *x.shape[n:])
         return a
 
-    def iteroutputs(self, coordinates, method=None):
+    def iteroutputs(self, coordinates):
         """Generator for the chunks of the output
         
         Yields
@@ -165,10 +165,10 @@ class Reduce(Algorithm):
         """
         chunk_shape = self._get_chunk_shape(coordinates)
         for chunk in coordinates.iterchunks(chunk_shape):
-            yield self.source.eval(chunk, method=method)
+            yield self.source.eval(chunk)
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates. 
         
         Parameters
@@ -177,8 +177,6 @@ class Reduce(Algorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
         
         Returns
         -------
@@ -196,9 +194,9 @@ class Reduce(Algorithm):
         self._output = output
 
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
-            result = self.reduce_chunked(self.iteroutputs(coordinates, method=method), method)
+            result = self.reduce_chunked(self.iteroutputs(coordinates))
         else:
-            source_output = self.source.eval(coordinates, method=method)
+            source_output = self.source.eval(coordinates)
             result = self.reduce(source_output)
 
         if output.shape is ():
@@ -228,7 +226,7 @@ class Reduce(Algorithm):
 
         raise NotImplementedError
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """
         Reduce a list of xs with a memory-effecient iterative algorithm.
         
@@ -246,7 +244,7 @@ class Reduce(Algorithm):
         """
 
         warnings.warn("No reduce_chunked method defined, using one-step reduce")
-        x = self.source.eval(self._requested_coordinates, method=method)
+        x = self.source.eval(self._requested_coordinates)
         return self.reduce(x)
 
 class Min(Reduce):
@@ -268,7 +266,7 @@ class Min(Reduce):
         """
         return x.min(dim=self.dims)
     
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """Computes the minimum across a chunk
         
         Parameters
@@ -307,7 +305,7 @@ class Max(Reduce):
         """
         return x.max(dim=self.dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """Computes the maximum across a chunk
         
         Parameters
@@ -346,7 +344,7 @@ class Sum(Reduce):
         """
         return x.sum(dim=self.dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """Computes the sum across a chunk
         
         Parameters
@@ -384,7 +382,7 @@ class Count(Reduce):
         """
         return np.isfinite(x).sum(dim=self.dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """Counts the finite values across a chunk
         
         Parameters
@@ -422,7 +420,7 @@ class Mean(Reduce):
         """
         return x.mean(dim=self.dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """Computes the mean across a chunk
         
         Parameters
@@ -464,7 +462,7 @@ class Variance(Reduce):
         """
         return x.var(dim=self.dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """Computes the variance across a chunk
         
         Parameters
@@ -525,7 +523,7 @@ class Skew(Reduce):
         skew = scipy.stats.skew(a, nan_policy='omit')
         return skew
         
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """Computes the skew across a chunk
         
         Parameters
@@ -611,7 +609,7 @@ class Kurtosis(Reduce):
         kurtosis = scipy.stats.kurtosis(a, nan_policy='omit')
         return kurtosis
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """Computes the kurtosis across a chunk
         
         Parameters
@@ -695,7 +693,7 @@ class StandardDeviation(Variance):
         """
         return x.std(dim=self.dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """Computes the standard deviation across a chunk
         
         Parameters
@@ -708,7 +706,7 @@ class StandardDeviation(Variance):
         UnitsDataArray
             Standard deviation of the source data over self.dims
         """
-        var = super(StandardDeviation, self).reduce_chunked(xs, method)
+        var = super(StandardDeviation, self).reduce_chunked(xs)
         return np.sqrt(var)
 
 # =============================================================================
@@ -759,7 +757,7 @@ class Reduce2(Reduce):
 
         return [d[dim] for dim in coords.dims]
 
-    def iteroutputs(self, coordinates, method=None):
+    def iteroutputs(self, coordinates):
         """Generator for the chunks of the output
         
         Yields
@@ -770,9 +768,9 @@ class Reduce2(Reduce):
 
         chunk_shape = self._get_chunk_shape(coordinates)
         for chunk, slices in coordinates.iterchunks(chunk_shape, return_slices=True):
-            yield self.source.eval(chunk, method=method), slices
+            yield self.source.eval(chunk), slices
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs):
         """
         Reduce a list of xs with a memory-effecient iterative algorithm.
         
@@ -911,7 +909,7 @@ class GroupReduce(Algorithm):
         return coords
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates. 
         
         Parameters
@@ -920,8 +918,6 @@ class GroupReduce(Algorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
         
         Returns
         -------
@@ -938,7 +934,7 @@ class GroupReduce(Algorithm):
         if output is None:
             output = self.create_output_array(coordinates)
         
-        source_output = self.source.eval(self._source_coordinates, method=method)
+        source_output = self.source.eval(self._source_coordinates)
 
         # group
         grouped = source_output.groupby('time.%s' % self.groupby)

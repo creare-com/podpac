@@ -78,7 +78,7 @@ class TestNotImplementedMethods(object):
             n.eval(None)
 
         with pytest.raises(NotImplementedError):
-            n.eval(None, output=None, method=None)
+            n.eval(None, output=None)
 
     def test_find_coordinates(self):
         n = Node()
@@ -137,10 +137,10 @@ class TestCaching(object):
     def teardown_class(cls):
         cls.node.del_cache()
 
-    def setup_method(self):
+    def setup_method(self, method):
         self.node.del_cache()
 
-    def teardown_method(self):
+    def teardown_method(self, method):
         self.node.del_cache()
 
     def test_has(self):

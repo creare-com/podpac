@@ -75,7 +75,7 @@ class Convolution(Algorithm):
     _full_kernel = tl.Instance(np.ndarray)
  
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates.
         
         Parameters
@@ -84,8 +84,6 @@ class Convolution(Algorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
         
         Returns
         -------
@@ -125,7 +123,7 @@ class Convolution(Algorithm):
         exp_slice = tuple(exp_slice)
 
         # evaluate using expanded coordinates and then reduce down to originally requested coordinates
-        out = super(Convolution, self).eval(exp_coords, method=method)
+        out = super(Convolution, self).eval(exp_coords)
         result = out[exp_slice]
         if output is None:
             output = result
@@ -173,7 +171,8 @@ class Convolution(Algorithm):
         """
         if np.isnan(np.max(self.outputs['source'])):
             method = 'direct'
-        else: method = 'auto'
+        else:
+            method = 'auto'
         res = scipy.signal.convolve(self.outputs['source'], self._full_kernel, mode='same', method=method)
         return res
 

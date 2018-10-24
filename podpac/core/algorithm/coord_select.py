@@ -54,7 +54,7 @@ class ModifyCoordinates(Algorithm):
         return self.outputs['source']
  
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates.
 
         Parameters
@@ -63,8 +63,6 @@ class ModifyCoordinates(Algorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
             
         Returns
         -------
@@ -82,7 +80,7 @@ class ModifyCoordinates(Algorithm):
         for dim in modified_coordinates.udims:
             if modified_coordinates[dim].size == 0:
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
-        output = super(ModifyCoordinates, self).eval(modified_coordinates, output=output, method=method)
+        output = super(ModifyCoordinates, self).eval(modified_coordinates, output=output)
 
         # debugging
         self._modified_coordinates = modified_coordinates

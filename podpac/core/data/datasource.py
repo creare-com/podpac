@@ -201,7 +201,7 @@ class DataSource(Node):
         return self._interpolation
 
     @common_doc(COMMON_DATA_DOC)
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evaluates this node using the supplied coordinates.
 
         The native coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
@@ -220,8 +220,6 @@ class DataSource(Node):
              * Extra dimensions in the requested coordinates are dropped.
         output : podpac.core.units.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
         
         Returns
         -------
