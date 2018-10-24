@@ -108,6 +108,9 @@ class Coordinates1d(BaseCoordinates):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
             self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)
 
+    def from_json(self, d):
+        raise NotImplementedError
+
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
@@ -173,6 +176,12 @@ class Coordinates1d(BaseCoordinates):
         coordinate bounds.
         '''
 
+    @property
+    def json(self):
+        '''
+        '''
+        raise NotImplementedError
+
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
@@ -233,7 +242,7 @@ class Coordinates1d(BaseCoordinates):
             raise TypeError("Cannot intersect with type '%s'" % type(other))
 
         # short-circuit
-        if self.name not in other.dims:
+        if self.name not in other.udims:
             return self._select_full(return_indices)
 
         if isinstance(other, (Coordinates, StackedCoordinates)):

@@ -3,6 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import pytest
 import numpy as np
+import pandas as pd
 from datetime import datetime
 
 from podpac.core.coordinates.utils import get_timedelta, get_timedelta_unit, make_timedelta_string
@@ -115,83 +116,202 @@ def test_make_coord_delta():
     with pytest.raises(ValueError):
         make_coord_delta('not a valid timedelta')
 
-def test_make_coord_array():
-    # single number
-    a = np.array([5.0])
-    np.testing.assert_array_equal(make_coord_array(5), a)
-    np.testing.assert_array_equal(make_coord_array([5]), a)
-    np.testing.assert_array_equal(make_coord_array([[5]]), a)
-    np.testing.assert_array_equal(make_coord_array(np.array(5)), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([5])), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([[5]])), a)
+class TestMakeCoordArray(object):
+    def test_numerical_singleton(self):
+        a = np.array([5.0])
+        f = 5.0
+        i = 5
+
+        # float
+        np.testing.assert_array_equal(make_coord_array(f), a)
+        np.testing.assert_array_equal(make_coord_array([f]), a)
+        np.testing.assert_array_equal(make_coord_array([[f]]), a)
+
+        # float array
+        np.testing.assert_array_equal(make_coord_array(np.array(f)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([f])), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([[f]])), a)
+        
+        # int
+        np.testing.assert_array_equal(make_coord_array(i), a)
+        np.testing.assert_array_equal(make_coord_array([i]), a)
+        np.testing.assert_array_equal(make_coord_array([[i]]), a)
+
+        # int array
+        np.testing.assert_array_equal(make_coord_array(np.array(i)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([i])), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([[i]])), a)
     
-    # list of numbers
-    a = np.array([5.0, 5.5])
-    np.testing.assert_array_equal(make_coord_array([5, 5.5]), a)
-    np.testing.assert_array_equal(make_coord_array([[5, 5.5]]), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([5, 5.5])), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([[5, 5.5]])), a)
+    def test_numerical_array(self):
+        a = np.array([5.0, 5.5])
+        l = [5, 5.5]
+
+        np.testing.assert_array_equal(make_coord_array(l), a)
+        np.testing.assert_array_equal(make_coord_array([l]), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(l)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([l])), a)
+
+    def test_date_singleton(self):
+        a = np.array(['2018-01-01']).astype(np.datetime64)
+        s = '2018-01-01'
+        u = u'2018-01-01'
+        dt64 = np.datetime64('2018-01-01')
+        dt = np.datetime64('2018-01-01').item()
+
+        # str
+        np.testing.assert_array_equal(make_coord_array(s), a)
+        np.testing.assert_array_equal(make_coord_array([s]), a)
+        np.testing.assert_array_equal(make_coord_array([[s]]), a)
+
+        # unicode
+        np.testing.assert_array_equal(make_coord_array(u), a)
+        np.testing.assert_array_equal(make_coord_array([u]), a)
+        np.testing.assert_array_equal(make_coord_array([[u]]), a)
+        
+        # datetime64
+        np.testing.assert_array_equal(make_coord_array(dt64), a)
+        np.testing.assert_array_equal(make_coord_array([dt64]), a)
+        np.testing.assert_array_equal(make_coord_array([[dt64]]), a)
+        
+        # python Datetime
+        np.testing.assert_array_equal(make_coord_array(dt), a)
+        np.testing.assert_array_equal(make_coord_array([dt]), a)
+        np.testing.assert_array_equal(make_coord_array([[dt]]), a)
+
+        # pandas Timestamp
+        # not tested here because these always have h:m:s
+
+    def test_datetime_singleton(self):
+        a = np.array(['2018-01-01T01:01:01']).astype(np.datetime64)
+        s = '2018-01-01T01:01:01'
+        u = u'2018-01-01T01:01:01'
+        dt64 = np.datetime64('2018-01-01T01:01:01')
+        dt = np.datetime64('2018-01-01T01:01:01').item()
+        ts = pd.Timestamp('2018-01-01T01:01:01')
+
+        # str
+        np.testing.assert_array_equal(make_coord_array(s), a)
+        np.testing.assert_array_equal(make_coord_array([s]), a)
+        np.testing.assert_array_equal(make_coord_array([[s]]), a)
+
+        # unicode
+        np.testing.assert_array_equal(make_coord_array(u), a)
+        np.testing.assert_array_equal(make_coord_array([u]), a)
+        np.testing.assert_array_equal(make_coord_array([[u]]), a)
+        
+        # datetime64
+        np.testing.assert_array_equal(make_coord_array(dt64), a)
+        np.testing.assert_array_equal(make_coord_array([dt64]), a)
+        np.testing.assert_array_equal(make_coord_array([[dt64]]), a)
+        
+        # python Datetime
+        np.testing.assert_array_equal(make_coord_array(dt), a)
+        np.testing.assert_array_equal(make_coord_array([dt]), a)
+        np.testing.assert_array_equal(make_coord_array([[dt]]), a)
+
+        # pandas Timestamp
+        np.testing.assert_array_equal(make_coord_array(ts), a)
+        np.testing.assert_array_equal(make_coord_array([ts]), a)
+        np.testing.assert_array_equal(make_coord_array([[ts]]), a)
+
+    def test_date_array(self):
+        a = np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64)
+        s = ['2018-01-01', '2018-01-02']
+        u = [u'2018-01-01', u'2018-01-02']
+        dt64 = [np.datetime64('2018-01-01'), np.datetime64('2018-01-02')]
+        dt = [np.datetime64('2018-01-01').item(), np.datetime64('2018-01-02').item()]
+
+        # str
+        np.testing.assert_array_equal(make_coord_array(s), a)
+        np.testing.assert_array_equal(make_coord_array([s]), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(s)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([s])), a)
+
+        # unicode
+        np.testing.assert_array_equal(make_coord_array(u), a)
+        np.testing.assert_array_equal(make_coord_array([u]), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(u)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([u])), a)
+
+        # datetime64
+        np.testing.assert_array_equal(make_coord_array(dt64), a)
+        np.testing.assert_array_equal(make_coord_array([dt64]), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(dt64)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([dt64])), a)
+
+        # python datetime
+        np.testing.assert_array_equal(make_coord_array(dt), a)
+        np.testing.assert_array_equal(make_coord_array([dt]), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(dt)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([dt])), a)
+        
+        # pandas Timestamp
+        # not tested here because these always have h:m:s
+
+    def test_datetime_array(self):
+        a = np.array(['2018-01-01T01:01:01', '2018-01-01T01:01:02']).astype(np.datetime64)
+        s = ['2018-01-01T01:01:01', '2018-01-01T01:01:02']
+        u = [u'2018-01-01T01:01:01', u'2018-01-01T01:01:02']
+        dt64 = [np.datetime64('2018-01-01T01:01:01'), np.datetime64('2018-01-01T01:01:02')]
+        dt = [np.datetime64('2018-01-01T01:01:01').item(), np.datetime64('2018-01-01T01:01:02').item()]
+        ts = [pd.Timestamp('2018-01-01T01:01:01'), pd.Timestamp('2018-01-01T01:01:02')]
+
+        # str
+        np.testing.assert_array_equal(make_coord_array(s), a)
+        np.testing.assert_array_equal(make_coord_array([s]), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(s)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([s])), a)
+
+        # unicode
+        np.testing.assert_array_equal(make_coord_array(u), a)
+        np.testing.assert_array_equal(make_coord_array([u]), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(u)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([u])), a)
+
+        # datetime64
+        np.testing.assert_array_equal(make_coord_array(dt64), a)
+        np.testing.assert_array_equal(make_coord_array([dt64]), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(dt64)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([dt64])), a)
+
+        # python datetime
+        np.testing.assert_array_equal(make_coord_array(dt), a)
+        np.testing.assert_array_equal(make_coord_array([dt]), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(dt)), a)
+        np.testing.assert_array_equal(make_coord_array(np.array([dt])), a)
+        
+        # pandas Timestamp
+        np.testing.assert_array_equal(make_coord_array(ts), a)
+        np.testing.assert_array_equal(make_coord_array([ts]), a)
+        np.testing.assert_array_equal(make_coord_array([[ts]]), a)
+
+    def test_invalid_type(self):
+        with pytest.raises(TypeError):
+            make_coord_array([{}])
     
-    # single time
-    a = np.array(['2018-01-01']).astype(np.datetime64)
-    np.testing.assert_array_equal(make_coord_array('2018-01-01'), a)
-    np.testing.assert_array_equal(make_coord_array(u'2018-01-01'), a)
-    np.testing.assert_array_equal(make_coord_array(np.datetime64('2018-01-01')), a)
-    np.testing.assert_array_equal(make_coord_array(np.datetime64('2018-01-01').item()), a)
-    np.testing.assert_array_equal(make_coord_array(['2018-01-01']), a)
-    np.testing.assert_array_equal(make_coord_array([u'2018-01-01']), a)
-    np.testing.assert_array_equal(make_coord_array([np.datetime64('2018-01-01')]), a)
-    np.testing.assert_array_equal(make_coord_array([np.datetime64('2018-01-01').item()]), a)
-    np.testing.assert_array_equal(make_coord_array([['2018-01-01']]), a)
-    np.testing.assert_array_equal(make_coord_array([[u'2018-01-01']]), a)
-    np.testing.assert_array_equal(make_coord_array([[np.datetime64('2018-01-01')]]), a)
-    np.testing.assert_array_equal(make_coord_array([[np.datetime64('2018-01-01').item()]]), a)
+    def test_mixed_type(self):
+        with pytest.raises(TypeError):
+            make_coord_array([5.0, '2018-01-01'])
 
-    # list of times
-    a = np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64)
-    np.testing.assert_array_equal(make_coord_array(['2018-01-01', '2018-01-02']), a)
-    np.testing.assert_array_equal(make_coord_array([u'2018-01-01', u'2018-01-02']), a)
-    np.testing.assert_array_equal(make_coord_array([np.datetime64('2018-01-01').item(), np.datetime64('2018-01-02').item()]), a)
-    np.testing.assert_array_equal(make_coord_array([np.datetime64('2018-01-01'), np.datetime64('2018-01-02')]), a)
-    np.testing.assert_array_equal(make_coord_array(np.array(['2018-01-01', '2018-01-02'])), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([u'2018-01-01', u'2018-01-02'])), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([np.datetime64('2018-01-01').item(), np.datetime64('2018-01-02').item()])), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([np.datetime64('2018-01-01'), np.datetime64('2018-01-02')])), a)
-    np.testing.assert_array_equal(make_coord_array(np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64)), a)
-    np.testing.assert_array_equal(make_coord_array([['2018-01-01', '2018-01-02']]), a)
-    np.testing.assert_array_equal(make_coord_array([[u'2018-01-01', u'2018-01-02']]), a)
-    np.testing.assert_array_equal(make_coord_array([[np.datetime64('2018-01-01').item(), np.datetime64('2018-01-02').item()]]), a)
-    np.testing.assert_array_equal(make_coord_array([[np.datetime64('2018-01-01'), np.datetime64('2018-01-02')]]), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([['2018-01-01', '2018-01-02']])), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([[u'2018-01-01', u'2018-01-02']])), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([[np.datetime64('2018-01-01').item(), np.datetime64('2018-01-02').item()]])), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([[np.datetime64('2018-01-01'), np.datetime64('2018-01-02')]])), a)
-    np.testing.assert_array_equal(make_coord_array(np.array([['2018-01-01', '2018-01-02']]).astype(np.datetime64)), a)
+        with pytest.raises(TypeError):
+            make_coord_array(['2018-01-01', 5.0])
 
-    # mixed
-    with pytest.raises(TypeError):
-        make_coord_array([5.0, '2018-01-01'])
-    with pytest.raises(TypeError):
-        make_coord_array(['2018-01-01', 5.0])
-    with pytest.raises(TypeError):
-        make_coord_array([5.0, np.datetime64('2018-01-01')])
-    with pytest.raises(TypeError):
-        make_coord_array([np.datetime64('2018-01-01'), 5.0])
-    
-    # invalid time string
-    with pytest.raises(TypeError):
-        make_coord_array(['invalid'])
+        with pytest.raises(TypeError):
+            make_coord_array([5.0, np.datetime64('2018-01-01')])
 
-    # invalid type
-    with pytest.raises(TypeError):
-        make_coord_array([{}])
+        with pytest.raises(TypeError):
+            make_coord_array([np.datetime64('2018-01-01'), 5.0])
+        
+    def test_invalid_time_string(self):
+        with pytest.raises(TypeError):
+            make_coord_array(['invalid'])
 
-    # multi dimensional
-    with pytest.raises(ValueError):
-        make_coord_array([[0, 1], [5, 6]])
+    def test_invalid_shape(self):
+        with pytest.raises(ValueError):
+            make_coord_array([[0, 1], [5, 6]])
 
-    with pytest.raises(ValueError):
-        make_coord_array(np.array([[0, 1], [5, 6]]))
+        with pytest.raises(ValueError):
+            make_coord_array(np.array([[0, 1], [5, 6]]))
 
 def test_add_coord():
     # numbers

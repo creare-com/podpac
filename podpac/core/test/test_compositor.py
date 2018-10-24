@@ -5,7 +5,7 @@ import unittest
 import pytest
 
 import podpac
-from podpac import OrderedCompositor
+from podpac.compositor import OrderedCompositor, Compositor
 import numpy as np
 from podpac.core.data.types import Array
 
@@ -46,7 +46,7 @@ class TestCompositor(object):
     # Should those methods  be implemented in Compositor, new tests should be written
     # in the place of these.
     def test_compositor_interface_functions(self):
-        self.compositor = podpac.Compositor(sources=self.sources)
+        self.compositor = Compositor(sources=self.sources)
         with pytest.raises(NotImplementedError):
             self.compositor._shared_coordinates_default()
         with pytest.raises(NotImplementedError):
@@ -75,18 +75,18 @@ class TestCompositor(object):
 
     # Simple test of creating and executing an OrderedCompositor
     def test_ordered_compositor(self):
-        self.orderedCompositor = podpac.OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src,
+        self.orderedCompositor = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src,
                                                           cache_native_coordinates=False, threaded=True)
         result = self.orderedCompositor.execute(coordinates=self.coord_src)
         assert True == self.orderedCompositor.evaluated
         assert self.orderedCompositor._native_coordinates_default().dims == self.coord_src.dims
 
     def test_source_coordinates_ordered_compositor(self):
-        self.orderedCompositor = podpac.OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src,
+        self.orderedCompositor = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src,
                                                           cache_native_coordinates=False, threaded=True)
 
     def test_caching_ordered_compositor(self):
-        self.orderedCompositor = podpac.OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src,
+        self.orderedCompositor = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src,
                                                           threaded=True)
         
     def test_heterogeous_sources_composited(self):
@@ -94,7 +94,7 @@ class TestCompositor(object):
         bnative = podpac.Coordinates([podpac.clinspace(-2, 3, 3), podpac.clinspace(-1, 4, 3)], dims=['lat', 'lon'])
         a = Array(source=np.random.rand(3), native_coordinates=anative)
         b = Array(source=np.random.rand(3, 3) + 2, native_coordinates=bnative)
-        c = podpac.OrderedCompositor(sources=np.array([a, b]), interpolation='bilinear')
+        c = OrderedCompositor(sources=np.array([a, b]), interpolation='bilinear')
         coords = podpac.Coordinates([podpac.clinspace(-3, 4, 32), podpac.clinspace(-2, 5, 32)], dims=['lat', 'lon'])
         o = c.execute(coords)
         # Check that both data sources are being used in the interpolation

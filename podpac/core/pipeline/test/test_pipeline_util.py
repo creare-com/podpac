@@ -47,7 +47,7 @@ class TestParsePipelineDefinition(object):
                 "source1": {"node": "core.algorithm.algorithm.Arange"},
                 "source2": {"node": "core.algorithm.algorithm.Arange"},
                 "result": {        
-                    "node": "Arithmetic",
+                    "node": "algorithm.Arithmetic",
                     "inputs": {
                         "A": "source1",
                         "B": "source2"
@@ -137,7 +137,7 @@ class TestParsePipelineDefinition(object):
                 "sm": {
                     "node": "datalib.smap.SMAP",
                     "attrs": {
-                        "product": "SPL4SMGP.003",
+                        "product": "SPL4SMGP",
                         "interpolation": "bilinear"
                     }
                 }
@@ -147,7 +147,7 @@ class TestParsePipelineDefinition(object):
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         nodes, output = parse_pipeline_definition(d)
-        assert nodes['sm'].product == "SPL4SMGP.003"
+        assert nodes['sm'].product == "SPL4SMGP"
         assert nodes['sm'].interpolation == "bilinear"
 
     def test_invalid_property(self):
@@ -307,7 +307,7 @@ class TestParsePipelineDefinition(object):
                 "source1": {"node": "core.algorithm.algorithm.Arange"},
                 "source2": {"node": "core.algorithm.algorithm.Arange"},
                 "result": {        
-                    "node": "Arithmetic",
+                    "node": "algorithm.Arithmetic",
                     "inputs": {
                         "A": "source1",
                         "B": "source2"

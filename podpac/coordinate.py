@@ -1,3 +1,0 @@
-"""
-Coordinate Public Module
-"""
