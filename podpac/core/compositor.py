@@ -45,13 +45,11 @@ class Compositor(Node):
         Indicates the interpolation type. This gets passed down to the DataSources as part of the compositor. 
     threaded : bool, optional
         Default if False.
-        When threaded is False, the compositor stops executing sources once the
-        output is completely filled for efficiency. When threaded is True, the
-        compositor must execute every source. The result is the same, but note
-        that because of this, threaded=False could be faster than threaded=True,
-        especially if n_threads is low. For example, threaded with n_threads=1
-        could be much slower than non-threaded if the output is completely filled
-        after the first few sources.
+        When threaded is False, the compositor stops evaluated sources once the output is completely filled.
+        When threaded is True, the compositor must evaluate every source.
+        The result is the same, but note that because of this, threaded=False could be faster than threaded=True,
+        especially if n_threads is low. For example, threaded with n_threads=1 could be much slower than non-threaded
+        if the output is completely filled after the first few sources.
     n_threads : int
         Default is 10 -- used when threaded is True. 
         NASA data servers seem to have a hard limit of 10 simultaneous requests, which determined the default value.
@@ -82,15 +80,15 @@ class Compositor(Node):
         for s in self.sources[:3]:
             source.append(str(s))
         return '_'.join(source)
-        
     
     @tl.default('source_coordinates')
     def _source_coordinates_default(self):
         return self.get_source_coordinates()
 
     def get_source_coordinates(self):
-        """Returns the coordinates describing each source. 
-        This may be implemented by derived classes, and is an optimization that allows a subset of source to be executed.
+        """
+        Returns the coordinates describing each source. 
+        This may be implemented by derived classes, and is an optimization that allows evaluation subsets of source.
         
         Returns
         -------
@@ -130,51 +128,7 @@ class Compositor(Node):
         """
         raise NotImplementedError()
     
-    @tl.default('native_coordinates')
-    def _native_coordinates_default(self):
-        return self.get_native_coordinates()
-
-    def get_native_coordinates(self):
-        """Returns the native coordinates of the entire dataset.
-        
-        Returns
-        -------
-        podpac.Coordinates
-            Description
-            Native coordinates of the entire dataset.
-            
-        Notes
-        -------
-        This one is tricky... you can have multi-level compositors
-        One for a folder described by a date
-        One for all the folders over all dates. 
-        The single folder one has time coordinates that are actually
-        more accurate than just the folder time coordinate, so you want
-        to replace the time coordinate in native coordinate -- does this 
-        rule hold? 
-        
-        Also, you could have datasource with wildly different coordinates -- how are the native coordinates described
-        in that case? This is the usecase for the GroupCoordinates, but then how to evaluate nodes with
-        GroupCoordinates? 
-        
-        """
-
-        try: 
-            return self.load_cached_obj('native.coordinates')
-        except: 
-            pass
-
-        if self.shared_coordinates is not None and self.is_source_coordinates_complete:
-            crds = union([self.source_coordinates, self.shared_coordinates])
-        else:
-            crds = union(source.native_coordinates for source in self.sources)
-
-        if self.cache_native_coordinates:
-            self.cache_obj(crds, 'native.coordinates')
-
-        return crds
-    
-    def iteroutputs(self, coordinates, method=None):
+    def iteroutputs(self, coordinates):
         """Summary
         
         Parameters
@@ -199,7 +153,7 @@ class Compositor(Node):
             src_subset = self.sources[I]
 
         if len(src_subset) == 0:
-            yield self.initialize_coord_array(coordinates, init_type='nan')
+            yield self.create_output_array(coordinates)
             return
 
         # Set the interpolation properties for sources
@@ -213,12 +167,11 @@ class Compositor(Node):
         # WARNING: this assumes
         #              native_coords = source_coords + shared_coordinates
         #         NOT  native_coords = shared_coords + source_coords
-        if self.is_source_coordinates_complete and len(self.source_coordinates.shape) == 1:
+        if self.is_source_coordinates_complete and self.source_coordinates.ndim == 1:
             coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
-                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]),
-                                 self.shared_coordinates])
+                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
                 # Switching from _trait_values to hasattr because "native_coordinates"
                 # sometimes not showing up in _trait_values in other locations
                 # Not confirmed here
@@ -230,57 +183,67 @@ class Compositor(Node):
             # TODO pool of pre-allocated scratch space
             # TODO: docstring?
             def f(src):
-                return src.execute(coordinates, method=method)
+                return src.eval(coordinates)
             pool = ThreadPool(processes=self.n_threads)
             results = [pool.apply_async(f, [src]) for src in src_subset]
             
             for src, res in zip(src_subset, results):
                 yield res.get()
-                #src.output = None # free up memory
+                #src._output = None # free up memory
 
         else:
             output = None # scratch space
             for src in src_subset:
-                output = src.execute(coordinates, output, method)
+                output = src.eval(coordinates, output)
                 yield output
                 output[:] = np.nan
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
-        """Executes this nodes using the supplied coordinates. 
+    def eval(self, coordinates, output=None):
+        """Evaluates this nodes using the supplied coordinates. 
 
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
-            {execute_out}
-        method : str, optional
-            {execute_method}
+            {eval_output}
             
         Returns
         -------
-        {execute_return}
+        {eval_return}
         """
-        self.requested_coordinates = coordinates
-        self.output = output
         
-        outputs = self.iteroutputs(coordinates, method=method)
-        self.output = self.composite(outputs, self.output)
-        self.evaluated = True
+        self._requested_coordinates = coordinates
+        
+        outputs = self.iteroutputs(coordinates)
+        output = self.composite(outputs, output)
+        
+        self._output = output
+        return output
 
-        return self.output
+    def find_coordinates(self):
+        """
+        Get the available native coordinates for the Node.
+
+        Returns
+        -------
+        coords_list : list
+            list of available coordinates (Coordinate objects)
+        """
+
+        raise NotImplementedError("TODO")
 
     @property
     @common_doc(COMMON_DOC)
-    def definition(self):
-        """Pipeline node defintion for Compositor nodes. 
+    def base_definition(self):
+        """Base node defintion for Compositor nodes. 
         
         Returns
         -------
         {definition_return}
         """
-        d = self.base_definition()
+        d = super(Compositor, self).base_definition
         d['sources'] = self.sources
         return d
 
@@ -302,7 +265,7 @@ class OrderedCompositor(Compositor):
         
         Returns
         -------
-        {execute_return} This composites the sources together until there are no nans or no more sources.
+        {eval_return} This composites the sources together until there are no nans or no more sources.
         """
         if result is None:
             # consume the first source output

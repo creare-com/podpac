@@ -52,8 +52,6 @@ class Convolution(Algorithm):
     
     Attributes
     ----------
-    expanded_coordinates : podpac.Coordinates
-        The expanded coordinates needed to avoid edge effects.
     source : podpac.Node
         Source node on which convolution will be performed. 
     kernel : np.ndarray
@@ -66,50 +64,39 @@ class Convolution(Algorithm):
         Any kernel defined in `scipy.signal` as well as `mean` can be used. For example:
         kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid. 
         Note: These kernels are automatically normalized such that kernel.sum() == 1
-    output_coordinates : podpac.Coordinates
-        The non-expanded coordinates
     """
     
     source = tl.Instance(Node)
     kernel = tl.Instance(np.ndarray)  # Would like to tag this, but arrays are not yet supported
     kernel_type = tl.Unicode().tag(attr=True)
     kernel_ndim = tl.Int().tag(attr=True)
-    output_coordinates = tl.Instance(Coordinates)
-    expanded_coordinates = tl.Instance(Coordinates)
-   
-    @property
-    def native_coordinates(self):
-        """Returns the native coordinates of the source node. 
-        """
-        return self.source.native_coordinates
+
+    _expanded_coordinates = tl.Instance(Coordinates)
+    _full_kernel = tl.Instance(np.ndarray)
  
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
-        """Executes this nodes using the supplied coordinates.
+    def eval(self, coordinates, output=None):
+        """Evaluates this nodes using the supplied coordinates.
         
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
-            {execute_out}
-        method : str, optional
-            {execute_method}
+            {eval_output}
         
         Returns
         -------
-        {execute_return}
+        {eval_return}
         """
-        self.requested_coordinates = coordinates
-        self.output = output
-        # This is needed to get the full_kernel
-        self.output_coordinates = self.source.get_output_coords(coordinates)
-
+        self._requested_coordinates = coordinates
+        
         # This should be aligned with coordinates' dimension order
         # The size of this kernel is used to figure out the expanded size
-        shape = self.full_kernel.shape
+        self._full_kernel = self.get_full_kernel(coordinates)
+        shape = self._full_kernel.shape
         
-        if len(shape) != len(self.output_coordinates.shape):
+        if len(shape) != len(coordinates.shape):
             raise ValueError("Kernel shape does not match source data shape")
 
         # expand the coordinates
@@ -133,16 +120,21 @@ class Convolution(Algorithm):
                 **coord.properties))
             exp_slice.append(slice(-s_start, -s_end))
         exp_coords = Coordinates(exp_coords)
-        self.expanded_coordinates = exp_coords
         exp_slice = tuple(exp_slice)
 
-        # execute using expanded coordinates
-        out = super(Convolution, self).execute(exp_coords, output, method)
+        # evaluate using expanded coordinates and then reduce down to originally requested coordinates
+        out = super(Convolution, self).eval(exp_coords)
+        result = out[exp_slice]
+        if output is None:
+            output = result
+        else:
+            output[:] = result
 
-        # reduce down to originally requested coordinates
-        self.output = out[exp_slice]
+        # debugging
+        self._expanded_coordinates = exp_coords
+        self._output = output
 
-        return self.output
+        return output
 
     @tl.default('kernel')
     def _kernel_default(self):
@@ -164,26 +156,29 @@ class Convolution(Algorithm):
         
         return k / k.sum()
  
-    @property
-    def full_kernel(self):
+    def get_full_kernel(self, coordinates):
         """{full_kernel}
         """
         return self.kernel
 
-    def algorithm(self):
+    def algorithm(self, inputs):
         """Computes the convolution of the source and the kernel
         
+        Arguments
+        ----------
+        inputs : dict
+            evaluated outputs of the input nodes. The keys are the attribute names.
+
         Returns
         -------
         np.ndarray
             Resultant array. 
         """
-        if np.isnan(np.max(self.source.output)):
+        if np.isnan(np.max(inputs['source'])):
             method = 'direct'
-        else: method = 'auto'
-        res = scipy.signal.convolve(self.source.output,
-                                    self.full_kernel,
-                                    mode='same', method=method)
+        else:
+            method = 'auto'
+        res = scipy.signal.convolve(inputs['source'], self._full_kernel, mode='same', method=method)
         return res
 
 
@@ -207,8 +202,7 @@ class TimeConvolution(Convolution):
 
         return proposal['value']
 
-    @property
-    def full_kernel(self):
+    def get_full_kernel(self, coordinates):
         """{full_kernel}
         
         Raises
@@ -216,14 +210,14 @@ class TimeConvolution(Convolution):
         ValueError
             If source data doesn't have time dimension.
         """
-        if 'time' not in self.output_coordinates.dims:
+        if 'time' not in coordinates.dims:
             raise ValueError('cannot compute time convolution from time-indepedendent input')
-        if 'lat' not in self.output_coordinates.dims and 'lon' not in self.output_coordinates.dims:
+        if 'lat' not in coordinates.dims and 'lon' not in coordinates.dims:
             return self.kernel
  
         kernel = np.array([[self.kernel]])
         kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
-        kernel = kernel.transpose(*self.output_coordinates.dims)
+        kernel = kernel.transpose(*coordinates.dims)
         return kernel.data
 
 
@@ -246,15 +240,14 @@ class SpatialConvolution(Convolution):
 
         return proposal['value']
 
-    @property
-    def full_kernel(self):
+    def get_full_kernel(self, coordinates):
         """{full_kernel}
         """
-        if 'time' not in self.output_coordinates.dims:
+        if 'time' not in coordinates.dims:
             return self.kernel
 
         kernel = np.array([self.kernel]).T
         kernel = xr.DataArray(kernel, dims=('lat', 'lon', 'time'))
-        kernel = kernel.transpose(*self.output_coordinates.dims)
+        kernel = kernel.transpose(*coordinates.dims)
 
         return kernel.data

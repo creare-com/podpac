@@ -11,7 +11,6 @@ from podpac.core.pipeline.pipeline import Pipeline
 from podpac.core.pipeline.output import NoOutput, FTPOutput, S3Output, FileOutput, ImageOutput
 from podpac.core.pipeline.util import PipelineError
 from podpac.core.pipeline.util import parse_pipeline_definition
-from podpac.core.pipeline.util import make_pipeline_definition
 
 class TestParsePipelineDefinition(object):
     def test_empty(self):
@@ -435,37 +434,3 @@ class TestParsePipelineDefinition(object):
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.warns(UserWarning, match="Unused pipeline node 'a'"):
             parse_pipeline_definition(d)
-
-class TestMakePipelineDefinition():
-    def test(self):
-        a = podpac.core.algorithm.algorithm.Arange()
-        b = podpac.core.algorithm.algorithm.CoordData()
-        c = podpac.core.compositor.OrderedCompositor(sources=np.array([a, b]))
-        d = podpac.core.algorithm.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
-        
-        definition = make_pipeline_definition(d)
-
-        # make sure it is a valid pipeline
-        pipeline = Pipeline(definition=definition)
-
-        assert isinstance(pipeline.nodes[a.base_ref], podpac.core.algorithm.algorithm.Arange)
-        assert isinstance(pipeline.nodes[b.base_ref], podpac.core.algorithm.algorithm.CoordData)
-        assert isinstance(pipeline.nodes[c.base_ref], podpac.core.compositor.OrderedCompositor)
-        assert isinstance(pipeline.nodes[d.base_ref], podpac.core.algorithm.algorithm.Arithmetic)
-        assert isinstance(pipeline.pipeline_output, NoOutput)
-
-        assert pipeline.pipeline_output.node is pipeline.nodes[d.base_ref]
-        assert pipeline.pipeline_output.name == d.base_ref
-
-    def test_duplicate_base_ref(self):
-        a = podpac.core.algorithm.algorithm.Arange()
-        b = podpac.core.algorithm.algorithm.Arange()
-        c = podpac.core.algorithm.algorithm.Arange()
-        d = podpac.core.compositor.OrderedCompositor(sources=np.array([a, b, c]))
-        
-        definition = make_pipeline_definition(d)
-
-        # make sure it is a valid pipeline
-        pipeline = Pipeline(definition=definition)
-
-        assert len(pipeline.nodes) == 4

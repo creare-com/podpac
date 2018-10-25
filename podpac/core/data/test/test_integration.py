@@ -34,8 +34,8 @@ class TestDataSourceIntegration():
         coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=('lat', 'lon'))
         coordt = Coordinate(time=(3, 5, 2))
 
-        node.execute(coordt)
-        node.execute(coordg)
+        node.eval(coordt)
+        node.eval(coordg)
 
 
     def test_s3_source(self):
@@ -85,7 +85,7 @@ class TestDataSourceIntegration():
 
         # TODO: this section needs to be edited, copied from old main() of type.py
         wcs = WCS()
-        o = wcs.execute(coordinates)
+        o = wcs.eval(coordinates)
         reprojected = ReprojectedSource(source=wcs,
                                         reprojected_coordinates=reprojected_coordinates,
                                         interpolation='bilinear')
@@ -95,11 +95,11 @@ class TestDataSourceIntegration():
         reprojected = ReprojectedSource(source=wcs,
                                         coordinates_source=smap,
                                         interpolation='nearest')    
-        o2 = reprojected.execute(coordinates)
+        o2 = reprojected.eval(coordinates)
 
         coordinates_zoom = podpac.Coordinate(lat=(24.8, 30.6, 64), lon=(-85.0, -77.5, 64), time='2017-08-08T12:00:00', 
                                              order=['lat', 'lon', 'time'])
-        o3 = wcs.execute(coordinates_zoom)
+        o3 = wcs.eval(coordinates_zoom)
 
 
 
@@ -141,8 +141,8 @@ class TestDataSourceIntegration():
                 [clinspace(5., 40., 50), clinspace(-68., -66., 100)],
                 dims=['lat', 'lon'])
 
-            oLat = self.nasLat.execute(coord_dst)
-            oLon = self.nasLon.execute(coord_dst)
+            oLat = self.nasLat.eval(coord_dst)
+            oLon = self.nasLon.eval(coord_dst)
             
             LON, LAT = np.meshgrid(
                 coord_dst['lon'].coordinates,
@@ -153,8 +153,8 @@ class TestDataSourceIntegration():
             
         # def test_raster_to_points(self):
         #     coord_dst = Coordinates(lat_lon=((5., 40), (-68., -66), 60))
-        #     oLat = self.nasLat.execute(coord_dst)
-        #     oLon = self.nasLon.execute(coord_dst)
+        #     oLat = self.nasLat.eval(coord_dst)
+        #     oLon = self.nasLon.eval(coord_dst)
             
         #     LAT = coord_dst.coords['lat_lon']['lat']
         #     LON = coord_dst.coords['lat_lon']['lon']
