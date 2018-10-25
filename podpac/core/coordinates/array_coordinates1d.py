@@ -6,12 +6,13 @@ One-Dimensional Coordinates: Array
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
+from collections import OrderedDict
 
 import numpy as np
 import traitlets as tl
 
 # from podpac.core.utils import cached_property, clear_cache
-from podpac.core.coordinates.utils import make_coord_array, add_coord
+from podpac.core.coordinates.utils import make_coord_value, make_coord_array, add_coord
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 
 class ArrayCoordinates1d(Coordinates1d):
@@ -87,6 +88,11 @@ class ArrayCoordinates1d(Coordinates1d):
     @classmethod
     def from_xarray(cls, x, **kwargs):
         return cls(x.data, name=x.name)
+
+    @classmethod
+    def from_json(self, d):
+        coords = d.pop('values')
+        return cls(coords, **d)
 
     def copy(self, **kwargs):
         properties = self.properties
@@ -186,11 +192,23 @@ class ArrayCoordinates1d(Coordinates1d):
         area_bounds.setflags(write=False)
         return area_bounds
 
+    @property
+    def json(self):
+        d = OrderedDict()
+        if self.dtype == float:
+            d['values'] = self.coords.tolist()
+        else:
+            d['values'] = self.coords.astype('str').tolist()
+        d.update(self.properties)
+        return d
+
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
     def select(self, bounds, outer=False, return_indices=False):
+        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
+
         # empty
         if self.size == 0:
             return self._select_empty(return_indices)

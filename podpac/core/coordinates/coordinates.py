@@ -8,6 +8,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import copy
 import sys
 import itertools
+import json
 from collections import OrderedDict
 
 import numpy as np
@@ -92,7 +93,7 @@ class Coordinates(tl.HasTraits):
             if isinstance(coords[i], BaseCoordinates):
                 c = coords[i].copy()
             elif '_' in dim:
-                c = StackedCoordinates([ArrayCoordinates1d(values) for values in np.atleast_1d(coords[i])])
+                c = StackedCoordinates([ArrayCoordinates1d(values) for values in coords[i]])
             else:
                 c = ArrayCoordinates1d(coords[i])
 
@@ -155,13 +156,13 @@ class Coordinates(tl.HasTraits):
         return coords
 
     @classmethod
-    def grid(cls, coord_ref_sys=None, ctype=None, distance_units=None, order=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, order)
+    def grid(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
+        coords = cls._coords_from_dict(kwargs, dims)
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
-    def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, order=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, order)
+    def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
+        coords = cls._coords_from_dict(kwargs, dims)
         stacked = StackedCoordinates(coords)
         return cls([stacked], coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
@@ -198,6 +199,23 @@ class Coordinates(tl.HasTraits):
             coords.append(c)
 
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
+
+    @classmethod
+    def from_json(self, d):
+        coords = []
+        for elem in d:
+            if isinstance(elem, list):
+                c = StackedCoordinates.from_json(elem)
+            elif 'start' in elem and 'stop' in elem and 'step' in elem:
+                c = UniformCoordinates1d.from_json(elem)
+            elif 'values' in elem:
+                c = ArrayCoordinates1d.from_json(elem)
+            else:
+                raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
+            
+            coords.append(c)
+
+        return cls(coords)
     
     # ------------------------------------------------------------------------------------------------------------------
     # standard dict-like methods
@@ -325,6 +343,14 @@ class Coordinates(tl.HasTraits):
                 self['lon'].bounds[1])
         else:
             return 'NA'
+
+    @property
+    def json(self):
+        return json.dumps([c.json for c in self._coords.values()])
+
+    @property
+    def hash(self):
+        return hash(json.dumps(self.json))
     
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -481,62 +507,6 @@ class Coordinates(tl.HasTraits):
         # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
         # return GDAL_CRS[self.coord_ref_sys]
         return GDAL_CRS[self[self.udims[0]].coord_ref_sys]
-    
-    # def add_unique(self, other):
-    #     """
-    #     Concatenate coordinates, skipping duplicates.
-        
-    #     Parameters
-    #     ----------
-    #     other : Coordinates
-    #         Coordinates to concatenate.
-        
-    #     Returns
-    #     -------
-    #     coord : Coordinates
-    #         New Coordinates object with concatenated coordinates.
-    #     """
-
-    #     return self._add(other, unique=True)
-    
-    # def __add__(self, other):
-    #     """
-    #     Concatenate coordinates.
-        
-    #     Parameters
-    #     ----------
-    #     other : Coordinates
-    #         Coordinates to concatenate.
-        
-    #     Returns
-    #     -------
-    #     coord : Coordinates
-    #         New Coordinates object with concatenated coordinates.
-    #     """
-
-    #     return self._add(other)
-    
-    # def _add(self, other, unique=False):
-    #     if not isinstance(other, Coordinates):
-    #         raise TypeError(
-    #             "Unsupported type '%s', can only add Coordinates object" % (
-    #                 other.__class__.__name__))
-    #     new_coords = copy.deepcopy(self._coords)
-    #     dims_map = self.dims_map
-    #     for key in other._coords:
-    #         if key in self._coords:
-    #             if dims_map[key] != other.dims_map[key]:
-    #                 raise ValueError(
-    #                     "Cannot add coordinates with different stacking. "
-    #                     "%s != %s." % (dims_map[key], other.dims_map[key])
-    #                 )
-    #             if np.all(np.array(self._coords[key].coords) !=
-    #                     np.array(other._coords[key].coords)) or not unique:
-    #                 new_coords[key] = self._coords[key] + other._coords[key]
-    #         else:
-    #             dims_map[key] = other.dims_map[key]
-    #             new_coords[key] = copy.deepcopy(other._coords[key])
-    #     return self.__class__(coords=self.stack_dict(new_coords, dims_map))
 
     def iterchunks(self, shape, return_slices=False):
         """
@@ -596,7 +566,7 @@ class Coordinates(tl.HasTraits):
             return self
 
         else:
-            return Coordinates([self._coord[dim] for dim in dims], **self.properties)
+            return Coordinates([self._coords[dim] for dim in dims], **self.properties)
 
 def merge_dims(coords_list):
     """
@@ -643,18 +613,18 @@ def concat(coords_list):
     d = OrderedDict()
     for coords in coords_list:
         for dim, c in coords.items():
-            d[dim] = d.get(dim, []) + [c.coordinates]
+            if isinstance(c, Coordinates1d):
+                if dim not in d:
+                    d[dim] = c.coordinates
+                else:
+                    d[dim] = np.concatenate([d[dim], c.coordinates])
+            elif isinstance(c, StackedCoordinates):
+                if dim not in d:
+                    d[dim] = [s.coordinates for s in c]
+                else:
+                    d[dim] = [np.concatenate([d[dim][i], s.coordinates]) for i, s in enumerate(c)]
 
-    dims = []
-    coords = []
-    for dim, cs in d.items():
-        values = np.concatenate(cs)
-        if '_' in dim:
-            values = np.array([e for e in values]).T # transpose StackedCoordinates
-        coords.append(values)
-        dims.append(dim)
-
-    return Coordinates(coords, dims=dims)
+    return Coordinates(list(d.values()), list(d.keys()))
 
 def union(coords_list):
     """

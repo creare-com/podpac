@@ -189,7 +189,7 @@ try:
 except Exception as e:
     warnings.warn("Could not retrieve SMAP url from %s: " % (SMAP_BASE_URL_FILE) + str(e))
 try: 
-    r = requests.get('https://s3.amazonaws.com/podpac-s3/nsidc_smap_opendap_url.txt').text
+    r = requests.get('https://s3.amazonaws.com/podpac-s3/settings/nsidc_smap_opendap_url.txt').text
     if 'https://' in r and 'nsidc.org' in r:
         if rf != r:
             warnings.warn("Updating SMAP url from PODPAC S3 Server.")
@@ -354,7 +354,7 @@ class SMAPSource(datatype.PyDAP):
         s = tuple([slc for d, slc in zip(coordinates.dims, coordinates_index)
                    if 'time' not in d])
         if 'SM_P_' in self.source:
-            d = self.initialize_coord_array(coordinates, 'nan')
+            d = self.create_output_array(coordinates)
             am_key = self.layerkey.format(rdk=self.rootdatakey + 'AM_')
             pm_key = self.layerkey.format(rdk=self.rootdatakey + 'PM_') + '_pm'
 
@@ -372,8 +372,8 @@ class SMAPSource(datatype.PyDAP):
 
         else:
             data = np.array(self.dataset[self.datakey][s])
-            d = self.initialize_coord_array(coordinates, 'data',
-                                            fillval=data.reshape(coordinates.shape))
+            d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
+
         return d
 
 
@@ -466,7 +466,7 @@ class SMAPWilt(SMAPProperties):
     property = tl.Unicode('clsm_wp')
 
 @common_doc(COMMON_DOC)
-class SMAPDateFolder(podpac.OrderedCompositor):
+class SMAPDateFolder(podpac.compositor.OrderedCompositor):
     """Compositor of all the SMAP source urls present in a particular folder which is defined for a particular date
 
     Attributes
@@ -571,7 +571,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
 
         b = self.source + '/'
         time_crds = self.source_coordinates['time']
-        if time_crds.is_monotonic and time_crds.is_uniform:
+        if time_crds.is_monotonic and time_crds.is_uniform and time_crds.size > 1:
             tol = time_crds.coordinates[1] - time_crds.coordinates[0]
         else:
             tol = self.source_coordinates['time'].coordinates[0]
@@ -705,7 +705,7 @@ class SMAPDateFolder(podpac.OrderedCompositor):
         return self.sources[0].keys
 
 @common_doc(COMMON_DOC)
-class SMAP(podpac.OrderedCompositor):
+class SMAP(podpac.compositor.OrderedCompositor):
     """Compositor of all the SMAPDateFolder's for every available SMAP date. Essentially a compositor of all SMAP data 
     for a particular product. 
 
@@ -896,7 +896,7 @@ class SMAP(podpac.OrderedCompositor):
         sources = [self.sources[0].sources]
         for s in self.sources[1:]:
             if np.prod(s.source_coordinates.shape) > 0:
-                crds = crds + s.source_coordinates
+                crds = union([crds, s.source_coordinates])
                 sources.append(s.sources)
         #if self.shared_coordinates is not None:
             #crds = crds + self.shared_coordinates
@@ -917,7 +917,7 @@ class SMAP(podpac.OrderedCompositor):
         return '{0}_{1}'.format(self.__class__.__name__, self.product)
 
     @property
-    def definition(self):
+    def base_definition(self):
         """Summary
 
         Returns
@@ -925,7 +925,7 @@ class SMAP(podpac.OrderedCompositor):
         TYPE
             Description
         """
-        d = self.base_definition()
+        d = super(SMAP, self).base_definition
         if self.interpolation:
             d['attrs']['interpolation'] = self.interpolation
         return d
@@ -938,7 +938,7 @@ class SMAP(podpac.OrderedCompositor):
         return self.sources[0].keys
 
 
-class SMAPBestAvailable(podpac.OrderedCompositor):
+class SMAPBestAvailable(podpac.compositor.OrderedCompositor):
     """Compositor of SMAP-Sentinel and the Level 4 SMAP Analysis Update soil moisture
     """
 

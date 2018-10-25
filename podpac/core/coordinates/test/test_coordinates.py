@@ -10,9 +10,9 @@ import pandas as pd
 
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
-from podpac.core.coordinates.uniform_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.coordinates import Coordinates
+from podpac.core.coordinates.coordinates import concat
 
 # class TestBaseCoordinate(object):
 #     def test_abstract_methods(self):
@@ -164,7 +164,7 @@ class TestCoordinateCreation(object):
         lon = [10, 20, 30, 40]
         dates = ['2018-01-01', '2018-01-02']
             
-        c = Coordinates.grid(lat=lat, lon=lon, time=dates, order=['time', 'lat', 'lon'])
+        c = Coordinates.grid(lat=lat, lon=lon, time=dates, dims=['time', 'lat', 'lon'])
         assert c.dims == ('time', 'lat', 'lon')
         assert c.shape == (2, 3, 4)
 
@@ -173,7 +173,7 @@ class TestCoordinateCreation(object):
         lon = (10, 40, 4)
         dates = ('2018-01-01', '2018-01-05', 5)
 
-        c = Coordinates.grid(lat=lat, lon=lon, time=dates, order=['time', 'lat', 'lon'])
+        c = Coordinates.grid(lat=lat, lon=lon, time=dates, dims=['time', 'lat', 'lon'])
         assert c.dims == ('time', 'lat', 'lon')
         assert c.shape == (5, 3, 4)
 
@@ -182,7 +182,7 @@ class TestCoordinateCreation(object):
         lon = (10, 40, 10.0)
         dates = ('2018-01-01', '2018-01-05', '1,D')
         
-        c = Coordinates.grid(lat=lat, lon=lon, time=dates, order=['time', 'lat', 'lon'])
+        c = Coordinates.grid(lat=lat, lon=lon, time=dates, dims=['time', 'lat', 'lon'])
         assert c.dims == ('time', 'lat', 'lon')
         assert c.shape == (5, 3, 4)
 
@@ -191,7 +191,7 @@ class TestCoordinateCreation(object):
         lon = [10, 20, 30]
         dates = ['2018-01-01', '2018-01-02', '2018-01-03']
 
-        c = Coordinates.points(lat=lat, lon=lon, time=dates, order=['time', 'lat', 'lon'])
+        c = Coordinates.points(lat=lat, lon=lon, time=dates, dims=['time', 'lat', 'lon'])
         assert c.dims == ('time_lat_lon',)
         assert c.shape == (3,)
 
@@ -205,10 +205,10 @@ class TestCoordinateCreation(object):
         dates = ['2018-01-01', '2018-01-02']
 
         with pytest.raises(ValueError):
-            Coordinates.grid(lat=lat, lon=lon, time=dates, order=['lat', 'lon'])
+            Coordinates.grid(lat=lat, lon=lon, time=dates, dims=['lat', 'lon'])
 
         with pytest.raises(ValueError):
-            Coordinates.grid(lat=lat, lon=lon, order=['lat', 'lon', 'time'])
+            Coordinates.grid(lat=lat, lon=lon, dims=['lat', 'lon', 'time'])
 
         if sys.version < '3.6':
             with pytest.raises(TypeError):
@@ -254,6 +254,27 @@ class TestCoordinateXarray(object):
         np.testing.assert_equal(c2.coords['lat'].data, np.array(lat, dtype=float))
         np.testing.assert_equal(c2.coords['lon'].data, np.array(lon, dtype=float))
         np.testing.assert_equal(c2.coords['time'].data, np.array(dates).astype(np.datetime64))
+
+class TestConcat(object):
+    def test_concat_stacked_datetimes(self):
+        c1 = Coordinates([[0, 0.5, '2018-01-01']], dims=['lat_lon_time'])
+        c2 = Coordinates([[1, 1.5, '2018-01-02']], dims=['lat_lon_time'])
+        c = concat([c1, c2])
+        np.testing.assert_array_equal(c['lat'].coordinates, np.array([0.0, 1.0]))
+        np.testing.assert_array_equal(c['lon'].coordinates, np.array([0.5, 1.5]))
+        np.testing.assert_array_equal(
+            c['time'].coordinates,
+            np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64))
+
+        c1 = Coordinates([[0, 0.5, '2018-01-01T01:01:01']], dims=['lat_lon_time'])
+        c2 = Coordinates([[1, 1.5, '2018-01-01T01:01:02']], dims=['lat_lon_time'])
+        c = concat([c1, c2])
+        np.testing.assert_array_equal(c['lat'].coordinates, np.array([0.0, 1.0]))
+        np.testing.assert_array_equal(c['lon'].coordinates, np.array([0.5, 1.5]))
+        np.testing.assert_array_equal(
+            c['time'].coordinates,
+            np.array(['2018-01-01T01:01:01', '2018-01-01T01:01:02']).astype(np.datetime64))
+
 
 # class TestCoordinate(object):
 #     @pytest.mark.skipif(sys.version >= '3.6', reason="Python <3.6 compatibility")
@@ -1101,13 +1122,13 @@ class TestCoordinateXarray(object):
 #     node = Arange()
 
 #     coords = Coordinate(lat=[3, 4], lon=[10, 30], order=['lat', 'lon'])
-#     output = node.execute(coords)
+#     output = node.eval(coords)
 #     outcoords = convert_xarray_to_podpac(output.coords)
 #     assert outcoords.shape == coords.shape
 #     assert outcoords.dims == coords.dims
 
 #     coords = Coordinate(lat_lon=[[3, 4], [10, 30]], order=['lat_lon'])
-#     output = node.execute(coords)
+#     output = node.eval(coords)
 #     outcoords = convert_xarray_to_podpac(output.coords)
 #     assert outcoords.shape == coords.shape
 #     assert outcoords.dims == coords.dims

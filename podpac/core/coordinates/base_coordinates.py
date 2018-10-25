@@ -46,6 +46,13 @@ class BaseCoordinates(tl.HasTraits):
     def is_uniform(self):
         raise NotImplementedError
 
+    @property
+    def json(self):
+        raise NotImplementedError
+
+    def from_json(self, d):
+        raise NotImplementedError
+
     def select(self, bounds, outer=False, return_indices=False):
         raise NotImplementedError
 

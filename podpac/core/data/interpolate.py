@@ -552,7 +552,7 @@ class Interpolation():
         Parameters
         ----------
         requested_coordinates : podpac.core.coordinates.Coordinates
-            Requested coordinates to execute
+            Requested coordinates to evaluate
         source_coordinates : podpac.core.coordinates.Coordinates
             Intersected source coordinates
         source_coordinates_index : list

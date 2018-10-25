@@ -77,7 +77,7 @@ class AirMOSS_Source(datatype.PyDAP):
             Description
         """
         data = self.dataset[self.datakey].array[tuple(coordinates_index)]
-        d = self.initialize_coord_array(coordinates, 'data', fillval=data.reshape(coordinates.shape))
+        d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
         return d
 
 
@@ -213,6 +213,5 @@ if __name__ == '__main__':
     lat = lat[::10][np.isfinite(lat[::10])]
     lon = lon[::10][np.isfinite(lon[::10])]
     coords = podpac.Coordinates([lat, lon], dims=['lat', 'lon'])
-    o = am.execute(coords)
-
+    o = am.eval(coords)
     print('Done')

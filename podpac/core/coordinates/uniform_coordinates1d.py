@@ -2,6 +2,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
+from collections import OrderedDict
 
 import numpy as np
 import traitlets as tl
@@ -125,6 +126,13 @@ class UniformCoordinates1d(Coordinates1d):
         else:
             step = make_coord_delta(items[2])
             return cls(items[0], items[1], step, **kwargs)
+
+    @classmethod
+    def from_json(self, d):
+        start = d.pop('start')
+        stop = d.pop('stop')
+        step = d.pop('step')
+        return cls(start, stop, step, **d)
 
     def copy(self, **kwargs):
         properties = self.properties
@@ -256,11 +264,26 @@ class UniformCoordinates1d(Coordinates1d):
         area_bounds.setflags(write=False)
         return area_bounds
 
+    def json(self):
+        d = OrderedDict()
+        if self.dtype == float:
+            d['start'] = self.start
+            d['stop'] = self.stop
+            d['step'] = self.step
+        else:
+            d['start'] = str(self.start)
+            d['stop'] = str(self.stop)
+            d['step'] = str(self.step)
+        d.update(self.properties)
+        return d
+
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
     def select(self, bounds, outer=False, return_indices=False):
+        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
+
         # full
         if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
             return self._select_full(return_indices)

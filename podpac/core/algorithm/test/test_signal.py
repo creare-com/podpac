@@ -23,41 +23,41 @@ class TestSignal(object):
         kernel2 = np.array([[1, 2, 1]])
         kernel1 = np.array([1, 2, 1])
         
-        o = Arange().execute(coords)
+        o = Arange().eval(coords)
         
         node = Convolution(source=Arange(), kernel=kernel3)
-        o3d_full = node.execute(coords)
+        o3d_full = node.eval(coords)
         
         node = Convolution(source=Arange(), kernel=kernel2)
-        o2d_spatial1 = node.execute(coords_spatial)
+        o2d_spatial1 = node.eval(coords_spatial)
         
         node = SpatialConvolution(source=Arange(), kernel=kernel2)
-        o3d_spatial = node.execute(coords)
-        o2d_spatial2 = node.execute(coords_spatial)
+        o3d_spatial = node.eval(coords)
+        o2d_spatial2 = node.eval(coords_spatial)
         
         node = TimeConvolution(source=Arange(), kernel=kernel1)
-        o3d_time = node.execute(coords)
-        o3d_time = node.execute(coords_time)
+        o3d_time = node.eval(coords)
+        o3d_time = node.eval(coords_time)
         
         node = SpatialConvolution(source=Arange(), kernel_type='gaussian, 3, 1')
-        o3d_spatial = node.execute(coords)
-        o2d_spatial2 = node.execute(coords_spatial)
+        o3d_spatial = node.eval(coords)
+        o2d_spatial2 = node.eval(coords_spatial)
         node = SpatialConvolution(source=Arange(), kernel_type='mean, 3')
-        o3d_spatial = node.execute(coords)
-        o2d_spatial2 = node.execute(coords_spatial)
+        o3d_spatial = node.eval(coords)
+        o2d_spatial2 = node.eval(coords_spatial)
         
         node = TimeConvolution(source=Arange(), kernel_type='gaussian, 3, 1')
-        o3d_time = node.execute(coords)
+        o3d_time = node.eval(coords)
         node = TimeConvolution(source=Arange(), kernel_type='mean, 3')
-        o3d_time = node.execute(coords)
+        o3d_time = node.eval(coords)
         
         node = Convolution(source=Arange(), kernel=kernel2)
         with pytest.raises(Exception): # TODO which exception
-            node.execute(coords)
+            node.eval(coords)
         
         node = Convolution(source=Arange(), kernel=kernel1)
         with pytest.raises(Exception): # TODO which exception?
-            node.execute(coords_spatial)
+            node.eval(coords_spatial)
         
         with pytest.raises(Exception): # TODO which exception?
             node = SpatialConvolution(source=Arange(), kernel=kernel3)
@@ -73,5 +73,5 @@ class TestSignal(object):
         
         node = TimeConvolution(source=Arange(), kernel=kernel1)
         with pytest.raises(Exception): # TODO which exception?
-            node.execute(coords_spatial)
+            node.eval(coords_spatial)
         

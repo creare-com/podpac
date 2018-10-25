@@ -10,6 +10,9 @@ from copy import deepcopy
 from numbers import Number
 import operator
 
+from io import BytesIO
+import base64
+
 import numpy as np
 import xarray as xr
 import traitlets as tl
@@ -17,6 +20,7 @@ from pint import UnitRegistry
 from pint.unit import _Unit
 ureg = UnitRegistry()
 
+import podpac
 
 class UnitsNode(tl.TraitType):
     """UnitsNode Summary
@@ -43,8 +47,8 @@ class UnitsNode(tl.TraitType):
         TYPE
             Description
         """
-        import podpac.core.node as node
-        if isinstance(value, node.Node):
+        
+        if isinstance(value, podpac.Node):
             if 'units' in self.metadata and value.units is not None:
                 u = ureg.check(self.metadata['units'])(lambda x: x)(value.units)
                 return value
@@ -239,22 +243,6 @@ for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
 
     def func(self, other, meth=meth, tp=tp):
-        """Summary
-
-        Parameters
-        ----------
-        other : TYPE
-            Description
-        meth : TYPE, optional
-            Description
-        tp : TYPE, optional
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
         x = getattr(super(UnitsDataArray, self), meth)(other)
         return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
 
@@ -266,22 +254,6 @@ for tp in ("add", "sub", "mod", "floordiv"): #, "divmod", ):
     meth = "__{:s}__".format(tp)
 
     def func(self, other, meth=meth, tp=tp):
-        """Summary
-
-        Parameters
-        ----------
-        other : TYPE
-            Description
-        meth : TYPE, optional
-            Description
-        tp : TYPE, optional
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
         multiplier = self._get_unit_multiplier(other)
         x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
         return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
@@ -294,22 +266,6 @@ for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     meth = "__{:s}__".format(tp)
 
     def func(self, other, meth=meth, tp=tp):
-        """Summary
-
-        Parameters
-        ----------
-        other : TYPE
-            Description
-        meth : TYPE, optional
-            Description
-        tp : TYPE, optional
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
         multiplier = self._get_unit_multiplier(other)
         return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
 
@@ -320,22 +276,6 @@ for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
 for tp in ("mean", 'min', 'max', 'sum', 'cumsum'):
 
     def func(self, tp=tp, *args, **kwargs):
-        """Summary
-
-        Parameters
-        ----------
-        tp : TYPE, optional
-            Description
-        *args
-            Description
-        **kwargs
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
         x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
         return self._copy_units(x)
 
@@ -344,3 +284,72 @@ for tp in ("mean", 'min', 'max', 'sum', 'cumsum'):
 
 del func
 
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Utility functions
+# ---------------------------------------------------------------------------------------------------------------------
+
+def create_data_array(coords, data=np.nan, dtype=float, **kwargs):
+    if not isinstance(coords, podpac.Coordinates):
+        raise TypeError("create_data_array expected Coordinates object, not '%s'" % type(coords))
+
+    if data is None:
+        data = np.empty(coords.shape, dtype=dtype)
+    elif np.shape(data) == ():
+        if data == 0:
+            data = np.zeros(coords.shape, dtype=dtype)
+        elif data == 1:
+            data = np.ones(coords.shape, dtype=dtype)
+        else:
+            data = np.full(coords.shape, data, dtype=dtype)
+    else:
+        data = data.astype(dtype)
+
+    return UnitsDataArray(data, coords=coords.coords, dims=coords.dims, **kwargs)
+
+def get_image(data, format='png', vmin=None, vmax=None):
+    """Return a base64-encoded image of the data
+
+    Parameters
+    ----------
+    data : array-like
+        data to output, usually a UnitsDataArray
+    format : str, optional
+        Default is 'png'. Type of image. 
+    vmin : number, optional
+        Minimum value of colormap
+    vmax : vmax, optional
+        Maximum value of colormap
+
+    Returns
+    -------
+    str
+        Base64 encoded image. 
+    """
+
+    import matplotlib
+    import matplotlib.cm
+    from matplotlib.image import imsave
+    matplotlib.use('agg')
+
+    if format != 'png':
+        raise ValueError("Invalid image format '%s', must be 'png'" % format)
+
+    if isinstance(data, xr.DataArray):
+        data = data.data
+
+    data = data.squeeze()
+
+    if vmin is None or np.isnan(vmin):
+        vmin = np.nanmin(data)
+    if vmax is None or np.isnan(vmax):
+        vmax = np.nanmax(data)
+    if vmax == vmin:
+        vmax += 1e-15
+
+    c = (data - vmin) / (vmax - vmin)
+    i = matplotlib.cm.viridis(c, bytes=True)
+    im_data = BytesIO()
+    imsave(im_data, i, format=format)
+    im_data.seek(0)
+    return base64.b64encode(im_data.getvalue())

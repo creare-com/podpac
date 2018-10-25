@@ -5,7 +5,6 @@ Pipeline utils
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import re
 import importlib
 import inspect
 import warnings
@@ -37,7 +36,7 @@ def parse_pipeline_definition(definition):
     # parse output definition
     output = _parse_output_definition(nodes, definition.get('output', {}))
 
-    _check_execution_graph(definition, nodes, output)
+    _check_evaluation_graph(definition, nodes, output)
 
     return nodes, output
 
@@ -138,7 +137,7 @@ def _parse_output_definition(nodes, d):
 
     return output
 
-def _check_execution_graph(definition, nodes, output):
+def _check_evaluation_graph(definition, nodes, output):
     used = {ref:False for ref in nodes}
 
     def f(base_ref):
@@ -159,73 +158,3 @@ def _check_execution_graph(definition, nodes, output):
     for ref in nodes:
         if not used[ref]:
             warnings.warn("Unused pipeline node '%s'" % ref, UserWarning)
-
-def make_pipeline_definition(output_node):
-    """
-    Make a pipeline definition, including the flattened node definitions and a
-    default file output for the input node.
-
-    Parameters
-    ----------
-    output_node : TYPE
-        Description
-
-    Returns
-    -------
-    TYPE
-        Description
-    """
-
-    nodes = []
-    refs = []
-    definitions = []
-
-    def add_node(node):
-        """Summary
-
-        Parameters
-        ----------
-        node : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        if node in nodes:
-            return refs[nodes.index(node)]
-
-        # get definition
-        d = node.definition
-
-        # replace nodes with references, adding nodes depth first
-        if 'inputs' in d:
-            for key, input_node in d['inputs'].items():
-                if input_node is not None:
-                    d['inputs'][key] = add_node(input_node)
-        if 'sources' in d:
-            for i, source_node in enumerate(d['sources']):
-                d['sources'][i] = add_node(source_node)
-
-        # unique ref
-        ref = node.base_ref
-        while ref in refs:
-            if re.search('_[1-9][0-9]*$', ref):
-                ref, i = ref.rsplit('_', 1)
-                i = int(i)
-            else:
-                i = 0
-            ref = '%s_%d' % (ref, i+1)
-
-        nodes.append(node)
-        refs.append(ref)
-        definitions.append(d)
-
-        return ref
-
-    add_node(output_node)
-
-    d = OrderedDict()
-    d['nodes'] = OrderedDict(zip(refs, definitions))
-    return d
