@@ -27,6 +27,13 @@ class CacheCtrl(object):
     def __init__(self, cache_stores=[]):
         self._cache_stores = cache_stores
 
+    def _determine_mode(mode):
+        if mode is None:
+            mode = self._cache_mode
+            if mode is None:
+                mode = 'all'
+        return mode
+
     def put(self, node, data, key, coordinates=None, mode=None, update=False):
         '''Cache data for specified node.
         
@@ -45,7 +52,11 @@ class CacheCtrl(object):
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         '''
-        raise NotImplementedError
+        mode = self._determine_mode(mode)
+        for c in cache_stores:
+            if c.cache_modes_matches(set([mode])):
+                c.put(node=node, data=data, key=key, coordinates=coordinates, update=update)
+        
 
     def get(self, node, key, coordinates=None, mode=None):
         '''Get cached data for this node.
@@ -71,7 +82,12 @@ class CacheCtrl(object):
         CacheError
             If the data is not in the cache.
         '''
-        raise NotImplementedError
+        mode = self._determine_mode(mode)
+        for c in cache_stores:
+            if c.cache_modes_matches(set([mode])):
+                if c.has(node=node, key=key, coordinates=coordinates):
+                    return c.get(node=node, key=key, coordinates=coordinates)
+        raise CacheException("Requested data is not in any cache stores.")
 
     def rem(self, node=None, key=None, coordinates=None, mode=None):
         '''Delete cached data for this node.
@@ -87,7 +103,10 @@ class CacheCtrl(object):
         mode : str
             determines what types of the `CacheStore` are affected: 'ram','disk','network','all'. Defaults to `node._cache_mode` or 'all'. Overriden by `self._cache_mode` if `self._cache_mode` is not `None`.
         '''
-        raise NotImplementedError
+        mode = self._determine_mode(mode)
+        for c in cache_stores:
+            if c.cache_modes_matches(set([mode])):
+                c.rem(node=node, key=key, coordinates=coordinates)
 
     def has(self, node, key, coordinates=None, mode=None):
         '''Check for cached data for this node
@@ -108,7 +127,12 @@ class CacheCtrl(object):
         has_cache : bool
              True if there as a cached object for this node for the given key and coordinates.
         '''
-        raise NotImplementedError
+        mode = self._determine_mode(mode)
+        for c in cache_stores:
+            if c.cache_modes_matches(set([mode])):
+                if c.has(node=node, key=key, coordinates=coordinates):
+                    return True
+        return False
 
 
 class CacheStore(object):
@@ -303,7 +327,7 @@ class DiskCacheStore(CacheStore):
 
     def put(self, node, data, key, coordinates=None, update=False):
         listing = CacheListing(node=node, key=key, coordinates=coordinates, data=data)
-        if self.has(node, key, coordinates): # a little inefficient when this is an update but will do for now
+        if self.has(node, key, coordinates): # a little inefficient but will do for now
             if not update:
                 raise CacheException("Existing cache entry. Call put() with `update` argument set to True if you wish to overwrite.")
             else:
@@ -317,7 +341,11 @@ class DiskCacheStore(CacheStore):
                         return True
                 raise CacheException("Data is cached, but unable to find for update.")
         path = self.cache_path(node, key, coordinates)
-        CachePickleContainer(listings=[listing]).save(path)
+        if os.path.exists(path):
+            c = CachePickleContainer.load(path)
+            c.put(listing)
+        else:
+            CachePickleContainer(listings=[listing]).save(path)
         return True
 
     def get(self, node, key, coordinates=None):
