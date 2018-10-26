@@ -27,6 +27,7 @@ class CacheCtrl(object):
 
     def __init__(self, cache_stores=[]):
         self._cache_stores = cache_stores
+        self._cache_mode = None
 
     def _determine_mode(self, mode):
         if mode is None:
@@ -142,7 +143,7 @@ class CacheStore(object):
         return hash(obj)
 
     def hash_node(self, node):
-        hashable_repr = node.json
+        hashable_repr = cPickle.dumps(node.definition)
         return self.get_hash_val(hashable_repr)
 
     def hash_coordinates(self, coordinates):
@@ -151,6 +152,7 @@ class CacheStore(object):
 
     def hash_key(self, key):
         hashable_repr = str(repr(key))
+        return self.get_hash_val(hashable_repr)
 
     def put(self, node, data, key, coordinates=None, update=False):
         '''Cache data for specified node.
@@ -230,11 +232,15 @@ class CacheStore(object):
 class CacheListing(object):
 
     def __init__(self, node, key, coordinates, data=None):
-        self.node_def = node.json
+        self._node_def = node.definition
         self.key = key
         self.coordinate_def = None if coordinates is None else coordinates.json
         self.data = data
 
+    @property
+    def node_def(self):
+        return cPickle.dumps(self._node_def)
+    
     def __eq__(self, other):
         return self.node_def == other.node_def and \
                self.key == other.key and \
@@ -313,18 +319,18 @@ class DiskCacheStore(CacheStore):
     def cache_filename(self, node, key, coordinates):
         pre = str(node.base_ref).replace('/', '_').replace('\\', '_').replace(':', '_')
         self.cleanse_filename_str(pre)
-        nKeY = 'nKeY%s'.format(self.hash_node(node))
-        kKeY = 'kKeY%s'.format(self.hash_key(key))
-        cKeY = 'cKeY%s'.format(self.hash_coordinates(coordinates))
+        nKeY = 'nKeY{}'.format(self.hash_node(node))
+        kKeY = 'kKeY{}'.format(self.hash_key(key))
+        cKeY = 'cKeY{}'.format(self.hash_coordinates(coordinates))
         filename = '_'.join([pre, nKeY, kKeY, cKeY])
         filename = filename + '.' + self._extension
         return filename
 
     def cache_glob(self, node, key, coordinates):
         pre = '*'
-        nKeY = 'nKeY%s'.format(self.hash_node(node))
-        kKeY = 'kKeY*' if key == '*' else 'kKeY%s'.format(self.hash_key(key))
-        cKeY = 'cKeY*' if coordinates == '*' else 'cKeY%s'.format(self.hash_coordinates(coordinates))
+        nKeY = 'nKeY{}'.format(self.hash_node(node))
+        kKeY = 'kKeY*' if key == '*' else 'kKeY{}'.format(self.hash_key(key))
+        cKeY = 'cKeY*' if coordinates == '*' else 'cKeY{}'.format(self.hash_coordinates(coordinates))
         filename = '_'.join([pre, nKeY, kKeY, cKeY])
         filename = filename + '.' + self._extension
         return os.path.join(self.cache_dir(node), filename)
