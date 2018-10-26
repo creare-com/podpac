@@ -472,7 +472,7 @@ class Interpolation():
 
                 # if dict is a default definition, skip the rest of the handling
                 if not isinstance(key, tuple):
-                    if key in ['method', 'parameters', 'interpolator']:
+                    if key in ['method', 'params', 'interpolator']:
                         method = self._parse_interpolation_method(definition)
                         self._set_interpolation_method(('default',), method)
                         break
