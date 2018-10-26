@@ -415,6 +415,22 @@ class TestInterpolators(object):
             can_select = interp.can_select(('time', 'lat'), None, None)
             assert not can_select
 
+        def test_dim_in(self):
+            interpolator = Interpolator()
+
+            coords = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=['lat', 'lon'])
+            assert interpolator._dim_in('lat', coords)
+            assert interpolator._dim_in('lat', coords, unstacked=True)
+            assert not interpolator._dim_in('time', coords)
+
+            coords_two = Coordinates([clinspace(0, 10, 5)], dims=['lat'])
+            assert interpolator._dim_in('lat', coords, coords_two)
+            assert not interpolator._dim_in('lon', coords, coords_two)
+
+            coords_three = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=['lat_lon'])
+            assert not interpolator._dim_in('lat', coords, coords_two, coords_three)
+            assert interpolator._dim_in('lat', coords, coords_two, coords_three, unstacked=True)
+
     class TestNearest(object):
 
         def test_nearest_preview_select(self):
@@ -579,7 +595,7 @@ class TestInterpolators(object):
                    np.isnan(output.values[1, 0]) and np.isnan(output.values[1, 1]) and \
                    output.values[2, 0] == source[1, 0] and  output.values[2, 1] == source[1, 2]
 
-    @pytest.mark.skip('for now')
+    # @pytest.mark.skip('for now')
     class TestInterpolateRasterio(object):
         """test interpolation functions"""
 
