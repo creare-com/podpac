@@ -184,6 +184,28 @@ class DataSource(Node):
         self._set_interpolation()
         return self._interpolation
 
+    def __repr__(self):
+        source_name = str(self.__class__.__name__)
+
+        rep = '{}'.format(source_name)
+        if source_name != 'DataSource':
+            rep += ' DataSource'
+        
+        rep += '\n\tsource: {}'.format(self.source)
+        if trait_is_defined(self, 'native_coordinates'):
+            rep += '\n\tnative_coordinates: '
+            for c in self.native_coordinates.values():
+                if isinstance(c, Coordinates1d):
+                    rep += '\n\t\t%s: %s' % (c.name, c)
+                elif isinstance(c, StackedCoordinates):
+                    for _c in c:
+                        rep += '\n\t\t%s[%s]: %s' % (c.name, _c.name, _c)
+
+                # rep += '{}: {}'.format(c.name, c)
+        rep += '\n\tinterpolation: {}'.format(self.interpolation)
+
+        return rep
+
     @common_doc(COMMON_DATA_DOC)
     def eval(self, coordinates, output=None):
         """Evaluates this node using the supplied coordinates.
