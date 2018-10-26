@@ -6,6 +6,7 @@ from __future__ import division, print_function, absolute_import
 
 import os
 from glob import glob
+import shutil
 
 try:
     import cPickle  # Python 2.7
@@ -14,7 +15,7 @@ except:
 
 import podpac.settings
 
-_cache_types = set('ram','disk','network','all')
+_cache_types = {'ram','disk','network','all'}
 
 class CacheException(Exception):
     """Summary
@@ -27,7 +28,7 @@ class CacheCtrl(object):
     def __init__(self, cache_stores=[]):
         self._cache_stores = cache_stores
 
-    def _determine_mode(mode):
+    def _determine_mode(self, mode):
         if mode is None:
             mode = self._cache_mode
             if mode is None:
@@ -53,7 +54,7 @@ class CacheCtrl(object):
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         '''
         mode = self._determine_mode(mode)
-        for c in cache_stores:
+        for c in self._cache_stores:
             if c.cache_modes_matches(set([mode])):
                 c.put(node=node, data=data, key=key, coordinates=coordinates, update=update)
         
@@ -83,7 +84,7 @@ class CacheCtrl(object):
             If the data is not in the cache.
         '''
         mode = self._determine_mode(mode)
-        for c in cache_stores:
+        for c in self._cache_stores:
             if c.cache_modes_matches(set([mode])):
                 if c.has(node=node, key=key, coordinates=coordinates):
                     return c.get(node=node, key=key, coordinates=coordinates)
@@ -104,7 +105,7 @@ class CacheCtrl(object):
             determines what types of the `CacheStore` are affected: 'ram','disk','network','all'. Defaults to `node._cache_mode` or 'all'. Overriden by `self._cache_mode` if `self._cache_mode` is not `None`.
         '''
         mode = self._determine_mode(mode)
-        for c in cache_stores:
+        for c in self._cache_stores:
             if c.cache_modes_matches(set([mode])):
                 c.rem(node=node, key=key, coordinates=coordinates)
 
@@ -128,7 +129,7 @@ class CacheCtrl(object):
              True if there as a cached object for this node for the given key and coordinates.
         '''
         mode = self._determine_mode(mode)
-        for c in cache_stores:
+        for c in self._cache_stores:
             if c.cache_modes_matches(set([mode])):
                 if c.has(node=node, key=key, coordinates=coordinates):
                     return True
@@ -273,6 +274,12 @@ class CachePickleContainer(object):
             if l == listing:
                 self.listings.pop(i)
 
+    @property
+    def empty(self):
+        if len(self.listings) == 0:
+            return True
+        return False
+
 
 class DiskCacheStore(CacheStore):
 
@@ -287,10 +294,15 @@ class DiskCacheStore(CacheStore):
             raise NotImplementedError
         self._storage_format = storage_format
 
-    def cache_modes_matches(modes):
+    def cache_modes_matches(self, modes):
         if len(self._cache_modes.intersection(modes)) > 0:
             return True
         return False
+
+    def make_cache_dir(self, node):
+        cache_dir = self.cache_dir(node)
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
 
     def cache_dir(self, node):
         basedir = self._root_dir_path
@@ -311,8 +323,8 @@ class DiskCacheStore(CacheStore):
     def cache_glob(self, node, key, coordinates):
         pre = '*'
         nKeY = 'nKeY%s'.format(self.hash_node(node))
-        kKeY = 'kKeY%s'.format(self.hash_key(key))
-        cKeY = 'cKeY%s'.format(self.hash_coordinates(coordinates))
+        kKeY = 'kKeY*' if key == '*' else 'kKeY%s'.format(self.hash_key(key))
+        cKeY = 'cKeY*' if coordinates == '*' else 'cKeY%s'.format(self.hash_coordinates(coordinates))
         filename = '_'.join([pre, nKeY, kKeY, cKeY])
         filename = filename + '.' + self._extension
         return os.path.join(self.cache_dir(node), filename)
@@ -326,6 +338,7 @@ class DiskCacheStore(CacheStore):
         return s
 
     def put(self, node, data, key, coordinates=None, update=False):
+        self.make_cache_dir(node)
         listing = CacheListing(node=node, key=key, coordinates=coordinates, data=data)
         if self.has(node, key, coordinates): # a little inefficient but will do for now
             if not update:
@@ -361,10 +374,25 @@ class DiskCacheStore(CacheStore):
         raise CacheException("Cache miss. Requested data not found.")
 
     def rem(self, node=None, key=None, coordinates=None):
-        # need to handle cases for removing all entrie for a node
-        # and for removing everything in this disk cache
+        # need to handle cases for removing all entries for a node
         # for future update
+        if node is None:
+            # clear the entire cache store
+            shutil.rmtree(self._root_dir_path)
+            return True
         removed_something = False
+        if key is None:
+            # clear all files for data cached for `node`
+            # and delete its cache subdirectory if it is empty
+            paths = glob(self.cache_glob(node, key='*', coordinates='*'))
+            for p in paths:
+                os.remove(p)
+                removed_something = True
+            try:
+                os.rmdir(self.cache_dir(node=node))
+            except Exception as e:
+                pass
+            return removed_something
         listing = CacheListing(node=node, key=key, coordinates=coordinates)
         paths = glob(self.cache_glob(node, key, coordinates))
         for p in paths:
@@ -372,6 +400,10 @@ class DiskCacheStore(CacheStore):
             if c.has(listing):
                 c.rem(listing)
                 removed_something = True
+                if c.empty:
+                    os.remove(p)
+                else:
+                    c.save(p)
         return removed_something
         
 
