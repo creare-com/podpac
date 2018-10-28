@@ -118,20 +118,21 @@ class DataSource(Node):
             :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS. The interpolation method associated
             with this string will be applied to all dimensions at the same time.
 
-            If input is a dict, the dict must contain ordered set of keys defining dimensions and values
-            defining the interpolation method to use with the dimensions.
-            The key must be a string or tuple of dimension names (i.e. `'time'` or `('lat', 'lon')` ).
-            The value can either be a string matching one of the interpolation shortcuts defined in
-            :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS or a dictionary.
-            If the value is a dictionary, the dictionary must contain a key `'method'`
-            defining the interpolation method name.
+            If input is a dict, the dict must contain one of two definitions:
+
+            1. A dictionary which contains the key `'method'` defining the interpolation method name.
             If the interpolation method is not one of :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS, a
             second key `'interpolators'` must be defined with a list of
             :ref:podpac.core.data.interpolate.Interpolator classes to use in order of uages.
             The dictionary may contain an option `'params'` key which contains a dict of parameters to pass along to
             the :ref:podpac.core.data.interpolate.Interpolator classes associated with the interpolation method.
-            
-            If the dictionary does not contain a key for all unstacked dimensions of the source coordinates, the
+            This interpolation definition will be applied to all dimensions.
+            2. A dictionary containing an ordered set of keys defining dimensions and values
+            defining the interpolation method to use with the dimensions.
+            The key must be a string or tuple of dimension names (i.e. `'time'` or `('lat', 'lon')` ).
+            The value can either be a string matching one of the interpolation shortcuts defined in
+            :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS or a dictionary meeting the previous requirements
+            (1). If the dictionary does not contain a key for all unstacked dimensions of the source coordinates, the
             :ref:podpac.core.data.interpolate.INTERPOLATION_DEFAULT value will be used.
             All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
             Any extra dimensions included but not found in the source coordinates will be ignored.
@@ -190,7 +191,7 @@ class DataSource(Node):
         rep = '{}'.format(source_name)
         if source_name != 'DataSource':
             rep += ' DataSource'
-        
+
         rep += '\n\tsource: {}'.format(self.source)
         if trait_is_defined(self, 'native_coordinates'):
             rep += '\n\tnative_coordinates: '
