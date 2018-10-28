@@ -200,7 +200,7 @@ class Interpolator(tl.HasTraits):
         # find the intersection between dims_supported and udims, return tuple of intersection
         return tuple(set(self.dims_supported) & set(udims))
 
-    def _dim_in(self, dim, *coords, unstacked=False):
+    def _dim_in(self, dim, *coords, **kwargs):
         """Verify the dim exists on source and requested coordinates
         
         Parameters
@@ -210,14 +210,17 @@ class Interpolator(tl.HasTraits):
         *coords podpac.core.coordinates.Coordinates
             coordinates to evaluate
         unstacked : bool, optional
-            Set to true if you want to compare dimensions in unstacked form, otherwise compare dimensions however
-            they are defined on the DataSource
+            True if you want to compare dimensions in unstacked form, otherwise compare dimensions however
+            they are defined on the DataSource. Defaults to False.
         
         Returns
         -------
         Boolean
             True if the dim is in all input coordinates
         """
+
+        unstacked = kwargs.pop('unstacked', False)
+
         if isinstance(dim, str):
             dim = [dim]
         elif not isinstance(dim, list):
