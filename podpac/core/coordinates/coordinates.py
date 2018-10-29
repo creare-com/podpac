@@ -296,6 +296,11 @@ class Coordinates(tl.HasTraits):
         if not isinstance(other, Coordinates):
             raise TypeError("Cannot compare '%s' with Coordinates" % type(other))
 
+        # dims, stacking, and order must be the same
+        if self.dims != other.dims:
+            return False
+
+        # coordinates must be the same
         for udim in self.udims:
             if udim in other.udims:
                 if not np.all(self[udim].coordinates == other[udim].coordinates):
