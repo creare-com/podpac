@@ -521,32 +521,42 @@ class TestInterpolators(object):
                 # stacked
                 source = np.random.rand(5)
                 coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=['lat_lon'])
-                node = MockArrayDataSource(source=source, native_coordinates=coords_src, interpolation=interpolation)
-
+                node = MockArrayDataSource(source=source, native_coordinates=coords_src)
+                node.interpolation = {
+                    'method': 'nearest',
+                    'interpolators':[NearestNeighbor]
+                }
                 coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=['lat_lon'])
                 
-                with pytest.raises(InterpolationException):
-                    node.eval(coords_dst)
+                output = node.eval(coords_dst)
+                assert np.all(np.isnan(output.data))
+
 
                 # source = stacked, dest = unstacked
                 source = np.random.rand(5)
                 coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=['lat_lon'])
-                node = MockArrayDataSource(source=source, native_coordinates=coords_src, interpolation=interpolation)
-
+                node = MockArrayDataSource(source=source, native_coordinates=coords_src)
+                node.interpolation = {
+                    'method': 'nearest',
+                    'interpolators':[NearestNeighbor]
+                }
                 coords_dst = Coordinates([np.linspace(1, 9, 3), np.linspace(1, 9, 3)], dims=['lat', 'lon'])
 
-                with pytest.raises(InterpolationException):
-                    node.eval(coords_dst)
+                output = node.eval(coords_dst)
+                assert np.all(np.isnan(output.data))
 
                 # source = unstacked, dest = stacked
                 source = np.random.rand(5, 5)
                 coords_src = Coordinates([np.linspace(0, 10, 5), np.linspace(0, 10, 5)], dims=['lat', 'lon'])
-                node = MockArrayDataSource(source=source, native_coordinates=coords_src, interpolation=interpolation)
-
+                node = MockArrayDataSource(source=source, native_coordinates=coords_src)
+                node.interpolation = {
+                    'method': 'nearest',
+                    'interpolators':[NearestNeighbor]
+                }
                 coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=['lat_lon'])
 
-                with pytest.raises(InterpolationException):
-                    node.eval(coords_dst)
+                output = node.eval(coords_dst)
+                assert np.all(np.isnan(output.data))
 
         def test_spatial_tolerance(self):
 

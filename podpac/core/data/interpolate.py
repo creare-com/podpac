@@ -201,7 +201,7 @@ class Interpolator(tl.HasTraits):
         return tuple(set(self.dims_supported) & set(udims))
 
     def _dim_in(self, dim, *coords, **kwargs):
-        """Verify the dim exists on source and requested coordinates
+        """Verify the dim exists on coordinates
         
         Parameters
         ----------
@@ -223,8 +223,8 @@ class Interpolator(tl.HasTraits):
 
         if isinstance(dim, str):
             dim = [dim]
-        elif not isinstance(dim, list):
-            raise ValueError('`dim` input must be a str or list of str.')
+        elif not isinstance(dim, (list, tuple)):
+            raise ValueError('`dim` input must be a str, list of str, or tuple of str')
 
         for coord in coords:
             for d in dim:
@@ -333,7 +333,14 @@ class NearestNeighbor(Interpolator):
         """
         {interpolator_interpolate}
         """
-        return self._filter_udims_supported(udims)
+        udims_subset = self._filter_udims_supported(udims)
+
+        # confirm that udims are in both source and eval coordinates
+        # TODO: handle stacked coordinates
+        if self._dim_in(udims_subset, source_coordinates, eval_coordinates):
+            return udims_subset
+        else:
+            return tuple()
 
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
@@ -354,14 +361,14 @@ class NearestNeighbor(Interpolator):
                 # TODO: how do we choose a dimension to use from the stacked coordinates?
                 # For now, choose the first coordinate found in the udims definition
                 if udims_in_stack:
-                    raise InterpolationException('NearestPreview interpolation does not yet support stacked dimensions')
+                    raise InterpolationException('Nearest interpolation does not yet support stacked dimensions')
                     # dim = udims_in_stack[0]
                 else:
                     continue
 
             # TODO: handle if the source coordinates contain `dim` within a stacked coordinate
             elif dim not in source_coordinates.dims:
-                raise InterpolationException('NearestPreview interpolation does not yet support stacked dimensions')
+                raise InterpolationException('Nearest interpolation does not yet support stacked dimensions')
 
             elif dim not in udims:
                 continue
@@ -400,7 +407,14 @@ class NearestPreview(NearestNeighbor):
         """
         {interpolator_can_select}
         """
-        return self._filter_udims_supported(udims)
+        udims_subset = self._filter_udims_supported(udims)
+
+        # confirm that udims are in both source and eval coordinates
+        # TODO: handle stacked coordinates
+        if self._dim_in(udims_subset, source_coordinates, eval_coordinates):
+            return udims_subset
+        else:
+            return tuple()
 
     def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
         """
