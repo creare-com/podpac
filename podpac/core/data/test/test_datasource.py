@@ -145,26 +145,28 @@ class TestDataSource(object):
         # assert attributes
         assert isinstance(output.attrs['layer_style'], Style)
 
+    # TODO: discuss test with MPU
     def test_evaluate_with_output(self):
         node = MockDataSource()
 
         # initialize a large output array
         fullcoords = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=['lat', 'lon'])
-        output = UnitsDataArray(np.ones(fullcoords.shape), coords=fullcoords.coords, dims=fullcoords.dims)
-        
+        output = node.create_output_array(fullcoords) 
+
         # evaluate a subset of the full coordinates
         coords = Coordinates([fullcoords['lat'][3:8], fullcoords['lon'][3:8]])
         
         # after evaluation, the output should be
         # - the same where it was not evaluated
         # - NaN where it was evaluated but doesn't intersect with the data source
-        # - 0 where it was evaluated and does intersect with the data source (because this datasource is all 0)
+        # - 1 where it was evaluated and does intersect with the data source (because this datasource is all 0)
         expected = output.copy()
         expected[3:8, 3:8] = np.nan
-        expected[3:6, 3:6] = 0
+        expected[3:7, 3:7] = 1.
 
         # evaluate the subset coords, passing in the cooresponding slice of the initialized output array
-        node.eval(coords, output=output[3:8, 3:8])
+        # TODO: discuss if we should be using the same reference to output slice?
+        output[3:8, 3:8] = node.eval(coords, output=output[3:8, 3:8])
         np.testing.assert_equal(output.data, expected.data)
 
     def test_evaluate_with_output_no_intersect(self):
@@ -177,13 +179,13 @@ class TestDataSource(object):
 
     def test_evaluate_with_output_transpose(self):
         # initialize coords with dims=[lon, lat]
-        lon = clinspace(10, 15, 6)
         lat = clinspace(10, 20, 11)
-        coords = Coordinates([lon, lat], dims=['lon', 'lat'])
+        lon = clinspace(10, 15, 6)
+        coords = Coordinates([lat, lon], dims=['lat', 'lon'])
         
         # evaluate with dims=[lat, lon], passing in the output
         node = MockDataSource()
-        output = node.create_output_array(coords.transpose('lat', 'lon'))
+        output = node.create_output_array(coords.transpose('lon', 'lat'))
         node.eval(coords, output=output)
         
         # dims should stay in the order of the output, rather than the order of the requested coordinates

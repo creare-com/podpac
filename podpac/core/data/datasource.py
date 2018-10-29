@@ -298,6 +298,10 @@ class DataSource(Node):
         if output is None:
             output = self.create_output_array(coordinates)
 
+        # set the order of dims to be the same as that of evaluated coordinates
+        # this is required in case the user supplied an output object with a different dims order
+        output = output.transpose(*coordinates.dims)
+
         # interpolate data into output
         self._requested_source_coordinates, self._requested_source_data, output = \
             self._interpolation.interpolate(self._requested_source_coordinates,
@@ -305,9 +309,6 @@ class DataSource(Node):
                                             coordinates,
                                             output)
 
-        # set the order of dims to be the same as that of requested_coordinates
-        # this is required in case the user supplied an output object with a different dims order
-        output = output.transpose(*coordinates.dims)
         
         # save output to private for debugging
         self._output = output

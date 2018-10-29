@@ -377,11 +377,14 @@ class NearestNeighbor(Interpolator):
                 tolerance = min(self.spatial_tolerance, delta)
 
             # reindex using xarray
-            indexer = OrderedDict()
-            indexer[dim] = eval_coordinates[dim].coordinates.copy()
+            indexer = {
+                dim: eval_coordinates[dim].coordinates.copy()
+            }
             indexers += [dim]
             source_data = source_data.reindex(method=str('nearest'), tolerance=tolerance, **indexer)
 
+        # at this point, output_data and eval_coordinates have the same dim order
+        # this transpose makes sure the source_data has the same dim order as the eval coordinates
         output_data.data = source_data.transpose(*indexers)
 
         return source_coordinates, source_data, output_data
