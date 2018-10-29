@@ -1,5 +1,6 @@
 
 import sys
+from copy import deepcopy
 # from collections import OrderedDict
 
 import pytest
@@ -194,6 +195,23 @@ class TestCoordinateCreation(object):
         c = Coordinates.points(lat=lat, lon=lon, time=dates, dims=['time', 'lat', 'lon'])
         assert c.dims == ('time_lat_lon',)
         assert c.shape == (3,)
+
+    def test_eq(self):
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+        dates = ['2018-01-01', '2018-01-02', '2018-01-03']
+
+        c1 = Coordinates([[0, 1, 2], [4, 5, 6]], dims=['lat','lon'])
+        c2 = deepcopy(c1)
+        c3 = Coordinates([[0, 1, 2], [4, 5, 7]], dims=['lat','lon'])
+        c4 = Coordinates([[0, 1, 2], [4, 5, 6]], dims=['lon','lat'])
+        c5 = Coordinates([([0, 1, 2], [4, 5, 6])], dims=['lat_lon'])
+
+        assert c1 == c1
+        assert c1 == c2
+        assert c1 != c3
+        assert c1 != c4
+        assert c1 != c5
 
         # TODO
         # with pytest.raises(ValueError):
