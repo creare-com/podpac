@@ -55,7 +55,7 @@ INTERPOLATE_DOCS = {
         Attributes
         ----------
         {interpolator_attributes}
-        space_tolerance : float
+        spatial_tolerance : float
             Maximum distance to the nearest coordinate in space.
             Cooresponds to the unit of the space measurement.
         time_tolerance : float
@@ -325,11 +325,14 @@ class NearestNeighbor(Interpolator):
     {nearest_neighbor_attributes}
     """
     dims_supported = ['lat', 'lon', 'alt', 'time']
-    space_tolerance = tl.Float(default_value=np.inf)
-    time_tolerance = tl.Union([tl.Float(),
-                               tl.Instance(np.timedelta64)
-                              ], default_value=np.inf)
+    spatial_tolerance = tl.Float(default_value=np.inf)
+    time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
+    def init(self):
+
+        # set default time tolerance to 1000 years
+        if self.time_tolerance is None:
+            self.time_tolerance = np.timedelta64(int(1e12), 'D')
 
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
@@ -374,7 +377,7 @@ class NearestNeighbor(Interpolator):
             else:
                 area_bounds = getattr(eval_coordinates[dim], 'area_bounds', [-np.inf, np.inf])
                 delta = np.abs(area_bounds[1] - area_bounds[0]) / eval_coordinates[dim].size
-                tolerance = min(self.space_tolerance, delta)
+                tolerance = min(self.spatial_tolerance, delta)
 
             # reindex using xarray
             indexer = OrderedDict()
@@ -1002,29 +1005,29 @@ class Interpolation():
             raise TypeError('{} is not a valid interpolator type. '.format(interpolator) +
                             'Interpolator must be of type {}'.format(Interpolator))
 
-    def _set_interpolation_method(self, udims, method):
-        """Set the list of interpolation methods to the input dimension
+    def _set_interpolation_method(self, udims, definition):
+        """Set the list of interpolation definitions to the input dimension
         
         Parameters
         ----------
         udims : tuple
-            tuple of dimensiosn to assign method to
-        method : dict
-            dict method returned from _parse_interpolation_method
+            tuple of dimensiosn to assign definition to
+        definition : dict
+            dict definition returned from _parse_interpolation_method
         """
 
-        method_string = deepcopy(method['method'])
-        interpolators = deepcopy(method['interpolators'])
-        params = deepcopy(method['params'])
+        method = deepcopy(definition['method'])
+        interpolators = deepcopy(definition['interpolators'])
+        params = deepcopy(definition['params'])
 
         # instantiate interpolators
         for (idx, interpolator) in enumerate(interpolators):
-            interpolators[idx] = interpolator(method=method_string, **params)
+            interpolators[idx] = interpolator(method=method, **params)
 
-        method['interpolators'] = interpolators
+        definition['interpolators'] = interpolators
 
         # set to interpolation configuration for dims
-        self._config[udims] = method
+        self._config[udims] = definition
 
     def _select_interpolator_queue(self, source_coordinates, eval_coordinates, select_method, strict=False):
         """Create interpolator queue based on interpolation configuration and requested/native source_coordinates

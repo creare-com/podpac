@@ -66,13 +66,13 @@ class TestInterpolation(object):
         interp = Interpolation({
             'method': 'nearest',
             'params': {
-                'space_tolerance': 1
+                'spatial_tolerance': 1
             }
         })
         assert isinstance(interp._config[('default',)], dict)
         assert interp._config[('default',)]['method'] == 'nearest'
         assert isinstance(interp._config[('default',)]['interpolators'][0], Interpolator)
-        assert interp._config[('default',)]['params'] == {'space_tolerance': 1}
+        assert interp._config[('default',)]['params'] == {'spatial_tolerance': 1}
 
         # should throw an error on _parse_interpolation_method(definition)
         # if definition is not in INTERPOLATION_SHORTCUTS
@@ -177,11 +177,11 @@ class TestInterpolation(object):
                 'method': 'myinter',
                 'interpolators': [NearestNeighbor, NearestPreview],
                 'params': {
-                    'space_tolerance': 5
+                    'spatial_tolerance': 5
                 }
             }
         })
-        assert interp._config[('lat', 'lon')]['params'] == {'space_tolerance': 5}
+        assert interp._config[('lat', 'lon')]['params'] == {'spatial_tolerance': 5}
 
         # set default equal to empty tuple
         interp = Interpolation({'lat': 'bilinear'})
@@ -207,11 +207,11 @@ class TestInterpolation(object):
             'default': {
                 'method': 'nearest',
                 'params': {
-                    'space_tolerance':1
+                    'spatial_tolerance':1
                 }
             }
         })
-        assert interp._config[('default',)]['interpolators'][0].space_tolerance == 1
+        assert interp._config[('default',)]['interpolators'][0].spatial_tolerance == 1
 
         # should throw TraitErrors defined by Interpolator
         with pytest.raises(TraitError):
@@ -219,7 +219,7 @@ class TestInterpolation(object):
                 'default': {
                     'method': 'nearest',
                     'params': {
-                        'space_tolerance':'tol'
+                        'spatial_tolerance':'tol'
                     }
                 }
             })
@@ -400,12 +400,6 @@ class TestInterpolators(object):
         
         def test_can_select(self):
 
-            class NoDimsSupported(Interpolator):
-                method = 'mymthod'
-
-
-            class DimsSupported(Interpolator):
-                dims_supported = ['time', 'lat']
 
             class CanAlwaysSelect(Interpolator):
 
@@ -416,14 +410,6 @@ class TestInterpolators(object):
 
                 def can_select(self, udims, reqcoords, srccoords):
                     return tuple()
-
-            interp = DimsSupported(method='method')
-            can_select = interp.can_select(('time', 'lat'),  None, None)
-            assert 'lat' in can_select and 'time' in can_select
-
-            with pytest.raises(NotImplementedError):
-                interp = NoDimsSupported(method='method')
-                can_select = interp.can_select(('lat'), None, None)
 
             interp = CanAlwaysSelect(method='method')
             can_select = interp.can_select(('time', 'lat'), None, None)
@@ -562,7 +548,7 @@ class TestInterpolators(object):
                 with pytest.raises(InterpolationException):
                     node.eval(coords_dst)
 
-        def test_space_tolerance(self):
+        def test_spatial_tolerance(self):
 
             # unstacked 1D
             source = np.random.rand(5)
@@ -571,7 +557,7 @@ class TestInterpolators(object):
                 'default': {
                     'method': 'nearest',
                     'params': {
-                        'space_tolerance':1.1
+                        'spatial_tolerance':1.1
                     }
                 }
             })
@@ -597,7 +583,7 @@ class TestInterpolators(object):
                 'default': {
                     'method': 'nearest',
                     'params': {
-                        'space_tolerance': 1.1,
+                        'spatial_tolerance': 1.1,
                         'time_tolerance': np.timedelta64(1, 'D')
                     }
                 }
