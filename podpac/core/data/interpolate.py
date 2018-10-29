@@ -1122,7 +1122,11 @@ class Interpolation():
             Returns tuple with the first element subset of selected coordinates and the second element the indicies
             of the selected coordinates
         """
-        
+
+        # short circuit if source and eval coordinates are the same
+        if source_coordinates == eval_coordinates:
+            return source_coordinates, source_coordinates_index
+
         interpolator_queue = \
             self._select_interpolator_queue(source_coordinates, eval_coordinates, 'can_select')
 
@@ -1173,6 +1177,11 @@ class Interpolation():
         # short circuit if the source data and requested coordinates are of shape == 1
         if source_data.size == 1 and np.prod(eval_coordinates.shape) == 1:
             output_data[:] = source_data
+            return source_coordinates, source_data, output_data
+
+        # short circuit if source and eval coordinates are the same
+        if source_coordinates == eval_coordinates:
+            output_data.data = source_data.data
             return source_coordinates, source_data, output_data
 
         interpolator_queue = \
