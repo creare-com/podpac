@@ -177,14 +177,14 @@ class TestDataSource(object):
 
     def test_evaluate_with_output_transpose(self):
         # initialize coords with dims=[lon, lat]
-        lat = clinspace(10, 20, 11)
         lon = clinspace(10, 15, 6)
+        lat = clinspace(10, 20, 11)
         coords = Coordinates([lon, lat], dims=['lon', 'lat'])
-        output = UnitsDataArray(np.ones(coords.shape), coords=coords.coords, dims=coords.dims)
         
         # evaluate with dims=[lat, lon], passing in the output
         node = MockDataSource()
-        node.eval(coords.transpose('lat', 'lon'), output=output)
+        output = node.create_output_array(coords.transpose('lat', 'lon'))
+        node.eval(coords, output=output)
         
         # dims should stay in the order of the output, rather than the order of the requested coordinates
         assert output.dims == ('lon', 'lat')

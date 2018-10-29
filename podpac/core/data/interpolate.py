@@ -328,11 +328,6 @@ class NearestNeighbor(Interpolator):
     spatial_tolerance = tl.Float(default_value=np.inf)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
-    def init(self):
-
-        # set default time tolerance to 1000 years
-        if self.time_tolerance is None:
-            self.time_tolerance = np.timedelta64(int(1e12), 'D')
 
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
@@ -372,9 +367,11 @@ class NearestNeighbor(Interpolator):
                 continue
 
             # set tolerance value based on dim type
-            if dim == 'time':
+            tolerance = None
+            if dim == 'time' and self.time_tolerance:
                 tolerance = self.time_tolerance
-            else:
+            elif dim != 'time':
+                # TODO: do we want this tolerance to always be calculated? or only when spatial_tolerance is specified?
                 area_bounds = getattr(eval_coordinates[dim], 'area_bounds', [-np.inf, np.inf])
                 delta = np.abs(area_bounds[1] - area_bounds[0]) / eval_coordinates[dim].size
                 tolerance = min(self.spatial_tolerance, delta)
