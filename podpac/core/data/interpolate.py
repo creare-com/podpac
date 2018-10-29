@@ -779,7 +779,7 @@ class OptimalInterpolation(Interpolator):
 INTERPOLATION_METHODS = {
     'optimal': [OptimalInterpolation],
     'nearest_preview': [NearestPreview],
-    'nearest': [NearestNeighbor],
+    'nearest': [NearestNeighbor, Rasterio, Scipy],
     'bilinear':[Rasterio, Scipy],
     'cubic':[Rasterio, Scipy],
     'cubic_spline':[Rasterio, Scipy],
