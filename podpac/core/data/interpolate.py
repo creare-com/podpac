@@ -841,7 +841,7 @@ class Interpolation():
 
                 # if dict is a default definition, skip the rest of the handling
                 if not isinstance(key, tuple):
-                    if key in ['method', 'params', 'interpolator']:
+                    if key in ['method', 'params', 'interpolators']:
                         method = self._parse_interpolation_method(definition)
                         self._set_interpolation_method(('default',), method)
                         break
@@ -904,8 +904,8 @@ class Interpolation():
         Parameters
         ----------
         definition : str,
-                     tuple (str, list of podpac.core.data.interpolate.Interpolator),
-            interpolation definition for a single dimension.
+                     dict
+            interpolation definition
             See :ref:podpac.core.data.datasource.DataSource.interpolation for more details.
         
         Returns
