@@ -1126,6 +1126,7 @@ class Interpolation():
             of the selected coordinates
         """
 
+        # TODO: short circuit if source_coordinates contains eval_coordinates
         # short circuit if source and eval coordinates are the same
         if source_coordinates == eval_coordinates:
             return source_coordinates, source_coordinates_index
@@ -1182,6 +1183,7 @@ class Interpolation():
             output_data[:] = source_data
             return source_coordinates, source_data, output_data
 
+        # TODO: short circuit if source_coordinates contains eval_coordinates
         # short circuit if source and eval coordinates are the same
         if source_coordinates == eval_coordinates:
             output_data.data = source_data.data
