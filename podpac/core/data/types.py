@@ -86,6 +86,11 @@ class Array(DataSource):
     """
     
     source = tl.Instance(np.ndarray)
+
+    def _first_init(self, **kwargs):
+        if 'source' in kwargs and isinstance(kwargs['source'], list):
+            kwargs['source'] = np.array(kwargs['source'])
+        return kwargs
     
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -95,6 +100,19 @@ class Array(DataSource):
         d = self.create_output_array(coordinates, data=self.source[s])
         return d
 
+    @property
+    @common_doc(COMMON_DATA_DOC)
+    def base_definition(self):
+        """Base node defintion for DataSource nodes. 
+        
+        Returns
+        -------
+        {definition_return}
+        """
+
+        d = super(DataSource, self).base_definition
+        d['source'] = self.source.tolist() # overwrite the existing value
+        return d
 
 class NumpyArray(Array):
     """Create a DataSource from a numpy array.
@@ -137,7 +155,7 @@ class PyDAP(DataSource):
     """
     
     # required inputs
-    source = tl.Unicode(allow_none=False, default_value='').tag(attr=True)
+    source = tl.Unicode(allow_none=False, default_value='')
     datakey = tl.Unicode(allow_none=False).tag(attr=True)
 
     # optional inputs and later defined traits
@@ -771,8 +789,8 @@ class ReprojectedSource(DataSource, Algorithm):
     source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     source = tl.Instance(Node)
     # Specify either one of the next two
-    coordinates_source = tl.Instance(Node, allow_none=True).tag(attr=True)
-    reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
+    coordinates_source = tl.Instance(Node, allow_none=True)
+    reprojected_coordinates = tl.Instance(Coordinates)
 
     @tl.default('reprojected_coordinates')
     def get_reprojected_coordinates(self):
@@ -840,21 +858,16 @@ class ReprojectedSource(DataSource, Algorithm):
         -------
         OrderedDict
             Base node definition. 
-        
-        Raises
-        ------
-        NotImplementedError
-            If coordinates_source is None, this raises an error because serialization of reprojected_coordinates 
-            is not implemented
         """
         
         d = Algorithm.base_definition.fget(self)
-        d['attrs'] = OrderedDict()
         if self.interpolation:
             d['attrs']['interpolation'] = self.interpolation
+
         if self.coordinates_source is None:
             # TODO serialize reprojected_coordinates
             raise NotImplementedError
+        
         return d
 
 class S3(DataSource):

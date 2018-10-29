@@ -201,7 +201,10 @@ class Coordinates(tl.HasTraits):
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
-    def from_json(self, d):
+    def from_json(cls, d):
+        if isinstance(d, str):
+            d = json.loads(d)
+
         coords = []
         for elem in d:
             if isinstance(elem, list):

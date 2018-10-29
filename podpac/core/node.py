@@ -268,8 +268,23 @@ class Node(tl.HasTraits):
             d['node'] = self.__class__.__name__
         attrs = {}
         for key, value in self.traits().items():
-            if value.metadata.get('attr', False):
-                attrs[key] = getattr(self, key)
+            if not value.metadata.get('attr', False):
+                continue
+
+            attr = getattr(self, key)
+
+            if isinstance(attr, np.ndarray):
+                attr = attr.tolist()
+            elif isinstance(attr, Coordinates):
+                attr = attr.json
+            
+            try:
+                json.dumps(attr)
+            except:
+                raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
+            
+            attrs[key] = attr
+
         if attrs:
             d['attrs'] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
 
@@ -352,6 +367,10 @@ class Node(tl.HasTraits):
         This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to 
         share algorithms and pipelines, or run code on cloud services. 
         """
+        return json.dumps(self.definition)
+
+    @property
+    def json_pretty(self):
         return json.dumps(self.definition, indent=4)
 
     @property

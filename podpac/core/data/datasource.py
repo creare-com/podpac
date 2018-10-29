@@ -32,7 +32,7 @@ except:
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import Coordinates1d, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
-from podpac.core.node import Node
+from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.data.interpolate import (Interpolation, Interpolator, NearestNeighbor, INTERPOLATION_SHORTCUTS,
@@ -776,7 +776,12 @@ class DataSource(Node):
         -------
         {definition_return}
         """
+
         d = super(DataSource, self).base_definition
+
+        if 'attrs' in d and 'source' in d['attrs']:
+            raise NodeException("The 'source' property cannot be tagged as an 'attr'")
+
         d['source'] = self.source
 
         # TODO: cast interpolation to string in way that can be recreated here

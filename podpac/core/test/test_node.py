@@ -7,6 +7,7 @@ import six
 
 import pytest
 import numpy as np
+import xarray as xr
 from pint.errors import DimensionalityError
 from pint import UnitRegistry; ureg = UnitRegistry()
 import traitlets as tl
@@ -26,8 +27,8 @@ class TestNodeProperties(object):
 
     def test_base_definition(self):
         class N(Node):
-            attr = tl.Int().tag(attr=True)
-        n = N(attr=7)
+            my_attr = tl.Int().tag(attr=True)
+        n = N(my_attr=7)
 
         d = n.base_definition
         assert isinstance(d, OrderedDict)
@@ -35,8 +36,34 @@ class TestNodeProperties(object):
         assert isinstance(d['node'], str)
         assert 'attrs' in d
         assert isinstance(d['attrs'], OrderedDict)
-        assert 'attr' in d['attrs']
-        assert d['attrs']['attr'] == 7
+        assert 'my_attr' in d['attrs']
+        assert d['attrs']['my_attr'] == 7
+
+    def test_base_definition_array_attr(self):
+        class N(Node):
+            my_attr = tl.Instance(np.ndarray).tag(attr=True)
+
+        node = N(my_attr=np.ones((2, 3, 4)))
+        d = node.base_definition
+        my_attr = np.array(d['attrs']['my_attr'])
+        np.testing.assert_array_equal(my_attr, node.my_attr)
+
+    def test_base_definition_coordinates_attr(self):
+        class N(Node):
+            my_attr = tl.Instance(podpac.Coordinates).tag(attr=True)
+
+        node = N(my_attr=podpac.Coordinates([[0, 1], [1, 2, 3]], dims=['lat', 'lon']))
+        d = node.base_definition
+        my_attr = podpac.Coordinates.from_json(d['attrs']['my_attr'])
+        assert my_attr == node.my_attr
+
+    def test_base_definition_unserializable(self):
+        class N(Node):
+            my_attr = tl.Instance(xr.DataArray).tag(attr=True)
+
+        node = N(my_attr=xr.DataArray([0, 1]))
+        with pytest.raises(NodeException, match="Cannot serialize attr 'my_attr'"):
+            node.base_definition
 
     def test_definition(self):
         n = Node()
@@ -77,7 +104,7 @@ class TestNodeProperties(object):
 
         # check that the arange refs are unique
         assert len(pipeline.nodes) == 4
-    
+        
     def test_pipeline(self):
         n = Node()
         p = n.pipeline
@@ -85,21 +112,26 @@ class TestNodeProperties(object):
     
     def test_json(self):
         n = Node()
+
         s = n.json
+        assert isinstance(s, str)
+        json.loads(s)
+
+        s = n.json_pretty
         assert isinstance(s, str)
         json.loads(s)
 
     def test_hash(self):
         class N(Node):
-            attr = tl.Int().tag(attr=True)
+            my_attr = tl.Int().tag(attr=True)
 
         class M(Node):
-            attr = tl.Int().tag(attr=True)
+            my_attr = tl.Int().tag(attr=True)
 
-        n1 = N(attr=1)
-        n2 = N(attr=1)
-        n3 = N(attr=2)
-        m1 = M(attr=1)
+        n1 = N(my_attr=1)
+        n2 = N(my_attr=1)
+        n3 = N(my_attr=2)
+        m1 = M(my_attr=1)
 
         assert n1.hash == n2.hash
         assert n1.hash != n3.hash

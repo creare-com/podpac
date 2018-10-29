@@ -16,26 +16,75 @@ class TestParsePipelineDefinition(object):
     def test_empty(self):
         s = '{ }'
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match="Pipeline definition requires 'nodes' property"):
             parse_pipeline_definition(d)
 
     def test_no_nodes(self):
         s = '{"nodes": { } }'
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match="'nodes' property cannot be empty"):
             parse_pipeline_definition(d)
 
     def test_invalid_node(self):
         # module does not exist
         s = '{"nodes": {"a": {"node": "nonexistent.Arbitrary"} } }'
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match='No module found'):
             parse_pipeline_definition(d)
 
         # node does not exist in module
         s = '{"nodes": {"a": {"node": "core.Nonexistent"} } }'
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match="Node 'Nonexistent' not found"):
+            parse_pipeline_definition(d)
+
+    def test_datasource_source(self):
+        # correct
+        s = '''
+        {
+            "nodes": {
+                "mydata": {
+                    "node": "data.DataSource",
+                    "source": "my.data.string"
+                }
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        nodes, output = parse_pipeline_definition(d)
+        assert nodes['mydata'].source == "my.data.string"
+
+        # not required
+        s = '''
+        {
+            "nodes": {
+                "mydata": {
+                    "node": "data.DataSource"
+                }
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        nodes, output = parse_pipeline_definition(d)
+
+        # incorrect
+        s = '''
+        {
+            "nodes": {
+                "mydata": {
+                    "node": "data.DataSource",
+                    "attrs": {
+                        "source": "my.data.string"
+                    }
+                }
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        with pytest.raises(PipelineError, match="The DataSource 'source' property cannot be in attrs"):
             parse_pipeline_definition(d)
 
     def test_algorithm_inputs(self):
@@ -43,8 +92,8 @@ class TestParsePipelineDefinition(object):
         s = '''
         {
             "nodes": {
-                "source1": {"node": "core.algorithm.algorithm.Arange"},
-                "source2": {"node": "core.algorithm.algorithm.Arange"},
+                "source1": {"node": "algorithm.Arange"},
+                "source2": {"node": "algorithm.Arange"},
                 "result": {        
                     "node": "algorithm.Arithmetic",
                     "inputs": {
@@ -69,9 +118,9 @@ class TestParsePipelineDefinition(object):
         s = '''
         {
             "nodes": {
-                "source2": {"node": "core.algorithm.algorithm.Arange"},
+                "source2": {"node": "algorithm.Arange"},
                 "result": {        
-                    "node": "Arithmetic",
+                    "node": "algorithm.Arithmetic",
                     "inputs": {
                         "A": "source1",
                         "B": "source2"
@@ -85,7 +134,7 @@ class TestParsePipelineDefinition(object):
         '''
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match="node 'result' references nonexistent node 'source1'"):
             parse_pipeline_definition(d)
 
     def test_compositor_sources(self):
@@ -93,13 +142,13 @@ class TestParsePipelineDefinition(object):
         {
             "nodes": {
                 "a": {
-                    "node": "core.algorithm.algorithm.Arange"
+                    "node": "algorithm.Arange"
                 },
                 "b": {
-                    "node": "core.algorithm.algorithm.Arange"
+                    "node": "algorithm.Arange"
                 },
                 "c": {
-                    "node": "core.compositor.OrderedCompositor",
+                    "node": "compositor.OrderedCompositor",
                     "sources": ["a", "b"]
                 }
             }
@@ -115,10 +164,10 @@ class TestParsePipelineDefinition(object):
         {
             "nodes": {
                 "a": {
-                    "node": "core.algorithm.algorithm.Arange"
+                    "node": "algorithm.Arange"
                 },
                 "c": {
-                    "node": "core.compositor.OrderedCompositor",
+                    "node": "compositor.OrderedCompositor",
                     "sources": ["a", "b"]
                 }
             }
@@ -126,7 +175,7 @@ class TestParsePipelineDefinition(object):
         '''
         
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match="node 'c' references nonexistent node 'b'"):
             parse_pipeline_definition(d)
 
     def test_attrs(self):
@@ -154,7 +203,7 @@ class TestParsePipelineDefinition(object):
         {
             "nodes": {
                 "a": {
-                    "node": "core.algorithm.algorithm.Arange",
+                    "node": "algorithm.Arange",
                     "invalid_property": "value"
                 }
             }
@@ -162,7 +211,7 @@ class TestParsePipelineDefinition(object):
         '''
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match="node 'a' has unexpected property"):
             parse_pipeline_definition(d)
 
     def test_plugin(self):
@@ -171,7 +220,7 @@ class TestParsePipelineDefinition(object):
     def test_parse_output_none(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {"node": "a", "mode": "none"}
         }
         '''
@@ -184,7 +233,7 @@ class TestParsePipelineDefinition(object):
     def test_parse_output_file(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "node": "a",
                 "mode": "file",
@@ -204,7 +253,7 @@ class TestParsePipelineDefinition(object):
     def test_parse_output_s3(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "node": "a",
                 "mode": "s3",
@@ -224,7 +273,7 @@ class TestParsePipelineDefinition(object):
     def test_parse_output_ftp(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "node": "a",
                 "mode": "ftp",
@@ -245,7 +294,7 @@ class TestParsePipelineDefinition(object):
     def test_parse_output_image(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "node": "a",
                 "mode": "image"
@@ -262,18 +311,18 @@ class TestParsePipelineDefinition(object):
         # invalid mode
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {"mode": "nonexistent_mode"}
         }
         '''
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match='output has unexpected mode'):
             parse_pipeline_definition(d)
 
     def test_parse_output_implicit_mode(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {"node": "a"}
         }
         '''
@@ -286,7 +335,7 @@ class TestParsePipelineDefinition(object):
     def test_parse_output_nonexistent_node(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "node": "b",
                 "mode": "file",
@@ -296,15 +345,15 @@ class TestParsePipelineDefinition(object):
         }
         '''
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match='output references nonexistent node'):
             parse_pipeline_definition(d)
 
     def test_parse_output_implicit_node(self):
         s = '''
         {
             "nodes": {
-                "source1": {"node": "core.algorithm.algorithm.Arange"},
-                "source2": {"node": "core.algorithm.algorithm.Arange"},
+                "source1": {"node": "algorithm.Arange"},
+                "source2": {"node": "algorithm.Arange"},
                 "result": {        
                     "node": "algorithm.Arithmetic",
                     "inputs": {
@@ -328,7 +377,7 @@ class TestParsePipelineDefinition(object):
     def test_parse_output_implicit(self):
         s = '''
         {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} }
+            "nodes": {"a": {"node": "algorithm.Arange"} }
         }
         '''
         d = json.loads(s, object_pairs_hook=OrderedDict)
@@ -339,7 +388,7 @@ class TestParsePipelineDefinition(object):
 
     def test_parse_custom_output(self):
         s = ''' {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "podpac.core.pipeline.output",
                 "output": "ImageOutput"
@@ -352,7 +401,7 @@ class TestParsePipelineDefinition(object):
         assert isinstance(output, ImageOutput)
 
         s = ''' {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "podpac",
                 "output": "core.pipeline.output.ImageOutput"
@@ -367,7 +416,7 @@ class TestParsePipelineDefinition(object):
     def test_parse_custom_output_invalid(self):
         # no module
         s = ''' {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "nonexistent_module",
                 "output": "arbitrary"
@@ -376,12 +425,12 @@ class TestParsePipelineDefinition(object):
         '''
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match="No module found"):
             parse_pipeline_definition(d)
 
         # module okay, but no such class
         s = ''' {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "podpac.core.pipeline.output",
                 "output": "Nonexistent"
@@ -390,12 +439,12 @@ class TestParsePipelineDefinition(object):
         '''
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match="Output 'Nonexistent' not found"):
             parse_pipeline_definition(d)
 
         # module okay, class found, could not create
         s = ''' {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "numpy",
                 "output": "ndarray"
@@ -404,12 +453,12 @@ class TestParsePipelineDefinition(object):
         '''
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        with pytest.raises(PipelineError, match='Could not create custom output'):
             parse_pipeline_definition(d)
 
         # module okay, class found, incorrect type
         s = ''' {
-            "nodes": {"a": {"node": "core.algorithm.algorithm.Arange"} },
+            "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "collections",
                 "output": "OrderedDict"
@@ -418,15 +467,16 @@ class TestParsePipelineDefinition(object):
         '''
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError):
+        m = "Custom output 'collections.OrderedDict' must subclass 'podpac.core.pipeline.output.Output'"
+        with pytest.raises(PipelineError, match=m):
             parse_pipeline_definition(d)
         
     def test_unused_node_warning(self):
         s = '''
         {
             "nodes": {
-                "a": { "node": "core.algorithm.algorithm.Arange" },
-                "b": { "node": "core.algorithm.algorithm.Arange" }
+                "a": { "node": "algorithm.Arange" },
+                "b": { "node": "algorithm.Arange" }
             }
         }
         '''

@@ -12,6 +12,7 @@ from collections import OrderedDict
 
 import numpy as np
 from podpac.core.node import NodeException
+from podpac.core.data.datasource import DataSource
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
 from podpac.core.pipeline.output import Output, NoOutput, FileOutput, S3Output, FTPOutput, ImageOutput
@@ -26,7 +27,7 @@ def parse_pipeline_definition(definition):
         raise PipelineError("Pipeline definition requires 'nodes' property")
 
     if len(definition['nodes']) == 0:
-        raise PipelineError("Pipeline definition 'nodes' property cannot be empty")
+        raise PipelineError("'nodes' property cannot be empty")
 
     # parse node definitions
     nodes = OrderedDict()
@@ -58,24 +59,41 @@ def _parse_node_definition(nodes, name, d):
     kwargs = {}
     whitelist = ['node', 'attrs', 'evaluate', 'plugin']
 
-    try:
-        # translate node references in compositors and algorithms
-        parents = inspect.getmro(node_class)
-        if Compositor in parents and 'sources' in d:
-            kwargs['sources'] = np.array([nodes[source] for source in d['sources']])
+    parents = inspect.getmro(node_class)
+    
+    # DataSource, Compositor, and Algorithm specific properties
+    if DataSource in parents:
+        if 'source' in d:
+            kwargs['source'] = d['source']
+            whitelist.append('source')
+
+        if 'attrs' in d and 'source' in d['attrs']:
+            raise PipelineError("The DataSource 'source' property cannot be in attrs")
+
+    if Compositor in parents:
+        if 'sources' in d:
+            try:
+                sources = [nodes[source] for source in d['sources']] # translate node references
+            except KeyError as e:
+                raise PipelineError("node '%s' references nonexistent node %s" % (name, e))
+            kwargs['sources'] = np.array(sources)
             whitelist.append('sources')
-        if Algorithm in parents and 'inputs' in d:
-            kwargs.update({k:nodes[v] for k, v in d['inputs'].items()})
+            
+    if Algorithm in parents:
+        if 'inputs' in d:
+            try:
+                inputs = {k:nodes[v] for k, v in d['inputs'].items()} # translate node references
+            except KeyError as e:
+                raise PipelineError("node '%s' references nonexistent node %s" % (name, e))
+            kwargs.update(inputs)
             whitelist.append('inputs')
-    except KeyError as e:
-        raise PipelineError("node '%s' definition references nonexistent node '%s'" % (name, e))
 
     if 'attrs' in d:
         kwargs.update(d['attrs'])
 
     for key in d:
         if key not in whitelist:
-            raise PipelineError("node '%s' definition has unexpected property '%s'" % (name, key))
+            raise PipelineError("node '%s' has unexpected property %s" % (name, key))
 
     # return node info
     return node_class(**kwargs)
@@ -90,7 +108,7 @@ def _parse_output_definition(nodes, d):
     try:
         node = nodes[name]
     except KeyError as e:
-        raise PipelineError("output definition references nonexistent node '%s'" % (e))
+        raise PipelineError("output references nonexistent node %s" % (e))
 
     # output parameters
     config = {k:v for k, v in d.items() if k not in ['node', 'mode', 'plugin', 'output']}
@@ -110,7 +128,7 @@ def _parse_output_definition(nodes, d):
         elif mode == 'image':
             output_class = ImageOutput
         else:
-            raise PipelineError("output definition has unexpected mode '%s'" % mode)
+            raise PipelineError("output has unexpected mode '%s'" % mode)
 
         output = output_class(node=node, name=name, **config)
 

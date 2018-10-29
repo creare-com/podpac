@@ -39,13 +39,13 @@ class TestArray(object):
     coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
 
     def test_source_trait(self):
-        """ must be an ndarry """
+        """ must be an ndarray or list """
         
         node = Array(source=self.data, native_coordinates=self.coordinates)
-        assert isinstance(node, Array)
+        node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
 
         with pytest.raises(TraitError):
-            node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
+            node = Array(source={'a': 10}, native_coordinates=self.coordinates)
 
     def test_get_data(self):
         """ defined get_data function"""
@@ -75,6 +75,16 @@ class TestArray(object):
         assert get_native_coordinates
         assert native_coordinates == get_native_coordinates
 
+    def test_base_definition(self):
+        node = Array(source=self.data)
+        d = node.base_definition
+        source = np.array(d['source'])
+        np.testing.assert_array_equal(source, self.data)
+
+    def test_definition(self):
+        node = Array(source=self.data)
+        pipeline = podpac.pipeline.Pipeline(definition=node.definition)
+        np.testing.assert_array_equal(pipeline.nodes['Array'].source, self.data)
 
 class TestPyDAP(object):
     """test pydap datasource"""
@@ -572,7 +582,7 @@ class TestReprojectedSource(object):
         # no coordinates source
         node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         with pytest.raises(NotImplementedError):
-            node.base_definition
+            d = node.base_definition
 
 class TestS3(object):
     """test S3 data source"""

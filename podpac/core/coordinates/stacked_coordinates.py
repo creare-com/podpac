@@ -102,7 +102,7 @@ class StackedCoordinates(BaseCoordinates):
         return cls([ArrayCoordinates1d.from_xarray(xcoord[dims]) for dims in dims], **kwargs)
 
     @classmethod
-    def from_json(self, d):
+    def from_json(cls, d):
         coords = []
         for elem in d:
             if 'start' in elem and 'stop' in elem and 'step' in elem:

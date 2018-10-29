@@ -90,7 +90,7 @@ class ArrayCoordinates1d(Coordinates1d):
         return cls(x.data, name=x.name)
 
     @classmethod
-    def from_json(self, d):
+    def from_json(cls, d):
         coords = d.pop('values')
         return cls(coords, **d)
 
