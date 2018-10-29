@@ -86,11 +86,6 @@ class Array(DataSource):
     """
     
     source = tl.Instance(np.ndarray)
-
-    def _first_init(self, **kwargs):
-        if 'source' in kwargs and isinstance(kwargs['source'], list):
-            kwargs['source'] = np.array(kwargs['source'])
-        return kwargs
     
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -98,20 +93,6 @@ class Array(DataSource):
         """
         s = coordinates_index
         d = self.create_output_array(coordinates, data=self.source[s])
-        return d
-
-    @property
-    @common_doc(COMMON_DATA_DOC)
-    def base_definition(self):
-        """Base node defintion for DataSource nodes. 
-        
-        Returns
-        -------
-        {definition_return}
-        """
-
-        d = super(DataSource, self).base_definition
-        d['source'] = self.source.tolist() # overwrite the existing value
         return d
 
 class NumpyArray(Array):
@@ -765,29 +746,24 @@ class WCS(DataSource):
         """
         return self.layer_name.rsplit('.', 1)[1]
 
-# We mark this as an algorithm node for the sake of the pipeline, although
-# the "algorithm" portion is not being used / is overwritten by the DataSource
-# In particular, this is required for providing coordinates_source
-# We should be able to to remove this requirement of attributes in the pipeline 
-# can have nodes specified... 
-class ReprojectedSource(DataSource, Algorithm):
+class ReprojectedSource(DataSource):
     """Create a DataSource with a different resolution from another Node. This can be used to bilinearly interpolated a
     dataset after averaging over a larger area.
     
     Attributes
     ----------
-    coordinates_source : Node
-        Node which is used as the source
-    reprojected_coordinates : Coordinates
-        Coordinates where the source node should be evaluated. 
     source : Node
         The source node
     source_interpolation : str
         Type of interpolation method to use for the source node
+    coordinates_source : Node
+        Node which is used as the source
+    reprojected_coordinates : Coordinates
+        Coordinates where the source node should be evaluated. 
     """
     
-    source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     source = tl.Instance(Node)
+    source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     # Specify either one of the next two
     coordinates_source = tl.Instance(Node, allow_none=True)
     reprojected_coordinates = tl.Instance(Coordinates)
@@ -860,9 +836,7 @@ class ReprojectedSource(DataSource, Algorithm):
             Base node definition. 
         """
         
-        d = Algorithm.base_definition.fget(self)
-        if self.interpolation:
-            d['attrs']['interpolation'] = self.interpolation
+        d = super(ReprojectedSource, self).base_definition
 
         if self.coordinates_source is None:
             # TODO serialize reprojected_coordinates

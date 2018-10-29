@@ -779,8 +779,12 @@ class DataSource(Node):
 
         d = super(DataSource, self).base_definition
 
-        if 'attrs' in d and 'source' in d['attrs']:
-            raise NodeException("The 'source' property cannot be tagged as an 'attr'")
+        if 'attrs' in d:
+            if 'source' in d['attrs']:
+                raise NodeException("The 'source' property cannot be tagged as an 'attr'")
+
+            if 'interpolation' in d['attrs']:
+                raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
 
         d['source'] = self.source
 

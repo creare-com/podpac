@@ -311,6 +311,11 @@ class Node(tl.HasTraits):
 
             # get base definition and then replace nodes with references, adding nodes depth first
             d = node.base_definition
+            if 'source' in d:
+                if isinstance(d['source'], Node):
+                    d['source'] = add_node(d['source'])
+                elif isinstance(d['source'], np.ndarray):
+                    d['source'] = d['source'].tolist()
             if 'inputs' in d:
                 for key, input_node in d['inputs'].items():
                     if input_node is not None:

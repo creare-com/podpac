@@ -13,6 +13,7 @@ from collections import OrderedDict
 import numpy as np
 from podpac.core.node import NodeException
 from podpac.core.data.datasource import DataSource
+from podpac.core.data.types import ReprojectedSource, Array
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
 from podpac.core.pipeline.output import Output, NoOutput, FileOutput, S3Output, FTPOutput, ImageOutput
@@ -59,16 +60,21 @@ def _parse_node_definition(nodes, name, d):
     kwargs = {}
     whitelist = ['node', 'attrs', 'evaluate', 'plugin']
 
-    parents = inspect.getmro(node_class)
-    
     # DataSource, Compositor, and Algorithm specific properties
-    if DataSource in parents:
-        if 'source' in d:
-            kwargs['source'] = d['source']
-            whitelist.append('source')
+    parents = inspect.getmro(node_class)
 
+    if DataSource in parents:
         if 'attrs' in d and 'source' in d['attrs']:
-            raise PipelineError("The DataSource 'source' property cannot be in attrs")
+            raise PipelineError("The 'source' property cannot be in attrs")
+
+        if 'source' in d:
+            if ReprojectedSource in parents:
+                kwargs['source'] = nodes[d['source']]
+            elif Array in parents:
+                kwargs['source'] = np.array(d['source'])
+            else:
+                kwargs['source'] = d['source']
+            whitelist.append('source')
 
     if Compositor in parents:
         if 'sources' in d:
@@ -78,6 +84,14 @@ def _parse_node_definition(nodes, name, d):
                 raise PipelineError("node '%s' references nonexistent node %s" % (name, e))
             kwargs['sources'] = np.array(sources)
             whitelist.append('sources')
+
+    if DataSource in parents or Compositor in parents:
+        if 'attrs' in d and 'interpolation' in d['attrs']:
+            raise PipelineError("The 'interpolation' property cannot be in attrs")
+
+        if 'interpolation' in d:
+            kwargs['interpolation'] = d['interpolation']
+            whitelist.append('interpolation')
             
     if Algorithm in parents:
         if 'inputs' in d:

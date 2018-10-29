@@ -84,7 +84,7 @@ class TestParsePipelineDefinition(object):
         '''
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError, match="The DataSource 'source' property cannot be in attrs"):
+        with pytest.raises(PipelineError, match="The 'source' property cannot be in attrs"):
             parse_pipeline_definition(d)
 
     def test_algorithm_inputs(self):
@@ -178,6 +178,79 @@ class TestParsePipelineDefinition(object):
         with pytest.raises(PipelineError, match="node 'c' references nonexistent node 'b'"):
             parse_pipeline_definition(d)
 
+    def test_interpolation_property(self):
+        # datasource
+        s = '''
+        {
+            "nodes": {
+                "mydata": {
+                    "node": "data.DataSource",
+                    "source": "my.data.string",
+                    "interpolation": "nearest"
+                }
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        nodes, output = parse_pipeline_definition(d)
+        assert nodes['mydata'].interpolation == "nearest"
+
+        # compositor
+        s = '''
+        {
+            "nodes": {
+                "a": {
+                    "node": "algorithm.Arange"
+                },
+                "b": {
+                    "node": "algorithm.Arange"
+                },
+                "c": {
+                    "node": "compositor.OrderedCompositor",
+                    "sources": ["a", "b"],
+                    "interpolation": "nearest"
+                }
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        nodes, output = parse_pipeline_definition(d)
+        assert nodes['c'].interpolation == "nearest"
+
+        # not required
+        s = '''
+        {
+            "nodes": {
+                "mydata": {
+                    "node": "data.DataSource"
+                }
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        nodes, output = parse_pipeline_definition(d)
+
+        # incorrect
+        s = '''
+        {
+            "nodes": {
+                "mydata": {
+                    "node": "data.DataSource",
+                    "attrs": {
+                        "interpolation": "nearest"
+                    }
+                }
+            }
+        }
+        '''
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        with pytest.raises(PipelineError, match="The 'interpolation' property cannot be in attrs"):
+            parse_pipeline_definition(d)
+
     def test_attrs(self):
         s = '''
         {
@@ -185,8 +258,7 @@ class TestParsePipelineDefinition(object):
                 "sm": {
                     "node": "datalib.smap.SMAP",
                     "attrs": {
-                        "product": "SPL4SMGP",
-                        "interpolation": "bilinear"
+                        "product": "SPL4SMGP"
                     }
                 }
             }
@@ -196,7 +268,6 @@ class TestParsePipelineDefinition(object):
         d = json.loads(s, object_pairs_hook=OrderedDict)
         nodes, output = parse_pipeline_definition(d)
         assert nodes['sm'].product == "SPL4SMGP"
-        assert nodes['sm'].interpolation == "bilinear"
 
     def test_invalid_property(self):
         s = '''

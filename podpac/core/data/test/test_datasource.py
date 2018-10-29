@@ -126,6 +126,8 @@ class TestDataSource(object):
 
         assert d
         assert 'node' in d
+        assert 'source' in d
+        assert 'interpolation' in d
         assert d['source'] == node.source
 
         class MyDataSource(DataSource):

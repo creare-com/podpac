@@ -39,13 +39,12 @@ class TestArray(object):
     coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
 
     def test_source_trait(self):
-        """ must be an ndarray or list """
+        """ must be an ndarray """
         
         node = Array(source=self.data, native_coordinates=self.coordinates)
-        node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
 
         with pytest.raises(TraitError):
-            node = Array(source={'a': 10}, native_coordinates=self.coordinates)
+            node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
 
     def test_get_data(self):
         """ defined get_data function"""
@@ -576,8 +575,6 @@ class TestReprojectedSource(object):
         datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
         node = ReprojectedSource(source=datanode, coordinates_source=datanode)
         d = node.base_definition
-        assert 'attrs' in d
-        assert 'interpolation' in d['attrs']
 
         # no coordinates source
         node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
