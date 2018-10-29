@@ -161,10 +161,6 @@ class DataSource(Node):
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
     nan_vals = tl.List(allow_none=True)
 
-    # TODO: remove in the 2nd stage of interpolation refactor
-    # self.source_coordinates['time'].delta / 2
-    interpolation_tolerance = tl.Union([tl.Float(default_value=1), tl.Instance(np.timedelta64)])
-
     # privates
     _interpolation = tl.Instance(Interpolation)
     
