@@ -581,7 +581,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         src_objs = [
             SMAPSource(source=b+s, auth_session=self.auth_session, layerkey=self.layerkey, interpolation={
                 'method': 'nearest', 
-                'spatial_tolerance': tol
+                'time_tolerance': tol
             })
             for s in sources]
         return np.array(src_objs)
