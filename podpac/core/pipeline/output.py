@@ -69,6 +69,7 @@ class FileOutput(Output):
     outdir = tl.Unicode()
     format = tl.CaselessStrEnum(
         values=['pickle', 'geotif', 'png'], default_value='pickle').tag(attr=True)
+    mode = tl.Unicode(default_value="file").tag(attr=True)
 
     _path = tl.Unicode(allow_none=True, default_value=None)
 
