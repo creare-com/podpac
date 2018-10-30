@@ -49,8 +49,8 @@ def handler(event, context, ret_pipeline=False):
 
     filename = '%s_%s_%s' % (
         pipeline.pipeline_output.name,
-        pipeline.evaluated_hash,
-        pipeline.latlon_bounds_str)
+        pipeline.pipeline_output.node.evaluated_hash,
+        pipeline.pipeline_output.node.latlon_bounds_str)
 
     body = cPickle.dumps(pipeline.output)
     s3.put_object(Bucket=bucket_name,
