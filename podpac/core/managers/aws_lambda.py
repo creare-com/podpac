@@ -3,7 +3,6 @@ Lambda is `Node` manager, which executes the given `Node` on an AWS Lambda
 function.
 """
 import json
-from base64 import b64decode
 from collections import OrderedDict
 
 import boto3
@@ -11,7 +10,7 @@ import traitlets as tl
 
 from podpac import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
-from podpac.core.pipeline.output import ImageOutput, Output
+from podpac.core.pipeline.output import FileOutput, Output
 # from podpac.core.pipeline import Pipeline
 from podpac.core.utils import common_doc
 
@@ -19,7 +18,7 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 
 
 class Lambda(Node):
-    """A `Node` wrapper to evaluate node on AWS Lambda function
+    """A `Node` wrapper to evaluate source_node on AWS Lambda function
 
     Attributes
     ----------
@@ -64,7 +63,7 @@ class Lambda(Node):
 
     @tl.default('source_output')
     def _source_output_default(self):
-        return ImageOutput(node=self.source_node, name=self.source_node.__class__.__name__)
+        return FileOutput(node=self.source_node, name=self.source_node.__class__.__name__)
 
     s3_bucket_name = tl.Unicode(
         allow_none=False, help="Name of AWS s3 bucket.")
@@ -87,19 +86,9 @@ class Lambda(Node):
     def _s3_output_folder_default(self):
         return settings.S3_OUTPUT_FOLDER
 
-    # _pipeline = tl.Instance(Pipeline, allow_none=False)
-
-    # s3_client = tl.Instance(boto3.client,
-    #                         allow_none=False, help="S3 client from boto3.")
-    #
-    # @tl.default('s3_client')
-    # def _s3_client_default(self):
-    #     return boto3.client('s3')
-    #
     def __init__(self, source_node):
         super().__init__()
         self.source_node = source_node
-    #     self._pipeline = Pipeline(self.definition())
         try:
             self.s3 = boto3.client('s3')
         except Exception as e:
@@ -115,21 +104,31 @@ class Lambda(Node):
 
     @property
     def pipeline_definition(self):
-        return self.source_node.pipeline_definition
+        _definition = OrderedDict()
+        _definition['pipeline'] = self.source_node.pipeline_definition
+        _definition['pipeline']['output'] = self.source_output.pipeline_definition
+        return _definition
+
+    @property
+    def pipeline_json(self):
+        return json.dumps(self.pipeline_definition, indent=4)
 
     @common_doc(COMMON_DOC)
     def execute(self, coordinates, output=None, method=None):
         """
         TODO: Docstring
         """
-        lambda_json = OrderedDict()
-        lambda_json['pipeline'] = self.pipeline_definition
-        lambda_json['pipeline']['output'] = self.source_output.pipeline_definition
-        lambda_json['coordinates'] = json.loads(coordinates.json)
-        data = json.loads(json.dumps(lambda_json, indent=4))
+        _definition = self.pipeline_definition
+        _definition['coordinates'] = json.loads(coordinates.json)
         self.s3.put_object(
-            Body=(bytes(json.dumps(data, indent=4).encode('UTF-8'))),
+            Body=(bytes(json.dumps(_definition, indent=4).encode('UTF-8'))),
             Bucket=self.s3_bucket_name,
             Key=self.s3_json_folder + self.source_output
             .name + '.json'
         )
+
+        waiter = self.s3.get_waiter('object_exists')
+        waiter.wait(Bucket=self.s3_bucket_name, Key=self.s3_output_folder +
+                    self.source_output.name + '.' + self.source_output.format)
+        output_object = self.s3.get_object(Bucket=self.s3_bucket_name, Key=self.s3_output_folder +
+                    self.source_output.name + '.' + self.source_output.format)

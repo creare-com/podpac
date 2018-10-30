@@ -9,6 +9,8 @@ from collections import OrderedDict
 
 import boto3
 
+import _pickle as cPickle
+
 sys.path.append('/tmp')
 sys.path.append(os.getcwd() + '/podpac/')
 
@@ -44,13 +46,18 @@ def handler(event, context, ret_pipeline=False):
     pipeline.execute(coords)
     if ret_pipeline:
         return pipeline
-    body = pipeline.pipeline_output.node.get_image(
-        format=pipeline.pipeline_output.format, vmin=pipeline.pipeline_output.vmin,
-        vmax=pipeline.pipeline_output.vmax)
+
+    filename = '%s_%s_%s' % (
+        pipeline.pipeline_output.name,
+        pipeline.evaluated_hash,
+        pipeline.latlon_bounds_str)
+
+    body = cPickle.dumps(pipeline.output)
     s3.put_object(Bucket=bucket_name,
-                  Key='output/' + pipeline.pipeline_output.name + '.'
-                  + pipeline.pipeline_output.format, Body=body)
+                  Key='output/' + filename + '.' +
+                  pipeline.pipeline_output.format, Body=body)
     return img_response(pipeline.pipeline_output.image)
+
 
 def img_response(img):
     return {
