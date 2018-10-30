@@ -777,6 +777,18 @@ class ReprojectedSource(DataSource):
     coordinates_source = tl.Instance(Node, allow_none=True).tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates)
 
+    def _first_init(self, **kwargs):
+        if 'coordinates_source' in kwargs and 'reprojected_coordinates' in kwargs:
+            raise TypeError("reprojected_coordinates and coordinates_source cannot both be specified")
+
+        if 'reprojected_coordinates' in kwargs:
+            if isinstance(kwargs['reprojected_coordinates'], list):
+                kwargs['reprojected_coordinates'] = Coordinates.from_definition(kwargs)
+            elif isinstance(kwargs['reprojected_coordinates'], str):
+                kwargs['reprojected_coordinates'] = Coordinates.from_json(kwargs)
+                
+        return kwargs
+
     @tl.default('reprojected_coordinates')
     def get_reprojected_coordinates(self):
         """Retrieves the reprojected coordinates in case coordinates_source is specified
