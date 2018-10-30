@@ -505,7 +505,7 @@ class TestReprojectedSource(object):
 
     source = Node()
     data = np.random.rand(11, 11)
-    coordinates_source = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
+    native_coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
     reprojected_coordinates = Coordinates([clinspace(-25, 50, 11), clinspace(-25, 50, 11)], dims=['lat', 'lon'])
 
     def test_init(self):
@@ -525,10 +525,6 @@ class TestReprojectedSource(object):
         with pytest.raises(TraitError):
             ReprojectedSource(source_interpolation=5)
 
-        ReprojectedSource(coordinates_source=Node())
-        with pytest.raises(TraitError):
-            ReprojectedSource(coordinates_source=5)
-
         ReprojectedSource(reprojected_coordinates=self.reprojected_coordinates)
         with pytest.raises(TraitError):
             ReprojectedSource(reprojected_coordinates=5)
@@ -546,38 +542,23 @@ class TestReprojectedSource(object):
         assert isinstance(node.native_coordinates, Coordinates)
         assert node.native_coordinates['lat'].coordinates[0] == self.reprojected_coordinates['lat'].coordinates[0]
 
-        # source as DataSource
-        datanode = DataSource(source='test', native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-        assert isinstance(node.native_coordinates, Coordinates)
-        assert node.native_coordinates['lat'].coordinates[0] == self.coordinates_source['lat'].coordinates[0]
-
     def test_get_data(self):
         """test get data from reprojected source"""
-        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
+        datanode = Array(source=self.data, native_coordinates=self.native_coordinates)
+        node = ReprojectedSource(source=datanode, reprojected_coordinates=datanode.native_coordinates)
         output = node.eval(node.native_coordinates)
         assert isinstance(output, UnitsDataArray)
-
 
     def test_base_ref(self):
         """test base ref"""
 
-        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
+        node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         ref = node.base_ref
-
         assert '_reprojected' in ref
 
     def test_base_definition(self):
         """test definition"""
 
-        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-        d = node.base_definition
-        assert d['lookup_attrs']['coordinates_source'] is datanode
-
-        # no coordinates source
         node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         d = node.base_definition
         c = Coordinates.from_definition(d['attrs']['reprojected_coordinates'])
