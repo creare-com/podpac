@@ -106,6 +106,7 @@ class Pipeline(Node):
         if self.implicit_pipeline_evaluation:
             self.pipeline_output.node.execute(coordinates, output)
 
-        self.pipeline_output.write()
+        if self.do_write_output:
+            self.pipeline_output.write()
 
         return self.output
