@@ -127,8 +127,19 @@ class Lambda(Node):
             .name + '.json'
         )
 
-        waiter = self.s3.get_waiter('object_exists')
-        waiter.wait(Bucket=self.s3_bucket_name, Key=self.s3_output_folder +
-                    self.source_output.name + '.' + self.source_output.format)
-        output_object = self.s3.get_object(Bucket=self.s3_bucket_name, Key=self.s3_output_folder +
-                    self.source_output.name + '.' + self.source_output.format)
+        # TODO: this waiter won't work anymore. Relies on properties only availlable
+        # after execution.
+        # waiter = self.s3.get_waiter('object_exists')
+        # waiter.wait(Bucket=self.s3_bucket_name, Key=self.s3_output_folder +
+        #             self.source_output.name + '.' + self.source_output.format)
+        # output_object = self.s3.get_object(Bucket=self.s3_bucket_name, Key=self.s3_output_folder +
+        #             self.source_output.name + '.' + self.source_output.format)
+
+        # After waiting, load the pickle file like this:
+        # resource = boto3.resource('s3')
+        # with BytesIO() as data:
+            # Get the bucket and file name programmatically - see above...
+        #     resource.Bucket("podpac-s3").download_fileobj("output/SinCoords_-1516306591423835763_-90.0_-90.0_
+        #     x_90.0_90.0.pickle", data)
+        #     data.seek(0)    # move back to the beginning after writing
+        #     old_list = pickle.load(data)
