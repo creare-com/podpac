@@ -38,13 +38,6 @@ class GroupCoordinates(tl.HasTraits):
     # standard list-like methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            return self._items[key]
-
-        elif isinstance(key, slice):
-            return GroupCoordinates(self._items[key])
-
     def __len__(self):
         return len(self._items)
 
@@ -97,4 +90,13 @@ class GroupCoordinates(tl.HasTraits):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    # Currently nothing here, but we could add methods that map to _items as necessary
+    def intersect(self, other, outer=False, return_indices=False):
+        intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self._items]
+        if return_indices:
+            cs = GroupCoordinates([c for c, I in intersections])
+            Is = [I for c, I in intersections]
+            return cs, I
+        return GroupCoordinates(intersections)
+
+    def __getitem__(self, key):
+        return GroupCoordinates([c[key] for c in self._items])

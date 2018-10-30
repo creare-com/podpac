@@ -66,20 +66,6 @@ class TestGroupCoordinates(object):
         for c in g:
             assert isinstance(c, Coordinates)
 
-    def test_getitem(self):
-        c1 = Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
-        c2 = Coordinates([[10, 11], [10, 11]], dims=['lat', 'lon'])
-        g = GroupCoordinates([c1, c2])
-
-        # single item
-        assert g[0] is c1
-        assert g[1] is c2
-        with pytest.raises(IndexError):
-            g[3]
-
-        # slice
-        assert isinstance(g[0:1], GroupCoordinates)
-
     def test_append(self):
         c1 = Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
         c2 = Coordinates([[10, 11], [10, 11]], dims=['lat', 'lon'])
@@ -100,8 +86,8 @@ class TestGroupCoordinates(object):
         with pytest.raises(ValueError):
             g.append(c3)
 
-        assert g[0] is c1
-        assert g[1] is c2
+        assert g._items[0] is c1
+        assert g._items[1] is c2
 
     def test_add(self):
         c1 = Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
@@ -117,8 +103,8 @@ class TestGroupCoordinates(object):
         assert len(g1) == 1
         assert len(g2) == 1
         assert len(g) == 2
-        assert g[0] is c1
-        assert g[1] is c2
+        assert g._items[0] is c1
+        assert g._items[1] is c2
 
         with pytest.raises(ValueError):
             g1 + g3
@@ -144,11 +130,11 @@ class TestGroupCoordinates(object):
             g1 += c1
 
         assert len(g1) == 2
-        assert g1[0] is c1
-        assert g1[1] is c2
+        assert g1._items[0] is c1
+        assert g1._items[1] is c2
 
         assert len(g2) == 1
-        assert g2[0] is c2
+        assert g2._items[0] is c2
 
     def test_repr(self):
         #empty
@@ -160,3 +146,9 @@ class TestGroupCoordinates(object):
         c2 = Coordinates([[[10, 11], [10, 11]]], dims=['lat_lon'])
         g = GroupCoordinates([c1, c2])
         repr(g)
+
+    def test_intersect(self):
+        pass
+
+    def test_getitem(self):
+        pass
