@@ -35,10 +35,10 @@ def return_exception(e, event, context, pipeline=None):
             'Content-Type': 'text/html',
             'Access-Control-Allow-Origin': '*',
         },
-        'body': '<h1>Event</h1><br><br><br>' + str(event)
-                + '<h1>Context</h1><br><br><br>' + str(context)
-                + '<h1>Pipeline</h1><br><br><br>' + str(pipeline)
-                + '<h1>Exception</h1><br><br><br>' + str(e),
+        'body': '<h1>Event</h1><br><br><br>' + str(event) +
+                '<h1>Context</h1><br><br><br>' + str(context) +
+                '<h1>Pipeline</h1><br><br><br>' + str(pipeline) +
+                '<h1>Exception</h1><br><br><br>' + str(e),
         'isBase64Encoded': False,
     }
 
@@ -71,14 +71,17 @@ def handler(event, context, ret_pipeline=False):
     from podpac.core.coordinates import Coordinates
     try:
         pipeline = Pipeline(definition=pipeline_json)
-        coords = Coordinates.from_json(json.dumps(_json['coordinates'], indent=4))
+        coords = Coordinates.from_json(
+            json.dumps(_json['coordinates'], indent=4))
         pipeline.execute(coords)
         if ret_pipeline:
             return pipeline
-        pipeline.pipeline_output.write()
+        body = pipeline.pipeline_output.node.get_image(
+            format=pipeline.pipeline_output.format, vmin=pipeline.pipeline_output.vmin,
+            vmax=pipeline.pipeline_output.vmax)
         s3.put_object(Bucket=bucket_name,
-                      Key='output/' + pipeline.pipeline_output.name + '.' +
-                      pipeline.pipeline_output.format, Body=pipeline.pipeline_output.image)
+                      Key='output/' + pipeline.pipeline_output.name + '.'
+                      + pipeline.pipeline_output.format, Body=body)
         return img_response(pipeline.pipeline_output.image)
     except Exception as e:
         return return_exception(e, event, context, pipeline)
@@ -103,7 +106,7 @@ if __name__ == '__main__':
                       aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                       aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                       region_name=settings.AWS_REGION_NAME
-                     )
+                      )
     event = {
         "Records": [{
             "s3": {
