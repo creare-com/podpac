@@ -266,27 +266,35 @@ class Node(tl.HasTraits):
         else:
             d['plugin'] = self.__module__
             d['node'] = self.__class__.__name__
+        
         attrs = {}
+        node_attrs = {}
+
         for key, value in self.traits().items():
             if not value.metadata.get('attr', False):
                 continue
 
             attr = getattr(self, key)
 
-            if isinstance(attr, np.ndarray):
-                attr = attr.tolist()
+            if isinstance(attr, Node):
+                node_attrs[key] = attr
+            elif isinstance(attr, np.ndarray):
+                attrs[key] = attr.tolist()
             elif isinstance(attr, Coordinates):
-                attr = attr.json
-            
-            try:
-                json.dumps(attr)
-            except:
-                raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
-            
-            attrs[key] = attr
+                attrs[key] = attr.json
+            else:
+                try:
+                    json.dumps(attr)
+                except:
+                    raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
+                else:
+                    attrs[key] = attr
 
         if attrs:
             d['attrs'] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
+
+        if node_attrs:
+            d['node_attrs'] = OrderedDict([(key, node_attrs[key]) for key in sorted(node_attrs.keys())])
 
         return d
 

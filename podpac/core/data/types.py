@@ -86,6 +86,15 @@ class Array(DataSource):
     """
     
     source = tl.Instance(np.ndarray)
+
+    @tl.validate('source')
+    def _validate_source(self, d):
+        a = d['value']
+        try:
+            a.astype(float)
+        except:
+            raise ValueError("Array source must be numerical")
+        return a
     
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):

@@ -38,8 +38,6 @@ def parse_pipeline_definition(definition):
     # parse output definition
     output = _parse_output_definition(nodes, definition.get('output', {}))
 
-    _check_evaluation_graph(definition, nodes, output)
-
     return nodes, output
 
 def _parse_node_definition(nodes, name, d):
@@ -58,30 +56,33 @@ def _parse_node_definition(nodes, name, d):
 
     # parse and configure kwargs
     kwargs = {}
-    whitelist = ['node', 'attrs', 'evaluate', 'plugin']
+    whitelist = ['node', 'attrs', 'lookup_attrs', 'plugin']
 
     # DataSource, Compositor, and Algorithm specific properties
     parents = inspect.getmro(node_class)
 
     if DataSource in parents:
-        if 'attrs' in d and 'source' in d['attrs']:
-            raise PipelineError("The 'source' property cannot be in attrs")
+        if 'attrs' in d:
+            if 'source' in d['attrs']:
+                raise PipelineError("The 'source' property cannot be in attrs")
+
+            if 'lookup_source' in d['attrs']:
+                raise PipelineError("The 'lookup_source' property cannot be in attrs")
 
         if 'source' in d:
-            if ReprojectedSource in parents:
-                kwargs['source'] = nodes[d['source']]
-            elif Array in parents:
+            if Array in parents:
                 kwargs['source'] = np.array(d['source'])
             else:
                 kwargs['source'] = d['source']
             whitelist.append('source')
 
+        elif 'lookup_source' in d:
+            kwargs['source'] = _get_subattr(nodes, name, d['lookup_source'])
+            whitelist.append('lookup_source')
+
     if Compositor in parents:
         if 'sources' in d:
-            try:
-                sources = [nodes[source] for source in d['sources']] # translate node references
-            except KeyError as e:
-                raise PipelineError("node '%s' references nonexistent node %s" % (name, e))
+            sources = [_get_subattr(nodes, name, source) for source in d['sources']]
             kwargs['sources'] = np.array(sources)
             whitelist.append('sources')
 
@@ -95,15 +96,15 @@ def _parse_node_definition(nodes, name, d):
             
     if Algorithm in parents:
         if 'inputs' in d:
-            try:
-                inputs = {k:nodes[v] for k, v in d['inputs'].items()} # translate node references
-            except KeyError as e:
-                raise PipelineError("node '%s' references nonexistent node %s" % (name, e))
+            inputs = {k:_get_subattr(nodes, name, v) for k, v in d['inputs'].items()}
             kwargs.update(inputs)
             whitelist.append('inputs')
 
-    if 'attrs' in d:
-        kwargs.update(d['attrs'])
+    for k, v in d.get('attrs', {}).items():
+        kwargs[k] = v
+
+    for k, v in d.get('lookup_attrs', {}).items():
+        kwargs[k] = _get_subattr(nodes, name, v)
 
     for key in d:
         if key not in whitelist:
@@ -119,11 +120,8 @@ def _parse_output_definition(nodes, d):
     else:
         name = list(nodes.keys())[-1]
 
-    try:
-        node = nodes[name]
-    except KeyError as e:
-        raise PipelineError("output references nonexistent node %s" % (e))
-
+    node = _get_subattr(nodes, 'output', name)
+    
     # output parameters
     config = {k:v for k, v in d.items() if k not in ['node', 'mode', 'plugin', 'output']}
 
@@ -169,24 +167,14 @@ def _parse_output_definition(nodes, d):
 
     return output
 
-def _check_evaluation_graph(definition, nodes, output):
-    used = {ref:False for ref in nodes}
-
-    def f(base_ref):
-        if used[base_ref]:
-            return
-
-        used[base_ref] = True
-
-        d = definition['nodes'][base_ref]
-        for ref in d.get('sources', []):
-            f(ref)
-
-        for ref in d.get('inputs', {}).values():
-            f(ref)
-
-    f(output.name)
-
-    for ref in nodes:
-        if not used[ref]:
-            warnings.warn("Unused pipeline node '%s'" % ref, UserWarning)
+def _get_subattr(nodes, name, ref):
+    refs = ref.split('.')
+    
+    try:
+        attr = nodes[refs[0]]
+        for _name in refs[1:]:
+            attr = getattr(attr, _name)
+    except (KeyError, AttributeError):
+        raise PipelineError("'%s' references nonexistent node/attribute '%s'" % (name, ref))
+    
+    return attr
