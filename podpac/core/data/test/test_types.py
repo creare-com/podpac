@@ -575,11 +575,13 @@ class TestReprojectedSource(object):
         datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
         node = ReprojectedSource(source=datanode, coordinates_source=datanode)
         d = node.base_definition
+        assert d['lookup_attrs']['coordinates_source'] is datanode
 
         # no coordinates source
         node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
-        with pytest.raises(NotImplementedError):
-            d = node.base_definition
+        d = node.base_definition
+        c = Coordinates.from_definition(d['attrs']['reprojected_coordinates'])
+        assert c == self.reprojected_coordinates
 
 class TestS3(object):
     """test S3 data source"""

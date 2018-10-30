@@ -28,7 +28,10 @@ class TestNodeProperties(object):
     def test_base_definition(self):
         class N(Node):
             my_attr = tl.Int().tag(attr=True)
-        n = N(my_attr=7)
+            my_node_attr = tl.Instance(Node).tag(attr=True)
+        
+        a = Node()
+        n = N(my_attr=7, my_node_attr=a)
 
         d = n.base_definition
         assert isinstance(d, OrderedDict)
@@ -38,6 +41,9 @@ class TestNodeProperties(object):
         assert isinstance(d['attrs'], OrderedDict)
         assert 'my_attr' in d['attrs']
         assert d['attrs']['my_attr'] == 7
+        assert isinstance(d['lookup_attrs'], OrderedDict)
+        assert 'my_node_attr' in d['lookup_attrs']
+        assert d['lookup_attrs']['my_node_attr'] is a
 
     def test_base_definition_array_attr(self):
         class N(Node):
@@ -54,7 +60,7 @@ class TestNodeProperties(object):
 
         node = N(my_attr=podpac.Coordinates([[0, 1], [1, 2, 3]], dims=['lat', 'lon']))
         d = node.base_definition
-        my_attr = podpac.Coordinates.from_json(d['attrs']['my_attr'])
+        my_attr = podpac.Coordinates.from_definition(d['attrs']['my_attr'])
         assert my_attr == node.my_attr
 
     def test_base_definition_unserializable(self):

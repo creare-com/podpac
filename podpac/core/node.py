@@ -268,7 +268,7 @@ class Node(tl.HasTraits):
             d['node'] = self.__class__.__name__
         
         attrs = {}
-        node_attrs = {}
+        lookup_attrs = {}
 
         for key, value in self.traits().items():
             if not value.metadata.get('attr', False):
@@ -277,11 +277,11 @@ class Node(tl.HasTraits):
             attr = getattr(self, key)
 
             if isinstance(attr, Node):
-                node_attrs[key] = attr
+                lookup_attrs[key] = attr
             elif isinstance(attr, np.ndarray):
                 attrs[key] = attr.tolist()
             elif isinstance(attr, Coordinates):
-                attrs[key] = attr.json
+                attrs[key] = attr.definition
             else:
                 try:
                     json.dumps(attr)
@@ -293,8 +293,8 @@ class Node(tl.HasTraits):
         if attrs:
             d['attrs'] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
 
-        if node_attrs:
-            d['node_attrs'] = OrderedDict([(key, node_attrs[key]) for key in sorted(node_attrs.keys())])
+        if lookup_attrs:
+            d['lookup_attrs'] = OrderedDict([(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())])
 
         return d
 

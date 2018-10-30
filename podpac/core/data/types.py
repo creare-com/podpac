@@ -774,7 +774,7 @@ class ReprojectedSource(DataSource):
     source = tl.Instance(Node)
     source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     # Specify either one of the next two
-    coordinates_source = tl.Instance(Node, allow_none=True)
+    coordinates_source = tl.Instance(Node, allow_none=True).tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates)
 
     @tl.default('reprojected_coordinates')
@@ -846,10 +846,9 @@ class ReprojectedSource(DataSource):
         """
         
         d = super(ReprojectedSource, self).base_definition
-
-        if self.coordinates_source is None:
-            # TODO serialize reprojected_coordinates
-            raise NotImplementedError
+        
+        if not self.coordinates_source:
+            d['attrs']['reprojected_coordinates'] = self.reprojected_coordinates.definition
         
         return d
 
