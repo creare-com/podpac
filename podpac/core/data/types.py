@@ -783,9 +783,9 @@ class ReprojectedSource(DataSource):
 
         if 'reprojected_coordinates' in kwargs:
             if isinstance(kwargs['reprojected_coordinates'], list):
-                kwargs['reprojected_coordinates'] = Coordinates.from_definition(kwargs)
+                kwargs['reprojected_coordinates'] = Coordinates.from_definition(kwargs['reprojected_coordinates'])
             elif isinstance(kwargs['reprojected_coordinates'], str):
-                kwargs['reprojected_coordinates'] = Coordinates.from_json(kwargs)
+                kwargs['reprojected_coordinates'] = Coordinates.from_json(kwargs['reprojected_coordinates'])
                 
         return kwargs
 
