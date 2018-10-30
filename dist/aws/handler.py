@@ -4,7 +4,6 @@ from __future__ import (absolute_import, division, print_function,
 import json
 import os
 import sys
-import traceback
 import urllib.parse as urllib
 from collections import OrderedDict
 
@@ -19,7 +18,7 @@ s3 = boto3.client('s3')
 def handler(event, context, ret_pipeline=False):
     bucket_name = event['Records'][0]['s3']['bucket']['name']
     file_key = urllib.unquote_plus(
-    event['Records'][0]['s3']['object']['key'])
+        event['Records'][0]['s3']['object']['key'])
     _json = ''
     # get the object
     obj = s3.get_object(Bucket=bucket_name, Key=file_key)
@@ -72,7 +71,7 @@ if __name__ == '__main__':
                       aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                       aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                       region_name=settings.AWS_REGION_NAME
-                      )
+                     )
     event = {
         "Records": [{
             "s3": {
