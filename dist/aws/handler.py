@@ -16,52 +16,22 @@ sys.path.append(os.getcwd() + '/podpac/')
 s3 = boto3.client('s3')
 
 
-def return_exception(e, event, context, pipeline=None):
-    traceback.print_tb(e.__traceback__)
-    contexts = str(context)
-    try:
-        contexts = json.dumps(contexts, sort_keys=True,
-                              indent=2, separators=(',', ': '))
-        if pipeline:
-            pipeline = json.dumps(pipeline)
-        else:
-            pipeline = ''
-    except Exception as e:
-        pass
-
-    return {
-        'statusCode': 200,
-        'headers': {
-            'Content-Type': 'text/html',
-            'Access-Control-Allow-Origin': '*',
-        },
-        'body': '<h1>Event</h1><br><br><br>' + str(event) +
-                '<h1>Context</h1><br><br><br>' + str(context) +
-                '<h1>Pipeline</h1><br><br><br>' + str(pipeline) +
-                '<h1>Exception</h1><br><br><br>' + str(e),
-        'isBase64Encoded': False,
-    }
-
-
 def handler(event, context, ret_pipeline=False):
     bucket_name = event['Records'][0]['s3']['bucket']['name']
     file_key = urllib.unquote_plus(
-        event['Records'][0]['s3']['object']['key'])
-    try:
-        _json = ''
-        # get the object
-        obj = s3.get_object(Bucket=bucket_name, Key=file_key)
-        # get lines
-        lines = obj['Body'].read().split(b'\n')
-        for r in lines:
-            if len(_json) > 0:
-                _json += '\n'
-            _json += r.decode()
-        _json = json.loads(
-            _json, object_pairs_hook=OrderedDict)
-        pipeline_json = _json['pipeline']
-    except Exception as e:
-        return return_exception(e, event, context)
+    event['Records'][0]['s3']['object']['key'])
+    _json = ''
+    # get the object
+    obj = s3.get_object(Bucket=bucket_name, Key=file_key)
+    # get lines
+    lines = obj['Body'].read().split(b'\n')
+    for r in lines:
+        if len(_json) > 0:
+            _json += '\n'
+        _json += r.decode()
+    _json = json.loads(
+        _json, object_pairs_hook=OrderedDict)
+    pipeline_json = _json['pipeline']
 
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
     sys.path.append(os.getcwd() + '/matplotlib/')
@@ -69,23 +39,19 @@ def handler(event, context, ret_pipeline=False):
     matplotlib.use('agg')
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
-    try:
-        pipeline = Pipeline(definition=pipeline_json)
-        coords = Coordinates.from_json(
-            json.dumps(_json['coordinates'], indent=4))
-        pipeline.execute(coords)
-        if ret_pipeline:
-            return pipeline
-        body = pipeline.pipeline_output.node.get_image(
-            format=pipeline.pipeline_output.format, vmin=pipeline.pipeline_output.vmin,
-            vmax=pipeline.pipeline_output.vmax)
-        s3.put_object(Bucket=bucket_name,
-                      Key='output/' + pipeline.pipeline_output.name + '.'
-                      + pipeline.pipeline_output.format, Body=body)
-        return img_response(pipeline.pipeline_output.image)
-    except Exception as e:
-        return return_exception(e, event, context, pipeline)
-
+    pipeline = Pipeline(definition=pipeline_json)
+    coords = Coordinates.from_json(
+        json.dumps(_json['coordinates'], indent=4))
+    pipeline.execute(coords)
+    if ret_pipeline:
+        return pipeline
+    body = pipeline.pipeline_output.node.get_image(
+        format=pipeline.pipeline_output.format, vmin=pipeline.pipeline_output.vmin,
+        vmax=pipeline.pipeline_output.vmax)
+    s3.put_object(Bucket=bucket_name,
+                  Key='output/' + pipeline.pipeline_output.name + '.'
+                  + pipeline.pipeline_output.format, Body=body)
+    return img_response(pipeline.pipeline_output.image)
 
 def img_response(img):
     return {
