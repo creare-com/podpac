@@ -42,6 +42,7 @@ def handler(event, context, ret_pipeline=False):
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
     pipeline = Pipeline(definition=pipeline_json)
+    pipeline.do_write_output = False
     coords = Coordinates.from_json(
         json.dumps(_json['coordinates'], indent=4))
     pipeline.execute(coords)
