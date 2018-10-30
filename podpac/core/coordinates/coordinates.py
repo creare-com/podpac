@@ -201,24 +201,26 @@ class Coordinates(tl.HasTraits):
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
-    def from_json(cls, d):
-        if isinstance(d, str):
-            d = json.loads(d)
-
+    def from_definition(cls, d):
         coords = []
         for elem in d:
             if isinstance(elem, list):
-                c = StackedCoordinates.from_json(elem)
+                c = StackedCoordinates.from_definition(elem)
             elif 'start' in elem and 'stop' in elem and 'step' in elem:
-                c = UniformCoordinates1d.from_json(elem)
+                c = UniformCoordinates1d.from_definition(elem)
             elif 'values' in elem:
-                c = ArrayCoordinates1d.from_json(elem)
+                c = ArrayCoordinates1d.from_definition(elem)
             else:
                 raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
             
             coords.append(c)
 
         return cls(coords)
+
+    @classmethod
+    def from_json(cls, s):
+        d = json.loads(s)
+        return cls.from_definition(d)
     
     # ------------------------------------------------------------------------------------------------------------------
     # standard dict-like methods
@@ -336,12 +338,16 @@ class Coordinates(tl.HasTraits):
         return x.coords
 
     @property
+    def definition(self):
+        return [c.definition for c in self._coords.values()]
+
+    @property
     def json(self):
-        return json.dumps([c.json for c in self._coords.values()])
+        return json.dumps(self.definition)
 
     @property
     def hash(self):
-        return hash(json.dumps(self.json))
+        return hash(self.json)
 
     @property
     def properties(self):

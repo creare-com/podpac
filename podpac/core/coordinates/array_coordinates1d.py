@@ -90,7 +90,7 @@ class ArrayCoordinates1d(Coordinates1d):
         return cls(x.data, name=x.name)
 
     @classmethod
-    def from_json(cls, d):
+    def from_definition(cls, d):
         coords = d.pop('values')
         return cls(coords, **d)
 
@@ -193,7 +193,7 @@ class ArrayCoordinates1d(Coordinates1d):
         return area_bounds
 
     @property
-    def json(self):
+    def definition(self):
         d = OrderedDict()
         if self.dtype == float:
             d['values'] = self.coords.tolist()

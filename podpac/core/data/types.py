@@ -86,6 +86,15 @@ class Array(DataSource):
     """
     
     source = tl.Instance(np.ndarray)
+
+    @tl.validate('source')
+    def _validate_source(self, d):
+        a = d['value']
+        try:
+            a.astype(float)
+        except:
+            raise ValueError("Array source must be numerical")
+        return a
     
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -756,36 +765,22 @@ class ReprojectedSource(DataSource):
         The source node
     source_interpolation : str
         Type of interpolation method to use for the source node
-    coordinates_source : Node
-        Node which is used as the source
     reprojected_coordinates : Coordinates
         Coordinates where the source node should be evaluated. 
     """
     
     source = tl.Instance(Node)
     source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
-    # Specify either one of the next two
-    coordinates_source = tl.Instance(Node, allow_none=True)
-    reprojected_coordinates = tl.Instance(Coordinates)
+    reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
-    @tl.default('reprojected_coordinates')
-    def get_reprojected_coordinates(self):
-        """Retrieves the reprojected coordinates in case coordinates_source is specified
-        
-        Returns
-        -------
-        reprojected_coordinates : Coordinates
-            Coordinates where the source node should be evaluated. 
-        
-        Raises
-        ------
-        Exception
-            If neither coordinates_source or reproject_coordinates are specified
-        """
-        if not hasattr(self, 'coordinates_source'):
-            raise Exception("Either reprojected_coordinates or coordinates_source must be specified")
-        
-        return self.coordinates_source.native_coordinates
+    def _first_init(self, **kwargs):
+        if 'reprojected_coordinates' in kwargs:
+            if isinstance(kwargs['reprojected_coordinates'], list):
+                kwargs['reprojected_coordinates'] = Coordinates.from_definition(kwargs['reprojected_coordinates'])
+            elif isinstance(kwargs['reprojected_coordinates'], str):
+                kwargs['reprojected_coordinates'] = Coordinates.from_json(kwargs['reprojected_coordinates'])
+                
+        return kwargs
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -825,24 +820,6 @@ class ReprojectedSource(DataSource):
             Description
         """
         return '{}_reprojected'.format(self.source.base_ref)
-
-    @property
-    def base_definition(self):
-        """ Base node definition. 
-        
-        Returns
-        -------
-        OrderedDict
-            Base node definition. 
-        """
-        
-        d = super(ReprojectedSource, self).base_definition
-
-        if self.coordinates_source is None:
-            # TODO serialize reprojected_coordinates
-            raise NotImplementedError
-        
-        return d
 
 class S3(DataSource):
     """Create a DataSource from a file on an S3 Bucket. 
