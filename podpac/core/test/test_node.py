@@ -17,10 +17,7 @@ from podpac.core import common_test_utils as ctu
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node, NodeException
     
-class TestInit(object):
-    pass # TODO
-
-class TestNodeProperties(object):
+class TestNode(object):
     def test_base_ref(self):
         n = Node()
         assert isinstance(n.base_ref, str)
@@ -146,8 +143,7 @@ class TestNodeProperties(object):
         assert n1.hash != n3.hash
         assert n1.hash != m1.hash
 
-class TestNotImplementedMethods(object):
-    def test_eval(self):
+    def test_eval_not_implemented(self):
         n = Node()
         with pytest.raises(NotImplementedError):
             n.eval(None)
@@ -155,10 +151,35 @@ class TestNotImplementedMethods(object):
         with pytest.raises(NotImplementedError):
             n.eval(None, output=None)
 
-    def test_find_coordinates(self):
+    def test_find_coordinates_not_implemented(self):
         n = Node()
         with pytest.raises(NotImplementedError):
             n.find_coordinates()
+
+    def test_eval_group(self):
+        class MyNode(Node):
+            def eval(self, coordinates, output=None):
+                return self.create_output_array(coordinates)
+
+        c1 = podpac.Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
+        c2 = podpac.Coordinates([[10, 11], [10, 11, 12]], dims=['lat', 'lon'])
+        g = podpac.coordinates.GroupCoordinates([c1, c2])
+
+        n = MyNode()
+        outputs = n.eval_group(g)
+        assert isinstance(outputs, list)
+        assert len(outputs) == 2
+        assert isinstance(outputs[0], UnitsDataArray)
+        assert isinstance(outputs[1], UnitsDataArray)
+        assert outputs[0].shape == (2, 2)
+        assert outputs[1].shape == (2, 3)
+
+        # invalid
+        with pytest.raises(Exception):
+            n.eval_group(c1)
+
+        with pytest.raises(Exception):
+            n.eval(g)
 
 class TestCreateOutputArray(object):
     @classmethod
