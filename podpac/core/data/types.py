@@ -771,7 +771,7 @@ class ReprojectedSource(DataSource):
         Coordinates where the source node should be evaluated. 
     """
     
-    source = tl.Instance(Node)
+    source = tl.Instance(DataSource)
     source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     # Specify either one of the next two
     coordinates_source = tl.Instance(Node, allow_none=True).tag(attr=True)
