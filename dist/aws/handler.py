@@ -6,6 +6,7 @@ import os
 import sys
 import urllib.parse as urllib
 from collections import OrderedDict
+from io import StringIO
 
 import boto3
 
@@ -52,7 +53,8 @@ def handler(event, context, ret_pipeline=False):
         pipeline.pipeline_output.node.evaluated_hash,
         pipeline.pipeline_output.node.latlon_bounds_str)
 
-    body = cPickle.dumps(pipeline.output)
+    body = StringIO()
+    body.write(cPickle.dumps(pipeline.output))
     s3.put_object(Bucket=bucket_name,
                   Key='output/' + filename + '.' +
                   pipeline.pipeline_output.format, Body=body)
