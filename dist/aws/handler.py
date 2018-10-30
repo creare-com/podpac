@@ -48,16 +48,15 @@ def handler(event, context, ret_pipeline=False):
     if ret_pipeline:
         return pipeline
 
-    filename = '%s_%s_%s' % (
+    filename = '%s_%s_%s.%s' % (
         pipeline.pipeline_output.name,
         pipeline.pipeline_output.node.evaluated_hash,
-        pipeline.pipeline_output.node.latlon_bounds_str)
+        pipeline.pipeline_output.node.latlon_bounds_str,
+        pipeline.pipeline_output.format)
 
-    body = StringIO()
-    body.write(cPickle.dumps(pipeline.output))
+    body = cPickle.dumps(pipeline.output)
     s3.put_object(Bucket=bucket_name,
-                  Key='output/' + filename + '.' +
-                  pipeline.pipeline_output.format, Body=body)
+                  Key='output/' + filename, Body=body)
     return img_response(pipeline.pipeline_output.image)
 
 
