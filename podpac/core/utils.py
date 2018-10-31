@@ -174,3 +174,36 @@ def trait_is_defined(obj, trait):
         return val is not None
     except (KeyError, RuntimeError, tl.TraitError):
         return False
+
+def optional_import(module_name, package=None, return_root=False):
+    '''
+    Import optional packages if present.
+
+    Parameters
+    -----------
+    module_name: str
+        The name of the module to import
+    package: str, optional
+        Default is None. The root package, in case module_name is relative
+    return_root: bool
+        Default if False. If True, will return the root package instead of the module
+
+    Examples
+    ----------
+    >>> bar = optional_import('foo.bar')  # Returns bar
+    >>> foo = optional_import('foo.bar', return_root=True)  # Returns foo
+
+    Returns
+    --------
+    module
+        The imported module if available. None otherwise.
+    '''
+
+    try:
+        if return_root:
+            module = importlib.__import__(module_name)
+        else:
+            module = importlib.import_module(module_name)
+    except ImportError:
+        module = None
+    return module
