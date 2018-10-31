@@ -39,10 +39,9 @@ class TestArray(object):
     coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
 
     def test_source_trait(self):
-        """ must be an ndarry """
+        """ must be an ndarray """
         
         node = Array(source=self.data, native_coordinates=self.coordinates)
-        assert isinstance(node, Array)
 
         with pytest.raises(TraitError):
             node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
@@ -52,7 +51,7 @@ class TestArray(object):
         
         source = self.data
         node = Array(source=source, native_coordinates=self.coordinates)
-        output = node.execute(self.coordinates)
+        output = node.eval(self.coordinates)
 
         assert isinstance(output, UnitsDataArray)
         assert output.values[0, 0] == source[0, 0]
@@ -75,6 +74,16 @@ class TestArray(object):
         assert get_native_coordinates
         assert native_coordinates == get_native_coordinates
 
+    def test_base_definition(self):
+        node = Array(source=self.data)
+        d = node.base_definition
+        source = np.array(d['source'])
+        np.testing.assert_array_equal(source, self.data)
+
+    def test_definition(self):
+        node = Array(source=self.data)
+        pipeline = podpac.pipeline.Pipeline(definition=node.definition)
+        np.testing.assert_array_equal(pipeline.nodes['Array'].source, self.data)
 
 class TestPyDAP(object):
     """test pydap datasource"""
@@ -183,12 +192,12 @@ class TestPyDAP(object):
         self.mock_pydap()
 
         node = PyDAP(source=self.source, datakey=self.datakey, native_coordinates=self.coordinates)
-        output = node.execute(self.coordinates)
+        output = node.eval(self.coordinates)
         assert isinstance(output, UnitsDataArray)
         assert output.values[0, 0] == self.data[0, 0]
 
         node = MockPyDAP(native_coordinates=self.coordinates)
-        output = node.execute(self.coordinates)
+        output = node.eval(self.coordinates)
         assert isinstance(output, UnitsDataArray)
 
 
@@ -261,7 +270,7 @@ class TestRasterio(object):
 
         node = Rasterio(source=self.source)
         native_coordinates = node.get_native_coordinates()
-        output = node.execute(native_coordinates)
+        output = node.eval(native_coordinates)
 
         assert isinstance(output, UnitsDataArray)
 
@@ -438,12 +447,12 @@ class TestWCS(object):
 
         # with eval coordinates
         # TODO: use real eval coordinates
-        node.requested_coordinates = native_coordinates
+        node._output_coordinates = native_coordinates
         native_coordinates = node.native_coordinates
 
         assert isinstance(native_coordinates, Coordinates)
         # TODO: one returns monotonic, the other returns uniform
-        # assert native_coordinates == node.requested_coordinates
+        # assert native_coordinates == node._output_coordinates
         assert native_coordinates['lat']
         assert native_coordinates['lon']
         assert native_coordinates['time']
@@ -465,7 +474,7 @@ class TestWCS(object):
             dims=['lat', 'lon', 'time'])
 
         with pytest.raises(ValueError):
-            output = node.execute(notime_coordinates)
+            output = node.eval(notime_coordinates)
             assert isinstance(output, UnitsDataArray)
             assert output.native_coordinates['lat'][0] == node.native_coordinates['lat'][0]
 
@@ -477,15 +486,15 @@ class TestWCS(object):
             dims=['lat', 'lon', 'time'])
 
         with pytest.raises(ValueError):
-            output = node.execute(time_coordinates)
+            output = node.eval(time_coordinates)
             assert isinstance(output, UnitsDataArray)
 
         # requests exceptions
         self.mock_requests(data_status_code=400)
         with pytest.raises(Exception):
-            output = node.execute(time_coordinates)
+            output = node.eval(time_coordinates)
         with pytest.raises(Exception):
-            output = node.execute(time_coordinates)
+            output = node.eval(time_coordinates)
 
         
 class TestReprojectedSource(object):
@@ -496,7 +505,7 @@ class TestReprojectedSource(object):
 
     source = Node()
     data = np.random.rand(11, 11)
-    coordinates_source = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
+    native_coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
     reprojected_coordinates = Coordinates([clinspace(-25, 50, 11), clinspace(-25, 50, 11)], dims=['lat', 'lon'])
 
     def test_init(self):
@@ -516,10 +525,6 @@ class TestReprojectedSource(object):
         with pytest.raises(TraitError):
             ReprojectedSource(source_interpolation=5)
 
-        ReprojectedSource(coordinates_source=Node())
-        with pytest.raises(TraitError):
-            ReprojectedSource(coordinates_source=5)
-
         ReprojectedSource(reprojected_coordinates=self.reprojected_coordinates)
         with pytest.raises(TraitError):
             ReprojectedSource(reprojected_coordinates=5)
@@ -537,42 +542,41 @@ class TestReprojectedSource(object):
         assert isinstance(node.native_coordinates, Coordinates)
         assert node.native_coordinates['lat'].coordinates[0] == self.reprojected_coordinates['lat'].coordinates[0]
 
-        # source as DataSource
-        datanode = DataSource(source='test', native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-        assert isinstance(node.native_coordinates, Coordinates)
-        assert node.native_coordinates['lat'].coordinates[0] == self.coordinates_source['lat'].coordinates[0]
-
     def test_get_data(self):
         """test get data from reprojected source"""
-        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-        output = node.execute(node.native_coordinates)
+        datanode = Array(source=self.data, native_coordinates=self.native_coordinates)
+        node = ReprojectedSource(source=datanode, reprojected_coordinates=datanode.native_coordinates)
+        output = node.eval(node.native_coordinates)
         assert isinstance(output, UnitsDataArray)
-
 
     def test_base_ref(self):
         """test base ref"""
 
-        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
+        node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         ref = node.base_ref
-
         assert '_reprojected' in ref
 
-    def test_definition(self):
+    def test_base_definition(self):
         """test definition"""
 
-        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-        definition = node.definition
-        assert 'attrs' in definition
-        assert 'interpolation' in definition['attrs']
-
-        # no coordinates source
         node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
-        with pytest.raises(NotImplementedError):
-            definition = node.definition
+        d = node.base_definition
+        c = Coordinates.from_definition(d['attrs']['reprojected_coordinates'])
+        
+        # TODO this shouldn't raise an exception once the coordinates __eq__ is merged in
+        with pytest.raises(AssertionError):
+            assert c == self.reprojected_coordinates
+
+    def test_deserialize_reprojected_coordinates(self):
+        node1 = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
+        node2 = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates.definition)
+        node3 = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates.json)
+
+        # TODO this shouldn't raise an exception once the coordinates __eq__ is merged in
+        with pytest.raises(AssertionError):
+            assert node1.reprojected_coordinates == self.reprojected_coordinates
+            assert node2.reprojected_coordinates == self.reprojected_coordinates
+            assert node3.reprojected_coordinates == self.reprojected_coordinates
 
 class TestS3(object):
     """test S3 data source"""
@@ -669,7 +673,7 @@ class TestS3(object):
         # TODO: figure out how to mock S3 response
         with pytest.raises(botocore.auth.NoCredentialsError):
             node = S3(source=self.source, native_coordinates=self.coordinates, s3_bucket=self.bucket)
-            output = node.execute(self.coordinates)
+            output = node.eval(self.coordinates)
 
             assert isinstance(output, UnitsDataArray)
 

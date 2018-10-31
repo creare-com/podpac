@@ -70,16 +70,14 @@ class TestCompositor(object):
             source_coordinates=scoords,
             interpolation='nearest')
         c = podpac.Coordinates([0.5, 0.5], dims=['lat', 'lon'])
-        o = composited.execute(c)
+        o = composited.eval(c)
         np.testing.assert_array_equal(o.data, a.source[5, 5])
 
-    # Simple test of creating and executing an OrderedCompositor
     def test_ordered_compositor(self):
-        self.orderedCompositor = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src,
-                                                          cache_native_coordinates=False, threaded=True)
-        result = self.orderedCompositor.execute(coordinates=self.coord_src)
-        assert True == self.orderedCompositor.evaluated
-        assert self.orderedCompositor._native_coordinates_default().dims == self.coord_src.dims
+        self.orderedCompositor = OrderedCompositor(
+            sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False, threaded=True)
+        result = self.orderedCompositor.eval(coordinates=self.coord_src)
+        # assert self.orderedCompositor._native_coordinates_default().dims == self.coord_src.dims
 
     def test_source_coordinates_ordered_compositor(self):
         self.orderedCompositor = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src,
@@ -96,7 +94,7 @@ class TestCompositor(object):
         b = Array(source=np.random.rand(3, 3) + 2, native_coordinates=bnative)
         c = OrderedCompositor(sources=np.array([a, b]), interpolation='bilinear')
         coords = podpac.Coordinates([podpac.clinspace(-3, 4, 32), podpac.clinspace(-2, 5, 32)], dims=['lat', 'lon'])
-        o = c.execute(coords)
+        o = c.eval(coords)
         # Check that both data sources are being used in the interpolation
         mask = o.data >= 2
         assert mask.sum() > 0 

@@ -2,7 +2,6 @@
 Multidimensional Coordinates
 """
 
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
@@ -93,7 +92,8 @@ class Coordinates(tl.HasTraits):
             if isinstance(coords[i], BaseCoordinates):
                 c = coords[i].copy()
             elif '_' in dim:
-                c = StackedCoordinates([ArrayCoordinates1d(values) for values in coords[i]])
+                cs = [val if isinstance(val, Coordinates1d) else ArrayCoordinates1d(val) for val in coords[i]]
+                c = StackedCoordinates(cs)
             else:
                 c = ArrayCoordinates1d(coords[i])
 
@@ -201,22 +201,31 @@ class Coordinates(tl.HasTraits):
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
+<<<<<<< HEAD
     def from_json(cls, d):
         d = json.loads(d)
+=======
+    def from_definition(cls, d):
+>>>>>>> develop
         coords = []
         for elem in d:
             if isinstance(elem, list):
-                c = StackedCoordinates.from_json(elem)
+                c = StackedCoordinates.from_definition(elem)
             elif 'start' in elem and 'stop' in elem and 'step' in elem:
-                c = UniformCoordinates1d.from_json(elem)
+                c = UniformCoordinates1d.from_definition(elem)
             elif 'values' in elem:
-                c = ArrayCoordinates1d.from_json(elem)
+                c = ArrayCoordinates1d.from_definition(elem)
             else:
                 raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
             
             coords.append(c)
 
         return cls(coords)
+
+    @classmethod
+    def from_json(cls, s):
+        d = json.loads(s)
+        return cls.from_definition(d)
     
     # ------------------------------------------------------------------------------------------------------------------
     # standard dict-like methods
@@ -334,20 +343,63 @@ class Coordinates(tl.HasTraits):
         return x.coords
 
     @property
-    def latlon_bounds_str(self):
-        if 'lat' in self.udims and 'lon' in self.udims:
-            # Where is this really used? Shouldn't this be area_bounds?
-            return '%s_%s_x_%s_%s' % (
-                self['lat'].bounds[0],
-                self['lon'].bounds[0],
-                self['lat'].bounds[1],
-                self['lon'].bounds[1])
-        else:
-            return 'NA'
+    def definition(self):
+        return [c.definition for c in self._coords.values()]
 
     @property
     def json(self):
-        return json.dumps([c.json for c in self._coords.values()])
+        return json.dumps(self.definition)
+
+    @property
+    def hash(self):
+        return hash(self.json)
+
+    @property
+    def properties(self):
+        '''
+        Dictionary specifying the coordinate properties.
+        
+        Returns
+        -------
+        TYPE
+            Description
+        '''
+
+        # TODO JXM
+        # return {
+        #     'coord_ref_sys': self.coord_ref_sys,
+        #     'ctype': self.ctype
+        # }
+        
+        c = self[self.udims[0]]
+        return {
+            'coord_ref_sys': c.coord_ref_sys,
+            'ctype': c.ctype
+        }
+            
+    # #@property
+    # #def gdal_transform(self):
+    #     if self['lon'].regularity == 'regular' and self['lat'].regularity == 'regular':
+    #         lon_bounds = self['lon'].area_bounds
+    #         lat_bounds = self['lat'].area_bounds
+    #         transform = [lon_bounds[0], self['lon'].delta, 0, lat_bounds[0], 0, -self['lat'].delta]
+    #     else:
+    #         raise NotImplementedError
+    #     return transform
+    
+    @property
+    def gdal_crs(self):
+        """GDAL coordinate reference system.
+        
+        Returns
+        -------
+        TYPE
+            Description
+        """
+
+        # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
+        # return GDAL_CRS[self.coord_ref_sys]
+        return GDAL_CRS[self[self.udims[0]].coord_ref_sys]
     
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -426,21 +478,6 @@ class Coordinates(tl.HasTraits):
 
         return Coordinates([c[np.unique(c.coordinates, return_index=True)[1]] for c in self.values()])
 
-    # ------------------------------------------------------------------------------------------------------------------
-    # Operators/Magic Methods
-    # ------------------------------------------------------------------------------------------------------------------
-
-    def __repr__(self):
-        # TODO JXM
-        rep = str(self.__class__.__name__)
-        for c in self._coords.values():
-            if isinstance(c, Coordinates1d):
-                rep += '\n\t%s: %s' % (c.name, c)
-            elif isinstance(c, StackedCoordinates):
-                for _c in c:
-                    rep += '\n\t%s[%s]: %s' % (c.name, _c.name, _c)
-        return rep
-
     def unstack(self):
         """
         Unstack the coordinates of all of the dimensions.
@@ -456,54 +493,6 @@ class Coordinates(tl.HasTraits):
         """
 
         return Coordinates([self[dim] for dim in self.udims], **self.properties)
-    
-    @property
-    def properties(self):
-        '''
-        Dictionary specifying the coordinate properties.
-        
-        Returns
-        -------
-        TYPE
-            Description
-        '''
-
-        # TODO JXM
-        # return {
-        #     'coord_ref_sys': self.coord_ref_sys,
-        #     'ctype': self.ctype
-        # }
-        
-        c = self[self.udims[0]]
-        return {
-            'coord_ref_sys': c.coord_ref_sys,
-            'ctype': c.ctype
-        }
-
-    
-    # #@property
-    # #def gdal_transform(self):
-    #     if self['lon'].regularity == 'regular' and self['lat'].regularity == 'regular':
-    #         lon_bounds = self['lon'].area_bounds
-    #         lat_bounds = self['lat'].area_bounds
-    #         transform = [lon_bounds[0], self['lon'].delta, 0, lat_bounds[0], 0, -self['lat'].delta]
-    #     else:
-    #         raise NotImplementedError
-    #     return transform
-    
-    @property
-    def gdal_crs(self):
-        """GDAL coordinate reference system.
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
-
-        # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
-        # return GDAL_CRS[self.coord_ref_sys]
-        return GDAL_CRS[self[self.udims[0]].coord_ref_sys]
 
     def iterchunks(self, shape, return_slices=False):
         """
@@ -563,7 +552,22 @@ class Coordinates(tl.HasTraits):
             return self
 
         else:
-            return Coordinates([self._coord[dim] for dim in dims], **self.properties)
+            return Coordinates([self._coords[dim] for dim in dims], **self.properties)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Operators/Magic Methods
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def __repr__(self):
+        # TODO JXM
+        rep = str(self.__class__.__name__)
+        for c in self._coords.values():
+            if isinstance(c, Coordinates1d):
+                rep += '\n\t%s: %s' % (c.name, c)
+            elif isinstance(c, StackedCoordinates):
+                for _c in c:
+                    rep += '\n\t%s[%s]: %s' % (c.name, _c.name, _c)
+        return rep
 
 def merge_dims(coords_list):
     """

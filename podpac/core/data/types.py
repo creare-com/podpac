@@ -61,22 +61,29 @@ class Array(DataSource):
     """
     
     source = tl.Instance(np.ndarray)
+
+    @tl.validate('source')
+    def _validate_source(self, d):
+        a = d['value']
+        try:
+            a.astype(float)
+        except:
+            raise ValueError("Array source must be numerical")
+        return a
     
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
         s = coordinates_index
-        d = self.initialize_coord_array(coordinates, 'data', fillval=self.source[s])
+        d = self.create_output_array(coordinates, data=self.source[s])
         return d
-
 
 class NumpyArray(Array):
     """Create a DataSource from a numpy array.
 
     .. deprecated:: 0.2.0
-          `NumpyArray` will be removed in podpac 0.2.0, it is replaced by
-          `Array`.
+          `NumpyArray` will be removed in podpac 0.2.0, it is replaced by `Array`.
     """
 
     def init(self):
@@ -101,7 +108,7 @@ class PyDAP(DataSource):
     dataset : pydap.model.DatasetType
         The open pydap dataset. This is provided for troubleshooting.
     native_coordinates : Coordinates
-        {ds_native_coordinates}
+        {native_coordinates}
     password : str, optional
         Password used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
         auth_session instead if you have security concerns.
@@ -113,7 +120,7 @@ class PyDAP(DataSource):
     """
     
     # required inputs
-    source = tl.Unicode(allow_none=False, default_value='').tag(attr=True)
+    source = tl.Unicode(allow_none=False, default_value='')
     datakey = tl.Unicode(allow_none=False).tag(attr=True)
 
     # optional inputs and later defined traits
@@ -223,8 +230,10 @@ class PyDAP(DataSource):
         """{get_data}
         """
         data = self.dataset[self.datakey][tuple(coordinates_index)]
-        d = self.initialize_coord_array(coordinates, 'data',
-                                        fillval=data.reshape(coordinates.shape))
+        # PyDAP 3.2.1 gives a numpy array for the above, whereas 3.2.2 needs the .data attribute to get a numpy array
+        if not isinstance(data, np.ndarray) and hasattr(data, 'data'):
+            data = data.data
+        d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
         return d
     
     @property
@@ -250,7 +259,7 @@ class Rasterio(DataSource):
     dataset : Any
         A reference to the datasource opened by rasterio
     native_coordinates : Coordinates
-        {ds_native_coordinates}
+        {native_coordinates}
     source : str
         Path to the data source
     """
@@ -321,14 +330,11 @@ class Rasterio(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.initialize_coord_array(coordinates)
+        data = self.create_output_array(coordinates)
         slc = coordinates_index
-        data.data.ravel()[:] = self.dataset.read(
-            self.band, window=((slc[0].start, slc[0].stop),
-                               (slc[1].start, slc[1].stop)),
-            out_shape=tuple(coordinates.shape)
-            ).ravel()
-            
+        window = window=((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
+        a = self.dataset.read(self.band, out_shape=tuple(coordinates.shape))
+        data.data.ravel()[:] = a.ravel()
         return data
     
     @cached_property
@@ -454,8 +460,7 @@ class WCS(DataSource):
         str
             The url that requests the WCS capabilities
         """
-        return self.source + '?' + self._get_capabilities_qs.format(
-            version=self.version, layer=self.layer_name)
+        return self.source + '?' + self._get_capabilities_qs.format(version=self.version, layer=self.layer_name)
 
     @tl.default('wcs_coordinates')
     def get_wcs_coordinates(self):
@@ -543,13 +548,14 @@ class WCS(DataSource):
         data wrangling for us...
         """
 
-        if not self.requested_coordinates:
+        # TODO update so that we don't rely on _evaluated_coordinates
+        if not self._evaluated_coordinates:
             return self.wcs_coordinates
 
         cs = []
         for dim in self.wcs_coordinates.dims:
-            if dim in self.requested_coordinates.dims:
-                c = self.requested_coordinates[dim]
+            if dim in self._evaluated_coordinates.dims:
+                c = self._evaluated_coordinates[dim]
                 if c.size == 1:
                     cs.append(ArrayCoordinates1d(c.coordinates[0], name=dim))
                 elif isinstance(c, UniformCoordinates1d):
@@ -571,7 +577,7 @@ class WCS(DataSource):
         Exception
             Raises this if there is a network error or required dependencies are not installed.
         """
-        output = self.initialize_coord_array(coordinates)
+        output = self.create_output_array(coordinates)
         dotime = 'time' in self.wcs_coordinates.dims
 
         if 'time' in coordinates.dims and dotime:
@@ -724,51 +730,32 @@ class WCS(DataSource):
         """
         return self.layer_name.rsplit('.', 1)[1]
 
-# We mark this as an algorithm node for the sake of the pipeline, although
-# the "algorithm" portion is not being used / is overwritten by the DataSource
-# In particular, this is required for providing coordinates_source
-# We should be able to to remove this requirement of attributes in the pipeline 
-# can have nodes specified... 
-class ReprojectedSource(DataSource, Algorithm):
+class ReprojectedSource(DataSource):
     """Create a DataSource with a different resolution from another Node. This can be used to bilinearly interpolated a
     dataset after averaging over a larger area.
     
     Attributes
     ----------
-    coordinates_source : Node
-        Node which is used as the source
-    reprojected_coordinates : Coordinates
-        Coordinates where the source node should be evaluated. 
     source : Node
         The source node
     source_interpolation : str
         Type of interpolation method to use for the source node
+    reprojected_coordinates : Coordinates
+        Coordinates where the source node should be evaluated. 
     """
     
-    source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     source = tl.Instance(Node)
-    # Specify either one of the next two
-    coordinates_source = tl.Instance(Node, allow_none=True).tag(attr=True)
+    source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
-    @tl.default('reprojected_coordinates')
-    def get_reprojected_coordinates(self):
-        """Retrieves the reprojected coordinates in case coordinates_source is specified
-        
-        Returns
-        -------
-        reprojected_coordinates : Coordinates
-            Coordinates where the source node should be evaluated. 
-        
-        Raises
-        ------
-        Exception
-            If neither coordinates_source or reproject_coordinates are specified
-        """
-        if not hasattr(self, 'coordinates_source'):
-            raise Exception("Either reprojected_coordinates or coordinates_source must be specified")
-        
-        return self.coordinates_source.native_coordinates
+    def _first_init(self, **kwargs):
+        if 'reprojected_coordinates' in kwargs:
+            if isinstance(kwargs['reprojected_coordinates'], list):
+                kwargs['reprojected_coordinates'] = Coordinates.from_definition(kwargs['reprojected_coordinates'])
+            elif isinstance(kwargs['reprojected_coordinates'], str):
+                kwargs['reprojected_coordinates'] = Coordinates.from_json(kwargs['reprojected_coordinates'])
+                
+        return kwargs
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -787,7 +774,7 @@ class ReprojectedSource(DataSource, Algorithm):
         """{get_data}
         """
         self.source.interpolation = self.source_interpolation
-        data = self.source.execute(coordinates)
+        data = self.source.eval(coordinates)
         
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of
@@ -808,31 +795,6 @@ class ReprojectedSource(DataSource, Algorithm):
             Description
         """
         return '{}_reprojected'.format(self.source.base_ref)
-
-    @property
-    def definition(self):
-        """ Pipeline node definition. 
-        
-        Returns
-        -------
-        OrderedDict
-            Pipeline node definition. 
-        
-        Raises
-        ------
-        NotImplementedError
-            If coordinates_source is None, this raises an error because serialization of reprojected_coordinates 
-            is not implemented
-        """
-        
-        d = Algorithm.definition.fget(self)
-        d['attrs'] = OrderedDict()
-        if self.interpolation:
-            d['attrs']['interpolation'] = self.interpolation
-        if self.coordinates_source is None:
-            # TODO serialize reprojected_coordinates
-            raise NotImplementedError
-        return d
 
 class S3(DataSource):
     """Create a DataSource from a file on an S3 Bucket. 

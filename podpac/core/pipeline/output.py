@@ -9,10 +9,19 @@ import warnings
 from collections import OrderedDict
 from io import BytesIO
 
+
+import os
+import traitlets as tl
 import numpy as np
 import traitlets as tl
 
+try:
+    import cPickle  # Python 2.7
+except:
+    import _pickle as cPickle
+
 from podpac.core.node import Node
+from podpac.core.units import get_image
 
 
 class Output(tl.HasTraits):
@@ -30,8 +39,15 @@ class Output(tl.HasTraits):
     node = tl.Instance(Node)
     name = tl.Unicode()
 
-    def write(self):
-        """Summary
+    def write(self, output, coordinates):
+        """Write the node output
+
+        Arguments
+        ---------
+        output : UnitsDataArray
+            Node evaluation output to write
+        coordinates : Coordinates
+            Evaluated coordinates.
 
         Raises
         ------
@@ -51,7 +67,7 @@ class Output(tl.HasTraits):
 
 
 class NoOutput(Output):
-    def write(self):
+    def write(self, output, coordinates):
         pass
 
 
@@ -78,10 +94,20 @@ class FileOutput(Output):
         return self._path
 
     # TODO: docstring?
-    def write(self):
-        self._path = self.node.write(
-            self.name, outdir=self.outdir, format=self.format)
+    def write(self, output, coordinates):
+        filename = '%s_%s_%s' % (self.name, self.node.hash, coordinates.hash)
+        path = os.path.join(self.outdir, filename)
 
+        if self.format == 'pickle':
+            path = '%s.pkl' % path
+            with open(path, 'wb') as f:
+                cPickle.dump(output, f)
+        elif self.format == 'png':
+            raise NotImplementedError("format '%s' not yet implemented" % self.format)
+        elif self.format == 'geotif':
+            raise NotImplementedError("format '%s' not yet implemented" % self.format)
+
+        self._path = path
 
 class FTPOutput(Output):
     """Summary
@@ -136,9 +162,8 @@ class ImageOutput(Output):
     image = tl.Instance(BytesIO, allow_none=True, default_value=None)
 
     # TODO: docstring?
-    def write(self):
+    def write(self, output, coordinates):
         try:
-            self.image = self.node.get_image(
-                format=self.format, vmin=self.vmin, vmax=self.vmax)
-        except:
-            pass
+            self.image = get_image(output, format=self.format, vmin=self.vmin, vmax=self.vmax)
+        except Exception as e:
+            warnings.warn("Error getting image from output: %s" % e)

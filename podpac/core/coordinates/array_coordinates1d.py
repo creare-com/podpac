@@ -6,29 +6,30 @@ One-Dimensional Coordinates: Array
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
+from collections import OrderedDict
 
 import numpy as np
 import traitlets as tl
 from collections import OrderedDict
 
 # from podpac.core.utils import cached_property, clear_cache
-from podpac.core.coordinates.utils import make_coord_array, add_coord
+from podpac.core.coordinates.utils import make_coord_value, make_coord_array, add_coord
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 
 class ArrayCoordinates1d(Coordinates1d):
     """
     A basic array of coordinates. Not guaranteed to be sorted, unique, or uniformly-spaced.
-    
+
     Attributes
     ----------
     coords : np.ndarray
         Input coordinate array. Values must all be the same type.
         Numerical values are converted to floats, and datetime values are converted to np.datetime64.
-    
+
     See Also
     --------
     UniformCoordinates1d : sorted, uniformly-spaced coordinates defined by a start, stop, and step.
-    
+
     """
 
     coords = tl.Instance(np.ndarray)
@@ -36,7 +37,7 @@ class ArrayCoordinates1d(Coordinates1d):
     def __init__(self, coords=[], **kwargs):
         """
         Initialize coords from an array.
-        
+
         Parameters
         ----------
         coords : array-like
@@ -90,7 +91,7 @@ class ArrayCoordinates1d(Coordinates1d):
         return cls(x.data, name=x.name)
 
     @classmethod
-    def from_json(cls, d):
+    def from_definition(cls, d):
         coords = d.pop('values')
         return cls(coords, **d)
 
@@ -109,7 +110,7 @@ class ArrayCoordinates1d(Coordinates1d):
     def __getitem__(self, index):
         coords = self.coords[index]
         return ArrayCoordinates1d(coords, **self.properties)
-    
+
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
@@ -142,7 +143,7 @@ class ArrayCoordinates1d(Coordinates1d):
     @property
     def bounds(self):
         """ Coordinate bounds. """
-        
+
         # TODO are we sure this can't be a tuple?
 
         if self.size == 0:
@@ -164,11 +165,11 @@ class ArrayCoordinates1d(Coordinates1d):
         # point ctypes, just use bounds
         if self.ctype == 'point':
             return self.bounds
-        
+
         # segment ctypes, with explicit extents
         if self.extents is not None:
             return self.extents
-        
+
         # segment ctypes, calculated
         if self.size == 0:
             lo, hi = np.nan, np.nan
@@ -193,7 +194,7 @@ class ArrayCoordinates1d(Coordinates1d):
         return area_bounds
 
     @property
-    def json(self):
+    def definition(self):
         d = OrderedDict()
         if self.dtype == float:
             d['values'] = self.coords.tolist()
@@ -207,6 +208,8 @@ class ArrayCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     def select(self, bounds, outer=False, return_indices=False):
+        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
+
         # empty
         if self.size == 0:
             return self._select_empty(return_indices)

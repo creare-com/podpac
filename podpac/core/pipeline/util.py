@@ -5,7 +5,6 @@ Pipeline utils
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import re
 import importlib
 import inspect
 import warnings
@@ -13,6 +12,8 @@ from collections import OrderedDict
 
 import numpy as np
 from podpac.core.node import NodeException
+from podpac.core.data.datasource import DataSource
+from podpac.core.data.types import ReprojectedSource, Array
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
 from podpac.core.pipeline.output import Output, NoOutput, FileOutput, S3Output, FTPOutput, ImageOutput
@@ -27,7 +28,7 @@ def parse_pipeline_definition(definition):
         raise PipelineError("Pipeline definition requires 'nodes' property")
 
     if len(definition['nodes']) == 0:
-        raise PipelineError("Pipeline definition 'nodes' property cannot be empty")
+        raise PipelineError("'nodes' property cannot be empty")
 
     # parse node definitions
     nodes = OrderedDict()
@@ -36,8 +37,6 @@ def parse_pipeline_definition(definition):
 
     # parse output definition
     output = _parse_output_definition(nodes, definition.get('output', {}))
-
-    _check_execution_graph(definition, nodes, output)
 
     return nodes, output
 
@@ -57,26 +56,59 @@ def _parse_node_definition(nodes, name, d):
 
     # parse and configure kwargs
     kwargs = {}
-    whitelist = ['node', 'attrs', 'evaluate', 'plugin']
+    whitelist = ['node', 'attrs', 'lookup_attrs', 'plugin']
 
-    try:
-        # translate node references in compositors and algorithms
-        parents = inspect.getmro(node_class)
-        if Compositor in parents and 'sources' in d:
-            kwargs['sources'] = np.array([nodes[source] for source in d['sources']])
+    # DataSource, Compositor, and Algorithm specific properties
+    parents = inspect.getmro(node_class)
+
+    if DataSource in parents:
+        if 'attrs' in d:
+            if 'source' in d['attrs']:
+                raise PipelineError("The 'source' property cannot be in attrs")
+
+            if 'lookup_source' in d['attrs']:
+                raise PipelineError("The 'lookup_source' property cannot be in attrs")
+
+        if 'source' in d:
+            if Array in parents:
+                kwargs['source'] = np.array(d['source'])
+            else:
+                kwargs['source'] = d['source']
+            whitelist.append('source')
+
+        elif 'lookup_source' in d:
+            kwargs['source'] = _get_subattr(nodes, name, d['lookup_source'])
+            whitelist.append('lookup_source')
+
+    if Compositor in parents:
+        if 'sources' in d:
+            sources = [_get_subattr(nodes, name, source) for source in d['sources']]
+            kwargs['sources'] = np.array(sources)
             whitelist.append('sources')
-        if Algorithm in parents and 'inputs' in d:
-            kwargs.update({k:nodes[v] for k, v in d['inputs'].items()})
-            whitelist.append('inputs')
-    except KeyError as e:
-        raise PipelineError("node '%s' definition references nonexistent node '%s'" % (name, e))
 
-    if 'attrs' in d:
-        kwargs.update(d['attrs'])
+    if DataSource in parents or Compositor in parents:
+        if 'attrs' in d and 'interpolation' in d['attrs']:
+            raise PipelineError("The 'interpolation' property cannot be in attrs")
+
+        if 'interpolation' in d:
+            kwargs['interpolation'] = d['interpolation']
+            whitelist.append('interpolation')
+            
+    if Algorithm in parents:
+        if 'inputs' in d:
+            inputs = {k:_get_subattr(nodes, name, v) for k, v in d['inputs'].items()}
+            kwargs.update(inputs)
+            whitelist.append('inputs')
+
+    for k, v in d.get('attrs', {}).items():
+        kwargs[k] = v
+
+    for k, v in d.get('lookup_attrs', {}).items():
+        kwargs[k] = _get_subattr(nodes, name, v)
 
     for key in d:
         if key not in whitelist:
-            raise PipelineError("node '%s' definition has unexpected property '%s'" % (name, key))
+            raise PipelineError("node '%s' has unexpected property %s" % (name, key))
 
     # return node info
     return node_class(**kwargs)
@@ -88,11 +120,8 @@ def _parse_output_definition(nodes, d):
     else:
         name = list(nodes.keys())[-1]
 
-    try:
-        node = nodes[name]
-    except KeyError as e:
-        raise PipelineError("output definition references nonexistent node '%s'" % (e))
-
+    node = _get_subattr(nodes, 'output', name)
+    
     # output parameters
     config = {k:v for k, v in d.items() if k not in ['node', 'mode', 'plugin', 'output']}
 
@@ -111,7 +140,7 @@ def _parse_output_definition(nodes, d):
         elif mode == 'image':
             output_class = ImageOutput
         else:
-            raise PipelineError("output definition has unexpected mode '%s'" % mode)
+            raise PipelineError("output has unexpected mode '%s'" % mode)
 
         output = output_class(node=node, name=name, **config)
 
@@ -138,94 +167,14 @@ def _parse_output_definition(nodes, d):
 
     return output
 
-def _check_execution_graph(definition, nodes, output):
-    used = {ref:False for ref in nodes}
-
-    def f(base_ref):
-        if used[base_ref]:
-            return
-
-        used[base_ref] = True
-
-        d = definition['nodes'][base_ref]
-        for ref in d.get('sources', []):
-            f(ref)
-
-        for ref in d.get('inputs', {}).values():
-            f(ref)
-
-    f(output.name)
-
-    for ref in nodes:
-        if not used[ref]:
-            warnings.warn("Unused pipeline node '%s'" % ref, UserWarning)
-
-def make_pipeline_definition(output_node):
-    """
-    Make a pipeline definition, including the flattened node definitions and a
-    default file output for the input node.
-
-    Parameters
-    ----------
-    output_node : TYPE
-        Description
-
-    Returns
-    -------
-    TYPE
-        Description
-    """
-
-    nodes = []
-    refs = []
-    definitions = []
-
-    def add_node(node):
-        """Summary
-
-        Parameters
-        ----------
-        node : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        if node in nodes:
-            return refs[nodes.index(node)]
-
-        # get definition
-        d = node.definition
-
-        # replace nodes with references, adding nodes depth first
-        if 'inputs' in d:
-            for key, input_node in d['inputs'].items():
-                if input_node is not None:
-                    d['inputs'][key] = add_node(input_node)
-        if 'sources' in d:
-            for i, source_node in enumerate(d['sources']):
-                d['sources'][i] = add_node(source_node)
-
-        # unique ref
-        ref = node.base_ref
-        while ref in refs:
-            if re.search('_[1-9][0-9]*$', ref):
-                ref, i = ref.rsplit('_', 1)
-                i = int(i)
-            else:
-                i = 0
-            ref = '%s_%d' % (ref, i+1)
-
-        nodes.append(node)
-        refs.append(ref)
-        definitions.append(d)
-
-        return ref
-
-    add_node(output_node)
-
-    d = OrderedDict()
-    d['nodes'] = OrderedDict(zip(refs, definitions))
-    return d
+def _get_subattr(nodes, name, ref):
+    refs = ref.split('.')
+    
+    try:
+        attr = nodes[refs[0]]
+        for _name in refs[1:]:
+            attr = getattr(attr, _name)
+    except (KeyError, AttributeError):
+        raise PipelineError("'%s' references nonexistent node/attribute '%s'" % (name, ref))
+    
+    return attr

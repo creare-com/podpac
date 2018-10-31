@@ -359,7 +359,7 @@ class SMAPSource(datatype.PyDAP):
         s = tuple([slc for d, slc in zip(coordinates.dims, coordinates_index)
                    if 'time' not in d])
         if 'SM_P_' in self.source:
-            d = self.initialize_coord_array(coordinates, 'nan')
+            d = self.create_output_array(coordinates)
             am_key = self.layerkey.format(rdk=self.rootdatakey + 'AM_')
             pm_key = self.layerkey.format(rdk=self.rootdatakey + 'PM_') + '_pm'
 
@@ -377,8 +377,8 @@ class SMAPSource(datatype.PyDAP):
 
         else:
             data = np.array(self.dataset[self.datakey][s])
-            d = self.initialize_coord_array(coordinates, 'data',
-                                            fillval=data.reshape(coordinates.shape))
+            d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
+
         return d
 
 
@@ -406,7 +406,7 @@ class SMAPProperties(SMAPSource):
     """
     file_url_re = re.compile(r'SMAP.*_[0-9]{8}T[0-9]{6}_.*\.h5')
 
-    source = tl.Unicode().tag(attr=True)
+    source = tl.Unicode()
     @tl.default('source')
     def _property_source_default(self):
         v = _infer_SMAP_product_version('SPL4SMLM', SMAP_BASE_URL, self.auth_session)
@@ -920,20 +920,6 @@ class SMAP(podpac.compositor.OrderedCompositor):
             Description
         """
         return '{0}_{1}'.format(self.__class__.__name__, self.product)
-
-    @property
-    def definition(self):
-        """Summary
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        d = self.base_definition()
-        if self.interpolation:
-            d['attrs']['interpolation'] = self.interpolation
-        return d
 
     @property
     @common_doc(COMMON_DOC)

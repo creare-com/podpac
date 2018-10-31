@@ -21,6 +21,8 @@ class Pipeline(Node):
     ----------
     path : string
         path to pipeline JSON definition
+    json : string
+        pipeline JSON definition
     definition : OrderedDict
         pipeline definition
     nodes : OrderedDict
@@ -36,20 +38,7 @@ class Pipeline(Node):
     definition = tl.Instance(OrderedDict, help="pipeline definition")
     nodes = tl.Instance(OrderedDict, help="pipeline nodes")
     pipeline_output = tl.Instance(Output, help="pipeline output")
-    implicit_pipeline_evaluation = tl.Bool(True)
     do_write_output = tl.Bool(True)
-
-    @property
-    def native_coordinates(self):
-        return self.pipeline_output.node.native_coordinates
-
-    @property
-    def output(self):
-        return self.pipeline_output.node.output
-
-    @property
-    def evaluated(self):
-        return self.pipeline_output.node.evaluated
 
     @property
     def units(self):
@@ -62,10 +51,6 @@ class Pipeline(Node):
     @property
     def cache_type(self):
         return self.pipeline_output.node.cache_type
-
-    @property
-    def interpolation(self):
-        return self.pipeline_output.node.interpolation
 
     @property
     def style(self):
@@ -94,8 +79,8 @@ class Pipeline(Node):
         self.nodes, self.pipeline_output = parse_pipeline_definition(definition)
         return definition
 
-    def execute(self, coordinates, output=None):
-        """Execute the pipeline, writing the output if one is defined.
+    def eval(self, coordinates, output=None):
+        """Evaluate the pipeline, writing the output if one is defined.
 
         Parameters
         ----------
@@ -103,10 +88,11 @@ class Pipeline(Node):
             Description
         """
 
-        if self.implicit_pipeline_evaluation:
-            self.pipeline_output.node.execute(coordinates, output)
+        self._requested_coordinates = coordinates
 
+        output = self.pipeline_output.node.eval(coordinates, output)
         if self.do_write_output:
-            self.pipeline_output.write()
+            self.pipeline_output.write(output, coordinates)
 
-        return self.output
+        self._output = output
+        return output

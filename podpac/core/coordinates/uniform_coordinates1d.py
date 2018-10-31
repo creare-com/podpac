@@ -2,6 +2,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
+from collections import OrderedDict
 
 import numpy as np
 import traitlets as tl
@@ -15,7 +16,7 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 class UniformCoordinates1d(Coordinates1d):
     """
     An array of sorted, uniformly-spaced coordinates defined by a start, stop, and step.
-    
+
     Attributes
     ----------
     start : float or datetime64
@@ -27,7 +28,7 @@ class UniformCoordinates1d(Coordinates1d):
     step : float or timedelta64
         Signed, non-zero step between coordinates.
         Numerical inputs are cast as floats and non-numerical inputs are parsed as timedelta64.
-    
+
     See Also
     --------
     ArrayCoordinates1d : An array of coordinates.
@@ -36,7 +37,7 @@ class UniformCoordinates1d(Coordinates1d):
     start = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
     stop = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)])
-    
+
     is_monotonic = tl.CBool(True, readonly=True)
     is_uniform = tl.CBool(True, readonly=True)
 
@@ -128,7 +129,7 @@ class UniformCoordinates1d(Coordinates1d):
             return cls(items[0], items[1], step, **kwargs)
 
     @classmethod
-    def from_json(cls, d):
+    def from_definition(cls, d):
         start = d.pop('start')
         stop = d.pop('stop')
         step = d.pop('step')
@@ -194,11 +195,11 @@ class UniformCoordinates1d(Coordinates1d):
         coordinates = add_coord(self.start, np.arange(0, self.size) * self.step)
         coordinates.setflags(write=False)
         return coordinates
-    
+
     @property
     def dtype(self):
         ''' Coordinate dtype, datetime or float '''
-        
+
         return type(self.start)
 
     @property
@@ -232,7 +233,7 @@ class UniformCoordinates1d(Coordinates1d):
         hi = add_coord(self.start, self.step * (self.size - 1))
         if self.is_descending:
             lo, hi = hi, lo
-        
+
         # read-only array with the correct dtype
         bounds = np.array([lo, hi], dtype=self.dtype)
         bounds.setflags(write=False)
@@ -243,12 +244,12 @@ class UniformCoordinates1d(Coordinates1d):
         # point ctypes, just use bounds
         if self.ctype == 'point':
             return self.bounds
-        
+
         # segment ctypes, with explicit extents
         if self.extents is not None:
             return self.extents
 
-        # segment ctypes, calculated            
+        # segment ctypes, calculated
         lo, hi = self.bounds
         if self.ctype == 'left':
             hi = add_coord(hi, np.abs(self.step))
@@ -265,7 +266,7 @@ class UniformCoordinates1d(Coordinates1d):
         return area_bounds
 
     @property
-    def json(self):
+    def definition(self):
         d = OrderedDict()
         if self.dtype == float:
             d['start'] = self.start
@@ -283,6 +284,8 @@ class UniformCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     def select(self, bounds, outer=False, return_indices=False):
+        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
+
         # full
         if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
             return self._select_full(return_indices)
@@ -295,7 +298,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         lo = max(bounds[0], self.bounds[0])
         hi = min(bounds[1], self.bounds[1])
-        
+
         imin = int(np.ceil((lo - self.bounds[0]) / np.abs(self.step)))
         imax = int(np.floor((hi - self.bounds[0]) / np.abs(self.step)))
 
@@ -305,7 +308,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         imax = np.clip(imax+1, 0, self.size)
         imin = np.clip(imin, 0, self.size)
-        
+
         # empty case
         if imin >= imax:
             return self._select_empty(return_indices)
@@ -316,7 +319,7 @@ class UniformCoordinates1d(Coordinates1d):
         start = self.start + imin*self.step
         stop = self.start + (imax-1)*self.step
         c = UniformCoordinates1d(start, stop, self.step, **self.properties)
-        
+
         if return_indices:
             return c, slice(imin, imax)
         else:

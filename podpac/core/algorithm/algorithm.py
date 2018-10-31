@@ -4,6 +4,7 @@ Algorithm Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+from collections import OrderedDict
 import inspect
 import numpy as np
 import xarray as xr
@@ -17,6 +18,7 @@ ne = optional_import('numexpr')
 
 # Internal dependencies
 from podpac.core.coordinates import Coordinates, union
+from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.utils import common_doc
@@ -30,57 +32,83 @@ class Algorithm(Node):
     ------
     Developers of new Algorithm nodes need to implement the `algorithm` method. 
     """
-    
+
+    @property
+    def _inputs(self):
+        # this first version is nicer, but the gettattr(self, ref) can take a
+        # a long time if it is has a default value or is a property
+
+        # return = {
+        #     ref:getattr(self, ref)
+        #     for ref in self.trait_names()
+        #     if isinstance(getattr(self, ref, None), Node)
+        # }
+        
+        return {
+            ref:getattr(self, ref)
+            for ref, trait in self.traits().items()
+            if hasattr(trait, 'klass') and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
+        }
+
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
-        """Executes this nodes using the supplied coordinates. 
+    def eval(self, coordinates, output=None):
+        """Evalutes this nodes using the supplied coordinates. 
         
         Parameters
         ----------
         coordinates : podpac.Coordinates
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
-            {execute_out}
-        method : str, optional
-            {execute_method}
+            {eval_output}
         
         Returns
         -------
-        {execute_return}
+        {eval_return}
         """
-        self.requested_coordinates = coordinates
-        self.output = output
 
-        coords_list = [coordinates]
-        for name in self.trait_names():
-            node = getattr(self, name)
-            if isinstance(node, Node):
-                if self.implicit_pipeline_evaluation:
-                    node.execute(coordinates, method)
-                coords_list.append(Coordinates.from_xarray(node.output.coords))
-        coords = union(coords_list)
+        self._requested_coordinates = coordinates
 
-        result = self.algorithm()
-        if isinstance(result, np.ndarray):
-            if self.output is None:
-                self.output = self.initialize_coord_array(coords)
-            self.output.data[:] = result
-        else:
-            dims = [d for d in self.requested_coordinates.dims if d in result.dims]
-            if self.output is None:
-                coords = Coordinates.from_xarray(result.coords)
-                self.output = self.initialize_coord_array(coords)
-            self.output[:] = result
-            self.output = self.output.transpose(*dims) # split into 2nd line to avoid broadcasting issues with slice [:]
-        self.evaluated = True
-        return self.output
+        inputs = {}
+        for key, node in self._inputs.items():
+            inputs[key] = node.eval(coordinates)
         
-    def algorithm(self, **kwargs):
+        # accumulate output coordinates
+        coords_list = [Coordinates.from_xarray(a.coords) for a in inputs.values()]
+        output_coordinates = union([coordinates] + coords_list)
+
+        result = self.algorithm(inputs)
+        if isinstance(result, np.ndarray):
+            if output is None:
+                output = self.create_output_array(output_coordinates)
+            output.data[:] = result
+        else:
+            if output is None:
+                output_coordinates = Coordinates.from_xarray(result.coords)
+                output = self.create_output_array(output_coordinates)
+            output[:] = result
+            output = output.transpose(*[dim for dim in coordinates.dims if dim in result.dims])
+
+        self._output = output
+        return output
+
+    def find_coordinates(self):
         """
-        Parameters
+        Get the available native coordinates for the inputs to the Node.
+
+        Returns
+        -------
+        coords_list : list
+            list of available coordinates (Coordinate objects)
+        """
+
+        return [c for node in self._inputs.values() for c in node.find_coordinates()]
+        
+    def algorithm(self, inputs):
+        """
+        Arguments
         ----------
-        **kwargs
-            Key-word arguments for the algorithm
+        inputs : dict
+            Evaluated outputs of the input nodes. The keys are the attribute names.
         
         Raises
         ------
@@ -90,47 +118,39 @@ class Algorithm(Node):
         raise NotImplementedError
 
     @property
-    def definition(self):
-        """Pipeline node definition. 
+    def base_definition(self):
+        """Base node definition. 
 
         Returns
         -------
         OrderedDict
             Extends base description by adding 'inputs'
         """
-        d = self.base_definition()
-        
-        # this first version is nicer, but the gettattr(self, ref) can take a
-        # a long time if it is has a default value or is a property
 
-        # d['inputs'] = {
-        #     ref:getattr(self, ref)
-        #     for ref in self.trait_names()
-        #     if isinstance(getattr(self, ref, None), Node)
-        # }
-        
-        d['inputs'] = {
-            ref:getattr(self, ref)
-            for ref, trait in self.traits().items()
-            if hasattr(trait, 'klass') and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
-        }
-        
+        d = super(Algorithm, self).base_definition
+        inputs = self._inputs
+        d['inputs'] = OrderedDict([(key, inputs[key]) for key in sorted(inputs.keys())])
         return d
 
 class Arange(Algorithm):
     '''A simple test node that gives each value in the output a number.
     '''
 
-    def algorithm(self):
+    def algorithm(self, inputs):
         """Uses np.arange to give each value in output a unique number
         
+        Arguments
+        ---------
+        inputs : dict
+            Unused, should be empty for this algorithm.
+
         Returns
         -------
         UnitsDataArray
             A row-majored numbered array of the requested size. 
         """
-        out = self.initialize_output_array('ones')
-        return out * np.arange(out.size).reshape(out.shape)
+        data = np.arange(self._requested_coordinates.size).reshape(self._requested_coordinates.shape)
+        return self.create_output_array(self._requested_coordinates, data=data)
       
 
 class CoordData(Algorithm):
@@ -144,36 +164,46 @@ class CoordData(Algorithm):
     
     coord_name = tl.Unicode('').tag(attr=True)
 
-    def algorithm(self):
+    def algorithm(self, inputs):
         """Extract coordinate from request and makes data available.
         
+        Arguments
+        ----------
+        inputs : dict
+            Unused, should be empty for this algorithm.
+
         Returns
         -------
         UnitsDataArray
             The coordinates as data for the requested coordinate.
         """
         
-        if self.coord_name not in self.requested_coordinates.udims:
+        if self.coord_name not in self._requested_coordinates.udims:
             raise ValueError('Coordinate name not in evaluated coordinates')
        
-        c = self.requested_coordinates[self.coord_name]
+        c = self._requested_coordinates[self.coord_name]
         coords = Coordinates([c])
-        return self.initialize_coord_array(coords, init_type='data', fillval=c.coordinates)
+        return self.create_output_array(coords, data=c.coordinates)
 
 
 class SinCoords(Algorithm):
     """A simple test node that creates a data based on coordinates and trigonometric (sin) functions. 
     """
     
-    def algorithm(self):
+    def algorithm(self, inputs):
         """Computes sinusoids of all the coordinates. 
         
+        Arguments
+        ----------
+        inputs : dict
+            Unused, should be empty for this algorithm.
+
         Returns
         -------
         UnitsDataArray
             Sinusoids of a certain period for all of the requested coordinates
         """
-        out = self.initialize_output_array('ones')
+        out = self.create_output_array(self._requested_coordinates, data=1.0)
         crds = list(out.coords.values())
         try:
             i_time = list(out.coords.keys()).index('time')
@@ -231,8 +261,13 @@ class Arithmetic(Algorithm):
         if self.eqn == '':
             raise ValueError("Arithmetic eqn cannot be empty")
     
-    def algorithm(self):
-        """Summary
+    def algorithm(self, inputs):
+        """ Compute the algorithms equation
+
+        Attributes
+        ----------
+        inputs : dict
+            Evaluated outputs of the input nodes. The keys are the attribute names.
         
         Returns
         -------
@@ -243,8 +278,7 @@ class Arithmetic(Algorithm):
         eqn = self.eqn.format(**self.params)        
         
         fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
-          
-        res = xr.broadcast(*[getattr(self, f).output for f in fields])
+        res = xr.broadcast(*[inputs[f] for f in fields])
         f_locals = dict(zip(fields, res))
 
         if ne is None:
