@@ -116,28 +116,35 @@ class Lambda(Node):
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None):
         """
-        TODO: Docstring
+        Evaluate the source node on the AWS Lambda Function at the given coordinates
         """
         d = self.definition
         d['coordinates'] = json.loads(coordinates.json)
+        filename = '%s%s_%s_%s.%s' % (
+            self.s3_json_folder,
+            self.source_output.name,
+            self.source_node.hash,
+            coordinates.hash,
+            'json')
         self.s3.put_object(
             Body=(bytes(json.dumps(d, indent=4).encode('UTF-8'))),
             Bucket=self.s3_bucket_name,
-            Key=self.s3_json_folder + self.source_output
-            .name + '.json'
+            Key=filename
         )
 
         waiter = self.s3.get_waiter('object_exists')
-        filename = '%s.%s' % (
+        filename = '%s%s_%s_%s.%s' % (
+            self.s3_output_folder,
             self.source_output.name,
+            self.source_node.hash,
+            coordinates.hash,
             self.source_output.format)
-        waiter.wait(Bucket=self.s3_bucket_name, Key=self.s3_output_folder +
-                    filename)
+        waiter.wait(Bucket=self.s3_bucket_name, Key=filename)
         # After waiting, load the pickle file like this:
         resource = boto3.resource('s3')
         with BytesIO() as data:
             # Get the bucket and file name programmatically - see above...
-            resource.Bucket(self.s3_bucket_name).download_fileobj(self.s3_output_folder + filename, data)
+            resource.Bucket(self.s3_bucket_name).download_fileobj(filename, data)
             data.seek(0)    # move back to the beginning after writing
             self._output = cPickle.load(data)
         return self._output
