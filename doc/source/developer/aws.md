@@ -21,7 +21,7 @@ We're now set up to create an AWS Lambda function "out of the box". Assuming you
       docker stop lambda
       docker rm lambda
       ```
-    - Upload package.zip (~63 MB) to S3.
+    - Upload package.zip (~67 MB) to S3.
     - Create a Lambda function from the AWS developer console
     - Copy the link address of package.zip from its S3 bucket, paste into the Lambda's "Function code" field
     - Set up any other Lambda properties you'd like. We use S3 triggers - the handler is triggered when pipeline JSON is uploaded to our S3 bucket
