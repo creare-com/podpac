@@ -6,7 +6,6 @@ import os
 import sys
 import urllib.parse as urllib
 from collections import OrderedDict
-from io import StringIO
 
 import boto3
 
@@ -39,13 +38,13 @@ def handler(event, context, ret_pipeline=False):
     sys.path.append(os.getcwd() + '/matplotlib/')
     import matplotlib
     matplotlib.use('agg')
+    from podpac import settings
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
-    pipeline = Pipeline(definition=pipeline_json)
-    pipeline.do_write_output = False
+    pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
     coords = Coordinates.from_json(
         json.dumps(_json['coordinates'], indent=4))
-    pipeline.execute(coords)
+    pipeline.eval(coords)
     if ret_pipeline:
         return pipeline
 
@@ -53,27 +52,15 @@ def handler(event, context, ret_pipeline=False):
         pipeline.pipeline_output.name,
         pipeline.pipeline_output.format)
 
-    body = cPickle.dumps(pipeline.output)
+    body = cPickle.dumps(pipeline._output)
     s3.put_object(Bucket=bucket_name,
-                  Key='output/' + filename, Body=body)
-    return img_response(pipeline.pipeline_output.image)
-
-
-def img_response(img):
-    return {
-        'statusCode': 200,
-        'headers': {
-            'Content-Type': 'image/png',
-            'Access-Control-Allow-Origin': '*',
-        },
-        'body': 'data:image/png;base64,' + str(img),
-        'isBase64Encoded': True,
-    }
+                  Key=settings.S3_OUTPUT_FOLDER + filename, Body=body)
+    return
 
 
 if __name__ == '__main__':
-    # Need to authorize our s3 client when running locally.
     from podpac import settings
+    # Need to authorize our s3 client when running locally.
     s3 = boto3.client('s3',
                       aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                       aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
@@ -83,7 +70,7 @@ if __name__ == '__main__':
         "Records": [{
             "s3": {
                 "object": {
-                    "key": "json/example.json"
+                    "key": "json/SinCoords.json"
                 },
                 "bucket": {
                     "name": "podpac-s3",
