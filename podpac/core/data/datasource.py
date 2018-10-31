@@ -6,7 +6,7 @@ including user defined data sources.
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
-
+from collections import OrderedDict
 import warnings
 
 import numpy as np
@@ -180,6 +180,39 @@ class DataSource(Node):
     def _default_interpolation(self):
         self._set_interpolation()
         return self._interpolation
+
+    @property
+    def interpolation_class(self):
+        """Get the interpolation class currently set for this data source.
+        
+        The DataSource `interpolation` property is used to define the
+        :ref:podpac.core.data.interpolate.Interpolation class that will handle interpolation for requested coordinates.
+        
+        Returns
+        -------
+        podpac.core.data.interpolate.Interpolation
+            Interpolation class defined by DataSource `interpolation` definition
+        """ 
+
+        return self._interpolation
+
+    @property
+    def interpolators(self):
+        """Return the interpolators selected for the previous node evaluation interpolation.
+        If the node has not been evaluated, or if interpolation was not necessary, this will return 
+        an empty OrderedDict
+        
+        Returns
+        -------
+        OrderedDict
+            Key are tuple of unstacked dimensions, the value is the interpolator used to interpolate these dimensions
+        """
+
+        if self._interpolation._last_interpolator_queue is not None:
+            return self._interpolation._last_interpolator_queue
+        else:
+            return OrderedDict()
+
 
     def __repr__(self):
         source_name = str(self.__class__.__name__)
@@ -380,20 +413,6 @@ class DataSource(Node):
         """
 
         return [self.native_coordinates]
-
-    def get_interpolation_class(self):
-        """Get the interpolation class currently set for this data source.
-        
-        The DataSource `interpolation` property is used to define the
-        :ref:podpac.core.data.interpolate.Interpolation class that will handle interpolation for requested coordinates.
-        
-        Returns
-        -------
-        podpac.core.data.interpolate.Interpolation
-            Interpolation class defined by DataSource `interpolation` definition
-        """
-
-        return self._interpolation
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):

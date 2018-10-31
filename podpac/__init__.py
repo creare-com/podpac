@@ -21,6 +21,7 @@ from podpac import settings
 # These files are simply wrappers to create a curated namespace of podpac modules
 from podpac import algorithm
 from podpac import data
+from podpac import interpolators
 from podpac import coordinates
 from podpac import compositor
 from podpac import pipeline

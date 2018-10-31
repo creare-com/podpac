@@ -2,6 +2,8 @@
 Test podpac.core.data.datasource module
 """
 
+from collections import OrderedDict
+
 import pytest
 
 import numpy as np
@@ -14,6 +16,7 @@ from podpac.core.node import COMMON_NODE_DOC, NodeException
 from podpac.core.style import Style
 from podpac.core.coordinates import Coordinates, clinspace, crange
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
+from podpac.core.data.interpolate import Interpolation, Interpolator
 
 class MockArrayDataSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
@@ -134,6 +137,29 @@ class TestDataSource(object):
         node = MyDataSource(source='test')
         with pytest.raises(NodeException, match="The 'source' property cannot be tagged as an 'attr'"):
             node.base_definition
+
+    def test_interpolation_class(self):
+        node = DataSource(source='test', interpolation='max')
+        assert node.interpolation_class
+        assert isinstance(node.interpolation_class, Interpolation)
+        assert node.interpolation_class.definition == 'max'
+        assert isinstance(node.interpolation_class.config, OrderedDict)
+        assert ('default',) in node.interpolation_class.config
+
+    def test_interpolators(self):
+        node = MockDataSource()
+        node.eval(node.native_coordinates)
+
+        assert isinstance(node.interpolators, OrderedDict)
+
+        # when no interpolation happens, this returns as an empty ordered dict
+        assert not node.interpolators
+
+        # when interpolation happens, this is filled
+        node.eval(Coordinates([clinspace(-11, 11, 7), clinspace(-11, 11, 7)], dims=['lat', 'lon']))
+        assert 'lat' in list(node.interpolators.keys())[0]
+        assert 'lon' in list(node.interpolators.keys())[0]
+        assert isinstance(list(node.interpolators.values())[0], Interpolator)
 
     def test_evaluate_at_native_coordinates(self):
         """evaluate node at native coordinates"""
