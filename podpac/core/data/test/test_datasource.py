@@ -4,13 +4,13 @@ Test podpac.core.data.datasource module
 
 import pytest
 
-from traitlets import TraitError
 import numpy as np
-from xarray.core.coordinates import DataArrayCoordinates
+import traitlets as tl
 import xarray as xr
+from xarray.core.coordinates import DataArrayCoordinates
 
 from podpac.core.units import UnitsDataArray
-from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import COMMON_NODE_DOC, NodeException
 from podpac.core.style import Style
 from podpac.core.coordinates import Coordinates, clinspace, crange
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
@@ -83,7 +83,7 @@ class TestDataSource(object):
         node = DataSource(source='test', native_coordinates=nc)
         assert node.native_coordinates is not None
         
-        with pytest.raises(TraitError):
+        with pytest.raises(tl.TraitError):
             DataSource(source='test', native_coordinates='not a coordinate')
         
         with pytest.raises(NotImplementedError):
@@ -104,27 +104,36 @@ class TestDataSource(object):
         np.testing.assert_equal(node.native_coordinates['lat'].coordinates, nc['lat'].coordinates)
 
     def test_invalid_interpolation(self):
-        with pytest.raises(TraitError):
+        with pytest.raises(tl.TraitError):
             MockDataSource(interpolation='myowninterp')
 
     def test_invalid_nan_vals(self):
-        with pytest.raises(TraitError):
+        with pytest.raises(tl.TraitError):
             MockDataSource(nan_vals={})
 
-        with pytest.raises(TraitError):
+        with pytest.raises(tl.TraitError):
             MockDataSource(nan_vals=10)
 
     def test_base_definition(self):
         """Test definition property method"""
 
+        # TODO: add interpolation definition testing
+        
         node = DataSource(source='test')
         d = node.base_definition
 
         assert d
         assert 'node' in d
+        assert 'source' in d
+        assert 'interpolation' in d
         assert d['source'] == node.source
 
-        # TODO: add interpolation definition testing
+        class MyDataSource(DataSource):
+            source = tl.Unicode().tag(attr=True)
+
+        node = MyDataSource(source='test')
+        with pytest.raises(NodeException, match="The 'source' property cannot be tagged as an 'attr'"):
+            node.base_definition
 
     def test_evaluate_at_native_coordinates(self):
         """evaluate node at native coordinates"""

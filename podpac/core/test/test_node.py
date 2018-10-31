@@ -7,6 +7,7 @@ import six
 
 import pytest
 import numpy as np
+import xarray as xr
 from pint.errors import DimensionalityError
 from pint import UnitRegistry; ureg = UnitRegistry()
 import traitlets as tl
@@ -16,18 +17,18 @@ from podpac.core import common_test_utils as ctu
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node, NodeException
     
-class TestInit(object):
-    pass # TODO
-
-class TestNodeProperties(object):
+class TestNode(object):
     def test_base_ref(self):
         n = Node()
         assert isinstance(n.base_ref, str)
 
     def test_base_definition(self):
         class N(Node):
-            attr = tl.Int().tag(attr=True)
-        n = N(attr=7)
+            my_attr = tl.Int().tag(attr=True)
+            my_node_attr = tl.Instance(Node).tag(attr=True)
+        
+        a = Node()
+        n = N(my_attr=7, my_node_attr=a)
 
         d = n.base_definition
         assert isinstance(d, OrderedDict)
@@ -35,8 +36,40 @@ class TestNodeProperties(object):
         assert isinstance(d['node'], str)
         assert 'attrs' in d
         assert isinstance(d['attrs'], OrderedDict)
-        assert 'attr' in d['attrs']
-        assert d['attrs']['attr'] == 7
+        assert 'my_attr' in d['attrs']
+        assert d['attrs']['my_attr'] == 7
+        assert isinstance(d['lookup_attrs'], OrderedDict)
+        assert 'my_node_attr' in d['lookup_attrs']
+        assert d['lookup_attrs']['my_node_attr'] is a
+
+    def test_base_definition_array_attr(self):
+        class N(Node):
+            my_attr = tl.Instance(np.ndarray).tag(attr=True)
+
+        node = N(my_attr=np.ones((2, 3, 4)))
+        d = node.base_definition
+        my_attr = np.array(d['attrs']['my_attr'])
+        np.testing.assert_array_equal(my_attr, node.my_attr)
+
+    def test_base_definition_coordinates_attr(self):
+        class N(Node):
+            my_attr = tl.Instance(podpac.Coordinates).tag(attr=True)
+
+        node = N(my_attr=podpac.Coordinates([[0, 1], [1, 2, 3]], dims=['lat', 'lon']))
+        d = node.base_definition
+        my_attr = podpac.Coordinates.from_definition(d['attrs']['my_attr'])
+        
+        # TODO this shouldn't raise an exception an more once __eq__ is merged in
+        with pytest.raises(AssertionError):
+            assert my_attr == node.my_attr
+
+    def test_base_definition_unserializable(self):
+        class N(Node):
+            my_attr = tl.Instance(xr.DataArray).tag(attr=True)
+
+        node = N(my_attr=xr.DataArray([0, 1]))
+        with pytest.raises(NodeException, match="Cannot serialize attr 'my_attr'"):
+            node.base_definition
 
     def test_definition(self):
         n = Node()
@@ -77,7 +110,7 @@ class TestNodeProperties(object):
 
         # check that the arange refs are unique
         assert len(pipeline.nodes) == 4
-    
+        
     def test_pipeline(self):
         n = Node()
         p = n.pipeline
@@ -85,28 +118,32 @@ class TestNodeProperties(object):
     
     def test_json(self):
         n = Node()
+
         s = n.json
+        assert isinstance(s, str)
+        json.loads(s)
+
+        s = n.json_pretty
         assert isinstance(s, str)
         json.loads(s)
 
     def test_hash(self):
         class N(Node):
-            attr = tl.Int().tag(attr=True)
+            my_attr = tl.Int().tag(attr=True)
 
         class M(Node):
-            attr = tl.Int().tag(attr=True)
+            my_attr = tl.Int().tag(attr=True)
 
-        n1 = N(attr=1)
-        n2 = N(attr=1)
-        n3 = N(attr=2)
-        m1 = M(attr=1)
+        n1 = N(my_attr=1)
+        n2 = N(my_attr=1)
+        n3 = N(my_attr=2)
+        m1 = M(my_attr=1)
 
         assert n1.hash == n2.hash
         assert n1.hash != n3.hash
         assert n1.hash != m1.hash
 
-class TestNotImplementedMethods(object):
-    def test_eval(self):
+    def test_eval_not_implemented(self):
         n = Node()
         with pytest.raises(NotImplementedError):
             n.eval(None)
@@ -114,10 +151,35 @@ class TestNotImplementedMethods(object):
         with pytest.raises(NotImplementedError):
             n.eval(None, output=None)
 
-    def test_find_coordinates(self):
+    def test_find_coordinates_not_implemented(self):
         n = Node()
         with pytest.raises(NotImplementedError):
             n.find_coordinates()
+
+    def test_eval_group(self):
+        class MyNode(Node):
+            def eval(self, coordinates, output=None):
+                return self.create_output_array(coordinates)
+
+        c1 = podpac.Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
+        c2 = podpac.Coordinates([[10, 11], [10, 11, 12]], dims=['lat', 'lon'])
+        g = podpac.coordinates.GroupCoordinates([c1, c2])
+
+        n = MyNode()
+        outputs = n.eval_group(g)
+        assert isinstance(outputs, list)
+        assert len(outputs) == 2
+        assert isinstance(outputs[0], UnitsDataArray)
+        assert isinstance(outputs[1], UnitsDataArray)
+        assert outputs[0].shape == (2, 2)
+        assert outputs[1].shape == (2, 3)
+
+        # invalid
+        with pytest.raises(Exception):
+            n.eval_group(c1)
+
+        with pytest.raises(Exception):
+            n.eval(g)
 
 class TestCreateOutputArray(object):
     @classmethod

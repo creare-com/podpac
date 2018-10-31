@@ -69,7 +69,7 @@ class Compositor(Node):
     sources = tl.Instance(np.ndarray)
     cache_native_coordinates = tl.Bool(True)
     
-    interpolation = tl.Unicode('').tag(attr=True)
+    interpolation = tl.Unicode('')
    
     threaded = tl.Bool(False)
     n_threads = tl.Int(10)
@@ -245,6 +245,7 @@ class Compositor(Node):
         """
         d = super(Compositor, self).base_definition
         d['sources'] = self.sources
+        d['interpolation'] = self.interpolation
         return d
 
 

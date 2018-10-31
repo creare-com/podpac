@@ -8,7 +8,7 @@ Test interpolation methods
 from collections import OrderedDict
 
 import pytest
-from traitlets import TraitError
+import traitlets as tl
 import numpy as np
 
 from podpac.core.units import UnitsDataArray
@@ -214,7 +214,7 @@ class TestInterpolation(object):
         assert interp._config[('default',)]['interpolators'][0].spatial_tolerance == 1
 
         # should throw TraitErrors defined by Interpolator
-        with pytest.raises(TraitError):
+        with pytest.raises(tl.TraitError):
             Interpolation({
                 'default': {
                     'method': 'nearest',
@@ -628,7 +628,7 @@ class TestInterpolators(object):
             node = MockArrayDataSource(source=source, native_coordinates=coords_src)
 
             # make sure it raises trait error
-            with pytest.raises(TraitError):
+            with pytest.raises(tl.TraitError):
                 node.interpolation = 'myowninterp'
                 output = node.eval(coords_dst)
 
