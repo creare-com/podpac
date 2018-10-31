@@ -9,6 +9,8 @@ from podpac.core.cache.cache import CacheCtrl
 from podpac.core.cache.cache import CacheStore
 from podpac.core.cache.cache import DiskCacheStore
 from podpac.core.cache.cache import CacheException
+from podpac.core.cache.cache import CacheListing
+from podpac.core.cache.cache import CachePickleContainer
 
 from podpac.core.data.types import Array
 from podpac.core.coordinates.coordinates import Coordinates
@@ -170,6 +172,35 @@ def test_two_different_nodes_put_and_one_node_removes_all():
                 assert cache.has(node=persistent_node, key=persistent_node_key, coordinates=None)
     cache.rem()
 
+def test_put_something_new_into_existing_file():
+    lat = np.random.rand(3)
+    lon = np.random.rand(4)
+    dummy_coords = Coordinates([lat,lon],['lat','lon'])
+    dummy_node = Array(source=np.random.random_sample(dummy_coords.shape), native_coordinates=dummy_coords)
+    dummy_node_din = np.random.rand(6,7,8)
+    dummy_node_key = "key"
+    disk_stores = [c for c in cache._cache_stores if type(c) is DiskCacheStore]
+    for coord_f in coord_funcs:
+        for node_f in node_funcs:
+            for data_f in data_funcs:
+                c1,c2 = coord_f(),coord_f()
+                n1,n2 = node_f(), node_f()
+                din = data_f()
+                k = "key"
+                assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
+                for store in disk_stores:
+                    store.make_cache_dir(node=n1)
+                    path = store.cache_path(node=n1, key=k, coordinates=c1)
+                    listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
+                    CachePickleContainer(listings=[listing]).save(path)
+                assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
+                cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
+                assert cache.has(node=n1, key=k, coordinates=c1, mode='all')
+                dout = cache.get(node=n1, key=k, coordinates=c1, mode='all')
+                assert (din == dout).all()
+                dout = cache.get(node=n2, key=k, coordinates=c2, mode='all')
+                assert (din == dout).all()
+                cache.rem()
 
 def test_put_and_get_array_datasource_output():
     lat = [0, 1, 2]

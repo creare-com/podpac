@@ -359,10 +359,14 @@ class DiskCacheStore(CacheStore):
                         c.save(p)
                         return True
                 raise CacheException("Data is cached, but unable to find for update.")
+        # listing does not exist in cache
         path = self.cache_path(node, key, coordinates)
+        # if file for listing already exists, listing needs to be added to file
         if os.path.exists(path):
             c = CachePickleContainer.load(path)
             c.put(listing)
+            c.save(path)
+        # if file for listing does not already exist, we need to create a new container, add the listing, and save to file
         else:
             CachePickleContainer(listings=[listing]).save(path)
         return True
