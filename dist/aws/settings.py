@@ -14,7 +14,6 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import os
 
-S3_BUCKET_NAME = None
 CACHE_TO_S3 = False
 #TODO for now we'll just cache in /tmp/, but this will change with the new caching spec.
 ROOT_PATH = "/tmp/"
@@ -23,8 +22,8 @@ AWS_ACCESS_KEY_ID = None
 AWS_SECRET_ACCESS_KEY = None
 AWS_REGION_NAME = None
 S3_BUCKET_NAME = None
-S3_JSON_FOLDER = None
-S3_OUTPUT_FOLDER = None
+S3_JSON_FOLDER = 'json/'
+S3_OUTPUT_FOLDER = 'output/'
 
 
 
