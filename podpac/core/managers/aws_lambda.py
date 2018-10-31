@@ -105,30 +105,23 @@ class Lambda(Node):
     @property
     def definition(self):
         """
-        TOOD: Fill this out.
+        The definition of this manager is the aggregation of the source node
+        and source output.
         """
-        return self.source_node.definition
-
-    @property
-    def pipeline_definition(self):
-        _definition = OrderedDict()
-        _definition['pipeline'] = self.source_node.pipeline_definition
-        _definition['pipeline']['output'] = self.source_output.pipeline_definition
-        return _definition
-
-    @property
-    def pipeline_json(self):
-        return json.dumps(self.pipeline_definition, indent=4)
+        d = OrderedDict()
+        d['pipeline'] = self.source_node.definition
+        d['pipeline']['output'] = self.source_output.definition
+        return d
 
     @common_doc(COMMON_DOC)
-    def execute(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """
         TODO: Docstring
         """
-        _definition = self.pipeline_definition
-        _definition['coordinates'] = json.loads(coordinates.json)
+        d = self.definition
+        d['coordinates'] = json.loads(coordinates.json)
         self.s3.put_object(
-            Body=(bytes(json.dumps(_definition, indent=4).encode('UTF-8'))),
+            Body=(bytes(json.dumps(d, indent=4).encode('UTF-8'))),
             Bucket=self.s3_bucket_name,
             Key=self.s3_json_folder + self.source_output
             .name + '.json'
@@ -146,5 +139,5 @@ class Lambda(Node):
             # Get the bucket and file name programmatically - see above...
             resource.Bucket(self.s3_bucket_name).download_fileobj(self.s3_output_folder + filename, data)
             data.seek(0)    # move back to the beginning after writing
-            self.output = cPickle.load(data)
-        return self.output
+            self._output = cPickle.load(data)
+        return self._output

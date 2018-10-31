@@ -57,7 +57,7 @@ class Output(tl.HasTraits):
         raise NotImplementedError
 
     @property
-    def pipeline_definition(self):
+    def definition(self):
         d = OrderedDict()
         for key, value in self.traits().items():
             if value.metadata.get('attr', False):
