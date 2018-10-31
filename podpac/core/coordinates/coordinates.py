@@ -26,7 +26,7 @@ from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 class OrderedDictTrait(tl.Dict):
     """ OrderedDict trait for Python < 3.6 (including Python 2) compatibility """
-    
+
     default_value = OrderedDict()
     def validate(self, obj, value):
         if not isinstance(value, OrderedDict):
@@ -37,7 +37,7 @@ class OrderedDictTrait(tl.Dict):
 class Coordinates(tl.HasTraits):
     """
     Multidimensional Coordinates.
-    
+
     Attributes
     ----------
     coords
@@ -110,7 +110,7 @@ class Coordinates(tl.HasTraits):
         #         c.coord_ref_sys = coord_ref_sys
         #     if 'units' not in c._trait_values and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
         #         c.units = distance_units
-        
+
         super(Coordinates, self).__init__(_coords=dcoords)
 
     @tl.validate('_coords')
@@ -170,17 +170,17 @@ class Coordinates(tl.HasTraits):
     def from_xarray(cls, xcoord, coord_ref_sys=None, ctype=None, distance_units=None):
         """
         Convert an xarray coord to podpac Coordinates.
-        
+
         Parameters
         ----------
         xcoord : DataArrayCoordinates
             xarray coord attribute to convert
-        
+
         Returns
         -------
         coord : Coordinates
             podpact Coordinates object
-        
+
         Raises
         ------
         TypeError
@@ -201,12 +201,7 @@ class Coordinates(tl.HasTraits):
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
-<<<<<<< HEAD
-    def from_json(cls, d):
-        d = json.loads(d)
-=======
     def from_definition(cls, d):
->>>>>>> develop
         coords = []
         for elem in d:
             if isinstance(elem, list):
@@ -217,7 +212,7 @@ class Coordinates(tl.HasTraits):
                 c = ArrayCoordinates1d.from_definition(elem)
             else:
                 raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
-            
+
             coords.append(c)
 
         return cls(coords)
@@ -226,7 +221,7 @@ class Coordinates(tl.HasTraits):
     def from_json(cls, s):
         d = json.loads(s)
         return cls.from_definition(d)
-    
+
     # ------------------------------------------------------------------------------------------------------------------
     # standard dict-like methods
     # ------------------------------------------------------------------------------------------------------------------
@@ -263,7 +258,7 @@ class Coordinates(tl.HasTraits):
     def __setitem__(self, dim, c):
         if not dim in self.dims:
             raise KeyError("cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
-            
+
         # TODO allow setting an array (cast it to ArrayCoordinates1d)
         if not isinstance(c, BaseCoordinates):
             raise TypeError("todo")
@@ -273,17 +268,17 @@ class Coordinates(tl.HasTraits):
             c.name = dim
         elif c.name != dim:
             raise ValueError("dimension name mismatch, '%s' != '%s'" % (dim, c.name))
-        
+
         # TODO ctype, etc defaults
-        
+
         self._coords[dim] = c
-        
+
         # TODO we could also support setting individal coords in stacked coords
         # if dim in self.udims:
         #     for _c in self._coords.values():
         #         if isinstance(c, StackedCoordinates) and dim in c.dims:
         #             _c[dim] = c # this will validate the size
-        
+
         # TODO we could also support adding new coords (need to check for duplicate dimensions)
         # else:
         #     self._coords[dim] = c
@@ -358,7 +353,7 @@ class Coordinates(tl.HasTraits):
     def properties(self):
         '''
         Dictionary specifying the coordinate properties.
-        
+
         Returns
         -------
         TYPE
@@ -370,13 +365,13 @@ class Coordinates(tl.HasTraits):
         #     'coord_ref_sys': self.coord_ref_sys,
         #     'ctype': self.ctype
         # }
-        
+
         c = self[self.udims[0]]
         return {
             'coord_ref_sys': c.coord_ref_sys,
             'ctype': c.ctype
         }
-            
+
     # #@property
     # #def gdal_transform(self):
     #     if self['lon'].regularity == 'regular' and self['lat'].regularity == 'regular':
@@ -386,11 +381,11 @@ class Coordinates(tl.HasTraits):
     #     else:
     #         raise NotImplementedError
     #     return transform
-    
+
     @property
     def gdal_crs(self):
         """GDAL coordinate reference system.
-        
+
         Returns
         -------
         TYPE
@@ -400,7 +395,7 @@ class Coordinates(tl.HasTraits):
         # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
         # return GDAL_CRS[self.coord_ref_sys]
         return GDAL_CRS[self[self.udims[0]].coord_ref_sys]
-    
+
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
@@ -408,7 +403,7 @@ class Coordinates(tl.HasTraits):
     def drop(self, dims, ignore_missing=False):
         """
         Remove the given dimensions from the Coordinates.
-        
+
         Parameters
         ----------
         dims : str, list
@@ -481,7 +476,7 @@ class Coordinates(tl.HasTraits):
     def unstack(self):
         """
         Unstack the coordinates of all of the dimensions.
-        
+
         Returns
         -------
         unstacked : Coordinates
@@ -497,14 +492,14 @@ class Coordinates(tl.HasTraits):
     def iterchunks(self, shape, return_slices=False):
         """
         TODO
-        
+
         Parameters
         ----------
         shape : tuple
             TODO
         return_slice : boolean, optional
             Return slice in addition to Coordinates chunk.
-        
+
         Yields
         ------
         coords : Coordinates
@@ -512,7 +507,7 @@ class Coordinates(tl.HasTraits):
         slices : list
             slices for this Coordinates chunk, only if return_slices is True
         """
-        
+
         l = [[slice(i, i+n) for i in range(0, m, n)] for m, n in zip(self.shape, shape)]
         for slices in itertools.product(*l):
             coords = Coordinates([self._coords[dim][slc] for dim, slc in zip(self.dims, slices)])
@@ -524,7 +519,7 @@ class Coordinates(tl.HasTraits):
     def transpose(self, *dims, **kwargs):
         """
         Transpose (re-order) the Coordinates dimensions.
-              
+
         Parameters
         ----------
         in_place : boolean, optional
@@ -537,11 +532,11 @@ class Coordinates(tl.HasTraits):
         -------
         transposed : Coordinates
             The transposed Coordinates object.
-        
+
         See Also
         --------
         xarray.DataArray.transpose : return a transposed DataArray
-        
+
         """
 
         if len(dims) == 0:
