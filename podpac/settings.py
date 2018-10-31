@@ -14,7 +14,6 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import os
 
-S3_BUCKET_NAME = None
 CACHE_TO_S3 = False
 ROOT_PATH = None
 # Some settings for testing AWS Lambda function handlers locally
