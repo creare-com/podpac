@@ -200,6 +200,14 @@ def test_put_something_new_into_existing_file():
                 assert (din == dout).all()
                 dout = cache.get(node=n2, key=k, coordinates=c2, mode='all')
                 assert (din == dout).all()
+                cache.rem(node=n1, key=k, coordinates=c1, mode='all')
+                assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
+                for store in disk_stores:
+                    path = store.cache_path(node=n1, key=k, coordinates=c1)
+                    assert os.path.exists(path)
+                    c = CachePickleContainer.load(path)
+                    listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
+                    assert c.has(listing)
                 cache.rem()
 
 def test_put_and_get_array_datasource_output():
