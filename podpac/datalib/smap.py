@@ -401,7 +401,7 @@ class SMAPProperties(SMAPSource):
     """
     file_url_re = re.compile(r'SMAP.*_[0-9]{8}T[0-9]{6}_.*\.h5')
 
-    source = tl.Unicode().tag(attr=True)
+    source = tl.Unicode()
     @tl.default('source')
     def _property_source_default(self):
         v = _infer_SMAP_product_version('SPL4SMLM', SMAP_BASE_URL, self.auth_session)
@@ -915,20 +915,6 @@ class SMAP(podpac.compositor.OrderedCompositor):
             Description
         """
         return '{0}_{1}'.format(self.__class__.__name__, self.product)
-
-    @property
-    def base_definition(self):
-        """Summary
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        d = super(SMAP, self).base_definition
-        if self.interpolation:
-            d['attrs']['interpolation'] = self.interpolation
-        return d
 
     @property
     @common_doc(COMMON_DOC)

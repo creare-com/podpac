@@ -266,12 +266,35 @@ class Node(tl.HasTraits):
         else:
             d['plugin'] = self.__module__
             d['node'] = self.__class__.__name__
+        
         attrs = {}
+        lookup_attrs = {}
+
         for key, value in self.traits().items():
-            if value.metadata.get('attr', False):
-                attrs[key] = getattr(self, key)
+            if not value.metadata.get('attr', False):
+                continue
+
+            attr = getattr(self, key)
+
+            if isinstance(attr, Node):
+                lookup_attrs[key] = attr
+            elif isinstance(attr, np.ndarray):
+                attrs[key] = attr.tolist()
+            elif isinstance(attr, Coordinates):
+                attrs[key] = attr.definition
+            else:
+                try:
+                    json.dumps(attr)
+                except:
+                    raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
+                else:
+                    attrs[key] = attr
+
         if attrs:
             d['attrs'] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
+
+        if lookup_attrs:
+            d['lookup_attrs'] = OrderedDict([(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())])
 
         return d
 
@@ -296,6 +319,11 @@ class Node(tl.HasTraits):
 
             # get base definition and then replace nodes with references, adding nodes depth first
             d = node.base_definition
+            if 'source' in d:
+                if isinstance(d['source'], Node):
+                    d['source'] = add_node(d['source'])
+                elif isinstance(d['source'], np.ndarray):
+                    d['source'] = d['source'].tolist()
             if 'inputs' in d:
                 for key, input_node in d['inputs'].items():
                     if input_node is not None:
@@ -352,6 +380,10 @@ class Node(tl.HasTraits):
         This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to 
         share algorithms and pipelines, or run code on cloud services. 
         """
+        return json.dumps(self.definition)
+
+    @property
+    def json_pretty(self):
         return json.dumps(self.definition, indent=4)
 
     @property

@@ -128,7 +128,7 @@ class UniformCoordinates1d(Coordinates1d):
             return cls(items[0], items[1], step, **kwargs)
 
     @classmethod
-    def from_json(self, d):
+    def from_definition(cls, d):
         start = d.pop('start')
         stop = d.pop('stop')
         step = d.pop('step')
@@ -264,7 +264,8 @@ class UniformCoordinates1d(Coordinates1d):
         area_bounds.setflags(write=False)
         return area_bounds
 
-    def json(self):
+    @property
+    def definition(self):
         d = OrderedDict()
         if self.dtype == float:
             d['start'] = self.start

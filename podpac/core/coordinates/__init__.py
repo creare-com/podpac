@@ -11,5 +11,6 @@ from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.coordinates.coordinates import merge_dims, concat, union
+from podpac.core.coordinates.group_coordinates import GroupCoordinates
 
 from podpac.core.coordinates.cfunctions import crange, clinspace
