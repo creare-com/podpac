@@ -147,7 +147,7 @@ class CacheStore(object):
         return self.get_hash_val(hashable_repr)
 
     def hash_coordinates(self, coordinates):
-        hashable_repr = coordinates.json
+        hashable_repr = None if coordinates is None else coordinates.json
         return self.get_hash_val(hashable_repr)
 
     def hash_key(self, key):
