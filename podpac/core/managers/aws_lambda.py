@@ -8,11 +8,18 @@ from collections import OrderedDict
 import boto3
 import traitlets as tl
 
+from io import BytesIO
+
 from podpac import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.pipeline.output import FileOutput, Output
 # from podpac.core.pipeline import Pipeline
 from podpac.core.utils import common_doc
+
+try:
+    import cPickle  # Python 2.7
+except:
+    import _pickle as cPickle
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -127,19 +134,17 @@ class Lambda(Node):
             .name + '.json'
         )
 
-        # TODO: this waiter won't work anymore. Relies on properties only availlable
-        # after execution.
-        # waiter = self.s3.get_waiter('object_exists')
-        # waiter.wait(Bucket=self.s3_bucket_name, Key=self.s3_output_folder +
-        #             self.source_output.name + '.' + self.source_output.format)
-        # output_object = self.s3.get_object(Bucket=self.s3_bucket_name, Key=self.s3_output_folder +
-        #             self.source_output.name + '.' + self.source_output.format)
-
+        waiter = self.s3.get_waiter('object_exists')
+        filename = '%s.%s' % (
+            self.source_output.name,
+            self.source_output.format)
+        waiter.wait(Bucket=self.s3_bucket_name, Key=self.s3_output_folder +
+                    filename)
         # After waiting, load the pickle file like this:
-        # resource = boto3.resource('s3')
-        # with BytesIO() as data:
+        resource = boto3.resource('s3')
+        with BytesIO() as data:
             # Get the bucket and file name programmatically - see above...
-        #     resource.Bucket("podpac-s3").download_fileobj("output/SinCoords_-1516306591423835763_-90.0_-90.0_
-        #     x_90.0_90.0.pickle", data)
-        #     data.seek(0)    # move back to the beginning after writing
-        #     old_list = pickle.load(data)
+            resource.Bucket(self.s3_bucket_name).download_fileobj(self.s3_output_folder + filename, data)
+            data.seek(0)    # move back to the beginning after writing
+            self.output = cPickle.load(data)
+        return self.output

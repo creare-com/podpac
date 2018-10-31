@@ -49,10 +49,8 @@ def handler(event, context, ret_pipeline=False):
     if ret_pipeline:
         return pipeline
 
-    filename = '%s_%s_%s.%s' % (
+    filename = '%s.%s' % (
         pipeline.pipeline_output.name,
-        pipeline.pipeline_output.node.evaluated_hash,
-        pipeline.pipeline_output.node.latlon_bounds_str,
         pipeline.pipeline_output.format)
 
     body = cPickle.dumps(pipeline.output)
