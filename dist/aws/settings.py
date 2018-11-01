@@ -15,14 +15,16 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import os
 
 CACHE_TO_S3 = False
-ROOT_PATH = None
+#TODO for now we'll just cache in /tmp/, but this will change with the new caching spec.
+ROOT_PATH = "/tmp/"
 # Some settings for testing AWS Lambda function handlers locally
 AWS_ACCESS_KEY_ID = None
 AWS_SECRET_ACCESS_KEY = None
 AWS_REGION_NAME = None
 S3_BUCKET_NAME = None
-S3_JSON_FOLDER = None
-S3_OUTPUT_FOLDER = None
+S3_JSON_FOLDER = 'json/'
+S3_OUTPUT_FOLDER = 'output/'
+
 
 
 if S3_BUCKET_NAME and CACHE_TO_S3:

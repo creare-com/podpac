@@ -18,50 +18,25 @@ from io import BytesIO
 from collections import OrderedDict, defaultdict
 from six import string_types
 
-import bs4
+
 import numpy as np
 import traitlets as tl
 
+# Helper utility for optional imports
+from podpac.core.utils import optional_import
+
 # Optional dependencies
-try:
-    import pydap.client
-except ImportError:
-    pydap = None
-
-try:
-    import rasterio
-except ImportError:
-    rasterio = None
-
-    try:
-        from arcpy import RasterToNumPyArray
-    except ImportError:
-        RasterToNumPyArray = None
-    
-try:
-    import boto3
-except ImportError:
-    boto3 = None
-    
-try:
-    import requests
-except ImportError:
-    requests = None
-    try:
-        import urllib3
-    except ImportError:
-        urllib3 = None
-        
-    try:
-        import certifi
-    except ImportError:
-        certifi = None
-
+bs4 = optional_import('bs4')
 # Not used directly, but used indirectly by bs4 so want to check if it's available
-try:
-    import lxml
-except ImportError:
-    lxml = None
+lxml = optional_import('lxml')
+pydap = optional_import('pydap.client', return_root=True)
+rasterio = optional_import('rasterio')
+RasterToNumPyArray = optional_import('arcpy.RasterToNumPyArray')
+boto3 = optional_import('boto3')
+requests = optional_import('requests')
+# esri
+urllib3 = optional_import('urllib3')
+certifi = optional_import('certifi')
 
 # Internal dependencies
 from podpac import settings

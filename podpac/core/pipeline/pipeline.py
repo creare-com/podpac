@@ -29,6 +29,8 @@ class Pipeline(Node):
         dictionary of pipeline nodes
     pipeline_output : Output
         pipeline output
+    do_write_output : Bool
+        True to call pipeline_output.write() on execute, false otherwise.
     """
 
     path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
@@ -36,19 +38,20 @@ class Pipeline(Node):
     definition = tl.Instance(OrderedDict, help="pipeline definition")
     nodes = tl.Instance(OrderedDict, help="pipeline nodes")
     pipeline_output = tl.Instance(Output, help="pipeline output")
-    
+    do_write_output = tl.Bool(True)
+
     @property
     def units(self):
         return self.pipeline_output.node.units
-    
+
     @property
     def dtype(self):
         return self.pipeline_output.node.dtype
-    
+
     @property
     def cache_type(self):
         return self.pipeline_output.node.cache_type
-    
+
     @property
     def style(self):
         return self.pipeline_output.node.style
@@ -84,11 +87,12 @@ class Pipeline(Node):
         coordinates : TYPE
             Description
         """
-        
+
         self._requested_coordinates = coordinates
 
         output = self.pipeline_output.node.eval(coordinates, output)
-        self.pipeline_output.write(output, coordinates)
-        
+        if self.do_write_output:
+            self.pipeline_output.write(output, coordinates)
+
         self._output = output
         return output

@@ -2,14 +2,18 @@
 Pipeline output Summary
 """
 
-from __future__ import division, unicode_literals, print_function, absolute_import
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import warnings
+from collections import OrderedDict
+from io import BytesIO
 
 
 import os
 import traitlets as tl
 import numpy as np
+import traitlets as tl
 
 try:
     import cPickle  # Python 2.7
@@ -18,6 +22,7 @@ except:
 
 from podpac.core.node import Node
 from podpac.core.units import get_image
+
 
 class Output(tl.HasTraits):
     """
@@ -43,7 +48,7 @@ class Output(tl.HasTraits):
             Node evaluation output to write
         coordinates : Coordinates
             Evaluated coordinates.
-        
+
         Raises
         ------
         NotImplementedError
@@ -51,9 +56,20 @@ class Output(tl.HasTraits):
         """
         raise NotImplementedError
 
+    @property
+    def definition(self):
+        d = OrderedDict()
+        for key, value in self.traits().items():
+            if value.metadata.get('attr', False):
+                d[key] = getattr(self, key)
+        d['nodes'] = [self.name]
+        return d
+
+
 class NoOutput(Output):
     def write(self, output, coordinates):
         pass
+
 
 class FileOutput(Output):
     """Summary
@@ -65,11 +81,14 @@ class FileOutput(Output):
     outdir : TYPE
         Description
     """
-    
+
     outdir = tl.Unicode()
-    format = tl.CaselessStrEnum(values=['pickle', 'geotif', 'png'], default='pickle')
+    format = tl.CaselessStrEnum(
+        values=['pickle', 'geotif', 'png'], default_value='pickle').tag(attr=True)
+    mode = tl.Unicode(default_value="file").tag(attr=True)
 
     _path = tl.Unicode(allow_none=True, default_value=None)
+
     @property
     def path(self):
         return self._path
@@ -105,6 +124,7 @@ class FTPOutput(Output):
     user = tl.Unicode()
     pw = tl.Unicode()
 
+
 class S3Output(Output):
     """Summary
 
@@ -118,6 +138,7 @@ class S3Output(Output):
 
     bucket = tl.Unicode()
     user = tl.Unicode()
+
 
 class ImageOutput(Output):
     """Summary
@@ -133,10 +154,12 @@ class ImageOutput(Output):
         Description
     """
 
-    format = tl.CaselessStrEnum(values=['png'], default_value='png')
-    vmax = tl.CFloat(allow_none=True, default_value=np.nan)
-    vmin = tl.CFloat(allow_none=True, default_value=np.nan)
-    image = tl.Bytes(allow_none=True, default_value=None)
+    format = tl.CaselessStrEnum(
+        values=['png'], default_value='png').tag(attr=True)
+    mode = tl.Unicode(default_value="image").tag(attr=True)
+    vmax = tl.CFloat(allow_none=True, default_value=np.nan).tag(attr=True)
+    vmin = tl.CFloat(allow_none=True, default_value=np.nan).tag(attr=True)
+    image = tl.Instance(BytesIO, allow_none=True, default_value=None)
 
     # TODO: docstring?
     def write(self, output, coordinates):

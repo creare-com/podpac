@@ -36,10 +36,10 @@ class StackedCoordinates(BaseCoordinates):
             Default coordinates reference system (optional)
         """
 
-        
+
         if isinstance(coords, StackedCoordinates):
             coords = copy.deepcopy(coords._coords)
-        
+
         elif not isinstance(coords, (list, tuple)):
             raise TypeError("Unrecognized coords type '%s'" % type(coords))
 
@@ -52,7 +52,7 @@ class StackedCoordinates(BaseCoordinates):
                 c.coord_ref_sys = coord_ref_sys
             if 'units' not in c._trait_values and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
                 c.units = distance_units
-        
+
         super(StackedCoordinates, self).__init__(_coords=coords)
 
     @tl.validate('_coords')
@@ -65,14 +65,14 @@ class StackedCoordinates(BaseCoordinates):
         for i, c in enumerate(val):
             if c.size != val[0].size:
                 raise ValueError("mismatch size in stacked coords %d != %d at position %d" % (c.size, val[0].size, i))
-                
+
             if c.name is not None:
                 if c.name in names:
                     raise ValueError("duplicate dimension name '%s' in stacked coords at position %d" % (c.name, i))
                 names.append(c.name)
 
         return val
-    
+
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors
     # ------------------------------------------------------------------------------------------------------------------
@@ -81,17 +81,17 @@ class StackedCoordinates(BaseCoordinates):
     def from_xarray(cls, xcoord, coord_ref_sys=None, ctype=None, distance_units=None, **kwargs):
         """
         Convert an xarray coord to Stacked
-        
+
         Parameters
         ----------
         xcoord : DataArrayCoordinates
             xarray coord attribute to convert
-        
+
         Returns
         -------
         coord : Coordinates
             podpact Coordinates object
-        
+
         Raises
         ------
         TypeError
@@ -111,7 +111,7 @@ class StackedCoordinates(BaseCoordinates):
                 c = ArrayCoordinates1d.from_json(elem)
             else:
                 raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
-            
+
             coords.append(c)
 
         return cls(coords)
@@ -121,7 +121,7 @@ class StackedCoordinates(BaseCoordinates):
         if name is not None:
             c.name = name
         return c
-    
+
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods, tuple-like
     # ------------------------------------------------------------------------------------------------------------------
@@ -203,7 +203,7 @@ class StackedCoordinates(BaseCoordinates):
                 if isinstance(J, slice):
                     J = np.arange(self.size)[I]
                 I = [i for i in I if i in J]
-        
+
         # for consistency
         if isinstance(I, slice) and I.start == 0 and I.stop == self.size:
             I = slice(None, None)

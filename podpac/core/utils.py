@@ -6,13 +6,14 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import os
 import json
+import importlib
 
 import traitlets as tl
 import numpy as np
 
 def common_doc(doc_dict):
     """ Decorator: replaces commond fields in a function docstring
-    
+
     Parameters
     -----------
     doc_dict : dict
@@ -21,7 +22,7 @@ def common_doc(doc_dict):
     def _decorator(func):
         if func.__doc__ is None:
             return func
-        
+
         func.__doc__ = func.__doc__.format(**doc_dict)
         return func
     return _decorator
@@ -155,14 +156,14 @@ def load_setting(key, path=None):
 def trait_is_defined(obj, trait):
     """Utility method to determine if trait is defined on object without
     call to default (@tl.default)
-    
+
     Parameters
     ----------
     object : object
         Class with traits
     trait : str
         Class property to investigate
-    
+
     Returns
     -------
     bool
@@ -206,4 +207,9 @@ def optional_import(module_name, package=None, return_root=False):
             module = importlib.import_module(module_name)
     except ImportError:
         module = None
+    except AttributeError:
+        try: # Python 2.7
+            module = __import__(module_name)
+        except ImportError:
+            module = None
     return module
