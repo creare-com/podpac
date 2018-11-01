@@ -205,6 +205,11 @@ def optional_import(module_name, package=None, return_root=False):
             module = importlib.__import__(module_name)
         else:
             module = importlib.import_module(module_name)
-    except (ImportError, AttributeError):
+    except ImportError:
         module = None
+    except AttributeError:
+        try: # Python 2.7
+            module = __import__(module_name)
+        except ImportError:
+            module = None
     return module
