@@ -519,6 +519,7 @@ class TestInterpolators(object):
                 assert output.values[0, 0] == source[1, 1]
 
                 # stacked
+                # TODO: implement stacked handling
                 source = np.random.rand(5)
                 coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=['lat_lon'])
                 node = MockArrayDataSource(source=source, native_coordinates=coords_src)
@@ -528,10 +529,11 @@ class TestInterpolators(object):
                 }
                 coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=['lat_lon'])
                 
-                output = node.eval(coords_dst)
-                assert np.all(np.isnan(output.data))
+                with pytest.raises(InterpolationException):
+                    output = node.eval(coords_dst)
 
 
+                # TODO: implement stacked handling
                 # source = stacked, dest = unstacked
                 source = np.random.rand(5)
                 coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=['lat_lon'])
@@ -542,9 +544,10 @@ class TestInterpolators(object):
                 }
                 coords_dst = Coordinates([np.linspace(1, 9, 3), np.linspace(1, 9, 3)], dims=['lat', 'lon'])
 
-                output = node.eval(coords_dst)
-                assert np.all(np.isnan(output.data))
+                with pytest.raises(InterpolationException):
+                    output = node.eval(coords_dst)
 
+                # TODO: implement stacked handling
                 # source = unstacked, dest = stacked
                 source = np.random.rand(5, 5)
                 coords_src = Coordinates([np.linspace(0, 10, 5), np.linspace(0, 10, 5)], dims=['lat', 'lon'])
@@ -555,8 +558,8 @@ class TestInterpolators(object):
                 }
                 coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=['lat_lon'])
 
-                output = node.eval(coords_dst)
-                assert np.all(np.isnan(output.data))
+                with pytest.raises(InterpolationException):
+                    output = node.eval(coords_dst)
 
         def test_spatial_tolerance(self):
 
