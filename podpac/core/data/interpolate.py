@@ -151,8 +151,8 @@ INTERPOLATE_DOCS = {
         
         Returns
         -------
-        (podpac.core.coordinates.Coordinates, podpac.core.units.UnitDataArray, podpac.core.units.UnitDataArray)
-            returns the updated (source_coordinates, source_data, and output_data) of interpolated data
+        podpac.core.units.UnitDataArray
+            returns the updated output of interpolated data
         """
 }
 
@@ -373,7 +373,7 @@ class NearestNeighbor(Interpolator):
         # this transpose makes sure the source_data has the same dim order as the eval coordinates
         output_data.data = source_data.transpose(*indexers)
 
-        return source_coordinates, source_data, output_data
+        return output_data
 
 
 class NearestPreview(NearestNeighbor):
@@ -546,7 +546,7 @@ class Rasterio(Interpolator):
             else:
                 output_data.data[:] = destination[::-1, :]
 
-        return source_coordinates, source_data, output_data
+        return output_data
 
 
 class ScipyPoint(Interpolator):
@@ -623,7 +623,7 @@ class ScipyPoint(Interpolator):
             # and transpose back to the destination order
             output_data.data[:] = vals.transpose(*output_data.dims).data[:]
             
-            return source_coordinates, source_data, output_data
+            return output_data
 
 
         elif self._dim_in(['lat', 'lon'], eval_coordinates, unstacked=True):
@@ -640,7 +640,7 @@ class ScipyPoint(Interpolator):
             dims[dims.index(dst_order)] = order
             output_data.data[:] = vals.transpose(*dims).data[:]
             
-            return source_coordinates, source_data, output_data
+            return output_data
 
 
 class ScipyGrid(ScipyPoint):
@@ -743,7 +743,7 @@ class ScipyGrid(ScipyPoint):
             f = RectBivariateSpline(coords_i[0], coords_i[1], data, kx=max(1, order), ky=max(1, order))
             output_data.data[:] = f(coords_i_dst[1], coords_i_dst[0], grid=grid).reshape(output_data.shape)
 
-        return source_coordinates, source_data, output_data
+        return output_data
 
 
 class Radial(Interpolator):
@@ -1161,13 +1161,13 @@ class Interpolation():
         # short circuit if the source data and requested coordinates are of shape == 1
         if source_data.size == 1 and np.prod(eval_coordinates.shape) == 1:
             output_data[:] = source_data
-            return source_coordinates, source_data, output_data
+            return output_data
 
         # TODO: short circuit if source_coordinates contains eval_coordinates
         # short circuit if source and eval coordinates are the same
         if source_coordinates == eval_coordinates:
             output_data.data = source_data.data
-            return source_coordinates, source_data, output_data
+            return output_data
 
         interpolator_queue = \
             self._select_interpolator_queue(source_coordinates, eval_coordinates, 'can_interpolate', strict=True)
@@ -1175,15 +1175,15 @@ class Interpolation():
         # for debugging purposes, save the last defined interpolator queue
         self._last_interpolator_queue = interpolator_queue
 
-        # iterate through each dim tuple in the queue and 
+        # iterate through each dim tuple in the queue
         for udims in interpolator_queue:
             interpolator = interpolator_queue[udims]
 
-            # run interpolation - mutates outputs
-            source_coordinates, source_data, output_data = interpolator.interpolate(udims,
-                                                                                    source_coordinates,
-                                                                                    source_data,
-                                                                                    eval_coordinates,
-                                                                                    output_data)
+            # run interpolation
+            output_data = interpolator.interpolate(udims,
+                                                   source_coordinates,
+                                                   source_data,
+                                                   eval_coordinates,
+                                                   output_data)
 
-        return source_coordinates, source_data, output_data
+        return output_data

@@ -354,7 +354,7 @@ class TestInterpolation(object):
             dims_supported = ['lat', 'lon']
             def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
                 output_data = source_data
-                return source_coordinates, source_data, output_data
+                return output_data
 
         # test basic functionality
         reqcoords = Coordinates([[-.5, 1.5, 3.5], [.5, 2.5, 4.5]], dims=['lat', 'lon'])

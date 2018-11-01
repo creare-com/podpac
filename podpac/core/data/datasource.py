@@ -332,11 +332,10 @@ class DataSource(Node):
         output = output.transpose(*coordinates.dims)
 
         # interpolate data into output
-        self._requested_source_coordinates, self._requested_source_data, output = \
-            self._interpolation.interpolate(self._requested_source_coordinates,
-                                            self._requested_source_data,
-                                            coordinates,
-                                            output)
+        output = self._interpolation.interpolate(self._requested_source_coordinates,
+                                                 self._requested_source_data,
+                                                 coordinates,
+                                                 output)
 
         
         # save output to private for debugging
