@@ -1164,10 +1164,17 @@ class Interpolation():
             return output_data
 
         # TODO: short circuit if source_coordinates contains eval_coordinates
+        # this has to be done better...
         # short circuit if source and eval coordinates are the same
-        if source_coordinates == eval_coordinates:
-            output_data.data = source_data.data
-            return output_data
+        if not (set(source_coordinates.udims) - set(eval_coordinates.udims)):
+            eq = True
+            for udim in source_coordinates.udims:
+                if not np.all(source_coordinates[udim].coordinates == eval_coordinates[udim].coordinates):
+                    eq = False
+
+            if eq:
+                output_data.data = source_data.data
+                return output_data
 
         interpolator_queue = \
             self._select_interpolator_queue(source_coordinates, eval_coordinates, 'can_interpolate', strict=True)
