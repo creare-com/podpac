@@ -92,7 +92,7 @@ class TestCompositor(object):
         bnative = podpac.Coordinates([podpac.clinspace(-2, 3, 3), podpac.clinspace(-1, 4, 3)], dims=['lat', 'lon'])
         a = Array(source=np.random.rand(3), native_coordinates=anative)
         b = Array(source=np.random.rand(3, 3) + 2, native_coordinates=bnative)
-        c = OrderedCompositor(sources=np.array([a, b]), interpolation='bilinear')
+        c = OrderedCompositor(sources=np.array([a, b]), interpolation='nearest')
         coords = podpac.Coordinates([podpac.clinspace(-3, 4, 32), podpac.clinspace(-2, 5, 32)], dims=['lat', 'lon'])
         o = c.eval(coords)
         # Check that both data sources are being used in the interpolation
