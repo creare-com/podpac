@@ -48,8 +48,8 @@ def handler(event, context, ret_pipeline=False):
     if ret_pipeline:
         return pipeline
 
-    filename = file_key.replace('.json', '.pickle')
-    filename = filename.replace('json', pipeline.pipeline_output.format)
+    filename = file_key.replace('.json', pipeline.pipeline_output.format)
+    filename = filename.replace(settings.S3_JSON_FOLDER, settings.S3_OUTPUT_FOLDER)
 
     body = cPickle.dumps(pipeline._output)
     s3.put_object(Bucket=bucket_name,
