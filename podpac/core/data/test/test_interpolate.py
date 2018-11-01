@@ -587,7 +587,7 @@ class TestInterpolators(object):
 
             # unstacked 1D
             source = np.random.rand(5, 5)
-            coords_src = Coordinates([np.linspace(0, 10, 5), clinspace('2018-01-01', '2018-01-09', 5)], 
+            coords_src = Coordinates([np.linspace(0, 10, 5), clinspace('2018-01-01', '2018-01-09', 5)],
                                      dims=['lat', 'time'])
             node = MockArrayDataSource(source=source, native_coordinates=coords_src, interpolation={
                 'default': {
@@ -599,7 +599,7 @@ class TestInterpolators(object):
                 }
             })
 
-            coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9], clinspace('2018-01-01', '2018-01-09', 3)], 
+            coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9], clinspace('2018-01-01', '2018-01-09', 3)],
                                      dims=['lat', 'time'])
             output = node.eval(coords_dst)
 
@@ -618,11 +618,9 @@ class TestInterpolators(object):
 
             assert rasterio is not None
             
-            source = np.array([
-                [0, 1, 2, 4, 5],
-                [6, 7, 8, 9, 10],
-                [11, 12, 13, 14, 15]
-            ])
+            source = np.arange(0, 15)
+            source.resize((3, 5))
+
             coords_src = Coordinates([clinspace(0, 10, 3), clinspace(0, 10, 5)], dims=['lat', 'lon'])
             coords_dst = Coordinates([clinspace(1, 11, 3), clinspace(1, 11, 5)], dims=['lat', 'lon'])
 
@@ -636,8 +634,8 @@ class TestInterpolators(object):
 
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
-            assert output.data[0, 3] == 4.
-            assert output.data[0, 4] == 5.
+            assert output.data[0, 3] == 3.
+            assert output.data[0, 4] == 4.
 
             node.interpolation = {
                 'method': 'max',
@@ -646,8 +644,8 @@ class TestInterpolators(object):
             output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
-            assert output.data[0, 3] == 10.
-            assert output.data[0, 4] == 10.
+            assert output.data[0, 3] == 9.
+            assert output.data[0, 4] == 9.
 
 
             node.interpolation = {
@@ -658,7 +656,7 @@ class TestInterpolators(object):
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
             assert int(output.data[0, 0]) == 1
-            assert int(output.data[0, 4]) == 6
+            assert int(output.data[0, 4]) == 5
 
         def test_interpolate_rasterio_descending(self):
             """should handle descending"""
@@ -683,11 +681,9 @@ class TestInterpolators(object):
 
         def test_interpolate_scipy_grid(self):
 
-            source = np.array([
-                [0, 1, 2, 4, 5],
-                [6, 7, 8, 9, 10],
-                [11, 12, 13, 14, 15]
-            ])
+            source = np.arange(0, 25)
+            source.resize((5, 5))
+
             coords_src = Coordinates([clinspace(0, 10, 3), clinspace(0, 10, 5)], dims=['lat', 'lon'])
             coords_dst = Coordinates([clinspace(1, 11, 3), clinspace(1, 11, 5)], dims=['lat', 'lon'])
 
@@ -704,7 +700,9 @@ class TestInterpolators(object):
             assert np.all(output.lat.values == coords_dst.coords['lat'])
             print(output)
             assert output.data[0, 0] == 0.
-            assert output.data[0, 4] == 5.
+            assert output.data[0, 3] == 3.
+            assert output.data[1, 3] == 8.
+            assert np.isnan(output.data[0, 4])  # TODO: how to handle outside bounds
 
             node.interpolation = {
                 'method': 'cubic_spline',
@@ -723,8 +721,8 @@ class TestInterpolators(object):
             output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords['lat'])
-            assert int(output.data[0, 0]) == 1
-            assert int(output.data[0, 4]) == 6
+            assert int(output.data[0, 0]) == 2
+            assert int(output.data[4, 4]) == 24
 
         def test_interpolate_irregular_arbitrary_2dims(self):
             """ irregular interpolation """
@@ -734,7 +732,7 @@ class TestInterpolators(object):
             coords_src = Coordinates(
                 [clinspace(0, 10, 5), clinspace(0, 10, 5), [2, 3, 5]], dims=['lat', 'lon', 'time'])
             coords_dst = Coordinates(
-                [clinspace(2, 12, 5), clinspace(2, 12, 5), [2, 3, 5]], dims=['lat', 'lon', 'time'])
+                [clinspace(1, 11, 5), clinspace(1, 11, 5), [2.1, 3.1, 4.1]], dims=['lat', 'lon', 'time'])
             
             node = MockArrayDataSource(source=source, native_coordinates=coords_src, interpolation={
                 'method': 'nearest',
@@ -746,6 +744,8 @@ class TestInterpolators(object):
             assert np.all(output.lat.values == coords_dst.coords['lat'])
             assert np.all(output.lon.values == coords_dst.coords['lon'])
             assert np.all(output.time.values == coords_dst.coords['time'])
+
+            assert output.data[0, 0] == source[]
 
         def test_interpolate_irregular_arbitrary_descending(self):
             """should handle descending"""

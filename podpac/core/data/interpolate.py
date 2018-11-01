@@ -33,7 +33,7 @@ except:
 
 # podac imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates, ArrayCoordinates1d
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.utils import common_doc
 
 # common doc properties
@@ -42,11 +42,11 @@ INTERPOLATE_DOCS = {
         """
         method : str
             Current interpolation method to use in Interpolator (i.e. 'nearest').
-            This attribute is set during node evaluation when a new :ref:podpac.core.data.interpolate.Interpolation 
-            class is constructed. See the :ref:podpac.core.data.datasource.DataSource `interpolation` attribute for 
+            This attribute is set during node evaluation when a new :ref:podpac.core.data.interpolate.Interpolation
+            class is constructed. See the :ref:podpac.core.data.datasource.DataSource `interpolation` attribute for
             more information on specifying the interpolator method.
         dims_supported : list
-            List of unstacked dimensions supported by the interpolator. 
+            List of unstacked dimensions supported by the interpolator.
             This attribute should be defined by the implementing :ref:podpac.core.data.interpolate
             Used by private convience method :ref:self._filter_udims_supported
         """,
@@ -678,7 +678,6 @@ class ScipyGrid(ScipyPoint):
     """
     
     dims_supported = ['lat', 'lon']
-    spline_order = tl.Int(allow_none=True)
 
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
@@ -762,10 +761,11 @@ class ScipyGrid(ScipyPoint):
         # TODO: what methods is 'spline' associated with?
         elif 'spline' in self.method:
             if self.method == 'cubic_spline':
-                self.spline_order = 3
+                order = 3
             else:
                 # TODO: make this a parameter
                 order = int(self.method.split('_')[-1])
+
             f = RectBivariateSpline(coords_i[0], coords_i[1], data, kx=max(1, order), ky=max(1, order))
             output_data.data[:] = f(coords_i_dst[1], coords_i_dst[0], grid=grid).reshape(output_data.shape)
 
