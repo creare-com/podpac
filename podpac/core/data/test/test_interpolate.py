@@ -367,7 +367,7 @@ class TestInterpolation(object):
                                  dims=reqcoords.dims)
 
         interp = Interpolation({('lat', 'lon'): {'method': 'test', 'interpolators': [TestInterp]}})
-        srccoords, srcdata, outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
+        outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
 
@@ -387,7 +387,7 @@ class TestInterpolation(object):
                                  dims=reqcoords.dims)
 
         interp = Interpolation({('lat', 'lon'): {'method': 'test', 'interpolators': [TestFakeInterp]}})
-        srccoords, srcdata, outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
+        outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
 
