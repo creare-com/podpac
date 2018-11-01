@@ -233,24 +233,6 @@ class Interpolator(tl.HasTraits):
         
         return True
 
-    def _dim_stacked(self, udim, coords):
-        """Determine if udim is part of a stacked dim in input coords
-        
-        Parameters
-        ----------
-        udim : str
-            unstacked dimension to test
-        coords : podpac.core.coordinates.Coordinates
-            coordinates to test
-        
-        Returns
-        -------
-        Bool
-            True if the unstacked dim is part of a stacked dimension in coordinates
-
-        """
-        return udim not in coords.dims
-
     def _loop_helper(self, func, keep_dims, udims, 
                      source_coordinates, source_data, eval_coordinates, output_data, **kwargs):
         """Loop helper
@@ -309,8 +291,6 @@ class Interpolator(tl.HasTraits):
         """
         {interpolator_can_interpolate}
         """
-
-        # if dims_supported is defined, then try each dim and return False if one of the dims is not allowed
         return tuple()
 
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
@@ -327,7 +307,6 @@ class NearestNeighbor(Interpolator):
     dims_supported = ['lat', 'lon', 'alt', 'time']
     spatial_tolerance = tl.Float(default_value=np.inf)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
-
 
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
@@ -480,31 +459,24 @@ class Rasterio(Interpolator):
     rasterio_interpolators : list of str
         Interpolator methods available via rasterio
     """
-    dims_supported = ['lat', 'lon']
+
+    # TODO: implement these parameters for the method 'nearest'
+    spatial_tolerance = tl.Float(default_value=np.inf)
+    time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
     # TODO: support 'gauss' method?
 
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """{interpolator_can_interpolate}"""
 
-        udims_subset = self._filter_udims_supported(udims)
-
         # TODO: make this so we don't need to specify lat and lon together
         # or at least throw a warning
-        if 'lat' in udims_subset and 'lon' in udims_subset and \
+        if 'lat' in udims and 'lon' in udims and \
            self._dim_in(['lat', 'lon'], source_coordinates, eval_coordinates) and \
            source_coordinates['lat'].is_uniform and source_coordinates['lon'].is_uniform and \
            eval_coordinates['lat'].is_uniform and eval_coordinates['lon'].is_uniform:
 
-            return tuple(['lat', 'lon'])
-
-            # TODO: if we can handle less then lat an lon, use the following
-            # can_interpolate = []
-            # for dim in udims_subset:
-            #     if self._dim_in(dim, source_coordinates, eval_coordinates) and \
-            #         source_coordinates[dim].is_uniform and eval_coordinates[dim].is_uniform:
-            #         can_interpolate += [dim]
-            
+            return udims
         
         # otherwise return no supported dims
         return tuple()
@@ -584,23 +556,25 @@ class ScipyPoint(Interpolator):
     ----------
     {interpolator_attributes}
     """
-    dims_supported = ['lat', 'lon']
+
+    # TODO: implement these parameters for the method 'nearest'
+    spatial_tolerance = tl.Float(default_value=np.inf)
+    time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_interpolate}
         """
 
-        udims_subset = self._filter_udims_supported(udims)
-
         # TODO: make this so we don't need to specify lat and lon together
         # or at least throw a warning
-        if 'lat' in udims_subset and 'lon' in udims_subset and \
+        if 'lat' in udims and 'lon' in udims and \
             not self._dim_in(['lat', 'lon'], source_coordinates) and \
             self._dim_in(['lat', 'lon'], source_coordinates, unstacked=True) and \
             self._dim_in(['lat', 'lon'], eval_coordinates, unstacked=True):
 
             return tuple(['lat', 'lon'])
+
 
         # otherwise return no supported dims
         return tuple()
@@ -676,23 +650,23 @@ class ScipyGrid(ScipyPoint):
     ----------
     {interpolator_attributes}
     """
-    
-    dims_supported = ['lat', 'lon']
+
+    # TODO: implement these parameters for the method 'nearest'
+    spatial_tolerance = tl.Float(default_value=np.inf)
+    time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_interpolate}
         """
 
-        udims_subset = self._filter_udims_supported(udims)
-
         # TODO: make this so we don't need to specify lat and lon together
         # or at least throw a warning
-        if 'lat' in udims_subset and 'lon' in udims_subset and \
+        if 'lat' in udims and 'lon' in udims and \
             self._dim_in(['lat', 'lon'], source_coordinates) and \
             self._dim_in(['lat', 'lon'], eval_coordinates, unstacked=True):
 
-            return tuple(['lat', 'lon'])
+            return udims
 
         # otherwise return no supported dims
         return tuple()
@@ -1061,7 +1035,6 @@ class Interpolation():
             If `strict` is True, InterpolationException is raised when all dimensions cannot be handled
         """
         source_dims = set(source_coordinates.udims)
-        stacked_source_dims = set(source_coordinates.dims)
         handled_dims = set()
 
         interpolator_queue = OrderedDict()
@@ -1086,7 +1059,7 @@ class Interpolation():
                     break
 
                 # see which dims the interpolator can handle
-                can_handle = getattr(interpolator, select_method)(udims, eval_coordinates, source_coordinates)
+                can_handle = getattr(interpolator, select_method)(udims, source_coordinates, eval_coordinates)
 
                 # if interpolator can handle all udims
                 if not set(udims) - set(can_handle):
