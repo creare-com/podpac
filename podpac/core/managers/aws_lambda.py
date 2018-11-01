@@ -93,15 +93,6 @@ class Lambda(Node):
     def _s3_output_folder_default(self):
         return settings.S3_OUTPUT_FOLDER
 
-    def __init__(self, source_node):
-        super().__init__()
-        self.source_node = source_node
-        try:
-            self.s3 = boto3.client('s3')
-        except Exception as e:
-            print("Error when instantiating S3 boto3 client: %s" % str(e))
-            raise e
-
     @property
     def definition(self):
         """
@@ -126,13 +117,14 @@ class Lambda(Node):
             self.source_node.hash,
             coordinates.hash,
             'json')
-        self.s3.put_object(
+        s3 = boto3.client('s3')
+        s3.put_object(
             Body=(bytes(json.dumps(d, indent=4).encode('UTF-8'))),
             Bucket=self.s3_bucket_name,
             Key=filename
         )
 
-        waiter = self.s3.get_waiter('object_exists')
+        waiter = s3.get_waiter('object_exists')
         filename = '%s%s_%s_%s.%s' % (
             self.s3_output_folder,
             self.source_output.name,
