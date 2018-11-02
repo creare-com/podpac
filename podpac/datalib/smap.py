@@ -584,7 +584,10 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
             tol = np.timedelta64(1, dtype=(tol.dtype))
 
         src_objs = [
-            SMAPSource(source=b+s, interpolation_tolerance=tol, auth_session=self.auth_session, layerkey=self.layerkey)
+            SMAPSource(source=b+s, auth_session=self.auth_session, layerkey=self.layerkey, interpolation={
+                'method': 'nearest', 
+                'time_tolerance': tol
+            })
             for s in sources]
         return np.array(src_objs)
 
