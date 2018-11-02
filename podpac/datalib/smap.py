@@ -30,7 +30,7 @@ import traitlets as tl
 from podpac.core.utils import optional_import
 
 # Optional dependencies
-bs4 = optional_import('bs4.BeautifulSoup')
+bs4 = optional_import('bs4')
 
 # fixing problem with older versions of numpy
 if not hasattr(np, 'isnat'):
@@ -658,7 +658,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         """
         url = self.source
         r = _get_from_url(url, self.auth_session)
-        soup = BeautifulSoup(r.text, 'lxml')
+        soup = bs4.BeautifulSoup(r.text, 'lxml')
         a = soup.find_all('a')
         file_regex = self.file_url_re
         file_regex2 = self.file_url_re2
@@ -794,7 +794,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         return src_objs
 
     @common_doc(COMMON_DOC)
-    def get_native_coordinates(self):
+    def find_coordinates(self):
         '''
         {native_coordinates}
         
@@ -810,7 +810,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         complete_source_0 = self.sources[0].get_source_coordinates()['time'].coordinates
         offset = complete_source_0 - partial_sources[0]
         full_times = (partial_sources[:, None] + offset[None, :]).ravel()
-        return merge_dims([podpac.Coordinates([full_times], ['time']), shared])
+        return [merge_dims([podpac.Coordinates([full_times], ['time']), shared])]
 
     @common_doc(COMMON_DOC)
     def get_source_coordinates(self):
@@ -835,7 +835,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         """
         url = '/'.join([self.base_url, '%s.%03d' % (self.product, self.version)])
         r = _get_from_url(url, self.auth_session)
-        soup = BeautifulSoup(r.text, 'lxml')
+        soup = bs4.BeautifulSoup(r.text, 'lxml')
         a = soup.find_all('a')
         regex = self.date_url_re
         times = []
