@@ -168,7 +168,7 @@ SMAP_PRODUCT_DICT = {
     'SPL4SMGP':   ['cell_lat',             'cell_lon',                   'Geophysical_Data_',                 '{rdk}sm_surface'],
     'SPL3SMA':    ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture'],
     'SPL3SMAP':   ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture'],
-    'SPL3SMP':    ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}AM_soil_moisture'],
+    'SPL3SMP':    ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}_soil_moisture'],
     'SPL4SMLM':   ['cell_lat',             'cell_lon',                   'Land_Model_Constants_Data_',        ''],
     'SPL2SMAP_S': ['{rdk}latitude_1km',    '{rdk}longitude_1km',         'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km'],
 }
@@ -360,8 +360,8 @@ class SMAPSource(datatype.PyDAP):
                    if 'time' not in d])
         if 'SM_P_' in self.source:
             d = self.create_output_array(coordinates)
-            am_key = self.layerkey.format(rdk=self.rootdatakey + 'AM_')
-            pm_key = self.layerkey.format(rdk=self.rootdatakey + 'PM_') + '_pm'
+            am_key = self.layerkey.format(rdk=self.rootdatakey + 'AM')
+            pm_key = self.layerkey.format(rdk=self.rootdatakey + 'PM') + '_pm'
 
             try:
                 t = self.native_coordinates.coords['time'][0]
@@ -704,13 +704,20 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
             return times[I], latlons[I], sources[I]
         return times[I], None, sources[I]
 
-
     @property
     @common_doc(COMMON_DOC)
     def keys(self):
         """{keys}
         """
         return self.sources[0].keys
+    
+    @property
+    def base_definition(self):
+        """ Definition for SMAP node. Sources not required as these are computed.
+        """
+        d = super(podpac.compositor.Compositor, self).base_definition
+        d['interpolation'] = self.interpolation
+        return d    
 
 @common_doc(COMMON_DOC)
 class SMAP(podpac.compositor.OrderedCompositor):
@@ -923,6 +930,14 @@ class SMAP(podpac.compositor.OrderedCompositor):
             Description
         """
         return '{0}_{1}'.format(self.__class__.__name__, self.product)
+    
+    @property
+    def base_definition(self):
+        """ Definition for SMAP node. Sources not required as these are computed.
+        """
+        d = super(podpac.compositor.Compositor, self).base_definition
+        d['interpolation'] = self.interpolation
+        return d
 
     @property
     @common_doc(COMMON_DOC)
