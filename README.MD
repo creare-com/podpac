@@ -1,6 +1,6 @@
 # PODPAC 
 
-[![icon](doc/source/_static/img/icon-outline.png)](https://creare-com.github.io/podpac-docs)
+[![icon](doc/source/_static/img/icon.png)](https://creare-com.github.io/podpac-docs)
 
 > Pipeline for Observation Data Processing Analysis and Collaboration
 
