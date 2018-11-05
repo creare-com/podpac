@@ -157,6 +157,11 @@ def _infer_SMAP_product_version(product, base_url, auth_session):
         Authenticated EDS session
     """
     r = _get_from_url(base_url, auth_session)
+    if r.status_code != 200:
+        r = auth_session.get(url.replace('opendap/', ''))
+        if r.status_code != 200:
+            raise RuntimeError('HTTP error: <%d>\n' % (r.status_code)
+                               + r.text[:256])    
     m = re.search(product, r.text)
     return int(r.text[m.end() + 1: m.end() + 4])
 
@@ -207,6 +212,7 @@ try:
 except Exception as e:
     warnings.warn("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
 
+SMAP_BASE_URL_REGEX = re.compile(re.sub(r'\d', r'\\d', SMAP_BASE_URL.split('/')[2]))
 @common_doc(COMMON_DOC)
 class SMAPSource(datatype.PyDAP):
     """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how 
@@ -234,7 +240,7 @@ class SMAPSource(datatype.PyDAP):
     @tl.default('auth_session')
     def _auth_session_default(self):
         session = self.auth_class(
-            username=self.username, password=self.password)
+            username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX)
         # check url
         try:
             session.get(SMAP_BASE_URL)
@@ -512,7 +518,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
 
     @tl.default('auth_session')
     def _auth_session_default(self):
-        session = self.auth_class(username=self.username, password=self.password)
+        session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX)
         return session
 
     base_url = tl.Unicode(SMAP_BASE_URL).tag(attr=True)
@@ -755,7 +761,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
 
     @tl.default('auth_session')
     def _auth_session_default(self):
-        session = self.auth_class(username=self.username, password=self.password)
+        session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX)
         return session
 
     layerkey = tl.Unicode()
