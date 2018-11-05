@@ -527,41 +527,17 @@ class TestParsePipelineDefinition(object):
         assert nodes['sm'].product == "SPL4SMGP"
 
     def test_lookup_attrs(self):
-        # attr doesn't work
+        # attrs doesn't work
         s = '''
         {
             "nodes": {
-                "mysource": {
-                    "node": "data.DataSource"
+                "a": {
+                    "node": "algorithm.CoordData",
+                    "attrs": { "coord_name": "lat" }
                 },
-                "reprojected": {
-                    "node": "data.ReprojectedSource",
-                    "lookup_source": "mysource",
-                    "attrs": {
-                        "coordinates_source": "mysource"
-                    }
-                }
-            }
-        }
-        '''
-
-        d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(tl.TraitError):
-            parse_pipeline_definition(d)
-
-        # node
-        s = '''
-        {
-            "nodes": {
-                "mysource": {
-                    "node": "data.DataSource"
-                },
-                "reprojected": {
-                    "node": "data.ReprojectedSource",
-                    "lookup_source": "mysource",
-                    "lookup_attrs": {
-                        "coordinates_source": "mysource"
-                    }
+                "b": {
+                    "node": "algorithm.CoordData",
+                    "attrs": { "coord_name": "a.coord_name" }
                 }
             }
         }
@@ -569,9 +545,11 @@ class TestParsePipelineDefinition(object):
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         nodes, output = parse_pipeline_definition(d)
-        assert nodes['reprojected'].coordinates_source == nodes['mysource']
+        assert nodes['a'].coord_name == 'lat'
+        with pytest.raises(AssertionError):
+            assert nodes['b'].coord_name == 'lat'
 
-        # sub-attr
+        # but lookup_attrs does
         s = '''
         {
             "nodes": {
@@ -589,7 +567,30 @@ class TestParsePipelineDefinition(object):
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         nodes, output = parse_pipeline_definition(d)
-        assert nodes['a'].coord_name == nodes['b'].coord_name == 'lat'
+        assert nodes['a'].coord_name == 'lat'
+        assert nodes['b'].coord_name == 'lat'
+
+        # NOTE: no nodes currently have a Node as an attr
+        # # lookup node directly (instead of a sub-attr)
+        # s = '''
+        # {
+        #     "nodes": {
+        #         "mysource": {
+        #             "node": "data.DataSource"
+        #         },
+        #         "mynode": {
+        #             "node": "MyNode",
+        #             "lookup_attrs": {
+        #                 "my_node_attr": "mysource"
+        #             }
+        #         }
+        #     }
+        # }
+        # '''
+
+        # d = json.loads(s, object_pairs_hook=OrderedDict)
+        # nodes, output = parse_pipeline_definition(d)
+        # assert nodes['mynode'].my_node_attr is nodes['mysource']
 
         # nonexistent node/attribute references are tested in test_datasource_lookup_source
 
