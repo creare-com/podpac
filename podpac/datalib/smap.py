@@ -40,7 +40,7 @@ if not hasattr(np, 'isnat'):
 
 # Internal dependencies
 import podpac
-from podpac.core.coordinates import Coordinates, union, merge_dims
+from podpac.core.coordinates import Coordinates, union, merge_dims, concat
 from podpac.core.data import types as datatype
 from podpac.core import authentication
 from podpac.core.utils import common_doc
@@ -891,7 +891,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         self.cache_obj(coords, 'shared.coordinates')
         return coords
 
-    def get_partial_native_coordinates_sources(self):
+    def get_filename_coordinates_sources(self):
         """Returns coordinates solely based on the filenames of the sources. This function was motivated by the 
         SMAP-Sentinel product, which does not have regularly stored tiles (in space and time). 
 
@@ -908,8 +908,8 @@ class SMAP(podpac.compositor.OrderedCompositor):
         region specified by the user.
         """
         try:
-            return (self.load_cached_obj('partial_native.coordinates'),
-                    self.load_cached_obj('partial_native.sources'))
+            return (self.load_cached_obj('filename.coordinates'),
+                    self.load_cached_obj('filename.sources'))
         except:
             pass
 
@@ -917,13 +917,13 @@ class SMAP(podpac.compositor.OrderedCompositor):
         sources = [self.sources[0].sources]
         for s in self.sources[1:]:
             if np.prod(s.source_coordinates.shape) > 0:
-                crds = union([crds, s.source_coordinates])
+                crds = concat([crds, s.source_coordinates])
                 sources.append(s.sources)
         #if self.shared_coordinates is not None:
             #crds = crds + self.shared_coordinates
         sources = np.concatenate(sources)
-        self.cache_obj(crds, 'partial_native.coordinates')
-        self.cache_obj(sources, 'partial_native.sources')
+        self.cache_obj(crds, 'filename.coordinates')
+        self.cache_obj(sources, 'filename.sources')
         return crds, sources
 
     @property
