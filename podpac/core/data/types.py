@@ -31,6 +31,7 @@ bs4 = optional_import('bs4')
 lxml = optional_import('lxml')
 pydap = optional_import('pydap.client', return_root=True)
 rasterio = optional_import('rasterio')
+h5py = optional_import('h5py')
 RasterToNumPyArray = optional_import('arcpy.RasterToNumPyArray')
 boto3 = optional_import('boto3')
 requests = optional_import('requests')
@@ -416,9 +417,135 @@ class Rasterio(DataSource):
 
         return matches
 
+@common_doc(COMMON_DATA_DOC)
+class H5PY(DataSource):
+    """Create a DataSource node using h5py.
+    
+    Attributes
+    ----------
+    datakey : str
+        The 'key' for the data to be retrieved from the file. Datasource may have multiple keys, so this key
+        determines which variable is returned from the source.
+    dataset : h5py.File
+        The h5py File object used for opening the file
+    native_coordinates : Coordinates
+        {native_coordinates}
+    source : str
+        Path to the data source
+    latkey : str
+        The 'key' for the data that described the latitude coordinate of the data
+    lonkey : str 
+        The 'key' for the data that described the longitude coordinate of the data
+    timekey : str 
+        The 'key' for the data that described the time coordinate of the data
+    altkey : str
+        The 'key' for the data that described the altitude coordinate of the data
+    """
+    
+    source = tl.Unicode(allow_none=False)
+    dataset = tl.Any(allow_none=True)
+    datakey = tl.Unicode(allow_none=False).tag(attr=True)
+    latkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    lonkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    timekey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    altkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    
+    @tl.default('dataset')
+    def open_dataset(self, source=None):
+        """Opens the data source
+        
+        Parameters
+        ----------
+        source : str, optional
+            Uses self.source by default. Path to the data source.
+        
+        Returns
+        -------
+        Any
+            raster.open(source)
+        """
+        if source is None:
+            source = self.source
+        else:
+            self.source = source
+
+        # TODO: dataset should not open by default
+        # prefer with as: syntax
+        return h5py.File(source)
+    
+    def close_dataset(self):
+        """Closes the file for the datasource
+        """
+        self.dataset.close()
+
+    @tl.observe('source')
+    def _update_dataset(self, change):
+        if self.dataset is not None:
+            self.close_dataset()
+            self.dataset = self.open_dataset(change['new'])
+        self.native_coordinates = self.get_native_coordinates()
+        
+    @common_doc(COMMON_DATA_DOC)
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
+        
+        The default implementation tries to find the lat/lon coordinates based on dataset.affine or dataset.transform
+        (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
+        have to overload this method.
+        """
+        coords = []
+        dims = []
+        if self.latkey:
+            coords.append(self.dataset[self.latkey][:])
+            dims.append('lat')
+        if self.lonkey:
+            coords.append(self.dataset[self.lonkey][:])
+            dims.append('lon')
+        if self.timekey:
+            coords.append(self.dataset[self.timekey][:])
+            dims.append('time')
+        if self.altkey:
+            coords.append(self.dataset[self.altkey][:])
+            dims.append('alt')
+        if not coords:
+            return None
+        return Coordinates(coords, dims)
+
+    @common_doc(COMMON_DATA_DOC)
+    def get_data(self, coordinates, coordinates_index):
+        """{get_data}
+        """
+        data = self.create_output_array(coordinates)
+        slc = coordinates_index
+        a = self.dataset[self.datakey][:][slc]
+        data.data.ravel()[:] = a.ravel()
+        return data
+    
+    @property
+    def keys(self):
+        return H5PY._find_h5py_keys(self.dataset)
+        
+    @property
+    def attrs(self, key='/'):
+        """
+        Dataset or group key for which attributes will be summarized.
+        """
+        return dict(self.dataset[key].attrs)
+        
+    @staticmethod
+    def _find_h5py_keys(obj, keys=[]):
+        if isinstance(obj, (h5py.Group, h5py.File)):
+            for k in obj.keys():
+                keys = H5PY._find_h5py_keys(obj[k], keys)
+        else:
+            keys.append(obj.name)
+            return keys
+        keys.sort()
+        return keys
+            
+
 WCS_DEFAULT_VERSION = u'1.0.0'
 WCS_DEFAULT_CRS = 'EPSG:4326'
-
 class WCS(DataSource):
     """Create a DataSource from an OGC-complient WCS service
     
