@@ -5,7 +5,7 @@ from collections import OrderedDict
 VERSION_INFO = OrderedDict([
     ('MAJOR', 0,),
     ('MINOR', 2,),
-    ('HOTFIX', 0,),
+    ('HOTFIX', 1,),
     ])
 
 VERSION = (VERSION_INFO['MAJOR'], 
