@@ -43,8 +43,9 @@ class SessionWithHeaderRedirection(requests.Session):
     """
 
     AUTH_HOST = ''
+    hostname_regex = None
 
-    def __init__(self, username=None, password=None):
+    def __init__(self, username=None, password=None, hostname_regex=None):
         '''
         Parameters
         ------------
@@ -58,6 +59,7 @@ class SessionWithHeaderRedirection(requests.Session):
             username = utils.load_setting('username@' + self.AUTH_HOST)
         if password is None:
             password = utils.load_setting('password@' + self.AUTH_HOST)
+        self.hostname_regex = hostname_regex
         self.auth = (username, password)
 
     
@@ -85,8 +87,9 @@ class SessionWithHeaderRedirection(requests.Session):
             original_parsed = requests.utils.urlparse(response.request.url)
             redirect_parsed = requests.utils.urlparse(url)
 
-            if (original_parsed.hostname != redirect_parsed.hostname) and \
-                    redirect_parsed.hostname != self.AUTH_HOST and \
+            if ((original_parsed.hostname != redirect_parsed.hostname) or ((self.hostname_regex is not None)
+                        and not (self.hostname_regex.match(redirect_parsed.hostname)))
+                    ) and redirect_parsed.hostname != self.AUTH_HOST and \
                     original_parsed.hostname != self.AUTH_HOST:
                 del headers['Authorization']
 

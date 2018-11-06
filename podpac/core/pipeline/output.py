@@ -154,16 +154,12 @@ class ImageOutput(Output):
         Description
     """
 
-    format = tl.CaselessStrEnum(
-        values=['png'], default_value='png').tag(attr=True)
+    format = tl.CaselessStrEnum(values=['png'], default_value='png').tag(attr=True)
     mode = tl.Unicode(default_value="image").tag(attr=True)
     vmax = tl.CFloat(allow_none=True, default_value=np.nan).tag(attr=True)
     vmin = tl.CFloat(allow_none=True, default_value=np.nan).tag(attr=True)
-    image = tl.Instance(BytesIO, allow_none=True, default_value=None)
+    image = tl.Bytes(allow_none=True, default_value=None)
 
     # TODO: docstring?
     def write(self, output, coordinates):
-        try:
-            self.image = get_image(output, format=self.format, vmin=self.vmin, vmax=self.vmax)
-        except Exception as e:
-            warnings.warn("Error getting image from output: %s" % e)
+        self.image = get_image(output, format=self.format, vmin=self.vmin, vmax=self.vmax)
