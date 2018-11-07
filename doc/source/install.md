@@ -6,7 +6,7 @@ For custom installations, commandline installation procedures are described belo
 
 These instructions assume you are using the [Anaconda Python Distribution](https://www.anaconda.com/), and have [git](https://git-scm.com/) installed.
 
-# Window 10 Installation
+## Window 10 Installation
 A full Windows 10 Installation of PODPAC can be downloaded from [here](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip). To use it, extract the zip file in a folder on your machine. Then:
 
 * To open the example notebooks, run the `run_podpac_jupyterlab.bat` script, by double-clicking the icon
@@ -21,8 +21,8 @@ A full Windows 10 Installation of PODPAC can be downloaded from [here](https://s
     * Activate the PODPAC Python environment by running the `activate_podpac_conda_env.bat` script
     * Open an IPython console by typing `ipython` and hitting enter
 
-# Commandline Installation
-## Conda Environment
+## Commandline Installation
+### Conda Environment
 
 We recommend that you create a new python 3 environment to install `podpac`:
 
@@ -32,10 +32,10 @@ $ conda activate podpac  # Windows
 $ source activate podpac # Linux / Mac
 ```
 
-## Installation Instructions for Users
+### Installation Instructions for Users
 ***Note***: We plan to improve this installation process after reaching version 1.0
 
-### Clone the Repository
+#### Clone the Repository
 
 Clone the [podpac repository](https://github.com/creare-com/podpac) onto your machine:
 
@@ -55,7 +55,7 @@ For example to checkout version 0.2.0 use:
 $ git checkout tags/0.2.0 release/0.2.0
 ```
 
-### Installing dependencies
+#### Installing dependencies
 PODPAC's dependencies are automatically installed through `pip` when `podpac` is installed. Some dependencies are more difficult to install on certain systems. 
 
 In particular, some users may experience issues installing [rasterio](https://rasterio.readthedocs.io/en/latest/installation.html#installing-with-anaconda) (included in the `datatype`, `all`, and `devall` installations). If you encounter issues, we recommend trying to install from the **conda-forge** channel. Depending on your platform, this may be simpler than letting `podpac` install `rasterio` using `pip`:
@@ -64,7 +64,7 @@ In particular, some users may experience issues installing [rasterio](https://ra
 $ conda install rasterio --channel conda-forge
 ```
 
-### Installing podpac
+#### Installing podpac
 
 After cloning the repository to your computer, install `podpac` using `pip`. PODPAC comes with a number of optional dependency packages which can be installed alongside PODPAC. These packages include:
 
@@ -103,7 +103,7 @@ $ jupyter lab build
 $ python -m ipykernel install --user
 ```
 
-### Running example notebooks
+#### Running example notebooks
 To run the PODPAC example notebooks, start JupyterLab in the `doc/notebooks` directory of PODPAC
 
 ```bash
@@ -113,9 +113,9 @@ $ jupyter lab
 Open a notebook and select `Run` from the top menu, followed by `Run All`.
 You may be prompted to enter user EarthData login credentials to access NASA data. 
 
-## Installation Instructions for Developers
+### Installation Instructions for Developers
 
-### Clone the Repository
+#### Clone the Repository
 
 Clone the [podpac repository](https://github.com/creare-com/podpac) onto your machine:
 
@@ -131,7 +131,7 @@ The `master` branch is intented to be somewhat stable with working code. For ble
 $ git checkout -b develop origin/develop
 ```
 
-### Installing podpac
+#### Installing podpac
 
 After cloning the repository to your computer, install `podpac` in development mode using pip:
 
@@ -149,7 +149,7 @@ Some users may experience issues installing [rasterio](https://rasterio.readthed
 $ conda install rasterio --channel conda-forge
 ```
 
-# Creating the Windows Installation PODPAC Conda environment
+## Creating the Windows Installation PODPAC Conda environment
 This section describes the process used to create the [PODPAC Window 10 Installation](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip).
 
 These instructions only assume that you already have [git](https://git-scm.com/) installed on your Windows 10 machine. 
