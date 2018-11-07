@@ -1,4 +1,4 @@
-# NASA Earth Data
+# NASA Earth Data Login
 
 This document describes using an Earth Data Account with PODPAC.
 
@@ -50,15 +50,15 @@ To set credentials at runtime, you can either provide an authenticated session
 or the username and password to the PyDAP node or child node. For example
 
 ```python
-from podpac.core.authentication import EarthDataSession
+from podpac.authentication import EarthDataSession
 eds = EarthDataSession(username=<username>, password=<password>)
-from podpac.core.data.type import PyDAP
+from podpac.data import PyDAP
 pydap_node = PyDAP(source=<opendap_url>, auth_session=eds)
 ```
 
 Or 
 
 ```python
-from podpac.core.data.type import PyDAP
+from podpac.data import PyDAP
 pydap_node = PyDAP(source=<opendap_url>, username=<username>, password=<password>)
 ```
