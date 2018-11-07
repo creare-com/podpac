@@ -1,6 +1,6 @@
 # NASA Earth Data
 
-Using Earth Data Account with PODPAC
+This document describes using an Earth Data Account with PODPAC.
 
 ## Motivation
 * An Earth Data Login account is needed to access the wealth of data provided by 
