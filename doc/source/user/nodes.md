@@ -26,7 +26,7 @@ To evaluate data at arbitrary PODPAC coordinates, users can input `coordinates` 
 
 ### Interpolation
 
-The DataSource `interpolation` property defines how to handle interpolation of coordinates and data within the DataSource node. Based on a string or dictionary definition, the DataSource instantiates an Interpolation class that orchestrates the selection and use of different interpolators depending on the native and input coordinates. PODPAC natively supports an array of interpolator methods covering a wide range of use cases, but the user may also write their own `Interpolator` class to use in a specific circumstance. Under the hood, PODPAC leverages interpolation methods from xarray, scipy, and rasterio to do some of the heavy lifting.
+The DataSource `interpolation` property defines how to handle interpolation of coordinates and data within the DataSource node. Based on a string or dictionary definition, the DataSource instantiates an Interpolation class that orchestrates the selection and use of different interpolators depending on the native and input coordinates. PODPAC natively supports an array of interpolator methods covering a wide range of use cases. Users can also write their own Interpolator class to use for specific nodes. Under the hood, PODPAC leverages interpolation methods from xarray, scipy, and rasterio to do some of the heavy lifting.
 
 Definition of the interpolation method on a DataSource node may either be a string:
 
