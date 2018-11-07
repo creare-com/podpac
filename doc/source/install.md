@@ -55,7 +55,7 @@ For example to checkout version 0.2.0 use:
 $ git checkout tags/0.2.0 release/0.2.0
 ```
 
-#### Installing dependencies
+#### Install dependencies
 PODPAC's dependencies are automatically installed through `pip` when `podpac` is installed. Some dependencies are more difficult to install on certain systems. 
 
 In particular, some users may experience issues installing [rasterio](https://rasterio.readthedocs.io/en/latest/installation.html#installing-with-anaconda) (included in the `datatype`, `all`, and `devall` installations). If you encounter issues, we recommend trying to install from the **conda-forge** channel. Depending on your platform, this may be simpler than letting `podpac` install `rasterio` using `pip`:
@@ -64,7 +64,7 @@ In particular, some users may experience issues installing [rasterio](https://ra
 $ conda install rasterio --channel conda-forge
 ```
 
-#### Installing podpac
+#### Install podpac
 
 After cloning the repository to your computer, install `podpac` using `pip`. PODPAC comes with a number of optional dependency packages which can be installed alongside PODPAC. These packages include:
 
@@ -112,6 +112,21 @@ $ jupyter lab
 ```
 Open a notebook and select `Run` from the top menu, followed by `Run All`.
 You may be prompted to enter user EarthData login credentials to access NASA data. 
+
+### Installing Examples Files
+Some of the example notebooks in PODPAC use example files. In order to keep the main code repository small, we have created a second repository specifically for storing these file. To install the example files:
+```bash
+# 1. Activate your PODPAC Python environment
+$ conda activate podpac  # Windows
+$ source activate podpac # Linux / Mac
+
+# 2. Clone the podpac_examples repository
+$ git clone https://github.com/creare-com/podpac_examples.git
+
+# 3. Install the examples
+$ cd podpac_examples
+$ pip install -e .
+```
 
 ### Installation Instructions for Developers
 
