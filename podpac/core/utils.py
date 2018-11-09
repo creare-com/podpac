@@ -167,14 +167,10 @@ def trait_is_defined(obj, trait):
     Returns
     -------
     bool
-        True if the trait exists on the object, is defined, and is not None
-        False if the trait does not exist on the object or is defined as None
+        True if the trait exists on the object and is defined
+        False if the trait does not exist on the object or the trait is not defined
     """
-    try:
-        val = obj._trait_values[trait]
-        return val is not None
-    except (KeyError, RuntimeError, tl.TraitError):
-        return False
+    return obj.has_trait(trait) and trait in obj._trait_values
 
 def optional_import(module_name, package=None, return_root=False):
     '''
