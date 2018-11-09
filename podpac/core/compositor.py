@@ -13,7 +13,8 @@ import traitlets as tl
 from podpac.core.coordinates import Coordinates, union, merge_dims
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
-from podpac.core.node import COMMON_NODE_DOC 
+from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.utils import trait_is_defined
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -87,7 +88,7 @@ class Compositor(Node):
 
     def get_source_coordinates(self):
         """
-        Returns the coordinates describing each source. 
+        Returns the coordinates describing each source.
         This may be implemented by derived classes, and is an optimization that allows evaluation subsets of source.
         
         Returns
@@ -102,7 +103,7 @@ class Compositor(Node):
         return self.get_shared_coordinates()
 
     def get_shared_coordinates(self):
-        """Coordinates shared by each source. 
+        """Coordinates shared by each source.
         
         Raises
         ------
@@ -112,14 +113,14 @@ class Compositor(Node):
         raise NotImplementedError()
 
     def composite(self, outputs, result=None):
-        """Implements the rules for compositing multiple sources together. 
+        """Implements the rules for compositing multiple sources together.
         
         Parameters
         ----------
         outputs : list
             A list of outputs that need to be composited together
         result : UnitDataArray, optional
-            An optional pre-filled array may be supplied, otherwise the output will be allocated. 
+            An optional pre-filled array may be supplied, otherwise the output will be allocated.
         
         Raises
         ------
@@ -148,6 +149,7 @@ class Compositor(Node):
             # intersecting sources only
             try:
                 _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
+
             except: # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
             src_subset = self.sources[I]
@@ -159,7 +161,7 @@ class Compositor(Node):
         # Set the interpolation properties for sources
         if self.interpolation:
             for s in src_subset.ravel():
-                if hasattr(s, 'interpolation'):
+                if trait_is_defined(s, 'interpolation'):
                     s.interpolation = self.interpolation
 
         # Optimization: if coordinates complete and source coords is 1D,
@@ -172,11 +174,8 @@ class Compositor(Node):
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
                 nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
-                # Switching from _trait_values to hasattr because "native_coordinates"
-                # sometimes not showing up in _trait_values in other locations
-                # Not confirmed here
-                #if 'native_coordinates' not in s._trait_values:
-                if hasattr(s,'native_coordinates') is False:
+                
+                if trait_is_defined(s,'native_coordinates') is False:
                     s.native_coordinates = nc
 
         if self.threaded:
