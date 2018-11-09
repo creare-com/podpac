@@ -1,5 +1,4 @@
 #!python
-import boto3
 import subprocess
 
 with open('zip_package_sizes.txt', 'r') as fid:
@@ -56,9 +55,3 @@ cmd = ['zip', '-9', '-rq', 'podpac_dist.zip'] + core
 subprocess.call(cmd)
 cmd = ['zip', '-9', '-rqy', 'podpac_deps.zip'] + deps
 subprocess.call(cmd)
-
-# upload zip files to s3
-bucket = 'podpac-s3'
-s3 = boto3.client('s3')
-s3.upload_file('podpac_dist.zip', bucket, 'podpac/podpac_dist.zip')
-s3.upload_file('podpac_deps.zip', bucket, 'podpac/podpac_deps.zip')
