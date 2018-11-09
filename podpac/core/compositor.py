@@ -22,9 +22,9 @@ class Compositor(Node):
 
     Attributes
     ----------
-    shared_coordinates : podpac.Coordinates, optional
+    shared_coordinates : :class:`podpac.Coordinates`, optional
         Coordinates that are shared amongst all of the composited sources
-    source_coordinates = podpac.Coordinates, optional
+    source_coordinates = :class:`podpac.Coordinates`, optional
         Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the 
         user-requested coordinates. It is an optimization. 
     is_source_coordinates_complete : Bool
@@ -92,7 +92,7 @@ class Compositor(Node):
         
         Returns
         -------
-        podpac.Coordinates
+        :class:`podpac.Coordinates`
             Coordinates describing each source.
         """
         return None
@@ -133,7 +133,7 @@ class Compositor(Node):
         
         Parameters
         ----------
-        coordinates : TYPE
+        coordinates : `podpac.Coordinates`
             Description
         
         Yields
@@ -204,7 +204,7 @@ class Compositor(Node):
 
         Parameters
         ----------
-        coordinates : podpac.Coordinates
+        coordinates : :class:`podpac.Coordinates`
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}

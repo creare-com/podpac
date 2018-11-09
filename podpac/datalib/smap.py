@@ -65,7 +65,7 @@ COMMON_DOC.update(
 
         Returns
         -------
-        podpac.Coordinates
+        :class:`podpac.Coordinates`
             Coordinates that uniquely describe each source''',
      'keys': '''Available layers that are in the OpenDAP dataset
 
@@ -499,7 +499,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         The name of the folder. This is used to construct the OpenDAP URL from the base_url
     latlon_delta : float, optional
         Default is 1.5 degrees. For SMAP files that contain LAT-LON data (i.e. SMAP-Sentinel), how many degrees does the
-        tile cover? 
+        tile cover?
     latlon_url_re : SRE_Pattern
         Regular expression used to find the lat-lon coordinates associated with the file from the file name
     layerkey : {layerkey}
@@ -813,7 +813,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         
         Notes
         -----
-        These coordinates are computed, assuming dataset is regular. 
+        These coordinates are computed, assuming dataset is regular.
         '''
         if self.product in SMAP_IRREGULAR_COORDINATES:
             raise Exception("Native coordinates too large. Try using partial native coordinates.")
