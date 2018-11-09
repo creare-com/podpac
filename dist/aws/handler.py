@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import json
 import os
+import subprocess
 import sys
 import urllib.parse as urllib
 from collections import OrderedDict
@@ -15,10 +16,14 @@ sys.path.append('/tmp')
 sys.path.append(os.getcwd() + '/podpac/')
 
 s3 = boto3.client('s3')
+deps = 'podpac_deps.zip'
 
-
-def handler(event, context, ret_pipeline=False):
+def handler(event, context, get_deps=True, ret_pipeline=False):
     bucket_name = event['Records'][0]['s3']['bucket']['name']
+    if get_deps:
+        s3.download_file(bucket_name, 'podpac/' + deps, '/tmp/' + deps)
+        subprocess.call(['unzip', '/tmp/' + deps, '-d', '/tmp'])
+        subprocess.call(['rm', '/tmp/' + deps])
     file_key = urllib.unquote_plus(
         event['Records'][0]['s3']['object']['key'])
     _json = ''
@@ -78,5 +83,5 @@ if __name__ == '__main__':
         }]
     }
 
-    example = handler(event, {})
+    example = handler(event, {}, get_deps=False)
     print(example)

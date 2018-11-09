@@ -1,22 +1,24 @@
-""" podpac module"""
-
 # Always perfer setuptools over distutils
 import sys
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
+
+import version
+
+""" podpac module"""
+
 
 # get version
 sys.path.insert(0, 'podpac')
-import version
 __version__ = version.version()
 
-def requirements_to_array(filePath):
-    lines = open(filePath).readlines()
-    result = []
-    for index in range(len(lines)):
-        result.append(lines[index].strip('\n'))
-    return result
-
-install_requires = requirements_to_array("requirements.txt")
+install_requires = ['matplotlib>=2.1',
+                    'numpy>=1.14',
+                    'pint>=0.8',
+                    'scipy>=1.0',
+                    'traitlets>=4.3',
+                    'xarray>=0.10',
+                    'requests>=2.18']
 if sys.version_info.major == 2:
     install_requires += ['future>=0.16']
 
@@ -28,26 +30,26 @@ extras_require = {
         'pydap>=3.2',
         'rasterio>=0.36',
         'requests>=2.18',
-        ],
+    ],
     'aws': [
         'awscli>=1.11',
         'boto3>=1.4'
     ],
     'algorithms': [
         'numexpr>=2.6',
-        ],
+    ],
     'notebook': [
         'jupyterlab',
         'ipyleaflet',
         'ipywidgets',
         'ipympl',
         'nodejs',
-        ],
+    ],
     'esri': [
         # 'arcpy',
         'certifi>=2018.1.18',
         'urllib3>=1.22',
-        ],
+    ],
     'dev': [
         'numpydoc>=0.7.0',
         'pylint>=1.8.2',
@@ -61,8 +63,8 @@ extras_require = {
         'coveralls>=1.3',
         'six>=1.0',
         'attrs>=17.4.0'
-        ]
-    }
+    ]
+}
 
 all_reqs = []
 for key, val in extras_require.items():
