@@ -2,10 +2,12 @@
 Data Public Module
 """
 
+# REMINDER: update api docs (doc/source/user/api.rst) to reflect changes to this file
+
 from podpac.core.data.datasource import DataSource
 from podpac.core.data.interpolate import (
     Interpolation, Interpolator, InterpolationException
 )
 from podpac.core.data.types import (
-    Array, NumpyArray, PyDAP, Rasterio, WCS, ReprojectedSource, S3, H5PY
+    Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, H5PY
 )

@@ -35,17 +35,17 @@ DATA_DOC = {
         source data, but all coordinates and coordinate indexes will match 1:1 with the subset data.
 
         This method may return a numpy array, an xarray DaraArray, or a podpac UnitsDataArray.
-        If a numpy array or xarray DataArray is returned, :meth:podpac.core.data.datasource.DataSource.evaluate will
+        If a numpy array or xarray DataArray is returned, :meth:`podpac.data.DataSource.evaluate` will
         cast the data into a `UnitsDataArray` using the requested source coordinates.
-        If a podpac UnitsDataArray is passed back, the :meth:podpac.core.data.datasource.DataSource.evaluate
+        If a podpac UnitsDataArray is passed back, the :meth:`podpac.data.DataSource.evaluate`
         method will not do any further processing.
         The inherited Node method `create_output_array` can be used to generate the template UnitsDataArray
         in your DataSource.
-        See :meth:podpac.core.node.Node.create_output_array for more details.
+        See :meth:`podpac.Node.create_output_array` for more details.
         
         Parameters
         ----------
-        coordinates : Coordinates
+        coordinates : :class:`podpac.Coordinates`
             The coordinates that need to be retrieved from the data source using the coordinate system of the data
             source
         coordinates_index : List
@@ -66,8 +66,8 @@ DATA_DOC = {
         Returns a Coordinates object that describes the native coordinates of the data source.
 
         In most cases, this method is defined by the data source implementing the DataSource class.
-        If method is not implemented by the data source, it will try to return `self.native_coordinates`
-        if `self.native_coordinates` is not None.
+        If method is not implemented by the data source, it will try to return ``self.native_coordinates``
+        if ``self.native_coordinates`` is not None.
 
         Otherwise, this method will raise a NotImplementedError.
 
@@ -75,11 +75,6 @@ DATA_DOC = {
         --------
         Coordinates
            The coordinates describing the data source array.
-
-        Raises
-        --------
-        NotImplementedError
-            Raised if get_native_coordinates is not implemented by data source subclass.
 
         Notes
         ------
@@ -104,7 +99,7 @@ class DataSource(Node):
     source : Any
         The location of the source. Depending on the child node this can be a filepath,
         numpy array, or dictionary as a few examples.
-    native_coordinates : Coordinates
+    native_coordinates : :class:`podpac.Coordinates`
         {native_coordinates}
     coordinate_index_type : str, optional
         Type of index to use for data source. Possible values are ['list','numpy','xarray','pandas']
@@ -140,13 +135,13 @@ class DataSource(Node):
             If input is a podpac.core.data.interpolate.Interpolation, this interpolation
             class will be used without modication.
             
-            By default, the interpolation method is set to `'nearest'` for all dimensions.
+            By default, the interpolation method is set to ``'nearest'`` for all dimensions.
     nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
 
     Notes
     -----
-    Developers of new DataSource nodes need to implement the `get_data` and `get_native_coordinates` methods.
+    Developers of new DataSource nodes need to implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
     
     source = tl.Any(help='Path to the raw data source')
@@ -249,7 +244,7 @@ class DataSource(Node):
 
         Parameters
         ----------
-        coordinates : Coordinates
+        coordinates : :class:`podpac.Coordinates`
             {requested_coordinates}
             Notes::
              * An exception is raised if the requested coordinates are missing dimensions in the DataSource.
@@ -416,7 +411,7 @@ class DataSource(Node):
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
-        
+
         Raises
         ------
         NotImplementedError
@@ -427,11 +422,11 @@ class DataSource(Node):
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
-        
+
         Raises
-        ------
+        --------
         NotImplementedError
-            This needs to be implemented by derived classes
+            Raised if get_native_coordinates is not implemented by data source subclass.
         """
         
         if trait_is_defined(self, 'native_coordinates'):

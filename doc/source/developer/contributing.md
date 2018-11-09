@@ -129,22 +129,24 @@ Podpac adheres to the [numpy format for docstrings](https://numpydoc.readthedocs
     """
 ```
 
-> **Note:** all internal references to podpac modules etc. should use the full path to the reference. For example:
+> **Note:** all references to podpac classes (`:class:`), methods (`:meth:`), and attributes (`:attr:`) should use the *public* path to the reference. If the class does not have a public reference, fall back on the *full* path reference to the class. For example:
 > 
 > ```python
 >   def method():
->       """Class Method
+>       """Class Method.  
+>       See method :meth:`podpac.data.DataSource.eval`.
+>       See attribute :attr:`podpac.core.data.interpolate.INTERPOLATION_METHODS`.
 >       
 >       Parameters
 >       ----------
->       coordinates : podpac.core.coordinate.coordinate.Coordinates
+>       coordinates : :class:`podpac.Coordinates`
 >           Coordinate input
->       output : podpac.core.units.UnitsDataArray, optional
+>       output : :class:`podpac.core.units.UnitsDataArray`, optional
 >           Container for output
 >      
 >       Returns
 >       --------
->       podpac.core.units.UnitsDataArray
+>       :class:`podpac.core.units.UnitsDataArray`
 >           Returns a UnitsDataArray
 >       """
 > ```

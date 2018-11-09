@@ -47,7 +47,6 @@ The purpose of PODPAC is to facilitate
     user/pipelines
     user/earthdata
     user/references
-    user/api-min
     user/api
 
 .. toctree::

@@ -3,8 +3,14 @@ Interpolation handling
 
 Attributes
 ----------
-AVAILABLE_INTERPOLATORS : TYPE
-Description
+INTERPOLATION_DEFAULT : str
+    Default interpolation method used when creating a new :class:`Interpolation` class
+INTERPOLATION_METHODS : dict
+    Dictionary of string interpolation method strings and the associated interpolator classes that support
+    the method (i.e. ``'nearest': [NearestNeighbor, Rasterio, Scipy]``)
+INTERPOLATION_SHORTCUTS : list
+    Keys of :attr:`INTERPOLATION_METHODS`
+
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
@@ -42,19 +48,27 @@ INTERPOLATE_DOCS = {
         """
         method : str
             Current interpolation method to use in Interpolator (i.e. 'nearest').
-            This attribute is set during node evaluation when a new :ref:podpac.core.data.interpolate.Interpolation
-            class is constructed. See the :ref:podpac.core.data.datasource.DataSource `interpolation` attribute for
+            This attribute is set during node evaluation when a new :class:`Interpolation`
+            class is constructed. See the :class:`podpac.data.DataSource` `interpolation` attribute for
             more information on specifying the interpolator method.
         dims_supported : list
             List of unstacked dimensions supported by the interpolator.
-            This attribute should be defined by the implementing :ref:podpac.core.data.interpolate
-            Used by private convience method :ref:self._filter_udims_supported
+            This attribute should be defined by the implementing :class:`Interpolator`.
+            Used by private convience method :meth:`_filter_udims_supported`.
         """,
     'nearest_neighbor_attributes':
         """
         Attributes
         ----------
-        {interpolator_attributes}
+        method : str
+            Current interpolation method to use in Interpolator (i.e. 'nearest').
+            This attribute is set during node evaluation when a new :class:`Interpolation`
+            class is constructed. See the :class:`podpac.data.DataSource` `interpolation` attribute for
+            more information on specifying the interpolator method.
+        dims_supported : list
+            List of unstacked dimensions supported by the interpolator.
+            This attribute should be defined by the implementing :class:`Interpolator`.
+            Used by private convience method :meth:`_filter_udims_supported`.
         spatial_tolerance : float
             Maximum distance to the nearest coordinate in space.
             Cooresponds to the unit of the space measurement.
@@ -66,15 +80,15 @@ INTERPOLATE_DOCS = {
         """
         Evaluate if interpolator can downselect the source coordinates from the requested coordinates
         for the unstacked dims supplied.
-        If not overwritten, this method returns an empty tuple (`tuple()`)
+        If not overwritten, this method returns an empty tuple (``tuple()``)
         
         Parameters
         ----------
         udims : tuple
             dimensions to select
-        source_coordinates : podpac.core.coordinates.Coordinates
+        source_coordinates : :class:`podpac.Coordinates`
             Description
-        eval_coordinates : podpac.core.coordinates.Coordinates
+        eval_coordinates : :class:`podpac.Coordinates`
             Description
         
         Returns
@@ -91,16 +105,16 @@ INTERPOLATE_DOCS = {
         ----------
         udims : tuple
             dimensions to select coordinates
-        source_coordinates : podpac.core.coordinates.Coordinates
+        source_coordinates : :class:`podpac.Coordinates`
             Description
         source_coordinates_index : list
             Description
-        eval_coordinates : podpac.core.coordinates.Coordinates
+        eval_coordinates : :class:`podpac.Coordinates`
             Description
         
         Returns
         -------
-        (podpac.core.coordinates.Coordinates, list)
+        (:class:`podpac.Coordinates`, list)
             returns the new down selected coordinates and the new associated index. These coordinates must exist
             in the native coordinates of the source data
 
@@ -117,9 +131,9 @@ INTERPOLATE_DOCS = {
         ----------
         udims : tuple
             dimensions to interpolate
-        source_coordinates : podpac.core.coordinates.Coordinates
+        source_coordinates : :class:`podpac.Coordinates`
             Description
-        eval_coordinates : podpac.core.coordinates.Coordinates
+        eval_coordinates : :class:`podpac.Coordinates`
             Description
         
         Returns
@@ -136,11 +150,11 @@ INTERPOLATE_DOCS = {
         ----------
         udims : tuple
             dimensions to interpolate
-        source_coordinates : podpac.core.coordinates.Coordinates
+        source_coordinates : :class:`podpac.Coordinates`
             Description
         source_data : podpac.core.units.UnitsDataArray
             Description
-        eval_coordinates : podpac.core.coordinates.Coordinates
+        eval_coordinates : :class:`podpac.Coordinates`
             Description
         output_data : podpac.core.units.UnitsDataArray
             Description
@@ -207,7 +221,7 @@ class Interpolator(tl.HasTraits):
         ----------
         dim : str, list of str
             Dimension or list of dimensions to verify
-        *coords podpac.core.coordinates.Coordinates
+        *coords :class:`podpac.Coordinates`
             coordinates to evaluate
         unstacked : bool, optional
             True if you want to compare dimensions in unstacked form, otherwise compare dimensions however
@@ -274,6 +288,7 @@ class Interpolator(tl.HasTraits):
 
         return output_data
 
+    @common_doc(INTERPOLATE_DOCS)
     def can_select(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_select}
@@ -281,24 +296,28 @@ class Interpolator(tl.HasTraits):
 
         return tuple()
 
+    @common_doc(INTERPOLATE_DOCS)
     def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
         """
         {interpolator_select}
         """
         raise NotImplementedError
 
+    @common_doc(INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_interpolate}
         """
         return tuple()
 
+    @common_doc(INTERPOLATE_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
         raise NotImplementedError
 
+@common_doc(INTERPOLATE_DOCS)
 class NearestNeighbor(Interpolator):
     """Nearest Neighbor Interpolation
     
@@ -308,6 +327,7 @@ class NearestNeighbor(Interpolator):
     spatial_tolerance = tl.Float(default_value=np.inf)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
+    @common_doc(INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_interpolate}
@@ -321,6 +341,7 @@ class NearestNeighbor(Interpolator):
         else:
             return tuple()
 
+    @common_doc(INTERPOLATE_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
@@ -376,12 +397,14 @@ class NearestNeighbor(Interpolator):
         return output_data
 
 
+@common_doc(INTERPOLATE_DOCS)
 class NearestPreview(NearestNeighbor):
     """Nearest Neighbor (Preview) Interpolation
     
     {nearest_neighbor_attributes}
     """
 
+    @common_doc(INTERPOLATE_DOCS)
     def can_select(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_select}
@@ -395,6 +418,7 @@ class NearestPreview(NearestNeighbor):
         else:
             return tuple()
 
+    @common_doc(INTERPOLATE_DOCS)
     def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
         """
         {interpolator_select}
@@ -450,6 +474,7 @@ class NearestPreview(NearestNeighbor):
         return Coordinates(new_coords), new_coords_idx
 
 
+@common_doc(INTERPOLATE_DOCS)
 class Rasterio(Interpolator):
     """Rasterio Interpolation
     
@@ -466,6 +491,7 @@ class Rasterio(Interpolator):
 
     # TODO: support 'gauss' method?
 
+    @common_doc(INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """{interpolator_can_interpolate}"""
 
@@ -481,6 +507,7 @@ class Rasterio(Interpolator):
         # otherwise return no supported dims
         return tuple()
 
+    @common_doc(INTERPOLATE_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
@@ -549,6 +576,7 @@ class Rasterio(Interpolator):
         return output_data
 
 
+@common_doc(INTERPOLATE_DOCS)
 class ScipyPoint(Interpolator):
     """Scipy Point Interpolation
     
@@ -561,6 +589,7 @@ class ScipyPoint(Interpolator):
     spatial_tolerance = tl.Float(default_value=np.inf)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
+    @common_doc(INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_interpolate}
@@ -580,6 +609,7 @@ class ScipyPoint(Interpolator):
         return tuple()
 
 
+    @common_doc(INTERPOLATE_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
@@ -643,6 +673,7 @@ class ScipyPoint(Interpolator):
             return output_data
 
 
+@common_doc(INTERPOLATE_DOCS)
 class ScipyGrid(ScipyPoint):
     """Scipy Interpolation
     
@@ -655,6 +686,7 @@ class ScipyGrid(ScipyPoint):
     spatial_tolerance = tl.Float(default_value=np.inf)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
+    @common_doc(INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_interpolate}
@@ -671,6 +703,7 @@ class ScipyGrid(ScipyPoint):
         # otherwise return no supported dims
         return tuple()
 
+    @common_doc(INTERPOLATE_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
@@ -745,17 +778,8 @@ class ScipyGrid(ScipyPoint):
 
         return output_data
 
-
-class Radial(Interpolator):
-    pass
-
-class OptimalInterpolation(Interpolator):
-    """ I.E. Kriging """
-    pass
-
 # List of available interpolators
 INTERPOLATION_METHODS = {
-    'optimal': [OptimalInterpolation],
     'nearest_preview': [NearestPreview],
     'nearest': [NearestNeighbor, Rasterio, ScipyGrid, ScipyPoint],
     'bilinear':[Rasterio, ScipyGrid],
@@ -772,8 +796,7 @@ INTERPOLATION_METHODS = {
     'q3': [Rasterio],
     'spline_2': [ScipyGrid],
     'spline_3': [ScipyGrid],
-    'spline_4': [ScipyGrid],
-    'radial': [Radial]
+    'spline_4': [ScipyGrid]
 }
 
 # create shortcut list based on methods keys
@@ -793,7 +816,7 @@ class Interpolation():
                  dict
         Interpolation definition used to define interpolation methods for each definiton.
         See :ref:podpac.core.data.datasource.DataSource.interpolation for more details.
-    coordinates : podpac.core.coordinates.Coordinates
+    coordinates : :class:`podpac.Coordinates`
         source coordinates to be interpolated
     **kwargs :
         Keyword arguments passed on to each :ref:podpac.core.data.interpolate.Interpolator
@@ -1015,9 +1038,9 @@ class Interpolation():
         
         Parameters
         ----------
-        source_coordinates : podpac.core.coordinates.Coordinates
+        source_coordinates : :class:`podpac.Coordinates`
             Description
-        eval_coordinates : podpac.core.coordinates.Coordinates
+        eval_coordinates : :class:`podpac.Coordinates`
             Description
         select_method : function
             method used to determine if interpolator can handle dimensions
@@ -1091,17 +1114,17 @@ class Interpolation():
         
         Parameters
         ----------
-        source_coordinates : podpac.core.coordinates.Coordinates
+        source_coordinates : :class:`podpac.Coordinates`
             Intersected source coordinates
         source_coordinates_index : list
             Index of intersected source coordinates. See :ref:podpac.core.data.datasource.DataSource for
             more information about valid values for the source_coordinates_index
-        eval_coordinates : podpac.core.coordinates.Coordinates
+        eval_coordinates : :class:`podpac.Coordinates`
             Requested coordinates to evaluate
         
         Returns
         -------
-        (podpac.core.coordinates.Coordinates, list)
+        (:class:`podpac.Coordinates`, list)
             Returns tuple with the first element subset of selected coordinates and the second element the indicies
             of the selected coordinates
         """
@@ -1135,21 +1158,19 @@ class Interpolation():
         
         Parameters
         ----------
-        source_coordinates : podpac.core.coordinates.Coordinates
+        source_coordinates : :class:`podpac.Coordinates`
             Description
         source_data : podpac.core.units.UnitsDataArray
             Description
-        eval_coordinates : podpac.core.coordinates.Coordinates
+        eval_coordinates : :class:`podpac.Coordinates`
             Description
         output_data : podpac.core.units.UnitsDataArray
             Description
         
         Returns
         -------
-        (podpac.core.coordinates.Coordinates, podpac.core.units.UnitDataArray, podpac.core.units.UnitDataArray)
-            returns tuple with the first elemented the downselected source_coordinates, the second element
-            the downselected source_data (at the source_coordaintes) and the third element the new output UnitDataArray
-            of interpolated data
+        podpac.core.units.UnitDataArray
+            returns the new output UnitDataArray of interpolated data
         
         Raises
         ------
