@@ -189,11 +189,11 @@ class TestInterpolation(object):
 
 
         # use default with override if not all dimensions are supplied
-        interp = Interpolation({'lat': 'bilinear', 'default': 'optimal'})
-        assert interp.config[('default',)]['method'] == 'optimal'
+        interp = Interpolation({'lat': 'bilinear', 'default': 'nearest'})
+        assert interp.config[('default',)]['method'] == 'nearest'
 
         # make sure default is always the last key in the ordered config dict
-        interp = Interpolation({'default': 'optimal', 'lat': 'bilinear'})
+        interp = Interpolation({'default': 'nearest', 'lat': 'bilinear'})
         assert list(interp.config.keys())[-1] == ('default',)
 
     def test_init_interpolators(self):
