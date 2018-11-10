@@ -23,6 +23,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     if get_deps:
         s3.download_file(bucket_name, 'podpac/' + deps, '/tmp/' + deps)
         subprocess.call(['unzip', '/tmp/' + deps, '-d', '/tmp'])
+        sys.path.append('/tmp/')
         subprocess.call(['rm', '/tmp/' + deps])
     file_key = urllib.unquote_plus(
         event['Records'][0]['s3']['object']['key'])
