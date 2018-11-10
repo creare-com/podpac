@@ -41,9 +41,9 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     pipeline_json = _json['pipeline']
 
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
-    sys.path.append(os.getcwd() + '/matplotlib/')
-    import matplotlib
-    matplotlib.use('agg')
+    # sys.path.append(os.getcwd() + '/matplotlib/')
+    # import matplotlib
+    # matplotlib.use('agg')
     from podpac import settings
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
