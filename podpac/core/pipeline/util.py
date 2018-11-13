@@ -38,7 +38,7 @@ def parse_pipeline_definition(definition):
     # parse output definition
     output = _parse_output_definition(nodes, definition.get('output', {}))
 
-    return nodes, output
+    return output
 
 def _parse_node_definition(nodes, name, d):
     # get node class

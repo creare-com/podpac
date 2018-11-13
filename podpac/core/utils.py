@@ -5,8 +5,10 @@ Utils Summary
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
+import sys
 import json
 import importlib
+from collections import OrderedDict
 
 import traitlets as tl
 import numpy as np
@@ -209,3 +211,19 @@ def optional_import(module_name, package=None, return_root=False):
         except ImportError:
             module = None
     return module
+
+if sys.version < '3.6':
+    # for Python 2 and Python < 3.6 compatibility
+    class OrderedDictTrait(tl.Dict):
+        """ OrderedDict trait """
+
+        default_value = OrderedDict()
+        
+        def validate(self, obj, value):
+            if not isinstance(value, OrderedDict):
+                raise tl.TraitError('...')
+            super(OrderedDictTrait, self).validate(obj, value)
+            return value
+
+else:
+    OrderedDictTrait = tl.Dict

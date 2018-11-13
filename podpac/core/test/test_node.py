@@ -88,14 +88,13 @@ class TestNode(object):
         # make sure it is a valid pipeline
         pipeline = podpac.pipeline.Pipeline(definition=definition)
 
-        assert isinstance(pipeline.nodes[a.base_ref], podpac.algorithm.Arange)
-        assert isinstance(pipeline.nodes[b.base_ref], podpac.algorithm.CoordData)
-        assert isinstance(pipeline.nodes[c.base_ref], podpac.compositor.OrderedCompositor)
-        assert isinstance(pipeline.nodes[node.base_ref], podpac.algorithm.Arithmetic)
-        assert isinstance(pipeline.pipeline_output, podpac.pipeline.NoOutput)
+        assert isinstance(pipeline.node.A, podpac.algorithm.Arange)
+        assert isinstance(pipeline.node.B, podpac.algorithm.CoordData)
+        assert isinstance(pipeline.node.C, podpac.compositor.OrderedCompositor)
+        assert isinstance(pipeline.node, podpac.algorithm.Arithmetic)
 
-        assert pipeline.pipeline_output.node is pipeline.nodes[node.base_ref]
-        assert pipeline.pipeline_output.name == node.base_ref
+        assert isinstance(pipeline.output, podpac.pipeline.NoOutput)
+        assert pipeline.output.name == node.base_ref
 
     def test_make_pipeline_definition_duplicate_ref(self):
         a = podpac.algorithm.Arange()
@@ -109,7 +108,7 @@ class TestNode(object):
         pipeline = podpac.pipeline.Pipeline(definition=definition)
 
         # check that the arange refs are unique
-        assert len(pipeline.nodes) == 4
+        assert len(pipeline.definition['nodes']) == 4
         
     def test_pipeline(self):
         n = Node()

@@ -17,22 +17,13 @@ import xarray as xr
 import xarray.core.coordinates
 from six import string_types
 
+from podpac.core.utils import OrderedDictTrait
 from podpac.core.coordinates.utils import GDAL_CRS
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-
-class OrderedDictTrait(tl.Dict):
-    """ OrderedDict trait for Python < 3.6 (including Python 2) compatibility """
-
-    default_value = OrderedDict()
-    def validate(self, obj, value):
-        if not isinstance(value, OrderedDict):
-            raise tl.TraitError('...')
-        super(OrderedDictTrait, self).validate(obj, value)
-        return value
 
 class Coordinates(tl.HasTraits):
     """
@@ -47,10 +38,7 @@ class Coordinates(tl.HasTraits):
     coordinates
     """
 
-    if sys.version < '3.6':
-        _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates))
-    else:
-        _coords = tl.Dict(trait=tl.Instance(BaseCoordinates))
+    _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates))
 
     def __init__(self, coords=[], dims=None, coord_ref_sys=None, ctype=None, distance_units=None):
         """
