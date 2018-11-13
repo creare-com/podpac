@@ -34,4 +34,3 @@ from podpac import core
 from podpac import version
 __version__ = version.version()
 version_info = version.VERSION_INFO
-del version
