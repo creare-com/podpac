@@ -83,7 +83,7 @@ class TestArray(object):
     def test_definition(self):
         node = Array(source=self.data)
         pipeline = podpac.pipeline.Pipeline(definition=node.definition)
-        np.testing.assert_array_equal(pipeline.nodes['Array'].source, self.data)
+        np.testing.assert_array_equal(pipeline.node.source, self.data)
 
 class TestPyDAP(object):
     """test pydap datasource"""

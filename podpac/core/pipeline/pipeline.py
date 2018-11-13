@@ -5,12 +5,12 @@ Pipeline Summary
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
-import json
+import json as json
 
 import traitlets as tl
 
 from podpac.core.node import Node
-
+from podpac.core.utils import OrderedDictTrait
 from podpac.core.pipeline.output import Output
 from podpac.core.pipeline.util import parse_pipeline_definition
 
@@ -19,65 +19,58 @@ class Pipeline(Node):
 
     Attributes
     ----------
-    path : string
-        path to pipeline JSON definition
     json : string
         pipeline JSON definition
     definition : OrderedDict
         pipeline definition
-    nodes : OrderedDict
-        dictionary of pipeline nodes
-    pipeline_output : Output
+    output : Output
         pipeline output
+    node : Node
+        pipeline output node
     do_write_output : Bool
-        True to call pipeline_output.write() on execute, false otherwise.
+        True to call output.write() on execute, false otherwise.
     """
 
-    path = tl.Unicode(allow_none=True, help="Path to the JSON definition")
-    json = tl.Unicode(allow_none=True, help="JSON definition")
-    definition = tl.Instance(OrderedDict, help="pipeline definition")
-    nodes = tl.Instance(OrderedDict, help="pipeline nodes")
-    pipeline_output = tl.Instance(Output, help="pipeline output")
+    definition = OrderedDictTrait(readonly=True, help="pipeline definition")
+    json = tl.Unicode(readonly=True, help="JSON definition")
+    output = tl.Instance(Output, readonly=True, help="pipeline output")
     do_write_output = tl.Bool(True)
 
-    @property
-    def units(self):
-        return self.pipeline_output.node.units
+    def _first_init(self, path=None, **kwargs):
+        if (path is not None) + ('definition' in kwargs) + ('json' in kwargs) != 1:
+            raise TypeError("Pipeline requires exactly one 'path', 'json', or 'definition' argument")
 
-    @property
-    def dtype(self):
-        return self.pipeline_output.node.dtype
+        if path is not None:
+            with open(path) as f:
+                kwargs['definition'] = json.load(f, object_pairs_hook=OrderedDict)
 
-    @property
-    def cache_type(self):
-        return self.pipeline_output.node.cache_type
-
-    @property
-    def style(self):
-        return self.pipeline_output.node.style
+        return kwargs
 
     @tl.validate('json')
     def _json_validate(self, proposal):
         s = proposal['value']
-        definition = json.loads(s, object_pairs_hook=OrderedDict)
-        self.nodes, self.pipeline_output = parse_pipeline_definition(definition)
-        self.definition = definition
-        return s
-
-    @tl.validate('path')
-    def _path_validate(self, proposal):
-        path = proposal['value']
-        with open(path) as f:
-            definition = json.load(f, object_pairs_hook=OrderedDict)
-        self.nodes, self.pipeline_output = parse_pipeline_definition(definition)
-        self.definition = definition
-        return path
+        definition = json.loads(s)
+        parse_pipeline_definition(definition)
+        return json.dumps(json.loads(s)) # standardize
 
     @tl.validate('definition')
     def _validate_definition(self, proposal):
         definition = proposal['value']
-        self.nodes, self.pipeline_output = parse_pipeline_definition(definition)
+        parse_pipeline_definition(definition)
         return definition
+
+    @tl.default('json')
+    def _json_from_definition(self):
+        return json.dumps(self.definition)
+
+    @tl.default('definition')
+    def _definition_from_json(self):
+        print("definition from json")
+        return json.loads(self.json, object_pairs_hook=OrderedDict)
+
+    @tl.default('output')
+    def _parse_definition(self):
+        return parse_pipeline_definition(self.definition)
 
     def eval(self, coordinates, output=None):
         """Evaluate the pipeline, writing the output if one is defined.
@@ -90,9 +83,33 @@ class Pipeline(Node):
 
         self._requested_coordinates = coordinates
 
-        output = self.pipeline_output.node.eval(coordinates, output)
+        output = self.output.node.eval(coordinates, output)
         if self.do_write_output:
-            self.pipeline_output.write(output, coordinates)
+            self.output.write(output, coordinates)
 
         self._output = output
         return output
+
+    # -----------------------------------------------------------------------------------------------------------------
+    # properties, forwards output node
+    # -----------------------------------------------------------------------------------------------------------------
+
+    @property
+    def node(self):
+        return self.output.node
+
+    @property
+    def units(self):
+        return self.node.units
+
+    @property
+    def dtype(self):
+        return self.node.dtype
+
+    @property
+    def cache_type(self):
+        return self.node.cache_type
+
+    @property
+    def style(self):
+        return self.node.style
