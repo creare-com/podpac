@@ -23,7 +23,7 @@ import numpy as np
 import traitlets as tl
 
 # Helper utility for optional imports
-from podpac.core.utils import optional_import
+from podpac.core.utils import optional_import, trait_is_defined
 
 # Optional dependencies
 bs4 = optional_import('bs4')
@@ -301,7 +301,8 @@ class Rasterio(DataSource):
     def _update_dataset(self, change):
         if self.dataset is not None:
             self.dataset = self.open_dataset(change['new'])
-        self.native_coordinates = self.get_native_coordinates()
+        if trait_is_defined(self, 'native_coordinates'):
+            self.native_coordinates = self.get_native_coordinates()
         
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -483,7 +484,8 @@ class H5PY(DataSource):
         if self.dataset is not None:
             self.close_dataset()
             self.dataset = self.open_dataset(change['new'])
-        self.native_coordinates = self.get_native_coordinates()
+        if trait_is_defined(self, 'native_coordinates'):
+            self.native_coordinates = self.get_native_coordinates()
         
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
