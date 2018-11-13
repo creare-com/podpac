@@ -12,8 +12,9 @@ import boto3
 
 import _pickle as cPickle
 
-sys.path.append('/tmp')
-sys.path.append(os.getcwd() + '/podpac/')
+# sys.path.insert(0, '/tmp/podpac/')
+sys.path.append('/tmp/')
+# sys.path.append(os.getcwd() + '/podpac/')
 
 s3 = boto3.client('s3')
 deps = 'podpac_deps.zip'
@@ -43,6 +44,23 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
     import matplotlib
     matplotlib.use('agg')
+    out = str(sys.path) + '\n' + '*'*80 + '\n'
+    # out += str(os.listdir('/tmp')) + '\n' + '*'*80 + '\n'
+    # out += str(os.listdir('/tmp/podpac/')) + '\n' + '*'*80 + '\n'
+    # out += str(os.listdir('/tmp/podpac/podpac/')) + '\n' + '*'*80 + '\n'
+    try:
+        import scipy
+    except:
+        out += "DSULLIVAN: SCIPY failed *sigh-py*" + '\n' + '*'*80 + '\n'
+    try:
+        import podpac
+        out += str(dir(podpac)) + '\n' + '*'*80 + '\n'
+    except Exception as e:
+        out += "DSULLIVAN: Error importing podpac" + '\n' + '*'*80 + '\n'
+        out += str(e) + '\n' + '*'*80 + '\n'
+    out += str(matplotlib.__file__) + '\n' + '*'*80 + '\n'
+    out += str(os.environ)
+    return out
     from podpac import settings
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
