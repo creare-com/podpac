@@ -66,6 +66,10 @@ def version():
             subprocess.check_output([git, "--version"])
         except Exception:
             git = '/usr/bin/git'
+            try:
+                subprocess.check_output([git, "--version"])            
+            except Exception as e:
+                return version_full
 
         branches = subprocess.check_output([git, "branch"], cwd=CWD).decode('ascii')
         for branch in branches.split('\n'):
