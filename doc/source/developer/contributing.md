@@ -129,27 +129,29 @@ Podpac adheres to the [numpy format for docstrings](https://numpydoc.readthedocs
     """
 ```
 
-> **Note:** all references to podpac classes (`:class:`), methods (`:meth:`), and attributes (`:attr:`) should use the *public* path to the reference. If the class does not have a public reference, fall back on the *full* path reference to the class. For example:
-> 
-> ```python
->   def method():
->       """Class Method.  
->       See method :meth:`podpac.data.DataSource.eval`.
->       See attribute :attr:`podpac.core.data.interpolate.INTERPOLATION_METHODS`.
->       
->       Parameters
->       ----------
->       coordinates : :class:`podpac.Coordinates`
->           Coordinate input
->       output : :class:`podpac.core.units.UnitsDataArray`, optional
->           Container for output
->      
->       Returns
->       --------
->       :class:`podpac.core.units.UnitsDataArray`
->           Returns a UnitsDataArray
->       """
-> ```
+#### Docstring References
+
+All references to podpac classes (`:class:`), methods (`:meth:`), and attributes (`:attr:`) should use the *public* path to the reference. If the class does not have a public reference, fall back on the *full* path reference to the class. For example:
+
+```python
+def method():
+    """Class Method.  
+    See method :meth:`podpac.data.DataSource.eval`.
+    See attribute :attr:`podpac.core.data.interpolate.INTERPOLATION_METHODS`.
+
+    Parameters
+    ----------
+    coordinates : :class:`podpac.Coordinates`
+      Coordinate input
+    output : :class:`podpac.core.units.UnitsDataArray`, optional
+      Container for output
+
+    Returns
+    --------
+    :class:`podpac.core.units.UnitsDataArray`
+      Returns a UnitsDataArray
+    """
+```
 
 ### Lint
 
@@ -162,13 +164,7 @@ $ pylint podpac/settings.py     # lint single file
 
 Configuration options are specified in `.pylintrc`.
 
-## Import Convetions / API Conventions
-
-> The modules `podpac.settings` and `podpac.units.ureg` MUST be imported without using the `from` syntax. For example:
-> ```python
-> import podpac.settings                 # yes
-> from podpac.settings import CACHE_CIR  # no
-> ```
+## Import Conventions / API Conventions
 
 ### Public API
 
@@ -209,8 +205,7 @@ dir(podpac)
 ### Developer API
 
 The Developer API follows the hierarchical structure of the `core` directory. 
-All source code written into the `core` podpac module should reference other modules using the full path to the module to maintain consistency. 
-All docstrings should also use the full path to the module being referenced.
+All source code written into the `core` podpac module should reference other modules using the full path to the module to maintain consistency.
 
 For example:
 
@@ -235,15 +230,23 @@ In source code `/podpac/core/node.py`:
 
 ```python
 """
-Node Module
+Podpac Module
 """
 
 ...
 
 from podpac import settings
 from podpac.core.units import Units, UnitsDataArray
-from podpac.core.coordinate import Coordinate
+from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.utils import common_doc
+```
+
+
+**Note**: The modules `podpac.settings` and `podpac.units.ureg` MUST be imported without using the `from` syntax. For example:
+
+```python
+import podpac.settings                 # yes
+from podpac.settings import CACHE_CIR  # no
 ```
 
 ## Testing
