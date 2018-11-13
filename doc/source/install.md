@@ -1,27 +1,28 @@
 # Installation Instructions
 
-At the moment, a full Windows 10 installation of PODPAC can be downloaded from our [PODPAC-S3-Bucket](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip). 
+A full Windows 10 installation of PODPAC can be downloaded from our [PODPAC-S3-Bucket](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip). More details are below. 
 
-For custom installations, commandline installation procedures are described below. 
-
-These instructions assume you are using the [Anaconda Python Distribution](https://www.anaconda.com/), and have [git](https://git-scm.com/) installed.
+For custom installations, commandline installation procedures are also described below. 
 
 ## Window 10 Installation
-A full Windows 10 Installation of PODPAC can be downloaded from [here](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip). To use it, extract the zip file in a folder on your machine. Then:
+A full Windows 10 Installation of PODPAC can be downloaded from [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip).
+
+For older versions, substitute `latest` in the url with the version number. For example, version `0.2.0` can be downloaded using this url [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip)
+
+To use it, extract the zip file in a folder on your machine. We recommend expanding it near the root of your drive (e.g. `C:\PODPAC`) due to long file paths that are part of the installation. Once the folder is unzipped:
 
 * To open the example notebooks, run the `run_podpac_jupyterlab.bat` script, by double-clicking the icon
     * This will open up a Windows command prompt, and launch a JupyterLab notebook in your default web browser
         * Older browsers may not support JupyterLab, as such the url with the token can be copied and pasted from the Windows command prompt that was launched
     * To close the notebook, close the browser tab, and close the Windows console
 * To run an IPython session:
-    * Open a Windows command prompt in the unzipped folder
-    * Set up the appropriate Windows environment by running the `set_local_conda_path.bat` script
-    * Set up absolute paths used within Anaconda to point to your local installation path by running the `fix_hardcoded_absolute_paths.bat`
-    
-    * Activate the PODPAC Python environment by running the `activate_podpac_conda_env.bat` script
-    * Open an IPython console by typing `ipython` and hitting enter
+    1. Open a Windows command prompt in this directory
+    2. Run the `bin\run_ipython.bat` script
 
 ## Commandline Installation
+
+These instructions assume you are using the [Anaconda Python Distribution](https://www.anaconda.com/), and have [git](https://git-scm.com/) installed.
+
 ### Conda Environment
 
 We recommend that you create a new python 3 environment to install `podpac`:
