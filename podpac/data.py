@@ -9,5 +9,5 @@ from podpac.core.data.interpolate import (
     Interpolation, Interpolator, InterpolationException
 )
 from podpac.core.data.types import (
-    Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, H5PY
+    Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, H5PY, CSV
 )

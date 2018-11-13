@@ -21,9 +21,10 @@ from six import string_types
 
 import numpy as np
 import traitlets as tl
+import pandas as pd  # Core dependency of xarray
 
 # Helper utility for optional imports
-from podpac.core.utils import optional_import, trait_is_defined
+from podpac.core.utils import optional_import
 
 # Optional dependencies
 bs4 = optional_import('bs4')
@@ -43,9 +44,9 @@ certifi = optional_import('certifi')
 from podpac import settings
 from podpac.core import authentication
 from podpac.core.node import Node
-from podpac.core.utils import cached_property, clear_cache, common_doc
+from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.algorithm.algorithm import Algorithm
 
 class Array(DataSource):
@@ -90,6 +91,7 @@ class NumpyArray(Array):
     def init(self):
         warnings.warn('NumpyArray been renamed Array. ' +
                       'Backwards compatibility will be removed in future releases', DeprecationWarning)
+
 
 @common_doc(COMMON_DATA_DOC)
 class PyDAP(DataSource):
@@ -247,6 +249,128 @@ class PyDAP(DataSource):
             The list of available keys from the OpenDAP dataset. Any of these keys can be set as self.datakey
         """
         return self.dataset.keys()
+
+
+@common_doc(COMMON_DATA_DOC)
+class CSV(DataSource):
+    """Create a DataSource from a .csv file. This class assumes that the data has a storage format such as:
+    header 1,   header 2,   header 3, ...
+    row1_data1, row1_data2, row1_data3, ...
+    row2_data1, row2_data2, row2_data3, ...
+    
+    Attributes
+    ----------
+    native_coordinates : Coordinates
+        {native_coordinates}
+    source : str
+        Path to the data source
+    alt_col : str or int
+        Column number or column title containing altitude data
+    lat_col : str or int
+        Column number or column title containing latitude data
+    lon_col : str or int
+        Column number or column title containing longitude data
+    time_col : str or int
+        Column number or column title containing time data
+    data_col : str or int
+        Column number or column title containing output data
+    dims : list[str]
+        Default is ['alt', 'lat', 'lon', 'time']. List of dimensions tested. This list determined the order of the
+        stacked dimensions.
+    dataset : pd.DataFrame
+        Raw Pandas DataFrame used to read the data
+    """
+    source = tl.Unicode().tag(attr=True)
+    alt_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
+    lat_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
+    lon_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
+    time_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
+    data_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
+    dims = tl.List(default_value=['alt', 'lat', 'lon', 'time']).tag(attr=True)
+    dataset = tl.Instance(pd.DataFrame)
+    
+    def _first_init(self, **kwargs):
+        if not (('alt_col' in kwargs) or ('time_col' in kwargs) or ('lon_col' in kwargs) or ('lat_col' in kwargs)):
+            raise TypeError("CSV requires at least one of time_col, alt_col, lat_col, or lon_col.")
+        
+        return kwargs
+        
+    @property
+    def _alt_col(self):
+        if isinstance(self.alt_col, int):
+            return self.alt_col
+        return self.dataset.columns.get_loc(self.alt_col)    
+    
+    @property
+    def _lat_col(self):
+        if isinstance(self.lat_col, int):
+            return self.lat_col
+        return self.dataset.columns.get_loc(self.lat_col)
+    
+    @property
+    def _lon_col(self):
+        if isinstance(self.lon_col, int):
+            return self.lon_col
+        return self.dataset.columns.get_loc(self.lon_col)
+    
+    @property
+    def _time_col(self):
+        if isinstance(self.time_col, int):
+            return self.time_col
+        return self.dataset.columns.get_loc(self.time_col)
+
+    @property
+    def _data_col(self):
+        if isinstance(self.data_col, int):
+            return self.data_col
+        return self.dataset.columns.get_loc(self.data_col)        
+    
+    @tl.default('dataset')
+    def open_dataset(self, source=None):
+        """Opens the data source
+        
+        Parameters
+        ----------
+        source : str, optional
+            Uses self.source by default. Path to the data source.
+        
+        Returns
+        -------
+        pd.DataFrame
+            pd.read_csv(source)
+        """        
+        if source is None:
+            source = self.source
+        else:
+            self.source = source
+
+        return pd.read_csv(source)
+    
+    @common_doc(COMMON_DATA_DOC)
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
+        
+        The default implementation tries to find the lat/lon coordinates based on dataset.affine or dataset.transform
+        (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
+        have to overload this method.
+        """
+        coords = []
+        for d in self.dims:
+            if trait_is_defined(self, d + '_col'):
+                i = getattr(self, '_{}_col'.format(d))
+                c = np.array(self.dataset.iloc[:, i])
+                if d is 'time':
+                    c = c.astype('str').tolist()
+                coords.append(ArrayCoordinates1d(c, name=d))
+        return Coordinates([StackedCoordinates(coords)])
+    
+    @common_doc(COMMON_DATA_DOC)
+    def get_data(self, coordinates, coordinates_index):
+        """{get_data}
+        """
+        d = self.dataset.iloc[coordinates_index[0], self._data_col]
+        return self.create_output_array(coordinates, data=d)
+
 
 # TODO: rename "Rasterio" to be more consistent with other naming conventions
 @common_doc(COMMON_DATA_DOC)

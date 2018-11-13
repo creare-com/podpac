@@ -26,7 +26,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
-from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3
+from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, CSV
 
 def test_allow_missing_modules():
     """TODO: Allow user to be missing rasterio and scipy"""
@@ -213,6 +213,44 @@ class TestPyDAP(object):
         keys = node.keys
         assert 'key' in keys
 
+class TestCSV(object):
+    ''' test csv data source
+    '''
+    source = os.path.join(os.path.dirname(__file__), 'assets/points.csv')
+    
+    def test_init(self):
+        try:
+            node = CSV(source=self.source)
+            raise Exception('No error raised when keys not specified')
+        except TypeError:
+            pass
+        
+        node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col=4)
+        assert node._lat_col == 0
+        assert node._lon_col == 1
+        assert node._time_col == 2
+        assert node._alt_col == 3
+        assert node._data_col == 4
+        
+        node = CSV(source=self.source, lat_col='lat', lon_col='lon', time_col='time', alt_col='alt', data_col='data')  
+        assert node._lat_col == 0
+        assert node._lon_col == 1
+        assert node._time_col == 2
+        assert node._alt_col == 3
+        assert node._data_col == 4
+    
+    def test_native_coordinates(self):
+        node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col='data')
+        nc = node.native_coordinates
+        assert nc.size == 5
+        assert np.all(nc['lat'].coords == [0, 1, 1, 1, 1])
+        assert np.all(nc['lon'].coords == [0, 0, 2, 2, 2])
+        assert np.all(nc['alt'].coords == [0, 0, 0, 0, 4])
+    
+    def test_data(self):
+        node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col='data')
+        d = node.eval(node.native_coordinates)
+        assert np.all(d == [0, 1, 2, 3, 4])
 
 class TestRasterio(object):
     """test rasterio data source"""
