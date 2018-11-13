@@ -30,6 +30,8 @@ For older versions, substitute `latest` in the url with the version number. For 
 
 The official PODPAC documentation is available here: https://creare-com.github.io/podpac-docs
 
+For usage examples, see the [podpac_examples](https://github.com/creare-com/podpac_examples) repository. 
+
 - To run PODPAC in ESRI ArcGIS Python, see [here](notes/packages_EsriPlus_Python.md)
 
 ## Contributing

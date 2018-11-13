@@ -105,29 +105,22 @@ $ python -m ipykernel install --user
 ```
 
 #### Running example notebooks
-To run the PODPAC example notebooks, start JupyterLab in the `doc/notebooks` directory of PODPAC
+Example notebooks can be found in the [podpac_examples](https://github.com/creare-com/podpac_examples) repository. To run these examples:
+* Obtain the examples and files:
+    * [download](https://github.com/creare-com/podpac_examples/archive/master.zip) and unzip the repository to a folder
+    * or clone the repository 
+    ```bash
+    $ git clone https://github.com/creare-com/podpac_examples.git
+    ```
+
+To run the PODPAC example notebooks, start JupyterLab in the `notebooks` directory of the `podpac_examples` repository
 
 ```bash
-$ cd doc/notebooks
+$ cd notebooks
 $ jupyter lab
 ```
 Open a notebook and select `Run` from the top menu, followed by `Run All`.
 You may be prompted to enter user EarthData login credentials to access NASA data. 
-
-### Installing Examples Files
-Some of the example notebooks in PODPAC use example files. In order to keep the main code repository small, we have created a second repository specifically for storing these file. To install the example files:
-```bash
-# 1. Activate your PODPAC Python environment
-$ conda activate podpac  # Windows
-$ source activate podpac # Linux / Mac
-
-# 2. Clone the podpac_examples repository
-$ git clone https://github.com/creare-com/podpac_examples.git
-
-# 3. Install the examples
-$ cd podpac_examples
-$ pip install -e .
-```
 
 ### Installation Instructions for Developers
 
@@ -147,7 +140,7 @@ The `master` branch is intented to be somewhat stable with working code. For ble
 $ git checkout -b develop origin/develop
 ```
 
-#### Installing podpac
+#### Installing PODPAC
 
 After cloning the repository to your computer, install `podpac` in development mode using pip:
 
@@ -165,7 +158,9 @@ Some users may experience issues installing [rasterio](https://rasterio.readthed
 $ conda install rasterio --channel conda-forge
 ```
 
+
 ## Creating the Windows Installation PODPAC Conda environment
+
 This section describes the process used to create the [PODPAC Window 10 Installation](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip).
 
 These instructions only assume that you already have [git](https://git-scm.com/) installed on your Windows 10 machine. 
@@ -177,6 +172,7 @@ These instructions only assume that you already have [git](https://git-scm.com/)
 * Clone podpac and set up the conda environment
 ```bash
 > git clone https://github.com/creare-com/podpac.git
+> git clone https://github.com/creare-com/podpac_examples.git
 > cd podpac
 > git checkout tags/<version> release/<version>  # as of writing, the <version> is 0.2.0
 > cd ..
@@ -210,11 +206,8 @@ jupyter lab build
 python -m ipykernel install --user
 conda clean -a -y
 ```
-* To run a `JupyterLab` sessions in the `<root_folder>\podpac\doc\notebooks` directory, double-click on the `run_podpac_jupyterlab.bat`. This will launch a browser window in the folder where PODPAC keeps its example notebooks.
+* To run a `JupyterLab` sessions in the `<root_folder>\podpac_examples\notebooks` directory, double-click on the `run_podpac_jupyterlab.bat`. This will launch a browser window in the folder where PODPAC keeps its example notebooks.
 * To run an IPython console: Open up a Windows command prompt in `<root_folder>`
 ```bash
-set_local_conda_path.bat
-fix_hardcoded_absolute_paths.bat
-activate_podpac_conda_env.bat
-ipython
+bin\run_ipython.bat
 ```
