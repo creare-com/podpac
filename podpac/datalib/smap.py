@@ -192,19 +192,19 @@ SMAP_IRREGULAR_COORDINATES = ['SPL2SMAP_S']
 SMAP_BASE_URL_FILE = os.path.join(os.path.dirname(__file__), 'nsidc_smap_opendap_url.txt')
 SMAP_BASE_URL = 'https://n5eil01u.ecs.nsidc.org/opendap/SMAP'
 try:
-    with open(SMAP_BASE_URL_FILE, 'r') as fid: 
+    with open(SMAP_BASE_URL_FILE, 'r') as fid:
         rf = fid.read()
     if 'https://' in rf and 'nsidc.org' in rf:
         SMAP_BASE_URL = rf
 except Exception as e:
     warnings.warn("Could not retrieve SMAP url from %s: " % (SMAP_BASE_URL_FILE) + str(e))
-try: 
+try:
     r = requests.get('https://s3.amazonaws.com/podpac-s3/settings/nsidc_smap_opendap_url.txt').text
     if 'https://' in r and 'nsidc.org' in r:
         if rf != r:
             warnings.warn("Updating SMAP url from PODPAC S3 Server.")
             SMAP_BASE_URL = r
-            try: 
+            try:
                 with open(SMAP_BASE_URL_FILE, 'w') as fid:
                     fid.write(r)
             except Exception as e:
@@ -215,7 +215,7 @@ except Exception as e:
 SMAP_BASE_URL_REGEX = re.compile(re.sub(r'\d', r'\\d', SMAP_BASE_URL.split('/')[2]))
 @common_doc(COMMON_DOC)
 class SMAPSource(datatype.PyDAP):
-    """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how 
+    """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how
     to extract the correct coordinates and data keys for the soil moisture data.
 
     Attributes
@@ -245,7 +245,7 @@ class SMAPSource(datatype.PyDAP):
         try:
             session.get(SMAP_BASE_URL)
         except Exception as e:
-            print ("Unknown exception: ", e)
+            print("Unknown exception: ", e)
         return session
 
     #date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
@@ -287,7 +287,7 @@ class SMAPSource(datatype.PyDAP):
         -------
         int
             {version}
-        """        
+        """
         src = self.source.split('/')
         return int(src[src.index('SMAP')+1].split('.')[1])
         
@@ -723,12 +723,12 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         """
         d = super(podpac.compositor.Compositor, self).base_definition
         d['interpolation'] = self.interpolation
-        return d    
+        return d
 
 @common_doc(COMMON_DOC)
 class SMAP(podpac.compositor.OrderedCompositor):
-    """Compositor of all the SMAPDateFolder's for every available SMAP date. Essentially a compositor of all SMAP data 
-    for a particular product. 
+    """Compositor of all the SMAPDateFolder's for every available SMAP date. Essentially a compositor of all SMAP data
+    for a particular product.
 
     Attributes
     ----------
@@ -736,7 +736,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
     auth_session : {auth_session}
     base_url : {base_url}
     date_url_re : SRE_Pattern
-        Regular expression used to extract all folder dates (or folder names) for the particular SMAP product. 
+        Regular expression used to extract all folder dates (or folder names) for the particular SMAP product.
     layerkey : {layerkey}
     password : {password}
     product : str
@@ -745,7 +745,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
     """
 
     base_url = tl.Unicode(SMAP_BASE_URL).tag(attr=True)
-    product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist(), 
+    product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist(),
                       default_value='SPL4SMAU').tag(attr=True)
     version = tl.Int(allow_none=True).tag(attr=True)
     @tl.default('version')
