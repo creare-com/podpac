@@ -1,16 +1,5 @@
 """
 Interpolation handling
-
-Attributes
-----------
-INTERPOLATION_DEFAULT : str
-    Default interpolation method used when creating a new :class:`Interpolation` class
-INTERPOLATION_METHODS : dict
-    Dictionary of string interpolation method strings and the associated interpolator classes that support
-    the method (i.e. ``'nearest': [NearestNeighbor, Rasterio, Scipy]``)
-INTERPOLATION_SHORTCUTS : list
-    Keys of :attr:`INTERPOLATION_METHODS`
-
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
@@ -42,8 +31,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.utils import common_doc
 
-# common doc properties
-INTERPOLATE_DOCS = {
+COMMON_INTERPOLATE_DOCS = {
     'interpolator_attributes':
         """
         method : str
@@ -169,14 +157,16 @@ INTERPOLATE_DOCS = {
             returns the updated output of interpolated data
         """
 }
+"""dict : Common interpolate docs """
 
 class InterpolationException(Exception):
     """
     Custom label for interpolator exceptions
     """
     pass
+
     
-@common_doc(INTERPOLATE_DOCS)
+@common_doc(COMMON_INTERPOLATE_DOCS)
 class Interpolator(tl.HasTraits):
     """Interpolation Method
 
@@ -288,7 +278,7 @@ class Interpolator(tl.HasTraits):
 
         return output_data
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def can_select(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_select}
@@ -296,28 +286,28 @@ class Interpolator(tl.HasTraits):
 
         return tuple()
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
         """
         {interpolator_select}
         """
         raise NotImplementedError
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_interpolate}
         """
         return tuple()
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
         raise NotImplementedError
 
-@common_doc(INTERPOLATE_DOCS)
+@common_doc(COMMON_INTERPOLATE_DOCS)
 class NearestNeighbor(Interpolator):
     """Nearest Neighbor Interpolation
     
@@ -327,7 +317,7 @@ class NearestNeighbor(Interpolator):
     spatial_tolerance = tl.Float(default_value=np.inf)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_interpolate}
@@ -341,7 +331,7 @@ class NearestNeighbor(Interpolator):
         else:
             return tuple()
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
@@ -397,14 +387,14 @@ class NearestNeighbor(Interpolator):
         return output_data
 
 
-@common_doc(INTERPOLATE_DOCS)
+@common_doc(COMMON_INTERPOLATE_DOCS)
 class NearestPreview(NearestNeighbor):
     """Nearest Neighbor (Preview) Interpolation
     
     {nearest_neighbor_attributes}
     """
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def can_select(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_select}
@@ -418,7 +408,7 @@ class NearestPreview(NearestNeighbor):
         else:
             return tuple()
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
         """
         {interpolator_select}
@@ -474,7 +464,7 @@ class NearestPreview(NearestNeighbor):
         return Coordinates(new_coords), new_coords_idx
 
 
-@common_doc(INTERPOLATE_DOCS)
+@common_doc(COMMON_INTERPOLATE_DOCS)
 class Rasterio(Interpolator):
     """Rasterio Interpolation
     
@@ -491,7 +481,7 @@ class Rasterio(Interpolator):
 
     # TODO: support 'gauss' method?
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """{interpolator_can_interpolate}"""
 
@@ -507,7 +497,7 @@ class Rasterio(Interpolator):
         # otherwise return no supported dims
         return tuple()
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
@@ -576,7 +566,7 @@ class Rasterio(Interpolator):
         return output_data
 
 
-@common_doc(INTERPOLATE_DOCS)
+@common_doc(COMMON_INTERPOLATE_DOCS)
 class ScipyPoint(Interpolator):
     """Scipy Point Interpolation
     
@@ -589,7 +579,7 @@ class ScipyPoint(Interpolator):
     spatial_tolerance = tl.Float(default_value=np.inf)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_interpolate}
@@ -609,7 +599,7 @@ class ScipyPoint(Interpolator):
         return tuple()
 
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
@@ -673,7 +663,7 @@ class ScipyPoint(Interpolator):
             return output_data
 
 
-@common_doc(INTERPOLATE_DOCS)
+@common_doc(COMMON_INTERPOLATE_DOCS)
 class ScipyGrid(ScipyPoint):
     """Scipy Interpolation
     
@@ -686,7 +676,7 @@ class ScipyGrid(ScipyPoint):
     spatial_tolerance = tl.Float(default_value=np.inf)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
         """
         {interpolator_can_interpolate}
@@ -703,7 +693,7 @@ class ScipyGrid(ScipyPoint):
         # otherwise return no supported dims
         return tuple()
 
-    @common_doc(INTERPOLATE_DOCS)
+    @common_doc(COMMON_INTERPOLATE_DOCS)
     def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
@@ -778,7 +768,7 @@ class ScipyGrid(ScipyPoint):
 
         return output_data
 
-# List of available interpolators
+
 INTERPOLATION_METHODS = {
     'nearest_preview': [NearestPreview],
     'nearest': [NearestNeighbor, Rasterio, ScipyGrid, ScipyPoint],
@@ -798,12 +788,29 @@ INTERPOLATION_METHODS = {
     'spline_3': [ScipyGrid],
     'spline_4': [ScipyGrid]
 }
+"""dict: Dictionary of string interpolation methods and associated interpolator classes
+   (i.e. ``'nearest': [NearestNeighbor, Rasterio, Scipy]``) """
 
-# create shortcut list based on methods keys
 INTERPOLATION_SHORTCUTS = INTERPOLATION_METHODS.keys()
+"""list : Keys of :attr:`INTERPOLATION_METHODS` """
 
-# default interpolation
 INTERPOLATION_DEFAULT = 'nearest'
+"""str : Default interpolation method used when creating a new :class:`Interpolation` class """
+
+def interpolation_trait():
+    """Create a new interpolation trait
+    
+    Returns
+    -------
+    tl.Union
+        Union trait for an interpolation definition
+    """
+    return tl.Union([
+        tl.Dict(),
+        tl.Enum(INTERPOLATION_SHORTCUTS),
+        tl.Instance(Interpolation)
+    ], default_value=INTERPOLATION_DEFAULT)
+
 
 class Interpolation():
     """Create an interpolation class to handle one interpolation method per unstacked dimension.
@@ -811,15 +818,13 @@ class Interpolation():
     
     Parameters
     ----------
-    definition : str,
-                 tuple (str, list of podpac.core.data.interpolate.Interpolator),
-                 dict
+    definition : str, tuple (str, list of podpac.core.data.interpolate.Interpolator), dict
         Interpolation definition used to define interpolation methods for each definiton.
-        See :ref:podpac.core.data.datasource.DataSource.interpolation for more details.
+        See :attr:`podpac.data.DataSource.interpolation` for more details.
     coordinates : :class:`podpac.Coordinates`
         source coordinates to be interpolated
     **kwargs :
-        Keyword arguments passed on to each :ref:podpac.core.data.interpolate.Interpolator
+        Keyword arguments passed on to each :class:`podpac.interpolators.Interpolator`
     
     Raises
     ------
@@ -910,10 +915,9 @@ class Interpolation():
         
         Parameters
         ----------
-        definition : str,
-                     dict
+        definition : str, dict
             interpolation definition
-            See :ref:podpac.core.data.datasource.DataSource.interpolation for more details.
+            See :attr:`podpac.data.DataSource.interpolation` for more details.
         
         Returns
         -------
@@ -1117,7 +1121,7 @@ class Interpolation():
         source_coordinates : :class:`podpac.Coordinates`
             Intersected source coordinates
         source_coordinates_index : list
-            Index of intersected source coordinates. See :ref:podpac.core.data.datasource.DataSource for
+            Index of intersected source coordinates. See :class:`podpac.data.DataSource` for
             more information about valid values for the source_coordinates_index
         eval_coordinates : :class:`podpac.Coordinates`
             Requested coordinates to evaluate
@@ -1215,3 +1219,4 @@ class Interpolation():
                                                    output_data)
 
         return output_data
+

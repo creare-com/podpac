@@ -191,7 +191,7 @@ class PyDAP(DataSource):
                 dataset = pydap.client.open_url(source, session=self.auth_session)
             except Exception:
                 # TODO: handle 403 error
-                print ("Warning, dataset could not be opened. Check login credentials.")
+                print("Warning, dataset could not be opened. Check login credentials.")
                 dataset = None
 
         return dataset
@@ -299,7 +299,7 @@ class CSV(DataSource):
     def _alt_col(self):
         if isinstance(self.alt_col, int):
             return self.alt_col
-        return self.dataset.columns.get_loc(self.alt_col)    
+        return self.dataset.columns.get_loc(self.alt_col)
     
     @property
     def _lat_col(self):
@@ -323,7 +323,7 @@ class CSV(DataSource):
     def _data_col(self):
         if isinstance(self.data_col, int):
             return self.data_col
-        return self.dataset.columns.get_loc(self.data_col)        
+        return self.dataset.columns.get_loc(self.data_col)
     
     @tl.default('dataset')
     def open_dataset(self, source=None):
@@ -338,7 +338,7 @@ class CSV(DataSource):
         -------
         pd.DataFrame
             pd.read_csv(source)
-        """        
+        """
         if source is None:
             source = self.source
         else:

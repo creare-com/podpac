@@ -98,12 +98,11 @@ podpac.coordinates
 podpac.data
 -----------
 
+.. rubric:: Data Source Types
+
 .. autosummary::
     :toctree: api/
 
-    podpac.data.DataSource
-    podpac.data.Interpolation
-    podpac.data.InterpolationException
     podpac.data.Array
     podpac.data.PyDAP
     podpac.data.Rasterio
@@ -112,6 +111,19 @@ podpac.data
     podpac.data.S3
     podpac.data.H5PY
 
+
+.. rubric:: Utilities
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.data.DataSource
+    podpac.data.Interpolation
+    podpac.data.InterpolationTrait
+    podpac.data.InterpolationException
+    podpac.data.INTERPOLATION_METHODS
+    podpac.data.INTERPOLATION_SHORTCUTS
+    podpac.data.INTERPOLATION_DEFAULT
 
 
 podpac.interpolators
