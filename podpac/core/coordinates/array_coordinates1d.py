@@ -237,7 +237,9 @@ class ArrayCoordinates1d(Coordinates1d):
             I = slice(start, stop+1)
 
         else:
-            raise NotImplementedError("select outer=True is not yet supported for non-monotonic coordinates")
+            gt = self.coords >= max(self.coords[self.coords <= bounds[0]])
+            lt = self.coords <= min(self.coords[self.coords >= bounds[1]])
+            I = np.where(gt & lt)[0]
 
         c = ArrayCoordinates1d(self.coords[I], **self.properties)
         if return_indices:

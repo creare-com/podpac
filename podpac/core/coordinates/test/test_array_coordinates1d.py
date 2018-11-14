@@ -403,6 +403,14 @@ class TestArrayCoordinatesIndexing(object):
         with pytest.raises(IndexError):
             c[10]
 
+class TestArrayCoordinatesSelection2(object):
+    def test_select_nonmonotonic_outer(self):
+        c = ArrayCoordinates1d([20., 50., 60., 90., 40., 80., 10.], ctype='point')
+
+        s = c.select([30, 70], outer=True)
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [20., 50., 60., 40., 80.])
+
 @pytest.mark.skip("needs update")
 class TestArrayCoordinatesSelection(object):
     def test_select(self):
