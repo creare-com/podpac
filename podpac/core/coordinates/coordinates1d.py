@@ -108,7 +108,7 @@ class Coordinates1d(BaseCoordinates):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
             self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)
 
-    def from_json(self, d):
+    def from_definition(self, d):
         raise NotImplementedError
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -176,8 +176,10 @@ class Coordinates1d(BaseCoordinates):
         coordinate bounds.
         '''
 
+        raise NotImplementedError
+
     @property
-    def json(self):
+    def definition(self):
         '''
         '''
         raise NotImplementedError
