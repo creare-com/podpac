@@ -5,7 +5,7 @@ Pipeline Summary
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
-import json as json
+import json
 
 import traitlets as tl
 
