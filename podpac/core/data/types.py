@@ -290,7 +290,10 @@ class CSV(DataSource):
     dataset = tl.Instance(pd.DataFrame)
     
     def _first_init(self, **kwargs):
-        if not (('alt_col' in kwargs) or ('time_col' in kwargs) or ('lon_col' in kwargs) or ('lat_col' in kwargs)):
+        # First part of if tests to make sure this is the CSV parent class
+        # It's assumed that derived classes will define alt_col etc for specialized readers
+        if type(self) == CSV \
+                and not (('alt_col' in kwargs) or ('time_col' in kwargs) or ('lon_col' in kwargs) or ('lat_col' in kwargs)):
             raise TypeError("CSV requires at least one of time_col, alt_col, lat_col, or lon_col.")
         
         return kwargs
@@ -344,7 +347,7 @@ class CSV(DataSource):
         else:
             self.source = source
 
-        return pd.read_csv(source)
+        return pd.read_csv(source, parse_dates=True, infer_datetime_format=True)
     
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -356,13 +359,16 @@ class CSV(DataSource):
         """
         coords = []
         for d in self.dims:
-            if trait_is_defined(self, d + '_col'):
+            if trait_is_defined(self, d + '_col') or (d + '_col' not in self.trait_names() and hasattr(self, d + '_col')):
                 i = getattr(self, '_{}_col'.format(d))
-                c = np.array(self.dataset.iloc[:, i])
                 if d is 'time':
-                    c = c.astype('str').tolist()
+                    c = np.array(self.dataset.iloc[:, i], np.datetime64)
+                else:
+                    c = np.array(self.dataset.iloc[:, i])
                 coords.append(ArrayCoordinates1d(c, name=d))
-        return Coordinates([StackedCoordinates(coords)])
+        if len(coords) > 1:
+            coords = [StackedCoordinates(coords)]
+        return Coordinates(coords)
     
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
