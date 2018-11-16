@@ -46,6 +46,7 @@ GIT_URL = 'https://github.com/creare-com/podpac'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
+    # 'sphinx.ext.napoleon',  # prefer numpydoc
     'numpydoc',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
