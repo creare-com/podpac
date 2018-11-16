@@ -192,6 +192,9 @@ class Interpolator(tl.HasTraits):
         super(Interpolator, self).__init__(**kwargs)
         self.init()
 
+    def __repr__(self):
+        return '{}\n\tmethod: {}'. format(str(self.__class__.__name__), self.method)
+
     def init(self):
         """
         Overwrite this method if a Interpolator needs to do any
@@ -316,6 +319,11 @@ class NearestNeighbor(Interpolator):
     dims_supported = ['lat', 'lon', 'alt', 'time']
     spatial_tolerance = tl.Float(default_value=np.inf, allow_none=True)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
+
+    def __repr__(self):
+        rep = super(NearestNeighbor, self).__repr__()
+        rep += '\n\tspatial_tolerance: {}\n\ttime_tolerance: {}'.format(self.spatial_tolerance, self.time_tolerance)
+        return rep
 
     @common_doc(COMMON_INTERPOLATE_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
