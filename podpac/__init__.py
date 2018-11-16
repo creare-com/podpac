@@ -16,6 +16,7 @@ from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
 import podpac.core.authentication as authentication
 from podpac import settings
+from podpac.logger import log
 
 # Organized submodules
 # These files are simply wrappers to create a curated namespace of podpac modules

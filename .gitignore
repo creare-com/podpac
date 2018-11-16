@@ -11,6 +11,8 @@ __pycache__
 *.egg-info
 podpac/cache/
 
+# log
+podpac.log
 
 # test
 .cache
