@@ -314,7 +314,7 @@ class NearestNeighbor(Interpolator):
     {nearest_neighbor_attributes}
     """
     dims_supported = ['lat', 'lon', 'alt', 'time']
-    spatial_tolerance = tl.Float(default_value=np.inf)
+    spatial_tolerance = tl.Float(default_value=np.inf, allow_none=True)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
     @common_doc(COMMON_INTERPOLATE_DOCS)
@@ -368,10 +368,7 @@ class NearestNeighbor(Interpolator):
             if dim == 'time' and self.time_tolerance:
                 tolerance = self.time_tolerance
             elif dim != 'time':
-                # TODO: do we want this tolerance to always be calculated? or only when spatial_tolerance is specified?
-                area_bounds = getattr(eval_coordinates[dim], 'area_bounds', [-np.inf, np.inf])
-                delta = np.abs(area_bounds[1] - area_bounds[0]) / eval_coordinates[dim].size
-                tolerance = min(self.spatial_tolerance, delta)
+                tolerance = self.spatial_tolerance
 
             # reindex using xarray
             indexer = {
