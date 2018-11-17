@@ -15,13 +15,11 @@ import traitlets as tl
 
 # Internal imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import ( Coordinates, Coordinates1d, UniformCoordinates1d, 
-                                      ArrayCoordinates1d, StackedCoordinates )
+from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
-from podpac.core.data.interpolate import ( Interpolation, interpolation_trait, 
-                                           INTERPOLATION_SHORTCUTS, INTERPOLATION_DEFAULT )
+from podpac.core.data.interpolate import Interpolation, interpolation_trait
 
 DATA_DOC = {
     'native_coordinates': 'The coordinates of the data source.',
