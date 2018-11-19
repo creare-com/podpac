@@ -5,25 +5,93 @@ API Reference
 
 .. note this must be manually updated to refer to new/changed module names
 
+.. currentmodule:: podpac
 
-podpac
-------
+Nodes
+-----
 
 .. autosummary::
     :toctree: api/
 
     podpac.Node
-    podpac.NodeException
-    podpac.Coordinates
-    podpac.crange
-    podpac.clinspace
-    podpac.authentication
-    podpac.settings
-    podpac.version
 
 
-podpac.algorithm
-----------------
+Coordinates
+-----------
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.coordinates.Coordinates
+    podpac.coordinates.crange
+    podpac.coordinates.clinspace
+    podpac.coordinates.Coordinates1d
+    podpac.coordinates.GroupCoordinates
+    podpac.coordinates.merge_dims
+    podpac.coordinates.concat
+    podpac.coordinates.union
+
+Data Sources and Handling
+-------------------------
+
+.. rubric:: Data Source Types
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.data.Array
+    podpac.data.PyDAP
+    podpac.data.Rasterio
+    podpac.data.WCS
+    podpac.data.ReprojectedSource
+    podpac.data.S3
+    podpac.data.H5PY
+
+
+.. rubric:: Utilities
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.data.DataSource
+    podpac.data.Interpolation
+    podpac.data.InterpolationException
+    podpac.data.INTERPOLATION_SHORTCUTS
+    podpac.data.INTERPOLATION_DEFAULT
+
+
+Interoplators
+-------------
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.interpolators.Interpolator
+    podpac.interpolators.NearestNeighbor
+    podpac.interpolators.NearestPreview
+    podpac.interpolators.Rasterio
+    podpac.interpolators.ScipyGrid
+    podpac.interpolators.ScipyPoint
+
+
+Pipelines
+---------
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.pipeline.Pipeline
+    podpac.pipeline.PipelineError
+    podpac.pipeline.parse_pipeline_definition
+    podpac.pipeline.Output
+    podpac.pipeline.NoOutput
+    podpac.pipeline.FileOutput
+    podpac.pipeline.FTPOutput
+    podpac.pipeline.S3Output
+    podpac.pipeline.ImageOutput
+
+Algorithm Nodes
+---------------
 
 .. autosummary::
     :toctree: api/
@@ -71,8 +139,8 @@ podpac.algorithm
     podpac.algorithm.SpatialConvolution
     podpac.algorithm.TimeConvolution
 
-podpac.compositor
------------------
+Compositor Nodes
+----------------
 
 .. autosummary::
     :toctree: api/
@@ -80,84 +148,9 @@ podpac.compositor
     podpac.compositor.Compositor
     podpac.compositor.OrderedCompositor
 
-podpac.coordinates
-------------------
 
-.. autosummary::
-    :toctree: api/
-
-    podpac.coordinates.Coordinates
-    podpac.coordinates.crange
-    podpac.coordinates.clinspace
-    podpac.coordinates.Coordinates1d
-    podpac.coordinates.GroupCoordinates
-    podpac.coordinates.merge_dims
-    podpac.coordinates.concat
-    podpac.coordinates.union
-
-podpac.data
------------
-
-.. rubric:: Data Source Types
-
-.. autosummary::
-    :toctree: api/
-
-    podpac.data.Array
-    podpac.data.PyDAP
-    podpac.data.Rasterio
-    podpac.data.WCS
-    podpac.data.ReprojectedSource
-    podpac.data.S3
-    podpac.data.H5PY
-
-
-.. rubric:: Utilities
-
-.. autosummary::
-    :toctree: api/
-
-    podpac.data.DataSource
-    podpac.data.Interpolation
-    podpac.data.InterpolationTrait
-    podpac.data.InterpolationException
-    podpac.data.INTERPOLATION_METHODS
-    podpac.data.INTERPOLATION_SHORTCUTS
-    podpac.data.INTERPOLATION_DEFAULT
-
-
-podpac.interpolators
---------------------
-
-.. autosummary::
-    :toctree: api/
-
-    podpac.interpolators.Interpolator
-    podpac.interpolators.NearestNeighbor
-    podpac.interpolators.NearestPreview
-    podpac.interpolators.Rasterio
-    podpac.interpolators.ScipyGrid
-    podpac.interpolators.ScipyPoint
-
-
-podpac.pipeline
----------------
-
-.. autosummary::
-    :toctree: api/
-
-    podpac.pipeline.Pipeline
-    podpac.pipeline.PipelineError
-    podpac.pipeline.parse_pipeline_definition
-    podpac.pipeline.Output
-    podpac.pipeline.NoOutput
-    podpac.pipeline.FileOutput
-    podpac.pipeline.FTPOutput
-    podpac.pipeline.S3Output
-    podpac.pipeline.ImageOutput
-
-podpac.datalib
---------------
+Datalib
+-------
 
 .. autosummary::
     :toctree: api/
@@ -170,4 +163,35 @@ podpac.datalib
     podpac.datalib.SMAPProperties
     podpac.datalib.SMAPWilt
     podpac.datalib.SMAP_PRODUCT_MAP
+
+
+Authentication
+--------------
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.authentication.SessionWithHeaderRedirection
+    podpac.authentication.EarthDataSession
+
+
+Settings
+--------
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.settings
+
+
+Version
+-------
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.version.VERSION
+    podpac.version.VERSION_INFO
+    podpac.version.semver
+    podpac.version.version
 

@@ -22,29 +22,32 @@ COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
 @common_doc(COMMON_COMPOSITOR_DOC)
 class Compositor(Node):
     """Compositor
-
+    
     Attributes
     ----------
-    shared_coordinates : :class:`podpac.Coordinates`, optional
-        Coordinates that are shared amongst all of the composited sources
-    source_coordinates = :class:`podpac.Coordinates`, optional
-        Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the
-        user-requested coordinates. It is an optimization.
+    cache_native_coordinates : Bool
+        Default is True. If native_coordinates are requested by the user, it may take a long time to calculate if the
+        Compositor points to many sources. The result is relatively small and is cached by default. Caching may not be
+        desired if the datasource change or is updated.
+    interpolation : str, dict, optional
+        {interpolation}
     is_source_coordinates_complete : Bool
         Default is False. The source_coordinates do not have to completely describe the source. For example, the source
         coordinates could include the year-month-day of the source, but the actual source also has hour-minute-second
         information. In that case, source_coordinates is incomplete. This flag is used to automatically construct
         native_coordinates
-    source: str
+    n_threads : int
+        Default is 10 -- used when threaded is True.
+        NASA data servers seem to have a hard limit of 10 simultaneous requests, which determined the default value.
+    shared_coordinates : :class:`podpac.Coordinates`, optional
+        Coordinates that are shared amongst all of the composited sources
+    source : str
         The source is used for a unique name to cache composited products.
+    source_coordinates : :class:`podpac.Coordinates`
+        Description
     sources : np.ndarray
         An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to
         subselect the nodes that will be evaluated.
-    cache_native_coordinates : True
-        Default is True. If native_coordinates are requested by the user, it may take a long time to calculate if the
-        Compositor points to many sources. The result is relatively small and is cached by default. Caching may not be
-        desired if the datasource change or is updated.
-    {interpolation}
     threaded : bool, optional
         Default if False.
         When threaded is False, the compositor stops evaluated sources once the output is completely filled.
@@ -52,12 +55,12 @@ class Compositor(Node):
         The result is the same, but note that because of this, threaded=False could be faster than threaded=True,
         especially if n_threads is low. For example, threaded with n_threads=1 could be much slower than non-threaded
         if the output is completely filled after the first few sources.
-    n_threads : int
-        Default is 10 -- used when threaded is True.
-        NASA data servers seem to have a hard limit of 10 simultaneous requests, which determined the default value.
-        
+    source_coordinates : :class:`podpac.Coordinates`, optional
+        Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the
+        user-requested coordinates. It is an optimization.
+    
     Notes
-    ------
+    -----
     Developers of new Compositor nodes need to implement the `composite` method.
     """
     shared_coordinates = tl.Instance(Coordinates, allow_none=True)

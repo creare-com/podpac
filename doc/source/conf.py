@@ -110,10 +110,13 @@ numpydoc_show_inherited_class_members = False
 autosummary_generate = True
 
 # autodoc options
+autoclass_content = 'class'  # only include docstring from Class (not __init__ method)
+autodoc_inherit_docstrings = False
 autodoc_default_options = {
     'members': None, # means yes/true/on
+    'undoc-members': None
 }
-# autodoc_default_flags = ['members']  # deprecated in sphinx 1.8
+# # autodoc_default_flags = ['members']  # deprecated in sphinx 1.8
 
 # shortened external links. see http://www.sphinx-doc.org/en/master/ext/extlinks.html
 extlinks = {'issue': ('{0}/issues/%s'.format(GIT_URL), '#'), # refer to issues :issue:`123`

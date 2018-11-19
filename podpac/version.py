@@ -67,7 +67,7 @@ def version():
         except Exception:
             git = '/usr/bin/git'
             try:
-                subprocess.check_output([git, "--version"])            
+                subprocess.check_output([git, "--version"])
             except Exception as e:
                 return version_full
 
