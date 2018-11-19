@@ -15,6 +15,7 @@ version_info : TYPE
 from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
 import podpac.core.authentication as authentication
+import podpac.core.utils as utils
 from podpac import settings
 
 # Organized submodules

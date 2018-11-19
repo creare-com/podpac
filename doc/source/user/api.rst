@@ -7,6 +7,17 @@ API Reference
 
 .. currentmodule:: podpac
 
+
+Top Level Imports
+-----------------
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.Node
+    podpac.Coordinates
+
+
 Nodes
 -----
 
@@ -14,6 +25,7 @@ Nodes
     :toctree: api/
 
     podpac.Node
+    podpac.NodeException
 
 
 Coordinates
@@ -31,10 +43,10 @@ Coordinates
     podpac.coordinates.concat
     podpac.coordinates.union
 
-Data Sources and Handling
--------------------------
+Data Sources
+------------
 
-.. rubric:: Data Source Types
+.. rubric:: Data Types
 
 .. autosummary::
     :toctree: api/
@@ -165,8 +177,10 @@ Datalib
     podpac.datalib.SMAP_PRODUCT_MAP
 
 
-Authentication
---------------
+Utilities
+---------
+
+.. rubric:: Authentication
 
 .. autosummary::
     :toctree: api/
@@ -175,8 +189,7 @@ Authentication
     podpac.authentication.EarthDataSession
 
 
-Settings
---------
+.. rubric:: Settings
 
 .. autosummary::
     :toctree: api/
@@ -184,8 +197,15 @@ Settings
     podpac.settings
 
 
-Version
--------
+.. rubric:: Utils
+
+.. autosummary::
+    :toctree: api/
+
+    podpac.utils
+
+
+.. rubric:: Version
 
 .. autosummary::
     :toctree: api/
@@ -194,4 +214,3 @@ Version
     podpac.version.VERSION_INFO
     podpac.version.semver
     podpac.version.version
-
