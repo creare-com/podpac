@@ -99,10 +99,10 @@ class PyDAP(DataSource):
     
     Attributes
     ----------
-    auth_class : authentication.SessionWithHeaderRedirection
-        A request.Session-derived class that has header redirection. This is used to authenticate using an EarthData
-        login. When username and password are provided, an auth_session is created using this class.
-    auth_session : authentication.SessionWithHeaderRedirection
+    auth_class : :class:`podpac.authentication.Session`
+        :class:`requests.Session` derived class providing authentication credentials.
+        When username and password are provided, an auth_session is created using this class.
+    auth_session : :class:`podpac.authentication.Session`
         Instance of the auth_class. This is created if username and password is supplied, but this object can also be
         supplied directly
     datakey : str
@@ -127,9 +127,8 @@ class PyDAP(DataSource):
     datakey = tl.Unicode(allow_none=False).tag(attr=True)
 
     # optional inputs and later defined traits
-    auth_session = tl.Instance(authentication.SessionWithHeaderRedirection,
-                               allow_none=True)
-    auth_class = tl.Type(authentication.SessionWithHeaderRedirection)
+    auth_session = tl.Instance(authentication.Session, allow_none=True)
+    auth_class = tl.Type(authentication.Session)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
     dataset = tl.Instance('pydap.model.DatasetType', allow_none=False)

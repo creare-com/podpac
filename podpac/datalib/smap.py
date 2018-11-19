@@ -212,7 +212,6 @@ try:
 except Exception as e:
     warnings.warn("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
 
-SMAP_BASE_URL_REGEX = re.compile(re.sub(r'\d', r'\\d', SMAP_BASE_URL.split('/')[2]))
 @common_doc(COMMON_DOC)
 class SMAPSource(datatype.PyDAP):
     """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how
@@ -239,13 +238,14 @@ class SMAPSource(datatype.PyDAP):
 
     @tl.default('auth_session')
     def _auth_session_default(self):
-        session = self.auth_class(
-            username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX)
+        session = self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL)
+
         # check url
         try:
             session.get(SMAP_BASE_URL)
         except Exception as e:
             print("Unknown exception: ", e)
+
         return session
 
     #date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
@@ -518,8 +518,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
 
     @tl.default('auth_session')
     def _auth_session_default(self):
-        session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX)
-        return session
+        return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL)
 
     base_url = tl.Unicode(SMAP_BASE_URL).tag(attr=True)
     product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist()).tag(attr=True)
@@ -761,8 +760,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
 
     @tl.default('auth_session')
     def _auth_session_default(self):
-        session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX)
-        return session
+        return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL)
 
     layerkey = tl.Unicode()
     @tl.default('layerkey')
