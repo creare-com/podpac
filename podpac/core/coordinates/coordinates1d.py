@@ -77,11 +77,18 @@ class Coordinates1d(BaseCoordinates):
     is_uniform = tl.CBool(allow_none=True, readonly=True)
 
     def __init__(self, name=None, ctype=None, units=None, extents=None, **kwargs):
+        if name is not None:
+            kwargs['name'] = name
+        if ctype is not None:
+            kwargs['ctype'] = ctype
+        if units is not None:
+            kwargs['units'] = units
         if extents is not None:
             extents = make_coord_array(extents)
             extents.setflags(write=False)
+            kwargs['extents'] = extents
 
-        super(Coordinates1d, self).__init__(name=name, ctype=ctype, units=units, extents=extents, **kwargs)
+        super(Coordinates1d, self).__init__(**kwargs)
 
     @tl.validate('extents')
     def _validate_extents(self, d):

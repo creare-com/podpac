@@ -71,8 +71,17 @@ class UniformCoordinates1d(Coordinates1d):
         else:
             step = make_coord_delta(step)
 
-        super(UniformCoordinates1d, self).__init__(
-            start=start, stop=stop, step=step, name=name, ctype=ctype, units=units, extents=extents)
+        kwargs = {}
+        if name is not None:
+            kwargs['name'] = name
+        if ctype is not None:
+            kwargs['ctype'] = ctype
+        if units is not None:
+            kwargs['units'] = units
+        if extents is not None:
+            kwargs['extents'] = extents
+
+        super(UniformCoordinates1d, self).__init__(start=start, stop=stop, step=step, **kwargs)
 
     @tl.validate('start')
     def _validate_start(self, d):

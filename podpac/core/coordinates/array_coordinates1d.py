@@ -49,7 +49,18 @@ class ArrayCoordinates1d(Coordinates1d):
         """
 
         coords = make_coord_array(coords)
-        super(ArrayCoordinates1d, self).__init__(coords=coords, name=name, ctype=ctype, units=units, extents=extents)
+
+        kwargs = {}
+        if name is not None:
+            kwargs['name'] = name
+        if ctype is not None:
+            kwargs['ctype'] = ctype
+        if units is not None:
+            kwargs['units'] = units
+        if extents is not None:
+            kwargs['extents'] = extents
+
+        super(ArrayCoordinates1d, self).__init__(coords=coords, **kwargs)
 
     @tl.validate('coords')
     def _validate_coords(self, d):
