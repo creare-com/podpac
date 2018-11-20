@@ -15,23 +15,41 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
 class UniformCoordinates1d(Coordinates1d):
     """
-    Array of uniform 1-dimensional coordinates defined by a start, stop, and step.
+    1-dimensional array of uniformly-spaced coordinates defined by a start, stop, and step.
 
-    Attributes
+    UniformCoordinates1d efficiently stores a uniformly-spaced coordinate array; the full coordinates array is only
+    calculated when needed. For numerical coordinates, the start, stop, and step are converted to ``float``. For time
+    coordinates, the start and stop are converted to numpy ``datetime64``, and the step is converted to numpy
+    ``timedelta64``. For convenience, podpac automatically converts datetime strings such as ``'2018-01-01'`` to
+    ``datetime64`` and timedelta strings such as ``'1,D'`` to ``timedelta64``.
+
+    UniformCoordinates1d can also be created using a ``start``, ``stop``, and ``size``.
+    
+    Parameters
     ----------
     start : float or datetime64
         Start coordinate.
-        Numerical inputs are cast as floats and non-numerical inputs are parsed as datetime64.
     stop : float or datetime64
         Stop coordinate.
-        Numerical inputs are cast as floats and non-numerical inputs are parsed as datetime64.
     step : float or timedelta64
         Signed, non-zero step between coordinates.
-        Numerical inputs are cast as floats and non-numerical inputs are parsed as timedelta64.
+    name : str
+        Dimension name, one of 'lat', 'lon', 'time', 'alt'.
+    coordinates : np.ndarray
+        Full array of coordinate values.
+    units : podpac.Units
+        Coordinate units.
+    coord_ref_sys : str
+        Coordinate reference system.
+    ctype : str
+        Coordinates type: 'point', 'left', 'right', or 'midpoint'.
+    extents : ndarray
+        When ctype != 'point', defines custom area bounds for the coordinates.
+        *Note: To be replaced with segment_lengths.*
 
     See Also
     --------
-    ArrayCoordinates1d : An array of coordinates.
+    :class:`ArrayCoordinates1d`, :class:`crange`, :class:`clinspace`
     """
 
     start = tl.Union([tl.Float(), tl.Instance(np.datetime64)])

@@ -16,6 +16,48 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 class StackedCoordinates(BaseCoordinates):
     """
     Stacked coordinates.
+
+    StackedCoordinates contain coordinates from two or more different dimensions that are stacked together to form a
+    list of points (rather than a grid). The underlying coordinates values are :class:`Coordinates1d` objects of equal
+    size. The name for the stacked coordinates combines the underlying dimensions with underscores, e.g. ``'lat_lon'``
+    or ``'lat_lon_time'``.
+
+    When creating :class:`Coordinates`, podpac automatically detects StackedCoordinates. The following Coordinates
+    contain 3 stacked lat-lon coordinates and 2 time coordinates in a 3 x 2 grid::
+
+        >>> lat = [0, 1, 2]
+        >>> lon = [10, 20, 30]
+        >>> time = ['2018-01-01', '2018-01-02']
+        >>> podpac.Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
+        Coordinates
+            lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
+            lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
+            time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']
+
+    For convenience, you can also create uniformly-spaced stacked coordinates using :class:`clinspace`::
+
+        >>> lat_lon = podpac.clinspace((0, 10), (2, 30), 3)
+        >>> time = ['2018-01-01', '2018-01-02']
+        >>> podpac.Coordinates([lat_lon, time], dims=['lat_lon', 'time'])
+        Coordinates
+            lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
+            lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
+            time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']    
+
+    Parameters
+    ----------
+    dims : tuple
+        Tuple of dimension names.
+    name : str
+        Stacked dimension name.
+    coords : dict-like
+        xarray coordinates (container of coordinate arrays)
+    coordinates : pandas.MultiIndex
+        MultiIndex of stacked coordinates values.
+
+    See Also
+    --------
+    :class:`clinspace`
     """
 
     # TODO dict vs tuple?

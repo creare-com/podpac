@@ -18,20 +18,32 @@ from podpac.core.coordinates.coordinates1d import Coordinates1d
 
 class ArrayCoordinates1d(Coordinates1d):
     """
-    Array of 1-dimensional coordinates.
+    1-dimensional array of coordinates.
 
-    Not guaranteed to be sorted, unique, or uniformly-spaced.
+    ArrayCoordinates1d is a basic array of 1d coordinates created from an array of coordinate values. Numerical
+    coordinates values are converted to ``float``, and time coordinate values are converted to numpy ``datetime64``.
+    For convenience, podpac automatically converts datetime strings such as ``'2018-01-01'`` to ``datetime64``. The
+    coordinate values must all be of the same type.
 
-    Attributes
+    Parameters
     ----------
-    coords : np.ndarray
-        Input coordinate array. Values must all be the same type.
-        Numerical values are converted to floats, and datetime values are converted to np.datetime64.
+    name : str
+        Dimension name, one of 'lat', 'lon', 'time', 'alt'.
+    coordinates : np.ndarray
+        Full array of coordinate values.
+    units : podpac.Units
+        Coordinate units.
+    coord_ref_sys : str
+        Coordinate reference system.
+    ctype : str
+        Coordinates type: 'point', 'left', 'right', or 'midpoint'.
+    extents : ndarray
+        When ctype != 'point', defines a custom acea bounds for the coordinates.
+        *Note: To be replaced with segment_lengths.*
 
     See Also
     --------
-    UniformCoordinates1d : sorted, uniformly-spaced coordinates defined by a start, stop, and step.
-
+    :class:`UniformCoordinates1d`
     """
 
     coords = tl.Instance(np.ndarray)

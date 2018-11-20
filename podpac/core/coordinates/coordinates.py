@@ -592,17 +592,22 @@ class Coordinates(tl.HasTraits):
 
 def merge_dims(coords_list):
     """
-    Merge the dimensions of the given coordinates. Throws an error if dimensions are duplicated.
+    Merge the coordinates.
 
     Arguments
     ---------
     coords_list : list
-        List of Coordinates objects
+        List of :class:`Coordinates` with unique dimensions.
 
     Returns
     -------
-    coords : Coordinates
-        Coordinates object with the dimension(s) from each set of coordinates in the list.
+    coords : :class:`Coordinates`
+        Coordinates with merged dimensions.
+
+    Raises
+    ------
+    ValueError
+        If dimensions are duplicated.
     """
 
     for coords in coords_list:
@@ -619,12 +624,16 @@ def concat(coords_list):
     Arguments
     ---------
     coords_list : list
-        List of Coordinates objects.
+        List of :class:`Coordinates`.
 
     Returns
     -------
-    coords : Coordinates
-        Coordinates object with concatenated coordinate values in each dimension.
+    coords : :class:`Coordinates`
+        Coordinates with concatenated coordinate values in each dimension.
+
+    See Also
+    --------
+    :class:`union`
     """
 
     coords_list = list(coords_list)
@@ -655,12 +664,16 @@ def union(coords_list):
     Arguments
     ---------
     coords_list : list
-        List of Coordinates objects
+        List of :class:`Coordinates`.
 
     Returns
     -------
-    coords : Coordinates
-        Coordinates object with unique, sorted coordinate values in each dimension.
+    coords : :class:`Coordinates`
+        Coordinates with unique, sorted coordinate values in each dimension.
+
+    See Also
+    --------
+    :class:`concat`
     """
 
     return concat(coords_list).unique()

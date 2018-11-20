@@ -20,51 +20,29 @@ DEFAULT_COORD_REF_SYS = 'WGS84'
 class Coordinates1d(BaseCoordinates):
     """
     Base class for 1-dimensional coordinates.
+
+    Coordinates1d objects contain values and metadata for a single dimension of coordinates. :class:`Coordinates` and
+    :class:`StackedCoordinates` are built from Coordinate1d objects.
     
-    Attributes
+    Parameters
     ----------
     name : str
         Dimension name, one of 'lat', 'lon', 'time', 'alt'.
-    dims : tuple
-        The dimension name as a tuple, `(self.name,)`
-    units : Units
-        TODO
+    coordinates : np.ndarray
+        Full array of coordinate values.
+    units : podpac.Units
+        Coordinate units.
     coord_ref_sys : str
         Coordinate reference system.
     ctype : str
         Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-         - 'point': each coordinate represents a single location
-         - 'left': segments; each coordinate is the left endpoint of its segment
-         - 'right': segments; each coordinate is the right endpoint of its endpoint
-         - 'midpoint': segments; segment endpoints are at the midpoints between coordinate values
     extents : ndarray
-        When ctype != 'point', defines a custom bounding box of the grid.
-        Useful when specifying non-uniform segment coordinates.
-    properties : dict
-        Coordinate properties (units, coord_ref_sys, ctype, extents)
-    coordinates : np.ndarray
-        Full array of coordinate values.
-    dtype : type
-        Coordinates dtype, either np.datetime64 or np.float64.
-    size : int
-        Number of coordinates.
-    bounds : np.ndarray
-        Coordinate bounds, np.array(low, high).
-    area_bounds : np.ndarray
-        Area bounds, np.array(low, high).
-        When ctype != 'point', this including the portions of the segments beyond the coordinate bounds.
-    is_monotonic : bool
-        True if the coordinates are guaranteed to be sorted.
-    is_descending : bool
-        True if the coordinates are monotonically descending.
-        False if the coordinates are monotonically ascending or not sorted.
-    is_uniform : bool
-        True if the coordinates are uniformly-spaced (and monotonic).
-        False if the coordinates are not uniformly-spaced, unsorted, or empty.
+        When ctype != 'point', defines a custom acea bounds for the coordinates.
+        *Note: To be replaced with segment_lengths.*
 
-    Methods
-    -------
-
+    See Also
+    --------
+    :class:`ArrayCoordinates1d`, :class:`UniformCoordinates1d`
     """
 
     name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)

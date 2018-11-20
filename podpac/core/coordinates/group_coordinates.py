@@ -8,6 +8,8 @@ from podpac.core.coordinates.coordinates import Coordinates
 class GroupCoordinates(tl.HasTraits):
     """
     List of multidimensional Coordinates.
+
+    GroupCoordinates contains a list of :class:`Coordinates` containing the same set of unstacked dimensions.
     """
     
     _items = tl.List(trait=tl.Instance(Coordinates))
