@@ -54,7 +54,7 @@ DATA_DOC = {
             
         Returns
         --------
-        np.ndarray, xr.DataArray, podpac.core.units.UnitsDataArray
+        np.ndarray, xr.DataArray, :class:`podpac.UnitsDataArray`
             A subset of the returned data. If a numpy array or xarray DataArray is returned,
             the data will be cast into  UnitsDataArray using the returned data to fill values
             at the requested source coordinates.
@@ -71,7 +71,7 @@ DATA_DOC = {
 
         Returns
         --------
-        Coordinates
+        :class:`podpac.Coordinates`
            The coordinates describing the data source array.
 
         Notes
@@ -85,8 +85,13 @@ DATA_DOC = {
         """,
     'interpolation':
         """
-        Definition of interpolation methods for each dimension of the native coordinates.
-        
+        Interpolation definition for the data source.
+        By default, the interpolation method is set to ``'nearest'`` for all dimensions.
+        """,
+    'interpolation_long':
+        """
+        {interpolation}
+
         If input is a string, it must match one of the interpolation shortcuts defined in
         :attr:`podpac.data.INTERPOLATION_SHORTCUTS`. The interpolation method associated
         with this string will be applied to all dimensions at the same time.
@@ -112,8 +117,6 @@ DATA_DOC = {
 
         If input is a :class:`podpac.data.Interpolation` class, this interpolation
         class will be used without modication.
-        
-        By default, the interpolation method is set to ``'nearest'`` for all dimensions.
         """
     }
 
@@ -124,33 +127,40 @@ COMMON_DATA_DOC.update(DATA_DOC)      # inherit and overwrite with DATA_DOC
 class DataSource(Node):
     """Base node for any data obtained directly from a single source.
     
-    Attributes
+    Parameters
     ----------
-    coordinate_index_type : str, optional
-        Type of index to use for data source. Possible values are ``['list', 'numpy', 'xarray', 'pandas']``
-        Default is 'numpy'
+    source : Any
+        The location of the source. Depending on the child node this can be a filepath,
+        numpy array, or dictionary as a few examples.
+    native_coordinates : :class:`podpac.Coordinates`
+        {native_coordinates}
     interpolation : str, dict, optional
         {interpolation}
     nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
-    native_coordinates : :class:`podpac.Coordinates`
-        {native_coordinates}
-    source : Any
-        The location of the source. Depending on the child node this can be a filepath,
-        numpy array, or dictionary as a few examples.
+    coordinate_index_type : str, optional
+        Type of index to use for data source. Possible values are ``['list', 'numpy', 'xarray', 'pandas']``
+        Default is 'numpy'
+
     
     Notes
     -----
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
     
-    #: any : the docstring right on the 
+    #: any : location of the source
     source = tl.Any(help='Path to the raw data source')
+
+    #: :class:`podpac.Coordinates` : {native_coordinates}
     native_coordinates = tl.Instance(Coordinates)
 
+    #: str, dict : interpolation definition for the data source
     interpolation = interpolation_trait()
 
+    #: str : type of index to use for the data source
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
+
+    #: list : list of values from source data that should be interpreted as 'no data'
     nan_vals = tl.List(allow_none=True)
 
     # privates
@@ -243,10 +253,10 @@ class DataSource(Node):
         ----------
         coordinates : :class:`podpac.Coordinates`
             {requested_coordinates}
-            Notes::
-             * An exception is raised if the requested coordinates are missing dimensions in the DataSource.
-             * Extra dimensions in the requested coordinates are dropped.
-        output : podpac.core.units.UnitsDataArray, optional
+            
+            An exception is raised if the requested coordinates are missing dimensions in the DataSource.
+            Extra dimensions in the requested coordinates are dropped.
+        output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
         
         Returns
