@@ -36,7 +36,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
     coords = tl.Instance(np.ndarray)
 
-    def __init__(self, coords, name=None, ctype=None, units=None, extents=None):
+    def __init__(self, coords, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None):
         """
         Initialize coords from an array.
 
@@ -57,6 +57,8 @@ class ArrayCoordinates1d(Coordinates1d):
             kwargs['ctype'] = ctype
         if units is not None:
             kwargs['units'] = units
+        if coord_ref_sys is not None:
+            kwargs['coord_ref_sys'] = coord_ref_sys
         if extents is not None:
             kwargs['extents'] = extents
 

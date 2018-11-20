@@ -41,7 +41,7 @@ class UniformCoordinates1d(Coordinates1d):
     is_monotonic = tl.CBool(True, readonly=True)
     is_uniform = tl.CBool(True, readonly=True)
 
-    def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, units=None, extents=None):
+    def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, units=None, coord_ref_sys=None, extents=None):
         """
         Initialize uniformly-spaced coordinates.
 
@@ -78,6 +78,8 @@ class UniformCoordinates1d(Coordinates1d):
             kwargs['ctype'] = ctype
         if units is not None:
             kwargs['units'] = units
+        if coord_ref_sys is not None:
+            kwargs['coord_ref_sys'] = coord_ref_sys
         if extents is not None:
             kwargs['extents'] = extents
 

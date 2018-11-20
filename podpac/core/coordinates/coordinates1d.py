@@ -76,13 +76,15 @@ class Coordinates1d(BaseCoordinates):
     is_descending = tl.CBool(allow_none=True, readonly=True)
     is_uniform = tl.CBool(allow_none=True, readonly=True)
 
-    def __init__(self, name=None, ctype=None, units=None, extents=None, **kwargs):
+    def __init__(self, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None, **kwargs):
         if name is not None:
             kwargs['name'] = name
         if ctype is not None:
             kwargs['ctype'] = ctype
         if units is not None:
             kwargs['units'] = units
+        if coord_ref_sys is not None:
+            kwargs['coord_ref_sys'] = coord_ref_sys
         if extents is not None:
             extents = make_coord_array(extents)
             extents.setflags(write=False)

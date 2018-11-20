@@ -39,7 +39,7 @@ class TestArrayCoordinatesCreation(object):
         # unsorted
         values = [1, 6, 0, 4.]
         a = np.array(values, dtype=float)
-        c = ArrayCoordinates1d(a, dtype='point')
+        c = ArrayCoordinates1d(a)
         assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array([0., 6.]))
@@ -190,13 +190,13 @@ class TestArrayCoordinatesCreation(object):
 
     def test_name(self):
         ArrayCoordinates1d([])
-        ArrayCoordinates1d(name='lat')
-        ArrayCoordinates1d(name='lon')
-        ArrayCoordinates1d(name='alt')
-        ArrayCoordinates1d(name='time')
+        ArrayCoordinates1d([], name='lat')
+        ArrayCoordinates1d([], name='lon')
+        ArrayCoordinates1d([], name='alt')
+        ArrayCoordinates1d([], name='time')
 
         with pytest.raises(tl.TraitError):
-            ArrayCoordinates1d(name='depth')
+            ArrayCoordinates1d([], name='depth')
 
     def test_extents(self):
         c = ArrayCoordinates1d([])
@@ -231,15 +231,15 @@ class TestArrayCoordinatesProperties(object):
         assert isinstance(c.properties, dict)
         assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys'])
 
-        c = ArrayCoordinates1d(name='lat')
+        c = ArrayCoordinates1d([], name='lat')
         assert isinstance(c.properties, dict)
         assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys', 'name'])
 
-        c = ArrayCoordinates1d(units=Units())
+        c = ArrayCoordinates1d([], units=Units())
         assert isinstance(c.properties, dict)
         assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys', 'units'])
 
-        c = ArrayCoordinates1d(extents=[0, 1])
+        c = ArrayCoordinates1d([], extents=[0, 1])
         assert isinstance(c.properties, dict)
         assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys', 'extents'])
 
