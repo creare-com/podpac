@@ -67,7 +67,7 @@ class NoOutput(Output):
     """ No Output """
 
     def __init__(self, node, name):
-        super(self, NoOutput).__init__(node=node, name=name)
+        super(NoOutput, self).__init__(node=node, name=name)
 
     def write(self, output, coordinates):
         pass
@@ -92,7 +92,14 @@ class FileOutput(Output):
     _path = tl.Unicode(allow_none=True, default_value=None)
 
     def __init__(self, node, name, format=None, outdir=None, mode=None):
-        super(self, FileOutput).__init__(node=node, name=name, format=format, outdir=outdir, mode=mode)
+        kwargs = {}
+        if format is not None:
+            kwargs['format'] = format
+        if outdir is not None:
+            kwargs['outdir'] = outdir
+        if mode is not None:
+            kwargs['mode'] = mode
+        super(FileOutput, self).__init__(node=node, name=name, **kwargs)
 
     @property
     def path(self):
@@ -130,7 +137,14 @@ class FTPOutput(Output):
     pw = tl.Unicode()
 
     def __init__(self, node, name, url=None, user=None, pw=None):
-        super(self, FTPOutput).__init__(node=node, name=name, url=url, user=user, pw=pw)
+        kwargs = {}
+        if url is not None:
+            kwargs['url'] = url
+        if user is not None:
+            kwargs['user'] = user
+        if pw is not None:
+            kwargs['pw'] = pw
+        super(FTPOutput, self).__init__(node=node, name=name, **kwargs)
 
 class S3Output(Output):
     """Output a file and send to S3
@@ -147,7 +161,12 @@ class S3Output(Output):
     user = tl.Unicode()
 
     def __init__(self, node, name, bucket=None, user=None):
-        super(self, S3Output).__init__(node=node, name=name, bucket=format, user=outdir)
+        kwargs = {}
+        if bucket is not None:
+            kwargs['bucket'] = bucket
+        if user is not None:
+            kwargs['user'] = user
+        super(S3Output, self).__init__(node=node, name=name, **kwargs)
 
 class ImageOutput(Output):
     """Output an image in RAM
@@ -171,7 +190,17 @@ class ImageOutput(Output):
     image = tl.Bytes(allow_none=True, default_value=None)
 
     def __init__(self, node, name, format=None, mode=None, vmin=None, vmax=None):
-        super(self, ImageOutput).__init__(node=node, name=name, format=format, mode=mode, vmin=vmin, vmax=vmax)
+        kwargs = {}
+        if format is not None:
+            kwargs['format'] = format
+        if mode is not None:
+            kwargs['mode'] = mode
+        if vmin is not None:
+            kwargs['vmin'] = vmin
+        if vmax is not None:
+            kwargs['vmax'] = vmax
+
+        super(ImageOutput, self).__init__(node=node, name=name, **kwargs)
 
     # TODO: docstring?
     def write(self, output, coordinates):

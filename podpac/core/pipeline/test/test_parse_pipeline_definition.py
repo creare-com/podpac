@@ -850,13 +850,13 @@ class TestParsePipelineDefinition(object):
         s = ''' {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
-                "plugin": "collections",
-                "output": "OrderedDict"
+                "plugin": "numpy",
+                "output": "array"
             }
         }
         '''
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        m = "Custom output 'collections.OrderedDict' must subclass 'podpac.core.pipeline.output.Output'"
+        m = "Custom output '.*' must subclass 'podpac.core.pipeline.output.Output'"
         with pytest.raises(PipelineError, match=m):
             parse_pipeline_definition(d)
