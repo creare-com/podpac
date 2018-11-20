@@ -29,13 +29,25 @@ class Coordinates(tl.HasTraits):
     """
     Multidimensional Coordinates.
 
-    Attributes
+    Coordinates are used to evaluate Nodes and to define the coordinates of a DataSource nodes. The API is modeled after
+    coords in `xarray <http://xarray.pydata.org/en/stable/data-structures.html>`_:
+
+     * Coordinates are created from a list of coordinate values and dimension names.
+     * PODPAC coordinate values are always either ``float`` or ``np.datetime64``. For convenience, podpac
+       automatically converts datetime strings such as ``'2018-01-01'`` to ``np.datetime64``.
+     * The allowed dimensions are ``'lat'``, ``'lon'``, ``'time'``, and ``'alt'``.
+     * Coordinates from multiple dimensions can be stacked together to represent a *list* of coordinates instead of a
+       *grid* of coordinates. The name of the stacked coordinates uses an underscore to combine the underlying dimensions, e.g.
+       ``'lat_lon'``.
+
+    Parameters
     ----------
-    coords
-    dims
-    ndim
-    shape
-    coordinates
+    dims : tuple
+        Tuple of dimension names, potentially stacked.
+    udims : tuple
+        Tuple of individual dimension names, always unstacked.
+    coords : dict-like
+        xarray coordinates (container of coordinate arrays)
     """
 
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates))
@@ -338,6 +350,15 @@ class Coordinates(tl.HasTraits):
 
     @property
     def coords(self):
+        """
+        SUMMARY
+
+        Returns
+        -------
+        coords : type
+            description
+        """
+
         # TODO don't recompute this every time (but also don't compute it until requested)
         x = xr.DataArray(np.empty(self.shape), coords=[c.coordinates for c in self._coords.values()], dims=self.dims)
         return x.coords
