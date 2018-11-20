@@ -15,7 +15,7 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
 class UniformCoordinates1d(Coordinates1d):
     """
-    An array of sorted, uniformly-spaced coordinates defined by a start, stop, and step.
+    Array of uniform 1-dimensional coordinates defined by a start, stop, and step.
 
     Attributes
     ----------
@@ -41,7 +41,7 @@ class UniformCoordinates1d(Coordinates1d):
     is_monotonic = tl.CBool(True, readonly=True)
     is_uniform = tl.CBool(True, readonly=True)
 
-    def __init__(self, start, stop, step=None, size=None, **kwargs):
+    def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, units=None, extents=None):
         """
         Initialize uniformly-spaced coordinates.
 
@@ -71,7 +71,8 @@ class UniformCoordinates1d(Coordinates1d):
         else:
             step = make_coord_delta(step)
 
-        super(UniformCoordinates1d, self).__init__(start=start, stop=stop, step=step, **kwargs)
+        super(UniformCoordinates1d, self).__init__(
+            start=start, stop=stop, step=step, name=name, ctype=ctype, units=units, extents=extents)
 
     @tl.validate('start')
     def _validate_start(self, d):

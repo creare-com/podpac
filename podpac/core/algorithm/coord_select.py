@@ -94,7 +94,9 @@ class ModifyCoordinates(Algorithm):
         return output
 
 class ExpandCoordinates(ModifyCoordinates):
-    """Algorithm node used to expand requested coordinates. This is normally used in conjunction with a reduce operation
+    """Evaluate a source node with expanded coordinates.
+
+    This is normally used in conjunction with a reduce operation
     to calculate, for example, the average temperature over the last month. While this is simple to do when evaluating
     a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a pipeline.
 
@@ -150,7 +152,9 @@ class ExpandCoordinates(ModifyCoordinates):
         return ArrayCoordinates1d(np.concatenate([c.coordinates for c in cs]), **coords1d.properties)
 
 class SelectCoordinates(ModifyCoordinates):
-    """Algorithm node used to select coordinates different from the input coordinates. While this is simple to do when 
+    """Evaluate a source node with select coordinates.
+
+    While this is simple to do when 
     evaluating a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a 
     pipeline. For example, if a single spatial reference point is used for a particular comparison, and this reference
     point is different than the requested coordinates, we need to explicitly select those coordinates using this Node.

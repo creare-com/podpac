@@ -119,12 +119,12 @@ Pipelines
     :toctree: api/
     :template: class.rst
     
+    podpac.pipeline.Output
     podpac.pipeline.NoOutput
     podpac.pipeline.FileOutput
     podpac.pipeline.FTPOutput
     podpac.pipeline.S3Output
     podpac.pipeline.ImageOutput
-    podpac.pipeline.Output
 
 Algorithm Nodes
 ---------------

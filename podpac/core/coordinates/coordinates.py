@@ -40,7 +40,7 @@ class Coordinates(tl.HasTraits):
 
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates))
 
-    def __init__(self, coords=[], dims=None, coord_ref_sys=None, ctype=None, distance_units=None):
+    def __init__(self, coords, dims=None, coord_ref_sys=None, ctype=None, distance_units=None):
         """
         Initialize a multidimensional coords object.
 

@@ -19,7 +19,7 @@ DEFAULT_COORD_REF_SYS = 'WGS84'
 
 class Coordinates1d(BaseCoordinates):
     """
-    Base class for one-dimensional single coordinates.
+    Base class for 1-dimensional coordinates.
     
     Attributes
     ----------
@@ -76,12 +76,12 @@ class Coordinates1d(BaseCoordinates):
     is_descending = tl.CBool(allow_none=True, readonly=True)
     is_uniform = tl.CBool(allow_none=True, readonly=True)
 
-    def __init__(self, extents=None, **kwargs):
+    def __init__(self, name=None, ctype=None, units=None, extents=None, **kwargs):
         if extents is not None:
             extents = make_coord_array(extents)
             extents.setflags(write=False)
 
-        super(Coordinates1d, self).__init__(extents=extents, **kwargs)
+        super(Coordinates1d, self).__init__(name=name, ctype=ctype, units=units, extents=extents, **kwargs)
 
     @tl.validate('extents')
     def _validate_extents(self, d):

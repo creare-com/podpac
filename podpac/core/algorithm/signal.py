@@ -48,7 +48,9 @@ COMMON_DOC['validate_kernel'] = '''Checks to make sure the kernel is valid.
             If the kernel is not valid (i.e. incorrect dimensionality). '''
 
 class Convolution(Algorithm):
-    """Base algorithm node for computing convolutions. This node automatically resizes the request to avoid edge effects.
+    """Compute a general convolution over a source node.
+
+    This node automatically resizes the requested coordinates to avoid edge effects.
     
     Attributes
     ----------
@@ -67,7 +69,7 @@ class Convolution(Algorithm):
     """
     
     source = tl.Instance(Node)
-    kernel = tl.Instance(np.ndarray)  # Would like to tag this, but arrays are not yet supported
+    kernel = tl.Instance(np.ndarray).tag(attr=True)
     kernel_type = tl.Unicode().tag(attr=True)
     kernel_ndim = tl.Int().tag(attr=True)
 
@@ -183,7 +185,7 @@ class Convolution(Algorithm):
 
 
 class TimeConvolution(Convolution):
-    """Specialized convolution node that computes temporal convolutions only.
+    """Compute a temporal convolution over a source node.
     
     Attributes
     ----------
@@ -222,7 +224,7 @@ class TimeConvolution(Convolution):
 
 
 class SpatialConvolution(Convolution):
-    """Specialized convolution node that computes lat-lon convolutions only.
+    """Compute a lat-lon convolution over a source node.
     
     Attributes
     ----------

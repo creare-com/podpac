@@ -26,7 +26,7 @@ from podpac.core.utils import common_doc
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
 class Algorithm(Node):
-    """Base node for any algorithm or computation node. 
+    """Base class for algorithm and computation nodes.
     
     Notes
     ------

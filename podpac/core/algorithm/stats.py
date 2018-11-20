@@ -27,7 +27,7 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 # =============================================================================
 
 class Reduce(Algorithm):
-    """Base node for reduction algorithms
+    """Base node for statistical algorithms
     
     Attributes
     ----------
@@ -578,6 +578,7 @@ class Skew(Reduce):
 
 class Kurtosis(Reduce):
     """Computes the kurtosis across dimension(s)
+
     TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
     """
 
@@ -849,7 +850,7 @@ class Percentile(Reduce2):
 
 class GroupReduce(Algorithm):
     """
-    Group a time-dependent source node by a datetime accessor and reduce.
+    Group a time-dependent source node and then compute a statistic for each result.
     
     Attributes
     ----------
@@ -965,7 +966,7 @@ class GroupReduce(Algorithm):
 
 class DayOfYear(GroupReduce):
     """
-    Group a time-dependent source node by day of year and reduce. Convenience node for GroupReduce.
+    Group a time-dependent source node by day of year and compute a statistic for each group.
     
     Attributes
     ----------

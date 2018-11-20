@@ -8,10 +8,8 @@ import traitlets as tl
 import pytest
 
 import podpac
-from podpac.core.pipeline.pipeline import Pipeline
+from podpac.core.pipeline.pipeline import Pipeline, PipelineError, parse_pipeline_definition
 from podpac.core.pipeline.output import NoOutput, FTPOutput, S3Output, FileOutput, ImageOutput
-from podpac.core.pipeline.util import PipelineError
-from podpac.core.pipeline.util import parse_pipeline_definition
 
 class TestParsePipelineDefinition(object):
     def test_empty(self):

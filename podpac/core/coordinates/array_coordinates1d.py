@@ -18,7 +18,9 @@ from podpac.core.coordinates.coordinates1d import Coordinates1d
 
 class ArrayCoordinates1d(Coordinates1d):
     """
-    A basic array of coordinates. Not guaranteed to be sorted, unique, or uniformly-spaced.
+    Array of 1-dimensional coordinates.
+
+    Not guaranteed to be sorted, unique, or uniformly-spaced.
 
     Attributes
     ----------
@@ -34,7 +36,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
     coords = tl.Instance(np.ndarray)
 
-    def __init__(self, coords=[], **kwargs):
+    def __init__(self, coords, name=None, ctype=None, units=None, extents=None):
         """
         Initialize coords from an array.
 
@@ -47,7 +49,7 @@ class ArrayCoordinates1d(Coordinates1d):
         """
 
         coords = make_coord_array(coords)
-        super(ArrayCoordinates1d, self).__init__(coords=coords, **kwargs)
+        super(ArrayCoordinates1d, self).__init__(coords=coords, name=name, ctype=ctype, units=units, extents=extents)
 
     @tl.validate('coords')
     def _validate_coords(self, d):

@@ -7,7 +7,7 @@ from podpac.core.coordinates.coordinates import Coordinates
 
 class GroupCoordinates(tl.HasTraits):
     """
-    Group of Coordinates
+    List of multidimensional Coordinates.
     """
     
     _items = tl.List(trait=tl.Instance(Coordinates))
@@ -26,8 +26,8 @@ class GroupCoordinates(tl.HasTraits):
 
         return items
 
-    def __init__(self, items=[], **kwargs):
-        return super(GroupCoordinates, self).__init__(_items=items, **kwargs)
+    def __init__(self, coords_list):
+        return super(GroupCoordinates, self).__init__(_items=coords_list)
 
     def __repr__(self):
         rep = self.__class__.__name__

@@ -7,9 +7,17 @@ from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 def crange(start, stop, step, name=None):
-    return UniformCoordinates1d(start, stop, step, name=name)
+    """
+    Create uniform 1d coordinates with a start, stop, and step.
+    """
+
+    return UniformCoordinates1d(start, stop, step=step, name=name)
 
 def clinspace(start, stop, size, name=None):
+    """
+    Create uniform 1d or stacked coordinates with a start, stop, and size.
+    """
+
     try:
         a = np.array([start, stop])
     except ValueError:

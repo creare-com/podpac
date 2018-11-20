@@ -14,6 +14,10 @@ from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
 class StackedCoordinates(BaseCoordinates):
+    """
+    Stacked coordinates.
+    """
+
     # TODO dict vs tuple?
     _coords = tl.Tuple(trait=tl.Instance(Coordinates1d))
 

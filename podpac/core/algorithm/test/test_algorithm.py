@@ -10,8 +10,9 @@ from podpac.core.algorithm.algorithm import Algorithm, Arange, CoordData, SinCoo
 class TestAlgorithm(object):
     def test_not_implemented(self):
         node = Algorithm()
+        c = podpac.Coordinates([])
         with pytest.raises(NotImplementedError):
-            node.eval(podpac.Coordinates())
+            node.eval(c)
 
     def test_base_definition(self):
         # note: any algorithm node with attrs and inputs would be fine here
