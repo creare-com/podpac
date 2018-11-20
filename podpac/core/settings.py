@@ -5,6 +5,7 @@ Podpac Settings
 
 import os
 import json
+from json import JSONDecodeError
 from copy import deepcopy
 
 # Settings Defaults
@@ -112,27 +113,43 @@ class PodpacSettings(dict):
         for key in DEFAULT_SETTINGS:
             self[key] = DEFAULT_SETTINGS[key]
 
-    def _load_user_settings(self, path=None):
+    def _load_user_settings(self, path=None, filename='settings.json'):
         """Load user settings from settings.json file
         
         Parameters
         ----------
         path : str, optional
-            Load settings from custom path
+            Full path to custom settings file
+        filename : str, optional
+            Filename of custom settings file
         """
-        default_filename = 'settings.json'
-        default_path = os.path.join(os.path.expanduser('~'), '.podpac', default_filename)
+        filepath = os.path.join(path, filename) if path is not None else None
+        default_path = os.path.join(os.path.expanduser('~'), '.podpac')
+        default_filepath = os.path.join(default_path, filename)
         self._settings_path = None
-
-        # order of paths to check for settings
-        path_choices = [
-            path,                                         # user specified
-            os.path.join(os.getcwd(), default_filename),  # current working directory
-            default_path                                  # default path
-        ]
 
         # reset user settings
         user_settings_json = None
+
+        # create the custom path if it doesn't exist
+        if path is not None:
+
+            # make empty settings path
+            if not os.path.exists(path):
+                os.makedirs(path, exist_ok=True)
+
+            # write an empty settings file
+            if not os.path.exists(filepath):
+                with open(filepath, 'w') as f:
+                    json.dump({}, f)
+
+        # order of paths to check for settings
+        path_choices = [
+            filepath,
+            os.path.join(os.getcwd(), filename),  # current working directory
+            default_filepath                              # default path
+        ]
+
 
         # try path choices in order, break when one works
         for p in path_choices:
@@ -140,9 +157,12 @@ class PodpacSettings(dict):
             # see if the path exists
             if p is not None and os.path.exists(p):
 
-                # don't catch this so it throws a JSONDecodeError
-                with open(p, 'r') as f:
-                    user_settings_json = json.load(f)
+                try:
+                    with open(p, 'r') as f:
+                        user_settings_json = json.load(f)
+                except JSONDecodeError as e:
+                    if p == default_filepath:
+                        raise e
 
             # if path exists and settings loaded, then save path and break
             if user_settings_json is not None:
@@ -151,9 +171,9 @@ class PodpacSettings(dict):
 
         # if no user settings found, create a persistent file to store data
         if user_settings_json is None:
-            os.makedirs(default_path)
+            os.makedirs(default_path, exist_ok=True)
             user_settings_json = {}
-            self._settings_path = default_path
+            self._settings_path = default_filepath
 
         # load user settings into dict
         for key in user_settings_json:

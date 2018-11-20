@@ -19,8 +19,7 @@ class TestSettingsFile(object):
 
     def tear_down_tmp_settings(self):
         path = self.tmp_dir_path()
-        os.remove(os.path.join(path, '.podpac', 'settings.json'))
-        os.rmdir(os.path.join(path, '.podpac')) # intentionally fails if anything else is in this folder
+        os.remove(os.path.join(path, 'settings.json'))
         os.rmdir(path) # intentionally fails if anything else is in this folder
 
     def test_settings_file_defaults_to_home_dir(self):
@@ -66,7 +65,7 @@ class TestSettingsFile(object):
         key = "key"
         value = "value"
 
-        with open(path, 'w') as f:
+        with open(os.path.join(path, 'settings.json'), 'w') as f:
             f.write("not proper json")
 
         settings = PodpacSettings(path=path)

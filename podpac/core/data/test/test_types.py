@@ -20,6 +20,7 @@ import boto3
 import botocore
 import requests
 
+import podpac
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, Node
