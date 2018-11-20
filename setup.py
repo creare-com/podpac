@@ -49,7 +49,6 @@ extras_require = {
         'urllib3>=1.22',
         ],
     'dev': [
-        'numpydoc>=0.8.0',
         'pylint>=1.8.2',
         'pytest>=3.3.2',
         'pytest-cov>=2.5.1',

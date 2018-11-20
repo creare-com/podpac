@@ -13,6 +13,7 @@ Top Level Imports
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.Node
     podpac.Coordinates
@@ -23,6 +24,7 @@ Nodes
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.Node
     podpac.NodeException
@@ -31,14 +33,25 @@ Nodes
 Coordinates
 -----------
 
+.. rubric:: Classes
+
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.coordinates.Coordinates
-    podpac.coordinates.crange
-    podpac.coordinates.clinspace
     podpac.coordinates.Coordinates1d
     podpac.coordinates.GroupCoordinates
+
+
+.. rubric:: Helper Functions
+
+.. autosummary::
+    :toctree: api/
+    :template: function.rst
+    
+    podpac.coordinates.crange
+    podpac.coordinates.clinspace
     podpac.coordinates.merge_dims
     podpac.coordinates.concat
     podpac.coordinates.union
@@ -50,6 +63,7 @@ Data Sources
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.data.Array
     podpac.data.PyDAP
@@ -64,6 +78,7 @@ Data Sources
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.data.DataSource
     podpac.data.Interpolation
@@ -77,6 +92,7 @@ Interoplators
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.interpolators.Interpolator
     podpac.interpolators.NearestNeighbor
@@ -91,6 +107,7 @@ Pipelines
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.pipeline.Pipeline
     podpac.pipeline.PipelineError
@@ -107,6 +124,7 @@ Algorithm Nodes
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.algorithm.Algorithm
     podpac.algorithm.Arithmetic
@@ -118,6 +136,7 @@ Algorithm Nodes
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.algorithm.Min
     podpac.algorithm.Max
@@ -138,6 +157,7 @@ Algorithm Nodes
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.algorithm.ExpandCoordinates
     podpac.algorithm.SelectCoordinates
@@ -146,6 +166,7 @@ Algorithm Nodes
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.algorithm.Convolution
     podpac.algorithm.SpatialConvolution
@@ -156,6 +177,7 @@ Compositor Nodes
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.compositor.Compositor
     podpac.compositor.OrderedCompositor
@@ -166,6 +188,7 @@ Datalib
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.datalib.smap
     podpac.datalib.SMAP
@@ -176,7 +199,6 @@ Datalib
     podpac.datalib.SMAPWilt
     podpac.datalib.SMAP_PRODUCT_MAP
 
-
 Utilities
 ---------
 
@@ -184,6 +206,7 @@ Utilities
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.authentication.SessionWithHeaderRedirection
     podpac.authentication.EarthDataSession
@@ -193,6 +216,7 @@ Utilities
 
 .. autosummary::
     :toctree: api/
+    :template: module.rst
 
     podpac.settings
 
@@ -201,6 +225,7 @@ Utilities
 
 .. autosummary::
     :toctree: api/
+    :template: module.rst
 
     podpac.utils
 
@@ -209,8 +234,15 @@ Utilities
 
 .. autosummary::
     :toctree: api/
+    :template: function.rst
+
+    podpac.version.semver
+    podpac.version.version
+
+
+.. autosummary::
+    :toctree: api/
+    :template: attribute.rst
 
     podpac.version.VERSION
     podpac.version.VERSION_INFO
-    podpac.version.semver
-    podpac.version.version

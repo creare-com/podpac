@@ -19,27 +19,33 @@ from podpac.core.style import Style
 
 COMMON_NODE_DOC = {
     'requested_coordinates':
-        '''The set of coordinates requested by a user. The Node will be evaluated using these coordinates.''',
+        """The set of coordinates requested by a user. The Node will be evaluated using these coordinates.""",
     'eval_output':
-        '''Default is None. Optional input array used to store the output data. When supplied, the node will not
+        """Default is None. Optional input array used to store the output data. When supplied, the node will not
             allocate its own memory for the output array. This array needs to have the correct dimensions and
-            coordinates.''',
+            coordinates.""",
     'eval_return':
-        '''UnitsDataArray
-            Unit-aware xarray DataArray containing the results of the node evaluation.''',
+        """
+        :class:`podpac.UnitsDataArray`
+            Unit-aware xarray DataArray containing the results of the node evaluation.
+        """,
     'hash_return': 'A unique hash capturing the coordinates and parameters used to evaluate the node. ',
-    'outdir': 'Optional output directory. Uses settings.CACHE_DIR by default',
-    'definition_return': '''OrderedDict
+    'outdir': 'Optional output directory. Uses :attr:`podpac.settings.CACHE_DIR` by default',
+    'definition_return':
+        """
+        OrderedDict
             Dictionary containing the location of the Node, the name of the plugin (if required), as well as any
-            parameters and attributes that were tagged by children.''',
+            parameters and attributes that were tagged by children.
+        """,
     'arr_init_type':
-        '''How to initialize the array. Options are:
+        """How to initialize the array. Options are:
                 nan: uses np.full(..., np.nan) (Default option)
                 empty: uses np.empty
                 zeros: uses np.zeros()
                 ones: uses np.ones
                 full: uses np.full(..., fillval)
-                data: uses the fillval as the input array''',
+                data: uses the fillval as the input array
+        """,
     'arr_fillval' : "used if init_type=='full' or 'data', default = 0",
     'arr_style' : "The style to use for plotting. Uses self.style by default",
     'arr_no_style' : "Default is False. If True, self.style will not be assigned to arr.attr['layer_style']",
@@ -50,9 +56,10 @@ COMMON_NODE_DOC = {
     'arr_dtype' :"Default is np.float. Datatype used by default",
     'arr_kwargs' : "Dictioary of any additional keyword arguments that will be passed to UnitsDataArray.",
     'arr_return' :
-        """UnitsDataArray
+        """
+        :class:`podpac.UnitsDataArray`
             Unit-aware xarray DataArray of the desired size initialized using the method specified.
-            """
+        """
     }
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
@@ -70,20 +77,20 @@ class Node(tl.HasTraits):
     cache_type : [None, 'disk', 'ram']
         How the output of the nodes should be cached. By default, outputs are not cached.
     dtype : type
-        The numpy datatype of the output. Currently only `float` is supported.
+        The numpy datatype of the output. Currently only ``float`` is supported.
     node_defaults : dict
         Dictionary of defaults values for attributes of a Node.
-    style : podpac.Style
+    style : :class:`podpac.Style`
         Object discribing how the output of a node should be displayed. This attribute is planned for deprecation in the
         future.
-    units : podpac.Units
+    units : :class:`podpac.Units`
         The units of the output data, defined using the pint unit registry `podpac.units.ureg`.
 
     Notes
     -----
-    Additional attributes are available for debugging after evaluation, including::
-     * _requested_coordinates: the requested coordinates of the most recent call to eval
-     * _output: the output of the most recent call to eval
+    Additional attributes are available for debugging after evaluation, including:
+     * ``_requested_coordinates``: the requested coordinates of the most recent call to eval
+     * ``_output``: the output of the most recent call to eval
     """
 
     units = Units(default_value=None, allow_none=True)
