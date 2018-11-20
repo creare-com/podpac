@@ -9,6 +9,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import sys
 import getpass
 
+
 # python 2/3 compatibility
 if sys.version_info.major < 3:
     input = raw_input
@@ -27,6 +28,7 @@ except:
 
 # Internal dependencies
 from podpac.core import utils
+from podpac.core.settings import settings
 
 class SessionWithHeaderRedirection(requests.Session):
     """
@@ -60,10 +62,10 @@ class SessionWithHeaderRedirection(requests.Session):
         super(SessionWithHeaderRedirection, self).__init__()
         
         if username is None:
-            username = utils.load_setting('username@' + self.hostname)
+            username = settings['username@' + self.hostname]
         
         if password is None:
-            password = utils.load_setting('password@' + self.hostname)
+            password = settings['password@' + self.hostname]
         
         self.hostname_regex = hostname_regex
         self.auth = (username, password)
@@ -119,11 +121,13 @@ class SessionWithHeaderRedirection(requests.Session):
         
         if username is None:
             username = input("Username: ")
-        utils.save_setting('username@' + self.hostname, username)
+        
+        settings['username@' + self.hostname] = username
         
         if password is None:
             password = getpass.getpass()
-        utils.save_setting('password@' + self.hostname, password)
+
+        settings['password@' + self.hostname] = password
         
         self.auth = (username, password)
 

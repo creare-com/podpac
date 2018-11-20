@@ -11,7 +11,7 @@ import json
 import numpy as np
 import traitlets as tl
 
-from podpac import settings
+from podpac.core.settings import settings
 from podpac.core.units import Units, UnitsDataArray, create_data_array
 from podpac.core.utils import common_doc
 from podpac.core.coordinates import Coordinates
@@ -30,7 +30,7 @@ COMMON_NODE_DOC = {
             Unit-aware xarray DataArray containing the results of the node evaluation.
         """,
     'hash_return': 'A unique hash capturing the coordinates and parameters used to evaluate the node. ',
-    'outdir': 'Optional output directory. Uses :attr:`podpac.settings.CACHE_DIR` by default',
+    'outdir': "Optional output directory. Uses :attr:`podpac.settings['CACHE_DIR']` by default",
     'definition_return':
         """
         OrderedDict
@@ -499,7 +499,7 @@ class Node(tl.HasTraits):
 
     def _get_output_path(self, outdir=None):
         if outdir is None:
-            outdir = settings.CACHE_DIR
+            outdir = settings['CACHE_DIR']
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         return outdir
@@ -607,7 +607,7 @@ class Node(tl.HasTraits):
         import warnings
         warnings.warn('Node.cache_dir will be removed in a later release', DeprecationWarning)
 
-        basedir = settings.CACHE_DIR
+        basedir = settings['CACHE_DIR']
         subdir = str(self.__class__)[8:-2].split('.')
         dirs = [basedir] + subdir
         return os.path.join(*dirs)
@@ -663,13 +663,13 @@ class Node(tl.HasTraits):
             boto3 = None
 
         path = self.cache_path(filename)
-        if settings.S3_BUCKET_NAME is None or settings.CACHE_TO_S3 == False:
+        if settings['S3_BUCKET_NAME'] is None or settings['CACHE_TO_S3'] == False:
             if not os.path.exists(self.cache_dir):
                 os.makedirs(self.cache_dir)
             with open(path, 'wb') as fid:
                 cPickle.dump(obj, fid)#, protocol=cPickle.HIGHEST_PROTOCOL)
         else:
-            s3 = boto3.resource('s3').Bucket(settings.S3_BUCKET_NAME)
+            s3 = boto3.resource('s3').Bucket(settings['S3_BUCKET_NAME'])
             io = BytesIO(cPickle.dumps(obj))
             s3.upload_fileobj(io, path)
 
@@ -704,11 +704,11 @@ class Node(tl.HasTraits):
             boto3 = None
 
         path = self.cache_path(filename)
-        if settings.S3_BUCKET_NAME is None or not settings.CACHE_TO_S3:
+        if settings['S3_BUCKET_NAME'] is None or not settings['CACHE_TO_S3']:
             with open(path, 'rb') as fid:
                 obj = cPickle.load(fid)
         else:
-            s3 = boto3.resource('s3').Bucket(settings.S3_BUCKET_NAME)
+            s3 = boto3.resource('s3').Bucket(settings['S3_BUCKET_NAME'])
             io = BytesIO()
             s3.download_fileobj(path, io)
             io.seek(0)
@@ -742,7 +742,7 @@ class Node(tl.HasTraits):
         import shutil
 
         if all_cache:
-            shutil.rmtree(settings.CACHE_DIR)
+            shutil.rmtree(settings['CACHE_DIR'])
         elif node_cache:
             shutil.rmtree(self.cache_dir)
         else:

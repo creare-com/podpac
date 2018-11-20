@@ -10,7 +10,7 @@ import traitlets as tl
 
 from io import BytesIO
 
-from podpac import settings
+from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.pipeline.output import FileOutput, Output
 # from podpac.core.pipeline import Pipeline
@@ -46,21 +46,21 @@ class Lambda(Node):
 
     @tl.default('AWS_ACCESS_KEY_ID')
     def _AWS_ACCESS_KEY_ID_default(self):
-        return settings.AWS_ACCESS_KEY_ID
+        return settings['AWS_ACCESS_KEY_ID']
 
     AWS_SECRET_ACCESS_KEY = tl.Unicode(
         allow_none=False, help="Access key value from AWS for S3 bucket.")
 
     @tl.default('AWS_SECRET_ACCESS_KEY')
     def _AWS_SECRET_ACCESS_KEY_default(self):
-        return settings.AWS_SECRET_ACCESS_KEY
+        return settings['AWS_SECRET_ACCESS_KEY']
 
     AWS_REGION_NAME = tl.Unicode(
         allow_none=False, help="Region name of AWS S3 bucket.")
 
     @tl.default('AWS_REGION_NAME')
     def _AWS_REGION_NAME_default(self):
-        return settings.AWS_REGION_NAME
+        return settings['AWS_REGION_NAME']
 
     source_node = tl.Instance(Node, allow_none=False,
                               help="Node to evaluate in a Lambda function.")
@@ -77,21 +77,21 @@ class Lambda(Node):
 
     @tl.default('s3_bucket_name')
     def _s3_bucket_name_default(self):
-        return settings.S3_BUCKET_NAME
+        return settings['S3_BUCKET_NAME']
 
     s3_json_folder = tl.Unicode(
         allow_none=False, help="S3 folder to put JSON in.")
 
     @tl.default('s3_json_folder')
     def _s3_json_folder_default(self):
-        return settings.S3_JSON_FOLDER
+        return settings['S3_JSON_FOLDER']
 
     s3_output_folder = tl.Unicode(
         allow_none=False, help="S3 folder to put output in.")
 
     @tl.default('s3_output_folder')
     def _s3_output_folder_default(self):
-        return settings.S3_OUTPUT_FOLDER
+        return settings['S3_OUTPUT_FOLDER']
 
     @property
     def definition(self):

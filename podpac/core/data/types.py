@@ -41,9 +41,9 @@ urllib3 = optional_import('urllib3')
 certifi = optional_import('certifi')
 
 # Internal dependencies
-from podpac import settings
 from podpac.core import authentication
 from podpac.core.node import Node
+from podpac.core.settings import settings
 from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
@@ -1070,7 +1070,7 @@ class S3(DataSource):
         Either: 'file_handle' (for files downloaded to RAM); or
         the default option 'path' (for files downloaded to disk)
     s3_bucket : str, optional
-        Name of the S3 bucket. Uses settings.S3_BUCKET_NAME by default.
+        Name of the S3 bucket. Uses ``podpac.settings['S3_BUCKET_NAME']`` by default.
     s3_data : file/str
         If return_type == 'file_handle' returns a file pointer object
         If return_type == 'path' returns a string to the data
@@ -1116,7 +1116,7 @@ class S3(DataSource):
         Str
             Name of the S3 bucket
         """
-        return settings.S3_BUCKET_NAME
+        return settings['S3_BUCKET_NAME']
 
     @tl.default('s3_data')
     def s3_data_default(self):

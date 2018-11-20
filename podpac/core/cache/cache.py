@@ -13,7 +13,7 @@ try:
 except:
     import _pickle as cPickle
 
-import podpac.settings
+from podpac.core.settings import settings
 
 _cache_types = {'ram','disk','network','all'}
 
@@ -292,7 +292,7 @@ class DiskCacheStore(CacheStore):
     def __init__(self, root_cache_dir_path=None, storage_format='pickle'):
         self._cache_modes = set(['disk','all'])
         if root_cache_dir_path is None:
-            root_cache_dir_path = podpac.settings.CACHE_DIR
+            root_cache_dir_path = settings['CACHE_DIR']
         self._root_dir_path = root_cache_dir_path
         if storage_format == 'pickle':
             self._extension = 'pkl'
