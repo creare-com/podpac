@@ -10,7 +10,7 @@ from podpac.core.algorithm.algorithm import (
 from podpac.core.algorithm.stats import (
     Min, Max, Sum, Count, Mean, Median,
     Variance, StandardDeviation, Skew, Kurtosis,
-    DayOfYear, GroupReduce, Reduce, Reduce2,
+    DayOfYear, GroupReduce
 )
 from podpac.core.algorithm.coord_select import (
     ExpandCoordinates, SelectCoordinates,

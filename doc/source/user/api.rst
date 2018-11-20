@@ -31,14 +31,20 @@ Nodes
 Coordinates
 -----------
 
+    podpac.coordinates.Coordinates
+    podpac.coordinates.Coordinates1d
+    podpac.coordinates.ArrayCoordinates1d
+    podpac.coordinates.UniformCoordinates1d
+    podpac.coordinates.StackedCoordinates
+    podpac.coordinates.GroupCoordinates
+
+.. rubric:: Utilities
+
 .. autosummary::
     :toctree: api/
 
-    podpac.coordinates.Coordinates
     podpac.coordinates.crange
     podpac.coordinates.clinspace
-    podpac.coordinates.Coordinates1d
-    podpac.coordinates.GroupCoordinates
     podpac.coordinates.merge_dims
     podpac.coordinates.concat
     podpac.coordinates.union
@@ -72,7 +78,7 @@ Data Sources
     podpac.data.INTERPOLATION_DEFAULT
 
 
-Interoplators
+Interpolators
 -------------
 
 .. autosummary::
@@ -94,13 +100,18 @@ Pipelines
 
     podpac.pipeline.Pipeline
     podpac.pipeline.PipelineError
-    podpac.pipeline.parse_pipeline_definition
-    podpac.pipeline.Output
+
+.. rubric:: Pipeline Outputs
+
+.. autosummary::
+    :toctree: api/
+    
     podpac.pipeline.NoOutput
     podpac.pipeline.FileOutput
     podpac.pipeline.FTPOutput
     podpac.pipeline.S3Output
     podpac.pipeline.ImageOutput
+    podpac.pipeline.Output
 
 Algorithm Nodes
 ---------------
@@ -109,12 +120,18 @@ Algorithm Nodes
     :toctree: api/
 
     podpac.algorithm.Algorithm
+
+.. rubric:: General Purpose
+
+.. autosummary::
+    :toctree: api/
+
     podpac.algorithm.Arithmetic
     podpac.algorithm.SinCoords
     podpac.algorithm.Arange
     podpac.algorithm.CoordData
 
-.. rubric:: stats
+.. rubric:: Statistical Methods
 
 .. autosummary::
     :toctree: api/
@@ -131,10 +148,8 @@ Algorithm Nodes
     podpac.algorithm.Kurtosis
     podpac.algorithm.DayOfYear
     podpac.algorithm.GroupReduce
-    podpac.algorithm.Reduce
-    podpac.algorithm.Reduce2
 
-.. rubric:: coordinates
+.. rubric:: Coordinates Modification
 
 .. autosummary::
     :toctree: api/
@@ -142,7 +157,7 @@ Algorithm Nodes
     podpac.algorithm.ExpandCoordinates
     podpac.algorithm.SelectCoordinates
 
-.. rubric:: signal
+.. rubric:: Signal Processing
 
 .. autosummary::
     :toctree: api/
