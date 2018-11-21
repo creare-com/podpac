@@ -513,8 +513,8 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
 
     auth_session = tl.Instance(authentication.EarthDataSession)
     auth_class = tl.Type(authentication.EarthDataSession)
-    username = tl.Unicode(None, allow_none=True).tag(attr=True)
-    password = tl.Unicode(None, allow_none=True).tag(attr=True)
+    username = tl.Unicode(None, allow_none=True)
+    password = tl.Unicode(None, allow_none=True)
 
     @tl.default('auth_session')
     def _auth_session_default(self):
@@ -891,9 +891,15 @@ class SMAP(podpac.compositor.OrderedCompositor):
         self.cache_obj(coords, 'shared.coordinates')
         return coords
 
-    def get_filename_coordinates_sources(self):
+    def get_filename_coordinates_sources(self, bounds=None):
         """Returns coordinates solely based on the filenames of the sources. This function was motivated by the 
         SMAP-Sentinel product, which does not have regularly stored tiles (in space and time). 
+
+        Parameters
+        -----------
+        Bounds: podpac.Coordinates, Optional
+            Default is None. Return the coordinates based on filenames of the source only within the specified bounds. When 
+            not None, the result is not cached.
 
         Returns
         -------
@@ -901,29 +907,40 @@ class SMAP(podpac.compositor.OrderedCompositor):
             Coordinates of all the sources in the product family
         np.ndarray(dtype=object(SMAPSource))
             Array of all the SMAPSources pointing to unique OpenDAP urls corresponding to the partial native coordinates
+        
 
         Notes
         ------
         The outputs of this function can be used to find source that overlap spatially or temporally with a subset 
         region specified by the user.
-        """
-        try:
-            return (self.load_cached_obj('filename.coordinates'),
-                    self.load_cached_obj('filename.sources'))
-        except:
-            pass
 
-        crds = self.sources[0].source_coordinates
-        sources = [self.sources[0].sources]
-        for s in self.sources[1:]:
+        If 'bounds' is not specified, the result is cached for faster future access.
+        """
+        if bounds is None:
+            try:
+                return (self.load_cached_obj('filename.coordinates'),
+                        self.load_cached_obj('filename.sources'))
+            except:
+                pass
+
+        if bounds is None:
+            active_sources = self.sources
+        else:
+            crds, I = self.source_coordinates.intersect(bounds, outer=True, return_indices=True)
+            active_sources = self.sources[I]
+
+        crds = active_sources[0].source_coordinates
+        sources = [active_sources[0].sources]
+        for s in active_sources[1:]:
             if np.prod(s.source_coordinates.shape) > 0:
                 crds = concat([crds, s.source_coordinates])
                 sources.append(s.sources)
         #if self.shared_coordinates is not None:
             #crds = crds + self.shared_coordinates
         sources = np.concatenate(sources)
-        self.cache_obj(crds, 'filename.coordinates')
-        self.cache_obj(sources, 'filename.sources')
+        if bounds is None:
+            self.cache_obj(crds, 'filename.coordinates')
+            self.cache_obj(sources, 'filename.sources')
         return crds, sources
 
     @property
