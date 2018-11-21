@@ -25,7 +25,7 @@ class TestSettingsFile(object):
     def test_settings_file_defaults_to_home_dir(self):
         settings = PodpacSettings()
         path = os.path.expanduser("~")
-        assert settings._settings_path == os.path.join(path, '.podpac', 'settings.json')
+        assert settings.settings_path == os.path.join(path, '.podpac', 'settings.json')
 
     def test_single_saved_setting_persists(self):
         path = self.make_settings_tmp_dir()
@@ -33,6 +33,7 @@ class TestSettingsFile(object):
         key = "key"
         value = "value"
         settings = PodpacSettings(path=path)
+        settings['SAVE_SETTINGS'] = True
         settings[key] = value
 
         new_settings = PodpacSettings(path=path)
@@ -46,6 +47,7 @@ class TestSettingsFile(object):
         key1 = "key1"
         value1 = "value1"
         settings = PodpacSettings(path=path)
+        settings['SAVE_SETTINGS'] = True
         settings[key1] = value1
 
         key2 = "key2"
@@ -70,5 +72,8 @@ class TestSettingsFile(object):
 
         settings = PodpacSettings(path=path)
         assert isinstance(settings, dict)
+
+        path = os.path.expanduser("~")
+        assert settings.settings_path == os.path.join(path, '.podpac', 'settings.json')
 
         self.tear_down_tmp_settings()

@@ -6,6 +6,7 @@ Podpac Settings
 import os
 import json
 from copy import deepcopy
+import errno
 
 # Python 2/3 handling for JSONDecodeError
 try:
@@ -24,7 +25,7 @@ DEFAULT_SETTINGS = {
     'S3_BUCKET_NAME': None,
     'S3_JSON_FOLDER': None,
     'S3_OUTPUT_FOLDER': None,
-    'SAVE_SETTINGS': True
+    'SAVE_SETTINGS': False
 }
 
 
@@ -40,9 +41,17 @@ class PodpacSettings(dict):
       * editing the ``settings.json`` file in the home directory (i.e. ``~/.podpac/settings.json``)
       * creating a ``settings.json`` in the current working directory (i.e. ``./settings.json``)
     
-    If settings are changed at runtime, the source ``settings.json`` will be updated.
-    If you would prefer the settings file not be changed, set the ``settings['SAVE_SETTINGS']`` field to ``False``.
-
+    If ``settings.json`` files exist in multiple places, podpac will load settings in the following order,
+    overwriting previously loaded settings in the process:
+      * podpac settings defaults
+      * home directory settings (``~/.podpac/settings.json``)
+      * current working directory settings (``./settings.json``)
+    
+    :attr:`settings.settings_path` shows the path of the last loaded settings file (e.g. the active settings file).
+    To persistenyl update the active settings file as changes are made at runtime,
+    set the ``settings['SAVE_SETTINGS']`` field to ``True``. The active setting file can be persistently
+    saved at any time using :meth:`settings.save`.
+    
     The default settings are shown below:
 
     Attributes
@@ -72,7 +81,7 @@ class PodpacSettings(dict):
     S3_OUTPUT_FOLDER : str
         Folder within :attr:`S3_BUCKET_NAME` to use for outputs.
     SAVE_SETTINGS: bool
-        Save settings as they are changed during runtime. Defaults to ``True``.
+        Save settings automatically as they are changed during runtime. Defaults to ``False``.
 
     """
     
@@ -92,7 +101,7 @@ class PodpacSettings(dict):
         self._loaded = True
 
         # write out settings
-        self._save_settings()
+        self.save()
 
     def __setitem__(self, key, value):
 
@@ -106,7 +115,7 @@ class PodpacSettings(dict):
 
         # save settings file if value has changed
         if self._loaded and self['SAVE_SETTINGS'] and old_val != value:
-            self._save_settings()
+            self.save()
 
     def __getitem__(self, key):
 
@@ -137,15 +146,12 @@ class PodpacSettings(dict):
         default_filepath = os.path.join(default_path, filename)
         self._settings_path = None
 
-        # reset user settings
-        user_settings_json = None
-
-        # create the custom path if it doesn't exist
+        # if input path is specifed, create the input path if it doesn't exist
         if path is not None:
 
             # make empty settings path
             if not os.path.exists(path):
-                os.makedirs(path, exist_ok=True)
+                self._mkdir(path)
 
             # write an empty settings file
             if not os.path.exists(filepath):
@@ -154,42 +160,72 @@ class PodpacSettings(dict):
 
         # order of paths to check for settings
         path_choices = [
-            filepath,
+            default_filepath,                     # default path
             os.path.join(os.getcwd(), filename),  # current working directory
-            default_filepath                              # default path
+            filepath                             # input directory
         ]
 
-        # try path choices in order, break when one works
+        # try path choices in order, overwriting earlier ones with later ones
         for p in path_choices:
+            # reset json settings
+            json_settings = None
 
             # see if the path exists
             if p is not None and os.path.exists(p):
 
                 try:
                     with open(p, 'r') as f:
-                        user_settings_json = json.load(f)
-                except JSONDecodeError as e:
+                        json_settings = json.load(f)
+                except JSONDecodeError:
+
+                    # if the default_filepath settings file is broken, raise
                     if p == default_filepath:
-                        raise e
+                        raise
 
-            # if path exists and settings loaded, then save path and break
-            if user_settings_json is not None:
+            # if path exists and settings loaded then load those settings into the dict
+            if json_settings is not None:
+                for key in json_settings:
+                    self[key] = json_settings[key]
+
+                # save this path as the active
                 self._settings_path = p
-                break
 
-        # if no user settings found, create a persistent file to store data
-        if user_settings_json is None:
-            os.makedirs(default_path, exist_ok=True)
-            user_settings_json = {}
+        # if no user settings found, create one in the default_filepath
+        if json_settings is None:
+            self._mkdir(default_path)
             self._settings_path = default_filepath
 
-        # load user settings into dict
-        for key in user_settings_json:
-            self[key] = user_settings_json[key]
+    def _mkdir(self, path):
+        """Wrapper for os.mkdirs(exist_ok=True)
+        
+        Parameters
+        ----------
+        path : str
+            path to directory
+        """
+        try:
+            os.makedirs(path)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
 
+    @property
+    def settings_path(self):
+        """Path to the last loaded ``settings.json`` file
 
-    def _save_settings(self):
-        """Save current settings to active settings file"""
+        Returns
+        -------
+        str
+            Path to the last loaded ``settings.json`` file
+        """
+        return self._settings_path
+
+    def save(self):
+        """
+        Save current settings to active settings file
+
+        :attr:`settings.settings_path` shows the path to the currently active settings file
+        """
 
         with open(self._settings_path, 'w') as f:
             json.dump(self, f)
