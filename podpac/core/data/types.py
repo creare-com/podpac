@@ -443,10 +443,7 @@ class Rasterio(DataSource):
         have to overload this method.
         """
         
-        if hasattr(self.dataset, 'affine'):
-            affine = self.dataset.affine
-        else:
-            affine = self.dataset.transform
+        affine = self.dataset.transform
 
         left, bottom, right, top = self.dataset.bounds
 
