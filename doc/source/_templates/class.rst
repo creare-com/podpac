@@ -7,8 +7,10 @@
 
 {% set exclude_attributes = ['cross_validation_lock'] %}
 
+{% set _classmethods = ['from_json', 'from_xarray', 'from_definition', 'points', 'grid'] %}
+
 {% if methods %}
-{% set classmethods = methods|select('in', ['from_json', 'from_xarray', 'from_definition', 'points', 'grid'])|list %}
+{% set classmethods = methods|select('in', _classmethods)|list %}
 {% set methods = methods|reject('in', exclude_methods)|reject('in', classmethods) %}
 {% endif %}
 
