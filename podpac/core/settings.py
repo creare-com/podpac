@@ -144,7 +144,9 @@ class PodpacSettings(dict):
         filepath = os.path.join(path, filename) if path is not None else None
         default_path = os.path.join(os.path.expanduser('~'), '.podpac')
         default_filepath = os.path.join(default_path, filename)
-        self._settings_path = None
+        
+        # set settings path to default to start
+        self._settings_filepath = default_filepath
 
         # if input path is specifed, create the input path if it doesn't exist
         if path is not None:
@@ -159,14 +161,14 @@ class PodpacSettings(dict):
                     json.dump({}, f)
 
         # order of paths to check for settings
-        path_choices = [
+        filepath_choices = [
             default_filepath,                     # default path
             os.path.join(os.getcwd(), filename),  # current working directory
             filepath                             # input directory
         ]
 
         # try path choices in order, overwriting earlier ones with later ones
-        for p in path_choices:
+        for p in filepath_choices:
             # reset json settings
             json_settings = None
 
@@ -182,18 +184,13 @@ class PodpacSettings(dict):
                     if p == default_filepath:
                         raise
 
-            # if path exists and settings loaded then load those settings into the dict
-            if json_settings is not None:
-                for key in json_settings:
-                    self[key] = json_settings[key]
+                # if path exists and settings loaded then load those settings into the dict
+                if json_settings is not None:
+                    for key in json_settings:
+                        self[key] = json_settings[key]
 
-                # save this path as the active
-                self._settings_path = p
-
-        # if no user settings found, create one in the default_filepath
-        if json_settings is None:
-            self._mkdir(default_path)
-            self._settings_path = default_filepath
+                    # save this path as the active
+                    self._settings_filepath = p
 
     def _mkdir(self, path):
         """Wrapper for os.mkdirs(exist_ok=True)
@@ -218,7 +215,7 @@ class PodpacSettings(dict):
         str
             Path to the last loaded ``settings.json`` file
         """
-        return self._settings_path
+        return self._settings_filepath
 
     def save(self):
         """
@@ -227,7 +224,11 @@ class PodpacSettings(dict):
         :attr:`settings.settings_path` shows the path to the currently active settings file
         """
 
-        with open(self._settings_path, 'w') as f:
+        # if no settings path is found, create
+        if not os.path.exists(self._settings_filepath):
+            self._mkdir(os.path.dirname(self._settings_filepath))
+
+        with open(self._settings_filepath, 'w') as f:
             json.dump(self, f)
 
 
