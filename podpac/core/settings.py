@@ -5,8 +5,13 @@ Podpac Settings
 
 import os
 import json
-from json import JSONDecodeError
 from copy import deepcopy
+
+# Python 2/3 handling for JSONDecodeError
+try:
+    from json import JSONDecodeError
+except ImportError:
+    JSONDecodeError = ValueError
 
 # Settings Defaults
 DEFAULT_SETTINGS = {
@@ -25,16 +30,20 @@ DEFAULT_SETTINGS = {
 
 class PodpacSettings(dict):
     """
-    PODPAC Settings
+    Persistently stored podpac settings
 
-    Settings can be overridden or extended using a ``settings.json`` file located in one of two places:
-      * the current working directory (i.e. ``./settings.json``)
-      * the *.podpac* directory in the users home directory (i.e. ``~/.podpac/settings.json``)
+    Podpac settings are persistently stored in a ``settings.json`` file created at runtime.
+    By default, podpac will create a settings json file in the users
+    home directory (``~/.podpac/settings.json``) when first run.
+
+    Default settings can be overridden or extended by:
+      * editing the ``settings.json`` file in the home directory (i.e. ``~/.podpac/settings.json``)
+      * creating a ``settings.json`` in the current working directory (i.e. ``./settings.json``)
     
-    If not ``settings.json`` file is found, podpac will create one in the users
-    home directory (``~/.podpac/settings.json``).
-    If settings are changed during runtime, ``settings.json`` will be updated to reflect the changes.
-    If you would prefer the settings file not be overwritten, set the ``SAVE_SETTINGS`` field to ``False``.
+    If settings are changed at runtime, the source ``settings.json`` will be updated.
+    If you would prefer the settings file not be changed, set the ``settings['SAVE_SETTINGS']`` field to ``False``.
+
+    The default settings are shown below:
 
     Attributes
     ----------
@@ -149,7 +158,6 @@ class PodpacSettings(dict):
             os.path.join(os.getcwd(), filename),  # current working directory
             default_filepath                              # default path
         ]
-
 
         # try path choices in order, break when one works
         for p in path_choices:
