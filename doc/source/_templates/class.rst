@@ -7,11 +7,11 @@
 
 {% set exclude_attributes = ['cross_validation_lock'] %}
 
-{% set _classmethods = ['from_json', 'from_xarray', 'from_definition', 'points', 'grid'] %}
+{% set _constructors = ['from_json', 'from_xarray', 'from_definition', 'points', 'grid'] %}
 
 {% if methods %}
-{% set classmethods = methods|select('in', _classmethods)|list %}
-{% set methods = methods|reject('in', exclude_methods)|reject('in', classmethods) %}
+{% set constructors = methods|select('in', _constructors)|list %}
+{% set methods = methods|reject('in', exclude_methods)|reject('in', constructors) %}
 {% endif %}
 
 {% if attributes %}
@@ -20,15 +20,16 @@
 
 .. currentmodule:: {{ module }}
 
+
 .. autoclass:: {{ objname }}
 
-   {% block classmethods %}
+   {% block constructors %}
 
-   {% if classmethods %}
-   .. rubric:: Class Methods
+   {% if constructors %}
+   .. rubric:: Alternative Constructors
 
    .. autosummary::
-   {% for item in classmethods %}
+   {% for item in constructors %}
       ~{{ name }}.{{ item }}
    {%- endfor %}
    {% endif %}
@@ -56,3 +57,6 @@
    {%- endfor %}
    {% endif %}
    {% endblock %}
+
+   :members:
+   .. automethod:: __init__
