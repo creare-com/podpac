@@ -33,12 +33,14 @@ class Coordinates(tl.HasTraits):
     coords in `xarray <http://xarray.pydata.org/en/stable/data-structures.html>`_:
 
      * Coordinates are created from a list of coordinate values and dimension names.
-     * PODPAC coordinate values are always either ``float`` or ``np.datetime64``. For convenience, podpac
+     * Coordinate values are always either ``float`` or ``np.datetime64``. For convenience, podpac
        automatically converts datetime strings such as ``'2018-01-01'`` to ``np.datetime64``.
      * The allowed dimensions are ``'lat'``, ``'lon'``, ``'time'``, and ``'alt'``.
      * Coordinates from multiple dimensions can be stacked together to represent a *list* of coordinates instead of a
        *grid* of coordinates. The name of the stacked coordinates uses an underscore to combine the underlying dimensions, e.g.
        ``'lat_lon'``.
+
+    TODO: document indexing with []
 
     Parameters
     ----------
@@ -54,16 +56,28 @@ class Coordinates(tl.HasTraits):
 
     def __init__(self, coords, dims=None, coord_ref_sys=None, ctype=None, distance_units=None):
         """
-        Initialize a multidimensional coords object.
+        Create multidimensional coordinates.
 
-        Parameters
-        ----------
-        coords : list, dict, or Coordinates
-            List of named BaseCoordinates objects
-        ctype : str
-            Default coordinates type (optional).
-        coord_ref_sys : str
-            Default coordinates reference system (optional)
+        Arguments
+        ---------
+        coords : list
+            List of coordinate values for each dimension. Valid coordinate values:
+
+             * single coordinate value (number, datetime64, or str)
+             * array of coordinate values
+             * list of stacked coordinate values
+             * :class:`Coordinates1d` or :class:`StackedCoordinates` object
+        dims : list of str, optional
+            List of dimension names. Optional if all items in ``coords`` are named. Valid names are
+            
+             * 'lat', 'lon', 'alt', or 'time' for unstacked coordinates
+             * dimension names joined by an underscore for stacked coordinates
+        coord_ref_sys : str, optional
+            Default coordinates reference system
+        ctype : str, optional
+            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+        distance_units : Units
+            Default distance units.
         """
 
         if not isinstance(coords, (list, tuple, np.ndarray, xr.DataArray)):
@@ -156,35 +170,128 @@ class Coordinates(tl.HasTraits):
         return coords
 
     @classmethod
-    def grid(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, dims)
+    def grid(cls, dims=None, coord_ref_sys=None, ctype=None, distance_units=None, **kwargs):
+        """
+        Create a grid of coordinates.
+
+        Valid coordinate values:
+
+         * single coordinate value (number, datetime64, or str)
+         * array of coordinate values
+         * (start, stop, step) tuple for uniformly-spaced coordinates
+         * Coordinates1d object
+
+        This is equivalent to creating unstacked coordinates with a list of coordinate values::
+
+            podpac.Coordinates.grid(lat=[0, 1, 2], lon=[10, 20], dims=['lat', 'lon'])
+            podpac.Coordinates([[0, 1, 2], [10, 20]], dims=['lan', 'lon'])
+
+        Arguments
+        ---------
+        lat : optional
+            coordinates for the latitude dimension
+        lon : optional
+            coordinates for the longitude dimension
+        alt : optional
+            coordinates for the altitude dimension
+        time : optional
+            coordinates for the time dimension
+        dims : list of str, optional in Python>=3.6
+            List of dimension names, must match the provided keyword arguments. In Python 3.6 and above, the ``dims``
+            argument is optional, and the dims will match the order of the provided keyword arguments.
+        coord_ref_sys : str, optional
+            Default coordinates reference system
+        ctype : str, optional
+            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+        distance_units : Units
+            Default distance units.
+
+        Returns
+        -------
+        Coordinates
+
+        See Also
+        --------
+        points
+        """
+
+        coords = cls._coords_from_dict(kwargs, order=dims)
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
     def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, dims)
+        """
+        Create a list of multidimensional coordinates.
+
+        Valid coordinate values:
+
+         * single coordinate value (number, datetime64, or str)
+         * array of coordinate values
+         * (start, stop, step) tuple for uniformly-spaced coordinates
+         * Coordinates1d object
+
+        Note that the coordinates for each dimension must be the same size.
+
+        This is equivalent to creating stacked coordinates with a list of coordinate values and a stacked dimension
+        name::
+
+            podpac.Coordinates.points(lat=[0, 1, 2], lon=[10, 20, 30], dims=['lat', 'lon'])
+            podpac.Coordinates([[[0, 1, 2], [10, 20, 30]]], dims=['lan_lon'])
+
+        Arguments
+        ---------
+        lat : optional
+            coordinates for the latitude dimension
+        lon : optional
+            coordinates for the longitude dimension
+        alt : optional
+            coordinates for the altitude dimension
+        time : optional
+            coordinates for the time dimension
+        dims : list of str, optional in Python>=3.6
+            List of dimension names, must match the provided keyword arguments. In Python 3.6 and above, the ``dims``
+            argument is optional, and the dims will match the order of the provided keyword arguments.
+        coord_ref_sys : str, optional
+            Default coordinates reference system
+        ctype : str, optional
+            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+        distance_units : Units
+            Default distance units.
+
+        Returns
+        -------
+        Coordinates
+            podpac Coordinates
+
+        See Also
+        --------
+        grid
+        """
+
+        coords = cls._coords_from_dict(kwargs, order=dims)
         stacked = StackedCoordinates(coords)
         return cls([stacked], coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
     def from_xarray(cls, xcoord, coord_ref_sys=None, ctype=None, distance_units=None):
         """
-        Convert an xarray coord to podpac Coordinates.
+        Create podpac Coordinates from xarray coords.
 
-        Parameters
-        ----------
-        xcoord : DataArrayCoordinates
-            xarray coord attribute to convert
+        Arguments
+        ---------
+        xcoord : xarray.core.coordinates.DataArrayCoordinates
+            xarray coords
+        coord_ref_sys : str, optional
+            Default coordinates reference system
+        ctype : str, optional
+            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+        distance_units : Units
+            Default distance units.
 
         Returns
         -------
-        coord : Coordinates
-            podpact Coordinates object
-
-        Raises
-        ------
-        TypeError
-            Description
+        Coordinates
+            podpac Coordinates
         """
 
         if not isinstance(xcoord, xarray.core.coordinates.DataArrayCoordinates):
@@ -202,6 +309,24 @@ class Coordinates(tl.HasTraits):
 
     @classmethod
     def from_definition(cls, d):
+        """
+        Create podpac Coordinates from a coordinates definition.
+
+        Arguments
+        ---------
+        d : list
+            coordinates definition
+
+        Returns
+        -------
+        Coordinates
+            podpac Coordinates
+
+        See Also
+        --------
+        definition
+        """
+
         coords = []
         for elem in d:
             if isinstance(elem, list):
@@ -219,6 +344,26 @@ class Coordinates(tl.HasTraits):
 
     @classmethod
     def from_json(cls, s):
+        """
+        Create podpac Coordinates from a coordinates JSON definition.
+
+        Coordinates defined in pipelines will be created from this method.
+
+        Arguments
+        ---------
+        s : str
+            coordinates JSON definition
+
+        Returns
+        -------
+        Coordinates
+            podpac Coordinates
+
+        See Also
+        --------
+        json
+        """
+
         d = json.loads(s)
         return cls.from_definition(d)
 
@@ -226,16 +371,20 @@ class Coordinates(tl.HasTraits):
     # standard dict-like methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def values(self):
-        return self._coords.values()
-
     def keys(self):
+        """ dict-like keys """
         return self._coords.keys()
 
+    def values(self):
+        """ dict-like values """
+        return self._coords.values()
+
     def items(self):
+        """ dict-like items """
         return self._coords.items()
 
     def get(self, dim, default=None):
+        """ dict-like get """
         try:
             return self[dim]
         except KeyError:
@@ -315,6 +464,7 @@ class Coordinates(tl.HasTraits):
     #     return True
 
     def update(self, other):
+        """ dict-like update """
         if not isinstance(other, Coordinates):
             raise TypeError("Cannot update '%s' with Coordinates" % type(other))
 
@@ -328,35 +478,96 @@ class Coordinates(tl.HasTraits):
 
     @property
     def dims(self):
+        """
+        Tuple of dimension names, potentially stacked.
+
+        :type: tuple
+        
+        See Also
+        --------
+        udims
+        """
+
         return tuple(c.name for c in self._coords.values())
 
     @property
     def shape(self):
+        """
+        Tuple of the number of coordinates in each dimension.
+
+        :type: tuple
+        """
+
         return tuple(c.size for c in self._coords.values())
 
     @property
     def ndim(self):
+        """
+        Number of dimensions.
+
+        :type: int
+        """
         return len(self.dims)
 
     @property
     def size(self):
+        """
+        Total number of coordinates.
+
+        :type: int
+        """
+
         if len(self.shape) == 0:
             return 0
         return np.prod(self.shape)
 
     @property
     def udims(self):
+        """
+        Tuple of unstacked dimension names.
+
+        If there are no stacked dimensions, then ``dims`` and ``udims`` will be the same::
+
+            In [1]: lat = [0, 1]
+
+            In [2]: lon = [10, 20]
+
+            In [3]: time = '2018-01-01'
+            
+            In [4]: c = podpac.Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
+            
+            In [5]: c.dims
+            Out[5]: ('lat', 'lon', 'time')
+            
+            In [6]: c.udims
+            Out[6]: ('lat', 'lon', 'time')
+
+
+        If there are stacked dimensions, then ``udims`` contains the individual dimension names::
+
+            In [7]: c = podpac.Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
+
+            In [8]: c.dims
+            Out[8]: ('lat_lon', 'time')
+
+            In [9]: c.udims
+            Out[9]: ('lat', 'lon', 'time')
+
+        :type: tuple
+
+        See Also
+        --------
+        dims
+        """
+
         return tuple(dim for c in self._coords.values() for dim in c.dims)
 
     @property
     def coords(self):
         """
-        SUMMARY
+        xarray coords, a dictionary-like container of coordinate arrays.
 
-        Returns
-        -------
-        coords : type
-            description
+        :type: xarray.core.coordinates.DataArrayCoordinates
         """
 
         # TODO don't recompute this every time (but also don't compute it until requested)
@@ -365,25 +576,59 @@ class Coordinates(tl.HasTraits):
 
     @property
     def definition(self):
+        """
+        Serializable definition.
+
+        The ``definition`` can be used to create new Coordinates::
+
+            c = podpac.Coordinates(...)
+            c2 = podpac.Coordinates.from_definition(c.definition)
+
+        See Also
+        --------
+        from_definition, json
+        """
+
         return [c.definition for c in self._coords.values()]
 
     @property
     def json(self):
+        """
+        JSON-serialized definition.
+
+        The ``json`` can be used to create new Coordinates::
+
+            c = podapc.Coordinates(...)
+            c2 = podpac.Coordinates.from_json(c.definition)
+
+        The serialized definition is used to define coordinates in pipelines and to transport coordinates, e.g.
+        over HTTP and in AWS lambda functions. It also provides a consistent hashable value.
+
+        :type: str
+
+        See Also
+        --------
+        from_json
+        """
+
         return json.dumps(self.definition)
 
     @property
     def hash(self):
+        """
+        Coordinates hash.
+
+        *Note: To be replaced with the __hash__ method.*
+        """
+
         return hash(self.json)
 
     @property
     def properties(self):
         '''
-        Dictionary specifying the coordinate properties.
+        Dictionary of the coordinate properties.
 
-        Returns
-        -------
-        TYPE
-            Description
+        :type: dict
         '''
 
         # TODO JXM
@@ -412,10 +657,7 @@ class Coordinates(tl.HasTraits):
     def gdal_crs(self):
         """GDAL coordinate reference system.
 
-        Returns
-        -------
-        TYPE
-            Description
+        :type: str
         """
 
         # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
@@ -428,14 +670,28 @@ class Coordinates(tl.HasTraits):
 
     def drop(self, dims, ignore_missing=False):
         """
-        Remove the given dimensions from the Coordinates.
+        Remove the given dimensions from the Coordinates `dims`.
 
         Parameters
         ----------
         dims : str, list
-            Description
-        ignore_missing : bool
+            Dimension(s) to drop.
+        ignore_missing : bool, optional
+            If True, do not raise an exception if a given dimension is not in ``dims``. Default ``False``.
 
+        Returns
+        -------
+        Coordinates
+            Coordinates object with the given dimensions removed
+
+        Raises
+        ------
+        KeyError
+            If a given dimension is missing in the Coordinates (and ignore_missing is ``False``).
+
+        See Also
+        --------
+        udrop
         """
 
         if not isinstance(dims, (tuple, list)):
@@ -451,6 +707,48 @@ class Coordinates(tl.HasTraits):
 
     # do we ever need this?
     def udrop(self, dims, ignore_missing=False):
+        """
+        Remove the given individual dimensions from the Coordinates `udims`.
+
+        Unlike `drop`, ``udrop`` will remove parts of stacked coordinates::
+
+            In [1]: c = podpac.Coordinates([[[0, 1], [10, 20]], '2018-01-01'], dims=['lat_lon', 'time'])
+
+            In [2]: c
+            Out[2]: 
+            Coordinates
+                lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 1.0], N[2], ctype['midpoint']
+                lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2], ctype['midpoint']
+                time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1], ctype['midpoint']
+            
+            In [3]: c.udrop('lat')
+            Out[3]: 
+            Coordinates
+                lon: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2], ctype['midpoint']
+                time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1], ctype['midpoint']
+
+        Parameters
+        ----------
+        dims : str, list
+            Individual dimension(s) to drop.
+        ignore_missing : bool, optional
+            If True, do not raise an exception if a given dimension is not in ``udims``. Default ``False``.
+
+        Returns
+        -------
+        Coordinates
+            Coordinates object with the given dimensions removed.
+
+        Raises
+        ------
+        KeyError
+            If a given dimension is missing in the Coordinates (and ignore_missing is ``False``).
+
+        See Also
+        --------
+        drop
+        """
+
         if not isinstance(dims, (tuple, list)):
             dims = (dims,)
 
@@ -461,7 +759,7 @@ class Coordinates(tl.HasTraits):
                 raise KeyError("Dimension '%s' not found in Coordinates with %s" % (dim, self.udims))
 
         cs = []
-        for c in self.coords.values():
+        for c in self._coords.values():
             if isinstance(c, Coordinates1d):
                 if c.name not in dims:
                     cs.append(c)
