@@ -8,6 +8,7 @@ including user defined data sources.
 from __future__ import division, unicode_literals, print_function, absolute_import
 from collections import OrderedDict
 import warnings
+import logging
 
 import numpy as np
 import xarray as xr
@@ -20,6 +21,8 @@ from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.data.interpolate import Interpolation, interpolation_trait
+
+log = logging.getLogger(__name__)
 
 DATA_DOC = {
     'native_coordinates': 'The coordinates of the data source.',
@@ -268,6 +271,8 @@ class DataSource(Node):
         ValueError
             Cannot evaluate these coordinates
         """
+
+        log.debug('Evaluating {} data source'.format(self.__class__.__name__))
 
         if self.coordinate_index_type != 'numpy':
             warnings.warn('Coordinates index type {} is not yet supported.'.format(self.coordinate_index_type) +
