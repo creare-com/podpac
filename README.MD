@@ -52,6 +52,9 @@ We are working towards stability so that the above would no longer be true, and 
 
 As such use PODPAC at your own risk. 
 
+## Acknowledgments
+
+This material is based upon work supported by NASA under Contract No 80NSSC18C0061.
 
 ## References
 
