@@ -7,23 +7,39 @@
 
 {% set exclude_attributes = ['cross_validation_lock'] %}
 
+{% if methods %}
+{% set classmethods = methods|select('in', ['from_json', 'from_xarray', 'from_definition', 'points', 'grid'])|list %}
+{% set methods = methods|reject('in', exclude_methods)|reject('in', classmethods) %}
+{% endif %}
+
+{% if attributes %}
+{% set attributes = attributes|reject('in', exclude_attributes) %}
+{% endif %}
+
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
 
+   {% block classmethods %}
+
+   {% if classmethods %}
+   .. rubric:: Class Methods
+
+   .. autosummary::
+   {% for item in classmethods %}
+      ~{{ name }}.{{ item }}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
+
    {% block methods %}
-
-
-   ----------------
 
    {% if methods %}
    .. rubric:: Methods
 
    .. autosummary::
    {% for item in methods %}
-      {% if item not in exclude_methods %}
-         ~{{ name }}.{{ item }}
-      {% endif %}
+      ~{{ name }}.{{ item }}
    {%- endfor %}
    {% endif %}
    {% endblock %}
@@ -34,9 +50,7 @@
 
    .. autosummary::
    {% for item in attributes %}
-      {% if item not in exclude_attributes %}
-         ~{{ name }}.{{ item }}
-      {% endif %}
+      ~{{ name }}.{{ item }}
    {%- endfor %}
    {% endif %}
    {% endblock %}
