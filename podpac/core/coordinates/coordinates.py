@@ -37,19 +37,21 @@ class Coordinates(tl.HasTraits):
        automatically converts datetime strings such as ``'2018-01-01'`` to ``np.datetime64``.
      * The allowed dimensions are ``'lat'``, ``'lon'``, ``'time'``, and ``'alt'``.
      * Coordinates from multiple dimensions can be stacked together to represent a *list* of coordinates instead of a
-       *grid* of coordinates. The name of the stacked coordinates uses an underscore to combine the underlying dimensions, e.g.
-       ``'lat_lon'``.
+       *grid* of coordinates. The name of the stacked coordinates uses an underscore to combine the underlying
+       dimensions, e.g. ``'lat_lon'``.
 
-    TODO: document indexing with []
+    Coordinates are dict-like, for example:
+
+     * get coordinates by dimension name: ``coords['lat']``
+     * get iterable dimension keys and coordinates values: ``coords.keys()``, ``coords.values()``
+     * loop through dimensions: ``for dim in coords: ...``
 
     Parameters
     ----------
-    dims : tuple
+    dims
         Tuple of dimension names, potentially stacked.
-    udims : tuple
+    udims
         Tuple of individual dimension names, always unstacked.
-    coords : dict-like
-        xarray coordinates (container of coordinate arrays)
     """
 
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates))
@@ -69,7 +71,7 @@ class Coordinates(tl.HasTraits):
              * :class:`Coordinates1d` or :class:`StackedCoordinates` object
         dims : list of str, optional
             List of dimension names. Optional if all items in ``coords`` are named. Valid names are
-            
+           
              * 'lat', 'lon', 'alt', or 'time' for unstacked coordinates
              * dimension names joined by an underscore for stacked coordinates
         coord_ref_sys : str, optional
@@ -178,7 +180,7 @@ class Coordinates(tl.HasTraits):
 
          * single coordinate value (number, datetime64, or str)
          * array of coordinate values
-         * (start, stop, step) tuple for uniformly-spaced coordinates
+         * ``(start, stop, step)`` tuple for uniformly-spaced coordinates
          * Coordinates1d object
 
         This is equivalent to creating unstacked coordinates with a list of coordinate values::
@@ -227,7 +229,7 @@ class Coordinates(tl.HasTraits):
 
          * single coordinate value (number, datetime64, or str)
          * array of coordinate values
-         * (start, stop, step) tuple for uniformly-spaced coordinates
+         * ``(start, stop, step)`` tuple for uniformly-spaced coordinates
          * Coordinates1d object
 
         Note that the coordinates for each dimension must be the same size.
@@ -324,7 +326,7 @@ class Coordinates(tl.HasTraits):
 
         See Also
         --------
-        definition
+        from_json, definition
         """
 
         coords = []
@@ -347,7 +349,31 @@ class Coordinates(tl.HasTraits):
         """
         Create podpac Coordinates from a coordinates JSON definition.
 
-        Coordinates defined in pipelines will be created from this method.
+        Example JSON definition::
+
+            [
+                {
+                    "name": "lat",
+                    "start": 1,
+                    "stop": 10,
+                    "step": 0.5,
+                },
+                {
+                    "name": "lon",
+                    "start": 1,
+                    "stop": 2,
+                    "size": 100
+                },
+                {
+                    "name": "time",
+                    "ctype": "left"
+                    "values": [
+                        "2018-01-01",
+                        "2018-01-03",
+                        "2018-01-10"
+                    ]
+                }
+            ]
 
         Arguments
         ---------
@@ -372,19 +398,19 @@ class Coordinates(tl.HasTraits):
     # ------------------------------------------------------------------------------------------------------------------
 
     def keys(self):
-        """ dict-like keys """
+        """ dict-like keys: dims """
         return self._coords.keys()
 
     def values(self):
-        """ dict-like values """
+        """ dict-like values: coordinates for each key/dimension """
         return self._coords.values()
 
     def items(self):
-        """ dict-like items """
+        """ dict-like items: (dim, coordinates) pairs """
         return self._coords.items()
 
     def get(self, dim, default=None):
-        """ dict-like get """
+        """ dict-like get: get coordinates by dimension name with an optional """
         try:
             return self[dim]
         except KeyError:
@@ -464,7 +490,7 @@ class Coordinates(tl.HasTraits):
     #     return True
 
     def update(self, other):
-        """ dict-like update """
+        """ dict-like update: add/replace coordinates using another Coordinates object """
         if not isinstance(other, Coordinates):
             raise TypeError("Cannot update '%s' with Coordinates" % type(other))
 
@@ -482,7 +508,7 @@ class Coordinates(tl.HasTraits):
         Tuple of dimension names, potentially stacked.
 
         :type: tuple
-        
+       
         See Also
         --------
         udims
@@ -533,12 +559,12 @@ class Coordinates(tl.HasTraits):
             In [2]: lon = [10, 20]
 
             In [3]: time = '2018-01-01'
-            
+           
             In [4]: c = podpac.Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
-            
+           
             In [5]: c.dims
             Out[5]: ('lat', 'lon', 'time')
-            
+           
             In [6]: c.udims
             Out[6]: ('lat', 'lon', 'time')
 
@@ -577,7 +603,7 @@ class Coordinates(tl.HasTraits):
     @property
     def definition(self):
         """
-        Serializable definition.
+        Serializable coordinates definition.
 
         The ``definition`` can be used to create new Coordinates::
 
@@ -594,7 +620,7 @@ class Coordinates(tl.HasTraits):
     @property
     def json(self):
         """
-        JSON-serialized definition.
+        JSON-serialized coordinates definition.
 
         The ``json`` can be used to create new Coordinates::
 
@@ -625,11 +651,11 @@ class Coordinates(tl.HasTraits):
 
     @property
     def properties(self):
-        '''
+        """
         Dictionary of the coordinate properties.
 
         :type: dict
-        '''
+        """
 
         # TODO JXM
         # return {
@@ -715,14 +741,14 @@ class Coordinates(tl.HasTraits):
             In [1]: c = podpac.Coordinates([[[0, 1], [10, 20]], '2018-01-01'], dims=['lat_lon', 'time'])
 
             In [2]: c
-            Out[2]: 
+            Out[2]:
             Coordinates
                 lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 1.0], N[2], ctype['midpoint']
                 lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2], ctype['midpoint']
                 time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1], ctype['midpoint']
-            
+           
             In [3]: c.udrop('lat')
-            Out[3]: 
+            Out[3]:
             Coordinates
                 lon: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2], ctype['midpoint']
                 time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1], ctype['midpoint']
@@ -774,7 +800,58 @@ class Coordinates(tl.HasTraits):
 
     def intersect(self, other, outer=False, return_indices=False):
         """
-        TODO
+        Get the coordinate values that are within the bounds of a given coordinates object.
+
+        The intersection is calculated in each dimension separately.
+
+        The default intersection selects coordinates that are within the other coordinates bounds::
+
+            In [1]: coords = Coordinates([[0, 1, 2, 3]], dims=['lat'])
+
+            In [2]: other = Coordinates([[1.5, 2.5]], dims=['lat'])
+
+            In [3]: coords.intersect(other).coords
+            Out[3]:
+            Coordinates:
+              * lat      (lat) float64 2.0
+
+        The *outer* intersection selects the minimal set of coordinates that contain the other coordinates::
+        
+            In [4]: coords.intersect(other, outer=True).coords
+            Out[4]: 
+            Coordinates:
+              * lat      (lat) float64 1.0 2.0 3.0
+
+        The *outer* intersection also selects a boundary coordinate if the other coordinates are outside this
+        coordinates bounds but *inside* its area bounds::
+        
+            In [5]: other_near = Coordinates([[3.25]], dims=['lat'])
+            
+            In [6]: other_far = Coordinates([[10.0]], dims=['lat'])
+
+            In [7]: coords.intersect(other_near, outer=True).coords
+            Coordinates:
+              * lat      (lat) float64 3.0
+
+            In [8]: coords.intersect(other_far, outer=True).coords
+            Coordinates:
+              * lat      (lat) float64
+        
+        Parameters
+        ----------
+        other : Coordinates1d, StackedCoordinates, Coordinates
+            Coordinates to intersect with.
+        outer : bool, optional
+            If True, do an *outer* intersection. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
+
+        Returns
+        -------
+        intersection : Coordinates
+            Coordinates object consisting of the intersection in each dimension.
+        idx : list
+            List of indices for each dimension that produces the intersection, only if ``return_indices`` is True.
         """
 
         intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self.values()]
@@ -804,7 +881,7 @@ class Coordinates(tl.HasTraits):
         Returns
         -------
         unstacked : Coordinates
-            A new coordinate object with unstacked dimensions.
+            A new Coordinates object with unstacked coordinates.
 
         See Also
         --------
@@ -815,12 +892,12 @@ class Coordinates(tl.HasTraits):
 
     def iterchunks(self, shape, return_slices=False):
         """
-        TODO
+        Get a generator that yields Coordinates no larger than the given shape until the entire Coordinates is covered.
 
         Parameters
         ----------
         shape : tuple
-            TODO
+            The maximum shape of the chunk, with sizes corresponding to the `dims`.
         return_slice : boolean, optional
             Return slice in addition to Coordinates chunk.
 
@@ -829,7 +906,7 @@ class Coordinates(tl.HasTraits):
         coords : Coordinates
             A Coordinates object with one chunk of the coordinates.
         slices : list
-            slices for this Coordinates chunk, only if return_slices is True
+            slices for this Coordinates chunk, only if ``return_slices`` is True
         """
 
         l = [[slice(i, i+n) for i in range(0, m, n)] for m, n in zip(self.shape, shape)]
@@ -842,15 +919,15 @@ class Coordinates(tl.HasTraits):
 
     def transpose(self, *dims, **kwargs):
         """
-        Transpose (re-order) the Coordinates dimensions.
+        Transpose (re-order) the dimensions of the Coordinates.
 
         Parameters
         ----------
-        in_place : boolean, optional
-            If False, return a new, transposed Coordinates object (default).
-            If True, transpose the dimensions in-place.
-        *dims : str, optional
+        dim_1, dim_2, ... : str, optional
             Reorder dims to this order. By default, reverse the dims.
+        in_place : boolean, optional
+            If True, transpose the dimensions in-place.
+            Otherwise (default), return a new, transposed Coordinates object.
 
         Returns
         -------

@@ -54,10 +54,7 @@ class StackedCoordinates(BaseCoordinates):
         xarray coordinates (container of coordinate arrays)
     coordinates : pandas.MultiIndex
         MultiIndex of stacked coordinates values.
-
-    See Also
-    --------
-    :class:`clinspace`
+        
     """
 
     # TODO dict vs tuple?
@@ -200,6 +197,10 @@ class StackedCoordinates(BaseCoordinates):
     @property
     def dims(self):
         return tuple(c.name for c in self._coords)
+
+    @property
+    def udims(self):
+        return self.dims
 
     @property
     def name(self):

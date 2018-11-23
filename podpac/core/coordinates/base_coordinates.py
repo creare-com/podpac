@@ -31,6 +31,10 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     @property
+    def udims(self):
+        raise NotImplementedError
+
+    @property
     def coordinates(self):
         raise NotImplementedError
 
@@ -47,10 +51,10 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     @property
-    def json(self):
+    def definition(self):
         raise NotImplementedError
 
-    def from_json(self, d):
+    def from_definition(self, d):
         raise NotImplementedError
 
     def select(self, bounds, outer=False, return_indices=False):
