@@ -88,7 +88,7 @@ class ExampleClass(tl.HasTraits):
         return True
 ```
 
-The docstrings for inherited traits are not inherited. In subclasses, document inherited traits as follows:
+The docstrings for inherited traits are not inherited. You must define inherited traits again in child classes:
 
 ```python
 class ExampleChild(ExampleClass):
@@ -103,13 +103,13 @@ class ExampleChild(ExampleClass):
     # inherited traits, duplicated here for the docstrings:
 
     #: str : Description of attr1
-    attr1 = ExampleClass.attr1
+    attr1 = tl.Str()
 
     #: dict : Description of attr2
-    attr2 = ExampleClass.attr2
+    attr2 = tl.Dict(allow_none=True)
 
     #: int : Description of secondary attr3
-    attr3 = ExampleClass.attr3
+    attr3 : tl.Int()
 
 ```
 
