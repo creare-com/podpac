@@ -504,11 +504,8 @@ class Coordinates(tl.HasTraits):
 
     @property
     def dims(self):
-        """
-        Tuple of dimension names, potentially stacked.
+        """:tuple: Tuple of dimension names, potentially stacked.
 
-        :type: tuple
-       
         See Also
         --------
         udims
@@ -518,30 +515,19 @@ class Coordinates(tl.HasTraits):
 
     @property
     def shape(self):
-        """
-        Tuple of the number of coordinates in each dimension.
-
-        :type: tuple
-        """
-
+        """:tuple: Tuple of the number of coordinates in each dimension."""
+        
         return tuple(c.size for c in self._coords.values())
 
     @property
     def ndim(self):
-        """
-        Number of dimensions.
-
-        :type: int
-        """
+        """:int: Number of dimensions. """
+        
         return len(self.dims)
 
     @property
     def size(self):
-        """
-        Total number of coordinates.
-
-        :type: int
-        """
+        """:int: Total number of coordinates."""
 
         if len(self.shape) == 0:
             return 0
@@ -549,8 +535,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def udims(self):
-        """
-        Tuple of unstacked dimension names.
+        """:tuple: Tuple of unstacked dimension names.
 
         If there are no stacked dimensions, then ``dims`` and ``udims`` will be the same::
 
@@ -579,8 +564,6 @@ class Coordinates(tl.HasTraits):
             In [9]: c.udims
             Out[9]: ('lat', 'lon', 'time')
 
-        :type: tuple
-
         See Also
         --------
         dims
@@ -591,10 +574,9 @@ class Coordinates(tl.HasTraits):
     @property
     def coords(self):
         """
-        xarray coords, a dictionary-like container of coordinate arrays.
-
-        :type: xarray.core.coordinates.DataArrayCoordinates
+        :xarray.core.coordinates.DataArrayCoordinates: xarray coords, a dictionary-like container of coordinate arrays.
         """
+
 
         # TODO don't recompute this every time (but also don't compute it until requested)
         x = xr.DataArray(np.empty(self.shape), coords=[c.coordinates for c in self._coords.values()], dims=self.dims)
@@ -619,8 +601,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def json(self):
-        """
-        JSON-serialized coordinates definition.
+        """:str: JSON-serialized coordinates definition.
 
         The ``json`` can be used to create new Coordinates::
 
@@ -629,8 +610,6 @@ class Coordinates(tl.HasTraits):
 
         The serialized definition is used to define coordinates in pipelines and to transport coordinates, e.g.
         over HTTP and in AWS lambda functions. It also provides a consistent hashable value.
-
-        :type: str
 
         See Also
         --------
@@ -651,11 +630,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def properties(self):
-        """
-        Dictionary of the coordinate properties.
-
-        :type: dict
-        """
+        """:dict: Dictionary of the coordinate properties."""
 
         # TODO JXM
         # return {
@@ -681,10 +656,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def gdal_crs(self):
-        """GDAL coordinate reference system.
-
-        :type: str
-        """
+        """:str: GDAL coordinate reference system."""
 
         # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
         # return GDAL_CRS[self.coord_ref_sys]

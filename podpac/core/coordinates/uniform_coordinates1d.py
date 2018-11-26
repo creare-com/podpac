@@ -323,10 +323,7 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def coordinates(self):
-        """ Coordinate values.
-
-        :type: array, read-only
-        """
+        """:array, read-only: Coordinate values. """
 
         coordinates = add_coord(self.start, np.arange(0, self.size) * self.step)
         coordinates.setflags(write=False)
@@ -334,7 +331,7 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def size(self):
-        ''' Number of coordinates. '''
+        """ Number of coordinates. """
 
         dname = np.array(self.step).dtype.name
 
@@ -359,11 +356,9 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def dtype(self):
-        """ Coordinates dtype.
+        """ :type: Coordinates dtype.
 
         ``float`` for numerical coordinates and numpy ``datetime64`` for datetime coordinates.
-
-        :type: type
         """
 
         return type(self.start)
@@ -416,15 +411,12 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def definition(self):
-        """
-        Serializable uniform 1d coordinates definition.
+        """:dict: Serializable uniform 1d coordinates definition.
 
         The ``definition`` can be used to create new UniformCoordinates1d::
 
             c = podpac.UniformCoordinates1d(0, 10, step=1)
             c2 = podpac.UniformCoordinates1d.from_definition(c.definition)
-
-        :type: dict
 
         See Also
         --------

@@ -79,11 +79,7 @@ class ExampleClass(tl.HasTraits):
 
     @property
     def attr4(self):
-        """
-        Description of attr4
-
-        :type: bool
-        """
+        """:bool: Description of attr4."""
 
         return True
 ```

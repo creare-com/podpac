@@ -268,10 +268,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def coordinates(self):
-        """ Coordinate values.
-
-        :type: array, read-only
-        """
+        """:array, read-only: Coordinate values."""
 
         # get coordinates and ensure read-only array with correct dtype
         coordinates = self.coords.copy()
@@ -285,11 +282,9 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def dtype(self):
-        """ Coordinates dtype.
+        """:type: Coordinates dtype.
 
         ``float`` for numerical coordinates and numpy ``datetime64`` for datetime coordinates.
-
-        :type: type
         """
 
         if self.size == 0:
@@ -362,15 +357,12 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def definition(self):
-        """
-        Serializable 1d coordinates array definition.
+        """:dict: Serializable 1d coordinates array definition.
 
         The ``definition`` can be used to create new ArrayCoordinates1d::
 
             c = podpac.ArrayCoordinates1d([0, 1, 2, 3])
             c2 = podpac.ArrayCoordinates1d.from_definition(c.definition)
-
-        :type: dict
 
         See Also
         --------

@@ -142,11 +142,7 @@ class Coordinates1d(BaseCoordinates):
 
     @property
     def properties(self):
-        """
-        Dictionary of the coordinate properties.
-
-        :type: dict
-        """
+        """:dict: Dictionary of the coordinate properties. """
 
         d = {}
         if self.name is not None:
@@ -162,21 +158,15 @@ class Coordinates1d(BaseCoordinates):
 
     @property
     def coordinates(self):
-        """
-        Full array of coordinates values.
-
-        :type: array, read-only
-        """
+        """:array, read-only: Full array of coordinates values."""
 
         raise NotImplementedError
 
     @property
     def dtype(self):
-        """ Coordinates dtype.
+        """:type: Coordinates dtype.
 
         ``float`` for numerical coordinates and numpy ``datetime64`` for datetime coordinates.
-
-        :type: type
         """
 
         raise NotImplementedError
