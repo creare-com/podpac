@@ -168,6 +168,7 @@ class Reduce(Algorithm):
             yield self.source.eval(chunk, method=method)
 
     @common_doc(COMMON_DOC)
+    @cache_output
     def eval(self, coordinates, output=None, method=None):
         """Evaluates this nodes using the supplied coordinates. 
         
@@ -185,9 +186,8 @@ class Reduce(Algorithm):
         {eval_return}
         """
 
-        self._requested_coordinates = coordinates
-        self.dims = self.get_dims(self._requested_coordinates)
-        self._reduced_coordinates = self._requested_coordinates.drop(self.dims)
+        self.dims = self.get_dims(coordinates)
+        self._reduced_coordinates = coordinates.drop(self.dims)
 
         if output is None:
             output = self.create_output_array(self._reduced_coordinates)
@@ -206,7 +206,6 @@ class Reduce(Algorithm):
         else:
             output[:] = result
 
-        self._output = output
         return output
 
     def reduce(self, x):
@@ -911,6 +910,7 @@ class GroupReduce(Algorithm):
         return coords
 
     @common_doc(COMMON_DOC)
+    @cache_output
     def eval(self, coordinates, output=None, method=None):
         """Evaluates this nodes using the supplied coordinates. 
         
@@ -932,7 +932,7 @@ class GroupReduce(Algorithm):
         ValueError
             If source it not time-depended (required by this node).
         """
-        self._requested_coordinates = coordinates
+        
         self._source_coordinates = self._get_source_coordinates(coordinates)
         
         if output is None:
@@ -956,7 +956,6 @@ class GroupReduce(Algorithm):
         out = out.sel(**{self.groupby:E}).rename({self.groupby: 'time'})
         output[:] = out.transpose(*output.dims).data
 
-        self._output = output
         return output
 
     def base_ref(self):

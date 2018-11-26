@@ -199,6 +199,7 @@ class Compositor(Node):
                 output[:] = np.nan
 
     @common_doc(COMMON_DOC)
+    @node_eval
     def eval(self, coordinates, output=None, method=None):
         """Evaluates this nodes using the supplied coordinates. 
 
@@ -216,12 +217,8 @@ class Compositor(Node):
         {eval_return}
         """
         
-        self._requested_coordinates = coordinates
-        
         outputs = self.iteroutputs(coordinates, method=method)
         output = self.composite(outputs, output)
-        
-        self._output = output
         return output
 
     def find_coordinates(self):

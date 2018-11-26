@@ -42,16 +42,6 @@ class ModifyCoordinates(Algorithm):
     @tl.default('coordinates_source')
     def _default_coordinates_source(self):
         return self.source
-   
-    def algorithm(self):
-        """Passthrough of the source data
-        
-        Returns
-        -------
-        UnitDataArray
-            Source evaluated at the expanded coordinates
-        """
-        return self.outputs['source']
  
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None, method=None):
@@ -76,23 +66,27 @@ class ModifyCoordinates(Algorithm):
         """
         
         self._requested_coordinates = coordinates
-        
-        modified_coordinates = Coordinates(
+        self.outputs = {}
+        self._modified_coordinates = Coordinates(
             [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims])
-        for dim in modified_coordinates.udims:
-            if modified_coordinates[dim].size == 0:
+        
+        for dim in self._modified_coordinates.udims:
+            if self._modified_coordinates[dim].size == 0:
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
-        output = super(ModifyCoordinates, self).eval(modified_coordinates, output=output, method=method)
 
-        # debugging
-        self._modified_coordinates = modified_coordinates
+        self.outputs['source'] = self.source.eval(self._modified_coordinates, output=output, method=method)
+        
+        if output = None:
+            output = self.outputs['source']
+        else:
+            output[:] = self.outputs['source']
+
         self._output = output
-
         return output
 
 class ExpandCoordinates(ModifyCoordinates):
     """Algorithm node used to expand requested coordinates. This is normally used in conjunction with a reduce operation
-    to calculate, for example, the average temperature over the last month. While this is simple to do when evaluating
+    to calculate, for example, the average temperature over the last month. While this is simple to do when uating
     a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a pipeline.
 
     lat, lon, time, alt : List

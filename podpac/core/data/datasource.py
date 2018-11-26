@@ -183,7 +183,7 @@ class DataSource(Node):
     # privates
     _interpolation = tl.Instance(Interpolation)
     
-    _evaluated_coordinates = tl.Instance(Coordinates, allow_none=True)
+    _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _requested_source_coordinates = tl.Instance(Coordinates)
     _requested_source_coordinates_index = tl.List()
     _requested_source_data = tl.Instance(UnitsDataArray)
@@ -238,7 +238,7 @@ class DataSource(Node):
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
 
         # store requested coordinates for debugging
-        self._requested_coordinates = coordinates
+        self._original_requested_coordinates = coordinates
         
         # check for missing dimensions
         for c in self.native_coordinates.values():
@@ -264,8 +264,10 @@ class DataSource(Node):
                     extra.append(c.name)
         coordinates = coordinates.drop(extra)
 
-        self._evaluated_coordinates = coordinates # TODO move this if WCS can be updated to allow that
+        return self._eval(coordinates, output=output, method=None)
 
+    @node_eval
+    def _eval(self, coordinates, output=None, method=None):
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
@@ -278,8 +280,6 @@ class DataSource(Node):
                 output = self.create_output_array(coordinates)
             else:
                 output[:] = np.nan
-
-            self._output = output
             return output
         
         # reset interpolation
@@ -299,12 +299,6 @@ class DataSource(Node):
             output = self.create_output_array(coordinates)
         output = self._interpolate(coordinates, output)
         
-        # set the order of dims to be the same as that of requested_coordinates
-        # this is required in case the user supplied an output object with a different dims order
-        output = output.transpose(*coordinates.dims)
-        
-        self._output = output
-
         return output
 
     def find_coordinates(self):

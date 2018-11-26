@@ -56,6 +56,7 @@ class Algorithm(Node):
         }
 
     @common_doc(COMMON_DOC)
+    @node_eval
     def eval(self, coordinates, output=None, method=None):
         """Evalutes this nodes using the supplied coordinates. 
         
@@ -73,8 +74,6 @@ class Algorithm(Node):
         {eval_return}
         """
 
-        self._requested_coordinates = coordinates
-
         # evaluate input nodes and keep outputs in self.outputs
         self.outputs = {}
         for key, node in self._inputs.items():
@@ -87,16 +86,15 @@ class Algorithm(Node):
         result = self.algorithm()
         if isinstance(result, np.ndarray):
             if output is None:
-                output = self.create_output_array(output_coordinates)
-            output.data[:] = result
+                output = self.create_output_array(output_coordinates, data=result)
+            else:
+                output.data[:] = result
         else:
             if output is None:
-                output_coordinates = Coordinates.from_xarray(result.coords)
-                output = self.create_output_array(output_coordinates)
-            output[:] = result
-            output = output.transpose(*[dim for dim in coordinates.dims if dim in result.dims])
+                output = result
+            else:
+                output[:] = result
 
-        self._output = output
         return output
 
     def find_coordinates(self):

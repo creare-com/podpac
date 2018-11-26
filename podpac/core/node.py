@@ -93,6 +93,7 @@ class Node(tl.HasTraits):
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
     node_defaults = tl.Dict(allow_none=True)
     style = tl.Instance(Style)
+    debug = tl.Bool(False) # TODO replace with a setting
 
     @tl.default('style')
     def _style_default(self):
@@ -101,6 +102,7 @@ class Node(tl.HasTraits):
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _output = tl.Instance(UnitsDataArray, allow_none=True)
+    _from_cache = tl.Bool(allow_none=True, default_value=None)
 
     # temporary messages
     @property
@@ -678,3 +680,45 @@ class Node(tl.HasTraits):
         else:
             for f in glob.glob(self.cache_path(attr)):
                 os.remove(f)
+
+def node_eval(fn):
+    """
+    Decorator for Node eval methods that handles caching and a user provided output argument.
+
+    fn : function
+        Node eval method to wrap
+
+    Returns
+    -------
+    wrapper : function
+        Wrapped node eval method
+    """
+
+    cache_key = 'output'
+
+    def wrapper(self, coordinates, output=None):
+        if self.debug:
+            self._requested_coordinates = coordinates
+
+        cache_coordinates = coordinates.transform(sorted(coordinates.dims)) # order agnostic caching
+        if self.has_cache(key, cache_coordinates):
+            data = self.get_cache(key, cache_coordinates)
+            if output is not None:
+                order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
+                output.transpose(*order)[:] = data
+            self._from_cache = True
+        else:
+            data = fn(self, coordinates, output=output,)
+            self.put_cache(key, data, cache_coordinates)
+            self._from_cache = False
+
+        # transpose data to match the dims order of the requested coordinates
+        order = [dim for dim in coordinates.dims if dim in data.dims]
+        data = data.transpose(*order)
+
+        if self.debug:
+            self._output = data
+
+        return data
+
+    return wrapper

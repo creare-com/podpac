@@ -562,14 +562,14 @@ class WCS(DataSource):
         data wrangling for us...
         """
 
-        # TODO update so that we don't rely on _evaluated_coordinates
-        if not self._evaluated_coordinates:
+        # TODO update so that we don't rely on _requested_coordinates if possible
+        if not self._requested_coordinates:
             return self.wcs_coordinates
 
         cs = []
         for dim in self.wcs_coordinates.dims:
-            if dim in self._evaluated_coordinates.dims:
-                c = self._evaluated_coordinates[dim]
+            if dim in self._requested_coordinates.dims:
+                c = self._requested_coordinates[dim]
                 if c.size == 1:
                     cs.append(ArrayCoordinates1d(c.coordinates[0], name=dim))
                 elif isinstance(c, UniformCoordinates1d):
