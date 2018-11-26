@@ -69,12 +69,24 @@ class UniformCoordinates1d(Coordinates1d):
     is_uniform = tl.CBool(True, readonly=True)
     
     # inherited traits, duplicated here for the docstrings
-    name = Coordinates1d.name #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
-    units = Coordinates1d.units #: Units : Coordinate units.
-    coord_ref_sys = Coordinates1d.coord_ref_sys #: str : Coordinate reference system.
-    ctype = Coordinates1d.ctype #: str : Coordinates type, on of 'point', 'left', 'right', or 'midpoint'.
-    extents = Coordinates1d.extents #: : *To be replaced.*
-    is_descending = Coordinates1d.is_descending #: bool : Are the coordinate values sorted in descending order.
+    
+    #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+    name = Coordinates1d.name
+    
+    #: Units : Coordinate units.
+    units = Coordinates1d.units
+    
+    #: str : Coordinate reference system.
+    coord_ref_sys = Coordinates1d.coord_ref_sys
+    
+    #: str : Coordinates type, on of 'point', 'left', 'right', or 'midpoint'.
+    ctype = Coordinates1d.ctype
+    
+    #: : *To be replaced.*
+    extents = Coordinates1d.extents
+    
+    #: bool : Are the coordinate values sorted in descending order.
+    is_descending = Coordinates1d.is_descending
 
     def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, units=None, coord_ref_sys=None, extents=None):
         """

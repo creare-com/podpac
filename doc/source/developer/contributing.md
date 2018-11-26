@@ -49,25 +49,68 @@ Examples:
 - https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html
 - https://docs.scipy.org/doc/numpy/docs/howto_document.html#example-source
 
-Note that class attributes can be documented multiple ways. 
-We choose to document attributes in the main class docs:
+Note that class attributes can be documented multiple ways.
+ - Public attributes (traits) should be documented in the preceding line with `#: <type> : <description>.`
+ - Public properties created with the `@property` decorator should be documented in the getter method.
+ - Additionaly, document key public attributes and properties again in the main class docs under `Parameters`.
 
 ```python
-class ExampleClass(object):
+class ExampleClass(tl.HasTraits):
     """The summary line for a class docstring should fit on one line.
 
-    Properties created with the ``@property`` decorator should be documented
-    in the property's getter method and left out of here.
+    Additional details should be documented here.
 
-    Attributes
+    Parameters
     ----------
     attr1 : str
-        Description of `attr1`.
+        Description of attr1.
     attr2 : dict, optional
-        Description of `attr2`.
+        Description of attr2.
+    """
+
+    #: str : Description of attr1
+    attr1 = tl.Str()
+
+    #: dict : Description of attr2
+    attr2 = tl.Dict(allow_none=True)
+
+    #: int : Description of secondary attr3
+    attr3 : tl.Int()
+
+    @property
+    def attr4(self):
+        """
+        Description of attr4
+
+        :type: bool
+        """
+
+        return True
+```
+
+The docstrings for inherited traits are not inherited. In subclasses, document inherited traits as follows:
+
+```python
+class ExampleChild(ExampleClass):
+    """Summary.
 
     ...
     """
+
+    #: str : Description of my_attr (not inherited)
+    my_attr = tl.Str()
+
+    # inherited traits, duplicated here for the docstrings:
+
+    #: str : Description of attr1
+    attr1 = ExampleClass.attr1
+
+    #: dict : Description of attr2
+    attr2 = ExampleClass.attr2
+
+    #: int : Description of secondary attr3
+    attr3 = ExampleClass.attr3
+
 ```
 
 #### References
