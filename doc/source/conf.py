@@ -37,16 +37,14 @@ GIT_URL = 'https://github.com/creare-com/podpac'
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-#
-# needs_sphinx = '1.0'
+needs_sphinx = '1.8'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
     'sphinx.ext.autosummary',
-    'sphinx.ext.napoleon',  # prefer numpydoc
-    # 'numpydoc',
+    'sphinx.ext.napoleon',
     'sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
@@ -101,12 +99,10 @@ pygments_style = 'sphinx'
 todo_include_todos = True
 
 # generate autosummary files into the :toctree: directory
-# see http://www.sphinx-doc.org/en/master/ext/autosummary.html
+#   See http://www.sphinx-doc.org/en/master/ext/autosummary.html
 # unfortunately this inherits all members of a class and no parameters below will help
-# See https://github.com/sphinx-doc/sphinx/pull/4029
-#   Currently handling this with 'exclude-members'
-# See https://stackoverflow.com/questions/43983799/how-to-avoid-inherited-members-using-autosummary-and-custom-templates
-#   for an example of templating summaries
+#   See https://github.com/sphinx-doc/sphinx/pull/4029
+# Chose to use templates in the _templates directory to override this
 autosummary_generate = True
 
 # autodoc options
