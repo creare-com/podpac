@@ -50,29 +50,15 @@ class ArrayCoordinates1d(Coordinates1d):
     #: array : User-defined coordinate values
     coords = tl.Instance(np.ndarray)
 
-    #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
-    name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
-
-    #: Units : Coordinate units.
-    units = tl.Instance(Units, allow_none=True)
-
-    #: str : Coordinate reference system.
-    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True)
-
-    #: str : Coordinates type, on of 'point', 'left', 'right', or 'midpoint'.
-    ctype = tl.Enum(['point', 'left', 'right', 'midpoint'])
-
-    #: : *To be replaced.*
-    extents = tl.Instance(np.ndarray, allow_none=True, default_value=None)
-
-    #: bool : Are the coordinate values unique and sorted.
-    is_monotonic = tl.CBool(allow_none=True, readonly=True)
-    
-    #: bool : Are the coordinate values sorted in descending order.
-    is_descending = tl.CBool(allow_none=True, readonly=True)
-
-    #: bool : Are the coordinate values are monotonic.
-    is_uniform = tl.CBool(allow_none=True, readonly=True)
+    # inherited traits, duplicated here for the docstrings
+    name = Coordinates1d.name #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+    units = Coordinates1d.units #: Units : Coordinate units.
+    coord_ref_sys = Coordinates1d.coord_ref_sys #: str : Coordinate reference system.
+    ctype = Coordinates1d.ctype #: str : Coordinates type, on of 'point', 'left', 'right', or 'midpoint'.
+    extents = Coordinates1d.extents #: : *To be replaced.*
+    is_monotonic = Coordinates1d.is_monotonic #: bool : Are the coordinate values unique and sorted.
+    is_descending = Coordinates1d.is_descending #: bool : Are the coordinate values sorted in descending order.
+    is_uniform = Coordinates1d.is_uniform #: bool : Are the coordinate values uniformly-spaced.
 
     def __init__(self, coords, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None):
         """
