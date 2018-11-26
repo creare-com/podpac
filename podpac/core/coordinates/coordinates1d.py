@@ -224,7 +224,7 @@ class Coordinates1d(BaseCoordinates):
 
         Returns
         -------
-        Coordinates1d
+        :class:`Coordinates1d`
             Copy of the coordinates, with provided properties.
         """
 
@@ -286,7 +286,7 @@ class Coordinates1d(BaseCoordinates):
         
         Parameters
         ----------
-        other : Coordinates1d, StackedCoordinates, Coordinates
+        other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
             Coordinates to intersect with.
         outer : bool, optional
             If True, do an *outer* intersection. Default False.
@@ -295,7 +295,7 @@ class Coordinates1d(BaseCoordinates):
         
         Returns
         -------
-        intersection : Coordinates1d
+        intersection : :class:`Coordinates1d`
             Coordinates1d object with coordinates within the other coordinates bounds.
         I : slice or list
             index or slice for the intersected coordinates (only if return_indices=True)
@@ -372,7 +372,7 @@ class Coordinates1d(BaseCoordinates):
 
         Returns
         -------
-        selection : Coordinates1d
+        selection : :class:`Coordinates1d`
             Coordinates1d object with coordinates within the other coordinates bounds.
         I : slice or list
             index or slice for the intersected coordinates (only if return_indices=True)

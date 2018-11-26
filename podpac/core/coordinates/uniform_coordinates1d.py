@@ -233,7 +233,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         Returns
         -------
-        UniformCoordinates1d
+        :class:`UniformCoordinates1d`
             uniformly-spaced 1d Coordinates
 
         See Also
@@ -264,7 +264,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         Returns
         -------
-        UniformCoordinates1d
+        :class:`UniformCoordinates1d`
             Copy of the coordinates, with provided properties.
         """
 
@@ -475,8 +475,8 @@ class UniformCoordinates1d(Coordinates1d):
 
         Returns
         -------
-        selection : UniformCoordinates1d
-            Coordinates1d object with coordinates within the other coordinates bounds.
+        selection : :class:`UniformCoordinates`
+            UniformCoordinates1d object with coordinates within the other coordinates bounds.
         I : slice or list
             index or slice for the intersected coordinates (only if return_indices=True)
         """

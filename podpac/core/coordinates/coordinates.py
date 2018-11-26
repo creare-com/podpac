@@ -210,7 +210,8 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        Coordinates
+        :class:`Coordinates`
+            podpac Coordinates
 
         See Also
         --------
@@ -262,7 +263,7 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        Coordinates
+        :class:`Coordinates`
             podpac Coordinates
 
         See Also
@@ -292,7 +293,7 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        Coordinates
+        :class:`Coordinates`
             podpac Coordinates
         """
 
@@ -321,7 +322,7 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        Coordinates
+        :class:`Coordinates`
             podpac Coordinates
 
         See Also
@@ -382,7 +383,7 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        Coordinates
+        :class:`Coordinates`
             podpac Coordinates
 
         See Also
@@ -679,7 +680,7 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        Coordinates
+        :class:`Coordinates`
             Coordinates object with the given dimensions removed
 
         Raises
@@ -734,7 +735,7 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        Coordinates
+        :class:`Coordinates`
             Coordinates object with the given dimensions removed.
 
         Raises
@@ -811,7 +812,7 @@ class Coordinates(tl.HasTraits):
         
         Parameters
         ----------
-        other : Coordinates1d, StackedCoordinates, Coordinates
+        other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
             Coordinates to intersect with.
         outer : bool, optional
             If True, do an *outer* intersection. Default False.
@@ -820,7 +821,7 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        intersection : Coordinates
+        intersection : :class:`Coordinates`
             Coordinates object consisting of the intersection in each dimension.
         idx : list
             List of indices for each dimension that produces the intersection, only if ``return_indices`` is True.
@@ -852,7 +853,7 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        unstacked : Coordinates
+        unstacked : :class:`Coordinates`
             A new Coordinates object with unstacked coordinates.
 
         See Also
@@ -875,7 +876,7 @@ class Coordinates(tl.HasTraits):
 
         Yields
         ------
-        coords : Coordinates
+        coords : :class:`Coordinates`
             A Coordinates object with one chunk of the coordinates.
         slices : list
             slices for this Coordinates chunk, only if ``return_slices`` is True
@@ -903,7 +904,7 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        transposed : Coordinates
+        transposed : :class:`Coordinates`
             The transposed Coordinates object.
 
         See Also

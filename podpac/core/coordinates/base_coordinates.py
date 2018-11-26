@@ -3,64 +3,44 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import traitlets as tl
 
 class BaseCoordinates(tl.HasTraits):
-    """
-    Base class for single or stacked one-dimensional coordinates.
-
-    Attributes
-    ----------
-    name : str
-        Dimension name.
-    dims : tuple
-        Tuple of individual dimensions.
-    coordinates : array
-        Coordinate values.
-    size : int
-        Number of coordinates.
-    is_monotonic : bool
-        If the coordinates are monotonically increasing or decreasing.
-    is_uniform : bool
-        If the coordinates are uniformly spaced.
-    """
+    """Base class for single or stacked one-dimensional coordinates."""
 
     @property
     def name(self):
+        """:str: Dimension name."""
         raise NotImplementedError
 
     @property
     def dims(self):
+        """:tuple: Dimensions."""
         raise NotImplementedError
 
     @property
     def udims(self):
+        """:tuple: Dimensions."""
         raise NotImplementedError
 
     @property
     def coordinates(self):
+        """Coordinate values."""
         raise NotImplementedError
 
     @property
     def size(self):
-        raise NotImplementedError
-
-    @property
-    def is_monotonic(self):
-        raise NotImplementedError
-
-    @property
-    def is_uniform(self):
+        """Number of coordinates."""
         raise NotImplementedError
 
     @property
     def definition(self):
+        """Coordinates definition."""
         raise NotImplementedError
 
     def from_definition(self, d):
-        raise NotImplementedError
-
-    def select(self, bounds, outer=False, return_indices=False):
+        """Get Coordinates from a coordinates definition."""
         raise NotImplementedError
 
     def intersect(self, other, outer=False, return_indices=False):
+        """Get coordinate values that are with the bounds of other Coordinates."""
         raise NotImplementedError
 
     def __getitem__(self, index):

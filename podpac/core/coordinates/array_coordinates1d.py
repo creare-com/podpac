@@ -181,7 +181,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
         Returns
         -------
-        ArrayCoordinates1d
+        :class:`ArrayCoordinates1d`
             1d coordinates
         """
 
@@ -213,7 +213,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
         Returns
         -------
-        ArrayCoordinates1d
+        :class:`ArrayCoordinates1d`
             1d Coordinates
 
         See Also
@@ -243,7 +243,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
         Returns
         -------
-        ArrayCoordinates1d
+        :class:`ArrayCoordinates1d`
             Copy of the coordinates, with provided properties.
         """
 
@@ -417,8 +417,8 @@ class ArrayCoordinates1d(Coordinates1d):
 
         Returns
         -------
-        selection : Coordinates1d
-            Coordinates1d object with coordinates within the other coordinates bounds.
+        selection : :class:`ArrayCoordinates1d`
+            ArrayCoordinates1d object with coordinates within the other coordinates bounds.
         I : slice or list
             index or slice for the intersected coordinates (only if return_indices=True)
         """

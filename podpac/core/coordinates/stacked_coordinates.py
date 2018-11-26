@@ -68,17 +68,19 @@ class StackedCoordinates(BaseCoordinates):
 
         Parameters
         ----------
-        coords : list, dict, or Coordinates
-            Coordinates, either
-             * list of named BaseCoordinates objects
-             * dictionary of BaseCoordinates objects, with dimension names as the keys
-             * Coordinates object to be copied
-        ctype : str
-            Default coordinates type (optional).
-        coord_ref_sys : str
-            Default coordinates reference system (optional)
-        """
+        coords : list, :class:`StackedCoordinates`
+            Coordinate values in a list, or a StackedCoordinates object to copy.
+        coord_ref_sys : str, optional
+            Default coordinates reference system.
+        ctype : str, optional
+            Default coordinates type.
+        distance_units : Units, optional
+            Default distance units.
 
+        See Also
+        --------
+        clinspace, crange
+        """
 
         if isinstance(coords, StackedCoordinates):
             coords = copy.deepcopy(coords._coords)
@@ -121,31 +123,50 @@ class StackedCoordinates(BaseCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_xarray(cls, xcoord, coord_ref_sys=None, ctype=None, distance_units=None, **kwargs):
+    def from_xarray(cls, xcoord, coord_ref_sys=None, ctype=None, distance_units=None):
         """
-        Convert an xarray coord to Stacked
+        Convert an xarray coord to StackedCoordinates
 
         Parameters
         ----------
         xcoord : DataArrayCoordinates
             xarray coord attribute to convert
+        coord_ref_sys : str, optional
+            Default coordinates reference system.
+        ctype : str, optional
+            Default coordinates type.
+        distance_units : Units, optional
+            Default distance units.
 
         Returns
         -------
-        coord : Coordinates
-            podpact Coordinates object
-
-        Raises
-        ------
-        TypeError
-            Description
+        coord : :class:`StackedCoordinates`
+            stacked coordinates object
         """
 
         dims = xcoord.indexes[xcoord.dims[0]].names
-        return cls([ArrayCoordinates1d.from_xarray(xcoord[dims]) for dims in dims], **kwargs)
+        return cls([ArrayCoordinates1d.from_xarray(xcoord[dims]) for dims in dims])
 
     @classmethod
     def from_definition(cls, d):
+        """
+        Create StackedCoordinates from a stacked coordinates definition.
+
+        Arguments
+        ---------
+        d : list
+            stacked coordinates definition
+
+        Returns
+        -------
+        :class:`StackedCoordinates`
+            stacked coordinates object
+
+        See Also
+        --------
+        definition
+        """
+
         coords = []
         for elem in d:
             if 'start' in elem and 'stop' in elem and 'step' in elem:
@@ -160,6 +181,28 @@ class StackedCoordinates(BaseCoordinates):
         return cls(coords)
 
     def copy(self, name=None, **kwargs):
+        """
+        Make a deep copy of the stacked coordinates.
+
+        The coordinates properties will be copied.
+
+        Arguments
+        ---------
+        name : str, optional
+            Dimension names joined by an underscore.
+        coord_ref_sys : str, optional
+            Default coordinates reference system
+        ctype : str, optional
+            Default coordinates type.
+        distance_units : Units, optional
+            Default distance units.
+
+        Returns
+        -------
+        :class:`StackedCoordinates`
+            Copy of the stacked coordinates, with provided properties and name.
+        """
+
         c = StackedCoordinates([c.copy() for c in self._coords], **kwargs)
         if name is not None:
             c.name = name
@@ -196,6 +239,7 @@ class StackedCoordinates(BaseCoordinates):
 
     @property
     def dims(self):
+        """:tuple: Tuple of dimension names."""
         return tuple(c.name for c in self._coords)
 
     @property
@@ -204,6 +248,11 @@ class StackedCoordinates(BaseCoordinates):
 
     @property
     def name(self):
+        """:str: Stacked dimension name.
+
+        Stacked dimension names are the individual `dims` joined by an underscore.
+        """
+
         return '_'.join(dim or '?' for dim in self.dims)
 
     @name.setter
@@ -216,21 +265,37 @@ class StackedCoordinates(BaseCoordinates):
 
     @property
     def size(self):
+        """ Number of stacked coordinates. """
         return self._coords[0].size
 
     @property
     def coordinates(self):
+        """:pandas.MultiIndex: MultiIndex of stacked coordinates values."""
+
         # TODO don't recompute this every time (but also don't compute it until requested)
         return pd.MultiIndex.from_arrays([np.array(c.coordinates) for c in self._coords], names=self.dims)
 
     @property
     def coords(self):
+        """:dict-like: xarray coordinates (container of coordinate arrays)"""
+
         # TODO don't recompute this every time (but also don't compute it until requested)
         x = xr.DataArray(np.empty(self.size), coords=[self.coordinates], dims=self.name)
         return x[self.name].coords
 
     @property
     def definition(self):
+        """:list: Serializable stacked coordinates definition.
+
+        The ``definition`` can be used to create new StackedCoordinates::
+
+            c = podpac.StackedCoordinates(...)
+            c2 = podpac.StackedCoordinates.from_definition(c.definition)
+
+        See Also
+        --------
+        from_definition
+        """
         return [c.definition for c in self._coords]
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -238,8 +303,32 @@ class StackedCoordinates(BaseCoordinates):
     # -----------------------------------------------------------------------------------------------------------------
 
     def intersect(self, other, outer=False, return_indices=False):
+        """
+        Get the stacked coordinate values that are within the bounds of a given coordinates object in all dimensions.
+
+        *Note: you should not generally need to call this method directly.*
+        
+        Parameters
+        ----------
+        other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
+            Coordinates to intersect with.
+        outer : bool, optional
+            If True, do an *outer* intersection. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
+
+        Returns
+        -------
+        intersection : :class:`StackedCoordinates`
+            StackedCoordinates object consisting of the intersection in all dimensions.
+        idx : slice or list
+            Slice or index for the intersected coordinates, only if ``return_indices`` is True.
+        """
+
+        # intersections in each dimension
         Is = [c.intersect(other, outer=outer, return_indices=True)[1] for c in self._coords]
 
+        # logical AND of the intersections
         I = Is[0]
         for J in Is[1:]:
             if isinstance(I, slice) and isinstance(J, slice):
