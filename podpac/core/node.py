@@ -99,7 +99,7 @@ class Node(tl.HasTraits):
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
     node_defaults = tl.Dict(allow_none=True)
     style = tl.Instance(Style)
-    debug = tl.Bool(False) # TODO replace with a setting
+    debug = tl.Bool(settings.DEBUG) # TODO replace with a setting
 
     @tl.default('style')
     def _style_default(self):
@@ -773,7 +773,7 @@ def node_eval(fn):
         if self.debug:
             self._requested_coordinates = coordinates
 
-        cache_coordinates = coordinates.transform(sorted(coordinates.dims)) # order agnostic caching
+        cache_coordinates = coordinates.transpose(sorted(coordinates.dims)) # order agnostic caching
         if self.has_cache(key, cache_coordinates):
             data = self.get_cache(key, cache_coordinates)
             if output is not None:
