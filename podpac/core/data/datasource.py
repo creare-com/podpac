@@ -301,7 +301,7 @@ class DataSource(Node):
         # set input coordinates to evaluated coordinates
         # TODO move this if WCS can be updated to support
         self._evaluated_coordinates = coordinates
-        return self._eval(coordinates, output=output, method=None)
+        return self._eval(coordinates, output=output)
 
     @node_eval
     def _eval(self, coordinates, output=None):
