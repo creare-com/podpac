@@ -21,7 +21,7 @@ from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc
-from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import COMMON_NODE_DOC, node_eval
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 COMMON_DOC['full_kernel'] = '''Kernel that contains all the dimensions of the input source, in the correct order.
@@ -75,7 +75,7 @@ class Convolution(Algorithm):
     _full_kernel = tl.Instance(np.ndarray)
  
     @common_doc(COMMON_DOC)
-    @cache_output
+    @node_eval
     def eval(self, coordinates, output=None, method=None):
         """Evaluates this nodes using the supplied coordinates.
         

@@ -86,7 +86,7 @@ class ModifyCoordinates(Algorithm):
 
 class ExpandCoordinates(ModifyCoordinates):
     """Algorithm node used to expand requested coordinates. This is normally used in conjunction with a reduce operation
-    to calculate, for example, the average temperature over the last month. While this is simple to do when uating
+    to calculate, for example, the average temperature over the last month. While this is simple to do when evaluating
     a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a pipeline.
 
     lat, lon, time, alt : List

@@ -18,7 +18,7 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc
-from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import COMMON_NODE_DOC, node_eval
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -168,7 +168,7 @@ class Reduce(Algorithm):
             yield self.source.eval(chunk, method=method)
 
     @common_doc(COMMON_DOC)
-    @cache_output
+    @node_eval
     def eval(self, coordinates, output=None, method=None):
         """Evaluates this nodes using the supplied coordinates. 
         
@@ -910,7 +910,7 @@ class GroupReduce(Algorithm):
         return coords
 
     @common_doc(COMMON_DOC)
-    @cache_output
+    @node_eval
     def eval(self, coordinates, output=None, method=None):
         """Evaluates this nodes using the supplied coordinates. 
         
