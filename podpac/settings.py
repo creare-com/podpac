@@ -27,7 +27,7 @@ import os
 DEBUG = True
 
 CACHE_TO_S3 = False
-ROOT_PATH = os.path.expanduser('~') 
+ROOT_PATH = os.path.join(os.path.expanduser('~'), '.podpac')
 # Some settings for testing AWS Lambda function handlers locally
 AWS_ACCESS_KEY_ID = None
 AWS_SECRET_ACCESS_KEY = None
