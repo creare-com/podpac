@@ -131,7 +131,7 @@ class Convolution(Algorithm):
         else:
             method = 'auto'
 
-        result scipy.signal.convolve(self.outputs['source'], self._full_kernel, mode='same', method=method)
+        result = scipy.signal.convolve(self.outputs['source'], self._full_kernel, mode='same', method=method)
         result = result[exp_slice]
 
         if output is None:

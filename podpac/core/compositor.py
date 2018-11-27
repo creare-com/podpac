@@ -14,6 +14,7 @@ from podpac.core.coordinates import Coordinates, union, merge_dims
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC 
+from podpac.core.node import node_eval 
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 

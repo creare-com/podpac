@@ -19,6 +19,7 @@ from podpac.core.coordinates import Coordinates, union
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node
 from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import node_eval
 from podpac.core.utils import common_doc
 
 COMMON_DOC = COMMON_NODE_DOC.copy()

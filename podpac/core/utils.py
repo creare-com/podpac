@@ -6,6 +6,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import os
 import json
+import functools
 
 import traitlets as tl
 import numpy as np
@@ -41,6 +42,7 @@ def cached_property(func):
     """
 
     @property
+    @functools.wraps(func)
     def f(self):
         """Summary
 

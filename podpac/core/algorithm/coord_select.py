@@ -76,7 +76,7 @@ class ModifyCoordinates(Algorithm):
 
         self.outputs['source'] = self.source.eval(self._modified_coordinates, output=output, method=method)
         
-        if output = None:
+        if output is None:
             output = self.outputs['source']
         else:
             output[:] = self.outputs['source']

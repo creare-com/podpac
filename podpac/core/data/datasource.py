@@ -35,6 +35,7 @@ from podpac.core.coordinates import Coordinates1d, UniformCoordinates1d, ArrayCo
 from podpac.core.node import Node
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import node_eval
 from podpac.core.data.interpolate import (Interpolation, Interpolator, NearestNeighbor, INTERPOLATION_SHORTCUTS,
                                           INTERPOLATION_DEFAULT)
 

@@ -6,6 +6,7 @@ from __future__ import division, print_function, absolute_import
 
 import os
 from collections import OrderedDict
+import functools
 import json
 import numpy as np
 import traitlets as tl
@@ -696,6 +697,7 @@ def node_eval(fn):
 
     cache_key = 'output'
 
+    @functools.wraps(fn)
     def wrapper(self, coordinates, output=None):
         if self.debug:
             self._requested_coordinates = coordinates
