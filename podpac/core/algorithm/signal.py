@@ -124,21 +124,18 @@ class Convolution(Algorithm):
         self._expanded_coordinates = Coordinates(exp_coords)
 
         # evaluate source using expanded coordinates, convolve, and then slice out original coordinates
-        self.outputs['source'] = self.source.eval(self._expanded_coordinates, method=method)
+        source = self.source.eval(self._expanded_coordinates)
         
-        if np.isnan(np.max(self.outputs['source'])):
+        if np.isnan(np.max(source)):
             method = 'direct'
         else:
             method = 'auto'
 
-        result = scipy.signal.convolve(self.outputs['source'], self._full_kernel, mode='same', method=method)
+        result = scipy.signal.convolve(source, self._full_kernel, mode='same', method=method)
         result = result[exp_slice]
-
-        # evaluate using expanded coordinates and then reduce down to originally requested coordinates
-        out = super(Convolution, self).eval(exp_coords)
-        result = out[exp_slice]
+ 
         if output is None:
-            output = result
+            output = self.create_output_array(coordinates, data=result)
         else:
             output[:] = result
 

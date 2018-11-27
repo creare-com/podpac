@@ -20,6 +20,7 @@ ne = optional_import('numexpr')
 from podpac.core.coordinates import Coordinates, union
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node
+from podpac.core.node import NodeException
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
 from podpac.core.utils import common_doc
@@ -84,11 +85,18 @@ class Algorithm(Node):
                 output = self.create_output_array(output_coordinates, data=result)
             else:
                 output.data[:] = result
-        else:
+        elif isinstance(result, xr.DataArray):
+            if output is None:
+                output = self.create_output_array(Coordinates.from_xarray(result.coords), data=result.data)
+            else:
+                output[:] = result.data
+        elif isinstance(result, UnitsDataArray):
             if output is None:
                 output = result
             else:
                 output[:] = result
+        else: 
+            raise NodeException
 
         return output
 

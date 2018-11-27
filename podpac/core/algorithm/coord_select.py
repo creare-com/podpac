@@ -72,7 +72,7 @@ class ModifyCoordinates(Algorithm):
             if self._modified_coordinates[dim].size == 0:
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
 
-        self.outputs['source'] = self.source.eval(self._modified_coordinates, output=output, method=method)
+        self.outputs['source'] = self.source.eval(self._modified_coordinates, output=output)
         
         if output is None:
             output = self.outputs['source']

@@ -638,7 +638,8 @@ class Coordinates(tl.HasTraits):
         #     'coord_ref_sys': self.coord_ref_sys,
         #     'ctype': self.ctype
         # }
-
+        if len(self.udims) == 0:
+            return {}
         c = self[self.udims[0]]
         return {
             'coord_ref_sys': c.coord_ref_sys,
