@@ -56,29 +56,29 @@ class Coordinates1d(BaseCoordinates):
     :class:`ArrayCoordinates1d`, :class:`UniformCoordinates1d`
     """
 
-    #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
+    name.__doc__ = ":str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'"
 
-    #: Units : Coordinate units.
     units = tl.Instance(Units, allow_none=True)
+    units.__doc__ = ":Units: Coordinate units."
 
-    #: str : Coordinate reference system.
     coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True)
+    coord_ref_sys.__doc__ = ":str: Coordinate reference system."
 
-    #: str : Coordinates type, one of 'point', 'left', 'right', or 'midpoint'.
     ctype = tl.Enum(['point', 'left', 'right', 'midpoint'])
+    ctype.__doc__ = ":str: Coordinates type, one of 'point', 'left', 'right', or 'midpoint'."
 
-    #: : *To be replaced.*
     extents = tl.Instance(np.ndarray, allow_none=True, default_value=None)
+    extents.__doc__ = ":: *To be replaced.*"
 
-    #: bool : Are the coordinate values unique and sorted.
     is_monotonic = tl.CBool(allow_none=True, readonly=True)
+    is_monotonic.__doc__ = ":bool: Are the coordinate values unique and sorted."
     
-    #: bool : Are the coordinate values sorted in descending order.
     is_descending = tl.CBool(allow_none=True, readonly=True)
+    is_descending.__doc__ = ":bool: Are the coordinate values sorted in descending order."
 
-    #: bool : Are the coordinate values uniformly-spaced.
     is_uniform = tl.CBool(allow_none=True, readonly=True)
+    is_uniform.__doc__ = ":bool: Are the coordinate values uniformly-spaced."
 
     def __init__(self, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None, **kwargs):
         """*Do not use.*"""
