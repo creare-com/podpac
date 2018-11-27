@@ -141,18 +141,18 @@ class CacheCtrl(object):
 class CacheStore(object):
 
     def get_hash_val(self, obj):
-        return hash_alg(obj.encode('utf-8')).hexdigest()
+        return hash_alg(obj).hexdigest()
 
     def hash_node(self, node):
-        hashable_repr = node.json
+        hashable_repr = node.json.encode('utf-8')
         return self.get_hash_val(hashable_repr)
 
     def hash_coordinates(self, coordinates):
-        hashable_repr = None if coordinates is None else coordinates.json
+        hashable_repr = None if coordinates is None else coordinates.json.encode('utf-8')
         return self.get_hash_val(hashable_repr)
 
     def hash_key(self, key):
-        hashable_repr = str(repr(key))
+        hashable_repr = str(repr(key)).encode('utf-8')
         return self.get_hash_val(hashable_repr)
 
     def put(self, node, data, key, coordinates=None, update=False):
