@@ -27,7 +27,7 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 # =============================================================================
 
 class Reduce(Algorithm):
-    """Base node for reduction algorithms
+    """Base node for statistical algorithms
     
     Attributes
     ----------
@@ -43,13 +43,14 @@ class Reduce(Algorithm):
     iter_chunk_size = tl.Union([tl.Int(), tl.Unicode()], allow_none=True, default_value=None)
 
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
+    _dims = tl.List(trait_type=str)
 
     def _first_init(self, **kwargs):
         if 'dims' in kwargs and isinstance(kwargs['dims'], string_types):
             kwargs['dims'] = [kwargs['dims']]
         return super(Reduce, self)._first_init(**kwargs)
 
-    def get_dims(self, out):
+    def _get_dims(self, out):
         """
         Translates requested reduction dimensions.
         
@@ -63,13 +64,6 @@ class Reduce(Algorithm):
         list
             List of dimensions after reduction
         """
-        # Using output dims helps compare the evaluated coordinates to the source coordinates
-        input_dims = list(out.dims)
-        
-        if not self.dims:
-            return input_dims
-
-        return [dim for dim in self.dims if dim in input_dims]
     
     def dims_axes(self, output):
         """Finds the indices for the dimensions that will be reduced. This is passed to numpy. 
@@ -84,7 +78,7 @@ class Reduce(Algorithm):
         list
             List of integers for the dimensions that will be reduces
         """
-        axes = [i for i in range(len(output.dims)) if output.dims[i] in self.dims]
+        axes = [i for i in range(len(output.dims)) if output.dims[i] in self._dims]
         return axes
 
     @property
@@ -115,9 +109,9 @@ class Reduce(Algorithm):
 
         chunk_size = self.chunk_size
         
-        d = {k:coords[k].size for k in coords.dims if k not in self.dims}
+        d = {k:coords[k].size for k in coords.dims if k not in self._dims}
         s = reduce(mul, d.values(), 1)
-        for dim in self.dims:
+        for dim in self._dims:
             n = chunk_size // s
             if n == 0:
                 d[dim] = 1
@@ -146,16 +140,16 @@ class Reduce(Algorithm):
             Transposed and reshaped array
         """
 
-        if self.dims is None:
+        if self._dims is None:
             return x.data.flatten()
 
-        n = len(self.dims)
-        dims = list(self.dims) + [d for d in x.dims if d not in self.dims]
+        n = len(self._dims)
+        dims = list(self._dims) + [d for d in x.dims if d not in self._dims]
         x = x.transpose(*dims)
         a = x.data.reshape(-1, *x.shape[n:])
         return a
 
-    def iteroutputs(self, coordinates, method=None):
+    def iteroutputs(self, coordinates):
         """Generator for the chunks of the output
         
         Yields
@@ -165,11 +159,11 @@ class Reduce(Algorithm):
         """
         chunk_shape = self._get_chunk_shape(coordinates)
         for chunk in coordinates.iterchunks(chunk_shape):
-            yield self.source.eval(chunk, method=method)
+            yield self.source.eval(chunk)
 
     @common_doc(COMMON_DOC)
     @node_eval
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates. 
         
         Parameters
@@ -178,27 +172,32 @@ class Reduce(Algorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
         
         Returns
         -------
         {eval_return}
         """
 
-        self.dims = self.get_dims(coordinates)
-        self._reduced_coordinates = coordinates.drop(self.dims)
+        self._requested_coordinates = coordinates
+        
+        if self.dims:
+            self._dims = [dim for dim in self.dims if dim in coordinates.dims]
+        else:
+            self._dims = list(coordinates.dims)
+        self._reduced_coordinates = coordinates.drop(self._dims)
 
         if output is None:
             output = self.create_output_array(self._reduced_coordinates)
 
-        # TODO pass output into reduce and reduce_chunked instead of relying on _output attribute
-        self._output = output
-
         if self.chunk_size and self.chunk_size < reduce(mul, coordinates.shape, 1):
-            result = self.reduce_chunked(self.iteroutputs(coordinates, method=method), method)
+            try:
+                result = self.reduce_chunked(self.iteroutputs(coordinates), output)
+            except NotImplementedError:
+                warnings.warn("No reduce_chunked method defined, using one-step reduce")
+                source_output = self.source.eval(coordinates)
+                result = self.reduce(source_output)
         else:
-            source_output = self.source.eval(coordinates, method=method)
+            source_output = self.source.eval(coordinates)
             result = self.reduce(source_output)
 
         if output.shape is ():
@@ -210,7 +209,7 @@ class Reduce(Algorithm):
 
     def reduce(self, x):
         """
-        Reduce a full array, e.g. x.mean(self.dims).
+        Reduce a full array, e.g. x.mean(dims).
         
         Must be defined in each child.
         
@@ -227,7 +226,7 @@ class Reduce(Algorithm):
 
         raise NotImplementedError
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """
         Reduce a list of xs with a memory-effecient iterative algorithm.
         
@@ -244,9 +243,7 @@ class Reduce(Algorithm):
             Reduced output.
         """
 
-        warnings.warn("No reduce_chunked method defined, using one-step reduce")
-        x = self.source.eval(self._requested_coordinates, method=method)
-        return self.reduce(x)
+        raise NotImplementedError
 
 class Min(Reduce):
     """Computes the minimum across dimension(s)
@@ -263,11 +260,11 @@ class Min(Reduce):
         Returns
         -------
         UnitsDataArray
-            Minimum of the source data over self.dims
+            Minimum of the source data over dims
         """
-        return x.min(dim=self.dims)
+        return x.min(dim=self._dims)
     
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """Computes the minimum across a chunk
         
         Parameters
@@ -278,12 +275,12 @@ class Min(Reduce):
         Returns
         -------
         UnitsDataArray
-            Minimum of the source data over self.dims
+            Minimum of the source data over dims
         """
         # note: np.fmin ignores NaNs, np.minimum propagates NaNs
-        y = xr.full_like(self._output, np.nan)
+        y = xr.full_like(output, np.nan)
         for x in xs:
-            y = np.fmin(y, x.min(dim=self.dims))
+            y = np.fmin(y, x.min(dim=self._dims))
         return y
 
 
@@ -302,11 +299,11 @@ class Max(Reduce):
         Returns
         -------
         UnitsDataArray
-            Maximum of the source data over self.dims
+            Maximum of the source data over dims
         """
-        return x.max(dim=self.dims)
+        return x.max(dim=self._dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """Computes the maximum across a chunk
         
         Parameters
@@ -317,12 +314,12 @@ class Max(Reduce):
         Returns
         -------
         UnitsDataArray
-            Maximum of the source data over self.dims
+            Maximum of the source data over dims
         """
         # note: np.fmax ignores NaNs, np.maximum propagates NaNs
-        y = xr.full_like(self._output, np.nan)
+        y = xr.full_like(output, np.nan)
         for x in xs:
-            y = np.fmax(y, x.max(dim=self.dims))
+            y = np.fmax(y, x.max(dim=self._dims))
         return y
 
 
@@ -341,11 +338,11 @@ class Sum(Reduce):
         Returns
         -------
         UnitsDataArray
-            Sum of the source data over self.dims
+            Sum of the source data over dims
         """
-        return x.sum(dim=self.dims)
+        return x.sum(dim=self._dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """Computes the sum across a chunk
         
         Parameters
@@ -356,11 +353,11 @@ class Sum(Reduce):
         Returns
         -------
         UnitsDataArray
-            Sum of the source data over self.dims
+            Sum of the source data over dims
         """
-        s = xr.zeros_like(self._output)
+        s = xr.zeros_like(output)
         for x in xs:
-            s += x.sum(dim=self.dims)
+            s += x.sum(dim=self._dims)
         return s
 
 
@@ -379,11 +376,11 @@ class Count(Reduce):
         Returns
         -------
         UnitsDataArray
-            Number of finite values of the source data over self.dims
+            Number of finite values of the source data over dims
         """
-        return np.isfinite(x).sum(dim=self.dims)
+        return np.isfinite(x).sum(dim=self._dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """Counts the finite values across a chunk
         
         Parameters
@@ -394,11 +391,11 @@ class Count(Reduce):
         Returns
         -------
         UnitsDataArray
-            Number of finite values of the source data over self.dims
+            Number of finite values of the source data over dims
         """
-        n = xr.zeros_like(self._output)
+        n = xr.zeros_like(output)
         for x in xs:
-            n += np.isfinite(x).sum(dim=self.dims)
+            n += np.isfinite(x).sum(dim=self._dims)
         return n
 
 
@@ -417,11 +414,11 @@ class Mean(Reduce):
         Returns
         -------
         UnitsDataArray
-            Mean of the source data over self.dims
+            Mean of the source data over dims
         """
-        return x.mean(dim=self.dims)
+        return x.mean(dim=self._dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """Computes the mean across a chunk
         
         Parameters
@@ -432,14 +429,14 @@ class Mean(Reduce):
         Returns
         -------
         UnitsDataArray
-            Mean of the source data over self.dims
+            Mean of the source data over dims
         """
-        s = xr.zeros_like(self._output)
-        n = xr.zeros_like(self._output)
+        s = xr.zeros_like(output)
+        n = xr.zeros_like(output)
         for x in xs:
             # TODO efficency
-            s += x.sum(dim=self.dims)
-            n += np.isfinite(x).sum(dim=self.dims)
+            s += x.sum(dim=self._dims)
+            n += np.isfinite(x).sum(dim=self._dims)
         output = s / n
         return output
 
@@ -459,11 +456,11 @@ class Variance(Reduce):
         Returns
         -------
         UnitsDataArray
-            Variance of the source data over self.dims
+            Variance of the source data over dims
         """
-        return x.var(dim=self.dims)
+        return x.var(dim=self._dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """Computes the variance across a chunk
         
         Parameters
@@ -474,19 +471,19 @@ class Variance(Reduce):
         Returns
         -------
         UnitsDataArray
-            Variance of the source data over self.dims
+            Variance of the source data over dims
         """
-        n = xr.zeros_like(self._output)
-        m = xr.zeros_like(self._output)
-        m2 = xr.zeros_like(self._output)
+        n = xr.zeros_like(output)
+        m = xr.zeros_like(output)
+        m2 = xr.zeros_like(output)
 
         # Welford, adapted to handle multiple data points in each iteration
         for x in xs:
-            n += np.isfinite(x).sum(dim=self.dims)
+            n += np.isfinite(x).sum(dim=self._dims)
             d = x - m
-            m += (d/n).sum(dim=self.dims)
+            m += (d/n).sum(dim=self._dims)
             d2 = x - m
-            m2 += (d*d2).sum(dim=self.dims)
+            m2 += (d*d2).sum(dim=self._dims)
 
         return m2 / n
 
@@ -509,22 +506,22 @@ class Skew(Reduce):
         Returns
         -------
         UnitsDataArray
-            Skew of the source data over self.dims
+            Skew of the source data over dims
         """
-        # N = np.isfinite(x).sum(dim=self.dims)
-        # M1 = x.mean(dim=self.dims)
+        # N = np.isfinite(x).sum(dim=self._dims)
+        # M1 = x.mean(dim=self._dims)
         # E = x - M1
         # E2 = E**2
         # E3 = E2*E
-        # M2 = (E2).sum(dim=self.dims)
-        # M3 = (E3).sum(dim=self.dims)
+        # M2 = (E2).sum(dim=self._dims)
+        # M3 = (E3).sum(dim=self._dims)
         # skew = self.skew(M3, M2, N)
 
         a = self._reshape(x)
         skew = scipy.stats.skew(a, nan_policy='omit')
         return skew
         
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """Computes the skew across a chunk
         
         Parameters
@@ -535,22 +532,22 @@ class Skew(Reduce):
         Returns
         -------
         UnitsDataArray
-            Skew of the source data over self.dims
+            Skew of the source data over dims
         """
-        N = xr.zeros_like(self._output)
-        M1 = xr.zeros_like(self._output)
-        M2 = xr.zeros_like(self._output)
-        M3 = xr.zeros_like(self._output)
+        N = xr.zeros_like(output)
+        M1 = xr.zeros_like(output)
+        M2 = xr.zeros_like(output)
+        M3 = xr.zeros_like(output)
         check_empty = True
 
         for x in xs:
-            Nx = np.isfinite(x).sum(dim=self.dims)
-            M1x = x.mean(dim=self.dims)
+            Nx = np.isfinite(x).sum(dim=self._dims)
+            M1x = x.mean(dim=self._dims)
             Ex = x - M1x
             Ex2 = Ex**2
             Ex3 = Ex2*Ex
-            M2x = (Ex2).sum(dim=self.dims)
-            M3x = (Ex3).sum(dim=self.dims)
+            M2x = (Ex2).sum(dim=self._dims)
+            M3x = (Ex3).sum(dim=self._dims)
 
             # premask to omit NaNs
             b = Nx.data > 0
@@ -581,6 +578,7 @@ class Skew(Reduce):
 
 class Kurtosis(Reduce):
     """Computes the kurtosis across dimension(s)
+
     TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
     """
 
@@ -595,22 +593,22 @@ class Kurtosis(Reduce):
         Returns
         -------
         UnitsDataArray
-            Kurtosis of the source data over self.dims
+            Kurtosis of the source data over dims
         """
-        # N = np.isfinite(x).sum(dim=self.dims)
-        # M1 = x.mean(dim=self.dims)        
+        # N = np.isfinite(x).sum(dim=self._dims)
+        # M1 = x.mean(dim=self._dims)        
         # E = x - M1
         # E2 = E**2
         # E4 = E2**2
-        # M2 = (E2).sum(dim=self.dims)
-        # M4 = (E4).sum(dim=self.dims)
+        # M2 = (E2).sum(dim=self._dims)
+        # M4 = (E4).sum(dim=self._dims)
         # kurtosis = N * M4 / M2**2 - 3
 
         a = self._reshape(x)
         kurtosis = scipy.stats.kurtosis(a, nan_policy='omit')
         return kurtosis
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """Computes the kurtosis across a chunk
         
         Parameters
@@ -621,24 +619,24 @@ class Kurtosis(Reduce):
         Returns
         -------
         UnitsDataArray
-            Kurtosis of the source data over self.dims
+            Kurtosis of the source data over dims
         """
-        N = xr.zeros_like(self._output)
-        M1 = xr.zeros_like(self._output)
-        M2 = xr.zeros_like(self._output)
-        M3 = xr.zeros_like(self._output)
-        M4 = xr.zeros_like(self._output)
+        N = xr.zeros_like(output)
+        M1 = xr.zeros_like(output)
+        M2 = xr.zeros_like(output)
+        M3 = xr.zeros_like(output)
+        M4 = xr.zeros_like(output)
 
         for x in xs:
-            Nx = np.isfinite(x).sum(dim=self.dims)
-            M1x = x.mean(dim=self.dims)
+            Nx = np.isfinite(x).sum(dim=self._dims)
+            M1x = x.mean(dim=self._dims)
             Ex = x - M1x
             Ex2 = Ex**2
             Ex3 = Ex2*Ex
             Ex4 = Ex2**2
-            M2x = (Ex2).sum(dim=self.dims)
-            M3x = (Ex3).sum(dim=self.dims)
-            M4x = (Ex4).sum(dim=self.dims)
+            M2x = (Ex2).sum(dim=self._dims)
+            M3x = (Ex3).sum(dim=self._dims)
+            M4x = (Ex4).sum(dim=self._dims)
             
             # premask to omit NaNs
             b = Nx.data > 0
@@ -690,11 +688,11 @@ class StandardDeviation(Variance):
         Returns
         -------
         UnitsDataArray
-            Standard deviation of the source data over self.dims
+            Standard deviation of the source data over dims
         """
-        return x.std(dim=self.dims)
+        return x.std(dim=self._dims)
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """Computes the standard deviation across a chunk
         
         Parameters
@@ -705,9 +703,9 @@ class StandardDeviation(Variance):
         Returns
         -------
         UnitsDataArray
-            Standard deviation of the source data over self.dims
+            Standard deviation of the source data over dims
         """
-        var = super(StandardDeviation, self).reduce_chunked(xs, method)
+        var = super(StandardDeviation, self).reduce_chunked(xs, output)
         return np.sqrt(var)
 
 # =============================================================================
@@ -742,10 +740,10 @@ class Reduce2(Reduce):
         chunk_size = self.chunk_size
         
         # here, the minimum size is the reduce-dimensions size
-        d = {k:coords[k].size for k in self.dims}
+        d = {k:coords[k].size for k in self._dims}
         s = reduce(mul, d.values(), 1)
         for dim in coords.dims[::-1]:
-            if dim in self.dims:
+            if dim in self._dims:
                 continue
             n = chunk_size // s
             if n == 0:
@@ -758,7 +756,7 @@ class Reduce2(Reduce):
 
         return [d[dim] for dim in coords.dims]
 
-    def iteroutputs(self, coordinates, method=None):
+    def iteroutputs(self, coordinates):
         """Generator for the chunks of the output
         
         Yields
@@ -769,9 +767,9 @@ class Reduce2(Reduce):
 
         chunk_shape = self._get_chunk_shape(coordinates)
         for chunk, slices in coordinates.iterchunks(chunk_shape, return_slices=True):
-            yield self.source.eval(chunk, method=method), slices
+            yield self.source.eval(chunk), slices
 
-    def reduce_chunked(self, xs, method=None):
+    def reduce_chunked(self, xs, output):
         """
         Reduce a list of xs with a memory-effecient iterative algorithm.
         
@@ -792,10 +790,9 @@ class Reduce2(Reduce):
             x, xslices = next(xs)
             return self.reduce(x)
 
-        I = [self._requested_coordinates.dims.index(dim) for dim in self._reduced_coordinates.dims]
-        y = xr.full_like(self._output, np.nan)
+        y = xr.full_like(output, np.nan)
         for x, xslices in xs:
-            yslc = [xslices[i] for i in I]
+            yslc = [xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims]
             y.data[yslc] = self.reduce(x)
         return y
 
@@ -815,9 +812,9 @@ class Median(Reduce2):
         Returns
         -------
         UnitsDataArray
-            Median of the source data over self.dims
+            Median of the source data over dims
         """
-        return x.median(dim=self.dims)
+        return x.median(dim=self._dims)
 
 
 class Percentile(Reduce2):
@@ -842,7 +839,7 @@ class Percentile(Reduce2):
         Returns
         -------
         UnitsDataArray
-            Percentile of the source data over self.dims
+            Percentile of the source data over dims
         """
 
         return np.nanpercentile(x, self.percentile, self.dims_axes(x))
@@ -853,7 +850,7 @@ class Percentile(Reduce2):
 
 class GroupReduce(Algorithm):
     """
-    Group a time-dependent source node by a datetime accessor and reduce.
+    Group a time-dependent source node and then compute a statistic for each result.
     
     Attributes
     ----------
@@ -911,7 +908,7 @@ class GroupReduce(Algorithm):
 
     @common_doc(COMMON_DOC)
     @node_eval
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates. 
         
         Parameters
@@ -920,8 +917,6 @@ class GroupReduce(Algorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
         
         Returns
         -------
@@ -938,7 +933,7 @@ class GroupReduce(Algorithm):
         if output is None:
             output = self.create_output_array(coordinates)
         
-        source_output = self.source.eval(self._source_coordinates, method=method)
+        source_output = self.source.eval(self._source_coordinates)
 
         # group
         grouped = source_output.groupby('time.%s' % self.groupby)
@@ -971,7 +966,7 @@ class GroupReduce(Algorithm):
 
 class DayOfYear(GroupReduce):
     """
-    Group a time-dependent source node by day of year and reduce. Convenience node for GroupReduce.
+    Group a time-dependent source node by day of year and compute a statistic for each group.
     
     Attributes
     ----------

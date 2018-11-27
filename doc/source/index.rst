@@ -6,8 +6,8 @@ PODPAC
 *Pipeline for Observational Data Processing Analysis and Collaboration*
 
 
-Data wrangling and processing of geospatial data should be seamless 
-so that earth scientists can focus on science. 
+Data wrangling and processing of geospatial data should be seamless
+so that earth scientists can focus on science.
 
 .. sphinx_rtd_theme includes `font-awesome` already, so we don't ned to add it manually
 .. raw:: html
@@ -47,7 +47,6 @@ The purpose of PODPAC is to facilitate
     user/pipelines
     user/earthdata
     user/references
-    user/api-min
     user/api
 
 .. toctree::
@@ -56,4 +55,9 @@ The purpose of PODPAC is to facilitate
 
     developer/design
     developer/contributing
+    developer/aws
     developer/docs
+
+Acknowledgments
+-----------------
+This material is based upon work supported by NASA under Contract No 80NSSC18C0061.

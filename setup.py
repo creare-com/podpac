@@ -9,14 +9,14 @@ sys.path.insert(0, 'podpac')
 import version
 __version__ = version.version()
 
-install_requires = [
-    'matplotlib>=2.1',
-    'numpy>=1.14',
-    'pint>=0.8',
-    'scipy>=1.0',
-    'traitlets>=4.3',
-    'xarray>=0.10',
-    ]
+def requirements_to_array(filePath):
+    lines = open(filePath).readlines()
+    result = []
+    for index in range(len(lines)):
+        result.append(lines[index].strip('\n'))
+    return result
+
+install_requires = requirements_to_array("requirements.txt")
 if sys.version_info.major == 2:
     install_requires += ['future>=0.16']
 
@@ -39,7 +39,7 @@ extras_require = {
     'notebook': [
         'jupyterlab',
         'ipyleaflet',
-        'ipywidgets', 
+        'ipywidgets',
         'ipympl',
         'nodejs',
         ],
@@ -49,14 +49,13 @@ extras_require = {
         'urllib3>=1.22',
         ],
     'dev': [
-        'numpydoc>=0.7.0',
         'pylint>=1.8.2',
         'pytest>=3.3.2',
         'pytest-cov>=2.5.1',
         'pytest-html>=1.7.0',
-        'recommonmark>=0.4.0',
-        'sphinx>=1.6.6',
-        'sphinx-rtd-theme>=0.3.1',
+        'recommonmark>=0.4',
+        'sphinx>=1.8',
+        'sphinx-rtd-theme>=0.4',
         'sphinx-autobuild>=0.7',
         'coveralls>=1.3',
         'six>=1.0',

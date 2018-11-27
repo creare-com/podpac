@@ -33,7 +33,7 @@ widespread exploitation of earth science data and cloud-based distributed data p
    developed on a local workstation to execution via scalable, highly distributed cloud processing 
 
 
-# Other related projects
+## Other related projects
 There are other excellent open source Python projects that address aspects of these problems. In fact, PODPAC uses many of these, and aims to incorporate a multitude of useful tools within our approach for dealing with geospatial data. 
 
 * [xarray](http://xarray.pydata.org/en/stable/index.html)

@@ -1,5 +1,6 @@
 
 import sys
+from copy import deepcopy
 # from collections import OrderedDict
 
 import pytest
@@ -29,7 +30,7 @@ from podpac.core.coordinates.coordinates import concat
 
 class TestCoordinateCreation(object):
     def test_empty(self):
-        c = Coordinates()
+        c = Coordinates([])
         assert c.dims == tuple()
         assert c.shape == tuple()
         assert c.size == 0
@@ -195,9 +196,28 @@ class TestCoordinateCreation(object):
         assert c.dims == ('time_lat_lon',)
         assert c.shape == (3,)
 
-        # TODO
-        # with pytest.raises(ValueError):
-        #     Coordinates.points(lat=lat, lon=lon, time=dates[:2], order=['time', 'lat', 'lon'])
+
+    # TODO: implement #148
+    # def test_eq(self):
+    #     lat = [0, 1, 2]
+    #     lon = [10, 20, 30]
+    #     dates = ['2018-01-01', '2018-01-02', '2018-01-03']
+
+    #     c1 = Coordinates([[0, 1, 2], [4, 5, 6]], dims=['lat','lon'])
+    #     c2 = deepcopy(c1)
+    #     c3 = Coordinates([[0, 1, 2], [4, 5, 7]], dims=['lat','lon'])
+    #     c4 = Coordinates([[0, 1, 2], [4, 5, 6]], dims=['lon','lat'])
+    #     c5 = Coordinates([([0, 1, 2], [4, 5, 6])], dims=['lat_lon'])
+
+    #     assert c1 == c1
+    #     assert c1 == c2
+    #     assert c1 != c3
+    #     assert c1 != c4
+    #     assert c1 != c5
+
+    #     # TODO
+    #     # with pytest.raises(ValueError):
+    #     #     Coordinates.points(lat=lat, lon=lon, time=dates[:2], order=['time', 'lat', 'lon'])
 
     def test_grid_points_order(self):
         lat = [0, 1, 2]
@@ -332,7 +352,6 @@ class TestConcat(object):
 
 #         # additional properties
 #         assert isinstance(coord.kwargs, dict)
-#         assert isinstance(coord.latlon_bounds_str, string_types)
 
 #     def test_coords_empty(self):
 #         coord = Coordinate()
@@ -953,169 +972,6 @@ class TestConcat(object):
 #         np.testing.assert_allclose(c, coord.coordinates[2:])
 #         c = coord.intersect(coord_cent).coordinates
 #         np.testing.assert_allclose(c, coord.coordinates[2:8])
-
-# @pytest.mark.skip(reason="new/experimental feature; spec uncertain")
-# class TestCoordinateGroup(object):
-#     def test_init(self):
-#         c1 = Coordinate(
-#             lat=(0, 10, 5),
-#             lon=(0, 20, 5),
-#             time='2018-01-01',
-#             order=('lat', 'lon', 'time'))
-
-#         c2 = Coordinate(
-#             lat=(10, 20, 15),
-#             lon=(10, 20, 15),
-#             time='2018-01-01',
-#             order=('lat', 'lon', 'time'))
-
-#         c3 = Coordinate(
-#             lat=(10, 20, 15),
-#             lon=(10, 20, 15),
-#             time='2018-01-01',
-#             order=('time', 'lat', 'lon'))
-
-#         c4 = Coordinate(
-#             lat_lon=((0, 10), (0, 20), 5),
-#             time='2018-01-01',
-#             order=('lat_lon', 'time'))
-
-#         c5 = Coordinate(
-#             lat=(0, 20, 15),
-#             lon=(0, 20, 15),
-#             order=('lat', 'lon'))
-
-#         c6 = Coordinate(
-#             lat=(10, 20, 15),
-#             lon=(10, 20, 15),
-#             order=('lat', 'lon'))
-
-#         # empty init
-#         g = CoordinateGroup()
-#         g = CoordinateGroup([])
-        
-#         # basic init (with mismatched stacking, ordering, shapes)
-#         g = CoordinateGroup([c1])
-#         g = CoordinateGroup([c1, c2, c3, c4])
-#         g = CoordinateGroup([c5, c6])
-        
-#         # list is required
-#         with pytest.raises(tl.TraitError):
-#             CoordinateGroup(c1)
-        
-#         # Coord objects not valid
-#         with pytest.raises(tl.TraitError):
-#             CoordinateGroup([c1['lat']])
-
-#         # CoordinateGroup objects not valid (no nesting)
-#         g = CoordinateGroup([c1, c2])
-#         with pytest.raises(tl.TraitError):
-#             CoordinateGroup([g])
-
-#         # dimensions must match
-#         with pytest.raises(ValueError):
-#             CoordinateGroup([c1, c5])
-
-#     def test_len(self):
-#         c1 = Coordinate(
-#             lat=(0, 10, 5),
-#             lon=(0, 20, 5),
-#             time='2018-01-01',
-#             order=('lat', 'lon', 'time'))
-
-#         c2 = Coordinate(
-#             lat=(10, 20, 15),
-#             lon=(10, 20, 15),
-#             time='2018-01-01',
-#             order=('lat', 'lon', 'time'))
-
-#         g = CoordinateGroup()
-#         assert len(g) == 0
-        
-#         g = CoordinateGroup([])
-#         assert len(g) == 0
-        
-#         g = CoordinateGroup([c1])
-#         assert len(g) == 1
-        
-#         g = CoordinateGroup([c1, c2])
-#         assert len(g) == 2
-
-#     def test_dims(self):
-#         c1 = Coordinate(
-#             lat=(0, 10, 5),
-#             lon=(0, 20, 5),
-#             time='2018-01-01',
-#             order=('lat', 'lon', 'time'))
-
-#         c2 = Coordinate(
-#             lat=(10, 20, 15),
-#             lon=(10, 20, 15),
-#             time='2018-01-01',
-#             order=('lat', 'lon', 'time'))
-
-#         c3 = Coordinate(
-#             lat=(10, 20, 15),
-#             lon=(10, 20, 15),
-#             time='2018-01-01',
-#             order=('time', 'lat', 'lon'))
-
-#         c4 = Coordinate(
-#             lat_lon=((0, 10), (0, 20), 5),
-#             time='2018-01-01',
-#             order=('lat_lon', 'time'))
-
-#         c5 = Coordinate(
-#             lat=(0, 20, 15),
-#             lon=(0, 20, 15),
-#             order=('lat', 'lon'))
-
-#         c6 = Coordinate(
-#             lat=(10, 20, 15),
-#             lon=(10, 20, 15),
-#             order=('lat', 'lon'))
-
-#         g = CoordinateGroup()
-#         assert len(g.dims) == 0
-
-#         g = CoordinateGroup([c1])
-#         assert g.dims == {'lat', 'lon', 'time'}
-
-#         g = CoordinateGroup([c1, c2, c3, c4])
-#         assert g.dims == {'lat', 'lon', 'time'}
-
-#         g = CoordinateGroup([c4])
-#         assert g.dims == {'lat', 'lon', 'time'}
-
-#         g = CoordinateGroup([c5, c6])
-#         assert g.dims == {'lat', 'lon'}
-
-#     def test_iter(self):
-#         pass
-
-#     def test_getitem(self):
-#         pass
-
-#     def test_intersect(self):
-#         pass
-
-#     def test_add(self):
-#         pass
-
-#     def test_iadd(self):
-#         pass
-
-#     def test_append(self):
-#         pass
-
-#     def test_stack(self):
-#         pass
-
-#     def test_unstack(self):
-#         pass
-
-#     def test_iterchunks(self):
-#         pass
 
 # def test_convert_xarray_to_podpac():
 #     from podpac.core.algorithm.algorithm import Arange

@@ -1,23 +1,39 @@
 # Examples
 
-See [the example notebooks](https://github.com/creare-com/podpac/tree/master/doc/notebooks) for Jupyter Notebook examples. 
+Most of the examples for using PODPAC are in the [the example notebooks](https://github.com/creare-com/podpac_examples/tree/master/notebooks) on Github in the [podpac_examples](https://github.com/creare-com/podpac_examples) repository. Github will render most of these notebooks for you, and we save the expected outputs. To run these notebooks yourself:
 
-*Note*: Not all the examples will work because we use internal WCS sources for development. 
+* If using the provided `Window 10 Installation`, just run the `run_podpac_jupyterlab.bat` script by double-clicking its icon
+* If using a different installation: 
+    * Make sure the optional `notebook` or `all` dependencies are installed
+```bash
+pip install -e .[notebook]  # If installing locally
+pip install podpac[notebook]  # otherwise
+```
+    * Start a new `JupyterLab` session
+```bash
+jupyter lab
+``` 
+    * Browse the example notebooks directory `<podpac_root>/doc/notebook`
+    * Open a notebook that you want to run
+    * From the `JupyterLab` menu, select `Run-->Run All`
 
-The general workflow for retrieving data using PODPAC is as follows: 
+> **Note**: Not all the examples will work because we use internal WCS sources (with unpublished URLs) for development. 
 
-*Note*: Accessing SMAP data requires a [NASA Earth Data Account](user/earthdata)
+A quick example to get started is shown below.
+
+> **Note**: This example uses our SMAP node, which requires a [NASA Earth Data Account](user/earthdata) with OpenDAP access configured. 
 
 ```python
-import podpac  # import the library
-import podpac.datalib.smap
-c = podpac.Coordinate(time='2018-01-01 12:00:00', lat=0, lon=0)  # Create a coordinate
-# Possible SMAP products
-smap_product_options = \
-	podpac.datalib.smap.SMAP_PRODUCT_MAP.coords['product'].data.tolist()
-product = smap_product_options[0] # SMAP product
-n = podpac.datalib.smap.SMAP(product=product)  # Create node
-o = n.execute(c)  # Execute node to retrieve data at the coordinates
+# import the library
+import podpac  
+
+# Create a SMAP Node
+n = podpac.datalib.smap.SMAP(username=<your_username>, password=<your_password>)  
+
+# Create coordinates to evaluate this node
+c = podpac.Coordinates(['2018-01-01 12:00:00', 0, 0], dims=['time', 'lat', 'lon'])
+
+# Retrieve the datapoint from NSIDC's OpenDAP server
+o = n.eval(c) 
 ```
 
-Examples of creating algorithms and pipelines can be found in the [Notebooks](https://github.com/creare-com/podpac/tree/master/doc/notebooks). 

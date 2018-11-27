@@ -6,54 +6,100 @@ from collections import OrderedDict
 
 import numpy as np
 import traitlets as tl
+from collections import OrderedDict
 
 # from podpac.core.utils import cached_property, clear_cache
+from podpac.core.units import Units
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
 class UniformCoordinates1d(Coordinates1d):
     """
-    An array of sorted, uniformly-spaced coordinates defined by a start, stop, and step.
+    1-dimensional array of uniformly-spaced coordinates defined by a start, stop, and step.
+
+    UniformCoordinates1d efficiently stores a uniformly-spaced coordinate array; the full coordinates array is only
+    calculated when needed. For numerical coordinates, the start, stop, and step are converted to ``float``. For time
+    coordinates, the start and stop are converted to numpy ``datetime64``, and the step is converted to numpy
+    ``timedelta64``. For convenience, podpac automatically converts datetime strings such as ``'2018-01-01'`` to
+    ``datetime64`` and timedelta strings such as ``'1,D'`` to ``timedelta64``.
+
+    UniformCoordinates1d can also be created by specifying the size instead of the step.
     
-    Attributes
+    Parameters
     ----------
     start : float or datetime64
         Start coordinate.
-        Numerical inputs are cast as floats and non-numerical inputs are parsed as datetime64.
     stop : float or datetime64
         Stop coordinate.
-        Numerical inputs are cast as floats and non-numerical inputs are parsed as datetime64.
     step : float or timedelta64
         Signed, non-zero step between coordinates.
-        Numerical inputs are cast as floats and non-numerical inputs are parsed as timedelta64.
-    
+    name : str
+        Dimension name, one of 'lat', 'lon', 'time', 'alt'.
+    coordinates : array, read-only
+        Full array of coordinate values.
+    units : podpac.Units
+        Coordinate units.
+    coord_ref_sys : str
+        Coordinate reference system.
+    ctype : str
+        Coordinates type, one of'point', 'left', 'right', or 'midpoint'.
+    extents : ndarray
+        When ctype != 'point', defines custom area bounds for the coordinates.
+        *Note: To be replaced with segment_lengths.*
+
     See Also
     --------
-    ArrayCoordinates1d : An array of coordinates.
+    :class:`Coordinates1d`, :class:`ArrayCoordinates1d`, :class:`crange`, :class:`clinspace`
     """
 
+    #:float, datetime64: Start coordinate.
     start = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
-    stop = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
-    step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)])
     
+    #:float, datetime64: Stop coordinate.
+    stop = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
+
+    #:float, timedelta64: Signed, non-zero step between coordinates.
+    step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)])
+
+    #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+    name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
+
+    #: Units : Coordinate units.
+    units = tl.Instance(Units, allow_none=True)
+
+    #: str : Coordinate reference system.
+    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True)
+
+    #: str : Coordinates type, one of 'point', 'left', 'right', or 'midpoint'.
+    ctype = tl.Enum(['point', 'left', 'right', 'midpoint'])
+
+    #: : *To be replaced.*
+    extents = tl.Instance(np.ndarray, allow_none=True, default_value=None)
+
+    #: bool : Are the coordinate values unique and sorted (always True).
     is_monotonic = tl.CBool(True, readonly=True)
+
+    #: bool : Are the coordinate values sorted in descending order.
+    is_descending = tl.CBool(allow_none=True, readonly=True)
+    
+    #: bool : Are the coordinate values uniformly-spaced (always True).
     is_uniform = tl.CBool(True, readonly=True)
 
-    def __init__(self, start, stop, step=None, size=None, **kwargs):
+    def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, units=None, coord_ref_sys=None, extents=None):
         """
-        Initialize uniformly-spaced coordinates.
+        Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
         Parameters
         ----------
         start : float or datetime64
-            start value
+            Start coordinate.
         stop : float or datetime64
-            stop value
+            Stop coordinate.
         step : float or timedelta64
-            step between coordinates (either step or size required)
+            Signed, nonzero step between coordinates (either step or size required).
         size : int
-            number of coordinates (either step or size required)
+            Number of coordinates (either step or size required).
         """
 
         if step is not None and size is not None:
@@ -69,6 +115,18 @@ class UniformCoordinates1d(Coordinates1d):
             step = (stop - start) / (size - 1)
         else:
             step = make_coord_delta(step)
+
+        kwargs = {}
+        if name is not None:
+            kwargs['name'] = name
+        if ctype is not None:
+            kwargs['ctype'] = ctype
+        if units is not None:
+            kwargs['units'] = units
+        if coord_ref_sys is not None:
+            kwargs['coord_ref_sys'] = coord_ref_sys
+        if extents is not None:
+            kwargs['extents'] = extents
 
         super(UniformCoordinates1d, self).__init__(start=start, stop=stop, step=step, **kwargs)
 
@@ -113,6 +171,18 @@ class UniformCoordinates1d(Coordinates1d):
         else:
             self.set_trait('is_descending', bool(self.stop < self.start))
 
+    @tl.validate('extents')
+    def _validate_extents(self, d):
+        return super(UniformCoordinates1d, self)._validate_extents(d)
+
+    @tl.default('coord_ref_sys')
+    def _default_coord_ref_sys(self):
+        return super(UniformCoordinates1d, self)._default_coord_ref_sys()
+    
+    @tl.default('ctype')
+    def _default_ctype(self):
+        return super(UniformCoordinates1d, self)._default_ctype()
+
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate Constructors
     # ------------------------------------------------------------------------------------------------------------------
@@ -128,13 +198,76 @@ class UniformCoordinates1d(Coordinates1d):
             return cls(items[0], items[1], step, **kwargs)
 
     @classmethod
-    def from_json(self, d):
+    def from_definition(cls, d):
+        """
+        Create uniformly-spaced 1d Coordinates from a coordinates definition.
+
+        The definition must contain the coordinate start, stop, and step or size::
+
+            c = UniformCoordinates1d.from_definition({
+                "start": 1,
+                "stop": 10,
+                "step": 0.5
+            })
+
+            c = UniformCoordinates1d.from_definition({
+                "start": 1,
+                "stop": 10,
+                "size": 21
+            })
+
+        The definition may also contain any of the 1d Coordinates properties::
+
+            c = UniformCoordinates1d.from_definition({
+                "start": 1,
+                "stop": 10,
+                "step": 0.5,
+                "name": "lat",
+                "ctype": "points"
+            })
+
+        Arguments
+        ---------
+        d : dict
+            uniform 1d coordinates definition
+
+        Returns
+        -------
+        :class:`UniformCoordinates1d`
+            uniformly-spaced 1d Coordinates
+
+        See Also
+        --------
+        definition
+        """
+
         start = d.pop('start')
         stop = d.pop('stop')
-        step = d.pop('step')
-        return cls(start, stop, step, **d)
+        return cls(start, stop, **d)
 
     def copy(self, **kwargs):
+        """
+        Make a deep copy of the uniform 1d Coordinates.
+
+        The coordinates properties will be copied. Any provided keyword arguments will override these properties.
+
+        Arguments
+        ---------
+        name : str, optional
+            Dimension name. One of 'lat', 'lon', 'alt', and 'time'.
+        units : str, optional
+            Coordinates units.
+        coord_ref_sys : str, optional
+            Coordinates reference system.
+        ctype : str, optional
+            Coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+
+        Returns
+        -------
+        :class:`UniformCoordinates1d`
+            Copy of the coordinates, with provided properties.
+        """
+
         properties = self.properties
         properties.update(kwargs)
         return UniformCoordinates1d(self.start, self.stop, self.step, **properties)
@@ -190,20 +323,15 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def coordinates(self):
-        """ Coordinate values """
+        """:array, read-only: Coordinate values. """
+
         coordinates = add_coord(self.start, np.arange(0, self.size) * self.step)
         coordinates.setflags(write=False)
         return coordinates
-    
-    @property
-    def dtype(self):
-        ''' Coordinate dtype, datetime or float '''
-        
-        return type(self.start)
 
     @property
     def size(self):
-        ''' Number of coordinates. '''
+        """ Number of coordinates. """
 
         dname = np.array(self.step).dtype.name
 
@@ -227,12 +355,23 @@ class UniformCoordinates1d(Coordinates1d):
         return max(0, int(np.floor(range_/step + 1e-12) + 1))
 
     @property
+    def dtype(self):
+        """ :type: Coordinates dtype.
+
+        ``float`` for numerical coordinates and numpy ``datetime64`` for datetime coordinates.
+        """
+
+        return type(self.start)
+
+    @property
     def bounds(self):
+        """ Low and high coordinate bounds. """
+
         lo = self.start
         hi = add_coord(self.start, self.step * (self.size - 1))
         if self.is_descending:
             lo, hi = hi, lo
-        
+
         # read-only array with the correct dtype
         bounds = np.array([lo, hi], dtype=self.dtype)
         bounds.setflags(write=False)
@@ -240,15 +379,21 @@ class UniformCoordinates1d(Coordinates1d):
 
     @property
     def area_bounds(self):
+        """
+        Low and high coordinate area bounds.
+
+        When ctype != 'point', this includes the portions of the segments beyond the coordinate bounds.
+        """
+
         # point ctypes, just use bounds
         if self.ctype == 'point':
             return self.bounds
-        
+
         # segment ctypes, with explicit extents
         if self.extents is not None:
             return self.extents
 
-        # segment ctypes, calculated            
+        # segment ctypes, calculated
         lo, hi = self.bounds
         if self.ctype == 'left':
             hi = add_coord(hi, np.abs(self.step))
@@ -264,7 +409,20 @@ class UniformCoordinates1d(Coordinates1d):
         area_bounds.setflags(write=False)
         return area_bounds
 
-    def json(self):
+    @property
+    def definition(self):
+        """:dict: Serializable uniform 1d coordinates definition.
+
+        The ``definition`` can be used to create new UniformCoordinates1d::
+
+            c = podpac.UniformCoordinates1d(0, 10, step=1)
+            c2 = podpac.UniformCoordinates1d.from_definition(c.definition)
+
+        See Also
+        --------
+        from_definition
+        """
+
         d = OrderedDict()
         if self.dtype == float:
             d['start'] = self.start
@@ -282,6 +440,47 @@ class UniformCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     def select(self, bounds, outer=False, return_indices=False):
+        """
+        Get the coordinate values that are within the given bounds.
+
+        The default selection returns coordinates that are within the other coordinates bounds::
+
+            In [1]: c = UniformCoordinates1d(0, 3, step=1, name='lat')
+
+            In [2]: c.select([1.5, 2.5]).coordinates
+            Out[2]: array([2.])
+
+        The *outer* selection returns the minimal set of coordinates that contain the other coordinates::
+        
+            In [3]: c.intersect([1.5, 2.5], outer=True).coordinates
+            Out[3]: array([1., 2., 3.])
+
+        The *outer* selection also returns a boundary coordinate if the other coordinates are outside this
+        coordinates bounds but *inside* its area bounds::
+        
+            In [4]: c.intersect([3.25, 3.35], outer=True).coordinates
+            Out[4]: array([3.0], dtype=float64)
+
+            In [5]: c.intersect([10.0, 11.0], outer=True).coordinates
+            Out[5]: array([], dtype=float64)
+        
+        Arguments
+        ---------
+        bounds : low, high
+            selection bounds
+        outer : bool, optional
+            If True, do an *outer* selection. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
+
+        Returns
+        -------
+        selection : :class:`UniformCoordinates`
+            UniformCoordinates1d object with coordinates within the other coordinates bounds.
+        I : slice or list
+            index or slice for the intersected coordinates (only if return_indices=True)
+        """
+
         bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
 
         # full
@@ -296,7 +495,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         lo = max(bounds[0], self.bounds[0])
         hi = min(bounds[1], self.bounds[1])
-        
+
         imin = int(np.ceil((lo - self.bounds[0]) / np.abs(self.step)))
         imax = int(np.floor((hi - self.bounds[0]) / np.abs(self.step)))
 
@@ -306,7 +505,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         imax = np.clip(imax+1, 0, self.size)
         imin = np.clip(imin, 0, self.size)
-        
+
         # empty case
         if imin >= imax:
             return self._select_empty(return_indices)
@@ -317,7 +516,7 @@ class UniformCoordinates1d(Coordinates1d):
         start = self.start + imin*self.step
         stop = self.start + (imax-1)*self.step
         c = UniformCoordinates1d(start, stop, self.step, **self.properties)
-        
+
         if return_indices:
             return c, slice(imin, imax)
         else:

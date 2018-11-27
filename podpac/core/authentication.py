@@ -1,5 +1,5 @@
 """
-Authentication Summary
+PODPAC Authentication
 """
 
 
@@ -31,33 +31,41 @@ from podpac.core import utils
 class SessionWithHeaderRedirection(requests.Session):
     """
     Modified from: https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+Python
-    
-    overriding requests.Session.rebuild_auth to mantain headers when redirected
+    overriding requests.Session.rebuild_auth to maintain headers when redirected
     
     Attributes
     ----------
     auth : tuple
         (username, password) string in plain text
-    AUTH_HOST : str
+    hostname : str
         Host address (eg. http://example.com) that gets authenticated
+    hostname_regex : str
+        Regex used to match redirected hostname if different from :attr:`self.hostname`
+    password : str
+        Password used for authentication.
+        Loaded from podpac settings file using password@:attr:`self.hostname` as the key.
+    username : str
+        Username used for authentication.
+        Loaded from podpac settings file using username@:attr:`self.hostname` as the key.
     """
 
-    AUTH_HOST = ''
+    hostname = ''
+    hostname_regex = None
+    username = None
+    password = None
+    auth = tuple()
 
-    def __init__(self, username=None, password=None):
-        '''
-        Parameters
-        ------------
-        username: str, optional
-            Username used for authentication. Loaded from podpac settings file using username@`self.AUTH_HOST` as the key.
-        password: str
-            Password used for authentication. Loaded from podpac settings file using password@`self.AUTH_HOST` as the key.
-        '''
+    def __init__(self, username=None, password=None, hostname_regex=None):
+
         super(SessionWithHeaderRedirection, self).__init__()
+        
         if username is None:
-            username = utils.load_setting('username@' + self.AUTH_HOST)
+            username = utils.load_setting('username@' + self.hostname)
+        
         if password is None:
-            password = utils.load_setting('password@' + self.AUTH_HOST)
+            password = utils.load_setting('password@' + self.hostname)
+        
+        self.hostname_regex = hostname_regex
         self.auth = (username, password)
 
     
@@ -75,8 +83,8 @@ class SessionWithHeaderRedirection(requests.Session):
         
         Returns
         -------
-        TYPE
-            Description
+        None
+
         """
         headers = prepared_request.headers
         url = prepared_request.url
@@ -85,10 +93,15 @@ class SessionWithHeaderRedirection(requests.Session):
             original_parsed = requests.utils.urlparse(response.request.url)
             redirect_parsed = requests.utils.urlparse(url)
 
-            if (original_parsed.hostname != redirect_parsed.hostname) and \
-                    redirect_parsed.hostname != self.AUTH_HOST and \
-                    original_parsed.hostname != self.AUTH_HOST:
-                del headers['Authorization']
+            # if redirected hostname is different than original and the self hostname
+            # see if the redirected hostname can be found in hostname_regex
+            if (original_parsed.hostname != redirect_parsed.hostname) \
+                    and redirect_parsed.hostname != self.hostname and \
+                    original_parsed.hostname != self.hostname:
+                if self.hostname_regex is not None and self.hostname_regex.match(redirect_parsed.hostname):
+                    pass
+                else:
+                    del headers['Authorization']
 
         return
     
@@ -97,31 +110,29 @@ class SessionWithHeaderRedirection(requests.Session):
         
         Parameters
         ----------
-        username : None, optional
-            Description
-        password : None, optional
-            Description
+        username : str, optional
+            Username input
+        password : str, optional
+            Password input
         """
-        print("Updating login information for", self.AUTH_HOST)
+        print("Updating login information for: ", self.hostname)
+        
         if username is None:
             username = input("Username: ")
-        utils.save_setting('username@' + self.AUTH_HOST, username)
+        utils.save_setting('username@' + self.hostname, username)
+        
         if password is None:
             password = getpass.getpass()
-        utils.save_setting('password@' + self.AUTH_HOST, password)
+        utils.save_setting('password@' + self.hostname, password)
         
         self.auth = (username, password)
-    
+
+
 class EarthDataSession(SessionWithHeaderRedirection):
-    """Summary
-    
-    Attributes
-    ----------
-    AUTH_HOST : str
-        Description
+    """Nasa EarthData Authentication Session
     """
     
-    AUTH_HOST = 'urs.earthdata.nasa.gov'
+    hostname = 'urs.earthdata.nasa.gov'
     
         
     

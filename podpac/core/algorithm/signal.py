@@ -48,7 +48,9 @@ COMMON_DOC['validate_kernel'] = '''Checks to make sure the kernel is valid.
             If the kernel is not valid (i.e. incorrect dimensionality). '''
 
 class Convolution(Algorithm):
-    """Base algorithm node for computing convolutions. This node automatically resizes the request to avoid edge effects.
+    """Compute a general convolution over a source node.
+
+    This node automatically resizes the requested coordinates to avoid edge effects.
     
     Attributes
     ----------
@@ -67,7 +69,7 @@ class Convolution(Algorithm):
     """
     
     source = tl.Instance(Node)
-    kernel = tl.Instance(np.ndarray)  # Would like to tag this, but arrays are not yet supported
+    kernel = tl.Instance(np.ndarray).tag(attr=True)
     kernel_type = tl.Unicode().tag(attr=True)
     kernel_ndim = tl.Int().tag(attr=True)
 
@@ -76,7 +78,7 @@ class Convolution(Algorithm):
  
     @common_doc(COMMON_DOC)
     @node_eval
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates.
         
         Parameters
@@ -85,8 +87,6 @@ class Convolution(Algorithm):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
         
         Returns
         -------
@@ -134,6 +134,9 @@ class Convolution(Algorithm):
         result = scipy.signal.convolve(self.outputs['source'], self._full_kernel, mode='same', method=method)
         result = result[exp_slice]
 
+        # evaluate using expanded coordinates and then reduce down to originally requested coordinates
+        out = super(Convolution, self).eval(exp_coords)
+        result = out[exp_slice]
         if output is None:
             output = result
         else:
@@ -166,8 +169,9 @@ class Convolution(Algorithm):
         """
         return self.kernel
 
+
 class TimeConvolution(Convolution):
-    """Specialized convolution node that computes temporal convolutions only.
+    """Compute a temporal convolution over a source node.
     
     Attributes
     ----------
@@ -206,7 +210,7 @@ class TimeConvolution(Convolution):
 
 
 class SpatialConvolution(Convolution):
-    """Specialized convolution node that computes lat-lon convolutions only.
+    """Compute a lat-lon convolution over a source node.
     
     Attributes
     ----------

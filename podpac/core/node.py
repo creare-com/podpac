@@ -5,6 +5,7 @@ Node Summary
 from __future__ import division, print_function, absolute_import
 
 import os
+import re
 from collections import OrderedDict
 import functools
 import json
@@ -18,31 +19,34 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 
 COMMON_NODE_DOC = {
-    'requested_coordinates': 
-        '''The set of coordinates requested by a user. The Node will be evaluated using these coordinates.''',
-    'eval_output': 
-        '''Default is None. Optional input array used to store the output data. When supplied, the node will not 
-            allocate its own memory for the output array. This array needs to have the correct dimensions and 
-            coordinates.''',
-    'eval_method': 
-        '''Default is None. How the node will be evaluated: serial, parallel, on aws, locally, etc. Currently only
-           local evaluation is supported.''',
-    'eval_return': 
-        '''UnitsDataArray
-            Unit-aware xarray DataArray containing the results of the node evaluation.''',
+    'requested_coordinates':
+        """The set of coordinates requested by a user. The Node will be evaluated using these coordinates.""",
+    'eval_output':
+        """Default is None. Optional input array used to store the output data. When supplied, the node will not
+            allocate its own memory for the output array. This array needs to have the correct dimensions and
+            coordinates.""",
+    'eval_return':
+        """
+        :class:`podpac.UnitsDataArray`
+            Unit-aware xarray DataArray containing the results of the node evaluation.
+        """,
     'hash_return': 'A unique hash capturing the coordinates and parameters used to evaluate the node. ',
-    'outdir': 'Optional output directory. Uses settings.CACHE_DIR by default',
-    'definition_return': '''OrderedDict
-            Dictionary containing the location of the Node, the name of the plugin (if required), as well as any 
-            parameters and attributes that were tagged by children.''',
-    'arr_init_type': 
-        '''How to initialize the array. Options are:
+    'outdir': 'Optional output directory. Uses :attr:`podpac.settings.CACHE_DIR` by default',
+    'definition_return':
+        """
+        OrderedDict
+            Dictionary containing the location of the Node, the name of the plugin (if required), as well as any
+            parameters and attributes that were tagged by children.
+        """,
+    'arr_init_type':
+        """How to initialize the array. Options are:
                 nan: uses np.full(..., np.nan) (Default option)
                 empty: uses np.empty
                 zeros: uses np.zeros()
                 ones: uses np.ones
                 full: uses np.full(..., fillval)
-                data: uses the fillval as the input array''',
+                data: uses the fillval as the input array
+        """,
     'arr_fillval' : "used if init_type=='full' or 'data', default = 0",
     'arr_style' : "The style to use for plotting. Uses self.style by default",
     'arr_no_style' : "Default is False. If True, self.style will not be assigned to arr.attr['layer_style']",
@@ -52,10 +56,11 @@ COMMON_NODE_DOC = {
     'arr_units' : "Default is self.units The Units for the data contained in the DataArray.",
     'arr_dtype' :"Default is np.float. Datatype used by default",
     'arr_kwargs' : "Dictioary of any additional keyword arguments that will be passed to UnitsDataArray.",
-    'arr_return' : 
-        """UnitsDataArray
+    'arr_return' :
+        """
+        :class:`podpac.UnitsDataArray`
             Unit-aware xarray DataArray of the desired size initialized using the method specified.
-            """
+        """
     }
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
@@ -73,20 +78,20 @@ class Node(tl.HasTraits):
     cache_type : [None, 'disk', 'ram']
         How the output of the nodes should be cached. By default, outputs are not cached.
     dtype : type
-        The numpy datatype of the output. Currently only `float` is supported.
+        The numpy datatype of the output. Currently only ``float`` is supported.
     node_defaults : dict
-        Dictionary of defaults values for attributes of a Node. 
-    style : podpac.Style
+        Dictionary of defaults values for attributes of a Node.
+    style : :class:`podpac.Style`
         Object discribing how the output of a node should be displayed. This attribute is planned for deprecation in the
         future.
-    units : podpac.Units
+    units : :class:`podpac.Units`
         The units of the output data, defined using the pint unit registry `podpac.units.ureg`.
 
     Notes
     -----
-    Additional attributes are available for debugging after evaluation, including::
-     * _requested_coordinates: the requested coordinates of the most recent call to eval
-     * _output: the output of the most recent call to eval
+    Additional attributes are available for debugging after evaluation, including:
+     * ``_requested_coordinates``: the requested coordinates of the most recent call to eval
+     * ``_output``: the output of the most recent call to eval
     """
 
     units = Units(default_value=None, allow_none=True)
@@ -99,7 +104,7 @@ class Node(tl.HasTraits):
     @tl.default('style')
     def _style_default(self):
         return Style()
-    
+
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _output = tl.Instance(UnitsDataArray, allow_none=True)
@@ -121,7 +126,7 @@ class Node(tl.HasTraits):
     @output.setter
     def output(self, value):
         raise AttributeError("The 'output' attribute has been removed.")
-    
+
     def __init__(self, **kwargs):
         """ Do not overwrite me """
         tkwargs = self._first_init(**kwargs)
@@ -162,7 +167,7 @@ class Node(tl.HasTraits):
         pass
 
     @common_doc(COMMON_DOC)
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """
         Evaluate the node at the given coordinates.
 
@@ -172,9 +177,7 @@ class Node(tl.HasTraits):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
-        
+
         Returns
         -------
         output : {eval_return}
@@ -182,16 +185,14 @@ class Node(tl.HasTraits):
 
         raise NotImplementedError
 
-    def eval_group(self, group, method=None):
+    def eval_group(self, group):
         """
         Evaluate the node for each of the coordinates in the group.
-        
+
         Parameters
         ----------
         group : podpac.CoordinatesGroup
             Group of coordinates to evaluate.
-        method : str, optional
-            {eval_method}
 
         Returns
         -------
@@ -199,7 +200,7 @@ class Node(tl.HasTraits):
             evaluation output, list of UnitsDataArray objects
         """
 
-        return [self.eval(coords, method=method) for coords in group]
+        return [self.eval(coords) for coords in group]
 
     def find_coordinates(self):
         """
@@ -262,7 +263,7 @@ class Node(tl.HasTraits):
         Returns
         -------
         {definition_return}
-        
+
         """
 
         d = OrderedDict()
@@ -275,12 +276,35 @@ class Node(tl.HasTraits):
         else:
             d['plugin'] = self.__module__
             d['node'] = self.__class__.__name__
+
         attrs = {}
+        lookup_attrs = {}
+
         for key, value in self.traits().items():
-            if value.metadata.get('attr', False):
-                attrs[key] = getattr(self, key)
+            if not value.metadata.get('attr', False):
+                continue
+
+            attr = getattr(self, key)
+
+            if isinstance(attr, Node):
+                lookup_attrs[key] = attr
+            elif isinstance(attr, np.ndarray):
+                attrs[key] = attr.tolist()
+            elif isinstance(attr, Coordinates):
+                attrs[key] = attr.definition
+            else:
+                try:
+                    json.dumps(attr)
+                except:
+                    raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
+                else:
+                    attrs[key] = attr
+
         if attrs:
             d['attrs'] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
+
+        if lookup_attrs:
+            d['lookup_attrs'] = OrderedDict([(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())])
 
         return d
 
@@ -292,11 +316,53 @@ class Node(tl.HasTraits):
         Returns
         -------
         OrderedDict
-            Dictionary-formatted definition of a PODPAC pipeline. 
+            Dictionary-formatted definition of a PODPAC pipeline.
         """
 
-        from podpac.core.pipeline import make_pipeline_definition
-        return make_pipeline_definition(self)
+        nodes = []
+        refs = []
+        definitions = []
+
+        def add_node(node):
+            if node in nodes:
+                return refs[nodes.index(node)]
+
+            # get base definition and then replace nodes with references, adding nodes depth first
+            d = node.base_definition
+            if 'source' in d:
+                if isinstance(d['source'], Node):
+                    d['source'] = add_node(d['source'])
+                elif isinstance(d['source'], np.ndarray):
+                    d['source'] = d['source'].tolist()
+            if 'inputs' in d:
+                for key, input_node in d['inputs'].items():
+                    if input_node is not None:
+                        d['inputs'][key] = add_node(input_node)
+            if 'sources' in d:
+                for i, source_node in enumerate(d['sources']):
+                    d['sources'][i] = add_node(source_node)
+
+            # get base ref and then ensure it is unique
+            ref = node.base_ref
+            while ref in refs:
+                if re.search('_[1-9][0-9]*$', ref):
+                    ref, i = ref.rsplit('_', 1)
+                    i = int(i)
+                else:
+                    i = 0
+                ref = '%s_%d' % (ref, i+1)
+
+            nodes.append(node)
+            refs.append(ref)
+            definitions.append(d)
+
+            return ref
+
+        add_node(self)
+
+        d = OrderedDict()
+        d['nodes'] = OrderedDict(zip(refs, definitions))
+        return d
 
     @property
     def pipeline(self):
@@ -318,12 +384,16 @@ class Node(tl.HasTraits):
         -------
         str
             JSON-formatted definition of a PODPAC pipeline.
-            
+
         Notes
         ------
-        This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to 
-        share algorithms and pipelines, or run code on cloud services. 
+        This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to
+        share algorithms and pipelines, or run code on cloud services.
         """
+        return json.dumps(self.definition)
+
+    @property
+    def json_pretty(self):
         return json.dumps(self.definition, indent=4)
 
     @property
@@ -349,7 +419,7 @@ class Node(tl.HasTraits):
         -------
         data : any
             The cached data.
-        
+
         Raises
         ------
         NodeException
@@ -448,7 +518,7 @@ class Node(tl.HasTraits):
             {outdir}
         fmt : str
             Output format, default 'pickle'
-            
+
         Returns
         --------
         str
@@ -500,7 +570,7 @@ class Node(tl.HasTraits):
             {requested_coordinates}
         outdir : str, optional
             {outdir}
-            
+
         Returns
         --------
         str
@@ -581,7 +651,7 @@ class Node(tl.HasTraits):
         .. deprecated:: 0.2.0
             This method will be removed and replaced by the caching module by version 0.2.0.
         """
-        
+
         import warnings
         warnings.warn('Node.cache_obj will be replaced by put_cache in a later release', DeprecationWarning)
 
@@ -622,7 +692,7 @@ class Node(tl.HasTraits):
         .. deprecated:: 0.2.0
             This method will be removed and replaced by the caching module by version 0.2.0.
         """
-        
+
         import warnings
         warnings.warn('Node.load_cached_obj will be replaced by get_cache in a later release', DeprecationWarning)
 
@@ -652,7 +722,7 @@ class Node(tl.HasTraits):
         """Helper function to clear disk cache.
 
         WARNING: This function will permanently delete cached values
-        
+
         Parameters
         ----------
         attr : str, optional
@@ -667,7 +737,7 @@ class Node(tl.HasTraits):
         .. deprecated:: 0.2.0
             This method will be removed and replaced by the caching module by version 0.2.0.
         """
-        
+
         import warnings
         warnings.warn('Node.clear_disk_cache will be replaced by del_cache in a later release', DeprecationWarning)
 
@@ -681,6 +751,7 @@ class Node(tl.HasTraits):
         else:
             for f in glob.glob(self.cache_path(attr)):
                 os.remove(f)
+
 
 def node_eval(fn):
     """

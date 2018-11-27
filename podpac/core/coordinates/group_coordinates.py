@@ -1,132 +1,234 @@
-# TODO spec here is uncertain, not in use yet
-# class CoordinateGroup(BaseCoordinates):
-#     """CoordinateGroup Summary
-#     """
+
+from __future__ import division, unicode_literals, print_function, absolute_import
+
+import json
+import traitlets as tl
+from podpac.core.coordinates.coordinates import Coordinates
+
+class GroupCoordinates(tl.HasTraits):
+    """
+    List of multi-dimensional Coordinates.
+
+    GroupCoordinates contains a list of :class:`Coordinates` containing the same set of unstacked dimensions.
+
+    The GroupCoordinates object is list-like and can be indexed, appended, looped, etc like a standard ``list``. The
+    following ``Coordinates`` methods are wrapped for convenience:
+
+     * :meth:`intersect`
+
+    Parameters
+    ----------
+    udims : tuple
+        Tuple of shared dimensions.
+    """
     
-#     # TODO list or array?
-#     _items = tl.List(trait=tl.Instance(Coordinates))
+    _items = tl.List(trait=tl.Instance(Coordinates))
 
-#     @tl.validate('_items')
-#     def _validate_items(self, d):
-#         items = d['value']
-#         if not items:
-#             return items
+    @tl.validate('_items')
+    def _validate_items(self, d):
+        items = d['value']
+        if not items:
+            return items
 
-#         # unstacked dims must match, but not necessarily in order
-#         dims = set(items[0].dims_map)
-#         for g in items:
-#             if set(g.dims_map) != dims:
-#                 raise ValueError(
-#                     "Mismatching dims: '%s != %s" % (dims, set(g.dims)))
+        # unstacked dims must match, but not necessarily in order
+        udims = items[0].udims
+        for c in items:
+            if set(c.udims) != set(udims):
+                raise ValueError("Mismatching dims: %s !~ %s" % (udims, c.udims))
 
-#         return items
+        return items
 
-#     def __init__(self, items=[], **kwargs):
-#         return super(CoordinateGroup, self).__init__(_items=items, **kwargs)
+    def __init__(self, coords_list):
+        """
+        Create a Coordinates group.
 
-#     def __repr__(self):
-#         rep = self.__class__.__name__
-#         rep += '\n' + '\n'.join([repr(g) for g in self._items])
-#         return rep
+        Arguments
+        ---------
+        coords_list : list
+            list of :class:`Coordinates`
+        """
+
+        return super(GroupCoordinates, self).__init__(_items=coords_list)
+
+    def __repr__(self):
+        rep = self.__class__.__name__
+        rep += '\n' + '\n'.join([repr(c) for c in self._items])
+        return rep
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # alternative constructors
+    # ------------------------------------------------------------------------------------------------------------------
     
-#     def __getitem__(self, key):
-#         if isinstance(key, (int, slice)):
-#             return self._items[key]
+    @classmethod
+    def from_definition(cls, d):
+        """
+        Create a Coordinates group from a group definition.
+
+        Arguments
+        ---------
+        d : list
+            group definition
+
+        Returns
+        -------
+        :class:`CoordinatesGroup`
+            Coordinates group
+
+        See Also
+        --------
+        definition, from_json
+        """
+
+        return cls([Coordinates.from_definition(elem) for elem in d])
+
+    @classmethod
+    def from_json(cls, s):
+        """
+        Create a Coordinates group from a group JSON definition.
+
+        Arguments
+        ---------
+        s : str
+            group JSON definition
+
+        Returns
+        -------
+        :class:`CoordinatesGroup`
+            Coordinates group
+
+        See Also
+        --------
+        json
+        """
+
+        d = json.loads(s)
+        return cls.from_definition(d)
+    
+    # ------------------------------------------------------------------------------------------------------------------
+    # standard list-like methods
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def __len__(self):
+        return len(self._items)
+
+    def __iter__(self):
+        return self._items.__iter__()
+
+    def append(self, c):
+        """ Append :class:`Coordinates` to the group.
+
+        Arguments
+        ---------
+        c : :class:`Coordinates`
+            Coordinates to append.
+        """
+
+        if not isinstance(c, Coordinates):
+            raise TypeError("Can only append Coordinates objects, not '%s'" % type(c))
+
+        self._items = self._items + [c]
+
+    def __add__(self, other):
+        if not isinstance(other, GroupCoordinates):
+            raise TypeError("Can only add GroupCoordinates objects, not '%s'" % type(other))
+
+        return GroupCoordinates(self._items + other._items)
+
+    def __iadd__(self, other):
+        if not isinstance(other, GroupCoordinates):
+            raise TypeError("Can only add GroupCoordinates objects, not '%s'" % type(other))
+
+        self._items = self._items + other._items
+        return self
+    
+    # ------------------------------------------------------------------------------------------------------------------
+    # Properties
+    # ------------------------------------------------------------------------------------------------------------------
+
+    @property
+    def udims(self):
+        """:tuple: Tuple of shared dimensions."""
+
+        if len(self._items) == 0:
+            return set()
         
-#         elif isinstance(key, tuple):
-#             if len(key) != 2:
-#                 raise IndexError("Too many indices for CoordinateGroup")
-            
-#             k, dim = key
-#             # TODO list or array?
-#             return [item[dim] for item in self._items[k]]
-        
-#         else:
-#             raise IndexError(
-#                 "invalid CoordinateGroup index type '%s'" % type(key))
+        return set(self._items[0].udims)
 
-#     def __len__(self):
-#         return len(self._items)
+    @property
+    def definition(self):
+        """
+        Serializable coordinates group definition.
 
-#     def __iter__(self):
-#         return self._items.__iter__()
+        The ``definition`` can be used to create new GroupCoordinates::
 
-#     def append(self, c):
-#         if not isinstance(c, Coordinates):
-#             raise TypeError(
-#                 "Can only append Coordinates objects, not '%s'" % type(c))
-        
-#         self._items.append(c)
-   
-#     def stack(self, stack_dims, copy=True):
-#         """ stack all """
+            g = podpac.GroupCoordinates([...])
+            g2 = podpac.GroupCoordinates.from_definition(g.definition)
 
-#         if copy:
-#             return CoordinateGroup(
-#                 [c.stack(stack_dims, copy=True) for c in self._items])
-#         else:
-#             for c in self._items:
-#                 c.stack(stack_dims)
-#             return self
+        See Also
+        --------
+        from_definition, json
+        """
 
-#     def unstack(self, copy=True):
-#         """ unstack all"""
-#         if copy:
-#             return CoordinateGroup(
-#                 [c.unstack(stack_dims, copy=True) for c in self._items])
-#         else:
-#             for c in self._items:
-#                 c.unstack(stack_dims)
-#             return self            
+        return [c.definition for c in self._items]
 
-#     def intersect(self, other, coord_ref_sys=None, pad=1, ind=False):
-#         return CoordinateGroup([c.intersect(other) for c in self._items])
-    
-#     @property
-#     def dims(self):
-#         """ unordered (set) and unstacked """
-#         if len(self._items) == 0:
-#             return {}
-#         return set(self._items[0].dims_map)
+    @property
+    def json(self):
+        """
+        Serialized coordinates group definition.
 
-#     def add_unique(self, other):
-#         return self._add(other, unique=True)
-    
-#     def __add__(self, other):
-#         return self._add(other)
-    
-#     def _add(self, other, unique=False):
-#         if unique:
-#             raise NotImplementedError("TODO")
+        The ``definition`` can be used to create new GroupCoordinates::
 
-#         if isinstance(other, Coordinates):
-#             # TODO should this concat, fail, or do something else?
-#             # items = self._items + [other]
-#             raise NotImplementedError("TODO")
-#         elif isinstance(other, CoordinateGroup):
-#             items = self._items + g._items
-#         else:
-#             raise TypeError("Cannot add '%s', only BaseCoordinates" % type(c))
-        
-#         return CoordinateGroup(self._items + [other])
+            g = podpac.GroupCoordinates(...)
+            g2 = podpac.GroupCoordinates.from_json(g.json)
 
-#     def __iadd__(self, other):
-#         if isinstance(other, Coordinates):
-#             # TODO should this append, fail, or do something else?
-#             # TypeError("Cannot add individual Coordinates, use 'append'")
-#             # self._items.append(other)
-#             raise NotImplementedError("TODO")
-#         elif isinstance(other, CoordinateGroup):
-#             self._items += g._items
-#         else:
-#             raise TypeError("Cannot add '%s' to CoordinateGroup" % type(c))
+        See Also
+        --------
+        json
+        """
 
-#         return self
+        return json.dumps(self.definition)
 
-#     def iterchunks(self, shape, return_slice=False):
-#         raise NotImplementedError("TODO")
+    @property
+    def hash(self):
+        """
+        GroupCoordinates hash.
 
-#     @property
-#     def latlon_bounds_str(self):
-#         # TODO should this be a single latlon bounds or a list of bounds?
-#         raise NotImplementedError("TODO")
+        *Note: To be replaced with the __hash__ method.*
+        """
+
+        return hash(self.json)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Methods
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def intersect(self, other, outer=False, return_indices=False):
+        """
+        Intersect each Coordinates in the group with the given coordinates.
+
+        Parameters
+        ----------
+        other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
+            Coordinates to intersect with.
+        outer : bool, optional
+            If True, do an *outer* intersection. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
+
+        Returns
+        -------
+        intersections : :class:`GroupCoordinates`
+            Coordinates group consisting of the intersection of each :class:`Coordinates`.
+        idx : list
+            List of lists of indices for each :class:`Coordinates` item, only if ``return_indices`` is True.
+        """
+
+        intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self._items]
+        if return_indices:
+            cs = GroupCoordinates([c for c, I in intersections])
+            Is = [I for c, I in intersections]
+            return cs, I
+        return GroupCoordinates(intersections)
+
+    def __getitem__(self, key):
+        return GroupCoordinates([c[key] for c in self._items])

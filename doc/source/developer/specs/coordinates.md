@@ -303,7 +303,7 @@ TODO: `coords['lat_lon']['lat'] = ArrayCoordinates(...)` vs `coords[lat] = Array
 lat = ArrayCoordinates1d(np.arange(10))
 lon = ArrayCoordinates1d(np.arange(10))
 time = ArrayCoordinates1d(np.range(4))
-lat_lon = StackedCoordinaes(lat, lon)
+lat_lon = StackedCoordinates(lat, lon)
 coords = Coordinates([lat_lon, time])
 
 coords.dims -> ('lat_lon', 'time')

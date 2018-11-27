@@ -10,11 +10,13 @@ import numpy as np
 import xarray as xr
 import traitlets as tl
 
-try:
-    import numexpr as ne
-except: 
-    ne = None
+# Helper utility for optional imports
+from podpac.core.utils import optional_import
 
+# Optional dependencies
+ne = optional_import('numexpr')
+
+# Internal dependencies
 from podpac.core.coordinates import Coordinates, union
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node
@@ -25,20 +27,13 @@ from podpac.core.utils import common_doc
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
 class Algorithm(Node):
-    """Base node for any algorithm or computation node. 
+    """Base class for algorithm and computation nodes.
     
-    Attributes
-    ----------
-    outputs : dict
-        evaluated outputs of the input nodes. The keys are the attribute names.
-
     Notes
     ------
     Developers of new Algorithm nodes need to implement the `algorithm` method. 
     """
 
-    outputs = tl.Dict(trait=tl.Instance(UnitsDataArray))
-    
     @property
     def _inputs(self):
         # this first version is nicer, but the gettattr(self, ref) can take a
@@ -58,7 +53,7 @@ class Algorithm(Node):
 
     @common_doc(COMMON_DOC)
     @node_eval
-    def eval(self, coordinates, output=None, method=None):
+    def eval(self, coordinates, output=None):
         """Evalutes this nodes using the supplied coordinates. 
         
         Parameters
@@ -67,24 +62,23 @@ class Algorithm(Node):
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
-        method : str, optional
-            {eval_method}
         
         Returns
         -------
         {eval_return}
         """
 
-        # evaluate input nodes and keep outputs in self.outputs
-        self.outputs = {}
+        self._requested_coordinates = coordinates
+
+        inputs = {}
         for key, node in self._inputs.items():
-            self.outputs[key] = node.eval(coordinates, method)
+            inputs[key] = node.eval(coordinates)
         
         # accumulate output coordinates
-        coords_list = [Coordinates.from_xarray(o.coords) for o in self.outputs.values()]
+        coords_list = [Coordinates.from_xarray(a.coords) for a in inputs.values()]
         output_coordinates = union([coordinates] + coords_list)
 
-        result = self.algorithm()
+        result = self.algorithm(inputs)
         if isinstance(result, np.ndarray):
             if output is None:
                 output = self.create_output_array(output_coordinates, data=result)
@@ -108,14 +102,14 @@ class Algorithm(Node):
             list of available coordinates (Coordinate objects)
         """
 
-        return [c.find_coordinates() for node in self._inputs.values() for c in node.find_coordinates()]
+        return [c for node in self._inputs.values() for c in node.find_coordinates()]
         
-    def algorithm(self, **kwargs):
+    def algorithm(self, inputs):
         """
-        Parameters
+        Arguments
         ----------
-        **kwargs
-            Key-word arguments for the algorithm
+        inputs : dict
+            Evaluated outputs of the input nodes. The keys are the attribute names.
         
         Raises
         ------
@@ -143,9 +137,14 @@ class Arange(Algorithm):
     '''A simple test node that gives each value in the output a number.
     '''
 
-    def algorithm(self):
+    def algorithm(self, inputs):
         """Uses np.arange to give each value in output a unique number
         
+        Arguments
+        ---------
+        inputs : dict
+            Unused, should be empty for this algorithm.
+
         Returns
         -------
         UnitsDataArray
@@ -166,9 +165,14 @@ class CoordData(Algorithm):
     
     coord_name = tl.Unicode('').tag(attr=True)
 
-    def algorithm(self):
+    def algorithm(self, inputs):
         """Extract coordinate from request and makes data available.
         
+        Arguments
+        ----------
+        inputs : dict
+            Unused, should be empty for this algorithm.
+
         Returns
         -------
         UnitsDataArray
@@ -187,9 +191,14 @@ class SinCoords(Algorithm):
     """A simple test node that creates a data based on coordinates and trigonometric (sin) functions. 
     """
     
-    def algorithm(self):
+    def algorithm(self, inputs):
         """Computes sinusoids of all the coordinates. 
         
+        Arguments
+        ----------
+        inputs : dict
+            Unused, should be empty for this algorithm.
+
         Returns
         -------
         UnitsDataArray
@@ -253,8 +262,13 @@ class Arithmetic(Algorithm):
         if self.eqn == '':
             raise ValueError("Arithmetic eqn cannot be empty")
     
-    def algorithm(self):
-        """Summary
+    def algorithm(self, inputs):
+        """ Compute the algorithms equation
+
+        Attributes
+        ----------
+        inputs : dict
+            Evaluated outputs of the input nodes. The keys are the attribute names.
         
         Returns
         -------
@@ -265,7 +279,7 @@ class Arithmetic(Algorithm):
         eqn = self.eqn.format(**self.params)        
         
         fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
-        res = xr.broadcast(*[self.outputs[f] for f in fields])
+        res = xr.broadcast(*[inputs[f] for f in fields])
         f_locals = dict(zip(fields, res))
 
         if ne is None:

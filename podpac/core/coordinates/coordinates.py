@@ -2,7 +2,6 @@
 Multidimensional Coordinates
 """
 
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
@@ -18,6 +17,7 @@ import xarray as xr
 import xarray.core.coordinates
 from six import string_types
 
+from podpac.core.utils import OrderedDictTrait
 from podpac.core.coordinates.utils import GDAL_CRS
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -25,46 +25,61 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
-class OrderedDictTrait(tl.Dict):
-    """ OrderedDict trait for Python < 3.6 (including Python 2) compatibility """
-    
-    default_value = OrderedDict()
-    def validate(self, obj, value):
-        if not isinstance(value, OrderedDict):
-            raise tl.TraitError('...')
-        super(OrderedDictTrait, self).validate(obj, value)
-        return value
-
 class Coordinates(tl.HasTraits):
     """
     Multidimensional Coordinates.
-    
-    Attributes
+
+    Coordinates are used to evaluate Nodes and to define the coordinates of a DataSource nodes. The API is modeled after
+    coords in `xarray <http://xarray.pydata.org/en/stable/data-structures.html>`_:
+
+     * Coordinates are created from a list of coordinate values and dimension names.
+     * Coordinate values are always either ``float`` or ``np.datetime64``. For convenience, podpac
+       automatically converts datetime strings such as ``'2018-01-01'`` to ``np.datetime64``.
+     * The allowed dimensions are ``'lat'``, ``'lon'``, ``'time'``, and ``'alt'``.
+     * Coordinates from multiple dimensions can be stacked together to represent a *list* of coordinates instead of a
+       *grid* of coordinates. The name of the stacked coordinates uses an underscore to combine the underlying
+       dimensions, e.g. ``'lat_lon'``.
+
+    Coordinates are dict-like, for example:
+
+     * get coordinates by dimension name: ``coords['lat']``
+     * get iterable dimension keys and coordinates values: ``coords.keys()``, ``coords.values()``
+     * loop through dimensions: ``for dim in coords: ...``
+
+    Parameters
     ----------
-    coords
     dims
-    ndim
-    shape
-    coordinates
+        Tuple of dimension names, potentially stacked.
+    udims
+        Tuple of individual dimension names, always unstacked.
     """
 
-    if sys.version < '3.6':
-        _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates))
-    else:
-        _coords = tl.Dict(trait=tl.Instance(BaseCoordinates))
+    _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates))
 
-    def __init__(self, coords=[], dims=None, coord_ref_sys=None, ctype=None, distance_units=None):
+    def __init__(self, coords, dims=None, coord_ref_sys=None, ctype=None, distance_units=None):
         """
-        Initialize a multidimensional coords object.
+        Create multidimensional coordinates.
 
-        Parameters
-        ----------
-        coords : list, dict, or Coordinates
-            List of named BaseCoordinates objects
-        ctype : str
-            Default coordinates type (optional).
-        coord_ref_sys : str
-            Default coordinates reference system (optional)
+        Arguments
+        ---------
+        coords : list
+            List of coordinate values for each dimension. Valid coordinate values:
+
+             * single coordinate value (number, datetime64, or str)
+             * array of coordinate values
+             * list of stacked coordinate values
+             * :class:`Coordinates1d` or :class:`StackedCoordinates` object
+        dims : list of str, optional
+            List of dimension names. Optional if all items in ``coords`` are named. Valid names are
+           
+             * 'lat', 'lon', 'alt', or 'time' for unstacked coordinates
+             * dimension names joined by an underscore for stacked coordinates
+        coord_ref_sys : str, optional
+            Default coordinates reference system
+        ctype : str, optional
+            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+        distance_units : Units
+            Default distance units.
         """
 
         if not isinstance(coords, (list, tuple, np.ndarray, xr.DataArray)):
@@ -93,7 +108,8 @@ class Coordinates(tl.HasTraits):
             if isinstance(coords[i], BaseCoordinates):
                 c = coords[i].copy()
             elif '_' in dim:
-                c = StackedCoordinates([ArrayCoordinates1d(values) for values in coords[i]])
+                cs = [val if isinstance(val, Coordinates1d) else ArrayCoordinates1d(val) for val in coords[i]]
+                c = StackedCoordinates(cs)
             else:
                 c = ArrayCoordinates1d(coords[i])
 
@@ -110,7 +126,7 @@ class Coordinates(tl.HasTraits):
         #         c.coord_ref_sys = coord_ref_sys
         #     if 'units' not in c._trait_values and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
         #         c.units = distance_units
-        
+
         super(Coordinates, self).__init__(_coords=dcoords)
 
     @tl.validate('_coords')
@@ -156,35 +172,129 @@ class Coordinates(tl.HasTraits):
         return coords
 
     @classmethod
-    def grid(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, dims)
+    def grid(cls, dims=None, coord_ref_sys=None, ctype=None, distance_units=None, **kwargs):
+        """
+        Create a grid of coordinates.
+
+        Valid coordinate values:
+
+         * single coordinate value (number, datetime64, or str)
+         * array of coordinate values
+         * ``(start, stop, step)`` tuple for uniformly-spaced coordinates
+         * Coordinates1d object
+
+        This is equivalent to creating unstacked coordinates with a list of coordinate values::
+
+            podpac.Coordinates.grid(lat=[0, 1, 2], lon=[10, 20], dims=['lat', 'lon'])
+            podpac.Coordinates([[0, 1, 2], [10, 20]], dims=['lan', 'lon'])
+
+        Arguments
+        ---------
+        lat : optional
+            coordinates for the latitude dimension
+        lon : optional
+            coordinates for the longitude dimension
+        alt : optional
+            coordinates for the altitude dimension
+        time : optional
+            coordinates for the time dimension
+        dims : list of str, optional in Python>=3.6
+            List of dimension names, must match the provided keyword arguments. In Python 3.6 and above, the ``dims``
+            argument is optional, and the dims will match the order of the provided keyword arguments.
+        coord_ref_sys : str, optional
+            Default coordinates reference system
+        ctype : str, optional
+            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+        distance_units : Units
+            Default distance units.
+
+        Returns
+        -------
+        :class:`Coordinates`
+            podpac Coordinates
+
+        See Also
+        --------
+        points
+        """
+
+        coords = cls._coords_from_dict(kwargs, order=dims)
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
     def points(cls, coord_ref_sys=None, ctype=None, distance_units=None, dims=None, **kwargs):
-        coords = cls._coords_from_dict(kwargs, dims)
+        """
+        Create a list of multidimensional coordinates.
+
+        Valid coordinate values:
+
+         * single coordinate value (number, datetime64, or str)
+         * array of coordinate values
+         * ``(start, stop, step)`` tuple for uniformly-spaced coordinates
+         * Coordinates1d object
+
+        Note that the coordinates for each dimension must be the same size.
+
+        This is equivalent to creating stacked coordinates with a list of coordinate values and a stacked dimension
+        name::
+
+            podpac.Coordinates.points(lat=[0, 1, 2], lon=[10, 20, 30], dims=['lat', 'lon'])
+            podpac.Coordinates([[[0, 1, 2], [10, 20, 30]]], dims=['lan_lon'])
+
+        Arguments
+        ---------
+        lat : optional
+            coordinates for the latitude dimension
+        lon : optional
+            coordinates for the longitude dimension
+        alt : optional
+            coordinates for the altitude dimension
+        time : optional
+            coordinates for the time dimension
+        dims : list of str, optional in Python>=3.6
+            List of dimension names, must match the provided keyword arguments. In Python 3.6 and above, the ``dims``
+            argument is optional, and the dims will match the order of the provided keyword arguments.
+        coord_ref_sys : str, optional
+            Default coordinates reference system
+        ctype : str, optional
+            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+        distance_units : Units
+            Default distance units.
+
+        Returns
+        -------
+        :class:`Coordinates`
+            podpac Coordinates
+
+        See Also
+        --------
+        grid
+        """
+
+        coords = cls._coords_from_dict(kwargs, order=dims)
         stacked = StackedCoordinates(coords)
         return cls([stacked], coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
     def from_xarray(cls, xcoord, coord_ref_sys=None, ctype=None, distance_units=None):
         """
-        Convert an xarray coord to podpac Coordinates.
-        
-        Parameters
-        ----------
-        xcoord : DataArrayCoordinates
-            xarray coord attribute to convert
-        
+        Create podpac Coordinates from xarray coords.
+
+        Arguments
+        ---------
+        xcoord : xarray.core.coordinates.DataArrayCoordinates
+            xarray coords
+        coord_ref_sys : str, optional
+            Default coordinates reference system
+        ctype : str, optional
+            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+        distance_units : Units
+            Default distance units.
+
         Returns
         -------
-        coord : Coordinates
-            podpact Coordinates object
-        
-        Raises
-        ------
-        TypeError
-            Description
+        :class:`Coordinates`
+            podpac Coordinates
         """
 
         if not isinstance(xcoord, xarray.core.coordinates.DataArrayCoordinates):
@@ -201,36 +311,107 @@ class Coordinates(tl.HasTraits):
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
     @classmethod
-    def from_json(self, d):
+    def from_definition(cls, d):
+        """
+        Create podpac Coordinates from a coordinates definition.
+
+        Arguments
+        ---------
+        d : list
+            coordinates definition
+
+        Returns
+        -------
+        :class:`Coordinates`
+            podpac Coordinates
+
+        See Also
+        --------
+        from_json, definition
+        """
+
         coords = []
         for elem in d:
             if isinstance(elem, list):
-                c = StackedCoordinates.from_json(elem)
+                c = StackedCoordinates.from_definition(elem)
             elif 'start' in elem and 'stop' in elem and 'step' in elem:
-                c = UniformCoordinates1d.from_json(elem)
+                c = UniformCoordinates1d.from_definition(elem)
             elif 'values' in elem:
-                c = ArrayCoordinates1d.from_json(elem)
+                c = ArrayCoordinates1d.from_definition(elem)
             else:
                 raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
-            
+
             coords.append(c)
 
         return cls(coords)
-    
+
+    @classmethod
+    def from_json(cls, s):
+        """
+        Create podpac Coordinates from a coordinates JSON definition.
+
+        Example JSON definition::
+
+            [
+                {
+                    "name": "lat",
+                    "start": 1,
+                    "stop": 10,
+                    "step": 0.5,
+                },
+                {
+                    "name": "lon",
+                    "start": 1,
+                    "stop": 2,
+                    "size": 100
+                },
+                {
+                    "name": "time",
+                    "ctype": "left"
+                    "values": [
+                        "2018-01-01",
+                        "2018-01-03",
+                        "2018-01-10"
+                    ]
+                }
+            ]
+
+        Arguments
+        ---------
+        s : str
+            coordinates JSON definition
+
+        Returns
+        -------
+        :class:`Coordinates`
+            podpac Coordinates
+
+        See Also
+        --------
+        json
+        """
+
+        d = json.loads(s)
+        return cls.from_definition(d)
+
     # ------------------------------------------------------------------------------------------------------------------
     # standard dict-like methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def values(self):
-        return self._coords.values()
-
     def keys(self):
+        """ dict-like keys: dims """
         return self._coords.keys()
 
+    def values(self):
+        """ dict-like values: coordinates for each key/dimension """
+        return self._coords.values()
+
     def items(self):
+        """ dict-like items: (dim, coordinates) pairs """
         return self._coords.items()
 
     def get(self, dim, default=None):
+        """ dict-like get: get coordinates by dimension name with an optional """
         try:
             return self[dim]
         except KeyError:
@@ -253,7 +434,7 @@ class Coordinates(tl.HasTraits):
     def __setitem__(self, dim, c):
         if not dim in self.dims:
             raise KeyError("cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
-            
+
         # TODO allow setting an array (cast it to ArrayCoordinates1d)
         if not isinstance(c, BaseCoordinates):
             raise TypeError("todo")
@@ -263,17 +444,17 @@ class Coordinates(tl.HasTraits):
             c.name = dim
         elif c.name != dim:
             raise ValueError("dimension name mismatch, '%s' != '%s'" % (dim, c.name))
-        
+
         # TODO ctype, etc defaults
-        
+
         self._coords[dim] = c
-        
+
         # TODO we could also support setting individal coords in stacked coords
         # if dim in self.udims:
         #     for _c in self._coords.values():
         #         if isinstance(c, StackedCoordinates) and dim in c.dims:
         #             _c[dim] = c # this will validate the size
-        
+
         # TODO we could also support adding new coords (need to check for duplicate dimensions)
         # else:
         #     self._coords[dim] = c
@@ -292,7 +473,25 @@ class Coordinates(tl.HasTraits):
     def __len__(self):
         return len(self._coords)
 
+    # TODO: support == operator for coordinates
+    # def __eq__(self, other):
+    #     if not isinstance(other, Coordinates):
+    #         raise TypeError("Cannot compare '%s' with Coordinates" % type(other))
+
+    #     # dims, stacking, and order must be the same
+    #     if self.dims != other.dims:
+    #         return False
+
+    #     # coordinates must be the same
+    #     for udim in self.udims:
+    #         if udim in other.udims:
+    #             if not np.all(self[udim].coordinates == other[udim].coordinates):
+    #                 return False
+
+    #     return True
+
     def update(self, other):
+        """ dict-like update: add/replace coordinates using another Coordinates object """
         if not isinstance(other, Coordinates):
             raise TypeError("Cannot update '%s' with Coordinates" % type(other))
 
@@ -306,66 +505,192 @@ class Coordinates(tl.HasTraits):
 
     @property
     def dims(self):
+        """:tuple: Tuple of dimension names, potentially stacked.
+
+        See Also
+        --------
+        udims
+        """
+
         return tuple(c.name for c in self._coords.values())
 
     @property
     def shape(self):
+        """:tuple: Tuple of the number of coordinates in each dimension."""
+        
         return tuple(c.size for c in self._coords.values())
 
     @property
     def ndim(self):
+        """:int: Number of dimensions. """
+        
         return len(self.dims)
 
     @property
     def size(self):
+        """:int: Total number of coordinates."""
+
         if len(self.shape) == 0:
             return 0
         return np.prod(self.shape)
 
     @property
     def udims(self):
+        """:tuple: Tuple of unstacked dimension names.
+
+        If there are no stacked dimensions, then ``dims`` and ``udims`` will be the same::
+
+            In [1]: lat = [0, 1]
+
+            In [2]: lon = [10, 20]
+
+            In [3]: time = '2018-01-01'
+           
+            In [4]: c = podpac.Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
+           
+            In [5]: c.dims
+            Out[5]: ('lat', 'lon', 'time')
+           
+            In [6]: c.udims
+            Out[6]: ('lat', 'lon', 'time')
+
+
+        If there are stacked dimensions, then ``udims`` contains the individual dimension names::
+
+            In [7]: c = podpac.Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
+
+            In [8]: c.dims
+            Out[8]: ('lat_lon', 'time')
+
+            In [9]: c.udims
+            Out[9]: ('lat', 'lon', 'time')
+
+        See Also
+        --------
+        dims
+        """
+
         return tuple(dim for c in self._coords.values() for dim in c.dims)
 
     @property
     def coords(self):
+        """
+        :xarray.core.coordinates.DataArrayCoordinates: xarray coords, a dictionary-like container of coordinate arrays.
+        """
+
+
         # TODO don't recompute this every time (but also don't compute it until requested)
         x = xr.DataArray(np.empty(self.shape), coords=[c.coordinates for c in self._coords.values()], dims=self.dims)
         return x.coords
 
     @property
-    def latlon_bounds_str(self):
-        if 'lat' in self.udims and 'lon' in self.udims:
-            # Where is this really used? Shouldn't this be area_bounds?
-            return '%s_%s_x_%s_%s' % (
-                self['lat'].bounds[0],
-                self['lon'].bounds[0],
-                self['lat'].bounds[1],
-                self['lon'].bounds[1])
-        else:
-            return 'NA'
+    def definition(self):
+        """
+        Serializable coordinates definition.
+
+        The ``definition`` can be used to create new Coordinates::
+
+            c = podpac.Coordinates(...)
+            c2 = podpac.Coordinates.from_definition(c.definition)
+
+        See Also
+        --------
+        from_definition, json
+        """
+
+        return [c.definition for c in self._coords.values()]
 
     @property
     def json(self):
-        return json.dumps([c.json for c in self._coords.values()])
+        """:str: JSON-serialized coordinates definition.
+
+        The ``json`` can be used to create new Coordinates::
+
+            c = podapc.Coordinates(...)
+            c2 = podpac.Coordinates.from_json(c.definition)
+
+        The serialized definition is used to define coordinates in pipelines and to transport coordinates, e.g.
+        over HTTP and in AWS lambda functions. It also provides a consistent hashable value.
+
+        See Also
+        --------
+        from_json
+        """
+
+        return json.dumps(self.definition)
 
     @property
     def hash(self):
-        return hash(json.dumps(self.json))
-    
+        """
+        Coordinates hash.
+
+        *Note: To be replaced with the __hash__ method.*
+        """
+
+        return hash(self.json)
+
+    @property
+    def properties(self):
+        """:dict: Dictionary of the coordinate properties."""
+
+        # TODO JXM
+        # return {
+        #     'coord_ref_sys': self.coord_ref_sys,
+        #     'ctype': self.ctype
+        # }
+
+        c = self[self.udims[0]]
+        return {
+            'coord_ref_sys': c.coord_ref_sys,
+            'ctype': c.ctype
+        }
+
+    # #@property
+    # #def gdal_transform(self):
+    #     if self['lon'].regularity == 'regular' and self['lat'].regularity == 'regular':
+    #         lon_bounds = self['lon'].area_bounds
+    #         lat_bounds = self['lat'].area_bounds
+    #         transform = [lon_bounds[0], self['lon'].delta, 0, lat_bounds[0], 0, -self['lat'].delta]
+    #     else:
+    #         raise NotImplementedError
+    #     return transform
+
+    @property
+    def gdal_crs(self):
+        """:str: GDAL coordinate reference system."""
+
+        # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
+        # return GDAL_CRS[self.coord_ref_sys]
+        return GDAL_CRS[self[self.udims[0]].coord_ref_sys]
+
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
     def drop(self, dims, ignore_missing=False):
         """
-        Remove the given dimensions from the Coordinates.
-        
+        Remove the given dimensions from the Coordinates `dims`.
+
         Parameters
         ----------
         dims : str, list
-            Description
-        ignore_missing : bool
+            Dimension(s) to drop.
+        ignore_missing : bool, optional
+            If True, do not raise an exception if a given dimension is not in ``dims``. Default ``False``.
 
+        Returns
+        -------
+        :class:`Coordinates`
+            Coordinates object with the given dimensions removed
+
+        Raises
+        ------
+        KeyError
+            If a given dimension is missing in the Coordinates (and ignore_missing is ``False``).
+
+        See Also
+        --------
+        udrop
         """
 
         if not isinstance(dims, (tuple, list)):
@@ -381,6 +706,48 @@ class Coordinates(tl.HasTraits):
 
     # do we ever need this?
     def udrop(self, dims, ignore_missing=False):
+        """
+        Remove the given individual dimensions from the Coordinates `udims`.
+
+        Unlike `drop`, ``udrop`` will remove parts of stacked coordinates::
+
+            In [1]: c = podpac.Coordinates([[[0, 1], [10, 20]], '2018-01-01'], dims=['lat_lon', 'time'])
+
+            In [2]: c
+            Out[2]:
+            Coordinates
+                lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 1.0], N[2], ctype['midpoint']
+                lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2], ctype['midpoint']
+                time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1], ctype['midpoint']
+           
+            In [3]: c.udrop('lat')
+            Out[3]:
+            Coordinates
+                lon: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2], ctype['midpoint']
+                time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1], ctype['midpoint']
+
+        Parameters
+        ----------
+        dims : str, list
+            Individual dimension(s) to drop.
+        ignore_missing : bool, optional
+            If True, do not raise an exception if a given dimension is not in ``udims``. Default ``False``.
+
+        Returns
+        -------
+        :class:`Coordinates`
+            Coordinates object with the given dimensions removed.
+
+        Raises
+        ------
+        KeyError
+            If a given dimension is missing in the Coordinates (and ignore_missing is ``False``).
+
+        See Also
+        --------
+        drop
+        """
+
         if not isinstance(dims, (tuple, list)):
             dims = (dims,)
 
@@ -391,7 +758,7 @@ class Coordinates(tl.HasTraits):
                 raise KeyError("Dimension '%s' not found in Coordinates with %s" % (dim, self.udims))
 
         cs = []
-        for c in self.coords.values():
+        for c in self._coords.values():
             if isinstance(c, Coordinates1d):
                 if c.name not in dims:
                     cs.append(c)
@@ -406,7 +773,58 @@ class Coordinates(tl.HasTraits):
 
     def intersect(self, other, outer=False, return_indices=False):
         """
-        TODO
+        Get the coordinate values that are within the bounds of a given coordinates object.
+
+        The intersection is calculated in each dimension separately.
+
+        The default intersection selects coordinates that are within the other coordinates bounds::
+
+            In [1]: coords = Coordinates([[0, 1, 2, 3]], dims=['lat'])
+
+            In [2]: other = Coordinates([[1.5, 2.5]], dims=['lat'])
+
+            In [3]: coords.intersect(other).coords
+            Out[3]:
+            Coordinates:
+              * lat      (lat) float64 2.0
+
+        The *outer* intersection selects the minimal set of coordinates that contain the other coordinates::
+        
+            In [4]: coords.intersect(other, outer=True).coords
+            Out[4]: 
+            Coordinates:
+              * lat      (lat) float64 1.0 2.0 3.0
+
+        The *outer* intersection also selects a boundary coordinate if the other coordinates are outside this
+        coordinates bounds but *inside* its area bounds::
+        
+            In [5]: other_near = Coordinates([[3.25]], dims=['lat'])
+            
+            In [6]: other_far = Coordinates([[10.0]], dims=['lat'])
+
+            In [7]: coords.intersect(other_near, outer=True).coords
+            Coordinates:
+              * lat      (lat) float64 3.0
+
+            In [8]: coords.intersect(other_far, outer=True).coords
+            Coordinates:
+              * lat      (lat) float64
+        
+        Parameters
+        ----------
+        other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
+            Coordinates to intersect with.
+        outer : bool, optional
+            If True, do an *outer* intersection. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
+
+        Returns
+        -------
+        intersection : :class:`Coordinates`
+            Coordinates object consisting of the intersection in each dimension.
+        idx : list
+            List of indices for each dimension that produces the intersection, only if ``return_indices`` is True.
         """
 
         intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self.values()]
@@ -429,6 +847,82 @@ class Coordinates(tl.HasTraits):
 
         return Coordinates([c[np.unique(c.coordinates, return_index=True)[1]] for c in self.values()])
 
+    def unstack(self):
+        """
+        Unstack the coordinates of all of the dimensions.
+
+        Returns
+        -------
+        unstacked : :class:`Coordinates`
+            A new Coordinates object with unstacked coordinates.
+
+        See Also
+        --------
+        xr.DataArray.unstack
+        """
+
+        return Coordinates([self[dim] for dim in self.udims], **self.properties)
+
+    def iterchunks(self, shape, return_slices=False):
+        """
+        Get a generator that yields Coordinates no larger than the given shape until the entire Coordinates is covered.
+
+        Parameters
+        ----------
+        shape : tuple
+            The maximum shape of the chunk, with sizes corresponding to the `dims`.
+        return_slice : boolean, optional
+            Return slice in addition to Coordinates chunk.
+
+        Yields
+        ------
+        coords : :class:`Coordinates`
+            A Coordinates object with one chunk of the coordinates.
+        slices : list
+            slices for this Coordinates chunk, only if ``return_slices`` is True
+        """
+
+        l = [[slice(i, i+n) for i in range(0, m, n)] for m, n in zip(self.shape, shape)]
+        for slices in itertools.product(*l):
+            coords = Coordinates([self._coords[dim][slc] for dim, slc in zip(self.dims, slices)])
+            if return_slices:
+                yield coords, slices
+            else:
+                yield coords
+
+    def transpose(self, *dims, **kwargs):
+        """
+        Transpose (re-order) the dimensions of the Coordinates.
+
+        Parameters
+        ----------
+        dim_1, dim_2, ... : str, optional
+            Reorder dims to this order. By default, reverse the dims.
+        in_place : boolean, optional
+            If True, transpose the dimensions in-place.
+            Otherwise (default), return a new, transposed Coordinates object.
+
+        Returns
+        -------
+        transposed : :class:`Coordinates`
+            The transposed Coordinates object.
+
+        See Also
+        --------
+        xarray.DataArray.transpose : return a transposed DataArray
+
+        """
+
+        if len(dims) == 0:
+            dims = list(self._coords.keys())[::-1]
+
+        if kwargs.get('in_place', False):
+            self._coords = OrderedDict([(dim, self._coords[dim]) for dim in dims])
+            return self
+
+        else:
+            return Coordinates([self._coords[dim] for dim in dims], **self.properties)
+
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
     # ------------------------------------------------------------------------------------------------------------------
@@ -444,143 +938,24 @@ class Coordinates(tl.HasTraits):
                     rep += '\n\t%s[%s]: %s' % (c.name, _c.name, _c)
         return rep
 
-    def unstack(self):
-        """
-        Unstack the coordinates of all of the dimensions.
-        
-        Returns
-        -------
-        unstacked : Coordinates
-            A new coordinate object with unstacked dimensions.
-
-        See Also
-        --------
-        xr.DataArray.unstack
-        """
-
-        return Coordinates([self[dim] for dim in self.udims], **self.properties)
-    
-    @property
-    def properties(self):
-        '''
-        Dictionary specifying the coordinate properties.
-        
-        Returns
-        -------
-        TYPE
-            Description
-        '''
-
-        # TODO JXM
-        # return {
-        #     'coord_ref_sys': self.coord_ref_sys,
-        #     'ctype': self.ctype
-        # }
-        
-        c = self[self.udims[0]]
-        return {
-            'coord_ref_sys': c.coord_ref_sys,
-            'ctype': c.ctype
-        }
-
-    
-    # #@property
-    # #def gdal_transform(self):
-    #     if self['lon'].regularity == 'regular' and self['lat'].regularity == 'regular':
-    #         lon_bounds = self['lon'].area_bounds
-    #         lat_bounds = self['lat'].area_bounds
-    #         transform = [lon_bounds[0], self['lon'].delta, 0, lat_bounds[0], 0, -self['lat'].delta]
-    #     else:
-    #         raise NotImplementedError
-    #     return transform
-    
-    @property
-    def gdal_crs(self):
-        """GDAL coordinate reference system.
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
-
-        # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
-        # return GDAL_CRS[self.coord_ref_sys]
-        return GDAL_CRS[self[self.udims[0]].coord_ref_sys]
-
-    def iterchunks(self, shape, return_slices=False):
-        """
-        TODO
-        
-        Parameters
-        ----------
-        shape : tuple
-            TODO
-        return_slice : boolean, optional
-            Return slice in addition to Coordinates chunk.
-        
-        Yields
-        ------
-        coords : Coordinates
-            A Coordinates object with one chunk of the coordinates.
-        slices : list
-            slices for this Coordinates chunk, only if return_slices is True
-        """
-        
-        l = [[slice(i, i+n) for i in range(0, m, n)] for m, n in zip(self.shape, shape)]
-        for slices in itertools.product(*l):
-            coords = Coordinates([self._coords[dim][slc] for dim, slc in zip(self.dims, slices)])
-            if return_slices:
-                yield coords, slices
-            else:
-                yield coords
-
-    def transpose(self, *dims, **kwargs):
-        """
-        Transpose (re-order) the Coordinates dimensions.
-              
-        Parameters
-        ----------
-        in_place : boolean, optional
-            If False, return a new, transposed Coordinates object (default).
-            If True, transpose the dimensions in-place.
-        *dims : str, optional
-            Reorder dims to this order. By default, reverse the dims.
-
-        Returns
-        -------
-        transposed : Coordinates
-            The transposed Coordinates object.
-        
-        See Also
-        --------
-        xarray.DataArray.transpose : return a transposed DataArray
-        
-        """
-
-        if len(dims) == 0:
-            dims = list(self._coords.keys())[::-1]
-
-        if kwargs.get('in_place', False):
-            self._coords = OrderedDict([(dim, self._coords[dim]) for dim in dims])
-            return self
-
-        else:
-            return Coordinates([self._coords[dim] for dim in dims], **self.properties)
-
 def merge_dims(coords_list):
     """
-    Merge the dimensions of the given coordinates. Throws an error if dimensions are duplicated.
+    Merge the coordinates.
 
     Arguments
     ---------
     coords_list : list
-        List of Coordinates objects
+        List of :class:`Coordinates` with unique dimensions.
 
     Returns
     -------
-    coords : Coordinates
-        Coordinates object with the dimension(s) from each set of coordinates in the list.
+    coords : :class:`Coordinates`
+        Coordinates with merged dimensions.
+
+    Raises
+    ------
+    ValueError
+        If dimensions are duplicated.
     """
 
     for coords in coords_list:
@@ -597,12 +972,16 @@ def concat(coords_list):
     Arguments
     ---------
     coords_list : list
-        List of Coordinates objects.
+        List of :class:`Coordinates`.
 
     Returns
     -------
-    coords : Coordinates
-        Coordinates object with concatenated coordinate values in each dimension.
+    coords : :class:`Coordinates`
+        Coordinates with concatenated coordinate values in each dimension.
+
+    See Also
+    --------
+    :class:`union`
     """
 
     coords_list = list(coords_list)
@@ -633,12 +1012,16 @@ def union(coords_list):
     Arguments
     ---------
     coords_list : list
-        List of Coordinates objects
+        List of :class:`Coordinates`.
 
     Returns
     -------
-    coords : Coordinates
-        Coordinates object with unique, sorted coordinate values in each dimension.
+    coords : :class:`Coordinates`
+        Coordinates with unique, sorted coordinate values in each dimension.
+
+    See Also
+    --------
+    :class:`concat`
     """
 
     return concat(coords_list).unique()

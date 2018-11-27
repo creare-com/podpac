@@ -15,12 +15,14 @@ version_info : TYPE
 from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
 import podpac.core.authentication as authentication
+import podpac.core.utils as utils
 from podpac import settings
 
 # Organized submodules
 # These files are simply wrappers to create a curated namespace of podpac modules
 from podpac import algorithm
 from podpac import data
+from podpac import interpolators
 from podpac import coordinates
 from podpac import compositor
 from podpac import pipeline
@@ -33,4 +35,3 @@ from podpac import core
 from podpac import version
 __version__ = version.version()
 version_info = version.VERSION_INFO
-del version

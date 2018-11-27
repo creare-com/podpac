@@ -26,7 +26,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
-from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3
+from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, CSV
 
 def test_allow_missing_modules():
     """TODO: Allow user to be missing rasterio and scipy"""
@@ -39,10 +39,9 @@ class TestArray(object):
     coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
 
     def test_source_trait(self):
-        """ must be an ndarry """
+        """ must be an ndarray """
         
         node = Array(source=self.data, native_coordinates=self.coordinates)
-        assert isinstance(node, Array)
 
         with pytest.raises(TraitError):
             node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
@@ -75,6 +74,16 @@ class TestArray(object):
         assert get_native_coordinates
         assert native_coordinates == get_native_coordinates
 
+    def test_base_definition(self):
+        node = Array(source=self.data)
+        d = node.base_definition
+        source = np.array(d['source'])
+        np.testing.assert_array_equal(source, self.data)
+
+    def test_definition(self):
+        node = Array(source=self.data)
+        pipeline = podpac.pipeline.Pipeline(definition=node.definition)
+        np.testing.assert_array_equal(pipeline.node.source, self.data)
 
 class TestPyDAP(object):
     """test pydap datasource"""
@@ -204,6 +213,44 @@ class TestPyDAP(object):
         keys = node.keys
         assert 'key' in keys
 
+class TestCSV(object):
+    ''' test csv data source
+    '''
+    source = os.path.join(os.path.dirname(__file__), 'assets/points.csv')
+    
+    def test_init(self):
+        try:
+            node = CSV(source=self.source)
+            raise Exception('No error raised when keys not specified')
+        except TypeError:
+            pass
+        
+        node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col=4)
+        assert node._lat_col == 0
+        assert node._lon_col == 1
+        assert node._time_col == 2
+        assert node._alt_col == 3
+        assert node._data_col == 4
+        
+        node = CSV(source=self.source, lat_col='lat', lon_col='lon', time_col='time', alt_col='alt', data_col='data')  
+        assert node._lat_col == 0
+        assert node._lon_col == 1
+        assert node._time_col == 2
+        assert node._alt_col == 3
+        assert node._data_col == 4
+    
+    def test_native_coordinates(self):
+        node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col='data')
+        nc = node.native_coordinates
+        assert nc.size == 5
+        assert np.all(nc['lat'].coords == [0, 1, 1, 1, 1])
+        assert np.all(nc['lon'].coords == [0, 0, 2, 2, 2])
+        assert np.all(nc['alt'].coords == [0, 0, 0, 0, 4])
+    
+    def test_data(self):
+        node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col='data')
+        d = node.eval(node.native_coordinates)
+        assert np.all(d == [0, 1, 2, 3, 4])
 
 class TestRasterio(object):
     """test rasterio data source"""
@@ -496,7 +543,7 @@ class TestReprojectedSource(object):
 
     source = Node()
     data = np.random.rand(11, 11)
-    coordinates_source = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
+    native_coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=['lat', 'lon'])
     reprojected_coordinates = Coordinates([clinspace(-25, 50, 11), clinspace(-25, 50, 11)], dims=['lat', 'lon'])
 
     def test_init(self):
@@ -516,10 +563,6 @@ class TestReprojectedSource(object):
         with pytest.raises(TraitError):
             ReprojectedSource(source_interpolation=5)
 
-        ReprojectedSource(coordinates_source=Node())
-        with pytest.raises(TraitError):
-            ReprojectedSource(coordinates_source=5)
-
         ReprojectedSource(reprojected_coordinates=self.reprojected_coordinates)
         with pytest.raises(TraitError):
             ReprojectedSource(reprojected_coordinates=5)
@@ -537,42 +580,41 @@ class TestReprojectedSource(object):
         assert isinstance(node.native_coordinates, Coordinates)
         assert node.native_coordinates['lat'].coordinates[0] == self.reprojected_coordinates['lat'].coordinates[0]
 
-        # source as DataSource
-        datanode = DataSource(source='test', native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-        assert isinstance(node.native_coordinates, Coordinates)
-        assert node.native_coordinates['lat'].coordinates[0] == self.coordinates_source['lat'].coordinates[0]
-
     def test_get_data(self):
         """test get data from reprojected source"""
-        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
+        datanode = Array(source=self.data, native_coordinates=self.native_coordinates)
+        node = ReprojectedSource(source=datanode, reprojected_coordinates=datanode.native_coordinates)
         output = node.eval(node.native_coordinates)
         assert isinstance(output, UnitsDataArray)
-
 
     def test_base_ref(self):
         """test base ref"""
 
-        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
+        node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         ref = node.base_ref
-
         assert '_reprojected' in ref
 
     def test_base_definition(self):
         """test definition"""
 
-        datanode = Array(source=self.data, native_coordinates=self.coordinates_source)
-        node = ReprojectedSource(source=datanode, coordinates_source=datanode)
-        d = node.base_definition
-        assert 'attrs' in d
-        assert 'interpolation' in d['attrs']
-
-        # no coordinates source
         node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
-        with pytest.raises(NotImplementedError):
-            node.base_definition
+        d = node.base_definition
+        c = Coordinates.from_definition(d['attrs']['reprojected_coordinates'])
+        
+        # TODO this shouldn't raise an exception once the coordinates __eq__ is merged in
+        with pytest.raises(AssertionError):
+            assert c == self.reprojected_coordinates
+
+    def test_deserialize_reprojected_coordinates(self):
+        node1 = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
+        node2 = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates.definition)
+        node3 = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates.json)
+
+        # TODO this shouldn't raise an exception once the coordinates __eq__ is merged in
+        with pytest.raises(AssertionError):
+            assert node1.reprojected_coordinates == self.reprojected_coordinates
+            assert node2.reprojected_coordinates == self.reprojected_coordinates
+            assert node3.reprojected_coordinates == self.reprojected_coordinates
 
 class TestS3(object):
     """test S3 data source"""
