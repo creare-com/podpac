@@ -7,6 +7,7 @@ from __future__ import division, print_function, absolute_import
 import os
 from glob import glob
 import shutil
+from hashlib import md5 as hash_alg
 
 try:
     import cPickle  # Python 2.7
@@ -140,10 +141,10 @@ class CacheCtrl(object):
 class CacheStore(object):
 
     def get_hash_val(self, obj):
-        return hash(obj)
+        return hash_alg(obj.encode('utf-8')).hexdigest()
 
     def hash_node(self, node):
-        hashable_repr = cPickle.dumps(node.definition)
+        hashable_repr = node.json
         return self.get_hash_val(hashable_repr)
 
     def hash_coordinates(self, coordinates):

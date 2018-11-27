@@ -17,6 +17,7 @@ from podpac.core.units import Units, UnitsDataArray, create_data_array
 from podpac.core.utils import common_doc
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
+from podpac.core.cache import cache
 
 COMMON_NODE_DOC = {
     'requested_coordinates':
@@ -77,6 +78,8 @@ class Node(tl.HasTraits):
     ----------
     cache_type : [None, 'disk', 'ram']
         How the output of the nodes should be cached. By default, outputs are not cached.
+    cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
+        Class that controls caching. If not provided, uses default based on cache_type.
     dtype : type
         The numpy datatype of the output. Currently only ``float`` is supported.
     node_defaults : dict
@@ -97,13 +100,31 @@ class Node(tl.HasTraits):
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
+    cache_ctrl = tl.Instance(cache.CacheCtrl, allow_none=True)
+
+    @tl.default('cache_ctrl')
+    def _cache_ctrl_default(self):
+        if self.cache_type is None:
+            return None
+        elif self.cache_type == 'ram':
+            raise NotImplementedError('Cachetype RAM has not been implemented')
+        elif self.cache_type == 'disk':
+            store = cache.DiskCacheStore(root_cache_dir_path=settings.CACHE_DIR)
+            ctrl = cache.CacheCtrl(cache_stores=[store])
+
+        return ctrl
+    @tl.observe('cache_type')
+    def _cache_type_changed(self, change):
+        self.cache_ctrl = self._cache_ctrl_default()
+
     node_defaults = tl.Dict(allow_none=True)
     style = tl.Instance(Style)
-    debug = tl.Bool(settings.DEBUG) # TODO replace with a setting
 
     @tl.default('style')
     def _style_default(self):
         return Style()
+
+    debug = tl.Bool(settings.DEBUG) # TODO replace with a setting
 
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
@@ -429,7 +450,7 @@ class Node(tl.HasTraits):
         if not self.has_cache(key, coordinates=coordinates):
             raise NodeException("cached data not found for key '%s' and cooordinates %s" % (key, coordinates))
 
-        # return cache.get(self, data, key, coordinates=coordinates)
+        return self.cache_ctrl.get(self, key, coordinates=coordinates)
 
     def put_cache(self, data, key, coordinates=None, overwrite=False):
         """
@@ -454,8 +475,10 @@ class Node(tl.HasTraits):
 
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
-
-        # cache.put(self, data, key, coordinates=coordinates, overwrite=overwrite)
+        if self.cache_ctrl is None:
+            return  # Without raising an error?
+        
+        self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
 
     def has_cache(self, key, coordinates=None):
         """
@@ -473,9 +496,9 @@ class Node(tl.HasTraits):
         bool
             True if there is cached data for this node, key, and coordinates.
         """
-
-        return False
-        # return cache.has(self, data, key, coordinates=coordinates)
+        if self.cache_ctrl is None:
+            return False
+        return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
     def del_cache(self, key=None, coordinates=None):
         """
@@ -782,7 +805,7 @@ def node_eval(fn):
             self._from_cache = True
         else:
             data = fn(self, coordinates, output=output,)
-            self.put_cache(key, data, cache_coordinates)
+            self.put_cache(data, key, cache_coordinates)
             self._from_cache = False
 
         # transpose data to match the dims order of the requested coordinates
