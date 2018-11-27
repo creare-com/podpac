@@ -144,16 +144,17 @@ class CacheStore(object):
         return hash_alg(obj).hexdigest()
 
     def hash_node(self, node):
-        hashable_repr = node.json.encode('utf-8')
-        return self.get_hash_val(hashable_repr)
+        hashable_repr = 'None' if node is None else node.hash
+        return hashable_repr 
 
     def hash_coordinates(self, coordinates):
-        hashable_repr = 'None'.encode('utf-8') if coordinates is None else coordinates.json.encode('utf-8')
-        return self.get_hash_val(hashable_repr)
+        hashable_repr = 'None' if coordinates is None else coordinates.hash
+        return hashable_repr 
 
     def hash_key(self, key):
-        hashable_repr = str(repr(key)).encode('utf-8')
-        return self.get_hash_val(hashable_repr)
+        #hashable_repr = str(repr(key)).encode('utf-8')
+        #return self.get_hash_val(hashable_repr)
+        return key
 
     def put(self, node, data, key, coordinates=None, update=False):
         '''Cache data for specified node.

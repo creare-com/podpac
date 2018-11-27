@@ -9,6 +9,7 @@ import sys
 import itertools
 import json
 from collections import OrderedDict
+from hashlib import md5 as hash_alg
 
 import numpy as np
 import traitlets as tl
@@ -627,7 +628,7 @@ class Coordinates(tl.HasTraits):
         *Note: To be replaced with the __hash__ method.*
         """
 
-        return hash(self.json)
+        return hash_alg(self.json.encode('utf-8')).hexdigest()
 
     @property
     def properties(self):

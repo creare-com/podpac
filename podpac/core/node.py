@@ -8,6 +8,7 @@ import os
 import re
 from collections import OrderedDict
 import functools
+from hashlib import md5 as hash_alg
 import json
 import numpy as np
 import traitlets as tl
@@ -419,7 +420,7 @@ class Node(tl.HasTraits):
 
     @property
     def hash(self):
-        return hash(self.json)
+        return hash_alg(self.json.encode('utf-8')).hexdigest()
 
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface
@@ -795,7 +796,7 @@ def node_eval(fn):
     def wrapper(self, coordinates, output=None):
         if self.debug:
             self._requested_coordinates = coordinates
-        key = 'output'
+        key = cache_key
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)) # order agnostic caching
         if self.has_cache(key, cache_coordinates):
             data = self.get_cache(key, cache_coordinates)
