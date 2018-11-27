@@ -772,8 +772,8 @@ def node_eval(fn):
     def wrapper(self, coordinates, output=None):
         if self.debug:
             self._requested_coordinates = coordinates
-
-        cache_coordinates = coordinates.transpose(sorted(coordinates.dims)) # order agnostic caching
+        key = 'output'
+        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)) # order agnostic caching
         if self.has_cache(key, cache_coordinates):
             data = self.get_cache(key, cache_coordinates)
             if output is not None:
