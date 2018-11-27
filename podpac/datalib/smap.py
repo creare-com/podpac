@@ -134,12 +134,16 @@ def _get_from_url(url, auth_session):
     auth_session: podpac.core.authentication.EarthDataSession
         Authenticated EDS session
     """
-    r = auth_session.get(url)
-    if r.status_code != 200:
-        r = auth_session.get(url.replace('opendap/', ''))
+    try:
+        r = auth_session.get(url)
         if r.status_code != 200:
-            raise RuntimeError('HTTP error: <%d>\n' % (r.status_code)
-                               + r.text[:256])
+            r = auth_session.get(url.replace('opendap/', ''))
+            if r.status_code != 200:
+                raise RuntimeError('HTTP error: <%d>\n' % (r.status_code)
+                                   + r.text[:256])
+    except requests.ConnectionError as e:
+        warnings.warn('WARNING: ' + str(e))
+        r = None
     return r
 
 
@@ -156,32 +160,30 @@ def _infer_SMAP_product_version(product, base_url, auth_session):
     auth_session: podpac.core.authentication.EarthDataSession
         Authenticated EDS session
     """
+
     r = _get_from_url(base_url, auth_session)
-    if r.status_code != 200:
-        r = auth_session.get(url.replace('opendap/', ''))
-        if r.status_code != 200:
-            raise RuntimeError('HTTP error: <%d>\n' % (r.status_code)
-                               + r.text[:256])    
-    m = re.search(product, r.text)
-    return int(r.text[m.end() + 1: m.end() + 4])
+    if r:
+        m = re.search(product, r.text)
+        return int(r.text[m.end() + 1: m.end() + 4])
+    return int(SMAP_PRODUCT_MAP.sel(product=product, attr='default_version').item())
 
 
 # NOTE: {rdk} will be substituted for the entry's 'rootdatakey'
 SMAP_PRODUCT_DICT = {
-    #'<Product>.ver': ['latkey',               'lonkey',                     'rootdatakey',                       'layerkey'
-    'SPL4SMAU':   ['cell_lat',             'cell_lon',                   'Analysis_Data_',                    '{rdk}sm_surface_analysis'],
-    'SPL4SMGP':   ['cell_lat',             'cell_lon',                   'Geophysical_Data_',                 '{rdk}sm_surface'],
-    'SPL3SMA':    ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture'],
-    'SPL3SMAP':   ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture'],
-    'SPL3SMP':    ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}_soil_moisture'],
-    'SPL4SMLM':   ['cell_lat',             'cell_lon',                   'Land_Model_Constants_Data_',        ''],
-    'SPL2SMAP_S': ['{rdk}latitude_1km',    '{rdk}longitude_1km',         'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km'],
+    #'<Product>.ver': ['latkey',               'lonkey',                     'rootdatakey',                       'layerkey'              'default_verison'
+    'SPL4SMAU':   ['cell_lat',             'cell_lon',                   'Analysis_Data_',                    '{rdk}sm_surface_analysis',    4],
+    'SPL4SMGP':   ['cell_lat',             'cell_lon',                   'Geophysical_Data_',                 '{rdk}sm_surface',             4],
+    'SPL3SMA':    ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          4],
+    'SPL3SMAP':   ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          4],
+    'SPL3SMP':    ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}_soil_moisture',         4],
+    'SPL4SMLM':   ['cell_lat',             'cell_lon',                   'Land_Model_Constants_Data_',        '',                            4],
+    'SPL2SMAP_S': ['{rdk}latitude_1km',    '{rdk}longitude_1km',         'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km',      4],
 }
 
 SMAP_PRODUCT_MAP = xr.DataArray(list(SMAP_PRODUCT_DICT.values()),
                                 dims=['product', 'attr'],
                                 coords={'product': list(SMAP_PRODUCT_DICT.keys()),
-                                        'attr':['latkey', 'lonkey', 'rootdatakey', 'layerkey']
+                                        'attr':['latkey', 'lonkey', 'rootdatakey', 'layerkey', 'default_version']
               }
 )
 
@@ -419,6 +421,8 @@ class SMAPProperties(SMAPSource):
         url = SMAP_BASE_URL + \
               '/SPL4SMLM.%03d/2015.03.31/' % (v) 
         r = _get_from_url(url, self.auth_session)
+        if not r:
+            return 'None'
         n = self.file_url_re.search(r.text).group()
         return url + n
 
@@ -664,6 +668,8 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         """
         url = self.source
         r = _get_from_url(url, self.auth_session)
+        if r is None:
+            return np.array([]), None, np.array([])
         soup = bs4.BeautifulSoup(r.text, 'lxml')
         a = soup.find_all('a')
         file_regex = self.file_url_re
@@ -848,6 +854,8 @@ class SMAP(podpac.compositor.OrderedCompositor):
         """
         url = '/'.join([self.base_url, '%s.%03d' % (self.product, self.version)])
         r = _get_from_url(url, self.auth_session)
+        if r is None:
+            return np.array([]), []
         soup = bs4.BeautifulSoup(r.text, 'lxml')
         a = soup.find_all('a')
         regex = self.date_url_re
