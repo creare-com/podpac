@@ -116,7 +116,7 @@ def save_setting(key, value, path=None):
     """
     file = get_settings_file(path)
     if not os.path.exists(file):
-        os.makedirs(os.path.dirname(file))
+        os.makedirs(os.path.dirname(file, exist_ok=True))
         config = {}
     else:
         with open(file) as fid:
