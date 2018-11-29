@@ -776,7 +776,10 @@ class WCS(DataSource):
 
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
-            return Coordinates([UniformCoordinates1d(top, bottom, size=size[1], name='lat')])
+            return Coordinates([
+                UniformCoordinates1d(top, bottom, size=size[1], name='lat'),
+                UniformCoordinates1d(left, right, size=size[0], name='lon')
+                ])        
         
         date_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')

@@ -144,6 +144,8 @@ def _get_from_url(url, auth_session):
     except requests.ConnectionError as e:
         warnings.warn('WARNING: ' + str(e))
         r = None
+    except RuntimeError as e:
+        warnings.warn('WARNING: ' + str(e))
     return r
 
 
@@ -439,7 +441,7 @@ class SMAPProperties(SMAPSource):
 
     @tl.default('layerkey')
     def _layerkey_default(self):
-        return self.property
+        return '{rdk}' + self.property
 
     @common_doc(COMMON_DOC)
     def get_native_coordinates(self):

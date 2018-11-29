@@ -166,7 +166,7 @@ class Compositor(Node):
         # Set the interpolation properties for sources
         if self.interpolation:
             for s in src_subset.ravel():
-                if trait_is_defined(s, 'interpolation'):
+                if trait_is_defined(self, 'interpolation'):
                     s.interpolation = self.interpolation
 
         # Optimization: if coordinates complete and source coords is 1D,
