@@ -45,6 +45,8 @@ from podpac.core.data import types as datatype
 from podpac.core import authentication
 from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
+from podpac.core.node import cached_property
+from podpac.core.node import NodeException
 
 COMMON_DOC = COMMON_DATA_DOC.copy()
 COMMON_DOC.update(
@@ -142,10 +144,10 @@ def _get_from_url(url, auth_session):
                 raise RuntimeError('HTTP error: <%d>\n' % (r.status_code)
                                    + r.text[:256])
     except requests.ConnectionError as e:
-        warnings.warn('WARNING: ' + str(e))
+        warnings.warn('WARNING: cannot connect to {}:'.format(url) + str(e))
         r = None
     except RuntimeError as e:
-        warnings.warn('WARNING: ' + str(e))
+        warnings.warn('WARNING: cannot authenticate to {}:'.format(url) + str(e))
     return r
 
 
@@ -324,13 +326,10 @@ class SMAPSource(datatype.PyDAP):
         return SMAP_PRODUCT_MAP.sel(product=self.product, attr='lonkey').item().format(rdk=self.rootdatakey)
 
     @common_doc(COMMON_DOC)
+    @cached_property('native.coordinates')
     def get_native_coordinates(self):
         """{get_native_coordinates}
         """
-        try:
-            return self.load_cached_obj('native.coordinates')
-        except:
-            pass
         times = self.get_available_times()
         ds = self.dataset
         lons = np.array(ds[self.lonkey][:, :])
@@ -340,7 +339,6 @@ class SMAPSource(datatype.PyDAP):
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
         coords = podpac.Coordinates([times, lats, lons], dims=['time', 'lat', 'lon'])
-        self.cache_obj(coords, 'native.coordinates')
         return coords
 
     def get_available_times(self):
@@ -444,22 +442,18 @@ class SMAPProperties(SMAPSource):
         return '{rdk}' + self.property
 
     @common_doc(COMMON_DOC)
+    @cached_property('native.coordinates')
     def get_native_coordinates(self):
         """{get_native_coordinates}
         """
-        try:
-            coords = self.load_cached_obj('native.coordinates')
-        except:
-            ds = self.dataset
-            lons = np.array(ds[self.lonkey][:, :])
-            lats = np.array(ds[self.latkey][:, :])
-            lons[lons == self.nan_vals[0]] = np.nan
-            lats[lats == self.nan_vals[0]] = np.nan
-            lons = np.nanmean(lons, axis=0)
-            lats = np.nanmean(lats, axis=1)
-            coords = podpac.Coordinates([lats, lons], dims=['lat', 'lon'])
-            self.cache_obj(coords, 'native.coordinates')
-        
+        ds = self.dataset
+        lons = np.array(ds[self.lonkey][:, :])
+        lats = np.array(ds[self.latkey][:, :])
+        lons[lons == self.nan_vals[0]] = np.nan
+        lats[lats == self.nan_vals[0]] = np.nan
+        lons = np.nanmean(lons, axis=0)
+        lats = np.nanmean(lats, axis=1)
+        coords = podpac.Coordinates([lats, lons], dims=['lat', 'lon'])
         return coords
 
 class SMAPPorosity(SMAPProperties):
@@ -521,6 +515,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
     auth_class = tl.Type(authentication.EarthDataSession)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
+    cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True, default_value='disk')
 
     @tl.default('auth_session')
     def _auth_session_default(self):
@@ -581,9 +576,12 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         # break. Hence, try to get the new source everytime, unless data is offline, in which case rely on the cache.
         try:
             _, _, sources = self.get_available_coords_sources()
-            self.cache_obj(sources, 'sources')            
-        except: #
-            sources = self.load_cached_obj('sources')
+            self.put_cache(sources, 'sources', overwrite=True)            
+        except:  # No internet or authentication error
+            try: 
+                sources = self.get_cache('sources')
+            except NodeException as e:
+                raise NodeException("Connection or Authentication error, and no disk cache to fall back on for determining sources.")
             
 
         b = self.source + '/'
@@ -621,15 +619,19 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         try:
             times, latlon, _ = self.get_available_coords_sources()
         except:
-            return self.load_cached_obj('source.coordinates')
+            try: 
+                return self.get_cache('source.coordinates')
+            except NodeException as e:
+                raise NodeException("Connection or Authentication error, and no disk cache to fall back on for determining sources.")
 
         if latlon is not None and latlon.size > 0:
             crds = podpac.Coordinates([[times, latlon[:, 0], latlon[:, 1]]], dims=['time_lat_lon'])
         else:
             crds = podpac.Coordinates([times], dims=['time'])
-        self.cache_obj(crds, 'source.coordinates')
+        self.put_cache(crds, 'source.coordinates', overwrite=True)
         return crds
 
+    @cached_property('shared.coordinates')
     def get_shared_coordinates(self):
         """Coordinates that are shared by all files in the folder.
 
@@ -641,14 +643,8 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
             return None
 
-        try:
-            return self.load_cached_obj('shared.coordinates')
-        except:
-            pass
-
         coords = copy.deepcopy(self.sources[0].native_coordinates)
         del coords._coords['time']
-        self.cache_obj(coords, 'shared.coordinates')
         return coords
 
     def get_available_coords_sources(self):
@@ -671,6 +667,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         url = self.source
         r = _get_from_url(url, self.auth_session)
         if r is None:
+            warnings.warn("WARNING: Could not contact {} to retrieve source coordinates".format(url))
             return np.array([]), None, np.array([])
         soup = bs4.BeautifulSoup(r.text, 'lxml')
         a = soup.find_all('a')
@@ -767,6 +764,8 @@ class SMAP(podpac.compositor.OrderedCompositor):
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
 
+    cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True, default_value='disk')
+
     @tl.default('auth_session')
     def _auth_session_default(self):
         session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX)
@@ -857,6 +856,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         url = '/'.join([self.base_url, '%s.%03d' % (self.product, self.version)])
         r = _get_from_url(url, self.auth_session)
         if r is None:
+            warnings.warn("WARNING: Could not contact {} to retrieve source coordinates".format(url))
             return np.array([]), []
         soup = bs4.BeautifulSoup(r.text, 'lxml')
         a = soup.find_all('a')
@@ -872,6 +872,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         dates.sort()
         return np.array(times), dates
 
+    @cached_property('shared.coordinates')
     def get_shared_coordinates(self):
         """Coordinates that are shared by all files in the SMAP product family. 
 
@@ -889,16 +890,10 @@ class SMAP(podpac.compositor.OrderedCompositor):
         if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
             return None
 
-        try:
-            return self.load_cached_obj('shared.coordinates')
-        except:
-            pass
-
         coords = SMAPDateFolder(product=self.product, version=self.version,
                                 folder_date=self.get_available_times_dates()[1][0],
                                 auth_session=self.auth_session,
                                ).shared_coordinates
-        self.cache_obj(coords, 'shared.coordinates')
         return coords
 
     def get_filename_coordinates_sources(self, bounds=None):
@@ -926,12 +921,15 @@ class SMAP(podpac.compositor.OrderedCompositor):
 
         If 'bounds' is not specified, the result is cached for faster future access.
         """
-        if bounds is None:
-            try:
-                return (self.load_cached_obj('filename.coordinates'),
-                        self.load_cached_obj('filename.sources'))
-            except:
-                pass
+        try:
+            crds, sources =  (self.get_cache('filename.coordinates'),
+                              self.get_cache('filename.sources'))
+            if bounds:
+                crds, I = crds.intersect(bounds, outer=True, return_indices=True)
+                sources = np.array(sources)[I].tolist()
+            return crds, sources
+        except NodeException:  # Not in cache
+            pass
 
         if bounds is None:
             active_sources = self.sources
@@ -949,8 +947,8 @@ class SMAP(podpac.compositor.OrderedCompositor):
             #crds = crds + self.shared_coordinates
         sources = np.concatenate(sources)
         if bounds is None:
-            self.cache_obj(crds, 'filename.coordinates')
-            self.cache_obj(sources, 'filename.sources')
+            self.put_cache(crds, 'filename.coordinates')
+            self.put_cache(sources, 'filename.sources')
         return crds, sources
 
     @property

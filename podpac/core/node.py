@@ -77,6 +77,10 @@ class Node(tl.HasTraits):
 
     Attributes
     ----------
+    cache_output: bool
+        Default if True. Should the node's output be cached? 
+    cache_update: bool
+        Default is False. Should the node's cached output be updated from the source data? 
     cache_type : [None, 'disk', 'ram']
         How the output of the nodes should be cached. By default, outputs are not cached.
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
@@ -100,6 +104,8 @@ class Node(tl.HasTraits):
 
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
+    cache_output = tl.Bool(True)
+    cache_update = tl.Bool(False)
     cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
     cache_ctrl = tl.Instance(cache.CacheCtrl, allow_none=True)
 
@@ -453,7 +459,7 @@ class Node(tl.HasTraits):
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
 
-    def put_cache(self, data, key, coordinates=None, overwrite=False):
+    def put_cache(self, data, key, coordinates=None, overwrite=False, raise_no_cache_exception=True):
         """
         Cache data for this node.
 
@@ -465,19 +471,26 @@ class Node(tl.HasTraits):
             Unique key for the data, e.g. 'output'
         coordinates : podpac.Coordinates, optional
             Coordinates that the cached data depends on. Omit for coordinate-independent data.
-        overwrite : bool
+        overwrite : bool, optional
             Overwrite existing data, default False
+        raise_no_cache_exception: bool, optional
+            Raises a NodeException if trying to put data to the cache, but no cache is available.
 
         Raises
         ------
         NodeException
             Cached data already exists (and overwrite is False)
+        NodeException
+            No cache_ctrl available and raise_no_cache_exception is True
         """
 
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
         if self.cache_ctrl is None:
-            return  # Without raising an error?
+            if raise_no_cache_exception:
+                raise NodeException('Trying to cache data but no cache_ctrl available. Specify cache_type.')
+            else:
+                return
         
         self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
 
@@ -501,7 +514,7 @@ class Node(tl.HasTraits):
             return False
         return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
-    def del_cache(self, key=None, coordinates=None):
+    def rem_cache(self, key=None, coordinates=None, mode=None, all_cache=False):
         """
         Clear cached data for this node.
 
@@ -512,270 +525,26 @@ class Node(tl.HasTraits):
         coordinates : podpac.Coordinates, optional
             Delete cached objects for these coordinates. If None, cached data is deleted for all coordinates, including
             coordinate-independent data.
+        mode: str, optional
+            Specify which cache stores are affected. 
+        all_cache: bool, optional
+            Default is False. If True, deletes all of the cache.
+
+        See Also
+        ---------
+        `podpac.core.cache.cache.CacheCtrl.rem`
         """
-
-        pass
-        # return cache.rem(self, data, key, coordinates=coordinates)
-
-    # -----------------------------------------------------------------------------------------------------------------
-    # Deprecated methods
-    # -----------------------------------------------------------------------------------------------------------------
-
-    def _get_filename(self, name, coordinates):
-        return '%s_%s_%s' % (name, self.hash, coordinates.hash)
-
-    def _get_output_path(self, outdir=None):
-        if outdir is None:
-            outdir = settings.CACHE_DIR
-        if not os.path.exists(outdir):
-            os.makedirs(outdir)
-        return outdir
-
-    def write(self, name, outdir=None, fmt='pickle'):
-        """Write the most recent evaluation output to disk using the specified format
-
-        Parameters
-        ----------
-        name : str
-            Name of the file prefix. The final filename will have <name>_<node_hash>_<coordinates_hash>.<ext>
-        outdir : None, optional
-            {outdir}
-        fmt : str
-            Output format, default 'pickle'
-
-        Returns
-        --------
-        str
-            The path of the loaded file
-
-        Raises
-        ------
-        NotImplementedError
-            format not yet implemented
-        ValueError
-            invalid format
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-
-        import warnings
-        warnings.warn('Node.write will be removed in a later release', DeprecationWarning)
-
-        try:
-            import cPickle  # Python 2.7
-        except:
-            import _pickle as cPickle
-
-        coordinates = self._requested_coordinates
-        path = os.path.join(self._get_output_path(outdir=outdir), self._get_filename(name, coordinates=coordinates))
-
-        if fmt == 'pickle':
-            path = '%s.pkl' % path
-            with open(path, 'wb') as f:
-                cPickle.dump(self._output, f)
-        elif fmt == 'png':
-            raise NotImplementedError("format '%s' not yet implemented" % fmt)
-        elif fmt == 'geotif':
-            raise NotImplementedError("format '%s' not yet implemented" % fmt)
-        else:
-            raise ValueError("invalid format, '%s' not recognized" % fmt)
-
-        return path
-
-    def load(self, name, coordinates, outdir=None):
-        """Retrieves cached output from disk as though the node has been evaluated
-
-        Parameters
-        ----------
-        name : str
-            Name of the file prefix.
-        coordinates : podpac.Coordinates
-            {requested_coordinates}
-        outdir : str, optional
-            {outdir}
-
-        Returns
-        --------
-        str
-            The path of the loaded file
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-
-        import warnings
-        warnings.warn('Node.load will be removed in a later release', DeprecationWarning)
-
-        try:
-            import cPickle  # Python 2.7
-        except:
-            import _pickle as cPickle
-
-        path = os.path.join(self._get_output_path(outdir=outdir), self._get_filename(name, coordinates=coordinates))
-        path = '%s.pkl' % path # assumes pickle
-        with open(path, 'rb') as f:
-            self._output = cPickle.load(f)
-        return path
-
-    @property
-    def cache_dir(self):
-        """Return the directory used for caching
-
-        Returns
-        -------
-        str
-            Path to the default cache directory
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-
-        import warnings
-        warnings.warn('Node.cache_dir will be removed in a later release', DeprecationWarning)
-
-        basedir = settings.CACHE_DIR
-        subdir = str(self.__class__)[8:-2].split('.')
-        dirs = [basedir] + subdir
-        return os.path.join(*dirs)
-
-    def cache_path(self, filename):
-        """Return the cache path for the file
-
-        Parameters
-        ----------
-        filename : str
-            Name of the cached file
-
-        Returns
-        -------
-        str
-            Path to the cached file
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-
-        import warnings
-        warnings.warn('Node.cache_path will be removed in a later release', DeprecationWarning)
-
-        pre = str(self.source).replace('/', '_').replace('\\', '_').replace(':', '_')
-        return os.path.join(self.cache_dir, pre  + '_' + filename)
-
-    def cache_obj(self, obj, filename):
-        """Cache the input object using the given filename
-
-        Parameters
-        ----------
-        obj : object
-            Object to be cached to disk
-        filename : str
-            File name for the object to be cached
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-
-        import warnings
-        warnings.warn('Node.cache_obj will be replaced by put_cache in a later release', DeprecationWarning)
-
-        try:
-            import cPickle  # Python 2.7
-        except:
-            import _pickle as cPickle
-
-        try:
-            import boto3
-        except:
-            boto3 = None
-
-        path = self.cache_path(filename)
-        if settings.S3_BUCKET_NAME is None or settings.CACHE_TO_S3 == False:
-            if not os.path.exists(self.cache_dir):
-                os.makedirs(self.cache_dir)
-            with open(path, 'wb') as fid:
-                cPickle.dump(obj, fid)#, protocol=cPickle.HIGHEST_PROTOCOL)
-        else:
-            s3 = boto3.resource('s3').Bucket(settings.S3_BUCKET_NAME)
-            io = BytesIO(cPickle.dumps(obj))
-            s3.upload_fileobj(io, path)
-
-    def load_cached_obj(self, filename):
-        """Retreive an object from cache
-
-        Parameters
-        ----------
-        filename : str
-            File name of object to be retrieved from cache
-
-        Returns
-        -------
-        object
-            Object loaded from cache
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-
-        import warnings
-        warnings.warn('Node.load_cached_obj will be replaced by get_cache in a later release', DeprecationWarning)
-
-        try:
-            import cPickle  # Python 2.7
-        except:
-            import _pickle as cPickle
-
-        try:
-            import boto3
-        except:
-            boto3 = None
-
-        path = self.cache_path(filename)
-        if settings.S3_BUCKET_NAME is None or not settings.CACHE_TO_S3:
-            with open(path, 'rb') as fid:
-                obj = cPickle.load(fid)
-        else:
-            s3 = boto3.resource('s3').Bucket(settings.S3_BUCKET_NAME)
-            io = BytesIO()
-            s3.download_fileobj(path, io)
-            io.seek(0)
-            obj = cPickle.loads(io.read())
-        return obj
-
-    def clear_disk_cache(self, attr='*', node_cache=False, all_cache=False):
-        """Helper function to clear disk cache.
-
-        WARNING: This function will permanently delete cached values
-
-        Parameters
-        ----------
-        attr : str, optional
-            Default '*'. Specific attribute to be cleared for specific
-            instance of this Node. By default all attributes are cleared.
-        node_cache : bool, optional
-            Default False. If True, will ignore `attr` and clear all attributes
-            for all variants/instances of this Node.
-        all_cache : bool, optional
-            Default False. If True, will clear the entire podpac cache.
-
-        .. deprecated:: 0.2.0
-            This method will be removed and replaced by the caching module by version 0.2.0.
-        """
-
-        import warnings
-        warnings.warn('Node.clear_disk_cache will be replaced by del_cache in a later release', DeprecationWarning)
-
-        import glob
-        import shutil
-
+        if self.cache_ctrl is None:
+            return 
         if all_cache:
-            shutil.rmtree(settings.CACHE_DIR)
-        elif node_cache:
-            shutil.rmtree(self.cache_dir)
+            self.cache_ctrl.rem()
         else:
-            for f in glob.glob(self.cache_path(attr)):
-                os.remove(f)
+            self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
 
+
+#--------------------------------------------------------#
+#  Decorators
+#--------------------------------------------------------#
 
 def node_eval(fn):
     """
@@ -798,7 +567,7 @@ def node_eval(fn):
             self._requested_coordinates = coordinates
         key = cache_key
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)) # order agnostic caching
-        if self.has_cache(key, cache_coordinates):
+        if self.has_cache(key, cache_coordinates) and not self.cache_update:
             data = self.get_cache(key, cache_coordinates)
             if output is not None:
                 order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
@@ -806,7 +575,9 @@ def node_eval(fn):
             self._from_cache = True
         else:
             data = fn(self, coordinates, output=output,)
-            self.put_cache(data, key, cache_coordinates)
+            if self.cache_output:
+                self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update,
+                               raise_no_cache_exception=False)
             self._from_cache = False
 
         # transpose data to match the dims order of the requested coordinates
@@ -817,5 +588,97 @@ def node_eval(fn):
             self._output = data
 
         return data
-
     return wrapper
+
+def cached_property(key, depends=None, raise_no_cache_exception=False):
+    """
+    Decorating for caching a function's output based on a key. 
+
+    Parameters
+    -----------
+    key: str
+        Key used for caching.
+    depends: str, list, traitlets.All (optional)
+        Default is None. Any traits that the cached property depends on. The cached_property may NOT
+        change the value of any of these dependencies (this will result in a RecursionError)
+    raise_no_cache_exception: bool, optional
+            Raises a NodeException if trying to put data to the cache, but no cache is available.
+
+
+    Notes
+    -----
+    This decorator cannot handle function input parameters. 
+    
+    If the function uses any tagged attributes, these will essentially operate like dependencies
+    because the cache key changes based on the node definition, which is affected by tagged attributes.
+
+    Examples
+    ----------
+    >>> class MyClass(Node):
+           value = 0
+           @cached_func('native_coordinates')
+           def square_value(self):
+               self.value += 1
+               return self.value
+           @cached_func('native_coordinates', depends='value')
+           def square_value_depends(self):
+               return self.value
+
+    >>> n = MyClass()
+    >>> n.get_value()  # The function as defined is called
+    1
+    >>> n.get_value()  # The function as defined is called again, since we have no caching specified
+    2
+    >>> n.cache_type = 'disk'
+    >>> n.get_value()  # The function as defined is called again, and the value is stored to disk
+    3
+    >>> n.get_value()  # The value is retrieved from disk, note the change in n.value is not captured
+    3
+    >>> n.get_value_depends()  # The function as defined is called, and the value is stored to disk
+    4
+    >>> n.get_value_depends()  # The value is retrieved from disk
+    4
+
+    >>> n.value += 1
+    >>> n.get_value_depends()  # The function as defined is called, and the value is stored to disk. Note the change in n.value is captured.
+    5
+    """
+    # This is the actual decorator which will be evaluated and returns the wrapped function
+    def cache_decorator(func):
+        # This is the initial wrapper that sets up the observations
+        @functools.wraps(func)
+        def cache_wrapper(self):
+            # This is the function that updates the cached based on observed traits
+            def cache_updator(change):
+                # print("Updating value on self:", id(self))
+                out = func(self)
+                self.put_cache(out, key, overwrite=True, raise_no_cache_exception=raise_no_cache_exception)
+            
+            if depends:
+                # This sets up the observer on the dependent traits
+                # print ("setting up observer on self: ", id(self))
+                self.observe(cache_updator, depends)
+                # Since attributes could change on instantiation, anything we previously 
+                # stored is likely out of date. So, force and update to the cache.
+                cache_updator(None)
+
+            # This is the final wrapper the continues to fetch data from cache
+            # after the observer has been set up.
+            @functools.wraps(func)
+            def cached_function():
+                try: 
+                    out = self.get_cache(key)
+                except NodeException:
+                    out = func(self)
+                    self.put_cache(out, key, raise_no_cache_exception=raise_no_cache_exception)
+                return out
+            
+            # Since this is the first time the function is run, set the new wrapper 
+            # on the class instance so that the current function won't be called again
+            # (which would set up an additional observer)
+            setattr(self, func.__name__, cached_function)
+            
+            # Return the value on the first run
+            return cached_function()
+        return cache_wrapper
+    return cache_decorator

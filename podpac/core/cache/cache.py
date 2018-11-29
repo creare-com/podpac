@@ -316,7 +316,8 @@ class DiskCacheStore(CacheStore):
         basedir = self._root_dir_path
         subdir = str(node.__class__)[8:-2].split('.')
         dirs = [basedir] + subdir
-        return os.path.join(*dirs)
+        # TODO: Use a function to sanitize directory name 
+        return os.path.join(*dirs).replace('<', '').replace('>', '')
 
     def cache_filename(self, node, key, coordinates):
         pre = str(node.base_ref).replace('/', '_').replace('\\', '_').replace(':', '_')
@@ -346,6 +347,7 @@ class DiskCacheStore(CacheStore):
         return s
 
     def put(self, node, data, key, coordinates=None, update=False):
+        
         self.make_cache_dir(node)
         listing = CacheListing(node=node, key=key, coordinates=coordinates, data=data)
         if self.has(node, key, coordinates): # a little inefficient but will do for now
@@ -427,4 +429,5 @@ class DiskCacheStore(CacheStore):
             if c.has(listing):
                 return True
         return False
-        
+
+
