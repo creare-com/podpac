@@ -2,7 +2,7 @@
 
 Attributes
 ----------
-SMAP_BASE_URL : str
+SMAP_BASE_URL() : str
     Url to nsidc openDAP server
 SMAP_INCOMPLETE_SOURCE_COORDINATES : list
     List of products whose source coordinates are incomplete. This means any shared coordinates cannot be extracted
@@ -196,29 +196,39 @@ SMAP_IRREGULAR_COORDINATES = ['SPL2SMAP_S']
 
 # Discover SMAP OpenDAP url from podpac s3 server
 SMAP_BASE_URL_FILE = os.path.join(os.path.dirname(__file__), 'nsidc_smap_opendap_url.txt')
-SMAP_BASE_URL = 'https://n5eil01u.ecs.nsidc.org/opendap/SMAP'
-try:
-    with open(SMAP_BASE_URL_FILE, 'r') as fid:
-        rf = fid.read()
-    if 'https://' in rf and 'nsidc.org' in rf:
-        SMAP_BASE_URL = rf
-except Exception as e:
-    warnings.warn("Could not retrieve SMAP url from %s: " % (SMAP_BASE_URL_FILE) + str(e))
-try:
-    r = requests.get('https://s3.amazonaws.com/podpac-s3/settings/nsidc_smap_opendap_url.txt').text
-    if 'https://' in r and 'nsidc.org' in r:
-        if rf != r:
-            warnings.warn("Updating SMAP url from PODPAC S3 Server.")
-            SMAP_BASE_URL = r
-            try:
-                with open(SMAP_BASE_URL_FILE, 'w') as fid:
-                    fid.write(r)
-            except Exception as e:
-                warnings.warn("Could not overwrite SMAP url update on disk:" + str(e))
-except Exception as e:
-    warnings.warn("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
+_SMAP_BASE_URL = None
+def SMAP_BASE_URL():
+    global _SMAP_BASE_URL
+    if _SMAP_BASE_URL is not None:
+        return _SMAP_BASE_URL
+    BASE_URL = 'https://n5eil01u.ecs.nsidc.org/opendap/SMAP'
+    try:
+        with open(SMAP_BASE_URL_FILE, 'r') as fid:
+            rf = fid.read()
+        if 'https://' in rf and 'nsidc.org' in rf:
+            BASE_URL = rf
+    except Exception as e:
+        warnings.warn("Could not retrieve SMAP url from %s: " % (SMAP_BASE_URL_FILE) + str(e))
+    try:
+        r = requests.get('https://s3.amazonaws.com/podpac-s3/settings/nsidc_smap_opendap_url.txt').text
+        if 'https://' in r and 'nsidc.org' in r:
+            if rf != r:
+                warnings.warn("Updating SMAP url from PODPAC S3 Server.")
+                BASE_URL = r
+                try:
+                    with open(SMAP_BASE_URL_FILE, 'w') as fid:
+                        fid.write(r)
+                except Exception as e:
+                    warnings.warn("Could not overwrite SMAP url update on disk:" + str(e))
+    except Exception as e:
+        warnings.warn("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
+    _SMAP_BASE_URL = BASE_URL
+    return BASE_URL
 
-SMAP_BASE_URL_REGEX = re.compile(re.sub(r'\d', r'\\d', SMAP_BASE_URL.split('/')[2]))
+def SMAP_BASE_URL_REGEX():
+    return re.compile(re.sub(r'\d', r'\\d', SMAP_BASE_URL().split('/')[2]))   
+
+
 @common_doc(COMMON_DOC)
 class SMAPSource(datatype.PyDAP):
     """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how
@@ -246,10 +256,10 @@ class SMAPSource(datatype.PyDAP):
     @tl.default('auth_session')
     def _auth_session_default(self):
         session = self.auth_class(
-            username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX)
+            username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX())
         # check url
         try:
-            session.get(SMAP_BASE_URL)
+            session.get(SMAP_BASE_URL())
         except Exception as e:
             print("Unknown exception: ", e)
         return session
@@ -408,7 +418,7 @@ class SMAPProperties(SMAPSource):
                         'cell_land_fraction', 'mwrtm_omega', 'mwrtm_soilcls',
                         'clsm_dzgt6', 'mwrtm_rghnrv', 'mwrtm_clay', 'mwrtm_sand'
     source : str, optional
-         Source OpenDAP url for SMAP properties. Default is (SMAP_BASE_URL + 
+         Source OpenDAP url for SMAP properties. Default is (SMAP_BASE_URL() + 
                                                              'SPL4SMLM{latest_version}/2015.03.31/'
                                                              'SMAP_L4_SM_lmc_00000000T000000_Vv{latest_version}.h5')
     """
@@ -417,8 +427,8 @@ class SMAPProperties(SMAPSource):
     source = tl.Unicode()
     @tl.default('source')
     def _property_source_default(self):
-        v = _infer_SMAP_product_version('SPL4SMLM', SMAP_BASE_URL, self.auth_session)
-        url = SMAP_BASE_URL + \
+        v = _infer_SMAP_product_version('SPL4SMLM', SMAP_BASE_URL(), self.auth_session)
+        url = SMAP_BASE_URL() + \
               '/SPL4SMLM.%03d/2015.03.31/' % (v) 
         r = _get_from_url(url, self.auth_session)
         if not r:
@@ -519,10 +529,14 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
 
     @tl.default('auth_session')
     def _auth_session_default(self):
-        session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX)
+        session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX())
         return session
 
-    base_url = tl.Unicode(SMAP_BASE_URL).tag(attr=True)
+    base_url = tl.Unicode().tag(attr=True)
+    @tl.default('base_url')
+    def _base_url_default(self):
+        return SMAP_BASE_URL()
+    
     product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist()).tag(attr=True)
     version = tl.Int(allow_none=True).tag(attr=True)
     @tl.default('version')
@@ -749,7 +763,10 @@ class SMAP(podpac.compositor.OrderedCompositor):
     username : {username}
     """
 
-    base_url = tl.Unicode(SMAP_BASE_URL).tag(attr=True)
+    base_url = tl.Unicode().tag(attr=True)
+    @tl.default('base_url')
+    def _base_url_default(self):
+        return SMAP_BASE_URL()
     product = tl.Enum(SMAP_PRODUCT_MAP.coords['product'].data.tolist(),
                       default_value='SPL4SMAU').tag(attr=True)
     version = tl.Int(allow_none=True).tag(attr=True)
@@ -768,7 +785,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
 
     @tl.default('auth_session')
     def _auth_session_default(self):
-        session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX)
+        session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX())
         return session
 
     layerkey = tl.Unicode()
