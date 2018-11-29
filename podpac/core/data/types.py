@@ -889,7 +889,7 @@ class WCS(DataSource):
                             output.data[i, ...] = dataset.read()
                     except Exception as e: # Probably python 2
                         print(e)
-                    tmppath = os.path.join(podpac.settings.CACHE_DIR, 'wcs_temp.tiff')
+                        tmppath = os.path.join(podpac.settings.CACHE_DIR, 'wcs_temp.tiff')
                         
                         if not os.path.exists(os.path.split(tmppath)[0]):
                             os.makedirs(os.path.split(tmppath)[0])
