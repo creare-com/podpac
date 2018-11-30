@@ -364,22 +364,22 @@ class TestCachePropertyDecorator(object):
             c = tl.Int(1)
             d = tl.Int(1)
 
-            @podpac.core.node.cached_property('a2', 'a')
+            @podpac.core.node.cache_func('a2', 'a')
             def a2(self):
                 """a2 docstring"""
                 return self.a * 2
 
-            @podpac.core.node.cached_property('b2')
+            @podpac.core.node.cache_func('b2')
             def b2(self):
                 """ b2 docstring """
                 return self.b * 2
 
-            @podpac.core.node.cached_property('c2', 'c')
+            @podpac.core.node.cache_func('c2', 'c')
             def c2(self):
                 """ c2 docstring """
                 return self.c * 2
 
-            @podpac.core.node.cached_property('d2')
+            @podpac.core.node.cache_func('d2')
             def d2(self):
                 """ d2 docstring """
                 return self.d * 2
@@ -428,29 +428,29 @@ class TestCachePropertyDecorator(object):
         assert t2.get_cache('c2') == 4  # This was cached by t
         assert t2.get_cache('d2') == 2  # This was cached by t
         
-    def test_cached_property_decorator_with_no_cache(self):
+    def test_cache_func_decorator_with_no_cache(self):
         class Test(podpac.Node):
             a = tl.Int(1).tag(attr=True)
             b = tl.Int(1).tag(attr=True)
             c = tl.Int(1)
             d = tl.Int(1)
 
-            @podpac.core.node.cached_property('a2', 'a')
+            @podpac.core.node.cache_func('a2', 'a')
             def a2(self):
                 """a2 docstring"""
                 return self.a * 2
 
-            @podpac.core.node.cached_property('b2')
+            @podpac.core.node.cache_func('b2')
             def b2(self):
                 """ b2 docstring """
                 return self.b * 2
 
-            @podpac.core.node.cached_property('c2', 'c')
+            @podpac.core.node.cache_func('c2', 'c')
             def c2(self):
                 """ c2 docstring """
                 return self.c * 2
 
-            @podpac.core.node.cached_property('d2')
+            @podpac.core.node.cache_func('d2')
             def d2(self):
                 """ d2 docstring """
                 return self.d * 2
