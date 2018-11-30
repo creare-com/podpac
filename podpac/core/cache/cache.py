@@ -316,7 +316,7 @@ class DiskCacheStore(CacheStore):
         basedir = self._root_dir_path
         subdir = str(node.__class__)[8:-2].split('.')
         dirs = [basedir] + subdir
-        return self.cleanse_filename_str(os.path.join(*dirs))
+        return (os.path.join(*dirs)).replace(':', '_').replace('<', '_').replace('>', '_')
 
     def cache_filename(self, node, key, coordinates):
         pre = str(node.base_ref).replace('/', '_').replace('\\', '_').replace(':', '_')
@@ -341,7 +341,7 @@ class DiskCacheStore(CacheStore):
         return os.path.join(self.cache_dir(node), self.cache_filename(node, key, coordinates))
 
     def cleanse_filename_str(self, s):
-        s = s.replace('/', '_').replace('\\', '_').replace(':', '_').replace('<', '_').replace('_', '')
+        s = s.replace('/', '_').replace('\\', '_').replace(':', '_').replace('<', '_').replace('>', '_')
         s = s.replace('nKeY', 'xxxx').replace('kKeY', 'xxxx').replace('cKeY', 'xxxx')
         return s
 
