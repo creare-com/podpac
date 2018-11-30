@@ -5,8 +5,11 @@ Utils Summary
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
+import sys
 import json
+import functools
 import importlib
+from collections import OrderedDict
 
 import traitlets as tl
 import numpy as np
@@ -42,6 +45,7 @@ def cached_property(func):
     """
 
     @property
+    @functools.wraps(func)
     def f(self):
         """Summary
 
@@ -112,7 +116,7 @@ def save_setting(key, value, path=None):
     """
     file = get_settings_file(path)
     if not os.path.exists(file):
-        os.makedirs(os.path.dirname(file))
+        os.makedirs(os.path.dirname(file), exist_ok=True)
         config = {}
     else:
         with open(file) as fid:
@@ -167,14 +171,10 @@ def trait_is_defined(obj, trait):
     Returns
     -------
     bool
-        True if the trait exists on the object, is defined, and is not None
-        False if the trait does not exist on the object or is defined as None
+        True if the trait exists on the object and is defined
+        False if the trait does not exist on the object or the trait is not defined
     """
-    try:
-        val = obj._trait_values[trait]
-        return val is not None
-    except (KeyError, RuntimeError, tl.TraitError):
-        return False
+    return obj.has_trait(trait) and trait in obj._trait_values
 
 def optional_import(module_name, package=None, return_root=False):
     '''
@@ -213,3 +213,19 @@ def optional_import(module_name, package=None, return_root=False):
         except ImportError:
             module = None
     return module
+
+if sys.version < '3.6':
+    # for Python 2 and Python < 3.6 compatibility
+    class OrderedDictTrait(tl.Dict):
+        """ OrderedDict trait """
+
+        default_value = OrderedDict()
+        
+        def validate(self, obj, value):
+            if not isinstance(value, OrderedDict):
+                raise tl.TraitError('...')
+            super(OrderedDictTrait, self).validate(obj, value)
+            return value
+
+else:
+    OrderedDictTrait = tl.Dict

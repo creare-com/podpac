@@ -47,7 +47,6 @@ The purpose of PODPAC is to facilitate
     user/pipelines
     user/earthdata
     user/references
-    user/api-min
     user/api
 
 .. toctree::
@@ -58,3 +57,7 @@ The purpose of PODPAC is to facilitate
     developer/contributing
     developer/aws
     developer/docs
+
+Acknowledgments
+-----------------
+This material is based upon work supported by NASA under Contract No 80NSSC18C0061.

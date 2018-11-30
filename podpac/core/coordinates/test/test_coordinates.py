@@ -30,7 +30,7 @@ from podpac.core.coordinates.coordinates import concat
 
 class TestCoordinateCreation(object):
     def test_empty(self):
-        c = Coordinates()
+        c = Coordinates([])
         assert c.dims == tuple()
         assert c.shape == tuple()
         assert c.size == 0

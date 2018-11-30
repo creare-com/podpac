@@ -20,5 +20,4 @@ artifacts
 # docs
 doc/build
 doc/source/user/api
-doc/source/user/api-min
 .pytest_cache/

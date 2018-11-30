@@ -21,6 +21,7 @@ from six import string_types
 
 import numpy as np
 import traitlets as tl
+import pandas as pd  # Core dependency of xarray
 
 # Helper utility for optional imports
 from podpac.core.utils import optional_import
@@ -43,9 +44,9 @@ certifi = optional_import('certifi')
 from podpac import settings
 from podpac.core import authentication
 from podpac.core.node import Node
-from podpac.core.utils import cached_property, clear_cache, common_doc
+from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.algorithm.algorithm import Algorithm
 
 class Array(DataSource):
@@ -90,6 +91,7 @@ class NumpyArray(Array):
     def init(self):
         warnings.warn('NumpyArray been renamed Array. ' +
                       'Backwards compatibility will be removed in future releases', DeprecationWarning)
+
 
 @common_doc(COMMON_DATA_DOC)
 class PyDAP(DataSource):
@@ -189,7 +191,7 @@ class PyDAP(DataSource):
                 dataset = pydap.client.open_url(source, session=self.auth_session)
             except Exception:
                 # TODO: handle 403 error
-                print ("Warning, dataset could not be opened. Check login credentials.")
+                print("Warning, dataset could not be opened. Check login credentials.")
                 dataset = None
 
         return dataset
@@ -248,6 +250,134 @@ class PyDAP(DataSource):
         """
         return self.dataset.keys()
 
+
+@common_doc(COMMON_DATA_DOC)
+class CSV(DataSource):
+    """Create a DataSource from a .csv file. This class assumes that the data has a storage format such as:
+    header 1,   header 2,   header 3, ...
+    row1_data1, row1_data2, row1_data3, ...
+    row2_data1, row2_data2, row2_data3, ...
+    
+    Attributes
+    ----------
+    native_coordinates : Coordinates
+        {native_coordinates}
+    source : str
+        Path to the data source
+    alt_col : str or int
+        Column number or column title containing altitude data
+    lat_col : str or int
+        Column number or column title containing latitude data
+    lon_col : str or int
+        Column number or column title containing longitude data
+    time_col : str or int
+        Column number or column title containing time data
+    data_col : str or int
+        Column number or column title containing output data
+    dims : list[str]
+        Default is ['alt', 'lat', 'lon', 'time']. List of dimensions tested. This list determined the order of the
+        stacked dimensions.
+    dataset : pd.DataFrame
+        Raw Pandas DataFrame used to read the data
+    """
+    source = tl.Unicode().tag(attr=True)
+    alt_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
+    lat_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
+    lon_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
+    time_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
+    data_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
+    dims = tl.List(default_value=['alt', 'lat', 'lon', 'time']).tag(attr=True)
+    dataset = tl.Instance(pd.DataFrame)
+    
+    def _first_init(self, **kwargs):
+        # First part of if tests to make sure this is the CSV parent class
+        # It's assumed that derived classes will define alt_col etc for specialized readers
+        if type(self) == CSV \
+                and not (('alt_col' in kwargs) or ('time_col' in kwargs) or ('lon_col' in kwargs) or ('lat_col' in kwargs)):
+            raise TypeError("CSV requires at least one of time_col, alt_col, lat_col, or lon_col.")
+        
+        return kwargs
+        
+    @property
+    def _alt_col(self):
+        if isinstance(self.alt_col, int):
+            return self.alt_col
+        return self.dataset.columns.get_loc(self.alt_col)
+    
+    @property
+    def _lat_col(self):
+        if isinstance(self.lat_col, int):
+            return self.lat_col
+        return self.dataset.columns.get_loc(self.lat_col)
+    
+    @property
+    def _lon_col(self):
+        if isinstance(self.lon_col, int):
+            return self.lon_col
+        return self.dataset.columns.get_loc(self.lon_col)
+    
+    @property
+    def _time_col(self):
+        if isinstance(self.time_col, int):
+            return self.time_col
+        return self.dataset.columns.get_loc(self.time_col)
+
+    @property
+    def _data_col(self):
+        if isinstance(self.data_col, int):
+            return self.data_col
+        return self.dataset.columns.get_loc(self.data_col)
+    
+    @tl.default('dataset')
+    def open_dataset(self, source=None):
+        """Opens the data source
+        
+        Parameters
+        ----------
+        source : str, optional
+            Uses self.source by default. Path to the data source.
+        
+        Returns
+        -------
+        pd.DataFrame
+            pd.read_csv(source)
+        """
+        if source is None:
+            source = self.source
+        else:
+            self.source = source
+
+        return pd.read_csv(source, parse_dates=True, infer_datetime_format=True)
+    
+    @common_doc(COMMON_DATA_DOC)
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
+        
+        The default implementation tries to find the lat/lon coordinates based on dataset.affine or dataset.transform
+        (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
+        have to overload this method.
+        """
+        coords = []
+        for d in self.dims:
+            if trait_is_defined(self, d + '_col') or (d + '_col' not in self.trait_names() and hasattr(self, d + '_col')):
+                i = getattr(self, '_{}_col'.format(d))
+                if d is 'time':
+                    c = np.array(self.dataset.iloc[:, i], np.datetime64)
+                else:
+                    c = np.array(self.dataset.iloc[:, i])
+                coords.append(ArrayCoordinates1d(c, name=d))
+        if len(coords) > 1:
+            coords = [StackedCoordinates(coords)]
+        return Coordinates(coords)
+    
+    @common_doc(COMMON_DATA_DOC)
+    def get_data(self, coordinates, coordinates_index):
+        """{get_data}
+        """
+        d = self.dataset.iloc[coordinates_index[0], self._data_col]
+        return self.create_output_array(coordinates, data=d)
+
+
 # TODO: rename "Rasterio" to be more consistent with other naming conventions
 @common_doc(COMMON_DATA_DOC)
 class Rasterio(DataSource):
@@ -301,7 +431,8 @@ class Rasterio(DataSource):
     def _update_dataset(self, change):
         if self.dataset is not None:
             self.dataset = self.open_dataset(change['new'])
-        self.native_coordinates = self.get_native_coordinates()
+        if trait_is_defined(self, 'native_coordinates'):
+            self.native_coordinates = self.get_native_coordinates()
         
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -312,10 +443,7 @@ class Rasterio(DataSource):
         have to overload this method.
         """
         
-        if hasattr(self.dataset, 'affine'):
-            affine = self.dataset.affine
-        else:
-            affine = self.dataset.transform
+        affine = self.dataset.transform
 
         left, bottom, right, top = self.dataset.bounds
 
@@ -483,7 +611,8 @@ class H5PY(DataSource):
         if self.dataset is not None:
             self.close_dataset()
             self.dataset = self.open_dataset(change['new'])
-        self.native_coordinates = self.get_native_coordinates()
+        if trait_is_defined(self, 'native_coordinates'):
+            self.native_coordinates = self.get_native_coordinates()
         
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -647,7 +776,10 @@ class WCS(DataSource):
 
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
-            return Coordinates([UniformCoordinates1d(top, bottom, size=size[1], name='lat')])
+            return Coordinates([
+                UniformCoordinates1d(top, bottom, size=size[1], name='lat'),
+                UniformCoordinates1d(left, right, size=size[0], name='lon')
+                ])        
         
         date_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')
@@ -675,14 +807,14 @@ class WCS(DataSource):
         data wrangling for us...
         """
 
-        # TODO update so that we don't rely on _evaluated_coordinates
-        if not self._evaluated_coordinates:
+        # TODO update so that we don't rely on _requested_coordinates if possible
+        if not self._requested_coordinates:
             return self.wcs_coordinates
 
         cs = []
         for dim in self.wcs_coordinates.dims:
-            if dim in self._evaluated_coordinates.dims:
-                c = self._evaluated_coordinates[dim]
+            if dim in self._requested_coordinates.dims:
+                c = self._requested_coordinates[dim]
                 if c.size == 1:
                     cs.append(ArrayCoordinates1d(c.coordinates[0], name=dim))
                 elif isinstance(c, UniformCoordinates1d):
@@ -757,7 +889,7 @@ class WCS(DataSource):
                             output.data[i, ...] = dataset.read()
                     except Exception as e: # Probably python 2
                         print(e)
-                        tmppath = os.path.join(self.cache_dir, 'wcs_temp.tiff')
+                        tmppath = os.path.join(settings.CACHE_DIR, 'wcs_temp.tiff')
                         
                         if not os.path.exists(os.path.split(tmppath)[0]):
                             os.makedirs(os.path.split(tmppath)[0])
@@ -823,7 +955,7 @@ class WCS(DataSource):
                 except Exception as e: # Probably python 2
                     print(e)
                     tmppath = os.path.join(
-                        self.cache_dir, 'wcs_temp.tiff')
+                        settings.CACHE_DIR, 'wcs_temp.tiff')
                     if not os.path.exists(os.path.split(tmppath)[0]):
                         os.makedirs(os.path.split(tmppath)[0])
                     open(tmppath, 'wb').write(content)
@@ -1014,7 +1146,7 @@ class S3(DataSource):
                                    #self.source.replace('\\', '').replace(':','')\
                                    #.replace('/', ''))
             tmppath = os.path.join(
-                self.cache_dir,
+                settings.CACHE_DIR,
                 self.source.replace('\\', '').replace(':', '').replace('/', ''))
             
             rootpath = os.path.split(tmppath)[0]
