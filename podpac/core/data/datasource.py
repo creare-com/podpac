@@ -19,6 +19,7 @@ from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinat
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import node_eval
 from podpac.core.data.interpolate import Interpolation, interpolation_trait
 
 DATA_DOC = {
@@ -166,7 +167,7 @@ class DataSource(Node):
     # privates
     _interpolation = tl.Instance(Interpolation)
     
-    _evaluated_coordinates = tl.Instance(Coordinates, allow_none=True)
+    _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _requested_source_coordinates = tl.Instance(Coordinates)
     _requested_source_coordinates_index = tl.List()
     _requested_source_data = tl.Instance(UnitsDataArray)
@@ -272,6 +273,10 @@ class DataSource(Node):
         if self.coordinate_index_type != 'numpy':
             warnings.warn('Coordinates index type {} is not yet supported.'.format(self.coordinate_index_type) +
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
+
+        # store requested coordinates for debugging
+        if self.debug:
+            self._original_requested_coordinates = coordinates
         
         # check for missing dimensions
         for c in self.native_coordinates.values():
@@ -296,7 +301,10 @@ class DataSource(Node):
         # set input coordinates to evaluated coordinates
         # TODO move this if WCS can be updated to support
         self._evaluated_coordinates = coordinates
+        return self._eval(coordinates, output=output)
 
+    @node_eval
+    def _eval(self, coordinates, output=None):
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
@@ -309,8 +317,6 @@ class DataSource(Node):
                 output = self.create_output_array(coordinates)
             else:
                 output[:] = np.nan
-
-            self._output = output
             return output
         
         # reset interpolation
