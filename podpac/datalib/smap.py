@@ -45,7 +45,7 @@ from podpac.core.data import types as datatype
 from podpac.core import authentication
 from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
-from podpac.core.node import cached_property
+from podpac.core.node import cache_func
 from podpac.core.node import NodeException
 
 COMMON_DOC = COMMON_DATA_DOC.copy()
@@ -336,7 +336,7 @@ class SMAPSource(datatype.PyDAP):
         return SMAP_PRODUCT_MAP.sel(product=self.product, attr='lonkey').item().format(rdk=self.rootdatakey)
 
     @common_doc(COMMON_DOC)
-    @cached_property('native.coordinates')
+    @cache_func('native.coordinates')
     def get_native_coordinates(self):
         """{get_native_coordinates}
         """
@@ -452,7 +452,7 @@ class SMAPProperties(SMAPSource):
         return '{rdk}' + self.property
 
     @common_doc(COMMON_DOC)
-    @cached_property('native.coordinates')
+    @cache_func('native.coordinates')
     def get_native_coordinates(self):
         """{get_native_coordinates}
         """
@@ -645,7 +645,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         self.put_cache(crds, 'source.coordinates', overwrite=True)
         return crds
 
-    @cached_property('shared.coordinates')
+    @cache_func('shared.coordinates')
     def get_shared_coordinates(self):
         """Coordinates that are shared by all files in the folder.
 
@@ -889,7 +889,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         dates.sort()
         return np.array(times), dates
 
-    @cached_property('shared.coordinates')
+    @cache_func('shared.coordinates')
     def get_shared_coordinates(self):
         """Coordinates that are shared by all files in the SMAP product family. 
 

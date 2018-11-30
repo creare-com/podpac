@@ -590,7 +590,7 @@ def node_eval(fn):
         return data
     return wrapper
 
-def cached_property(key, depends=None, raise_no_cache_exception=False):
+def cache_func(key, depends=None, raise_no_cache_exception=False):
     """
     Decorating for caching a function's output based on a key. 
 
@@ -599,7 +599,7 @@ def cached_property(key, depends=None, raise_no_cache_exception=False):
     key: str
         Key used for caching.
     depends: str, list, traitlets.All (optional)
-        Default is None. Any traits that the cached property depends on. The cached_property may NOT
+        Default is None. Any traits that the cached property depends on. The cached function may NOT
         change the value of any of these dependencies (this will result in a RecursionError)
     raise_no_cache_exception: bool, optional
             Raises a NodeException if trying to put data to the cache, but no cache is available.
@@ -614,34 +614,36 @@ def cached_property(key, depends=None, raise_no_cache_exception=False):
 
     Examples
     ----------
+    >>> from podpac import Node
+    >>> from podpac.core.node import cache_func
+    >>> import traitlets as tl
     >>> class MyClass(Node):
-           value = 0
-           @cached_func('native_coordinates')
-           def square_value(self):
+           value = tl.Int(0)
+           @cache_func('add')
+           def add_value(self):
                self.value += 1
                return self.value
-           @cached_func('native_coordinates', depends='value')
+           @cache_func('square', depends='value')
            def square_value_depends(self):
                return self.value
 
     >>> n = MyClass()
-    >>> n.get_value()  # The function as defined is called
+    >>> n.add_value()  # The function as defined is called
     1
-    >>> n.get_value()  # The function as defined is called again, since we have no caching specified
+    >>> n.add_value()  # The function as defined is called again, since we have no caching specified
     2
     >>> n.cache_type = 'disk'
-    >>> n.get_value()  # The function as defined is called again, and the value is stored to disk
+    >>> n.add_value()  # The function as defined is called again, and the value is stored to disk
     3
-    >>> n.get_value()  # The value is retrieved from disk, note the change in n.value is not captured
+    >>> n.add_value()  # The value is retrieved from disk, note the change in n.value is not captured
     3
-    >>> n.get_value_depends()  # The function as defined is called, and the value is stored to disk
-    4
-    >>> n.get_value_depends()  # The value is retrieved from disk
-    4
-
+    >>> n.square_value_depends()  # The function as defined is called, and the value is stored to disk
+    16
+    >>> n.square_value_depends()  # The value is retrieved from disk
+    16
     >>> n.value += 1
-    >>> n.get_value_depends()  # The function as defined is called, and the value is stored to disk. Note the change in n.value is captured.
-    5
+    >>> n.square_value_depends()  # The function as defined is called, and the value is stored to disk. Note the change in n.value is captured.
+    25
     """
     # This is the actual decorator which will be evaluated and returns the wrapped function
     def cache_decorator(func):
