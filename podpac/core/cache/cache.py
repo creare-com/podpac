@@ -316,7 +316,7 @@ class DiskCacheStore(CacheStore):
         basedir = self._root_dir_path
         subdir = str(node.__class__)[8:-2].split('.')
         dirs = [basedir] + subdir
-        return (os.path.join(*dirs)).replace(':', '_').replace('<', '_').replace('>', '_')
+        return (os.path.join(*dirs)).replace('<', '_').replace('>', '_')
 
     def cache_filename(self, node, key, coordinates):
         pre = str(node.base_ref).replace('/', '_').replace('\\', '_').replace(':', '_')
