@@ -18,7 +18,7 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc
-from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import COMMON_NODE_DOC, node_eval
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -162,6 +162,7 @@ class Reduce(Algorithm):
             yield self.source.eval(chunk)
 
     @common_doc(COMMON_DOC)
+    @node_eval
     def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates. 
         
@@ -204,7 +205,6 @@ class Reduce(Algorithm):
         else:
             output[:] = result
 
-        self._output = output
         return output
 
     def reduce(self, x):
@@ -907,6 +907,7 @@ class GroupReduce(Algorithm):
         return coords
 
     @common_doc(COMMON_DOC)
+    @node_eval
     def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates. 
         
@@ -926,7 +927,7 @@ class GroupReduce(Algorithm):
         ValueError
             If source it not time-depended (required by this node).
         """
-        self._requested_coordinates = coordinates
+        
         self._source_coordinates = self._get_source_coordinates(coordinates)
         
         if output is None:
@@ -950,7 +951,6 @@ class GroupReduce(Algorithm):
         out = out.sel(**{self.groupby:E}).rename({self.groupby: 'time'})
         output[:] = out.transpose(*output.dims).data
 
-        self._output = output
         return output
 
     def base_ref(self):

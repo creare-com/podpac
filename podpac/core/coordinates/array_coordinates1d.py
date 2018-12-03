@@ -13,6 +13,7 @@ import traitlets as tl
 from collections import OrderedDict
 
 # from podpac.core.utils import cached_property, clear_cache
+from podpac.core.units import Units
 from podpac.core.coordinates.utils import make_coord_value, make_coord_array, add_coord
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 
@@ -28,8 +29,8 @@ class ArrayCoordinates1d(Coordinates1d):
     Parameters
     ----------
     name : str
-        Dimension name, one of 'lat', 'lon', 'time', 'alt'.
-    coordinates : np.ndarray
+        Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+    coordinates : array, read-only
         Full array of coordinate values.
     units : podpac.Units
         Coordinate units.
@@ -43,21 +44,55 @@ class ArrayCoordinates1d(Coordinates1d):
 
     See Also
     --------
-    :class:`UniformCoordinates1d`
+    :class:`Coordinates1d`, :class:`UniformCoordinates1d`
     """
 
+    #: array : User-defined coordinate values
     coords = tl.Instance(np.ndarray)
+
+    #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+    name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
+
+    #: Units : Coordinate units.
+    units = tl.Instance(Units, allow_none=True)
+
+    #: str : Coordinate reference system.
+    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True)
+
+    #: str : Coordinates type, on of 'point', 'left', 'right', or 'midpoint'.
+    ctype = tl.Enum(['point', 'left', 'right', 'midpoint'])
+
+    #: : *To be replaced.*
+    extents = tl.Instance(np.ndarray, allow_none=True, default_value=None)
+
+    #: bool : Are the coordinate values unique and sorted.
+    is_monotonic = tl.CBool(allow_none=True, readonly=True)
+    
+    #: bool : Are the coordinate values sorted in descending order.
+    is_descending = tl.CBool(allow_none=True, readonly=True)
+
+    #: bool : Are the coordinate values uniformly-spaced.
+    is_uniform = tl.CBool(allow_none=True, readonly=True)
 
     def __init__(self, coords, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None):
         """
-        Initialize coords from an array.
+        Create 1d coordinates from an array.
 
-        Parameters
-        ----------
+        Arguments
+        ---------
         coords : array-like
             coordinate values.
-        **kwargs
-            Description
+        name : str, optional
+            Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+        units : Units, optional
+            Coordinate units.
+        coord_ref_sys : str, optional
+            Coordinate reference system.
+        ctype : str, optional
+            Coordinates type: 'point', 'left', 'right', or 'midpoint'.
+        extents : (low, high), optional
+            When ctype != 'point', defines custom (low, high) area bounds for the coordinates.
+            *Note: To be replaced with segment_lengths.*
         """
 
         coords = make_coord_array(coords)
@@ -109,20 +144,109 @@ class ArrayCoordinates1d(Coordinates1d):
                 self.set_trait('is_descending', self.coords[1] < self.coords[0])
                 self.set_trait('is_uniform', np.allclose(deltas, deltas[0]))
 
+    @tl.validate('extents')
+    def _validate_extents(self, d):
+        return super(ArrayCoordinates1d, self)._validate_extents(d)
+
+    @tl.default('coord_ref_sys')
+    def _default_coord_ref_sys(self):
+        return super(ArrayCoordinates1d, self)._default_coord_ref_sys()
+    
+    @tl.default('ctype')
+    def _default_ctype(self):
+        return super(ArrayCoordinates1d, self)._default_ctype()
+
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate Constructors
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_xarray(cls, x, **kwargs):
+    def from_xarray(cls, x, ctype=None, units=None, extents=None, coord_ref_sys=None):
+        """
+        Create 1d Coordinates from named xarray coords.
+
+        Arguments
+        ---------
+        x : xarray.DataArray
+            Nade DataArray of the coordinate values
+        units : Units, optional
+            Coordinate units.
+        coord_ref_sys : str, optional
+            Coordinate reference system.
+        ctype : str, optional
+            Coordinates type: 'point', 'left', 'right', or 'midpoint'.
+        extents : (low, high), optional
+            When ctype != 'point', defines custom (low, high) area bounds for the coordinates.
+            *Note: To be replaced with segment_lengths.*
+
+        Returns
+        -------
+        :class:`ArrayCoordinates1d`
+            1d coordinates
+        """
+
         return cls(x.data, name=x.name)
 
     @classmethod
     def from_definition(cls, d):
+        """
+        Create 1d coordinates from a coordinates definition.
+
+        The definition must contain the coordinate values::
+
+            c = ArrayCoordinates1d.from_definition({
+                "values": [0, 1, 2, 3]
+            })
+
+        The definition may also contain any of the 1d Coordinates properties::
+
+            c = ArrayCoordinates1d.from_definition({
+                "values": [0, 1, 2, 3],
+                "name": "lat",
+                "ctype": "points"
+            })
+
+        Arguments
+        ---------
+        d : dict
+            1d coordinates array definition
+
+        Returns
+        -------
+        :class:`ArrayCoordinates1d`
+            1d Coordinates
+
+        See Also
+        --------
+        definition
+        """
+
         coords = d.pop('values')
         return cls(coords, **d)
 
     def copy(self, **kwargs):
+        """
+        Make a deep copy of the 1d Coordinates array.
+
+        The coordinates properties will be copied. Any provided keyword arguments will override these properties.
+
+        Arguments
+        ---------
+        name : str, optional
+            Dimension name. One of 'lat', 'lon', 'alt', and 'time'.
+        units : str, optional
+            Coordinates units.
+        coord_ref_sys : str, optional
+            Coordinates reference system.
+        ctype : str, optional
+            Coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+
+        Returns
+        -------
+        :class:`ArrayCoordinates1d`
+            Copy of the coordinates, with provided properties.
+        """
+
         properties = self.properties
         properties.update(kwargs)
         return ArrayCoordinates1d(self.coords, **properties)
@@ -144,7 +268,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def coordinates(self):
-        """ Coordinate values. """
+        """:array, read-only: Coordinate values."""
 
         # get coordinates and ensure read-only array with correct dtype
         coordinates = self.coords.copy()
@@ -153,11 +277,16 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def size(self):
-        ''' Number of coordinates. '''
+        """ Number of coordinates. """
         return self.coords.size
 
     @property
     def dtype(self):
+        """:type: Coordinates dtype.
+
+        ``float`` for numerical coordinates and numpy ``datetime64`` for datetime coordinates.
+        """
+
         if self.size == 0:
             return None
         elif self.coords.dtype == float:
@@ -169,7 +298,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def bounds(self):
-        """ Coordinate bounds. """
+        """ Low and high coordinate bounds. """
 
         # TODO are we sure this can't be a tuple?
 
@@ -189,6 +318,12 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def area_bounds(self):
+        """
+        Low and high coordinate area bounds.
+
+        When ctype != 'point', this includes the portions of the segments beyond the coordinate bounds.
+        """
+
         # point ctypes, just use bounds
         if self.ctype == 'point':
             return self.bounds
@@ -222,6 +357,18 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @property
     def definition(self):
+        """:dict: Serializable 1d coordinates array definition.
+
+        The ``definition`` can be used to create new ArrayCoordinates1d::
+
+            c = podpac.ArrayCoordinates1d([0, 1, 2, 3])
+            c2 = podpac.ArrayCoordinates1d.from_definition(c.definition)
+
+        See Also
+        --------
+        from_definition
+        """
+
         d = OrderedDict()
         if self.dtype == float:
             d['values'] = self.coords.tolist()
@@ -235,6 +382,47 @@ class ArrayCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     def select(self, bounds, outer=False, return_indices=False):
+        """
+        Get the coordinate values that are within the given bounds.
+
+        The default selection returns coordinates that are within the other coordinates bounds::
+
+            In [1]: c = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+
+            In [2]: c.select([1.5, 2.5]).coordinates
+            Out[2]: array([2.])
+
+        The *outer* selection returns the minimal set of coordinates that contain the other coordinates::
+        
+            In [3]: c.intersect([1.5, 2.5], outer=True).coordinates
+            Out[3]: array([1., 2., 3.])
+
+        The *outer* selection also returns a boundary coordinate if the other coordinates are outside this
+        coordinates bounds but *inside* its area bounds::
+        
+            In [4]: c.intersect([3.25, 3.35], outer=True).coordinates
+            Out[4]: array([3.0], dtype=float64)
+
+            In [5]: c.intersect([10.0, 11.0], outer=True).coordinates
+            Out[5]: array([], dtype=float64)
+        
+        Arguments
+        ---------
+        bounds : low, high
+            selection bounds
+        outer : bool, optional
+            If True, do an *outer* selection. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
+
+        Returns
+        -------
+        selection : :class:`ArrayCoordinates1d`
+            ArrayCoordinates1d object with coordinates within the other coordinates bounds.
+        I : slice or list
+            index or slice for the intersected coordinates (only if return_indices=True)
+        """
+
         bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
 
         # empty

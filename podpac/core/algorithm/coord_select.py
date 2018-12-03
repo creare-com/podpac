@@ -42,21 +42,6 @@ class ModifyCoordinates(Algorithm):
     @tl.default('coordinates_source')
     def _default_coordinates_source(self):
         return self.source
-   
-    def algorithm(self, inputs):
-        """Passthrough of the source data
-        
-        Arguments
-        ----------
-        inputs : dict
-            Evaluated output of the input nodes. The keys are the attribute names.
-
-        Returns
-        -------
-        UnitDataArray
-            Source evaluated at the expanded coordinates
-        """
-        return inputs['source']
  
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None):
@@ -79,18 +64,23 @@ class ModifyCoordinates(Algorithm):
         """
         
         self._requested_coordinates = coordinates
-        
-        modified_coordinates = Coordinates(
+        self.outputs = {}
+        self._modified_coordinates = Coordinates(
             [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims])
-        for dim in modified_coordinates.udims:
-            if modified_coordinates[dim].size == 0:
+        
+        for dim in self._modified_coordinates.udims:
+            if self._modified_coordinates[dim].size == 0:
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
-        output = super(ModifyCoordinates, self).eval(modified_coordinates, output=output)
 
-        # debugging
-        self._modified_coordinates = modified_coordinates
-        self._output = output
+        self.outputs['source'] = self.source.eval(self._modified_coordinates, output=output)
+        
+        if output is None:
+            output = self.outputs['source']
+        else:
+            output[:] = self.outputs['source']
 
+        if self.debug:
+            self._output = output
         return output
 
 class ExpandCoordinates(ModifyCoordinates):

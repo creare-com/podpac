@@ -49,25 +49,64 @@ Examples:
 - https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html
 - https://docs.scipy.org/doc/numpy/docs/howto_document.html#example-source
 
-Note that class attributes can be documented multiple ways. 
-We choose to document attributes in the main class docs:
+Note that class attributes can be documented multiple ways.
+ - Public attributes (traits) should be documented in the preceding line with `#: <type> : <description>.`
+ - Public properties created with the `@property` decorator should be documented in the getter method.
+ - Additionaly, document key public attributes and properties again in the main class docs under `Parameters`.
 
 ```python
-class ExampleClass(object):
+class ExampleClass(tl.HasTraits):
     """The summary line for a class docstring should fit on one line.
 
-    Properties created with the ``@property`` decorator should be documented
-    in the property's getter method and left out of here.
+    Additional details should be documented here.
 
-    Attributes
+    Parameters
     ----------
     attr1 : str
-        Description of `attr1`.
+        Description of attr1.
     attr2 : dict, optional
-        Description of `attr2`.
+        Description of attr2.
+    """
+
+    #: str : Description of attr1
+    attr1 = tl.Str()
+
+    #: dict : Description of attr2
+    attr2 = tl.Dict(allow_none=True)
+
+    #: int : Description of secondary attr3
+    attr3 : tl.Int()
+
+    @property
+    def attr4(self):
+        """:bool: Description of attr4."""
+
+        return True
+```
+
+The docstrings for inherited traits are not inherited. You must define inherited traits again in child classes:
+
+```python
+class ExampleChild(ExampleClass):
+    """Summary.
 
     ...
     """
+
+    #: str : Description of my_attr (not inherited)
+    my_attr = tl.Str()
+
+    # inherited traits, duplicated here for the docstrings:
+
+    #: str : Description of attr1
+    attr1 = tl.Str()
+
+    #: dict : Description of attr2
+    attr2 = tl.Dict(allow_none=True)
+
+    #: int : Description of secondary attr3
+    attr3 : tl.Int()
+
 ```
 
 #### References
@@ -104,6 +143,51 @@ $ pylint podpac/settings.py     # lint single file
 ```
 
 Configuration options are specified in `.pylintrc`.
+
+## Logging
+
+We use the python `logging` library to support library logging.
+To include logging in your module, use:
+
+```python
+import logging
+log = logging.getLogger(__name__)  # creates a logger with the current module name
+
+# log a message
+log.debug('Debug message')
+log.info('Info message')
+log.warning('Warning message')
+log.error('Error message')
+```
+
+Do not set levels, handlers, or formatters in your modules.
+See the [python logging documentation](https://docs.python.org/3/library/logging.html#logging.Logger.debug) for details on how to construct log messages.
+
+To handling logging in your application, you can use a simple config:
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO)  # log to console
+logging.basicConfig(level=logging.INFO, filename='podpac.log')  # log to a file podpac.log
+```
+
+or a more complicated configuration which handles only podpac logs:
+
+```python
+# log only podpac logs
+log = logging.getLogger('podpac')
+log.setLevel(logging.DEBUG)
+
+# log only podpac logs in a file
+import logging
+from logging import FileHandler
+log = logging.getLogger('podpac')
+log.setLevel(logging.DEBUG)
+log.addHandler(FileHandler('podpac.log', 'w'))
+```
+
+We have created a convience method `create_logfile()` in the `podpac.utils` module to
+automatically create a log file for only podpac logs.
 
 ## Import Conventions / API Conventions
 

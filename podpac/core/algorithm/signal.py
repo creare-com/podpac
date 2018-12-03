@@ -21,7 +21,7 @@ from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.utils import common_doc
-from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import COMMON_NODE_DOC, node_eval
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 COMMON_DOC['full_kernel'] = '''Kernel that contains all the dimensions of the input source, in the correct order.
@@ -77,6 +77,7 @@ class Convolution(Algorithm):
     _full_kernel = tl.Instance(np.ndarray)
  
     @common_doc(COMMON_DOC)
+    @node_eval
     def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates.
         
@@ -91,20 +92,18 @@ class Convolution(Algorithm):
         -------
         {eval_return}
         """
-        self._requested_coordinates = coordinates
-        
         # This should be aligned with coordinates' dimension order
         # The size of this kernel is used to figure out the expanded size
         self._full_kernel = self.get_full_kernel(coordinates)
-        shape = self._full_kernel.shape
         
-        if len(shape) != len(coordinates.shape):
-            raise ValueError("Kernel shape does not match source data shape")
+        if len(self._full_kernel.shape) != len(coordinates.shape):
+            raise ValueError("shape mismatch, kernel does not match source data (%s != %s)" % (
+                self._full_kernel.shape, coordinates.shape))
 
         # expand the coordinates
         exp_coords = []
         exp_slice = []
-        for dim, s in zip(coordinates.dims, shape):
+        for dim, s in zip(coordinates.dims, self._full_kernel.shape):
             coord = coordinates[dim]
             if s == 1 or not isinstance(coord, UniformCoordinates1d):
                 exp_coords.append(coord)
@@ -121,20 +120,24 @@ class Convolution(Algorithm):
                 coord.step,
                 **coord.properties))
             exp_slice.append(slice(-s_start, -s_end))
-        exp_coords = Coordinates(exp_coords)
         exp_slice = tuple(exp_slice)
+        self._expanded_coordinates = Coordinates(exp_coords)
 
-        # evaluate using expanded coordinates and then reduce down to originally requested coordinates
-        out = super(Convolution, self).eval(exp_coords)
-        result = out[exp_slice]
+        # evaluate source using expanded coordinates, convolve, and then slice out original coordinates
+        source = self.source.eval(self._expanded_coordinates)
+        
+        if np.isnan(np.max(source)):
+            method = 'direct'
+        else:
+            method = 'auto'
+
+        result = scipy.signal.convolve(source, self._full_kernel, mode='same', method=method)
+        result = result[exp_slice]
+ 
         if output is None:
-            output = result
+            output = self.create_output_array(coordinates, data=result)
         else:
             output[:] = result
-
-        # debugging
-        self._expanded_coordinates = exp_coords
-        self._output = output
 
         return output
 
@@ -162,26 +165,6 @@ class Convolution(Algorithm):
         """{full_kernel}
         """
         return self.kernel
-
-    def algorithm(self, inputs):
-        """Computes the convolution of the source and the kernel
-        
-        Arguments
-        ----------
-        inputs : dict
-            evaluated outputs of the input nodes. The keys are the attribute names.
-
-        Returns
-        -------
-        np.ndarray
-            Resultant array. 
-        """
-        if np.isnan(np.max(inputs['source'])):
-            method = 'direct'
-        else:
-            method = 'auto'
-        res = scipy.signal.convolve(inputs['source'], self._full_kernel, mode='same', method=method)
-        return res
 
 
 class TimeConvolution(Convolution):
