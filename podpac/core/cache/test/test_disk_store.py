@@ -132,7 +132,7 @@ def test_put_two_and_remove_all():
                 cache.put(node=n1, data=d1, key=k2, coordinates=c1, mode='all', update=False)
                 assert cache.has(node=n2, key=k1, coordinates=c2, mode='all')
                 assert cache.has(node=n2, key=k2, coordinates=c2, mode='all')
-                cache.rem(node=n2, key=None, coordinates=None, mode='all')
+                cache.rem(node=n2, key='*', coordinates='*', mode='all')
                 assert not cache.has(node=n1, key=k1, coordinates=c1, mode='all')
                 assert not cache.has(node=n1, key=k2, coordinates=c1, mode='all')
                 with pytest.raises(CacheException):
@@ -162,7 +162,7 @@ def test_two_different_nodes_put_and_one_node_removes_all():
                 cache.put(node=n1, data=d1, key=k2, coordinates=c1, mode='all', update=False)
                 assert cache.has(node=n2, key=k1, coordinates=c2, mode='all')
                 assert cache.has(node=n2, key=k2, coordinates=c2, mode='all')
-                cache.rem(node=n2, key=None, coordinates=None, mode='all')
+                cache.rem(node=n2, key='*', coordinates='*', mode='all')
                 assert not cache.has(node=n1, key=k1, coordinates=c1, mode='all')
                 assert not cache.has(node=n1, key=k2, coordinates=c1, mode='all')
                 with pytest.raises(CacheException):

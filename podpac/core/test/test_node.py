@@ -303,7 +303,6 @@ class TestCaching(object):
         assert not self.node.has_cache('c', coordinates=self.coords2)
         assert not self.node.has_cache('d', coordinates=self.coords)
 
-    @pytest.mark.skip('BUG: Need to fix this.')
     def test_rem_key(self):
         self.node.put_cache(0, 'a')
         self.node.put_cache(0, 'b')
@@ -321,7 +320,6 @@ class TestCaching(object):
         assert self.node.has_cache('c', coordinates=self.coords2)
         assert self.node.has_cache('d', coordinates=self.coords)
 
-    @pytest.mark.skip('BUG: Need to fix this.')
     def test_rem_coordinates(self):
         self.node.put_cache(0, 'a')
         self.node.put_cache(0, 'b')

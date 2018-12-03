@@ -514,16 +514,16 @@ class Node(tl.HasTraits):
             return False
         return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
-    def rem_cache(self, key=None, coordinates=None, mode=None, all_cache=False):
+    def rem_cache(self, key='*', coordinates='*', mode=None, all_cache=False):
         """
         Clear cached data for this node.
 
         Parameters
         ----------
         key : str, optional
-            Delete cached objects with this key. If None, cached data is deleted for all keys.
-        coordinates : podpac.Coordinates, optional
-            Delete cached objects for these coordinates. If None, cached data is deleted for all coordinates, including
+            Delete cached objects with this key. If `'*'`, cached data is deleted for all keys.
+        coordinates : podpac.Coordinates, str, optional
+            Delete cached objects for these coordinates. If `'*'`, cached data is deleted for all coordinates, including
             coordinate-independent data.
         mode: str, optional
             Specify which cache stores are affected. 
