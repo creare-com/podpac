@@ -16,16 +16,17 @@ except ImportError:
 
 # Settings Defaults
 DEFAULT_SETTINGS = {
+    'DEBUG': False,
     'CACHE_DIR': 'cache',
     'CACHE_TO_S3': False,
-    'ROOT_PATH': None,
+    'ROOT_PATH': os.path.join(os.path.expanduser('~'), '.podpac'),
     'AWS_ACCESS_KEY_ID': None,
     'AWS_SECRET_ACCESS_KEY': None,
     'AWS_REGION_NAME': None,
     'S3_BUCKET_NAME': None,
     'S3_JSON_FOLDER': None,
     'S3_OUTPUT_FOLDER': None,
-    'SAVE_SETTINGS': False
+    'AUTOSAVE_SETTINGS': False
 }
 
 
@@ -49,7 +50,7 @@ class PodpacSettings(dict):
     
     :attr:`settings.settings_path` shows the path of the last loaded settings file (e.g. the active settings file).
     To persistenyl update the active settings file as changes are made at runtime,
-    set the ``settings['SAVE_SETTINGS']`` field to ``True``. The active setting file can be persistently
+    set the ``settings['AUTOSAVE_SETTINGS']`` field to ``True``. The active setting file can be persistently
     saved at any time using :meth:`settings.save`.
     
     The default settings are shown below:
@@ -73,14 +74,14 @@ class PodpacSettings(dict):
     CACHE_TO_S3 : bool
         Cache results to the AWS S3 bucket.
     ROOT_PATH : str
-        Path to primary podpac working directory.
+        Path to primary podpac working directory. Defaults to the ``.podpac`` directory in the users home directory.
     S3_BUCKET_NAME : str
         The AWS S3 Bucket to use for cloud based processing.
     S3_JSON_FOLDER : str
         Folder within :attr:`S3_BUCKET_NAME` to use for cloud based processing.
     S3_OUTPUT_FOLDER : str
         Folder within :attr:`S3_BUCKET_NAME` to use for outputs.
-    SAVE_SETTINGS: bool
+    AUTOSAVE_SETTINGS: bool
         Save settings automatically as they are changed during runtime. Defaults to ``False``.
 
     """
@@ -97,10 +98,21 @@ class PodpacSettings(dict):
         # load user settings
         self._load_user_settings(path)
 
+        # it breaks things to set the root path to None, set back to default if set to None
+        if self['ROOT_PATH'] is None:
+            self['ROOT_PATH'] = DEFAULT_SETTINGS['ROOT_PATH']
+
+        # TODO: handle this in the cache module
+        if self['S3_BUCKET_NAME'] and self['CACHE_TO_S3']:
+            self['CACHE_DIR'] = 'cache'
+        else:
+            self['CACHE_DIR'] = os.path.abspath(os.path.join(self['ROOT_PATH'], self['CACHE_DIR']))
+            self._mkdir(self['CACHE_DIR'])
+
         # set loaded flag
         self._loaded = True
 
-        # write out settings
+        # if no settings file exists, this will create one in the user's home directory
         self.save()
 
     def __setitem__(self, key, value):
@@ -114,7 +126,7 @@ class PodpacSettings(dict):
         super(PodpacSettings, self).__setitem__(key, value)
 
         # save settings file if value has changed
-        if self._loaded and self['SAVE_SETTINGS'] and old_val != value:
+        if self._loaded and self['AUTOSAVE_SETTINGS'] and old_val != value:
             self.save()
 
     def __getitem__(self, key):
@@ -141,8 +153,9 @@ class PodpacSettings(dict):
         filename : str, optional
             Filename of custom settings file
         """
+
         filepath = os.path.join(path, filename) if path is not None else None
-        default_path = os.path.join(os.path.expanduser('~'), '.podpac')
+        default_path = self['ROOT_PATH']
         default_filepath = os.path.join(default_path, filename)
         
         # set settings path to default to start
@@ -162,9 +175,9 @@ class PodpacSettings(dict):
 
         # order of paths to check for settings
         filepath_choices = [
-            default_filepath,                     # default path
-            os.path.join(os.getcwd(), filename),  # current working directory
-            filepath                             # input directory
+            default_filepath,                       # default path
+            os.path.join(os.getcwd(), filename),    # current working directory
+            filepath                                # input directory
         ]
 
         # try path choices in order, overwriting earlier ones with later ones
