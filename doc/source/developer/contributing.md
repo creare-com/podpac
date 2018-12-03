@@ -50,9 +50,9 @@ Examples:
 - https://docs.scipy.org/doc/numpy/docs/howto_document.html#example-source
 
 Note that class attributes can be documented multiple ways.
- - Public attributes (traits) should be documented in the preceding line with `#: <type> : <description>.`
- - Public properties created with the `@property` decorator should be documented in the getter method.
- - Additionaly, document key public attributes and properties again in the main class docs under `Parameters`.
+ - Key public attributes and properties should be documented in the main class docstring under `Parameters`.
+ - All public attributes (traits) should be documented in the subsequent line by setting its `__doc__` property.
+ - All public properties created with the `@property` decorator should be documented in the getter method.
 
 ```python
 class ExampleClass(tl.HasTraits):
@@ -68,45 +68,20 @@ class ExampleClass(tl.HasTraits):
         Description of attr2.
     """
 
-    #: str : Description of attr1
     attr1 = tl.Str()
+    attr.__doc__ = ":str: Description of attr1"
 
-    #: dict : Description of attr2
     attr2 = tl.Dict(allow_none=True)
+    attr2.__doc__ = ":dict: Description of attr2"
 
-    #: int : Description of secondary attr3
     attr3 : tl.Int()
+    attr2.__doc__ = ":int: Description of secondary attr3"
 
     @property
     def attr4(self):
         """:bool: Description of attr4."""
 
         return True
-```
-
-The docstrings for inherited traits are not inherited. You must define inherited traits again in child classes:
-
-```python
-class ExampleChild(ExampleClass):
-    """Summary.
-
-    ...
-    """
-
-    #: str : Description of my_attr (not inherited)
-    my_attr = tl.Str()
-
-    # inherited traits, duplicated here for the docstrings:
-
-    #: str : Description of attr1
-    attr1 = tl.Str()
-
-    #: dict : Description of attr2
-    attr2 = tl.Dict(allow_none=True)
-
-    #: int : Description of secondary attr3
-    attr3 : tl.Int()
-
 ```
 
 #### References
