@@ -19,69 +19,84 @@ DEFAULT_COORD_REF_SYS = 'WGS84'
 
 class Coordinates1d(BaseCoordinates):
     """
-    Base class for one-dimensional single coordinates.
+    Base class for 1-dimensional coordinates.
+
+    Coordinates1d objects contain values and metadata for a single dimension of coordinates. :class:`Coordinates` and
+    :class:`StackedCoordinates` use Coordinate1d objects.
+
+    The following coordinates types (``ctype``) are supported:
+
+     * 'point': each coordinate represents a single location
+     * 'left': each coordinate is the left endpoint of its segment
+     * 'right': each coordinate is the right endpoint of its endpoint
+     * 'midpoint': segment endpoints are at the midpoints between coordinate values.
+
+    The ``bounds`` are always the low and high coordinate value. For *point* coordinates, the ``area_bounds`` are the
+    same as the ``bounds``. For *segment* coordinates (left, right, and midpoint), the ``area_bounds`` include the
+    portion of the segments above and below the ``bounds`.
     
-    Attributes
+    Parameters
     ----------
     name : str
-        Dimension name, one of 'lat', 'lon', 'time', 'alt'.
-    dims : tuple
-        The dimension name as a tuple, `(self.name,)`
-    units : Units
-        TODO
+        Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+    coordinates : array, read-only
+        Full array of coordinate values.
+    units : podpac.Units
+        Coordinate units.
     coord_ref_sys : str
         Coordinate reference system.
     ctype : str
         Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-         - 'point': each coordinate represents a single location
-         - 'left': segments; each coordinate is the left endpoint of its segment
-         - 'right': segments; each coordinate is the right endpoint of its endpoint
-         - 'midpoint': segments; segment endpoints are at the midpoints between coordinate values
-    extents : ndarray
-        When ctype != 'point', defines a custom bounding box of the grid.
-        Useful when specifying non-uniform segment coordinates.
-    properties : dict
-        Coordinate properties (units, coord_ref_sys, ctype, extents)
-    coordinates : np.ndarray
-        Full array of coordinate values.
-    dtype : type
-        Coordinates dtype, either np.datetime64 or np.float64.
-    size : int
-        Number of coordinates.
-    bounds : np.ndarray
-        Coordinate bounds, np.array(low, high).
-    area_bounds : np.ndarray
-        Area bounds, np.array(low, high).
-        When ctype != 'point', this including the portions of the segments beyond the coordinate bounds.
-    is_monotonic : bool
-        True if the coordinates are guaranteed to be sorted.
-    is_descending : bool
-        True if the coordinates are monotonically descending.
-        False if the coordinates are monotonically ascending or not sorted.
-    is_uniform : bool
-        True if the coordinates are uniformly-spaced (and monotonic).
-        False if the coordinates are not uniformly-spaced, unsorted, or empty.
+    extents : (low, high)
+        When ctype != 'point', defines custom (low, high) area bounds for the coordinates.
+        *Note: To be replaced with segment_lengths.*
 
-    Methods
-    -------
-
+    See Also
+    --------
+    :class:`ArrayCoordinates1d`, :class:`UniformCoordinates1d`
     """
 
+    #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
+
+    #: Units : Coordinate units.
     units = tl.Instance(Units, allow_none=True)
+
+    #: str : Coordinate reference system.
     coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True)
+
+    #: str : Coordinates type, one of 'point', 'left', 'right', or 'midpoint'.
     ctype = tl.Enum(['point', 'left', 'right', 'midpoint'])
+
+    #: : *To be replaced.*
     extents = tl.Instance(np.ndarray, allow_none=True, default_value=None)
+
+    #: bool : Are the coordinate values unique and sorted.
     is_monotonic = tl.CBool(allow_none=True, readonly=True)
+    
+    #: bool : Are the coordinate values sorted in descending order.
     is_descending = tl.CBool(allow_none=True, readonly=True)
+
+    #: bool : Are the coordinate values uniformly-spaced.
     is_uniform = tl.CBool(allow_none=True, readonly=True)
 
-    def __init__(self, extents=None, **kwargs):
+    def __init__(self, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None, **kwargs):
+        """*Do not use.*"""
+
+        if name is not None:
+            kwargs['name'] = name
+        if ctype is not None:
+            kwargs['ctype'] = ctype
+        if units is not None:
+            kwargs['units'] = units
+        if coord_ref_sys is not None:
+            kwargs['coord_ref_sys'] = coord_ref_sys
         if extents is not None:
             extents = make_coord_array(extents)
             extents.setflags(write=False)
+            kwargs['extents'] = extents
 
-        super(Coordinates1d, self).__init__(extents=extents, **kwargs)
+        super(Coordinates1d, self).__init__(**kwargs)
 
     @tl.validate('extents')
     def _validate_extents(self, d):
@@ -119,19 +134,15 @@ class Coordinates1d(BaseCoordinates):
     def dims(self):
         if self.name is None:
             raise TypeError("cannot access dims property of unnamed Coordinates1d")
-
         return [self.name]
 
     @property
+    def udims(self):
+        return self.dims
+
+    @property
     def properties(self):
-        '''
-        Coordinate properties (units, coord_ref_sys, ctype, extents)
-        
-        Returns
-        -------
-        properties : dict
-            Coordinate properties (units, coord_ref_sys, ctype, extents)
-        '''
+        """:dict: Dictionary of the coordinate properties. """
 
         d = {}
         if self.name is not None:
@@ -147,41 +158,45 @@ class Coordinates1d(BaseCoordinates):
 
     @property
     def coordinates(self):
-        ''' Coordinate values. '''
+        """:array, read-only: Full array of coordinates values."""
 
         raise NotImplementedError
 
     @property
     def dtype(self):
-        ''' Coordinate array dtype, either np.datetime64 or np.float64. '''
+        """:type: Coordinates dtype.
+
+        ``float`` for numerical coordinates and numpy ``datetime64`` for datetime coordinates.
+        """
 
         raise NotImplementedError
 
     @property
     def size(self):
-        '''Number of coordinates. '''
+        """Number of coordinates. """
 
         raise NotImplementedError
 
     @property
     def bounds(self):
-        ''' Coordinate bounds. '''
+        """ Low and high coordinate bounds. """
 
         raise NotImplementedError
     
     @property
     def area_bounds(self):
-        '''
-        Low and high area bounds. When ctype != 'point', this includes the portions of the segments beyond the
-        coordinate bounds.
-        '''
+        """
+        Low and high coordinate area bounds.
+
+        When ctype != 'point', this includes the portions of the segments beyond the coordinate bounds.
+        """
 
         raise NotImplementedError
 
     @property
     def definition(self):
-        '''
-        '''
+        """ Serializable 1d coordinates definition."""
+
         raise NotImplementedError
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -189,6 +204,30 @@ class Coordinates1d(BaseCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     def copy(self, **kwargs):
+        """
+        Make a deep copy of the 1d Coordinates.
+
+        The coordinates properties will be copied. Any provided keyword arguments will override these properties.
+
+        *Note: Defined in child classes.*
+
+        Arguments
+        ---------
+        name : str, optional
+            Dimension name. One of 'lat', 'lon', 'alt', and 'time'.
+        coord_ref_sys : str, optional
+            Coordinates reference system
+        ctype : str, optional
+            Coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+        units : podpac.Units, optional
+            Coordinates units.
+
+        Returns
+        -------
+        :class:`Coordinates1d`
+            Copy of the coordinates, with provided properties.
+        """
+
         raise NotImplementedError
 
     def _select_empty(self, return_indices):
@@ -208,34 +247,67 @@ class Coordinates1d(BaseCoordinates):
 
     def intersect(self, other, return_indices=False, outer=False):
         """
-        Get the coordinates within the bounds the given coordinates object.
+        Get the coordinate values that are within the bounds of a given coordinates object.
+
+        If a Coordinates1d ``other`` is provided, then this dimension must match the other dimension
+        (``self.name == other.name``). If a multidimensional :class:`Coordinates` ``other`` is provided, then the
+        corresponding 1d coordinates are used for the intersection if available, and otherwise the entire coordinates
+        are returned.
+
+        The default intersection selects coordinates that are within the other coordinates bounds::
+
+            In [1]: c = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+
+            In [2]: other = ArrayCoordinates1d([1.5, 2.5], name='lat')
+
+            In [3]: c.intersect(other).coordinates
+            Out[3]: array([2.])
+
+        The *outer* intersection selects the minimal set of coordinates that contain the other coordinates::
+        
+            In [4]: c.intersect(other, outer=True).coordinates
+            Out[4]: array([1., 2., 3.])
+
+        The *outer* intersection also selects a boundary coordinate if the other coordinates are outside this
+        coordinates bounds but *inside* its area bounds::
+        
+            In [5]: c.area_bounds
+            Out[5]: array([-0.5,  3.5])
+
+            In [6]: other1 = podpac.coordinates.ArrayCoordinates1d([3.25], name='lat')
+            
+            In [7]: other2 = podpac.coordinates.ArrayCoordinates1d([3.75], name='lat')
+
+            In [8]: c.intersect(o2, outer=True).coordinates
+            Out[8]: array([3.0], dtype=float64)
+
+            In [9]: c.intersect(o2, outer=True).coordinates
+            Out[9]: array([], dtype=float64)
         
         Parameters
         ----------
-        other : Coordinates1d
-            coordinates to intersect with
+        other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
+            Coordinates to intersect with.
         outer : bool, optional
-            If True, select minimal coordinates that contain the other coordinates bounds.
-            If False, select maximal coordinates that are within the other coordinates bounds.
-            Default False.
+            If True, do an *outer* intersection. Default False.
         return_indices : bool, optional
             If True, return slice or indices for the selection in addition to coordinates. Default False.
         
         Returns
         -------
-        intersection : Coordinates1d
-            Coordinates1d object with coordinates with other.bounds
+        intersection : :class:`Coordinates1d`
+            Coordinates1d object with coordinates within the other coordinates bounds.
         I : slice or list
             index or slice for the intersected coordinates (only if return_indices=True)
         
+        Raises
+        ------
+        ValueError
+            If the coordinates names do not match, when intersecting with a Coordinates1d other.
+
         See Also
         --------
         select : Get the coordinates within the given bounds.
-        
-        Raises
-        ------
-        NotImplementedError
-            Description
         """
 
         from podpac.core.coordinates import Coordinates, StackedCoordinates
@@ -264,23 +336,46 @@ class Coordinates1d(BaseCoordinates):
 
     def select(self, bounds, return_indices=False, outer=False):
         """
-        Get the coordinates within the given bounds.
+        Get the coordinate values that are within the given bounds.
+
+        The default selection returns coordinates that are within the other coordinates bounds::
+
+            In [1]: c = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+
+            In [2]: c.select([1.5, 2.5]).coordinates
+            Out[2]: array([2.])
+
+        The *outer* selection returns the minimal set of coordinates that contain the other coordinates::
+        
+            In [3]: c.intersect([1.5, 2.5], outer=True).coordinates
+            Out[3]: array([1., 2., 3.])
+
+        The *outer* selection also returns a boundary coordinate if the other coordinates are outside this
+        coordinates bounds but *inside* its area bounds::
+        
+            In [4]: c.intersect([3.25, 3.35], outer=True).coordinates
+            Out[4]: array([3.0], dtype=float64)
+
+            In [5]: c.intersect([10.0, 11.0], outer=True).coordinates
+            Out[5]: array([], dtype=float64)
+
+        *Note: Defined in child classes.*
         
         Parameters
         ----------
-        bounds : min, max
+        bounds : low, high
             selection bounds
+        outer : bool, optional
+            If True, do an *outer* selection. Default False.
         return_indices : bool, optional
-            return slice or indices for selection instead of coordinates
-        **kwargs
-            Description
-        
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
+
         Returns
         -------
-        intersection : Coordinates1d
-            coord object with selected coordinates (if return_indices=False)
+        selection : :class:`Coordinates1d`
+            Coordinates1d object with coordinates within the other coordinates bounds.
         I : slice or list
-            index or slice for the selected coordinates (if return_indices=True)
+            index or slice for the intersected coordinates (only if return_indices=True)
         """
 
         raise NotImplementedError

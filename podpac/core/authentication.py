@@ -10,9 +10,6 @@ import sys
 import getpass
 import re
 
-from podpac.core import utils
-
-
 # python 2/3 compatibility
 if sys.version_info.major < 3:
     input = raw_input
@@ -28,6 +25,9 @@ except:
             pass
     requests = Dum()
     requests.Session = Dum
+
+from podpac.core import utils
+from podpac.core.settings import settings
 
 
 class Session(requests.Session):
@@ -59,10 +59,10 @@ class Session(requests.Session):
 
         # load username/password from settings
         if self.username is None:
-            self.username = utils.load_setting('username@' + self.hostname)
+            self.username = settings['username@' + self.hostname]
         
         if self.password is None:
-            self.password = utils.load_setting('password@' + self.hostname)
+            self.password = settings['password@' + self.hostname]
         
         self.auth = (self.username, self.password)
 
@@ -157,10 +157,12 @@ class EarthDataSession(Session):
         
         if username is None:
             username = input("Username: ")
-        utils.save_setting('username@' + self.hostname, username)
+        
+        settings['username@' + self.hostname] = username
         
         if password is None:
             password = getpass.getpass()
-        utils.save_setting('password@' + self.hostname, password)
+        
+        settings['password@' + self.hostname] = password
         
         self.auth = (username, password)

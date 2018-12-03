@@ -11,9 +11,8 @@ import pytest
 
 import podpac
 from podpac.core.algorithm.algorithm import Arange
-from podpac.core.pipeline.pipeline import Pipeline
+from podpac.core.pipeline.pipeline import Pipeline, PipelineError
 from podpac.core.pipeline.output import FileOutput
-from podpac.core.pipeline.util import PipelineError
 
 coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=['lat', 'lon'])
 node = Arange()

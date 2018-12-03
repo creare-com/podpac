@@ -7,15 +7,38 @@ for more information about import conventions
 
 Attributes
 ----------
-version_info : TYPE
-    Description
+version_info : OrderedDict
+    Dict with keys MAJOR, MINOR, HOTFIX depicting version
 """
 
+
+# Monkey match os.makedirs for Python 2 compatibility
+import sys
+import os
+_osmakedirs = os.makedirs
+def makedirs(name, mode=511, exist_ok=False):
+    try: 
+        _osmakedirs(name, mode)
+    except Exception as e:
+        if exist_ok:
+            pass
+        else:
+            raise e
+if sys.version_info.major == 2:
+    makedirs.__doc__ = os.makedirs.__doc__
+    os.makedirs = makedirs
+else:
+    del _osmakedirs
+del os
+del sys
+
 # Public API
+from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
 import podpac.core.authentication as authentication
-from podpac import settings
+import podpac.core.utils as utils
+
 
 # Organized submodules
 # These files are simply wrappers to create a curated namespace of podpac modules

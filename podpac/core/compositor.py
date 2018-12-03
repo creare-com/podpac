@@ -13,6 +13,8 @@ import traitlets as tl
 from podpac.core.coordinates import Coordinates, merge_dims
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
+from podpac.core.node import COMMON_NODE_DOC 
+from podpac.core.node import node_eval 
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.interpolate import interpolation_trait
 from podpac.core.utils import trait_is_defined
@@ -164,7 +166,7 @@ class Compositor(Node):
         # Set the interpolation properties for sources
         if self.interpolation:
             for s in src_subset.ravel():
-                if trait_is_defined(s, 'interpolation'):
+                if trait_is_defined(self, 'interpolation'):
                     s.interpolation = self.interpolation
 
         # Optimization: if coordinates complete and source coords is 1D,
@@ -200,6 +202,7 @@ class Compositor(Node):
                 yield output
                 output[:] = np.nan
 
+    @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
     def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates. 
@@ -220,8 +223,6 @@ class Compositor(Node):
         
         outputs = self.iteroutputs(coordinates)
         output = self.composite(outputs, output)
-        
-        self._output = output
         return output
 
     def find_coordinates(self):

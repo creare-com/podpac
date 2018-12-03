@@ -20,13 +20,14 @@ import boto3
 import botocore
 import requests
 
-import podpac.settings
+import podpac
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
 from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, CSV
+from podpac.core.settings import settings
 
 def test_allow_missing_modules():
     """TODO: Allow user to be missing rasterio and scipy"""
@@ -675,7 +676,7 @@ class TestS3(object):
         node = S3()
 
         # default
-        assert node.s3_bucket == podpac.settings.S3_BUCKET_NAME
+        assert node.s3_bucket == settings['S3_BUCKET_NAME']
 
         # set value
         node = S3(s3_bucket=self.bucket)

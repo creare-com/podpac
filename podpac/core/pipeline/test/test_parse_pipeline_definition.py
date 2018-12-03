@@ -8,10 +8,8 @@ import traitlets as tl
 import pytest
 
 import podpac
-from podpac.core.pipeline.pipeline import Pipeline
+from podpac.core.pipeline.pipeline import Pipeline, PipelineError, parse_pipeline_definition
 from podpac.core.pipeline.output import NoOutput, FTPOutput, S3Output, FileOutput, ImageOutput
-from podpac.core.pipeline.util import PipelineError
-from podpac.core.pipeline.util import parse_pipeline_definition
 
 class TestParsePipelineDefinition(object):
     def test_empty(self):
@@ -852,13 +850,13 @@ class TestParsePipelineDefinition(object):
         s = ''' {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
-                "plugin": "collections",
-                "output": "OrderedDict"
+                "plugin": "numpy",
+                "output": "array"
             }
         }
         '''
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        m = "Custom output 'collections.OrderedDict' must subclass 'podpac.core.pipeline.output.Output'"
+        m = "Custom output '.*' must subclass 'podpac.core.pipeline.output.Output'"
         with pytest.raises(PipelineError, match=m):
             parse_pipeline_definition(d)

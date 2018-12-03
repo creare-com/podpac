@@ -8,18 +8,23 @@ including user defined data sources.
 from __future__ import division, unicode_literals, print_function, absolute_import
 from collections import OrderedDict
 import warnings
+import logging
 
 import numpy as np
 import xarray as xr
 import traitlets as tl
 
 # Internal imports
+from podpac.core.settings import settings
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import node_eval
 from podpac.core.data.interpolate import Interpolation, interpolation_trait
+
+log = logging.getLogger(__name__)
 
 DATA_DOC = {
     'native_coordinates': 'The coordinates of the data source.',
@@ -54,7 +59,7 @@ DATA_DOC = {
             
         Returns
         --------
-        np.ndarray, xr.DataArray, podpac.core.units.UnitsDataArray
+        np.ndarray, xr.DataArray, :class:`podpac.UnitsDataArray`
             A subset of the returned data. If a numpy array or xarray DataArray is returned,
             the data will be cast into  UnitsDataArray using the returned data to fill values
             at the requested source coordinates.
@@ -71,7 +76,7 @@ DATA_DOC = {
 
         Returns
         --------
-        Coordinates
+        :class:`podpac.Coordinates`
            The coordinates describing the data source array.
 
         Notes
@@ -85,8 +90,13 @@ DATA_DOC = {
         """,
     'interpolation':
         """
-        Definition of interpolation methods for each dimension of the native coordinates.
-        
+        Interpolation definition for the data source.
+        By default, the interpolation method is set to ``'nearest'`` for all dimensions.
+        """,
+    'interpolation_long':
+        """
+        {interpolation}
+
         If input is a string, it must match one of the interpolation shortcuts defined in
         :attr:`podpac.data.INTERPOLATION_SHORTCUTS`. The interpolation method associated
         with this string will be applied to all dimensions at the same time.
@@ -112,8 +122,6 @@ DATA_DOC = {
 
         If input is a :class:`podpac.data.Interpolation` class, this interpolation
         class will be used without modication.
-        
-        By default, the interpolation method is set to ``'nearest'`` for all dimensions.
         """
     }
 
@@ -124,39 +132,46 @@ COMMON_DATA_DOC.update(DATA_DOC)      # inherit and overwrite with DATA_DOC
 class DataSource(Node):
     """Base node for any data obtained directly from a single source.
     
-    Attributes
+    Parameters
     ----------
-    coordinate_index_type : str, optional
-        Type of index to use for data source. Possible values are ``['list', 'numpy', 'xarray', 'pandas']``
-        Default is 'numpy'
+    source : Any
+        The location of the source. Depending on the child node this can be a filepath,
+        numpy array, or dictionary as a few examples.
+    native_coordinates : :class:`podpac.Coordinates`
+        {native_coordinates}
     interpolation : str, dict, optional
         {interpolation}
     nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
-    native_coordinates : :class:`podpac.Coordinates`
-        {native_coordinates}
-    source : Any
-        The location of the source. Depending on the child node this can be a filepath,
-        numpy array, or dictionary as a few examples.
+    coordinate_index_type : str, optional
+        Type of index to use for data source. Possible values are ``['list', 'numpy', 'xarray', 'pandas']``
+        Default is 'numpy'
+
     
     Notes
     -----
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
     
-    #: any : the docstring right on the 
+    #: any : location of the source
     source = tl.Any(help='Path to the raw data source')
+
+    #: :class:`podpac.Coordinates` : {native_coordinates}
     native_coordinates = tl.Instance(Coordinates)
 
+    #: str, dict : interpolation definition for the data source
     interpolation = interpolation_trait()
 
+    #: str : type of index to use for the data source
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
+
+    #: list : list of values from source data that should be interpreted as 'no data'
     nan_vals = tl.List(allow_none=True)
 
     # privates
     _interpolation = tl.Instance(Interpolation)
     
-    _evaluated_coordinates = tl.Instance(Coordinates, allow_none=True)
+    _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _requested_source_coordinates = tl.Instance(Coordinates)
     _requested_source_coordinates_index = tl.List()
     _requested_source_data = tl.Instance(UnitsDataArray)
@@ -243,10 +258,10 @@ class DataSource(Node):
         ----------
         coordinates : :class:`podpac.Coordinates`
             {requested_coordinates}
-            Notes::
-             * An exception is raised if the requested coordinates are missing dimensions in the DataSource.
-             * Extra dimensions in the requested coordinates are dropped.
-        output : podpac.core.units.UnitsDataArray, optional
+            
+            An exception is raised if the requested coordinates are missing dimensions in the DataSource.
+            Extra dimensions in the requested coordinates are dropped.
+        output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
         
         Returns
@@ -259,9 +274,15 @@ class DataSource(Node):
             Cannot evaluate these coordinates
         """
 
+        log.debug('Evaluating {} data source'.format(self.__class__.__name__))
+
         if self.coordinate_index_type != 'numpy':
             warnings.warn('Coordinates index type {} is not yet supported.'.format(self.coordinate_index_type) +
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
+
+        # store requested coordinates for debugging
+        if settings['DEBUG']:
+            self._original_requested_coordinates = coordinates
         
         # check for missing dimensions
         for c in self.native_coordinates.values():
@@ -286,7 +307,10 @@ class DataSource(Node):
         # set input coordinates to evaluated coordinates
         # TODO move this if WCS can be updated to support
         self._evaluated_coordinates = coordinates
+        return self._eval(coordinates, output=output)
 
+    @node_eval
+    def _eval(self, coordinates, output=None):
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
@@ -299,8 +323,6 @@ class DataSource(Node):
                 output = self.create_output_array(coordinates)
             else:
                 output[:] = np.nan
-
-            self._output = output
             return output
         
         # reset interpolation

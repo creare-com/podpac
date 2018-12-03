@@ -41,9 +41,9 @@ urllib3 = optional_import('urllib3')
 certifi = optional_import('certifi')
 
 # Internal dependencies
-from podpac import settings
 from podpac.core import authentication
 from podpac.core.node import Node
+from podpac.core.settings import settings
 from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
@@ -442,10 +442,7 @@ class Rasterio(DataSource):
         have to overload this method.
         """
         
-        if hasattr(self.dataset, 'affine'):
-            affine = self.dataset.affine
-        else:
-            affine = self.dataset.transform
+        affine = self.dataset.transform
 
         left, bottom, right, top = self.dataset.bounds
 
@@ -778,7 +775,10 @@ class WCS(DataSource):
 
         timedomain = capabilities.find("wcs:temporaldomain")
         if timedomain is None:
-            return Coordinates([UniformCoordinates1d(top, bottom, size=size[1], name='lat')])
+            return Coordinates([
+                UniformCoordinates1d(top, bottom, size=size[1], name='lat'),
+                UniformCoordinates1d(left, right, size=size[0], name='lon')
+                ])        
         
         date_re = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}')
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')
@@ -806,14 +806,14 @@ class WCS(DataSource):
         data wrangling for us...
         """
 
-        # TODO update so that we don't rely on _evaluated_coordinates
-        if not self._evaluated_coordinates:
+        # TODO update so that we don't rely on _requested_coordinates if possible
+        if not self._requested_coordinates:
             return self.wcs_coordinates
 
         cs = []
         for dim in self.wcs_coordinates.dims:
-            if dim in self._evaluated_coordinates.dims:
-                c = self._evaluated_coordinates[dim]
+            if dim in self._requested_coordinates.dims:
+                c = self._requested_coordinates[dim]
                 if c.size == 1:
                     cs.append(ArrayCoordinates1d(c.coordinates[0], name=dim))
                 elif isinstance(c, UniformCoordinates1d):
@@ -888,7 +888,7 @@ class WCS(DataSource):
                             output.data[i, ...] = dataset.read()
                     except Exception as e: # Probably python 2
                         print(e)
-                        tmppath = os.path.join(self.cache_dir, 'wcs_temp.tiff')
+                        tmppath = os.path.join(settings['CACHE_DIR'], 'wcs_temp.tiff')
                         
                         if not os.path.exists(os.path.split(tmppath)[0]):
                             os.makedirs(os.path.split(tmppath)[0])
@@ -954,7 +954,7 @@ class WCS(DataSource):
                 except Exception as e: # Probably python 2
                     print(e)
                     tmppath = os.path.join(
-                        self.cache_dir, 'wcs_temp.tiff')
+                        settings['CACHE_DIR'], 'wcs_temp.tiff')
                     if not os.path.exists(os.path.split(tmppath)[0]):
                         os.makedirs(os.path.split(tmppath)[0])
                     open(tmppath, 'wb').write(content)
@@ -1069,7 +1069,7 @@ class S3(DataSource):
         Either: 'file_handle' (for files downloaded to RAM); or
         the default option 'path' (for files downloaded to disk)
     s3_bucket : str, optional
-        Name of the S3 bucket. Uses settings.S3_BUCKET_NAME by default.
+        Name of the S3 bucket. Uses ``podpac.settings['S3_BUCKET_NAME']`` by default.
     s3_data : file/str
         If return_type == 'file_handle' returns a file pointer object
         If return_type == 'path' returns a string to the data
@@ -1115,7 +1115,7 @@ class S3(DataSource):
         Str
             Name of the S3 bucket
         """
-        return settings.S3_BUCKET_NAME
+        return settings['S3_BUCKET_NAME']
 
     @tl.default('s3_data')
     def s3_data_default(self):
@@ -1145,7 +1145,7 @@ class S3(DataSource):
                                    #self.source.replace('\\', '').replace(':','')\
                                    #.replace('/', ''))
             tmppath = os.path.join(
-                self.cache_dir,
+                settings['CACHE_DIR'],
                 self.source.replace('\\', '').replace(':', '').replace('/', ''))
             
             rootpath = os.path.split(tmppath)[0]
