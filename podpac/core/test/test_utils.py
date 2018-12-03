@@ -126,3 +126,9 @@ class TestCommonDocs(object):
         f2 = ut.common_doc({"key": "value"})(f)
         assert f(42) == f2(42)
         assert f.__doc__ is None
+
+
+# TODO: add log testing
+class TestLog(object):
+    def test_create_log(self):
+        pass
