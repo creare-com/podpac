@@ -15,6 +15,7 @@ import xarray as xr
 import traitlets as tl
 
 # Internal imports
+from podpac.core.settings import settings
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.node import Node, NodeException
@@ -280,7 +281,7 @@ class DataSource(Node):
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
 
         # store requested coordinates for debugging
-        if self.debug:
+        if settings['DEBUG']:
             self._original_requested_coordinates = coordinates
         
         # check for missing dimensions

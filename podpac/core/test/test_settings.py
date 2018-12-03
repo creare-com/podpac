@@ -17,10 +17,13 @@ class TestSettingsFile(object):
         os.mkdir(path) # intentionally fails if this folder already exists as it will be deleted
         return path
 
-    def tear_down_tmp_settings(self):
+    def teardown_method(self):
         path = self.tmp_dir_path()
-        os.remove(os.path.join(path, 'settings.json'))
-        os.rmdir(path) # intentionally fails if anything else is in this folder
+        try:
+            os.remove(os.path.join(path, 'settings.json'))
+            os.rmdir(path) # intentionally fails if anything else is in this folder
+        except OSError:  # FileNotFoundError in py 3
+            pass
 
     def test_settings_file_defaults_to_home_dir(self):
         settings = PodpacSettings()
@@ -33,13 +36,11 @@ class TestSettingsFile(object):
         key = "key"
         value = "value"
         settings = PodpacSettings(path=path)
-        settings['SAVE_SETTINGS'] = True
+        settings['AUTOSAVE_SETTINGS'] = True
         settings[key] = value
 
         new_settings = PodpacSettings(path=path)
         assert new_settings[key] == value
-
-        self.tear_down_tmp_settings()
 
     def test_multiple_saved_settings_persist(self):
         path = self.make_settings_tmp_dir()
@@ -47,7 +48,7 @@ class TestSettingsFile(object):
         key1 = "key1"
         value1 = "value1"
         settings = PodpacSettings(path=path)
-        settings['SAVE_SETTINGS'] = True
+        settings['AUTOSAVE_SETTINGS'] = True
         settings[key1] = value1
 
         key2 = "key2"
@@ -57,8 +58,6 @@ class TestSettingsFile(object):
         new_settings = PodpacSettings(path=path)
         assert new_settings[key1] == value1
         assert new_settings[key2] == value2
-
-        self.tear_down_tmp_settings()
 
 
     def test_misconfigured_settings_file_fall_back_on_default(self):
@@ -75,5 +74,3 @@ class TestSettingsFile(object):
 
         path = os.path.expanduser("~")
         assert settings.settings_path == os.path.join(path, '.podpac', 'settings.json')
-
-        self.tear_down_tmp_settings()
