@@ -276,18 +276,18 @@ class TestArrayCoordinatesDefinition(object):
         # datetime
         d = {
             'values': ['2018-01-01', '2018-01-02'],
-            'name': 'lat',
+            'name': 'time',
             'ctype': 'point'
         }
         c = ArrayCoordinates1d.from_definition(d)
-        assert c.name == 'lat'
+        assert c.name == 'time'
         assert c.ctype == 'point'
         assert_equal(c.coordinates, np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64))
 
         # incorrect definition
         d = {'coords': [0, 1, 2]}
         with pytest.raises(ValueError, match='ArrayCoordinates1d definition requires "values" property'):
-            c = ArrayCoordinates1d.from_definition(d)
+            ArrayCoordinates1d.from_definition(d)
 
     def test_definition(self):
         # numerical
