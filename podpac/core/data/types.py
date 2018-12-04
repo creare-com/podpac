@@ -41,9 +41,9 @@ urllib3 = optional_import('urllib3')
 certifi = optional_import('certifi')
 
 # Internal dependencies
-from podpac import settings
 from podpac.core import authentication
 from podpac.core.node import Node
+from podpac.core.settings import settings
 from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
@@ -99,10 +99,10 @@ class PyDAP(DataSource):
     
     Attributes
     ----------
-    auth_class : authentication.SessionWithHeaderRedirection
-        A request.Session-derived class that has header redirection. This is used to authenticate using an EarthData
-        login. When username and password are provided, an auth_session is created using this class.
-    auth_session : authentication.SessionWithHeaderRedirection
+    auth_class : :class:`podpac.authentication.Session`
+        :class:`requests.Session` derived class providing authentication credentials.
+        When username and password are provided, an auth_session is created using this class.
+    auth_session : :class:`podpac.authentication.Session`
         Instance of the auth_class. This is created if username and password is supplied, but this object can also be
         supplied directly
     datakey : str
@@ -127,9 +127,8 @@ class PyDAP(DataSource):
     datakey = tl.Unicode(allow_none=False).tag(attr=True)
 
     # optional inputs and later defined traits
-    auth_session = tl.Instance(authentication.SessionWithHeaderRedirection,
-                               allow_none=True)
-    auth_class = tl.Type(authentication.SessionWithHeaderRedirection)
+    auth_session = tl.Instance(authentication.Session, allow_none=True)
+    auth_class = tl.Type(authentication.Session)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
     dataset = tl.Instance('pydap.model.DatasetType', allow_none=False)
@@ -889,7 +888,7 @@ class WCS(DataSource):
                             output.data[i, ...] = dataset.read()
                     except Exception as e: # Probably python 2
                         print(e)
-                        tmppath = os.path.join(settings.CACHE_DIR, 'wcs_temp.tiff')
+                        tmppath = os.path.join(settings['CACHE_DIR'], 'wcs_temp.tiff')
                         
                         if not os.path.exists(os.path.split(tmppath)[0]):
                             os.makedirs(os.path.split(tmppath)[0])
@@ -955,7 +954,7 @@ class WCS(DataSource):
                 except Exception as e: # Probably python 2
                     print(e)
                     tmppath = os.path.join(
-                        settings.CACHE_DIR, 'wcs_temp.tiff')
+                        settings['CACHE_DIR'], 'wcs_temp.tiff')
                     if not os.path.exists(os.path.split(tmppath)[0]):
                         os.makedirs(os.path.split(tmppath)[0])
                     open(tmppath, 'wb').write(content)
@@ -1070,7 +1069,7 @@ class S3(DataSource):
         Either: 'file_handle' (for files downloaded to RAM); or
         the default option 'path' (for files downloaded to disk)
     s3_bucket : str, optional
-        Name of the S3 bucket. Uses settings.S3_BUCKET_NAME by default.
+        Name of the S3 bucket. Uses ``podpac.settings['S3_BUCKET_NAME']`` by default.
     s3_data : file/str
         If return_type == 'file_handle' returns a file pointer object
         If return_type == 'path' returns a string to the data
@@ -1116,7 +1115,7 @@ class S3(DataSource):
         Str
             Name of the S3 bucket
         """
-        return settings.S3_BUCKET_NAME
+        return settings['S3_BUCKET_NAME']
 
     @tl.default('s3_data')
     def s3_data_default(self):
@@ -1146,7 +1145,7 @@ class S3(DataSource):
                                    #self.source.replace('\\', '').replace(':','')\
                                    #.replace('/', ''))
             tmppath = os.path.join(
-                settings.CACHE_DIR,
+                settings['CACHE_DIR'],
                 self.source.replace('\\', '').replace(':', '').replace('/', ''))
             
             rootpath = os.path.split(tmppath)[0]

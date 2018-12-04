@@ -11,7 +11,7 @@ class TestAuthentication(object):
         eds = auth.EarthDataSession()
         eds.update_login('testuser', 'testpassword')
         eds = auth.EarthDataSession()
-        assert(eds.auth == ('testuser', 'testpassword'))
+        assert eds.auth == ('testuser', 'testpassword')
                
     def test_earth_data_session_update_input(self):
         eds = auth.EarthDataSession()
@@ -19,7 +19,7 @@ class TestAuthentication(object):
         auth.getpass.getpass = lambda: 'testpass2'
         eds.update_login()
         eds = auth.EarthDataSession()
-        assert(eds.auth == ('testuser2', 'testpass2'))
+        assert eds.auth == ('testuser2', 'testpass2')
         
     def test_earth_data_session_rebuild_auth(self):
         eds = auth.EarthDataSession() 

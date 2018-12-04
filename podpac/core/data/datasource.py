@@ -8,12 +8,14 @@ including user defined data sources.
 from __future__ import division, unicode_literals, print_function, absolute_import
 from collections import OrderedDict
 import warnings
+import logging
 
 import numpy as np
 import xarray as xr
 import traitlets as tl
 
 # Internal imports
+from podpac.core.settings import settings
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.node import Node, NodeException
@@ -21,6 +23,8 @@ from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
 from podpac.core.data.interpolate import Interpolation, interpolation_trait
+
+log = logging.getLogger(__name__)
 
 DATA_DOC = {
     'native_coordinates': 'The coordinates of the data source.',
@@ -270,12 +274,14 @@ class DataSource(Node):
             Cannot evaluate these coordinates
         """
 
+        log.debug('Evaluating {} data source'.format(self.__class__.__name__))
+
         if self.coordinate_index_type != 'numpy':
             warnings.warn('Coordinates index type {} is not yet supported.'.format(self.coordinate_index_type) +
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
 
         # store requested coordinates for debugging
-        if self.debug:
+        if settings['DEBUG']:
             self._original_requested_coordinates = coordinates
         
         # check for missing dimensions

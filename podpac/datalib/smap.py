@@ -225,9 +225,6 @@ def SMAP_BASE_URL():
     _SMAP_BASE_URL = BASE_URL
     return BASE_URL
 
-def SMAP_BASE_URL_REGEX():
-    return re.compile(re.sub(r'\d', r'\\d', SMAP_BASE_URL().split('/')[2]))   
-
 
 @common_doc(COMMON_DOC)
 class SMAPSource(datatype.PyDAP):
@@ -255,8 +252,8 @@ class SMAPSource(datatype.PyDAP):
 
     @tl.default('auth_session')
     def _auth_session_default(self):
-        session = self.auth_class(
-            username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX())
+        session = self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
+
         # check url
         try:
             session.get(SMAP_BASE_URL())
@@ -529,8 +526,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
 
     @tl.default('auth_session')
     def _auth_session_default(self):
-        session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX())
-        return session
+        return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
 
     base_url = tl.Unicode().tag(attr=True)
     @tl.default('base_url')
@@ -785,8 +781,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
 
     @tl.default('auth_session')
     def _auth_session_default(self):
-        session = self.auth_class(username=self.username, password=self.password, hostname_regex=SMAP_BASE_URL_REGEX())
-        return session
+        return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
 
     layerkey = tl.Unicode()
     @tl.default('layerkey')
