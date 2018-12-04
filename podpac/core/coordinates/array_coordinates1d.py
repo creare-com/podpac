@@ -161,7 +161,7 @@ class ArrayCoordinates1d(Coordinates1d):
             1d coordinates
         """
 
-        return cls(x.data, name=x.name)
+        return cls(x.data, name=x.name, ctype=ctype, units=units, extents=extents, coord_ref_sys=coord_ref_sys)
 
     @classmethod
     def from_definition(cls, d):
@@ -197,6 +197,8 @@ class ArrayCoordinates1d(Coordinates1d):
         definition
         """
 
+        if 'values' not in d:
+            raise ValueError('ArrayCoordinates1d definition requires "values" property')
         coords = d.pop('values')
         return cls(coords, **d)
 
@@ -419,8 +421,8 @@ class ArrayCoordinates1d(Coordinates1d):
             I = np.where(gt & lt)[0]
 
         elif self.is_monotonic:
-            gt = np.where(self.coords >= bounds[0])[0]
-            lt = np.where(self.coords <= bounds[1])[0]
+            gt = np.where(self.coords > bounds[0])[0]
+            lt = np.where(self.coords < bounds[1])[0]
             if self.is_descending:
                 lt, gt = gt, lt
             start = max(0, gt[0]-1)

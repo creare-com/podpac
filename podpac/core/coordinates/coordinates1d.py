@@ -315,11 +315,11 @@ class Coordinates1d(BaseCoordinates):
         if not isinstance(other, (BaseCoordinates, Coordinates)):
             raise TypeError("Cannot intersect with type '%s'" % type(other))
 
-        # short-circuit
-        if self.name not in other.udims:
-            return self._select_full(return_indices)
-
         if isinstance(other, (Coordinates, StackedCoordinates)):
+            # short-circuit
+            if self.name not in other.udims:
+                return self._select_full(return_indices)
+            
             other = other[self.name]
 
         if self.name != other.name:
