@@ -8,6 +8,7 @@ import os
 from glob import glob
 import shutil
 from hashlib import md5 as hash_alg
+import six
 
 try:
     import cPickle  # Python 2.7
@@ -62,11 +63,11 @@ def validate_inputs(node=None, key=None, coordinates=None, mode=None):
     from podpac.core.coordinates.coordinates import Coordinates
     if not (node is None or isinstance(node, Node) or isinstance(node, CacheWildCard)):
         raise CacheException('`node` should either be an instance of `podpac.core.node.Node` or `None`.')
-    if not (key is None or isinstance(key, str) or isinstance(key, CacheWildCard)):
+    if not (key is None or isinstance(key, six.string_types) or isinstance(key, CacheWildCard)):
         raise CacheException('`key` should either be an instance of string or `None`.')
     if not (coordinates is None or isinstance(coordinates, Coordinates) or isinstance(coordinates, CacheWildCard)):
         raise CacheException('`coordinates` should either be an instance of `podpac.core.coordinates.coordinates.Coordinates` or `None`.')
-    if not (mode is None or isinstance(mode, str)):
+    if not (mode is None or isinstance(mode, six.string_types)):
         raise CacheException('`mode` should either be an instance of string or `None`.')
     return True
 
