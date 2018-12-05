@@ -4,6 +4,8 @@ from datetime import datetime
 import pytest
 import traitlets as tl
 import numpy as np
+import pandas as pd
+import xarray as xr
 from numpy.testing import assert_equal
 
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -63,19 +65,19 @@ class TestStackedCoordinatesCreation(object):
         with pytest.raises(TypeError, match="Unrecognized coords type"):
             StackedCoordinates({})
 
-        with pytest.raises(ValueError, match="stacked coords must have at least 2 coords"):
+        with pytest.raises(ValueError, match="Stacked coords must have at least 2 coords"):
             StackedCoordinates([lat])
 
-        with pytest.raises(ValueError, match="mismatch size in stacked coords"):
+        with pytest.raises(ValueError, match="Size mismatch in stacked coords"):
             StackedCoordinates([lat, lon])
 
-        with pytest.raises(ValueError, match="duplicate dimension name"):
+        with pytest.raises(ValueError, match="Duplicate dimension name"):
             StackedCoordinates([lat, lat])
 
         # but duplicate None name is okay
         StackedCoordinates([c, c])
 
-        # TODO
+        # TODO: this will fail correctly once I move the properties propagation to an observe or similar
         # with pytest.raises(tl.TraitError):
         #     StackedCoordinates([[0, 1, 2], [10, 20, 30]])
 
@@ -169,6 +171,12 @@ class TestStackedCoordinatesProperties(object):
         assert lon.name == 'lon'
         assert time.name == 'time'
 
+        with pytest.raises(ValueError, match="Invalid name"):
+            c.name = 'lat_lon'
+
+        with pytest.raises(ValueError, match="Duplicate dimension name"):
+            c.name = 'lat_lat_time'
+
     def test_size(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3])
         lon = ArrayCoordinates1d([10, 20, 30, 40])
@@ -178,37 +186,73 @@ class TestStackedCoordinatesProperties(object):
         assert c.size == 4
 
     def test_coordinates(self):
-        lat = ArrayCoordinates1d([0, 1, 2, 3])
-        lon = ArrayCoordinates1d([10, 20, 30, 40])
-        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
         c = StackedCoordinates([lat, lon, time])
 
-        # TODO
+        assert isinstance(c.coordinates, pd.MultiIndex)
+        assert c.coordinates.size == 4
+        assert c.coordinates.names == ['lat', 'lon', 'time']
+        assert c.coordinates[0] == (0.0, 10, np.datetime64('2018-01-01'))
+        assert c.coordinates[1] == (1.0, 20, np.datetime64('2018-01-02'))
+        assert c.coordinates[2] == (2.0, 30, np.datetime64('2018-01-03'))
+        assert c.coordinates[3] == (3.0, 40, np.datetime64('2018-01-04'))
 
     def test_coords(self):
-        lat = ArrayCoordinates1d([0, 1, 2, 3])
-        lon = ArrayCoordinates1d([10, 20, 30, 40])
-        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
         c = StackedCoordinates([lat, lon, time])
 
-        # TODO
+        assert isinstance(c.coords, xr.core.coordinates.DataArrayCoordinates)
+        assert c.coords.dims == ('lat_lon_time',)
+        assert_equal(c.coords['lat'], c['lat'].coordinates)
+        assert_equal(c.coords['lon'], c['lon'].coordinates)
+        assert_equal(c.coords['time'], c['time'].coordinates)
 
 class TestStackedCoordinatesIndexing(object):
     def test_get_dim(self):
-        lat = ArrayCoordinates1d([0, 1, 2, 3])
-        lon = ArrayCoordinates1d([10, 20, 30, 40])
-        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
         c = StackedCoordinates([lat, lon, time])
 
-        # TODO
+        assert c['lat'] is lat
+        assert c['lon'] is lon
+        assert c['time'] is time
+        with pytest.raises(KeyError, match="Dimension 'other' not found in dims"):
+            c['other']
 
     def test_get_index(self):
-        lat = ArrayCoordinates1d([0, 1, 2, 3])
-        lon = ArrayCoordinates1d([10, 20, 30, 40])
-        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
         c = StackedCoordinates([lat, lon, time])
 
-        # TODO
+        # integer index
+        assert isinstance(c[0], StackedCoordinates)
+        assert c[0].size == 1
+        assert c[0].dims == c.dims
+        assert_equal(c[0]['lat'].coordinates, c['lat'].coordinates[0])
+
+        # index array
+        assert isinstance(c[[1, 2]], StackedCoordinates)
+        assert c[[1, 2]].size == 2
+        assert c[[1, 2]].dims == c.dims
+        assert_equal(c[[1, 2]]['lat'].coordinates, c['lat'].coordinates[[1, 2]])
+
+        # boolean array
+        assert isinstance(c[[False, True, True, False]], StackedCoordinates)
+        assert c[[False, True, True, False]].size == 2
+        assert c[[False, True, True, False]].dims == c.dims
+        assert_equal(c[[False, True, True, False]]['lat'].coordinates, c['lat'].coordinates[[False, True, True, False]])
+
+        # slice
+        assert isinstance(c[1:3], StackedCoordinates)
+        assert c[1:3].size == 2
+        assert c[1:3].dims == c.dims
+        assert_equal(c[1:3]['lat'].coordinates, c['lat'].coordinates[1:3])
 
     def test_iter(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3])
@@ -229,6 +273,7 @@ class TestStackedCoordinatesIndexing(object):
 
 class TestStackedCoordinatesSelection(object):
     def test_intersect(self):
+        # TODO going to test Coordinates intersect first
         pass
 
     @pytest.mark.skip(reason="not yet implemented")

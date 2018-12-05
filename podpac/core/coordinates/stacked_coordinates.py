@@ -105,16 +105,16 @@ class StackedCoordinates(BaseCoordinates):
     def _validate_coords(self, d):
         val = d['value']
         if len(val) < 2:
-            raise ValueError('stacked coords must have at least 2 coords, got %d' % len(val))
+            raise ValueError('Stacked coords must have at least 2 coords, got %d' % len(val))
 
         names = []
         for i, c in enumerate(val):
             if c.size != val[0].size:
-                raise ValueError("mismatch size in stacked coords %d != %d at position %d" % (c.size, val[0].size, i))
+                raise ValueError("Size mismatch in stacked coords %d != %d at position %d" % (c.size, val[0].size, i))
 
             if c.name is not None:
                 if c.name in names:
-                    raise ValueError("duplicate dimension name '%s' in stacked coords at position %d" % (c.name, i))
+                    raise ValueError("Duplicate dimension name '%s' in stacked coords at position %d" % (c.name, i))
                 names.append(c.name)
 
         return val
@@ -228,7 +228,7 @@ class StackedCoordinates(BaseCoordinates):
     def __getitem__(self, index):
         if isinstance(index, string_types):
             if index not in self.dims:
-                raise KeyError("dim '%s' not found todo better message" % index)
+                raise KeyError("Dimension '%s' not found in dims %s" % (index, self.dims))
             return self._coords[self.dims.index(index)]
 
         else:
@@ -263,6 +263,7 @@ class StackedCoordinates(BaseCoordinates):
             raise ValueError("Invalid name '%s' for StackedCoordinates with length %d" % (value, len(self._coords)))
         for c, name in zip(self._coords, names):
             c.name = name
+        self._validate_coords({'value': self._coords})
 
     @property
     def size(self):
