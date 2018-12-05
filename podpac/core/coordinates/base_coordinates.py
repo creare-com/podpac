@@ -1,5 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import json
+
 import traitlets as tl
 
 class BaseCoordinates(tl.HasTraits):
@@ -39,6 +41,10 @@ class BaseCoordinates(tl.HasTraits):
         """Get Coordinates from a coordinates definition."""
         raise NotImplementedError
 
+    def copy(self):
+        """Deep copy of the coordinates and their properties."""
+        raise NotImplementedError
+
     def intersect(self, other, outer=False, return_indices=False):
         """Get coordinate values that are with the bounds of other Coordinates."""
         raise NotImplementedError
@@ -51,3 +57,19 @@ class BaseCoordinates(tl.HasTraits):
 
     def __repr__(self):
         raise NotImplementedError
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+
+        if self.dims != other.dims:
+            return False
+
+        if self.size != other.size:
+            return False
+
+        # this would be sufficient, the above checks quick shortcuts
+        if json.dumps(self.definition) != json.dumps(other.definition):
+            return False
+
+        return True

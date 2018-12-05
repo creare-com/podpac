@@ -103,7 +103,7 @@ class Coordinates(tl.HasTraits):
         dcoords = OrderedDict()
         for i, dim in enumerate(dims):
             if dim in dcoords:
-                raise ValueError("duplicate dimension name '%s' at position %d" % (dim, i))
+                raise ValueError("Duplicate dimension name '%s' at position %d" % (dim, i))
 
             # TODO default properties
             if isinstance(coords[i], BaseCoordinates):
@@ -120,13 +120,13 @@ class Coordinates(tl.HasTraits):
         # set 1d coordinates defaults
         # TODO factor out, store as default_* traits, and pass on through StackedCoordinates as well
         # maybe move to observe so that it gets validated first
-        # for c in coords.values():
-        #     if 'ctype' not in c._trait_values and ctype is not None:
-        #         c.ctype = ctype
-        #     if 'coord_ref_sys' not in c._trait_values and coord_ref_sys is not None:
-        #         c.coord_ref_sys = coord_ref_sys
-        #     if 'units' not in c._trait_values and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
-        #         c.units = distance_units
+        for c in dcoords.values():
+            if 'ctype' not in c._trait_values and ctype is not None:
+                c.ctype = ctype
+            if 'coord_ref_sys' not in c._trait_values and coord_ref_sys is not None:
+                c.coord_ref_sys = coord_ref_sys
+            if 'units' not in c._trait_values and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
+                c.units = distance_units
 
         super(Coordinates, self).__init__(_coords=dcoords)
 
@@ -135,12 +135,12 @@ class Coordinates(tl.HasTraits):
         val = d['value']
         for dim, c in val.items():
             if dim != c.name:
-                raise ValueError("dimension name mismatch, '%s' != '%s'" % (dim, c.name))
+                raise ValueError("Dimension name mismatch, '%s' != '%s'" % (dim, c.name))
 
         dims = [dim for c in self._coords.values() for dim in c.dims]
         for dim in dims:
             if dims.count(dim) != 1:
-                raise ValueError("duplicate dimension '%s' in dims %s" % (dim, val.keys()))
+                raise ValueError("Duplicate dimension name '%s' in dims %s" % (dim, tuple(val.keys())))
 
         return val
 
@@ -299,7 +299,7 @@ class Coordinates(tl.HasTraits):
         """
 
         if not isinstance(xcoord, xarray.core.coordinates.DataArrayCoordinates):
-            raise TypeError("input must be an xarray DataArrayCoordinate, not '%s'" % type(xcoord))
+            raise TypeError("Coordinates.from_xarray expects xarray DataArrayCoordinates, not '%s'" % type(xcoord))
 
         coords = []
         for dim in xcoord.dims:
@@ -331,16 +331,19 @@ class Coordinates(tl.HasTraits):
         from_json, definition
         """
 
+        if not isinstance(d, list):
+            raise TypeError("Could not parse coordinates definition of type '%s'" % type(d))
+
         coords = []
         for elem in d:
             if isinstance(elem, list):
                 c = StackedCoordinates.from_definition(elem)
-            elif 'start' in elem and 'stop' in elem and 'step' in elem:
+            elif 'start' in elem and 'stop' in elem and ('step' in elem or 'size' in elem):
                 c = UniformCoordinates1d.from_definition(elem)
             elif 'values' in elem:
                 c = ArrayCoordinates1d.from_definition(elem)
             else:
-                raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
+                raise ValueError("Could not parse coordinates definition item with keys %s" % elem.keys())
 
             coords.append(c)
 
@@ -430,75 +433,58 @@ class Coordinates(tl.HasTraits):
             if isinstance(c, StackedCoordinates) and dim in c.dims:
                 return c[dim]
 
-        raise KeyError("dimension '%s' not found in Coordinates %s" % (dim, self.dims))
+        raise KeyError("Dimension '%s' not found in Coordinates %s" % (dim, self.dims))
 
     def __setitem__(self, dim, c):
         if not dim in self.dims:
-            raise KeyError("cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
+            raise KeyError("Cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
 
-        # TODO allow setting an array (cast it to ArrayCoordinates1d)
+        # try to cast to ArrayCoordinates1d
         if not isinstance(c, BaseCoordinates):
-            raise TypeError("todo")
-
+            c = ArrayCoordinates1d(c)
 
         if c.name is None:
             c.name = dim
         elif c.name != dim:
-            raise ValueError("dimension name mismatch, '%s' != '%s'" % (dim, c.name))
+            raise ValueError("Dimension name mismatch, '%s' != '%s'" % (dim, c.name))
 
         # TODO ctype, etc defaults
 
         self._coords[dim] = c
 
-        # TODO we could also support setting individal coords in stacked coords
-        # if dim in self.udims:
-        #     for _c in self._coords.values():
-        #         if isinstance(c, StackedCoordinates) and dim in c.dims:
-        #             _c[dim] = c # this will validate the size
-
-        # TODO we could also support adding new coords (need to check for duplicate dimensions)
-        # else:
-        #     self._coords[dim] = c
-
     def __delitem__(self, dim):
         if not dim in self.dims:
-            raise KeyError("cannot delete dimension '%s' in Coordinates %s" % (dim, self.dims))
+            raise KeyError("Cannot delete dimension '%s' in Coordinates %s" % (dim, self.dims))
 
         del self._coords[dim]
-
-        # TODO we could also support deleting individal coords within stacked coords
-
-    def __contains__(self, dim):
-        raise NotImplementedError("not sure if this should check dims or udims")
 
     def __len__(self):
         return len(self._coords)
 
-    # TODO: support == operator for coordinates
-    # def __eq__(self, other):
-    #     if not isinstance(other, Coordinates):
-    #         raise TypeError("Cannot compare '%s' with Coordinates" % type(other))
-
-    #     # dims, stacking, and order must be the same
-    #     if self.dims != other.dims:
-    #         return False
-
-    #     # coordinates must be the same
-    #     for udim in self.udims:
-    #         if udim in other.udims:
-    #             if not np.all(self[udim].coordinates == other[udim].coordinates):
-    #                 return False
-
-    #     return True
-
     def update(self, other):
         """ dict-like update: add/replace coordinates using another Coordinates object """
         if not isinstance(other, Coordinates):
-            raise TypeError("Cannot update '%s' with Coordinates" % type(other))
+            raise TypeError("Cannot update Coordinates with object of type '%s'" % type(other))
 
-        d = c._coords
+        d = self._coords
         d.update(other._coords)
         self._coords = d
+
+    def __eq__(self, other):
+        if not isinstance(other, Coordinates):
+            return False
+
+        if self.dims != other.dims:
+            return False
+
+        if self.shape != other.shape:
+            return False
+
+        # this would be sufficient, the above checks quick shortcuts
+        if self.json != other.json:
+            return False
+
+        return True
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties

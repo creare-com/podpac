@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 # from podpac.core.utils import cached_property, clear_cache
 from podpac.core.units import Units
-from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord
+from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_timedelta_string, add_coord
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
@@ -171,8 +171,9 @@ class UniformCoordinates1d(Coordinates1d):
 
     @classmethod
     def from_tuple(cls, items, **kwargs):
-        if len(items) != 3:
-            raise ValueError("Cannot parse, todo better message")
+        if not isinstance(items, tuple) or len(items) != 3:
+            raise ValueError(
+                "UniformCoordinates1d.from_tuple expects a tuple of (start, stop, step/size), got %s" % (items,))
         elif isinstance(items[2], int):
             return cls(items[0], items[1], size=items[2], **kwargs)
         else:
@@ -222,6 +223,11 @@ class UniformCoordinates1d(Coordinates1d):
         --------
         definition
         """
+
+        if 'start' not in d:
+            raise ValueError('UniformCoordinates1d definition requires "start" property')
+        if 'stop' not in d:
+            raise ValueError('UniformCoordinates1d definition requires "stop" property')
 
         start = d.pop('start')
         stop = d.pop('stop')
@@ -413,7 +419,7 @@ class UniformCoordinates1d(Coordinates1d):
         else:
             d['start'] = str(self.start)
             d['stop'] = str(self.stop)
-            d['step'] = str(self.step)
+            d['step'] = make_timedelta_string(self.step)
         d.update(self.properties)
         return d
 
