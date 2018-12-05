@@ -123,6 +123,20 @@ class Coordinates1d(BaseCoordinates):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
             self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)
 
+    def __eq__(self, other):
+        if super(Coordinates1d, self).__eq__(other):
+            return True
+
+        # special case for ArrayCoordinates1d and UniformCoordinates1d with the same properties and coordinates
+        if (isinstance(other, Coordinates1d) and
+            type(other) != type(self) and
+            self.is_uniform and other.is_uniform and 
+            self.properties == other.properties and
+            np.array_equal(self.coordinates, other.coordinates)):
+            return True
+
+        return False
+
     def from_definition(self, d):
         raise NotImplementedError
 
@@ -325,7 +339,7 @@ class Coordinates1d(BaseCoordinates):
         if self.name != other.name:
             raise ValueError("Cannot intersect mismatched dimensions ('%s' != '%s')" % (self.name, other.name))
 
-        if self.dtype != other.dtype:
+        if self.dtype is not None and other.dtype is not None and self.dtype != other.dtype:
             raise ValueError("Cannot intersect mismatched dtypes ('%s' != '%s')" % (self.dtype, other.dtype))
 
         if self.units != other.units:

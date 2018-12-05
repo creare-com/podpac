@@ -806,7 +806,6 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(bi.coordinates, [2.5, 3.5])
         assert_equal(ci.coordinates, [100., 200., 300.])        
 
-
     def test_intersect_invalid(self):
         a = ArrayCoordinates1d([20., 50., 60., 10.], ctype='point')
         b = [55., 65., 95., 45.]

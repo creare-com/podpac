@@ -59,9 +59,7 @@ class TestNode(object):
         d = node.base_definition
         my_attr = podpac.Coordinates.from_definition(d['attrs']['my_attr'])
         
-        # TODO this shouldn't raise an exception an more once __eq__ is merged in
-        with pytest.raises(AssertionError):
-            assert my_attr == node.my_attr
+        assert my_attr == node.my_attr
 
     def test_base_definition_unserializable(self):
         class N(Node):
