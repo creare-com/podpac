@@ -272,8 +272,6 @@ class ArrayCoordinates1d(Coordinates1d):
             return float
         elif np.issubdtype(self.coords.dtype, np.datetime64):
             return np.datetime64
-        else:
-            raise ValueError("Invalid coords dtype '%s'" % self.coords.dtype)
 
     @property
     def bounds(self):

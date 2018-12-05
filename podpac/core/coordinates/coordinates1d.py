@@ -325,6 +325,9 @@ class Coordinates1d(BaseCoordinates):
         if self.name != other.name:
             raise ValueError("Cannot intersect mismatched dimensions ('%s' != '%s')" % (self.name, other.name))
 
+        if self.dtype != other.dtype:
+            raise ValueError("Cannot intersect mismatched dtypes ('%s' != '%s')" % (self.dtype, other.dtype))
+
         if self.units != other.units:
             raise NotImplementedError("Still need to implement handling different units")
 

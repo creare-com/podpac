@@ -806,6 +806,14 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(bi.coordinates, [2.5, 3.5])
         assert_equal(ci.coordinates, [100., 200., 300.])        
 
+
+    def test_intersect_invalid(self):
+        a = ArrayCoordinates1d([20., 50., 60., 10.], ctype='point')
+        b = [55., 65., 95., 45.]
+
+        with pytest.raises(TypeError, match="Cannot intersect with type"):
+            a.intersect(b)
+
     def test_intersect_name_mismatch(self):
         a = ArrayCoordinates1d([20., 50., 60., 10.], name='lat')
         b = ArrayCoordinates1d([55., 65., 95., 45.], name='lon')
@@ -813,11 +821,11 @@ class TestArrayCoordinatesSelection(object):
         with pytest.raises(ValueError, match="Cannot intersect mismatched dimensions"):
             a.intersect(b)
 
-    def test_intersect_invalid(self):
-        a = ArrayCoordinates1d([20., 50., 60., 10.], ctype='point')
-        b = [55., 65., 95., 45.]
+    def test_intersect_dtype_mismatch(self):
+        a = ArrayCoordinates1d([1., 2., 3., 4.], name='time')
+        b = ArrayCoordinates1d(['2018-01-01', '2018-01-02'], name='time')
 
-        with pytest.raises(TypeError, match="Cannot intersect with type"):
+        with pytest.raises(ValueError, match="Cannot intersect mismatched dtypes"):
             a.intersect(b)
 
     def test_intersect_units_mismatch(self):
