@@ -39,6 +39,10 @@ class BaseCoordinates(tl.HasTraits):
         """Get Coordinates from a coordinates definition."""
         raise NotImplementedError
 
+    def copy(self):
+        """Deep copy of the coordinates and their properties."""
+        raise NotImplementedError
+
     def intersect(self, other, outer=False, return_indices=False):
         """Get coordinate values that are with the bounds of other Coordinates."""
         raise NotImplementedError

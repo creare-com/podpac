@@ -12,6 +12,7 @@ from six import string_types
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
+from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 
 class StackedCoordinates(BaseCoordinates):
     """
@@ -123,14 +124,14 @@ class StackedCoordinates(BaseCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_xarray(cls, xcoord, coord_ref_sys=None, ctype=None, distance_units=None):
+    def from_xarray(cls, xcoords, coord_ref_sys=None, ctype=None, distance_units=None):
         """
         Convert an xarray coord to StackedCoordinates
 
         Parameters
         ----------
-        xcoord : DataArrayCoordinates
-            xarray coord attribute to convert
+        xcoords : DataArrayCoordinates
+            xarray coords attribute to convert
         coord_ref_sys : str, optional
             Default coordinates reference system.
         ctype : str, optional
@@ -144,8 +145,8 @@ class StackedCoordinates(BaseCoordinates):
             stacked coordinates object
         """
 
-        dims = xcoord.indexes[xcoord.dims[0]].names
-        return cls([ArrayCoordinates1d.from_xarray(xcoord[dims]) for dims in dims])
+        dims = xcoords.indexes[xcoords.dims[0]].names
+        return cls([ArrayCoordinates1d.from_xarray(xcoords[dims]) for dims in dims])
 
     @classmethod
     def from_definition(cls, d):
@@ -169,10 +170,10 @@ class StackedCoordinates(BaseCoordinates):
 
         coords = []
         for elem in d:
-            if 'start' in elem and 'stop' in elem and 'step' in elem:
-                c = UniformCoordinates1d.from_json(elem)
+            if 'start' in elem and 'stop' in elem and ('step' in elem or 'size' in elem):
+                c = UniformCoordinates1d.from_definition(elem)
             elif 'values' in elem:
-                c = ArrayCoordinates1d.from_json(elem)
+                c = ArrayCoordinates1d.from_definition(elem)
             else:
                 raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
 
