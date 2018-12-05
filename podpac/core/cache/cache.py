@@ -163,14 +163,14 @@ class CacheCtrl(object):
                     return c.get(node=node, key=key, coordinates=coordinates)
         raise CacheException("Requested data is not in any cache stores.")
 
-    def rem(self, node='*', key='*', coordinates='*', mode=None):
+    def rem(self, node, key, coordinates=None, mode=None):
         '''Delete cached data for this node.
         
         Parameters
-        ------------
+        ----------
         node : Node, str
             node requesting storage. Use `'*'` to match all nodes.
-        key : str, optional
+        key : str
             Delete only cached objects with this key. Use `'*'` to match all keys.
         coordinates : Coordinates, str
             Delete only cached objects for these coordinates. Use `'*'` to match all coordinates.

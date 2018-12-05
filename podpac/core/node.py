@@ -512,7 +512,7 @@ class Node(tl.HasTraits):
             return False
         return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
-    def rem_cache(self, key='*', coordinates='*', mode=None, all_cache=False):
+    def rem_cache(self, key, coordinates=None, mode=None, all_cache=False):
         """
         Clear cached data for this node.
 

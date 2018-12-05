@@ -58,7 +58,7 @@ def test_put_and_get():
                 assert (din == dout).all()
                 dout = cache.get(node=n2, key=k, coordinates=c2, mode='all')
                 assert (din == dout).all()
-                cache.rem()
+                cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 
 def test_put_and_update():
@@ -79,7 +79,7 @@ def test_put_and_update():
                 cache.put(node=n2, data=dupdate, key=k, coordinates=c2, mode='all', update=True)
                 dout = cache.get(node=n2, key=k, coordinates=c2, mode='all')
                 assert (dupdate == dout).all()
-                cache.rem()
+                cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_put_and_remove():
     for coord_f in coord_funcs:
@@ -95,7 +95,7 @@ def test_put_and_remove():
                 assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
                 with pytest.raises(CacheException):
                     cache.get(node=n1, key=k, coordinates=c1, mode='all')
-                cache.rem()
+                cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_put_two_and_remove_one():
     for coord_f in coord_funcs:
@@ -116,7 +116,7 @@ def test_put_two_and_remove_one():
                 assert cache.has(node=n1, key=k2, coordinates=c1, mode='all')
                 with pytest.raises(CacheException):
                     cache.get(node=n1, key=k1, coordinates=c1, mode='all')
-                cache.rem()
+                cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_put_two_and_remove_all():
     for coord_f in coord_funcs:
@@ -139,7 +139,7 @@ def test_put_two_and_remove_all():
                     cache.get(node=n1, key=k2, coordinates=c1, mode='all')
                 with pytest.raises(CacheException):
                     cache.get(node=n1, key=k1, coordinates=c1, mode='all')
-                cache.rem()
+                cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_two_different_nodes_put_and_one_node_removes_all():
     lat = np.random.rand(3)
@@ -170,7 +170,7 @@ def test_two_different_nodes_put_and_one_node_removes_all():
                 with pytest.raises(CacheException):
                    cache.get(node=n1, key=k1, coordinates=c1, mode='all')
                 assert cache.has(node=persistent_node, key=persistent_node_key, coordinates=None)
-    cache.rem()
+    cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_put_something_new_into_existing_file():
     lat = np.random.rand(3)
@@ -208,7 +208,7 @@ def test_put_something_new_into_existing_file():
                     c = CachePickleContainer.load(path)
                     listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
                     assert c.has(listing)
-                cache.rem()
+                cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_put_and_get_array_datasource_output():
     lat = [0, 1, 2]
@@ -221,7 +221,7 @@ def test_put_and_get_array_datasource_output():
     cache.put(node=array_data_source, data=output, key='output', coordinates=native_coordinates, mode='all', update=False)
     cached_output = cache.get(node=array_data_source, key='output', coordinates=native_coordinates, mode='all')
     assert (cached_output == output).all()
-    cache.rem() # clear the cache stores
+    cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
 def test_put_and_get_with_different_instances_of_same_key_objects_array_datasource_output():
     lat = [0, 1, 2]
@@ -244,7 +244,7 @@ def test_put_and_get_with_different_instances_of_same_key_objects_array_datasour
     cached_output = cache.get(node=array_data_source_get, key='output', coordinates=native_coordinates_get, mode='all')
     
     assert (cached_output == output).all()
-    cache.rem() # clear the cache stores
+    cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
 def test_put_and_update_array_datasource_numpy_array():
     lat = [0, 1, 2]
@@ -264,7 +264,7 @@ def test_put_and_update_array_datasource_numpy_array():
     cache.put(node=array_data_source, data=update_data, key='key', coordinates=native_coordinates, mode='all', update=True)
     cached_data = cache.get(node=array_data_source, key='key', coordinates=native_coordinates, mode='all')
     assert (cached_data == update_data).all()
-    cache.rem() # clear the cache stores
+    cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
 def test_put_and_remove_array_datasource_numpy_array():
     lat = [0, 1, 2]
@@ -281,5 +281,5 @@ def test_put_and_remove_array_datasource_numpy_array():
     assert not cache.has(node=array_data_source, key='key', coordinates=native_coordinates, mode='all')
     with pytest.raises(CacheException):
         cache.get(node=array_data_source, key='key', coordinates=native_coordinates, mode='all')
-    cache.rem() # clear the cache stores
+    cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
