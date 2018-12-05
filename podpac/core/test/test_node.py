@@ -221,20 +221,20 @@ class TestCaching(object):
             pass
 
         cls.node = MyNode(cache_type='disk')
-        cls.node.rem_cache()
+        cls.node.rem_cache(key='*', coordinates='*')
 
         cls.coords = podpac.Coordinates([0, 0], dims=['lat', 'lon'])
         cls.coords2 = podpac.Coordinates([1, 1], dims=['lat', 'lon'])
 
     @classmethod
     def teardown_class(cls):
-        cls.node.rem_cache()
+        cls.node.rem_cache(key='*', coordinates='*')
 
     def setup_method(self, method):
-        self.node.rem_cache()
+        self.node.rem_cache(key='*', coordinates='*')
 
     def teardown_method(self, method):
-        self.node.rem_cache()
+        self.node.rem_cache(key='*', coordinates='*')
 
     def test_has_cache(self):
         assert not self.node.has_cache('test')
@@ -293,7 +293,7 @@ class TestCaching(object):
         self.node.put_cache(0, 'c', coordinates=self.coords2)
         self.node.put_cache(0, 'd', coordinates=self.coords)
 
-        self.node.rem_cache()
+        self.node.rem_cache(key='*', coordinates='*')
         assert not self.node.has_cache('a')
         assert not self.node.has_cache('b')
         assert not self.node.has_cache('a', coordinates=self.coords)
@@ -301,7 +301,6 @@ class TestCaching(object):
         assert not self.node.has_cache('c', coordinates=self.coords2)
         assert not self.node.has_cache('d', coordinates=self.coords)
 
-    @pytest.mark.skip('BUG: Need to fix this.')
     def test_rem_key(self):
         self.node.put_cache(0, 'a')
         self.node.put_cache(0, 'b')
@@ -310,7 +309,7 @@ class TestCaching(object):
         self.node.put_cache(0, 'c', coordinates=self.coords2)
         self.node.put_cache(0, 'd', coordinates=self.coords)
 
-        self.node.rem_cache(key='a')
+        self.node.rem_cache(key='a', coordinates='*')
 
         assert not self.node.has_cache('a')
         assert not self.node.has_cache('a', coordinates=self.coords)
@@ -319,7 +318,6 @@ class TestCaching(object):
         assert self.node.has_cache('c', coordinates=self.coords2)
         assert self.node.has_cache('d', coordinates=self.coords)
 
-    @pytest.mark.skip('BUG: Need to fix this.')
     def test_rem_coordinates(self):
         self.node.put_cache(0, 'a')
         self.node.put_cache(0, 'b')
@@ -328,7 +326,7 @@ class TestCaching(object):
         self.node.put_cache(0, 'c', coordinates=self.coords2)
         self.node.put_cache(0, 'd', coordinates=self.coords)
 
-        self.node.rem_cache(coordinates=self.coords)
+        self.node.rem_cache(key='*', coordinates=self.coords)
 
         assert self.node.has_cache('a')
         assert not self.node.has_cache('a', coordinates=self.coords)
@@ -384,8 +382,8 @@ class TestCachePropertyDecorator(object):
             
         t = Test(cache_type='disk')
         t2 = Test(cache_type='disk')
-        t.rem_cache()
-        t2.rem_cache()
+        t.rem_cache(key='*', coordinates='*')
+        t2.rem_cache(key='*', coordinates='*')
 
         try: 
             t.get_cache('a2')
@@ -406,7 +404,7 @@ class TestCachePropertyDecorator(object):
         assert t.a2() == 4
         t.b = 2
         assert t.b2() == 4  # This happens because the node definition changed
-        t.rem_cache()
+        t.rem_cache(key='*', coordinates='*')
         assert t.c2() == 2  # This forces the cache to update based on the new node definition
         assert t.d2() == 2  # This forces the cache to update based on the new node definition
         t.c = 2
@@ -455,8 +453,8 @@ class TestCachePropertyDecorator(object):
             
         t = Test(cache_type=None)
         t2 = Test(cache_type=None)
-        t.rem_cache()
-        t2.rem_cache()
+        t.rem_cache(key='*', coordinates='*')
+        t2.rem_cache(key='*', coordinates='*')
 
         try: 
             t.get_cache('a2')
@@ -477,7 +475,7 @@ class TestCachePropertyDecorator(object):
         assert t.a2() == 4
         t.b = 2
         assert t.b2() == 4  # This happens because the node definition changed
-        t.rem_cache()
+        t.rem_cache(key='*', coordinates='*')
         assert t.c2() == 2  # This forces the cache to update based on the new node definition
         assert t.d2() == 2  # This forces the cache to update based on the new node definition
         t.c = 2
