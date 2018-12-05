@@ -4,11 +4,14 @@ from datetime import datetime
 import pytest
 import traitlets as tl
 import numpy as np
+import xarray as xr
 from numpy.testing import assert_equal
 
 from podpac.core.units import Units
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
+from podpac.core.coordinates.coordinates import Coordinates
 
 class TestArrayCoordinatesCreation(object):
     def test_empty(self):
@@ -188,6 +191,38 @@ class TestArrayCoordinatesCreation(object):
         with pytest.raises(ValueError):
             c.coords = np.array([[1.0, 2.0], [3.0, 4.0]])
 
+    def test_from_xarray(self):
+        # numerical
+        x = xr.DataArray([0, 1, 2], name='lat')
+        c = ArrayCoordinates1d.from_xarray(x, ctype='point')
+        assert c.name == 'lat'
+        assert c.ctype == 'point'
+        assert_equal(c.coordinates, x.data)
+
+        # datetime
+        x = xr.DataArray([np.datetime64('2018-01-01'), np.datetime64('2018-01-02')], name='time')
+        c = ArrayCoordinates1d.from_xarray(x, ctype='point')
+        assert c.name == 'time'
+        assert c.ctype == 'point'
+        assert_equal(c.coordinates, x.data)
+
+        # unnamed
+        x = xr.DataArray([0, 1, 2])
+        c = ArrayCoordinates1d.from_xarray(x)
+        assert c.name is None
+
+    def test_copy(self):
+        c = ArrayCoordinates1d([1, 2, 3], ctype='point', name='lat')
+        c2 = c.copy()
+        assert c2.name == 'lat'
+        assert c2.ctype == 'point'
+        assert_equal(c2.coordinates, c.coordinates)
+
+        c3 = c.copy(name='lon', ctype='left')
+        assert c3.name == 'lon'
+        assert c3.ctype == 'left'
+        assert_equal(c3.coordinates, c.coordinates)
+
     def test_name(self):
         ArrayCoordinates1d([])
         ArrayCoordinates1d([], name='lat')
@@ -225,6 +260,62 @@ class TestArrayCoordinatesCreation(object):
         with pytest.raises(ValueError):
             ArrayCoordinates1d([1, 2], extents=[0.5])
 
+class TestArrayCoordinatesDefinition(object):
+    def test_from_definition(self):
+        # numerical
+        d = {
+            'values': [0, 1, 2],
+            'name': 'lat',
+            'ctype': 'point'
+        }
+        c = ArrayCoordinates1d.from_definition(d)
+        assert c.name == 'lat'
+        assert c.ctype == 'point'
+        assert_equal(c.coordinates, [0, 1, 2])
+
+        # datetime
+        d = {
+            'values': ['2018-01-01', '2018-01-02'],
+            'name': 'time',
+            'ctype': 'point'
+        }
+        c = ArrayCoordinates1d.from_definition(d)
+        assert c.name == 'time'
+        assert c.ctype == 'point'
+        assert_equal(c.coordinates, np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64))
+
+        # incorrect definition
+        d = {'coords': [0, 1, 2]}
+        with pytest.raises(ValueError, match='ArrayCoordinates1d definition requires "values" property'):
+            ArrayCoordinates1d.from_definition(d)
+
+    def test_definition(self):
+        # numerical
+        c = ArrayCoordinates1d([0, 1, 2], name="lat", ctype="point")
+        d = c.definition
+        assert isinstance(d, dict)
+        assert_equal(d['values'], c.coordinates)
+        assert d['name'] == c.name
+        assert d['ctype'] == c.ctype
+
+        c2 = ArrayCoordinates1d.from_definition(d)
+        assert c2.name == c.name
+        assert c2.ctype == c.ctype
+        assert_equal(c2.coordinates, c.coordinates)
+
+        # datetimes
+        c = ArrayCoordinates1d(['2018-01-01', '2018-01-02'], name="lat", ctype="point")
+        d = c.definition
+        assert isinstance(d, dict)
+        assert_equal(d['values'], c.coordinates.astype(str))
+        assert d['name'] == c.name
+        assert d['ctype'] == c.ctype
+
+        c2 = ArrayCoordinates1d.from_definition(d)
+        assert c2.name == c.name
+        assert c2.ctype == c.ctype
+        assert_equal(c2.coordinates, c.coordinates)
+
 class TestArrayCoordinatesProperties(object):
     def test_properties(self):
         c = ArrayCoordinates1d([])
@@ -242,6 +333,18 @@ class TestArrayCoordinatesProperties(object):
         c = ArrayCoordinates1d([], extents=[0, 1])
         assert isinstance(c.properties, dict)
         assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys', 'extents'])
+
+    def test_dims(self):
+        c = ArrayCoordinates1d([], name='lat')
+        assert c.dims == ['lat']
+        assert c.udims == ['lat']
+
+        c = ArrayCoordinates1d([])
+        with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
+            c.dims
+
+        with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
+            c.udims
 
     def test_area_bounds_point(self):
         # numerical
@@ -338,6 +441,13 @@ class TestArrayCoordinatesProperties(object):
         assert_equal(c.area_bounds, np.array([value, value]).astype(np.datetime64))
 
 class TestArrayCoordinatesIndexing(object):
+    def test_len(self):
+        c = ArrayCoordinates1d([])
+        assert len(c) == 0
+
+        c = ArrayCoordinates1d([0, 1, 2])
+        assert len(c) == 3
+
     def test_index(self):
         c = ArrayCoordinates1d([20, 50, 60, 90, 40, 10], name='lat', ctype='point')
         
@@ -400,11 +510,10 @@ class TestArrayCoordinatesIndexing(object):
         with pytest.raises(IndexError):
             c[10]
 
-@pytest.mark.skip("needs update")
 class TestArrayCoordinatesSelection(object):
     def test_select(self):
-        c = ArrayCoordinates1d([20., 50., 60., 90., 40., 10.])
-        
+        c = ArrayCoordinates1d([20., 50., 60., 90., 40., 10.], ctype='point')
+
         # full selection
         s = c.select([0, 100])
         assert isinstance(s, ArrayCoordinates1d)
@@ -431,265 +540,292 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(s.coordinates, [20., 50., 40., 10.])
 
         # partial, inner
-        s = c.select([30., 70.])
+        s = c.select([30., 55.])
         assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [50., 60., 40.])
+        assert_equal(s.coordinates, [50., 40.])
+
+        # partial, very inner (none)
+        s = c.select([52, 55])
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
 
         # partial, inner exact
         s = c.select([40., 60.])
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [50., 60., 40.])
 
-        # partial, none
-        s = c.select([52, 55])
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
-
         # partial, backwards bounds
         s = c.select([70, 30])
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
-        # empty coords
-        c = ArrayCoordinates1d([])        
+    def test_select_empty(self):
+        c = ArrayCoordinates1d([], ctype='point')
         s = c.select([0, 1])
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
     def test_select_ind(self):
-        c = ArrayCoordinates1d([20., 50., 60., 90., 40., 10.])
+        c = ArrayCoordinates1d([20., 50., 60., 90., 40., 10.], ctype='point')
         
         # full selection
-        I = c.select([0, 100], ind=True)
+        s, I = c.select([0, 100], return_indices=True)
         assert_equal(c.coordinates[I], c.coordinates)
+        assert_equal(s.coordinates, c.coordinates[I])
 
         # none, above
-        I = c.select([100, 200], ind=True)
+        s, I = c.select([100, 200], return_indices=True)
         assert_equal(c.coordinates[I], [])
+        assert_equal(s.coordinates, c.coordinates[I])
 
         # none, below
-        I = c.select([0, 5], ind=True)
+        s, I = c.select([0, 5], return_indices=True)
         assert_equal(c.coordinates[I], [])
+        assert_equal(s.coordinates, c.coordinates[I])
 
         # partial, above
-        I = c.select([50, 100], ind=True)
+        s, I = c.select([50, 100], return_indices=True)
         assert_equal(c.coordinates[I], [50., 60., 90.])
+        assert_equal(s.coordinates, c.coordinates[I])
 
         # partial, below
-        I = c.select([0, 50], ind=True)
+        s, I = c.select([0, 50], return_indices=True)
         assert_equal(c.coordinates[I], [20., 50., 40., 10.])
+        assert_equal(s.coordinates, c.coordinates[I])
 
         # partial, inner
-        I = c.select([30., 70.], ind=True)
-        assert_equal(c.coordinates[I], [50., 60., 40.])
+        s, I = c.select([30., 55.], return_indices=True)
+        assert_equal(c.coordinates[I], [50., 40.])
+        assert_equal(s.coordinates, c.coordinates[I])
 
-        # partial, inner exact
-        I = c.select([40., 60.], ind=True)
-        assert_equal(c.coordinates[I], [50., 60., 40.])
-
-        # partial, none
-        I = c.select([52, 55], ind=True)
+        # partial, very inner (none)
+        s, I = c.select([52, 55], return_indices=True)
         assert_equal(c.coordinates[I], [])
+        assert_equal(s.coordinates, c.coordinates[I])
+        
+        # partial, inner exact
+        s, I = c.select([40., 60.], return_indices=True)
+        assert_equal(c.coordinates[I], [50., 60., 40.])
+        assert_equal(s.coordinates, c.coordinates[I])
 
         # partial, backwards bounds
-        I = c.select([70, 30], ind=True)
+        s, I = c.select([70, 30], return_indices=True)
         assert_equal(c.coordinates[I], [])
+        assert_equal(s.coordinates, c.coordinates[I])
 
-        # empty coords
+    def test_select_empty_ind(self):
         c = ArrayCoordinates1d([])        
-        I = c.select([0, 1], ind=True)
+        s, I = c.select([0, 1], return_indices=True)
         assert_equal(c.coordinates[I], [])
+        assert_equal(s.coordinates, c.coordinates[I])
 
-    def test_select_ascending(self):
-        c = MonotonicCoordinates1d([10., 20., 40., 50., 60., 90.])
-        
-        # full and empty selection type
-        assert isinstance(c.select([0, 100]), MonotonicCoordinates1d)
-        assert isinstance(c.select([100, 200]), ArrayCoordinates1d)
-        assert isinstance(c.select([0, 5]), ArrayCoordinates1d)
+    def test_select_outer_ascending(self):
+        c = ArrayCoordinates1d([10., 20., 40., 50., 60., 90.])
         
         # partial, above
-        s = c.select([50, 100], pad=0)
-        assert isinstance(s, MonotonicCoordinates1d)
+        s = c.select([50, 100], outer=True)
         assert_equal(s.coordinates, [50., 60., 90.])
 
         # partial, below
-        s = c.select([0, 50], pad=0)
-        assert isinstance(s, MonotonicCoordinates1d)
+        s = c.select([0, 50], outer=True)
         assert_equal(s.coordinates, [10., 20., 40., 50.])
 
         # partial, inner
-        s = c.select([30., 70.], pad=0)
-        assert isinstance(s, MonotonicCoordinates1d)
-        assert_equal(s.coordinates, [40., 50., 60.])
+        s = c.select([30., 55.], outer=True)
+        assert_equal(s.coordinates, [20, 40., 50., 60.])
+
+        # partial, very inner
+        s = c.select([52, 55], outer=True)
+        assert_equal(s.coordinates, [50, 60])
 
         # partial, inner exact
-        s = c.select([40., 60.], pad=0)
-        assert isinstance(s, MonotonicCoordinates1d)
+        s = c.select([40., 60.], outer=True)
         assert_equal(s.coordinates, [40., 50., 60.])
 
-        # partial, none
-        s = c.select([52, 55], pad=0)
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
-
         # partial, backwards bounds
-        s = c.select([70, 30], pad=0)
-        assert isinstance(s, ArrayCoordinates1d)
+        s = c.select([70, 30], outer=True)
         assert_equal(s.coordinates, [])
 
-    def test_select_descending(self):
-        c = MonotonicCoordinates1d([90., 60., 50., 40., 20., 10.])
-        
-        # full and empty selection type
-        assert isinstance(c.select([0, 100]), MonotonicCoordinates1d)
-        assert isinstance(c.select([100, 200]), ArrayCoordinates1d)
-        assert isinstance(c.select([0, 5]), ArrayCoordinates1d)
+    def test_select_outer_descending(self):
+        c = ArrayCoordinates1d([90., 60., 50., 40., 20., 10.])
         
         # partial, above
-        s = c.select([50, 100], pad=0)
-        assert isinstance(s, MonotonicCoordinates1d)
+        s = c.select([50, 100], outer=True)
         assert_equal(s.coordinates, [90., 60., 50.])
 
         # partial, below
-        s = c.select([0, 50], pad=0)
-        assert isinstance(s, MonotonicCoordinates1d)
+        s = c.select([0, 50], outer=True)
         assert_equal(s.coordinates, [50., 40., 20., 10.])
 
         # partial, inner
-        s = c.select([30., 70.], pad=0)
-        assert isinstance(s, MonotonicCoordinates1d)
-        assert_equal(s.coordinates, [60., 50., 40.])
+        s = c.select([30., 55.], outer=True)
+        assert_equal(s.coordinates, [60., 50., 40., 20.])
+
+        # partial, very inner
+        s = c.select([52, 55], outer=True)
+        assert_equal(s.coordinates, [60, 50])
 
         # partial, inner exact
-        s = c.select([40., 60.], pad=0)
-        assert isinstance(s, MonotonicCoordinates1d)
+        s = c.select([40., 60.], outer=True)
         assert_equal(s.coordinates, [60., 50., 40.])
 
-        # partial, none
-        s = c.select([52, 55], pad=0)
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
-
         # partial, backwards bounds
-        s = c.select([70, 30], pad=0)
-        assert isinstance(s, ArrayCoordinates1d)
+        s = c.select([70, 30], outer=True)
         assert_equal(s.coordinates, [])
 
-    def test_select_ind(self):
-        c = MonotonicCoordinates1d([10., 20., 40., 50., 60., 90.])
+    def test_select_outer_ascending_ind(self):
+        c = ArrayCoordinates1d([10., 20., 40., 50., 60., 90.])
         
         # partial, above
-        s = c.select([50, 100], ind=True, pad=0)
-        assert_equal(c.coordinates[s], [50., 60., 90.])
+        s, I = c.select([50, 100], outer=True, return_indices=True)
+        assert_equal(c.coordinates[I], [50., 60., 90.])
+        assert_equal(s.coordinates, c.coordinates[I])
 
         # partial, below
-        s = c.select([0, 50], ind=True, pad=0)
-        assert_equal(c.coordinates[s], [10., 20., 40., 50.])
+        s, I = c.select([0, 50], outer=True, return_indices=True)
+        assert_equal(c.coordinates[I], [10., 20., 40., 50.])
+        assert_equal(s.coordinates, c.coordinates[I])
 
         # partial, inner
-        s = c.select([30., 70.], ind=True, pad=0)
-        assert_equal(c.coordinates[s], [40., 50., 60.])
+        s, I = c.select([30., 55.], outer=True, return_indices=True)
+        assert_equal(c.coordinates[I], [20., 40., 50., 60.])
+        assert_equal(s.coordinates, c.coordinates[I])
 
+        # partial, very inner
+        s, I = c.select([52, 55], outer=True, return_indices=True)
+        assert_equal(c.coordinates[I], [50., 60.])
+        assert_equal(s.coordinates, c.coordinates[I])
+        
         # partial, inner exact
-        s = c.select([40., 60.], ind=True, pad=0)
-        assert_equal(c.coordinates[s], [40., 50., 60.])
-
-        # partial, none
-        s = c.select([52, 55], ind=True, pad=0)
-        assert_equal(c.coordinates[s], [])
+        s, I = c.select([40., 60.], outer=True, return_indices=True)
+        assert_equal(c.coordinates[I], [40., 50., 60.])
+        assert_equal(s.coordinates, c.coordinates[I])
 
         # partial, backwards bounds
-        s = c.select([70, 30], ind=True, pad=0)
-        assert_equal(c.coordinates[s], [])
+        s, I = c.select([70, 30], outer=True, return_indices=True)
+        assert_equal(c.coordinates[I], [])
+        assert_equal(s.coordinates, c.coordinates[I])
 
     def test_intersect(self):
-        a = ArrayCoordinates1d([20., 50., 60., 10.])
-        b = ArrayCoordinates1d([55., 65., 95., 45.])
-        c = ArrayCoordinates1d([80., 70., 90.])
-        e = ArrayCoordinates1d([])
+        a = ArrayCoordinates1d([20., 50., 60., 10.], ctype='point')
+        b = ArrayCoordinates1d([55., 65., 95., 45.], ctype='point')
+        c = ArrayCoordinates1d([80., 70., 90.], ctype='point')
+        e = ArrayCoordinates1d([], ctype='point')
+        u = UniformCoordinates1d(45, 95, 10)
         
-        # ArrayCoordinates1d other, both directions
+        # overlap, in both directions
         ab = a.intersect(b)
-        assert isinstance(ab, ArrayCoordinates1d)
         assert_equal(ab.coordinates, [50., 60.])
         
         ba = b.intersect(a)
-        assert isinstance(ba, ArrayCoordinates1d)
         assert_equal(ba.coordinates, [55., 45.])
 
-        # ArrayCoordinates1d other, no overlap
+        # no overlap
         ac = a.intersect(c)
-        assert isinstance(ac, ArrayCoordinates1d)
         assert_equal(ac.coordinates, [])
 
         # empty self
         ea = e.intersect(a)
-        assert isinstance(ea, ArrayCoordinates1d)
         assert_equal(ea.coordinates, [])
 
         # empty other
         ae = a.intersect(e)
-        assert isinstance(ae, ArrayCoordinates1d)
         assert_equal(ae.coordinates, [])
 
-        # MonotonicCoordinates1d other
-        m = MonotonicCoordinates1d([45., 55., 65., 95.])
-        am = a.intersect(m)
-        assert isinstance(am, ArrayCoordinates1d)
-        assert_equal(am.coordinates, [50., 60.])
-
         # UniformCoordinates1d other
-        u = UniformCoordinates1d(45, 95, 10)
         au = a.intersect(u)
-        assert isinstance(au, ArrayCoordinates1d)
         assert_equal(au.coordinates, [50., 60.])
 
     def test_intersect_ind(self):
-        a = ArrayCoordinates1d([20., 50., 60., 10.])
-        b = ArrayCoordinates1d([55., 65., 95., 45.])
-        c = ArrayCoordinates1d([80., 70., 90.])
-        e = ArrayCoordinates1d([])
+        a = ArrayCoordinates1d([20., 50., 60., 10.], ctype='point')
+        b = ArrayCoordinates1d([55., 65., 95., 45.], ctype='point')
+        c = ArrayCoordinates1d([80., 70., 90.], ctype='point')
+        e = ArrayCoordinates1d([], ctype='point')
+        u = UniformCoordinates1d(45, 95, 10)
         
-        # ArrayCoordinates1d other, both directions
-        I = a.intersect(b, ind=True)
+        # overlap, both directions
+        intersection, I = a.intersect(b, return_indices=True)
         assert_equal(a.coordinates[I], [50., 60.])
+        assert_equal(a.coordinates[I], intersection.coordinates)
         
-        I = b.intersect(a, ind=True)
+        intersection, I = b.intersect(a, return_indices=True)
         assert_equal(b.coordinates[I], [55., 45.])
+        assert_equal(b.coordinates[I], intersection.coordinates)
 
-        # ArrayCoordinates1d other, no overlap
-        I = a.intersect(c, ind=True)
+        # no overlap
+        intersection, I = a.intersect(c, return_indices=True)
         assert_equal(a.coordinates[I], [])
+        assert_equal(a.coordinates[I], intersection.coordinates)
 
         # empty self
-        I = e.intersect(a, ind=True)
+        intersection, I = e.intersect(a, return_indices=True)
         assert_equal(e.coordinates[I], [])
+        assert_equal(e.coordinates[I], intersection.coordinates)
 
         # empty other
-        I = a.intersect(e, ind=True)
+        intersection, I = a.intersect(e, return_indices=True)
         assert_equal(a.coordinates[I], [])
-
-        # MonotonicCoordinates1d other
-        m = MonotonicCoordinates1d([45., 55., 65., 95.])
-        I = a.intersect(m, ind=True)
-        assert_equal(a.coordinates[I], [50., 60.])
+        assert_equal(a.coordinates[I], intersection.coordinates)
 
         # UniformCoordinates1d other
-        u = UniformCoordinates1d(45, 95, 10)
-        I = a.intersect(u, ind=True)
+        intersection, I = a.intersect(u, return_indices=True)
         assert_equal(a.coordinates[I], [50., 60.])
+        assert_equal(a.coordinates[I], intersection.coordinates)
 
-    def test_intersect(self):
-        # MonotonicCoordinates1d other
-        a = MonotonicCoordinates1d([10., 20., 50., 60.])
-        b = MonotonicCoordinates1d([45., 55., 65., 95.])
-        assert isinstance(a.intersect(b), MonotonicCoordinates1d)
-
-        # ArrayCoordinates1d other
-        c = ArrayCoordinates1d([20., 50., 60., 10.])
-        assert isinstance(a.intersect(c), MonotonicCoordinates1d)
+    def test_intersect_stacked(self):
+        lat = ArrayCoordinates1d([55., 65., 95., 45.], name='lat')
+        lon = ArrayCoordinates1d([ 1.,  2.,  3.,  4.], name='lon')
+        stacked = StackedCoordinates([lat, lon])
         
-        # UniformCoordinates1d
-        u = UniformCoordinates1d(45, 95, 10)
-        assert isinstance(a.intersect(u), MonotonicCoordinates1d)
+        # intersect correct dimension, or all coordinates if missing
+        a = ArrayCoordinates1d([50., 60., 10.], ctype='point', name='lat')
+        b = ArrayCoordinates1d([2.5, 3.5, 4.5], ctype='point', name='lon')
+        c = ArrayCoordinates1d([100., 200., 300.], ctype='point', name='alt')
+
+        ai = a.intersect(stacked)
+        bi = b.intersect(stacked)
+        ci = c.intersect(stacked)
+
+        assert_equal(ai.coordinates, [50., 60.])
+        assert_equal(bi.coordinates, [2.5, 3.5])
+        assert_equal(ci.coordinates, [100., 200., 300.])
+
+    def test_intersect_multi(self):
+        coords = Coordinates([[55., 65., 95., 45.], [1., 2., 3., 4.]], dims=['lat', 'lon'])
+        
+        # intersect correct dimension
+        a = ArrayCoordinates1d([50., 60., 10.], ctype='point', name='lat')
+        b = ArrayCoordinates1d([2.5, 3.5, 4.5], ctype='point', name='lon')
+        c = ArrayCoordinates1d([100., 200., 300.], ctype='point', name='alt')
+
+        ai = a.intersect(coords)
+        bi = b.intersect(coords)
+        ci = c.intersect(coords)
+
+        assert_equal(ai.coordinates, [50., 60.])
+        assert_equal(bi.coordinates, [2.5, 3.5])
+        assert_equal(ci.coordinates, [100., 200., 300.])        
+
+    def test_intersect_invalid(self):
+        a = ArrayCoordinates1d([20., 50., 60., 10.], ctype='point')
+        b = [55., 65., 95., 45.]
+
+        with pytest.raises(TypeError, match="Cannot intersect with type"):
+            a.intersect(b)
+
+    def test_intersect_name_mismatch(self):
+        a = ArrayCoordinates1d([20., 50., 60., 10.], name='lat')
+        b = ArrayCoordinates1d([55., 65., 95., 45.], name='lon')
+
+        with pytest.raises(ValueError, match="Cannot intersect mismatched dimensions"):
+            a.intersect(b)
+
+    def test_intersect_dtype_mismatch(self):
+        a = ArrayCoordinates1d([1., 2., 3., 4.], name='time')
+        b = ArrayCoordinates1d(['2018-01-01', '2018-01-02'], name='time')
+
+        with pytest.raises(ValueError, match="Cannot intersect mismatched dtypes"):
+            a.intersect(b)
+
+    def test_intersect_units_mismatch(self):
+        pass

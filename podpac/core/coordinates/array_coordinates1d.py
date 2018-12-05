@@ -137,7 +137,7 @@ class ArrayCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_xarray(cls, x, ctype=None, units=None, extents=None, coord_ref_sys=None):
+    def from_xarray(cls, x, **kwargs):
         """
         Create 1d Coordinates from named xarray coords.
 
@@ -161,7 +161,7 @@ class ArrayCoordinates1d(Coordinates1d):
             1d coordinates
         """
 
-        return cls(x.data, name=x.name)
+        return cls(x.data, name=x.name, **kwargs)
 
     @classmethod
     def from_definition(cls, d):
@@ -196,6 +196,9 @@ class ArrayCoordinates1d(Coordinates1d):
         --------
         definition
         """
+
+        if 'values' not in d:
+            raise ValueError('ArrayCoordinates1d definition requires "values" property')
 
         coords = d.pop('values')
         return cls(coords, **d)
@@ -269,8 +272,6 @@ class ArrayCoordinates1d(Coordinates1d):
             return float
         elif np.issubdtype(self.coords.dtype, np.datetime64):
             return np.datetime64
-        else:
-            raise ValueError("Invalid coords dtype '%s'" % self.coords.dtype)
 
     @property
     def bounds(self):
@@ -421,10 +422,16 @@ class ArrayCoordinates1d(Coordinates1d):
         elif self.is_monotonic:
             gt = np.where(self.coords >= bounds[0])[0]
             lt = np.where(self.coords <= bounds[1])[0]
+            lo, hi = bounds[0], bounds[1]
             if self.is_descending:
                 lt, gt = gt, lt
-            start = max(0, gt[0]-1)
-            stop = min(self.size-1, lt[-1]+1)
+                lo, hi = hi, lo
+            if self.coords[gt[0]] != lo:
+                gt[0] -= 1
+            if self.coords[lt[-1]] != hi:
+                lt[-1] += 1
+            start = max(0, gt[0])
+            stop = min(self.size-1, lt[-1])
             I = slice(start, stop+1)
 
         else:

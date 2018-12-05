@@ -67,7 +67,8 @@ def clinspace(start, stop, size, name=None):
     try:
         a = np.array([start, stop])
     except ValueError:
-        raise ValueError("start and stop must have the same shape")
+        raise ValueError("Size mismatch, 'start' and 'stop' must have the same size (%s != %s)" % (
+            np.array(start).size, np.array(stop).size))
 
     if a.ndim == 2:
         c = StackedCoordinates([UniformCoordinates1d(start[i], stop[i], size=size) for i in range(a[0].size)])
