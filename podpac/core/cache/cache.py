@@ -177,9 +177,9 @@ class CacheCtrl(object):
         mode : str
             determines what types of the `CacheStore` are affected: 'ram','disk','network','all'. Defaults to `node._cache_mode` or 'all'. Overriden by `self._cache_mode` if `self._cache_mode` is not `None`.
         '''
-        if isinstance(node, str) and node == '*': 
+        if isinstance(node, six.string_types) and node == '*': 
             node = CacheWildCard()
-        if isinstance(coordinates, str) and coordinates == '*': 
+        if isinstance(coordinates, six.string_types) and coordinates == '*': 
             coordinates = CacheWildCard()
         validate_inputs(node=node, key=key, coordinates=coordinates, mode=mode)
         assert node is not None, "`node` can not be `None`"
