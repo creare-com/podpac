@@ -688,7 +688,7 @@ class Coordinates(tl.HasTraits):
             if not isinstance(dim, string_types):
                 raise TypeError("Invalid drop dimension type '%s'" % type(dim))
             if dim not in self.dims and not ignore_missing:
-                raise KeyError("Dimension '%s' not found in Coordinates with %s" % (dim, self.dims))
+                raise KeyError("Dimension '%s' not found in Coordinates with dims %s" % (dim, self.dims))
 
         return Coordinates([c for c in self._coords.values() if c.name not in dims])
 
@@ -743,7 +743,7 @@ class Coordinates(tl.HasTraits):
             if not isinstance(dim, str):
                 raise TypeError("Invalid drop dimension type '%s'" % type(dim))
             if dim not in self.udims and not ignore_missing:
-                raise KeyError("Dimension '%s' not found in Coordinates with %s" % (dim, self.udims))
+                raise KeyError("Dimension '%s' not found in Coordinates with udims %s" % (dim, self.udims))
 
         cs = []
         for c in self._coords.values():
@@ -901,10 +901,15 @@ class Coordinates(tl.HasTraits):
 
         """
 
+        in_place = kwargs.get('in_place', False)
+
         if len(dims) == 0:
             dims = list(self._coords.keys())[::-1]
 
-        if kwargs.get('in_place', False):
+        if len(dims) != self.ndim:
+            raise ValueError("Invalid transpose dimensions, input %s does not match dims %s" % (dims, self.dims))
+
+        if in_place:
             self._coords = OrderedDict([(dim, self._coords[dim]) for dim in dims])
             return self
 

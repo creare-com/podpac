@@ -152,3 +152,9 @@ class TestGroupCoordinates(object):
 
     def test_getitem(self):
         pass
+
+    def test_definition(self):
+        pass
+
+    def test_from_definition(self):
+        pass
