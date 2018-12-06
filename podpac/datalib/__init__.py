@@ -10,5 +10,3 @@ from podpac.datalib.smap import (
     SMAP, SMAPBestAvailable, SMAPSource, SMAPPorosity, SMAPProperties,
     SMAPWilt, SMAP_PRODUCT_MAP
 )
-
-from podpac.datalib import nexrad
