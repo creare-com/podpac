@@ -34,7 +34,7 @@ AWS_ACCESS_KEY_ID = None
 AWS_SECRET_ACCESS_KEY = None
 AWS_REGION_NAME = None
 S3_BUCKET_NAME = None
-S3_JSON_FOLDER = 'json/'
+S3_JSON_FOLDER = 'json_updated/'
 S3_OUTPUT_FOLDER = 'output/'
 
 
