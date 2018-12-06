@@ -8,7 +8,6 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 from numpy.testing import assert_equal
-# from six import string_types
 
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
