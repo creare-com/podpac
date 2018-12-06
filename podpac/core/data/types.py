@@ -442,7 +442,7 @@ class Rasterio(DataSource):
         have to overload this method.
         """
         
-        affine = self.dataset.transform
+        affine = self.dataset.affine
 
         left, bottom, right, top = self.dataset.bounds
 
