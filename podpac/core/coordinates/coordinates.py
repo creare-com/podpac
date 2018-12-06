@@ -740,7 +740,7 @@ class Coordinates(tl.HasTraits):
             dims = (dims,)
 
         for dim in dims:
-            if not isinstance(dim, str):
+            if not isinstance(dim, string_types):
                 raise TypeError("Invalid drop dimension type '%s'" % type(dim))
             if dim not in self.udims and not ignore_missing:
                 raise KeyError("Dimension '%s' not found in Coordinates with udims %s" % (dim, self.udims))
