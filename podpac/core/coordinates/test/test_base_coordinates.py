@@ -1,14 +1,11 @@
 
-# see test_array_coordinates1d.py
-from podpac.core.coordinates.coordinates1d import Coordinates1d
+from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
-class TestCoordinates1d(object):
+class TestBaseCoordinates(object):
     def test_common_api(self):
-        c = Coordinates1d(name='lat')
+        c = BaseCoordinates()
 
-        attrs = ['name', 'units', 'coord_ref_sys', 'ctype', 'extents', 'is_monotonic', 'is_descending', 'is_uniform',
-                 'dims', 'udims', 'properties', 'coordinates', 'dtype', 'size', 'bounds', 'area_bounds', 'definition']
-
+        attrs = ['name', 'dims', 'udims', 'coordinates', 'size', 'definition']
         for attr in attrs:
             try:
                 getattr(c, attr)
@@ -26,27 +23,32 @@ class TestCoordinates1d(object):
             pass
 
         try:
-            c.copy(name='lon', ctype='point')
+            c.intersect(None)
         except NotImplementedError:
             pass
 
         try:
-            c.select([])
+            c.intersect(None, outer=True, return_indices=True)
         except NotImplementedError:
             pass
 
         try:
-            c.select([], outer=True, return_indices=True)
+            c[0]
         except NotImplementedError:
             pass
 
         try:
-            c.intersect(c)
+            len(c)
         except NotImplementedError:
             pass
 
         try:
-            c.intersect(c, outer=True, return_indices=True)
+            repr(c)
+        except NotImplementedError:
+            pass
+
+        try:
+            c == c
         except NotImplementedError:
             pass
 

@@ -22,6 +22,7 @@ class TestStackedCoordinatesCreation(object):
         assert c.dims == ('lat', 'lon', 'time')
         assert c.udims == ('lat', 'lon', 'time')
         assert c.name == 'lat_lon_time'
+        repr(c)
 
         # un-named
         lat = ArrayCoordinates1d([0, 1, 2])
@@ -31,6 +32,7 @@ class TestStackedCoordinatesCreation(object):
         assert c.dims == (None, None, None)
         assert c.udims == (None, None, None)
         assert c.name == '?_?_?'
+        repr(c)
 
     def test_ctype(self):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')
