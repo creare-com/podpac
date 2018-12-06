@@ -139,13 +139,13 @@ class Compositor(Node):
         
         Parameters
         ----------
-        coordinates : `podpac.Coordinates`
-            Description
+        coordinates : :class:`podpac.Coordinates`
+            Coordinates to evaluate at compositor sources
         
         Yields
         ------
-        TYPE
-            Description
+        :class:`podpac.core.units.UnitsDataArray`
+            Output from source node eval method
         """
         # determine subset of sources needed
         if self.source_coordinates is None:

@@ -153,19 +153,10 @@ class DataSource(Node):
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
     
-    #: any : location of the source
-    source = tl.Any(help='Path to the raw data source')
-
-    #: :class:`podpac.Coordinates` : {native_coordinates}
+    source = tl.Any()
     native_coordinates = tl.Instance(Coordinates)
-
-    #: str, dict : interpolation definition for the data source
     interpolation = interpolation_trait()
-
-    #: str : type of index to use for the data source
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
-
-    #: list : list of values from source data that should be interpreted as 'no data'
     nan_vals = tl.List(allow_none=True)
 
     # privates
