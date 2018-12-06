@@ -7,6 +7,7 @@ from __future__ import division, print_function, absolute_import
 import os
 from glob import glob
 import shutil
+from hashlib import md5 as hash_alg
 
 try:
     import cPickle  # Python 2.7
@@ -140,19 +141,20 @@ class CacheCtrl(object):
 class CacheStore(object):
 
     def get_hash_val(self, obj):
-        return hash(obj)
+        return hash_alg(obj).hexdigest()
 
     def hash_node(self, node):
-        hashable_repr = cPickle.dumps(node.definition)
-        return self.get_hash_val(hashable_repr)
+        hashable_repr = 'None' if node is None else node.hash
+        return hashable_repr 
 
     def hash_coordinates(self, coordinates):
-        hashable_repr = None if coordinates is None else coordinates.json
-        return self.get_hash_val(hashable_repr)
+        hashable_repr = 'None' if coordinates is None else coordinates.hash
+        return hashable_repr 
 
     def hash_key(self, key):
-        hashable_repr = str(repr(key))
-        return self.get_hash_val(hashable_repr)
+        #hashable_repr = str(repr(key)).encode('utf-8')
+        #return self.get_hash_val(hashable_repr)
+        return key
 
     def put(self, node, data, key, coordinates=None, update=False):
         '''Cache data for specified node.
@@ -314,7 +316,7 @@ class DiskCacheStore(CacheStore):
         basedir = self._root_dir_path
         subdir = str(node.__class__)[8:-2].split('.')
         dirs = [basedir] + subdir
-        return os.path.join(*dirs)
+        return (os.path.join(*dirs)).replace('<', '_').replace('>', '_')
 
     def cache_filename(self, node, key, coordinates):
         pre = str(node.base_ref).replace('/', '_').replace('\\', '_').replace(':', '_')
@@ -329,7 +331,7 @@ class DiskCacheStore(CacheStore):
     def cache_glob(self, node, key, coordinates):
         pre = '*'
         nKeY = 'nKeY{}'.format(self.hash_node(node))
-        kKeY = 'kKeY*' if key == '*' else 'kKeY{}'.format(self.hash_key(key))
+        kKeY = 'kKeY*' if key == '*' else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
         cKeY = 'cKeY*' if coordinates == '*' else 'cKeY{}'.format(self.hash_coordinates(coordinates))
         filename = '_'.join([pre, nKeY, kKeY, cKeY])
         filename = filename + '.' + self._extension
@@ -339,11 +341,12 @@ class DiskCacheStore(CacheStore):
         return os.path.join(self.cache_dir(node), self.cache_filename(node, key, coordinates))
 
     def cleanse_filename_str(self, s):
-        s = s.replace('/', '_').replace('\\', '_').replace(':', '_')
+        s = s.replace('/', '_').replace('\\', '_').replace(':', '_').replace('<', '_').replace('>', '_')
         s = s.replace('nKeY', 'xxxx').replace('kKeY', 'xxxx').replace('cKeY', 'xxxx')
         return s
 
     def put(self, node, data, key, coordinates=None, update=False):
+        
         self.make_cache_dir(node)
         listing = CacheListing(node=node, key=key, coordinates=coordinates, data=data)
         if self.has(node, key, coordinates): # a little inefficient but will do for now
@@ -425,4 +428,5 @@ class DiskCacheStore(CacheStore):
             if c.has(listing):
                 return True
         return False
-        
+
+

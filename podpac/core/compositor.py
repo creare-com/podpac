@@ -10,39 +10,46 @@ import numpy as np
 import traitlets as tl
 
 # Internal imports
-from podpac.core.coordinates import Coordinates, union, merge_dims
+from podpac.core.coordinates import Coordinates, merge_dims
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC 
+from podpac.core.node import node_eval 
+from podpac.core.data.datasource import COMMON_DATA_DOC
+from podpac.core.data.interpolate import interpolation_trait
+from podpac.core.utils import trait_is_defined
 
-COMMON_DOC = COMMON_NODE_DOC.copy()
+COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
 
+@common_doc(COMMON_COMPOSITOR_DOC)
 class Compositor(Node):
-    """The base class for all Nodes, which defines the common interface for everything.
-
+    """Compositor
+    
     Attributes
     ----------
-    shared_coordinates : podpac.Coordinates, optional
-        Coordinates that are shared amongst all of the composited sources
-    source_coordinates = podpac.Coordinates, optional
-        Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the 
-        user-requested coordinates. It is an optimization. 
+    cache_native_coordinates : Bool
+        Default is True. If native_coordinates are requested by the user, it may take a long time to calculate if the
+        Compositor points to many sources. The result is relatively small and is cached by default. Caching may not be
+        desired if the datasource change or is updated.
+    interpolation : str, dict, optional
+        {interpolation}
     is_source_coordinates_complete : Bool
         Default is False. The source_coordinates do not have to completely describe the source. For example, the source
         coordinates could include the year-month-day of the source, but the actual source also has hour-minute-second
-        information. In that case, source_coordinates is incomplete. This flag is used to automatically construct 
+        information. In that case, source_coordinates is incomplete. This flag is used to automatically construct
         native_coordinates
-    source: str
-        The source is used for a unique name to cache composited products. 
+    n_threads : int
+        Default is 10 -- used when threaded is True.
+        NASA data servers seem to have a hard limit of 10 simultaneous requests, which determined the default value.
+    shared_coordinates : :class:`podpac.Coordinates`, optional
+        Coordinates that are shared amongst all of the composited sources
+    source : str
+        The source is used for a unique name to cache composited products.
+    source_coordinates : :class:`podpac.Coordinates`
+        Description
     sources : np.ndarray
-        An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to 
+        An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to
         subselect the nodes that will be evaluated.
-    cache_native_coordinates : True
-        Default is True. If native_coordinates are requested by the user, it may take a long time to calculate if the 
-        Compositor points to many sources. The result is relatively small and is cached by default. Caching may not be
-        desired if the datasource change or is updated. 
-    interpolation : str
-        Indicates the interpolation type. This gets passed down to the DataSources as part of the compositor. 
     threaded : bool, optional
         Default if False.
         When threaded is False, the compositor stops evaluated sources once the output is completely filled.
@@ -50,27 +57,26 @@ class Compositor(Node):
         The result is the same, but note that because of this, threaded=False could be faster than threaded=True,
         especially if n_threads is low. For example, threaded with n_threads=1 could be much slower than non-threaded
         if the output is completely filled after the first few sources.
-    n_threads : int
-        Default is 10 -- used when threaded is True. 
-        NASA data servers seem to have a hard limit of 10 simultaneous requests, which determined the default value.
-        
+    source_coordinates : :class:`podpac.Coordinates`, optional
+        Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the
+        user-requested coordinates. It is an optimization.
+    
     Notes
-    ------
+    -----
     Developers of new Compositor nodes need to implement the `composite` method.
     """
     shared_coordinates = tl.Instance(Coordinates, allow_none=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True)
-    is_source_coordinates_complete = tl.Bool(False,
-        help=("This allows some optimizations but assumes that a node's "
-              "native_coordinates=source_coordinate + shared_coordinate "
-              "IN THAT ORDER"))
+    is_source_coordinates_complete = tl.Bool(False, help=("This allows some optimizations but assumes that a node's "
+                                                          "native_coordinates=source_coordinate + shared_coordinate "
+                                                          "IN THAT ORDER"))
 
     source = tl.Unicode().tag(attr=True)
     sources = tl.Instance(np.ndarray)
     cache_native_coordinates = tl.Bool(True)
     
-    interpolation = tl.Unicode('')
-   
+    interpolation = interpolation_trait()
+
     threaded = tl.Bool(False)
     n_threads = tl.Int(10)
     
@@ -87,12 +93,12 @@ class Compositor(Node):
 
     def get_source_coordinates(self):
         """
-        Returns the coordinates describing each source. 
+        Returns the coordinates describing each source.
         This may be implemented by derived classes, and is an optimization that allows evaluation subsets of source.
         
         Returns
         -------
-        podpac.Coordinates
+        :class:`podpac.Coordinates`
             Coordinates describing each source.
         """
         return None
@@ -102,7 +108,7 @@ class Compositor(Node):
         return self.get_shared_coordinates()
 
     def get_shared_coordinates(self):
-        """Coordinates shared by each source. 
+        """Coordinates shared by each source.
         
         Raises
         ------
@@ -112,14 +118,14 @@ class Compositor(Node):
         raise NotImplementedError()
 
     def composite(self, outputs, result=None):
-        """Implements the rules for compositing multiple sources together. 
+        """Implements the rules for compositing multiple sources together.
         
         Parameters
         ----------
         outputs : list
             A list of outputs that need to be composited together
         result : UnitDataArray, optional
-            An optional pre-filled array may be supplied, otherwise the output will be allocated. 
+            An optional pre-filled array may be supplied, otherwise the output will be allocated.
         
         Raises
         ------
@@ -133,7 +139,7 @@ class Compositor(Node):
         
         Parameters
         ----------
-        coordinates : TYPE
+        coordinates : `podpac.Coordinates`
             Description
         
         Yields
@@ -148,6 +154,7 @@ class Compositor(Node):
             # intersecting sources only
             try:
                 _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
+
             except: # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
             src_subset = self.sources[I]
@@ -159,7 +166,7 @@ class Compositor(Node):
         # Set the interpolation properties for sources
         if self.interpolation:
             for s in src_subset.ravel():
-                if hasattr(s, 'interpolation'):
+                if trait_is_defined(self, 'interpolation'):
                     s.interpolation = self.interpolation
 
         # Optimization: if coordinates complete and source coords is 1D,
@@ -172,11 +179,8 @@ class Compositor(Node):
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
                 nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
-                # Switching from _trait_values to hasattr because "native_coordinates"
-                # sometimes not showing up in _trait_values in other locations
-                # Not confirmed here
-                #if 'native_coordinates' not in s._trait_values:
-                if hasattr(s,'native_coordinates') is False:
+                
+                if trait_is_defined(s,'native_coordinates') is False:
                     s.native_coordinates = nc
 
         if self.threaded:
@@ -198,13 +202,14 @@ class Compositor(Node):
                 yield output
                 output[:] = np.nan
 
-    @common_doc(COMMON_DOC)
+    @node_eval
+    @common_doc(COMMON_COMPOSITOR_DOC)
     def eval(self, coordinates, output=None):
         """Evaluates this nodes using the supplied coordinates. 
 
         Parameters
         ----------
-        coordinates : podpac.Coordinates
+        coordinates : :class:`podpac.Coordinates`
             {requested_coordinates}
         output : podpac.UnitsDataArray, optional
             {eval_output}
@@ -218,8 +223,6 @@ class Compositor(Node):
         
         outputs = self.iteroutputs(coordinates)
         output = self.composite(outputs, output)
-        
-        self._output = output
         return output
 
     def find_coordinates(self):
@@ -235,7 +238,7 @@ class Compositor(Node):
         raise NotImplementedError("TODO")
 
     @property
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_COMPOSITOR_DOC)
     def base_definition(self):
         """Base node defintion for Compositor nodes. 
         
@@ -253,7 +256,7 @@ class OrderedCompositor(Compositor):
     """Compositor that combines sources based on their order in self.sources. Once a request contains no
     nans, the result is returned. 
     """
-    @common_doc(COMMON_DOC)
+    @common_doc(COMMON_COMPOSITOR_DOC)
     def composite(self, outputs, result=None):
         """Composites outputs in order that they appear.
         

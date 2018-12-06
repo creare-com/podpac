@@ -18,10 +18,19 @@ The purpose of PODPAC is to facilitate the
  * Analysis of data products
  * Sharing of algorithms and data products
  * Use of cloud computing architectures (AWS) for processing
+ 
+## Installation
+For installation instructions, see [install.md](doc/source/install.md). 
+
+A full Windows 10 Installation of PODPAC can be downloaded from [here](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip). To use it, extract the zip file in a folder on your machine.
+
+For older versions, substitute `latest` in the url with the version number. For example, version `0.2.0` can be downloaded using this url [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip)
 
 ## Documentation
 
 The official PODPAC documentation is available here: https://creare-com.github.io/podpac-docs
+
+For usage examples, see the [podpac_examples](https://github.com/creare-com/podpac_examples) repository. 
 
 - To run PODPAC in ESRI ArcGIS Python, see [here](notes/packages_EsriPlus_Python.md)
 
@@ -43,6 +52,9 @@ We are working towards stability so that the above would no longer be true, and 
 
 As such use PODPAC at your own risk. 
 
+## Acknowledgments
+
+This material is based upon work supported by NASA under Contract No 80NSSC18C0061.
 
 ## References
 

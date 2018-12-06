@@ -1,6 +1,6 @@
 # Examples
 
-Most of the examples for using PODPAC are in the [the example notebooks](https://github.com/creare-com/podpac/tree/master/doc/notebooks) on Github. Github will render most of these notebooks for you, and we save the expected outputs. To run these notebooks yourself:
+Most of the examples for using PODPAC are in the [the example notebooks](https://github.com/creare-com/podpac_examples/tree/master/notebooks) on Github in the [podpac_examples](https://github.com/creare-com/podpac_examples) repository. Github will render most of these notebooks for you, and we save the expected outputs. To run these notebooks yourself:
 
 * If using the provided `Window 10 Installation`, just run the `run_podpac_jupyterlab.bat` script by double-clicking its icon
 * If using a different installation: 
@@ -21,7 +21,7 @@ jupyter lab
 
 A quick example to get started is shown below.
 
-> **Note**: This example uses our SMAP node, which requires a [NASA Earth Data Account](user/earthdata)
+> **Note**: This example uses our SMAP node, which requires a [NASA Earth Data Account](user/earthdata) with OpenDAP access configured. 
 
 ```python
 # import the library

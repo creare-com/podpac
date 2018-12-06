@@ -197,11 +197,12 @@ class TestDataSource(object):
         # - 1 where it was evaluated and does intersect with the data source (because this datasource is all 0)
         expected = output.copy()
         expected[3:8, 3:8] = np.nan
-        expected[3:7, 3:7] = 1.
+        expected[3:8, 3:8] = 1.
 
         # evaluate the subset coords, passing in the cooresponding slice of the initialized output array
         # TODO: discuss if we should be using the same reference to output slice?
         output[3:8, 3:8] = node.eval(coords, output=output[3:8, 3:8])
+
         np.testing.assert_equal(output.data, expected.data)
 
     def test_evaluate_with_output_no_intersect(self):

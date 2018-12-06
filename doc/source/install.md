@@ -1,27 +1,28 @@
 # Installation Instructions
 
-At the moment, a full Windows 10 installation of PODPAC can be downloaded from our [PODPAC-S3-Bucket](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip). 
+A full Windows 10 installation of PODPAC can be downloaded from our [PODPAC-S3-Bucket](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip). More details are below. 
 
-For custom installations, commandline installation procedures are described below. 
-
-These instructions assume you are using the [Anaconda Python Distribution](https://www.anaconda.com/), and have [git](https://git-scm.com/) installed.
+For custom installations, commandline installation procedures are also described below. 
 
 ## Window 10 Installation
-A full Windows 10 Installation of PODPAC can be downloaded from [here](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip). To use it, extract the zip file in a folder on your machine. Then:
+A full Windows 10 Installation of PODPAC can be downloaded from [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip).
+
+For older versions, substitute `latest` in the url with the version number. For example, version `0.2.0` can be downloaded using this url [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip)
+
+To use it, extract the zip file in a folder on your machine. We recommend expanding it near the root of your drive (e.g. `C:\PODPAC`) due to long file paths that are part of the installation. Once the folder is unzipped:
 
 * To open the example notebooks, run the `run_podpac_jupyterlab.bat` script, by double-clicking the icon
     * This will open up a Windows command prompt, and launch a JupyterLab notebook in your default web browser
         * Older browsers may not support JupyterLab, as such the url with the token can be copied and pasted from the Windows command prompt that was launched
     * To close the notebook, close the browser tab, and close the Windows console
 * To run an IPython session:
-    * Open a Windows command prompt in the unzipped folder
-    * Set up the appropriate Windows environment by running the `set_local_conda_path.bat` script
-    * Set up absolute paths used within Anaconda to point to your local installation path by running the `fix_hardcoded_absolute_paths.bat`
-    
-    * Activate the PODPAC Python environment by running the `activate_podpac_conda_env.bat` script
-    * Open an IPython console by typing `ipython` and hitting enter
+    1. Open a Windows command prompt in this directory
+    2. Run the `bin\run_ipython.bat` script
 
 ## Commandline Installation
+
+These instructions assume you are using the [Anaconda Python Distribution](https://www.anaconda.com/), and have [git](https://git-scm.com/) installed.
+
 ### Conda Environment
 
 We recommend that you create a new python 3 environment to install `podpac`:
@@ -104,29 +105,22 @@ $ python -m ipykernel install --user
 ```
 
 #### Running example notebooks
-To run the PODPAC example notebooks, start JupyterLab in the `doc/notebooks` directory of PODPAC
+Example notebooks can be found in the [podpac_examples](https://github.com/creare-com/podpac_examples) repository. To run these examples:
+* Obtain the examples and files:
+    * [download](https://github.com/creare-com/podpac_examples/archive/master.zip) and unzip the repository to a folder
+    * or clone the repository 
+    ```bash
+    $ git clone https://github.com/creare-com/podpac_examples.git
+    ```
+
+To run the PODPAC example notebooks, start JupyterLab in the `notebooks` directory of the `podpac_examples` repository
 
 ```bash
-$ cd doc/notebooks
+$ cd notebooks
 $ jupyter lab
 ```
 Open a notebook and select `Run` from the top menu, followed by `Run All`.
 You may be prompted to enter user EarthData login credentials to access NASA data. 
-
-### Installing Examples Files
-Some of the example notebooks in PODPAC use example files. In order to keep the main code repository small, we have created a second repository specifically for storing these file. To install the example files:
-```bash
-# 1. Activate your PODPAC Python environment
-$ conda activate podpac  # Windows
-$ source activate podpac # Linux / Mac
-
-# 2. Clone the podpac_examples repository
-$ git clone https://github.com/creare-com/podpac_examples.git
-
-# 3. Install the examples
-$ cd podpac_examples
-$ pip install -e .
-```
 
 ### Installation Instructions for Developers
 
@@ -146,7 +140,7 @@ The `master` branch is intented to be somewhat stable with working code. For ble
 $ git checkout -b develop origin/develop
 ```
 
-#### Installing podpac
+#### Installing PODPAC
 
 After cloning the repository to your computer, install `podpac` in development mode using pip:
 
@@ -164,7 +158,9 @@ Some users may experience issues installing [rasterio](https://rasterio.readthed
 $ conda install rasterio --channel conda-forge
 ```
 
+
 ## Creating the Windows Installation PODPAC Conda environment
+
 This section describes the process used to create the [PODPAC Window 10 Installation](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip).
 
 These instructions only assume that you already have [git](https://git-scm.com/) installed on your Windows 10 machine. 
@@ -176,6 +172,7 @@ These instructions only assume that you already have [git](https://git-scm.com/)
 * Clone podpac and set up the conda environment
 ```bash
 > git clone https://github.com/creare-com/podpac.git
+> git clone https://github.com/creare-com/podpac_examples.git
 > cd podpac
 > git checkout tags/<version> release/<version>  # as of writing, the <version> is 0.2.0
 > cd ..
@@ -209,11 +206,8 @@ jupyter lab build
 python -m ipykernel install --user
 conda clean -a -y
 ```
-* To run a `JupyterLab` sessions in the `<root_folder>\podpac\doc\notebooks` directory, double-click on the `run_podpac_jupyterlab.bat`. This will launch a browser window in the folder where PODPAC keeps its example notebooks.
+* To run a `JupyterLab` sessions in the `<root_folder>\podpac_examples\notebooks` directory, double-click on the `run_podpac_jupyterlab.bat`. This will launch a browser window in the folder where PODPAC keeps its example notebooks.
 * To run an IPython console: Open up a Windows command prompt in `<root_folder>`
 ```bash
-set_local_conda_path.bat
-fix_hardcoded_absolute_paths.bat
-activate_podpac_conda_env.bat
-ipython
+bin\run_ipython.bat
 ```

@@ -10,7 +10,7 @@ from podpac.core.coordinates.group_coordinates import GroupCoordinates
 class TestGroupCoordinates(object):
     def test_init(self):
         # empty
-        g = GroupCoordinates()
+        g = GroupCoordinates([])
         
         # same dims, unstacked
         c1 = Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
@@ -41,7 +41,7 @@ class TestGroupCoordinates(object):
             GroupCoordinates([c1, c2])
 
     def test_properties(self):
-        g = GroupCoordinates()
+        g = GroupCoordinates([])
         assert len(g) == 0
         assert g.udims == set()
         # assert isinstance(g.definition, list)
@@ -71,7 +71,7 @@ class TestGroupCoordinates(object):
         c2 = Coordinates([[10, 11], [10, 11]], dims=['lat', 'lon'])
         c3 = Coordinates(['2018-01-01'], dims=['time'])
         
-        g = GroupCoordinates()
+        g = GroupCoordinates([])
         assert len(g) == 0
 
         g.append(c1)
@@ -138,7 +138,7 @@ class TestGroupCoordinates(object):
 
     def test_repr(self):
         #empty
-        g = GroupCoordinates()
+        g = GroupCoordinates([])
         repr(g)
 
         # nonempty

@@ -12,7 +12,7 @@ from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 
 class TestArrayCoordinatesCreation(object):
     def test_empty(self):
-        c = ArrayCoordinates1d()
+        c = ArrayCoordinates1d([])
         a = np.array([], dtype=float)
         assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
@@ -22,9 +22,6 @@ class TestArrayCoordinatesCreation(object):
         assert c.is_monotonic is None
         assert c.is_descending is None
         assert c.is_uniform is None
-
-        c = ArrayCoordinates1d([])
-        assert_equal(c.coords, a)
 
     def test_numerical_singleton(self):
         a = np.array([10], dtype=float)
@@ -42,7 +39,7 @@ class TestArrayCoordinatesCreation(object):
         # unsorted
         values = [1, 6, 0, 4.]
         a = np.array(values, dtype=float)
-        c = ArrayCoordinates1d(a, dtype='point')
+        c = ArrayCoordinates1d(a)
         assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array([0., 6.]))
@@ -183,7 +180,7 @@ class TestArrayCoordinatesCreation(object):
         assert c.is_uniform == True
 
     def test_invalid_coords(self):
-        c = ArrayCoordinates1d()
+        c = ArrayCoordinates1d([])
         
         with pytest.raises(ValueError):
             c.coords = np.array([1, 2, 3])
@@ -192,17 +189,17 @@ class TestArrayCoordinatesCreation(object):
             c.coords = np.array([[1.0, 2.0], [3.0, 4.0]])
 
     def test_name(self):
-        ArrayCoordinates1d()
-        ArrayCoordinates1d(name='lat')
-        ArrayCoordinates1d(name='lon')
-        ArrayCoordinates1d(name='alt')
-        ArrayCoordinates1d(name='time')
+        ArrayCoordinates1d([])
+        ArrayCoordinates1d([], name='lat')
+        ArrayCoordinates1d([], name='lon')
+        ArrayCoordinates1d([], name='alt')
+        ArrayCoordinates1d([], name='time')
 
         with pytest.raises(tl.TraitError):
-            ArrayCoordinates1d(name='depth')
+            ArrayCoordinates1d([], name='depth')
 
     def test_extents(self):
-        c = ArrayCoordinates1d()
+        c = ArrayCoordinates1d([])
         assert c.extents is None
 
         # numerical
@@ -230,19 +227,19 @@ class TestArrayCoordinatesCreation(object):
 
 class TestArrayCoordinatesProperties(object):
     def test_properties(self):
-        c = ArrayCoordinates1d()
+        c = ArrayCoordinates1d([])
         assert isinstance(c.properties, dict)
         assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys'])
 
-        c = ArrayCoordinates1d(name='lat')
+        c = ArrayCoordinates1d([], name='lat')
         assert isinstance(c.properties, dict)
         assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys', 'name'])
 
-        c = ArrayCoordinates1d(units=Units())
+        c = ArrayCoordinates1d([], units=Units())
         assert isinstance(c.properties, dict)
         assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys', 'units'])
 
-        c = ArrayCoordinates1d(extents=[0, 1])
+        c = ArrayCoordinates1d([], extents=[0, 1])
         assert isinstance(c.properties, dict)
         assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys', 'extents'])
 
@@ -454,7 +451,7 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(s.coordinates, [])
 
         # empty coords
-        c = ArrayCoordinates1d()        
+        c = ArrayCoordinates1d([])        
         s = c.select([0, 1])
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
@@ -499,7 +496,7 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(c.coordinates[I], [])
 
         # empty coords
-        c = ArrayCoordinates1d()        
+        c = ArrayCoordinates1d([])        
         I = c.select([0, 1], ind=True)
         assert_equal(c.coordinates[I], [])
 
@@ -610,7 +607,7 @@ class TestArrayCoordinatesSelection(object):
         a = ArrayCoordinates1d([20., 50., 60., 10.])
         b = ArrayCoordinates1d([55., 65., 95., 45.])
         c = ArrayCoordinates1d([80., 70., 90.])
-        e = ArrayCoordinates1d()
+        e = ArrayCoordinates1d([])
         
         # ArrayCoordinates1d other, both directions
         ab = a.intersect(b)
@@ -652,7 +649,7 @@ class TestArrayCoordinatesSelection(object):
         a = ArrayCoordinates1d([20., 50., 60., 10.])
         b = ArrayCoordinates1d([55., 65., 95., 45.])
         c = ArrayCoordinates1d([80., 70., 90.])
-        e = ArrayCoordinates1d()
+        e = ArrayCoordinates1d([])
         
         # ArrayCoordinates1d other, both directions
         I = a.intersect(b, ind=True)

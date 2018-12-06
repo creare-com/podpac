@@ -20,13 +20,15 @@ ne = optional_import('numexpr')
 from podpac.core.coordinates import Coordinates, union
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node
+from podpac.core.node import NodeException
 from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import node_eval
 from podpac.core.utils import common_doc
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
 class Algorithm(Node):
-    """Base node for any algorithm or computation node. 
+    """Base class for algorithm and computation nodes.
     
     Notes
     ------
@@ -51,6 +53,7 @@ class Algorithm(Node):
         }
 
     @common_doc(COMMON_DOC)
+    @node_eval
     def eval(self, coordinates, output=None):
         """Evalutes this nodes using the supplied coordinates. 
         
@@ -79,16 +82,22 @@ class Algorithm(Node):
         result = self.algorithm(inputs)
         if isinstance(result, np.ndarray):
             if output is None:
-                output = self.create_output_array(output_coordinates)
-            output.data[:] = result
-        else:
+                output = self.create_output_array(output_coordinates, data=result)
+            else:
+                output.data[:] = result
+        elif isinstance(result, xr.DataArray):
             if output is None:
-                output_coordinates = Coordinates.from_xarray(result.coords)
-                output = self.create_output_array(output_coordinates)
-            output[:] = result
-            output = output.transpose(*[dim for dim in coordinates.dims if dim in result.dims])
+                output = self.create_output_array(Coordinates.from_xarray(result.coords), data=result.data)
+            else:
+                output[:] = result.data
+        elif isinstance(result, UnitsDataArray):
+            if output is None:
+                output = result
+            else:
+                output[:] = result
+        else: 
+            raise NodeException
 
-        self._output = output
         return output
 
     def find_coordinates(self):
