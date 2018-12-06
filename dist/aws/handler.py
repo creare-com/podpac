@@ -21,7 +21,7 @@ deps = 'podpac_deps.zip'
 def handler(event, context, get_deps=True, ret_pipeline=False):
     bucket_name = event['Records'][0]['s3']['bucket']['name']
     if get_deps:
-        s3.download_file(bucket_name, 'podpac/' + deps, '/tmp/' + deps)
+        s3.download_file(bucket_name, 'podpac/updated/' + deps, '/tmp/' + deps)
         subprocess.call(['unzip', '/tmp/' + deps, '-d', '/tmp'])
         sys.path.append('/tmp/')
         subprocess.call(['rm', '/tmp/' + deps])
