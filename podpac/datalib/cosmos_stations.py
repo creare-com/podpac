@@ -5,7 +5,6 @@ import traitlets as tl
 import re
 import numpy as np
 from dateutil import parser
-from bs4 import BeautifulSoup
 import requests
 import json
 
@@ -15,14 +14,21 @@ except:
     import _pickle as cPickle
 from io import StringIO
 
+from podpac.core.utils import optional_import
+
+# Optional dependencies
+bs4 = optional_import('bs4')
+
 import podpac
 from podpac.core.utils import cached_property, clear_cache
+from podpac.core.node import cache_func
 
-class COSMOSStation(podpac.DataSource):
+class COSMOSStation(podpac.data.DataSource):
     url = tl.Unicode('http://cosmos.hwr.arizona.edu/Probes/StationDat/')
-    station_data = tl.Dict()
+    station_data = tl.Dict().tag(attr=True)
     
     raw_data = tl.Unicode()
+    
     @tl.default('raw_data')
     def get_raw_data(self):
         r = requests.get(self.station_data_url)
@@ -38,12 +44,12 @@ class COSMOSStation(podpac.DataSource):
         sitenumber = self.station_data['sitenumber']
         return self.url + str(sitenumber) + '/smcounts.txt' 
     
-    def get_data(self, coordinates, coordinates_slice):
+    def get_data(self, coordinates, coordinates_index):
         data = np.loadtxt(StringIO(self.raw_data), skiprows=1,
-                          usecols=self.data_columns.index('SOILM'))[coordinates_slice[0]]
+                          usecols=self.data_columns.index('SOILM'))[coordinates_index[0]]
         data[data > 100] = np.nan
         data[data < 0 ] = np.nan
-        data /= 100  # Make it fractional
+        data /= 100.0  # Make it fractional
         return self.initialize_coord_array(coordinates, init_type='data', fillval=data[:, None])
     
     def get_native_coordinates(self):
@@ -53,13 +59,13 @@ class COSMOSStation(podpac.DataSource):
                                    self.data_columns.index('HH:MM')], 
                           dtype=str)
         time = np.array([t[0] + 'T' + t[1] for t in time], np.datetime64)
-        return podpac.Coordinate(time=time, lat_lon=lat_lon)
+        return podpac.Coordinates([time, lat_lon], ['time', 'lat_lon'])
     
     def __repr__(self):
         return '%s, %s (%s)' % (self.station_data['label'], self.station_data['network'], self.station_data['location'])
         
 
-class COSMOSStations(podpac.OrderedCompositor):
+class COSMOSStations(podpac.compositor.OrderedCompositor):
     url = tl.Unicode('http://cosmos.hwr.arizona.edu/Probes/')
     stations_url = tl.Unicode('sitesNoLegend.js')
     
@@ -68,8 +74,8 @@ class COSMOSStations(podpac.OrderedCompositor):
         url = self.url + self.stations_url
         r = requests.get(url)
         t = r.text
-        if t[-5] == ',':  # Errant trailing comma
-            t = t[:-5] + t[-4:]  # Hack, error in their json
+        if t[-55:-52] == ' ",':  # missing close quote
+            t = t[:-55] + t[-55:].replace(' ",', '"",')
         stations = json.loads(t)
         return stations
     
@@ -80,7 +86,7 @@ class COSMOSStations(podpac.OrderedCompositor):
     @tl.default('source_coordinates')
     def _source_coordinates_default(self):
         lat_lon = np.array([s['location'].split(',') for s in self.stations_data['items']], dtype=float)
-        return podpac.Coordinate(lat_lon=(lat_lon[:, 0], lat_lon[:, 1]))
+        return podpac.Coordinates([lat_lon[:, 0], lat_lon[:, 1]], ['lat-lon'])
     
     def label_from_latlon(self, lat_lon):
         labels_map = {s['location']: s['label'] for s in self.stations_data['items']}
@@ -89,10 +95,13 @@ class COSMOSStations(podpac.OrderedCompositor):
    
 
 if __name__ == '__main__':
-    coords = podpac.Coordinate(lat=(40, 46, 3), lon=(-78, -68, 3))
+    coords = podpac.Coordinates([podpac.clinspace(40, 46, 3, 'lat'),
+                                 podpac.clinspace(-78, -68, 3, 'lon')])
     cs = COSMOSStations()
     ci = cs.source_coordinates.intersect(coords)
-    ce = podpac.Coordinate(time=('2018-05-01', '2018-06-01', '1,D')) + ci
+    ce = podpac.coordinates.merge_dims([
+        podpac.Coordinate([podpac.crange('2018-05-01', '2018-06-01', '1,D', 'time')]),
+                                       ci])
     ce['lat'].delta = 0.001
     ce['lon'].delta = 0.001
     o = cs.execute(ce)
