@@ -117,6 +117,43 @@ class Compositor(Node):
         """
         raise NotImplementedError()
 
+
+    def select_sources(self, coordinates):
+        """Downselect compositor sources based on requested coordinates.
+        
+        This is used during the :meth:`eval` process as an optimization
+        when :attr:`source_coordinates` are not pre-defined.
+        
+        Parameters
+        ----------
+        coordinates : :class:`podpac.Coordinates`
+            Coordinates to evaluate at compositor sources
+        
+        Returns
+        -------
+        :class:`np.ndarray`
+            Array of downselected sources
+        """
+
+        # if source coordinates are defined, use intersect
+        if self.source_coordinates is not None:
+            # intersecting sources only
+            try:
+                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
+
+            except: # Likely non-monotonic coordinates
+                _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
+            
+            src_subset = self.sources[I]
+        
+
+        # no downselection possible - get all sources compositor
+        else:
+            src_subset = self.sources
+
+        return src_subset
+
+
     def composite(self, outputs, result=None):
         """Implements the rules for compositing multiple sources together.
         
@@ -147,17 +184,8 @@ class Compositor(Node):
         :class:`podpac.core.units.UnitsDataArray`
             Output from source node eval method
         """
-        # determine subset of sources needed
-        if self.source_coordinates is None:
-            src_subset = self.sources # all
-        else:
-            # intersecting sources only
-            try:
-                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
-
-            except: # Likely non-monotonic coordinates
-                _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
-            src_subset = self.sources[I]
+        # downselect sources based on coordinates
+        src_subset = self.select_sources(coordinates)
 
         if len(src_subset) == 0:
             yield self.create_output_array(coordinates)
