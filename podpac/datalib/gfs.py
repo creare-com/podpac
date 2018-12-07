@@ -3,8 +3,8 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import traitlets as tl
 
-import boto3, botocore
-from botocore.handlers import disable_signing
+import boto3
+import botocore
 import rasterio
 
 from podpac.data import Rasterio
@@ -22,7 +22,7 @@ class GFSSource(Rasterio):
 
     def init(self):
         self._s3 = boto3.resource('s3')
-        self._s3.meta.client.meta.events.register('choose-signer.s3.*', disable_signing)
+        self._s3.meta.client.meta.events.register('choose-signer.s3.*', botocore.handlers.disable_signing)
         # self._bucket = s3.Bucket(BUCKET)
         
         # check if the key exists
@@ -54,9 +54,9 @@ class GFSSource(Rasterio):
 if __name__ == '__main__':
     from matplotlib import pyplot
     c = Coordinates([clinspace(43, 42, 1000), clinspace(-73, -72, 1000)], dims=['lat', 'lon'])
-    node = GFSSource(parameter='SOIM', level='10-40 m DPTH', date='20181206', hour='1200', forecast='006')
+    node = GFSSource(parameter='SOIM', level='0-10 m DPTH', date='20181206', hour='1200', forecast='006')
 
     output = node.eval(node.native_coordinates)
 
-    output.plot()
+    output.plot(vmin=0, vmax=1)
     pyplot.show(False)
