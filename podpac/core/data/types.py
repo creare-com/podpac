@@ -441,25 +441,26 @@ class Rasterio(DataSource):
         have to overload this method.
         """
         
+        # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
-
-        left, bottom, right, top = self.dataset.bounds
-
         if affine[1] != 0.0 or affine[3] != 0.0:
             raise NotImplementedError("Rotated coordinates are not yet supported")
 
-        # try to get coordinate reference system
-        # TODO: fix this handling
-        try:
-            crs = self.dataset.crs['init'].upper()
-            if crs == 'EPSG:3857':
-                crs = 'SPHER_MERC'
-            elif crs == 'EPSG:4326':
-                crs = 'WGS84'
-            else:
-                crs = None
-        except:
-            crs = None
+        # TODO: fix coordinate reference system handling
+        # try:
+        #     crs = self.dataset.crs['init'].upper()
+        #     if crs == 'EPSG:3857':
+        #         crs = 'SPHER_MERC'
+        #     elif crs == 'EPSG:4326':
+        #         crs = 'WGS84'
+        #     else:
+        #         crs = None
+        # except:
+        #     crs = None
+
+
+        # get bounds
+        left, bottom, right, top = self.dataset.bounds
 
         return Coordinates([
             UniformCoordinates1d(bottom, top, size=self.dataset.height, name='lat', coord_ref_sys=crs),
@@ -472,7 +473,7 @@ class Rasterio(DataSource):
         """
         data = self.create_output_array(coordinates)
         slc = coordinates_index
-        window = window=((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
+        window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
         a = self.dataset.read(self.band, out_shape=tuple(coordinates.shape))
         data.data.ravel()[:] = a.ravel()
         return data
