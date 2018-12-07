@@ -577,7 +577,7 @@ class H5PY(DataSource):
     altkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self, source=None):
         """Opens the data source
         
         Parameters
@@ -590,6 +590,7 @@ class H5PY(DataSource):
         Any
             raster.open(source)
         """
+        # TODO: update this to remove block (see Rasterio)
         if source is None:
             source = self.source
         else:
@@ -606,9 +607,10 @@ class H5PY(DataSource):
 
     @tl.observe('source')
     def _update_dataset(self, change):
+        # TODO: update this to look like Rasterio
         if self.dataset is not None:
             self.close_dataset()
-            self.dataset = self.open_dataset(change['new'])
+            self.dataset = self._open_dataset(change['new'])
         if trait_is_defined(self, 'native_coordinates'):
             self.native_coordinates = self.get_native_coordinates()
         
