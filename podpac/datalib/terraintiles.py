@@ -99,7 +99,7 @@ class TerrainTilesSource(Rasterio):
 
     # parameters
     source = tl.Union([tl.Unicode(), tl.Instance(io.BytesIO)])
-    process_in = tl.Enum(['ram', 'cache'], default_value='cache')
+    process_in = tl.Enum(['ram', 'cache'], default_value='cache')  # Note: 'ram' is not yet supported
 
     # attributes
     dataset = tl.Any()
@@ -151,33 +151,84 @@ class TerrainTilesSource(Rasterio):
             return cache_filepath
 
 
-
 class TerrainTiles(OrderedCompositor):
-    """TerrainTiles Compositor
+    """Terrain Tiles gridded elevation tiles data library
+
+    Hosted on AWS S3
+    https://registry.opendata.aws/terrain-tiles/
+
+    Description
+        Gridded elevation tiles
+    Resource type
+        S3 Bucket
+    Amazon Resource Name (ARN)
+        arn:aws:s3:::elevation-tiles-prod
+    AWS Region
+        us-east-1
+
+    Documentation: https://mapzen.com/documentation/terrain-tiles/
+    
+    Parameters
+    ----------
+    process_in : ['ram', 'cache']
+        Where to process the file from S3 bucket. Defaults to 'cache'.
+        Note: 'ram' option is not yet supported
+    zoom : int
+        Zoom level of tiles. Defaults to 7.
+    tile_format : str
+        one of :attr:`TILE_FORMATS`
+
+    Attributes
+    ----------
+    source : str
+        compositor source identifier for cache
+
     """
     
-    # inputs
-    process_in = tl.Enum(['ram', 'cache'], default_value='cache')
+    # parameters
+    process_in = tl.Enum(['ram', 'cache'], default_value='cache')  # Note: 'ram' is not yet supported
+    zoom = tl.Int(default_value=4)
+    tile_format = tl.Enum(TILE_FORMATS, default_value='geotiff')
 
-    @tl.default('sources')
-    def _default_sources(self):
-        """
-        """
-        np.ndarray([])
+    # attributes
+    source = BUCKET
+
+    # TODO: This is how I believe this should be implemented, but it feels very inefficient
+    # @tl.default('sources')
+    # def _default_sources(self):
+    #     """Default sources are all the tiles for the requested tile_format and zoom level
+
+    #     Returns
+    #     -------
+    #     :class:`np.ndarray` of :class:`TerrainTileSource`
+    #         TerrainTilesSource for each tile at the :attr:`zoom` level
+    #     """
+
+    #     # get all the tile definitions for the requested zoom level
+    #     tiles = _get_tile_tuples(self.zoom)
+
+    #     # get source urls
+    #     sources = [self._tile_url(self.tile_format, self.zoom, x, y) for (x, y, zoom) in tiles]
+
+    #     # create TerrainTilesSource classes for each url source
+    #     return np.array([TerrainTilesSource(source=source, process_in=self.process_in) \
+    #                        for source in sources])
 
 
     def select_sources(self, coordinates):
-        pass
+        # get all the tile sources for the requested zoom level and coordinates
+        sources = get_tile_urls(self.tile_format, self.zoom, coordinates)
+        
+        # create TerrainTilesSource classes for each url source
+        self.sources = np.array([TerrainTilesSource(source=source, process_in=self.process_in) \
+                        for source in sources])
 
-    def get_shared_coordinates(self):
-        pass
+        return self.sources
+
 
     def get_source_coordinates(self):
+        """ this would require us to download all raster files """
         pass
-
-    def find_coordinates(self):
-        pass
-
 
 
 ############
@@ -186,7 +237,7 @@ class TerrainTiles(OrderedCompositor):
 
 
 def get_zoom_levels(tile_format='geotiff'):
-    """Get available zoom levels
+    """Get available zoom levels for certain tile formats
     
     Parameters
     ----------
@@ -225,10 +276,40 @@ def get_zoom_levels(tile_format='geotiff'):
 
     return zoom_levels
 
-def get_tiles(coordinates, zoom):
-    """Query for tiles within podpac coordinate bounds
+def get_tile_urls(tile_format, zoom, coordinates=None):
+    """Get tile urls for a specific zoom level and geospatial coordinates
+    
+    Parameters
+    ----------
+    tile_format : str
+        format of the tile to get
+    zoom : int
+        zoom level
+    coordinates : :class:`podpac.Coordinates`, optional
+        only return tiles within coordinates
+    
+    Returns
+    -------
+    list of str
+        list of tile urls
+    """
+
+    # get all the tile definitions for the requested zoom level
+    tiles = _get_tile_tuples(zoom, coordinates)
+    
+    # get source urls
+    return [_tile_url(tile_format, x, y, z) for (x, y, z) in tiles]
+
+
+############
+# Private Utilites
+############
+
+def _get_tile_tuples(zoom, coordinates=None):
+    """Query for tiles within podpac coordinates
     
     This method allows you to get the available tiles in a given spatial area.
+    This will work for all :attr:`TILE_FORMAT` types
     
     Parameters
     ----------
@@ -245,36 +326,74 @@ def get_tiles(coordinates, zoom):
     Returns
     -------
     list of tuple
-        list of tile urls for coordinates and zoom level
+        list of tile tuples (x, y, zoom) for zoom level and coordinates
     """
-    _log.debug('Getting tiles for coordinates {}'.format(coordinates))
 
-    if 'lat' not in coordinates or 'lon' not in coordinates:
-        raise TypeError('input coordinates must have lat and lon dimensions to get tiles')
+    # if no coordinates are supplied, get all tiles for zoom level
+    if coordinates is None:
+        tiles = _get_tiles_grid([-89.9999, 89.9999], [-180, 180], zoom)
 
-    # point coordinates
-    if 'lat_lon' in coordinates.dims or 'lon_lat' in coordinates.dims:
-        lat_lon = zip(coordinates['lat'].coordinates, coordinates['lon'].coordinates)
-
-        tiles = []
-        for (lat, lon) in lat_lon:
-            tile = _get_tiles_point(lat, lon, zoom)
-            if tile not in tiles:
-                tiles.append(tile)
-
-    # gridded coordinates
+    # down select tiles based on coordinates
     else:
-        lat_bounds = coordinates['lat'].bounds
-        lon_bounds = coordinates['lon'].bounds
 
-        tiles = _get_tiles_grid(lat_bounds, lon_bounds, zoom)
+        _log.debug('Getting tiles for coordinates {}'.format(coordinates))
+
+        if 'lat' not in coordinates or 'lon' not in coordinates:
+            raise TypeError('input coordinates must have lat and lon dimensions to get tiles')
+
+        # point coordinates
+        if 'lat_lon' in coordinates.dims or 'lon_lat' in coordinates.dims:
+            lat_lon = zip(coordinates['lat'].coordinates, coordinates['lon'].coordinates)
+
+            tiles = []
+            for (lat, lon) in lat_lon:
+                tile = _get_tiles_point(lat, lon, zoom)
+                if tile not in tiles:
+                    tiles.append(tile)
+
+        # gridded coordinates
+        else:
+            lat_bounds = coordinates['lat'].bounds
+            lon_bounds = coordinates['lon'].bounds
+
+            tiles = _get_tiles_grid(lat_bounds, lon_bounds, zoom)
 
     return tiles
 
+def _tile_url(tile_format, x, y, zoom):
+    """Build S3 URL prefix
+    
+    The S3 bucket is organized {tile_format}/{z}/{x}/{y}.tif
+    
+    Parameters
+    ----------
+    tile_format : str
+        One of 'terrarium', 'normal', 'geotiff'
+    zoom : int
+        zoom level
+    x : int
+        x tilespace coordinate
+    y : int
+        x tilespace coordinate
+    
+    Returns
+    -------
+    str
+        Bucket prefix
+    
+    Raises
+    ------
+    TypeError
+    """
 
-############
-# Private Utilites
-############
+    tile_url = '{tile_format}/{zoom}/{x}/{y}.{ext}'
+    ext = {
+        'geotiff': 'tif',
+        'normal': 'png',
+        'terrarium': 'png'
+    }
+
+    return tile_url.format(tile_format=tile_format, zoom=zoom, x=x, y=y, ext=ext[tile_format])
 
 def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
     """
@@ -382,39 +501,3 @@ def _mercator_to_tilespace(xm, ym, zoom):
     y = int(tiles * (np.pi - ym) / diameter)
 
     return x, y
-
-def _build_prefix(tile_format, zoom=None, x=None):
-    """Build S3 URL prefix
-    
-    The S3 bucket is organized {tile_format}/{z}/{x}/{y}.tif
-    
-    Parameters
-    ----------
-    tile_format : str
-        One of 'terrarium', 'normal', 'geotiff'
-    zoom : int
-        zoom level
-    x : int
-        x tilespace coordinate
-    
-    Returns
-    -------
-    str
-        Bucket prefix
-    
-    Raises
-    ------
-    TypeError
-    """
-
-    if tile_format not in TILE_FORMATS:
-        raise TypeError("format must be one of {}".format(TILE_FORMATS))
-
-    prefix = '{}/'.format(tile_format)
-    if zoom is not None:
-        prefix += '{}/'.format(zoom)
-
-    if x is not None:
-        prefix += '{}/'.format(x)
-
-    return prefix
