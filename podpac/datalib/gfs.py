@@ -1,17 +1,23 @@
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import traitlets as tl
+import logging
 
+import traitlets as tl
+import numpy as np
 import boto3
 import botocore
 import rasterio
 
 from podpac.data import Rasterio
-from podpac.coordinates import Coordinates, clinspace
+from podpac.compositor import Compositor
 
 BUCKET = 'noaa-gfs-pds'
 
+s3 = boto3.resource('s3')
+s3.meta.client.meta.events.register('choose-signer.s3.*', botocore.handlers.disable_signing)
+
+# TODO add time to native_coordinates
 class GFSSource(Rasterio):
     parameter = tl.Unicode().tag(attr=True)
     level = tl.Unicode().tag(attr=True)
@@ -21,16 +27,14 @@ class GFSSource(Rasterio):
     dataset = tl.Any()
 
     def init(self):
-        self._s3 = boto3.resource('s3')
-        self._s3.meta.client.meta.events.register('choose-signer.s3.*', botocore.handlers.disable_signing)
-        # self._bucket = s3.Bucket(BUCKET)
+        self._logger = logging.getLogger(__name__)
         
         # check if the key exists
         try:
-            self._s3.Object(BUCKET, self._key).load()
+            s3.Object(BUCKET, self._key).load()
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
-                raise ValueError(self.key) # TODO list options
+                raise ValueError(self._key) # TODO list options
             else:
                 raise
     
@@ -46,17 +50,39 @@ class GFSSource(Rasterio):
     def open_dataset(self):
         """Opens the data source"""
 
+        cache_key = 'fileobj'
         with rasterio.MemoryFile() as f:
-            self._s3.Object(BUCKET, self._key).download_fileobj(f)
+            if self.has_cache(key=cache_key):
+                data = self.get_cache(key=cache_key)
+                f.write(data)
+            else:
+                self._logger.info('Downloading S3 fileobj (Bucket: %s, Key: %s)' % (BUCKET, self._key))
+                s3.Object(BUCKET, self._key).download_fileobj(f)
+                f.seek(0)
+                self.put_cache(f.read(), key=cache_key)
+            
             dataset = f.open()
-            return dataset
 
-if __name__ == '__main__':
-    from matplotlib import pyplot
-    c = Coordinates([clinspace(43, 42, 1000), clinspace(-73, -72, 1000)], dims=['lat', 'lon'])
-    node = GFSSource(parameter='SOIM', level='0-10 m DPTH', date='20181206', hour='1200', forecast='006')
+        return dataset
 
-    output = node.eval(node.native_coordinates)
+class GFS(Compositor):
+    parameter = tl.Unicode().tag(attr=True)
+    level = tl.Unicode().tag(attr=True)
+    date = tl.Unicode().tag(attr=True)
+    hour = tl.Unicode().tag(attr=True)
 
-    output.plot(vmin=0, vmax=1)
-    pyplot.show(False)
+    @property
+    def sources(self):
+        params = {
+            'parameter': self.parameter, 
+            'level': self.level, 
+            'date': self.date, 
+            'hour': self.hour,
+            'cache_ctrl': self.cache_ctrl
+        }
+
+        bucket = s3.Bucket(BUCKET)
+        prefix = '%s/%s/%s/%s/' % (self.parameter, self.level, self.date, self.hour)
+        objs = bucket.objects.filter(Prefix='%s/%s/%s/%s/003' % (self.parameter, self.level, self.date, self.hour))
+        sources = [GFSSource(forecast=obj.key.replace(prefix, ''), **params) for obj in objs]
+        return np.array(sources)
