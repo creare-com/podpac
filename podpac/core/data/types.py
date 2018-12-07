@@ -377,49 +377,54 @@ class CSV(DataSource):
         return self.create_output_array(coordinates, data=d)
 
 
-# TODO: rename "Rasterio" to be more consistent with other naming conventions
 @common_doc(COMMON_DATA_DOC)
 class Rasterio(DataSource):
     """Create a DataSource using Rasterio.
-    
-    Attributes
+ 
+    Parameters
     ----------
+    source : str, :class:`io.BytesIO`
+        Path to the data source
     band : int
         The 'band' or index for the variable being accessed in files such as GeoTIFFs
-    dataset : Any
+
+    Attributes
+    ----------
+    dataset : :class:`rasterio._io.RasterReader`
         A reference to the datasource opened by rasterio
-    native_coordinates : Coordinates
+    native_coordinates : :class:`podpac.Coordinates`
         {native_coordinates}
-    source : str
-        Path to the data source
+
     """
     
-    source = tl.Unicode(allow_none=False)
+    source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)], allow_none=False)
+
     dataset = tl.Any(allow_none=True)
     band = tl.CInt(1).tag(attr=True)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self):
         """Opens the data source
-        
-        Parameters
-        ----------
-        source : str, optional
-            Uses self.source by default. Path to the data source.
         
         Returns
         -------
-        Any
-            raster.open(source)
+        :class:`rasterio.io.DatasetReader`
+            Rasterio dataset
         """
-        if source is None:
-            source = self.source
-        else:
-            self.source = source
 
         # TODO: dataset should not open by default
         # prefer with as: syntax
-        return rasterio.open(source)
+
+        if isinstance(self.source, BytesIO):
+            # https://rasterio.readthedocs.io/en/latest/topics/memory-files.html
+            # TODO: this is still not working quite right - likely need to work
+            # out the BytesIO format or how we are going to read/write in memory
+            with rasterio.MemoryFile(self.source) as memfile:
+                return memfile.open(driver='GTiff')
+
+        # local file
+        else:
+            return rasterio.open(self.source)
     
     def close_dataset(self):
         """Closes the file for the datasource
@@ -428,17 +433,21 @@ class Rasterio(DataSource):
 
     @tl.observe('source')
     def _update_dataset(self, change):
-        if self.dataset is not None:
-            self.dataset = self.open_dataset(change['new'])
-        if trait_is_defined(self, 'native_coordinates'):
-            self.native_coordinates = self.get_native_coordinates()
+
+        # only update dataset if dataset trait has been defined the first time
+        if trait_is_defined(self, 'dataset'):
+            self.dataset = self._open_dataset()
+
+            # update native_coordinates if they have been defined
+            if trait_is_defined(self, 'native_coordinates'):
+                self.native_coordinates = self.get_native_coordinates()
         
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
         
-        The default implementation tries to find the lat/lon coordinates based on dataset.affine or dataset.transform
-        (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
+        The default implementation tries to find the lat/lon coordinates based on dataset.affine.
+        It cannot determine the alt or time dimensions, so child classes may
         have to overload this method.
         """
         
