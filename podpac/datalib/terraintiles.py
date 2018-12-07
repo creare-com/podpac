@@ -85,20 +85,29 @@ class TerrainTilesSource(Rasterio):
     process_in : ['ram', 'cache']
         Where to process the file from S3 bucket. Defaults to 'cache'.
         Note: 'ram' option is not yet supported
-
+    
     Attributes
     ----------
+    dataset : TYPE
+        Description
+    
+    Deleted Attributes
+    ------------------
     prefix : str
         prefix to the filename (:attr:`source`) within the S3 bucket
     """
 
+    # parameters
     source = tl.Union([tl.Unicode(), tl.Instance(io.BytesIO)])
     process_in = tl.Enum(['ram', 'cache'], default_value='cache')
+
+    # attributes
+    dataset = tl.Any()
 
     @tl.default('dataset')
     def _open_dataset(self):
         self.source = self._download_file()   # download the file to cache the first time it is accessed
-        super(TerrainTilesSource, self)._open_dataset()
+        return super(TerrainTilesSource, self)._open_dataset()
 
     # def get_data(self, coordinates, coordinates_index):
         # super(TerrainTilesSource, self).get_data(coordinates, coordinates_index)
@@ -108,7 +117,7 @@ class TerrainTilesSource(Rasterio):
         
         Returns
         -------
-        str, :class:`io.BytesIO`
+        str or :class:`io.BytesIO`
             full path to the downloaded tile in the cache, or bytes from BytesIO
         """
 
@@ -127,7 +136,7 @@ class TerrainTilesSource(Rasterio):
             filename = os.path.split(self.source)[1]  # get filename off of source
             filename_safe = filename.replace('\\', '').replace(':', '').replace('/', '')  # sanitize filename
 
-            cache_path = os.path.join(settings['CACHE_DIR'], 'terraintiles')
+            cache_path = os.path.join(settings['CACHE_DIR'], 'terraintiles', os.path.split(self.source)[0])
             cache_filepath = os.path.join(cache_path, filename_safe)  # path to file in cache
 
             # make the cach directory if it hasn't been made already
