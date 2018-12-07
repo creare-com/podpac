@@ -328,25 +328,15 @@ class CSV(DataSource):
         return self.dataset.columns.get_loc(self.data_col)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self):
         """Opens the data source
-        
-        Parameters
-        ----------
-        source : str, optional
-            Uses self.source by default. Path to the data source.
         
         Returns
         -------
         pd.DataFrame
             pd.read_csv(source)
         """
-        if source is None:
-            source = self.source
-        else:
-            self.source = source
-
-        return pd.read_csv(source, parse_dates=True, infer_datetime_format=True)
+        return pd.read_csv(self.source, parse_dates=True, infer_datetime_format=True)
     
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
