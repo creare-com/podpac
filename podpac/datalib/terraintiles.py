@@ -48,7 +48,7 @@ import numpy as np
 from podpac import settings
 from podpac.data import Rasterio
 from podpac.compositor import OrderedCompositor
-from podpac.coordinates import crange, Coordinates
+from podpac.interpolators import Rasterio as RasterioInterpolator
 
 
 ####
@@ -220,8 +220,7 @@ class TerrainTiles(OrderedCompositor):
         sources = get_tile_urls(self.tile_format, self.zoom, coordinates)
         
         # create TerrainTilesSource classes for each url source
-        self.sources = np.array([TerrainTilesSource(source=source, process_in=self.process_in) \
-                        for source in sources])
+        self.sources = np.array([self._create_source(source) for source in sources])
 
         return self.sources
 
@@ -230,6 +229,11 @@ class TerrainTiles(OrderedCompositor):
         """ this would require us to download all raster files """
         pass
 
+    def _create_source(self, source):
+        return TerrainTilesSource(source=source, process_in=self.process_in, interpolation={
+            'method': 'nearest',
+            'interpolators': [RasterioInterpolator]
+        })
 
 ############
 # Utilities
