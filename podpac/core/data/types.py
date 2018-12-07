@@ -448,10 +448,21 @@ class Rasterio(DataSource):
         if affine[1] != 0.0 or affine[3] != 0.0:
             raise NotImplementedError("Rotated coordinates are not yet supported")
 
+        # try to get coordinate reference system
+        # TODO: fix this handling
+        try:
+            crs = self.dataset.crs['init'].upper()
+            if crs == 'EPSG:3857':
+                crs = 'SPHER_MERC'
+            else:
+                crs = None
+        except:
+            crs = None
+
         return Coordinates([
-            UniformCoordinates1d(bottom, top, size=self.dataset.height, name='lat'),
-            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon')
-        ])
+            UniformCoordinates1d(bottom, top, size=self.dataset.height, name='lat', coord_ref_sys=crs),
+            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon', coord_ref_sys=crs)
+        ], coord_ref_sys=crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
