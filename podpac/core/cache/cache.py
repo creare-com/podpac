@@ -17,7 +17,7 @@ except:
 
 from podpac.core.settings import settings
 
-_cache_types = {'ram','disk','network','all'}
+_cache_types = {'ram','disk','network','all','s3'}
 
 class CacheException(Exception):
     """Summary
@@ -376,32 +376,12 @@ class CachePickleContainer(object):
         return False
 
 
-class DiskCacheStore(CacheStore):
+class FileCacheStore(CacheStore):
 
-    def __init__(self, root_cache_dir_path=None, storage_format='pickle'):
-        """Initialize a cache that uses a folder on a local disk file system.
-        
-        Parameters
-        ----------
-        root_cache_dir_path : None, optional
-            Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings.
-        storage_format : str, optional
-            Indicates the file format for storage. Defaults to 'pickle' which is currently the only supported format.
-        
-        Raises
-        ------
-        NotImplementedError
-            If unsupported `storage_format` is specified
-        """
-        self._cache_modes = set(['disk','all'])
-        if root_cache_dir_path is None:
-            root_cache_dir_path = settings['CACHE_DIR']
-        self._root_dir_path = root_cache_dir_path
-        if storage_format == 'pickle':
-            self._extension = 'pkl'
-        else:
-            raise NotImplementedError
-        self._storage_format = storage_format
+    _cache_modes = ['all']
+
+    def __init__(self, *args, **kwargs):
+        pass
 
     def cache_modes_matches(self, modes):
         """Returns True if this CacheStore matches any caching modes in `modes`
@@ -421,16 +401,7 @@ class DiskCacheStore(CacheStore):
         return False
 
     def make_cache_dir(self, node):
-        """Create subdirectory for caching data for `node`
-        
-        Parameters
-        ----------
-        node : podpac.core.node.Node
-            Description
-        """
-        cache_dir = self.cache_dir(node)
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
+        pass
 
     def cache_dir(self, node):
         """subdirectory for caching data for `node`
@@ -477,28 +448,7 @@ class DiskCacheStore(CacheStore):
         return filename
 
     def cache_glob(self, node, key, coordinates):
-        """Fileglob to match files that could be storing cached data for specified node,key,coordinates
-        
-        Parameters
-        ----------
-        node : podpac.core.node.Node
-        key : str, CacheWildCard
-            CacheWildCard indicates to match any key
-        coordinates : podpac.core.coordinates.coordinates.Coordinates, CacheWildCard, None
-            CacheWildCard indicates to match any coordinates
-        
-        Returns
-        -------
-        TYPE : str
-            Fileglob of existing paths that match the request
-        """
-        pre = '*'
-        nKeY = 'nKeY{}'.format(self.hash_node(node))
-        kKeY = 'kKeY*' if isinstance(key, CacheWildCard) else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
-        cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
-        filename = '_'.join([pre, nKeY, kKeY, cKeY])
-        filename = filename + '.' + self._extension
-        return os.path.join(self.cache_dir(node), filename)
+        pass
 
     def cache_path(self, node, key, coordinates):
         """Filepath for storing cached data for specified node,key,coordinates
@@ -558,7 +508,7 @@ class DiskCacheStore(CacheStore):
             if not update:
                 raise CacheException("Existing cache entry. Call put() with `update` argument set to True if you wish to overwrite.")
             else:
-                paths = glob(self.cache_glob(node, key, coordinates))
+                paths = self.cache_glob(node, key, coordinates)
                 for p in paths:
                     c = CachePickleContainer.load(p)
                     if c.has(listing):
@@ -602,7 +552,7 @@ class DiskCacheStore(CacheStore):
             If the data is not in the cache.
         '''
         listing = CacheListing(node=node, key=key, coordinates=coordinates)
-        paths = glob(self.cache_glob(node, key, coordinates))
+        paths = self.cache_glob(node, key, coordinates)
         for p in paths:
             c = CachePickleContainer.load(p)
             if c.has(listing):
@@ -611,6 +561,15 @@ class DiskCacheStore(CacheStore):
                      CacheException("Stored data is None.")
                 return data
         raise CacheException("Cache miss. Requested data not found.")
+
+    def clear_entire_cache_store(self):
+        pass
+
+    def dir_is_empty(self, directory):
+        pass
+
+    def rem_dir(self, directory):
+        pass
 
     def rem(self, node=CacheWildCard(), key=CacheWildCard(), coordinates=CacheWildCard()):
         '''Delete cached data for this node.
@@ -626,22 +585,21 @@ class DiskCacheStore(CacheStore):
         '''
         if isinstance(node, CacheWildCard):
             # clear the entire cache store
-            shutil.rmtree(self._root_dir_path)
-            return True
+            return self.clear_entire_cache_store()
         removed_something = False
         if isinstance(key, CacheWildCard) or isinstance(coordinates, CacheWildCard):
             # clear all files for data cached for `node`
             # and delete its cache subdirectory if it is empty
-            paths = glob(self.cache_glob(node, key=key, coordinates=coordinates))
+            paths = self.cache_glob(node, key=key, coordinates=coordinates)
             for p in paths:
                 os.remove(p)
                 removed_something = True
             cache_dir = self.cache_dir(node=node)
-            if os.path.exists(cache_dir) and os.path.isdir(cache_dir) and not os.listdir(cache_dir):
-                os.rmdir(cache_dir)
+            if self.dir_is_empty(cache_dir):
+                self.rem_dir(cache_dir)
             return removed_something
         listing = CacheListing(node=node, key=key, coordinates=coordinates)
-        paths = glob(self.cache_glob(node, key, coordinates))
+        paths = self.cache_glob(node, key, coordinates)
         for p in paths:
             c = CachePickleContainer.load(p)
             if c.has(listing):
@@ -672,11 +630,156 @@ class DiskCacheStore(CacheStore):
              True if there as a cached object for this node for the given key and coordinates.
         '''
         listing = CacheListing(node=node, key=key, coordinates=coordinates)
-        paths = glob(self.cache_glob(node, key, coordinates))
+        paths = self.cache_glob(node, key, coordinates)
         for p in paths:
             c = CachePickleContainer.load(p)
             if c.has(listing):
                 return True
         return False
 
+class DiskCacheStore(FileCacheStore):
 
+    def __init__(self, root_cache_dir_path=None, storage_format='pickle'):
+        """Initialize a cache that uses a folder on a local disk file system.
+        
+        Parameters
+        ----------
+        root_cache_dir_path : None, optional
+            Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings.
+        storage_format : str, optional
+            Indicates the file format for storage. Defaults to 'pickle' which is currently the only supported format.
+        
+        Raises
+        ------
+        NotImplementedError
+            If unsupported `storage_format` is specified
+        """
+        self._cache_modes = set(['disk','all'])
+        if root_cache_dir_path is None:
+            root_cache_dir_path = settings['CACHE_DIR']
+        self._root_dir_path = root_cache_dir_path
+        if storage_format == 'pickle':
+            self._extension = 'pkl'
+        else:
+            raise NotImplementedError
+        self._storage_format = storage_format
+
+    def make_cache_dir(self, node):
+        """Create subdirectory for caching data for `node`
+        
+        Parameters
+        ----------
+        node : podpac.core.node.Node
+            Description
+        """
+        cache_dir = self.cache_dir(node)
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+    def cache_glob(self, node, key, coordinates):
+        """Fileglob to match files that could be storing cached data for specified node,key,coordinates
+        
+        Parameters
+        ----------
+        node : podpac.core.node.Node
+        key : str, CacheWildCard
+            CacheWildCard indicates to match any key
+        coordinates : podpac.core.coordinates.coordinates.Coordinates, CacheWildCard, None
+            CacheWildCard indicates to match any coordinates
+        
+        Returns
+        -------
+        TYPE : str
+            Fileglob of existing paths that match the request
+        """
+        pre = '*'
+        nKeY = 'nKeY{}'.format(self.hash_node(node))
+        kKeY = 'kKeY*' if isinstance(key, CacheWildCard) else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
+        cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
+        filename = '_'.join([pre, nKeY, kKeY, cKeY])
+        filename = filename + '.' + self._extension
+        return glob(os.path.join(self.cache_dir(node), filename))
+
+    def clear_entire_cache_store(self):
+        shutil.rmtree(self._root_dir_path)
+        return True
+
+    def dir_is_empty(self, directory):
+        return os.path.exists(directory) and os.path.isdir(directory) and not os.listdir(directory)
+
+    def rem_dir(self, directory):
+        os.rmdir(directory)
+
+class S3CacheStore(FileCacheStore):
+
+    def __init__(self, root_cache_dir_path=None, storage_format='pickle', s3_bucket=None):
+        """Initialize a cache that uses a folder on a local disk file system.
+        
+        Parameters
+        ----------
+        root_cache_dir_path : None, optional
+            Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings.
+        storage_format : str, optional
+            Indicates the file format for storage. Defaults to 'pickle' which is currently the only supported format.
+        
+        Raises
+        ------
+        NotImplementedError
+            If unsupported `storage_format` is specified
+        """
+        self._cache_modes = set(['s3','all'])
+        if root_cache_dir_path is None:
+            root_cache_dir_path = settings['CACHE_DIR']
+        self._root_dir_path = root_cache_dir_path
+        if storage_format == 'pickle':
+            self._extension = 'pkl'
+        else:
+            raise NotImplementedError
+        self._storage_format = storage_format
+        if s3_bucket is None:
+            s3_bucket = settings['S3_BUCKET_NAME']
+        self._s3_bucket = s3_bucket
+
+    def make_cache_dir(self, node):
+        """Create subdirectory for caching data for `node`
+        
+        Parameters
+        ----------
+        node : podpac.core.node.Node
+            Description
+        """
+        pass
+
+    def cache_glob(self, node, key, coordinates):
+        """Fileglob to match files that could be storing cached data for specified node,key,coordinates
+        
+        Parameters
+        ----------
+        node : podpac.core.node.Node
+        key : str, CacheWildCard
+            CacheWildCard indicates to match any key
+        coordinates : podpac.core.coordinates.coordinates.Coordinates, CacheWildCard, None
+            CacheWildCard indicates to match any coordinates
+        
+        Returns
+        -------
+        TYPE : str
+            Fileglob of existing paths that match the request
+        """
+        pre = '*'
+        nKeY = 'nKeY{}'.format(self.hash_node(node))
+        kKeY = 'kKeY*' if isinstance(key, CacheWildCard) else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
+        cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
+        filename = '_'.join([pre, nKeY, kKeY, cKeY])
+        filename = filename + '.' + self._extension
+        return glob(os.path.join(self.cache_dir(node), filename))
+
+    def clear_entire_cache_store(self):
+        shutil.rmtree(self._root_dir_path)
+        return True
+
+    def dir_is_empty(self, directory):
+        return os.path.exists(directory) and os.path.isdir(directory) and not os.listdir(directory)
+
+    def rem_dir(self, directory):
+        os.rmdir(directory)
