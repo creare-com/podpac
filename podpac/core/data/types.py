@@ -457,7 +457,7 @@ class Rasterio(DataSource):
         #         crs = None
         # except:
         #     crs = None
-
+        crs = None
 
         # get bounds
         left, bottom, right, top = self.dataset.bounds
@@ -474,8 +474,9 @@ class Rasterio(DataSource):
         data = self.create_output_array(coordinates)
         slc = coordinates_index
         window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
-        a = self.dataset.read(self.band, out_shape=tuple(coordinates.shape))
-        data.data.ravel()[:] = a.ravel()
+        raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
+        vflipped_raster_data = np.flip(raster_data, 0)  # rasterio reads data inverse to how we index it (lat only)
+        data.data.ravel()[:] = vflipped_raster_data.ravel()
         return data
     
     @cached_property
