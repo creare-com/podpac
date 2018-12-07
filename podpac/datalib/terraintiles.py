@@ -119,6 +119,11 @@ class TerrainTilesSource(Rasterio):
         # opens source file
         return super(TerrainTilesSource, self)._open_dataset()
 
+    def get_data(self, coordinates, coordinates_index):
+        data = super(TerrainTilesSource, self).get_data(coordinates, coordinates_index)
+        data.data[data.data < 0] = np.nan
+        return data
+
 
     def _download_file(self):
         """Download/load file from s3
@@ -368,7 +373,8 @@ def _get_tile_tuples(zoom, coordinates=None):
 
     # if no coordinates are supplied, get all tiles for zoom level
     if coordinates is None:
-        tiles = _get_tiles_grid([-89.9999, 89.9999], [-180, 180], zoom)
+        # clip lat to +/- 85.051129 because that's all that spherical mercator
+        tiles = _get_tiles_grid([-85.051129, 85.051129], [-180, 180], zoom)
 
     # down select tiles based on coordinates
     else:
