@@ -37,7 +37,7 @@ class Compositor(Node):
         Default is False. The source_coordinates do not have to completely describe the source. For example, the source
         coordinates could include the year-month-day of the source, but the actual source also has hour-minute-second
         information. In that case, source_coordinates is incomplete. This flag is used to automatically construct
-        native_coordinates
+        native_coordinates.
     n_threads : int
         Default is 10 -- used when threaded is True.
         NASA data servers seem to have a hard limit of 10 simultaneous requests, which determined the default value.
@@ -47,7 +47,7 @@ class Compositor(Node):
         The source is used for a unique name to cache composited products.
     source_coordinates : :class:`podpac.Coordinates`
         Description
-    sources : np.ndarray
+    sources : :class:`np.ndarray`
         An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to
         subselect the nodes that will be evaluated.
     threaded : bool, optional
@@ -167,7 +167,6 @@ class Compositor(Node):
         Raises
         ------
         NotImplementedError
-            Description
         """
         raise NotImplementedError()
     
