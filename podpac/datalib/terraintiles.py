@@ -44,6 +44,9 @@ import traitlets as tl
 import boto3
 from botocore.handlers import disable_signing
 import numpy as np
+import rasterio
+from rasterio.warp import calculate_default_transform, reproject, Resampling
+
 
 from podpac import settings
 from podpac.data import Rasterio
@@ -107,10 +110,15 @@ class TerrainTilesSource(Rasterio):
     @tl.default('dataset')
     def _open_dataset(self):
         self.source = self._download_file()   # download the file to cache the first time it is accessed
+        
+        # TODO: this is a temporary solution to reproject coordinates to WGS84
+        # reproject dataset to 'EPSG:4326'
+        with rasterio.open(self.source) as src:
+            self.source = self._reproject(src, 'EPSG:4326')
+        
+        # opens source file
         return super(TerrainTilesSource, self)._open_dataset()
 
-    # def get_data(self, coordinates, coordinates_index):
-        # super(TerrainTilesSource, self).get_data(coordinates, coordinates_index)
 
     def _download_file(self):
         """Download/load file from s3
@@ -149,6 +157,35 @@ class TerrainTilesSource(Rasterio):
                 _bucket.download_file(self.source, cache_filepath)
 
             return cache_filepath
+
+    def _reproject(self, src, dst_crs):
+        # https://rasterio.readthedocs.io/en/latest/topics/reproject.html#reprojecting-a-geotiff-dataset
+         
+        # calculate default transform
+        transform, width, height = calculate_default_transform(src.crs, dst_crs, src.width, src.height, *src.bounds)
+        kwargs = src.meta.copy()
+        kwargs.update({
+            'crs': dst_crs,
+            'transform': transform,
+            'width': width,
+            'height': height
+        })
+
+        # write out new file with new projection
+        dst_filename = '{}.wgs8484.tif'.format(self.source.replace('.tif', ''))
+        with rasterio.open(dst_filename, 'w', **kwargs) as dst:
+            for i in range(1, src.count + 1):
+                reproject(
+                    source=rasterio.band(src, i),
+                    destination=rasterio.band(dst, i),
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    dst_transform=transform,
+                    dst_crs=dst_crs,
+                    resampling=Resampling.nearest)
+
+        # return filename
+        return dst_filename
 
 
 class TerrainTiles(OrderedCompositor):

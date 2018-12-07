@@ -454,6 +454,8 @@ class Rasterio(DataSource):
             crs = self.dataset.crs['init'].upper()
             if crs == 'EPSG:3857':
                 crs = 'SPHER_MERC'
+            elif crs == 'EPSG:4326':
+                crs = 'WGS84'
             else:
                 crs = None
         except:
