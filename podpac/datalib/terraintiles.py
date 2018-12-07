@@ -114,7 +114,7 @@ class TerrainTilesSource(Rasterio):
         # TODO: this is a temporary solution to reproject coordinates to WGS84
         # reproject dataset to 'EPSG:4326'
         with rasterio.open(self.source) as src:
-            self.source = self._reproject(src, 'EPSG:4326')
+            self.source = self._reproject(src, {'init': 'epsg:4326'})
         
         # opens source file
         return super(TerrainTilesSource, self)._open_dataset()
@@ -181,8 +181,7 @@ class TerrainTilesSource(Rasterio):
                     src_transform=src.transform,
                     src_crs=src.crs,
                     dst_transform=transform,
-                    dst_crs=dst_crs,
-                    resampling=Resampling.nearest)
+                    dst_crs=dst_crs)
 
         # return filename
         return dst_filename
@@ -267,10 +266,7 @@ class TerrainTiles(OrderedCompositor):
         pass
 
     def _create_source(self, source):
-        return TerrainTilesSource(source=source, process_in=self.process_in, interpolation={
-            'method': 'nearest',
-            'interpolators': [RasterioInterpolator]
-        })
+        return TerrainTilesSource(source=source, process_in=self.process_in)
 
 ############
 # Utilities
