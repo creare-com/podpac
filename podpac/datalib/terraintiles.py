@@ -13,14 +13,30 @@ Amazon Resource Name (ARN)
 AWS Region
     us-east-1
 
-
 Documentation: https://mapzen.com/documentation/terrain-tiles/
+
+Attribution
+-----------
+- Some source adapted from https://github.com/tilezen/joerd
+
+Attributes
+----------
+BUCKET : str
+    AWS S3 bucket
+TILE_FORMATS : list
+    list of support tile formats
+
+Notes
+-----
+
+See https://github.com/racemap/elevation-service/blob/master/tileset.js
+for example skadi implementation
 """
 
 
 import os
 import re
-from datetime import datetime
+from itertools import product
 import logging
 import io
 
@@ -39,6 +55,7 @@ from podpac.coordinates import crange, Coordinates
 # module attributes
 ####
 BUCKET = 'elevation-tiles-prod'
+TILE_FORMATS = ['terrarium', 'normal', 'geotiff']  # TODO: Support skadi format
 
 ####
 # private module attributes
@@ -63,31 +80,36 @@ class TerrainTilesSource(Rasterio):
     
     Parameters
     ----------
-    source : str
-        Filename of the sourcefile
-    
+    source : str, :class:`io.BytesIO`
+        Filename of the sourcefile, or bytes of the files
+    process_in : ['ram', 'cache']
+        Where to process the file from S3 bucket. Defaults to 'cache'.
+        Note: 'ram' option is not yet supported
+
     Attributes
     ----------
     prefix : str
         prefix to the filename (:attr:`source`) within the S3 bucket
     """
 
-    source = tl.Unicode()
-    process_in = tl.Enum(['cache'], default_value='cache')
-
-    def init(self):
-        pass
+    source = tl.Union([tl.Unicode(), tl.Instance(io.BytesIO)])
+    process_in = tl.Enum(['ram', 'cache'], default_value='cache')
 
     @tl.default('dataset')
-    def open_dataset(self):
-        self._download_file()   # download the file to ram or cache the first time it is accessed
-        super(TerrainTilesSource, self).open_dataset()
+    def _open_dataset(self):
+        self.source = self._download_file()   # download the file to cache the first time it is accessed
+        super(TerrainTilesSource, self)._open_dataset()
 
     # def get_data(self, coordinates, coordinates_index):
         # super(TerrainTilesSource, self).get_data(coordinates, coordinates_index)
 
     def _download_file(self):
         """Download/load file from s3
+        
+        Returns
+        -------
+        str, :class:`io.BytesIO`
+            full path to the downloaded tile in the cache, or bytes from BytesIO
         """
 
         # download into memory
@@ -96,9 +118,9 @@ class TerrainTilesSource(Rasterio):
         if self.process_in == 'ram':
             _log.debug('Downloading terrain tile {} to ram'.format(self.source))
             
-            data = io.BytesIO()
-            _bucket.download_fileobj(self.source, data)
-            return data 
+            dataset = io.BytesIO()
+            _bucket.download_fileobj(self.source, dataset)
+            return dataset
 
         # download file to cache directory
         else:
@@ -116,52 +138,22 @@ class TerrainTilesSource(Rasterio):
             if not os.path.exists(cache_filepath):
                 _log.debug('Downloading terrain tile {} to cache'.format(cache_filepath))
                 _bucket.download_file(self.source, cache_filepath)
-            
-            with open(filename_safe, 'rb') as data:
-                return data
+
+            return cache_filepath
 
 
-class Nexrad(OrderedCompositor):
-    """Nexrad data interface (https://docs.opendata.aws/noaa-nexrad/readme.html)
 
-    The Next Generation Weather Radar (NEXRAD) is a network of 160 high-resolution
-    Doppler radar sites that detects precipitation and atmospheric movement and
-    disseminates data in approximately 5 minute intervals from each site. NEXRAD enables
-    severe storm prediction and is used by researchers and commercial enterprises
-    to study and address the impact of weather across multiple sectors.
-    
-    https://www.ncdc.noaa.gov/data-access/radar-data/radar-display-tools
-
-    Attributes
-    ----------
-    radar_sites : list
-        list of radar names to use. if empty, get all
+class TerrainTiles(OrderedCompositor):
+    """TerrainTiles Compositor
     """
     
     # inputs
-    field = tl.Unicode(default_value='relectivity')       # must be one of fields available in the pyart Radar class
-                                # http://arm-doe.github.io/pyart-docs-travis/user_reference/generated/pyart.core.Radar.html#pyart-core-radar
-    stations = tl.List(default_value=['FOP1'])           # list avail radar with :meth:`get_radars()`
-    process_in = tl.Unicode(default_value='cache')          # 'ram' or 'cache'
-
+    process_in = tl.Enum(['ram', 'cache'], default_value='cache')
 
     @tl.default('sources')
     def _default_sources(self):
-        """SMAPDateFolder objects pointing to specific SMAP folders
-
-        Returns
-        -------
-        np.ndarray of :class:`NexradSource`
-            Array of :class:`NexradSource` instances
         """
-        # dates = self.get_available_times_dates()[1]
-        # src_objs = np.array([
-        #     SMAPDateFolder(product=self.product, version=self.version, folder_date=date,
-        #                    shared_coordinates=self.shared_coordinates,
-        #                    auth_session=self.auth_session,
-        #                    layerkey=self.layerkey)
-        #     for date in dates])
-        # return src_objs
+        """
         np.ndarray([])
 
 
@@ -184,93 +176,236 @@ class Nexrad(OrderedCompositor):
 ############
 
 
-def get_radars(coordinates):
-    """Query for radars within podpac coordinate bounds
+def get_zoom_levels(tile_format='geotiff'):
+    """Get available zoom levels
+    
+    Parameters
+    ----------
+    tile_format : str, optional
+        Tile format to query. Defaults to 'geotiff'
+        Available formats: :attr:`TILE_FORMATS`
+    
+    Raises
+    ------
+    TypeError
+    
+    Returns
+    -------
+    list of int
+        list of zoom levels
+    """
 
-    This method allows you to get the available radars in a given time and spatial area.
-    Note that this is fairly inefficient querying in time.
-    It queries for radars across time by listing the contents of the S3 bucket on each day within
-    the time coordinates.
-    Large time periods will take a long time to query.
+    # check format (`skadi` format not supported)
+    if tile_format not in TILE_FORMATS:
+        raise TypeError("format must be one of {}".format(TILE_FORMATS))
+
+    zoom_re = re.compile(r'^.*\/(\d*)\/')
+    prefix = '{}/'.format(tile_format)
+
+    # get list of objects in bucket
+    resp = _bucket.meta.client.list_objects(Bucket=BUCKET, Prefix=prefix, Delimiter='/')
+
+    zoom_levels = []
+    for entry in resp['CommonPrefixes']:
+        match = zoom_re.match(entry['Prefix'])
+        if match is not None:
+            zoom_levels.append(int(match.group(1)))
+
+    # sort from low to high
+    zoom_levels.sort()
+
+    return zoom_levels
+
+def get_tiles(coordinates, zoom):
+    """Query for tiles within podpac coordinate bounds
+    
+    This method allows you to get the available tiles in a given spatial area.
     
     Parameters
     ----------
     coordinates : :class:`podpac.coordinates.Coordinates`
-        Find available radars within coordinates
+        Find available tiles within coordinates
+    zoom : int, optional
+        zoom level
+    
+    Raises
+    ------
+    TypeError
+        Description
     
     Returns
     -------
-    list
-        list of radars available within the coordinate bounds
+    list of tuple
+        list of tile urls for coordinates and zoom level
     """
-    _log.debug('Getting radars for coordinates')
+    _log.debug('Getting tiles for coordinates {}'.format(coordinates))
 
-    radars = [key for key in NEXRAD_LOCATIONS]
+    if 'lat' not in coordinates or 'lon' not in coordinates:
+        raise TypeError('input coordinates must have lat and lon dimensions to get tiles')
 
-    if 'lat' in coordinates:
-        bounds = coordinates['lat'].bounds
-        radars = [r for r in radars if \
-                 (NEXRAD_LOCATIONS[r]['lat'] >= bounds[0] and NEXRAD_LOCATIONS[r]['lat'] <= bounds[1])]
+    # point coordinates
+    if 'lat_lon' in coordinates.dims or 'lon_lat' in coordinates.dims:
+        lat_lon = zip(coordinates['lat'].coordinates, coordinates['lon'].coordinates)
 
-    if 'lon' in coordinates:
-        bounds = coordinates['lon'].bounds
-        radars = [r for r in radars if \
-                 (NEXRAD_LOCATIONS[r]['lon'] >= bounds[0] and NEXRAD_LOCATIONS[r]['lon'] <= bounds[1])]
+        tiles = []
+        for (lat, lon) in lat_lon:
+            tile = _get_tiles_point(lat, lon, zoom)
+            if tile not in tiles:
+                tiles.append(tile)
 
-                 
-    if 'time' in coordinates:
-        bounds = coordinates['time'].bounds
-        _log.debug('Getting radars from s3 bucket between {} and {}'.format(bounds[0], bounds[1]))
+    # gridded coordinates
+    else:
+        lat_bounds = coordinates['lat'].bounds
+        lon_bounds = coordinates['lon'].bounds
 
-        # get each day in the list
-        radars_in_time = []
-        # TODO: handle when bounds[0] == bounds[1] (same day)
-        for dt in np.arange(bounds[0], bounds[1], dtype='datetime64[D]'):
-            prefix = _build_prefix(dt)
+        tiles = _get_tiles_grid(lat_bounds, lon_bounds, zoom)
 
-            # ask for all the radars on this day
-            resp = _bucket.meta.client.list_objects(Bucket=BUCKET,
-                                                         Prefix=prefix,
-                                                         Delimiter='/')
-
-            for entry in resp['CommonPrefixes']:
-                match = _radar_re.match(entry['Prefix'])
-                if match is not None:
-                    radar = match.group(1)
-
-                    # if the radar is not in the pyart list, then immediately append it to master list
-                    # this means that it is a new radar and we don't support geoqueries yet
-                    if radar not in NEXRAD_LOCATIONS and radar not in radars:
-                        radars.append(radar)
-                    else:
-                        radars_in_time.append(radar)
-
-        radars = list(set(radars) & set(radars_in_time))
-
-    return radars
+    return tiles
 
 
-def _build_prefix(dt, station=None):
-    """Build URL prefix
+############
+# Private Utilites
+############
+
+def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
+    """
+    Convert geographic bounds into a list of tile coordinates at given zoom.
+    Adapted from https://github.com/tilezen/joerd
     
     Parameters
     ----------
-    dt : :class:`np.datetime64`, datetime
-        Datetime to use to build prefix
-    station : None, optional
-        station id to use for prefix
+    lat_bounds : :class:`np.array` of float
+        [min, max] bounds from lat coordinates
+    lon_bounds : :class:`np.array` of float
+        [min, max] bounds from lon coordinates
+    zoom : int
+        zoom level
+    
+    Returns
+    -------
+    list of tuple
+        list of tuples (x, y, zoom) describing the tiles to cover coordinates
+    """
+
+    # convert to mercator
+    xm_min, ym_min = _mercator(lat_bounds[1], lon_bounds[0])
+    xm_max, ym_max = _mercator(lat_bounds[0], lon_bounds[1])
+
+    # convert to tile-space bounding box
+    xmin, ymin = _mercator_to_tilespace(xm_min, ym_min, zoom)
+    xmax, ymax = _mercator_to_tilespace(xm_max, ym_max, zoom)
+
+    # generate a list of tiles
+    xs = range(xmin, xmax+1)
+    ys = range(ymin, ymax+1)
+
+    tiles = [(x, y, zoom) for (y, x) in product(ys, xs)]
+
+    return tiles
+
+def _get_tiles_point(lat, lon, zoom):
+    """Get tiles at a single point and zoom level
+    
+    Parameters
+    ----------
+    lat : float
+        latitude
+    lon : float
+        longitude
+    zoom : int
+        zoom level
+    
+    Returns
+    -------
+    tuple
+        (x, y, zoom) tile url
+    """
+    xm, ym = _mercator(lat, lon)
+    x, y = _mercator_to_tilespace(xm, ym, zoom)
+
+    return x, y, zoom
+
+def _mercator(lat, lon):
+    """Convert latitude, longitude to x, y mercator coordinate at given zoom
+    Adapted from https://github.com/tilezen/joerd
+
+    Parameters
+    ----------
+    lat : float
+        latitude
+    lon : float
+        longitude
+    
+    Returns
+    -------
+    tuple
+        (x, y) float mercator coordinates
+    """
+    # convert to radians
+    x1, y1 = lon * np.pi/180, lat * np.pi/180
+
+    # project to mercator
+    x, y = x1, np.log(np.tan(0.25 * np.pi + 0.5 * y1))
+
+    return x, y
+
+def _mercator_to_tilespace(xm, ym, zoom):
+    """Convert mercator to tilespace coordinates
+    
+    Parameters
+    ----------
+    x : float
+        mercator x coordinate
+    y : float
+        mercator y coordinate
+    zoom : int
+        zoom level
+    
+    Returns
+    -------
+    tuple
+        (x, y) int tile coordinates
+    """
+
+    tiles = 2 ** zoom
+    diameter = 2 * np.pi
+    x = int(tiles * (xm + np.pi) / diameter)
+    y = int(tiles * (np.pi - ym) / diameter)
+
+    return x, y
+
+def _build_prefix(tile_format, zoom=None, x=None):
+    """Build S3 URL prefix
+    
+    The S3 bucket is organized {tile_format}/{z}/{x}/{y}.tif
+    
+    Parameters
+    ----------
+    tile_format : str
+        One of 'terrarium', 'normal', 'geotiff'
+    zoom : int
+        zoom level
+    x : int
+        x tilespace coordinate
     
     Returns
     -------
     str
-        Bucket URL
+        Bucket prefix
+    
+    Raises
+    ------
+    TypeError
     """
-    if isinstance(dt, np.datetime64):
-        dt = dt.astype(datetime)
 
-    prefix = '{:04}/{:02}/{:02}/'.format(dt.year, dt.month, dt.day)
+    if tile_format not in TILE_FORMATS:
+        raise TypeError("format must be one of {}".format(TILE_FORMATS))
 
-    if station is not None:
-        prefix += '{}/'.format(station.upper())
+    prefix = '{}/'.format(tile_format)
+    if zoom is not None:
+        prefix += '{}/'.format(zoom)
+
+    if x is not None:
+        prefix += '{}/'.format(x)
 
     return prefix
