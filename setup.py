@@ -26,7 +26,7 @@ extras_require = {
         'h5py>=2.7',
         'lxml>=4.2',
         'pydap>=3.2',
-        'rasterio>=0.36',
+        'rasterio>=1.0',
         'requests>=2.18',
         ],
     'aws': [
