@@ -2,6 +2,7 @@
 *.sublime-workspace
 *.sublime-project
 .ipynb_checkpoints/
+.vscode
 
 # build
 __pycache__

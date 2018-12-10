@@ -132,14 +132,14 @@ html_theme = 'sphinx_rtd_theme'
 # documentation.
 #
 html_theme_options = {
-    'canonical_url': 'https://creare-com.github.io/podpac-docs',
+    'canonical_url': 'https://podpac.org',
     'logo_only': True
 }
 
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "_static/img/icon.png"
+html_logo = "_static/img/icon.svg"
 html_favicon = "_static/img/favicon.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,

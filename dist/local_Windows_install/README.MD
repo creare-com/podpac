@@ -10,5 +10,5 @@ To run an IPython session:
 
 For additional documentation, see the [README.MD](podpac/README.MD) file in the PODPAC folder. 
 
-The official PODPAC documentation is also available here: https://creare-com.github.io/podpac-docs
+The official PODPAC documentation is also available here: https://podpac.org
 
