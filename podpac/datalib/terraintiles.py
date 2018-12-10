@@ -51,8 +51,8 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling
 from podpac import settings
 from podpac.data import Rasterio
 from podpac.compositor import OrderedCompositor, Compositor
-from podpac.interpolators import Rasterio as RasterioInterpolator
-
+from podpac.interpolators import Rasterio as RasterioInterpolator, ScipyGrid, ScipyPoint
+from podpac.data import interpolation_trait
 
 ####
 # module attributes
@@ -106,6 +106,11 @@ class TerrainTilesSource(Rasterio):
 
     # attributes
     dataset = tl.Any()
+    interpolation = interpolation_trait(default_value={
+        'method': 'nearest',
+        'interpolators': [RasterioInterpolator, ScipyGrid, ScipyPoint]
+    })
+
 
     @tl.default('dataset')
     def _open_dataset(self):
@@ -192,7 +197,7 @@ class TerrainTilesSource(Rasterio):
         return dst_filename
 
 
-class TerrainTiles(Compositor):
+class TerrainTiles(OrderedCompositor):
     """Terrain Tiles gridded elevation tiles data library
 
     Hosted on AWS S3
@@ -267,23 +272,6 @@ class TerrainTiles(Compositor):
 
     def _create_source(self, source):
         return TerrainTilesSource(source=source, process_in=self.process_in)
-
-    def composite(self, outputs, result=None):
-
-        # if result is None:
-        #     result = self.create_output_array(self._requested_coordinates)
-
-
-        # loop through remaining outputs
-        for output in outputs:
-            lon_grid, lat_grid = np.meshgrid(result['lon'], result['lat'])
-            lon_mask = (lon_grid < output['lat'].max()) & (output['lat'] > lon_grid.min())
-            lat_mask = (lat_grid < output['lon'].max()) & (output['lon'] > lat_grid.min())
-            mask = lat_mask & lon_mask
-            result[mask] = output[mask]
-            # result = output.copy()
-
-        return result
 
 
 ############
