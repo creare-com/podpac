@@ -473,9 +473,21 @@ class Rasterio(DataSource):
         """
         data = self.create_output_array(coordinates)
         slc = coordinates_index
-        window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
+
+        # rasterio reads data in with 0, 0 in the top left
+        # this is inverse to how we index lat coordinates, so we need to subtract slices off the height
+        height = self.dataset.height
+        lat_start = height - (slc[0].stop or height)
+        lat_stop = height - (slc[0].start or 1) # 0 index the height
+
+        # create window to pull from
+        window = rasterio.windows.Window.from_slices((lat_start, lat_stop), (slc[1].start, slc[1].stop))
+        
+        # read data
         raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
-        vflipped_raster_data = np.flip(raster_data, 0)  # rasterio reads data inverse to how we index it (lat only)
+
+        # rasterio reads data inverse to how we index it (lat only)
+        vflipped_raster_data = np.flip(raster_data, 0)
         data.data.ravel()[:] = vflipped_raster_data.ravel()
         return data
     
