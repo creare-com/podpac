@@ -462,8 +462,9 @@ class Rasterio(DataSource):
         # get bounds
         left, bottom, right, top = self.dataset.bounds
 
+        # rasterio reads data upside-down from coordinate conventions, so lat goes from top to bottom
         return Coordinates([
-            UniformCoordinates1d(bottom, top, size=self.dataset.height, name='lat', coord_ref_sys=crs),
+            UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat', coord_ref_sys=crs),
             UniformCoordinates1d(left, right, size=self.dataset.width, name='lon', coord_ref_sys=crs)
         ], coord_ref_sys=crs)
 
@@ -473,25 +474,13 @@ class Rasterio(DataSource):
         """
         data = self.create_output_array(coordinates)
         slc = coordinates_index
-
-        # rasterio reads data in with 0, 0 in the top left
-        # this is inverse to how we index lat coordinates, so we need to subtract slices off the height
-        height = self.dataset.height
-        width = self.dataset.width
-        lat_start = height - (slc[0].stop or height)
-        lat_stop = height - (slc[0].start or 1) # 0 index the height
-        lon_start = slc[1].start or 0
-        lon_stop = slc[1].stop or width - 1
-
-        # create window to pull from
-        window = rasterio.windows.Window.from_slices((lat_start, lat_stop), (lon_start, lon_stop))
         
-        # read data
+        # read data within coordinates_index window
+        window = ((slc[0].start, slc[0].stop),(slc[1].start, slc[1].stop))
         raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
 
-        # rasterio reads data inverse to how we index it (lat only)
-        vflipped_raster_data = np.flip(raster_data, 0)
-        data.data.ravel()[:] = vflipped_raster_data.ravel()
+        # set raster data to output array
+        data.data.ravel()[:] = raster_data.ravel()
         return data
     
     @cached_property
