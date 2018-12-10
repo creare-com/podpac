@@ -34,11 +34,9 @@ for example skadi implementation
 """
 
 
-import os
 import re
 from itertools import product
 import logging
-import io
 
 import traitlets as tl
 import boto3
@@ -48,9 +46,8 @@ import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 
 
-from podpac import settings
 from podpac.data import Rasterio
-from podpac.compositor import OrderedCompositor, Compositor
+from podpac.compositor import OrderedCompositor
 from podpac.interpolators import Rasterio as RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.data import interpolation_trait
 
@@ -65,11 +62,7 @@ TILE_FORMATS = ['terrarium', 'normal', 'geotiff']  # TODO: Support skadi format
 ####
 
 # create log for module
-_log = logging.getLogger(__name__)
-
-# regex for finding files
-_radar_re = re.compile(r'^\d{4}/\d{2}/\d{2}/(....)/')
-_scan_re = re.compile(r'^\d{4}/\d{2}/\d{2}/..../(?:(?=(.*.gz))|(?=(.*V0*.gz))|(?=(.*V0*)))')
+_logger = logging.getLogger(__name__)
 
 # s3 handling
 _s3 = boto3.resource('s3')
@@ -83,26 +76,17 @@ class TerrainTilesSource(Rasterio):
     
     Parameters
     ----------
-    source : str, :class:`io.BytesIO`
-        Filename of the sourcefile, or bytes of the files
-    process_in : ['ram', 'cache']
-        Where to process the file from S3 bucket. Defaults to 'cache'.
-        Note: 'ram' option is not yet supported
+    source : str
+        Path to the sourcefile on S3
     
     Attributes
     ----------
-    dataset : TYPE
-        Description
-    
-    Deleted Attributes
-    ------------------
-    prefix : str
-        prefix to the filename (:attr:`source`) within the S3 bucket
+    dataset : :class:`rasterio.io.DatasetReader`
+        rasterio dataset
     """
 
     # parameters
-    source = tl.Union([tl.Unicode(), tl.Instance(io.BytesIO)])
-    process_in = tl.Enum(['ram', 'cache'], default_value='cache')  # Note: 'ram' is not yet supported
+    source = tl.Unicode().tag(attr=True)
 
     # attributes
     dataset = tl.Any()
@@ -111,70 +95,43 @@ class TerrainTilesSource(Rasterio):
         'interpolators': [RasterioInterpolator, ScipyGrid, ScipyPoint]
     })
 
-
     @tl.default('dataset')
-    def _open_dataset(self):
-        self.source = self._download_file()   # download the file to cache the first time it is accessed
-        
-        # TODO: this is a temporary solution to reproject coordinates to WGS84
-        # reproject dataset to 'EPSG:4326'
-        with rasterio.open(self.source) as src:
-            self.source = self._reproject(src, {'init': 'epsg:4326'})
-        
-        # opens source file
-        return super(TerrainTilesSource, self)._open_dataset()
+    def open_dataset(self):
+        """Opens the data source"""
+
+        cache_key = 'fileobj'
+        with rasterio.MemoryFile() as f:
+            if self.cache_ctrl and self.has_cache(key=cache_key):
+                data = self.get_cache(key=cache_key)
+                f.write(data)
+            else:
+                _logger.info('Downloading S3 fileobj (Bucket: %s, Key: %s)' % (BUCKET, self.source))
+                _bucket.download_fileobj(self.source, f)
+                f.seek(0)
+                self.cache_ctrl and self.put_cache(f.read(), key=cache_key)
+            
+            dataset = f.open()
+            reprojected_dataset = self._reproject(dataset, {'init': 'epsg:4326'})  # reproject dataset into WGS84
+
+        return reprojected_dataset
 
     def get_data(self, coordinates, coordinates_index):
         data = super(TerrainTilesSource, self).get_data(coordinates, coordinates_index)
         data.data[data.data < 0] = np.nan
         # data.data[data.data < 0] = np.nan  # TODO: handle really large values
         return data
-
-
-    def _download_file(self):
-        """Download/load file from s3
         
-        Returns
-        -------
-        str or :class:`io.BytesIO`
-            full path to the downloaded tile in the cache, or bytes from BytesIO
-        """
-
-        # download into memory
-        # NOT IMPLEMENTED YET
-        # https://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.download_fileobj
-        if self.process_in == 'ram':
-            _log.debug('Downloading terrain tile {} to ram'.format(self.source))
-            
-            dataset = io.BytesIO()
-            _bucket.download_fileobj(self.source, dataset)
-            return dataset
-
-        # download file to cache directory
-        else:
-            filename = os.path.split(self.source)[1]  # get filename off of source
-            filename_safe = filename.replace('\\', '').replace(':', '').replace('/', '')  # sanitize filename
-
-            cache_path = os.path.join(settings['CACHE_DIR'], 'terraintiles', os.path.split(self.source)[0])
-            cache_filepath = os.path.join(cache_path, filename_safe)  # path to file in cache
-
-            # make the cach directory if it hasn't been made already
-            if not os.path.exists(cache_path):
-                os.makedirs(cache_path)
-
-            # don't re-download the same file
-            if not os.path.exists(cache_filepath):
-                _log.debug('Downloading terrain tile {} to cache'.format(cache_filepath))
-                _bucket.download_file(self.source, cache_filepath)
-
-            return cache_filepath
-
-    def _reproject(self, src, dst_crs):
+    def _reproject(self, src_dataset, dst_crs):
         # https://rasterio.readthedocs.io/en/latest/topics/reproject.html#reprojecting-a-geotiff-dataset
          
         # calculate default transform
-        transform, width, height = calculate_default_transform(src.crs, dst_crs, src.width, src.height, *src.bounds)
-        kwargs = src.meta.copy()
+        transform, width, height = calculate_default_transform(src_dataset.crs,
+                                                               dst_crs,
+                                                               src_dataset.width,
+                                                               src_dataset.height,
+                                                               *src_dataset.bounds)
+
+        kwargs = src_dataset.meta.copy()
         kwargs.update({
             'crs': dst_crs,
             'transform': transform,
@@ -183,20 +140,18 @@ class TerrainTilesSource(Rasterio):
         })
 
         # write out new file with new projection
-        dst_filename = '{}.wgs8484.tif'.format(self.source.replace('.tif', ''))
-        with rasterio.open(dst_filename, 'w', **kwargs) as dst:
-            for i in range(1, src.count + 1):
+        with rasterio.MemoryFile() as f:
+            dataset = f.open(**kwargs)
+            for i in range(1, src_dataset.count + 1):
                 reproject(
-                    source=rasterio.band(src, i),
-                    destination=rasterio.band(dst, i),
-                    src_transform=src.transform,
-                    src_crs=src.crs,
+                    source=rasterio.band(src_dataset, i),
+                    destination=rasterio.band(dataset, i),
+                    src_transform=src_dataset.transform,
+                    src_crs=src_dataset.crs,
                     dst_transform=transform,
                     dst_crs=dst_crs)
 
-        # return filename
-        return dst_filename
-
+            return dataset
 
 class TerrainTiles(OrderedCompositor):
     """Terrain Tiles gridded elevation tiles data library
@@ -217,50 +172,27 @@ class TerrainTiles(OrderedCompositor):
     
     Parameters
     ----------
-    process_in : ['ram', 'cache']
-        Where to process the file from S3 bucket. Defaults to 'cache'.
-        Note: 'ram' option is not yet supported
     zoom : int
-        Zoom level of tiles. Defaults to 7.
+        Zoom level of tiles. Defaults to 6.
     tile_format : str
-        one of :attr:`TILE_FORMATS`
-
-    Attributes
-    ----------
-    source : str
-        compositor source identifier for cache
+        One of :attr:`TILE_FORMATS`. Defaults to 'geotiff'
 
     """
     
     # parameters
-    process_in = tl.Enum(['ram', 'cache'], default_value='cache')  # Note: 'ram' is not yet supported
-    zoom = tl.Int(default_value=4)
-    tile_format = tl.Enum(TILE_FORMATS, default_value='geotiff')
+    zoom = tl.Int(default_value=6).tag(attr=True)
+    tile_format = tl.Enum(TILE_FORMATS, default_value='geotiff').tag(attr=True)
 
-    # attributes
-    source = BUCKET
+    @property
+    def source(self):
+        """
+        S3 Bucket source of TerrainTiles
 
-    # TODO: This is how I believe this should be implemented, but it feels very inefficient
-    # @tl.default('sources')
-    # def _default_sources(self):
-    #     """Default sources are all the tiles for the requested tile_format and zoom level
-
-    #     Returns
-    #     -------
-    #     :class:`np.ndarray` of :class:`TerrainTileSource`
-    #         TerrainTilesSource for each tile at the :attr:`zoom` level
-    #     """
-
-    #     # get all the tile definitions for the requested zoom level
-    #     tiles = _get_tile_tuples(self.zoom)
-
-    #     # get source urls
-    #     sources = [self._tile_url(self.tile_format, self.zoom, x, y) for (x, y, zoom) in tiles]
-
-    #     # create TerrainTilesSource classes for each url source
-    #     return np.array([TerrainTilesSource(source=source, process_in=self.process_in) \
-    #                        for source in sources])
-
+        Returns
+        -------
+        str
+        """
+        return BUCKET
 
     def select_sources(self, coordinates):
         # get all the tile sources for the requested zoom level and coordinates
@@ -272,7 +204,7 @@ class TerrainTiles(OrderedCompositor):
         return self.sources
 
     def _create_source(self, source):
-        return TerrainTilesSource(source=source, process_in=self.process_in)
+        return TerrainTilesSource(source=source)
 
 
 ############
@@ -381,7 +313,7 @@ def _get_tile_tuples(zoom, coordinates=None):
     # down select tiles based on coordinates
     else:
 
-        _log.debug('Getting tiles for coordinates {}'.format(coordinates))
+        _logger.debug('Getting tiles for coordinates {}'.format(coordinates))
 
         if 'lat' not in coordinates or 'lon' not in coordinates:
             raise TypeError('input coordinates must have lat and lon dimensions to get tiles')
