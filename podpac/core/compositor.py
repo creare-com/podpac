@@ -75,7 +75,7 @@ class Compositor(Node):
     sources = tl.Instance(np.ndarray)
     cache_native_coordinates = tl.Bool(True)
     
-    interpolation = interpolation_trait()
+    interpolation = interpolation_trait(default_value=None)
 
     threaded = tl.Bool(False)
     n_threads = tl.Int(10)
@@ -191,7 +191,7 @@ class Compositor(Node):
             return
 
         # Set the interpolation properties for sources
-        if self.interpolation:
+        if self.interpolation is not None:
             for s in src_subset.ravel():
                 if trait_is_defined(self, 'interpolation'):
                     s.interpolation = self.interpolation
