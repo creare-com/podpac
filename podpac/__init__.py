@@ -2,7 +2,7 @@
 Podpac Module
 
 Public API
-See https://creare-com.github.io/podpac-docs/developer/contributing.html#public-api
+See https://podpac.org/developer/contributing.html#public-api
 for more information about import conventions
 
 Attributes

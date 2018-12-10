@@ -20,7 +20,7 @@
 
 #### Traits
 
-(See [Node documentation](https://creare-com.github.io/podpac-docs/user/api/podpac.core.node.html#podpac.core.node.Node) for nodes attributes)
+(See [Node documentation](https://podpac.org/user/api/podpac.core.node.html#podpac.core.node.Node) for nodes attributes)
 
 - `source`: Any, required
     + The location of the source. Depending on the child node this can be a filepath, numpy array, or dictionary as a few examples.
