@@ -59,9 +59,3 @@ This material is based upon work supported by NASA under Contract No 80NSSC18C00
 ## References
 
 For PODPAC references, see the [References page](https://podpac.org/references.html)
-
-
-185.199.108.153
-185.199.109.153
-185.199.110.153
-185.199.111.153
