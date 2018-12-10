@@ -328,25 +328,15 @@ class CSV(DataSource):
         return self.dataset.columns.get_loc(self.data_col)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self):
         """Opens the data source
-        
-        Parameters
-        ----------
-        source : str, optional
-            Uses self.source by default. Path to the data source.
         
         Returns
         -------
         pd.DataFrame
             pd.read_csv(source)
         """
-        if source is None:
-            source = self.source
-        else:
-            self.source = source
-
-        return pd.read_csv(source, parse_dates=True, infer_datetime_format=True)
+        return pd.read_csv(self.source, parse_dates=True, infer_datetime_format=True)
     
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -377,49 +367,54 @@ class CSV(DataSource):
         return self.create_output_array(coordinates, data=d)
 
 
-# TODO: rename "Rasterio" to be more consistent with other naming conventions
 @common_doc(COMMON_DATA_DOC)
 class Rasterio(DataSource):
     """Create a DataSource using Rasterio.
-    
-    Attributes
+ 
+    Parameters
     ----------
+    source : str, :class:`io.BytesIO`
+        Path to the data source
     band : int
         The 'band' or index for the variable being accessed in files such as GeoTIFFs
-    dataset : Any
+
+    Attributes
+    ----------
+    dataset : :class:`rasterio._io.RasterReader`
         A reference to the datasource opened by rasterio
-    native_coordinates : Coordinates
+    native_coordinates : :class:`podpac.Coordinates`
         {native_coordinates}
-    source : str
-        Path to the data source
+
     """
     
-    source = tl.Unicode(allow_none=False)
+    source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)], allow_none=False)
+
     dataset = tl.Any(allow_none=True)
     band = tl.CInt(1).tag(attr=True)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self):
         """Opens the data source
-        
-        Parameters
-        ----------
-        source : str, optional
-            Uses self.source by default. Path to the data source.
         
         Returns
         -------
-        Any
-            raster.open(source)
+        :class:`rasterio.io.DatasetReader`
+            Rasterio dataset
         """
-        if source is None:
-            source = self.source
-        else:
-            self.source = source
 
         # TODO: dataset should not open by default
         # prefer with as: syntax
-        return rasterio.open(source)
+
+        if isinstance(self.source, BytesIO):
+            # https://rasterio.readthedocs.io/en/latest/topics/memory-files.html
+            # TODO: this is still not working quite right - likely need to work
+            # out the BytesIO format or how we are going to read/write in memory
+            with rasterio.MemoryFile(self.source) as memfile:
+                return memfile.open(driver='GTiff')
+
+        # local file
+        else:
+            return rasterio.open(self.source)
     
     def close_dataset(self):
         """Closes the file for the datasource
@@ -428,31 +423,49 @@ class Rasterio(DataSource):
 
     @tl.observe('source')
     def _update_dataset(self, change):
-        if self.dataset is not None:
-            self.dataset = self.open_dataset(change['new'])
-        if trait_is_defined(self, 'native_coordinates'):
-            self.native_coordinates = self.get_native_coordinates()
+
+        # only update dataset if dataset trait has been defined the first time
+        if trait_is_defined(self, 'dataset'):
+            self.dataset = self._open_dataset()
+
+            # update native_coordinates if they have been defined
+            if trait_is_defined(self, 'native_coordinates'):
+                self.native_coordinates = self.get_native_coordinates()
         
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
         
-        The default implementation tries to find the lat/lon coordinates based on dataset.affine or dataset.transform
-        (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
+        The default implementation tries to find the lat/lon coordinates based on dataset.affine.
+        It cannot determine the alt or time dimensions, so child classes may
         have to overload this method.
         """
         
+        # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
-
-        left, bottom, right, top = self.dataset.bounds
-
         if affine[1] != 0.0 or affine[3] != 0.0:
             raise NotImplementedError("Rotated coordinates are not yet supported")
 
+        # TODO: fix coordinate reference system handling
+        # try:
+        #     crs = self.dataset.crs['init'].upper()
+        #     if crs == 'EPSG:3857':
+        #         crs = 'SPHER_MERC'
+        #     elif crs == 'EPSG:4326':
+        #         crs = 'WGS84'
+        #     else:
+        #         crs = None
+        # except:
+        #     crs = None
+        crs = None
+
+        # get bounds
+        left, bottom, right, top = self.dataset.bounds
+
         return Coordinates([
-            UniformCoordinates1d(bottom, top, size=self.dataset.height, name='lat'),
-            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon')
-        ])
+            UniformCoordinates1d(bottom, top, size=self.dataset.height, name='lat', coord_ref_sys=crs),
+            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon', coord_ref_sys=crs)
+        ], coord_ref_sys=crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -460,9 +473,25 @@ class Rasterio(DataSource):
         """
         data = self.create_output_array(coordinates)
         slc = coordinates_index
-        window = window=((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
-        a = self.dataset.read(self.band, out_shape=tuple(coordinates.shape))
-        data.data.ravel()[:] = a.ravel()
+
+        # rasterio reads data in with 0, 0 in the top left
+        # this is inverse to how we index lat coordinates, so we need to subtract slices off the height
+        height = self.dataset.height
+        width = self.dataset.width
+        lat_start = height - (slc[0].stop or height)
+        lat_stop = height - (slc[0].start or 1) # 0 index the height
+        lon_start = slc[1].start or 0
+        lon_stop = slc[1].stop or width - 1
+
+        # create window to pull from
+        window = rasterio.windows.Window.from_slices((lat_start, lat_stop), (lon_start, lon_stop))
+        
+        # read data
+        raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
+
+        # rasterio reads data inverse to how we index it (lat only)
+        vflipped_raster_data = np.flip(raster_data, 0)
+        data.data.ravel()[:] = vflipped_raster_data.ravel()
         return data
     
     @cached_property
@@ -578,7 +607,7 @@ class H5PY(DataSource):
     altkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self, source=None):
         """Opens the data source
         
         Parameters
@@ -591,6 +620,7 @@ class H5PY(DataSource):
         Any
             raster.open(source)
         """
+        # TODO: update this to remove block (see Rasterio)
         if source is None:
             source = self.source
         else:
@@ -607,9 +637,10 @@ class H5PY(DataSource):
 
     @tl.observe('source')
     def _update_dataset(self, change):
+        # TODO: update this to look like Rasterio
         if self.dataset is not None:
             self.close_dataset()
-            self.dataset = self.open_dataset(change['new'])
+            self.dataset = self._open_dataset(change['new'])
         if trait_is_defined(self, 'native_coordinates'):
             self.native_coordinates = self.get_native_coordinates()
         

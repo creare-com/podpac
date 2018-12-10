@@ -290,7 +290,8 @@ class TestRasterio(object):
 
         # update source when asked
         with pytest.raises(rasterio.errors.RasterioIOError):
-            node.open_dataset(source='assets/not-tiff')
+            node.source = 'assets/not-tiff'
+            node._open_dataset()
 
         assert node.source == 'assets/not-tiff'
 
