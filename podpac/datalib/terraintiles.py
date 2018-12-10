@@ -33,7 +33,7 @@ See https://github.com/racemap/elevation-service/blob/master/tileset.js
 for example skadi implementation
 """
 
-
+import os
 import re
 from itertools import product
 import logging
@@ -120,7 +120,31 @@ class TerrainTilesSource(Rasterio):
         data.data[data.data < 0] = np.nan
         # data.data[data.data < 0] = np.nan  # TODO: handle really large values
         return data
-        
+    
+    def download(self, path='terraintiles'):
+        """
+        Download the TerrainTile file from S3 to a local file.
+
+        Parameters
+        ----------
+        path : str
+            Subdirectory to put files. Defaults to 'terraintiles'.
+            Within this directory, the tile files will retain the same directory structure as on S3.
+        """
+
+        filename = os.path.split(self.source)[1]  # get filename off of source
+        joined_path = os.path.join(path, os.path.split(self.source)[0])  # path to file
+        filepath = os.path.abspath(os.path.join(joined_path, filename))
+
+        # make the directory if it hasn't been made already
+        if not os.path.exists(joined_path):
+            os.makedirs(joined_path)
+
+        # download the file
+        _logger.debug('Downloading terrain tile {} to filepath: {}'.format(self.source, filepath))
+        _bucket.download_file(self.source, filepath)
+
+
     def _reproject(self, src_dataset, dst_crs):
         # https://rasterio.readthedocs.io/en/latest/topics/reproject.html#reprojecting-a-geotiff-dataset
          
@@ -203,8 +227,26 @@ class TerrainTiles(OrderedCompositor):
 
         return self.sources
 
+    def download(self, path='terraintiles'):
+        """
+        Download active terrain tile source files to local directory
+
+        Parameters
+        ----------
+        path : str
+            Subdirectory to put files. Defaults to 'terraintiles'.
+            Within this directory, the tile files will retain the same directory structure as on S3.
+        """
+
+        try:
+            for source in self.sources:
+                source.download(path)
+        except tl.TraitError as e:
+            raise ValueError('No terrain tile sources selected. Evaluate node at coordinates to select sources.')
+
     def _create_source(self, source):
         return TerrainTilesSource(source=source)
+
 
 
 ############
