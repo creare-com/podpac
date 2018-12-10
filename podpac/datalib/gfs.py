@@ -44,6 +44,11 @@ class GFSSource(Rasterio):
     def _key(self):
         return '%s/%s/%s/%s/%s' % (self.parameter, self.level, self.date, self.hour, self.forecast)
 
+    @tl.default('nan_vals')
+    def _get_nan_vals(self):
+        return [self.dataset.nodata]
+        # return list(self.dataset.nodatavals) # which?
+
     @property
     def source(self):
         return self._key
@@ -53,7 +58,7 @@ class GFSSource(Rasterio):
         """Opens the data source"""
 
         cache_key = 'fileobj'
-        with rasterio.Env(), rasterio.MemoryFile() as f:
+        with rasterio.MemoryFile() as f:
             if self.cache_ctrl and self.has_cache(key=cache_key):
                 data = self.get_cache(key=cache_key)
                 f.write(data)
@@ -66,11 +71,6 @@ class GFSSource(Rasterio):
             dataset = f.open()
 
         return dataset
-
-    def get_native_coordinates(self):
-        # TODO the lat is still -0.125 to 359.875 instead of -180 to 180
-        c = super(GFSSource, self).get_native_coordinates()
-        return Coordinates([c['lat'][::-1], c['lon']])
 
 class GFS(DataSource):
     parameter = tl.Unicode(readonly=True).tag(attr=True)
