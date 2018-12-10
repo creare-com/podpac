@@ -477,11 +477,14 @@ class Rasterio(DataSource):
         # rasterio reads data in with 0, 0 in the top left
         # this is inverse to how we index lat coordinates, so we need to subtract slices off the height
         height = self.dataset.height
+        width = self.dataset.width
         lat_start = height - (slc[0].stop or height)
         lat_stop = height - (slc[0].start or 1) # 0 index the height
+        lon_start = slc[1].start or 0
+        lon_stop = slc[1].stop or width - 1
 
         # create window to pull from
-        window = rasterio.windows.Window.from_slices((lat_start, lat_stop), (slc[1].start, slc[1].stop))
+        window = rasterio.windows.Window.from_slices((lat_start, lat_stop), (lon_start, lon_stop))
         
         # read data
         raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
