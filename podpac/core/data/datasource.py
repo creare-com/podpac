@@ -464,7 +464,12 @@ class DataSource(Node):
             if 'interpolation' in d['attrs']:
                 raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
 
-        d['source'] = self.source
+        if isinstance(self.source, Node):
+            d['lookup_source'] = self.source
+        elif isinstance(self.source, np.ndarray):
+            d['source'] = self.source.tolist()
+        else:
+            d['source'] = self.source
 
         # TODO: cast interpolation to string in way that can be recreated here
         # should this move to interpolation class? 
