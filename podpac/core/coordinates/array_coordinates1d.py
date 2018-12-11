@@ -47,7 +47,7 @@ class ArrayCoordinates1d(Coordinates1d):
     :class:`Coordinates1d`, :class:`UniformCoordinates1d`
     """
 
-    coords = ArrayTrait()
+    coords = ArrayTrait(ndim=1)
     coords.__doc__ = ":array: User-defined coordinate values"
 
     def __init__(self, coords, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None):
@@ -90,8 +90,6 @@ class ArrayCoordinates1d(Coordinates1d):
     @tl.validate('coords')
     def _validate_coords(self, d):
         val = d['value']
-        if val.ndim != 1:
-            raise ValueError("Invalid coords (ndim='%d', must be ndim=1" % val.ndim)
         if val.dtype != float and not np.issubdtype(val.dtype, np.datetime64):
             raise ValueError("Invalid coords (dtype='%s', must be np.float64 or np.datetime64)")
         return val
