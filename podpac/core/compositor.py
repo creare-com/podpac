@@ -13,6 +13,7 @@ import traitlets as tl
 from podpac.core.coordinates import Coordinates, merge_dims
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
+from podpac.core.utils import ArrayTrait
 from podpac.core.node import COMMON_NODE_DOC 
 from podpac.core.node import node_eval 
 from podpac.core.data.datasource import COMMON_DATA_DOC
@@ -72,7 +73,7 @@ class Compositor(Node):
                                                           "IN THAT ORDER"))
 
     source = tl.Unicode().tag(attr=True)
-    sources = tl.Instance(np.ndarray)
+    sources = ArrayTrait(ndim=1)
     cache_native_coordinates = tl.Bool(True)
     
     interpolation = interpolation_trait(default_value=None)

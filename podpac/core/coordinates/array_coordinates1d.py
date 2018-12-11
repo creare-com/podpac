@@ -12,7 +12,7 @@ import numpy as np
 import traitlets as tl
 from collections import OrderedDict
 
-# from podpac.core.utils import cached_property, clear_cache
+from podpac.core.utils import ArrayTrait
 from podpac.core.units import Units
 from podpac.core.coordinates.utils import make_coord_value, make_coord_array, add_coord
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -47,7 +47,7 @@ class ArrayCoordinates1d(Coordinates1d):
     :class:`Coordinates1d`, :class:`UniformCoordinates1d`
     """
 
-    coords = tl.Instance(np.ndarray)
+    coords = ArrayTrait(ndim=1)
     coords.__doc__ = ":array: User-defined coordinate values"
 
     def __init__(self, coords, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None):
@@ -90,8 +90,6 @@ class ArrayCoordinates1d(Coordinates1d):
     @tl.validate('coords')
     def _validate_coords(self, d):
         val = d['value']
-        if val.ndim != 1:
-            raise ValueError("Invalid coords (ndim='%d', must be ndim=1" % val.ndim)
         if val.dtype != float and not np.issubdtype(val.dtype, np.datetime64):
             raise ValueError("Invalid coords (dtype='%s', must be np.float64 or np.datetime64)")
         return val

@@ -204,9 +204,59 @@ if sys.version < '3.6':
         
         def validate(self, obj, value):
             if not isinstance(value, OrderedDict):
-                raise tl.TraitError('...')
+                raise tl.TraitError(
+                    "The '%s' trait of an %s instance must be an OrderedDict, but a value of %s %s was specified" % (
+                        self.name, obj.__class__.__name__, value, type(value)))
             super(OrderedDictTrait, self).validate(obj, value)
             return value
 
 else:
     OrderedDictTrait = tl.Dict
+
+class ArrayTrait(tl.TraitType):
+    """ A coercing numpy array trait. """
+
+    def __init__(self, ndim=None, shape=None, dtype=None, dtypes=None, *args, **kwargs):
+        if ndim is not None and shape is not None and len(shape) != ndim:
+            raise ValueError("Incompatible ndim and shape (ndim=%d, shape=%s)" % (ndim, shape))
+        if dtype is not None and not isinstance(dtype, type):
+            if dtype not in np.typeDict:
+                raise ValueError("Unknown dtype '%s'" % dtype)
+            dtype = np.typeDict[dtype]
+        self.ndim = ndim
+        self.shape = shape
+        self.dtype = dtype
+        super(ArrayTrait, self).__init__(*args, **kwargs)
+
+    def validate(self, obj, value):
+        # coerce type
+        if not isinstance(value, np.ndarray):
+            try:
+                value = np.array(value)
+            except:
+                raise tl.TraitError(
+                    "The '%s' trait of an %s instance must be an np.ndarray, but a value of %s %s was specified" % (
+                        self.name, obj.__class__.__name__, value, type(value)))
+
+        # ndim
+        if self.ndim is not None and self.ndim != value.ndim:
+            raise tl.TraitError(
+                "The '%s' trait of an %s instance must have ndim %d, but a value with ndim %d was specified" % (
+                    self.name, obj.__class__.__name__, self.ndim, value.ndim))
+
+        # shape
+        if self.shape is not None and self.shape != value.shape:
+            raise tl.TraitError(
+                "The '%s' trait of an %s instance must have shape %s, but a value %s with shape %s was specified" % (
+                    self.name, obj.__class__.__name__, self.shape, value, value.shape))
+
+        # dtype
+        if self.dtype is not None:
+            try:
+                value = value.astype(self.dtype)
+            except:
+                raise tl.TraitError(
+                    "The '%s' trait of an %s instance must have dtype %s, but a value with dtype %s was specified" % (
+                        self.name, obj.__class__.__name__, self.dtype, value.dtype))
+
+        return value

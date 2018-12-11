@@ -188,7 +188,7 @@ class TestArrayCoordinatesCreation(object):
         with pytest.raises(ValueError):
             c.coords = np.array([1, 2, 3])
 
-        with pytest.raises(ValueError):
+        with pytest.raises(tl.TraitError):
             c.coords = np.array([[1.0, 2.0], [3.0, 4.0]])
 
     def test_from_xarray(self):
