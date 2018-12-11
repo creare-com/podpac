@@ -6,9 +6,13 @@ import datetime
 
 import traitlets as tl
 import numpy as np
-import boto3
-import botocore
-import rasterio
+
+# Helper utility for optional imports
+from podpac.core.utils import optional_import
+
+rasterio = optional_import('rasterio')
+boto3 = optional_import('boto3')
+botocore = optional_import('botocore')
 
 from podpac.data import DataSource, Rasterio
 from podpac.coordinates import Coordinates, merge_dims

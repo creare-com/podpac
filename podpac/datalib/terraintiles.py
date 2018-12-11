@@ -39,12 +39,17 @@ from itertools import product
 import logging
 
 import traitlets as tl
-import boto3
-from botocore.handlers import disable_signing
 import numpy as np
-import rasterio
-from rasterio.warp import calculate_default_transform, reproject, Resampling
 
+# Helper utility for optional imports
+from podpac.core.utils import optional_import
+
+rasterio = optional_import('rasterio')
+calculate_default_transform = optional_import('rasterio.warp', module_attr='calculate_default_transform')
+reproject = optional_import('rasterio.warp', module_attr='reproject')
+Resampling = optional_import('rasterio.warp', module_attr='Resampling')
+boto3 = optional_import('boto3')
+disable_signing = optional_import('botocore.handlers', module_attr='disable_signing')
 
 from podpac.data import Rasterio
 from podpac.compositor import OrderedCompositor
