@@ -107,7 +107,7 @@ class GFS(DataSource):
     def get_data(self, coordinates, coordinates_index):
         data = self.create_output_array(coordinates)
         for i, source in enumerate(self._sources[coordinates_index[2]]):
-            source.eval(coordinates.drop('time'), output=data[:, :, i])
+            data[:, :, i] = source.eval(coordinates.drop('time'))
         return data
 
 class GFSLatest(GFS):
