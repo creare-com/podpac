@@ -109,6 +109,7 @@ class TerrainTilesSource(Rasterio):
                 _bucket.download_fileobj(self.source, f)
                 f.seek(0)
                 self.cache_ctrl and self.put_cache(f.read(), key=cache_key)
+            f.seek(0)
             
             dataset = f.open()
             reprojected_dataset = self._reproject(dataset, {'init': 'epsg:4326'})  # reproject dataset into WGS84
@@ -165,17 +166,16 @@ class TerrainTilesSource(Rasterio):
 
         # write out new file with new projection
         with rasterio.MemoryFile() as f:
-            dataset = f.open(**kwargs)
-            for i in range(1, src_dataset.count + 1):
-                reproject(
-                    source=rasterio.band(src_dataset, i),
-                    destination=rasterio.band(dataset, i),
-                    src_transform=src_dataset.transform,
-                    src_crs=src_dataset.crs,
-                    dst_transform=transform,
-                    dst_crs=dst_crs)
-
-            return dataset
+            with f.open(**kwargs) as dataset:
+                for i in range(1, src_dataset.count + 1):
+                    reproject(
+                        source=rasterio.band(src_dataset, i),
+                        destination=rasterio.band(dataset, i),
+                        src_transform=src_dataset.transform,
+                        src_crs=src_dataset.crs,
+                        dst_transform=transform,
+                        dst_crs=dst_crs)
+            return f.open()
 
 class TerrainTiles(OrderedCompositor):
     """Terrain Tiles gridded elevation tiles data library
