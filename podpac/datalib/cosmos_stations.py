@@ -29,6 +29,15 @@ class COSMOSStation(podpac.data.DataSource):
     
     raw_data = tl.Unicode()
     
+    @tl.default('interpolation')
+    def _interpolation_default(self):
+        return {
+                   'method': 'nearest',
+                   'params': {
+                   'spatial_tolerance': 1.1
+                   }
+                }
+    
     @tl.default('raw_data')
     def get_raw_data(self):
         r = requests.get(self.station_data_url)
@@ -59,7 +68,10 @@ class COSMOSStation(podpac.data.DataSource):
                                    self.data_columns.index('HH:MM')], 
                           dtype=str)
         time = np.array([t[0] + 'T' + t[1] for t in time], np.datetime64)
-        return podpac.Coordinates([time, lat_lon], ['time', 'lat_lon'], ctype='point')
+        c = podpac.Coordinates([time, lat_lon], ['time', 'lat_lon'], ctype='point')
+        c['lat'].ctype = 'point'
+        c['lon'].ctype = 'point'
+        return c
     
     def __repr__(self):
         return '%s, %s (%s)' % (self.station_data['label'], self.station_data['network'], self.station_data['location'])
@@ -98,7 +110,11 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
     @tl.default('source_coordinates')
     def _source_coordinates_default(self):
         lat_lon = np.array([s['location'].split(',') for s in self.stations_data['items']], dtype=float)
-        return podpac.Coordinates([lat_lon.T], ['lat_lon'])
+        c = podpac.Coordinates([lat_lon.T], ['lat_lon'], ctype='point')
+        c['lat'].ctype = 'point'
+        c['lon'].ctype = 'point'
+        return c
+    
     
     def label_from_latlon(self, lat_lon):
         labels_map = {s['location']: s['label'] for s in self.stations_data['items']}
@@ -114,8 +130,6 @@ if __name__ == '__main__':
     ce = podpac.coordinates.merge_dims([
         podpac.Coordinates([podpac.crange('2018-05-01', '2018-06-01', '1,D', 'time')]),
                                        ci])
-    ce['lat'].delta = 0.001
-    ce['lon'].delta = 0.001
     o = cs.eval(ce)
     
     from matplotlib.pyplot import plot, show, legend, ylim, ylabel, xlabel

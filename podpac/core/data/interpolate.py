@@ -28,7 +28,8 @@ except:
 
 # podac imports
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates, merge_dims
+from podpac.core.node import Node
 from podpac.core.utils import common_doc
 
 COMMON_INTERPOLATE_DOCS = {
@@ -1218,29 +1219,45 @@ class Interpolation():
         # for debugging purposes, save the last defined interpolator queue
         self._last_interpolator_queue = interpolator_queue
 
-        intermediate_output = source_data
-        intermediate_coordinates = source_coordinates
-        intermediate_dims_handled = set()
+        
+        # With the interpolation queue, intermediate results will not be in the final shape or
+        # coordinate stacking arangement. So, we have to account for this during the loop.
+        intermediate_output = source_data  # Intermediate data that will be interpolated
+        intermediate_coordinates = source_coordinates  # coordinates of intermediate data
+        intermediate_dims_handled = set()  # dimensions that have been handled
+        
         # iterate through each dim tuple in the queue
         for udims in interpolator_queue:
-            if not intermediate_dims_handled - set(udims):
-                intermediate_output = output_data # final output
+            if not set(source_coordinates.udims) - intermediate_dims_handled:
+                intermediate_output_data = output_data  # final output, shape of evaluated coordinates
+                output_coordinates = eval_coordinates
             else:
                 intermediate_dims_handled = intermediate_dims_handled | set(udims)
-                eval_dims = [d for d in eval_coordinates.udims if d not in intermediate_dims_handled]
-                output_coordinates = podpac.coordinates.merge_dims(
-                    [intermediate_coordinates.udrop(list(intermediate_dims_handled)),
-                     eval_coordinates.udrop(eval_dims)] 
+                
+                # We need to split the interpolated and yet-to-be-interpolated dimensions
+                # The following dimensions have NOT been interpolated (so output should not
+                # be related to the eval_coordinates)                
+                uneval_dims = [d for d in eval_coordinates.udims if d not in intermediate_dims_handled]
+                # There might be transpose errors here... at least it is a little fragile
+                # This line depends on the order of the dimensions in the interpolator queue
+                output_coordinates = merge_dims(
+                    [eval_coordinates.udrop(uneval_dims), 
+                     intermediate_coordinates.udrop(list(intermediate_dims_handled)),
+                     ] 
                 )
-                intermediate_output = self.create_output_array(output_coordinates)
+                # Need intermediate storage -- would be nice if the interpolate call below created this...
+                intermediate_output_data = Node().create_output_array(output_coordinates)
+                
             interpolator = interpolator_queue[udims]
 
             # run interpolation
             intermediate_output = interpolator.interpolate(udims,
                                                    intermediate_coordinates,
                                                    intermediate_output,
-                                                   eval_coordinates,
-                                                   output_data)
+                                                   output_coordinates,
+                                                   intermediate_output_data)
             
-
-        return intermediate_output
+            # Update the intermediate coordinates
+            intermediate_coordinates = Coordinates.from_xarray(intermediate_output.coords)
+        
+        return intermediate_output_data
