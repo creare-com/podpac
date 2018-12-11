@@ -1,42 +1,114 @@
-# Installation Instructions
+# Installation
 
-A full Windows 10 installation of PODPAC can be downloaded from our [PODPAC-S3-Bucket](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip). More details are below. 
+PODPAC is a python library available for Windows, Mac, and Linux.
+You can install the `podpac` module by downloading one of the [standalone distributions](#standalone-distributions) (which include python and all dependencies), [using pip](#installing-via-pip), or [installing from source](#installing-from-source).
 
-For custom installations, commandline installation procedures are also described below. 
+## Standalone Distibutions
 
-## Window 10 Installation
-A full Windows 10 Installation of PODPAC can be downloaded from [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip).
+### Window 10
 
-For older versions, substitute `latest` in the url with the version number. For example, version `0.2.0` can be downloaded using this url [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip)
+A full Windows 10 Installation of PODPAC can be downloaded from:
 
-To use it, extract the zip file in a folder on your machine. We recommend expanding it near the root of your drive (e.g. `C:\PODPAC`) due to long file paths that are part of the installation. Once the folder is unzipped:
+- [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip).
 
-* To open the example notebooks, run the `run_podpac_jupyterlab.bat` script, by double-clicking the icon
-    * This will open up a Windows command prompt, and launch a JupyterLab notebook in your default web browser
-        * Older browsers may not support JupyterLab, as such the url with the token can be copied and pasted from the Windows command prompt that was launched
-    * To close the notebook, close the browser tab, and close the Windows console
+For older versions, substitute `latest` in the url with the version number:
+
+- `0.2.0`: [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip)
+
+Once downloaded, extract the zip file in a folder on your machine.
+We recommend expanding it near the root of your drive (e.g. `C:\PODPAC`) due to long file paths that are part of the installation.
+Once the folder is unzipped:
+
 * To run an IPython session:
     1. Open a Windows command prompt in this directory
     2. Run the `bin\run_ipython.bat` script
+* To open the example notebooks, run the `run_podpac_jupyterlab.bat` script, by double-clicking the icon
+    * This will open up a Windows command prompt, and launch a JupyterLab notebook in your default web browser
+    * Older browsers may not support JupyterLab, as such the url with the token can be copied and pasted from the Windows command prompt that was launched
+    * To close the notebook, close the browser tab, and close the Windows console
 
-## Commandline Installation
 
-These instructions assume you are using the [Anaconda Python Distribution](https://www.anaconda.com/), and have [git](https://git-scm.com/) installed.
+## Dependencies
 
-### Conda Environment
+All dependencies come pre-installed in standalone distributions, or are handled by `pip` during the installation process.
+Dependencies are shown below for reference. 
+See [requirements.txt](https://github.com/creare-com/podpac/blob/develop/requirements.txt) and [setup.py](https://github.com/creare-com/podpac/blob/develop/setup.py) for the latest dependencies listing.
 
-We recommend that you create a new python 3 environment to install `podpac`:
+- Python 2.7<sup id="1">\[[1](#f1)\]</sup>, 3.5, 3.6, or 3.7
+    - We suggest you use the the [Anaconda Python Distribution](https://www.anaconda.com/)
+- [numpy](http://www.numpy.org/), [scipy](https://www.scipy.org/), [xarray](http://xarray.pydata.org/en/stable/): array handling
+- [traitlets](https://github.com/ipython/traitlets): input and type handling
+- [pint](https://pint.readthedocs.io/en/latest/): unit handling
+- [requests](http://docs.python-requests.org/en/master/): HTTP requests
+
+### Optional Dependencies
+
+- Data Handling
+    - [h5py](https://www.h5py.org/): interface to the HDF5 data format
+    - [pydap](http://www.pydap.org/en/latest/): python support for Data Access Protocol (OPeNDAP)
+    - [rasterio](https://github.com/mapbox/rasterio): read GeoTiff and other raster datasets
+    - [lxml](https://github.com/lxml/lxml): read xml and html files
+    - [beautifulsoup4](https://www.crummy.com/software/BeautifulSoup/): text parser and screen scraper
+- AWS
+    - [awscli](https://github.com/aws/aws-cli): unified command line interface to Amazon Web Services
+    - [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html): Amazon Web Services (AWS) SDK for Python
+- Algorithms
+    - [numexpr](https://github.com/pydata/numexpr): fast numerical expression evaluator for NumPy
+- Notebook
+    - [jupyterlab](https://github.com/jupyterlab/jupyterlab): extensible environment for interactive and reproducible computing
+    - [ipyleaflet](https://github.com/jupyter-widgets/ipyleaflet): [LeafletJS](https://leafletjs.com/) interface for jupyter notebooks
+    - [ipywidgets](https://ipywidgets.readthedocs.io/en/stable/): interactive widgets for Jupyter notebooks
+    - [ipympl](https://pypi.org/project/ipympl/): matplotlib jupyter notebook extension
+    - [nodejs](https://github.com/markfinger/python-nodejs): Python bindings and utils for [NodeJS](https://nodejs.org/en/)
+
+## Installing via pip
+
+If you are using the [Anaconda Python Distribution](https://www.anaconda.com/),
+we recommend that you create a new python 3 environment to install `podpac`:
 
 ```bash
-$ conda create -n podpac python=3 anaconda   # installs all `anaconda` packages
-$ conda activate podpac  # Windows
-$ source activate podpac # Linux / Mac
+$ conda create -n podpac python=3 anaconda      # installs all `anaconda` packages
+$ conda activate podpac                         # Windows
+$ source activate podpac                        # Linux / Mac
 ```
 
-### Installation Instructions for Users
-***Note***: We plan to improve this installation process after reaching version 1.0
+Once in the desired environment, install via `pip` using one of the commands:
 
-#### Clone the Repository
+
+```bash
+$ pip install podpac                # base installation
+$ pip install podpac[datatype]      # install podpac and optional data handling dependencies
+$ pip install podpac[notebook]      # install podpac and optional notebook dependencies
+$ pip install podpac[aws]           # install podpac and optional aws dependencies
+$ pip install podpac[algorithm]     # install podpac and optional algorithm dependencies
+$ pip install podpac[all]           # install podpac and all optional dependencies
+```
+
+PODPAC's dependencies are automatically installed through `pip` when `podpac` is installed.
+Some dependencies are more difficult to install on certain systems. 
+
+### Rasterio Installation
+
+Some users may experience issues installing [rasterio](https://rasterio.readthedocs.io/en/latest/installation.html) (included in the `datatype` and `all` installations).
+If you encounter issues, we recommend trying to install [rasterio](https://rasterio.readthedocs.io/en/latest/installation.html) into your activate environment, then re-installing `podpac`.
+This may be simpler than letting `podpac` install `rasterio` using `pip`:
+
+### Notebook Installation
+
+> This step may not be necessary with the latest version of Anaconda and JupyterLab
+
+If you are installing the optional `notebook` dependencies, you also need to run the following commands to install the **JupyterLab** plugins we use:
+
+```bash
+$ jupyter labextension install @jupyter-widgets/jupyterlab-manager
+$ jupyter labextension install jupyter-leaflet
+$ jupyter labextension install jupyter-matplotlib
+$ jupyter nbextension enable --py widgetsnbextension
+$ jupyter lab build
+$ python -m ipykernel install --user
+```
+
+## Installing from Source
 
 Clone the [podpac repository](https://github.com/creare-com/podpac) onto your machine:
 
@@ -52,162 +124,52 @@ Checkout the latest or desired version:
 $ git checkout tags/<version> release/<version>  
 ```
 For example to checkout version 0.2.0 use:
+
 ```bash
 $ git checkout tags/0.2.0 release/0.2.0
 ```
 
-#### Install dependencies
-PODPAC's dependencies are automatically installed through `pip` when `podpac` is installed. Some dependencies are more difficult to install on certain systems. 
-
-In particular, some users may experience issues installing [rasterio](https://rasterio.readthedocs.io/en/latest/installation.html#installing-with-anaconda) (included in the `datatype`, `all`, and `devall` installations). If you encounter issues, we recommend trying to install from the **conda-forge** channel. Depending on your platform, this may be simpler than letting `podpac` install `rasterio` using `pip`:
+To install podpac with only the core dependencies, execute the following from the `podpac` folder:
 
 ```bash
-$ conda install rasterio --channel conda-forge
+$ pip install .    # install podpac with only core dependencies
 ```
 
-#### Install podpac
-
-After cloning the repository to your computer, install `podpac` using `pip`. PODPAC comes with a number of optional dependency packages which can be installed alongside PODPAC. These packages include:
-
-* datatype
-* aws
-* algorithms
-* notebooks
-* esri
-* dev
-* all
-    * includes `datatype`, `aws`, `algorithms`, `notebook`, and `esri`
-* devall
-    * includes `all` and `dev`
-
-For example, to install podpac with only the core dependencies, execute the following from the `podpac` folder
+To install podpac with optional dependencies, use:
 
 ```bash
-$ pip install .
+$ pip install .[datatype]      # install podpac and optional data handling dependencies
+$ pip install .[notebook]      # install podpac and optional notebook dependencies
+$ pip install .[aws]           # install podpac and optional aws dependencies
+$ pip install .[algorithm]     # install podpac and optional algorithm dependencies
+$ pip install .[all]           # install podpac and all optional dependencies
 ```
 
-To install podpac with all the optional dependencies, use:
+See sections on [Rasterio Installation](#rasterio-installation) and [Notebook installation](#notebook-installation) for more information.
 
-```bash
-$ pip install .[all]
-```
+### For Developers
 
-If you experience problem with dependencies, see the [Creating the Windows Installation PODPAC Conda environment](#creating-the-windows-installation-podpac-conda-environment) section.
-
-If you are installing the optional notebook dependencies, you also need to run the following commands to install the `JupyterLab` plugins we use:
-```bash
-$ jupyter labextension install @jupyter-widgets/jupyterlab-manager
-$ jupyter labextension install jupyter-leaflet
-$ jupyter labextension install jupyter-matplotlib
-$ jupyter nbextension enable --py widgetsnbextension
-$ jupyter lab build
-$ python -m ipykernel install --user
-```
-
-#### Running example notebooks
-Example notebooks can be found in the [podpac_examples](https://github.com/creare-com/podpac_examples) repository. To run these examples:
-* Obtain the examples and files:
-    * [download](https://github.com/creare-com/podpac_examples/archive/master.zip) and unzip the repository to a folder
-    * or clone the repository 
-    ```bash
-    $ git clone https://github.com/creare-com/podpac_examples.git
-    ```
-
-To run the PODPAC example notebooks, start JupyterLab in the `notebooks` directory of the `podpac_examples` repository
-
-```bash
-$ cd notebooks
-$ jupyter lab
-```
-Open a notebook and select `Run` from the top menu, followed by `Run All`.
-You may be prompted to enter user EarthData login credentials to access NASA data. 
-
-### Installation Instructions for Developers
-
-#### Clone the Repository
-
-Clone the [podpac repository](https://github.com/creare-com/podpac) onto your machine:
-
-```bash
-$ cd <install-path>
-$ git clone https://github.com/creare-com/podpac.git
-$ cd podpac
-```
-
-The `master` branch is intented to be somewhat stable with working code. For bleeding edge, checkout the `develop` branch instead:
+The `master` branch is intented to be somewhat stable with working code.
+For bleeding edge, checkout the `develop` branch instead:
 
 ```bash
 $ git checkout -b develop origin/develop
 ```
 
-#### Installing PODPAC
-
-After cloning the repository to your computer, install `podpac` in development mode using pip:
+To install popac and keep installation up to date with local changes, execute the following from the `podpac` folder:
 
 ```bash
-# Install podpac with only the core dependencies
-$ pip install -e .
-
-# development dependencies and all other dependencies
-$ pip install -e .[devall]
+$ pip install -e .          # install podpac with only core dependencies
+$ pip install -e .[devall]  # install podpac and all optional dependencies
 ```
 
-Some users may experience issues installing [rasterio](https://rasterio.readthedocs.io/en/latest/installation.html#installing-with-anaconda) (included in the `datatype`, `all`, and `devall` installations). If you encounter issues, we recommend trying to install from the **conda-forge** channel. Depending on your platform, this may be simpler than letting `podpac` install `rasterio` using pip:
+<small>
+\[[1](#a1)\] <span id="f1"></span>
+We strongly suggest using Python 3 for all future development.
+Many of the libraries PODPAC utilizes will be dropping support for Python 2 starting in 2019.
+For more information see the following references:
 
-```bash
-$ conda install rasterio --channel conda-forge
-```
+- [Python 3 Statement](http://www.python3statement.org/)
+- [Porting to Python 3](https://docs.python.org/3/howto/pyporting.html)
 
-
-## Creating the Windows Installation PODPAC Conda environment
-
-This section describes the process used to create the [PODPAC Window 10 Installation](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip).
-
-These instructions only assume that you already have [git](https://git-scm.com/) installed on your Windows 10 machine. 
-
-* Install miniconda to a `<root_folder>`\miniconda on a Windows machine
-    * Install for "Just the current user"
-    * Do not register Python to the operating system
-* Open a Windows command prompt in the `<root_folder>` 
-* Clone podpac and set up the conda environment
-```bash
-> git clone https://github.com/creare-com/podpac.git
-> git clone https://github.com/creare-com/podpac_examples.git
-> cd podpac
-> git checkout tags/<version> release/<version>  # as of writing, the <version> is 0.2.0
-> cd ..
-> copy podpac\dist\local_Windows_install\* .
-> set_local_conda_path.bat
-# Verify path is set correctly
-> where conda
-<root_folder>\miniconda\Library\bin\conda.bat  # Should be the first entry
-<root_folder>\miniconda\Scripts\conda.exe      # Should be the second entry
-...                                            # May have additional entries
-```
-* Set up the podpac environment and install dependencies
-```bash
-conda create -n podpac python=3
-# Install core dependencies
-conda install matplotlib>=2.1 numpy>=1.14 pint>=0.8 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython
-# Install dependencies for handling various file datatype
-conda install rasterio>=0.36 -c conda-forge
-conda install beautifulsoup4>=4.6 h5py>=2.7 lxml>=4.2 pydap>=3.2 requests>=2.18 
-# Install dependencies for AWS
-conda install awscli>=1.11 boto3>=1.4
-# Install dependencies for algorithm nodes
-conda install numexpr>=2.6
-# Install dependencies for JupyterLab and Jupyter Notebooks
-conda install jupyterlab ipyleaflet ipywidgets ipympl nodejs -c conda-forge
-jupyter labextension install @jupyter-widgets/jupyterlab-manager
-jupyter labextension install jupyter-leaflet
-jupyter labextension install jupyter-matplotlib
-jupyter nbextension enable --py widgetsnbextension
-jupyter lab build
-python -m ipykernel install --user
-conda clean -a -y
-```
-* To run a `JupyterLab` sessions in the `<root_folder>\podpac_examples\notebooks` directory, double-click on the `run_podpac_jupyterlab.bat`. This will launch a browser window in the folder where PODPAC keeps its example notebooks.
-* To run an IPython console: Open up a Windows command prompt in `<root_folder>`
-```bash
-bin\run_ipython.bat
-```
+</small>
