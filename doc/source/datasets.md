@@ -1,7 +1,7 @@
 # Supported Datasets
 
-POPDAC natively supports several third-party datasources and
-continue to increase support each release. The following datasets are currently supported:
+POPDAC natively supports several third-party datasources and will
+continue to expand support each release. The following datasets are currently supported:
 
 ## SMAP
 
