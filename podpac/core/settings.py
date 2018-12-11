@@ -17,7 +17,7 @@ except ImportError:
 # Settings Defaults
 DEFAULT_SETTINGS = {
     'DEBUG': False,
-    'CACHE_DIR': 'cache',
+    'CACHE_DIR': None,
     'CACHE_TO_S3': False,
     'ROOT_PATH': os.path.join(os.path.expanduser('~'), '.podpac'),
     'AWS_ACCESS_KEY_ID': None,
@@ -86,34 +86,17 @@ class PodpacSettings(dict):
 
     """
     
-    def __init__(self, path=None):
+    def __init__(self):
         self._loaded = False
 
         # call dict init
         super(PodpacSettings, self).__init__()
 
-        # load default settings
-        self._load_defaults()
-
-        # load user settings
-        self._load_user_settings(path)
-
-        # it breaks things to set the root path to None, set back to default if set to None
-        if self['ROOT_PATH'] is None:
-            self['ROOT_PATH'] = DEFAULT_SETTINGS['ROOT_PATH']
-
-        # TODO: handle this in the cache module
-        if self['S3_BUCKET_NAME'] and self['CACHE_TO_S3']:
-            self['CACHE_DIR'] = 'cache'
-        else:
-            self['CACHE_DIR'] = os.path.abspath(os.path.join(self['ROOT_PATH'], self['CACHE_DIR']))
-            self._mkdir(self['CACHE_DIR'])
+        # load settings from default locations
+        self.load()
 
         # set loaded flag
         self._loaded = True
-
-        # if no settings file exists, this will create one in the user's home directory
-        self.save()
 
     def __setitem__(self, key, value):
 
@@ -148,36 +131,36 @@ class PodpacSettings(dict):
         
         Parameters
         ----------
-        path : str, optional
-            Full path to custom settings file
-        filename : str, optional
+        path : str
+            Full path to containing directory of settings file
+        filename : str
             Filename of custom settings file
         """
 
+        # custom file path - only used if path is not None
         filepath = os.path.join(path, filename) if path is not None else None
-        default_path = self['ROOT_PATH']
-        default_filepath = os.path.join(default_path, filename)
+
+        # home path location is in the ROOT_PATH
+        root_filepath = os.path.join(self['ROOT_PATH'], filename)
         
+        # cwd path
+        cwd_filepath = os.path.join(os.getcwd(), filename)
+
         # set settings path to default to start
-        self._settings_filepath = default_filepath
+        self._settings_filepath = root_filepath
 
         # if input path is specifed, create the input path if it doesn't exist
         if path is not None:
 
             # make empty settings path
             if not os.path.exists(path):
-                self._mkdir(path)
+                raise ValueError('Input podpac settings path does not exist: {}'.format(path))
 
-            # write an empty settings file
-            if not os.path.exists(filepath):
-                with open(filepath, 'w') as f:
-                    json.dump({}, f)
-
-        # order of paths to check for settings
+        # order of paths to import settings - the later settings will overwrite earlier ones
         filepath_choices = [
-            default_filepath,                       # default path
-            os.path.join(os.getcwd(), filename),    # current working directory
-            filepath                                # input directory
+            root_filepath,
+            cwd_filepath,
+            filepath
         ]
 
         # try path choices in order, overwriting earlier ones with later ones
@@ -193,8 +176,8 @@ class PodpacSettings(dict):
                         json_settings = json.load(f)
                 except JSONDecodeError:
 
-                    # if the default_filepath settings file is broken, raise
-                    if p == default_filepath:
+                    # if the root_filepath settings file is broken, raise
+                    if p == root_filepath:
                         raise
 
                 # if path exists and settings loaded then load those settings into the dict
@@ -204,20 +187,6 @@ class PodpacSettings(dict):
 
                     # save this path as the active
                     self._settings_filepath = p
-
-    def _mkdir(self, path):
-        """Wrapper for os.mkdirs(exist_ok=True)
-        
-        Parameters
-        ----------
-        path : str
-            path to directory
-        """
-        try:
-            os.makedirs(path)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
 
     @property
     def settings_path(self):
@@ -237,20 +206,57 @@ class PodpacSettings(dict):
         """
         return DEFAULT_SETTINGS
     
-    def save(self):
+    def save(self, filepath=None):
         """
         Save current settings to active settings file
 
         :attr:`settings.settings_path` shows the path to the currently active settings file
+
+        Parameters
+        ----------
+        filepath : str, optional
+            Path to settings file to save. Defaults to :attr:`self.settings_filepath`
         """
 
+        # custom filepath
+        if filepath is not None:
+            self._settings_filepath = filepath
+    
         # if no settings path is found, create
         if not os.path.exists(self._settings_filepath):
-            self._mkdir(os.path.dirname(self._settings_filepath))
+            os.makedirs(os.path.dirname(self._settings_filepath), exist_ok=True)
 
         with open(self._settings_filepath, 'w') as f:
             json.dump(self, f)
 
+    def load(self, path=None, filename='settings.json'):
+        """
+        Load a new settings file to be active
+
+        :attr:`settings.settings_path` shows the path to the currently active settings file
+
+        Parameters
+        ----------
+        path : str, optional
+            Path to directory which contains the settings file. Defaults to :attr:`DEFAULT_SETTINGS['ROOT_PATH']`
+        filename : str, optional
+            Filename of the settings file. Defaults to 'settings.json'
+        """
+        # load default settings
+        self._load_defaults()
+
+        # load user settings
+        self._load_user_settings(path, filename)
+
+        # it breaks things to set the root path to None, set back to default if set to None
+        if self['ROOT_PATH'] is None:
+            self['ROOT_PATH'] = DEFAULT_SETTINGS['ROOT_PATH']
+
+        # TODO: handle this in the cache module
+        if self['S3_BUCKET_NAME'] and self['CACHE_TO_S3']:
+            self['CACHE_DIR'] = 'cache'
+        elif self['CACHE_DIR'] is None:
+            self['CACHE_DIR'] = os.path.abspath(os.path.join(self['ROOT_PATH'], 'cache'))
 
 
 

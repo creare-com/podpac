@@ -394,9 +394,16 @@ class DiskCacheStore(CacheStore):
             If unsupported `storage_format` is specified
         """
         self._cache_modes = set(['disk','all'])
+
+        # set cache dir
         if root_cache_dir_path is None:
             root_cache_dir_path = settings['CACHE_DIR']
         self._root_dir_path = root_cache_dir_path
+
+        # make directory if it doesn't already exist
+        os.makedirs(self._root_dir_path, exist_ok=True)
+
+        # set extension
         if storage_format == 'pickle':
             self._extension = 'pkl'
         else:
