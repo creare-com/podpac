@@ -561,7 +561,7 @@ def node_eval(fn):
 
     @functools.wraps(fn)
     def wrapper(self, coordinates, output=None):
-        if settings['debug']:
+        if settings['DEBUG']:
             self._requested_coordinates = coordinates
         key = cache_key
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)) # order agnostic caching
