@@ -230,6 +230,13 @@ class PodpacSettings(dict):
         """
         return self._settings_filepath
 
+    @property
+    def defaults(self):
+        """
+        Show the podpac default settings
+        """
+        return DEFAULT_SETTINGS
+    
     def save(self):
         """
         Save current settings to active settings file
@@ -243,6 +250,8 @@ class PodpacSettings(dict):
 
         with open(self._settings_filepath, 'w') as f:
             json.dump(self, f)
+
+
 
 
 

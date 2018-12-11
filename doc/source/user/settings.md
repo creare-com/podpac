@@ -3,6 +3,8 @@
 Podpac settings are persistently stored in a `settings.json` file created at runtime.
 By default, podpac will create a settings json file in the users
 home directory (`~/.podpac/settings.json`) when first run.
+This file can be overridden by creating a custom `settings.json` in the current working directory
+or the podpac root directory.
 
 ## Default Settings
 
@@ -11,7 +13,7 @@ See the attribute `settings.DEFAULT_SETTINGS` for the default podpac settings.
 ```python
 import podpac
 
-print(podpac.settings.DEFAULT_SETTINGS)
+print(podpac.settings.defaults)
 ```
 
 ## Override Settings
@@ -32,8 +34,6 @@ The attribute `settings.settings_path` shows the path of the last loaded setting
 To keep the active settings file updated as changes are made to the settings dictionary at runtime,
 set the property `settings['AUTOSAVE_SETTINGS']` field to `True`.
 The active setting file can be persistently saved at any time using the method `settings.save()`.
-
-
 
 ## Settings.json
 
