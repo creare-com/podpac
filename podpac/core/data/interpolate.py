@@ -802,7 +802,7 @@ INTERPOLATION_SHORTCUTS = INTERPOLATION_METHODS.keys()
 INTERPOLATION_DEFAULT = 'nearest'
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-def interpolation_trait():
+def interpolation_trait(default_value=INTERPOLATION_DEFAULT):
     """Create a new interpolation trait
     
     Returns
@@ -814,7 +814,7 @@ def interpolation_trait():
         tl.Dict(),
         tl.Enum(INTERPOLATION_SHORTCUTS),
         tl.Instance(Interpolation)
-    ], default_value=INTERPOLATION_DEFAULT)
+    ], allow_none=True, default_value=default_value)
 
 
 class Interpolation():
@@ -847,6 +847,12 @@ class Interpolation():
 
         self.definition = definition
         self.config = OrderedDict()
+
+        # if definition is None, set to default
+        # TODO: do we want to always have a default for interpolation? 
+        # Or should there be an option to turn off interpolation?
+        if self.definition is None:
+            self.definition = INTERPOLATION_DEFAULT
 
         # set each dim to interpolator definition
         if isinstance(definition, dict):
