@@ -73,7 +73,7 @@ class Compositor(Node):
                                                           "IN THAT ORDER"))
 
     source = tl.Unicode().tag(attr=True)
-    sources = ArrayTrait()
+    sources = ArrayTrait(ndim=1)
     cache_native_coordinates = tl.Bool(True)
     
     interpolation = interpolation_trait(default_value=None)

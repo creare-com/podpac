@@ -69,12 +69,12 @@ class Convolution(Algorithm):
     """
     
     source = tl.Instance(Node)
-    kernel = ArrayTrait().tag(attr=True)
+    kernel = ArrayTrait(dtype=float).tag(attr=True)
     kernel_type = tl.Unicode().tag(attr=True)
     kernel_ndim = tl.Int().tag(attr=True)
 
     _expanded_coordinates = tl.Instance(Coordinates)
-    _full_kernel = ArrayTrait()
+    _full_kernel = ArrayTrait(dtype=float)
  
     @common_doc(COMMON_DOC)
     @node_eval
