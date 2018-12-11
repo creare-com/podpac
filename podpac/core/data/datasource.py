@@ -305,9 +305,14 @@ class DataSource(Node):
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
-        self._requested_source_coordinates, self._requested_source_coordinates_index = \
-            self.native_coordinates.intersect(coordinates, outer=True, return_indices=True)
-
+        try: 
+            self._requested_source_coordinates, self._requested_source_coordinates_index = \
+                self.native_coordinates.intersect(coordinates, outer=False, return_indices=True)
+        except NotImplementedError:  # likely non-monotonic coordinates
+            self._requested_source_coordinates, self._requested_source_coordinates_index = \
+                self.native_coordinates.intersect(coordinates, outer=True, return_indices=True)
+            
+            
         # If requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
         if np.prod(self._requested_source_coordinates.shape) == 0:
             if output is None:

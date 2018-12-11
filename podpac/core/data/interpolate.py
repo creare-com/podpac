@@ -334,6 +334,8 @@ class NearestNeighbor(Interpolator):
 
         # confirm that udims are in both source and eval coordinates
         # TODO: handle stacked coordinates
+        # subselect unstacked coordinates for now
+        udims_subset = [d for d in udims_subset if d in source_coordinates.dims]
         if self._dim_in(udims_subset, source_coordinates, eval_coordinates):
             return udims_subset
         else:
@@ -1093,15 +1095,19 @@ class Interpolation():
                 # see which dims the interpolator can handle
                 can_handle = getattr(interpolator, select_method)(udims, source_coordinates, eval_coordinates)
 
-                # if interpolator can handle all udims
-                if not set(udims) - set(can_handle):
-
+                # dims handled by this interpolator
+                this_handled_dims = set(can_handle) - set(handled_dims)
+                
+                # if interpolator can handle some udims
+                if this_handled_dims:
                     # union of dims that can be handled by this interpolator and already supported dims
                     handled_dims = handled_dims | set(can_handle)
-
+                    
                     # set interpolator to work on that dimension in the interpolator_queue if dim has no interpolator
                     if udims not in interpolator_queue:
-                        interpolator_queue[udims] = interpolator
+                        interpolator_queue[tuple(this_handled_dims)] = interpolator
+                if not set(udims) - set(handled_dims):
+                    break
 
         # throw error if the source_dims don't encompass all the supported dims
         # this should happen rarely because of default
@@ -1212,16 +1218,29 @@ class Interpolation():
         # for debugging purposes, save the last defined interpolator queue
         self._last_interpolator_queue = interpolator_queue
 
+        intermediate_output = source_data
+        intermediate_coordinates = source_coordinates
+        intermediate_dims_handled = set()
         # iterate through each dim tuple in the queue
         for udims in interpolator_queue:
+            if not intermediate_dims_handled - set(udims):
+                intermediate_output = output_data # final output
+            else:
+                intermediate_dims_handled = intermediate_dims_handled | set(udims)
+                eval_dims = [d for d in eval_coordinates.udims if d not in intermediate_dims_handled]
+                output_coordinates = podpac.coordinates.merge_dims(
+                    [intermediate_coordinates.udrop(list(intermediate_dims_handled)),
+                     eval_coordinates.udrop(eval_dims)] 
+                )
+                intermediate_output = self.create_output_array(output_coordinates)
             interpolator = interpolator_queue[udims]
 
             # run interpolation
-            output_data = interpolator.interpolate(udims,
-                                                   source_coordinates,
-                                                   source_data,
+            intermediate_output = interpolator.interpolate(udims,
+                                                   intermediate_coordinates,
+                                                   intermediate_output,
                                                    eval_coordinates,
                                                    output_data)
+            
 
-        return output_data
-
+        return intermediate_output

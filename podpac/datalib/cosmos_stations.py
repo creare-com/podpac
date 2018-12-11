@@ -50,7 +50,7 @@ class COSMOSStation(podpac.data.DataSource):
         data[data > 100] = np.nan
         data[data < 0 ] = np.nan
         data /= 100.0  # Make it fractional
-        return self.initialize_coord_array(coordinates, init_type='data', fillval=data[:, None])
+        return self.create_output_array(coordinates, data=data[:, None])
     
     def get_native_coordinates(self):
         lat_lon = [float(v) for v in self.station_data['location'].split(',')]
@@ -59,7 +59,7 @@ class COSMOSStation(podpac.data.DataSource):
                                    self.data_columns.index('HH:MM')], 
                           dtype=str)
         time = np.array([t[0] + 'T' + t[1] for t in time], np.datetime64)
-        return podpac.Coordinates([time, lat_lon], ['time', 'lat_lon'])
+        return podpac.Coordinates([time, lat_lon], ['time', 'lat_lon'], ctype='point')
     
     def __repr__(self):
         return '%s, %s (%s)' % (self.station_data['label'], self.station_data['network'], self.station_data['location'])
@@ -71,9 +71,21 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
     
     @cached_property
     def stations_data(self):
+        return self._stations_data()
+
+    @cache_func('stations_data')
+    def _stations_data(self):
         url = self.url + self.stations_url
         r = requests.get(url)
         t = r.text
+        # Fix the JSON 
+        t_f = re.sub(':\s?",', ': "",', t)  # Missing closing parenthesis
+        if t_f[-5:] == ',\n]}\n':  # errant comma
+            t_f = t_f[:-5] + '\n]}\n'
+        stations = json.loads(t_f)
+        return stations
+
+
         if t[-55:-52] == ' ",':  # missing close quote
             t = t[:-55] + t[-55:].replace(' ",', '"",')
         stations = json.loads(t)
@@ -86,7 +98,7 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
     @tl.default('source_coordinates')
     def _source_coordinates_default(self):
         lat_lon = np.array([s['location'].split(',') for s in self.stations_data['items']], dtype=float)
-        return podpac.Coordinates([lat_lon[:, 0], lat_lon[:, 1]], ['lat-lon'])
+        return podpac.Coordinates([lat_lon.T], ['lat_lon'])
     
     def label_from_latlon(self, lat_lon):
         labels_map = {s['location']: s['label'] for s in self.stations_data['items']}
@@ -100,11 +112,11 @@ if __name__ == '__main__':
     cs = COSMOSStations()
     ci = cs.source_coordinates.intersect(coords)
     ce = podpac.coordinates.merge_dims([
-        podpac.Coordinate([podpac.crange('2018-05-01', '2018-06-01', '1,D', 'time')]),
+        podpac.Coordinates([podpac.crange('2018-05-01', '2018-06-01', '1,D', 'time')]),
                                        ci])
     ce['lat'].delta = 0.001
     ce['lon'].delta = 0.001
-    o = cs.execute(ce)
+    o = cs.eval(ce)
     
     from matplotlib.pyplot import plot, show, legend, ylim, ylabel, xlabel
     plot(o.time, o.data, '-')
