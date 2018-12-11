@@ -14,6 +14,7 @@ import traitlets as tl
 
 import podpac
 from podpac.core import common_test_utils as ctu
+from podpac.core.utils import ArrayTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node, NodeException
     
@@ -44,7 +45,7 @@ class TestNode(object):
 
     def test_base_definition_array_attr(self):
         class N(Node):
-            my_attr = tl.Instance(np.ndarray).tag(attr=True)
+            my_attr = ArrayTrait().tag(attr=True)
 
         node = N(my_attr=np.ones((2, 3, 4)))
         d = node.base_definition

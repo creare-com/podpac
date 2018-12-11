@@ -44,8 +44,12 @@ class TestArray(object):
         
         node = Array(source=self.data, native_coordinates=self.coordinates)
 
+        # list is coercable to array
+        node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
+
+        # this list is not coercable to array
         with pytest.raises(TraitError):
-            node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
+            node = Array(source=[0, [0, 1]], native_coordinates=self.coordinates)
 
     def test_get_data(self):
         """ defined get_data function"""

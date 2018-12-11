@@ -210,3 +210,30 @@ if sys.version < '3.6':
 
 else:
     OrderedDictTrait = tl.Dict
+
+class ArrayTrait(tl.TraitType):
+    """ A coercing numpy array trait. """
+    
+    default_value = np.array([])
+
+    def validate(self, obj, value):
+        # coerce type
+        if not isinstance(value, np.ndarray):
+            try:
+                value = np.array(value)
+            except:
+                raise tl.TraitError('TODO invalid type')
+
+        # ndim
+        # if self.ndim is not None and self.ndim != value.ndim:
+        #     raise tl.TraitError('TODO incorrect ndim')
+
+        # shape
+        # if self.shape is not None and self.shape != value.shape:
+        #     raise tl.TraitError('TODO incorrect shape')
+
+        # dtype
+        # if self.dtype is not None and not np.issubdtype(value.dtype, self.dtype):
+        #     raise tl.TraitError('TODO incorrect dtype')
+
+        return value

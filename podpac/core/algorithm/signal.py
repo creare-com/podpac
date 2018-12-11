@@ -20,7 +20,7 @@ from podpac.core.coordinates import Coordinates, UniformCoordinates1d
 from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, ArrayTrait
 from podpac.core.node import COMMON_NODE_DOC, node_eval
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
@@ -69,12 +69,12 @@ class Convolution(Algorithm):
     """
     
     source = tl.Instance(Node)
-    kernel = tl.Instance(np.ndarray).tag(attr=True)
+    kernel = ArrayTrait().tag(attr=True)
     kernel_type = tl.Unicode().tag(attr=True)
     kernel_ndim = tl.Int().tag(attr=True)
 
     _expanded_coordinates = tl.Instance(Coordinates)
-    _full_kernel = tl.Instance(np.ndarray)
+    _full_kernel = ArrayTrait()
  
     @common_doc(COMMON_DOC)
     @node_eval
