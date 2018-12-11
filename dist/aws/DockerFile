@@ -51,7 +51,6 @@ RUN cd /tmp/vendored/ && touch pydap/__init__.py && \
 
 RUN cp -r /podpac/ /tmp/vendored/ && \
     mv /tmp/vendored/podpac/dist/aws/handler.py /tmp/vendored/handler.py && \
-    mv /tmp/vendored/podpac/dist/aws/settings.py /tmp/vendored/podpac/podpac/settings.py && \
     mv /tmp/vendored/podpac/podpac/* /tmp/vendored/podpac/
 
 RUN cd /tmp/vendored && find . -name "*.so" > so_files.txt && \
