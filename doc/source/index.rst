@@ -36,12 +36,14 @@ The purpose of PODPAC is to facilitate
     why-podpac
     install
     examples
+    datasets
     roadmap
 
 .. toctree::
     :maxdepth: 1
     :caption: User Guide
 
+    user/settings
     user/coordinates
     user/nodes
     user/pipelines
