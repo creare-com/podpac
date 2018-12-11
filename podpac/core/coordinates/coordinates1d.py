@@ -56,29 +56,29 @@ class Coordinates1d(BaseCoordinates):
     :class:`ArrayCoordinates1d`, :class:`UniformCoordinates1d`
     """
 
-    #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
+    name.__doc__ = ":str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'"
 
-    #: Units : Coordinate units.
     units = tl.Instance(Units, allow_none=True)
+    units.__doc__ = ":Units: Coordinate units."
 
-    #: str : Coordinate reference system.
     coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True)
+    coord_ref_sys.__doc__ = ":str: Coordinate reference system."
 
-    #: str : Coordinates type, one of 'point', 'left', 'right', or 'midpoint'.
     ctype = tl.Enum(['point', 'left', 'right', 'midpoint'])
+    ctype.__doc__ = ":str: Coordinates type, one of 'point', 'left', 'right', or 'midpoint'."
 
-    #: : *To be replaced.*
     extents = tl.Instance(np.ndarray, allow_none=True, default_value=None)
+    extents.__doc__ = ":: *To be replaced.*"
 
-    #: bool : Are the coordinate values unique and sorted.
     is_monotonic = tl.CBool(allow_none=True, readonly=True)
+    is_monotonic.__doc__ = ":bool: Are the coordinate values unique and sorted."
     
-    #: bool : Are the coordinate values sorted in descending order.
     is_descending = tl.CBool(allow_none=True, readonly=True)
+    is_descending.__doc__ = ":bool: Are the coordinate values sorted in descending order."
 
-    #: bool : Are the coordinate values uniformly-spaced.
     is_uniform = tl.CBool(allow_none=True, readonly=True)
+    is_uniform.__doc__ = ":bool: Are the coordinate values uniformly-spaced."
 
     def __init__(self, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None, **kwargs):
         """*Do not use.*"""
@@ -122,6 +122,20 @@ class Coordinates1d(BaseCoordinates):
     def __repr__(self):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
             self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)
+
+    def __eq__(self, other):
+        if super(Coordinates1d, self).__eq__(other):
+            return True
+
+        # special case for ArrayCoordinates1d and UniformCoordinates1d with the same properties and coordinates
+        if (isinstance(other, Coordinates1d) and
+            type(other) != type(self) and
+            self.is_uniform and other.is_uniform and 
+            self.properties == other.properties and
+            np.array_equal(self.coordinates, other.coordinates)):
+            return True
+
+        return False
 
     def from_definition(self, d):
         raise NotImplementedError
@@ -315,15 +329,18 @@ class Coordinates1d(BaseCoordinates):
         if not isinstance(other, (BaseCoordinates, Coordinates)):
             raise TypeError("Cannot intersect with type '%s'" % type(other))
 
-        # short-circuit
-        if self.name not in other.udims:
-            return self._select_full(return_indices)
-
         if isinstance(other, (Coordinates, StackedCoordinates)):
+            # short-circuit
+            if self.name not in other.udims:
+                return self._select_full(return_indices)
+            
             other = other[self.name]
 
         if self.name != other.name:
             raise ValueError("Cannot intersect mismatched dimensions ('%s' != '%s')" % (self.name, other.name))
+
+        if self.dtype is not None and other.dtype is not None and self.dtype != other.dtype:
+            raise ValueError("Cannot intersect mismatched dtypes ('%s' != '%s')" % (self.dtype, other.dtype))
 
         if self.units != other.units:
             raise NotImplementedError("Still need to implement handling different units")

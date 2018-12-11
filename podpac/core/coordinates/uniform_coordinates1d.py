@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 # from podpac.core.utils import cached_property, clear_cache
 from podpac.core.units import Units
-from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord
+from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_timedelta_string, add_coord
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
@@ -53,38 +53,20 @@ class UniformCoordinates1d(Coordinates1d):
     :class:`Coordinates1d`, :class:`ArrayCoordinates1d`, :class:`crange`, :class:`clinspace`
     """
 
-    #:float, datetime64: Start coordinate.
     start = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
+    start.__doc__ = ":float, datetime64: Start coordinate."
     
-    #:float, datetime64: Stop coordinate.
     stop = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
+    stop.__doc__ = ":float, datetime64: Stop coordinate."
 
-    #:float, timedelta64: Signed, non-zero step between coordinates.
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)])
+    step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
-    #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
-    name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
-
-    #: Units : Coordinate units.
-    units = tl.Instance(Units, allow_none=True)
-
-    #: str : Coordinate reference system.
-    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True)
-
-    #: str : Coordinates type, one of 'point', 'left', 'right', or 'midpoint'.
-    ctype = tl.Enum(['point', 'left', 'right', 'midpoint'])
-
-    #: : *To be replaced.*
-    extents = tl.Instance(np.ndarray, allow_none=True, default_value=None)
-
-    #: bool : Are the coordinate values unique and sorted (always True).
     is_monotonic = tl.CBool(True, readonly=True)
-
-    #: bool : Are the coordinate values sorted in descending order.
-    is_descending = tl.CBool(allow_none=True, readonly=True)
+    is_monotonic.__doc__ = ":bool: Are the coordinate values unique and sorted (always True)."
     
-    #: bool : Are the coordinate values uniformly-spaced (always True).
     is_uniform = tl.CBool(True, readonly=True)
+    is_uniform.__doc__ = ":bool: Are the coordinate values uniformly-spaced (always True)."
 
     def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, units=None, coord_ref_sys=None, extents=None):
         """
@@ -189,8 +171,9 @@ class UniformCoordinates1d(Coordinates1d):
 
     @classmethod
     def from_tuple(cls, items, **kwargs):
-        if len(items) != 3:
-            raise ValueError("Cannot parse, todo better message")
+        if not isinstance(items, tuple) or len(items) != 3:
+            raise ValueError(
+                "UniformCoordinates1d.from_tuple expects a tuple of (start, stop, step/size), got %s" % (items,))
         elif isinstance(items[2], int):
             return cls(items[0], items[1], size=items[2], **kwargs)
         else:
@@ -240,6 +223,11 @@ class UniformCoordinates1d(Coordinates1d):
         --------
         definition
         """
+
+        if 'start' not in d:
+            raise ValueError('UniformCoordinates1d definition requires "start" property')
+        if 'stop' not in d:
+            raise ValueError('UniformCoordinates1d definition requires "stop" property')
 
         start = d.pop('start')
         stop = d.pop('stop')
@@ -431,7 +419,7 @@ class UniformCoordinates1d(Coordinates1d):
         else:
             d['start'] = str(self.start)
             d['stop'] = str(self.stop)
-            d['step'] = str(self.step)
+            d['step'] = make_timedelta_string(self.step)
         d.update(self.properties)
         return d
 

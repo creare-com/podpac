@@ -10,9 +10,13 @@ import json
 import functools
 import importlib
 from collections import OrderedDict
+import logging
 
 import traitlets as tl
 import numpy as np
+
+# create log for module
+_log = logging.getLogger(__name__)
 
 def common_doc(doc_dict):
     """ Decorator: replaces commond fields in a function docstring
@@ -83,80 +87,6 @@ def clear_cache(self, change, attrs):
             setattr(self, '_cached_' + attr, None)
 
 
-def get_settings_file(path=None):
-    """Summary
-
-    Parameters
-    ----------
-    path : None, optional
-        Description
-
-    Returns
-    -------
-    TYPE
-        Description
-    """
-    if path is None:
-        path = os.path.expanduser("~")
-    file = os.path.join(path, '.podpac', 'settings.json')
-    return file
-
-
-def save_setting(key, value, path=None):
-    """Summary
-
-    Parameters
-    ----------
-    key : TYPE
-        Description
-    value : TYPE
-        Description
-    path : None, optional
-        Description
-    """
-    file = get_settings_file(path)
-    if not os.path.exists(file):
-        os.makedirs(os.path.dirname(file), exist_ok=True)
-        config = {}
-    else:
-        with open(file) as fid:
-            try:
-                config = json.load(fid)
-            except:
-                config = {}
-    config[key] = value
-
-    with open(file, 'w') as fid:
-        json.dump(config, fid)
-
-
-def load_setting(key, path=None):
-    """Summary
-
-    Parameters
-    ----------
-    key : TYPE
-        Description
-    path : None, optional
-        Description
-
-    Returns
-    -------
-    TYPE
-        Description
-    """
-    file = get_settings_file(path)
-    if not os.path.exists(file):
-        return None
-
-    with open(file) as fid:
-        try:
-            config = json.load(fid)
-        except:
-            return {}
-    return config.get(key, None)
-
-
 def trait_is_defined(obj, trait):
     """Utility method to determine if trait is defined on object without
     call to default (@tl.default)
@@ -176,7 +106,7 @@ def trait_is_defined(obj, trait):
     """
     return obj.has_trait(trait) and trait in obj._trait_values
 
-def optional_import(module_name, package=None, return_root=False):
+def optional_import(module_name, package=None, module_attr=None, return_root=False):
     '''
     Import optional packages if present.
 
@@ -186,6 +116,8 @@ def optional_import(module_name, package=None, return_root=False):
         The name of the module to import
     package: str, optional
         Default is None. The root package, in case module_name is relative
+    module_attr: str
+        Class or function to be returned from package. Only available if return_root is False
     return_root: bool
         Default if False. If True, will return the root package instead of the module
 
@@ -193,6 +125,7 @@ def optional_import(module_name, package=None, return_root=False):
     ----------
     >>> bar = optional_import('foo.bar')  # Returns bar
     >>> foo = optional_import('foo.bar', return_root=True)  # Returns foo
+    >>> bar = optional_import('foo', module_attr='bar')  # Returns function bar
 
     Returns
     --------
@@ -203,8 +136,12 @@ def optional_import(module_name, package=None, return_root=False):
     try:
         if return_root:
             module = importlib.__import__(module_name)
+            if module_attr:
+                raise Exception("Cannot defined 'module_attr' if 'return_root == True'")
         else:
             module = importlib.import_module(module_name)
+            if module_attr:
+                module = getattr(module, module_attr)
     except ImportError:
         module = None
     except AttributeError:
@@ -213,6 +150,50 @@ def optional_import(module_name, package=None, return_root=False):
         except ImportError:
             module = None
     return module
+
+def create_logfile(filename='podpac.log',
+                   level=logging.INFO,
+                   format='[%(asctime)s] %(name)s - %(levelname)s - %(message)s'):
+    """Convience method to create a log file that only logs
+    podpac related messages
+    
+    Parameters
+    ----------
+    filename : str, optional
+        Filename of the log file. Defaults to ``podpac.log``
+    level : int, optional
+        Log level to use (0 - 50). Defaults to ``logging.INFO`` (20)
+        See https://docs.python.org/3/library/logging.html#levels
+    format : str, optional
+        String format for log messages.
+        See https://docs.python.org/3/library/logging.html#logrecord-attributes
+        for creating format
+    
+    Returns
+    -------
+    logging.Logger, logging.Handler, logging.Formatter
+        Returns the constructed logger, handler, and formatter for the log file
+    """
+    # get logger for podpac module only
+    log = logging.getLogger('podpac')
+    log.setLevel(level)
+
+    # create a file handler
+    handler = logging.FileHandler(filename, 'a')
+
+    # create a logging format
+    # see https://docs.python.org/3/library/logging.html#logrecord-attributes
+    formatter = logging.Formatter(format)
+    handler.setFormatter(formatter)
+
+    # add the handlers to the logger
+    log.addHandler(handler)
+
+    # insert log from utils into logfile
+    _log.info('created logfile')
+
+    return log, handler, formatter
+
 
 if sys.version < '3.6':
     # for Python 2 and Python < 3.6 compatibility

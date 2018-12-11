@@ -20,17 +20,23 @@ def test_crange():
     assert c.step == np.timedelta64(1, 'D')
 
 def test_clinspace():
+    # numerical
     c = clinspace(0, 1, 6)
     assert isinstance(c, UniformCoordinates1d)
     assert c.start == 0.0
     assert c.stop == 1.0
     assert c.size == 6
 
+    # datetime
     c = clinspace('2018-01-01', '2018-01-05', 5)
     assert isinstance(c, UniformCoordinates1d)
     assert c.start == np.datetime64('2018-01-01')
     assert c.stop == np.datetime64('2018-01-05')
     assert c.size == 5
+
+    # named
+    c = clinspace(0, 1, 6, name='lat')
+    assert c.name == 'lat'
 
 def test_clinspace_stacked():
     c = clinspace((0, 10, '2018-01-01'), (1, 20, '2018-01-06'), 6)
@@ -50,6 +56,10 @@ def test_clinspace_stacked():
     assert c3.stop == np.datetime64('2018-01-06')
     assert c3.size == 6
 
+    # named
+    c = clinspace((0, 10, '2018-01-01'), (1, 20, '2018-01-06'), 6, name='lat_lon_time')
+    assert c.name == 'lat_lon_time'
+
     # size must be an integer
     with pytest.raises(TypeError):
         clinspace((0, 10), (1, 20), (6, 6))
@@ -59,3 +69,7 @@ def test_clinspace_stacked():
 
     with pytest.raises(TypeError):
         clinspace((0, 10), (1, 20), (0.2, 1.0))
+
+def test_clinspace_shape_mismatch():
+    with pytest.raises(ValueError, match="Size mismatch, 'start' and 'stop' must have the same size"):
+        clinspace(0, (0, 10), 6)

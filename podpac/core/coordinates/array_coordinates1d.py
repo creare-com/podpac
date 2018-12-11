@@ -47,32 +47,8 @@ class ArrayCoordinates1d(Coordinates1d):
     :class:`Coordinates1d`, :class:`UniformCoordinates1d`
     """
 
-    #: array : User-defined coordinate values
     coords = tl.Instance(np.ndarray)
-
-    #:str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
-    name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
-
-    #: Units : Coordinate units.
-    units = tl.Instance(Units, allow_none=True)
-
-    #: str : Coordinate reference system.
-    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True)
-
-    #: str : Coordinates type, on of 'point', 'left', 'right', or 'midpoint'.
-    ctype = tl.Enum(['point', 'left', 'right', 'midpoint'])
-
-    #: : *To be replaced.*
-    extents = tl.Instance(np.ndarray, allow_none=True, default_value=None)
-
-    #: bool : Are the coordinate values unique and sorted.
-    is_monotonic = tl.CBool(allow_none=True, readonly=True)
-    
-    #: bool : Are the coordinate values sorted in descending order.
-    is_descending = tl.CBool(allow_none=True, readonly=True)
-
-    #: bool : Are the coordinate values uniformly-spaced.
-    is_uniform = tl.CBool(allow_none=True, readonly=True)
+    coords.__doc__ = ":array: User-defined coordinate values"
 
     def __init__(self, coords, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None):
         """
@@ -161,7 +137,7 @@ class ArrayCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_xarray(cls, x, ctype=None, units=None, extents=None, coord_ref_sys=None):
+    def from_xarray(cls, x, **kwargs):
         """
         Create 1d Coordinates from named xarray coords.
 
@@ -185,7 +161,7 @@ class ArrayCoordinates1d(Coordinates1d):
             1d coordinates
         """
 
-        return cls(x.data, name=x.name)
+        return cls(x.data, name=x.name, **kwargs)
 
     @classmethod
     def from_definition(cls, d):
@@ -220,6 +196,9 @@ class ArrayCoordinates1d(Coordinates1d):
         --------
         definition
         """
+
+        if 'values' not in d:
+            raise ValueError('ArrayCoordinates1d definition requires "values" property')
 
         coords = d.pop('values')
         return cls(coords, **d)
@@ -293,8 +272,6 @@ class ArrayCoordinates1d(Coordinates1d):
             return float
         elif np.issubdtype(self.coords.dtype, np.datetime64):
             return np.datetime64
-        else:
-            raise ValueError("Invalid coords dtype '%s'" % self.coords.dtype)
 
     @property
     def bounds(self):
@@ -445,10 +422,16 @@ class ArrayCoordinates1d(Coordinates1d):
         elif self.is_monotonic:
             gt = np.where(self.coords >= bounds[0])[0]
             lt = np.where(self.coords <= bounds[1])[0]
+            lo, hi = bounds[0], bounds[1]
             if self.is_descending:
                 lt, gt = gt, lt
-            start = max(0, gt[0]-1)
-            stop = min(self.size-1, lt[-1]+1)
+                lo, hi = hi, lo
+            if self.coords[gt[0]] != lo:
+                gt[0] -= 1
+            if self.coords[lt[-1]] != hi:
+                lt[-1] += 1
+            start = max(0, gt[0])
+            stop = min(self.size-1, lt[-1])
             I = slice(start, stop+1)
 
         else:

@@ -13,7 +13,7 @@ import json
 import numpy as np
 import traitlets as tl
 
-from podpac import settings
+from podpac.core.settings import settings
 from podpac.core.units import Units, UnitsDataArray, create_data_array
 from podpac.core.utils import common_doc
 from podpac.core.coordinates import Coordinates
@@ -33,7 +33,7 @@ COMMON_NODE_DOC = {
             Unit-aware xarray DataArray containing the results of the node evaluation.
         """,
     'hash_return': 'A unique hash capturing the coordinates and parameters used to evaluate the node. ',
-    'outdir': 'Optional output directory. Uses :attr:`podpac.settings.CACHE_DIR` by default',
+    'outdir': "Optional output directory. Uses :attr:`podpac.settings['CACHE_DIR']` by default",
     'definition_return':
         """
         OrderedDict
@@ -116,7 +116,7 @@ class Node(tl.HasTraits):
         elif self.cache_type == 'ram':
             raise NotImplementedError('Cachetype RAM has not been implemented')
         elif self.cache_type == 'disk':
-            store = cache.DiskCacheStore(root_cache_dir_path=settings.CACHE_DIR)
+            store = cache.DiskCacheStore(root_cache_dir_path=settings['CACHE_DIR'])
             ctrl = cache.CacheCtrl(cache_stores=[store])
 
         return ctrl
@@ -130,8 +130,6 @@ class Node(tl.HasTraits):
     @tl.default('style')
     def _style_default(self):
         return Style()
-
-    debug = tl.Bool(settings.DEBUG) # TODO replace with a setting
 
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
@@ -357,11 +355,11 @@ class Node(tl.HasTraits):
 
             # get base definition and then replace nodes with references, adding nodes depth first
             d = node.base_definition
-            if 'source' in d:
-                if isinstance(d['source'], Node):
-                    d['source'] = add_node(d['source'])
-                elif isinstance(d['source'], np.ndarray):
-                    d['source'] = d['source'].tolist()
+            if 'lookup_source' in d:
+                d['lookup_source'] = add_node(d['lookup_source'])
+            if 'lookup_attrs' in d:
+                for key, attr_node in d['lookup_attrs'].items():
+                    d['lookup_attrs'][key] = add_ode(input_node)
             if 'inputs' in d:
                 for key, input_node in d['inputs'].items():
                     if input_node is not None:
@@ -514,16 +512,16 @@ class Node(tl.HasTraits):
             return False
         return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
-    def rem_cache(self, key=None, coordinates=None, mode=None, all_cache=False):
+    def rem_cache(self, key, coordinates=None, mode=None, all_cache=False):
         """
         Clear cached data for this node.
 
         Parameters
         ----------
         key : str, optional
-            Delete cached objects with this key. If None, cached data is deleted for all keys.
-        coordinates : podpac.Coordinates, optional
-            Delete cached objects for these coordinates. If None, cached data is deleted for all coordinates, including
+            Delete cached objects with this key. If `'*'`, cached data is deleted for all keys.
+        coordinates : podpac.Coordinates, str, optional
+            Delete cached objects for these coordinates. If `'*'`, cached data is deleted for all coordinates, including
             coordinate-independent data.
         mode: str, optional
             Specify which cache stores are affected. 
@@ -563,7 +561,7 @@ def node_eval(fn):
 
     @functools.wraps(fn)
     def wrapper(self, coordinates, output=None):
-        if self.debug:
+        if settings['DEBUG']:
             self._requested_coordinates = coordinates
         key = cache_key
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)) # order agnostic caching
@@ -584,7 +582,7 @@ def node_eval(fn):
         order = [dim for dim in coordinates.dims if dim in data.dims]
         data = data.transpose(*order)
 
-        if self.debug:
+        if settings['debug']:
             self._output = data
 
         return data
@@ -592,7 +590,7 @@ def node_eval(fn):
 
 def cache_func(key, depends=None, raise_no_cache_exception=False):
     """
-    Decorating for caching a function's output based on a key. 
+    Decorating for caching a function's output based on a key.
 
     Parameters
     -----------
@@ -607,7 +605,7 @@ def cache_func(key, depends=None, raise_no_cache_exception=False):
 
     Notes
     -----
-    This decorator cannot handle function input parameters. 
+    This decorator cannot handle function input parameters.
     
     If the function uses any tagged attributes, these will essentially operate like dependencies
     because the cache key changes based on the node definition, which is affected by tagged attributes.

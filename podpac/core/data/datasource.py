@@ -8,12 +8,14 @@ including user defined data sources.
 from __future__ import division, unicode_literals, print_function, absolute_import
 from collections import OrderedDict
 import warnings
+import logging
 
 import numpy as np
 import xarray as xr
 import traitlets as tl
 
 # Internal imports
+from podpac.core.settings import settings
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.node import Node, NodeException
@@ -21,6 +23,8 @@ from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
 from podpac.core.data.interpolate import Interpolation, interpolation_trait
+
+log = logging.getLogger(__name__)
 
 DATA_DOC = {
     'native_coordinates': 'The coordinates of the data source.',
@@ -149,19 +153,10 @@ class DataSource(Node):
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
     
-    #: any : location of the source
-    source = tl.Any(help='Path to the raw data source')
-
-    #: :class:`podpac.Coordinates` : {native_coordinates}
+    source = tl.Any()
     native_coordinates = tl.Instance(Coordinates)
-
-    #: str, dict : interpolation definition for the data source
     interpolation = interpolation_trait()
-
-    #: str : type of index to use for the data source
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
-
-    #: list : list of values from source data that should be interpreted as 'no data'
     nan_vals = tl.List(allow_none=True)
 
     # privates
@@ -270,12 +265,14 @@ class DataSource(Node):
             Cannot evaluate these coordinates
         """
 
+        log.debug('Evaluating {} data source'.format(self.__class__.__name__))
+
         if self.coordinate_index_type != 'numpy':
             warnings.warn('Coordinates index type {} is not yet supported.'.format(self.coordinate_index_type) +
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
 
         # store requested coordinates for debugging
-        if self.debug:
+        if settings['DEBUG']:
             self._original_requested_coordinates = coordinates
         
         # check for missing dimensions
@@ -467,7 +464,12 @@ class DataSource(Node):
             if 'interpolation' in d['attrs']:
                 raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
 
-        d['source'] = self.source
+        if isinstance(self.source, Node):
+            d['lookup_source'] = self.source
+        elif isinstance(self.source, np.ndarray):
+            d['source'] = self.source.tolist()
+        else:
+            d['source'] = self.source
 
         # TODO: cast interpolation to string in way that can be recreated here
         # should this move to interpolation class? 

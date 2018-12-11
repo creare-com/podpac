@@ -228,7 +228,7 @@ Utilities
 
 .. autosummary::
     :toctree: api/
-    :template: module.rst
+    :template: class.rst
 
     podpac.settings
 

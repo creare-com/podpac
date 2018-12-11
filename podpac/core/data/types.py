@@ -41,9 +41,9 @@ urllib3 = optional_import('urllib3')
 certifi = optional_import('certifi')
 
 # Internal dependencies
-from podpac import settings
 from podpac.core import authentication
 from podpac.core.node import Node
+from podpac.core.settings import settings
 from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
@@ -99,10 +99,10 @@ class PyDAP(DataSource):
     
     Attributes
     ----------
-    auth_class : authentication.SessionWithHeaderRedirection
-        A request.Session-derived class that has header redirection. This is used to authenticate using an EarthData
-        login. When username and password are provided, an auth_session is created using this class.
-    auth_session : authentication.SessionWithHeaderRedirection
+    auth_class : :class:`podpac.authentication.Session`
+        :class:`requests.Session` derived class providing authentication credentials.
+        When username and password are provided, an auth_session is created using this class.
+    auth_session : :class:`podpac.authentication.Session`
         Instance of the auth_class. This is created if username and password is supplied, but this object can also be
         supplied directly
     datakey : str
@@ -127,9 +127,8 @@ class PyDAP(DataSource):
     datakey = tl.Unicode(allow_none=False).tag(attr=True)
 
     # optional inputs and later defined traits
-    auth_session = tl.Instance(authentication.SessionWithHeaderRedirection,
-                               allow_none=True)
-    auth_class = tl.Type(authentication.SessionWithHeaderRedirection)
+    auth_session = tl.Instance(authentication.Session, allow_none=True)
+    auth_class = tl.Type(authentication.Session)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
     dataset = tl.Instance('pydap.model.DatasetType', allow_none=False)
@@ -329,25 +328,15 @@ class CSV(DataSource):
         return self.dataset.columns.get_loc(self.data_col)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self):
         """Opens the data source
-        
-        Parameters
-        ----------
-        source : str, optional
-            Uses self.source by default. Path to the data source.
         
         Returns
         -------
         pd.DataFrame
             pd.read_csv(source)
         """
-        if source is None:
-            source = self.source
-        else:
-            self.source = source
-
-        return pd.read_csv(source, parse_dates=True, infer_datetime_format=True)
+        return pd.read_csv(self.source, parse_dates=True, infer_datetime_format=True)
     
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -378,49 +367,54 @@ class CSV(DataSource):
         return self.create_output_array(coordinates, data=d)
 
 
-# TODO: rename "Rasterio" to be more consistent with other naming conventions
 @common_doc(COMMON_DATA_DOC)
 class Rasterio(DataSource):
     """Create a DataSource using Rasterio.
-    
-    Attributes
+ 
+    Parameters
     ----------
+    source : str, :class:`io.BytesIO`
+        Path to the data source
     band : int
         The 'band' or index for the variable being accessed in files such as GeoTIFFs
-    dataset : Any
+
+    Attributes
+    ----------
+    dataset : :class:`rasterio._io.RasterReader`
         A reference to the datasource opened by rasterio
-    native_coordinates : Coordinates
+    native_coordinates : :class:`podpac.Coordinates`
         {native_coordinates}
-    source : str
-        Path to the data source
+
     """
     
-    source = tl.Unicode(allow_none=False)
+    source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)], allow_none=False)
+
     dataset = tl.Any(allow_none=True)
     band = tl.CInt(1).tag(attr=True)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self):
         """Opens the data source
-        
-        Parameters
-        ----------
-        source : str, optional
-            Uses self.source by default. Path to the data source.
         
         Returns
         -------
-        Any
-            raster.open(source)
+        :class:`rasterio.io.DatasetReader`
+            Rasterio dataset
         """
-        if source is None:
-            source = self.source
-        else:
-            self.source = source
 
         # TODO: dataset should not open by default
         # prefer with as: syntax
-        return rasterio.open(source)
+
+        if isinstance(self.source, BytesIO):
+            # https://rasterio.readthedocs.io/en/latest/topics/memory-files.html
+            # TODO: this is still not working quite right - likely need to work
+            # out the BytesIO format or how we are going to read/write in memory
+            with rasterio.MemoryFile(self.source) as memfile:
+                return memfile.open(driver='GTiff')
+
+        # local file
+        else:
+            return rasterio.open(self.source)
     
     def close_dataset(self):
         """Closes the file for the datasource
@@ -429,31 +423,50 @@ class Rasterio(DataSource):
 
     @tl.observe('source')
     def _update_dataset(self, change):
-        if self.dataset is not None:
-            self.dataset = self.open_dataset(change['new'])
-        if trait_is_defined(self, 'native_coordinates'):
-            self.native_coordinates = self.get_native_coordinates()
+
+        # only update dataset if dataset trait has been defined the first time
+        if trait_is_defined(self, 'dataset'):
+            self.dataset = self._open_dataset()
+
+            # update native_coordinates if they have been defined
+            if trait_is_defined(self, 'native_coordinates'):
+                self.native_coordinates = self.get_native_coordinates()
         
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
         
-        The default implementation tries to find the lat/lon coordinates based on dataset.affine or dataset.transform
-        (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
+        The default implementation tries to find the lat/lon coordinates based on dataset.affine.
+        It cannot determine the alt or time dimensions, so child classes may
         have to overload this method.
         """
         
+        # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
-
-        left, bottom, right, top = self.dataset.bounds
-
         if affine[1] != 0.0 or affine[3] != 0.0:
             raise NotImplementedError("Rotated coordinates are not yet supported")
 
+        # TODO: fix coordinate reference system handling
+        # try:
+        #     crs = self.dataset.crs['init'].upper()
+        #     if crs == 'EPSG:3857':
+        #         crs = 'SPHER_MERC'
+        #     elif crs == 'EPSG:4326':
+        #         crs = 'WGS84'
+        #     else:
+        #         crs = None
+        # except:
+        #     crs = None
+        crs = None
+
+        # get bounds
+        left, bottom, right, top = self.dataset.bounds
+
+        # rasterio reads data upside-down from coordinate conventions, so lat goes from top to bottom
         return Coordinates([
-            UniformCoordinates1d(bottom, top, size=self.dataset.height, name='lat'),
-            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon')
-        ])
+            UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat', coord_ref_sys=crs),
+            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon', coord_ref_sys=crs)
+        ], coord_ref_sys=crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -461,9 +474,13 @@ class Rasterio(DataSource):
         """
         data = self.create_output_array(coordinates)
         slc = coordinates_index
-        window = window=((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
-        a = self.dataset.read(self.band, out_shape=tuple(coordinates.shape))
-        data.data.ravel()[:] = a.ravel()
+        
+        # read data within coordinates_index window
+        window = ((slc[0].start, slc[0].stop),(slc[1].start, slc[1].stop))
+        raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
+
+        # set raster data to output array
+        data.data.ravel()[:] = raster_data.ravel()
         return data
     
     @cached_property
@@ -579,7 +596,7 @@ class H5PY(DataSource):
     altkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self, source=None):
         """Opens the data source
         
         Parameters
@@ -592,6 +609,7 @@ class H5PY(DataSource):
         Any
             raster.open(source)
         """
+        # TODO: update this to remove block (see Rasterio)
         if source is None:
             source = self.source
         else:
@@ -608,9 +626,10 @@ class H5PY(DataSource):
 
     @tl.observe('source')
     def _update_dataset(self, change):
+        # TODO: update this to look like Rasterio
         if self.dataset is not None:
             self.close_dataset()
-            self.dataset = self.open_dataset(change['new'])
+            self.dataset = self._open_dataset(change['new'])
         if trait_is_defined(self, 'native_coordinates'):
             self.native_coordinates = self.get_native_coordinates()
         
@@ -889,7 +908,7 @@ class WCS(DataSource):
                             output.data[i, ...] = dataset.read()
                     except Exception as e: # Probably python 2
                         print(e)
-                        tmppath = os.path.join(settings.CACHE_DIR, 'wcs_temp.tiff')
+                        tmppath = os.path.join(settings['CACHE_DIR'], 'wcs_temp.tiff')
                         
                         if not os.path.exists(os.path.split(tmppath)[0]):
                             os.makedirs(os.path.split(tmppath)[0])
@@ -955,7 +974,7 @@ class WCS(DataSource):
                 except Exception as e: # Probably python 2
                     print(e)
                     tmppath = os.path.join(
-                        settings.CACHE_DIR, 'wcs_temp.tiff')
+                        settings['CACHE_DIR'], 'wcs_temp.tiff')
                     if not os.path.exists(os.path.split(tmppath)[0]):
                         os.makedirs(os.path.split(tmppath)[0])
                     open(tmppath, 'wb').write(content)
@@ -1032,9 +1051,10 @@ class ReprojectedSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
+        si = self.source.interpolation
         self.source.interpolation = self.source_interpolation
         data = self.source.eval(coordinates)
-        
+        self.source.interpolation = si
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of
         # the reprojected coordinates
@@ -1070,7 +1090,7 @@ class S3(DataSource):
         Either: 'file_handle' (for files downloaded to RAM); or
         the default option 'path' (for files downloaded to disk)
     s3_bucket : str, optional
-        Name of the S3 bucket. Uses settings.S3_BUCKET_NAME by default.
+        Name of the S3 bucket. Uses ``podpac.settings['S3_BUCKET_NAME']`` by default.
     s3_data : file/str
         If return_type == 'file_handle' returns a file pointer object
         If return_type == 'path' returns a string to the data
@@ -1116,7 +1136,7 @@ class S3(DataSource):
         Str
             Name of the S3 bucket
         """
-        return settings.S3_BUCKET_NAME
+        return settings['S3_BUCKET_NAME']
 
     @tl.default('s3_data')
     def s3_data_default(self):
@@ -1146,7 +1166,7 @@ class S3(DataSource):
                                    #self.source.replace('\\', '').replace(':','')\
                                    #.replace('/', ''))
             tmppath = os.path.join(
-                settings.CACHE_DIR,
+                settings['CACHE_DIR'],
                 self.source.replace('\\', '').replace(':', '').replace('/', ''))
             
             rootpath = os.path.split(tmppath)[0]

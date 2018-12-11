@@ -7,6 +7,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import traitlets as tl
 import numpy as np
 
+from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.coordinates import make_coord_value, make_coord_delta, add_coord
@@ -79,7 +80,7 @@ class ModifyCoordinates(Algorithm):
         else:
             output[:] = self.outputs['source']
 
-        if self.debug:
+        if settings['DEBUG']:
             self._output = output
         return output
 

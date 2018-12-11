@@ -2,13 +2,13 @@
 Podpac Module
 
 Public API
-See https://creare-com.github.io/podpac-docs/developer/contributing.html#public-api
+See https://podpac.org/developer/contributing.html#public-api
 for more information about import conventions
 
 Attributes
 ----------
-version_info : TYPE
-    Description
+version_info : OrderedDict
+    Dict with keys MAJOR, MINOR, HOTFIX depicting version
 """
 
 
@@ -33,11 +33,12 @@ del os
 del sys
 
 # Public API
+from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
 import podpac.core.authentication as authentication
 import podpac.core.utils as utils
-from podpac import settings
+
 
 # Organized submodules
 # These files are simply wrappers to create a curated namespace of podpac modules
