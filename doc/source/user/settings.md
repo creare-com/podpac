@@ -1,58 +1,85 @@
 # Settings
 
-Podpac settings are persistently stored in a `settings.json` file created at runtime.
-By default, podpac will create a settings json file in the users
-home directory (`~/.podpac/settings.json`) when first run.
-This file can be overridden by creating a custom `settings.json` in the current working directory
-or the podpac root directory.
-
-## Default Settings
-
-See the attribute `settings.DEFAULT_SETTINGS` for the default podpac settings.
+PODPAC settings are accessed through the `podpac.settings` module.
+The settings are stored in a dictionary format:
 
 ```python
-import podpac
+from podpac import settings
 
-print(podpac.settings.defaults)
+print(settings)
+
+>>> {
+        'DEBUG': False,
+        'CACHE_DIR': None,
+        'CACHE_TO_S3': False,
+        'ROOT_PATH': '/Users/user/.podpac',
+        'AWS_ACCESS_KEY_ID': None,
+        'AWS_SECRET_ACCESS_KEY': None,
+        'AWS_REGION_NAME': None,
+        'S3_BUCKET_NAME': None,
+        'S3_JSON_FOLDER': None,
+        'S3_OUTPUT_FOLDER': None,
+        'AUTOSAVE_SETTINGS': False
+    }
 ```
 
-## Override Settings
+These settings can be pre-configured by creating a custom `settings.json` in the current working directory,
+the podpac root directory, or a directory specified by the user at runtime.
 
-Default settings can be overridden or extended by:
+## Load Settings from Default Paths
 
-* editing the `settings.json` file in the home directory (i.e. `~/.podpac/settings.json`)
-* creating a `settings.json` in the current working directory (i.e. `./settings.json`)
+You can override default podpac settings by creating a `settings.json` file in one of two places:
+
+* the podpac `ROOT_PATH`. By default this is a `.podpac` directory in the users home directory (i.e. `~/.podpac/settings.json`).
+* the current working directory (i.e. `./settings.json`)
 
 If `settings.json` files exist in multiple places, podpac will load settings in the following order,
 overwriting previously loaded settings in the process:
 
-* podpac settings defaults
+* podpac default settings
 * home directory settings (`~/.podpac/settings.json`)
 * current working directory settings (`./settings.json`)
 
+## Load Settings from a Custom Path
+
+You can also load a `settings.json` file from outside of the podpac `ROOT_PATH` or current working directory using the `settings.load()` method:
+
+```python
+from podpac import settings
+
+settings.load(path='custom/path/', filename='settings.json')
+```
+
+## Active Settings File
+
 The attribute `settings.settings_path` shows the path of the last loaded settings file (e.g. the active settings file).
+
+```python
+from podpac import settings
+
+print(settings.settings_path)
+```
+
+## Save Settings
+
+The active settings file (`settings.settings_path`) can be saved by using the `settings.save()` method:
+
+```python
+from podpac import settings
+
+# writes out current settings dictionary to json file at settings.settings_path
+settings.save()
+```
+
 To keep the active settings file updated as changes are made to the settings dictionary at runtime,
 set the property `settings['AUTOSAVE_SETTINGS']` field to `True`.
-The active setting file can be persistently saved at any time using the method `settings.save()`.
 
-## Settings.json
+## Default Settings
 
-PODPAC settings are configured in a [json](https://json.org) file.
+The default settings can be accessed on the `settings.defaults` attribute.
 
-The example output from a default settings file is shown below:
+```python
+from podpac import settings
 
-```json
-{
-    "DEBUG": false,
-    "CACHE_DIR": "/Users/user/.podpac/cache",
-    "CACHE_TO_S3": false,
-    "ROOT_PATH": "/Users/user/.podpac",
-    "AWS_ACCESS_KEY_ID": null,
-    "AWS_SECRET_ACCESS_KEY": null,
-    "AWS_REGION_NAME": null,
-    "S3_BUCKET_NAME": null,
-    "S3_JSON_FOLDER": null,
-    "S3_OUTPUT_FOLDER": null,
-    "AUTOSAVE_SETTINGS": false
-}
+print(settings.defaults)
 ```
