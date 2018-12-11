@@ -70,7 +70,7 @@ class GFSSource(Rasterio):
                 self._logger.info('Downloading S3 fileobj (Bucket: %s, Key: %s)' % (BUCKET, self._key))
                 s3.Object(BUCKET, self._key).download_fileobj(f)
                 f.seek(0)
-                self.cache_ctrl and self.put_cache(f.read(), key=cache_key)
+                self.cache_ctrl and self.put_cache(f.read(), key=cache_key, raise_no_cache_exception=False)
             
             dataset = f.open()
 
