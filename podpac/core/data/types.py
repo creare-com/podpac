@@ -44,7 +44,7 @@ certifi = optional_import('certifi')
 from podpac.core import authentication
 from podpac.core.node import Node
 from podpac.core.settings import settings
-from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined
+from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.algorithm.algorithm import Algorithm
@@ -62,7 +62,7 @@ class Array(DataSource):
     `native_coordinates` need to supplied by the user when instantiating this node.
     """
     
-    source = tl.Instance(np.ndarray)
+    source = ArrayTrait()
 
     @tl.validate('source')
     def _validate_source(self, d):

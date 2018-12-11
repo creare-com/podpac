@@ -181,10 +181,7 @@ def _parse_node_definition(nodes, name, d):
                 raise PipelineError("The 'lookup_source' property cannot be in attrs")
 
         if 'source' in d:
-            if Array in parents:
-                kwargs['source'] = np.array(d['source'])
-            else:
-                kwargs['source'] = d['source']
+            kwargs['source'] = d['source']
             whitelist.append('source')
 
         elif 'lookup_source' in d:
