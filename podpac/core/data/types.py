@@ -1031,9 +1031,10 @@ class ReprojectedSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
+        si = self.source.interpolation
         self.source.interpolation = self.source_interpolation
         data = self.source.eval(coordinates)
-        
+        self.source.interpolation = si
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of
         # the reprojected coordinates
