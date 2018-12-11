@@ -126,7 +126,7 @@ class Convolution(Algorithm):
         # evaluate source using expanded coordinates, convolve, and then slice out original coordinates
         source = self.source.eval(self._expanded_coordinates)
         
-        if np.isnan(np.max(source)):
+        if np.any(np.isnan(source)):
             method = 'direct'
         else:
             method = 'auto'
