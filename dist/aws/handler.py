@@ -54,7 +54,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         return pipeline
 
     filename = file_key.replace('.json', '.' + pipeline.output.format)
-    filename = filename.replace(settings.S3_JSON_FOLDER, settings.S3_OUTPUT_FOLDER)
+    filename = filename.replace(settings['S3_JSON_FOLDER'], settings['S3_OUTPUT_FOLDER'])
 
     body = cPickle.dumps(pipeline._output)
     s3.put_object(Bucket=bucket_name,
@@ -66,9 +66,9 @@ if __name__ == '__main__':
     from podpac import settings
     # Need to authorize our s3 client when running locally.
     s3 = boto3.client('s3',
-                      aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                      aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                      region_name=settings.AWS_REGION_NAME
+                      aws_access_key_id=settings['AWS_ACCESS_KEY_ID'],
+                      aws_secret_access_key=settings['AWS_SECRET_ACCESS_KEY'],
+                      region_name=settings['AWS_REGION_NAME']
                      )
     event = {
         "Records": [{
