@@ -56,7 +56,7 @@ https://pypi.python.org/pypi/podpac for this to work.
 $ twine upload --repository-url https://test.pypi.org/legacy/ dist/podpac-X.Y.Z*
 ```
 
-8. Use twine to register and upload the release on pypi. Be careful, you can't
+9. Use twine to register and upload the release on pypi. Be careful, you can't
 take this back! You will need to be listed as a package owner at
 https://pypi.python.org/pypi/podpac for this to work.
 
@@ -64,4 +64,4 @@ https://pypi.python.org/pypi/podpac for this to work.
 $ twine upload dist/podpac-X.Y.Z*
 ```
 
-9. Issue the release announcement (tbd)
+10. Issue the release announcement (tbd)
