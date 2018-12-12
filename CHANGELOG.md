@@ -1,13 +1,18 @@
 # Changelog
 
 
+## 0.2.3
+
+- BUG: Fix `version.HOTFIX`
+- DOC: Add a release procedure (RELEASE.md)
+
 ## 0.2.2
 
 - DOC: Add user guide for Settings
-- DOC: Improve Documentation For Nodes (#57)
+- DOC: Improve Documentation For Nodes ([#57](https://github.com/creare-com/podpac/issues/57))
 - DOC: Deploy documentation site to `https://podpac.org`
-- TEST: Add coordinate testing (#3)
-- ENH: Cache evaluation results and check the cache before evaluating (#125)
+- TEST: Add coordinate testing ([#3](https://github.com/creare-com/podpac/issues/3))
+- ENH: Cache evaluation results and check the cache before evaluating ([#125](https://github.com/creare-com/podpac/issues/125))
 - ENH: Add datalib for TerrainTiles
 - ENH: Add datalib for GFS
 - ENH: AWS - Update Dockerfile for AWS Lambda to support podpac changes
