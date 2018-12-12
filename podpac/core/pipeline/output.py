@@ -59,7 +59,6 @@ class Output(tl.HasTraits):
         for key, value in self.traits().items():
             if value.metadata.get('attr', False):
                 d[key] = getattr(self, key)
-        d['nodes'] = [self.name]
         return d
 
 
