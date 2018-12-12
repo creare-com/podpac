@@ -9,6 +9,7 @@ $ git pull upstream master
 ```
 
 2. Update [`version.py`](podpac/version.py) `MAJOR`, `MINOR`, and `HOTFIX` to the right semantic version
+
 3. Run unit tests for python 2 and python 3 environments
 
 ```bash
@@ -24,9 +25,9 @@ $ pytest podpac
 4. Review the [CHANGELOG](CHANGELOG.md) and update
     - Prefix should be a [numpy commit prefix](https://docs.scipy.org/doc/numpy/dev/gitwash/development_workflow.html#writing-the-commit-message)
     - Convention:
-    ```markdown
-    - <prefix>: <short description> ([<github issue>](https://github.com/creare-com/podpac/issues/<issue#>))
-    ```
+```markdown
+- <prefix>: <short description> ([<github issue>](https://github.com/creare-com/podpac/issues/<issue#>))
+```
 5. On the master branch, Tag the release:
 
 ```bash
