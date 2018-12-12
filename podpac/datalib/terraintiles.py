@@ -88,7 +88,7 @@ class TerrainTilesSource(Rasterio):
     """
 
     # parameters
-    source = tl.Unicode().tag(attr=True)
+    source = tl.Unicode()
 
     # attributes
     dataset = tl.Any()
