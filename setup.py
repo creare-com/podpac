@@ -1,15 +1,16 @@
+""" 
+podpac module
+"""
+
 # Always perfer setuptools over distutils
 import sys
 
 from setuptools import find_packages, setup
 
-import version
-
-""" podpac module"""
-
 
 # get version
 sys.path.insert(0, 'podpac')
+import version
 __version__ = version.version()
 
 install_requires = ['matplotlib>=2.1',
