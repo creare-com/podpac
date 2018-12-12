@@ -48,12 +48,20 @@ $ git clean -xdf  # this deletes all uncommited changes!
 $ python setup.py bdist_wheel sdist
 ```
 
+8. Upload package to [TestPypi](https://packaging.python.org/guides/using-testpypi/). You will need to be listed as a package owner at
+https://pypi.python.org/pypi/podpac for this to work.
+
+
+```bash
+$ twine upload --repository-url https://test.pypi.org/legacy/ dist/podpac-X.Y.Z*
+```
+
 8. Use twine to register and upload the release on pypi. Be careful, you can't
 take this back! You will need to be listed as a package owner at
 https://pypi.python.org/pypi/podpac for this to work.
 
 ```bash
-$ twine upload dist/xarray-X.Y.Z*
+$ twine upload dist/podpac-X.Y.Z*
 ```
 
 9. Issue the release announcement (tbd)
