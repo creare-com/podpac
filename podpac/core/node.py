@@ -359,14 +359,16 @@ class Node(tl.HasTraits):
                 d['lookup_source'] = add_node(d['lookup_source'])
             if 'lookup_attrs' in d:
                 for key, attr_node in d['lookup_attrs'].items():
-                    d['lookup_attrs'][key] = add_ode(input_node)
+                    d['lookup_attrs'][key] = add_node(input_node)
             if 'inputs' in d:
                 for key, input_node in d['inputs'].items():
                     if input_node is not None:
                         d['inputs'][key] = add_node(input_node)
             if 'sources' in d:
+                sources = []  # we need this list so that we don't overwrite the actual sources array
                 for i, source_node in enumerate(d['sources']):
-                    d['sources'][i] = add_node(source_node)
+                    sources.append(add_node(source_node))
+                d['sources'] = sources
 
             # get base ref and then ensure it is unique
             ref = node.base_ref
