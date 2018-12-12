@@ -64,4 +64,6 @@ https://pypi.python.org/pypi/podpac for this to work.
 $ twine upload dist/podpac-X.Y.Z*
 ```
 
-10. Issue the release announcement (tbd)
+10. Tag the `master` branch of [creare-com/podpac-examples](https://github.com/creare-com/podpac-examples) with the same semantic version.
+
+11. Issue the release announcement (tbd)
