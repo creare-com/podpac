@@ -6,6 +6,34 @@ Github will render most of these notebooks for you, showing the expected outputs
 See [Supported Datasets](datasets.html) for links to specific dataset examples in the repository.
 
 ## Notebooks
+*  [Introduction.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/Introduction.ipynb)
+* `basic_examples`
+   * [analyzing-SMAP-data.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/basic_examples/analyzing-SMAP-data.ipynb)
+   * [combining-data-in-algorithm.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/basic_examples/combining-data-in-algorithm.ipynb)
+   * [composite-array-datasources.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/basic_examples/composite-array-datasources.ipynb)
+   * [open-point-file.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/basic_examples/open-point-file.ipynb)
+   * [open-raster-file.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/basic_examples/open-raster-file.ipynb)
+   * [retrieving-SMAP-data.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/basic_examples/retrieving-SMAP-data.ipynb)
+   * [running-on-aws-lambda.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/basic_examples/running-on-aws-lambda.ipynb)
+   * [using-coordinates.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/basic_examples/using-coordinates.ipynb)
+   * [working-with-SMAP-Sentinel-data.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/basic_examples/working-with-SMAP-Sentinel-data.ipynb)
+* `demos`
+   * [composite-array-datasources.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/demos/composite-array-datasources.ipynb)
+   * [gfs.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/demos/gfs.ipynb)
+   * [pipeline-from-JSON.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/demos/pipeline-from-JSON.ipynb)
+   * [SMAP-downscaling-example-application.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/demos/SMAP-downscaling-example-application.ipynb)
+   * [SMAP-level4-data-access.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/demos/SMAP-level4-data-access.ipynb)
+   * [SMAP-Sentinel-data-access.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/demos/SMAP-Sentinel-data-access.ipynb)
+   * [SMAP-widget-data-access.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/demos/SMAP-widget-data-access.ipynb)
+   * [Terrain-Tiles-Pattern-Match.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/demos/Terrain-Tiles-Pattern-Match.ipynb)
+   * [Terrain-Tiles.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/demos/Terrain-Tiles.ipynb)
+* `developer`
+   * [Array-DataSource.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/developer/Array-DataSource.ipynb)
+   * [aws-lambda-tutorial.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/developer/aws-lambda-tutorial.ipynb)
+   * [Coordinates.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/developer/Coordinates.ipynb)
+   * [Interpolation.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/developer/Interpolation.ipynb)
+   * [traitlets-tutorial.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/developer/traitlets-tutorial.ipynb)
+   * [UnitsDataArray.ipynb](https://github.com/creare-com/podpac-examples/blob/develop/notebooks/developer/UnitsDataArray.ipynb)
 
 ### Download Notebooks
 

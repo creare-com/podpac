@@ -13,6 +13,7 @@ so that earth scientists can focus on science.
 .. raw:: html
 
     <a href="https://github.com/creare-com/podpac" class="fa fa-github"> View the Source on GitHub</a><br><br>
+    <a href="https://github.com/creare-com/podpac-examples/tree/develop/notebooks" class="fa fa-github"> Explore Jupyter Notebook Examples on GitHub</a><br><br>
 
 Purpose
 -------
