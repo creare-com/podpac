@@ -2,6 +2,7 @@
 *.sublime-workspace
 *.sublime-project
 .ipynb_checkpoints/
+.vscode
 
 # build
 __pycache__
@@ -20,5 +21,4 @@ artifacts
 # docs
 doc/build
 doc/source/user/api
-doc/source/user/api-min
 .pytest_cache/

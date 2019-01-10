@@ -1,62 +1,52 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import json
+
 import traitlets as tl
 
 class BaseCoordinates(tl.HasTraits):
-    """
-    Base class for single or stacked one-dimensional coordinates.
-
-    Attributes
-    ----------
-    name : str
-        Dimension name.
-    dims : tuple
-        Tuple of individual dimensions.
-    coordinates : array
-        Coordinate values.
-    size : int
-        Number of coordinates.
-    is_monotonic : bool
-        If the coordinates are monotonically increasing or decreasing.
-    is_uniform : bool
-        If the coordinates are uniformly spaced.
-    """
+    """Base class for single or stacked one-dimensional coordinates."""
 
     @property
     def name(self):
+        """:str: Dimension name."""
         raise NotImplementedError
 
     @property
     def dims(self):
+        """:tuple: Dimensions."""
+        raise NotImplementedError
+
+    @property
+    def udims(self):
+        """:tuple: Dimensions."""
         raise NotImplementedError
 
     @property
     def coordinates(self):
+        """Coordinate values."""
         raise NotImplementedError
 
     @property
     def size(self):
+        """Number of coordinates."""
         raise NotImplementedError
 
     @property
-    def is_monotonic(self):
+    def definition(self):
+        """Coordinates definition."""
         raise NotImplementedError
 
-    @property
-    def is_uniform(self):
+    def from_definition(self, d):
+        """Get Coordinates from a coordinates definition."""
         raise NotImplementedError
 
-    @property
-    def json(self):
-        raise NotImplementedError
-
-    def from_json(self, d):
-        raise NotImplementedError
-
-    def select(self, bounds, outer=False, return_indices=False):
+    def copy(self):
+        """Deep copy of the coordinates and their properties."""
         raise NotImplementedError
 
     def intersect(self, other, outer=False, return_indices=False):
+        """Get coordinate values that are with the bounds of other Coordinates."""
         raise NotImplementedError
 
     def __getitem__(self, index):
@@ -67,3 +57,19 @@ class BaseCoordinates(tl.HasTraits):
 
     def __repr__(self):
         raise NotImplementedError
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+
+        if self.dims != other.dims:
+            return False
+
+        if self.size != other.size:
+            return False
+
+        # this would be sufficient, the above checks quick shortcuts
+        if json.dumps(self.definition) != json.dumps(other.definition):
+            return False
+
+        return True

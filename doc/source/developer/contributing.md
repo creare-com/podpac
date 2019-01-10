@@ -40,101 +40,56 @@ Docstrings will be used to create the package documentation.
 
 Many IDE's have auto docstring generators to make this process easier. See the [AutoDocstring](https://github.com/KristoforMaynard/SublimeAutoDocstring) sublime text plugin for one example.
 
+#### Format
+
 Podpac adheres to the [numpy format for docstrings](https://numpydoc.readthedocs.io/en/latest/format.html):
 
-```python
-"""A one-line summary that does not use variable names or the
-    function name.
+Examples:
 
-    Several sentences providing an extended description. Refer to
-    variables using back-ticks, e.g. `var`.
+- https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html
+- https://docs.scipy.org/doc/numpy/docs/howto_document.html#example-source
+
+Note that class attributes can be documented multiple ways.
+ - Key public attributes and properties should be documented in the main class docstring under `Parameters`.
+ - All public attributes (traits) should be documented in the subsequent line by setting its `__doc__` property.
+ - All public properties created with the `@property` decorator should be documented in the getter method.
+
+```python
+class ExampleClass(tl.HasTraits):
+    """The summary line for a class docstring should fit on one line.
+
+    Additional details should be documented here.
 
     Parameters
     ----------
-    var1 : array_like
-        Array_like means all those objects -- lists, nested lists, etc. --
-        that can be converted to an array.  We can also refer to
-        variables like `var1`.
-    var2 : int
-        The type above can either refer to an actual Python type
-        (e.g. ``int``), or describe the type of the variable in more
-        detail, e.g. ``(N,) ndarray`` or ``array_like``.
-    long_var_name : {'hi', 'ho'}, optional
-        Choices in brackets, default first when optional.
-
-    Returns
-    -------
-    type
-        Explanation of anonymous return value of type ``type``.
-    describe : type
-        Explanation of return value named `describe`.
-    out : type
-        Explanation of `out`.
-    type_without_description
-
-    Other Parameters
-    ----------------
-    only_seldom_used_keywords : type
-        Explanation
-    common_parameters_listed_above : type
-        Explanation
-
-    Raises
-    ------
-    BadException
-        Because you shouldn't have done that.
-
-    See Also
-    --------
-    otherfunc : relationship (optional)
-    newfunc : Relationship (optional), which could be fairly long, in which
-              case the line wraps here.
-    thirdfunc, fourthfunc, fifthfunc
-
-    Notes
-    -----
-    Notes about the implementation algorithm (if needed).
-
-    This can have multiple paragraphs.
-
-    You may include some math:
-
-    .. math:: X(e^{j\omega } ) = x(n)e^{ - j\omega n}
-
-    And even use a greek symbol like :math:`omega` inline.
-
-    References
-    ----------
-    Cite the relevant literature, e.g. [1]_.  You may also cite these
-    references in the notes section above.
-
-    .. [1] O. McNoleg, "The integration of GIS, remote sensing,
-       expert systems and adaptive co-kriging for environmental habitat
-       modelling of the Highland Haggis using object-oriented, fuzzy-logic
-       and neural-network techniques," Computers & Geosciences, vol. 22,
-       pp. 585-588, 1996.
-
-    Examples
-    --------
-    These are written in doctest format, and should illustrate how to
-    use the function.
-
-    >>> a = [1, 2, 3]
-    >>> print [x + 3 for x in a]
-    [4, 5, 6]
-    >>> print "a\n\nb"
-    a
-    b
-
+    attr1 : str
+        Description of attr1.
+    attr2 : dict, optional
+        Description of attr2.
     """
+
+    attr1 = tl.Str()
+    attr.__doc__ = ":str: Description of attr1"
+
+    attr2 = tl.Dict(allow_none=True)
+    attr2.__doc__ = ":dict: Description of attr2"
+
+    attr3 : tl.Int()
+    attr2.__doc__ = ":int: Description of secondary attr3"
+
+    @property
+    def attr4(self):
+        """:bool: Description of attr4."""
+
+        return True
 ```
 
-#### Docstring References
+#### References
 
 All references to podpac classes (`:class:`), methods (`:meth:`), and attributes (`:attr:`) should use the *public* path to the reference. If the class does not have a public reference, fall back on the *full* path reference to the class. For example:
 
 ```python
-def method():
+def method(coordinates, output=None):
     """Class Method.  
     See method :meth:`podpac.data.DataSource.eval`.
     See attribute :attr:`podpac.core.data.interpolate.INTERPOLATION_METHODS`.
@@ -163,6 +118,51 @@ $ pylint podpac/settings.py     # lint single file
 ```
 
 Configuration options are specified in `.pylintrc`.
+
+## Logging
+
+We use the python `logging` library to support library logging.
+To include logging in your module, use:
+
+```python
+import logging
+log = logging.getLogger(__name__)  # creates a logger with the current module name
+
+# log a message
+log.debug('Debug message')
+log.info('Info message')
+log.warning('Warning message')
+log.error('Error message')
+```
+
+Do not set levels, handlers, or formatters in your modules.
+See the [python logging documentation](https://docs.python.org/3/library/logging.html#logging.Logger.debug) for details on how to construct log messages.
+
+To handling logging in your application, you can use a simple config:
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO)  # log to console
+logging.basicConfig(level=logging.INFO, filename='podpac.log')  # log to a file podpac.log
+```
+
+or a more complicated configuration which handles only podpac logs:
+
+```python
+# log only podpac logs
+log = logging.getLogger('podpac')
+log.setLevel(logging.DEBUG)
+
+# log only podpac logs in a file
+import logging
+from logging import FileHandler
+log = logging.getLogger('podpac')
+log.setLevel(logging.DEBUG)
+log.addHandler(FileHandler('podpac.log', 'w'))
+```
+
+We have created a convience method `create_logfile()` in the `podpac.utils` module to
+automatically create a log file for only podpac logs.
 
 ## Import Conventions / API Conventions
 

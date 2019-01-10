@@ -5,39 +5,152 @@ API Reference
 
 .. note this must be manually updated to refer to new/changed module names
 
+.. currentmodule:: podpac
 
-podpac
-------
+
+Top Level Imports
+-----------------
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
+
+    podpac.Node
+    podpac.Coordinates
+
+
+Nodes
+-----
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
 
     podpac.Node
     podpac.NodeException
-    podpac.Coordinates
-    podpac.crange
-    podpac.clinspace
-    podpac.authentication
-    podpac.settings
-    podpac.version
 
 
-podpac.algorithm
-----------------
+Coordinates
+-----------
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
+
+    podpac.coordinates.Coordinates
+    podpac.coordinates.Coordinates1d
+    podpac.coordinates.ArrayCoordinates1d
+    podpac.coordinates.UniformCoordinates1d
+    podpac.coordinates.StackedCoordinates
+    podpac.coordinates.GroupCoordinates
+
+
+.. rubric:: Utilities
+
+.. autosummary::
+    :toctree: api/
+    :template: function.rst
+    
+    podpac.coordinates.crange
+    podpac.coordinates.clinspace
+    podpac.coordinates.merge_dims
+    podpac.coordinates.concat
+    podpac.coordinates.union
+
+Data Sources
+------------
+
+.. rubric:: Data Types
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
+
+    podpac.data.Array
+    podpac.data.PyDAP
+    podpac.data.Rasterio
+    podpac.data.WCS
+    podpac.data.ReprojectedSource
+    podpac.data.S3
+    podpac.data.H5PY
+
+
+.. rubric:: Utilities
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
+
+    podpac.data.DataSource
+    podpac.data.Interpolation
+    podpac.data.InterpolationException
+    podpac.data.INTERPOLATION_SHORTCUTS
+    podpac.data.INTERPOLATION_DEFAULT
+
+
+Interpolators
+-------------
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
+
+    podpac.interpolators.Interpolator
+    podpac.interpolators.NearestNeighbor
+    podpac.interpolators.NearestPreview
+    podpac.interpolators.Rasterio
+    podpac.interpolators.ScipyGrid
+    podpac.interpolators.ScipyPoint
+
+
+Pipelines
+---------
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
+
+    podpac.pipeline.Pipeline
+    podpac.pipeline.PipelineError
+
+.. rubric:: Pipeline Outputs
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
+    
+    podpac.pipeline.Output
+    podpac.pipeline.NoOutput
+    podpac.pipeline.FileOutput
+    podpac.pipeline.FTPOutput
+    podpac.pipeline.S3Output
+    podpac.pipeline.ImageOutput
+
+Algorithm Nodes
+---------------
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
 
     podpac.algorithm.Algorithm
+
+.. rubric:: General Purpose
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
+
     podpac.algorithm.Arithmetic
     podpac.algorithm.SinCoords
     podpac.algorithm.Arange
     podpac.algorithm.CoordData
 
-.. rubric:: stats
+.. rubric:: Statistical Methods
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.algorithm.Min
     podpac.algorithm.Max
@@ -51,104 +164,43 @@ podpac.algorithm
     podpac.algorithm.Kurtosis
     podpac.algorithm.DayOfYear
     podpac.algorithm.GroupReduce
-    podpac.algorithm.Reduce
-    podpac.algorithm.Reduce2
 
-.. rubric:: coordinates
+.. rubric:: Coordinates Modification
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.algorithm.ExpandCoordinates
     podpac.algorithm.SelectCoordinates
 
-.. rubric:: signal
+.. rubric:: Signal Processing
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.algorithm.Convolution
     podpac.algorithm.SpatialConvolution
     podpac.algorithm.TimeConvolution
 
-podpac.compositor
------------------
+Compositor Nodes
+----------------
 
 .. autosummary::
     :toctree: api/
+    :template: class.rst
 
     podpac.compositor.Compositor
     podpac.compositor.OrderedCompositor
 
-podpac.coordinates
-------------------
+
+Datalib
+-------
 
 .. autosummary::
     :toctree: api/
-
-    podpac.coordinates.Coordinates
-    podpac.coordinates.crange
-    podpac.coordinates.clinspace
-    podpac.coordinates.Coordinates1d
-    podpac.coordinates.GroupCoordinates
-    podpac.coordinates.merge_dims
-    podpac.coordinates.concat
-    podpac.coordinates.union
-
-podpac.data
------------
-
-.. autosummary::
-    :toctree: api/
-
-    podpac.data.DataSource
-    podpac.data.Interpolation
-    podpac.data.InterpolationException
-    podpac.data.Array
-    podpac.data.PyDAP
-    podpac.data.Rasterio
-    podpac.data.WCS
-    podpac.data.ReprojectedSource
-    podpac.data.S3
-    podpac.data.H5PY
-
-
-
-podpac.interpolators
---------------------
-
-.. autosummary::
-    :toctree: api/
-
-    podpac.interpolators.Interpolator
-    podpac.interpolators.NearestNeighbor
-    podpac.interpolators.NearestPreview
-    podpac.interpolators.Rasterio
-    podpac.interpolators.ScipyGrid
-    podpac.interpolators.ScipyPoint
-
-
-podpac.pipeline
----------------
-
-.. autosummary::
-    :toctree: api/
-
-    podpac.pipeline.Pipeline
-    podpac.pipeline.PipelineError
-    podpac.pipeline.parse_pipeline_definition
-    podpac.pipeline.Output
-    podpac.pipeline.NoOutput
-    podpac.pipeline.FileOutput
-    podpac.pipeline.FTPOutput
-    podpac.pipeline.S3Output
-    podpac.pipeline.ImageOutput
-
-podpac.datalib
---------------
-
-.. autosummary::
-    :toctree: api/
+    :template: class.rst
 
     podpac.datalib.smap
     podpac.datalib.SMAP
@@ -159,3 +211,50 @@ podpac.datalib
     podpac.datalib.SMAPWilt
     podpac.datalib.SMAP_PRODUCT_MAP
 
+Utilities
+---------
+
+.. rubric:: Authentication
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
+
+    podpac.authentication.SessionWithHeaderRedirection
+    podpac.authentication.EarthDataSession
+
+
+.. rubric:: Settings
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
+
+    podpac.settings
+
+
+.. rubric:: Utils
+
+.. autosummary::
+    :toctree: api/
+    :template: module.rst
+
+    podpac.utils
+
+
+.. rubric:: Version
+
+.. autosummary::
+    :toctree: api/
+    :template: function.rst
+
+    podpac.version.semver
+    podpac.version.version
+
+
+.. autosummary::
+    :toctree: api/
+    :template: attribute.rst
+
+    podpac.version.VERSION
+    podpac.version.VERSION_INFO

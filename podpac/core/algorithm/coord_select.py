@@ -7,6 +7,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import traitlets as tl
 import numpy as np
 
+from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.coordinates import make_coord_value, make_coord_delta, add_coord
@@ -42,21 +43,6 @@ class ModifyCoordinates(Algorithm):
     @tl.default('coordinates_source')
     def _default_coordinates_source(self):
         return self.source
-   
-    def algorithm(self, inputs):
-        """Passthrough of the source data
-        
-        Arguments
-        ----------
-        inputs : dict
-            Evaluated output of the input nodes. The keys are the attribute names.
-
-        Returns
-        -------
-        UnitDataArray
-            Source evaluated at the expanded coordinates
-        """
-        return inputs['source']
  
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None):
@@ -79,22 +65,29 @@ class ModifyCoordinates(Algorithm):
         """
         
         self._requested_coordinates = coordinates
-        
-        modified_coordinates = Coordinates(
+        self.outputs = {}
+        self._modified_coordinates = Coordinates(
             [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims])
-        for dim in modified_coordinates.udims:
-            if modified_coordinates[dim].size == 0:
+        
+        for dim in self._modified_coordinates.udims:
+            if self._modified_coordinates[dim].size == 0:
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
-        output = super(ModifyCoordinates, self).eval(modified_coordinates, output=output)
 
-        # debugging
-        self._modified_coordinates = modified_coordinates
-        self._output = output
+        self.outputs['source'] = self.source.eval(self._modified_coordinates, output=output)
+        
+        if output is None:
+            output = self.outputs['source']
+        else:
+            output[:] = self.outputs['source']
 
+        if settings['DEBUG']:
+            self._output = output
         return output
 
 class ExpandCoordinates(ModifyCoordinates):
-    """Algorithm node used to expand requested coordinates. This is normally used in conjunction with a reduce operation
+    """Evaluate a source node with expanded coordinates.
+
+    This is normally used in conjunction with a reduce operation
     to calculate, for example, the average temperature over the last month. While this is simple to do when evaluating
     a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a pipeline.
 
@@ -150,7 +143,9 @@ class ExpandCoordinates(ModifyCoordinates):
         return ArrayCoordinates1d(np.concatenate([c.coordinates for c in cs]), **coords1d.properties)
 
 class SelectCoordinates(ModifyCoordinates):
-    """Algorithm node used to select coordinates different from the input coordinates. While this is simple to do when 
+    """Evaluate a source node with select coordinates.
+
+    While this is simple to do when 
     evaluating a single node (just provide the coordinates), this functionality is needed for nodes buried deeper in a 
     pipeline. For example, if a single spatial reference point is used for a particular comparison, and this reference
     point is different than the requested coordinates, we need to explicitly select those coordinates using this Node.

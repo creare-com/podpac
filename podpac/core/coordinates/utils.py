@@ -4,7 +4,7 @@ Utilities functions for handling podpac coordinates.
 .. testsetup:: podpac.core.coordinates.utils
     
     import numpy as np
-    from podpac.core.coordinates.util import *
+    from podpac.core.coordinates.utils import *
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import

@@ -197,11 +197,12 @@ class TestDataSource(object):
         # - 1 where it was evaluated and does intersect with the data source (because this datasource is all 0)
         expected = output.copy()
         expected[3:8, 3:8] = np.nan
-        expected[3:7, 3:7] = 1.
+        expected[3:8, 3:8] = 1.
 
         # evaluate the subset coords, passing in the cooresponding slice of the initialized output array
         # TODO: discuss if we should be using the same reference to output slice?
         output[3:8, 3:8] = node.eval(coords, output=output[3:8, 3:8])
+
         np.testing.assert_equal(output.data, expected.data)
 
     def test_evaluate_with_output_no_intersect(self):
@@ -221,10 +222,16 @@ class TestDataSource(object):
         # evaluate with dims=[lat, lon], passing in the output
         node = MockDataSource()
         output = node.create_output_array(coords.transpose('lon', 'lat'))
-        node.eval(coords, output=output)
+        returned_output = node.eval(coords, output=output)
         
+        # returned output sohuld match the requested coordinates
+        assert returned_output.dims == ('lat', 'lon')
+
         # dims should stay in the order of the output, rather than the order of the requested coordinates
         assert output.dims == ('lon', 'lat')
+
+        # output data and returned output data should match
+        np.testing.assert_equal(output.transpose('lat', 'lon').data, returned_output.data)
 
     def test_evaluate_extra_dims(self):
         # drop extra dimension
@@ -357,4 +364,3 @@ class TestInterpolateData(object):
 
         assert isinstance(output, UnitsDataArray)
         assert np.all(output.alt.values == coords_dst.coords['alt'])
-

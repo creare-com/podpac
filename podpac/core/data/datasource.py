@@ -8,22 +8,26 @@ including user defined data sources.
 from __future__ import division, unicode_literals, print_function, absolute_import
 from collections import OrderedDict
 import warnings
+import logging
 
 import numpy as np
 import xarray as xr
 import traitlets as tl
 
 # Internal imports
+from podpac.core.settings import settings
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import Coordinates, Coordinates1d, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
+from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
-from podpac.core.data.interpolate import Interpolation, INTERPOLATION_SHORTCUTS, INTERPOLATION_DEFAULT
+from podpac.core.node import node_eval
+from podpac.core.data.interpolate import Interpolation, interpolation_trait
+
+log = logging.getLogger(__name__)
 
 DATA_DOC = {
     'native_coordinates': 'The coordinates of the data source.',
-
     'get_data':
         """
         This method must be defined by the data source implementing the DataSource class.
@@ -55,12 +59,11 @@ DATA_DOC = {
             
         Returns
         --------
-        np.ndarray, xr.DataArray, podpac.core.units.UnitsDataArray
+        np.ndarray, xr.DataArray, :class:`podpac.UnitsDataArray`
             A subset of the returned data. If a numpy array or xarray DataArray is returned,
             the data will be cast into  UnitsDataArray using the returned data to fill values
             at the requested source coordinates.
         """,
-    
     'get_native_coordinates':
         """
         Returns a Coordinates object that describes the native coordinates of the data source.
@@ -73,7 +76,7 @@ DATA_DOC = {
 
         Returns
         --------
-        Coordinates
+        :class:`podpac.Coordinates`
            The coordinates describing the data source array.
 
         Notes
@@ -84,6 +87,41 @@ DATA_DOC = {
         - the type of coordinates
 
         Coordinates should be non-nan and non-repeating for best compatibility
+        """,
+    'interpolation':
+        """
+        Interpolation definition for the data source.
+        By default, the interpolation method is set to ``'nearest'`` for all dimensions.
+        """,
+    'interpolation_long':
+        """
+        {interpolation}
+
+        If input is a string, it must match one of the interpolation shortcuts defined in
+        :attr:`podpac.data.INTERPOLATION_SHORTCUTS`. The interpolation method associated
+        with this string will be applied to all dimensions at the same time.
+
+        If input is a dict, the dict must contain one of two definitions:
+
+        1. A dictionary which contains the key ``'method'`` defining the interpolation method name.
+           If the interpolation method is not one of :attr:`podpac.data.INTERPOLATION_SHORTCUTS`, a
+           second key ``'interpolators'`` must be defined with a list of
+           :class:`podpac.interpolators.Interpolator` classes to use in order of uages.
+           The dictionary may contain an option ``'params'`` key which contains a dict of parameters to pass along to
+           the :class:`podpac.interpolators.Interpolator` classes associated with the interpolation method.
+           This interpolation definition will be applied to all dimensions.
+        2. A dictionary containing an ordered set of keys defining dimensions and values
+           defining the interpolation method to use with the dimensions.
+           The key must be a string or tuple of dimension names (i.e. ``'time'`` or ``('lat', 'lon')`` ).
+           The value can either be a string matching one of the interpolation shortcuts defined in
+           :attr:`podpac.data.INTERPOLATION_SHORTCUTS` or a dictionary meeting the previous requirements
+           (1). If the dictionary does not contain a key for all unstacked dimensions of the source coordinates, the
+           :attr:`podpac.data.INTERPOLATION_DEFAULT` value will be used.
+           All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
+           Any extra dimensions included but not found in the source coordinates will be ignored.
+
+        If input is a :class:`podpac.data.Interpolation` class, this interpolation
+        class will be used without modication.
         """
     }
 
@@ -94,72 +132,37 @@ COMMON_DATA_DOC.update(DATA_DOC)      # inherit and overwrite with DATA_DOC
 class DataSource(Node):
     """Base node for any data obtained directly from a single source.
     
-    Attributes
+    Parameters
     ----------
     source : Any
         The location of the source. Depending on the child node this can be a filepath,
         numpy array, or dictionary as a few examples.
     native_coordinates : :class:`podpac.Coordinates`
         {native_coordinates}
-    coordinate_index_type : str, optional
-        Type of index to use for data source. Possible values are ['list','numpy','xarray','pandas']
-        Default is 'numpy'
-    interpolation : str,
-                    dict
-                    optional
-            Definition of interpolation methods for each dimension of the native coordinates.
-            
-            If input is a string, it must match one of the interpolation shortcuts defined in
-            :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS. The interpolation method associated
-            with this string will be applied to all dimensions at the same time.
-
-            If input is a dict, the dict must contain one of two definitions:
-
-            1. A dictionary which contains the key `'method'` defining the interpolation method name.
-            If the interpolation method is not one of :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS, a
-            second key `'interpolators'` must be defined with a list of
-            :ref:podpac.core.data.interpolate.Interpolator classes to use in order of uages.
-            The dictionary may contain an option `'params'` key which contains a dict of parameters to pass along to
-            the :ref:podpac.core.data.interpolate.Interpolator classes associated with the interpolation method.
-            This interpolation definition will be applied to all dimensions.
-            2. A dictionary containing an ordered set of keys defining dimensions and values
-            defining the interpolation method to use with the dimensions.
-            The key must be a string or tuple of dimension names (i.e. `'time'` or `('lat', 'lon')` ).
-            The value can either be a string matching one of the interpolation shortcuts defined in
-            :ref:podpac.core.data.interpolate.INTERPOLATION_SHORTCUTS or a dictionary meeting the previous requirements
-            (1). If the dictionary does not contain a key for all unstacked dimensions of the source coordinates, the
-            :ref:podpac.core.data.interpolate.INTERPOLATION_DEFAULT value will be used.
-            All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
-            Any extra dimensions included but not found in the source coordinates will be ignored.
-
-            If input is a podpac.core.data.interpolate.Interpolation, this interpolation
-            class will be used without modication.
-            
-            By default, the interpolation method is set to ``'nearest'`` for all dimensions.
+    interpolation : str, dict, optional
+        {interpolation}
     nan_vals : List, optional
         List of values from source data that should be interpreted as 'no data' or 'nans'
+    coordinate_index_type : str, optional
+        Type of index to use for data source. Possible values are ``['list', 'numpy', 'xarray', 'pandas']``
+        Default is 'numpy'
 
+    
     Notes
     -----
-    Developers of new DataSource nodes need to implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
+    Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
     
-    source = tl.Any(help='Path to the raw data source')
+    source = tl.Any()
     native_coordinates = tl.Instance(Coordinates)
-
-    interpolation = tl.Union([
-        tl.Dict(),
-        tl.Enum(INTERPOLATION_SHORTCUTS),
-        tl.Instance(Interpolation)
-    ], default_value=INTERPOLATION_DEFAULT)
-
+    interpolation = interpolation_trait()
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
     nan_vals = tl.List(allow_none=True)
 
     # privates
     _interpolation = tl.Instance(Interpolation)
     
-    _evaluated_coordinates = tl.Instance(Coordinates, allow_none=True)
+    _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _requested_source_coordinates = tl.Instance(Coordinates)
     _requested_source_coordinates_index = tl.List()
     _requested_source_data = tl.Instance(UnitsDataArray)
@@ -180,21 +183,21 @@ class DataSource(Node):
     def interpolation_class(self):
         """Get the interpolation class currently set for this data source.
         
-        The DataSource `interpolation` property is used to define the
-        :ref:podpac.core.data.interpolate.Interpolation class that will handle interpolation for requested coordinates.
+        The DataSource ``interpolation`` property is used to define the
+        :class:`podpac.data.Interpolation` class that will handle interpolation for requested coordinates.
         
         Returns
         -------
-        podpac.core.data.interpolate.Interpolation
+        :class:`podpac.data.Interpolation`
             Interpolation class defined by DataSource `interpolation` definition
-        """ 
+        """
 
         return self._interpolation
 
     @property
     def interpolators(self):
         """Return the interpolators selected for the previous node evaluation interpolation.
-        If the node has not been evaluated, or if interpolation was not necessary, this will return 
+        If the node has not been evaluated, or if interpolation was not necessary, this will return
         an empty OrderedDict
         
         Returns
@@ -246,10 +249,10 @@ class DataSource(Node):
         ----------
         coordinates : :class:`podpac.Coordinates`
             {requested_coordinates}
-            Notes::
-             * An exception is raised if the requested coordinates are missing dimensions in the DataSource.
-             * Extra dimensions in the requested coordinates are dropped.
-        output : podpac.core.units.UnitsDataArray, optional
+            
+            An exception is raised if the requested coordinates are missing dimensions in the DataSource.
+            Extra dimensions in the requested coordinates are dropped.
+        output : :class:`podpac.UnitsDataArray`, optional
             {eval_output}
         
         Returns
@@ -262,9 +265,15 @@ class DataSource(Node):
             Cannot evaluate these coordinates
         """
 
+        log.debug('Evaluating {} data source'.format(self.__class__.__name__))
+
         if self.coordinate_index_type != 'numpy':
             warnings.warn('Coordinates index type {} is not yet supported.'.format(self.coordinate_index_type) +
                           '`coordinate_index_type` is set to `numpy`', UserWarning)
+
+        # store requested coordinates for debugging
+        if settings['DEBUG']:
+            self._original_requested_coordinates = coordinates
         
         # check for missing dimensions
         for c in self.native_coordinates.values():
@@ -289,7 +298,10 @@ class DataSource(Node):
         # set input coordinates to evaluated coordinates
         # TODO move this if WCS can be updated to support
         self._evaluated_coordinates = coordinates
+        return self._eval(coordinates, output=output)
 
+    @node_eval
+    def _eval(self, coordinates, output=None):
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
@@ -302,8 +314,6 @@ class DataSource(Node):
                 output = self.create_output_array(coordinates)
             else:
                 output[:] = np.nan
-
-            self._output = output
             return output
         
         # reset interpolation
@@ -318,13 +328,14 @@ class DataSource(Node):
         # get data from data source
         self._requested_source_data = self._get_data(coordinates)
 
-        # if output is not input to evaluate, create it using the evaluated coordinates
+        # if not provided, create output using the evaluated coordinates, or
+        # if provided, set the order of coordinates to match the output dims
         if output is None:
+            requested_dims = None
             output = self.create_output_array(coordinates)
-
-        # set the order of dims to be the same as that of evaluated coordinates
-        # this is required in case the user supplied an output object with a different dims order
-        output = output.transpose(*coordinates.dims)
+        else:
+            requested_dims = coordinates.dims
+            coordinates = coordinates.transpose(*output.dims)
 
         # interpolate data into output
         output = self._interpolation.interpolate(self._requested_source_coordinates,
@@ -332,6 +343,9 @@ class DataSource(Node):
                                                  coordinates,
                                                  output)
 
+        # return the output to the originally requested output dims
+        if requested_dims is not None and requested_dims != output.dims:
+            output = output.transpose(*requested_dims)
         
         # save output to private for debugging
         self._output = output
@@ -454,7 +468,12 @@ class DataSource(Node):
             if 'interpolation' in d['attrs']:
                 raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
 
-        d['source'] = self.source
+        if isinstance(self.source, Node):
+            d['lookup_source'] = self.source
+        elif isinstance(self.source, np.ndarray):
+            d['source'] = self.source.tolist()
+        else:
+            d['source'] = self.source
 
         # TODO: cast interpolation to string in way that can be recreated here
         # should this move to interpolation class? 

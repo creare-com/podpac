@@ -7,7 +7,19 @@ from podpac.core.coordinates.coordinates import Coordinates
 
 class GroupCoordinates(tl.HasTraits):
     """
-    Group of Coordinates
+    List of multi-dimensional Coordinates.
+
+    GroupCoordinates contains a list of :class:`Coordinates` containing the same set of unstacked dimensions.
+
+    The GroupCoordinates object is list-like and can be indexed, appended, looped, etc like a standard ``list``. The
+    following ``Coordinates`` methods are wrapped for convenience:
+
+     * :meth:`intersect`
+
+    Parameters
+    ----------
+    udims : tuple
+        Tuple of shared dimensions.
     """
     
     _items = tl.List(trait=tl.Instance(Coordinates))
@@ -26,13 +38,71 @@ class GroupCoordinates(tl.HasTraits):
 
         return items
 
-    def __init__(self, items=[], **kwargs):
-        return super(GroupCoordinates, self).__init__(_items=items, **kwargs)
+    def __init__(self, coords_list):
+        """
+        Create a Coordinates group.
+
+        Arguments
+        ---------
+        coords_list : list
+            list of :class:`Coordinates`
+        """
+
+        return super(GroupCoordinates, self).__init__(_items=coords_list)
 
     def __repr__(self):
         rep = self.__class__.__name__
         rep += '\n' + '\n'.join([repr(c) for c in self._items])
         return rep
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # alternative constructors
+    # ------------------------------------------------------------------------------------------------------------------
+    
+    @classmethod
+    def from_definition(cls, d):
+        """
+        Create a Coordinates group from a group definition.
+
+        Arguments
+        ---------
+        d : list
+            group definition
+
+        Returns
+        -------
+        :class:`CoordinatesGroup`
+            Coordinates group
+
+        See Also
+        --------
+        definition, from_json
+        """
+
+        return cls([Coordinates.from_definition(elem) for elem in d])
+
+    @classmethod
+    def from_json(cls, s):
+        """
+        Create a Coordinates group from a group JSON definition.
+
+        Arguments
+        ---------
+        s : str
+            group JSON definition
+
+        Returns
+        -------
+        :class:`CoordinatesGroup`
+            Coordinates group
+
+        See Also
+        --------
+        json
+        """
+
+        d = json.loads(s)
+        return cls.from_definition(d)
     
     # ------------------------------------------------------------------------------------------------------------------
     # standard list-like methods
@@ -45,6 +115,14 @@ class GroupCoordinates(tl.HasTraits):
         return self._items.__iter__()
 
     def append(self, c):
+        """ Append :class:`Coordinates` to the group.
+
+        Arguments
+        ---------
+        c : :class:`Coordinates`
+            Coordinates to append.
+        """
+
         if not isinstance(c, Coordinates):
             raise TypeError("Can only append Coordinates objects, not '%s'" % type(c))
 
@@ -69,6 +147,8 @@ class GroupCoordinates(tl.HasTraits):
 
     @property
     def udims(self):
+        """:tuple: Tuple of shared dimensions."""
+
         if len(self._items) == 0:
             return set()
         
@@ -76,14 +156,46 @@ class GroupCoordinates(tl.HasTraits):
 
     @property
     def definition(self):
+        """
+        Serializable coordinates group definition.
+
+        The ``definition`` can be used to create new GroupCoordinates::
+
+            g = podpac.GroupCoordinates([...])
+            g2 = podpac.GroupCoordinates.from_definition(g.definition)
+
+        See Also
+        --------
+        from_definition, json
+        """
+
         return [c.definition for c in self._items]
 
     @property
     def json(self):
+        """
+        Serialized coordinates group definition.
+
+        The ``definition`` can be used to create new GroupCoordinates::
+
+            g = podpac.GroupCoordinates(...)
+            g2 = podpac.GroupCoordinates.from_json(g.json)
+
+        See Also
+        --------
+        json
+        """
+
         return json.dumps(self.definition)
 
     @property
     def hash(self):
+        """
+        GroupCoordinates hash.
+
+        *Note: To be replaced with the __hash__ method.*
+        """
+
         return hash(self.json)
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -91,6 +203,26 @@ class GroupCoordinates(tl.HasTraits):
     # ------------------------------------------------------------------------------------------------------------------
 
     def intersect(self, other, outer=False, return_indices=False):
+        """
+        Intersect each Coordinates in the group with the given coordinates.
+
+        Parameters
+        ----------
+        other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
+            Coordinates to intersect with.
+        outer : bool, optional
+            If True, do an *outer* intersection. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
+
+        Returns
+        -------
+        intersections : :class:`GroupCoordinates`
+            Coordinates group consisting of the intersection of each :class:`Coordinates`.
+        idx : list
+            List of lists of indices for each :class:`Coordinates` item, only if ``return_indices`` is True.
+        """
+
         intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self._items]
         if return_indices:
             cs = GroupCoordinates([c for c, I in intersections])

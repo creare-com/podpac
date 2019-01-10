@@ -37,16 +37,15 @@ GIT_URL = 'https://github.com/creare-com/podpac'
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-#
-# needs_sphinx = '1.0'
+needs_sphinx = '1.8'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
-    'numpydoc',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
@@ -99,20 +98,21 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
-# see https://numpydoc.readthedocs.io/en/latest/install.html
-numpydoc_class_members_toctree = True
-numpydoc_show_class_members = False
-numpydoc_show_inherited_class_members = False
-
 # generate autosummary files into the :toctree: directory
-# see http://www.sphinx-doc.org/en/master/ext/autosummary.html
+#   See http://www.sphinx-doc.org/en/master/ext/autosummary.html
+# unfortunately this inherits all members of a class and no parameters below will help
+#   See https://github.com/sphinx-doc/sphinx/pull/4029
+# Chose to use templates in the _templates directory to override this
 autosummary_generate = True
 
 # autodoc options
+autoclass_content = 'class'  # only include docstring from Class (not __init__ method)
+autodoc_inherit_docstrings = False
 autodoc_default_options = {
     'members': None, # means yes/true/on
+    'undoc-members': None,
+    'show-inheritance': None
 }
-# autodoc_default_flags = ['members']  # deprecated in sphinx 1.8
 
 # shortened external links. see http://www.sphinx-doc.org/en/master/ext/extlinks.html
 extlinks = {'issue': ('{0}/issues/%s'.format(GIT_URL), '#'), # refer to issues :issue:`123`
@@ -132,14 +132,14 @@ html_theme = 'sphinx_rtd_theme'
 # documentation.
 #
 html_theme_options = {
-    'canonical_url': 'https://creare-com.github.io/podpac-docs',
+    'canonical_url': 'https://podpac.org',
     'logo_only': True
 }
 
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "_static/img/icon.png"
+html_logo = "_static/img/icon.svg"
 html_favicon = "_static/img/favicon.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
