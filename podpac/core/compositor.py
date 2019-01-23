@@ -13,6 +13,7 @@ import traitlets as tl
 from podpac.core.coordinates import Coordinates, merge_dims
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
+from podpac.core.utils import ArrayTrait
 from podpac.core.node import COMMON_NODE_DOC 
 from podpac.core.node import node_eval 
 from podpac.core.data.datasource import COMMON_DATA_DOC
@@ -37,7 +38,7 @@ class Compositor(Node):
         Default is False. The source_coordinates do not have to completely describe the source. For example, the source
         coordinates could include the year-month-day of the source, but the actual source also has hour-minute-second
         information. In that case, source_coordinates is incomplete. This flag is used to automatically construct
-        native_coordinates
+        native_coordinates.
     n_threads : int
         Default is 10 -- used when threaded is True.
         NASA data servers seem to have a hard limit of 10 simultaneous requests, which determined the default value.
@@ -47,7 +48,7 @@ class Compositor(Node):
         The source is used for a unique name to cache composited products.
     source_coordinates : :class:`podpac.Coordinates`
         Description
-    sources : np.ndarray
+    sources : :class:`np.ndarray`
         An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to
         subselect the nodes that will be evaluated.
     threaded : bool, optional
@@ -72,10 +73,10 @@ class Compositor(Node):
                                                           "IN THAT ORDER"))
 
     source = tl.Unicode().tag(attr=True)
-    sources = tl.Instance(np.ndarray)
+    sources = ArrayTrait(ndim=1)
     cache_native_coordinates = tl.Bool(True)
     
-    interpolation = interpolation_trait()
+    interpolation = interpolation_trait(default_value=None)
 
     threaded = tl.Bool(False)
     n_threads = tl.Int(10)
@@ -117,6 +118,43 @@ class Compositor(Node):
         """
         raise NotImplementedError()
 
+
+    def select_sources(self, coordinates):
+        """Downselect compositor sources based on requested coordinates.
+        
+        This is used during the :meth:`eval` process as an optimization
+        when :attr:`source_coordinates` are not pre-defined.
+        
+        Parameters
+        ----------
+        coordinates : :class:`podpac.Coordinates`
+            Coordinates to evaluate at compositor sources
+        
+        Returns
+        -------
+        :class:`np.ndarray`
+            Array of downselected sources
+        """
+
+        # if source coordinates are defined, use intersect
+        if self.source_coordinates is not None:
+            # intersecting sources only
+            try:
+                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
+
+            except: # Likely non-monotonic coordinates
+                _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
+            
+            src_subset = self.sources[I]
+        
+
+        # no downselection possible - get all sources compositor
+        else:
+            src_subset = self.sources
+
+        return src_subset
+
+
     def composite(self, outputs, result=None):
         """Implements the rules for compositing multiple sources together.
         
@@ -130,7 +168,6 @@ class Compositor(Node):
         Raises
         ------
         NotImplementedError
-            Description
         """
         raise NotImplementedError()
     
@@ -147,24 +184,15 @@ class Compositor(Node):
         :class:`podpac.core.units.UnitsDataArray`
             Output from source node eval method
         """
-        # determine subset of sources needed
-        if self.source_coordinates is None:
-            src_subset = self.sources # all
-        else:
-            # intersecting sources only
-            try:
-                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
-
-            except: # Likely non-monotonic coordinates
-                _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
-            src_subset = self.sources[I]
+        # downselect sources based on coordinates
+        src_subset = self.select_sources(coordinates)
 
         if len(src_subset) == 0:
             yield self.create_output_array(coordinates)
             return
 
         # Set the interpolation properties for sources
-        if self.interpolation:
+        if self.interpolation is not None:
             for s in src_subset.ravel():
                 if trait_is_defined(self, 'interpolation'):
                     s.interpolation = self.interpolation

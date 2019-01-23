@@ -1,6 +1,6 @@
 # PODPAC 
 
-[![icon](doc/source/_static/img/icon.png)](https://creare-com.github.io/podpac-docs)
+[![icon](doc/source/_static/img/icon.svg)](https://podpac.org)
 
 > Pipeline for Observation Data Processing Analysis and Collaboration
 
@@ -28,7 +28,7 @@ For older versions, substitute `latest` in the url with the version number. For 
 
 ## Documentation
 
-The official PODPAC documentation is available here: https://creare-com.github.io/podpac-docs
+The official PODPAC documentation is available here: https://podpac.org
 
 For usage examples, see the [podpac_examples](https://github.com/creare-com/podpac_examples) repository. 
 
@@ -36,7 +36,7 @@ For usage examples, see the [podpac_examples](https://github.com/creare-com/podp
 
 ## Contributing
 
-You can find more information on contributing to PODPAC on the [Contributing page](https://creare-com.github.io/podpac-docs/contributing.html)
+You can find more information on contributing to PODPAC on the [Contributing page](https://podpac.org/contributing.html)
 
 ## Stability / Maturity
 
@@ -58,4 +58,4 @@ This material is based upon work supported by NASA under Contract No 80NSSC18C00
 
 ## References
 
-For PODPAC references, see the [References page](https://creare-com.github.io/podpac-docs/references.html)
+For PODPAC references, see the [References page](https://podpac.org/references.html)

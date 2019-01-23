@@ -1,0 +1,14 @@
+matplotlib>=2.1
+numpy>=1.14
+pint>=0.8
+scipy>=1.0
+traitlets>=4.3
+xarray>=0.10
+requests>=2.18
+beautifulsoup4>=4.6
+h5py>=2.7
+lxml>=4.2
+pydap>=3.2
+rasterio>=0.36
+requests>=2.18
+numexpr>=2.6
