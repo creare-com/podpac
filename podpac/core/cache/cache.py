@@ -15,6 +15,11 @@ try:
 except:
     import _pickle as cPickle
 
+try:
+    import boto3
+except:
+    boto3 = None
+
 from podpac.core.settings import settings
 
 _cache_types = {'ram','disk','network','all','s3'}
@@ -727,6 +732,8 @@ class S3CacheStore(FileCacheStore):
         NotImplementedError
             If unsupported `storage_format` is specified
         """
+        if boto3 is None:
+            raise CacheException('boto3 package must be installed in order to use S3CacheStore.')
         self._cache_modes = set(['s3','all'])
         if root_cache_dir_path is None:
             root_cache_dir_path = settings['CACHE_DIR']
