@@ -673,7 +673,6 @@ class H5PY(DataSource):
     def keys(self):
         return H5PY._find_h5py_keys(self.dataset)
         
-    @property
     def attrs(self, key='/'):
         """
         Dataset or group key for which attributes will be summarized.
@@ -688,6 +687,7 @@ class H5PY(DataSource):
         else:
             keys.append(obj.name)
             return keys
+        keys = list(set(keys))
         keys.sort()
         return keys
             
