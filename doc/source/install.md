@@ -5,7 +5,7 @@ You can install the `podpac` module by downloading one of the [standalone distri
 
 ## Standalone Distibutions
 
-### Window 10
+### Windows 10
 
 A full Windows 10 Installation of PODPAC can be downloaded from:
 

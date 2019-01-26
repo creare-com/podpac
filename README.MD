@@ -22,10 +22,6 @@ The purpose of PODPAC is to facilitate the
 ## Installation
 For installation instructions, see [install.md](doc/source/install.md). 
 
-A full Windows 10 Installation of PODPAC can be downloaded from [here](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_latest_install_windows10.zip). To use it, extract the zip file in a folder on your machine.
-
-For older versions, substitute `latest` in the url with the version number. For example, version `0.2.1` can be downloaded using this url [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.1_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.1_install_windows10.zip)
-
 ## Documentation
 
 The official PODPAC documentation is available here: https://podpac.org
