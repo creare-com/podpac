@@ -11,6 +11,7 @@ import functools
 import importlib
 from collections import OrderedDict
 import logging
+import lazy_import
 
 import traitlets as tl
 import numpy as np
@@ -133,22 +134,14 @@ def optional_import(module_name, package=None, module_attr=None, return_root=Fal
         The imported module if available. None otherwise.
     '''
 
-    try:
-        if return_root:
-            module = importlib.__import__(module_name)
-            if module_attr:
-                raise Exception("Cannot defined 'module_attr' if 'return_root == True'")
-        else:
-            module = importlib.import_module(module_name)
-            if module_attr:
-                module = getattr(module, module_attr)
-    except ImportError:
-        module = None
-    except AttributeError:
-        try: # Python 2.7
-            module = __import__(module_name)
-        except ImportError:
-            module = None
+    if return_root:
+        module = lazy_import.lazy_module(module_name, level='base')
+        if module_attr:
+            raise Exception("Cannot defined 'module_attr' if 'return_root == True'")
+    else:
+        module = lazy_import.lazy_module(module_name)
+        if module_attr:
+            module = getattr(module, module_attr)
     return module
 
 def create_logfile(filename='podpac.log',
