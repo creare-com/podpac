@@ -290,7 +290,7 @@ class Arithmetic(Algorithm):
 
         try:
             result = ne.evaluate(eqn, f_locals)
-        except:
+        except ImportError:
             result = eval(eqn, f_locals)
         res = res[0].copy()  # Make an xarray object with correct dimensions
         res[:] = result

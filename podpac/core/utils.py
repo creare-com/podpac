@@ -11,7 +11,6 @@ import functools
 import importlib
 from collections import OrderedDict
 import logging
-import lazy_import
 
 import traitlets as tl
 import numpy as np
