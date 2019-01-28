@@ -14,7 +14,7 @@ import pytest
 import numpy as np
 from traitlets import TraitError
 from xarray.core.coordinates import DataArrayCoordinates
-import pydap
+import pydap.client
 import rasterio
 import boto3
 import botocore
