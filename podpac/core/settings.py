@@ -28,7 +28,9 @@ DEFAULT_SETTINGS = {
     'S3_BUCKET_NAME': None,
     'S3_JSON_FOLDER': None,
     'S3_OUTPUT_FOLDER': None,
-    'AUTOSAVE_SETTINGS': False
+    'AUTOSAVE_SETTINGS': False,
+    'LOG_TO_FILE': False,
+    'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log')
 }
 
 
@@ -270,8 +272,9 @@ class PodpacSettings(dict):
         elif self['CACHE_DIR'] is None:
             self['CACHE_DIR'] = os.path.abspath(os.path.join(self['ROOT_PATH'], 'cache'))
 
-
-
-
 # load settings dict when module is loaded
 settings = PodpacSettings()
+
+if settings['LOG_TO_FILE']:
+    from podpac.core.utils import create_logfile
+    create_logfile()
