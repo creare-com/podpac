@@ -127,7 +127,7 @@ def create_logfile(filename=settings.settings['LOG_FILE_PATH'],
         String format for log messages.
         See https://docs.python.org/3/library/logging.html#logrecord-attributes
         for creating format. Default is: 
-        format='[%(asctime)s] %(name)s.%(funcName)s:%(lineno)d - %(levelname)s - %(message)s'
+        format='[%(asctime)s] %(name)s.%(funcName)s[%(lineno)d] - %(levelname)s - %(message)s'
     
     Returns
     -------
