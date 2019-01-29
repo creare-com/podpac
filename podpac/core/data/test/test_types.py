@@ -30,6 +30,9 @@ from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
 from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, CSV, H5PY
 from podpac.core.settings import settings
 
+# Trying to fix test
+pydap.client.open_url
+
 def test_allow_missing_modules():
     """TODO: Allow user to be missing rasterio and scipy"""
     pass
