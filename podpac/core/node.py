@@ -87,8 +87,6 @@ class Node(tl.HasTraits):
         Class that controls caching. If not provided, uses default based on cache_type.
     dtype : type
         The numpy datatype of the output. Currently only ``float`` is supported.
-    node_defaults : dict
-        Dictionary of defaults values for attributes of a Node.
     style : :class:`podpac.Style`
         Object discribing how the output of a node should be displayed. This attribute is planned for deprecation in the
         future.
@@ -124,7 +122,6 @@ class Node(tl.HasTraits):
     def _cache_type_changed(self, change):
         self.cache_ctrl = self._cache_ctrl_default()
 
-    node_defaults = tl.Dict(allow_none=True)
     style = tl.Instance(Style)
 
     @tl.default('style')
@@ -156,17 +153,6 @@ class Node(tl.HasTraits):
     def __init__(self, **kwargs):
         """ Do not overwrite me """
         tkwargs = self._first_init(**kwargs)
-
-        # Add default values listed in dictionary
-        # self.node_defaults.update(tkwargs) <-- could almost do this...
-        #                                        but don't want to overwrite
-        #                                        node_defaults and want to
-        #                                        ignore 'node_defaults'
-        for key, val in self.node_defaults.items():
-            if key == 'node_defaults':
-                continue  # ignore this entry
-            if key not in tkwargs:  # Only add value if not in input
-                tkwargs[key] = val
 
         # Call traitlest constructor
         super(Node, self).__init__(**tkwargs)
