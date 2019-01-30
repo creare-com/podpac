@@ -17,7 +17,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
+import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 import datetime
@@ -207,6 +207,33 @@ texinfo_documents = [
 
 
 # -- app setup -------------------------------------------
+def generate_example_links():
+    """generates links to example notebooks dynamically"""
+    
+    path_to_examples_repository = '../../../podpac-examples'
+    base_link = 'https://github.com/creare-com/podpac-examples/blob/develop/notebooks'
+
+    nbpath = os.path.join(os.path.join(os.path.dirname(__file__), os.path.normpath(path_to_examples_repository)), 'notebooks')
+    files = os.listdir(nbpath)
+
+    prestring = '- '
+    string = '\n'.join([prestring + ' `{} <{}>`__'.format(f, base_link + '/' + f) for f in files if f.endswith('ipynb')])
+
+    subdirs = [f for f in files if os.path.isdir(os.path.join(nbpath, f)) and f not in ['.ipynb_checkpoints', 'Images', 'old_examples', 'presentations']]
+
+    for sd in subdirs:
+        path = os.path.join(nbpath, sd)
+        link = base_link + '/' + sd
+        fs = os.listdir(path)
+        string += '\n- {}\n'.format(sd)
+        prestring = '   -'
+        string += '\n'.join([prestring + ' `{} <{}>`__'.format(f, link + '/' + f) for f in fs if f.endswith('ipynb')])
+    
+    write_path = os.path.join(os.path.dirname(__file__), 'example-links.inc')
+    with open(write_path, 'w') as f:
+        f.write(string)
+
 
 def setup(app):
     app.add_stylesheet('style.css')  # may also be an URL
+    generate_example_links()
