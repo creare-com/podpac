@@ -96,7 +96,7 @@ class PodpacSettings(dict):
 
         # load settings from default locations
         self.load()
-        _logger.debug('Loaded podpac settings: {}'.format(self))
+        _logger.debug('Loaded podpac settings')
         _logger.info('Active podpac settings file: {}'.format(self.settings_path))
         if self['AUTOSAVE_SETTINGS']:
             _logger.info('Auto-saving podpac settings to: {}'.format(self.settings_path))
