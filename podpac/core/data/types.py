@@ -24,21 +24,21 @@ import traitlets as tl
 import pandas as pd  # Core dependency of xarray
 
 # Helper utility for optional imports
-from podpac.core.utils import optional_import
+from lazy_import import lazy_module
 
 # Optional dependencies
-bs4 = optional_import('bs4')
+bs4 = lazy_module('bs4')
 # Not used directly, but used indirectly by bs4 so want to check if it's available
-lxml = optional_import('lxml')
-pydap = optional_import('pydap.client', return_root=True)
-rasterio = optional_import('rasterio')
-h5py = optional_import('h5py')
-RasterToNumPyArray = optional_import('arcpy.RasterToNumPyArray')
-boto3 = optional_import('boto3')
-requests = optional_import('requests')
+lxml = lazy_module('lxml')
+pydap = lazy_module('pydap.client', level='base')
+rasterio = lazy_module('rasterio')
+h5py = lazy_module('h5py')
+boto3 = lazy_module('boto3')
+requests = lazy_module('requests')
 # esri
-urllib3 = optional_import('urllib3')
-certifi = optional_import('certifi')
+RasterToNumPyArray = lazy_module('arcpy.RasterToNumPyArray')
+urllib3 = lazy_module('urllib3')
+certifi = lazy_module('certifi')
 
 # Internal dependencies
 from podpac.core import authentication
@@ -673,7 +673,6 @@ class H5PY(DataSource):
     def keys(self):
         return H5PY._find_h5py_keys(self.dataset)
         
-    @property
     def attrs(self, key='/'):
         """
         Dataset or group key for which attributes will be summarized.
@@ -688,6 +687,7 @@ class H5PY(DataSource):
         else:
             keys.append(obj.name)
             return keys
+        keys = list(set(keys))
         keys.sort()
         return keys
             
@@ -902,7 +902,7 @@ class WCS(DataSource):
                 else:
                     raise Exception("Do not have a URL request library to get WCS data.")
                 
-                if rasterio is not None:
+                try:
                     try: # This works with rasterio v1.0a8 or greater, but not on python 2
                         with rasterio.open(io) as dataset:
                             output.data[i, ...] = dataset.read()
@@ -921,7 +921,7 @@ class WCS(DataSource):
 
                         os.remove(tmppath) # Clean up
 
-                elif RasterToNumPyArray is not None:
+                except ImportError:
                     # Writing the data to a temporary tiff and reading it from there is hacky
                     # However reading directly from r.data or io doesn't work
                     # Should improve in the future
@@ -964,7 +964,7 @@ class WCS(DataSource):
             else:
                 raise Exception("Do not have a URL request library to get WCS data.")
             
-            if rasterio is not None:
+            try:
                 try: # This works with rasterio v1.0a8 or greater, but not on python 2
                     with rasterio.open(io) as dataset:
                         if dotime:
@@ -981,14 +981,15 @@ class WCS(DataSource):
                     with rasterio.open(tmppath) as dataset:
                         output.data[:] = dataset.read()
                     os.remove(tmppath) # Clean up
-            elif RasterToNumPyArray is not None:
+            except ImportError:
                 # Writing the data to a temporary tiff and reading it from there is hacky
                 # However reading directly from r.data or io doesn't work
                 # Should improve in the future
                 open('temp.tiff', 'wb').write(r.data)
-                output.data[:] = RasterToNumPyArray('temp.tiff')
-            else:
-                raise Exception('Rasterio or Arcpy not available to read WCS feed.')
+                try:
+                    output.data[:] = RasterToNumPyArray('temp.tiff')
+                except:
+                    raise Exception('Rasterio or Arcpy not available to read WCS feed.')
         if not coordinates['lat'].is_descending:
             if dotime:
                 output.data[:] = output.data[:, ::-1, :]

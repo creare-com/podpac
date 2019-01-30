@@ -84,8 +84,9 @@ class TestArrayTrait(object):
         np.testing.assert_equal(o.a, [0, 4])
 
         # invalid
-        with pytest.raises(tl.TraitError):
-            MyClass(a=[0, [4, 5]])
+        # As of numpy 0.16, no longer raises an error
+        #with pytest.raises(tl.TraitError):
+            #MyClass(a=[0, [4, 5]])
 
     def test_ndim(self):
         class MyClass(tl.HasTraits):

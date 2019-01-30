@@ -27,10 +27,10 @@ import xarray as xr
 import traitlets as tl
 
 # Helper utility for optional imports
-from podpac.core.utils import optional_import
+from lazy_import import lazy_module
 
 # Optional dependencies
-bs4 = optional_import('bs4')
+bs4 = lazy_module('bs4')
 
 # fixing problem with older versions of numpy
 if not hasattr(np, 'isnat'):

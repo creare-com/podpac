@@ -19,7 +19,8 @@ install_requires = ['matplotlib>=2.1',
                     'scipy>=1.0',
                     'traitlets>=4.3',
                     'xarray>=0.10',
-                    'requests>=2.18']
+                    'requests>=2.18',
+                    'lazy-import>=0.2.2']
 if sys.version_info.major == 2:
     install_requires += ['future>=0.16']
 

@@ -12,7 +12,7 @@ version_info : OrderedDict
 """
 
 
-# Monkey match os.makedirs for Python 2 compatibility
+# Monkey patch os.makedirs for Python 2 compatibility
 import sys
 import os
 _osmakedirs = os.makedirs
