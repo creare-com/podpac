@@ -120,13 +120,13 @@ class Coordinates(tl.HasTraits):
         # set 1d coordinates defaults
         # TODO factor out, store as default_* traits, and pass on through StackedCoordinates as well
         # maybe move to observe so that it gets validated first
-        for c in dcoords.values():
-            if 'ctype' not in c._trait_values and ctype is not None:
-                c.ctype = ctype
-            if 'coord_ref_sys' not in c._trait_values and coord_ref_sys is not None:
-                c.coord_ref_sys = coord_ref_sys
-            if 'units' not in c._trait_values and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
-                c.units = distance_units
+        # for c in dcoords.values():
+        #     if 'ctype' not in c.properties and ctype is not None:
+        #         c.set_trait('ctype', ctype)
+        #     if 'coord_ref_sys' not in c.properties and coord_ref_sys is not None:
+        #         c.set_trait('coord_ref_sys', coord_ref_sys)
+        #     if 'units' not in c.properties and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
+        #         c.set_trait('units', distance_units)
 
         super(Coordinates, self).__init__(_coords=dcoords)
 

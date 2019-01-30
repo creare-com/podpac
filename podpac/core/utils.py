@@ -15,8 +15,7 @@ import logging
 import traitlets as tl
 import numpy as np
 
-# create log for module
-_log = logging.getLogger(__name__)
+import podpac
 
 def common_doc(doc_dict):
     """ Decorator: replaces commond fields in a function docstring
@@ -190,6 +189,7 @@ def create_logfile(filename='podpac.log',
     log.addHandler(handler)
 
     # insert log from utils into logfile
+    _log = logging.getLogger(__name__)
     _log.info('created logfile')
 
     return log, handler, formatter
@@ -260,3 +260,26 @@ class ArrayTrait(tl.TraitType):
                         self.name, obj.__class__.__name__, self.dtype, value.dtype))
 
         return value
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        # numpy arrays
+        if isinstance(obj, np.ndarray):
+            if np.issubdtype(obj.dtype, np.datetime64):
+                return obj.astype(str).tolist()
+            elif np.issubdtype(obj.dtype, np.timedelta64):
+                f = np.vectorize(podpac.core.coordinates.utils.make_timedelta_string)
+                return f(obj).tolist()
+            elif np.issubdtype(obj.dtype, np.number):
+                return obj.tolist()
+        
+        # datetime64
+        elif isinstance(obj, np.datetime64):
+            return obj.astype(str)
+
+        # timedelta64
+        elif isinstance(obj, np.timedelta64):
+            return podpac.core.coordinates.utils.make_timedelta_string(obj)
+        
+        # default
+        return json.JSONEncoder.default(self, obj)
