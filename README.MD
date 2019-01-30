@@ -28,8 +28,6 @@ The official PODPAC documentation is available here: https://podpac.org
 
 For usage examples, see the [podpac_examples](https://github.com/creare-com/podpac_examples) repository. 
 
-- To run PODPAC in ESRI ArcGIS Python, see [here](notes/packages_EsriPlus_Python.md)
-
 ## Contributing
 
 You can find more information on contributing to PODPAC on the [Contributing page](https://podpac.org/contributing.html)
