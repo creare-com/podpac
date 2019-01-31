@@ -1,5 +1,9 @@
 FROM amazonlinux:latest
 
+ARG COMMIT_SHA=""
+ARG TAG=""
+RUN echo $COMMIT_SHA
+
 RUN yum update -y
 
 # Install apt dependencies
@@ -26,8 +30,9 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # RUN cp -rfi /usr/local/lib/python3.6/site-packages/* /tmp/vendored/*
 
-RUN git clone -b feature/aws https://github.com/creare-com/podpac.git && \
+RUN git clone https://github.com/creare-com/podpac.git && \
     cd podpac/ && \
+    if [ "x$TAG" = "x" ] ; then git checkout $COMMIT_SHA ; else git fetch --all --tags --prune && git checkout tags/$TAG ; fi && \
     pip3 install -r dist/aws/aws_requirements.txt -t /tmp/vendored/
 
 # We can remove all tests/ script and other unused files

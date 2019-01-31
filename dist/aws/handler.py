@@ -16,12 +16,12 @@ sys.path.append('/tmp/')
 # sys.path.append(os.getcwd() + '/podpac/')
 
 s3 = boto3.client('s3')
-deps = 'podpac_deps.zip'
+deps = 'podpac_deps_latest.zip'
 
 def handler(event, context, get_deps=True, ret_pipeline=False):
     bucket_name = event['Records'][0]['s3']['bucket']['name']
     if get_deps:
-        s3.download_file(bucket_name, 'podpac/updated/' + deps, '/tmp/' + deps)
+        s3.download_file(bucket_name, 'podpac/' + deps, '/tmp/' + deps)
         subprocess.call(['unzip', '/tmp/' + deps, '-d', '/tmp'])
         sys.path.append('/tmp/')
         subprocess.call(['rm', '/tmp/' + deps])
