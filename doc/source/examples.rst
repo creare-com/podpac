@@ -9,7 +9,7 @@ most of these notebooks for you, showing the expected outputs.
 See `Supported Datasets <datasets.html>`__ for links to specific dataset
 examples in the repository.
 
-Notebooks
+`Notebooks <https://github.com/creare-com/podpac_examples/tree/master/notebooks>`__
 ---------
 
 .. include:: example-links.inc
