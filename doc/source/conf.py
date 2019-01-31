@@ -214,7 +214,11 @@ def generate_example_links():
     base_link = 'https://github.com/creare-com/podpac-examples/blob/develop/notebooks'
 
     nbpath = os.path.join(os.path.join(os.path.dirname(__file__), os.path.normpath(path_to_examples_repository)), 'notebooks')
-    files = os.listdir(nbpath)
+    if os.path.exists(nbpath):
+        files = os.listdir(nbpath)
+    else:
+        print('no local podpac-examples repository found')
+        files = []
 
     prestring = '- '
     string = '\n'.join([prestring + ' `{} <{}>`__'.format(f, base_link + '/' + f) for f in files if f.endswith('ipynb')])
