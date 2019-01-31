@@ -52,13 +52,13 @@ class UniformCoordinates1d(Coordinates1d):
     :class:`Coordinates1d`, :class:`ArrayCoordinates1d`, :class:`crange`, :class:`clinspace`
     """
 
-    start = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
+    start = tl.Union([tl.Float(), tl.Instance(np.datetime64)], read_only=True)
     start.__doc__ = ":float, datetime64: Start coordinate."
     
-    stop = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
+    stop = tl.Union([tl.Float(), tl.Instance(np.datetime64)], read_only=True)
     stop.__doc__ = ":float, datetime64: Stop coordinate."
 
-    step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)])
+    step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
     def __init__(self, start, stop, step=None, size=None,
@@ -112,9 +112,9 @@ class UniformCoordinates1d(Coordinates1d):
         if fstep > 0 and start > stop:
             raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
 
-        self.start = start
-        self.stop = stop
-        self.step = step
+        self.set_trait('start', start)
+        self.set_trait('stop', stop)
+        self.set_trait('step', step)
 
         # set common properties
         super(UniformCoordinates1d, self).__init__(

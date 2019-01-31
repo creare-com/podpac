@@ -416,7 +416,7 @@ class TestArrayCoordinatesEq(object):
         assert c1 != c3
         assert c1 != c4
         
-        c4.set_trait('name', 'lat')
+        c4.name = 'lat'
         assert c1 == c4
 
     def test_eq_ctype(self):
@@ -449,11 +449,6 @@ class TestArrayCoordinatesEq(object):
         assert c1 == c2
 
 class TestArrayCoordinatesSerialization(object):
-    def test_invalid_definition(self):
-        d = {'coords': [0, 1, 2]}
-        with pytest.raises(ValueError, match='ArrayCoordinates1d definition requires "values" property'):
-            ArrayCoordinates1d.from_definition(d)
-
     def test_definition(self):
         # numerical
         c = ArrayCoordinates1d([0, 1, 2], name="lat", ctype="point")
@@ -481,6 +476,11 @@ class TestArrayCoordinatesSerialization(object):
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
         c2 = ArrayCoordinates1d.from_definition(d) # test from_definition
         assert c2 == c
+
+    def test_invalid_definition(self):
+        d = {'coords': [0, 1, 2]}
+        with pytest.raises(ValueError, match='ArrayCoordinates1d definition requires "values" property'):
+            ArrayCoordinates1d.from_definition(d)
 
 class TestArrayCoordinatesProperties(object):
     def test_dims(self):

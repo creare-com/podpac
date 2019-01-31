@@ -46,7 +46,7 @@ class ArrayCoordinates1d(Coordinates1d):
     :class:`Coordinates1d`, :class:`UniformCoordinates1d`
     """
 
-    coords = ArrayTrait(ndim=1, reodonly=True)
+    coords = ArrayTrait(ndim=1, read_only=True)
     coords.__doc__ = ":array: User-defined coordinate values"
 
     def __init__(self, coords,
@@ -72,7 +72,7 @@ class ArrayCoordinates1d(Coordinates1d):
         """
 
         # validate and set coords
-        self.coords = make_coord_array(coords)
+        self.set_trait('coords', make_coord_array(coords))
 
         # precalculate once
         if self.coords.size == 0:
