@@ -301,6 +301,13 @@ class StackedCoordinates(BaseCoordinates):
         return x[self.name].coords
 
     @property
+    def coord_ref_sys(self):
+        """:str: coordinate reference system."""
+
+        # the coord_ref_sys is the same for all coords
+        return self._coords[0].coord_ref_sys
+
+    @property
     def definition(self):
         """:list: Serializable stacked coordinates definition.
 

@@ -124,6 +124,10 @@ class Coordinates(tl.HasTraits):
     @tl.validate('_coords')
     def _validate_coords(self, d):
         val = d['value']
+
+        if len(val) == 0:
+            return val
+
         for dim, c in val.items():
             if dim != c.name:
                 raise ValueError("Dimension name mismatch, '%s' != '%s'" % (dim, c.name))
@@ -133,7 +137,10 @@ class Coordinates(tl.HasTraits):
             if dims.count(dim) != 1:
                 raise ValueError("Duplicate dimension name '%s' in dims %s" % (dim, tuple(val.keys())))
 
-        # TODO check crs as well
+        crs = list(val.values())[0].coord_ref_sys
+        for i, c in enumerate(val.values()):
+            if c.coord_ref_sys != crs:
+                raise ValueError("coord_ref_sys mismatch '%s' != '%s' at pos %d" % (c.coord_ref_sys, crs, i))
 
         return val
 
@@ -146,20 +153,16 @@ class Coordinates(tl.HasTraits):
             names = name.split('_')
 
         for c, name in zip(cs, names):
-            # the name should match
-            if c.name is None:
-                c.name = name
-            elif c.name != name:
-                raise ValueError("Dimension name mismatch '%s' != '%s' at position %d" % (c.name, name, pos))
-            
-            # the coord_ref_sys should match
+            # set or check the coord_ref_sys
             if coord_ref_sys is not None:
                 if 'coord_ref_sys' not in c.properties:
                     c.set_trait('coord_ref_sys', coord_ref_sys)
-                elif c.coord_ref_sys != c.coord_ref_sys:
-                    raise ValueError("coord_ref_sys mismatch %s != %s at pos %d" % (c.coord_ref_sys, crs, pos))
+                elif coord_ref_sys != c.coord_ref_sys:
+                    raise ValueError("coord_ref_sys mismatch %s != %s at pos %d" % (coord_ref_sys, c.coord_ref_sys, pos))
 
-            # only set ctype and units that aren't already set (don't worry if they don't match)
+            # only set name, ctype, and units if they aren't already set
+            if name is not None and 'name' not in c.properties:
+                c.name = name
             if ctype is not None and 'ctype' not in c.properties:
                 c.set_trait('ctype', ctype)
             if distance_units is not None and c.name in ['lat', 'lon', 'alt'] and 'units' not in c.properties:
@@ -466,13 +469,10 @@ class Coordinates(tl.HasTraits):
 
         if c.name is None:
             c.name = dim
-        elif c.name != dim:
-            raise ValueError("Dimension name mismatch, '%s' != '%s'" % (dim, c.name))
 
-        # TODO check crs
-        # TODO actually, just call validation
-
-        self._coords[dim] = c
+        d = self._coords.copy()
+        d[dim] = c
+        self._coords = d
 
     def __delitem__(self, dim):
         if not dim in self.dims:
@@ -488,7 +488,7 @@ class Coordinates(tl.HasTraits):
         if not isinstance(other, Coordinates):
             raise TypeError("Cannot update Coordinates with object of type '%s'" % type(other))
 
-        d = self._coords
+        d = self._coords.copy()
         d.update(other._coords)
         self._coords = d
 
@@ -588,8 +588,6 @@ class Coordinates(tl.HasTraits):
         :xarray.core.coordinates.DataArrayCoordinates: xarray coords, a dictionary-like container of coordinate arrays.
         """
 
-
-        # TODO don't recompute this every time (but also don't compute it until requested)
         x = xr.DataArray(np.empty(self.shape), coords=[c.coordinates for c in self._coords.values()], dims=self.dims)
         return x.coords
 
@@ -650,12 +648,23 @@ class Coordinates(tl.HasTraits):
     #     return transform
 
     @property
+    def coord_ref_sys(self):
+        """:str: coordinate reference system."""
+
+        if not self._coords:
+            return None
+        
+        # the coord_ref_sys is the same for all coords
+        return list(self._coords.values())[0].coord_ref_sys
+    
+    @property
     def gdal_crs(self):
         """:str: GDAL coordinate reference system."""
 
-        # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
-        # return GDAL_CRS[self.coord_ref_sys]
-        return GDAL_CRS[self._coords.values()[0].coord_ref_sys]
+        if not self._coords:
+            return None
+
+        return GDAL_CRS[self.coord_ref_sys]
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods

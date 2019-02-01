@@ -66,6 +66,18 @@ class TestStackedCoordinatesCreation(object):
         with pytest.raises(ValueError, match="coord_ref_sys mismatch"):
             StackedCoordinates([lat, lon], coord_ref_sys='SPHER_MERC')
 
+    def test_distance_units(self):
+        lat = ArrayCoordinates1d([0, 1], name='lat')
+        lon = ArrayCoordinates1d([0, 1], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02'], name='time')
+
+        units = podpac.core.units.Units()
+        c = StackedCoordinates([lat, lon, time], distance_units=units)
+
+        assert c['lat'].units is units
+        assert c['lon'].units is units
+        assert c['time'].units is not units
+
     def test_StackedCoordinates(self):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')
         lon = ArrayCoordinates1d([10, 20, 30], name='lon')
@@ -223,6 +235,12 @@ class TestStackedCoordinatesProperties(object):
         assert_equal(c.coords['lat'], c['lat'].coordinates)
         assert_equal(c.coords['lon'], c['lon'].coordinates)
         assert_equal(c.coords['time'], c['time'].coordinates)
+
+    def test_coord_ref_sys(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        c = StackedCoordinates([lat, lon], coord_ref_sys='SPHER_MERC')
+        assert c.coord_ref_sys == 'SPHER_MERC'
 
 class TestStackedCoordinatesIndexing(object):
     def test_get_dim(self):
