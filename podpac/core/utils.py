@@ -159,7 +159,9 @@ if sys.version < '3.6':
         default_value = OrderedDict()
         
         def validate(self, obj, value):
-            if not isinstance(value, OrderedDict):
+            if value == {}:
+                value = OrderedDict()
+            elif not isinstance(value, OrderedDict):
                 raise tl.TraitError(
                     "The '%s' trait of an %s instance must be an OrderedDict, but a value of %s %s was specified" % (
                         self.name, obj.__class__.__name__, value, type(value)))

@@ -94,15 +94,10 @@ class StackedCoordinates(BaseCoordinates):
 
         self._check_sizes([c.size for c in coords])
         self._check_names([c.name for c in coords])
+        self._check_coord_ref_sys(coords, coord_ref_sys)
 
-        # set coordinates1d properties that aren't already set
-        for c in coords:
-            if ctype is not None and 'ctype' not in c.properties:
-                c.set_trait('ctype', ctype)
-            if coord_ref_sys is not None and 'coord_ref_sys' not in c.properties:
-                c.set_trait('coord_ref_sys', coord_ref_sys)
-            if distance_units is not None and c.name in ['lat', 'lon', 'alt'] and 'units' not in c.properties:
-                c.set_trait('units', distance_units)
+        # validation is complete, set properties, then set _coords trait
+        self._set_properties(coords, ctype, distance_units, coord_ref_sys)
 
         self.set_trait('_coords', coords)
 
@@ -118,6 +113,25 @@ class StackedCoordinates(BaseCoordinates):
             if size != sizes[0]:
                 raise ValueError("Size mismatch in stacked coords %d != %d at position %d" % (size, sizes[0], i))
 
+    def _check_coord_ref_sys(self, coords, crs=None):
+        # the coord_ref_sys should be the same, and should match the input coord_ref_sys if defined
+        if crs is None:
+            crs = coords[0].coord_ref_sys
+
+        for i, c in enumerate(coords):
+            if 'coord_ref_sys' in c.properties and c.coord_ref_sys != crs:
+                raise ValueError("coord_ref_sys mismatch in stacked coords %s != %s at position %d" % (
+                    c.coord_ref_sys, crs, i))
+
+    def _set_properties(self, coords, ctype, distance_units, coord_ref_sys):
+        for c in coords:
+            if ctype is not None and 'ctype' not in c.properties:
+                c.set_trait('ctype', ctype)
+            if distance_units is not None and c.name in ['lat', 'lon', 'alt'] and 'units' not in c.properties:
+                c.set_trait('units', distance_units)
+            if coord_ref_sys is not None and 'coord_ref_sys' not in c.properties:
+                c.set_trait('coord_ref_sys', coord_ref_sys)
+
     def __eq__(self, other):
         if not isinstance(other, StackedCoordinates):
             return False
@@ -130,9 +144,8 @@ class StackedCoordinates(BaseCoordinates):
             return False
 
         # full check of underlying coordinates
-        for a, b in zip(self, other):
-            if a != b:
-                return False
+        if self._coords != other._coords:
+            return False
 
         return True
 

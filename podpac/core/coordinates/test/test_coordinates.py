@@ -9,6 +9,7 @@ import xarray as xr
 import pandas as pd
 from numpy.testing import assert_equal
 
+import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
@@ -179,6 +180,9 @@ class TestCoordinateCreation(object):
         with pytest.raises(ValueError, match="Duplicate dimension name"):
             Coordinates([lat, lon], dims=['lat', 'lat'])
 
+        with pytest.raises(ValueError, match="Duplicate dimension name"):
+            Coordinates([[lat, lon], lon], dims=['lat_lon', 'lat'])
+
     def test_invalid_coords(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
@@ -294,22 +298,20 @@ class TestCoordinateCreation(object):
         with pytest.raises(TypeError, match="Coordinates.from_xarray expects xarray DataArrayCoordinates"):
             Coordinates.from_xarray([0, 10])
 
-class TestCoordinatesDefinition(object):
-    coords = Coordinates(
-        [[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], crange(0, 10, 0.5)],
-        dims=['lat_lon', 'time', 'alt'])
-
+class TestCoordinatesSerialization(object):
     def test_definition(self):
-        d = self.coords.definition
-        c = Coordinates.from_definition(d)
+        c = Coordinates(
+            [[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], crange(0, 10, 0.5)],
+            dims=['lat_lon', 'time', 'alt'])
 
-        assert isinstance(c, Coordinates)
-        assert c.dims == self.coords.dims
-        assert_equal(c['lat'].coordinates, self.coords['lat'].coordinates)
-        assert_equal(c['lon'].coordinates, self.coords['lon'].coordinates)
-        assert_equal(c['time'].coordinates, self.coords['time'].coordinates)
-        assert_equal(c['alt'].coordinates, self.coords['alt'].coordinates)
+        d = c.definition
+        
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder)
 
+        c2 = Coordinates.from_definition(d)
+        assert c2 == c
+        
+    def test_invalid_definition(self):
         with pytest.raises(TypeError, match="Could not parse coordinates definition of type"):
             Coordinates.from_definition({'lat': [0, 1, 2]})
 
@@ -317,16 +319,16 @@ class TestCoordinatesDefinition(object):
             Coordinates.from_definition([{"data": [0, 1, 2]}])
 
     def test_json(self):
-        s = self.coords.json
-        json.loads(s)
-        c = Coordinates.from_json(s)
+        c = Coordinates(
+            [[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], crange(0, 10, 0.5)],
+            dims=['lat_lon', 'time', 'alt'])
 
-        assert isinstance(c, Coordinates)
-        assert c.dims == self.coords.dims
-        assert_equal(c['lat'].coordinates, self.coords['lat'].coordinates)
-        assert_equal(c['lon'].coordinates, self.coords['lon'].coordinates)
-        assert_equal(c['time'].coordinates, self.coords['time'].coordinates)
-        assert_equal(c['alt'].coordinates, self.coords['alt'].coordinates)
+        s = c.json
+
+        json.loads(s)
+        
+        c2 = Coordinates.from_json(s)
+        assert c2 == c
 
 class TestCoordinatesProperties(object):
     def test_xarray_coords(self):

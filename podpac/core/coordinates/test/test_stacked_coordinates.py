@@ -55,13 +55,16 @@ class TestStackedCoordinatesCreation(object):
         assert c['lat'].coord_ref_sys == 'SPHER_MERC'
         assert c['lon'].coord_ref_sys == 'SPHER_MERC'
 
-        # already explicitly set, don't override
+        # must match
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat', coord_ref_sys='WGS84')
+        lon = ArrayCoordinates1d([10, 20, 30], name='lon', coord_ref_sys='SPHER_MERC')
+        with pytest.raises(ValueError, match="coord_ref_sys mismatch"):
+            StackedCoordinates([lat, lon])
+
         lat = ArrayCoordinates1d([0, 1, 2], name='lat', coord_ref_sys='WGS84')
         lon = ArrayCoordinates1d([10, 20, 30], name='lon', coord_ref_sys='WGS84')
-        c = StackedCoordinates([lat, lon], coord_ref_sys='SPHER_MERC')
-
-        assert c['lat'].coord_ref_sys == 'WGS84'
-        assert c['lon'].coord_ref_sys == 'WGS84'
+        with pytest.raises(ValueError, match="coord_ref_sys mismatch"):
+            StackedCoordinates([lat, lon], coord_ref_sys='SPHER_MERC')
 
     def test_StackedCoordinates(self):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')

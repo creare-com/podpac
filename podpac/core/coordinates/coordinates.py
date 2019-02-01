@@ -18,6 +18,7 @@ import xarray as xr
 import xarray.core.coordinates
 from six import string_types
 
+import podpac
 from podpac.core.utils import OrderedDictTrait
 from podpac.core.coordinates.utils import GDAL_CRS
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
@@ -55,7 +56,7 @@ class Coordinates(tl.HasTraits):
         Tuple of individual dimension names, always unstacked.
     """
 
-    _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates))
+    _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
 
     def __init__(self, coords, dims=None, coord_ref_sys=None, ctype=None, distance_units=None):
         """
@@ -100,35 +101,25 @@ class Coordinates(tl.HasTraits):
         if len(dims) != len(coords):
             raise ValueError("coords and dims size mismatch, %d != %d" % (len(dims), len(coords)))
 
+        # get/create coordinates
         dcoords = OrderedDict()
         for i, dim in enumerate(dims):
             if dim in dcoords:
                 raise ValueError("Duplicate dimension name '%s' at position %d" % (dim, i))
 
-            # TODO default properties
             if isinstance(coords[i], BaseCoordinates):
-                c = coords[i].copy()
+                c = coords[i]
             elif '_' in dim:
                 cs = [val if isinstance(val, Coordinates1d) else ArrayCoordinates1d(val) for val in coords[i]]
                 c = StackedCoordinates(cs)
             else:
                 c = ArrayCoordinates1d(coords[i])
 
-            c.name = dim
             dcoords[dim] = c
-
-        # set 1d coordinates defaults
-        # TODO factor out, store as default_* traits, and pass on through StackedCoordinates as well
-        # maybe move to observe so that it gets validated first
-        # for c in dcoords.values():
-        #     if 'ctype' not in c.properties and ctype is not None:
-        #         c.set_trait('ctype', ctype)
-        #     if 'coord_ref_sys' not in c.properties and coord_ref_sys is not None:
-        #         c.set_trait('coord_ref_sys', coord_ref_sys)
-        #     if 'units' not in c.properties and distance_units is not None and c.name in ['lat', 'lon', 'alt']:
-        #         c.set_trait('units', distance_units)
-
-        super(Coordinates, self).__init__(_coords=dcoords)
+            self._set_properties(c, dim, ctype, distance_units, coord_ref_sys, i)
+        
+        self.set_trait('_coords', dcoords)
+        super(Coordinates, self).__init__()
 
     @tl.validate('_coords')
     def _validate_coords(self, d):
@@ -137,12 +128,42 @@ class Coordinates(tl.HasTraits):
             if dim != c.name:
                 raise ValueError("Dimension name mismatch, '%s' != '%s'" % (dim, c.name))
 
-        dims = [dim for c in self._coords.values() for dim in c.dims]
+        dims = [dim for c in val.values() for dim in c.dims]
         for dim in dims:
             if dims.count(dim) != 1:
                 raise ValueError("Duplicate dimension name '%s' in dims %s" % (dim, tuple(val.keys())))
 
+        # TODO check crs as well
+
         return val
+
+    def _set_properties(self, c, name, ctype, distance_units, coord_ref_sys, pos):
+        if isinstance(c, Coordinates1d):
+            cs = [c]
+            names = [name]
+        else:
+            cs = list(c)
+            names = name.split('_')
+
+        for c, name in zip(cs, names):
+            # the name should match
+            if c.name is None:
+                c.name = name
+            elif c.name != name:
+                raise ValueError("Dimension name mismatch '%s' != '%s' at position %d" % (c.name, name, pos))
+            
+            # the coord_ref_sys should match
+            if coord_ref_sys is not None:
+                if 'coord_ref_sys' not in c.properties:
+                    c.set_trait('coord_ref_sys', coord_ref_sys)
+                elif c.coord_ref_sys != c.coord_ref_sys:
+                    raise ValueError("coord_ref_sys mismatch %s != %s at pos %d" % (c.coord_ref_sys, crs, pos))
+
+            # only set ctype and units that aren't already set (don't worry if they don't match)
+            if ctype is not None and 'ctype' not in c.properties:
+                c.set_trait('ctype', ctype)
+            if distance_units is not None and c.name in ['lat', 'lon', 'alt'] and 'units' not in c.properties:
+                c.set_trait('units', distance_units)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors
@@ -448,7 +469,8 @@ class Coordinates(tl.HasTraits):
         elif c.name != dim:
             raise ValueError("Dimension name mismatch, '%s' != '%s'" % (dim, c.name))
 
-        # TODO ctype, etc defaults
+        # TODO check crs
+        # TODO actually, just call validation
 
         self._coords[dim] = c
 
@@ -474,14 +496,15 @@ class Coordinates(tl.HasTraits):
         if not isinstance(other, Coordinates):
             return False
 
+        # shortcuts
         if self.dims != other.dims:
             return False
 
         if self.shape != other.shape:
             return False
 
-        # this would be sufficient, the above checks quick shortcuts
-        if self.json != other.json:
+        # full check of underlying coordinates
+        if self._coords != other._coords:
             return False
 
         return True
@@ -604,7 +627,7 @@ class Coordinates(tl.HasTraits):
         from_json
         """
 
-        return json.dumps(self.definition)
+        return json.dumps(self.definition, cls=podpac.core.utils.JSONEncoder)
 
     @property
     def hash(self):
@@ -615,23 +638,6 @@ class Coordinates(tl.HasTraits):
         """
 
         return hash_alg(self.json.encode('utf-8')).hexdigest()
-
-    @property
-    def properties(self):
-        """:dict: Dictionary of the coordinate properties."""
-
-        # TODO JXM
-        # return {
-        #     'coord_ref_sys': self.coord_ref_sys,
-        #     'ctype': self.ctype
-        # }
-        if len(self.udims) == 0:
-            return {}
-        c = self[self.udims[0]]
-        return {
-            'coord_ref_sys': c.coord_ref_sys,
-            'ctype': c.ctype
-        }
 
     # #@property
     # #def gdal_transform(self):
@@ -649,7 +655,7 @@ class Coordinates(tl.HasTraits):
 
         # TODO enforce all have the same coord ref sys, possibly make that read-only and always passed from here
         # return GDAL_CRS[self.coord_ref_sys]
-        return GDAL_CRS[self[self.udims[0]].coord_ref_sys]
+        return GDAL_CRS[self._coords.values()[0].coord_ref_sys]
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -849,7 +855,7 @@ class Coordinates(tl.HasTraits):
         xr.DataArray.unstack
         """
 
-        return Coordinates([self[dim] for dim in self.udims], **self.properties)
+        return Coordinates([self[dim] for dim in self.udims])
 
     def iterchunks(self, shape, return_slices=False):
         """
@@ -914,7 +920,7 @@ class Coordinates(tl.HasTraits):
             return self
 
         else:
-            return Coordinates([self._coords[dim] for dim in dims], **self.properties)
+            return Coordinates([self._coords[dim] for dim in dims])
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
