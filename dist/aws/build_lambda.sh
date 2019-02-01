@@ -20,7 +20,8 @@ echo $DOCKER_NAME:$DOCKER_TAG
 
 # Build docker, and extract zips
 docker build -f DockerFile --no-cache --tag $DOCKER_NAME:$DOCKER_TAG --build-arg COMMIT_SHA="${COMMIT_SHA}" --build-arg TAG="${TAG}" .
-docker run --name "${DOCKER_NAME}" -itd $DOCKER_NAME:$DOCKER_TAG
+cd ../../..
+docker run -v "${pwd}":/mnt --name "${DOCKER_NAME}" -itd $DOCKER_NAME:$DOCKER_TAG
 docker cp "${DOCKER_NAME}":/tmp/vendored/podpac_dist.zip podpac_dist.zip
 docker cp "${DOCKER_NAME}":/tmp/vendored/podpac_deps.zip podpac_deps.zip
 docker stop "${DOCKER_NAME}"

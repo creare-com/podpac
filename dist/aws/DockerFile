@@ -23,6 +23,9 @@ RUN curl https://www.python.org/ftp/python/3.6.1/Python-3.6.1.tar.xz | tar -xJ \
     && cd .. \
     && rm -rf Python-3.6.1
 
+RUN pip3 install --upgrade pip3
+RUN pip3 install lazy-import
+
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # Some python modules needs numpy (sources) and cython
@@ -32,7 +35,7 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 RUN git clone https://github.com/creare-com/podpac.git && \
     cd podpac/ && \
-    if [ "x$TAG" = "x" ] ; then git checkout $COMMIT_SHA ; else git fetch --all --tags --prune && git checkout tags/$TAG ; fi && \
+    git checkout $COMMIT_SHA && \
     pip3 install -r dist/aws/aws_requirements.txt -t /tmp/vendored/
 
 # We can remove all tests/ script and other unused files
