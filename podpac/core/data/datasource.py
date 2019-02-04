@@ -348,7 +348,7 @@ class DataSource(Node):
             output = output.transpose(*requested_dims)
         
         # save output to private for debugging
-        if podpac.settings['DEBUG']:
+        if settings['DEBUG']:
             self._output = output
 
         return output
