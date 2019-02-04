@@ -23,9 +23,6 @@ RUN curl https://www.python.org/ftp/python/3.6.1/Python-3.6.1.tar.xz | tar -xJ \
     && cd .. \
     && rm -rf Python-3.6.1
 
-RUN pip3 install --upgrade pip3
-RUN pip3 install lazy-import
-
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # Some python modules needs numpy (sources) and cython
