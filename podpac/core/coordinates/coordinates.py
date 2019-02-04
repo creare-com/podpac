@@ -819,7 +819,7 @@ class Coordinates(tl.HasTraits):
         if return_indices:
             coords = Coordinates([c for c, I in intersections])
             idx = [I for c, I in intersections]
-            return coords, idx
+            return coords, tuple(idx)
         else:
             return Coordinates(intersections)
 
