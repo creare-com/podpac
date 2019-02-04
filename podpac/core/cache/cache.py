@@ -9,6 +9,8 @@ from glob import glob
 import shutil
 from hashlib import md5 as hash_alg
 import six
+import fnmatch
+# change when merging with develop so that the lazy import module is used.
 from podpac.core.utils import optional_import
 
 try:
@@ -16,6 +18,7 @@ try:
 except:
     import _pickle as cPickle
 
+# change when merging with develop so that the lazy import module is used.
 boto3 = optional_import('boto3')
 
 from podpac.core.settings import settings
@@ -570,6 +573,9 @@ class FileCacheStore(CacheStore):
     def load_container(self, path):
         pass
 
+    def _path_join(self, parts):
+        return os.path.join(*parts)
+
     def cache_dir(self, node):
         """subdirectory for caching data for `node`
         
@@ -586,7 +592,7 @@ class FileCacheStore(CacheStore):
         basedir = self._root_dir_path
         subdir = str(node.__class__)[8:-2].split('.')
         dirs = [basedir] + subdir
-        return (os.path.join(*dirs)).replace('<', '_').replace('>', '_')
+        return (self._path_join(dirs)).replace('<', '_').replace('>', '_')
 
     def cache_filename(self, node, key, coordinates):
         """Filename for storing cached data for specified node,key,coordinates
@@ -634,7 +640,7 @@ class FileCacheStore(CacheStore):
         TYPE : str
             filename (including containing directory)
         """
-        return os.path.join(self.cache_dir(node), self.cache_filename(node, key, coordinates))
+        return self._path_join([self.cache_dir(node), self.cache_filename(node, key, coordinates)])
 
     def cleanse_filename_str(self, s):
         """Remove/replace characters from string `s` that could could interfere with proper functioning of cache if used to construct cache filenames.
@@ -812,7 +818,7 @@ class DiskCacheStore(FileCacheStore):
         Parameters
         ----------
         root_cache_dir_path : None, optional
-            Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings.
+            Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings. Should be a fully specified valid path.
         storage_format : str, optional
             Indicates the file format for storage. Defaults to 'pickle' which is currently the only supported format.
         
@@ -825,7 +831,7 @@ class DiskCacheStore(FileCacheStore):
 
         # set cache dir
         if root_cache_dir_path is None:
-            root_cache_dir_path = settings['CACHE_DIR']
+            root_cache_dir_path = self._path_join(settings['ROOT_PATH'], settings['CACHE_DIR'])
         self._root_dir_path = root_cache_dir_path
 
         # make directory if it doesn't already exist
@@ -847,6 +853,9 @@ class DiskCacheStore(FileCacheStore):
 
     def load_container(self, path):
         return self._CacheContainerClass.load(path)
+
+    def _path_join(self, parts):
+        return os.path.join(*parts)
 
     def make_cache_dir(self, node):
         """Create subdirectory for caching data for `node`
@@ -882,7 +891,7 @@ class DiskCacheStore(FileCacheStore):
         cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
         filename = '_'.join([pre, nKeY, kKeY, cKeY])
         filename = filename + '.' + self._extension
-        return glob(os.path.join(self.cache_dir(node), filename))
+        return glob(self._path_join([self.cache_dir(node), filename]))
 
     def clear_entire_cache_store(self):
         shutil.rmtree(self._root_dir_path)
@@ -896,18 +905,31 @@ class DiskCacheStore(FileCacheStore):
 
 class S3CacheStore(FileCacheStore):
 
-    def __init__(self, root_cache_dir_path=None, storage_format='pickle', s3_bucket=None):
+    def __init__(self, root_cache_dir_path=None, storage_format='pickle', 
+                 s3_bucket=None, aws_region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
         """Initialize a cache that uses a folder on a local disk file system.
         
         Parameters
         ----------
         root_cache_dir_path : None, optional
-            Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings.
+            Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings. Should be the common "root" s3 prefix that you want to have all cached objects stored in. Do not store any objects in the bucket that share this prefix as they may be deleted by the cache.
         storage_format : str, optional
             Indicates the file format for storage. Defaults to 'pickle' which is currently the only supported format.
+        s3_bucket : str, optional
+            bucket name, overides settings
+        aws_region_name : str, optional
+            e.g. 'us-west-1', 'us-west-2','us-east-1'
+        aws_access_key_id : str, optional
+            overides podpac settings if both `aws_access_key_id` and `aws_secret_access_key` are specified
+        aws_secret_access_key : str, optional
+            overides podpac settings if both `aws_access_key_id` and `aws_secret_access_key` are specified
         
         Raises
         ------
+        CacheException
+            Description
+        e
+            Description
         NotImplementedError
             If unsupported `storage_format` is specified
         """
@@ -925,16 +947,38 @@ class S3CacheStore(FileCacheStore):
         self._storage_format = storage_format
         if s3_bucket is None:
             s3_bucket = settings['S3_BUCKET_NAME']
+        if aws_access_key_id is None or aws_secret_access_key is None: 
+             aws_access_key_id = settings['AWS_ACCESS_KEY_ID']
+             aws_secret_access_key = settings['AWS_SECRET_ACCESS_KEY']
+        if aws_region_name is None:
+            aws_region_name = settings['AWS_REGION_NAME']
+        aws_session = boto3.session.Session(region_name=aws_region_name)
+        self._s3_client = aws_session.client('s3', 
+                                             #config= boto3.session.Config(signature_version='s3v4'),
+                                             aws_access_key_id=aws_access_key_id,
+                                             aws_secret_access_key=aws_secret_access_key)
         self._s3_bucket = s3_bucket
-
+        try:
+            self._s3_client.head_bucket(Bucket=self._s3_bucket)
+        except Exception as e:
+            raise e
+# UNTESTED
     def save_container(self, container, path):
-        pass
-
+        s = container.serialize()
+        # note s needs to be b'bytes' or file below
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
+        response = self._s3_client.put_object(Bucket=self._s3_bucket, Body=s, Key=path)
+# UNTESTED
     def save_new_container(self, listings, path):
-        pass
-
+        self.save_container(self._CacheContainerClass(listings=listings),path)
+# UNTESTED
     def load_container(self, path):
-        pass
+        response = self._s3_client.get_object(Bucket=self._s3_bucket, Key=path)
+        s = response['Body'].read()
+        return self._CacheContainerClass.deserialize(s)
+# UNTESTED
+    def _path_join(self, parts):
+        return '/'.join(*parts)
 
     def make_cache_dir(self, node):
         """Create subdirectory for caching data for `node`
@@ -948,6 +992,7 @@ class S3CacheStore(FileCacheStore):
         # note: I believe AWS uses prefixes to decide how to partition objects in a bucket which could affect performance.
         pass
 
+# UNTESTED
     def cache_glob(self, node, key, coordinates):
         """Fileglob to match files that could be storing cached data for specified node,key,coordinates
         
@@ -964,20 +1009,33 @@ class S3CacheStore(FileCacheStore):
         TYPE : str
             Fileglob of existing paths that match the request
         """
+        delim = '/'
+        prefix = self.cache_dir(node)
+        prefix = prefix if prefix.endswith(delim) else prefix + delim
+        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter=delim)
+
+        obj_names = [o['Key'].replace(prefix,'') for o in response['Contents']]
+
         pre = '*'
         nKeY = 'nKeY{}'.format(self.hash_node(node))
         kKeY = 'kKeY*' if isinstance(key, CacheWildCard) else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
         cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
-        filename = '_'.join([pre, nKeY, kKeY, cKeY])
-        filename = filename + '.' + self._extension
-        return glob(os.path.join(self.cache_dir(node), filename))
+        pat = '_'.join([pre, nKeY, kKeY, cKeY])
+        pat = pat + '.' + self._extension
 
+        obj_names = fnmatch.filter(obj_names, pat)
+
+        paths = [delim.join(self.cache_dir(node), filename) for filename in obj_names]
+        return paths
+# TODO
     def clear_entire_cache_store(self):
-        shutil.rmtree(self._root_dir_path)
+        # shutil.rmtree(self._root_dir_path)
         return True
-
+# TODO
     def dir_is_empty(self, directory):
-        return os.path.exists(directory) and os.path.isdir(directory) and not os.listdir(directory)
-
+        #return os.path.exists(directory) and os.path.isdir(directory) and not os.listdir(directory)
+        return False
+# TODO
     def rem_dir(self, directory):
-        os.rmdir(directory)
+        #os.rmdir(directory)
+        pass
