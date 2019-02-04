@@ -570,7 +570,7 @@ def node_eval(fn):
         order = [dim for dim in coordinates.dims if dim in data.dims]
         data = data.transpose(*order)
 
-        if settings['debug']:
+        if settings['DEBUG']:
             self._output = data
 
         return data
