@@ -26,7 +26,7 @@ For installation instructions, see [install.md](doc/source/install.md).
 
 The official PODPAC documentation is available here: https://podpac.org
 
-For usage examples, see the [podpac_examples](https://github.com/creare-com/podpac_examples) repository. 
+For usage examples, see the [podpac-examples](https://github.com/creare-com/podpac_examples) repository. 
 
 ## Contributing
 
