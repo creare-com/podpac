@@ -9,16 +9,14 @@ from glob import glob
 import shutil
 from hashlib import md5 as hash_alg
 import six
+from podpac.core.utils import optional_import
 
 try:
     import cPickle  # Python 2.7
 except:
     import _pickle as cPickle
 
-try:
-    import boto3
-except:
-    boto3 = None
+boto3 = optional_import('boto3')
 
 from podpac.core.settings import settings
 
@@ -232,6 +230,11 @@ class CacheCtrl(object):
 
 class CacheStore(object):
 
+    """Abstract parent class for classes representing actual data stores (e.g. RAM, local disk, network storage).
+    Includes implementation of common hashing operations and call signature for required abstract methods: 
+    put(), get(), rem(), has()
+    """
+    
     def get_hash_val(self, obj):
         return hash_alg(obj).hexdigest()
 
@@ -325,7 +328,34 @@ class CacheStore(object):
 
 class CacheListing(object):
 
+    """Container for a single cached object. 
+    Includes information pertinent to retrieval of cached objects 
+    (e.g. representations of the node, key, and coordinages) and the actual cached data object.
+    
+    Attributes
+    ----------
+    coordinate_def : str
+        JSON representation of coordinates of cached object
+    data : any
+        actual cached data object
+    key : str
+        key for retrieval
+    """
+    
     def __init__(self, node, key, coordinates, data=None):
+        """
+        
+        Parameters
+        ------------
+        node : Node
+            node requesting storage.
+        data : any
+            Data to cache
+        key : str
+            Cached object key, e.g. 'output'.
+        coordinates : Coordinates, optional
+            Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
+        """
         self._node_def = node.definition
         self.key = key
         self.coordinate_def = None if coordinates is None else coordinates.json
@@ -333,49 +363,171 @@ class CacheListing(object):
 
     @property
     def node_def(self):
+        """Returns serialized representation of node definition for comparison purposes
+        
+        Returns
+        -------
+        bytes object
+            Serialized representation of node definition for comparison purposes
+        """
         return cPickle.dumps(self._node_def)
     
     def __eq__(self, other):
+        """Compares two CacheListing objects to determine appropriate behaviour for common cache operations
+        (e.g. put(), get(), rem(), has())
+        
+        Parameters
+        ----------
+        other : CacheListing
+            Cache Listing object to compare to.
+        
+        Returns
+        -------
+        boolean
+            True, if the other listing is equivalent to this listing
+        """
         return self.node_def == other.node_def and \
                self.key == other.key and \
                self.coordinate_def == other.coordinate_def
 
 class CachePickleContainer(object):
 
+    """Container for multiple cache listings that are different but whose signature (node, coordinates, key) hash are the same. Used for serializing the CacheListing objects to disk using pickle format.
+    
+    Attributes
+    ----------
+    listings : list
+        list of CacheListing objects that share the same signature hashes, but are actually different
+    """
+    
     def __init__(self, listings=[]):
+        """
+        
+        Parameters
+        ----------
+        listings : list, optional
+            CacheListing objects that share the same signature hashes, but are actually different
+        """
         self.listings = listings
 
+    def serialize(self):
+        """Convert this object to bytes so that it can be saved to local file, s3 object, etc.
+        """
+        return cPickle.dumps(self)
+
+    @staticmethod
+    def deserialize(s):
+        """Convert bytes to instance of CachePickleContainer. Used in conjunction with serialize.
+        
+        Parameters
+        ----------
+        s : str
+            bytes representing object
+        """
+        return cPickle.load(s)
+
+
     def save(self, filepath):
+        """Save this object to disk using pickle format.
+        This function can be used instead of serialize() to directly save to local disk.
+        
+        Parameters
+        ----------
+        filepath : str
+            path to file where this object should be saved
+        """
         with open(filepath, 'wb') as f:
             cPickle.dump(self, f)
 
     @staticmethod
     def load(path):
+        """Load this object from disk
+        This function can be used instead of deserialize() to directly load from local disk.
+        
+        Parameters
+        ----------
+        path : str
+            path to file where this object should be loaded from
+        
+        Returns
+        -------
+        CachePickleContainer
+            container stored at path
+        """
         with open(path, 'rb') as f:
             return cPickle.load(f)
 
     def put(self, listing):
+        """Add CacheListing object to this CachePickleContainer
+        
+        Parameters
+        ----------
+        listing : CacheListing
+            cache listing to add
+        """
         self.listings.append(listing)
 
     def get(self, listing):
+        """Check for CacheListing object from this CachePickleContainer
+        
+        Parameters
+        ----------
+        listing : CacheListing
+            listing with signature for lookup.
+        
+        Returns
+        -------
+        CacheListing
+            object in this CachePickleContainer that has the same signature as `listing`
+        
+        Raises
+        ------
+        CacheException
+            If no objects match signature of `liasting`
+        """
         for l in self.listings:
             if l == listing:
                 return l
         raise CacheException("Could not find requested listing.")
 
     def has(self, listing):
+        """Retrieve CacheListing object from this CachePickleContainer
+        
+        Parameters
+        ----------
+        listing : listing with signature for lookup.
+        
+        Returns
+        -------
+        boolean
+            True, if there is a CacheListing in this CachePickleContainer with the same signature as `listing`
+        """
         for l in self.listings:
             if l == listing:
                 return True
         return False
 
     def rem(self, listing):
+        """Removes CacheListing objecta from this CachePickleContainer
+        
+        Parameters
+        ----------
+        listing : CacheListing
+            cache listing with same signature as objects that should be removed
+        """
         for i,l in enumerate(self.listings):
             if l == listing:
                 self.listings.pop(i)
 
     @property
     def empty(self):
+        """Query for whether this CachePickleContainer is empty
+        
+        Returns
+        -------
+        boolean
+            True if this CachePickleContainer is empty
+        """
         if len(self.listings) == 0:
             return True
         return False
@@ -383,7 +535,11 @@ class CachePickleContainer(object):
 
 class FileCacheStore(CacheStore):
 
+    """Abstract class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
+    """
+    
     _cache_modes = ['all']
+    _CacheContainerClass = CachePickleContainer
 
     def __init__(self, *args, **kwargs):
         pass
@@ -406,6 +562,12 @@ class FileCacheStore(CacheStore):
         return False
 
     def make_cache_dir(self, node):
+        pass
+
+    def save_container(self, container, path):
+        pass
+
+    def load_container(self, path):
         pass
 
     def cache_dir(self, node):
@@ -515,23 +677,23 @@ class FileCacheStore(CacheStore):
             else:
                 paths = self.cache_glob(node, key, coordinates)
                 for p in paths:
-                    c = CachePickleContainer.load(p)
+                    c = self.load_container(p)
                     if c.has(listing):
                         c.rem(listing)
                         c.put(listing)
-                        c.save(p)
+                        self.save_container(c,p)
                         return True
                 raise CacheException("Data is cached, but unable to find for update.")
         # listing does not exist in cache
         path = self.cache_path(node, key, coordinates)
         # if file for listing already exists, listing needs to be added to file
         if os.path.exists(path):
-            c = CachePickleContainer.load(path)
+            c = self.load_container(path)
             c.put(listing)
-            c.save(path)
+            self.save_container(c,path)
         # if file for listing does not already exist, we need to create a new container, add the listing, and save to file
         else:
-            CachePickleContainer(listings=[listing]).save(path)
+            self.save_new_container(listings=[listing], path=path)
         return True
 
     def get(self, node, key, coordinates=None):
@@ -559,7 +721,7 @@ class FileCacheStore(CacheStore):
         listing = CacheListing(node=node, key=key, coordinates=coordinates)
         paths = self.cache_glob(node, key, coordinates)
         for p in paths:
-            c = CachePickleContainer.load(p)
+            c = self.load_container(p)
             if c.has(listing):
                 data = c.get(listing).data
                 if data is None:
@@ -606,14 +768,14 @@ class FileCacheStore(CacheStore):
         listing = CacheListing(node=node, key=key, coordinates=coordinates)
         paths = self.cache_glob(node, key, coordinates)
         for p in paths:
-            c = CachePickleContainer.load(p)
+            c = self.load_container(p)
             if c.has(listing):
                 c.rem(listing)
                 removed_something = True
                 if c.empty:
                     os.remove(p)
                 else:
-                    c.save(p)
+                    self.save_container(c,p)
         return removed_something
         
 
@@ -637,7 +799,7 @@ class FileCacheStore(CacheStore):
         listing = CacheListing(node=node, key=key, coordinates=coordinates)
         paths = self.cache_glob(node, key, coordinates)
         for p in paths:
-            c = CachePickleContainer.load(p)
+            c = self.load_container(p)
             if c.has(listing):
                 return True
         return False
@@ -672,9 +834,19 @@ class DiskCacheStore(FileCacheStore):
         # set extension
         if storage_format == 'pickle':
             self._extension = 'pkl'
+            self._CacheContainerClass = CachePickleContainer
         else:
             raise NotImplementedError
         self._storage_format = storage_format
+
+    def save_container(self, container, path):
+        container.save(path)
+
+    def save_new_container(self, listings, path):
+        self.save_container(self._CacheContainerClass(listings=listings),path)
+
+    def load_container(self, path):
+        return self._CacheContainerClass.load(path)
 
     def make_cache_dir(self, node):
         """Create subdirectory for caching data for `node`
@@ -747,12 +919,22 @@ class S3CacheStore(FileCacheStore):
         self._root_dir_path = root_cache_dir_path
         if storage_format == 'pickle':
             self._extension = 'pkl'
+            self._CacheContainerClass = CachePickleContainer
         else:
             raise NotImplementedError
         self._storage_format = storage_format
         if s3_bucket is None:
             s3_bucket = settings['S3_BUCKET_NAME']
         self._s3_bucket = s3_bucket
+
+    def save_container(self, container, path):
+        pass
+
+    def save_new_container(self, listings, path):
+        pass
+
+    def load_container(self, path):
+        pass
 
     def make_cache_dir(self, node):
         """Create subdirectory for caching data for `node`
@@ -762,6 +944,8 @@ class S3CacheStore(FileCacheStore):
         node : podpac.core.node.Node
             Description
         """
+        # Place holder. Does not need to do anything for S3 as the prefix is just part of the object name.
+        # note: I believe AWS uses prefixes to decide how to partition objects in a bucket which could affect performance.
         pass
 
     def cache_glob(self, node, key, coordinates):

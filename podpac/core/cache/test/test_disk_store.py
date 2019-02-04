@@ -10,7 +10,6 @@ from podpac.core.cache.cache import CacheStore
 from podpac.core.cache.cache import DiskCacheStore
 from podpac.core.cache.cache import CacheException
 from podpac.core.cache.cache import CacheListing
-from podpac.core.cache.cache import CachePickleContainer
 
 from podpac.core.data.types import Array
 from podpac.core.coordinates.coordinates import Coordinates
@@ -192,7 +191,7 @@ def test_put_something_new_into_existing_file():
                     store.make_cache_dir(node=n1)
                     path = store.cache_path(node=n1, key=k, coordinates=c1)
                     listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
-                    CachePickleContainer(listings=[listing]).save(path)
+                    store.save_new_container(listings=[listing], path=path)
                 assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
                 cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
                 assert cache.has(node=n1, key=k, coordinates=c1, mode='all')
@@ -205,7 +204,7 @@ def test_put_something_new_into_existing_file():
                 for store in disk_stores:
                     path = store.cache_path(node=n1, key=k, coordinates=c1)
                     assert os.path.exists(path)
-                    c = CachePickleContainer.load(path)
+                    c = store.load_container(path)
                     listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
                     assert c.has(listing)
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
