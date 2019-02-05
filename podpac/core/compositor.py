@@ -228,7 +228,7 @@ class Compositor(Node):
             for src in src_subset:
                 output = src.eval(coordinates, output)
                 yield output
-                output[:] = np.nan
+                #output[:] = np.nan
 
     @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
@@ -248,7 +248,7 @@ class Compositor(Node):
         """
         
         self._requested_coordinates = coordinates
-        
+         
         outputs = self.iteroutputs(coordinates)
         output = self.composite(outputs, output)
         return output
@@ -315,7 +315,7 @@ class OrderedCompositor(Compositor):
             source_mask = np.isfinite(output.data)
             b = ~mask & source_mask
             result.data[b] = output.data[b]
-            mask &= source_mask
+            mask |= source_mask
 
             # stop if the results are full
             if np.all(mask):

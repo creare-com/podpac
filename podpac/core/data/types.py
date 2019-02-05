@@ -30,7 +30,14 @@ from lazy_import import lazy_module
 bs4 = lazy_module('bs4')
 # Not used directly, but used indirectly by bs4 so want to check if it's available
 lxml = lazy_module('lxml')
-pydap = lazy_module('pydap.client', level='base')
+# Let's not lazy-load pydap
+try:
+    import pydap.client
+    import pydap.model
+except ImportError:
+    pydap = None
+#pydap = lazy_module('pydap.client', level='base')
+#pydap = lazy_module('pydap.model', level='base')
 rasterio = lazy_module('rasterio')
 h5py = lazy_module('h5py')
 boto3 = lazy_module('boto3')
@@ -385,6 +392,13 @@ class Rasterio(DataSource):
     native_coordinates : :class:`podpac.Coordinates`
         {native_coordinates}
 
+
+    Notes
+    ------
+    The source could be a path to an s3 bucket file, e.g.: s3://landsat-pds/L8/139/045/LC81390452014295LGN00/LC81390452014295LGN00_B1.TIF  
+    In that case, make sure to set the environmental variable: 
+    * Windows: set CURL_CA_BUNDLE=<path_to_conda_env>\Library\ssl\cacert.pem
+    * Linux: export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
     """
     
     source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)], allow_none=False)
