@@ -216,6 +216,7 @@ def generate_example_links():
     nbpath = os.path.join(os.path.join(os.path.dirname(__file__), os.path.normpath(path_to_examples_repository)), 'notebooks')
     if os.path.exists(nbpath):
         files = os.listdir(nbpath)
+        files.sort()
     else:
         print('no local podpac-examples repository found')
         files = []
@@ -224,11 +225,12 @@ def generate_example_links():
     string = '\n'.join([prestring + ' `{} <{}>`__'.format(f, base_link + '/' + f) for f in files if f.endswith('ipynb')])
 
     subdirs = [f for f in files if os.path.isdir(os.path.join(nbpath, f)) and f not in ['.ipynb_checkpoints', 'Images', 'old_examples', 'presentations']]
-
+    subdirs.sort()
     for sd in subdirs:
         path = os.path.join(nbpath, sd)
         link = base_link + '/' + sd
         fs = os.listdir(path)
+        fs.sort()
         string += '\n- {}\n'.format(sd)
         prestring = '   -'
         string += '\n'.join([prestring + ' `{} <{}>`__'.format(f, link + '/' + f) for f in fs if f.endswith('ipynb')])
