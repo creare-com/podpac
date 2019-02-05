@@ -30,14 +30,9 @@ from lazy_import import lazy_module
 bs4 = lazy_module('bs4')
 # Not used directly, but used indirectly by bs4 so want to check if it's available
 lxml = lazy_module('lxml')
-# Let's not lazy-load pydap
-try:
-    import pydap.client
-    import pydap.model
-except ImportError:
-    pydap = None
-#pydap = lazy_module('pydap.client', level='base')
-#pydap = lazy_module('pydap.model', level='base')
+pydap = lazy_module('pydap')
+lazy_module('pydap.client')
+lazy_module('pydap.model')
 rasterio = lazy_module('rasterio')
 h5py = lazy_module('h5py')
 boto3 = lazy_module('boto3')
