@@ -392,6 +392,13 @@ class Rasterio(DataSource):
     native_coordinates : :class:`podpac.Coordinates`
         {native_coordinates}
 
+
+    Notes
+    ------
+    The source could be a path to an s3 bucket file, e.g.: s3://landsat-pds/L8/139/045/LC81390452014295LGN00/LC81390452014295LGN00_B1.TIF  
+    In that case, make sure to set the environmental variable: 
+    * Windows: set CURL_CA_BUNDLE=<path_to_conda_env>\Library\ssl\cacert.pem
+    * Linux: export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
     """
     
     source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)], allow_none=False)
