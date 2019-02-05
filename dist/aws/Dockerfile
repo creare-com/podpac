@@ -13,46 +13,19 @@ RUN yum -y groupinstall development
 
 # Mock current AWS Lambda docker image
 # Find complete list of package https://gist.github.com/vincentsarago/acb33eb9f0502fcd38e0feadfe098eb7
-RUN  yum install -y libjpeg-devel libpng-devel libcurl-devel ImageMagick-devel.x86_64
-
-RUN curl https://www.python.org/ftp/python/3.6.1/Python-3.6.1.tar.xz | tar -xJ \
-    && cd Python-3.6.1 \
-    && ./configure --prefix=/usr/local --enable-shared \
-    && make \
-    && make install \
-    && cd .. \
-    && rm -rf Python-3.6.1
+RUN  yum install -y libjpeg-devel libpng-devel libcurl-devel ImageMagick-devel.x86_64 python3
 
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-
-# Some python modules needs numpy (sources) and cython
-# RUN pip3 install cython numpy xarray matplotlib -t /tmp/vendored --no-binary numpy
-
-# RUN cp -rfi /usr/local/lib/python3.6/site-packages/* /tmp/vendored/*
 
 RUN git clone https://github.com/creare-com/podpac.git && \
     cd podpac/ && \
     git checkout $COMMIT_SHA && \
     pip3 install -r dist/aws/aws_requirements.txt -t /tmp/vendored/
 
-# We can remove all tests/ script and other unused files
-# RUN find /tmp/vendored -name "*-info" -type d -exec rm -rdf {} +
-# RUN find /tmp/vendored -name "tests" -type d -exec rm -rdf {} +
-
-# RUN rm -rdf /tmp/vendored/jmespath/
-# RUN rm -rdf /tmp/vendored/docutils/
-# RUN rm -rdf /tmp/vendored/numpy/doc/
-# RUN du -sh /tmp/vendored
-
 RUN cd /tmp/vendored/ && touch pydap/__init__.py && \
     touch pydap/responses/__init__.py && \
     touch pydap/handlers/__init__.py && \
     touch pydap/parsers/__init__.py
-
-# Leave module precompiles for faster Lambda startup
-# RUN find /tmp/vendored -type f -name '*.pyc' | while read f; do n=$(echo $f | sed 's/__pycache__\///' | sed 's/.cpython-36//'); cp $f $n; done;
-# RUN find /tmp/vendored -type d -a -name '__pycache__' -print0 | xargs -0 rm -rf
-# RUN find /tmp/vendored -type f -a -name '*.py' -print0 | xargs -0 rm -f
 
 RUN cp -r /podpac/ /tmp/vendored/ && \
     mv /tmp/vendored/podpac/dist/aws/handler.py /tmp/vendored/handler.py && \
