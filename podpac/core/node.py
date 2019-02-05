@@ -523,7 +523,7 @@ class Node(tl.HasTraits):
         if self.cache_ctrl is None:
             return 
         if all_cache:
-            self.cache_ctrl.rem()
+            self.cache_ctrl.rem('*', '*')
         else:
             self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
 

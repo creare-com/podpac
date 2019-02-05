@@ -655,8 +655,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
             return None
 
         coords = copy.deepcopy(self.sources[0].native_coordinates)
-        del coords._coords['time']
-        return coords
+        return coords.drop('time')
 
     def get_available_coords_sources(self):
         """Read NSIDC site for available coordinate sources
