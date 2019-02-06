@@ -222,8 +222,9 @@ class ArrayCoordinates1d(Coordinates1d):
         if 'values' not in d:
             raise ValueError('ArrayCoordinates1d definition requires "values" property')
 
-        coords = d.pop('values')
-        return cls(coords, **d)
+        coords = d['values']
+        kwargs = {k:v for k,v in d.items() if k != 'values'}
+        return cls(coords, **kwargs)
 
     def copy(self):
         """

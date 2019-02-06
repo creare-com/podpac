@@ -210,9 +210,10 @@ class UniformCoordinates1d(Coordinates1d):
         if 'stop' not in d:
             raise ValueError('UniformCoordinates1d definition requires "stop" property')
 
-        start = d.pop('start')
-        stop = d.pop('stop')
-        return cls(start, stop, **d)
+        start = d['start']
+        stop = d['stop']
+        kwargs = {k:v for k,v in d.items() if k not in ['start', 'stop']}
+        return cls(start, stop, **kwargs)
 
     def copy(self):
         """
