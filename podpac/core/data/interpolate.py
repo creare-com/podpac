@@ -736,7 +736,7 @@ class ScipyGrid(ScipyPoint):
             lon = source_coordinates['lon'].coordinates
             s.append(slice(None, None))
             
-        data = source_data.data[s]
+        data = source_data.data[tuple(s)]
         
         # remove nan's
         I, J = np.isfinite(lat), np.isfinite(lon)
