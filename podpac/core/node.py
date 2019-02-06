@@ -15,7 +15,7 @@ import traitlets as tl
 
 from podpac.core.settings import settings
 from podpac.core.units import Units, UnitsDataArray, create_data_array
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, JSONEncoder
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import cache
@@ -87,8 +87,6 @@ class Node(tl.HasTraits):
         Class that controls caching. If not provided, uses default based on cache_type.
     dtype : type
         The numpy datatype of the output. Currently only ``float`` is supported.
-    node_defaults : dict
-        Dictionary of defaults values for attributes of a Node.
     style : :class:`podpac.Style`
         Object discribing how the output of a node should be displayed. This attribute is planned for deprecation in the
         future.
@@ -124,7 +122,6 @@ class Node(tl.HasTraits):
     def _cache_type_changed(self, change):
         self.cache_ctrl = self._cache_ctrl_default()
 
-    node_defaults = tl.Dict(allow_none=True)
     style = tl.Instance(Style)
 
     @tl.default('style')
@@ -156,17 +153,6 @@ class Node(tl.HasTraits):
     def __init__(self, **kwargs):
         """ Do not overwrite me """
         tkwargs = self._first_init(**kwargs)
-
-        # Add default values listed in dictionary
-        # self.node_defaults.update(tkwargs) <-- could almost do this...
-        #                                        but don't want to overwrite
-        #                                        node_defaults and want to
-        #                                        ignore 'node_defaults'
-        for key, val in self.node_defaults.items():
-            if key == 'node_defaults':
-                continue  # ignore this entry
-            if key not in tkwargs:  # Only add value if not in input
-                tkwargs[key] = val
 
         # Call traitlest constructor
         super(Node, self).__init__(**tkwargs)
@@ -320,7 +306,7 @@ class Node(tl.HasTraits):
                 attrs[key] = attr.definition
             else:
                 try:
-                    json.dumps(attr)
+                    json.dumps(attr, cls=JSONEncoder)
                 except:
                     raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
                 else:
@@ -359,14 +345,16 @@ class Node(tl.HasTraits):
                 d['lookup_source'] = add_node(d['lookup_source'])
             if 'lookup_attrs' in d:
                 for key, attr_node in d['lookup_attrs'].items():
-                    d['lookup_attrs'][key] = add_ode(input_node)
+                    d['lookup_attrs'][key] = add_node(input_node)
             if 'inputs' in d:
                 for key, input_node in d['inputs'].items():
                     if input_node is not None:
                         d['inputs'][key] = add_node(input_node)
             if 'sources' in d:
+                sources = []  # we need this list so that we don't overwrite the actual sources array
                 for i, source_node in enumerate(d['sources']):
-                    d['sources'][i] = add_node(source_node)
+                    sources.append(add_node(source_node))
+                d['sources'] = sources
 
             # get base ref and then ensure it is unique
             ref = node.base_ref
@@ -416,11 +404,11 @@ class Node(tl.HasTraits):
         This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to
         share algorithms and pipelines, or run code on cloud services.
         """
-        return json.dumps(self.definition)
+        return json.dumps(self.definition, cls=JSONEncoder)
 
     @property
     def json_pretty(self):
-        return json.dumps(self.definition, indent=4)
+        return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
     @property
     def hash(self):
@@ -535,7 +523,7 @@ class Node(tl.HasTraits):
         if self.cache_ctrl is None:
             return 
         if all_cache:
-            self.cache_ctrl.rem()
+            self.cache_ctrl.rem('*', '*')
         else:
             self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
 
@@ -582,7 +570,7 @@ def node_eval(fn):
         order = [dim for dim in coordinates.dims if dim in data.dims]
         data = data.transpose(*order)
 
-        if settings['debug']:
+        if settings['DEBUG']:
             self._output = data
 
         return data

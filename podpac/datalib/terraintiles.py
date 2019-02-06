@@ -45,13 +45,13 @@ from podpac.data import Rasterio
 from podpac.compositor import OrderedCompositor
 from podpac.interpolators import Rasterio as RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.data import interpolation_trait
-from podpac.core.utils import optional_import
+from lazy_import import lazy_module
 
 
 # optional imports
-boto3 = optional_import('boto3')
-botocore = optional_import('botocore')
-rasterio = optional_import('rasterio')
+boto3 = lazy_module('boto3')
+botocore = lazy_module('botocore')
+rasterio = lazy_module('rasterio')
 
 ####
 # module attributes
@@ -88,7 +88,7 @@ class TerrainTilesSource(Rasterio):
     """
 
     # parameters
-    source = tl.Unicode().tag(attr=True)
+    source = tl.Unicode()
 
     # attributes
     dataset = tl.Any()

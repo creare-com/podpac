@@ -4,6 +4,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import json
 import traitlets as tl
 from podpac.core.coordinates.coordinates import Coordinates
+from podpac.core.utils import JSONEncoder
 
 class GroupCoordinates(tl.HasTraits):
     """
@@ -186,7 +187,7 @@ class GroupCoordinates(tl.HasTraits):
         json
         """
 
-        return json.dumps(self.definition)
+        return json.dumps(self.definition, cls=JSONEncoder)
 
     @property
     def hash(self):

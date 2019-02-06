@@ -164,7 +164,7 @@ class DataSource(Node):
     
     _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _requested_source_coordinates = tl.Instance(Coordinates)
-    _requested_source_coordinates_index = tl.List()
+    _requested_source_coordinates_index = tl.Tuple()
     _requested_source_data = tl.Instance(UnitsDataArray)
 
     # when native_coordinates is not defined, default calls get_native_coordinates
@@ -348,7 +348,8 @@ class DataSource(Node):
             output = output.transpose(*requested_dims)
         
         # save output to private for debugging
-        self._output = output
+        if settings['DEBUG']:
+            self._output = output
 
         return output
 

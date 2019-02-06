@@ -7,6 +7,8 @@ import os
 import json
 from copy import deepcopy
 import errno
+import logging
+_logger = logging.getLogger(__name__)
 
 # Python 2/3 handling for JSONDecodeError
 try:
@@ -26,7 +28,9 @@ DEFAULT_SETTINGS = {
     'S3_BUCKET_NAME': None,
     'S3_JSON_FOLDER': None,
     'S3_OUTPUT_FOLDER': None,
-    'AUTOSAVE_SETTINGS': False
+    'AUTOSAVE_SETTINGS': False,
+    'LOG_TO_FILE': False,
+    'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log')
 }
 
 
@@ -94,6 +98,11 @@ class PodpacSettings(dict):
 
         # load settings from default locations
         self.load()
+        _logger.debug('Loaded podpac settings')
+        _logger.debug('Active podpac settings file: {}'.format(self.settings_path))
+        if self['AUTOSAVE_SETTINGS']:
+            _logger.debug('Auto-saving podpac settings to: {}'.format(self.settings_path))
+
 
         # set loaded flag
         self._loaded = True
@@ -126,6 +135,8 @@ class PodpacSettings(dict):
         for key in DEFAULT_SETTINGS:
             self[key] = DEFAULT_SETTINGS[key]
 
+        _logger.debug('Loaded podpac default settings')
+
     def _load_user_settings(self, path=None, filename='settings.json'):
         """Load user settings from settings.json file
         
@@ -149,10 +160,8 @@ class PodpacSettings(dict):
         # set settings path to default to start
         self._settings_filepath = root_filepath
 
-        # if input path is specifed, create the input path if it doesn't exist
+        # if input path is specifed, make sure it is not empty
         if path is not None:
-
-            # make empty settings path
             if not os.path.exists(path):
                 raise ValueError('Input podpac settings path does not exist: {}'.format(path))
 
@@ -174,11 +183,16 @@ class PodpacSettings(dict):
                 try:
                     with open(p, 'r') as f:
                         json_settings = json.load(f)
+                        _logger.debug('Loaded podpac settings from {}'.format(p))
                 except JSONDecodeError:
-
                     # if the root_filepath settings file is broken, raise
                     if p == root_filepath:
                         raise
+
+                    # otherwise warn
+                    else:
+                        _logger.warn('Failed to load podpac settings from {} with JSONDecodeError'.format(p))
+
 
                 # if path exists and settings loaded then load those settings into the dict
                 if json_settings is not None:
@@ -258,8 +272,9 @@ class PodpacSettings(dict):
         elif self['CACHE_DIR'] is None:
             self['CACHE_DIR'] = os.path.abspath(os.path.join(self['ROOT_PATH'], 'cache'))
 
-
-
-
 # load settings dict when module is loaded
 settings = PodpacSettings()
+
+if settings['LOG_TO_FILE']:
+    from podpac.core.utils import create_logfile
+    create_logfile()

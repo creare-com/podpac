@@ -50,7 +50,7 @@ class UnitsNode(tl.TraitType):
         
         if isinstance(value, podpac.Node):
             if 'units' in self.metadata and value.units is not None:
-                u = ureg.check(self.metadata['units'])(lambda x: x)(value.units)
+                u = ureg.check(self.metadata['units'])(lambda x: x)(value.units*1)
                 return value
         self.error(obj, value)
 

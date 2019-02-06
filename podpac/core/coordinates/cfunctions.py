@@ -63,13 +63,13 @@ def clinspace(start, stop, size, name=None):
     ValueError
         If the start and stop are not the same size.
     """
-
-    try:
-        a = np.array([start, stop])
-    except ValueError:
+    if np.array(start).size != np.array(stop).size:
         raise ValueError("Size mismatch, 'start' and 'stop' must have the same size (%s != %s)" % (
             np.array(start).size, np.array(stop).size))
-
+    
+    # As of numpy 0.16, np.array([0, (0, 10)]) no longer raises a ValueError
+    # so we have to explicitly check for sizes of start and stop (see above)
+    a = np.array([start, stop])
     if a.ndim == 2:
         c = StackedCoordinates([UniformCoordinates1d(start[i], stop[i], size=size) for i in range(a[0].size)])
     else:

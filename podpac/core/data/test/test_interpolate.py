@@ -346,7 +346,7 @@ class TestInterpolation(object):
 
         assert len(coords) == len(srccoords)
         assert len(coords['lat']) == len(srccoords['lat'])
-        assert cidx == []
+        assert cidx == ()
 
     def test_interpolate(self):
 

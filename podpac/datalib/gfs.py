@@ -8,12 +8,14 @@ import traitlets as tl
 import numpy as np
 
 # Helper utility for optional imports
-from podpac.core.utils import optional_import
+from lazy_import import lazy_module
 
-rasterio = optional_import('rasterio')
-boto3 = optional_import('boto3')
-botocore = optional_import('botocore')
+# Optional Imports
+rasterio = lazy_module('rasterio')
+boto3 = lazy_module('boto3')
+botocore = lazy_module('botocore')
 
+# Internal imports
 from podpac.data import DataSource, Rasterio
 from podpac.coordinates import Coordinates, merge_dims
 

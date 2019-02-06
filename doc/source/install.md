@@ -5,7 +5,7 @@ You can install the `podpac` module by downloading one of the [standalone distri
 
 ## Standalone Distibutions
 
-### Window 10
+### Windows 10
 
 A full Windows 10 Installation of PODPAC can be downloaded from:
 
@@ -13,7 +13,7 @@ A full Windows 10 Installation of PODPAC can be downloaded from:
 
 For older versions, substitute `latest` in the url with the version number:
 
-- `0.2.0`: [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.2.0_install_windows10.zip)
+- `0.3.0`: [https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.3.0_install_windows10.zip](https://s3.amazonaws.com/podpac-s3/releases/PODPAC_0.3.0_install_windows10.zip)
 
 Once downloaded, extract the zip file in a folder on your machine.
 We recommend expanding it near the root of your drive (e.g. `C:\PODPAC`) due to long file paths that are part of the installation.
@@ -21,7 +21,7 @@ Once the folder is unzipped:
 
 * To run an IPython session:
     1. Open a Windows command prompt in this directory
-    2. Run the `bin\run_ipython.bat` script
+    2. Run the `run_ipython.bat` script
 * To open the example notebooks, run the `run_podpac_jupyterlab.bat` script, by double-clicking the icon
     * This will open up a Windows command prompt, and launch a JupyterLab notebook in your default web browser
     * Older browsers may not support JupyterLab, as such the url with the token can be copied and pasted from the Windows command prompt that was launched
@@ -123,10 +123,10 @@ Checkout the latest or desired version:
 ```bash
 $ git checkout tags/<version> release/<version>  
 ```
-For example to checkout version 0.2.0 use:
+For example to checkout version 0.3.0 use:
 
 ```bash
-$ git checkout tags/0.2.0 release/0.2.0
+$ git checkout tags/0.3.0 release/0.3.0
 ```
 
 To install podpac with only the core dependencies, execute the following from the `podpac` folder:

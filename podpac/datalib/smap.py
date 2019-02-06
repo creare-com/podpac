@@ -18,7 +18,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import os
 import re
 import copy
-import warnings
+import logging
 
 import requests
 from six import string_types
@@ -26,11 +26,15 @@ import numpy as np
 import xarray as xr
 import traitlets as tl
 
+# Set up logging
+_logger = logging.getLogger(__name__)
+
 # Helper utility for optional imports
-from podpac.core.utils import optional_import
+from lazy_import import lazy_module
 
 # Optional dependencies
-bs4 = optional_import('bs4')
+bs4 = lazy_module('bs4')
+boto3 = lazy_module('boto3')
 
 # fixing problem with older versions of numpy
 if not hasattr(np, 'isnat'):
@@ -83,12 +87,6 @@ COMMON_DOC.update(
        })
 
 
-# Optional Dependencies
-try:
-    import boto3
-except:
-    boto3 = None
-
 @common_doc(COMMON_DOC)
 def smap2np_date(date):
     """Convert dates using the format in SMAP to numpy datetime64
@@ -139,15 +137,18 @@ def _get_from_url(url, auth_session):
     try:
         r = auth_session.get(url)
         if r.status_code != 200:
+            _logger.warning('Could not connect to {}, status code {}'.format(url, r.status_code))
+            _logger.info('Trying to connect to {}'.format(url.replace('opendap/', '')))
             r = auth_session.get(url.replace('opendap/', ''))
             if r.status_code != 200:
+                _logger.error('Could not connect to {} to retrieve data, status code {}'.format(url, r.status_code))
                 raise RuntimeError('HTTP error: <%d>\n' % (r.status_code)
-                                   + r.text[:256])
+                                   + r.text[:4096])
     except requests.ConnectionError as e:
-        warnings.warn('WARNING: cannot connect to {}:'.format(url) + str(e))
+        _logger.warning('Cannot connect to {}:'.format(url) + str(e))
         r = None
     except RuntimeError as e:
-        warnings.warn('WARNING: cannot authenticate to {}:'.format(url) + str(e))
+        _logger.warning('Cannot authenticate to {}. Check credentials. Error was as follows:'.format(url) + str(e))
     return r
 
 
@@ -208,20 +209,20 @@ def SMAP_BASE_URL():
         if 'https://' in rf and 'nsidc.org' in rf:
             BASE_URL = rf
     except Exception as e:
-        warnings.warn("Could not retrieve SMAP url from %s: " % (SMAP_BASE_URL_FILE) + str(e))
+        _logger.warning("Could not retrieve SMAP url from %s: " % (SMAP_BASE_URL_FILE) + str(e))
     try:
         r = requests.get('https://s3.amazonaws.com/podpac-s3/settings/nsidc_smap_opendap_url.txt').text
         if 'https://' in r and 'nsidc.org' in r:
             if rf != r:
-                warnings.warn("Updating SMAP url from PODPAC S3 Server.")
+                _logger.warning("Updating SMAP url from PODPAC S3 Server.")
                 BASE_URL = r
                 try:
                     with open(SMAP_BASE_URL_FILE, 'w') as fid:
                         fid.write(r)
                 except Exception as e:
-                    warnings.warn("Could not overwrite SMAP url update on disk:" + str(e))
+                    _logger.warning("Could not overwrite SMAP url update on disk:" + str(e))
     except Exception as e:
-        warnings.warn("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
+        logger.warning("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
     _SMAP_BASE_URL = BASE_URL
     return BASE_URL
 
@@ -258,7 +259,7 @@ class SMAPSource(datatype.PyDAP):
         try:
             session.get(SMAP_BASE_URL())
         except Exception as e:
-            print("Unknown exception: ", e)
+            _logger.warning("Unknown exception: ", e)
         return session
 
     #date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
@@ -654,8 +655,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
             return None
 
         coords = copy.deepcopy(self.sources[0].native_coordinates)
-        del coords._coords['time']
-        return coords
+        return coords.drop('time')
 
     def get_available_coords_sources(self):
         """Read NSIDC site for available coordinate sources
@@ -677,7 +677,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         url = self.source
         r = _get_from_url(url, self.auth_session)
         if r is None:
-            warnings.warn("WARNING: Could not contact {} to retrieve source coordinates".format(url))
+            _logger.warning("Could not contact {} to retrieve source coordinates".format(url))
             return np.array([]), None, np.array([])
         soup = bs4.BeautifulSoup(r.text, 'lxml')
         a = soup.find_all('a')
@@ -835,7 +835,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         These coordinates are computed, assuming dataset is regular.
         '''
         if self.product in SMAP_IRREGULAR_COORDINATES:
-            raise Exception("Native coordinates too large. Try using partial native coordinates.")
+            raise Exception("Native coordinates too large. Try using get_filename_coordinates_sources().")
         
         shared = self.get_shared_coordinates()
         partial_sources = self.get_source_coordinates()['time'].coordinates
@@ -868,7 +868,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         url = '/'.join([self.base_url, '%s.%03d' % (self.product, self.version)])
         r = _get_from_url(url, self.auth_session)
         if r is None:
-            warnings.warn("WARNING: Could not contact {} to retrieve source coordinates".format(url))
+            _logger.warning("Could not contact {} to retrieve source coordinates".format(url))
             return np.array([]), []
         soup = bs4.BeautifulSoup(r.text, 'lxml')
         a = soup.find_all('a')
@@ -1011,5 +1011,3 @@ class SMAPBestAvailable(podpac.compositor.OrderedCompositor):
 
     def get_shared_coordinates(self):
         return None # NO shared coordiantes
-
-

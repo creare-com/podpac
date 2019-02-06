@@ -51,7 +51,6 @@ $ python setup.py bdist_wheel sdist
 8. Upload package to [TestPypi](https://packaging.python.org/guides/using-testpypi/). You will need to be listed as a package owner at
 https://pypi.python.org/pypi/podpac for this to work.
 
-
 ```bash
 $ twine upload --repository-url https://test.pypi.org/legacy/ dist/podpac-X.Y.Z*
 ```
@@ -64,4 +63,6 @@ https://pypi.python.org/pypi/podpac for this to work.
 $ twine upload dist/podpac-X.Y.Z*
 ```
 
-10. Issue the release announcement (tbd)
+10. Tag the `master` branch of [creare-com/podpac-examples](https://github.com/creare-com/podpac-examples) with the same semantic version.
+
+11. Issue the release announcement (tbd)
