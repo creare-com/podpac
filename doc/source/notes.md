@@ -18,10 +18,10 @@ These instructions only assume that you already have [git](https://git-scm.com/)
 $ git clone https://github.com/creare-com/podpac.git
 $ git clone https://github.com/creare-com/podpac_examples.git
 $ cd podpac
-$ git checkout tags/<version> release/<version>  # as of writing, the <version> is 0.2.0
+$ git checkout tags/<version> release/<version>  # as of writing, the <version> is 0.3.0
 $ cd ..
 $ copy podpac\dist\local_Windows_install\* .
-$ set_local_conda_path.bat
+$ bin/set_local_conda_path.bat
 
 # Verify path is set correctly
 $ where conda
@@ -67,6 +67,6 @@ $ conda clean -a -y
 * To run an IPython console: Open up a Windows command prompt in `<root_folder>`
 
 ```bash
-$ bin\run_ipython.bat
+$ run_ipython.bat
 ```
 
