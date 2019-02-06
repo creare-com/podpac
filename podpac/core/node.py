@@ -15,7 +15,7 @@ import traitlets as tl
 
 from podpac.core.settings import settings
 from podpac.core.units import Units, UnitsDataArray, create_data_array
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, JSONEncoder
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import cache
@@ -306,7 +306,7 @@ class Node(tl.HasTraits):
                 attrs[key] = attr.definition
             else:
                 try:
-                    json.dumps(attr)
+                    json.dumps(attr, cls=JSONEncoder)
                 except:
                     raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
                 else:
@@ -404,11 +404,11 @@ class Node(tl.HasTraits):
         This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to
         share algorithms and pipelines, or run code on cloud services.
         """
-        return json.dumps(self.definition)
+        return json.dumps(self.definition, cls=JSONEncoder)
 
     @property
     def json_pretty(self):
-        return json.dumps(self.definition, indent=4)
+        return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
     @property
     def hash(self):

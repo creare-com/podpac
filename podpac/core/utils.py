@@ -18,6 +18,7 @@ import numpy as np
 # create log for module
 _log = logging.getLogger(__name__)
 
+import podpac
 from . import settings
 
 def common_doc(doc_dict):
@@ -166,7 +167,9 @@ if sys.version < '3.6':
         default_value = OrderedDict()
         
         def validate(self, obj, value):
-            if not isinstance(value, OrderedDict):
+            if value == {}:
+                value = OrderedDict()
+            elif not isinstance(value, OrderedDict):
                 raise tl.TraitError(
                     "The '%s' trait of an %s instance must be an OrderedDict, but a value of %s %s was specified" % (
                         self.name, obj.__class__.__name__, value, type(value)))
@@ -223,3 +226,26 @@ class ArrayTrait(tl.TraitType):
                         self.name, obj.__class__.__name__, self.dtype, value.dtype))
 
         return value
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        # numpy arrays
+        if isinstance(obj, np.ndarray):
+            if np.issubdtype(obj.dtype, np.datetime64):
+                return obj.astype(str).tolist()
+            elif np.issubdtype(obj.dtype, np.timedelta64):
+                f = np.vectorize(podpac.core.coordinates.utils.make_timedelta_string)
+                return f(obj).tolist()
+            elif np.issubdtype(obj.dtype, np.number):
+                return obj.tolist()
+        
+        # datetime64
+        elif isinstance(obj, np.datetime64):
+            return obj.astype(str)
+
+        # timedelta64
+        elif isinstance(obj, np.timedelta64):
+            return podpac.core.coordinates.utils.make_timedelta_string(obj)
+        
+        # default
+        return json.JSONEncoder.default(self, obj)
