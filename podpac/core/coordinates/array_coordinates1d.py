@@ -437,8 +437,14 @@ class ArrayCoordinates1d(Coordinates1d):
             I = slice(start, stop+1)
 
         else:
-            gt = self.coords >= max(self.coords[self.coords <= bounds[0]], default=-np.inf)
-            lt = self.coords <= min(self.coords[self.coords >= bounds[1]], default=np.inf)
+            try:
+                gt = self.coords >= max(self.coords[self.coords <= bounds[0]])
+            except ValueError as e:
+                gt = self.coords >= -np.inf
+            try:
+                lt = self.coords <= min(self.coords[self.coords >= bounds[1]])
+            except ValueError as e:
+                lt = self.coords <= np.inf
             I = np.where(gt & lt)[0]
 
         if return_indices:
