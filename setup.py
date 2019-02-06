@@ -45,7 +45,7 @@ extras_require = {
         'ipywidgets',
         'ipympl',
         'nodejs',
-        'cartopy'
+        #'cartopy'
     ],
     'esri': [
         # 'arcpy',
