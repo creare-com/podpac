@@ -61,7 +61,9 @@ $ python -m ipykernel install --user
 
 # clean conda environment
 $ conda clean -a -y
+# Also delete miniconda/pkgs/.trash for a smaller installation
 ```
+
 
 * To run a `JupyterLab` sessions in the `<root_folder>\podpac_examples\notebooks` directory, double-click on the `run_podpac_jupyterlab.bat`. This will launch a browser window in the folder where PODPAC keeps its example notebooks.
 * To run an IPython console: Open up a Windows command prompt in `<root_folder>`
