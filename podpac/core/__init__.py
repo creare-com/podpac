@@ -17,6 +17,7 @@ del sys
 
 requests = lazy_import.lazy_module('requests')
 pint = lazy_import.lazy_module('pint')
+matplotlib = lazy_import.lazy_module('matplotlib')
 plt = lazy_import.lazy_module('matplotlib.pyplot')
 np = lazy_import.lazy_module('numpy')
 sp = lazy_import.lazy_module('scipy')

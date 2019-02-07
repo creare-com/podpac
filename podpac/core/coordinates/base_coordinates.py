@@ -57,19 +57,3 @@ class BaseCoordinates(tl.HasTraits):
 
     def __repr__(self):
         raise NotImplementedError
-
-    def __eq__(self, other):
-        if not isinstance(other, self.__class__):
-            return False
-
-        if self.dims != other.dims:
-            return False
-
-        if self.size != other.size:
-            return False
-
-        # this would be sufficient, the above checks quick shortcuts
-        if json.dumps(self.definition) != json.dumps(other.definition):
-            return False
-
-        return True

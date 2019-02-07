@@ -57,10 +57,11 @@ class TestCompositor(object):
     # TODO Test non None (basic cases) just to call unstable methods.
     # These functions are volatile, and may be difficult to test until their
     # spec is complete.
+    
     def test_compositor_implemented_functions(self):
         acoords = podpac.Coordinates([podpac.clinspace(0, 1, 11), podpac.clinspace(0, 1, 11)], dims=['lat', 'lon'])
         bcoords = podpac.Coordinates([podpac.clinspace(2, 3, 10), podpac.clinspace(2, 3, 10)], dims=['lat', 'lon'])
-        scoords = podpac.Coordinates([[(0.5, 0.5), (2.5, 2.5)]], dims=['lat_lon'])
+        scoords = podpac.Coordinates([[(0.5, 2.5), (0.5, 2.5)]], dims=['lat_lon'])
         
         a = Array(source=np.random.random(acoords.shape), native_coordinates=acoords)
         b = Array(source=-np.random.random(bcoords.shape), native_coordinates=bcoords)

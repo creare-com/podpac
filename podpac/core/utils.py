@@ -18,6 +18,9 @@ import numpy as np
 # create log for module
 _log = logging.getLogger(__name__)
 
+import podpac
+from . import settings
+
 def common_doc(doc_dict):
     """ Decorator: replaces commond fields in a function docstring
 
@@ -107,9 +110,10 @@ def trait_is_defined(obj, trait):
     return obj.has_trait(trait) and trait in obj._trait_values
 
 
-def create_logfile(filename='podpac.log',
+def create_logfile(filename=settings.settings['LOG_FILE_PATH'],
                    level=logging.INFO,
-                   format='[%(asctime)s] %(name)s - %(levelname)s - %(message)s'):
+                   format='[%(asctime)s] %(name)s.%(funcName)s[%(lineno)d] - %(levelname)s - %(message)s'
+                   ):
     """Convience method to create a log file that only logs
     podpac related messages
     
@@ -123,7 +127,8 @@ def create_logfile(filename='podpac.log',
     format : str, optional
         String format for log messages.
         See https://docs.python.org/3/library/logging.html#logrecord-attributes
-        for creating format
+        for creating format. Default is: 
+        format='[%(asctime)s] %(name)s.%(funcName)s[%(lineno)d] - %(levelname)s - %(message)s'
     
     Returns
     -------
@@ -133,6 +138,9 @@ def create_logfile(filename='podpac.log',
     # get logger for podpac module only
     log = logging.getLogger('podpac')
     log.setLevel(level)
+
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(filename), exist_ok=True)    
 
     # create a file handler
     handler = logging.FileHandler(filename, 'a')
@@ -146,7 +154,7 @@ def create_logfile(filename='podpac.log',
     log.addHandler(handler)
 
     # insert log from utils into logfile
-    _log.info('created logfile')
+    _log.info('Logging to file {}'.format(filename))
 
     return log, handler, formatter
 
@@ -159,7 +167,9 @@ if sys.version < '3.6':
         default_value = OrderedDict()
         
         def validate(self, obj, value):
-            if not isinstance(value, OrderedDict):
+            if value == {}:
+                value = OrderedDict()
+            elif not isinstance(value, OrderedDict):
                 raise tl.TraitError(
                     "The '%s' trait of an %s instance must be an OrderedDict, but a value of %s %s was specified" % (
                         self.name, obj.__class__.__name__, value, type(value)))
@@ -216,3 +226,26 @@ class ArrayTrait(tl.TraitType):
                         self.name, obj.__class__.__name__, self.dtype, value.dtype))
 
         return value
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        # numpy arrays
+        if isinstance(obj, np.ndarray):
+            if np.issubdtype(obj.dtype, np.datetime64):
+                return obj.astype(str).tolist()
+            elif np.issubdtype(obj.dtype, np.timedelta64):
+                f = np.vectorize(podpac.core.coordinates.utils.make_timedelta_string)
+                return f(obj).tolist()
+            elif np.issubdtype(obj.dtype, np.number):
+                return obj.tolist()
+        
+        # datetime64
+        elif isinstance(obj, np.datetime64):
+            return obj.astype(str)
+
+        # timedelta64
+        elif isinstance(obj, np.timedelta64):
+            return podpac.core.coordinates.utils.make_timedelta_string(obj)
+        
+        # default
+        return json.JSONEncoder.default(self, obj)
