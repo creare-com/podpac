@@ -309,6 +309,12 @@ class TestClass(object):
         pass
 ```
 
+To invoke tests with `--ci` command line option:
+
+```bash
+$ pytest --ci podpac
+```
+
 ### Code Coverage
 
 We use [`pytest-cov`](https://github.com/pytest-dev/pytest-cov) (which uses [`coverage`](https://coverage.readthedocs.io/en/coverage-4.5.1/) underneath) to monitor code coverage of unit tests. To record coverage while running tests, run:
