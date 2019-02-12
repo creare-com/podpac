@@ -919,6 +919,8 @@ class DiskCacheStore(FileCacheStore):
 
 class S3CacheStore(FileCacheStore):
 
+    _delim = '/'
+
     def __init__(self, root_cache_dir_path=None, storage_format='pickle', 
                  s3_bucket=None, aws_region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
         """Initialize a cache that uses a folder on a local disk file system.
@@ -976,24 +978,24 @@ class S3CacheStore(FileCacheStore):
             self._s3_client.head_bucket(Bucket=self._s3_bucket)
         except Exception as e:
             raise e
-# UNTESTED
+
     def save_container(self, container, path):
         s = container.serialize()
         # note s needs to be b'bytes' or file below
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
         response = self._s3_client.put_object(Bucket=self._s3_bucket, Body=s, Key=path)
-# UNTESTED
+
     def save_new_container(self, listings, path):
         self.save_container(self._CacheContainerClass(listings=listings),path)
-# UNTESTED
+
     def load_container(self, path):
         response = self._s3_client.get_object(Bucket=self._s3_bucket, Key=path)
         s = response['Body'].read()
         return self._CacheContainerClass.deserialize(s)
-# UNTESTED
+
     def _path_join(self, parts):
-        return '/'.join(parts)
-# UNTESTED
+        return self._delim.join(parts)
+
     def delete_file(self, path):
         self._s3_client.delete_object(Bucket=self._s3_bucket, Key=path)
 
@@ -1014,7 +1016,6 @@ class S3CacheStore(FileCacheStore):
         # note: I believe AWS uses prefixes to decide how to partition objects in a bucket which could affect performance.
         pass
 
-# UNTESTED
     def cache_glob(self, node, key, coordinates):
         """Fileglob to match files that could be storing cached data for specified node,key,coordinates
         
@@ -1031,7 +1032,7 @@ class S3CacheStore(FileCacheStore):
         TYPE : str
             Fileglob of existing paths that match the request
         """
-        delim = '/'
+        delim = self._delim
         prefix = self.cache_dir(node)
         prefix = prefix if prefix.endswith(delim) else prefix + delim
         response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter=delim)
@@ -1052,9 +1053,8 @@ class S3CacheStore(FileCacheStore):
 
         paths = [delim.join([self.cache_dir(node), filename]) for filename in obj_names]
         return paths
-# TODO
+
     def clear_entire_cache_store(self):
-        # shutil.rmtree(self._root_dir_path)
         prefix = self._root_dir_path
         paginator = self._s3_client.get_paginator('list_objects_v2')
         pages = paginator.paginate(Bucket=self._s3_bucket, Prefix=prefix)
@@ -1071,13 +1071,17 @@ class S3CacheStore(FileCacheStore):
             self._s3_client.delete_objects(Bucket=self._s3_bucket, Delete=to_delete)
 
         return True
-# TODO
+
     def dir_is_empty(self, directory):
-        #return os.path.exists(directory) and os.path.isdir(directory) and not os.listdir(directory)
-        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=directory, MaxKeys=1)
-        return response['KeyCount'] > 0
+        if not directory.endswith(self._delim):
+            directory += self._delim
+        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=directory, MaxKeys=2)
+#TODO throw an error if key count is zero as this indicates `directory` is not an existing directory.
+        return response['KeyCount'] == 1
 # TODO
     def rem_dir(self, directory):
-        # pass. This is only used for deleting empty directories which is not needed for s3.
-        #os.rmdir(directory)
+        # s3 can have "empty" directories
+        # should check if directory is empty and the delete
+        # delete_object (singular) may be a good choice. Will possibly throw an error.
+        # delete_objects could be used if recursive=True is specified to this function.
         pass
