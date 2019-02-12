@@ -427,7 +427,7 @@ class CachePickleContainer(object):
         s : str
             bytes representing object
         """
-        return cPickle.load(s)
+        return cPickle.loads(s)
 
 
     def save(self, filepath):
@@ -545,7 +545,7 @@ class FileCacheStore(CacheStore):
     _CacheContainerClass = CachePickleContainer
 
     def __init__(self, *args, **kwargs):
-        pass
+        raise NotImplementedError
 
     def cache_modes_matches(self, modes):
         """Returns True if this CacheStore matches any caching modes in `modes`
@@ -565,16 +565,22 @@ class FileCacheStore(CacheStore):
         return False
 
     def make_cache_dir(self, node):
-        pass
+        raise NotImplementedError
 
     def save_container(self, container, path):
-        pass
+        raise NotImplementedError
 
     def load_container(self, path):
-        pass
+        raise NotImplementedError
 
     def _path_join(self, parts):
-        return os.path.join(*parts)
+        raise NotImplementedError
+
+    def delete_file(self, path):
+        raise NotImplementedError
+
+    def file_exists(self, path):
+        raise NotImplementedError
 
     def cache_dir(self, node):
         """subdirectory for caching data for `node`
@@ -621,7 +627,7 @@ class FileCacheStore(CacheStore):
         return filename
 
     def cache_glob(self, node, key, coordinates):
-        pass
+        raise NotImplementedError
 
     def cache_path(self, node, key, coordinates):
         """Filepath for storing cached data for specified node,key,coordinates
@@ -693,7 +699,7 @@ class FileCacheStore(CacheStore):
         # listing does not exist in cache
         path = self.cache_path(node, key, coordinates)
         # if file for listing already exists, listing needs to be added to file
-        if os.path.exists(path):
+        if self.file_exists(path):
             c = self.load_container(path)
             c.put(listing)
             self.save_container(c,path)
@@ -736,13 +742,13 @@ class FileCacheStore(CacheStore):
         raise CacheException("Cache miss. Requested data not found.")
 
     def clear_entire_cache_store(self):
-        pass
+        raise NotImplementedError
 
     def dir_is_empty(self, directory):
-        pass
+        raise NotImplementedError
 
     def rem_dir(self, directory):
-        pass
+        raise NotImplementedError
 
     def rem(self, node=CacheWildCard(), key=CacheWildCard(), coordinates=CacheWildCard()):
         '''Delete cached data for this node.
@@ -765,7 +771,7 @@ class FileCacheStore(CacheStore):
             # and delete its cache subdirectory if it is empty
             paths = self.cache_glob(node, key=key, coordinates=coordinates)
             for p in paths:
-                os.remove(p)
+                self.delete_file(p)
                 removed_something = True
             cache_dir = self.cache_dir(node=node)
             if self.dir_is_empty(cache_dir):
@@ -774,12 +780,14 @@ class FileCacheStore(CacheStore):
         listing = CacheListing(node=node, key=key, coordinates=coordinates)
         paths = self.cache_glob(node, key, coordinates)
         for p in paths:
+            #import pdb
+            #pdb.set_trace()
             c = self.load_container(p)
             if c.has(listing):
                 c.rem(listing)
                 removed_something = True
                 if c.empty:
-                    os.remove(p)
+                   self.delete_file(p)
                 else:
                     self.save_container(c,p)
         return removed_something
@@ -856,6 +864,12 @@ class DiskCacheStore(FileCacheStore):
 
     def _path_join(self, parts):
         return os.path.join(*parts)
+
+    def delete_file(self, path):
+        os.remove(path)
+
+    def file_exists(self, path):
+        return os.path.exists(path)
 
     def make_cache_dir(self, node):
         """Create subdirectory for caching data for `node`
@@ -978,7 +992,13 @@ class S3CacheStore(FileCacheStore):
         return self._CacheContainerClass.deserialize(s)
 # UNTESTED
     def _path_join(self, parts):
-        return '/'.join(*parts)
+        return '/'.join(parts)
+# UNTESTED
+    def delete_file(self, path):
+        self._s3_client.delete_object(Bucket=self._s3_bucket, Key=path)
+
+    def file_exists(self, path):
+        return self._s3_client.head_object(Bucket=self._s3_bucket, Key=path)
 
     def make_cache_dir(self, node):
         """Create subdirectory for caching data for `node`
@@ -1014,7 +1034,10 @@ class S3CacheStore(FileCacheStore):
         prefix = prefix if prefix.endswith(delim) else prefix + delim
         response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter=delim)
 
-        obj_names = [o['Key'].replace(prefix,'') for o in response['Contents']]
+        if response['KeyCount'] > 0:
+            obj_names = [o['Key'].replace(prefix,'') for o in response['Contents']]
+        else:
+            obj_names = []
 
         pre = '*'
         nKeY = 'nKeY{}'.format(self.hash_node(node))
@@ -1025,17 +1048,34 @@ class S3CacheStore(FileCacheStore):
 
         obj_names = fnmatch.filter(obj_names, pat)
 
-        paths = [delim.join(self.cache_dir(node), filename) for filename in obj_names]
+        paths = [delim.join([self.cache_dir(node), filename]) for filename in obj_names]
         return paths
 # TODO
     def clear_entire_cache_store(self):
         # shutil.rmtree(self._root_dir_path)
+        prefix = self._root_dir_path
+        paginator = self._s3_client.get_paginator('list_objects_v2')
+        pages = paginator.paginate(Bucket=self._s3_bucket, Prefix=prefix)
+
+        to_delete = dict(Objects=[])
+        for item in pages.search('Contents'):
+            if item:
+                to_delete['Objects'].append(dict(Key=item['Key']))
+            if len(to_delete['Objects']) >= 1000:
+                self._s3_client.delete_objects(Bucket=self._s3_bucket, Delete=to_delete)
+                to_delete = dict(Objects=[])
+
+        if len(to_delete['Objects']):
+            self._s3_client.delete_objects(Bucket=self._s3_bucket, Delete=to_delete)
+
         return True
 # TODO
     def dir_is_empty(self, directory):
         #return os.path.exists(directory) and os.path.isdir(directory) and not os.listdir(directory)
-        return False
+        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=directory, MaxKeys=1)
+        return response['KeyCount'] > 0
 # TODO
     def rem_dir(self, directory):
+        # pass. This is only used for deleting empty directories which is not needed for s3.
         #os.rmdir(directory)
         pass
