@@ -998,7 +998,9 @@ class S3CacheStore(FileCacheStore):
         self._s3_client.delete_object(Bucket=self._s3_bucket, Key=path)
 
     def file_exists(self, path):
-        return self._s3_client.head_object(Bucket=self._s3_bucket, Key=path)
+        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=path)
+        obj_count = response['KeyCount']
+        return obj_count == 1 and response['Contents'][0]['Key'] == path
 
     def make_cache_dir(self, node):
         """Create subdirectory for caching data for `node`
