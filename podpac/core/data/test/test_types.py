@@ -644,9 +644,7 @@ class TestReprojectedSource(object):
 
         node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         d = node.base_definition
-        c = Coordinates.from_definition(d['attrs']['reprojected_coordinates'])
-        
-        assert c == self.reprojected_coordinates
+        assert d['attrs']['reprojected_coordinates'] == self.reprojected_coordinates
 
     def test_deserialize_reprojected_coordinates(self):
         node1 = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
