@@ -30,7 +30,9 @@ DEFAULT_SETTINGS = {
     'S3_OUTPUT_FOLDER': None,
     'AUTOSAVE_SETTINGS': False,
     'LOG_TO_FILE': False,
-    'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log')
+    'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log'),
+    'MULTITHREADING': False,
+    'N_THREADS': 10
 }
 
 
@@ -87,6 +89,10 @@ class PodpacSettings(dict):
         Folder within :attr:`S3_BUCKET_NAME` to use for outputs.
     AUTOSAVE_SETTINGS: bool
         Save settings automatically as they are changed during runtime. Defaults to ``False``.
+    MULTITHREADING: bool
+        Uses multithreaded evaluation, when applicable. Defaults to ``False``.
+    N_THREADS: int
+        Number of threads to use (only if MULTITHREADING is True). Defaults to ``10``.
 
     """
     
