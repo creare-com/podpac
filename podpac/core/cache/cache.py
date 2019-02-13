@@ -5,6 +5,7 @@
 from __future__ import division, print_function, absolute_import
 
 import os
+import threading
 from glob import glob
 import shutil
 from hashlib import md5 as hash_alg
@@ -238,6 +239,8 @@ class CacheStore(object):
     put(), get(), rem(), has()
     """
     
+    cache_modes = []
+
     def get_hash_val(self, obj):
         return hash_alg(obj).hexdigest()
 
@@ -253,6 +256,23 @@ class CacheStore(object):
         #hashable_repr = str(repr(key)).encode('utf-8')
         #return self.get_hash_val(hashable_repr)
         return key
+
+    def cache_modes_matches(self, modes):
+        """Returns True if this CacheStore matches any caching modes in `modes`
+        
+        Parameters
+        ----------
+        modes : List, Set
+            collection of cache modes: subset of ['ram','disk','all']
+        
+        Returns
+        -------
+        TYPE : bool
+            Returns True if this CacheStore matches any specified modes
+        """
+        if len(self.cache_modes.intersection(modes)) > 0:
+            return True
+        return False
 
     def put(self, node, data, key, coordinates=None, update=False):
         '''Cache data for specified node.
@@ -541,28 +561,11 @@ class FileCacheStore(CacheStore):
     """Abstract class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
     """
     
-    _cache_modes = ['all']
+    cache_modes = ['all']
     _CacheContainerClass = CachePickleContainer
 
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
-
-    def cache_modes_matches(self, modes):
-        """Returns True if this CacheStore matches any caching modes in `modes`
-        
-        Parameters
-        ----------
-        modes : List, Set
-            collection of cache modes: subset of ['ram','disk','all']
-        
-        Returns
-        -------
-        TYPE : bool
-            Returns True if this CacheStore matches any specified modes
-        """
-        if len(self._cache_modes.intersection(modes)) > 0:
-            return True
-        return False
 
     def make_cache_dir(self, node):
         raise NotImplementedError
@@ -820,6 +823,8 @@ class FileCacheStore(CacheStore):
 
 class DiskCacheStore(FileCacheStore):
 
+    cache_modes = set(['disk','all'])
+
     def __init__(self, root_cache_dir_path=None, storage_format='pickle'):
         """Initialize a cache that uses a folder on a local disk file system.
         
@@ -835,7 +840,6 @@ class DiskCacheStore(FileCacheStore):
         NotImplementedError
             If unsupported `storage_format` is specified
         """
-        self._cache_modes = set(['disk','all'])
 
         # set cache dir
         if root_cache_dir_path is None:
@@ -919,6 +923,7 @@ class DiskCacheStore(FileCacheStore):
 
 class S3CacheStore(FileCacheStore):
 
+    cache_modes = set(['s3','all'])
     _delim = '/'
 
     def __init__(self, root_cache_dir_path=None, storage_format='pickle', 
@@ -951,7 +956,6 @@ class S3CacheStore(FileCacheStore):
         """
         if boto3 is None:
             raise CacheException('boto3 package must be installed in order to use S3CacheStore.')
-        self._cache_modes = set(['s3','all'])
         if root_cache_dir_path is None:
             root_cache_dir_path = settings['CACHE_DIR']
         self._root_dir_path = root_cache_dir_path
@@ -1085,3 +1089,147 @@ class S3CacheStore(FileCacheStore):
         # delete_object (singular) may be a good choice. Will possibly throw an error.
         # delete_objects could be used if recursive=True is specified to this function.
         pass
+
+_thread_local = threading.local()
+_thread_local.cache = {}
+
+class RamCacheStore(CacheStore):
+    """
+    RAM CacheStore.
+
+    Notes
+    -----
+     * the cache is thread-safe, but not yet accessible across separate processes
+     * there is not yet a max RAM usage setting or a removal policy.
+    """
+
+    cache_modes = set(['ram', 'all'])
+
+    def _get_key(self, obj):
+        # return obj.hash if obj else None
+        # using the json directly means no hash collisions
+        return obj.json if obj else None
+
+    def _get_full_key(self, node, coordinates, key):
+        return (self._get_key(node), self._get_key(coordinates), key)
+
+    def put(self, node, data, key, coordinates=None, update=False):
+        '''Cache data for specified node.
+        
+        Parameters
+        ------------
+        node : Node
+            node requesting storage.
+        data : any
+            Data to cache
+        key : str
+            Cached object key, e.g. 'output'.
+        coordinates : Coordinates, optional
+            Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
+        update : bool
+            If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
+        '''
+        
+        full_key = self._get_full_key(node, coordinates, key)
+        
+        if full_key in _thread_local.cache:
+            if not update:
+                raise CacheException("Cache entry already exists. Use update=True to overwrite.")
+
+        # TODO
+        # elif current_size + data_size > max_size:
+        #     # TODO removal policy
+        #     raise CacheException("RAM cache full. Remove some old entries and try again.")
+
+        # TODO include insert date, last retrieval date, and/or # retrievals for use in a removal policy
+        _thread_local.cache[full_key] = data
+
+    def get(self, node, key, coordinates=None):
+        '''Get cached data for this node.
+        
+        Parameters
+        ------------
+        node : Node
+            node requesting storage.
+        key : str
+            Cached object key, e.g. 'output'.
+        coordinates : Coordinates, optional
+            Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
+            
+        Returns
+        -------
+        data : any
+            The cached data.
+        
+        Raises
+        -------
+        CacheError
+            If the data is not in the cache.
+        '''
+
+        full_key = self._get_full_key(node, coordinates, key)
+        
+        if full_key not in _thread_local.cache:
+            raise CacheException("Cache miss. Requested data not found.")
+        
+        return _thread_local.cache[full_key]
+
+    def rem(self, node=CacheWildCard(), key=CacheWildCard(), coordinates=CacheWildCard()):
+        '''Delete cached data for this node.
+        
+        Parameters
+        ------------
+        node : Node
+            node requesting storage.
+        key : str, optional
+            Delete only cached objects with this key.
+        coordinates : Coordinates
+            Delete only cached objects for these coordinates.
+        '''
+        
+        # shortcut
+        if isinstance(node, CacheWildCard) and isinstance(coordinates, CacheWildCard) and isinstance(key, CacheWildCard):
+            _thread_local.cache = {}
+            return
+
+        # loop through keys looking for matches
+        if not isinstance(node, CacheWildCard):
+            node_key = self._get_key(node)
+
+        if not isinstance(coordinates, CacheWildCard):
+            coordinates_key = self._get_key(coordinates)
+
+        rem_keys = []
+        for nk, ck, k in _thread_local.cache.keys():
+            if not isinstance(node, CacheWildCard) and nk != node_key:
+                continue
+            if not isinstance(coordinates, CacheWildCard) and ck != coordinates_key:
+                continue
+            if not isinstance(key, CacheWildCard) and k != key:
+                continue
+
+            rem_keys.append((nk, ck, k))
+
+        for k in rem_keys:
+            del _thread_local.cache[k]
+
+    def has(self, node, key, coordinates=None):
+        '''Check for cached data for this node
+        
+        Parameters
+        ------------
+        node : Node
+            node requesting storage.
+        key : str
+            Cached object key, e.g. 'output'.
+        coordinates: Coordinate, optional
+            Coordinates for which cached object should be checked
+        
+        Returns
+        -------
+        has_cache : bool
+             True if there as a cached object for this node for the given key and coordinates.
+        '''
+        
+        full_key = self._get_full_key(node, coordinates, key)
+        return full_key in _thread_local.cache
