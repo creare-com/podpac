@@ -83,17 +83,6 @@ class Array(DataSource):
         d = self.create_output_array(coordinates, data=self.source[s])
         return d
 
-class NumpyArray(Array):
-    """Create a DataSource from a numpy array.
-
-    .. deprecated:: 0.2.0
-          `NumpyArray` will be removed in podpac 0.2.0, it is replaced by `Array`.
-    """
-
-    def init(self):
-        warnings.warn('NumpyArray been renamed Array. ' +
-                      'Backwards compatibility will be removed in future releases', DeprecationWarning)
-
 
 @common_doc(COMMON_DATA_DOC)
 class PyDAP(DataSource):
