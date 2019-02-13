@@ -32,7 +32,8 @@ DEFAULT_SETTINGS = {
     'LOG_TO_FILE': False,
     'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log'),
     'MULTITHREADING': False,
-    'N_THREADS': 10
+    'N_THREADS': 10,
+    'CHUNK_SIZE': None
 }
 
 
@@ -93,7 +94,9 @@ class PodpacSettings(dict):
         Uses multithreaded evaluation, when applicable. Defaults to ``False``.
     N_THREADS: int
         Number of threads to use (only if MULTITHREADING is True). Defaults to ``10``.
-
+    CHUNK_SIZE: int, 'auto', None
+        Chunk size for iterative evaluation, when applicable (e.g. Reduce Nodes). Use None for no iterative evaluation,
+        and 'auto' to automatically calculate a chunk size based on the system. Defaults to ``None``.
     """
     
     def __init__(self):
