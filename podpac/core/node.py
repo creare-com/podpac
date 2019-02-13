@@ -298,19 +298,16 @@ class Node(tl.HasTraits):
 
             attr = getattr(self, key)
 
+            # check serializable
+            try:
+                json.dumps(attr, cls=JSONEncoder)
+            except:
+                raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
+            
             if isinstance(attr, Node):
                 lookup_attrs[key] = attr
-            elif isinstance(attr, np.ndarray):
-                attrs[key] = attr.tolist()
-            elif isinstance(attr, Coordinates):
-                attrs[key] = attr.definition
             else:
-                try:
-                    json.dumps(attr, cls=JSONEncoder)
-                except:
-                    raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
-                else:
-                    attrs[key] = attr
+                attrs[key] = attr
 
         if attrs:
             d['attrs'] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
