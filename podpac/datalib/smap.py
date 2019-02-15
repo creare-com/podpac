@@ -47,6 +47,7 @@ from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.node import cache_func
 from podpac.core.node import NodeException
+from podpac.core.cache import cache
 
 COMMON_DOC = COMMON_DATA_DOC.copy()
 COMMON_DOC.update(
@@ -522,7 +523,17 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
     auth_class = tl.Type(authentication.EarthDataSession)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
-    cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True, default_value='disk')
+
+    @tl.default('cache_ctrl')
+    def _cache_ctrl_default(self):
+        # TODO append if necessary? prepend? replace?
+        # default_ctrl = cache.get_default_cache_ctrl()
+        # stores = default_ctrl.cache_stores
+        # if not np.any(isinstance(store, DiskCacheStore) for score in default_ctrl.cache_stores):
+        #     stores.append(cache.DiskCacheStore)
+
+        stores = [cache.DiskCacheStore]
+        return cache.CacheCtrl(stores)
 
     @tl.default('auth_session')
     def _auth_session_default(self):

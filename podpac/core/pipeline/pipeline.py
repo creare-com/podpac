@@ -123,8 +123,8 @@ class Pipeline(Node):
         return self.node.dtype
 
     @property
-    def cache_type(self):
-        return self.node.cache_type
+    def cache_ctrl(self):
+        return self.node.cache_ctrl
 
     @property
     def style(self):
