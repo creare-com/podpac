@@ -17,8 +17,13 @@ except ImportError:
 # Settings Defaults
 DEFAULT_SETTINGS = {
     'DEBUG': False,
-    'CACHE_DIR': None,
-    'CACHE_TO_S3': False,
+    'CACHE_RAM': True,
+    'CACHE_RAM_MAX_BYTES': 1e9, # ~1GB
+    'CACHE_DISK': False,
+    'CACHE_DISK_DIR': 'cache',
+    'CACHE_DISK_MAX_BYTES': 10e9, # ~10GB
+    'CACHE_S3': False,
+    'CACHE_S3_DIR': 'cache',
     'ROOT_PATH': os.path.join(os.path.expanduser('~'), '.podpac'),
     'AWS_ACCESS_KEY_ID': None,
     'AWS_SECRET_ACCESS_KEY': None,
@@ -69,10 +74,20 @@ class PodpacSettings(dict):
         for more details.
     AWS_REGION_NAME : str
         Name of the AWS region, e.g. us-west-1, us-west-2, etc.
-    CACHE_DIR : str
-        Directory to use as a cache locally or on S3. Defaults to ``'cache'``.
-    CACHE_TO_S3 : bool
-        Cache results to the AWS S3 bucket.
+    CACHE_RAM : bool
+        Enable the RAM cache. Defaults to ``True``.
+    CACHE_RAM_MAX_BYTES : int
+        Maximum RAM cache size in bytes. Defaults to ``1e9`` (~1G).
+    CACHE_DISK : bool
+        Enable the local disk cache. Defaults to ``False``
+    CACHE_DISK_DIR : str
+        Subdirectory ot use for the disk cache. Defaults to ``'cache'`` in the podpac root directory.
+    CACHE_DISK_MAX_BYTES : int
+        Maximum disk space for use by the disk cache in bytes. Defaults to ``10e9`` (~10G).
+    CACHE_S3 : bool
+        Enable caching to S3. Defaults to ``False``
+    CACHE_S3_DIR : 
+        Subdirectory to use for S3 cache (within the specified S3 bucket). Defaults to ``'cache'``
     ROOT_PATH : str
         Path to primary podpac working directory. Defaults to the ``.podpac`` directory in the users home directory.
     S3_BUCKET_NAME : str
@@ -248,17 +263,15 @@ class PodpacSettings(dict):
         # load user settings
         self._load_user_settings(path, filename)
 
-        # it breaks things to set the root path to None, set back to default if set to None
+        # it breaks things to set these paths to None, set back to default if set to None
         if self['ROOT_PATH'] is None:
             self['ROOT_PATH'] = DEFAULT_SETTINGS['ROOT_PATH']
 
-        # TODO: handle this in the cache module
-        if self['S3_BUCKET_NAME'] and self['CACHE_TO_S3']:
-            self['CACHE_DIR'] = 'cache'
-        elif self['CACHE_DIR'] is None:
-            self['CACHE_DIR'] = os.path.abspath(os.path.join(self['ROOT_PATH'], 'cache'))
-
-
+        if self['CACHE_DISK_DIR'] is None:
+            self['CACHE_DISK_DIR'] = DEFAULT_SETTINGS['CACHE_DISK_DIR']
+        
+        if self['CACHE_S3_DIR'] is None:
+            self['CACHE_S3_DIR'] = DEFAULT_SETTINGS['CACHE_S3_DIR']
 
 
 # load settings dict when module is loaded

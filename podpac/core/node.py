@@ -33,7 +33,7 @@ COMMON_NODE_DOC = {
             Unit-aware xarray DataArray containing the results of the node evaluation.
         """,
     'hash_return': 'A unique hash capturing the coordinates and parameters used to evaluate the node. ',
-    'outdir': "Optional output directory. Uses :attr:`podpac.settings['CACHE_DIR']` by default",
+    'outdir': "Optional output directory. Uses :attr:`podpac.settings['DISK_CACHE_DIR']` by default",
     'definition_return':
         """
         OrderedDict
@@ -114,9 +114,10 @@ class Node(tl.HasTraits):
         if self.cache_type is None:
             return None
         elif self.cache_type == 'ram':
-            raise NotImplementedError('Cachetype RAM has not been implemented')
+            store = cache.RAMCacheStore()
+            ctrl = cache.CacheCtrl(cache_stores=[store])
         elif self.cache_type == 'disk':
-            store = cache.DiskCacheStore(root_cache_dir_path=settings['CACHE_DIR'])
+            store = cache.DiskCacheStore()
             ctrl = cache.CacheCtrl(cache_stores=[store])
 
         return ctrl
