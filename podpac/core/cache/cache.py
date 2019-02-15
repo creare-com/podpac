@@ -78,6 +78,32 @@ def validate_inputs(node=None, key=None, coordinates=None, mode=None):
         raise CacheException('`mode` should either be an instance of string or `None`.')
     return True
 
+def get_default_cache_ctrl():
+    """
+    Get the default CacheCtrl according to the settings.
+
+    Returns
+    -------
+    ctrl : CacheCtrl
+        Default CachCtrl
+    """
+
+    if settings.get('DEFAULT_CACHE') is None:
+        return CacheCtrl()
+
+    cache_stores = []
+    for elem in settings['DEFAULT_CACHE']:
+        if elem == 'ram':
+            cache_stores.append(RamCacheStore())
+        elif elem == 'disk':
+            cache_stores.append(DiskCacheStore())
+        elif elem == 's3':
+            cache_stores.append(S3CacheStore())
+        else:
+            raise ValueError("Unknown cache store type '%s'" % elem)
+    
+    return CachCtrl(cache_stores)
+
 class CacheCtrl(object):
 
     """Objects of this class are used to manage multiple CacheStore objects of different types

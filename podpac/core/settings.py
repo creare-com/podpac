@@ -17,13 +17,12 @@ except ImportError:
 # Settings Defaults
 DEFAULT_SETTINGS = {
     'DEBUG': False,
-    'CACHE_RAM': True,
-    'CACHE_RAM_MAX_BYTES': 1e9, # ~1GB
-    'CACHE_DISK': False,
-    'CACHE_DISK_DIR': 'cache',
-    'CACHE_DISK_MAX_BYTES': 10e9, # ~10GB
-    'CACHE_S3': False,
-    'CACHE_S3_DIR': 'cache',
+    'RAM_CACHE_MAX_BYTES': 1e9, # ~1GB
+    'DISK_CACHE_MAX_BYTES': 10e9, # ~10GB
+    'DISK_CACHE_DIR': 'cache',
+    'S3_CACHE_DIR': 'cache',
+    'CACHE_TO_DISK': False
+    'CACHE_TO_S3': False,
     'ROOT_PATH': os.path.join(os.path.expanduser('~'), '.podpac'),
     'AWS_ACCESS_KEY_ID': None,
     'AWS_SECRET_ACCESS_KEY': None,
@@ -74,20 +73,24 @@ class PodpacSettings(dict):
         for more details.
     AWS_REGION_NAME : str
         Name of the AWS region, e.g. us-west-1, us-west-2, etc.
-    CACHE_RAM : bool
-        Enable the RAM cache. Defaults to ``True``.
-    CACHE_RAM_MAX_BYTES : int
+    DEFAULT_CACHE : list
+        Defines a default list of cache stores in priority order. Defaults to `['ram']`.
+    RAM_CACHE_MAX_BYTES : int
         Maximum RAM cache size in bytes. Defaults to ``1e9`` (~1G).
-    CACHE_DISK : bool
-        Enable the local disk cache. Defaults to ``False``
-    CACHE_DISK_DIR : str
-        Subdirectory ot use for the disk cache. Defaults to ``'cache'`` in the podpac root directory.
-    CACHE_DISK_MAX_BYTES : int
+    DISK_CACHE_MAX_BYTES : int
         Maximum disk space for use by the disk cache in bytes. Defaults to ``10e9`` (~10G).
-    CACHE_S3 : bool
-        Enable caching to S3. Defaults to ``False``
-    CACHE_S3_DIR : 
-        Subdirectory to use for S3 cache (within the specified S3 bucket). Defaults to ``'cache'``
+    DISK_CACHE_DIR : str
+        Subdirectory to use for the disk cache. Defaults to ``'cache'`` in the podpac root directory.
+    S3_CACHE_DIR : str
+        Subdirectory to use for S3 cache (within the specified S3 bucket). Defaults to ``'cache'``.
+    CACHE_ALL_OUTPUTS : bool
+        Automatically cache node outputs to the default cache store(s). Outputs for nodes with `cache_output=False` will not be cached. Defaults to ``False``.
+    RAM_CACHE_ENABLED: bool
+        Enable caching to RAM. Note that if disabled, some nodes may fail. Defaults to ``True``.
+    DISK_CACHE_ENABLED: bool
+        Enable caching to disk. Note that if disabled, some nodes may fail. Defaults to ``True``.
+    S3_CACHE_ENABLED: bool
+        Enable caching to RAM. Note that if disabled, some nodes may fail. Defaults to ``True``.
     ROOT_PATH : str
         Path to primary podpac working directory. Defaults to the ``.podpac`` directory in the users home directory.
     S3_BUCKET_NAME : str
@@ -267,11 +270,11 @@ class PodpacSettings(dict):
         if self['ROOT_PATH'] is None:
             self['ROOT_PATH'] = DEFAULT_SETTINGS['ROOT_PATH']
 
-        if self['CACHE_DISK_DIR'] is None:
-            self['CACHE_DISK_DIR'] = DEFAULT_SETTINGS['CACHE_DISK_DIR']
+        if self['DISK_CACHE_DIR'] is None:
+            self['DISK_CACHE_DIR'] = DEFAULT_SETTINGS['DISK_CACHE_DIR']
         
-        if self['CACHE_S3_DIR'] is None:
-            self['CACHE_S3_DIR'] = DEFAULT_SETTINGS['CACHE_S3_DIR']
+        if self['S3_CACHE_DIR'] is None:
+            self['S3_CACHE_DIR'] = DEFAULT_SETTINGS['S3_CACHE_DIR']
 
 
 # load settings dict when module is loaded

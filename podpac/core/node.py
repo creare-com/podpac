@@ -81,10 +81,8 @@ class Node(tl.HasTraits):
         Default if True. Should the node's output be cached? 
     cache_update: bool
         Default is False. Should the node's cached output be updated from the source data? 
-    cache_type : [None, 'disk', 'ram']
-        How the output of the nodes should be cached. By default, outputs are not cached.
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
-        Class that controls caching. If not provided, uses default based on cache_type.
+        Class that controls caching. If not provided, uses default based on settings.
     dtype : type
         The numpy datatype of the output. Currently only ``float`` is supported.
     node_defaults : dict
@@ -106,24 +104,11 @@ class Node(tl.HasTraits):
     dtype = tl.Any(default_value=float)
     cache_output = tl.Bool(True)
     cache_update = tl.Bool(False)
-    cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
     cache_ctrl = tl.Instance(cache.CacheCtrl, allow_none=True)
 
     @tl.default('cache_ctrl')
     def _cache_ctrl_default(self):
-        if self.cache_type is None:
-            return None
-        elif self.cache_type == 'ram':
-            store = cache.RAMCacheStore()
-            ctrl = cache.CacheCtrl(cache_stores=[store])
-        elif self.cache_type == 'disk':
-            store = cache.DiskCacheStore()
-            ctrl = cache.CacheCtrl(cache_stores=[store])
-
-        return ctrl
-    @tl.observe('cache_type')
-    def _cache_type_changed(self, change):
-        self.cache_ctrl = self._cache_ctrl_default()
+        return cache.get_default_cache_ctrl()
 
     node_defaults = tl.Dict(allow_none=True)
     style = tl.Instance(Style)
@@ -460,7 +445,7 @@ class Node(tl.HasTraits):
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
 
-    def put_cache(self, data, key, coordinates=None, overwrite=False, raise_no_cache_exception=True):
+    def put_cache(self, data, key, coordinates=None, overwrite=False):
         """
         Cache data for this node.
 
@@ -474,24 +459,15 @@ class Node(tl.HasTraits):
             Coordinates that the cached data depends on. Omit for coordinate-independent data.
         overwrite : bool, optional
             Overwrite existing data, default False
-        raise_no_cache_exception: bool, optional
-            Raises a NodeException if trying to put data to the cache, but no cache is available.
 
         Raises
         ------
         NodeException
             Cached data already exists (and overwrite is False)
-        NodeException
-            No cache_ctrl available and raise_no_cache_exception is True
         """
 
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
-        if self.cache_ctrl is None:
-            if raise_no_cache_exception:
-                raise NodeException('Trying to cache data but no cache_ctrl available. Specify cache_type.')
-            else:
-                return
         
         self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
 
@@ -577,8 +553,7 @@ def node_eval(fn):
         else:
             data = fn(self, coordinates, output=output,)
             if self.cache_output:
-                self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update,
-                               raise_no_cache_exception=False)
+                self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update)
             self._from_cache = False
 
         # transpose data to match the dims order of the requested coordinates
@@ -591,7 +566,7 @@ def node_eval(fn):
         return data
     return wrapper
 
-def cache_func(key, depends=None, raise_no_cache_exception=False):
+def cache_func(key, depends=None):
     """
     Decorating for caching a function's output based on a key.
 
@@ -602,9 +577,7 @@ def cache_func(key, depends=None, raise_no_cache_exception=False):
     depends: str, list, traitlets.All (optional)
         Default is None. Any traits that the cached property depends on. The cached function may NOT
         change the value of any of these dependencies (this will result in a RecursionError)
-    raise_no_cache_exception: bool, optional
-            Raises a NodeException if trying to put data to the cache, but no cache is available.
-
+    
 
     Notes
     -----
@@ -655,7 +628,7 @@ def cache_func(key, depends=None, raise_no_cache_exception=False):
             def cache_updator(change):
                 # print("Updating value on self:", id(self))
                 out = func(self)
-                self.put_cache(out, key, overwrite=True, raise_no_cache_exception=raise_no_cache_exception)
+                self.put_cache(out, key, overwrite=True)
             
             if depends:
                 # This sets up the observer on the dependent traits
@@ -673,7 +646,7 @@ def cache_func(key, depends=None, raise_no_cache_exception=False):
                     out = self.get_cache(key)
                 except NodeException:
                     out = func(self)
-                    self.put_cache(out, key, raise_no_cache_exception=raise_no_cache_exception)
+                    self.put_cache(out, key)
                 return out
             
             # Since this is the first time the function is run, set the new wrapper 
