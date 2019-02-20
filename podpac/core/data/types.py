@@ -592,6 +592,7 @@ class H5PY(DataSource):
     lonkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     timekey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     altkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    dim_order = tl.List(default_value=['lat', 'lon', 'time', 'alt']).tag(attr=True)
     
     @tl.default('dataset')
     def _open_dataset(self, source=None):
@@ -655,7 +656,7 @@ class H5PY(DataSource):
             dims.append('alt')
         if not coords:
             return None
-        return Coordinates(coords, dims)
+        return Coordinates(coords, dims).transpose(*self.dim_order)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -663,7 +664,7 @@ class H5PY(DataSource):
         """
         data = self.create_output_array(coordinates)
         slc = coordinates_index
-        a = self.dataset[self.datakey][:][slc]
+        a = self.dataset[self.datakey][slc]
         data.data.ravel()[:] = a.ravel()
         return data
     
