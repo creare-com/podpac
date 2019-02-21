@@ -514,7 +514,7 @@ class Rasterio(Interpolator):
         if len(source_data.dims) > 2:
             keep_dims = ['lat', 'lon']
             return self._loop_helper(self.interpolate, keep_dims,
-                                     udims, source_data, source_coordinates, eval_coordinates, output_data)
+                                     udims, source_coordinates, source_data, eval_coordinates, output_data)
         
         def get_rasterio_transform(c):
             """Summary
