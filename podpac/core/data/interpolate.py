@@ -799,10 +799,10 @@ INTERPOLATION_METHODS = {
 INTERPOLATION_SHORTCUTS = INTERPOLATION_METHODS.keys()
 """list : Keys of :attr:`INTERPOLATION_METHODS` """
 
-INTERPOLATION_DEFAULT = 'nearest'
+INTERPOLATION_DEFAULT = 'nearest_preview'
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-def interpolation_trait(default_value=INTERPOLATION_DEFAULT):
+def interpolation_trait(default_value=INTERPOLATION_DEFAULT, allow_none=True, **kwargs):
     """Create a new interpolation trait
     
     Returns
@@ -814,7 +814,7 @@ def interpolation_trait(default_value=INTERPOLATION_DEFAULT):
         tl.Dict(),
         tl.Enum(INTERPOLATION_SHORTCUTS),
         tl.Instance(Interpolation)
-    ], allow_none=True, default_value=default_value)
+    ], allow_none=allow_none, default_value=default_value, **kwargs)
 
 
 class Interpolation():

@@ -17,7 +17,7 @@ import re
 from io import BytesIO
 from collections import OrderedDict, defaultdict
 from six import string_types
-
+import logging
 
 import numpy as np
 import traitlets as tl
@@ -50,6 +50,11 @@ from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.data.interpolate import interpolation_trait
+
+
+# Set up logging
+_logger = logging.getLogger(__name__)
 
 class Array(DataSource):
     """Create a DataSource from an array
@@ -1029,7 +1034,7 @@ class ReprojectedSource(DataSource):
     """
     
     source = tl.Instance(Node)
-    source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
+    source_interpolation = interpolation_trait().tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     def _first_init(self, **kwargs):
@@ -1057,10 +1062,17 @@ class ReprojectedSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        si = self.source.interpolation
-        self.source.interpolation = self.source_interpolation
+        if hasattr(self.source, 'interpolation') and self.source_interpolation is not None:
+            si = self.source.interpolation
+            self.source.interpolation = self.source_interpolation
+        elif self.source_interpolation is not None: 
+            _logger.warn("ReprojectedSource cannot set the 'source_interpolation'"
+                         " since self.source does not have an 'interpolation' "
+                         " attribute. \n type(self.source): %s\nself.source: " % (
+                             str(type(self.source)), str(self.source)))
         data = self.source.eval(coordinates)
-        self.source.interpolation = si
+        if hasattr(self.source, 'interpolation') and self.source_interpolation is not None:
+            self.source.interpolation = si
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of
         # the reprojected coordinates
