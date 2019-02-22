@@ -164,7 +164,7 @@ class DataSource(Node):
     
     _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _requested_source_coordinates = tl.Instance(Coordinates)
-    _requested_source_coordinates_index = tl.List()
+    _requested_source_coordinates_index = tl.Tuple()
     _requested_source_data = tl.Instance(UnitsDataArray)
 
     # when native_coordinates is not defined, default calls get_native_coordinates
@@ -348,7 +348,8 @@ class DataSource(Node):
             output = output.transpose(*requested_dims)
         
         # save output to private for debugging
-        self._output = output
+        if settings['DEBUG']:
+            self._output = output
 
         return output
 
@@ -390,9 +391,9 @@ class DataSource(Node):
             udata_array = data
         elif isinstance(data, xr.DataArray):
             # TODO: check order of coordinates here
-            udata_array = self.create_output_array(coordinates, data=data.data)
+            udata_array = self.create_output_array(self._requested_source_coordinates, data=data.data)
         elif isinstance(data, np.ndarray):
-            udata_array = self.create_output_array(coordinates, data=data)
+            udata_array = self.create_output_array(self._requested_source_coordinates, data=data)
         else:
             raise ValueError('Unknown data type passed back from ' +
                              '{}.get_data(): {}. '.format(type(self).__name__, type(data)) +

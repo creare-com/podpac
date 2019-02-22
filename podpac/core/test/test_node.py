@@ -58,9 +58,7 @@ class TestNode(object):
 
         node = N(my_attr=podpac.Coordinates([[0, 1], [1, 2, 3]], dims=['lat', 'lon']))
         d = node.base_definition
-        my_attr = podpac.Coordinates.from_definition(d['attrs']['my_attr'])
-        
-        assert my_attr == node.my_attr
+        assert d['attrs']['my_attr'] == node.my_attr
 
     def test_base_definition_unserializable(self):
         class N(Node):

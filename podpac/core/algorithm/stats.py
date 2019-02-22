@@ -14,6 +14,7 @@ import scipy.stats
 import traitlets as tl
 from six import string_types
 
+import podpac
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
@@ -38,9 +39,7 @@ class Reduce(Algorithm):
     """
     
     source = tl.Instance(Node)
-
     dims = tl.List().tag(attr=True)
-    iter_chunk_size = tl.Union([tl.Int(), tl.Unicode()], allow_none=True, default_value=None)
 
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
     _dims = tl.List(trait_type=str)
@@ -91,10 +90,11 @@ class Reduce(Algorithm):
             Size of chunks
         """
 
-        if self.iter_chunk_size == 'auto':
+        chunk_size = podpac.settings['CHUNK_SIZE']
+        if chunk_size == 'auto':
             return 1024**2 # TODO
-
-        return self.iter_chunk_size
+        else:
+            return chunk_size
 
     def _get_chunk_shape(self, coords):
         """Shape of chunks for parallel processing or large arrays that do not fit in memory.

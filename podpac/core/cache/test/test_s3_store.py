@@ -22,7 +22,7 @@ def make_cache_ctrl():
     ctrl = CacheCtrl(cache_stores=[store])
     return ctrl
 
-cache = make_cache_ctrl()
+
 
 def make_array_data_source(coords_func=None, data_func=None):
     if data_func is None:
@@ -47,6 +47,7 @@ coord_funcs = coord_funcs + [lambda: None]
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_get():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -63,6 +64,7 @@ def test_put_and_get():
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_update():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -84,6 +86,7 @@ def test_put_and_update():
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_remove():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -101,6 +104,7 @@ def test_put_and_remove():
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_two_and_remove_one():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -123,6 +127,7 @@ def test_put_two_and_remove_one():
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_two_and_remove_all():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -147,6 +152,7 @@ def test_put_two_and_remove_all():
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_two_different_nodes_put_and_one_node_removes_all():
+    cache = make_cache_ctrl()
     lat = np.random.rand(3)
     lon = np.random.rand(4)
     coords = Coordinates([lat,lon],['lat','lon'])
@@ -179,6 +185,7 @@ def test_two_different_nodes_put_and_one_node_removes_all():
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_something_new_into_existing_file():
+    cache = make_cache_ctrl()
     lat = np.random.rand(3)
     lon = np.random.rand(4)
     dummy_coords = Coordinates([lat,lon],['lat','lon'])
@@ -225,6 +232,7 @@ def test_put_something_new_into_existing_file():
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_get_array_datasource_output():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
@@ -239,6 +247,7 @@ def test_put_and_get_array_datasource_output():
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_get_with_different_instances_of_same_key_objects_array_datasource_output():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
@@ -263,6 +272,7 @@ def test_put_and_get_with_different_instances_of_same_key_objects_array_datasour
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_update_array_datasource_numpy_array():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
@@ -284,6 +294,7 @@ def test_put_and_update_array_datasource_numpy_array():
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_remove_array_datasource_numpy_array():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']

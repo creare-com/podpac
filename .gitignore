@@ -21,4 +21,6 @@ artifacts
 # docs
 doc/build
 doc/source/user/api
+doc/source/example-links.inc
 .pytest_cache/
+build/

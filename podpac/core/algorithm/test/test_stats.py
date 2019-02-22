@@ -27,9 +27,19 @@ def setup_module():
 class TestReduce(object):
     """ Tests the Reduce class """
 
+    def setup_method(self):
+        # save chunk size
+        self.saved_chunk_size = podpac.settings['CHUNK_SIZE']
+        podpac.settings['CHUNK_SIZE'] = None
+
+    def teardown_method(self):
+        podpac.settings['CHUNK_SIZE'] = self.saved_chunk_size
+
     def test_auto_chunk(self):
+        podpac.settings['CHUNK_SIZE'] = 'auto'
+
         # any reduce node would do here
-        node = Min(source=source, iter_chunk_size='auto')
+        node = Min(source=source)
         node.eval(coords)
 
     def test_not_implemented(self):
@@ -46,13 +56,15 @@ class TestReduce(object):
             def reduce(self, x):
                 return x.isel(**{dim:0 for dim in self.dims})
 
-        # use reduce function
         node = First(source=source, dims='time')
+        
+        # use reduce function
+        podpac.settings['CHUNK_SIZE'] = None
         output = node.eval(coords)
         
         # fall back on reduce function with warning
-        node = First(source=source, dims='time', iter_chunk_size=100)
         with pytest.warns(UserWarning):
+            podpac.settings['CHUNK_SIZE'] = 100
             output_chunked = node.eval(coords)
 
         # should be the same
@@ -60,6 +72,14 @@ class TestReduce(object):
 
 class BaseTests(object):
     """ Common tests for Reduce subclasses """
+
+    def setup_method(self):
+        # save chunk size
+        self.saved_chunk_size = podpac.settings['CHUNK_SIZE']
+        podpac.settings['CHUNK_SIZE'] = None
+
+    def teardown_method(self):
+        podpac.settings['CHUNK_SIZE'] = self.saved_chunk_size
 
     def test_full(self):
         node = self.NodeClass(source=source)
@@ -73,7 +93,8 @@ class BaseTests(object):
         np.testing.assert_allclose(output.data, self.expected_full.data)
 
     def test_full_chunked(self):
-        node = self.NodeClass(source=source, dims=coords.dims, iter_chunk_size=100)
+        podpac.settings['CHUNK_SIZE'] = 100
+        node = self.NodeClass(source=source, dims=coords.dims)
         output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_full)
         np.testing.assert_allclose(output.data, self.expected_full.data)
@@ -86,7 +107,8 @@ class BaseTests(object):
 
     @pytest.mark.xfail(reason="bug, to fix")
     def test_lat_lon_chunked(self):
-        node = self.NodeClass(source=source, dims=['lat', 'lon'], iter_chunk_size=100)
+        podpac.settings['CHUNK_SIZE'] = 100
+        node = self.NodeClass(source=source, dims=['lat', 'lon'])
         output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_latlon)
         np.testing.assert_allclose(output.data, self.expected_latlon.data)
@@ -98,7 +120,8 @@ class BaseTests(object):
         np.testing.assert_allclose(output.data, self.expected_time.data)
 
     def test_time_chunked(self):
-        node = self.NodeClass(source=source, dims='time', iter_chunk_size=100)
+        podpac.settings['CHUNK_SIZE'] = 100
+        node = self.NodeClass(source=source, dims='time')
         output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_time)
         np.testing.assert_allclose(output.data, self.expected_time.data)

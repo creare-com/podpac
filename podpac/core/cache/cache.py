@@ -11,16 +11,13 @@ import shutil
 from hashlib import md5 as hash_alg
 import six
 import fnmatch
-# change when merging with develop so that the lazy import module is used.
-from podpac.core.utils import optional_import
-
+from lazy_import import lazy_module
 try:
     import cPickle  # Python 2.7
 except:
     import _pickle as cPickle
 
-# change when merging with develop so that the lazy import module is used.
-boto3 = optional_import('boto3')
+boto3 = lazy_module('boto3')
 
 from podpac.core.settings import settings
 
@@ -740,7 +737,7 @@ class FileCacheStore(CacheStore):
             if c.has(listing):
                 data = c.get(listing).data
                 if data is None:
-                     CacheException("Stored data is None.")
+                    CacheException("Stored data is None.")
                 return data
         raise CacheException("Cache miss. Requested data not found.")
 
@@ -954,8 +951,7 @@ class S3CacheStore(FileCacheStore):
         NotImplementedError
             If unsupported `storage_format` is specified
         """
-        if boto3 is None:
-            raise CacheException('boto3 package must be installed in order to use S3CacheStore.')
+        self._cache_modes = set(['s3','all'])
         if root_cache_dir_path is None:
             root_cache_dir_path = settings['CACHE_DIR']
         self._root_dir_path = root_cache_dir_path
@@ -1082,13 +1078,21 @@ class S3CacheStore(FileCacheStore):
         response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=directory, MaxKeys=2)
 #TODO throw an error if key count is zero as this indicates `directory` is not an existing directory.
         return response['KeyCount'] == 1
-# TODO
+
     def rem_dir(self, directory):
         # s3 can have "empty" directories
         # should check if directory is empty and the delete
-        # delete_object (singular) may be a good choice. Will possibly throw an error.
         # delete_objects could be used if recursive=True is specified to this function.
-        pass
+        # NOTE: This can remove the object representing the prefix without deleting other objects with the prefix.
+        #       This is because s3 is really a key/value store. This function should maybe be changed to throw an
+        #       error if the prefix is not "empty" or should delete all objects with the prefix. The former would 
+        #       be more consistent with the os function used in the DiskCacheStore.
+        # ToDo: 1) examine boto3 response, 2) handle object versioning (as it stands this will apply to the "null version")
+        #      https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.delete_object
+        if not directory.endswith(self._delim):
+            directory += self._delim
+        self._s3_client.delete_object(Bucket=self._s3_bucket, Key=directory)
+
 
 _thread_local = threading.local()
 _thread_local.cache = {}

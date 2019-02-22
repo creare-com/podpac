@@ -1,12 +1,15 @@
 
 from datetime import datetime
+import json
 
 import pytest
 import traitlets as tl
 import numpy as np
 from numpy.testing import assert_equal
 
+import podpac
 from podpac.core.units import Units
+from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 
@@ -19,7 +22,7 @@ class TestUniformCoordinatesCreation(object):
         assert c.stop == 50
         assert c.step == 10
         assert_equal(c.coordinates, a)
-        assert_equal(c.bounds, np.array([0, 50], dtype=float))
+        assert_equal(c.bounds, [0, 50])
         assert c.size == 6
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -33,7 +36,7 @@ class TestUniformCoordinatesCreation(object):
         assert c.stop == 0
         assert c.step == -10
         assert_equal(c.coordinates, a)
-        assert_equal(c.bounds, np.array([0, 50], dtype=float))
+        assert_equal(c.bounds, [0, 50])
         assert c.size == 6
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -48,7 +51,7 @@ class TestUniformCoordinatesCreation(object):
         assert c.stop == 49
         assert c.step == 10
         assert_equal(c.coordinates, a)
-        assert_equal(c.bounds, np.array([0, 40], dtype=float))
+        assert_equal(c.bounds, [0, 40])
         assert c.size == 5
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -62,7 +65,7 @@ class TestUniformCoordinatesCreation(object):
         assert c.stop == 1
         assert c.step == -10
         assert_equal(c.coordinates, a)
-        assert_equal(c.bounds, np.array([10, 50], dtype=float))
+        assert_equal(c.bounds, [10, 50])
         assert c.dtype == float
         assert c.size == a.size
         assert c.is_monotonic == True
@@ -246,7 +249,7 @@ class TestUniformCoordinatesCreation(object):
         assert c.stop == 10
         assert c.step == 10/19.
         assert_equal(c.coordinates, np.linspace(0, 10, 20))
-        assert_equal(c.bounds, np.array([0, 10], dtype=float))
+        assert_equal(c.bounds, [0, 10])
         assert c.size == 20
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -259,7 +262,7 @@ class TestUniformCoordinatesCreation(object):
         assert c.stop == 0
         assert c.step == -10/19.
         assert_equal(c.coordinates, np.linspace(10, 0, 20))
-        assert_equal(c.bounds, np.array([0, 10], dtype=float))
+        assert_equal(c.bounds, [0, 10])
         assert c.size == 20
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -285,18 +288,20 @@ class TestUniformCoordinatesCreation(object):
         assert c.dtype == np.datetime64
         assert c.is_descending == True
 
-    @pytest.mark.skip("spec uncertain")
-    def test_datetime_size_inexact(self):
-        # ascending
-        c = UniformCoordinates1d('2018-01-01', '2018-01-10', size=20)
+        # increase resolution
+        c = UniformCoordinates1d('2018-01-01', '2018-01-10', size=21)
         assert c.start == np.datetime64('2018-01-01')
         assert c.stop == np.datetime64('2018-01-10')
         assert_equal(c.bounds, [np.datetime64('2018-01-01'), np.datetime64('2018-01-10')])
-        assert c.size == 20
+        assert c.size == 21
         assert c.dtype == np.datetime64
         assert c.is_descending == False
 
-    def test_size_floating_point_error(self):
+    def test_datetime_size_invalid(self):
+        with pytest.raises(ValueError, match="Cannot divide timedelta"):
+            c = UniformCoordinates1d('2018-01-01', '2018-01-10', size=20)
+        
+    def test_numerical_size_floating_point_error(self):
         c = UniformCoordinates1d(50.619, 50.62795, size=30)
         assert c.size == 30
 
@@ -308,7 +313,7 @@ class TestUniformCoordinatesCreation(object):
         assert c.stop == 1
         assert c.step == 10
         assert_equal(c.coordinates, a)
-        assert_equal(c.bounds, np.array([1, 1], dtype=float))
+        assert_equal(c.bounds, [1, 1])
         assert c.size == 1
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -322,7 +327,7 @@ class TestUniformCoordinatesCreation(object):
         assert c.stop == 1
         assert c.step == -10
         assert_equal(c.coordinates, a)
-        assert_equal(c.bounds, np.array([1, 1], dtype=float))
+        assert_equal(c.bounds, [1, 1])
         assert c.size == 1
         assert c.dtype == float
         assert c.is_monotonic == True
@@ -385,16 +390,15 @@ class TestUniformCoordinatesCreation(object):
             UniformCoordinates1d.from_tuple(np.array([0, 10, 0.5]))
 
     def test_copy(self):
-        c = UniformCoordinates1d(0, 10, 50, ctype='point', name='lat')
+        c = UniformCoordinates1d(0, 10, 50, name='lat')
         c2 = c.copy()
-        assert c2.name == 'lat'
-        assert c2.ctype == 'point'
-        assert_equal(c2.coordinates, c.coordinates)
+        assert c is not c2
+        assert c == c2
 
-        c3 = c.copy(name='lon', ctype='left')
-        assert c3.name == 'lon'
-        assert c3.ctype == 'left'
-        assert_equal(c3.coordinates, c.coordinates)
+        c = UniformCoordinates1d(0, 10, 50, segment_lengths=0.5)
+        c2 = c.copy()
+        assert c is not c2
+        assert c == c2
 
     def test_invalid_init(self):
         with pytest.raises(ValueError):
@@ -454,75 +458,89 @@ class TestUniformCoordinatesCreation(object):
         with pytest.raises(TypeError):
             UniformCoordinates1d('2018-01-10', '2018-01-01', size='1,D')
 
-    def test_extents(self):
-        # default None
-        c = UniformCoordinates1d(0, 50, 10)
-        assert c.extents is None
+    def test_segment_lengths(self):
+        c = UniformCoordinates1d(0, 50, 10, segment_lengths=5)
+        assert c.segment_lengths == 5
 
+        c = UniformCoordinates1d(0, 50, 10, segment_lengths=[5, 5, 5, 5, 5, 5])
+        assert_equal(c.segment_lengths, np.array([5., 5., 5., 5., 5., 5.]))
+
+    def test_segment_lengths_inferred(self):
         # numerical
-        c = UniformCoordinates1d(0, 50, 10, extents=[0, 55])
-        assert_equal(c.extents, np.array([0, 55], dtype=float))
+        c = UniformCoordinates1d(0, 50, 10)
+        assert c.segment_lengths == 10
 
         # datetime
-        c = UniformCoordinates1d('2018-01-01', '2018-01-04', '1,D', extents=['2018-01-01', '2019-01-06'])
-        assert_equal(c.extents, np.array(['2018-01-01', '2019-01-06']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-01', '2018-01-04', '1,D')
+        assert c.segment_lengths == np.timedelta64(1, 'D')
 
-        # invalid (ctype=point)
-        with pytest.raises(TypeError):
-            UniformCoordinates1d(0, 50, 10, ctype='point', extents=[0, 55])
+        # point coordinates
+        c = UniformCoordinates1d(0, 50, 10, ctype='point')
+        assert c.segment_lengths is None
 
-        # invalid (wrong dtype)
-        with pytest.raises(ValueError):
-            UniformCoordinates1d('2018-01-01', '2018-01-04', '1,D', extents=[0, 55])
+class TestUniformCoordinatesEq(object):
+    def test_equal(self):
+        c1 = UniformCoordinates1d( 0, 50,  10)
+        c2 = UniformCoordinates1d( 0, 50,  10)
+        c3 = UniformCoordinates1d( 0, 50,  10)
+        c4 = UniformCoordinates1d( 5, 50,  10)
+        c5 = UniformCoordinates1d( 0, 60,  10)
+        c6 = UniformCoordinates1d( 0, 50,   5)
+        c7 = UniformCoordinates1d(50,  0, -10)
         
-        with pytest.raises(ValueError):
-            UniformCoordinates1d(0, 50, 10, extents=['2018-01-01', '2019-03-01'])
+        assert c1 == c2
+        assert c1 == c3
+        assert c1 != c4
+        assert c1 != c5
+        assert c1 != c6
+        assert c1 != c7
 
-        # invalid (shape)
-        with pytest.raises(ValueError):
-            UniformCoordinates1d(0, 50, 10, extents=[0])
+    def test_equal_array_coordinates(self):
+        c1 = UniformCoordinates1d(0, 50, 10)
+        c2 = ArrayCoordinates1d([ 0, 10, 20, 30, 40, 50])
+        c3 = ArrayCoordinates1d([10, 20, 30, 40, 50, 60])
 
-class TestUniformCoordinatesDefinition(object):
-    def test_from_definition(self):
-        # numerical, step
-        d = {
-            'start': 0,
-            'stop': 50,
-            'step': 10,
-            'name': 'lat',
-            'ctype': 'point'
-        }
-        c = UniformCoordinates1d.from_definition(d)
-        assert c.name == 'lat'
-        assert c.ctype == 'point'
-        assert_equal(c.coordinates, [0, 10, 20, 30, 40, 50])
+        assert c1 == c2
+        assert c1 != c3
 
-        # numerical, size
-        d = {
-            'start': 0,
-            'stop': 50,
-            'size': 6,
-            'name': 'lat',
-            'ctype': 'point'
-        }
-        c = UniformCoordinates1d.from_definition(d)
-        assert c.name == 'lat'
-        assert c.ctype == 'point'
-        assert_equal(c.coordinates, [0, 10, 20, 30, 40, 50])
+    def test_equal_segment_lengths(object):
+        c1 = UniformCoordinates1d(0, 50, 10)
+        c2 = UniformCoordinates1d(0, 50, 10, segment_lengths=10)
+        c3 = UniformCoordinates1d(0, 50, 10, segment_lengths=5)
 
-        # datetime, step
-        d = {
-            'start': '2018-01-01',
-            'stop': '2018-01-03',
-            'step': '1,D',
-            'name': 'time',
-            'ctype': 'point'
-        }
-        c = UniformCoordinates1d.from_definition(d)
-        assert c.name == 'time'
-        assert c.ctype == 'point'
-        assert_equal(c.coordinates, np.array(['2018-01-01', '2018-01-02', '2018-01-03']).astype(np.datetime64))
+        assert c1 == c2
+        assert c1 != c3
+        
+class TestUniformCoordinatesSerialization(object):
+    def test_definition(self):
+        # numerical
+        c = UniformCoordinates1d(0, 50, 10, name="lat", ctype="point")
+        d = c.definition
+        assert isinstance(d, dict)
+        assert set(d.keys()) == set(['start', 'stop', 'step', 'name', 'ctype'])
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
+        c2 = UniformCoordinates1d.from_definition(d) # test from_definition
+        assert c2 == c
 
+        # datetimes
+        c = UniformCoordinates1d('2018-01-01', '2018-01-03', '1,D')
+        d = c.definition
+        assert isinstance(d, dict)
+        assert set(d.keys()) == set(['start', 'stop', 'step'])
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
+        c2 = UniformCoordinates1d.from_definition(d) # test from_definition
+        assert c2 == c
+
+    def test_definition_segment_lengths(self):
+        c = UniformCoordinates1d(0, 50, 10, segment_lengths=0.5)
+        d = c.definition
+        assert isinstance(d, dict)
+        assert set(d.keys()) == set(['start', 'stop', 'step', 'segment_lengths'])
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
+        c2 = UniformCoordinates1d.from_definition(d) # test from_definition
+        assert c2 == c
+
+    def test_invalid_definition(self):
         # incorrect definition
         d = {'stop': 50}
         with pytest.raises(ValueError, match='UniformCoordinates1d definition requires "start"'):
@@ -532,65 +550,36 @@ class TestUniformCoordinatesDefinition(object):
         with pytest.raises(ValueError, match='UniformCoordinates1d definition requires "stop"'):
             UniformCoordinates1d.from_definition(d)
 
-    def test_definition(self):
+    def test_from_definition_size(self):
         # numerical
-        c = UniformCoordinates1d(0, 50, 10, name="lat", ctype="point")
-        d = c.definition
-        assert isinstance(d, dict)
-        assert d['start'] == 0
-        assert d['stop'] == 50
-        assert d['step'] == 10
-        assert d['name'] == c.name
-        assert d['ctype'] == c.ctype
+        d = {
+            'start': 0,
+            'stop': 50,
+            'size': 6
+        }
+        c = UniformCoordinates1d.from_definition(d)
+        assert_equal(c.coordinates, [0, 10, 20, 30, 40, 50])
 
-        c2 = UniformCoordinates1d.from_definition(d)
-        assert c2.name == c.name
-        assert c2.ctype == c.ctype
-        assert_equal(c2.coordinates, c.coordinates)
-
-        # datetimes
-        c = UniformCoordinates1d('2018-01-01', '2018-01-03', '1,D', name="lat", ctype="point")
-        d = c.definition
-        assert isinstance(d, dict)
-        assert d['start'] == '2018-01-01'
-        assert d['stop'] == '2018-01-03'
-        assert d['step'] == '1,D'
-        assert d['name'] == c.name
-        assert d['ctype'] == c.ctype
-
-        c2 = UniformCoordinates1d.from_definition(d)
-        assert c2.name == c.name
-        assert c2.ctype == c.ctype
-        assert_equal(c2.coordinates, c.coordinates)
+        # datetime, size
+        d = {
+            'start': '2018-01-01',
+            'stop': '2018-01-03',
+            'size': 3
+        }
+        c = UniformCoordinates1d.from_definition(d)
+        assert_equal(c.coordinates, np.array(['2018-01-01', '2018-01-02', '2018-01-03']).astype(np.datetime64))
 
 class TestUniformCoordinatesProperties(object):
-    def test_properties(self):
-        c = UniformCoordinates1d(0, 50, 10)
-        assert isinstance(c.properties, dict)
-        assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys'])
-
-        c = UniformCoordinates1d(0, 50, 10, name='lat')
-        assert isinstance(c.properties, dict)
-        assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys', 'name'])
-
-        c = UniformCoordinates1d(0, 50, 10, units=Units())
-        assert isinstance(c.properties, dict)
-        assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys', 'units'])
-
-        c = UniformCoordinates1d(0, 50, 10, extents=[0, 1])
-        assert isinstance(c.properties, dict)
-        assert set(c.properties.keys()) == set(['ctype', 'coord_ref_sys', 'extents'])
-
     def test_area_bounds_point(self):
         # numerical, ascending/descending and exact/inexact
         c = UniformCoordinates1d(0, 50, 10, ctype='point')
-        assert_equal(c.area_bounds, np.array([0, 50], dtype=float))
+        assert_equal(c.area_bounds, [0, 50])
         c = UniformCoordinates1d(50, 0, -10, ctype='point')
-        assert_equal(c.area_bounds, np.array([0, 50], dtype=float))
+        assert_equal(c.area_bounds, [0, 50])
         c = UniformCoordinates1d(0, 49, 10, ctype='point')
-        assert_equal(c.area_bounds, np.array([0, 40], dtype=float))
+        assert_equal(c.area_bounds, [0, 40])
         c = UniformCoordinates1d(50, 9, -10, ctype='point')
-        assert_equal(c.area_bounds, np.array([10, 50], dtype=float))
+        assert_equal(c.area_bounds, [10, 50])
 
         # datetime, ascending/descending and exact/inexact
         c = UniformCoordinates1d('2018-01-01', '2018-01-04', '1,D', ctype='point')
@@ -602,103 +591,92 @@ class TestUniformCoordinatesProperties(object):
         c = UniformCoordinates1d('2018-01-06', '2018-01-01', '-2,D', ctype='point')
         assert_equal(c.area_bounds, np.array(['2018-01-02', '2018-01-06']).astype(np.datetime64))
 
-    def test_area_bounds_explicit_extents(self):
-        c = UniformCoordinates1d(0, 50, 10, extents=[-10, 10])
-        assert_equal(c.area_bounds, np.array([-10, 10], dtype=float))
-        
-        c = UniformCoordinates1d('2018-01-01', '2018-01-04', '1,D', extents=['2016-01-01', '2021-01-01'])
-        assert_equal(c.area_bounds, np.array(['2016-01-01', '2021-01-01']).astype(np.datetime64))
-        
     def test_area_bounds_left(self):
         # numerical, ascending/descending and exact/inexact/singleton
         c = UniformCoordinates1d(0, 50, 10, ctype='left')
-        assert_equal(c.area_bounds, np.array([0, 60], dtype=float))
+        assert_equal(c.area_bounds, [0, 60])
         c = UniformCoordinates1d(50, 0, -10, ctype='left')
-        assert_equal(c.area_bounds, np.array([0, 60], dtype=float))
+        assert_equal(c.area_bounds, [0, 60])
         c = UniformCoordinates1d(0, 49, 10, ctype='left')
-        assert_equal(c.area_bounds, np.array([0, 50.0], dtype=float))
+        assert_equal(c.area_bounds, [0, 50.0])
         c = UniformCoordinates1d(50, 9, -10, ctype='left')
-        assert_equal(c.area_bounds, np.array([10, 60.0], dtype=float))
+        assert_equal(c.area_bounds, [10, 60.0])
         c = UniformCoordinates1d(0, 0, 10, ctype='left')
-        assert_equal(c.area_bounds, np.array([0, 10], dtype=float))
+        assert_equal(c.area_bounds, [0, 10])
         c = UniformCoordinates1d(0, 0, -10, ctype='left')
-        assert_equal(c.area_bounds, np.array([0, 10], dtype=float))
+        assert_equal(c.area_bounds, [0, 10])
 
-        # TODO
-        # # datetime, ascending/descending and exact/inexact/singleton
-        # c = UniformCoordinates1d('2018-01-01', '2018-01-04', '1,D', ctype='left')
-        # assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
-        # c = UniformCoordinates1d('2018-01-04', '2018-01-01', '-1,D', ctype='left')
-        # assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
-        # c = UniformCoordinates1d('2018-01-01', '2018-01-06', '2,D', ctype='left')
-        # assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-05']).astype(np.datetime64))
-        # c = UniformCoordinates1d('2018-01-06', '2018-01-01', '-2,D', ctype='left')
-        # assert_equal(c.area_bounds, np.array(['2018-01-02', '2018-01-06']).astype(np.datetime64))
-        # c = UniformCoordinates1d('2018-01-01', '2018-01-01', '1,D', ctype='left')
-        # assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
-        # c = UniformCoordinates1d('2018-01-01', '2018-01-01', '-1,D', ctype='left')
-        # assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
+        # datetime, ascending/descending and exact/inexact/singleton
+        c = UniformCoordinates1d('2018-01-01', '2018-01-04', '1,D', ctype='left')
+        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-05']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-04', '2018-01-01', '-1,D', ctype='left')
+        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-05']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-01', '2018-01-06', '2,D', ctype='left')
+        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-07']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-06', '2018-01-01', '-2,D', ctype='left')
+        assert_equal(c.area_bounds, np.array(['2018-01-02', '2018-01-08']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-01', '2018-01-01', '1,D', ctype='left')
+        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-01', '2018-01-01', '-1,D', ctype='left')
+        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64))
 
     def test_area_bounds_right(self):
         # numerical, ascending/descending and exact/inexact/singleton
         c = UniformCoordinates1d(0, 50, 10, ctype='right')
-        assert_equal(c.area_bounds, np.array([-10, 50], dtype=float))
+        assert_equal(c.area_bounds, [-10, 50])
         c = UniformCoordinates1d(50, 0, -10, ctype='right')
-        assert_equal(c.area_bounds, np.array([-10, 50], dtype=float))
+        assert_equal(c.area_bounds, [-10, 50])
         c = UniformCoordinates1d(0, 49, 10, ctype='right')
-        assert_equal(c.area_bounds, np.array([-10, 40], dtype=float))
+        assert_equal(c.area_bounds, [-10, 40])
         c = UniformCoordinates1d(50, 9, -10, ctype='right')
-        assert_equal(c.area_bounds, np.array([0, 50], dtype=float))
+        assert_equal(c.area_bounds, [0, 50])
         c = UniformCoordinates1d(0, 0, 10, ctype='right')
-        assert_equal(c.area_bounds, np.array([-10, 0], dtype=float))
+        assert_equal(c.area_bounds, [-10, 0])
         c = UniformCoordinates1d(0, 0, -10, ctype='right')
-        assert_equal(c.area_bounds, np.array([-10, 0], dtype=float))
+        assert_equal(c.area_bounds, [-10, 0])
 
-        # TODO
-        # # datetime, ascending/descending and exact/inexact/singleton
-        # c = UniformCoordinates1d('2018-01-01', '2018-01-04', '1,D', ctype='right')
-        # assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
-        # c = UniformCoordinates1d('2018-01-04', '2018-01-01', '-1,D', ctype='right')
-        # assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
-        # c = UniformCoordinates1d('2018-01-01', '2018-01-06', '2,D', ctype='right')
-        # assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-05']).astype(np.datetime64))
-        # c = UniformCoordinates1d('2018-01-06', '2018-01-01', '-2,D', ctype='right')
-        # assert_equal(c.area_bounds, np.array(['2018-01-02', '2018-01-06']).astype(np.datetime64))
-        # c = UniformCoordinates1d('2018-01-01', '2018-01-01', '1,D', ctype='right')
-        # assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
-        # c = UniformCoordinates1d('2018-01-01', '2018-01-01', '-1,D', ctype='right')
-        # assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
+        # datetime, ascending/descending and exact/inexact/singleton
+        c = UniformCoordinates1d('2018-01-01', '2018-01-04', '1,D', ctype='right')
+        assert_equal(c.area_bounds, np.array(['2017-12-31', '2018-01-04']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-04', '2018-01-01', '-1,D', ctype='right')
+        assert_equal(c.area_bounds, np.array(['2017-12-31', '2018-01-04']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-01', '2018-01-06', '2,D', ctype='right')
+        assert_equal(c.area_bounds, np.array(['2017-12-30', '2018-01-05']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-06', '2018-01-01', '-2,D', ctype='right')
+        assert_equal(c.area_bounds, np.array(['2017-12-31', '2018-01-06']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-01', '2018-01-01', '1,D', ctype='right')
+        assert_equal(c.area_bounds, np.array(['2017-12-31', '2018-01-01']).astype(np.datetime64))
+        c = UniformCoordinates1d('2018-01-01', '2018-01-01', '-1,D', ctype='right')
+        assert_equal(c.area_bounds, np.array(['2017-12-31', '2018-01-01']).astype(np.datetime64))
 
-    def test_area_bounds_midpoint_numerical(self):
+    def test_area_bounds_midpoint(self):
         # numerical, ascending/descending and exact/inexact/singleton
         c = UniformCoordinates1d(0, 50, 10, ctype='midpoint')
-        assert_equal(c.area_bounds, np.array([-5, 55], dtype=float))
+        assert_equal(c.area_bounds, [-5, 55])
         c = UniformCoordinates1d(50, 0, -10, ctype='midpoint')
-        assert_equal(c.area_bounds, np.array([-5, 55], dtype=float))
+        assert_equal(c.area_bounds, [-5, 55])
         c = UniformCoordinates1d(0, 49, 10, ctype='midpoint')
-        assert_equal(c.area_bounds, np.array([-5, 45], dtype=float))
+        assert_equal(c.area_bounds, [-5, 45])
         c = UniformCoordinates1d(50, 9, -10, ctype='midpoint')
-        assert_equal(c.area_bounds, np.array([5, 55], dtype=float))
+        assert_equal(c.area_bounds, [5, 55])
         c = UniformCoordinates1d(0, 0, 10, ctype='midpoint')
-        assert_equal(c.area_bounds, np.array([-5, 5], dtype=float))
+        assert_equal(c.area_bounds, [-5, 5])
         c = UniformCoordinates1d(0, 0, -10, ctype='midpoint')
-        assert_equal(c.area_bounds, np.array([-5, 5], dtype=float))
+        assert_equal(c.area_bounds, [-5, 5])
 
-    @pytest.mark.skip('TODO')
-    def test_area_bounds_midpoint_datetime(self):
         # datetime, ascending/descending and exact/inexact/singleton
         c = UniformCoordinates1d('2018-01-01', '2018-01-04', '1,D', ctype='midpoint')
-        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
+        assert_equal(c.area_bounds, np.array(['2017-12-31 12', '2018-01-04 12']).astype(np.datetime64))
         c = UniformCoordinates1d('2018-01-04', '2018-01-01', '-1,D', ctype='midpoint')
-        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
+        assert_equal(c.area_bounds, np.array(['2017-12-31 12', '2018-01-04 12']).astype(np.datetime64))
         c = UniformCoordinates1d('2018-01-01', '2018-01-06', '2,D', ctype='midpoint')
-        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-05']).astype(np.datetime64))
+        assert_equal(c.area_bounds, np.array(['2017-12-31', '2018-01-06']).astype(np.datetime64))
         c = UniformCoordinates1d('2018-01-06', '2018-01-01', '-2,D', ctype='midpoint')
-        assert_equal(c.area_bounds, np.array(['2018-01-02', '2018-01-06']).astype(np.datetime64))
+        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-07']).astype(np.datetime64))
         c = UniformCoordinates1d('2018-01-01', '2018-01-01', '1,D', ctype='midpoint')
-        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
+        assert_equal(c.area_bounds, np.array(['2017-12-31 12', '2018-01-01 12']).astype(np.datetime64))
         c = UniformCoordinates1d('2018-01-01', '2018-01-01', '-1,D', ctype='midpoint')
-        assert_equal(c.area_bounds, np.array(['2018-01-01', '2018-01-04']).astype(np.datetime64))
+        assert_equal(c.area_bounds, np.array(['2017-12-31 12', '2018-01-01 12']).astype(np.datetime64))
 
 class TestUniformCoordinatesIndexing(object):
     def test_len(self):
@@ -710,21 +688,17 @@ class TestUniformCoordinatesIndexing(object):
         
         # int
         c2 = c[2]
-        assert isinstance(c2, UniformCoordinates1d)
+        assert isinstance(c2, Coordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert c2.start == 20
-        assert c2.stop == 20
-        assert c2.step == 10
+        assert_equal(c2.coordinates, [20])
 
         c2 = c[-2]
-        assert isinstance(c2, UniformCoordinates1d)
+        assert isinstance(c2, Coordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert c2.start == 40
-        assert c2.stop == 40
-        assert c2.step == 10
-
+        assert_equal(c2.coordinates, [40])
+        
         # slice
         c2 = c[:2]
         assert isinstance(c2, UniformCoordinates1d)
@@ -774,31 +748,49 @@ class TestUniformCoordinatesIndexing(object):
         assert c2.stop == 0
         assert c2.step == -10
         
-        # ordered array
+        # index array
         c2 = c[[0, 1, 3]]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coordinates, np.array([0, 10, 30], dtype=float))
+        assert_equal(c2.coordinates, [0, 10, 30])
 
         c2 = c[[3, 1, 0]]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coordinates, np.array([30, 10, 0], dtype=float))
+        assert_equal(c2.coordinates, [30, 10, 0])
 
         c2 = c[[0, 3, 1]]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coordinates, np.array([0, 30, 10], dtype=float))
+        assert_equal(c2.coordinates, [0, 30, 10])
+
+        c2 = c[[]]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, [])
+
+        c2 = c[0:0]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, [])
+
+        c2 = c[[]]
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2.name == c.name
+        assert c2.properties == c.properties
+        assert_equal(c2.coordinates, [])
 
         # boolean array
         c2 = c[[True, True, True, False, True, False]]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coordinates, np.array([0, 10, 20, 40], dtype=float))
+        assert_equal(c2.coordinates, [0, 10, 20, 40])
 
         # invalid
         with pytest.raises(IndexError):
@@ -812,20 +804,16 @@ class TestUniformCoordinatesIndexing(object):
         
         # int
         c2 = c[2]
-        assert isinstance(c2, UniformCoordinates1d)
+        assert isinstance(c2, Coordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert c2.start == 30
-        assert c2.stop == 30
-        assert c2.step == -10
+        assert_equal(c2.coordinates, [30])
 
         c2 = c[-2]
-        assert isinstance(c2, UniformCoordinates1d)
+        assert isinstance(c2, Coordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert c2.start == 10
-        assert c2.stop == 10
-        assert c2.step == -10
+        assert_equal(c2.coordinates, [10])
 
         # slice
         c2 = c[:2]
@@ -876,241 +864,326 @@ class TestUniformCoordinatesIndexing(object):
         assert c2.stop == 50
         assert c2.step == 10
         
-        # ordered array
+        # index array
         c2 = c[[0, 1, 3]]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coordinates, np.array([50, 40, 20], dtype=float))
+        assert_equal(c2.coordinates, [50, 40, 20])
         
         c2 = c[[3, 1, 0]]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coordinates, np.array([20, 40, 50], dtype=float))
+        assert_equal(c2.coordinates, [20, 40, 50])
         
         c2 = c[[0, 3, 1]]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coordinates, np.array([50, 20, 40], dtype=float))
+        assert_equal(c2.coordinates, [50, 20, 40])
+
         # boolean array
         c2 = c[[True, True, True, False, True, False]]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coordinates, np.array([50, 40, 30, 10], dtype=float))
+        assert_equal(c2.coordinates, [50, 40, 30, 10])
+
+    def test_index_segment_lengths(self):
+        # array of segment_lengths
+        c = UniformCoordinates1d(0, 50, 10, segment_lengths=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
         
-        # invalid
-        with pytest.raises(IndexError):
-            c[0.3]
+        c2 = c[1]
+        assert c2.segment_lengths == 0.2 or np.array_equal(c2.segment_lengths, [0.2])
+        
+        c2 = c[1:3]
+        assert_equal(c2.segment_lengths, [0.2, 0.3])
+        
+        c2 = c[[1, 3]]
+        assert_equal(c2.segment_lengths, [0.2, 0.4])
+        
+        c2 = c[[4, 1, 2]]
+        assert_equal(c2.segment_lengths, [0.5, 0.2, 0.3])
+        
+        c2 = c[[True, True, True, False, True, False]]
+        assert_equal(c2.segment_lengths, [0.1, 0.2, 0.3, 0.5])
 
-        with pytest.raises(IndexError):
-            c[10]
+        # uniform segment_lengths
+        c = UniformCoordinates1d(0, 50, 10, segment_lengths=0.5)
+        
+        c2 = c[1]
+        assert c2.segment_lengths == 0.5
+        
+        c2 = c[1:3]
+        assert c2.segment_lengths == 0.5
+        
+        c2 = c[[1, 3]]
+        assert c2.segment_lengths == 0.5
+        
+        c2 = c[[4, 1, 2]]
+        assert c2.segment_lengths == 0.5
+        
+        c2 = c[[True, True, True, False, True, False]]
+        assert c2.segment_lengths == 0.5
 
+        # inferred segment_lengths
+        c = UniformCoordinates1d(0, 50, 10)
+        c2 = c[1]
+        assert c2.segment_lengths == 10 or np.array_equal(c2.segment_lengths, [10])
+        
 class TestUniformCoordinatesSelection(object):
-    def test_select_ascending(self):
+    def test_select_all_shortcut(self):
         c = UniformCoordinates1d(20., 70., 10.)
         
-        # full
         s = c.select([0, 100])
         assert s.start == 20.
         assert s.stop == 70.
         assert s.step == 10.0
-        
-        #empty above and below
+
+        s, I = c.select([0, 100], return_indices=True)
+        assert s.start == 20.
+        assert s.stop == 70.
+        assert s.step == 10.0
+        assert_equal(c[I], s)
+
+    def test_select_none_shortcut(self):
+        c = UniformCoordinates1d(20., 70., 10.)
+                
+        # above
         s = c.select([100, 200])
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
+        
+        s, I = c.select([100, 200], return_indices=True)
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
+        assert c[I] == s
 
+        # below
         s = c.select([0, 5])
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
-        
-        # partial, above
-        s = c.select([45, 100])
-        assert s.start == 50.
-        assert s.stop == 70.
-        assert s.step == 10.
-        
-        # partial, below
-        s = c.select([5, 55])
-        assert s.start == 20.
-        assert s.stop == 50.
-        assert s.step == 10.
 
-        # partial, inner
+        s, I = c.select([0, 5], return_indices=True)
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
+        assert c[I] == s
+
+    def test_select_ascending(self):
+        c = UniformCoordinates1d(20., 70., 10.)
+
+        # inner
         s = c.select([35., 55.])
         assert s.start == 40.
         assert s.stop == 50.
         assert s.step == 10.
 
-        # partial, very inner (none)
-        s = c.select([52, 55])
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
+        s, I = c.select([35., 55.], return_indices=True)
+        assert s.start == 40.
+        assert s.stop == 50.
+        assert s.step == 10.
+        assert c[I] == s
 
-        # partial, inner exact
+        # inner with aligned bounds
         s = c.select([30., 60.])
         assert s.start == 30.
         assert s.stop == 60.
         assert s.step == 10.
 
-        # partial, backwards bounds
-        s = c.select([70, 30])
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
+        s, I = c.select([30., 60.], return_indices=True)
+        assert s.start == 30.
+        assert s.stop == 60.
+        assert s.step == 10.
+        assert c[I] == s
 
-    def test_select_descending(self):
-        c = UniformCoordinates1d(70., 20., -10.)
-        
-        # full
-        s = c.select([0, 100])
-        assert s.start == 70.
-        assert s.stop == 20.
-        assert s.step == -10.0
-        
-        #empty above and below
-        s = c.select([100, 200])
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
-
-        s = c.select([0, 5])
-        assert isinstance(s, ArrayCoordinates1d)
-        assert_equal(s.coordinates, [])
-        
-        # partial, above
+        # above
         s = c.select([45, 100])
-        assert s.start == 70.
-        assert s.stop == 50.
-        assert s.step == -10.
-        
-        # partial, below
-        s = c.select([5, 55])
         assert s.start == 50.
-        assert s.stop == 20.
-        assert s.step == -10.
+        assert s.stop == 70.
+        assert s.step == 10.
 
-        # partial, inner
-        s = c.select([30., 60.])
-        assert s.start == 60.
-        assert s.stop == 30.
-        assert s.step == -10.
+        s, I = c.select([45, 100], return_indices=True)
+        assert s.start == 50.
+        assert s.stop == 70.
+        assert s.step == 10.
+        assert c[I] == s
+        
+        # below
+        s = c.select([5, 55])
+        assert s.start == 20.
+        assert s.stop == 50.
+        assert s.step == 10.
+        
+        s, I = c.select([5, 55], return_indices=True)
+        assert s.start == 20.
+        assert s.stop == 50.
+        assert s.step == 10.
+        assert c[I] == s
 
-        # partial, very inner
+        # between coordinates
         s = c.select([52, 55])
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
-        # partial, inner exact
+        s, I = c.select([52, 55], return_indices=True)
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
+        assert_equal(c.coordinates[I], [])
+
+        # backwards bounds
+        s = c.select([70, 30])
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
+
+        s, I = c.select([70, 30], return_indices=True)
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
+        assert_equal(c.coordinates[I], [])
+
+    def test_select_descending(self):
+        c = UniformCoordinates1d(70., 20., -10.)
+
+        # inner
         s = c.select([35., 55.])
         assert s.start == 50.
         assert s.stop == 40.
         assert s.step == -10.
 
-        # partial, backwards bounds
+        s, I = c.select([35., 55.], return_indices=True)
+        assert s.start == 50.
+        assert s.stop == 40.
+        assert s.step == -10.
+        assert c[I] == s
+
+        # inner with aligned bounds
+        s = c.select([30., 60.])
+        assert s.start == 60.
+        assert s.stop == 30.
+        assert s.step == -10.
+
+        s, I = c.select([30., 60.], return_indices=True)
+        assert s.start == 60.
+        assert s.stop == 30.
+        assert s.step == -10.
+        assert c[I] == s
+
+        # above
+        s = c.select([45, 100])
+        assert s.start == 70.
+        assert s.stop == 50.
+        assert s.step == -10.
+
+        s, I = c.select([45, 100], return_indices=True)
+        assert s.start == 70.
+        assert s.stop == 50.
+        assert s.step == -10.
+        assert c[I] == s
+        
+        # below
+        s = c.select([5, 55])
+        assert s.start == 50.
+        assert s.stop == 20.
+        assert s.step == -10.
+        
+        s, I = c.select([5, 55], return_indices=True)
+        assert s.start == 50.
+        assert s.stop == 20.
+        assert s.step == -10.
+        assert c[I] == s
+
+        # between coordinates
+        s = c.select([52, 55])
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
+
+        s, I = c.select([52, 55], return_indices=True)
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
+        assert_equal(c.coordinates[I], [])
+
+        # backwards bounds
         s = c.select([70, 30])
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
 
+        s, I = c.select([70, 30], return_indices=True)
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
+        assert_equal(c.coordinates[I], [])
+
     def test_select_outer(self):
         c = UniformCoordinates1d(20., 70., 10.)
-        
-        # partial, above
-        s = c.select([45, 100], outer=True)
-        assert s.start == 40.
-        assert s.stop == 70.
-        assert s.step == 10.
-        
-        # partial, below
-        s = c.select([5, 55], outer=True)
-        assert s.start == 20.
-        assert s.stop == 60.
-        assert s.step == 10.
 
-        # partial, inner
+        # inner
         s = c.select([35., 55.], outer=True)
         assert s.start == 30.
         assert s.stop == 60.
         assert s.step == 10.
 
-        # partial, very inner
+        s, I = c.select([35., 55.], outer=True, return_indices=True)
+        assert s.start == 30.
+        assert s.stop == 60.
+        assert s.step == 10.
+        assert c[I] == s
+
+        # inner with aligned bounds
+        s = c.select([30., 60.], outer=True)
+        assert s.start == 30.
+        assert s.stop == 60.
+        assert s.step == 10.
+
+        s, I = c.select([30., 60.], outer=True, return_indices=True)
+        assert s.start == 30.
+        assert s.stop == 60.
+        assert s.step == 10.
+        assert c[I] == s
+
+        # above
+        s = c.select([45, 100], outer=True)
+        assert s.start == 40.
+        assert s.stop == 70.
+        assert s.step == 10.
+
+        s, I = c.select([45, 100], outer=True, return_indices=True)
+        assert s.start == 40.
+        assert s.stop == 70.
+        assert s.step == 10.
+        assert c[I] == s
+        
+        # below
+        s = c.select([5, 55], outer=True)
+        assert s.start == 20.
+        assert s.stop == 60.
+        assert s.step == 10.
+        
+        s, I = c.select([5, 55], outer=True, return_indices=True)
+        assert s.start == 20.
+        assert s.stop == 60.
+        assert s.step == 10.
+        assert c[I] == s
+
+        # between coordinates
         s = c.select([52, 55], outer=True)
         assert s.start == 50.
         assert s.stop == 60.
         assert s.step == 10.
 
-        # partial, inner exact
-        s = c.select([30., 50.], outer=True)
-        assert s.start == 20.
+        s, I = c.select([52, 55], outer=True, return_indices=True)
+        assert s.start == 50.
         assert s.stop == 60.
         assert s.step == 10.
+        assert c[I] == s
 
-    def test_select_ind_ascending(self):
-        c = UniformCoordinates1d(20., 70., 10.)
-        
-        # partial, above
-        s, I = c.select([45, 100], return_indices=True)
-        assert_equal(c.coordinates[I], [50., 60., 70.])
-        assert_equal(c.coordinates[I], s.coordinates)
-        
-        # partial, below
-        s, I = c.select([5, 55], return_indices=True)
-        assert_equal(c.coordinates[I], [20., 30., 40., 50])
-        assert_equal(c.coordinates[I], s.coordinates)
+        # backwards bounds
+        s = c.select([70, 30], outer=True)
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
 
-        # partial, inner
-        s, I = c.select([35., 55.], return_indices=True)
-        assert_equal(c.coordinates[I], [40., 50.])
-        assert_equal(c.coordinates[I], s.coordinates)
-
-        # partial, very inner (none)
-        s, I = c.select([52, 55], return_indices=True)
+        s, I = c.select([70, 30], outer=True, return_indices=True)
+        assert isinstance(s, ArrayCoordinates1d)
+        assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
-        assert_equal(c.coordinates[I], s.coordinates)
-        
-        # partial, inner exact
-        s, I = c.select([30., 50.], return_indices=True)
-        assert_equal(c.coordinates[I], [30., 40., 50.])
-        assert_equal(c.coordinates[I], s.coordinates)
-
-        # partial, backwards bounds
-        s, I = c.select([70, 30], return_indices=True)
-        assert_equal(c.coordinates[I], [])
-        assert_equal(c.coordinates[I], s.coordinates)
-
-    def test_select_ind_descending(self):
-        c = UniformCoordinates1d(70., 20., -10.)
-        
-        # partial, above
-        s, I = c.select([45, 100], return_indices=True)
-        assert_equal(c.coordinates[I], [70., 60., 50.])
-        assert_equal(c.coordinates[I], s.coordinates)
-        
-        # partial, below
-        s, I = c.select([5, 55], return_indices=True)
-        assert_equal(c.coordinates[I], [50., 40., 30., 20.])
-        assert_equal(c.coordinates[I], s.coordinates)
-
-        # partial, inner
-        s, I = c.select([35., 55.], return_indices=True)
-        assert_equal(c.coordinates[I], [50., 40.])
-        assert_equal(c.coordinates[I], s.coordinates)
-
-        # partial, very inner (none)
-        s, I = c.select([52, 55], return_indices=True)
-        assert_equal(c.coordinates[I], [])
-        assert_equal(c.coordinates[I], s.coordinates)
-        
-        # partial, inner exact
-        s, I = c.select([30., 60.], return_indices=True)
-        assert_equal(c.coordinates[I], [60., 50., 40., 30.])
-        assert_equal(c.coordinates[I], s.coordinates)
-
-        # partial, backwards bounds
-        s, I = c.select([70, 30], return_indices=True)
-        assert_equal(c.coordinates[I], [])
-        assert_equal(c.coordinates[I], s.coordinates)
 
     def test_intersect(self):
         a = ArrayCoordinates1d([40., 70., 50.,])
