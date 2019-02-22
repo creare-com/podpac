@@ -1079,6 +1079,10 @@ class S3CacheStore(FileCacheStore):
         # s3 can have "empty" directories
         # should check if directory is empty and the delete
         # delete_objects could be used if recursive=True is specified to this function.
+        # NOTE: This can remove the object representing the prefix without deleting other objects with the prefix.
+        #       This is because s3 is really a key/value store. This function should maybe be changed to throw an
+        #       error if the prefix is not "empty" or should delete all objects with the prefix. The former would 
+        #       be more consistent with the os function used in the DiskCacheStore.
         # ToDo: 1) examine boto3 response, 2) handle object versioning (as it stands this will apply to the "null version")
         #      https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.delete_object
         if not directory.endswith(self._delim):
