@@ -583,6 +583,10 @@ class H5PY(DataSource):
         The 'key' for the data that described the time coordinate of the data
     altkey : str
         The 'key' for the data that described the altitude coordinate of the data
+    dim_order : list, optional
+        Default is ['lat', 'lon', 'time', 'alt']. The order of the dimensions in the dataset. For example,
+        if self.datasets[datakey] has shape (1, 2, 3) and the (time, lon, lat) dimensions have sizes (1, 2, 3)
+        then dim_order should be ['time', 'lon', 'lat']
     """
     
     source = tl.Unicode(allow_none=False)
@@ -656,7 +660,9 @@ class H5PY(DataSource):
             dims.append('alt')
         if not coords:
             return None
-        return Coordinates(coords, dims).transpose(*self.dim_order)
+        # Some dimensions may not be present in the default dim_order, so remove these
+        dim_order = [d for d in self.dim_order if d in dims]
+        return Coordinates(coords, dims).transpose(*dim_order)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
