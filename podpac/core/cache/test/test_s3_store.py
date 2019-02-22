@@ -1,27 +1,28 @@
 import pytest
 import numpy as np
 import os
+import time
 
 from numpy.testing import assert_equal
 
 from podpac.core.cache.cache import CacheException
 from podpac.core.cache.cache import CacheCtrl
 from podpac.core.cache.cache import CacheStore
-from podpac.core.cache.cache import DiskCacheStore
+from podpac.core.cache.cache import S3CacheStore
 from podpac.core.cache.cache import CacheException
 from podpac.core.cache.cache import CacheListing
 
 from podpac.core.data.types import Array
 from podpac.core.coordinates.coordinates import Coordinates
 
-root_disk_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tmp_cache'))
+root_disk_cache_dir = 'tmp_cache'
 
 def make_cache_ctrl():
-    store = DiskCacheStore(root_cache_dir_path=root_disk_cache_dir)
+    store = S3CacheStore(root_cache_dir_path=root_disk_cache_dir, s3_bucket='podpac-internal-test')
     ctrl = CacheCtrl(cache_stores=[store])
     return ctrl
 
-cache = make_cache_ctrl()
+
 
 def make_array_data_source(coords_func=None, data_func=None):
     if data_func is None:
@@ -44,7 +45,9 @@ node_funcs = [lambda: make_array_data_source(coords_func=c, data_func=d) for d i
 data_funcs = [lambda: np.zeros((2,3,4)), lambda: np.ones((2,3,4))]
 coord_funcs = coord_funcs + [lambda: None]
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_get():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -59,8 +62,9 @@ def test_put_and_get():
                 assert (din == dout).all()
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
 
-
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_update():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -80,7 +84,9 @@ def test_put_and_update():
                 assert (dupdate == dout).all()
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_remove():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -96,7 +102,9 @@ def test_put_and_remove():
                     cache.get(node=n1, key=k, coordinates=c1, mode='all')
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_two_and_remove_one():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -117,7 +125,9 @@ def test_put_two_and_remove_one():
                     cache.get(node=n1, key=k1, coordinates=c1, mode='all')
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_two_and_remove_all():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -140,7 +150,9 @@ def test_put_two_and_remove_all():
                     cache.get(node=n1, key=k1, coordinates=c1, mode='all')
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_two_different_nodes_put_and_one_node_removes_all():
+    cache = make_cache_ctrl()
     lat = np.random.rand(3)
     lon = np.random.rand(4)
     coords = Coordinates([lat,lon],['lat','lon'])
@@ -171,14 +183,16 @@ def test_two_different_nodes_put_and_one_node_removes_all():
                 assert cache.has(node=persistent_node, key=persistent_node_key, coordinates=None)
     cache.rem(node='*', key='*', coordinates='*', mode='all')
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_something_new_into_existing_file():
+    cache = make_cache_ctrl()
     lat = np.random.rand(3)
     lon = np.random.rand(4)
     dummy_coords = Coordinates([lat,lon],['lat','lon'])
     dummy_node = Array(source=np.random.random_sample(dummy_coords.shape), native_coordinates=dummy_coords)
     dummy_node_din = np.random.rand(6,7,8)
     dummy_node_key = "key"
-    disk_stores = [c for c in cache._cache_stores if type(c) is DiskCacheStore]
+    disk_stores = [c for c in cache._cache_stores if type(c) is S3CacheStore]
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -192,6 +206,9 @@ def test_put_something_new_into_existing_file():
                     path = store.cache_path(node=n1, key=k, coordinates=c1)
                     listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
                     store.save_new_container(listings=[listing], path=path)
+                    #import pdb
+                    #pdb.set_trace()
+                time.sleep(1)
                 assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
                 cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
                 assert cache.has(node=n1, key=k, coordinates=c1, mode='all')
@@ -199,17 +216,23 @@ def test_put_something_new_into_existing_file():
                 assert (din == dout).all()
                 dout = cache.get(node=n2, key=k, coordinates=c2, mode='all')
                 assert (din == dout).all()
+                #assert False
+
                 cache.rem(node=n1, key=k, coordinates=c1, mode='all')
+
+                #assert False
                 assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
                 for store in disk_stores:
                     path = store.cache_path(node=n1, key=k, coordinates=c1)
-                    assert os.path.exists(path)
+#                    assert os.path.exists(path)
                     c = store.load_container(path)
                     listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
                     assert c.has(listing)
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_get_array_datasource_output():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
@@ -222,7 +245,9 @@ def test_put_and_get_array_datasource_output():
     assert (cached_output == output).all()
     cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_get_with_different_instances_of_same_key_objects_array_datasource_output():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
@@ -245,7 +270,9 @@ def test_put_and_get_with_different_instances_of_same_key_objects_array_datasour
     assert (cached_output == output).all()
     cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_update_array_datasource_numpy_array():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
@@ -265,7 +292,9 @@ def test_put_and_update_array_datasource_numpy_array():
     assert (cached_data == update_data).all()
     cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_remove_array_datasource_numpy_array():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
