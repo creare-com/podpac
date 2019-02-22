@@ -18,7 +18,7 @@ These instructions only assume that you already have [git](https://git-scm.com/)
 $ git clone https://github.com/creare-com/podpac.git
 $ git clone https://github.com/creare-com/podpac_examples.git
 $ cd podpac
-$ git checkout tags/<version> release/<version>  # as of writing, the <version> is 0.3.0
+$ git checkout -b release/<version> tags/<version>  # as of writing, the <version> is 0.3.0
 $ cd ..
 $ copy podpac\dist\local_Windows_install\* .
 $ bin/set_local_conda_path.bat
