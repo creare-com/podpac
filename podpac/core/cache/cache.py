@@ -946,8 +946,6 @@ class S3CacheStore(FileCacheStore):
         NotImplementedError
             If unsupported `storage_format` is specified
         """
-        if boto3 is None:
-            raise CacheException('boto3 package must be installed in order to use S3CacheStore.')
         self._cache_modes = set(['s3','all'])
         if root_cache_dir_path is None:
             root_cache_dir_path = settings['CACHE_DIR']
