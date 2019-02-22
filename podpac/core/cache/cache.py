@@ -1075,10 +1075,12 @@ class S3CacheStore(FileCacheStore):
         response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=directory, MaxKeys=2)
 #TODO throw an error if key count is zero as this indicates `directory` is not an existing directory.
         return response['KeyCount'] == 1
-# TODO
     def rem_dir(self, directory):
         # s3 can have "empty" directories
         # should check if directory is empty and the delete
-        # delete_object (singular) may be a good choice. Will possibly throw an error.
         # delete_objects could be used if recursive=True is specified to this function.
-        pass
+        # ToDo: 1) examine boto3 response, 2) handle object versioning (as it stands this will apply to the "null version")
+        #      https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.delete_object
+        if not directory.endswith(self._delim):
+            directory += self._delim
+        self._s3_client.delete_object(Bucket=self._s3_bucket, Key=directory)
