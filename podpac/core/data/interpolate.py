@@ -799,7 +799,7 @@ INTERPOLATION_METHODS = {
 INTERPOLATION_SHORTCUTS = INTERPOLATION_METHODS.keys()
 """list : Keys of :attr:`INTERPOLATION_METHODS` """
 
-INTERPOLATION_DEFAULT = 'nearest_preview'
+INTERPOLATION_DEFAULT = 'nearest'
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
 def interpolation_trait(default_value=INTERPOLATION_DEFAULT, allow_none=True, **kwargs):
