@@ -46,9 +46,10 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     from podpac import settings
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
+    from podpac.core.utils import JSONEncoder
     pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
     coords = Coordinates.from_json(
-        json.dumps(_json['coordinates'], indent=4))
+        json.dumps(_json['coordinates'], indent=4, cls=JSONEncoder))
     pipeline.eval(coords)
     if ret_pipeline:
         return pipeline

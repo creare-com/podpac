@@ -260,7 +260,6 @@ $ pytest -k "TestClass"    # run only the TestClass
 
 Configuration options are specified in `setup.cfg`.
 
-
 ### Integration testing
 
 We use `pytest` to write integration tests. 
@@ -289,6 +288,32 @@ $ pytest -m integration
 ```
 
 See [working with custom markers](https://docs.pytest.org/en/latest/example/markers.html) for more details on how to use markers in pytest.
+
+### Skip Test on CI
+
+In some circumstances, we don't want tests to run during the CI process (i.e. when the test will incur charges from a cloud provider).
+
+To specify that a test should not be run on the CI test, use a pytest skipif statement that reads `--ci` config option:
+
+```python
+import pytest
+
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
+def test_function():
+    pass
+
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
+class TestClass(object):
+
+    def test_method(self):
+        pass
+```
+
+To invoke tests with `--ci` command line option:
+
+```bash
+$ pytest --ci podpac
+```
 
 ### Code Coverage
 

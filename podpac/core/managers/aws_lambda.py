@@ -14,7 +14,7 @@ from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.pipeline.output import FileOutput, Output
 # from podpac.core.pipeline import Pipeline
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, JSONEncoder
 
 try:
     import cPickle  # Python 2.7
@@ -126,7 +126,7 @@ class Lambda(Node):
             'json')
         s3 = boto3.client('s3')
         s3.put_object(
-            Body=(bytes(json.dumps(d, indent=4).encode('UTF-8'))),
+            Body=(bytes(json.dumps(d, indent=4, cls=JSONEncoder).encode('UTF-8'))),
             Bucket=self.s3_bucket_name,
             Key=filename
         )

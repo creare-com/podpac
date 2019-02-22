@@ -1,5 +1,6 @@
 
 from datetime import datetime
+import json
 
 import pytest
 import traitlets as tl
@@ -8,6 +9,7 @@ import pandas as pd
 import xarray as xr
 from numpy.testing import assert_equal
 
+import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
@@ -35,23 +37,46 @@ class TestStackedCoordinatesCreation(object):
         repr(c)
 
     def test_ctype(self):
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat', ctype='left')
+        lon = ArrayCoordinates1d([10, 20, 30], name='lon')
+        c = StackedCoordinates([lat, lon], ctype='right')
+
+        # lon ctype set by StackedCoordinates
+        assert c['lon'].ctype == 'right'
+
+        # but lat is left by StackedCoordinates because it was already explicitly set
+        assert c['lat'].ctype == 'left'
+
+    def test_coord_ref_sys(self):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')
         lon = ArrayCoordinates1d([10, 20, 30], name='lon')
-        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'], name='time', ctype='right')
+        c = StackedCoordinates([lat, lon], coord_ref_sys='SPHER_MERC')
 
-        c1 = StackedCoordinates([lat, lon, time], ctype='point')
+        assert c['lat'].coord_ref_sys == 'SPHER_MERC'
+        assert c['lon'].coord_ref_sys == 'SPHER_MERC'
 
-        # lat and lon ctype set by StackedCoordinates
-        assert c1['lat'].ctype == 'point'
-        assert c1['lon'].ctype == 'point'
+        # must match
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat', coord_ref_sys='WGS84')
+        lon = ArrayCoordinates1d([10, 20, 30], name='lon', coord_ref_sys='SPHER_MERC')
+        with pytest.raises(ValueError, match="coord_ref_sys mismatch"):
+            StackedCoordinates([lat, lon])
 
-        # but time is left by StackedCoordinates because it was already explicitly set
-        assert c1['time'].ctype == 'right'
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat', coord_ref_sys='WGS84')
+        lon = ArrayCoordinates1d([10, 20, 30], name='lon', coord_ref_sys='WGS84')
+        with pytest.raises(ValueError, match="coord_ref_sys mismatch"):
+            StackedCoordinates([lat, lon], coord_ref_sys='SPHER_MERC')
 
-        # same for the original objects (they are not copied)
-        assert lat.ctype == 'point'
-        assert lon.ctype == 'point'
-        assert time.ctype == 'right'
+    def test_distance_units(self):
+        lat = ArrayCoordinates1d([0, 1], name='lat')
+        lon = ArrayCoordinates1d([0, 1], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02'], name='time')
+
+        units = podpac.core.units.Units()
+        c = StackedCoordinates([lat, lon, time], distance_units=units)
+
+        assert c['lat'].units is units
+        assert c['lon'].units is units
+        assert c['time'].units is not units
 
     def test_StackedCoordinates(self):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')
@@ -79,9 +104,8 @@ class TestStackedCoordinatesCreation(object):
         # but duplicate None name is okay
         StackedCoordinates([c, c])
 
-        # TODO: this will fail correctly once I move the properties propagation to an observe or similar
-        # with pytest.raises(tl.TraitError):
-        #     StackedCoordinates([[0, 1, 2], [10, 20, 30]])
+        with pytest.raises(TypeError, match='Invalid coordinates'):
+            StackedCoordinates([[0, 1, 2], [10, 20, 30]])
 
     def test_from_xarray(self):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')
@@ -102,35 +126,43 @@ class TestStackedCoordinatesCreation(object):
         c = StackedCoordinates([lat, lon, time])
 
         c2 = c.copy()
-        assert c2.dims == c.dims
-        assert_equal(c2['lat'].coordinates, c['lat'].coordinates)
-        assert_equal(c2['lon'].coordinates, c['lon'].coordinates)
-        assert_equal(c2['time'].coordinates, c['time'].coordinates)
+        assert c2 is not c
+        assert c2 == c
 
-        # set name
-        lat = ArrayCoordinates1d([0, 1, 2])
-        lon = ArrayCoordinates1d([10, 20, 30])
-        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'])
-        c = StackedCoordinates([lat, lon, time])
-
-        c2 = c.copy(name='lat_lon_time')
-        assert c2.dims == ('lat', 'lon', 'time')
-
-        # set properties
+class TestStackedCoordinatesEq(object):
+    def test_eq_type(self):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')
         lon = ArrayCoordinates1d([10, 20, 30], name='lon')
-        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'], name='time')
-        c = StackedCoordinates([lat, lon, time])
+        c = StackedCoordinates([lat, lon])
+        assert c != [[0, 1, 2], [10, 20, 30]]
 
-        c2 = c.copy(ctype='point')
-        c['lat'].ctype == 'midpoint'
-        c['lon'].ctype == 'midpoint'
-        c['time'].ctype == 'midpoint'
-        c2['lat'].ctype == 'point'
-        c2['lon'].ctype == 'point'
-        c2['time'].ctype == 'point'
+    def test_eq_size_shortcut(self):
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30], name='lon')
+        c1 = StackedCoordinates([lat, lon])
+        c2 = StackedCoordinates([lat[:2], lon[:2]])
+        assert c1 != c2
 
-class TestStackedCoordinatesDefinition(object):
+    def test_eq_dims_shortcut(self):
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30], name='lon')
+        c1 = StackedCoordinates([lat, lon])
+        c2 = StackedCoordinates([lon, lat])
+        assert c1 != c2
+
+    def test_eq_coordinates(self):
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30], name='lon')
+        c1 = StackedCoordinates([lat, lon])
+        c2 = StackedCoordinates([lat, lon])
+        c3 = StackedCoordinates([lat[::-1], lon])
+        c4 = StackedCoordinates([lat, lon[::-1]])
+        
+        assert c1 == c2
+        assert c1 != c3
+        assert c1 != c4
+
+class TestStackedCoordinatesSerialization(object):
     def test_definition(self):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')
         lon = ArrayCoordinates1d([10, 20, 30], name='lon')
@@ -139,20 +171,11 @@ class TestStackedCoordinatesDefinition(object):
         d = c.definition
         
         assert isinstance(d, list)
-        assert isinstance(d[0], dict)
-        assert isinstance(d[1], dict)
-        assert isinstance(d[2], dict)
-        ArrayCoordinates1d.from_definition(d[0])
-        ArrayCoordinates1d.from_definition(d[1])
-        UniformCoordinates1d.from_definition(d[2])
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
+        c2 = StackedCoordinates.from_definition(d)
+        assert c2 == c
 
-        c2 = StackedCoordinates.from_definition(c.definition)
-        assert c2.dims == c.dims
-        assert_equal(c2['lat'].coordinates, c['lat'].coordinates)
-        assert_equal(c2['lon'].coordinates, c['lon'].coordinates)
-        assert_equal(c2['time'].coordinates, c['time'].coordinates)
-
-    def test_from_definition(self):
+    def test_invalid_definition(self):
         with pytest.raises(ValueError, match="Could not parse coordinates definition with keys"):
             StackedCoordinates.from_definition([{'apple': 10}, {}])
 
@@ -212,6 +235,12 @@ class TestStackedCoordinatesProperties(object):
         assert_equal(c.coords['lat'], c['lat'].coordinates)
         assert_equal(c.coords['lon'], c['lon'].coordinates)
         assert_equal(c.coords['time'], c['time'].coordinates)
+
+    def test_coord_ref_sys(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        c = StackedCoordinates([lat, lon], coord_ref_sys='SPHER_MERC')
+        assert c.coord_ref_sys == 'SPHER_MERC'
 
 class TestStackedCoordinatesIndexing(object):
     def test_get_dim(self):

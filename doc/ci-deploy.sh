@@ -16,6 +16,8 @@ SSH_PODPAC_DOCS="git@github.com:creare-com/podpac-docs.git"
 PODPAC_DOCS_PATH="../../podpac-docs"
 COMMIT_AUTHOR=`git log --format="%cn" -n 1`
 COMMIT_AUTHOR_EMAIL=`git log --format="%ce" -n 1`
+PODPAC_EXAMPLES="https://github.com/creare-com/podpac-examples"
+PODPAC_EXAMPLES_PATH="../../podpac-examples"
 
 # Only deploy to site on develop or master. Ignore pull requests
 if [ "$TRAVIS_BRANCH" == "master" ] || [ "$TRAVIS_BRANCH" == "develop" ]; then
@@ -33,6 +35,9 @@ ssh-add ci-doc-deploy
 
 # clone podpac-docs repo into directory next to podpac
 git clone $PODPAC_DOCS $PODPAC_DOCS_PATH
+
+# clone the podpac-examples repo into directory next to podpac
+git clone $PODPAC_EXAMPLES $PODPAC_EXAMPLES_PATH
 
 # Run our compile script
 ./release-docs.sh

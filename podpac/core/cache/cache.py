@@ -737,7 +737,7 @@ class FileCacheStore(CacheStore):
             if c.has(listing):
                 data = c.get(listing).data
                 if data is None:
-                     CacheException("Stored data is None.")
+                    CacheException("Stored data is None.")
                 return data
         raise CacheException("Cache miss. Requested data not found.")
 
