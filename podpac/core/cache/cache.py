@@ -10,16 +10,13 @@ import shutil
 from hashlib import md5 as hash_alg
 import six
 import fnmatch
-# change when merging with develop so that the lazy import module is used.
-from podpac.core.utils import optional_import
-
+from lazy_import import lazy_module
 try:
     import cPickle  # Python 2.7
 except:
     import _pickle as cPickle
 
-# change when merging with develop so that the lazy import module is used.
-boto3 = optional_import('boto3')
+boto3 = lazy_module('boto3')
 
 from podpac.core.settings import settings
 
