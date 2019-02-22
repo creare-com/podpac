@@ -558,7 +558,9 @@ def node_eval(fn):
             self._from_cache = True
         else:
             data = fn(self, coordinates, output=output,)
-            if self.cache_output:
+            # We need to check if the cache now has the key because it is possible that
+            # the previous function call added the key with the coordinates to the cache
+            if self.cache_output and not (self.has_cache(key, cache_coordinates) and not self.cache_update):
                 self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update,
                                raise_no_cache_exception=False)
             self._from_cache = False
