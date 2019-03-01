@@ -716,7 +716,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
                                 float(lonlat[:3]) * (1 - 2 * (lonlat[3] == 'W'))
                                 ))
 
-        times = np.array(times)
+        times = np.array(times).squeeze()
         latlons = np.array(latlons)
         sources = np.array(sources)
         I = np.argsort(times)
