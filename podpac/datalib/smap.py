@@ -180,11 +180,11 @@ SMAP_PRODUCT_DICT = {
     #'<Product>.ver': ['latkey',               'lonkey',                     'rootdatakey',                       'layerkey'              'default_verison'
     'SPL4SMAU':   ['cell_lat',             'cell_lon',                   'Analysis_Data_',                    '{rdk}sm_surface_analysis',    4],
     'SPL4SMGP':   ['cell_lat',             'cell_lon',                   'Geophysical_Data_',                 '{rdk}sm_surface',             4],
-    'SPL3SMA':    ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          4],
-    'SPL3SMAP':   ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          4],
-    'SPL3SMP':    ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}_soil_moisture',         4],
+    'SPL3SMA':    ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          3],
+    'SPL3SMAP':   ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          3],
+    'SPL3SMP':    ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}_soil_moisture',         5],
     'SPL4SMLM':   ['cell_lat',             'cell_lon',                   'Land_Model_Constants_Data_',        '',                            4],
-    'SPL2SMAP_S': ['{rdk}latitude_1km',    '{rdk}longitude_1km',         'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km',      4],
+    'SPL2SMAP_S': ['{rdk}latitude_1km',    '{rdk}longitude_1km',         'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km',      2],
 }
 
 SMAP_PRODUCT_MAP = xr.DataArray(list(SMAP_PRODUCT_DICT.values()),
@@ -982,16 +982,13 @@ class SMAP(podpac.compositor.OrderedCompositor):
                 coords = [[dates, lats, lons]]
             
             crds = Coordinates(coords, dims)
-            base_url = SMAPDateFolder(product=self.product, folder_date='00001122').source[:-8]
-            source_urls = [base_url + np2smap_date(d)[:10] + '/' + f \
-                            for d, f in zip(dates, filenames)]
             
             create_kwargs = {'auth_session': self.auth_session,
                              'layer_key': self.layerkey}
             if self.interpolation:
                 create_kwargs['interpolation'] = self.interpolation
             
-            sources = GetSMAPSources(source_urls, create_kwargs)
+            sources = GetSMAPSources(self.product, filenames, dates, create_kwargs)
             
             if bounds is None:
                 self.put_cache(crds, 'filename.coordinates', overwrite=update_cache)
@@ -1050,8 +1047,10 @@ class SMAPBestAvailable(podpac.compositor.OrderedCompositor):
         return None # NO shared coordiantes
     
 class GetSMAPSources(object):
-    def __init__(self, source_urls, create_kwargs):
-        self.source_urls = source_urls
+    def __init__(self, product, filenames, dates, create_kwargs):
+        self.product = product
+        self.filenames = filenames
+        self.dates = dates
         self.create_kwargs = create_kwargs
     
     def __getitem__(self, slc):
@@ -1062,8 +1061,11 @@ class GetSMAPSources(object):
                 return_slice = 0
             else: 
                 raise ValueError('Invalid slice')
+        base_url = SMAPDateFolder(product=self.product, folder_date='00001122').source[:-8]
+        source_urls = [base_url + np2smap_date(d)[:10] + '/' + f \
+                        for d, f in zip(self.dates[slc], self.filenames[slc])]        
         return np.array([SMAPSource(source=s, **self.create_kwargs) \
-                         for s in self.source_urls[slc]], object)[return_slice]
+                         for s in source_urls], object)[return_slice]
     
     def __len__(self):
         return len(self.source_urls)
