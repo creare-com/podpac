@@ -838,7 +838,7 @@ class Coordinates(tl.HasTraits):
         else:
             return Coordinates(intersections)
 
-    def unique(self):
+    def unique(self, return_index=False):
         """
         Remove duplicate coordinate values from each dimension.
 
@@ -847,8 +847,11 @@ class Coordinates(tl.HasTraits):
         coords : Coordinates
             New Coordinates object with unique, sorted coordinate values in each dimension.
         """
-
-        return Coordinates([c[np.unique(c.coordinates, return_index=True)[1]] for c in self.values()])
+        if return_index:
+            inds = [np.unique(c.coordinates, return_index=True)[1] for c in self.values()]
+            return Coordinates([c[i] for c, i in zip(self.values(), inds)]), inds
+        else:
+            return Coordinates([c[np.unique(c.coordinates, return_index=True)[1]] for c in self.values()])
 
     def unstack(self):
         """

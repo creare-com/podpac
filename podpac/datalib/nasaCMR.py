@@ -144,7 +144,7 @@ def _get_all_granule_pages(auth_session, url, entry_map, max_paging_depth=100000
     for i in range(1, max_pages):
         page_url = url + '&page_num=%d' % (i + 1)
         page_entries = json.loads(_get_from_url(auth_session, page_url))['feed']['entry']
-        if not entries:
+        if not page_entries:
             break
         entries.extend(list(map(entry_map, page_entries)))
     return entries
