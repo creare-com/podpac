@@ -980,7 +980,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
             # Extract coordinate information from filenames
             #filenames.sort()  # Assume it comes sorted...
             dims = ['time']
-            dates = np.array(list(map(datemap, filenames))).squeeze().tolist()
+            dates = [d for d in np.array(list(map(datemap, filenames))).squeeze()]
             coords = [dates]
             if latlonmap(filenames[0]):
                 latlons = list(map(latlonmap, filenames))
@@ -1026,7 +1026,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
                     
                     # Update the cache
                     if filenames_new:
-                        self.put_cache(crdsunique, 'filename.coordinates', overwrite=True)
+                        self.put_cache(crdsfull, 'filename.coordinates', overwrite=True)
                         self.put_cache(sources, 'filename.sources', overwrite=True)
 
             except Exception as e:  # likely a connection or authentication error
