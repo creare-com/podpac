@@ -18,11 +18,11 @@ except ImportError:
 DEFAULT_SETTINGS = {
     'DEBUG': False,
     'DEFAULT_CACHE': ['ram'],
+    'CACHE_OUTPUT_DEFAULT': True,
     'RAM_CACHE_MAX_BYTES': 1e9, # ~1GB
     'DISK_CACHE_MAX_BYTES': 10e9, # ~10GB
     'DISK_CACHE_DIR': 'cache',
     'S3_CACHE_DIR': 'cache',
-    'CACHE_ALL_OUTPUTS': False,
     'RAM_CACHE_ENABLED': True,
     'DISK_CACHE_ENABLED': True,
     'S3_CACHE_ENABLED': True,
@@ -78,6 +78,8 @@ class PodpacSettings(dict):
         Name of the AWS region, e.g. us-west-1, us-west-2, etc.
     DEFAULT_CACHE : list
         Defines a default list of cache stores in priority order. Defaults to `['ram']`.
+    CACHE_OUTPUT_DEFAULT : bool
+        Default value for node ``cache_output`` trait.
     RAM_CACHE_MAX_BYTES : int
         Maximum RAM cache size in bytes. Defaults to ``1e9`` (~1G).
     DISK_CACHE_MAX_BYTES : int
@@ -86,8 +88,6 @@ class PodpacSettings(dict):
         Subdirectory to use for the disk cache. Defaults to ``'cache'`` in the podpac root directory.
     S3_CACHE_DIR : str
         Subdirectory to use for S3 cache (within the specified S3 bucket). Defaults to ``'cache'``.
-    CACHE_ALL_OUTPUTS : bool
-        Automatically cache node outputs to the default cache store(s). Outputs for nodes with `cache_output=False` will not be cached. Defaults to ``False``.
     RAM_CACHE_ENABLED: bool
         Enable caching to RAM. Note that if disabled, some nodes may fail. Defaults to ``True``.
     DISK_CACHE_ENABLED: bool

@@ -78,7 +78,7 @@ class Node(tl.HasTraits):
     Attributes
     ----------
     cache_output: bool
-        Default if True. Should the node's output be cached? 
+        Should the node's output be cached? If not provided or None, uses default based on settings.
     cache_update: bool
         Default is False. Should the node's cached output be updated from the source data? 
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
@@ -100,9 +100,23 @@ class Node(tl.HasTraits):
 
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
-    cache_output = tl.Bool(True)
+    cache_output = tl.Any()
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(cache.CacheCtrl, allow_none=True)
+
+    @tl.default('cache_output')
+    def _cache_output_default(self):
+        return settings['CACHE_OUTPUT_DEFAULT']
+
+    @tl.validate('cache_output')
+    def _validate_cache_output(self, d):
+        val = d['value']
+        if val is None:
+            val = settings['CACHE_OUTPUT_DEFAULT']
+        if not isinstance(val, bool):
+            raise TraitError("The 'cache_output' trait of a Node must be a boolean, "
+                             "but a value of %s %s was specified" % (val, type(val)))
+        return val
 
     @tl.default('cache_ctrl')
     def _cache_ctrl_default(self):
@@ -534,7 +548,7 @@ def node_eval(fn):
                 output.transpose(*order)[:] = data
             self._from_cache = True
         else:
-            data = fn(self, coordinates, output=output,)
+            data = fn(self, coordinates, output=output)
 
             # We need to check if the cache now has the key because it is possible that
             # the previous function call added the key with the coordinates to the cache
