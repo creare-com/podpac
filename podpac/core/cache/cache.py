@@ -864,6 +864,9 @@ class DiskCacheStore(FileCacheStore):
             If unsupported `storage_format` is specified
         """
 
+        if not settings['DISK_CACHE_ENABLED']:
+            raise CacheException("Disk cache is disabled in the podpac settings.")
+
         # set cache dir
         if root_cache_dir_path is not None:
             self._root_dir_path = root_cache_dir_path
@@ -980,6 +983,10 @@ class S3CacheStore(FileCacheStore):
         NotImplementedError
             If unsupported `storage_format` is specified
         """
+        
+        if not settings['S3_CACHE_ENABLED']:
+            raise CacheException("S3 cache is disabled in the podpac settings.")
+
         self._cache_modes = set(['s3','all'])
         if root_cache_dir_path is None:
             root_cache_dir_path = settings['S3_CACHE_DIR']
@@ -1137,6 +1144,12 @@ class RamCacheStore(CacheStore):
     """
 
     cache_modes = set(['ram', 'all'])
+
+    def __init__(self):
+        if not settings['RAM_CACHE_ENABLED']:
+            raise CacheException("RAM cache is disabled in the podpac settings.")
+
+        super(self, CacheStore).__init__()
 
     def _get_key(self, obj):
         # return obj.hash if obj else None
