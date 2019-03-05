@@ -18,10 +18,10 @@ These instructions only assume that you already have [git](https://git-scm.com/)
 $ git clone https://github.com/creare-com/podpac.git
 $ git clone https://github.com/creare-com/podpac_examples.git
 $ cd podpac
-$ git checkout tags/<version> release/<version>  # as of writing, the <version> is 0.2.0
+$ git checkout -b release/<version> tags/<version>  # as of writing, the <version> is 0.3.0
 $ cd ..
 $ copy podpac\dist\local_Windows_install\* .
-$ set_local_conda_path.bat
+$ bin/set_local_conda_path.bat
 
 # Verify path is set correctly
 $ where conda
@@ -61,12 +61,14 @@ $ python -m ipykernel install --user
 
 # clean conda environment
 $ conda clean -a -y
+# Also delete miniconda/pkgs/.trash for a smaller installation
 ```
+
 
 * To run a `JupyterLab` sessions in the `<root_folder>\podpac_examples\notebooks` directory, double-click on the `run_podpac_jupyterlab.bat`. This will launch a browser window in the folder where PODPAC keeps its example notebooks.
 * To run an IPython console: Open up a Windows command prompt in `<root_folder>`
 
 ```bash
-$ bin\run_ipython.bat
+$ run_ipython.bat
 ```
 

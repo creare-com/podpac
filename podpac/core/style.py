@@ -42,7 +42,7 @@ class Style(tl.HasTraits):
     enumeration_colors = tl.Tuple(trait=tl.Tuple)
 
     clim = tl.List(default_value=[None, None])
-    cmap = tl.Instance(matplotlib.colors.Colormap)
+    cmap = tl.Instance('matplotlib.colors.Colormap')
     
     @tl.default('cmap') 
     def _cmap_default(self):

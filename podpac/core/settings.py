@@ -17,12 +17,15 @@ except ImportError:
 # Settings Defaults
 DEFAULT_SETTINGS = {
     'DEBUG': False,
+    'DEFAULT_CACHE': ['ram'],
     'RAM_CACHE_MAX_BYTES': 1e9, # ~1GB
     'DISK_CACHE_MAX_BYTES': 10e9, # ~10GB
     'DISK_CACHE_DIR': 'cache',
     'S3_CACHE_DIR': 'cache',
-    'CACHE_TO_DISK': False
-    'CACHE_TO_S3': False,
+    'CACHE_ALL_OUTPUTS': False,
+    'RAM_CACHE_ENABLED': True,
+    'DISK_CACHE_ENABLED': True,
+    'S3_CACHE_ENABLED': True,
     'ROOT_PATH': os.path.join(os.path.expanduser('~'), '.podpac'),
     'AWS_ACCESS_KEY_ID': None,
     'AWS_SECRET_ACCESS_KEY': None,

@@ -9,12 +9,10 @@ import inspect
 import numpy as np
 import xarray as xr
 import traitlets as tl
-
-# Helper utility for optional imports
-from podpac.core.utils import optional_import
+from lazy_import import lazy_module
 
 # Optional dependencies
-ne = optional_import('numexpr')
+ne = lazy_module('numexpr')
 
 # Internal dependencies
 from podpac.core.coordinates import Coordinates, union
@@ -290,10 +288,10 @@ class Arithmetic(Algorithm):
         res = xr.broadcast(*[inputs[f] for f in fields])
         f_locals = dict(zip(fields, res))
 
-        if ne is None:
-            result = eval(eqn, f_locals)
-        else:
+        try:
             result = ne.evaluate(eqn, f_locals)
+        except ImportError:
+            result = eval(eqn, f_locals)
         res = res[0].copy()  # Make an xarray object with correct dimensions
         res[:] = result
         return res
