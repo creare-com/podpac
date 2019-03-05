@@ -527,13 +527,11 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
 
     @tl.default('cache_ctrl')
     def _cache_ctrl_default(self):
-        # TODO append if necessary? prepend? replace?
-        # default_ctrl = cache.get_default_cache_ctrl()
-        # stores = default_ctrl.cache_stores
-        # if not np.any(isinstance(store, DiskCacheStore) for score in default_ctrl.cache_stores):
-        #     stores.append(cache.DiskCacheStore)
-
-        stores = [cache.DiskCacheStore]
+        # append disk store to default cache_ctrl if not present
+        default_ctrl = cache.get_default_cache_ctrl()
+        stores = default_ctrl.cache_stores
+        if not any(isinstance(store, DiskCacheStore) for score in default_ctrl.cache_stores):
+            stores.append(cache.DiskCacheStore)
         return cache.CacheCtrl(stores)
 
     @tl.default('auth_session')
