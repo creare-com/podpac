@@ -37,7 +37,8 @@ class BaseCoordinates(tl.HasTraits):
         """Coordinates definition."""
         raise NotImplementedError
 
-    def from_definition(self, d):
+    @classmethod
+    def from_definition(cls, d):
         """Get Coordinates from a coordinates definition."""
         raise NotImplementedError
 
@@ -53,7 +54,10 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     def __len__(self):
-        return self.size
+        raise NotImplementedError
 
     def __repr__(self):
+        raise NotImplementedError
+
+    def __eq__(self):
         raise NotImplementedError

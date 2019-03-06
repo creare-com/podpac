@@ -1,13 +1,15 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from operators import mul
+from operator import mul
 from collections import OrderedDict
 
 import numpy as np
 import traitlets as tl
-import lazy_module
-rasterio = lazyimport.lazy_module('rasterio')
+import lazy_import
+rasterio = lazy_import.lazy_module('rasterio')
 
+from podpac.core.settings import settings
+from podpac.core.units import Units
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
 IDIMS = 'ijkl'
@@ -16,7 +18,7 @@ class RotatedCoordinates(BaseCoordinates):
     """
     """
 
-    shape = tl.Tuple(read_only=True)
+    shape = tl.Tuple(traits=tl.Integer(), read_only=True)
     affine = tl.Instance(rasterio.Affine, read_only=True)
 
     dims = tl.Tuple(traits=tl.Enum(['lat', 'lon', 'alt', 'time']), read_only=True)
@@ -113,7 +115,7 @@ class RotatedCoordinates(BaseCoordinates):
 
     @property
     def ulc(self):
-        return np.array([X.c, X.f])
+        return np.array([self.affine.c, self.affine.f])
 
     @property
     def lrc(self):
@@ -134,16 +136,16 @@ class RotatedCoordinates(BaseCoordinates):
 
     @property
     def scale(self):
-        return ~self.rotation * ~self.translation * self.transformation
+        return ~self.rotation * ~self.translation * self.affine
 
     @property
     def geotransform(self):
-        return self.transformation.to_gdal()
+        return self.affine.to_gdal()
 
     @property
     def coordinates(self):
-        i = np.arange(shape[0])
-        j = np.arange(shape[1])
+        i = np.arange(self.shape[0])
+        j = np.arange(self.shape[1])
         return self.affine * np.meshgrid(i, j)
 
     @property
@@ -163,3 +165,12 @@ class RotatedCoordinates(BaseCoordinates):
 
     def copy(self):
         raise NotImplementedError("TODO")
+
+    def plot(self):
+        from matplotlib import pyplot
+        pyplot.figure()
+        pyplot.plot(*self.coordinates, 'b.')
+        pyplot.plot(*self.ulc, 'go')
+        pyplot.xlabel(self.dims[0])
+        pyplot.ylabel(self.dims[1])
+        pyplot.axis('equal')
