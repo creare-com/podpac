@@ -19,6 +19,7 @@ except ImportError:
 # Settings Defaults
 DEFAULT_SETTINGS = {
     'DEBUG': False,
+    'DEFAULT_COORD_REF_SYS': 'WGS84',
     'CACHE_DIR': None,
     'CACHE_TO_S3': False,
     'ROOT_PATH': os.path.join(os.path.expanduser('~'), '.podpac'),
@@ -64,6 +65,8 @@ class PodpacSettings(dict):
 
     Attributes
     ----------
+    DEFAULT_COORD_REF_SYS : str
+        Default coordinate reference system for spatial coordinates. Defaults to 'WGS84'.
     AWS_ACCESS_KEY_ID : str
         The access key for your AWS account.
         See the `boto3 documentation

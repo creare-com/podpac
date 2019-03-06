@@ -28,22 +28,96 @@ class RotatedCoordinates(BaseCoordinates):
     segment_lengths = tl.Tuple(traits=tl.Float(), read_only=True) # currently only uniform segments are supported
     units = tl.Instance(Units, allow_none=True, read_only=True)
     coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True, read_only=True)
+
+    _properties = tl.Set()
+    _segment_lengths = tl.Bool()
     
     def __init__(self, affine, shape, dims=None, ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
         self.set_trait('affine', affine)
         self.set_trait('shape', shape)
+        self.set_trait('dims', dims)
+        
+        if units is not None:
+            self.set_trait('units', units)
 
-        # TODO dims
-        # TODO ctypes
-        # TODO units
-        # TODO segment_lengths
-        # TODO coord_ref_sys
+        if coord_ref_sys is not None:
+            self.set_trait('coord_ref_sys', coord_ref_sys)
+
+        if ctypes is not None:
+            if isinstance(ctypes, str):
+                ctyes = [ctypes for dim in self.dims]
+            self.set_trait('ctypes', ctypes)
+
+        if segment_lengths is not None:
+            if isinstance(segment_lengths, numbers.Number):
+                segment_lengths = [segment_length for dim in self.dims]
+            self.set_trait('segment_lengths', segment_lengths)
+
+    @tl.default('ctypes')
+    def _default_ctype(self):
+        return ['midpoint' for dim in self.dims]
+
+    @tl.default('segment_lengths')
+    def _default_segment_lengths(self):
+        return [step if ctype != 'point' else None for step, ctype in zip(self.step, self.ctypes)]
+
+    @tl.default('coord_ref_sys')
+    def _default_coord_ref_sys(self):
+        return settings['DEFAULT_COORD_REF_SYS']
+
+    @tl.validate('shape')
+    def _validate_shape(self, d):
+        val = d['value']
+        if len(val) != 2:
+            raise ValueError("Invalid shape %s, must have ndim 2, not %d" % val, len(val))
+        return val
+
+    @tl.validate('dims', 'ctype', 'segment_lengths')
+    def _validate_dims(self, d):
+        val = d['value']
+        if len(val) != len(self.shape):
+            raise ValueError("%s value %s does not match shape %s (%d != %d)" % (
+                d['trait'].name, val, shape, len(val), len(shape)))
+        return val
+
+    @tl.observe('ctypes', 'units', 'coord_ref_sys')
+    def _set_property(self, d):
+        self._properties.add(d['name'])
+
+    @tl.observe('segment_lengths')
+    def _set_segment_lengths(self, d):
+        self._segment_lengths = True
 
     def __repr__(self):
-        raise NotImplementedError("TODO")
+        if len(set(self.ctypes)) == 1:
+            ctypes = "ctype['%s']" % self.ctypes[0]
+        else:
+            ctypes = "ctypes[%s]" % ', '.join(self.ctypes)
+
+        return "%s(%s): ULC%s, LRC%s, rad[%.4f], shape%s, %s" % (
+            self.__class__.__name__, self.dims, self.ulc, self.lrc, self.theta, self.shape, ctypes)
 
     def __eq__(self):
-        raise NotImplementedError("TODO")
+        if not isinstance(other, RotatedCoordinates1d):
+            return False
+
+        if self.affine != other.affine:
+            return False
+        
+        if self.shape != other.shape:
+            return False
+        
+        # defined coordinate properties should also match
+        for name in self._properties.union(other._properties):
+            if getattr(self, name) != getattr(other, name):
+                return False
+
+        # only check segment_lengths if one of the coordinates has custom segment lengths
+        if self._segment_lengths or other._segment_lengths:
+            if not np.all(self.segment_lengths == other.segment_lengths):
+                return False
+
+        return True
 
     # ------------------------------------------------------------------------------------------------------------------
     # Serialization
@@ -128,7 +202,8 @@ class RotatedCoordinates(BaseCoordinates):
 
     @property
     def lrc(self):
-        raise NotImplementedError("TODO")
+        # TODO calculate without calculating coordinates
+        return np.array([a.flatten()[-1] for a in self.coordinates])
 
     @property
     def step(self):
@@ -165,6 +240,12 @@ class RotatedCoordinates(BaseCoordinates):
             coords[dim] = (idims, c.T)
         return coords
 
+    @property
+    def properties(self):
+        """:dict: Dictionary of the coordinate properties. """
+
+        return {key:getattr(self, key) for key in self._properties}
+
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
@@ -173,7 +254,10 @@ class RotatedCoordinates(BaseCoordinates):
         raise NotImplementedError("TODO")
 
     def copy(self):
-        raise NotImplementedError("TODO")
+        kwargs = self.properties
+        if self._segment_lengths:
+            kwargs['segment_lengths'] = self.segment_lengths
+        return RotatedCoordinates(self.affine, self.shape, **kwargs)
 
     def plot(self, marker='b.', ulc_marker='bo'):
         from matplotlib import pyplot

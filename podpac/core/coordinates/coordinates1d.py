@@ -10,12 +10,11 @@ import copy
 import numpy as np
 import traitlets as tl
 
+from podpac.core.settings import settings
 from podpac.core.units import Units
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_delta, make_coord_delta_array, add_coord, divide_delta
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
-
-DEFAULT_COORD_REF_SYS = 'WGS84'
 
 class Coordinates1d(BaseCoordinates):
     """
@@ -125,7 +124,7 @@ class Coordinates1d(BaseCoordinates):
 
     @tl.default('coord_ref_sys')
     def _default_coord_ref_sys(self):
-        return DEFAULT_COORD_REF_SYS
+        return settings['DEFAULT_COORD_REF_SYS']
 
     def __repr__(self):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
@@ -145,7 +144,7 @@ class Coordinates1d(BaseCoordinates):
             if getattr(self, name) != getattr(other, name):
                 return False
 
-        # only check if one of the coordinates has custom segment lengths
+        # only check segment_lengths if one of the coordinates has custom segment lengths
         if self._segment_lengths or other._segment_lengths:
             if not np.all(self.segment_lengths == other.segment_lengths):
                 return False
