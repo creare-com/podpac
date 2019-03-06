@@ -52,6 +52,10 @@ extras_require = {
         'certifi>=2018.1.18',
         'urllib3>=1.22',
     ],
+    'nexrad': [
+        'arm_pyart>=1.9.2',
+        'netCDF4>=1.4.3'    
+    ],
     'dev': [
         'pylint>=1.8.2',
         'pytest>=3.3.2',
