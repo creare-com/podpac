@@ -153,19 +153,10 @@ class DataSource(Node):
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
     
-    #: any : location of the source
-    source = tl.Any(help='Path to the raw data source')
-
-    #: :class:`podpac.Coordinates` : {native_coordinates}
+    source = tl.Any()
     native_coordinates = tl.Instance(Coordinates)
-
-    #: str, dict : interpolation definition for the data source
     interpolation = interpolation_trait()
-
-    #: str : type of index to use for the data source
     coordinate_index_type = tl.Enum(['list', 'numpy', 'xarray', 'pandas'], default_value='numpy')
-
-    #: list : list of values from source data that should be interpreted as 'no data'
     nan_vals = tl.List(allow_none=True)
 
     # privates
@@ -173,7 +164,7 @@ class DataSource(Node):
     
     _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _requested_source_coordinates = tl.Instance(Coordinates)
-    _requested_source_coordinates_index = tl.List()
+    _requested_source_coordinates_index = tl.Tuple()
     _requested_source_data = tl.Instance(UnitsDataArray)
 
     # when native_coordinates is not defined, default calls get_native_coordinates
@@ -337,13 +328,14 @@ class DataSource(Node):
         # get data from data source
         self._requested_source_data = self._get_data(coordinates)
 
-        # if output is not input to evaluate, create it using the evaluated coordinates
+        # if not provided, create output using the evaluated coordinates, or
+        # if provided, set the order of coordinates to match the output dims
         if output is None:
+            requested_dims = None
             output = self.create_output_array(coordinates)
-
-        # set the order of dims to be the same as that of evaluated coordinates
-        # this is required in case the user supplied an output object with a different dims order
-        output = output.transpose(*coordinates.dims)
+        else:
+            requested_dims = coordinates.dims
+            coordinates = coordinates.transpose(*output.dims)
 
         # interpolate data into output
         output = self._interpolation.interpolate(self._requested_source_coordinates,
@@ -351,9 +343,13 @@ class DataSource(Node):
                                                  coordinates,
                                                  output)
 
+        # return the output to the originally requested output dims
+        if requested_dims is not None and requested_dims != output.dims:
+            output = output.transpose(*requested_dims)
         
         # save output to private for debugging
-        self._output = output
+        if settings['DEBUG']:
+            self._output = output
 
         return output
 
@@ -395,9 +391,9 @@ class DataSource(Node):
             udata_array = data
         elif isinstance(data, xr.DataArray):
             # TODO: check order of coordinates here
-            udata_array = self.create_output_array(coordinates, data=data.data)
+            udata_array = self.create_output_array(self._requested_source_coordinates, data=data.data)
         elif isinstance(data, np.ndarray):
-            udata_array = self.create_output_array(coordinates, data=data)
+            udata_array = self.create_output_array(self._requested_source_coordinates, data=data)
         else:
             raise ValueError('Unknown data type passed back from ' +
                              '{}.get_data(): {}. '.format(type(self).__name__, type(data)) +
@@ -473,7 +469,12 @@ class DataSource(Node):
             if 'interpolation' in d['attrs']:
                 raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
 
-        d['source'] = self.source
+        if isinstance(self.source, Node):
+            d['lookup_source'] = self.source
+        elif isinstance(self.source, np.ndarray):
+            d['source'] = self.source.tolist()
+        else:
+            d['source'] = self.source
 
         # TODO: cast interpolation to string in way that can be recreated here
         # should this move to interpolation class? 

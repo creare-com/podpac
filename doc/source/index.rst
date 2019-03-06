@@ -13,6 +13,7 @@ so that earth scientists can focus on science.
 .. raw:: html
 
     <a href="https://github.com/creare-com/podpac" class="fa fa-github"> View the Source on GitHub</a><br><br>
+    <a href="https://github.com/creare-com/podpac-examples/tree/develop/notebooks" class="fa fa-github"> Explore Jupyter Notebook Examples on GitHub</a><br><br>
 
 Purpose
 -------
@@ -36,12 +37,14 @@ The purpose of PODPAC is to facilitate
     why-podpac
     install
     examples
+    datasets
     roadmap
 
 .. toctree::
     :maxdepth: 1
     :caption: User Guide
 
+    user/settings
     user/coordinates
     user/nodes
     user/pipelines

@@ -12,9 +12,9 @@ import numpy as np
 import traitlets as tl
 from collections import OrderedDict
 
-# from podpac.core.utils import cached_property, clear_cache
+from podpac.core.utils import ArrayTrait
 from podpac.core.units import Units
-from podpac.core.coordinates.utils import make_coord_value, make_coord_array, add_coord
+from podpac.core.coordinates.utils import make_coord_value, make_coord_array
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 
 class ArrayCoordinates1d(Coordinates1d):
@@ -38,19 +38,19 @@ class ArrayCoordinates1d(Coordinates1d):
         Coordinate reference system.
     ctype : str
         Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-    extents : ndarray
-        When ctype != 'point', defines a custom acea bounds for the coordinates.
-        *Note: To be replaced with segment_lengths.*
+    segment_lengths : array, float, timedelta
+        When ctype is a segment type, the segment lengths for the coordinates.
 
     See Also
     --------
     :class:`Coordinates1d`, :class:`UniformCoordinates1d`
     """
 
-    coords = tl.Instance(np.ndarray)
+    coords = ArrayTrait(ndim=1, read_only=True)
     coords.__doc__ = ":array: User-defined coordinate values"
 
-    def __init__(self, coords, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None):
+    def __init__(self, coords,
+                       name=None, ctype=None, units=None, segment_lengths=None, coord_ref_sys=None):
         """
         Create 1d coordinates from an array.
 
@@ -66,71 +66,93 @@ class ArrayCoordinates1d(Coordinates1d):
             Coordinate reference system.
         ctype : str, optional
             Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-        extents : (low, high), optional
-            When ctype != 'point', defines custom (low, high) area bounds for the coordinates.
-            *Note: To be replaced with segment_lengths.*
+        segment_lengths : array, optional
+            When ctype is a segment type, the segment lengths for the coordinates. The segment_lengths are required
+            for nonmonotonic coordinates. The segment can be inferred from coordinate values for monotonic coordinates.
         """
 
-        coords = make_coord_array(coords)
+        # validate and set coords
+        self.set_trait('coords', make_coord_array(coords))
 
-        kwargs = {}
-        if name is not None:
-            kwargs['name'] = name
-        if ctype is not None:
-            kwargs['ctype'] = ctype
-        if units is not None:
-            kwargs['units'] = units
-        if coord_ref_sys is not None:
-            kwargs['coord_ref_sys'] = coord_ref_sys
-        if extents is not None:
-            kwargs['extents'] = extents
+        # precalculate once
+        if self.coords.size == 0:
+            self._is_monotonic = None
+            self._is_descending = None
+            self._is_uniform = None
 
-        super(ArrayCoordinates1d, self).__init__(coords=coords, **kwargs)
+        elif self.coords.size == 1:
+            self._is_monotonic = True
+            self._is_descending = None
+            self._is_uniform = True
 
-    @tl.validate('coords')
-    def _validate_coords(self, d):
-        val = d['value']
-        if val.ndim != 1:
-            raise ValueError("Invalid coords (ndim='%d', must be ndim=1" % val.ndim)
-        if val.dtype != float and not np.issubdtype(val.dtype, np.datetime64):
-            raise ValueError("Invalid coords (dtype='%s', must be np.float64 or np.datetime64)")
-        return val
-
-    @tl.observe('coords')
-    def _observe_coords(self, change):
-        # clear_cache(self, change, ['bounds', 'coordinates'])
-
-        val = self.coords
-        if val.size == 0:
-            self.set_trait('is_monotonic', None)
-            self.set_trait('is_descending', None)
-            self.set_trait('is_uniform', None)
-        elif val.size == 1:
-            self.set_trait('is_monotonic', True)
-            self.set_trait('is_descending', None)
-            self.set_trait('is_uniform', True)
         else:
-            deltas = (val[1:] - val[:-1]).astype(float) * (val[1] - val[0]).astype(float)
+            deltas = (self.coords[1:] - self.coords[:-1]).astype(float) * (self.coords[1] - self.coords[0]).astype(float)
             if np.any(deltas <= 0):
-                self.set_trait('is_monotonic', False)
-                self.set_trait('is_descending', None)
-                self.set_trait('is_uniform', False)
+                self._is_monotonic = False
+                self._is_descending = None
+                self._is_uniform = False
             else:
-                self.set_trait('is_monotonic', True)
-                self.set_trait('is_descending', self.coords[1] < self.coords[0])
-                self.set_trait('is_uniform', np.allclose(deltas, deltas[0]))
+                self._is_monotonic = True
+                self._is_descending = self.coords[1] < self.coords[0]
+                self._is_uniform = np.allclose(deltas, deltas[0])
+        
+        # set common properties
+        super(ArrayCoordinates1d, self).__init__(
+            name=name, ctype=ctype, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
 
-    @tl.validate('extents')
-    def _validate_extents(self, d):
-        return super(ArrayCoordinates1d, self)._validate_extents(d)
+        # check segment lengths
+        if segment_lengths is None:
+            if self.ctype == 'point' or self.size == 0:
+                self.set_trait('segment_lengths', None)
+            elif self.dtype == np.datetime64:
+                raise TypeError("segment_lengths required for datetime coordinates (if ctype != 'point')")
+            elif self.size == 1:
+                raise TypeError("segment_lengths required for coordinates of size 1 (if ctype != 'point')")
+            elif not self.is_monotonic:
+                raise TypeError("segment_lengths required for nonmonotonic coordinates (if ctype != 'point')")
 
-    @tl.default('coord_ref_sys')
-    def _default_coord_ref_sys(self):
-        return super(ArrayCoordinates1d, self)._default_coord_ref_sys()
-    
     @tl.default('ctype')
     def _default_ctype(self):
-        return super(ArrayCoordinates1d, self)._default_ctype()
+        if self.size == 0 or self.size == 1 or not self.is_monotonic or self.dtype == np.datetime64:
+            return 'point'
+        else:
+            return 'midpoint'
+
+    @tl.default('segment_lengths')
+    def _default_segment_lengths(self):
+        if self.is_uniform:
+            return np.abs(self.coords[1] - self.coords[0])
+
+        deltas = np.abs(self.coords[1:] - self.coords[:-1])
+        if self.is_descending:
+            deltas = deltas[::-1]
+
+        segment_lengths = np.zeros(self.coords.size)
+        if self.ctype == 'left':
+            segment_lengths[:-1] = deltas
+            segment_lengths[-1] = segment_lengths[-2]
+        elif self.ctype == 'right':
+            segment_lengths[1:] = deltas
+            segment_lengths[0] = segment_lengths[1]
+        elif self.ctype == 'midpoint':
+            segment_lengths[:-1] = deltas
+            segment_lengths[1:] += deltas
+            segment_lengths[1:-1] /= 2
+
+        if self.is_descending:
+            segment_lengths = segment_lengths[::-1]
+        
+        segment_lengths.setflags(write=False)
+        return segment_lengths
+
+    def __eq__(self, other):
+        if not super(ArrayCoordinates1d, self).__eq__(other):
+            return False
+
+        if not np.array_equal(self.coordinates, other.coordinates):
+            return False
+
+        return True
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate Constructors
@@ -151,9 +173,9 @@ class ArrayCoordinates1d(Coordinates1d):
             Coordinate reference system.
         ctype : str, optional
             Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-        extents : (low, high), optional
-            When ctype != 'point', defines custom (low, high) area bounds for the coordinates.
-            *Note: To be replaced with segment_lengths.*
+        segment_lengths : (low, high), optional
+            When ctype is a segment type, the segment lengths for the coordinates. The segment_lengths are required
+            for nonmonotonic coordinates. The segment can be inferred from coordinate values for monotonic coordinates.
 
         Returns
         -------
@@ -200,35 +222,24 @@ class ArrayCoordinates1d(Coordinates1d):
         if 'values' not in d:
             raise ValueError('ArrayCoordinates1d definition requires "values" property')
 
-        coords = d.pop('values')
-        return cls(coords, **d)
+        coords = d['values']
+        kwargs = {k:v for k,v in d.items() if k != 'values'}
+        return cls(coords, **kwargs)
 
-    def copy(self, **kwargs):
+    def copy(self):
         """
         Make a deep copy of the 1d Coordinates array.
-
-        The coordinates properties will be copied. Any provided keyword arguments will override these properties.
-
-        Arguments
-        ---------
-        name : str, optional
-            Dimension name. One of 'lat', 'lon', 'alt', and 'time'.
-        units : str, optional
-            Coordinates units.
-        coord_ref_sys : str, optional
-            Coordinates reference system.
-        ctype : str, optional
-            Coordinates type. One of 'point', 'midpoint', 'left', 'right'.
 
         Returns
         -------
         :class:`ArrayCoordinates1d`
-            Copy of the coordinates, with provided properties.
+            Copy of the coordinates.
         """
 
-        properties = self.properties
-        properties.update(kwargs)
-        return ArrayCoordinates1d(self.coords, **properties)
+        kwargs = self.properties
+        if self._segment_lengths:
+            kwargs['segment_lengths'] = self.segment_lengths
+        return ArrayCoordinates1d(self.coords, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods, array-like
@@ -239,7 +250,18 @@ class ArrayCoordinates1d(Coordinates1d):
 
     def __getitem__(self, index):
         coords = self.coords[index]
-        return ArrayCoordinates1d(coords, **self.properties)
+        kwargs = self.properties
+        
+        if self.ctype != 'point':
+            if isinstance(self.segment_lengths, np.ndarray):
+                kwargs['segment_lengths'] = self.segment_lengths[index]
+            else:
+                kwargs['segment_lengths'] = self.segment_lengths
+            
+            if (coords.size == 0 or coords.size == 1) and 'ctype' not in self.properties:
+                kwargs['ctype'] = self.ctype
+
+        return ArrayCoordinates1d(coords, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -274,6 +296,18 @@ class ArrayCoordinates1d(Coordinates1d):
             return np.datetime64
 
     @property
+    def is_monotonic(self):
+        return self._is_monotonic
+
+    @property
+    def is_descending(self):
+        return self._is_descending
+
+    @property
+    def is_uniform(self):
+        return self._is_uniform
+
+    @property
     def bounds(self):
         """ Low and high coordinate bounds. """
 
@@ -294,43 +328,13 @@ class ArrayCoordinates1d(Coordinates1d):
         return bounds
 
     @property
-    def area_bounds(self):
-        """
-        Low and high coordinate area bounds.
-
-        When ctype != 'point', this includes the portions of the segments beyond the coordinate bounds.
-        """
-
-        # point ctypes, just use bounds
-        if self.ctype == 'point':
-            return self.bounds
-
-        # segment ctypes, with explicit extents
-        if self.extents is not None:
-            return self.extents
-
-        # segment ctypes, calculated
-        if self.size == 0:
-            lo, hi = np.nan, np.nan
-        elif self.size == 1:
-            lo, hi = self.coords[0], self.coords[0]
-        elif self.ctype == 'midpoint':
-            lo = add_coord(self.coords[0], -(self.coords[ 1] - self.coords[ 0]) / 2.)
-            hi = add_coord(self.coords[-1], (self.coords[-1] - self.coords[-2]) / 2.)
-        elif (self.ctype == 'left' and not self.is_descending) or (self.ctype == 'right' and self.is_descending):
-            lo = self.coords[0]
-            hi = add_coord(self.coords[-1], (self.coords[-1] - self.coords[-2]))
+    def argbounds(self):
+        if not self.is_monotonic:
+            return np.argmin(self.coords), np.argmax(self.coords)
+        elif not self.is_descending:
+            return 0, -1
         else:
-            lo = add_coord(self.coords[0], -(self.coords[ 1] - self.coords[ 0]))
-            hi = self.coords[-1]
-
-        if self.is_descending:
-            lo, hi = hi, lo
-
-        # read-only array with the correct dtype
-        area_bounds = np.array([lo, hi], dtype=self.dtype)
-        area_bounds.setflags(write=False)
-        return area_bounds
+            return -1, 0
 
     @property
     def definition(self):
@@ -347,10 +351,9 @@ class ArrayCoordinates1d(Coordinates1d):
         """
 
         d = OrderedDict()
-        if self.dtype == float:
-            d['values'] = self.coords.tolist()
-        else:
-            d['values'] = self.coords.astype('str').tolist()
+        d['values'] = self.coords
+        if self._segment_lengths:
+            d['segment_lengths'] = self.segment_lengths
         d.update(self.properties)
         return d
 
@@ -435,10 +438,17 @@ class ArrayCoordinates1d(Coordinates1d):
             I = slice(start, stop+1)
 
         else:
-            raise NotImplementedError("select outer=True is not yet supported for non-monotonic coordinates")
+            try:
+                gt = self.coords >= max(self.coords[self.coords <= bounds[0]])
+            except ValueError as e:
+                gt = self.coords >= -np.inf
+            try:
+                lt = self.coords <= min(self.coords[self.coords >= bounds[1]])
+            except ValueError as e:
+                lt = self.coords <= np.inf
+            I = np.where(gt & lt)[0]
 
-        c = ArrayCoordinates1d(self.coords[I], **self.properties)
         if return_indices:
-            return c, I
+            return self[I], I
         else:
-            return c
+            return self[I]

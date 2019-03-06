@@ -1,22 +1,26 @@
-""" podpac module"""
+""" 
+podpac module
+"""
 
 # Always perfer setuptools over distutils
 import sys
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
+
 
 # get version
 sys.path.insert(0, 'podpac')
 import version
 __version__ = version.version()
 
-def requirements_to_array(filePath):
-    lines = open(filePath).readlines()
-    result = []
-    for index in range(len(lines)):
-        result.append(lines[index].strip('\n'))
-    return result
-
-install_requires = requirements_to_array("requirements.txt")
+install_requires = ['matplotlib>=2.1',
+                    'numpy>=1.14',
+                    'pint>=0.8',
+                    'scipy>=1.0',
+                    'traitlets>=4.3',
+                    'xarray>=0.10',
+                    'requests>=2.18',
+                    'lazy-import>=0.2.2']
 if sys.version_info.major == 2:
     install_requires += ['future>=0.16']
 
@@ -26,28 +30,28 @@ extras_require = {
         'h5py>=2.7',
         'lxml>=4.2',
         'pydap>=3.2',
-        'rasterio>=0.36',
-        'requests>=2.18',
-        ],
+        'rasterio>=1.0'
+    ],
     'aws': [
         'awscli>=1.11',
         'boto3>=1.4'
     ],
     'algorithms': [
         'numexpr>=2.6',
-        ],
+    ],
     'notebook': [
         'jupyterlab',
         'ipyleaflet',
         'ipywidgets',
         'ipympl',
         'nodejs',
-        ],
+        #'cartopy'
+    ],
     'esri': [
         # 'arcpy',
         'certifi>=2018.1.18',
         'urllib3>=1.22',
-        ],
+    ],
     'dev': [
         'pylint>=1.8.2',
         'pytest>=3.3.2',
@@ -60,8 +64,8 @@ extras_require = {
         'coveralls>=1.3',
         'six>=1.0',
         'attrs>=17.4.0'
-        ]
-    }
+    ]
+}
 
 all_reqs = []
 for key, val in extras_require.items():
@@ -79,7 +83,7 @@ setup(
 
     description="Pipeline for Observational Data Processing, Analysis, and Collaboration",
     author='Creare',
-    url="https://github.com/creare-com/podpac",
+    url="https://podpac.org",
     license="APACHE 2.0",
     classifiers=[
         # How mature is this project? Common values are
@@ -94,7 +98,7 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: both',
+        'Programming Language :: Python',
     ],
     packages=find_packages(),
     install_requires=install_requires,

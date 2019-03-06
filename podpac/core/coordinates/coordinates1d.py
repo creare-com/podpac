@@ -11,8 +11,8 @@ import numpy as np
 import traitlets as tl
 
 from podpac.core.units import Units
-# from podpac.core.utils import cached_property, clear_cache
-from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_array, add_coord
+from podpac.core.utils import ArrayTrait
+from podpac.core.coordinates.utils import make_coord_delta, make_coord_delta_array, add_coord, divide_delta
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
 DEFAULT_COORD_REF_SYS = 'WGS84'
@@ -47,9 +47,9 @@ class Coordinates1d(BaseCoordinates):
         Coordinate reference system.
     ctype : str
         Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-    extents : (low, high)
-        When ctype != 'point', defines custom (low, high) area bounds for the coordinates.
-        *Note: To be replaced with segment_lengths.*
+    segment_lengths : array, float, timedelta
+        When ctype is a segment type, the segment lengths for the coordinates. This may be single coordinate delta for
+        uniform segment lengths or an array of coordinate deltas corresponding to the coordinates for variable lengths.
 
     See Also
     --------
@@ -57,85 +57,100 @@ class Coordinates1d(BaseCoordinates):
     """
 
     name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
-    name.__doc__ = ":str: Dimension name, one of 'lat', 'lon', 'time', or 'alt'"
+    units = tl.Instance(Units, allow_none=True, read_only=True)
+    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True, read_only=True)
+    ctype = tl.Enum(['point', 'left', 'right', 'midpoint'], read_only=True)
+    segment_lengths = tl.Any(read_only=True)
 
-    units = tl.Instance(Units, allow_none=True)
-    units.__doc__ = ":Units: Coordinate units."
+    _properties = tl.Set()
+    _segment_lengths = tl.Bool()
 
-    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True)
-    coord_ref_sys.__doc__ = ":str: Coordinate reference system."
-
-    ctype = tl.Enum(['point', 'left', 'right', 'midpoint'])
-    ctype.__doc__ = ":str: Coordinates type, one of 'point', 'left', 'right', or 'midpoint'."
-
-    extents = tl.Instance(np.ndarray, allow_none=True, default_value=None)
-    extents.__doc__ = ":: *To be replaced.*"
-
-    is_monotonic = tl.CBool(allow_none=True, readonly=True)
-    is_monotonic.__doc__ = ":bool: Are the coordinate values unique and sorted."
-    
-    is_descending = tl.CBool(allow_none=True, readonly=True)
-    is_descending.__doc__ = ":bool: Are the coordinate values sorted in descending order."
-
-    is_uniform = tl.CBool(allow_none=True, readonly=True)
-    is_uniform.__doc__ = ":bool: Are the coordinate values uniformly-spaced."
-
-    def __init__(self, name=None, ctype=None, units=None, extents=None, coord_ref_sys=None, **kwargs):
+    def __init__(self, name=None, ctype=None, units=None, segment_lengths=None, coord_ref_sys=None):
         """*Do not use.*"""
 
         if name is not None:
-            kwargs['name'] = name
+            self.name = name
+
         if ctype is not None:
-            kwargs['ctype'] = ctype
+            self.set_trait('ctype', ctype)
+
         if units is not None:
-            kwargs['units'] = units
+            self.set_trait('units', units)
+
         if coord_ref_sys is not None:
-            kwargs['coord_ref_sys'] = coord_ref_sys
-        if extents is not None:
-            extents = make_coord_array(extents)
-            extents.setflags(write=False)
-            kwargs['extents'] = extents
+            self.set_trait('coord_ref_sys', coord_ref_sys)
 
-        super(Coordinates1d, self).__init__(**kwargs)
+        if segment_lengths is not None:
+            if np.array(segment_lengths).ndim == 0:
+                segment_lengths = make_coord_delta(segment_lengths)
+            else:
+                segment_lengths = make_coord_delta_array(segment_lengths)
+                segment_lengths.setflags(write=False)
+            
+            self.set_trait('segment_lengths', segment_lengths)
 
-    @tl.validate('extents')
-    def _validate_extents(self, d):
+        super(Coordinates1d, self).__init__()
+
+    @tl.observe('name', 'units', 'coord_ref_sys', 'ctype')
+    def _set_property(self, d):
+        self._properties.add(d['name'])
+
+    @tl.observe('segment_lengths')
+    def _set_segment_lengths(self, d):
+        self._segment_lengths = True
+
+    @tl.validate('segment_lengths')
+    def _validate_segment_lengths(self, d):
         val = d['value']
-        if self.ctype == 'point' and val is not None:
-            raise TypeError("extents must be None when ctype='point'")
-        if val.shape != (2,):
-            raise ValueError("Invalid extents shape, %s != (2,)" % val.shape)
-        if self.dtype == float and val.dtype != float:
-            raise ValueError("Invalid extents dtype, coordinates are numerical but extents are '%s'" % val.dtype)
-        if self.dtype == np.datetime64 and not np.issubdtype(val.dtype, np.datetime64):
-            raise ValueError("Invalid extents dtype, coordinates are datetime but extents are '%s'" % val.dtype)
+        
+        if self.ctype == 'point':
+            if val is not None:
+                raise TypeError("segment_lengths must be None when ctype='point'")
+            return None
+        
+        if isinstance(val, np.ndarray):
+            if val.size != self.size:
+                raise ValueError("coordinates and segment_lengths size mismatch, %d != %d" % (self.size, val.size))
+            if not np.issubdtype(val.dtype, self.deltatype):
+                raise ValueError("coordinates and segment_lengths dtype mismatch, %s != %s" % (self.dtype, self.deltatype))
+
+        else:
+            if self.size > 0 and not isinstance(val, self.deltatype):
+                raise TypeError("coordinates and segment_lengths type mismatch, %s != %s" % (self.deltatype, type(val)))
+
+        if np.any(np.array(val).astype(float) <= 0.0):
+            raise ValueError("segment_lengths must be positive")
+
         return val
 
     @tl.default('coord_ref_sys')
     def _default_coord_ref_sys(self):
         return DEFAULT_COORD_REF_SYS
-    
-    @tl.default('ctype')
-    def _default_ctype(self):
-        return 'midpoint'
 
     def __repr__(self):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
             self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)
 
     def __eq__(self, other):
-        if super(Coordinates1d, self).__eq__(other):
-            return True
+        if not isinstance(other, Coordinates1d):
+            return False
 
-        # special case for ArrayCoordinates1d and UniformCoordinates1d with the same properties and coordinates
-        if (isinstance(other, Coordinates1d) and
-            type(other) != type(self) and
-            self.is_uniform and other.is_uniform and 
-            self.properties == other.properties and
-            np.array_equal(self.coordinates, other.coordinates)):
-            return True
+        # defined coordinate properties should match
+        for name in self._properties.union(other._properties):
+            if getattr(self, name) != getattr(other, name):
+                return False
+        
+        # shortcuts (not strictly necessary)
+        for name in ['size', 'is_monotonic', 'is_descending', 'is_uniform']:
+            if getattr(self, name) != getattr(other, name):
+                return False
 
-        return False
+        # only check if one of the coordinates has custom segment lengths
+        if self._segment_lengths or other._segment_lengths:
+            if not np.all(self.segment_lengths == other.segment_lengths):
+                return False
+
+        return True
 
     def from_definition(self, d):
         raise NotImplementedError
@@ -155,22 +170,6 @@ class Coordinates1d(BaseCoordinates):
         return self.dims
 
     @property
-    def properties(self):
-        """:dict: Dictionary of the coordinate properties. """
-
-        d = {}
-        if self.name is not None:
-            d['name'] = self.name
-        if self.units is not None:
-            d['units'] = self.units
-        if self.coord_ref_sys is not None:
-            d['coord_ref_sys'] = self.coord_ref_sys
-        d['ctype'] = self.ctype
-        if self.extents is not None:
-            d['extents'] = self.extents
-        return d
-
-    @property
     def coordinates(self):
         """:array, read-only: Full array of coordinates values."""
 
@@ -186,9 +185,28 @@ class Coordinates1d(BaseCoordinates):
         raise NotImplementedError
 
     @property
+    def deltatype(self):
+        if self.dtype is np.datetime64:
+            return np.timedelta64
+        else:
+            return self.dtype
+
+    @property
     def size(self):
         """Number of coordinates. """
 
+        raise NotImplementedError
+
+    @property
+    def is_monotonic(self):
+        raise NotImplementedError
+
+    @property
+    def is_descending(self):
+        raise NotImplementedError
+
+    @property
+    def is_uniform(self):
         raise NotImplementedError
 
     @property
@@ -205,7 +223,41 @@ class Coordinates1d(BaseCoordinates):
         When ctype != 'point', this includes the portions of the segments beyond the coordinate bounds.
         """
 
-        raise NotImplementedError
+        # point ctypes, just use bounds
+        if self.ctype == 'point':
+            return self.bounds
+
+        # empty coordinates [np.nan, np.nan]
+        if self.size == 0:
+            return self.bounds
+
+        # segment ctypes, calculated
+        L, H = self.argbounds
+        lo, hi = self.bounds
+        
+        if not isinstance(self.segment_lengths, np.ndarray):
+            lo_length = hi_length = self.segment_lengths # uniform segment_lengths
+        else:
+            lo_length, hi_length = self.segment_lengths[L], self.segment_lengths[H]
+
+        if self.ctype == 'left':
+            hi = add_coord(hi, hi_length)
+        elif self.ctype == 'right':
+            lo = add_coord(lo, -lo_length)
+        elif self.ctype == 'midpoint':
+            lo = add_coord(lo, -divide_delta(lo_length, 2.0))
+            hi = add_coord(hi, divide_delta(hi_length, 2.0))
+
+        # read-only array with the correct dtype
+        area_bounds = np.array([lo, hi], dtype=self.dtype)
+        area_bounds.setflags(write=False)
+        return area_bounds
+
+    @property
+    def properties(self):
+        """:dict: Dictionary of the coordinate properties. """
+
+        return {key:getattr(self, key) for key in self._properties}
 
     @property
     def definition(self):
@@ -245,19 +297,18 @@ class Coordinates1d(BaseCoordinates):
         raise NotImplementedError
 
     def _select_empty(self, return_indices):
-        from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
-        c = ArrayCoordinates1d([], **self.properties)
+        I = []
         if return_indices:
-            return c, slice(0, 0)
+            return self[I], I
         else:
-            return c
+            return self[I]
 
     def _select_full(self, return_indices):
-        c = copy.deepcopy(self)
+        I = slice(None)
         if return_indices:
-            return c, slice(None, None)
+            return self[I], I
         else:
-            return c        
+            return self[I]
 
     def intersect(self, other, return_indices=False, outer=False):
         """

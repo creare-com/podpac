@@ -2,7 +2,7 @@
 Podpac Module
 
 Public API
-See https://creare-com.github.io/podpac-docs/developer/contributing.html#public-api
+See https://podpac.org/developer/contributing.html#public-api
 for more information about import conventions
 
 Attributes
@@ -12,7 +12,7 @@ version_info : OrderedDict
 """
 
 
-# Monkey match os.makedirs for Python 2 compatibility
+# Monkey patch os.makedirs for Python 2 compatibility
 import sys
 import os
 _osmakedirs = os.makedirs

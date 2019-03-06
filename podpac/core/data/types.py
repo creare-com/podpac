@@ -17,37 +17,44 @@ import re
 from io import BytesIO
 from collections import OrderedDict, defaultdict
 from six import string_types
-
+import logging
 
 import numpy as np
 import traitlets as tl
 import pandas as pd  # Core dependency of xarray
 
 # Helper utility for optional imports
-from podpac.core.utils import optional_import
+from lazy_import import lazy_module
 
 # Optional dependencies
-bs4 = optional_import('bs4')
+bs4 = lazy_module('bs4')
 # Not used directly, but used indirectly by bs4 so want to check if it's available
-lxml = optional_import('lxml')
-pydap = optional_import('pydap.client', return_root=True)
-rasterio = optional_import('rasterio')
-h5py = optional_import('h5py')
-RasterToNumPyArray = optional_import('arcpy.RasterToNumPyArray')
-boto3 = optional_import('boto3')
-requests = optional_import('requests')
+lxml = lazy_module('lxml')
+pydap = lazy_module('pydap')
+lazy_module('pydap.client')
+lazy_module('pydap.model')
+rasterio = lazy_module('rasterio')
+h5py = lazy_module('h5py')
+boto3 = lazy_module('boto3')
+requests = lazy_module('requests')
 # esri
-urllib3 = optional_import('urllib3')
-certifi = optional_import('certifi')
+RasterToNumPyArray = lazy_module('arcpy.RasterToNumPyArray')
+urllib3 = lazy_module('urllib3')
+certifi = lazy_module('certifi')
 
 # Internal dependencies
 from podpac.core import authentication
 from podpac.core.node import Node
 from podpac.core.settings import settings
-from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined
+from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.data.interpolate import interpolation_trait
+
+
+# Set up logging
+_logger = logging.getLogger(__name__)
 
 class Array(DataSource):
     """Create a DataSource from an array
@@ -62,7 +69,7 @@ class Array(DataSource):
     `native_coordinates` need to supplied by the user when instantiating this node.
     """
     
-    source = tl.Instance(np.ndarray)
+    source = ArrayTrait()
 
     @tl.validate('source')
     def _validate_source(self, d):
@@ -80,17 +87,6 @@ class Array(DataSource):
         s = coordinates_index
         d = self.create_output_array(coordinates, data=self.source[s])
         return d
-
-class NumpyArray(Array):
-    """Create a DataSource from a numpy array.
-
-    .. deprecated:: 0.2.0
-          `NumpyArray` will be removed in podpac 0.2.0, it is replaced by `Array`.
-    """
-
-    def init(self):
-        warnings.warn('NumpyArray been renamed Array. ' +
-                      'Backwards compatibility will be removed in future releases', DeprecationWarning)
 
 
 @common_doc(COMMON_DATA_DOC)
@@ -328,25 +324,15 @@ class CSV(DataSource):
         return self.dataset.columns.get_loc(self.data_col)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self):
         """Opens the data source
-        
-        Parameters
-        ----------
-        source : str, optional
-            Uses self.source by default. Path to the data source.
         
         Returns
         -------
         pd.DataFrame
             pd.read_csv(source)
         """
-        if source is None:
-            source = self.source
-        else:
-            self.source = source
-
-        return pd.read_csv(source, parse_dates=True, infer_datetime_format=True)
+        return pd.read_csv(self.source, parse_dates=True, infer_datetime_format=True)
     
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -377,49 +363,61 @@ class CSV(DataSource):
         return self.create_output_array(coordinates, data=d)
 
 
-# TODO: rename "Rasterio" to be more consistent with other naming conventions
 @common_doc(COMMON_DATA_DOC)
 class Rasterio(DataSource):
     """Create a DataSource using Rasterio.
-    
-    Attributes
+ 
+    Parameters
     ----------
+    source : str, :class:`io.BytesIO`
+        Path to the data source
     band : int
         The 'band' or index for the variable being accessed in files such as GeoTIFFs
-    dataset : Any
+
+    Attributes
+    ----------
+    dataset : :class:`rasterio._io.RasterReader`
         A reference to the datasource opened by rasterio
-    native_coordinates : Coordinates
+    native_coordinates : :class:`podpac.Coordinates`
         {native_coordinates}
-    source : str
-        Path to the data source
+
+
+    Notes
+    ------
+    The source could be a path to an s3 bucket file, e.g.: s3://landsat-pds/L8/139/045/LC81390452014295LGN00/LC81390452014295LGN00_B1.TIF  
+    In that case, make sure to set the environmental variable: 
+    * Windows: set CURL_CA_BUNDLE=<path_to_conda_env>\Library\ssl\cacert.pem
+    * Linux: export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
     """
     
-    source = tl.Unicode(allow_none=False)
+    source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)], allow_none=False)
+
     dataset = tl.Any(allow_none=True)
     band = tl.CInt(1).tag(attr=True)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self):
         """Opens the data source
-        
-        Parameters
-        ----------
-        source : str, optional
-            Uses self.source by default. Path to the data source.
         
         Returns
         -------
-        Any
-            raster.open(source)
+        :class:`rasterio.io.DatasetReader`
+            Rasterio dataset
         """
-        if source is None:
-            source = self.source
-        else:
-            self.source = source
 
         # TODO: dataset should not open by default
         # prefer with as: syntax
-        return rasterio.open(source)
+
+        if isinstance(self.source, BytesIO):
+            # https://rasterio.readthedocs.io/en/latest/topics/memory-files.html
+            # TODO: this is still not working quite right - likely need to work
+            # out the BytesIO format or how we are going to read/write in memory
+            with rasterio.MemoryFile(self.source) as memfile:
+                return memfile.open(driver='GTiff')
+
+        # local file
+        else:
+            return rasterio.open(self.source)
     
     def close_dataset(self):
         """Closes the file for the datasource
@@ -428,31 +426,50 @@ class Rasterio(DataSource):
 
     @tl.observe('source')
     def _update_dataset(self, change):
-        if self.dataset is not None:
-            self.dataset = self.open_dataset(change['new'])
-        if trait_is_defined(self, 'native_coordinates'):
-            self.native_coordinates = self.get_native_coordinates()
+
+        # only update dataset if dataset trait has been defined the first time
+        if trait_is_defined(self, 'dataset'):
+            self.dataset = self._open_dataset()
+
+            # update native_coordinates if they have been defined
+            if trait_is_defined(self, 'native_coordinates'):
+                self.native_coordinates = self.get_native_coordinates()
         
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
         
-        The default implementation tries to find the lat/lon coordinates based on dataset.affine or dataset.transform
-        (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
+        The default implementation tries to find the lat/lon coordinates based on dataset.affine.
+        It cannot determine the alt or time dimensions, so child classes may
         have to overload this method.
         """
         
+        # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
-
-        left, bottom, right, top = self.dataset.bounds
-
         if affine[1] != 0.0 or affine[3] != 0.0:
             raise NotImplementedError("Rotated coordinates are not yet supported")
 
+        # TODO: fix coordinate reference system handling
+        # try:
+        #     crs = self.dataset.crs['init'].upper()
+        #     if crs == 'EPSG:3857':
+        #         crs = 'SPHER_MERC'
+        #     elif crs == 'EPSG:4326':
+        #         crs = 'WGS84'
+        #     else:
+        #         crs = None
+        # except:
+        #     crs = None
+        crs = None
+
+        # get bounds
+        left, bottom, right, top = self.dataset.bounds
+
+        # rasterio reads data upside-down from coordinate conventions, so lat goes from top to bottom
         return Coordinates([
-            UniformCoordinates1d(bottom, top, size=self.dataset.height, name='lat'),
-            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon')
-        ])
+            UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat', coord_ref_sys=crs),
+            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon', coord_ref_sys=crs)
+        ], coord_ref_sys=crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -460,9 +477,13 @@ class Rasterio(DataSource):
         """
         data = self.create_output_array(coordinates)
         slc = coordinates_index
-        window = window=((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
-        a = self.dataset.read(self.band, out_shape=tuple(coordinates.shape))
-        data.data.ravel()[:] = a.ravel()
+        
+        # read data within coordinates_index window
+        window = ((slc[0].start, slc[0].stop),(slc[1].start, slc[1].stop))
+        raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
+
+        # set raster data to output array
+        data.data.ravel()[:] = raster_data.ravel()
         return data
     
     @cached_property
@@ -567,6 +588,10 @@ class H5PY(DataSource):
         The 'key' for the data that described the time coordinate of the data
     altkey : str
         The 'key' for the data that described the altitude coordinate of the data
+    dim_order : list, optional
+        Default is ['lat', 'lon', 'time', 'alt']. The order of the dimensions in the dataset. For example,
+        if self.datasets[datakey] has shape (1, 2, 3) and the (time, lon, lat) dimensions have sizes (1, 2, 3)
+        then dim_order should be ['time', 'lon', 'lat']
     """
     
     source = tl.Unicode(allow_none=False)
@@ -576,9 +601,10 @@ class H5PY(DataSource):
     lonkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     timekey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     altkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    dim_order = tl.List(default_value=['lat', 'lon', 'time', 'alt']).tag(attr=True)
     
     @tl.default('dataset')
-    def open_dataset(self, source=None):
+    def _open_dataset(self, source=None):
         """Opens the data source
         
         Parameters
@@ -591,6 +617,7 @@ class H5PY(DataSource):
         Any
             raster.open(source)
         """
+        # TODO: update this to remove block (see Rasterio)
         if source is None:
             source = self.source
         else:
@@ -607,9 +634,10 @@ class H5PY(DataSource):
 
     @tl.observe('source')
     def _update_dataset(self, change):
+        # TODO: update this to look like Rasterio
         if self.dataset is not None:
             self.close_dataset()
-            self.dataset = self.open_dataset(change['new'])
+            self.dataset = self._open_dataset(change['new'])
         if trait_is_defined(self, 'native_coordinates'):
             self.native_coordinates = self.get_native_coordinates()
         
@@ -637,7 +665,9 @@ class H5PY(DataSource):
             dims.append('alt')
         if not coords:
             return None
-        return Coordinates(coords, dims)
+        # Some dimensions may not be present in the default dim_order, so remove these
+        dim_order = [d for d in self.dim_order if d in dims]
+        return Coordinates(coords, dims).transpose(*dim_order)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -645,7 +675,7 @@ class H5PY(DataSource):
         """
         data = self.create_output_array(coordinates)
         slc = coordinates_index
-        a = self.dataset[self.datakey][:][slc]
+        a = self.dataset[self.datakey][slc]
         data.data.ravel()[:] = a.ravel()
         return data
     
@@ -653,7 +683,6 @@ class H5PY(DataSource):
     def keys(self):
         return H5PY._find_h5py_keys(self.dataset)
         
-    @property
     def attrs(self, key='/'):
         """
         Dataset or group key for which attributes will be summarized.
@@ -668,6 +697,7 @@ class H5PY(DataSource):
         else:
             keys.append(obj.name)
             return keys
+        keys = list(set(keys))
         keys.sort()
         return keys
             
@@ -882,7 +912,7 @@ class WCS(DataSource):
                 else:
                     raise Exception("Do not have a URL request library to get WCS data.")
                 
-                if rasterio is not None:
+                try:
                     try: # This works with rasterio v1.0a8 or greater, but not on python 2
                         with rasterio.open(io) as dataset:
                             output.data[i, ...] = dataset.read()
@@ -901,7 +931,7 @@ class WCS(DataSource):
 
                         os.remove(tmppath) # Clean up
 
-                elif RasterToNumPyArray is not None:
+                except ImportError:
                     # Writing the data to a temporary tiff and reading it from there is hacky
                     # However reading directly from r.data or io doesn't work
                     # Should improve in the future
@@ -944,7 +974,7 @@ class WCS(DataSource):
             else:
                 raise Exception("Do not have a URL request library to get WCS data.")
             
-            if rasterio is not None:
+            try:
                 try: # This works with rasterio v1.0a8 or greater, but not on python 2
                     with rasterio.open(io) as dataset:
                         if dotime:
@@ -961,14 +991,15 @@ class WCS(DataSource):
                     with rasterio.open(tmppath) as dataset:
                         output.data[:] = dataset.read()
                     os.remove(tmppath) # Clean up
-            elif RasterToNumPyArray is not None:
+            except ImportError:
                 # Writing the data to a temporary tiff and reading it from there is hacky
                 # However reading directly from r.data or io doesn't work
                 # Should improve in the future
                 open('temp.tiff', 'wb').write(r.data)
-                output.data[:] = RasterToNumPyArray('temp.tiff')
-            else:
-                raise Exception('Rasterio or Arcpy not available to read WCS feed.')
+                try:
+                    output.data[:] = RasterToNumPyArray('temp.tiff')
+                except:
+                    raise Exception('Rasterio or Arcpy not available to read WCS feed.')
         if not coordinates['lat'].is_descending:
             if dotime:
                 output.data[:] = output.data[:, ::-1, :]
@@ -1003,7 +1034,7 @@ class ReprojectedSource(DataSource):
     """
     
     source = tl.Instance(Node)
-    source_interpolation = tl.Unicode('nearest_preview').tag(attr=True)
+    source_interpolation = interpolation_trait().tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     def _first_init(self, **kwargs):
@@ -1031,9 +1062,17 @@ class ReprojectedSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        self.source.interpolation = self.source_interpolation
+        if hasattr(self.source, 'interpolation') and self.source_interpolation is not None:
+            si = self.source.interpolation
+            self.source.interpolation = self.source_interpolation
+        elif self.source_interpolation is not None: 
+            _logger.warn("ReprojectedSource cannot set the 'source_interpolation'"
+                         " since self.source does not have an 'interpolation' "
+                         " attribute. \n type(self.source): %s\nself.source: " % (
+                             str(type(self.source)), str(self.source)))
         data = self.source.eval(coordinates)
-        
+        if hasattr(self.source, 'interpolation') and self.source_interpolation is not None:
+            self.source.interpolation = si
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of
         # the reprojected coordinates

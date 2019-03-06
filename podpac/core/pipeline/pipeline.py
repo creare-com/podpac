@@ -13,7 +13,7 @@ import json
 import traitlets as tl
 import numpy as np
 
-from podpac.core.utils import OrderedDictTrait
+from podpac.core.utils import OrderedDictTrait, JSONEncoder
 from podpac.core.node import Node, NodeException
 from podpac.core.data.datasource import DataSource
 from podpac.core.data.types import ReprojectedSource, Array
@@ -67,7 +67,7 @@ class Pipeline(Node):
         s = proposal['value']
         definition = json.loads(s)
         parse_pipeline_definition(definition)
-        return json.dumps(json.loads(s)) # standardize
+        return json.dumps(json.loads(s), cls=JSONEncoder) # standardize
 
     @tl.validate('definition')
     def _validate_definition(self, proposal):
@@ -77,7 +77,7 @@ class Pipeline(Node):
 
     @tl.default('json')
     def _json_from_definition(self):
-        return json.dumps(self.definition)
+        return json.dumps(self.definition, cls=JSONEncoder)
 
     @tl.default('definition')
     def _definition_from_json(self):
@@ -181,10 +181,7 @@ def _parse_node_definition(nodes, name, d):
                 raise PipelineError("The 'lookup_source' property cannot be in attrs")
 
         if 'source' in d:
-            if Array in parents:
-                kwargs['source'] = np.array(d['source'])
-            else:
-                kwargs['source'] = d['source']
+            kwargs['source'] = d['source']
             whitelist.append('source')
 
         elif 'lookup_source' in d:

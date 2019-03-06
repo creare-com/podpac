@@ -1,7 +1,0 @@
-matplotlib>=2.1
-numpy>=1.14
-pint>=0.8
-scipy>=1.0
-traitlets>=4.3
-xarray>=0.10
-requests>=2.18

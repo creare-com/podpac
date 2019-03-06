@@ -466,7 +466,7 @@ class NearestPreview(NearestNeighbor):
             new_coords.append(c)
             new_coords_idx.append(idx)
 
-        return Coordinates(new_coords), new_coords_idx
+        return Coordinates(new_coords), tuple(new_coords_idx)
 
 
 @common_doc(COMMON_INTERPOLATE_DOCS)
@@ -514,7 +514,7 @@ class Rasterio(Interpolator):
         if len(source_data.dims) > 2:
             keep_dims = ['lat', 'lon']
             return self._loop_helper(self.interpolate, keep_dims,
-                                     udims, source_data, source_coordinates, eval_coordinates, output_data)
+                                     udims, source_coordinates, source_data, eval_coordinates, output_data)
         
         def get_rasterio_transform(c):
             """Summary
@@ -736,7 +736,7 @@ class ScipyGrid(ScipyPoint):
             lon = source_coordinates['lon'].coordinates
             s.append(slice(None, None))
             
-        data = source_data.data[s]
+        data = source_data.data[tuple(s)]
         
         # remove nan's
         I, J = np.isfinite(lat), np.isfinite(lon)
@@ -802,7 +802,7 @@ INTERPOLATION_SHORTCUTS = INTERPOLATION_METHODS.keys()
 INTERPOLATION_DEFAULT = 'nearest'
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-def interpolation_trait():
+def interpolation_trait(default_value=INTERPOLATION_DEFAULT, allow_none=True, **kwargs):
     """Create a new interpolation trait
     
     Returns
@@ -814,7 +814,7 @@ def interpolation_trait():
         tl.Dict(),
         tl.Enum(INTERPOLATION_SHORTCUTS),
         tl.Instance(Interpolation)
-    ], default_value=INTERPOLATION_DEFAULT)
+    ], allow_none=allow_none, default_value=default_value, **kwargs)
 
 
 class Interpolation():
@@ -847,6 +847,12 @@ class Interpolation():
 
         self.definition = definition
         self.config = OrderedDict()
+
+        # if definition is None, set to default
+        # TODO: do we want to always have a default for interpolation? 
+        # Or should there be an option to turn off interpolation?
+        if self.definition is None:
+            self.definition = INTERPOLATION_DEFAULT
 
         # set each dim to interpolator definition
         if isinstance(definition, dict):
@@ -1141,7 +1147,7 @@ class Interpolation():
         # TODO: short circuit if source_coordinates contains eval_coordinates
         # short circuit if source and eval coordinates are the same
         if source_coordinates == eval_coordinates:
-            return source_coordinates, source_coordinates_index
+            return source_coordinates, tuple(source_coordinates_index)
 
         interpolator_queue = \
             self._select_interpolator_queue(source_coordinates, eval_coordinates, 'can_select')
@@ -1160,7 +1166,7 @@ class Interpolation():
                                                                                    selected_coords_idx,
                                                                                    eval_coordinates)
 
-        return selected_coords, selected_coords_idx
+        return selected_coords, tuple(selected_coords_idx)
 
     def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
         """Interpolate data from requested coordinates to source coordinates
