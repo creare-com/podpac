@@ -11,6 +11,8 @@ rasterio = lazy_import.lazy_module('rasterio')
 from podpac.core.settings import settings
 from podpac.core.units import Units
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 IDIMS = 'ijkl'
 
@@ -89,9 +91,16 @@ class RotatedCoordinates(BaseCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __getitem__(self, index):
-        # return a RotatedCoordinates object
-        raise NotImplementedError("TODO")
-        return self.coordinates.T[index]
+        if isinstance(index, slice) or (isinstance(index, tuple) and all(isinstance(I, slice) for I in index)):
+            # TODO calculate new ulc and shape without calculating coordinates
+            values = np.array(self.coordinates).T[index]
+            ulc = [a.flatten()[0] for a in values.T]
+            shape = values.shape[1:]
+            return RotatedCoordinates.from_ulc_and_step(ulc, self.step, self.theta, shape)
+        else:
+            values = np.array(self.coordinates).T[index].T
+            cs = [ArrayCoordinates1d(a.flatten(), name=dim) for a, dim in zip(values, self.dims)]
+            return StackedCoordinates(cs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -128,7 +137,7 @@ class RotatedCoordinates(BaseCoordinates):
 
     @property
     def rotation(self):
-        return rasterio.Affine.rotation(self.theta)
+        return rasterio.Affine.rotation(np.rad2deg(self.theta))
 
     @property
     def translation(self):
@@ -166,11 +175,10 @@ class RotatedCoordinates(BaseCoordinates):
     def copy(self):
         raise NotImplementedError("TODO")
 
-    def plot(self):
+    def plot(self, marker='b.', ulc_marker='bo'):
         from matplotlib import pyplot
-        pyplot.figure()
-        pyplot.plot(*self.coordinates, 'b.')
-        pyplot.plot(*self.ulc, 'go')
-        pyplot.xlabel(self.dims[0])
-        pyplot.ylabel(self.dims[1])
+        pyplot.plot(*self.coordinates, marker)
+        pyplot.plot(*self.ulc, ulc_marker)
+        # pyplot.xlabel(self.dims[0])
+        # pyplot.ylabel(self.dims[1])
         pyplot.axis('equal')
