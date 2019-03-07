@@ -1,6 +1,5 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from operator import mul
 from collections import OrderedDict
 
 import numpy as np
@@ -10,24 +9,35 @@ rasterio = lazy_import.lazy_module('rasterio')
 
 from podpac.core.settings import settings
 from podpac.core.units import Units
+from podpac.core.coordinates.utils import Dimension, CoordinateType, CoordinateReferenceSystem
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
-IDIMS = 'ijkl'
+# TODO integration with Coordinates
+# TODO serialization
+# TODO intersect
+# TODO maybe the dims are always lat, lon (or lon, lat) but the idims may need to be reversed sometimes?
+# TODO: require theta, ulc/translation, and step/scale in init (instead of affine)
+#       - some affine transformations are not supported here (e.g. skew)
+#       - this would also fix a bug with negative step
+#       - we could generalize and make an AffineCoordinates base class
 
 class RotatedCoordinates(BaseCoordinates):
     """
+    Notes
+    -----
+     * Only uniform segment lengths are currently supported.
     """
 
-    shape = tl.Tuple(traits=tl.Integer(), read_only=True)
     affine = tl.Instance(rasterio.Affine, read_only=True)
-
-    dims = tl.Tuple(traits=tl.Enum(['lat', 'lon', 'alt', 'time']), read_only=True)
-    ctypes = tl.Tuple(traits=tl.Enum(['point', 'left', 'right', 'midpoint'], read_only=True))
-    segment_lengths = tl.Tuple(traits=tl.Float(), read_only=True) # currently only uniform segments are supported
+    shape = tl.Tuple(tl.Integer(), tl.Integer(), read_only=True)
+    dims = tl.Tuple(Dimension(), Dimension(), read_only=True)
+    idims = tl.Tuple(tl.Unicode(), tl.Unicode(), default_value=('i', 'j'), read_only=True)
+    ctypes = tl.Tuple(CoordinateType(), CoordinateType(), read_only=True)
+    segment_lengths = tl.Tuple(tl.Float(allow_none=True), tl.Float(allow_none=True), read_only=True)
     units = tl.Instance(Units, allow_none=True, read_only=True)
-    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True, read_only=True)
+    coord_ref_sys = CoordinateReferenceSystem(allow_none=True, read_only=True)
 
     _properties = tl.Set()
     _segment_lengths = tl.Bool()
@@ -45,42 +55,46 @@ class RotatedCoordinates(BaseCoordinates):
 
         if ctypes is not None:
             if isinstance(ctypes, str):
-                ctyes = [ctypes for dim in self.dims]
+                ctypes = (ctypes, ctypes)
             self.set_trait('ctypes', ctypes)
 
         if segment_lengths is not None:
             if isinstance(segment_lengths, numbers.Number):
-                segment_lengths = [segment_length for dim in self.dims]
+                segment_lengths = (segment_lengths, segment_lengths)
             self.set_trait('segment_lengths', segment_lengths)
 
     @tl.default('ctypes')
     def _default_ctype(self):
-        return ['midpoint' for dim in self.dims]
+        return ('midpoint', 'midpoint')
 
     @tl.default('segment_lengths')
     def _default_segment_lengths(self):
-        return [step if ctype != 'point' else None for step, ctype in zip(self.step, self.ctypes)]
+        sli = np.abs(self.step[0]) if self.ctypes[0] != 'point' else None
+        slj = np.abs(self.step[1]) if self.ctypes[1] != 'point' else None
+        return (sli, slj)
 
     @tl.default('coord_ref_sys')
     def _default_coord_ref_sys(self):
         return settings['DEFAULT_COORD_REF_SYS']
 
-    @tl.validate('shape')
-    def _validate_shape(self, d):
+    @tl.validate('segment_lengths')
+    def _validate_segment_lengths_tuple(self, d):
         val = d['value']
-        if len(val) != 2:
-            raise ValueError("Invalid shape %s, must have ndim 2, not %d" % val, len(val))
+        self._validate_segment_lengths(0, self.dims[0], self.ctypes[0], val[0])
+        self._validate_segment_lengths(1, self.dims[1], self.ctypes[1], val[1])
         return val
 
-    @tl.validate('dims', 'ctype', 'segment_lengths')
-    def _validate_dims(self, d):
-        val = d['value']
-        if len(val) != len(self.shape):
-            raise ValueError("%s value %s does not match shape %s (%d != %d)" % (
-                d['trait'].name, val, shape, len(val), len(shape)))
-        return val
+    def _validate_segment_lengths(self, i, dim, ctype, segment_lengths):
+        if segment_lengths is None:
+            if ctype != 'point':
+                raise TypeError("segment_lengths cannot be None for '%s' coordinates in dim %d '%s'" % (ctype, i, dim))
+        else:
+            if ctype == 'point':
+                raise TypeError("segment_lengths must be None for '%s' coordinates in dim %d '%s'" % (i, dim))
+            if segment_lengths <= 0.0:
+                raise ValueError("segment_lengths must be positive in dim %d '%s'" % (i, dim))
 
-    @tl.observe('ctypes', 'units', 'coord_ref_sys')
+    @tl.observe('dims', 'ctypes', 'units', 'coord_ref_sys')
     def _set_property(self, d):
         self._properties.add(d['name'])
 
@@ -89,7 +103,7 @@ class RotatedCoordinates(BaseCoordinates):
         self._segment_lengths = True
 
     def __repr__(self):
-        if len(set(self.ctypes)) == 1:
+        if self.ctypes[0] == self.ctypes[1]:
             ctypes = "ctype['%s']" % self.ctypes[0]
         else:
             ctypes = "ctypes[%s]" % ', '.join(self.ctypes)
@@ -106,6 +120,9 @@ class RotatedCoordinates(BaseCoordinates):
         
         if self.shape != other.shape:
             return False
+
+        if self.dims != other.dims:
+            return False
         
         # defined coordinate properties should also match
         for name in self._properties.union(other._properties):
@@ -114,22 +131,10 @@ class RotatedCoordinates(BaseCoordinates):
 
         # only check segment_lengths if one of the coordinates has custom segment lengths
         if self._segment_lengths or other._segment_lengths:
-            if not np.all(self.segment_lengths == other.segment_lengths):
+            if self.segment_lengths != other.segment_lengths:
                 return False
 
         return True
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Serialization
-    # ------------------------------------------------------------------------------------------------------------------
-
-    @property
-    def definition(self):
-        raise NotImplementedError("TODO")
-
-    @classmethod
-    def from_definition(cls, d):
-        raise NotImplementedError("TODO")
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate Constructors
@@ -161,19 +166,45 @@ class RotatedCoordinates(BaseCoordinates):
             dims=dims, ctypes=ctypes, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
 
     # ------------------------------------------------------------------------------------------------------------------
+    # Serialization
+    # ------------------------------------------------------------------------------------------------------------------
+
+    @property
+    def definition(self):
+        raise NotImplementedError("TODO")
+
+    @classmethod
+    def from_definition(cls, d):
+        raise NotImplementedError("TODO")
+
+    # ------------------------------------------------------------------------------------------------------------------
     # Standard methods, array-like
     # ------------------------------------------------------------------------------------------------------------------
 
     def __getitem__(self, index):
-        if isinstance(index, slice) or (isinstance(index, tuple) and all(isinstance(I, slice) for I in index)):
-            # TODO calculate new ulc and shape without calculating coordinates
-            values = np.array(self.coordinates).T[index]
-            ulc = [a.flatten()[0] for a in values.T]
-            shape = values.shape[1:]
-            return RotatedCoordinates.from_ulc_and_step(ulc, self.step, self.theta, shape)
+        if isinstance(index, slice):
+            index = index, slice(None)
+
+        if isinstance(index, tuple) and isinstance(index[0], slice) and isinstance(index[1], slice):
+            I = np.arange(self.shape[0])[index[0]]
+            J = -np.arange(self.shape[1])[index[1]]
+            import ipdb; ipdb.set_trace() # BREAKPOINT
+            ulc = self.affine * (I[0], J[0])
+            shape = I.size, J.size
+            step = self.step[0] * (index[0].step or 1), self.step[1] * (index[1].step or 1)
+            return RotatedCoordinates.from_ulc_and_step(ulc, step, self.theta, shape, **self.properties)
         else:
             values = np.array(self.coordinates).T[index].T
-            cs = [ArrayCoordinates1d(a.flatten(), name=dim) for a, dim in zip(values, self.dims)]
+            cs = [
+                ArrayCoordinates1d(
+                    a.flatten(),
+                    name=self.dims[i],
+                    ctype=self.ctypes[i] if 'ctypes' in self._properties else None,
+                    segment_lengths=self.segment_lengths[i] if self._segment_lengths else None,
+                    units=self.units if 'units' in self._properties else None,
+                    coord_ref_sys=self.coord_ref_sys if 'coord_ref_sys' in self._properties else None)
+                for i, a in enumerate(values)
+            ]
             return StackedCoordinates(cs)
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -181,16 +212,8 @@ class RotatedCoordinates(BaseCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     @property
-    def ndim(self):
-        return len(self.shape)
-
-    @property
-    def idims(self):
-        return list(IDIMS)[:self.ndim]
-
-    @property
     def size(self):
-        return mul(self.shape)
+        return self.shape[0] * self.shape[1]
 
     @property
     def theta(self):
@@ -202,8 +225,7 @@ class RotatedCoordinates(BaseCoordinates):
 
     @property
     def lrc(self):
-        # TODO calculate without calculating coordinates
-        return np.array([a.flatten()[-1] for a in self.coordinates])
+        return self.affine * np.array([self.shape[0]-1, -(self.shape[1]-1)])
 
     @property
     def step(self):
@@ -228,22 +250,22 @@ class RotatedCoordinates(BaseCoordinates):
 
     @property
     def coordinates(self):
-        i = np.arange(self.shape[0])
-        j = np.arange(self.shape[1])
-        return self.affine * np.meshgrid(i, j)
+        I = np.arange(self.shape[0])
+        J = -np.arange(self.shape[1])
+        return self.affine * np.meshgrid(I, J)
 
     @property
     def coords(self):
-        idims = self.idims
-        coords = OrderedDict()
-        for dim, c in zip(self.dims, self.coordinates):
-            coords[dim] = (idims, c.T)
+        x, y = self.coordinates
+        coords = {
+            self.dims[0]: (self.idims, x.T),
+            self.dims[1]: (self.idims, y.T)
+        }
         return coords
 
     @property
     def properties(self):
         """:dict: Dictionary of the coordinate properties. """
-
         return {key:getattr(self, key) for key in self._properties}
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -261,8 +283,12 @@ class RotatedCoordinates(BaseCoordinates):
 
     def plot(self, marker='b.', ulc_marker='bo'):
         from matplotlib import pyplot
-        pyplot.plot(*self.coordinates, marker)
-        pyplot.plot(*self.ulc, ulc_marker)
-        # pyplot.xlabel(self.dims[0])
-        # pyplot.ylabel(self.dims[1])
+        x, y = self.coordinates
+        ulcx, ulcy = self.ulc
+        lrcx, lrcy = self.lrc
+        pyplot.plot(x, y, marker)
+        pyplot.plot(ulcx, ulcy, ulc_marker)
+        pyplot.plot(lrcx, lrcy, 'bx')
+        pyplot.xlabel(self.dims[0])
+        pyplot.ylabel(self.dims[1])
         pyplot.axis('equal')
