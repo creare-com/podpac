@@ -14,6 +14,7 @@ from podpac.core.settings import settings
 from podpac.core.units import Units
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_delta, make_coord_delta_array, add_coord, divide_delta
+from podpac.core.coordinates.utils import Dimension, CoordinateType, CoordinateReferenceSystem
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
 class Coordinates1d(BaseCoordinates):
@@ -55,10 +56,10 @@ class Coordinates1d(BaseCoordinates):
     :class:`ArrayCoordinates1d`, :class:`UniformCoordinates1d`
     """
 
-    name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
+    name = Dimension(allow_none=True)
     units = tl.Instance(Units, allow_none=True, read_only=True)
-    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True, read_only=True)
-    ctype = tl.Enum(['point', 'left', 'right', 'midpoint'], read_only=True)
+    coord_ref_sys = CoordinateReferenceSystem(allow_none=True, read_only=True)
+    ctype = CoordinateType(read_only=True)
     segment_lengths = tl.Any(read_only=True)
 
     _properties = tl.Set()

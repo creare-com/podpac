@@ -13,12 +13,8 @@ import datetime
 import calendar
 import numbers
 import numpy as np
+import traitlets as tl
 from six import string_types
-
-GDAL_CRS = {
-    'WGS84': 'EPSG:4326',
-    'SPHER_MERC': 'EPSG:3857'
-}
 
 def get_timedelta(s):
     """
@@ -435,4 +431,21 @@ _TIMEDELTA_ZOOM = {
     '<m8[s]': '<m8[ms]', # alredy probably farther then necessary...
     '<m8[ms]': '<m8[us]',
     '<m8[us]': '<m8[ns]'
+}
+
+class Dimension(tl.Enum):
+    def __init__(self, *args, **kwargs):
+        super(Dimension, self).__init__(['lat', 'lon', 'alt', 'time'], *args, **kwargs)
+
+class CoordinateType(tl.Enum):
+    def __init__(self, *args, **kwargs):
+        super(CoordinateType, self).__init__(['point', 'left', 'right', 'midpoint'], *args, **kwargs)
+
+class CoordinateReferenceSystem(tl.Enum):
+    def __init__(self, *args, **kwargs):
+        super(CoordinateReferenceSystem, self).__init__(['WGS84', 'SPHER_MERC'], *args, **kwargs)
+
+GDAL_CRS = {
+    'WGS84': 'EPSG:4326',
+    'SPHER_MERC': 'EPSG:3857'
 }
