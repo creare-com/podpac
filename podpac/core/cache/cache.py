@@ -99,7 +99,7 @@ def get_default_cache_ctrl():
         else:
             raise ValueError("Unknown cache store type '%s'" % elem)
     
-    return CachCtrl(cache_stores)
+    return CacheCtrl(cache_stores)
 
 class CacheCtrl(object):
 
@@ -1149,7 +1149,7 @@ class RamCacheStore(CacheStore):
         if not settings['RAM_CACHE_ENABLED']:
             raise CacheException("RAM cache is disabled in the podpac settings.")
 
-        super(self, CacheStore).__init__()
+        super(CacheStore, self).__init__()
 
     def _get_key(self, obj):
         # return obj.hash if obj else None
