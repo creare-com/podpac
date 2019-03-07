@@ -33,7 +33,12 @@ DEFAULT_SETTINGS = {
     'S3_BUCKET_NAME': None,
     'S3_JSON_FOLDER': None,
     'S3_OUTPUT_FOLDER': None,
-    'AUTOSAVE_SETTINGS': False
+    'AUTOSAVE_SETTINGS': False,
+    'LOG_TO_FILE': False,
+    'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log'),
+    'MULTITHREADING': False,
+    'N_THREADS': 10,
+    'CHUNK_SIZE': None
 }
 
 
@@ -104,7 +109,13 @@ class PodpacSettings(dict):
         Folder within :attr:`S3_BUCKET_NAME` to use for outputs.
     AUTOSAVE_SETTINGS: bool
         Save settings automatically as they are changed during runtime. Defaults to ``False``.
-
+    MULTITHREADING: bool
+        Uses multithreaded evaluation, when applicable. Defaults to ``False``.
+    N_THREADS: int
+        Number of threads to use (only if MULTITHREADING is True). Defaults to ``10``.
+    CHUNK_SIZE: int, 'auto', None
+        Chunk size for iterative evaluation, when applicable (e.g. Reduce Nodes). Use None for no iterative evaluation,
+        and 'auto' to automatically calculate a chunk size based on the system. Defaults to ``None``.
     """
     
     def __init__(self):
@@ -248,7 +259,7 @@ class PodpacSettings(dict):
             os.makedirs(os.path.dirname(self._settings_filepath), exist_ok=True)
 
         with open(self._settings_filepath, 'w') as f:
-            json.dump(self, f)
+            json.dump(self, f, indent=4)
 
     def load(self, path=None, filename='settings.json'):
         """
