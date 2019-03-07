@@ -14,10 +14,10 @@ from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
-# TODO integration with Coordinates
-# TODO serialization
-# TODO intersect
-# TODO maybe the dims are always lat, lon (or lon, lat) but the idims may need to be reversed sometimes?
+# TODO: integration with Coordinates
+# TODO: serialization
+# TODO: intersect
+# TODO: check dims and idims order. Do we need to support the other order for either of these?
 # TODO: require theta, ulc/translation, and step/scale in init (instead of affine)
 #       - some affine transformations are not supported here (e.g. skew)
 #       - this would also fix a bug with negative step
@@ -32,8 +32,8 @@ class RotatedCoordinates(BaseCoordinates):
 
     affine = tl.Instance(rasterio.Affine, read_only=True)
     shape = tl.Tuple(tl.Integer(), tl.Integer(), read_only=True)
-    dims = tl.Tuple(Dimension(), Dimension(), read_only=True)
-    idims = tl.Tuple(tl.Unicode(), tl.Unicode(), default_value=('i', 'j'), read_only=True)
+    dims = tl.Tuple(('lat', 'lon'), read_only=True)
+    idims = tl.Tuple(('i', 'j'), read_only=True)
     ctypes = tl.Tuple(CoordinateType(), CoordinateType(), read_only=True)
     segment_lengths = tl.Tuple(tl.Float(allow_none=True), tl.Float(allow_none=True), read_only=True)
     units = tl.Instance(Units, allow_none=True, read_only=True)
@@ -42,10 +42,9 @@ class RotatedCoordinates(BaseCoordinates):
     _properties = tl.Set()
     _segment_lengths = tl.Bool()
     
-    def __init__(self, affine, shape, dims=None, ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
+    def __init__(self, affine, shape, ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
         self.set_trait('affine', affine)
         self.set_trait('shape', shape)
-        self.set_trait('dims', dims)
         
         if units is not None:
             self.set_trait('units', units)
@@ -94,7 +93,7 @@ class RotatedCoordinates(BaseCoordinates):
             if segment_lengths <= 0.0:
                 raise ValueError("segment_lengths must be positive in dim %d '%s'" % (i, dim))
 
-    @tl.observe('dims', 'ctypes', 'units', 'coord_ref_sys')
+    @tl.observe('ctypes', 'units', 'coord_ref_sys')
     def _set_property(self, d):
         self._properties.add(d['name'])
 
@@ -142,14 +141,14 @@ class RotatedCoordinates(BaseCoordinates):
 
     @classmethod
     def from_geotransform(cls, geotransform, shape,
-                          dims=None, ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
+                          ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
         affine = rasterio.Affine.from_gdal(geotransform)
         return cls(affine, shape,
-                   dims=dims, ctypes=ctypes, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
+                   ctypes=ctypes, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
 
     @classmethod
     def from_corners(cls, ulc, lrc, theta, shape,
-                     dims=None, ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
+                     ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
         deg = np.rad2deg(theta)
         r = ~rasterio.Affine.rotation(deg)
         d = r * ulc - r * lrc
@@ -158,12 +157,12 @@ class RotatedCoordinates(BaseCoordinates):
 
     @classmethod
     def from_ulc_and_step(cls, ulc, step, theta, shape,
-                          dims=None, ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
+                          ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
         deg = np.rad2deg(theta)
         affine = rasterio.Affine.translation(*ulc) * rasterio.Affine.rotation(deg) * rasterio.Affine.scale(*step)
         return RotatedCoordinates(
             affine, shape,
-            dims=dims, ctypes=ctypes, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
+            ctypes=ctypes, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Serialization
