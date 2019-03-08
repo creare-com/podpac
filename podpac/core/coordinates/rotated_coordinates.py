@@ -9,6 +9,7 @@ rasterio = lazy_import.lazy_module('rasterio')
 
 from podpac.core.settings import settings
 from podpac.core.units import Units
+from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import Dimension, CoordinateType, CoordinateReferenceSystem
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -18,10 +19,6 @@ from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 # TODO: serialization
 # TODO: intersect
 # TODO: check dims and idims order. Do we need to support the other order for either of these?
-# TODO: require theta, ulc/translation, and step/scale in init (instead of affine)
-#       - some affine transformations are not supported here (e.g. skew)
-#       - this would also fix a bug with negative step
-#       - we could generalize and make an AffineCoordinates base class
 
 class RotatedCoordinates(BaseCoordinates):
     """
@@ -30,7 +27,9 @@ class RotatedCoordinates(BaseCoordinates):
      * Only uniform segment lengths are currently supported.
     """
 
-    affine = tl.Instance(rasterio.Affine, read_only=True)
+    theta = tl.Float(read_only=True)
+    ulc = ArrayTrait(shape=(2,), dtype=float, read_only=True)
+    step = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     shape = tl.Tuple(tl.Integer(), tl.Integer(), read_only=True)
     dims = tl.Tuple(('lat', 'lon'), read_only=True)
     idims = tl.Tuple(('i', 'j'), read_only=True)
@@ -42,8 +41,10 @@ class RotatedCoordinates(BaseCoordinates):
     _properties = tl.Set()
     _segment_lengths = tl.Bool()
     
-    def __init__(self, affine, shape, ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
-        self.set_trait('affine', affine)
+    def __init__(self, theta, ulc, step, shape, ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
+        self.set_trait('theta', theta)
+        self.set_trait('ulc', ulc)
+        self.set_trait('step', step)
         self.set_trait('shape', shape)
         
         if units is not None:
@@ -62,6 +63,15 @@ class RotatedCoordinates(BaseCoordinates):
                 segment_lengths = (segment_lengths, segment_lengths)
             self.set_trait('segment_lengths', segment_lengths)
 
+    @tl.validate('shape')
+    def _validate_shape(self, d):
+        val = d['value']
+        if val[0] <= 0:
+            raise TypeError("Invalid shape %s, shape cannot be negative in dim %s (pos 0)" % (val, self.idims[0]))
+        if val[1] <= 0:
+            raise TypeError("Invalid shape %s, shape cannot be negative in dim %s (pos 1)" % (val, self.idims[1]))
+        return val
+
     @tl.default('ctypes')
     def _default_ctype(self):
         return ('midpoint', 'midpoint')
@@ -79,21 +89,22 @@ class RotatedCoordinates(BaseCoordinates):
     @tl.validate('segment_lengths')
     def _validate_segment_lengths_tuple(self, d):
         val = d['value']
-        self._validate_segment_lengths(0, self.dims[0], self.ctypes[0], val[0])
-        self._validate_segment_lengths(1, self.dims[1], self.ctypes[1], val[1])
+        self._validate_segment_lengths(0, self.idims[0], self.ctypes[0], val[0])
+        self._validate_segment_lengths(1, self.idims[1], self.ctypes[1], val[1])
         return val
 
-    def _validate_segment_lengths(self, i, dim, ctype, segment_lengths):
+    def _validate_segment_lengths(self, i, idim, ctype, segment_lengths):
         if segment_lengths is None:
             if ctype != 'point':
-                raise TypeError("segment_lengths cannot be None for '%s' coordinates in dim %d '%s'" % (ctype, i, dim))
+                raise TypeError("segment_lengths cannot be None for '%s' coordinates in dim %s (pos %d)" % (
+                    ctype, idim, i))
         else:
             if ctype == 'point':
-                raise TypeError("segment_lengths must be None for '%s' coordinates in dim %d '%s'" % (i, dim))
+                raise TypeError("segment_lengths must be None for '%s' coordinates in dim %s (pos %d)" % (idim, i))
             if segment_lengths <= 0.0:
-                raise ValueError("segment_lengths must be positive in dim %d '%s'" % (i, dim))
+                raise ValueError("segment_lengths must be positive in dim %s (pos %d)" % (idim, i))
 
-    @tl.observe('ctypes', 'units', 'coord_ref_sys')
+    @tl.observe('dims', 'idims', 'ctypes', 'units', 'coord_ref_sys')
     def _set_property(self, d):
         self._properties.add(d['name'])
 
@@ -143,26 +154,21 @@ class RotatedCoordinates(BaseCoordinates):
     def from_geotransform(cls, geotransform, shape,
                           ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
         affine = rasterio.Affine.from_gdal(geotransform)
-        return cls(affine, shape,
+        ulc = affice.c, affine.f
+        deg = affine.rotation_angle
+        scale = affine * ~affine.rotation(deg) * ~affine.tranlation(*ulc)
+        step = np.array([scale.a, scale.e])
+        return cls(np.deg2rad(deg), ulc, step, shape,
                    ctypes=ctypes, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
 
     @classmethod
-    def from_corners(cls, ulc, lrc, theta, shape,
+    def from_corners(cls, theta, ulc, lrc, shape,
                      ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
         deg = np.rad2deg(theta)
-        r = ~rasterio.Affine.rotation(deg)
-        d = r * ulc - r * lrc
-        step = d / shape
-        return cls.from_ulc_step(ulc, step, theta, shape)
-
-    @classmethod
-    def from_ulc_and_step(cls, ulc, step, theta, shape,
-                          ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
-        deg = np.rad2deg(theta)
-        affine = rasterio.Affine.translation(*ulc) * rasterio.Affine.rotation(deg) * rasterio.Affine.scale(*step)
-        return RotatedCoordinates(
-            affine, shape,
-            ctypes=ctypes, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
+        a = ~rasterio.Affine.rotation(deg) * ~rasterio.Affine.translation(*ulc)
+        d = np.array(a * lrc) - np.array(a * ulc)
+        step = d / np.array([shape[0]-1, -(shape[1]-1)])
+        return cls(theta, ulc, step, shape)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Serialization
@@ -187,11 +193,10 @@ class RotatedCoordinates(BaseCoordinates):
         if isinstance(index, tuple) and isinstance(index[0], slice) and isinstance(index[1], slice):
             I = np.arange(self.shape[0])[index[0]]
             J = -np.arange(self.shape[1])[index[1]]
-            import ipdb; ipdb.set_trace() # BREAKPOINT
-            ulc = self.affine * (I[0], J[0])
+            ulc = self.affine * [I[0], J[0]]
+            step = self.step * [index[0].step or 1, index[1].step or 1]
             shape = I.size, J.size
-            step = self.step[0] * (index[0].step or 1), self.step[1] * (index[1].step or 1)
-            return RotatedCoordinates.from_ulc_and_step(ulc, step, self.theta, shape, **self.properties)
+            return RotatedCoordinates(self.theta, ulc, step, shape, **self.properties)
         else:
             values = np.array(self.coordinates).T[index].T
             cs = [
@@ -215,33 +220,19 @@ class RotatedCoordinates(BaseCoordinates):
         return self.shape[0] * self.shape[1]
 
     @property
-    def theta(self):
-        return np.deg2rad(self.affine.rotation_angle)
+    def deg(self):
+        return np.rad2deg(self.theta)
 
     @property
-    def ulc(self):
-        return np.array([self.affine.c, self.affine.f])
+    def affine(self):
+        t = rasterio.Affine.translation(*self.ulc)
+        r = rasterio.Affine.rotation(self.deg)
+        s = rasterio.Affine.scale(*self.step)
+        return t * r * s
 
     @property
     def lrc(self):
         return self.affine * np.array([self.shape[0]-1, -(self.shape[1]-1)])
-
-    @property
-    def step(self):
-        scale = self.scale
-        return (scale.a, scale.e)
-
-    @property
-    def rotation(self):
-        return rasterio.Affine.rotation(np.rad2deg(self.theta))
-
-    @property
-    def translation(self):
-        return rasterio.Affine.translation(*self.ulc)
-
-    @property
-    def scale(self):
-        return ~self.rotation * ~self.translation * self.affine
 
     @property
     def geotransform(self):
