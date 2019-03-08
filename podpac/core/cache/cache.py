@@ -81,15 +81,35 @@ def get_default_cache_ctrl():
 
     Returns
     -------
-    ctrl : CacheCtrl
+    ctrl : CacheCtrl or None
         Default CachCtrl
     """
 
-    if settings.get('DEFAULT_CACHE') is None:
-        return CacheCtrl()
+    if settings.get('DEFAULT_CACHE') is None: # missing or None
+        return CacheCtrl([])
+
+    return make_cache_ctrl(settings['DEFAULT_CACHE'])
+
+def make_cache_ctrl(stores):
+    """
+    Get the default CacheCtrl according to the settings.
+
+    Arguments
+    ---------
+    stores : str or list
+        cache store or stores, e.g. 'ram' or ['ram', 'disk'].
+
+    Returns
+    -------
+    ctrl : CacheCtrl
+        CachCtrl using the specified cache stores
+    """
+
+    if isinstance(stores, str):
+        stores = [stores]
 
     cache_stores = []
-    for elem in settings['DEFAULT_CACHE']:
+    for elem in stores:
         if elem == 'ram':
             cache_stores.append(RamCacheStore())
         elif elem == 'disk':

@@ -786,8 +786,6 @@ class SMAP(podpac.compositor.OrderedCompositor):
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
 
-    cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True, default_value='disk')
-
     @tl.default('auth_session')
     def _auth_session_default(self):
         return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())

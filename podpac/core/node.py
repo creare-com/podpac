@@ -18,7 +18,7 @@ from podpac.core.units import Units, UnitsDataArray, create_data_array
 from podpac.core.utils import common_doc, JSONEncoder
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.cache import cache
+from podpac.core.cache import CacheCtrl, get_default_cache_ctrl
 
 COMMON_NODE_DOC = {
     'requested_coordinates':
@@ -100,27 +100,23 @@ class Node(tl.HasTraits):
 
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
-    cache_output = tl.Any()
+    cache_output = tl.Bool()
     cache_update = tl.Bool(False)
-    cache_ctrl = tl.Instance(cache.CacheCtrl, allow_none=True)
+    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 
     @tl.default('cache_output')
     def _cache_output_default(self):
         return settings['CACHE_OUTPUT_DEFAULT']
 
-    @tl.validate('cache_output')
-    def _validate_cache_output(self, d):
-        val = d['value']
-        if val is None:
-            val = settings['CACHE_OUTPUT_DEFAULT']
-        if not isinstance(val, bool):
-            raise TraitError("The 'cache_output' trait of a Node must be a boolean, "
-                             "but a value of %s %s was specified" % (val, type(val)))
-        return val
-
     @tl.default('cache_ctrl')
     def _cache_ctrl_default(self):
-        return cache.get_default_cache_ctrl()
+        return get_default_cache_ctrl()
+
+    @tl.validate('cache_ctrl')
+    def _validate_cache_ctrl(self, d):
+        if d['value'] is None:
+            d['value']  = CacheCtrl([]) # no cache_stores
+        return d['value']
 
     style = tl.Instance(Style)
 
@@ -484,8 +480,6 @@ class Node(tl.HasTraits):
         bool
             True if there is cached data for this node, key, and coordinates.
         """
-        if self.cache_ctrl is None:
-            return False
         return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
     def rem_cache(self, key, coordinates=None, mode=None, all_cache=False):
@@ -508,8 +502,6 @@ class Node(tl.HasTraits):
         ---------
         `podpac.core.cache.cache.CacheCtrl.rem`
         """
-        if self.cache_ctrl is None:
-            return 
         if all_cache:
             self.cache_ctrl.rem('*', '*')
         else:
@@ -601,22 +593,22 @@ def cache_func(key, depends=None):
            def square_value_depends(self):
                return self.value
 
-    >>> n = MyClass()
+    >>> n = MyClass(cache_ctrl=None)
     >>> n.add_value()  # The function as defined is called
     1
-    >>> n.add_value()  # The function as defined is called again, since we have no caching specified
+    >>> n.add_value()  # The function as defined is called again, since we have specified no caching
     2
-    >>> n.cache_type = 'disk'
-    >>> n.add_value()  # The function as defined is called again, and the value is stored to disk
+    >>> n.cache_ctrl = CacheCtrl([RamCacheStore()])
+    >>> n.add_value()  # The function as defined is called again, and the value is stored in memory
     3
     >>> n.add_value()  # The value is retrieved from disk, note the change in n.value is not captured
     3
-    >>> n.square_value_depends()  # The function as defined is called, and the value is stored to disk
+    >>> n.square_value_depends()  # The function as defined is called, and the value is stored in memory
     16
-    >>> n.square_value_depends()  # The value is retrieved from disk
+    >>> n.square_value_depends()  # The value is retrieved from memory
     16
     >>> n.value += 1
-    >>> n.square_value_depends()  # The function as defined is called, and the value is stored to disk. Note the change in n.value is captured.
+    >>> n.square_value_depends()  # The function as defined is called, and the value is stored in memory. Note the change in n.value is captured.
     25
     """
     # This is the actual decorator which will be evaluated and returns the wrapped function
