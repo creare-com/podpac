@@ -92,7 +92,7 @@ def get_default_cache_ctrl():
 
 def make_cache_ctrl(stores):
     """
-    Get the default CacheCtrl according to the settings.
+    Make a cache_ctrl from a list of cache store types.
 
     Arguments
     ---------
