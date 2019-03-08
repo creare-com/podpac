@@ -241,3 +241,13 @@ def test_put_and_remove_array_datasource_numpy_array():
         cache.get(node=array_data_source, key='key', coordinates=native_coordinates, mode='all')
     cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
+def test_modify_after_get():
+    node = Array(source=[0, 1])
+    cache.put(node, {'test': 0}, 'test')
+    d = cache.get(node, 'test')
+    assert d == {'test': 0}
+
+    d['test'] = 5
+
+    # check that the value has not been modified in the cache
+    assert cache.get(node, 'test') == {'test': 0}

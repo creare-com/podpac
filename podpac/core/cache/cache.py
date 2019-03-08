@@ -6,6 +6,7 @@ from __future__ import division, print_function, absolute_import
 
 import os
 import threading
+import copy
 from glob import glob
 import shutil
 from hashlib import md5 as hash_alg
@@ -1176,7 +1177,7 @@ class RamCacheStore(CacheStore):
         if full_key not in _thread_local.cache:
             raise CacheException("Cache miss. Requested data not found.")
         
-        return _thread_local.cache[full_key]
+        return copy.deepcopy(_thread_local.cache[full_key])
 
     def rem(self, node=CacheWildCard(), key=CacheWildCard(), coordinates=CacheWildCard()):
         '''Delete cached data for this node.
