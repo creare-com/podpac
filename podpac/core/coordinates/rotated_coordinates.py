@@ -269,7 +269,7 @@ class RotatedCoordinates(BaseCoordinates):
         kwargs = self.properties
         if self._segment_lengths:
             kwargs['segment_lengths'] = self.segment_lengths
-        return RotatedCoordinates(self.affine, self.shape, **kwargs)
+        return RotatedCoordinates(self.theta, self.ulc, self.step, self.shape, **kwargs)
 
     def plot(self, marker='b.', ulc_marker='bo'):
         from matplotlib import pyplot
