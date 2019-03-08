@@ -133,23 +133,6 @@ class Node(tl.HasTraits):
     _output = tl.Instance(UnitsDataArray, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=None)
 
-    # temporary messages
-    @property
-    def requested_coordinates(self):
-        raise AttributeError("The 'requested_coordinates' attribute has been removed"
-                             "(_requested_coordinates may be available for debugging)")
-    @requested_coordinates.setter
-    def requested_coordinates(self, value):
-        raise AttributeError("The 'requested_coordinates' attribute has been removed")
-
-    @property
-    def output(self):
-        raise AttributeError("The 'output' attribute has been removed; use the output returned by eval instead."
-                             "('_output' may be available for debugging)")
-    @output.setter
-    def output(self, value):
-        raise AttributeError("The 'output' attribute has been removed.")
-
     def __init__(self, **kwargs):
         """ Do not overwrite me """
         tkwargs = self._first_init(**kwargs)
