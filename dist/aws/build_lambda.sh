@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Set up some variables
 if [ -z "$1" ]
