@@ -12,6 +12,9 @@ if [ -z "$1" ]
     COMMIT_SHA=""
 fi
 
+set -e
+aws s3 ls s3://podpac-s3/podpac
+
 # TODO change this to expect tag from args, exit if there is no tag given.
 DOCKER_NAME="podpac"
 DOCKER_TAG="latest"
