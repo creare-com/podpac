@@ -7,17 +7,14 @@ from numpy.testing import assert_equal
 from podpac.core.cache.cache import CacheException
 from podpac.core.cache.cache import CacheCtrl
 from podpac.core.cache.cache import CacheStore
-from podpac.core.cache.cache import DiskCacheStore
+from podpac.core.cache.cache import RamCacheStore
 from podpac.core.cache.cache import CacheException
-from podpac.core.cache.cache import CacheListing
 
 from podpac.core.data.types import Array
 from podpac.core.coordinates.coordinates import Coordinates
 
-root_disk_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tmp_cache'))
-
 def make_cache_ctrl():
-    store = DiskCacheStore(root_cache_dir_path=root_disk_cache_dir)
+    store = RamCacheStore()
     ctrl = CacheCtrl(cache_stores=[store])
     return ctrl
 
@@ -171,44 +168,6 @@ def test_two_different_nodes_put_and_one_node_removes_all():
                 assert cache.has(node=persistent_node, key=persistent_node_key, coordinates=None)
     cache.rem(node='*', key='*', coordinates='*', mode='all')
 
-def test_put_something_new_into_existing_file():
-    lat = np.random.rand(3)
-    lon = np.random.rand(4)
-    dummy_coords = Coordinates([lat,lon],['lat','lon'])
-    dummy_node = Array(source=np.random.random_sample(dummy_coords.shape), native_coordinates=dummy_coords)
-    dummy_node_din = np.random.rand(6,7,8)
-    dummy_node_key = "key"
-    disk_stores = [c for c in cache._cache_stores if type(c) is DiskCacheStore]
-    for coord_f in coord_funcs:
-        for node_f in node_funcs:
-            for data_f in data_funcs:
-                c1,c2 = coord_f(),coord_f()
-                n1,n2 = node_f(), node_f()
-                din = data_f()
-                k = "key"
-                assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
-                for store in disk_stores:
-                    store.make_cache_dir(node=n1)
-                    path = store.cache_path(node=n1, key=k, coordinates=c1)
-                    listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
-                    store.save_new_container(listings=[listing], path=path)
-                assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
-                cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
-                assert cache.has(node=n1, key=k, coordinates=c1, mode='all')
-                dout = cache.get(node=n1, key=k, coordinates=c1, mode='all')
-                assert (din == dout).all()
-                dout = cache.get(node=n2, key=k, coordinates=c2, mode='all')
-                assert (din == dout).all()
-                cache.rem(node=n1, key=k, coordinates=c1, mode='all')
-                assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
-                for store in disk_stores:
-                    path = store.cache_path(node=n1, key=k, coordinates=c1)
-                    assert os.path.exists(path)
-                    c = store.load_container(path)
-                    listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
-                    assert c.has(listing)
-                cache.rem(node='*', key='*', coordinates='*', mode='all')
-
 def test_put_and_get_array_datasource_output():
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
@@ -282,3 +241,13 @@ def test_put_and_remove_array_datasource_numpy_array():
         cache.get(node=array_data_source, key='key', coordinates=native_coordinates, mode='all')
     cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
+def test_modify_after_get():
+    node = Array(source=[0, 1])
+    cache.put(node, {'test': 0}, 'test')
+    d = cache.get(node, 'test')
+    assert d == {'test': 0}
+
+    d['test'] = 5
+
+    # check that the value has not been modified in the cache
+    assert cache.get(node, 'test') == {'test': 0}

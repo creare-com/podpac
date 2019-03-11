@@ -391,9 +391,9 @@ class DataSource(Node):
             udata_array = data
         elif isinstance(data, xr.DataArray):
             # TODO: check order of coordinates here
-            udata_array = self.create_output_array(coordinates, data=data.data)
+            udata_array = self.create_output_array(self._requested_source_coordinates, data=data.data)
         elif isinstance(data, np.ndarray):
-            udata_array = self.create_output_array(coordinates, data=data)
+            udata_array = self.create_output_array(self._requested_source_coordinates, data=data)
         else:
             raise ValueError('Unknown data type passed back from ' +
                              '{}.get_data(): {}. '.format(type(self).__name__, type(data)) +

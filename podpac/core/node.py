@@ -133,23 +133,6 @@ class Node(tl.HasTraits):
     _output = tl.Instance(UnitsDataArray, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=None)
 
-    # temporary messages
-    @property
-    def requested_coordinates(self):
-        raise AttributeError("The 'requested_coordinates' attribute has been removed"
-                             "(_requested_coordinates may be available for debugging)")
-    @requested_coordinates.setter
-    def requested_coordinates(self, value):
-        raise AttributeError("The 'requested_coordinates' attribute has been removed")
-
-    @property
-    def output(self):
-        raise AttributeError("The 'output' attribute has been removed; use the output returned by eval instead."
-                             "('_output' may be available for debugging)")
-    @output.setter
-    def output(self, value):
-        raise AttributeError("The 'output' attribute has been removed.")
-
     def __init__(self, **kwargs):
         """ Do not overwrite me """
         tkwargs = self._first_init(**kwargs)
@@ -298,19 +281,16 @@ class Node(tl.HasTraits):
 
             attr = getattr(self, key)
 
+            # check serializable
+            try:
+                json.dumps(attr, cls=JSONEncoder)
+            except:
+                raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
+            
             if isinstance(attr, Node):
                 lookup_attrs[key] = attr
-            elif isinstance(attr, np.ndarray):
-                attrs[key] = attr.tolist()
-            elif isinstance(attr, Coordinates):
-                attrs[key] = attr.definition
             else:
-                try:
-                    json.dumps(attr, cls=JSONEncoder)
-                except:
-                    raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
-                else:
-                    attrs[key] = attr
+                attrs[key] = attr
 
         if attrs:
             d['attrs'] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
@@ -561,7 +541,9 @@ def node_eval(fn):
             self._from_cache = True
         else:
             data = fn(self, coordinates, output=output,)
-            if self.cache_output:
+            # We need to check if the cache now has the key because it is possible that
+            # the previous function call added the key with the coordinates to the cache
+            if self.cache_output and not (self.has_cache(key, cache_coordinates) and not self.cache_update):
                 self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update,
                                raise_no_cache_exception=False)
             self._from_cache = False

@@ -514,7 +514,7 @@ class Rasterio(Interpolator):
         if len(source_data.dims) > 2:
             keep_dims = ['lat', 'lon']
             return self._loop_helper(self.interpolate, keep_dims,
-                                     udims, source_data, source_coordinates, eval_coordinates, output_data)
+                                     udims, source_coordinates, source_data, eval_coordinates, output_data)
         
         def get_rasterio_transform(c):
             """Summary
@@ -802,7 +802,7 @@ INTERPOLATION_SHORTCUTS = INTERPOLATION_METHODS.keys()
 INTERPOLATION_DEFAULT = 'nearest'
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
 
-def interpolation_trait(default_value=INTERPOLATION_DEFAULT):
+def interpolation_trait(default_value=INTERPOLATION_DEFAULT, allow_none=True, **kwargs):
     """Create a new interpolation trait
     
     Returns
@@ -814,7 +814,7 @@ def interpolation_trait(default_value=INTERPOLATION_DEFAULT):
         tl.Dict(),
         tl.Enum(INTERPOLATION_SHORTCUTS),
         tl.Instance(Interpolation)
-    ], allow_none=True, default_value=default_value)
+    ], allow_none=allow_none, default_value=default_value, **kwargs)
 
 
 class Interpolation():

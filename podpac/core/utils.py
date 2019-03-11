@@ -229,8 +229,16 @@ class ArrayTrait(tl.TraitType):
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
+        # podpac Coordinates objects
+        if isinstance(obj, podpac.Coordinates):
+            return obj.definition
+
+        # podpac Coordinates objects
+        elif isinstance(obj, podpac.Node):
+            return obj.definition
+
         # numpy arrays
-        if isinstance(obj, np.ndarray):
+        elif isinstance(obj, np.ndarray):
             if np.issubdtype(obj.dtype, np.datetime64):
                 return obj.astype(str).tolist()
             elif np.issubdtype(obj.dtype, np.timedelta64):
