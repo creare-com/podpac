@@ -6,7 +6,7 @@ import numpy as np
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
-def crange(start, stop, step, name=None):
+def crange(start, stop, step, name=None, ctype=None):
     """
     Create uniformly-spaced 1d coordinates with a start, stop, and step.
 
@@ -25,6 +25,8 @@ def crange(start, stop, step, name=None):
         Signed, non-zero step between coordinates.
     name : str, optional
         Dimension name.
+    ctype : str, optional
+        Coordinate type (point, midpoint, left, or right)
 
     Returns
     -------
@@ -32,9 +34,9 @@ def crange(start, stop, step, name=None):
         Uniformly-spaced 1d coordinates.
     """
 
-    return UniformCoordinates1d(start, stop, step=step, name=name)
+    return UniformCoordinates1d(start, stop, step=step, name=name, ctype=ctype)
 
-def clinspace(start, stop, size, name=None):
+def clinspace(start, stop, size, name=None, ctype=None):
     """
     Create uniformly-spaced 1d or stacked coordinates with a start, stop, and size.
 
@@ -52,6 +54,8 @@ def clinspace(start, stop, size, name=None):
         Number of coordinates.
     name : str, optional
         Dimension name.
+    ctype : str, optional
+        Coordinate type (point, midpoint, left, or right)
 
     Returns
     -------
@@ -73,7 +77,7 @@ def clinspace(start, stop, size, name=None):
     if a.ndim == 2:
         c = StackedCoordinates([UniformCoordinates1d(start[i], stop[i], size=size) for i in range(a[0].size)])
     else:
-        c = UniformCoordinates1d(start, stop, size=size)
+        c = UniformCoordinates1d(start, stop, size=size, ctype=ctype)
 
     if name is not None:
         c.name = name
