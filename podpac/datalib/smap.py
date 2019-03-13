@@ -183,6 +183,7 @@ SMAP_PRODUCT_DICT = {
     'SPL3SMA':    ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          3],
     'SPL3SMAP':   ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          3],
     'SPL3SMP':    ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}_soil_moisture',         5],
+    'SPL3SMP_E':  ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}_soil_moisture',         5],
     'SPL4SMLM':   ['cell_lat',             'cell_lon',                   'Land_Model_Constants_Data_',        '',                            4],
     'SPL2SMAP_S': ['{rdk}latitude_1km',    '{rdk}longitude_1km',         'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km',      2],
 }
@@ -716,7 +717,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
                                 float(lonlat[:3]) * (1 - 2 * (lonlat[3] == 'W'))
                                 ))
 
-        times = np.array(times).squeeze()
+        times = np.atleast_1d(np.array(times).squeeze())
         latlons = np.array(latlons)
         sources = np.array(sources)
         I = np.argsort(times)
@@ -1104,25 +1105,35 @@ class GetSMAPSources(object):
         self.filenames = filenames
         self.dates = dates
         self.create_kwargs = create_kwargs
+        self._base_url = None
     
     def __getitem__(self, slc):
-        return_slc = slice(None)
+        return_slice = slice(None)
         if not isinstance(slc, slice):
             if isinstance(slc, (np.integer, int)):
                 slc = slice(slc, slc+1)
                 return_slice = 0
             else: 
                 raise ValueError('Invalid slice')
-        base_url = SMAPDateFolder(product=self.product, folder_date='00001122',
-                                  auth_session=self.create_kwargs['auth_session']).source[:-8]
+        base_url = self.base_url
         source_urls = [base_url + np2smap_date(d)[:10] + '/' + f \
                         for d, f in zip(self.dates[slc], self.filenames[slc])]        
         return np.array([SMAPSource(source=s, **self.create_kwargs) \
                          for s in source_urls], object)[return_slice]
     
+    @property
+    def base_url(self):
+        if not self._base_url:
+            self._base_url = SMAPDateFolder(product=self.product, folder_date='00001122',
+                                            auth_session=self.create_kwargs['auth_session']).source[:-8]
+        return self._base_url
+
+
     def __len__(self):
-        return len(self.source_urls)
+        return len(self.filenames)
     
     def intersect(self, I):
-        return GetSMAPSources(source_urls=[self.source_urls[i] for i in I],
+        return GetSMAPSources(product=self.product,
+                              filenames=[self.filenames[i] for i in I],
+                              dates=[self.dates[i] for i in I],
                               create_kwargs=self.create_kwargs)
