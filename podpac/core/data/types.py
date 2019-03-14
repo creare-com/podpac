@@ -22,6 +22,7 @@ import logging
 import numpy as np
 import traitlets as tl
 import pandas as pd  # Core dependency of xarray
+import xarray  as xr
 
 # Helper utility for optional imports
 from lazy_import import lazy_module
@@ -1220,3 +1221,31 @@ class S3(DataSource):
             super(S3).__del__(self)
         for f in self._temp_file_cleanup:
             os.remove(f)
+
+class Xarray(DataSource):
+    extra_dim = tl.Dict({})
+    datakey = tl.Unicode().tag(attr=True)
+    dataset = tl.Instance(xr.Dataset)
+        
+    @tl.default('dataset')
+    def _dataset_default(self):
+        return xr.open_dataset(self.source)
+    
+    @property
+    @common_doc(COMMON_DATA_DOC)
+    def native_coordinates(self):
+        """{native_coordinates}
+        """
+        coords = self.dataset[self.datakey].coords
+        crds = []
+        dims = []
+        for d in coords.dims:
+            if d not in ['lat', 'lon', 'time', 'alt']:
+                continue
+            crds.append(coords[d].data)
+            dims.append(d)
+        return Coordinates(crds, dims)
+    
+    def get_data(self, coordinates, coordinates_index):
+        return self.create_output_array(coordinates,
+                                        self.dataset[self.datakey][self.extra_dim].data[coordinates_index])
