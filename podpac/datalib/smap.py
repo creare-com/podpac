@@ -51,7 +51,7 @@ from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.node import cache_func
 from podpac.core.node import NodeException
-from podpac.core.cache import cache
+from podpac.core.cache import cache, DiskCacheStore
 
 COMMON_DOC = COMMON_DATA_DOC.copy()
 COMMON_DOC.update(
@@ -529,9 +529,9 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
     def _cache_ctrl_default(self):
         # append disk store to default cache_ctrl if not present
         default_ctrl = cache.get_default_cache_ctrl()
-        stores = default_ctrl.cache_stores
-        if not any(isinstance(store, DiskCacheStore) for score in default_ctrl.cache_stores):
-            stores.append(cache.DiskCacheStore)
+        stores = default_ctrl._cache_stores
+        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
+            stores.append(cache.DiskCacheStore())
         return cache.CacheCtrl(stores)
 
     @tl.default('auth_session')
