@@ -19,8 +19,8 @@ DEFAULT_SETTINGS = {
     'DEBUG': False,
     'DEFAULT_CACHE': ['ram'],
     'CACHE_OUTPUT_DEFAULT': True,
-    'RAM_CACHE_MAX_BYTES': 1e9, # ~1GB
-    'DISK_CACHE_MAX_BYTES': 10e9, # ~10GB
+#    'RAM_CACHE_MAX_BYTES': 1e9, # ~1GB    TODO
+#    'DISK_CACHE_MAX_BYTES': 10e9, # ~10GB TODO
     'DISK_CACHE_DIR': 'cache',
     'S3_CACHE_DIR': 'cache',
     'RAM_CACHE_ENABLED': True,
@@ -37,7 +37,7 @@ DEFAULT_SETTINGS = {
     'LOG_TO_FILE': False,
     'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log'),
     'MULTITHREADING': False,
-    'N_THREADS': 10,
+    'N_THREADS': 8,
     'CHUNK_SIZE': None
 }
 
