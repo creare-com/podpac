@@ -7,8 +7,6 @@ import os
 import json
 from copy import deepcopy
 import errno
-import logging
-_logger = logging.getLogger(__name__)
 
 # Python 2/3 handling for JSONDecodeError
 try:
@@ -19,8 +17,15 @@ except ImportError:
 # Settings Defaults
 DEFAULT_SETTINGS = {
     'DEBUG': False,
-    'CACHE_DIR': None,
-    'CACHE_TO_S3': False,
+    'DEFAULT_CACHE': ['ram'],
+    'CACHE_OUTPUT_DEFAULT': True,
+#    'RAM_CACHE_MAX_BYTES': 1e9, # ~1GB    TODO
+#    'DISK_CACHE_MAX_BYTES': 10e9, # ~10GB TODO
+    'DISK_CACHE_DIR': 'cache',
+    'S3_CACHE_DIR': 'cache',
+    'RAM_CACHE_ENABLED': True,
+    'DISK_CACHE_ENABLED': True,
+    'S3_CACHE_ENABLED': True,
     'ROOT_PATH': os.path.join(os.path.expanduser('~'), '.podpac'),
     'AWS_ACCESS_KEY_ID': None,
     'AWS_SECRET_ACCESS_KEY': None,
@@ -32,7 +37,7 @@ DEFAULT_SETTINGS = {
     'LOG_TO_FILE': False,
     'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log'),
     'MULTITHREADING': False,
-    'N_THREADS': 10,
+    'N_THREADS': 8,
     'CHUNK_SIZE': None
 }
 
@@ -76,10 +81,24 @@ class PodpacSettings(dict):
         for more details.
     AWS_REGION_NAME : str
         Name of the AWS region, e.g. us-west-1, us-west-2, etc.
-    CACHE_DIR : str
-        Directory to use as a cache locally or on S3. Defaults to ``'cache'``.
-    CACHE_TO_S3 : bool
-        Cache results to the AWS S3 bucket.
+    DEFAULT_CACHE : list
+        Defines a default list of cache stores in priority order. Defaults to `['ram']`.
+    CACHE_OUTPUT_DEFAULT : bool
+        Default value for node ``cache_output`` trait.
+    RAM_CACHE_MAX_BYTES : int
+        Maximum RAM cache size in bytes. Defaults to ``1e9`` (~1G).
+    DISK_CACHE_MAX_BYTES : int
+        Maximum disk space for use by the disk cache in bytes. Defaults to ``10e9`` (~10G).
+    DISK_CACHE_DIR : str
+        Subdirectory to use for the disk cache. Defaults to ``'cache'`` in the podpac root directory.
+    S3_CACHE_DIR : str
+        Subdirectory to use for S3 cache (within the specified S3 bucket). Defaults to ``'cache'``.
+    RAM_CACHE_ENABLED: bool
+        Enable caching to RAM. Note that if disabled, some nodes may fail. Defaults to ``True``.
+    DISK_CACHE_ENABLED: bool
+        Enable caching to disk. Note that if disabled, some nodes may fail. Defaults to ``True``.
+    S3_CACHE_ENABLED: bool
+        Enable caching to RAM. Note that if disabled, some nodes may fail. Defaults to ``True``.
     ROOT_PATH : str
         Path to primary podpac working directory. Defaults to the ``.podpac`` directory in the users home directory.
     S3_BUCKET_NAME : str
@@ -107,11 +126,6 @@ class PodpacSettings(dict):
 
         # load settings from default locations
         self.load()
-        _logger.debug('Loaded podpac settings')
-        _logger.debug('Active podpac settings file: {}'.format(self.settings_path))
-        if self['AUTOSAVE_SETTINGS']:
-            _logger.debug('Auto-saving podpac settings to: {}'.format(self.settings_path))
-
 
         # set loaded flag
         self._loaded = True
@@ -144,8 +158,6 @@ class PodpacSettings(dict):
         for key in DEFAULT_SETTINGS:
             self[key] = DEFAULT_SETTINGS[key]
 
-        _logger.debug('Loaded podpac default settings')
-
     def _load_user_settings(self, path=None, filename='settings.json'):
         """Load user settings from settings.json file
         
@@ -169,8 +181,10 @@ class PodpacSettings(dict):
         # set settings path to default to start
         self._settings_filepath = root_filepath
 
-        # if input path is specifed, make sure it is not empty
+        # if input path is specifed, create the input path if it doesn't exist
         if path is not None:
+
+            # make empty settings path
             if not os.path.exists(path):
                 raise ValueError('Input podpac settings path does not exist: {}'.format(path))
 
@@ -192,16 +206,11 @@ class PodpacSettings(dict):
                 try:
                     with open(p, 'r') as f:
                         json_settings = json.load(f)
-                        _logger.debug('Loaded podpac settings from {}'.format(p))
                 except JSONDecodeError:
+
                     # if the root_filepath settings file is broken, raise
                     if p == root_filepath:
                         raise
-
-                    # otherwise warn
-                    else:
-                        _logger.warn('Failed to load podpac settings from {} with JSONDecodeError'.format(p))
-
 
                 # if path exists and settings loaded then load those settings into the dict
                 if json_settings is not None:
@@ -250,7 +259,7 @@ class PodpacSettings(dict):
             os.makedirs(os.path.dirname(self._settings_filepath), exist_ok=True)
 
         with open(self._settings_filepath, 'w') as f:
-            json.dump(self, f)
+            json.dump(self, f, indent=4)
 
     def load(self, path=None, filename='settings.json'):
         """
@@ -271,19 +280,16 @@ class PodpacSettings(dict):
         # load user settings
         self._load_user_settings(path, filename)
 
-        # it breaks things to set the root path to None, set back to default if set to None
+        # it breaks things to set these paths to None, set back to default if set to None
         if self['ROOT_PATH'] is None:
             self['ROOT_PATH'] = DEFAULT_SETTINGS['ROOT_PATH']
 
-        # TODO: handle this in the cache module
-        if self['S3_BUCKET_NAME'] and self['CACHE_TO_S3']:
-            self['CACHE_DIR'] = 'cache'
-        elif self['CACHE_DIR'] is None:
-            self['CACHE_DIR'] = os.path.abspath(os.path.join(self['ROOT_PATH'], 'cache'))
+        if self['DISK_CACHE_DIR'] is None:
+            self['DISK_CACHE_DIR'] = DEFAULT_SETTINGS['DISK_CACHE_DIR']
+        
+        if self['S3_CACHE_DIR'] is None:
+            self['S3_CACHE_DIR'] = DEFAULT_SETTINGS['S3_CACHE_DIR']
+
 
 # load settings dict when module is loaded
 settings = PodpacSettings()
-
-if settings['LOG_TO_FILE']:
-    from podpac.core.utils import create_logfile
-    create_logfile()

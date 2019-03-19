@@ -107,10 +107,10 @@ class UniformCoordinates1d(Coordinates1d):
                 type(start), type(stop), type(step)))
 
         if fstep < 0 and start < stop:
-            raise ValueError("UniformCoordinates1d step must be less than zero if start > stop.")
+            raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
 
         if fstep > 0 and start > stop:
-            raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
+            raise ValueError("UniformCoordinates1d step must be less than zero if start > stop.")
 
         self.set_trait('start', start)
         self.set_trait('stop', stop)

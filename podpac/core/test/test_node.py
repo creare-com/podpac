@@ -17,6 +17,7 @@ from podpac.core import common_test_utils as ctu
 from podpac.core.utils import ArrayTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import Node, NodeException
+from podpac.core.cache import CacheCtrl, RamCacheStore
     
 class TestNode(object):
     def test_base_ref(self):
@@ -212,14 +213,13 @@ class TestCreateOutputArray(object):
         assert output.dtype == node.dtype
         assert np.all(~output)
 
-# @pytest.mark.skip("TODO")
 class TestCaching(object):
     @classmethod
     def setup_class(cls):
         class MyNode(Node):
             pass
 
-        cls.node = MyNode(cache_type='disk')
+        cls.node = MyNode(cache_ctrl=CacheCtrl([RamCacheStore()]))
         cls.node.rem_cache(key='*', coordinates='*')
 
         cls.coords = podpac.Coordinates([0, 0], dims=['lat', 'lon'])
@@ -379,8 +379,8 @@ class TestCachePropertyDecorator(object):
                 """ d2 docstring """
                 return self.d * 2
             
-        t = Test(cache_type='disk')
-        t2 = Test(cache_type='disk')
+        t = Test(cache_ctrl=CacheCtrl([RamCacheStore()]))
+        t2 = Test(cache_ctrl=CacheCtrl([RamCacheStore()]))
         t.rem_cache(key='*', coordinates='*')
         t2.rem_cache(key='*', coordinates='*')
 
@@ -450,8 +450,8 @@ class TestCachePropertyDecorator(object):
                 """ d2 docstring """
                 return self.d * 2
             
-        t = Test(cache_type=None)
-        t2 = Test(cache_type=None)
+        t = Test(cache_ctrl=None)
+        t2 = Test(cache_ctrl=None)
         t.rem_cache(key='*', coordinates='*')
         t2.rem_cache(key='*', coordinates='*')
 
