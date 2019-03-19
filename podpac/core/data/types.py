@@ -782,7 +782,7 @@ class WCS(DataSource):
             r = http.request('GET', self.get_capabilities_url)
             capabilities = r.data
             if r.status != 200:
-                raise Exception("Could not get capabilities from WCS server")
+                raise Exception("Could not get capabilities from WCS server:" + self.get_capabilities_url)
         else:
             raise Exception("Do not have a URL request library to get WCS data.")
 
@@ -895,7 +895,7 @@ class WCS(DataSource):
                 if requests is not None:
                     data = requests.get(url)
                     if data.status_code != 200:
-                        raise Exception("Could not get data from WCS server")
+                        raise Exception("Could not get data from WCS server:" + url)
                     io = BytesIO(bytearray(data.content))
                     content = data.content
 
@@ -907,7 +907,7 @@ class WCS(DataSource):
                         http = urllib3.PoolManager()
                     r = http.request('GET', url)
                     if r.status != 200:
-                        raise Exception("Could not get capabilities from WCS server")
+                        raise Exception("Could not get capabilities from WCS server:" + url)
                     content = r.data
                     io = BytesIO(bytearray(r.data))
                 else:
@@ -957,7 +957,7 @@ class WCS(DataSource):
             if requests is not None:
                 data = requests.get(url)
                 if data.status_code != 200:
-                    raise Exception("Could not get data from WCS server")
+                    raise Exception("Could not get data from WCS server:" + url)
                 io = BytesIO(bytearray(data.content))
                 content = data.content
 
@@ -969,7 +969,7 @@ class WCS(DataSource):
                     http = urllib3.PoolManager()
                 r = http.request('GET', url)
                 if r.status != 200:
-                    raise Exception("Could not get capabilities from WCS server")
+                    raise Exception("Could not get capabilities from WCS server:" + url)
                 content = r.data
                 io = BytesIO(bytearray(r.data))
             else:
@@ -1221,8 +1221,28 @@ class S3(DataSource):
         for f in self._temp_file_cleanup:
             os.remove(f)
 
-class Xarray(DataSource):
-    extra_dim = tl.Dict({})
+
+@common_doc(COMMON_DATA_DOC)
+class Dataset(DataSource):
+    """Create a DataSource node using xarray.open_dataset.
+    
+    Attributes
+    ----------
+    datakey : str
+        The 'key' for the data to be retrieved from the file. Datasource may have multiple keys, so this key
+        determines which variable is returned from the source.
+    dataset : xarray.Dataset, optional
+        The xarray dataset from which to retrieve data. If not specified, will be automatically created from the 'source'
+    native_coordinates : Coordinates
+        {native_coordinates}
+    source : str
+        Path to the data source
+    extra_dim : dict
+        In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected. 
+        For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim={'channel': 1}`
+    """
+    
+    extra_dim = tl.Dict({}).tag(attr=True)
     datakey = tl.Unicode().tag(attr=True)
     dataset = tl.Instance(xr.Dataset)
         
@@ -1235,6 +1255,7 @@ class Xarray(DataSource):
     def native_coordinates(self):
         """{native_coordinates}
         """
+        # we have to remove any dimensions not in 'lat', 'lon', 'time', 'alt' for the 'get_data' machinery to work properly
         coords = self.dataset[self.datakey].coords
         crds = []
         dims = []
@@ -1248,3 +1269,14 @@ class Xarray(DataSource):
     def get_data(self, coordinates, coordinates_index):
         return self.create_output_array(coordinates,
                                         self.dataset[self.datakey][self.extra_dim].data[coordinates_index])
+    
+    @property
+    def keys(self):
+        """The list of available keys from the xarray dataset.
+        
+        Returns
+        -------
+        List
+            The list of available keys from the xarray dataset. Any of these keys can be set as self.datakey.
+        """
+        return list(self.dataset.keys())
