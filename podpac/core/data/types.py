@@ -1239,7 +1239,7 @@ class Dataset(DataSource):
         Path to the data source
     extra_dim : dict
         In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected. 
-        For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim={'channel': 1}`
+        For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
     """
     
     extra_dim = tl.Dict({}).tag(attr=True)
