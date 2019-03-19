@@ -94,7 +94,10 @@ class UnitsDataArray(xr.DataArray):
     def __array_wrap__(self, obj, context=None):
         new_var = super(UnitsDataArray, self).__array_wrap__(obj, context)
         if self.attrs.get("units"):
-            new_var.attrs["units"] = context[0](ureg.Quantity(1, self.attrs.get("units"))).u
+            if context:
+                new_var.attrs["units"] = context[0](ureg.Quantity(1, self.attrs.get("units"))).u
+            else:
+                new_var.attrs['units'] = self.attrs.get("units")
         return new_var
 
     def _apply_binary_op_to_units(self, func, other, x):
@@ -128,17 +131,22 @@ class UnitsDataArray(xr.DataArray):
         return x
 
     def to(self, unit):
-        """Summary
+        """Converts the UnitsDataArray units to the requested unit
 
         Parameters
         ----------
-        unit : TYPE
-            Description
+        unit : pint.UnitsRegistry unit
+            The desired unit from podpac.unit
 
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            The array converted to the desired unit
+            
+        Raises
+        --------
+        DimensionalityError
+            If the requested unit is not dimensionally consistent with the original unit.
         """
         x = self.copy()
         if self.attrs.get("units", None):
@@ -148,13 +156,13 @@ class UnitsDataArray(xr.DataArray):
             x.attrs['units'] = unit
         return x
 
-    def to_base_units(self):
-        """Summary
+    def to_base_units(self): 
+        """Converts the UnitsDataArray units to the base SI units.
 
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            The units data array converted to the base SI units
         """
         if self.attrs.get("units", None):
             myu = ureg.Quantity(1, getattr(self, "units", "1")).to_base_units()
@@ -180,18 +188,26 @@ class UnitsDataArray(xr.DataArray):
 
         return super(UnitsDataArray, self).__getitem__(key)
 
+#     def reduce(self, func, *args, **kwargs):
+#         new_var = super(UnitsDataArray, self).reduce(func, *args, **kwargs)
+#         if self.attrs.get("units", None):
+#            new_var.attrs['units'] = self.units
+#         return new_var
+
     def part_transpose(self, new_dims):
-        """Summary
+        """Partially transpose the UnitsDataArray based on the input dimensions. The remaining
+        dimensions will have their original order, and will be included at the end of the 
+        transpose.
 
         Parameters
         ----------
-        new_dims : TYPE
-            Description
+        new_dims : list
+            List of dimensions in the order they should be transposed
 
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            The UnitsDataArray transposed according to the user inputs
         """
         shared_dims = [dim for dim in new_dims if dim in self.dims]
         self_only_dims = [dim for dim in self.dims if dim not in new_dims]
@@ -206,15 +222,14 @@ class UnitsDataArray(xr.DataArray):
 
         Parameters
         ----------
-        value : TYPE
-            Description
-        mask : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
+        value : Number
+            A constant number that will replace the masked values.
+        mask : UnitsDataArray
+            A UnitsDataArray representing a boolean index.
+            
+        Notes
+        ------
+        This function modifies the UnitsDataArray inplace
         """
 
         if isinstance(mask,UnitsDataArray) and isinstance(value,Number):
