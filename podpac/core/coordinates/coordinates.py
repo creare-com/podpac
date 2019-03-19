@@ -847,11 +847,12 @@ class Coordinates(tl.HasTraits):
         coords : Coordinates
             New Coordinates object with unique, sorted coordinate values in each dimension.
         """
+        inds = [np.unique(c.coordinates, return_index=True)[1] for c in self.values()]
+        c = Coordinates([c[i] for c, i in zip(self.values(), inds)])
         if return_indices:
-            inds = [np.unique(c.coordinates, return_indices=True)[1] for c in self.values()]
-            return Coordinates([c[i] for c, i in zip(self.values(), inds)]), inds
+            return c, inds
         else:
-            return Coordinates([c[np.unique(c.coordinates, return_indices=True)[1]] for c in self.values()])
+            return c
 
     def unstack(self):
         """
