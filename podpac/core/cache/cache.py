@@ -76,6 +76,52 @@ def validate_inputs(node=None, key=None, coordinates=None, mode=None):
         raise CacheException('`mode` should either be an instance of string or `None`.')
     return True
 
+def get_default_cache_ctrl():
+    """
+    Get the default CacheCtrl according to the settings.
+
+    Returns
+    -------
+    ctrl : CacheCtrl or None
+        Default CachCtrl
+    """
+
+    if settings.get('DEFAULT_CACHE') is None: # missing or None
+        return CacheCtrl([])
+
+    return make_cache_ctrl(settings['DEFAULT_CACHE'])
+
+def make_cache_ctrl(stores):
+    """
+    Make a cache_ctrl from a list of cache store types.
+
+    Arguments
+    ---------
+    stores : str or list
+        cache store or stores, e.g. 'ram' or ['ram', 'disk'].
+
+    Returns
+    -------
+    ctrl : CacheCtrl
+        CachCtrl using the specified cache stores
+    """
+
+    if isinstance(stores, str):
+        stores = [stores]
+
+    cache_stores = []
+    for elem in stores:
+        if elem == 'ram':
+            cache_stores.append(RamCacheStore())
+        elif elem == 'disk':
+            cache_stores.append(DiskCacheStore())
+        elif elem == 's3':
+            cache_stores.append(S3CacheStore())
+        else:
+            raise ValueError("Unknown cache store type '%s'" % elem)
+    
+    return CacheCtrl(cache_stores)
+
 class CacheCtrl(object):
 
     """Objects of this class are used to manage multiple CacheStore objects of different types
@@ -839,10 +885,16 @@ class DiskCacheStore(FileCacheStore):
             If unsupported `storage_format` is specified
         """
 
+        if not settings['DISK_CACHE_ENABLED']:
+            raise CacheException("Disk cache is disabled in the podpac settings.")
+
         # set cache dir
-        if root_cache_dir_path is None:
-            root_cache_dir_path = self._path_join(settings['ROOT_PATH'], settings['CACHE_DIR'])
-        self._root_dir_path = root_cache_dir_path
+        if root_cache_dir_path is not None:
+            self._root_dir_path = root_cache_dir_path
+        elif os.path.isabs(settings['DISK_CACHE_DIR']):
+            self._root_dir_path = settings['DISK_CACHE_DIR']
+        else:
+            self._root_dir_path = self._path_join([settings['ROOT_PATH'], settings['DISK_CACHE_DIR']])
 
         # make directory if it doesn't already exist
         os.makedirs(self._root_dir_path, exist_ok=True)
@@ -952,9 +1004,13 @@ class S3CacheStore(FileCacheStore):
         NotImplementedError
             If unsupported `storage_format` is specified
         """
+        
+        if not settings['S3_CACHE_ENABLED']:
+            raise CacheException("S3 cache is disabled in the podpac settings.")
+
         self._cache_modes = set(['s3','all'])
         if root_cache_dir_path is None:
-            root_cache_dir_path = settings['CACHE_DIR']
+            root_cache_dir_path = settings['S3_CACHE_DIR']
         self._root_dir_path = root_cache_dir_path
         if storage_format == 'pickle':
             self._extension = 'pkl'
@@ -1109,6 +1165,12 @@ class RamCacheStore(CacheStore):
     """
 
     cache_modes = set(['ram', 'all'])
+
+    def __init__(self):
+        if not settings['RAM_CACHE_ENABLED']:
+            raise CacheException("RAM cache is disabled in the podpac settings.")
+
+        super(CacheStore, self).__init__()
 
     def _get_key(self, obj):
         # return obj.hash if obj else None

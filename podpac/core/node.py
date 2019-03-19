@@ -18,7 +18,7 @@ from podpac.core.units import Units, UnitsDataArray, create_data_array
 from podpac.core.utils import common_doc, JSONEncoder
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.cache import cache
+from podpac.core.cache import CacheCtrl, get_default_cache_ctrl
 
 COMMON_NODE_DOC = {
     'requested_coordinates':
@@ -33,7 +33,7 @@ COMMON_NODE_DOC = {
             Unit-aware xarray DataArray containing the results of the node evaluation.
         """,
     'hash_return': 'A unique hash capturing the coordinates and parameters used to evaluate the node. ',
-    'outdir': "Optional output directory. Uses :attr:`podpac.settings['CACHE_DIR']` by default",
+    'outdir': "Optional output directory. Uses :attr:`podpac.settings['DISK_CACHE_DIR']` by default",
     'definition_return':
         """
         OrderedDict
@@ -78,13 +78,11 @@ class Node(tl.HasTraits):
     Attributes
     ----------
     cache_output: bool
-        Default if True. Should the node's output be cached? 
+        Should the node's output be cached? If not provided or None, uses default based on settings.
     cache_update: bool
         Default is False. Should the node's cached output be updated from the source data? 
-    cache_type : [None, 'disk', 'ram']
-        How the output of the nodes should be cached. By default, outputs are not cached.
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
-        Class that controls caching. If not provided, uses default based on cache_type.
+        Class that controls caching. If not provided, uses default based on settings.
     dtype : type
         The numpy datatype of the output. Currently only ``float`` is supported.
     style : :class:`podpac.Style`
@@ -102,25 +100,23 @@ class Node(tl.HasTraits):
 
     units = Units(default_value=None, allow_none=True)
     dtype = tl.Any(default_value=float)
-    cache_output = tl.Bool(True)
+    cache_output = tl.Bool()
     cache_update = tl.Bool(False)
-    cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True)
-    cache_ctrl = tl.Instance(cache.CacheCtrl, allow_none=True)
+    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+
+    @tl.default('cache_output')
+    def _cache_output_default(self):
+        return settings['CACHE_OUTPUT_DEFAULT']
 
     @tl.default('cache_ctrl')
     def _cache_ctrl_default(self):
-        if self.cache_type is None:
-            return None
-        elif self.cache_type == 'ram':
-            raise NotImplementedError('Cachetype RAM has not been implemented')
-        elif self.cache_type == 'disk':
-            store = cache.DiskCacheStore(root_cache_dir_path=settings['CACHE_DIR'])
-            ctrl = cache.CacheCtrl(cache_stores=[store])
+        return get_default_cache_ctrl()
 
-        return ctrl
-    @tl.observe('cache_type')
-    def _cache_type_changed(self, change):
-        self.cache_ctrl = self._cache_ctrl_default()
+    @tl.validate('cache_ctrl')
+    def _validate_cache_ctrl(self, d):
+        if d['value'] is None:
+            d['value']  = CacheCtrl([]) # no cache_stores
+        return d['value']
 
     style = tl.Instance(Style)
 
@@ -425,7 +421,7 @@ class Node(tl.HasTraits):
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
 
-    def put_cache(self, data, key, coordinates=None, overwrite=False, raise_no_cache_exception=True):
+    def put_cache(self, data, key, coordinates=None, overwrite=False):
         """
         Cache data for this node.
 
@@ -439,24 +435,15 @@ class Node(tl.HasTraits):
             Coordinates that the cached data depends on. Omit for coordinate-independent data.
         overwrite : bool, optional
             Overwrite existing data, default False
-        raise_no_cache_exception: bool, optional
-            Raises a NodeException if trying to put data to the cache, but no cache is available.
 
         Raises
         ------
         NodeException
             Cached data already exists (and overwrite is False)
-        NodeException
-            No cache_ctrl available and raise_no_cache_exception is True
         """
 
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
-        if self.cache_ctrl is None:
-            if raise_no_cache_exception:
-                raise NodeException('Trying to cache data but no cache_ctrl available. Specify cache_type.')
-            else:
-                return
         
         self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
 
@@ -476,8 +463,6 @@ class Node(tl.HasTraits):
         bool
             True if there is cached data for this node, key, and coordinates.
         """
-        if self.cache_ctrl is None:
-            return False
         return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
     def rem_cache(self, key, coordinates=None, mode=None, all_cache=False):
@@ -500,8 +485,6 @@ class Node(tl.HasTraits):
         ---------
         `podpac.core.cache.cache.CacheCtrl.rem`
         """
-        if self.cache_ctrl is None:
-            return 
         if all_cache:
             self.cache_ctrl.rem('*', '*')
         else:
@@ -540,12 +523,12 @@ def node_eval(fn):
                 output.transpose(*order)[:] = data
             self._from_cache = True
         else:
-            data = fn(self, coordinates, output=output,)
+            data = fn(self, coordinates, output=output)
+
             # We need to check if the cache now has the key because it is possible that
             # the previous function call added the key with the coordinates to the cache
             if self.cache_output and not (self.has_cache(key, cache_coordinates) and not self.cache_update):
-                self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update,
-                               raise_no_cache_exception=False)
+                self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update)
             self._from_cache = False
 
         # transpose data to match the dims order of the requested coordinates
@@ -558,7 +541,7 @@ def node_eval(fn):
         return data
     return wrapper
 
-def cache_func(key, depends=None, raise_no_cache_exception=False):
+def cache_func(key, depends=None):
     """
     Decorating for caching a function's output based on a key.
 
@@ -569,9 +552,7 @@ def cache_func(key, depends=None, raise_no_cache_exception=False):
     depends: str, list, traitlets.All (optional)
         Default is None. Any traits that the cached property depends on. The cached function may NOT
         change the value of any of these dependencies (this will result in a RecursionError)
-    raise_no_cache_exception: bool, optional
-            Raises a NodeException if trying to put data to the cache, but no cache is available.
-
+    
 
     Notes
     -----
@@ -595,22 +576,22 @@ def cache_func(key, depends=None, raise_no_cache_exception=False):
            def square_value_depends(self):
                return self.value
 
-    >>> n = MyClass()
+    >>> n = MyClass(cache_ctrl=None)
     >>> n.add_value()  # The function as defined is called
     1
-    >>> n.add_value()  # The function as defined is called again, since we have no caching specified
+    >>> n.add_value()  # The function as defined is called again, since we have specified no caching
     2
-    >>> n.cache_type = 'disk'
-    >>> n.add_value()  # The function as defined is called again, and the value is stored to disk
+    >>> n.cache_ctrl = CacheCtrl([RamCacheStore()])
+    >>> n.add_value()  # The function as defined is called again, and the value is stored in memory
     3
     >>> n.add_value()  # The value is retrieved from disk, note the change in n.value is not captured
     3
-    >>> n.square_value_depends()  # The function as defined is called, and the value is stored to disk
+    >>> n.square_value_depends()  # The function as defined is called, and the value is stored in memory
     16
-    >>> n.square_value_depends()  # The value is retrieved from disk
+    >>> n.square_value_depends()  # The value is retrieved from memory
     16
     >>> n.value += 1
-    >>> n.square_value_depends()  # The function as defined is called, and the value is stored to disk. Note the change in n.value is captured.
+    >>> n.square_value_depends()  # The function as defined is called, and the value is stored in memory. Note the change in n.value is captured.
     25
     """
     # This is the actual decorator which will be evaluated and returns the wrapped function
@@ -622,7 +603,7 @@ def cache_func(key, depends=None, raise_no_cache_exception=False):
             def cache_updator(change):
                 # print("Updating value on self:", id(self))
                 out = func(self)
-                self.put_cache(out, key, overwrite=True, raise_no_cache_exception=raise_no_cache_exception)
+                self.put_cache(out, key, overwrite=True)
             
             if depends:
                 # This sets up the observer on the dependent traits
@@ -640,7 +621,7 @@ def cache_func(key, depends=None, raise_no_cache_exception=False):
                     out = self.get_cache(key)
                 except NodeException:
                     out = func(self)
-                    self.put_cache(out, key, raise_no_cache_exception=raise_no_cache_exception)
+                    self.put_cache(out, key)
                 return out
             
             # Since this is the first time the function is run, set the new wrapper 
