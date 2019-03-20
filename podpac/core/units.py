@@ -21,6 +21,7 @@ from pint.unit import _Unit
 ureg = UnitRegistry()
 
 import podpac
+from podpac import settings
 
 class UnitsNode(tl.TraitType):
     """UnitsNode Summary
@@ -49,7 +50,7 @@ class UnitsNode(tl.TraitType):
         """
         
         if isinstance(value, podpac.Node):
-            if 'units' in self.metadata and value.units is not None:
+            if 'units' in self.metadata and value.units is not None and settings['ENABLE_UNITS']:
                 u = ureg.check(self.metadata['units'])(lambda x: x)(value.units*1)
                 return value
         self.error(obj, value)
@@ -94,21 +95,21 @@ class UnitsDataArray(xr.DataArray):
     def __array_wrap__(self, obj, context=None):
         new_var = super(UnitsDataArray, self).__array_wrap__(obj, context)
         if self.attrs.get("units"):
-            if context:
+            if context and settings['ENABLE_UNITS']:
                 new_var.attrs["units"] = context[0](ureg.Quantity(1, self.attrs.get("units"))).u
-            else:
-                new_var.attrs['units'] = self.attrs.get("units")
+            elif settings['ENABLE_UNITS']:
+                new_var = self._copy_units(new_var)
         return new_var
 
     def _apply_binary_op_to_units(self, func, other, x):
-        if self.attrs.get("units", None) or getattr(other, 'units', None):
+        if (self.attrs.get("units", None) or getattr(other, 'units', None)) and settings['ENABLE_UNITS']:
             x.attrs["units"] = func(ureg.Quantity(1, getattr(self, "units", "1")),
                                     ureg.Quantity(1, getattr(other, "units", "1"))).u
         return x
 
     def _get_unit_multiplier(self, other):
         multiplier = 1
-        if self.attrs.get("units", None) or getattr(other, 'units', None):
+        if (self.attrs.get("units", None) or getattr(other, 'units', None)) and settings['ENABLE_UNITS']:
             otheru = ureg.Quantity(1, getattr(other, "units", "1"))
             myu = ureg.Quantity(1, getattr(self, "units", "1"))
             multiplier = otheru.to(myu.u).magnitude
@@ -118,7 +119,7 @@ class UnitsDataArray(xr.DataArray):
     # unit of argument (which must be unitless)
     def __pow__(self, other):
         x = super(UnitsDataArray, self).__pow__(other)
-        if self.attrs.get("units"):
+        if self.attrs.get("units") and settings['ENABLE_UNITS']:
             x.attrs["units"] = pow(
                 ureg.Quantity(1, getattr(self, "units", "1")),
                 ureg.Quantity(other, getattr(other, "units", "1"))
