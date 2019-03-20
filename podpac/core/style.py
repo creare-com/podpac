@@ -4,9 +4,11 @@ from __future__ import division, print_function, absolute_import
 import traitlets as tl
 import matplotlib
 import matplotlib.cm
+import json
+from collections import OrderedDict
 
 from podpac.core.units import Units
-
+from podpac.core.utils import trait_is_defined,JSONEncoder
 class Style(tl.HasTraits):
     """Summary
 
@@ -47,3 +49,50 @@ class Style(tl.HasTraits):
     @tl.default('cmap') 
     def _cmap_default(self):
         return matplotlib.cm.get_cmap('viridis')
+
+    @property
+    def json(self):
+        """ JSON-serialized style definition
+        
+        The `json` can be used to create new styles. 
+        
+        See Also
+        ----------
+        from_json
+        """
+        
+        return json.dumps(self.definition, cls=JSONEncoder)
+    
+    @property
+    def definition(self):
+        d = OrderedDict() 
+        for t in self.trait_names():
+            if not trait_is_defined(self, t):
+                continue
+            d[t] = getattr(self, t)
+        d['cmap'] = self.cmap.name
+        return d
+           
+    @classmethod
+    def from_definition(cls, d):
+        if 'cmap' in d:
+            d['cmap'] = matplotlib.cm.get_cmap(d['cmap'])
+        return cls(**d)
+
+    @classmethod
+    def from_json(cls, s):
+        """ Create podpac Style from a style JSON definition.
+        
+        Parameters
+        -----------
+        s : str
+            JSON definition
+            kkkk
+        Returns
+        --------
+        Style
+            podpac Style object
+        """
+        
+        d = json.loads(s)
+        return cls.from_definition(d)

@@ -9,6 +9,7 @@ ureg : TYPE
 from copy import deepcopy
 from numbers import Number
 import operator
+from six import string_types
 
 from io import BytesIO
 import base64
@@ -21,7 +22,8 @@ from pint.unit import _Unit
 ureg = UnitRegistry()
 
 import podpac
-from podpac import settings
+from podpac.core.settings import settings
+from podpac.core.utils import trait_is_defined
 
 class UnitsNode(tl.TraitType):
     """UnitsNode Summary
@@ -91,7 +93,19 @@ class Units(tl.TraitType):
 class UnitsDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
     """
+    
+    def __init__(self, *args, **kwargs):
+        super(UnitsDataArray, self).__init__(*args, **kwargs)
 
+        # Deserialize units 
+        if self.attrs.get('units') and isinstance(self.attrs['units'], string_types):
+            self.attrs['units'] = ureg(self.attrs['units'])
+
+        # Deserialize layer_stylers
+        if self.attrs.get('layer_style') and isinstance(self.attrs['layer_style'], string_types): 
+            self.attrs['layer_style'] = podpac.core.style.Style.from_json(self.attrs['layer_style']) 
+       
+            
     def __array_wrap__(self, obj, context=None):
         new_var = super(UnitsDataArray, self).__array_wrap__(obj, context)
         if self.attrs.get("units"):
@@ -171,6 +185,14 @@ class UnitsDataArray(xr.DataArray):
         else:
             return self.copy()
 
+    def to_netcdf(self, *args, **kwargs):
+        if self.attrs.get('units'):
+            self.attrs['units'] = str(self.attrs['units'])
+        if self.attrs.get('layer_style'):
+            self.attrs['layer_style'] = self.attrs['layer_style'].json
+            
+        return super(UnitsDataArray, self).to_netcdf(*args, **kwargs)
+    
     def __getitem__(self, key):
         # special cases when key is also a DataArray
         # and has only one dimension
