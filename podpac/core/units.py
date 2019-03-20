@@ -99,7 +99,7 @@ class UnitsDataArray(xr.DataArray):
 
         # Deserialize units 
         if self.attrs.get('units') and isinstance(self.attrs['units'], string_types):
-            self.attrs['units'] = ureg(self.attrs['units'])
+            self.attrs['units'] = ureg(self.attrs['units']).u
 
         # Deserialize layer_stylers
         if self.attrs.get('layer_style') and isinstance(self.attrs['layer_style'], string_types): 
@@ -186,12 +186,16 @@ class UnitsDataArray(xr.DataArray):
             return self.copy()
 
     def to_netcdf(self, *args, **kwargs):
+        attrs = self.attrs.copy()
         if self.attrs.get('units'):
             self.attrs['units'] = str(self.attrs['units'])
         if self.attrs.get('layer_style'):
             self.attrs['layer_style'] = self.attrs['layer_style'].json
             
-        return super(UnitsDataArray, self).to_netcdf(*args, **kwargs)
+        r = super(UnitsDataArray, self).to_netcdf(*args, **kwargs)
+        self.attrs.update(attrs)
+        return r
+    
     
     def __getitem__(self, key):
         # special cases when key is also a DataArray

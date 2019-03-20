@@ -16,6 +16,7 @@ from podpac.core.units import UnitsNode
 from podpac.core.units import UnitsDataArray
 from podpac.core.units import create_data_array
 from podpac.core.units import get_image
+from podpac.core.style import Style
 
 class Length(Node):
     units = Units(ureg.meter)
@@ -79,7 +80,7 @@ class TestUnitDataArray(object):
         assert a.sum(axis=0).attrs.get("units", None) is not None
         assert a.cumsum(axis=0).attrs.get("units", None) is not None
         assert a.min(axis=0).attrs.get("units", None) is not None
-        assert a.max(axis=0).attrs.get("units", None) is not None
+        assert a.max('lon').attrs.get("units", None) is not None
         assert np.mean(a, axis=0).attrs.get("units", None) is not None
         assert np.sum(a, axis=0).attrs.get("units", None) is not None
         assert np.cumsum(a, axis=0).attrs.get("units", None) is not None
@@ -94,6 +95,28 @@ class TestUnitDataArray(object):
                             dims=['lat', 'lon', 'alt'],
                             attrs={'units': ureg.meter})
         assert len(a.mean(['lat', 'lon']).data) == 2
+        
+    def test_serialization_deserialization(self):
+        n_lats = 3
+        n_lons = 4
+        n_alts = 2
+        a = UnitsDataArray(np.arange(n_lats*n_lons*n_alts).reshape((n_lats,n_lons,n_alts)), 
+                            dims=['lat', 'lon', 'alt'],
+                            attrs={'units': ureg.meter, layer_style=Style()})
+        f = a.to_netcdf()
+        b = UnitsDataArray(xr.open_dataarray(f))
+        assert a.attrs['units'] == b.attrs['units']
+        assert a.attrs['layer_style'].json == b.attrs['layer_style'].json
+        
+    def test_pow(self):        
+        n_lats = 3
+        n_lons = 4
+        n_alts = 2
+        
+        a = UnitsDataArray(np.arange(n_lats*n_lons*n_alts).reshape((n_lats,n_lons,n_alts)), 
+                            dims=['lat', 'lon', 'alt'],
+                            attrs={'units': ureg.meter})
+        assert (a**2).attrs['units'] == ureg.meter **2
 
     def test_set_to_value_using_UnitsDataArray_as_mask_does_nothing_if_mask_has_dim_not_in_array(self):
         a = UnitsDataArray(

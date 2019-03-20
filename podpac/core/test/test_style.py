@@ -15,3 +15,9 @@ class TestStyleCreation(object):
     def test_get_default_cmap(self):
         style = Style()
         style.cmap
+        
+    def test_serialization(self):
+        style1 = Style()
+        style2 = Style.from_json(style.json)
+        for t in trait_names():
+            assert getattr(style1, t) == getattr(style2, t)
