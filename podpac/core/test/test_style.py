@@ -18,6 +18,6 @@ class TestStyleCreation(object):
         
     def test_serialization(self):
         style1 = Style()
-        style2 = Style.from_json(style.json)
+        style2 = Style.from_json(style1.json)
         for t in trait_names():
             assert getattr(style1, t) == getattr(style2, t)
