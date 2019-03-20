@@ -102,7 +102,7 @@ class TestUnitDataArray(object):
         n_alts = 2
         a = UnitsDataArray(np.arange(n_lats*n_lons*n_alts).reshape((n_lats,n_lons,n_alts)), 
                             dims=['lat', 'lon', 'alt'],
-                            attrs={'units': ureg.meter, layer_style=Style()})
+                            attrs={'units': ureg.meter, 'layer_style':Style()})
         f = a.to_netcdf()
         b = UnitsDataArray(xr.open_dataarray(f))
         assert a.attrs['units'] == b.attrs['units']
