@@ -608,7 +608,7 @@ class Coordinates(tl.HasTraits):
         :xarray.core.coordinates.DataArrayCoordinates: xarray coords, a dictionary-like container of coordinate arrays.
         """
 
-        coords = {}
+        coords = OrderedDict()
         for c in self._coords.values():
             coords.update(c.coords)
         # TODO just return coords?
