@@ -4,6 +4,7 @@ Interpolation handling
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 import warnings
+import sys
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
@@ -989,7 +990,19 @@ class Interpolation():
                 raise TypeError('{} is not a valid interpolation params definition. '.format(params) +
                                 'Interpolation params must be a dict')
 
-            for interpolator in interpolators:
+            for idx, interpolator in enumerate(interpolators):
+                
+                # convert string class name to class in this module (bit of a hack)
+                # this will come from definition
+                # TODO: move interpolators to seperate module
+                if isinstance(interpolator, string_types):
+                    this_module = sys.modules[__name__]
+                    if interpolator in dir(this_module):
+                        interpolator = getattr(this_module, interpolator)
+                        interpolators[idx] = interpolator
+                    else: 
+                        raise TypeError('{} is not a valid interpolator.'.format(interpolator))
+
                 self._validate_interpolator(interpolator)
 
             # if all checks pass, return the definition
