@@ -420,14 +420,15 @@ class Rasterio(DataSource):
             return rasterio.open(self.source)
 
     # TODO: remove when the reprojection is enabled
-    def _reproject(self, dst_crs='epsg:4326'):
+    def _reproject(self, src_dataset=None, dst_crs='epsg:4326'):
         # https://rasterio.readthedocs.io/en/latest/topics/reproject.html#reprojecting-a-geotiff-dataset
          
         # format for rasterio
         dst_crs = {'init': dst_crs.lower()}
 
         # use self.dataset as source
-        src_dataset = self.dataset
+        if src_dataset is None:
+            src_dataset = self.dataset
 
         # calculate default transform
         transform, width, height = rasterio.warp.calculate_default_transform(src_dataset.crs,
@@ -455,7 +456,7 @@ class Rasterio(DataSource):
                         src_crs=src_dataset.crs,
                         dst_transform=transform,
                         dst_crs=dst_crs)
-            self.dataset = f.open()
+            return f.open()
     
     def close_dataset(self):
         """Closes the file for the datasource
