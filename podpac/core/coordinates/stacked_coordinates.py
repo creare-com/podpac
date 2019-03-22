@@ -263,6 +263,10 @@ class StackedCoordinates(BaseCoordinates):
         return self.dims
 
     @property
+    def idims(self):
+        return (self.name,)
+
+    @property
     def name(self):
         """:str: Stacked dimension name.
 
@@ -288,6 +292,10 @@ class StackedCoordinates(BaseCoordinates):
         return self._coords[0].size
 
     @property
+    def shape(self):
+        return (self.size,)
+
+    @property
     def coordinates(self):
         """:pandas.MultiIndex: MultiIndex of stacked coordinates values."""
 
@@ -297,8 +305,7 @@ class StackedCoordinates(BaseCoordinates):
     def coords(self):
         """:dict-like: xarray coordinates (container of coordinate arrays)"""
 
-        x = xr.DataArray(np.empty(self.size), coords=[self.coordinates], dims=self.name)
-        return x[self.name].coords
+        return {self.name: self.coordinates}
 
     @property
     def coord_ref_sys(self):

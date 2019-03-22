@@ -38,11 +38,6 @@ class TestBaseCoordinates(object):
             pass
 
         try:
-            len(c)
-        except NotImplementedError:
-            pass
-
-        try:
             repr(c)
         except NotImplementedError:
             pass
@@ -51,5 +46,3 @@ class TestBaseCoordinates(object):
             c == c
         except NotImplementedError:
             pass
-
-        assert c != None

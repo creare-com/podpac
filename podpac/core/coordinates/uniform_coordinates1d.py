@@ -226,8 +226,6 @@ class UniformCoordinates1d(Coordinates1d):
         """
 
         kwargs = self.properties
-        if self._segment_lengths:
-            kwargs['segment_lengths'] = self.segment_lengths
         return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -278,7 +276,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         else:
             # coordinates
-            coords = self.coordinates[index]
+            coordinates = self.coordinates[index]
 
             # properties and segment_lengths
             kwargs = self.properties
@@ -291,7 +289,7 @@ class UniformCoordinates1d(Coordinates1d):
 
             kwargs['ctype'] = self.ctype
 
-            return ArrayCoordinates1d(coords, **kwargs)
+            return ArrayCoordinates1d(coordinates, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -393,8 +391,6 @@ class UniformCoordinates1d(Coordinates1d):
         d['start'] = self.start
         d['stop'] = self.stop
         d['step'] = self.step
-        if self._segment_lengths:
-            d['segment_lengths'] = self.segment_lengths
         d.update(self.properties)
         return d
 

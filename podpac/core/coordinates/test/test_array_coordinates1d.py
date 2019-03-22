@@ -19,7 +19,6 @@ class TestArrayCoordinatesInit(object):
     def test_empty(self):
         c = ArrayCoordinates1d([])
         a = np.array([], dtype=float)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [np.nan, np.nan])
         assert c.size == 0
@@ -33,7 +32,6 @@ class TestArrayCoordinatesInit(object):
     def test_numerical_singleton(self):
         a = np.array([10], dtype=float)
         c = ArrayCoordinates1d(10)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [10.0, 10.0])
         assert c.size == 1
@@ -49,7 +47,6 @@ class TestArrayCoordinatesInit(object):
         values = [1, 6, 0, 4.]
         a = np.array(values, dtype=float)
         c = ArrayCoordinates1d(a)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
@@ -64,7 +61,6 @@ class TestArrayCoordinatesInit(object):
         values = [0, 1, 4, 6]
         a = np.array(values, dtype=float)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
@@ -79,7 +75,6 @@ class TestArrayCoordinatesInit(object):
         values = [6, 4, 1, 0]
         a = np.array(values, dtype=float)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
@@ -94,7 +89,6 @@ class TestArrayCoordinatesInit(object):
         values = [0, 2, 4, 6]
         a = np.array(values, dtype=float)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
@@ -109,7 +103,6 @@ class TestArrayCoordinatesInit(object):
         values = [6, 4, 2, 0]
         a = np.array(values, dtype=float)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
@@ -123,7 +116,6 @@ class TestArrayCoordinatesInit(object):
     def test_datetime_singleton(self):
         a = np.array('2018-01-01').astype(np.datetime64)
         c = ArrayCoordinates1d('2018-01-01')
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2018-01-01', '2018-01-01']).astype(np.datetime64))
         assert c.size == 1
@@ -139,7 +131,6 @@ class TestArrayCoordinatesInit(object):
         values = ['2018-01-01', '2019-01-01', '2017-01-01', '2018-01-02']
         a = np.array(values).astype(np.datetime64)
         c = ArrayCoordinates1d(values, ctype='point')
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 4
@@ -154,7 +145,6 @@ class TestArrayCoordinatesInit(object):
         values = ['2017-01-01', '2018-01-01', '2018-01-02', '2019-01-01']
         a = np.array(values).astype(np.datetime64)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 4
@@ -169,7 +159,6 @@ class TestArrayCoordinatesInit(object):
         values = ['2019-01-01', '2018-01-02', '2018-01-01', '2017-01-01']
         a = np.array(values).astype(np.datetime64)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 4
@@ -184,7 +173,6 @@ class TestArrayCoordinatesInit(object):
         values = ['2017-01-01', '2018-01-01', '2019-01-01']
         a = np.array(values).astype(np.datetime64)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 3
@@ -199,7 +187,6 @@ class TestArrayCoordinatesInit(object):
         values = ['2019-01-01', '2018-01-01', '2017-01-01']
         a = np.array(values).astype(np.datetime64)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 3
@@ -454,7 +441,7 @@ class TestArrayCoordinatesSerialization(object):
         c = ArrayCoordinates1d([0, 1, 2], name="lat", ctype="point")
         d = c.definition
         assert isinstance(d, dict)
-        assert set(d.keys()) == set(['values', 'name', 'ctype'])
+        assert set(d.keys()) == {'values', 'name', 'ctype'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
         c2 = ArrayCoordinates1d.from_definition(d) # test from_definition
         assert c2 == c
@@ -463,7 +450,7 @@ class TestArrayCoordinatesSerialization(object):
         c = ArrayCoordinates1d(['2018-01-01', '2018-01-02'])
         d = c.definition
         assert isinstance(d, dict)
-        assert set(d.keys()) == set(['values'])
+        assert set(d.keys()) == {'values'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
         c2 = ArrayCoordinates1d.from_definition(d) #test from_definition
         assert c2 == c
@@ -472,21 +459,22 @@ class TestArrayCoordinatesSerialization(object):
         c = ArrayCoordinates1d([0, 1, 2], segment_lengths=0.5)
         d = c.definition
         assert isinstance(d, dict)
-        assert set(d.keys()) == set(['values', 'segment_lengths'])
+        assert set(d.keys()) == {'values', 'segment_lengths'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
         c2 = ArrayCoordinates1d.from_definition(d) # test from_definition
         assert c2 == c
 
     def test_invalid_definition(self):
-        d = {'coords': [0, 1, 2]}
+        d = {'coordinates': [0, 1, 2]}
         with pytest.raises(ValueError, match='ArrayCoordinates1d definition requires "values" property'):
             ArrayCoordinates1d.from_definition(d)
 
 class TestArrayCoordinatesProperties(object):
     def test_dims(self):
         c = ArrayCoordinates1d([], name='lat')
-        assert c.dims == ['lat']
-        assert c.udims == ['lat']
+        assert c.dims == ('lat',)
+        assert c.udims == ('lat',)
+        assert c.idims == ('lat',)
 
         c = ArrayCoordinates1d([])
         with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
@@ -494,6 +482,9 @@ class TestArrayCoordinatesProperties(object):
 
         with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
             c.udims
+
+        with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
+            c.idims
 
     def test_area_bounds_point(self):
         # numerical
@@ -594,32 +585,27 @@ class TestArrayCoordinatesProperties(object):
     def test_properties(self):
         c = ArrayCoordinates1d([])
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set([])
+        assert set(c.properties) == set()
 
         c = ArrayCoordinates1d([], name='lat')
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set(['name'])
+        assert set(c.properties) == {'name'}
 
         c = ArrayCoordinates1d([], ctype='point')
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set(['ctype'])
+        assert set(c.properties) == {'ctype'}
 
         c = ArrayCoordinates1d([], units=Units())
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set(['units'])
+        assert set(c.properties) == {'units'}
 
         c = ArrayCoordinates1d([], coord_ref_sys='WGS84')
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set(['coord_ref_sys'])
+        assert set(c.properties) == {'coord_ref_sys'}
 
-        # segment_lengths are not properties
         c = ArrayCoordinates1d([1, 2], segment_lengths=1)
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set()
-
-        c = ArrayCoordinates1d([1, 2], name='lat', ctype='left', segment_lengths=1)
-        assert isinstance(c.properties, dict)
-        assert set(c.properties) == set(['name', 'ctype'])
+        assert set(c.properties) == {'segment_lengths'}
 
 class TestArrayCoordinatesIndexing(object):
     def test_len(self):
@@ -637,45 +623,45 @@ class TestArrayCoordinatesIndexing(object):
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [60])
+        assert_equal(c2.coordinates, [60])
 
         c2 = c[-2]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [40])
+        assert_equal(c2.coordinates, [40])
 
         # slice
         c2 = c[:2]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [20, 50])
+        assert_equal(c2.coordinates, [20, 50])
         
         c2 = c[::2]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [20, 60, 40])
+        assert_equal(c2.coordinates, [20, 60, 40])
         
         c2 = c[1:-1]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [50, 60, 90, 40])
+        assert_equal(c2.coordinates, [50, 60, 90, 40])
         
         c2 = c[::-1]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [10, 40, 90, 60, 50, 20])
+        assert_equal(c2.coordinates, [10, 40, 90, 60, 50, 20])
         
         # array
         c2 = c[[0, 3, 1]]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [20, 90, 50])
+        assert_equal(c2.coordinates, [20, 90, 50])
 
         # boolean array
         c2 = c[[True, True, True, False, True, False]]

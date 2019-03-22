@@ -111,9 +111,10 @@ class TestStackedCoordinatesCreation(object):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')
         lon = ArrayCoordinates1d([10, 20, 30], name='lon')
         time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'], name='time')
-        xcoords = StackedCoordinates([lat, lon, time]).coords
+        c = StackedCoordinates([lat, lon, time])
+        x = xr.DataArray(np.empty(c.shape), coords=c.coords, dims=c.idims)
 
-        c2 = StackedCoordinates.from_xarray(xcoords)
+        c2 = StackedCoordinates.from_xarray(x.coords)
         assert c2.dims == ('lat', 'lon', 'time')
         assert_equal(c2['lat'].coordinates, lat.coordinates)
         assert_equal(c2['lon'].coordinates, lon.coordinates)
@@ -230,11 +231,12 @@ class TestStackedCoordinatesProperties(object):
         time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
         c = StackedCoordinates([lat, lon, time])
 
-        assert isinstance(c.coords, xr.core.coordinates.DataArrayCoordinates)
-        assert c.coords.dims == ('lat_lon_time',)
-        assert_equal(c.coords['lat'], c['lat'].coordinates)
-        assert_equal(c.coords['lon'], c['lon'].coordinates)
-        assert_equal(c.coords['time'], c['time'].coordinates)
+        assert isinstance(c.coords, dict)
+        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.coords)
+        assert x.dims == ('lat_lon_time',)
+        assert_equal(x.coords['lat'], c['lat'].coordinates)
+        assert_equal(x.coords['lon'], c['lon'].coordinates)
+        assert_equal(x.coords['time'], c['time'].coordinates)
 
     def test_coord_ref_sys(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')

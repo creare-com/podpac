@@ -26,6 +26,8 @@ from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
+from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
+from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 
 class Coordinates(tl.HasTraits):
     """
@@ -145,12 +147,12 @@ class Coordinates(tl.HasTraits):
         return val
 
     def _set_properties(self, c, name, ctype, distance_units, coord_ref_sys, pos):
-        if isinstance(c, Coordinates1d):
-            cs = [c]
-            names = [name]
-        else:
+        if isinstance(c, StackedCoordinates):
             cs = list(c)
             names = name.split('_')
+        else:
+            cs = [c]
+            names = [name]
 
         for c, name in zip(cs, names):
             # set or check the coord_ref_sys
@@ -164,9 +166,15 @@ class Coordinates(tl.HasTraits):
             if name is not None and 'name' not in c.properties:
                 c.name = name
             if ctype is not None and 'ctype' not in c.properties:
-                c.set_trait('ctype', ctype)
-            if distance_units is not None and c.name in ['lat', 'lon', 'alt'] and 'units' not in c.properties:
-                c.set_trait('units', distance_units)
+                if isinstance(c, DependentCoordinates):
+                    c.set_trait('ctypes', tuple(ctype for dim in c.dims))
+                else:
+                    c.set_trait('ctype', ctype)
+            if distance_units is not None and 'units' not in c.properties:
+                if isinstance(c, DependentCoordinates) and ('lat' in c.dims or 'alt' in c.dims or 'lon' in c.dims):
+                    c.set_trait('units', tuple(distance_units for dim in c.dims))
+                elif c.name in ['lat', 'lon', 'alt']:
+                    c.set_trait('units', distance_units)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors
@@ -359,15 +367,19 @@ class Coordinates(tl.HasTraits):
             raise TypeError("Could not parse coordinates definition of type '%s'" % type(d))
 
         coords = []
-        for elem in d:
-            if isinstance(elem, list):
-                c = StackedCoordinates.from_definition(elem)
-            elif 'start' in elem and 'stop' in elem and ('step' in elem or 'size' in elem):
-                c = UniformCoordinates1d.from_definition(elem)
-            elif 'values' in elem:
-                c = ArrayCoordinates1d.from_definition(elem)
+        for e in d:
+            if isinstance(e, list):
+                c = StackedCoordinates.from_definition(e)
+            elif 'start' in e and 'stop' in e and ('step' in e or 'size' in e):
+                c = UniformCoordinates1d.from_definition(e)
+            elif 'values' in e:
+                c = ArrayCoordinates1d.from_definition(e)
+            elif 'dims' in e and 'values' in e:
+                c = DependentCoordinates.from_definition(e)
+            elif 'dims' in e and 'shape' in e and 'theta' in e and 'ulc' in e and ('step' in e or 'lrc' in e):
+                c = RotatedCoordinates.from_definition(e)
             else:
-                raise ValueError("Could not parse coordinates definition item with keys %s" % elem.keys())
+                raise ValueError("Could not parse coordinates definition item with keys %s" % e.keys())
 
             coords.append(c)
 
@@ -438,6 +450,9 @@ class Coordinates(tl.HasTraits):
         """ dict-like items: (dim, coordinates) pairs """
         return self._coords.items()
 
+    def __iter__(self):
+        return iter(self._coords)
+
     def get(self, dim, default=None):
         """ dict-like get: get coordinates by dimension name with an optional """
         try:
@@ -445,17 +460,16 @@ class Coordinates(tl.HasTraits):
         except KeyError:
             return default
 
-    def __iter__(self):
-        return iter(self._coords)
-
     def __getitem__(self, dim):
         if dim in self._coords:
             return self._coords[dim]
 
-        # extracts individual coords from stacked coords
+        # extracts individual coords from stacked coords and rotated coords
         for c in self._coords.values():
             if isinstance(c, StackedCoordinates) and dim in c.dims:
                 return c[dim]
+            if isinstance(c, DependentCoordinates) and dim in c.dims:
+                raise KeyError("Cannot get dimension '%s' in Coordinates %s" % (dim, self.dims))
 
         raise KeyError("Dimension '%s' not found in Coordinates %s" % (dim, self.dims))
 
@@ -525,24 +539,10 @@ class Coordinates(tl.HasTraits):
         return tuple(c.name for c in self._coords.values())
 
     @property
-    def shape(self):
-        """:tuple: Tuple of the number of coordinates in each dimension."""
-        
-        return tuple(c.size for c in self._coords.values())
+    def idims(self):
+        """:tuple: Tuple of dimension index names."""
 
-    @property
-    def ndim(self):
-        """:int: Number of dimensions. """
-        
-        return len(self.dims)
-
-    @property
-    def size(self):
-        """:int: Total number of coordinates."""
-
-        if len(self.shape) == 0:
-            return 0
-        return np.prod(self.shape)
+        return tuple(dim for c in self._coords.values() for dim in c.idims)
 
     @property
     def udims(self):
@@ -580,7 +580,27 @@ class Coordinates(tl.HasTraits):
         dims
         """
 
-        return tuple(dim for c in self._coords.values() for dim in c.dims)
+        return tuple(dim for c in self._coords.values() for dim in c.udims)
+
+    @property
+    def shape(self):
+        """:tuple: Tuple of the number of coordinates in each dimension."""
+        
+        return tuple(size for c in self._coords.values() for size in c.shape)
+
+    @property
+    def ndim(self):
+        """:int: Number of dimensions. """
+
+        return len(self.shape)
+
+    @property
+    def size(self):
+        """:int: Total number of coordinates."""
+
+        if len(self.shape) == 0:
+            return 0
+        return np.prod(self.shape)
 
     @property
     def coords(self):
@@ -588,7 +608,12 @@ class Coordinates(tl.HasTraits):
         :xarray.core.coordinates.DataArrayCoordinates: xarray coords, a dictionary-like container of coordinate arrays.
         """
 
-        x = xr.DataArray(np.empty(self.shape), coords=[c.coordinates for c in self._coords.values()], dims=self.dims)
+        coords = {}
+        for c in self._coords.values():
+            coords.update(c.coords)
+        # TODO just return coords?
+        # return coords
+        x = xr.DataArray(np.empty(self.shape), dims=self.idims, coords=coords)
         return x.coords
 
     @property
@@ -830,7 +855,7 @@ class Coordinates(tl.HasTraits):
             List of indices for each dimension that produces the intersection, only if ``return_indices`` is True.
         """
 
-        intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self.values()]
+        intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self._coords.values()]
         if return_indices:
             coords = Coordinates([c for c, I in intersections])
             idx = [I for c, I in intersections]
@@ -848,7 +873,7 @@ class Coordinates(tl.HasTraits):
             New Coordinates object with unique, sorted coordinate values in each dimension.
         """
 
-        return Coordinates([c[np.unique(c.coordinates, return_index=True)[1]] for c in self.values()])
+        return Coordinates([c[np.unique(c.coordinates, return_index=True)[1]] for c in self._coords.values()])
 
     def unstack(self):
         """

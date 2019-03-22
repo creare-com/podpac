@@ -63,7 +63,6 @@ class Coordinates1d(BaseCoordinates):
     segment_lengths = tl.Any(read_only=True)
 
     _properties = tl.Set()
-    _segment_lengths = tl.Bool()
 
     def __init__(self, name=None, ctype=None, units=None, segment_lengths=None, coord_ref_sys=None):
         """*Do not use.*"""
@@ -91,13 +90,9 @@ class Coordinates1d(BaseCoordinates):
 
         super(Coordinates1d, self).__init__()
 
-    @tl.observe('name', 'units', 'coord_ref_sys', 'ctype')
+    @tl.observe('name', 'units', 'coord_ref_sys', 'ctype', 'segment_lengths')
     def _set_property(self, d):
         self._properties.add(d['name'])
-
-    @tl.observe('segment_lengths')
-    def _set_segment_lengths(self, d):
-        self._segment_lengths = True
 
     @tl.validate('segment_lengths')
     def _validate_segment_lengths(self, d):
@@ -137,17 +132,17 @@ class Coordinates1d(BaseCoordinates):
 
         # defined coordinate properties should match
         for name in self._properties.union(other._properties):
+            if name == 'segment_lengths':
+                if not np.all(self.segment_lengths == other.segment_lengths):
+                    return False
+                continue
+
             if getattr(self, name) != getattr(other, name):
                 return False
         
         # shortcuts (not strictly necessary)
         for name in ['size', 'is_monotonic', 'is_descending', 'is_uniform']:
             if getattr(self, name) != getattr(other, name):
-                return False
-
-        # only check segment_lengths if one of the coordinates has custom segment lengths
-        if self._segment_lengths or other._segment_lengths:
-            if not np.all(self.segment_lengths == other.segment_lengths):
                 return False
 
         return True
@@ -163,17 +158,25 @@ class Coordinates1d(BaseCoordinates):
     def dims(self):
         if self.name is None:
             raise TypeError("cannot access dims property of unnamed Coordinates1d")
-        return [self.name]
+        return (self.name,)
 
     @property
     def udims(self):
         return self.dims
 
     @property
-    def coordinates(self):
-        """:array, read-only: Full array of coordinates values."""
+    def idims(self):
+        return self.dims
 
-        raise NotImplementedError
+    @property
+    def shape(self):
+        return (self.size,)
+
+    @property
+    def coords(self):
+        """:dict-like: xarray coordinates (container of coordinate arrays)"""
+
+        return {self.name: self.coordinates}
 
     @property
     def dtype(self):
@@ -190,12 +193,6 @@ class Coordinates1d(BaseCoordinates):
             return np.timedelta64
         else:
             return self.dtype
-
-    @property
-    def size(self):
-        """Number of coordinates. """
-
-        raise NotImplementedError
 
     @property
     def is_monotonic(self):

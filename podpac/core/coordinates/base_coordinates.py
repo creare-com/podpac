@@ -23,13 +23,28 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     @property
-    def coordinates(self):
-        """Coordinate values."""
+    def idims(self):
+        """:tuple: Dimensions."""
         raise NotImplementedError
 
     @property
     def size(self):
         """Number of coordinates."""
+        raise NotImplementedError
+
+    @property
+    def shape(self):
+        """coordinates shape."""
+        raise NotImplementedError
+
+    @property
+    def coordinates(self):
+        """Coordinate values."""
+        raise NotImplementedError
+
+    @property
+    def coords(self):
+        """xarray coords value"""
         raise NotImplementedError
 
     @property
@@ -53,11 +68,8 @@ class BaseCoordinates(tl.HasTraits):
     def __getitem__(self, index):
         raise NotImplementedError
 
-    def __len__(self):
-        raise NotImplementedError
-
     def __repr__(self):
         raise NotImplementedError
 
-    def __eq__(self):
+    def __eq__(self, other):
         raise NotImplementedError
