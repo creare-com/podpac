@@ -15,6 +15,7 @@ class RotatedCoordinates(DependentCoordinates):
     ulc = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     step = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     shape = tl.Tuple(tl.Integer(), tl.Integer(), read_only=True)
+    ndims = 2
 
     def __init__(self, shape=None, theta=None, ulc=None, step=None, lrc=None,
                  dims=None, ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
@@ -28,11 +29,11 @@ class RotatedCoordinates(DependentCoordinates):
             step = d / np.array([shape[0]-1, -(shape[1]-1)])
         self.set_trait('step', step)
 
-        self._set_properties(dims, coord_ref_sys, uniform, ctype, segment_lengths)
+        self._set_properties(dims, coord_ref_sys, units, ctypes, segment_lengths)
 
     @tl.validate('dims')
     def _validate_dims(self, d):
-        val = d['value']
+        val = super(RotatedCoordinates, self)._validate_dims(d)
         for dim in val:
             if dim not in ['lat', 'lon']:
                 raise ValueError("RotatedCoordinates dims must be 'lat' or 'lon', not '%s'" % dim)
@@ -74,18 +75,16 @@ class RotatedCoordinates(DependentCoordinates):
     @property
     def definition(self):
         d = OrderedDict()
-        d['dims'] = self.dims
         d['shape'] = self.shape
         d['theta'] = self.theta
         d['ulc'] = self.ulc
         d['step'] = self.step
+        d['dims'] = self.dims
         d.update(self.properties)
         return d
 
     @classmethod
     def from_definition(cls, d):
-        if 'dims' not in d:
-            raise ValueError('RotatedCoordinates definition requires "dims" property')
         if 'shape' not in d:
             raise ValueError('RotatedCoordinates definition requires "shape" property')
         if 'theta' not in d:
@@ -94,11 +93,13 @@ class RotatedCoordinates(DependentCoordinates):
             raise ValueError('RotatedCoordinates definition requires "ulc" property')
         if 'step' not in d and 'lrc' not in d:
             raise ValueError('RotatedCoordinates definition requires "step" or "lrc" property')
+        if 'dims' not in d:
+            raise ValueError('RotatedCoordinates definition requires "dims" property')
 
         shape = d['shape']
         theta = d['theta']
         ulc = d['ulc']
-        kwargs = {k:v for k,v in d.items() if k not in ['dims', 'shape', 'theta', 'ulc']}
+        kwargs = {k:v for k,v in d.items() if k not in ['shape', 'theta', 'ulc']}
         return RotatedCoordinates(shape, theta, ulc, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -189,3 +190,15 @@ class RotatedCoordinates(DependentCoordinates):
 
     def intersect(self, other, outer=False):
         raise NotImplementedError("TODO")
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Debug
+    # ------------------------------------------------------------------------------------------------------------------
+    
+    def plot(self, marker='b.', ulc_marker='bo', lrc_marker='bx'):
+        from matplotlib import pyplot
+        super(RotatedCoordinates, self).plot(marker=marker)
+        ulcx, ulcy = self.ulc
+        lrcx, lrcy = self.lrc
+        pyplot.plot(ulcx, ulcy, ulc_marker)
+        pyplot.plot(lrcx, lrcy, 'bx')

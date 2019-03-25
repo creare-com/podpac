@@ -8,7 +8,7 @@ import lazy_import
 
 from podpac.core.settings import settings
 from podpac.core.units import Units
-from podpac.core.utils import ArrayTrait
+from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import Dimension, CoordinateType, CoordinateReferenceSystem
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
@@ -17,20 +17,20 @@ from podpac.core.coordinates.base_coordinates import BaseCoordinates
 # TODO: intersect
 
 class DependentCoordinates(BaseCoordinates):
-    coordinates = tl.Tuple(ArrayTrait(), read_only=True)
-    dims = tl.Tuple(Dimension(), read_only=True)
-    idims = tl.Tuple(tl.Unicode(), read_only=True)
+
+    coordinates = TupleTrait(trait=ArrayTrait(), read_only=True)
+    dims = TupleTrait(trait=Dimension(), read_only=True)
+    idims = TupleTrait(trait=tl.Unicode(), read_only=True)
+    units = TupleTrait(trait=tl.Instance(Units, allow_none=True), allow_none=True, read_only=True)
+    ctypes = TupleTrait(trait=CoordinateType(), read_only=True)
+    segment_lengths = TupleTrait(trait=tl.Float(allow_none=True), read_only=True)
     coord_ref_sys = CoordinateReferenceSystem(allow_none=True, read_only=True)
-    units = tl.Tuple(tl.Instance(Units, allow_none=True), allow_none=True, read_only=True)
-    ctypes = tl.Tuple(CoordinateType(), CoordinateType(), read_only=True)
-    segment_lengths = tl.Tuple(tl.Float(allow_none=True), tl.Float(allow_none=True), read_only=True)
 
     _properties = tl.Set()
     
     def __init__(self, coordinates, dims=None, coord_ref_sys=None, units=None, ctypes=None, segment_lengths=None):
-        super(DependentCoordinates).__init__(name=name)
         self.set_trait('coordinates', coordinates)
-        self._set_properties(dims, coord_ref_sys, uniform, ctype, segment_lengths)
+        self._set_properties(dims, coord_ref_sys, units, ctypes, segment_lengths)
 
     def _set_properties(self, dims, coord_ref_sys, units, ctypes, segment_lengths):
         self.set_trait('dims', dims)
@@ -51,7 +51,7 @@ class DependentCoordinates(BaseCoordinates):
 
     @tl.default('idims')
     def _default_idims(self):
-        return tuple('ijkl')[:len(self.dims)]
+        return tuple('ijkl')[:self.ndims]
 
     @tl.default('ctypes')
     def _default_ctype(self):
@@ -71,24 +71,19 @@ class DependentCoordinates(BaseCoordinates):
             if a.shape != val[0].shape:
                 raise ValueError("coordinates shape mismatch at position %d, %s != %s" % (
                     i, a.shape, val[0].shape))
-        return validate
+        return val
 
     @tl.validate('dims')
     def _validate_dims(self, d):
-        val = d['value']
+        print("validae dims")
+        val = self._validate_sizes(d)
         if len(set(val)) != len(val):
             raise ValueError("Duplicate dimension in dims list %s" % val)
         return val
 
-    @tl.validate('dims', 'idims', 'ctypes', 'units', 'segment_lengths')
-    def _validate_sizes(self, d):
-        if len(d['value']) != len(self.coordinates):
-            raise ValueError("coordinates and %s size mismatch, %d != %d" % (
-                d['trait'].name, len(d['value']), len(self.coordinates)))
-
     @tl.validate('segment_lengths')
     def _validate_segment_lengths(self, d):
-        val = d['value']
+        val = self._validate_sizes(d)
         for i, ctype in enumerate(self.ctypes):
             if segment_lengths is None:
                 if ctype != 'point':
@@ -99,6 +94,14 @@ class DependentCoordinates(BaseCoordinates):
                 if segment_lengths <= 0.0:
                     raise ValueError("segment_lengths must be positive at pos %d" % i)
         return val
+
+    @tl.validate('idims', 'ctypes', 'units')
+    def _validate_sizes(self, d):
+        print("validate sizes")
+        if len(d['value']) != self.ndims:
+            raise ValueError("coordinates and %s size mismatch, %d != %d" % (
+                d['trait'].name, len(d['value']), self.ndims))
+        return d['value']
 
     @tl.observe('dims', 'idims', 'ctypes', 'units', 'coord_ref_sys', 'segment_lengths')
     def _set_property(self, d):
@@ -191,8 +194,8 @@ class DependentCoordinates(BaseCoordinates):
         return np.prod(self.shape)
 
     @property
-    def coordinates(self):
-        return self.system.coordinates[self.index]
+    def ndims(self):
+        return len(self.coordinates)
 
     @property
     def coords(self):
@@ -212,16 +215,12 @@ class DependentCoordinates(BaseCoordinates):
     # Debug
     # ------------------------------------------------------------------------------------------------------------------
     
-    def plot(self, marker='b.', ulc_marker='bo'):
+    def plot(self, marker='b.'):
         from matplotlib import pyplot
-        if len(self.dims) != 2:
+        if self.ndims != 2:
             raise NotImplementedError("Only 2d DependentCoordinates plots are supported")
         x, y = self.coordinates
-        ulcx, ulcy = self.ulc
-        lrcx, lrcy = self.lrc
         pyplot.plot(x, y, marker)
-        pyplot.plot(ulcx, ulcy, ulc_marker)
-        pyplot.plot(lrcx, lrcy, 'bx')
         pyplot.xlabel(self.dims[0])
         pyplot.ylabel(self.dims[1])
         pyplot.axis('equal')
