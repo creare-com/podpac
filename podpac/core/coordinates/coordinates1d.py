@@ -377,7 +377,7 @@ class Coordinates1d(BaseCoordinates):
         if not isinstance(other, (BaseCoordinates, Coordinates)):
             raise TypeError("Cannot intersect with type '%s'" % type(other))
 
-        if isinstance(other, (Coordinates, StackedCoordinates)):
+        if isinstance(other, (Coordinates, StackedCoordinates, DependentCoordinates)):
             # short-circuit
             if self.name not in other.udims:
                 return self._select_full(return_indices)
@@ -397,6 +397,7 @@ class Coordinates1d(BaseCoordinates):
         if other.size == 0:
             return self._select_empty(return_indices)
 
+        # TODO should this be other.area_bounds
         return self.select(other.bounds, return_indices=return_indices, outer=outer)
 
     def select(self, bounds, return_indices=False, outer=False):

@@ -466,11 +466,9 @@ class Coordinates(tl.HasTraits):
 
         # extracts individual coords from stacked coords and rotated coords
         for c in self._coords.values():
-            if isinstance(c, StackedCoordinates) and dim in c.dims:
+            if isinstance(c, (StackedCoordinates, RotatedCoordinates)) and dim in c.dims:
                 return c[dim]
-            if isinstance(c, DependentCoordinates) and dim in c.dims:
-                raise KeyError("Cannot get dimension '%s' in Coordinates %s" % (dim, self.dims))
-
+            
         raise KeyError("Dimension '%s' not found in Coordinates %s" % (dim, self.dims))
 
     def __setitem__(self, dim, c):

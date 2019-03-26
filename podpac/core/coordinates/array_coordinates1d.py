@@ -105,6 +105,7 @@ class ArrayCoordinates1d(Coordinates1d):
         if segment_lengths is None:
             if self.ctype == 'point' or self.size == 0:
                 self.set_trait('segment_lengths', None)
+                self._properties.remove('segment_lengths')
             elif self.dtype == np.datetime64:
                 raise TypeError("segment_lengths required for datetime coordinates (if ctype != 'point')")
             elif self.size == 1:
@@ -440,3 +441,48 @@ class ArrayCoordinates1d(Coordinates1d):
             return self[I], I
         else:
             return self[I]
+
+class _ArrayCoordinatesShaped(ArrayCoordinates1d):
+    """
+    Partial implementation for internal use.
+    
+    Provides name, dtype, units, size, bounds, area_bounds (and others).
+    Prohibits coords, intersect, select (and others).
+
+    Used primarily for intersection with DependentCoordinates.
+    """
+
+    coordinates = ArrayTrait(read_only=True)
+
+    def __init__(self, coordinates,
+                       name=None, ctype=None, units=None, segment_lengths=None, coord_ref_sys=None):
+
+        raise NotImplementedError("TODO")
+
+    @property
+    def shape(self):
+        return self.coordinates.shape
+
+    # Restricted methods and properties
+
+    @classmethod
+    def from_xarray(cls, x):
+        raise RuntimeError("_ArrayCoordinatesShaped from_xarray is unavailable.")
+
+    @classmethod
+    def from_definition(cls, d):
+        raise RuntimeError("_ArrayCoordinatesShaped from_definition is unavailable.")
+
+    @property
+    def definition(self):
+        raise RuntimeError("_ArrayCoordinatesShaped definition is unavailable.")
+
+    @property
+    def coords(self):
+        raise RuntimeError("_ArrayCoordinatesShaped coords is unavailable.")
+
+    def intersect(self, other, outer=False, return_indices=False):
+        raise RuntimeError("_ArrayCoordinatesShaped select is unavailable.")
+
+    def select(self, bounds, outer=False, return_indices=False):
+        raise RuntimeError("_ArrayCoordinatesShaped intersect is unavailable.")

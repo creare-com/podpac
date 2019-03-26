@@ -11,10 +11,13 @@ from podpac.core.units import Units
 from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import Dimension, CoordinateType, CoordinateReferenceSystem
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinatesShaped
 
 # TODO: integration with Coordinates
 # TODO: serialization
 # TODO: intersect
+
+
 
 class DependentCoordinates(BaseCoordinates):
 
@@ -165,13 +168,31 @@ class DependentCoordinates(BaseCoordinates):
     def __iter__(self):
         return tuple(getattr(self, dim) for dim in self.dims)
 
+    def _get(self, dim):
+        if dim not in self.dims:
+            raise KeyError("Cannot get dimension '%s' in RotatedCoordinates %s" % (dim, self.dims))
+        
+        idx = self.dims.index(idx)
+        coordinates = self.coordinates[idx]
+        properties = {}
+        if 'units' in self.properties:
+            properties['units'] = self.units[idx]
+        if 'ctypes' in self.properties:
+            properties['ctype'] = self.ctypes[idx]
+        if self.ctypes[idx] != 'point':
+            properties['segment_lengths'] = self.segment_lengths[idx]
+        if 'coord_ref_sys' in self.properties:
+            properties['coord_ref_sys'] = self.coord_ref_sys
+
+        return ArrayCoordinatesShaped(coordinates, name=dim, **properties)
+
     def __getitem__(self, index):
         if isinstance(index, str):
-            return self.coordinates[self.dims.index(dim)]
+            return self._get(index)
 
         else:
             coordinates = tuple(a for a in np.array(self.coordinates).T[index].T)
-            return DependentCoordinates(a, **self.properties)
+            return DependentCoordinates(coordinates, **self.properties)
 
     # -----------------------------------------------------------------------------------------------------------------
     # properties
