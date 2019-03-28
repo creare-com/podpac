@@ -9,7 +9,6 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 from collections import OrderedDict
 import warnings
 import logging
-from copy import deepcopy
 
 import numpy as np
 import xarray as xr
@@ -477,11 +476,7 @@ class DataSource(Node):
         else:
             d['source'] = self.source
 
-        # TODO: cast interpolation to string in way that can be recreated here
-        # should this move to interpolation class? 
-        # It causes issues when the _interpolation class has not been set up yet
-        d['interpolation'] = deepcopy(self.interpolation)
-        if 'interpolators' in d['interpolation']:
-            d['interpolation']['interpolators'] = [i.__name__ for i in d['interpolation']['interpolators']]
+        # assign the interpolation definition
+        d['interpolation'] = self.interpolation
 
         return d

@@ -4,7 +4,6 @@ Interpolation handling
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 import warnings
-import sys
 from copy import deepcopy
 from collections import OrderedDict
 from six import string_types
@@ -195,6 +194,18 @@ class Interpolator(tl.HasTraits):
 
     def __repr__(self):
         return '{}\n\tmethod: {}'. format(str(self.__class__.__name__), self.method)
+
+    @property
+    def definition(self):
+        """
+        Interpolator definition
+
+        Returns
+        -------
+        str
+            String name of interpolator. Must correspond to key in `INTERPOLATORS`
+        """
+        return self.__name__
 
     def init(self):
         """
@@ -774,6 +785,14 @@ class ScipyGrid(ScipyPoint):
 
         return output_data
 
+INTERPOLATORS = {
+    'NearestNeighbor': NearestNeighbor,
+    'NearestPreview': NearestPreview,
+    'Rasterio': NearestPreview,
+    'ScipyPoint': ScipyPoint,
+    'ScipyGrid': ScipyGrid
+}
+"""dict : Dictionary of a string interpolator name and associated interpolator class"""
 
 INTERPOLATION_METHODS = {
     'nearest_preview': [NearestPreview],
@@ -990,19 +1009,18 @@ class Interpolation():
                 raise TypeError('{} is not a valid interpolation params definition. '.format(params) +
                                 'Interpolation params must be a dict')
 
-            for idx, interpolator in enumerate(interpolators):
-                
-                # convert string class name to class in this module (bit of a hack)
-                # this will come from definition
-                # TODO: move interpolators to seperate module
-                if isinstance(interpolator, string_types):
-                    this_module = sys.modules[__name__]
-                    if interpolator in dir(this_module):
-                        interpolator = getattr(this_module, interpolator)
-                        interpolators[idx] = interpolator
-                    else: 
-                        raise TypeError('{} is not a valid interpolator.'.format(interpolator))
 
+            # handle when interpolator is a string (most commonly from a pipeline)
+            for idx, interpolator in enumerate(interpolators):
+                if isinstance(interpolator, string_types):
+                    if interpolator in INTERPOLATORS:
+                        interpolators[idx] = INTERPOLATORS[interpolator]
+                    else: 
+                        raise TypeError('Interpolator "{}" is not in the dictionary of valid '.format(interpolator) + 
+                                        'interpolators: {}'.format(INTERPOLATORS))
+
+            # validate interpolator class
+            for interpolator in interpolators:                
                 self._validate_interpolator(interpolator)
 
             # if all checks pass, return the definition

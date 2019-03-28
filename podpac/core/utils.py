@@ -255,5 +255,10 @@ class JSONEncoder(json.JSONEncoder):
         elif isinstance(obj, np.timedelta64):
             return podpac.core.coordinates.utils.make_timedelta_string(obj)
         
+        # Interpolator
+        elif isinstance(obj, tl.traitlets.MetaHasTraits):
+            if issubclass(obj, podpac.core.data.interpolate.Interpolator):
+                return obj.__name__
+
         # default
         return json.JSONEncoder.default(self, obj)
