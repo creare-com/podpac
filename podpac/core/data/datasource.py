@@ -22,7 +22,7 @@ from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
-from podpac.core.data.interpolate import Interpolation, interpolation_trait
+from podpac.core.data.interpolation import Interpolation, interpolation_trait
 
 log = logging.getLogger(__name__)
 
