@@ -11,7 +11,7 @@ import functools
 import importlib
 from collections import OrderedDict
 import logging
-
+from copy import deepcopy
 import traitlets as tl
 import numpy as np
 
@@ -257,7 +257,8 @@ class JSONEncoder(json.JSONEncoder):
         
         # Interpolator
         elif obj in podpac.core.data.interpolation.INTERPOLATORS:
-            interpolator = obj()
+            interpolater_class = deepcopy(obj)
+            interpolator = interpolater_class()
             return interpolator.definition
 
         # default
