@@ -265,7 +265,7 @@ class Rasterio(Interpolator):
         
         with rasterio.Env():
             src_transform = get_rasterio_transform(source_coordinates)
-            src_crs = {'init': source_coordinates.gdal_crs}
+            src_crs = {'init': source_coordinates.crs}
             # Need to make sure array is c-contiguous
             if source_coordinates['lat'].is_descending:
                 source = np.ascontiguousarray(source_data.data)
@@ -273,7 +273,7 @@ class Rasterio(Interpolator):
                 source = np.ascontiguousarray(source_data.data[::-1, :])
         
             dst_transform = get_rasterio_transform(eval_coordinates)
-            dst_crs = {'init': eval_coordinates.gdal_crs}
+            dst_crs = {'init': eval_coordinates.crs}
             # Need to make sure array is c-contiguous
             if not output_data.data.flags['C_CONTIGUOUS']:
                 destination = np.ascontiguousarray(output_data.data)

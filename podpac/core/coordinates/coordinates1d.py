@@ -15,7 +15,7 @@ from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_delta, make_coord_delta_array, add_coord, divide_delta
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
-DEFAULT_COORD_REF_SYS = 'WGS84'
+DEFAULT_COORD_REF_SYS = 'EPSG:4326'
 
 class Coordinates1d(BaseCoordinates):
     """
@@ -58,7 +58,7 @@ class Coordinates1d(BaseCoordinates):
 
     name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
     units = tl.Instance(Units, allow_none=True, read_only=True)
-    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True, read_only=True)
+    coord_ref_sys = tl.Unicode(default_value=None, allow_none=True)
     ctype = tl.Enum(['point', 'left', 'right', 'midpoint'], read_only=True)
     segment_lengths = tl.Any(read_only=True)
 

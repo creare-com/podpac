@@ -499,7 +499,10 @@ class Rasterio(DataSource):
         #         crs = None
         # except:
         #     crs = None
-        crs = None
+        try:
+            crs = self.dataset.crs['init'].upper()
+        except:
+            crs = None
 
         # get bounds
         left, bottom, right, top = self.dataset.bounds

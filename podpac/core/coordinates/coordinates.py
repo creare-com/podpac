@@ -4,6 +4,7 @@ Multidimensional Coordinates
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import warnings
 import copy
 import sys
 import itertools
@@ -20,7 +21,6 @@ from six import string_types
 
 import podpac
 from podpac.core.utils import OrderedDictTrait
-from podpac.core.coordinates.utils import GDAL_CRS
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -637,34 +637,33 @@ class Coordinates(tl.HasTraits):
 
         return hash_alg(self.json.encode('utf-8')).hexdigest()
 
-    # #@property
-    # #def gdal_transform(self):
-    #     if self['lon'].regularity == 'regular' and self['lat'].regularity == 'regular':
-    #         lon_bounds = self['lon'].area_bounds
-    #         lat_bounds = self['lat'].area_bounds
-    #         transform = [lon_bounds[0], self['lon'].delta, 0, lat_bounds[0], 0, -self['lat'].delta]
-    #     else:
-    #         raise NotImplementedError
-    #     return transform
-
     @property
     def coord_ref_sys(self):
-        """:str: coordinate reference system."""
+        """
+        :str: coordinate reference system.
 
+        .. deprecated:: 1.0.0
+              `coord_ref_sys` will be removed in podpac 1.0.0, it is replaced by
+              `crs` for consistency
+        """
+
+        warnings.warn('`coord_ref_sys` has been replaced with `crs` and will be deprecated in future releases', DeprecationWarning)
+        return self.crs
+    
+    @property
+    def crs(self):
+        """:str: coordinate reference system."""
         if not self._coords:
             return None
         
         # the coord_ref_sys is the same for all coords
         return list(self._coords.values())[0].coord_ref_sys
-    
-    @property
-    def gdal_crs(self):
-        """:str: GDAL coordinate reference system."""
 
-        if not self._coords:
-            return None
+        # key = 'lat' if 'lat' in self.udims else 'lon'
+        # if key == 'lon' and 'lon' not in self.udims:
+        #     return None
 
-        return GDAL_CRS[self.coord_ref_sys]
+        # return GDAL_CRS.get(self[key].coord_ref_sys, self[key].coord_ref_sys)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
