@@ -476,7 +476,7 @@ class Interpolation():
                     eq = False
 
             if eq:
-                output_data.data = source_data.data
+                output_data.data = source_data.transpose(*output_data.dims).data  # transpose and insert
                 return output_data
 
         interpolator_queue = \
