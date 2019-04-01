@@ -166,6 +166,7 @@ class DataSource(Node):
     _requested_source_coordinates = tl.Instance(Coordinates)
     _requested_source_coordinates_index = tl.Tuple()
     _requested_source_data = tl.Instance(UnitsDataArray)
+    _evaluated_coordinates = tl.Instance(Coordinates)
 
     # when native_coordinates is not defined, default calls get_native_coordinates
     @tl.default('native_coordinates')

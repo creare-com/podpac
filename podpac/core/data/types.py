@@ -26,6 +26,16 @@ import pandas as pd  # Core dependency of xarray
 # Helper utility for optional imports
 from lazy_import import lazy_module
 
+# Internal dependencies
+from podpac.core import authentication
+from podpac.core.node import Node
+from podpac.core.settings import settings
+from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait
+from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
+from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.data.interpolation import interpolation_trait
+
 # Optional dependencies
 bs4 = lazy_module('bs4')
 # Not used directly, but used indirectly by bs4 so want to check if it's available
@@ -41,17 +51,6 @@ requests = lazy_module('requests')
 RasterToNumPyArray = lazy_module('arcpy.RasterToNumPyArray')
 urllib3 = lazy_module('urllib3')
 certifi = lazy_module('certifi')
-
-# Internal dependencies
-from podpac.core import authentication
-from podpac.core.node import Node
-from podpac.core.settings import settings
-from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait
-from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
-from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.data.interpolation import interpolation_trait
-
 
 # Set up logging
 _logger = logging.getLogger(__name__)
