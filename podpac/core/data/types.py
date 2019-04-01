@@ -50,7 +50,7 @@ from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.data.interpolate import interpolation_trait
+from podpac.core.data.interpolation import interpolation_trait
 
 
 # Set up logging

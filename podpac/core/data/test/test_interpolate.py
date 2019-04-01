@@ -6,6 +6,7 @@ Test interpolation methods
 # pylint: disable=C0111,W0212,R0903
 
 from collections import OrderedDict
+from copy import deepcopy
 
 import pytest
 import traitlets as tl
@@ -15,13 +16,13 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data.types import rasterio
 from podpac.core.data import datasource
-from podpac.core.data import interpolate
-from podpac.core.data.interpolate import (Interpolation, InterpolationException,
-                                          Interpolator, INTERPOLATION_METHODS, INTERPOLATION_DEFAULT,
-                                          INTERPOLATION_SHORTCUTS, NearestNeighbor, NearestPreview,
-                                          Rasterio, ScipyGrid, ScipyPoint)
+from podpac.core.data.interpolation import (Interpolation, InterpolationException,
+                                            INTERPOLATORS, INTERPOLATION_METHODS, INTERPOLATION_DEFAULT,
+                                            INTERPOLATORS_DICT, INTERPOLATION_METHODS_DICT
+                                           )
 
-
+from podpac.core.data.interpolator import Interpolator, InterpolatorException
+from podpac.core.data.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyGrid, ScipyPoint
 # test fixtures
 from podpac.core.data.test.test_datasource import MockArrayDataSource
 
@@ -29,17 +30,12 @@ from podpac.core.data.test.test_datasource import MockArrayDataSource
 class TestInterpolation(object):
     """ Test interpolation class and support methods"""
 
-    def test_interpolate_module(self):
-        """smoke test interpolate module"""
-
-        assert interpolate is not None
-
     def test_allow_missing_modules(self):
         """TODO: Allow user to be missing rasterio and scipy"""
         pass
 
     def test_interpolation_methods(self):
-        assert INTERPOLATION_SHORTCUTS == INTERPOLATION_METHODS.keys()
+        assert len(set(INTERPOLATION_METHODS) & set(INTERPOLATION_METHODS_DICT.keys())) == len(INTERPOLATION_METHODS)
 
     def test_interpolator_init_type(self):
         """test constructor
@@ -50,7 +46,7 @@ class TestInterpolation(object):
             Interpolation(5)
 
     def test_str_definition(self):
-        # should throw an error if string input is not one of the INTERPOLATION_SHORTCUTS
+        # should throw an error if string input is not one of the INTERPOLATION_METHODS
         with pytest.raises(InterpolationException):
             Interpolation('test')
 
@@ -75,7 +71,7 @@ class TestInterpolation(object):
         assert interp.config[('default',)]['params'] == {'spatial_tolerance': 1}
 
         # should throw an error on _parse_interpolation_method(definition)
-        # if definition is not in INTERPOLATION_SHORTCUTS
+        # if definition is not in INTERPOLATION_METHODS
         with pytest.raises(InterpolationException):
             Interpolation({('lat', 'lon'): 'test'})
 
@@ -105,7 +101,7 @@ class TestInterpolation(object):
                 }
             })
 
-        # should throw an error if method is not one of the INTERPOLATION_SHORTCUTS and no interpolators defined
+        # should throw an error if method is not one of the INTERPOLATION_METHODS and no interpolators defined
         with pytest.raises(InterpolationException):
             Interpolation({
                 ('lat', 'lon'): {
@@ -161,21 +157,33 @@ class TestInterpolation(object):
         
 
     
-        # should allow custom methods if interpolators are defined
+        # should not allow custom methods if interpolators can't support
+        with pytest.raises(InterpolatorException):
+            interp = Interpolation({
+                ('lat', 'lon'): {
+                    'method': 'myinter',
+                    'interpolators': [NearestNeighbor, NearestPreview]
+                }
+            })
+
+        # should allow custom methods if interpolators can support
+        class MyInterp(Interpolator):
+            methods_supported = ['myinter']
+
         interp = Interpolation({
             ('lat', 'lon'): {
                 'method': 'myinter',
-                'interpolators': [NearestNeighbor, NearestPreview]
+                'interpolators': [MyInterp]
             }
         })
         assert interp.config[('lat', 'lon')]['method'] == 'myinter'
-        assert isinstance(interp.config[('lat', 'lon')]['interpolators'][0], NearestNeighbor)
+        assert isinstance(interp.config[('lat', 'lon')]['interpolators'][0], MyInterp)
 
         # should allow params to be set
         interp = Interpolation({
             ('lat', 'lon'): {
                 'method': 'myinter',
-                'interpolators': [NearestNeighbor, NearestPreview],
+                'interpolators': [MyInterp],
                 'params': {
                     'spatial_tolerance': 5
                 }
@@ -244,6 +252,7 @@ class TestInterpolation(object):
         # create a few dummy interpolators that handle certain dimensions
         # (can_select is defined by default to look at dims_supported)
         class TimeLat(Interpolator):
+            methods_supported = ['myinterp']
             dims_supported = ['time', 'lat']
 
             def can_select(self, udims, source_coordinates, eval_coordinates):
@@ -253,6 +262,7 @@ class TestInterpolation(object):
                 return self._filter_udims_supported(udims)
 
         class LatLon(Interpolator):
+            methods_supported = ['myinterp']
             dims_supported = ['lat', 'lon']
             
             def can_select(self, udims, source_coordinates, eval_coordinates):
@@ -262,6 +272,7 @@ class TestInterpolation(object):
                 return self._filter_udims_supported(udims)
 
         class Lon(Interpolator):
+            methods_supported = ['myinterp']
             dims_supported = ['lon']
 
             def can_select(self, udims, source_coordinates, eval_coordinates):
@@ -283,15 +294,17 @@ class TestInterpolation(object):
             }
         })
 
-        # default = Nearest, which always returns () for can_select
+        # default = 'nearest', which will return NearestPreview for can_select
         interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, 'can_select')
         assert isinstance(interpolator_queue, OrderedDict)
         assert isinstance(interpolator_queue[('lat', 'lon')], LatLon)
-        assert ('time', 'alt') not in interpolator_queue
-
+        assert ('time', 'alt') not in interpolator_queue and ('alt', 'time') not in interpolator_queue
+        
         # should throw an error if strict is set and not all dimensions can be handled
         with pytest.raises(InterpolationException):
-            interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, 'can_select', strict=True)
+            interp_copy = deepcopy(interp)
+            del interp_copy.config[('default',)]
+            interpolator_queue = interp_copy._select_interpolator_queue(srccoords, reqcoords, 'can_select', strict=True)
 
         # default = Nearest, which can handle all dims for can_interpolate
         interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, 'can_interpolate')
@@ -311,18 +324,21 @@ class TestInterpolation(object):
         # create a few dummy interpolators that handle certain dimensions
         # (can_select is defined by default to look at dims_supported)
         class TimeLat(Interpolator):
+            methods_supported = ['myinterp']
             dims_supported = ['time', 'lat']
 
             def select_coordinates(self, udims, srccoords, srccoords_idx, reqcoords):
                 return srccoords, srccoords_idx
 
         class LatLon(Interpolator):
+            methods_supported = ['myinterp']
             dims_supported = ['lat', 'lon']
 
             def select_coordinates(self, udims, srccoords, srccoords_idx, reqcoords):
                 return srccoords, srccoords_idx
 
         class Lon(Interpolator):
+            methods_supported = ['myinterp']
             dims_supported = ['lon']
 
             def select_coordinates(self, udims, srccoords, srccoords_idx, reqcoords):
@@ -366,7 +382,7 @@ class TestInterpolation(object):
                                  coords=[reqcoords[c].coordinates for c in reqcoords],
                                  dims=reqcoords.dims)
 
-        interp = Interpolation({('lat', 'lon'): {'method': 'test', 'interpolators': [TestInterp]}})
+        interp = Interpolation({('lat', 'lon'): {'method': 'myinterp', 'interpolators': [TestInterp]}})
         outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
@@ -386,7 +402,7 @@ class TestInterpolation(object):
                                  coords=[reqcoords[c].coordinates for c in reqcoords],
                                  dims=reqcoords.dims)
 
-        interp = Interpolation({('lat', 'lon'): {'method': 'test', 'interpolators': [TestFakeInterp]}})
+        interp = Interpolation({('lat', 'lon'): {'method': 'myinterp', 'interpolators': [TestFakeInterp]}})
         outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
@@ -420,7 +436,7 @@ class TestInterpolators(object):
             assert not can_select
 
         def test_dim_in(self):
-            interpolator = Interpolator()
+            interpolator = Interpolator(methods_supported=['test'], method='test')
 
             coords = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=['lat', 'lon'])
             assert interpolator._dim_in('lat', coords)

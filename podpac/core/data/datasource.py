@@ -22,7 +22,7 @@ from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
-from podpac.core.data.interpolate import Interpolation, interpolation_trait
+from podpac.core.data.interpolation import Interpolation, interpolation_trait
 
 log = logging.getLogger(__name__)
 
@@ -476,8 +476,7 @@ class DataSource(Node):
         else:
             d['source'] = self.source
 
-        # TODO: cast interpolation to string in way that can be recreated here
-        # should this move to interpolation class? 
-        # It causes issues when the _interpolation class has not been set up yet
+        # assign the interpolation definition
         d['interpolation'] = self.interpolation
+
         return d

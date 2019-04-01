@@ -16,7 +16,8 @@ from podpac.core.node import COMMON_NODE_DOC, NodeException
 from podpac.core.style import Style
 from podpac.core.coordinates import Coordinates, clinspace, crange
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
-from podpac.core.data.interpolate import Interpolation, Interpolator
+from podpac.core.data.interpolation import Interpolation
+from podpac.core.data.interpolator import Interpolator
 
 class MockArrayDataSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
@@ -224,7 +225,7 @@ class TestDataSource(object):
         output = node.create_output_array(coords.transpose('lon', 'lat'))
         returned_output = node.eval(coords, output=output)
         
-        # returned output sohuld match the requested coordinates
+        # returned output should match the requested coordinates
         assert returned_output.dims == ('lat', 'lon')
 
         # dims should stay in the order of the output, rather than the order of the requested coordinates
