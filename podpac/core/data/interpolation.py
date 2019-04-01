@@ -73,7 +73,7 @@ def interpolation_trait(default_value=INTERPOLATION_DEFAULT, allow_none=True, **
     ], allow_none=allow_none, default_value=default_value, **kwargs)
 
 
-class Interpolation():
+class Interpolation(object):
     """Create an interpolation class to handle one interpolation method per unstacked dimension.
     Used to interpolate data within a datasource.
     
