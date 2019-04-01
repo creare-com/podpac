@@ -18,6 +18,7 @@ import pandas as pd
 import xarray as xr
 import xarray.core.coordinates
 from six import string_types
+import pyproj
 
 import podpac
 from podpac.core.utils import OrderedDictTrait
@@ -77,7 +78,7 @@ class Coordinates(tl.HasTraits):
              * 'lat', 'lon', 'alt', or 'time' for unstacked coordinates
              * dimension names joined by an underscore for stacked coordinates
         coord_ref_sys : str, optional
-            Default coordinates reference system
+            Default coordinates reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
         distance_units : Units
@@ -929,6 +930,28 @@ class Coordinates(tl.HasTraits):
 
         else:
             return Coordinates([self._coords[dim] for dim in dims])
+
+    def transform(self, dst_crs):
+        """
+        Transform coordinates into a different coordinate reference system.
+        Uses PROJ4 syntax for coordinate reference systems
+        
+        Parameters
+        ----------
+        dst_crs : str
+            PROJ4 compatible coordinate reference system string
+        """
+
+        # coordinates MUST have lat and lon, even if stacked
+        if len(set(['lat', 'lon']) - set(self.udims)):
+            raise ValueError('Coordinates must have lat and lon dimensions to transform coordinate reference systems')
+
+        # TODO: update for stacked/unstacked and other dimensions
+        transformer = pyproj.Transformer.from_crs(pyproj.CRS(self.crs), pyproj.CRS(dst_crs))
+        dst_values = transformer.transform(self.coords['lat'].values, self.coords['lon'].values)
+
+        return Coordinates([dst_values[0], dst_values[1]], dims = ['lat', 'lon'], coord_ref_sys=dst_crs)
+
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods

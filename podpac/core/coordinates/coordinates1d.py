@@ -16,6 +16,7 @@ from podpac.core.coordinates.utils import make_coord_delta, make_coord_delta_arr
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
 DEFAULT_COORD_REF_SYS = 'EPSG:4326'
+""":str: Default coordinate reference system """
 
 class Coordinates1d(BaseCoordinates):
     """
@@ -44,7 +45,8 @@ class Coordinates1d(BaseCoordinates):
     units : podpac.Units
         Coordinate units.
     coord_ref_sys : str
-        Coordinate reference system.
+        Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
+        If not defined, set to :str:`DEFAULT_COORD_REF_SYS`
     ctype : str
         Coordinates type: 'point', 'left', 'right', or 'midpoint'.
     segment_lengths : array, float, timedelta
