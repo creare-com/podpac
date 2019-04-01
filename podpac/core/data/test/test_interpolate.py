@@ -298,11 +298,8 @@ class TestInterpolation(object):
         interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, 'can_select')
         assert isinstance(interpolator_queue, OrderedDict)
         assert isinstance(interpolator_queue[('lat', 'lon')], LatLon)
-        if ('alt', 'time') in interpolator_queue:
-            assert isinstance(interpolator_queue[('alt', 'time')], NearestPreview)
-        else:
-            assert isinstance(interpolator_queue[('time', 'alt')], NearestPreview)
-
+        assert ('time', 'alt') not in interpolator_queue and ('alt', 'time') not in interpolator_queue
+        
         # should throw an error if strict is set and not all dimensions can be handled
         with pytest.raises(InterpolationException):
             interp_copy = deepcopy(interp)
