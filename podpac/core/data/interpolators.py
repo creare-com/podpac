@@ -120,7 +120,7 @@ class NearestPreview(NearestNeighbor):
     
     {nearest_neighbor_attributes}
     """
-    methods_supported = ['nearest', 'nearest_preview']
+    methods_supported = ['nearest_preview']
     method = tl.Unicode(default_value='nearest_preview', allow_none=False)
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
