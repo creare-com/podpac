@@ -261,11 +261,15 @@ class StackedCoordinates(BaseCoordinates):
             c.name = dim
 
         if dim in self.dims:
-            print('setting dim')
             idx = self.dims.index(dim)
-            d = list(self._coords)
-            d[idx] = c
-            self._coords = tuple(d)
+            coords = list(self._coords)
+            coords[idx] = c
+
+            self._check_sizes([c.size for c in coords])
+            self._check_names([c.name for c in coords])
+            self._check_coord_ref_sys(coords)
+
+            self._coords = tuple(coords)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
