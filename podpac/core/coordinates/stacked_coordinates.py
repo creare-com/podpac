@@ -58,7 +58,7 @@ class StackedCoordinates(BaseCoordinates):
         
     """
 
-    _coords = tl.Tuple(trait=tl.Instance(Coordinates1d), read_only=True)
+    _coords = tl.Tuple(trait=tl.Instance(Coordinates1d))
 
     def __init__(self, coords, coord_ref_sys=None, ctype=None, distance_units=None):
         """
@@ -248,6 +248,24 @@ class StackedCoordinates(BaseCoordinates):
 
         else:
             return StackedCoordinates([c[index] for c in self._coords])
+
+    def __setitem__(self, dim, c):
+        if not dim in self.dims:
+            raise KeyError("Cannot set dimension '%s' in StackedCoordinates %s" % (dim, self.dims))
+
+        # try to cast to ArrayCoordinates1d
+        if not isinstance(c, BaseCoordinates):
+            c = ArrayCoordinates1d(c)
+
+        if c.name is None:
+            c.name = dim
+
+        if dim in self.dims:
+            print('setting dim')
+            idx = self.dims.index(dim)
+            d = list(self._coords)
+            d[idx] = c
+            self._coords = tuple(d)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties

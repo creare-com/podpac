@@ -472,6 +472,14 @@ class TestCoordinatesDict(object):
 
         coords['lat_lon'] == clinspace((0, 1), (10, 20), 5)
 
+        # update a single stacked dimension
+        coords['lat'] = np.linspace(5, 20, 5)
+        assert coords['lat'] == ArrayCoordinates1d(np.linspace(5, 20, 5), name='lat')
+        
+        coords = deepcopy(self.coords)
+        coords['lat_lon']['lat'] = np.linspace(5, 20, 5)
+        assert coords['lat'] == ArrayCoordinates1d(np.linspace(5, 20, 5), name='lat')
+
         with pytest.raises(KeyError, match="Cannot set dimension"):
             coords['alt'] = ArrayCoordinates1d([1, 2, 3], name='alt')
 
