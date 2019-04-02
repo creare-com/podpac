@@ -931,26 +931,25 @@ class Coordinates(tl.HasTraits):
         else:
             return Coordinates([self._coords[dim] for dim in dims])
 
-    def transform(self, dst_crs):
+    def transform(self, crs):
         """
         Transform coordinates into a different coordinate reference system.
         Uses PROJ4 syntax for coordinate reference systems
         
         Parameters
         ----------
-        dst_crs : str
+        crs : str
             PROJ4 compatible coordinate reference system string
         """
 
         # coordinates MUST have lat and lon, even if stacked
-        if len(set(['lat', 'lon']) - set(self.udims)):
+        if set(['lat', 'lon']) - set(self.udims):
             raise ValueError('Coordinates must have lat and lon dimensions to transform coordinate reference systems')
 
-        # TODO: update for stacked/unstacked and other dimensions
-        transformer = pyproj.Transformer.from_crs(pyproj.CRS(self.crs), pyproj.CRS(dst_crs))
-        dst_values = transformer.transform(self.coords['lat'].values, self.coords['lon'].values)
+        transformer = pyproj.Transformer.from_crs(pyproj.CRS(self.crs), pyproj.CRS(crs))
+        (lat, lon) = transformer.transform(self.coords['lat'].values, self.coords['lon'].values)
 
-        return Coordinates([dst_values[0], dst_values[1]], dims = ['lat', 'lon'], coord_ref_sys=dst_crs)
+        return Coordinates([lat, lon], dims=['lat', 'lon'], coord_ref_sys=crs)
 
 
     # ------------------------------------------------------------------------------------------------------------------
