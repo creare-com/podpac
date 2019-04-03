@@ -967,15 +967,14 @@ class Coordinates(tl.HasTraits):
         transformer = pyproj.Transformer.from_crs(pyproj.CRS(self.crs), pyproj.CRS(crs))
         (lat, lon) = transformer.transform(self.coords['lat'].values, self.coords['lon'].values)
 
-        transformed_coordinates = deepcopy(self)
-        transformed_coordinates['lat'] = lat
-        transformed_coordinates['lat'].coord_ref_sys = crs
-        
-        transformed_coordinates['lon'] = lon
-        transformed_coordinates['lon'].coord_ref_sys = crs
+        trans_coords = deepcopy(self)
+        trans_coords['lat'] = lat
+        trans_coords['lon'] = lon
 
-        return transformed_coordinates
-        # return Coordinates([lat, lon], dims=['lat', 'lon'], coord_ref_sys=crs)
+        for dim in trans_coords:
+            trans_coords[dim].coord_ref_sys = crs
+
+        return trans_coords
 
 
     # ------------------------------------------------------------------------------------------------------------------

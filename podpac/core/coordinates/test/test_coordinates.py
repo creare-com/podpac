@@ -10,7 +10,7 @@ import pandas as pd
 from numpy.testing import assert_equal
 
 import podpac
-from podpac.core.coordinates.coordinates1d import Coordinates1d
+from podpac.core.coordinates.coordinates1d import Coordinates1d, DEFAULT_CRS
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.cfunctions import crange, clinspace
@@ -735,6 +735,18 @@ class TestCoordinatesMethods(object):
 
         with pytest.raises(ValueError, match="Invalid transpose dimensions"):
             c.transpose('lon', 'lat')
+
+    def test_transform(self):
+        c = Coordinates([[0, 1], [10, 20], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
+
+        # default crs
+        assert c.crs == DEFAULT_CRS
+
+        # transform
+        c_trans = c.transform('EPSG:2193')
+        assert c.crs == DEFAULT_CRS
+        assert c_trans.crs == 'EPSG:2193'
+        assert round(c_trans['lat'].values[0]) == 29995930.0
 
     def test_intersect(self):
         pass
