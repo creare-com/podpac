@@ -463,12 +463,17 @@ class Coordinates(tl.HasTraits):
     def __setitem__(self, dim, c):
 
         # cast input coordinates
+        #             if isinstance(coords[i], BaseCoordinates):
         if isinstance(c, BaseCoordinates):
             pass
-        elif isinstance(c, (list, tuple, np.ndarray, xr.DataArray)):
-            c = ArrayCoordinates1d(c)
         elif isinstance(c, Coordinates):
             c = c[dim]
+        elif isinstance(c, (list, tuple, np.ndarray)):
+            if '_' in dim:
+                cs = [val if isinstance(val, Coordinates1d) else ArrayCoordinates1d(val) for val in c]
+                c = StackedCoordinates(cs)
+            else:
+                c = ArrayCoordinates1d(c)
         else:
             raise TypeError("Invalid coords, expected list, array, " +
                             "or class implementing BaseCoordinates, not '%s'" % type(c))

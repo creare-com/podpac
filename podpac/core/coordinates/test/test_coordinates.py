@@ -473,6 +473,7 @@ class TestCoordinatesDict(object):
 
         # coords['lat_lon'] = [np.linspace(0, 10, 5), np.linspace(0, 10, 5)]
         coords['lat_lon'] = clinspace((0, 1), (10, 20), 5)
+        coords['lat_lon'] = (np.linspace(0, 10, 5), np.linspace(0, 10, 5))
         coords['lat_lon'] = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=['lat_lon'])
 
         # update a single stacked dimension
