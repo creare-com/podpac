@@ -738,6 +738,7 @@ class TestCoordinatesMethods(object):
 
     def test_transform(self):
         c = Coordinates([[0, 1], [10, 20], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
+        c1 = Coordinates([[[0, 1], [10, 20]], [100, 200, 300]], dims=['lat_lon', 'alt'])
 
         # default crs
         assert c.crs == DEFAULT_CRS
@@ -747,6 +748,20 @@ class TestCoordinatesMethods(object):
         assert c.crs == DEFAULT_CRS
         assert c_trans.crs == 'EPSG:2193'
         assert round(c_trans['lat'].values[0]) == 29995930.0
+
+        # support proj4 strings
+        proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
+        c_trans = c.transform(proj)
+        assert c.crs == DEFAULT_CRS
+        assert c_trans.crs == proj
+        assert round(c_trans['lat'].values[0]) == 615849.0
+
+        # support stacked coordinates
+        proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
+        c1_trans = c1.transform(proj)
+        assert c1.crs == DEFAULT_CRS
+        assert c1_trans.crs == proj
+        assert round(c1_trans['lat'].values[0]) == 615849.0
 
     def test_intersect(self):
         pass

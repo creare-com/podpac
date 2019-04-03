@@ -971,7 +971,7 @@ class Coordinates(tl.HasTraits):
         trans_coords['lat'] = lat
         trans_coords['lon'] = lon
 
-        for dim in trans_coords:
+        for dim in trans_coords.udims:
             trans_coords[dim].coord_ref_sys = crs
 
         return trans_coords
