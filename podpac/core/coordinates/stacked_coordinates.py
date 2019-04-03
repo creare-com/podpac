@@ -43,7 +43,7 @@ class StackedCoordinates(BaseCoordinates):
         Coordinates
             lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
             lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
-            time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']    
+            time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']
 
     Parameters
     ----------
@@ -58,7 +58,7 @@ class StackedCoordinates(BaseCoordinates):
         
     """
 
-    _coords = tl.Tuple(trait=tl.Instance(Coordinates1d))
+    _coords = tl.Tuple(trait=tl.Instance(Coordinates1d), read_only=True)
 
     def __init__(self, coords, coord_ref_sys=None, ctype=None, distance_units=None):
         """
@@ -254,22 +254,22 @@ class StackedCoordinates(BaseCoordinates):
             raise KeyError("Cannot set dimension '%s' in StackedCoordinates %s" % (dim, self.dims))
 
         # try to cast to ArrayCoordinates1d
-        if not isinstance(c, BaseCoordinates):
+        if not isinstance(c, Coordinates1d):
             c = ArrayCoordinates1d(c)
 
         if c.name is None:
             c.name = dim
 
-        if dim in self.dims:
-            idx = self.dims.index(dim)
-            coords = list(self._coords)
-            coords[idx] = c
+        idx = self.dims.index(dim)    # find the tuple index of the dimension you are interested in
+        coords = list(self._coords)   # make list from _coords tuple
+        coords[idx] = c               # set the element of the coords list to new coordinates
 
-            self._check_sizes([c.size for c in coords])
-            self._check_names([c.name for c in coords])
-            self._check_coord_ref_sys(coords)
+        # check consistency
+        self._check_sizes([c.size for c in coords])
+        self._check_names([c.name for c in coords])
+        self._check_coord_ref_sys(coords)
 
-            self._coords = tuple(coords)
+        self.set_trait('_coords', coords)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -290,8 +290,8 @@ class StackedCoordinates(BaseCoordinates):
 
         Stacked dimension names are the individual `dims` joined by an underscore.
         """
-
-        return '_'.join(dim or '?' for dim in self.dims)
+        if any(self.dims):
+            return '_'.join(dim or '?' for dim in self.dims)
 
     @name.setter
     def name(self, value):

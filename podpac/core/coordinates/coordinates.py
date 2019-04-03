@@ -461,9 +461,16 @@ class Coordinates(tl.HasTraits):
 
     def __setitem__(self, dim, c):
 
-        # try to cast to ArrayCoordinates1d
-        if not isinstance(c, BaseCoordinates):
+        # cast input coordinates
+        if isinstance(c, BaseCoordinates):
+            pass
+        elif isinstance(c, (list, tuple, np.ndarray, xr.DataArray)):
             c = ArrayCoordinates1d(c)
+        elif isinstance(c, Coordinates):
+            c = c[dim]
+        else:
+            raise TypeError("Invalid coords, expected list, array, " +
+                            "or class implementing BaseCoordinates, not '%s'" % type(c))
 
         if c.name is None:
             c.name = dim
