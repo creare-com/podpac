@@ -5,7 +5,7 @@ Multidimensional Coordinates
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import warnings
-import copy
+from copy import deepcopy
 import sys
 import itertools
 import json
@@ -957,12 +957,20 @@ class Coordinates(tl.HasTraits):
 
         # coordinates MUST have lat and lon, even if stacked
         if set(['lat', 'lon']) - set(self.udims):
-            raise ValueError('Coordinates must have lat and lon dimensions to transform coordinate reference systems')
+            raise ValueError('Coordinates must have both lat and lon dimensions to transform coordinate reference systems')
 
         transformer = pyproj.Transformer.from_crs(pyproj.CRS(self.crs), pyproj.CRS(crs))
         (lat, lon) = transformer.transform(self.coords['lat'].values, self.coords['lon'].values)
 
-        return Coordinates([lat, lon], dims=['lat', 'lon'], coord_ref_sys=crs)
+        transformed_coordinates = deepcopy(self)
+        transformed_coordinates['lat'] = lat
+        transformed_coordinates['lat'].coord_ref_sys = crs
+        
+        transformed_coordinates['lon'] = lon
+        transformed_coordinates['lon'].coord_ref_sys = crs
+
+        return transformed_coordinates
+        # return Coordinates([lat, lon], dims=['lat', 'lon'], coord_ref_sys=crs)
 
 
     # ------------------------------------------------------------------------------------------------------------------
