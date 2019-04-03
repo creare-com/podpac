@@ -22,9 +22,9 @@ INTERPOLATORS = [NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGri
 INTERPOLATORS_DICT = {}
 """dict : Dictionary of a string interpolator name and associated interpolator class"""
 
-INTERPOLATION_METHODS = ['nearest_preview','nearest','bilinear','cubic','cubic_spline',
-           'lanczos','average','mode','gauss','max','min','med','q1','q3',
-           'spline_2','spline_3' ,'spline_4']
+INTERPOLATION_METHODS = ['nearest_preview', 'nearest', 'bilinear', 'cubic', 'cubic_spline',
+                         'lanczos', 'average', 'mode', 'gauss', 'max', 'min', 'med', 'q1', 'q3',
+                         'spline_2', 'spline_3', 'spline_4']
 
 INTERPOLATION_METHODS_DICT = {}
 """dict: Dictionary of string interpolation methods and associated interpolator classes
@@ -82,15 +82,11 @@ class Interpolation(object):
     definition : str, tuple (str, list of podpac.core.data.interpolator.Interpolator), dict
         Interpolation definition used to define interpolation methods for each definiton.
         See :attr:`podpac.data.DataSource.interpolation` for more details.
-    coordinates : :class:`podpac.Coordinates`
-        source coordinates to be interpolated
-    **kwargs :
-        Keyword arguments passed on to each :class:`podpac.interpolators.Interpolator`
     
     Raises
     ------
     InterpolationException
-    TypeError
+        Raised when definition parameter is improperly formatted
     
     """
  
