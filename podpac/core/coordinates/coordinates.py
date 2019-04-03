@@ -460,19 +460,37 @@ class Coordinates(tl.HasTraits):
         raise KeyError("Dimension '%s' not found in Coordinates %s" % (dim, self.dims))
 
     def __setitem__(self, dim, c):
-        if not dim in self.dims:
-            raise KeyError("Cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
 
-        # try to cast to ArrayCoordinates1d
-        if not isinstance(c, BaseCoordinates):
-            c = ArrayCoordinates1d(c)
+        # cast input coordinates
+        #             if isinstance(coords[i], BaseCoordinates):
+        if isinstance(c, BaseCoordinates):
+            pass
+        elif isinstance(c, Coordinates):
+            c = c[dim]
+        elif isinstance(c, (list, tuple, np.ndarray)):
+            if '_' in dim:
+                cs = [val if isinstance(val, Coordinates1d) else ArrayCoordinates1d(val) for val in c]
+                c = StackedCoordinates(cs)
+            else:
+                c = ArrayCoordinates1d(c)
+        else:
+            raise TypeError("Invalid coords, expected list, array, " +
+                            "or class implementing BaseCoordinates, not '%s'" % type(c))
 
         if c.name is None:
             c.name = dim
 
-        d = self._coords.copy()
-        d[dim] = c
-        self._coords = d
+        if dim in self.dims:
+            d = self._coords.copy()
+            d[dim] = c
+            self._coords = d
+        
+        elif dim in self.udims:
+            stacked_dim = [sd for sd in self.dims if dim in sd][0]
+            self._coords[stacked_dim][dim] = c
+        else:
+            raise KeyError("Cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
+
 
     def __delitem__(self, dim):
         if not dim in self.dims:
