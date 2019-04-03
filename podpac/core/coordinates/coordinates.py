@@ -847,6 +847,8 @@ class Coordinates(tl.HasTraits):
         idx : list
             List of indices for each dimension that produces the intersection, only if ``return_indices`` is True.
         """
+        if other.crs != self.crs:
+            other = other.transform(self.crs)
 
         intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self.values()]
         if return_indices:
@@ -967,14 +969,17 @@ class Coordinates(tl.HasTraits):
         transformer = pyproj.Transformer.from_crs(pyproj.CRS(self.crs), pyproj.CRS(crs))
         (lat, lon) = transformer.transform(self.coords['lat'].values, self.coords['lon'].values)
 
-        trans_coords = deepcopy(self)
-        trans_coords['lat'] = lat
-        trans_coords['lon'] = lon
+        t_coords = deepcopy(self)
 
-        for dim in trans_coords.udims:
-            trans_coords[dim].coord_ref_sys = crs
+        # update crs in all coords first
+        for dim in t_coords.udims:
+            t_coords[dim].coord_ref_sys = crs
 
-        return trans_coords
+        # update values
+        t_coords['lat'] = lat
+        t_coords['lon'] = lon
+
+        return t_coords
 
 
     # ------------------------------------------------------------------------------------------------------------------

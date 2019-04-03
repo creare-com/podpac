@@ -764,8 +764,19 @@ class TestCoordinatesMethods(object):
         assert round(c1_trans['lat'].values[0]) == 615849.0
 
     def test_intersect(self):
-        pass
-        # TODO
+        # TODO: add additional testing
+        
+        # should change the other coordinates crs into the native coordinates crs for intersect
+        c = Coordinates([np.linspace(0, 10, 11), np.linspace(0, 10, 11), ['2018-01-01', '2018-01-02']], \
+                        dims=['lat', 'lon', 'time'])
+        o = Coordinates([np.linspace(28000000, 29500000, 20), np.linspace(-280000, 400000, 20), ['2018-01-01', '2018-01-02']], \
+                dims=['lat', 'lon', 'time'], coord_ref_sys='EPSG:2193')
+
+        c_int = c.intersect(o)
+        assert c_int.crs == DEFAULT_CRS
+        assert np.all(c_int['lat'].bounds == np.array([5., 10.]))
+        assert np.all(c_int['lon'].bounds == np.array([4., 10.]))
+        assert np.all(c_int['time'].values == c['time'].values)
 
 class TestCoordinatesSpecial(object):
     def test_repr(self):
