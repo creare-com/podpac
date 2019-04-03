@@ -466,11 +466,22 @@ class TestCoordinatesDict(object):
     def test_setitem(self):
         coords = deepcopy(self.coords)
         
+        coords['time'] = [1, 2, 3]
         coords['time'] = ArrayCoordinates1d([1, 2, 3])
         coords['time'] = ArrayCoordinates1d([1, 2, 3], name='time')
-        coords['time'] = [1, 2, 3]
+        coords['time'] = Coordinates([[1, 2, 3]], dims=['time'])
 
-        coords['lat_lon'] == clinspace((0, 1), (10, 20), 5)
+        # coords['lat_lon'] = [np.linspace(0, 10, 5), np.linspace(0, 10, 5)]
+        coords['lat_lon'] = clinspace((0, 1), (10, 20), 5)
+        coords['lat_lon'] = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=['lat_lon'])
+
+        # update a single stacked dimension
+        coords['lat'] = np.linspace(5, 20, 5)
+        assert coords['lat'] == ArrayCoordinates1d(np.linspace(5, 20, 5), name='lat')
+        
+        coords = deepcopy(self.coords)
+        coords['lat_lon']['lat'] = np.linspace(5, 20, 3)
+        assert coords['lat'] == ArrayCoordinates1d(np.linspace(5, 20, 3), name='lat')
 
         with pytest.raises(KeyError, match="Cannot set dimension"):
             coords['alt'] = ArrayCoordinates1d([1, 2, 3], name='alt')
@@ -483,6 +494,22 @@ class TestCoordinatesDict(object):
 
         with pytest.raises(ValueError, match="coord_ref_sys mismatch"):
             coords['time'] = ArrayCoordinates1d([1, 2, 3], coord_ref_sys='SPHER_MERC')
+
+        with pytest.raises(KeyError, match="not found in Coordinates"):
+            coords['lat_lon'] = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=['lon_lat'])
+
+        with pytest.raises(ValueError, match="Dimension name mismatch"):
+            coords['lat_lon'] = clinspace((0, 1), (10, 20), 5, name='lon_lat')
+
+        with pytest.raises(ValueError, match="Size mismatch"):
+            coords['lat'] = np.linspace(5, 20, 5)
+
+        with pytest.raises(ValueError, match="Duplicate dimension"):
+            coords['lat'] = clinspace(0, 10, 3, name='lon')
+
+        with pytest.raises(ValueError, match="coord_ref_sys mismatch"):
+            coords['lat_lon'] = Coordinates([(np.linspace(0, 10, 3), np.linspace(0, 10, 3))], dims=['lat_lon'], coord_ref_sys='WGS84')
+            coords['lat'] = Coordinates([np.linspace(0, 10, 3)], dims=['lat'], coord_ref_sys='SPHER_MERC') # should work
 
     def test_delitem(self):
         # unstacked
