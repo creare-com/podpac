@@ -101,6 +101,10 @@ class Coordinates(tl.HasTraits):
         if len(dims) != len(coords):
             raise ValueError("coords and dims size mismatch, %d != %d" % (len(dims), len(coords)))
 
+        for i, dim in enumerate(dims):
+            if not dim:
+                raise ValueError("Dim for coordinates at position %d is not defined" % (i))
+
         # get/create coordinates
         dcoords = OrderedDict()
         for i, dim in enumerate(dims):
@@ -110,8 +114,20 @@ class Coordinates(tl.HasTraits):
             if isinstance(coords[i], BaseCoordinates):
                 c = coords[i]
             elif '_' in dim:
-                cs = [val if isinstance(val, Coordinates1d) else ArrayCoordinates1d(val) for val in coords[i]]
-                c = StackedCoordinates(cs)
+                # make sure components of stacked coordinates have dim names from stacked dim
+                sdims = dim.split('_')
+                coords[i] = list(coords[i])
+                for j, cs in enumerate(coords[i]):
+                    if isinstance(cs, Coordinates1d):
+                        if not cs.name:
+                            cs.name = sdims[j]
+                        elif cs.name != sdims[j]:
+                            raise ValueError("Dimension name mismatch, '%s' != '%s'" % (sdims[j], val.name))
+                    else:
+                        cs = ArrayCoordinates1d(cs, name=sdims[j])
+                    coords[i][j] = cs
+
+                c = StackedCoordinates(coords[i])
             else:
                 c = ArrayCoordinates1d(coords[i])
 
@@ -148,9 +164,11 @@ class Coordinates(tl.HasTraits):
         if isinstance(c, Coordinates1d):
             cs = [c]
             names = [name]
-        else:
-            cs = list(c)
+        elif isinstance(c, StackedCoordinates):
+            cs = list(c._coords.values())
             names = name.split('_')
+        else:
+            raise ValueError("Cannot set properties on coordinates of type '%s' " % (type(c) ))
 
         for c, name in zip(cs, names):
             # set or check the coord_ref_sys
@@ -469,7 +487,7 @@ class Coordinates(tl.HasTraits):
             c = c[dim]
         elif isinstance(c, (list, tuple, np.ndarray)):
             if '_' in dim:
-                cs = [val if isinstance(val, Coordinates1d) else ArrayCoordinates1d(val) for val in c]
+                cs = [val if isinstance(val, Coordinates1d) else ArrayCoordinates1d(val, name=n) for (val, n) in zip(c, dim.split('_'))]
                 c = StackedCoordinates(cs)
             else:
                 c = ArrayCoordinates1d(c)
@@ -784,7 +802,7 @@ class Coordinates(tl.HasTraits):
                 if c.name not in dims:
                     cs.append(c)
             elif isinstance(c, StackedCoordinates):
-                stacked = [s for s in c if s.name not in dims]
+                stacked = [s for s in c.values() if s.name not in dims]
                 if len(stacked) > 1:
                     cs.append(StackedCoordinates(stacked))
                 elif len(stacked) == 1:
@@ -866,7 +884,14 @@ class Coordinates(tl.HasTraits):
             New Coordinates object with unique, sorted coordinate values in each dimension.
         """
 
-        return Coordinates([c[np.unique(c.coordinates, return_index=True)[1]] for c in self.values()])
+        coords = list(self.values())
+        for i, c in enumerate(coords):
+            if isinstance(c, StackedCoordinates):
+                coords[i] = StackedCoordinates([cs[np.unique(c.coordinates, return_index=True)[1]] for cs in c.values()])
+            else:
+                coords[i] = c[np.unique(c.coordinates, return_index=True)[1]]
+
+        return Coordinates(coords)
 
     def unstack(self):
         """
@@ -954,13 +979,12 @@ class Coordinates(tl.HasTraits):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        # TODO JXM
         rep = str(self.__class__.__name__)
         for c in self._coords.values():
             if isinstance(c, Coordinates1d):
                 rep += '\n\t%s: %s' % (c.name, c)
             elif isinstance(c, StackedCoordinates):
-                for _c in c:
+                for _c in c.values():
                     rep += '\n\t%s[%s]: %s' % (c.name, _c.name, _c)
         return rep
 

@@ -36,7 +36,7 @@ def crange(start, stop, step, name=None):
 
 def clinspace(start, stop, size, name=None):
     """
-    Create uniformly-spaced 1d or stacked coordinates with a start, stop, and size.
+    Create uniformly-spaced 1d coordinates with a start, stop, and size.
 
     For numerical coordinates, the start and stop are converted to ``float``. For time coordinates, the start and stop
     are converted to numpy ``datetime64``. For convenience, podpac automatically converts datetime strings such as
@@ -44,10 +44,10 @@ def clinspace(start, stop, size, name=None):
 
     Arguments
     ---------
-    start : float, datetime64, datetime, str, tuple
-        Start coordinate for 1d coordinates, or tuple of start coordinates for stacked coordinates.
-    stop : float, datetime64, datetime, str, tuple
-        Stop coordinate for 1d coordinates, or tuple of stop coordinates for stacked coordinates.
+    start : float, datetime64, datetime, str
+        Start coordinate for 1d coordinates
+    stop : float, datetime64, datetime, str
+        Stop coordinate for 1d coordinates
     size : int
         Number of coordinates.
     name : str, optional
@@ -67,15 +67,9 @@ def clinspace(start, stop, size, name=None):
         raise ValueError("Size mismatch, 'start' and 'stop' must have the same size (%s != %s)" % (
             np.array(start).size, np.array(stop).size))
     
-    # As of numpy 0.16, np.array([0, (0, 10)]) no longer raises a ValueError
-    # so we have to explicitly check for sizes of start and stop (see above)
-    a = np.array([start, stop])
-    if a.ndim == 2:
-        c = StackedCoordinates([UniformCoordinates1d(start[i], stop[i], size=size) for i in range(a[0].size)])
-    else:
-        c = UniformCoordinates1d(start, stop, size=size)
+    c = UniformCoordinates1d(start, stop, size=size)
 
     if name is not None:
         c.name = name
-        
+    
     return c

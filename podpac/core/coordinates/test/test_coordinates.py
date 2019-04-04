@@ -472,7 +472,7 @@ class TestCoordinatesDict(object):
         coords['time'] = Coordinates([[1, 2, 3]], dims=['time'])
 
         # coords['lat_lon'] = [np.linspace(0, 10, 5), np.linspace(0, 10, 5)]
-        coords['lat_lon'] = clinspace((0, 1), (10, 20), 5)
+        coords['lat_lon'] = (clinspace(0, 10, 5), clinspace(1, 20, 5))
         coords['lat_lon'] = (np.linspace(0, 10, 5), np.linspace(0, 10, 5))
         coords['lat_lon'] = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=['lat_lon'])
 
@@ -553,7 +553,7 @@ class TestCoordinatesDict(object):
 
         # overwrite a stacked dimension
         coords = deepcopy(self.coords)
-        c = Coordinates([clinspace((0, 1), (10, 20), 5)], dims=['lat_lon'])
+        c = Coordinates([(clinspace(0, 10, 5), clinspace(1, 20, 5))], dims=['lat_lon'])
         coords.update(c)
         assert coords.dims == ('lat_lon', 'time')
         assert coords['lat_lon'] == c['lat_lon']
@@ -561,7 +561,7 @@ class TestCoordinatesDict(object):
 
         # mixed
         coords = deepcopy(self.coords)
-        c = Coordinates([clinspace((0, 1), (10, 20), 5), [100, 200, 300]], dims=['lat_lon', 'alt'])
+        c = Coordinates([(clinspace(0, 10, 5), clinspace(1, 20, 5)), [100, 200, 300]], dims=['lat_lon', 'alt'])
         coords.update(c)
         assert coords.dims == ('lat_lon', 'time', 'alt')
         assert coords['lat_lon'] == c['lat_lon']
