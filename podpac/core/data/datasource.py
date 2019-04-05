@@ -381,6 +381,8 @@ class DataSource(Node):
         else:
             requested_dims = coordinates.dims
             coordinates = coordinates.transpose(*output.dims)
+            # TODO: there is no real way to know the crs of an input output UnitsDataArray
+
 
         # interpolate data into output
         output = self._interpolation.interpolate(self._requested_source_coordinates,
@@ -392,9 +394,12 @@ class DataSource(Node):
         if requested_dims is not None and requested_dims != output.dims:
             output = output.transpose(*requested_dims)
         
-        # transform the output crs to the requested coordinates crs
+        # transform the output crs to the r]equested coordinates crs
+        # TODO: this could be made into method in/for UnitsDataArray 
         if self._evaluated_coordinates.crs != coordinates.crs:
-            output.coords = self._evaluated_coordinates.coords
+            coords = Coordinates.from_xarray(output.coords)
+            t_coords = coords.transform(self._evaluated_coordinates.crs)
+            output = output.assign_coords(**t_coords.coords)
 
         # save output to private for debugging
         if settings['DEBUG']:

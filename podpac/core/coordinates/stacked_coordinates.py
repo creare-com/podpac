@@ -317,6 +317,12 @@ class StackedCoordinates(BaseCoordinates):
         return pd.MultiIndex.from_arrays([np.array(c.coordinates) for c in self._coords], names=self.dims)
 
     @property
+    def values(self):
+        """:pandas.MultiIndex: MultiIndex of stacked coordinates values."""
+
+        return self.coordinates
+
+    @property
     def coords(self):
         """:dict-like: xarray coordinates (container of coordinate arrays)"""
 
