@@ -262,7 +262,7 @@ class StackedCoordinates(BaseCoordinates):
             c.name = dim
 
         idx = self.dims.index(dim)    # find the index of the dimension being set
-        coords = self._coords.copy()
+        coords = list(self._coords)
         coords[idx] = c               # set the element of the coords list to new coordinates
 
         # check consistency
