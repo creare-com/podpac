@@ -58,7 +58,7 @@ class StackedCoordinates(BaseCoordinates):
         
     """
 
-    _coords = tl.Tuple(trait=tl.Instance(Coordinates1d), read_only=True)
+    _coords = tl.List(trait=tl.Instance(Coordinates1d), read_only=True)
 
     def __init__(self, coords, coord_ref_sys=None, ctype=None, distance_units=None):
         """
@@ -225,7 +225,7 @@ class StackedCoordinates(BaseCoordinates):
         return StackedCoordinates(self._coords)
 
     # ------------------------------------------------------------------------------------------------------------------
-    # standard methods, tuple-like
+    # standard methods, list-like
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
@@ -244,6 +244,7 @@ class StackedCoordinates(BaseCoordinates):
         if isinstance(index, string_types):
             if index not in self.dims:
                 raise KeyError("Dimension '%s' not found in dims %s" % (index, self.dims))
+            
             return self._coords[self.dims.index(index)]
 
         else:
@@ -260,8 +261,8 @@ class StackedCoordinates(BaseCoordinates):
         if c.name is None:
             c.name = dim
 
-        idx = self.dims.index(dim)    # find the tuple index of the dimension you are interested in
-        coords = list(self._coords)   # make list from _coords tuple
+        idx = self.dims.index(dim)    # find the index of the dimension being set
+        coords = self._coords.copy()
         coords[idx] = c               # set the element of the coords list to new coordinates
 
         # check consistency
