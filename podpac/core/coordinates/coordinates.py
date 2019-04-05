@@ -971,20 +971,6 @@ class Coordinates(tl.HasTraits):
 
         t_coords = deepcopy(self)
 
-        # update crs in all coords first
-        # read-only implementation
-        # coords = t_coords._coords.copy()
-        # for dim in coords:
-        #     if isinstance(coords[dim], StackedCoordinates):
-        #         s_coords = coords[dim]._coords.copy()
-        #         for idx, c in enumerate(t_coords[dim]):
-        #             s_coords[idx].coord_ref_sys = crs
-        #         coords[dim].set_trait('_coords', s_coords)
-        #     else:
-        #         coords[dim].coord_ref_sys = crs
-
-        # t_coords.set_trait('_coords', coords)
-
         for dim in t_coords.udims:
             t_coords[dim].coord_ref_sys = crs
 

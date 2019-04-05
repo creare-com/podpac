@@ -414,17 +414,17 @@ class TestCoordinatesProperties(object):
         # empty
         c = Coordinates([])
         assert c.coord_ref_sys == None
-        assert c.gdal_crs == None
+        assert c.crs == None
 
         # default
         c = Coordinates([[0, 1, 2]], dims=['lat'])
-        assert c.coord_ref_sys == 'WGS84'
-        assert c.gdal_crs == 'EPSG:4326'
+        assert c.coord_ref_sys == DEFAULT_CRS
+        assert c.crs == DEFAULT_CRS
 
         # set
-        c = Coordinates([[0, 1, 2]], dims=['lat'], coord_ref_sys='SPHER_MERC')
-        assert c.coord_ref_sys == 'SPHER_MERC'
-        assert c.gdal_crs == 'EPSG:3857'
+        c = Coordinates([[0, 1, 2]], dims=['lat'], coord_ref_sys='EPSG:2193')
+        assert c.coord_ref_sys == 'EPSG:2193'
+        assert c.crs == 'EPSG:2193'
 
 class TestCoordinatesDict(object):
     coords = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
