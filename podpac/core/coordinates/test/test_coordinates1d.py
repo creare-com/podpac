@@ -31,12 +31,12 @@ class TestCoordinates1d(object):
             pass
 
         try:
-            c.select([])
+            c.select([0, 1])
         except NotImplementedError:
             pass
 
         try:
-            c.select([], outer=True, return_indices=True)
+            c.select([0, 1], outer=True, return_indices=True)
         except NotImplementedError:
             pass
 

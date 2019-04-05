@@ -163,7 +163,7 @@ class Coordinates(tl.HasTraits):
                     raise ValueError("coord_ref_sys mismatch %s != %s at pos %d" % (coord_ref_sys, c.coord_ref_sys, pos))
 
             # only set name, ctype, and units if they aren't already set
-            if name is not None and 'name' not in c.properties:
+            if name is not None and 'name' not in c.properties and not isinstance(c, DependentCoordinates):
                 c.name = name
             if ctype is not None and 'ctype' not in c.properties:
                 if isinstance(c, DependentCoordinates):
@@ -460,16 +460,37 @@ class Coordinates(tl.HasTraits):
         except KeyError:
             return default
 
-    def __getitem__(self, dim):
-        if dim in self._coords:
-            return self._coords[dim]
+    def __getitem__(self, index):
+        if isinstance(index, string_types):
+            dim = index
+            if dim in self._coords:
+                return self._coords[dim]
 
-        # extracts individual coords from stacked coords and rotated coords
-        for c in self._coords.values():
-            if isinstance(c, (StackedCoordinates, RotatedCoordinates)) and dim in c.dims:
-                return c[dim]
-            
-        raise KeyError("Dimension '%s' not found in Coordinates %s" % (dim, self.dims))
+            # extracts individual coords from stacked and dependent coordinates
+            for c in self._coords.values():
+                if isinstance(c, (StackedCoordinates, DependentCoordinates)) and dim in c.dims:
+                    return c[dim]
+                
+            raise KeyError("Dimension '%s' not found in Coordinates %s" % (dim, self.dims))
+
+        else:
+            # extend index to a tuple of the correct length
+            if not isinstance(index, tuple):
+                index = (index,)
+            index = index + tuple(slice(None) for i in range(self.ndim - len(index)))
+
+            # bundle dependent coordinates indices
+            indices = []
+            i = 0
+            for c in self._coords.values():
+                if isinstance(c, DependentCoordinates):
+                    indices += tuple(index[i:i+len(c.dims)])
+                    i += len(c.dims)
+                else:
+                    indices.append(index[i])
+                    i += 1
+
+            return Coordinates([c[I] for c, I in zip(self._coords.values(), indices)])
 
     def __setitem__(self, dim, c):
         if not dim in self.dims:
@@ -599,6 +620,16 @@ class Coordinates(tl.HasTraits):
         if len(self.shape) == 0:
             return 0
         return np.prod(self.shape)
+
+    @property
+    def bounds(self):
+        """:dict: Dictionary of (low, high) coordinates bounds in each unstacked dimension"""
+        return {dim: self[dim].bounds for dim in self.udims}
+
+    @property
+    def area_bounds(self):
+        """:dict: Dictionary of (low, high) coordinates area_bounds in each unstacked dimension"""
+        return {dim: self[dim].area_bounds for dim in self.udims}
 
     @property
     def coords(self):
@@ -854,12 +885,60 @@ class Coordinates(tl.HasTraits):
         """
 
         intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self._coords.values()]
+        return self._make_selected_coordinates(intersections, return_indices)
+
+    def select(self, lat=None, lon=None, alt=None, time=None, return_indices=False, outer=False):
+        """
+        Get the coordinate values that are within the given bounds for each dimension.
+
+        The default selection returns coordinates that are within the bounds::
+
+            In [1]: c = Coordinates([[0, 1, 2, 3], [10, 20, 30, 40], dims=['lat', 'lon'])
+
+            In [2]: c.select(lat=[1.5, 2.5])
+            Out[2]: TODO
+
+        The *outer* selection returns the minimal set of coordinates that contain the bounds::
+        
+            In [3]: c.select(lat=[1.5, 2.5], outer=True)
+            Out[3]: TODO
+        
+        Parameters
+        ----------
+        lat : (low, high), optional
+            lat selection bounds
+        lon : (low, high), optional
+            lon selection bounds
+        alt : (low, high), optional
+            alt selection bounds
+        time : (low, high), optional
+            time selection bounds
+        outer : bool, optional
+            If True, do *outer* selections. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selections in addition to coordinates. Default False.
+
+        Returns
+        -------
+        selection : :class:`Coordinates`
+            Coordinates object with coordinates within the given bounds.
+        I : list of indices (slices/lists)
+            index or slice for the selected coordinates in each dimension (only if return_indices=True)
+        """
+
+        bounds = {'lat':lat, 'lon':lon, 'alt':alt, 'time':time}
+        selections = [c.select(bounds, outer=outer, return_indices=return_indices) for c in self._coords.values()]
+        return _make_selected_coordinates(selections, return_indices)
+
+    def _make_selected_coordinates(self, selections, return_indices):
         if return_indices:
-            coords = Coordinates([c for c, I in intersections])
-            idx = [I for c, I in intersections]
-            return coords, tuple(idx)
+            coords = Coordinates([c for c, I in selections])
+            # unbundle DepedentCoordinates indices
+            I = [I if isinstance(c, DependentCoordinates) else [I] for c, I in selections]
+            I = [e for l in I for e in l]
+            return coords, I
         else:
-            return Coordinates(intersections)
+            return Coordinates(selections)
 
     def unique(self):
         """
@@ -959,14 +1038,16 @@ class Coordinates(tl.HasTraits):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        # TODO JXM
         rep = str(self.__class__.__name__)
         for c in self._coords.values():
             if isinstance(c, Coordinates1d):
                 rep += '\n\t%s: %s' % (c.name, c)
             elif isinstance(c, StackedCoordinates):
-                for _c in c:
-                    rep += '\n\t%s[%s]: %s' % (c.name, _c.name, _c)
+                for dim in c.dims:
+                    rep += '\n\t%s[%s]: %s' % (c.name, dim, c[dim])
+            elif isinstance(c, DependentCoordinates):
+                for dim in c.dims:
+                    rep += '\n\t%s[%s]: %s' % (c.name, dim, c.rep(dim))
         return rep
 
 def merge_dims(coords_list):

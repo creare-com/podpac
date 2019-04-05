@@ -398,58 +398,7 @@ class UniformCoordinates1d(Coordinates1d):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def select(self, bounds, outer=False, return_indices=False):
-        """
-        Get the coordinate values that are within the given bounds.
-
-        The default selection returns coordinates that are within the other coordinates bounds::
-
-            In [1]: c = UniformCoordinates1d(0, 3, step=1, name='lat')
-
-            In [2]: c.select([1.5, 2.5]).coordinates
-            Out[2]: array([2.])
-
-        The *outer* selection returns the minimal set of coordinates that contain the other coordinates::
-        
-            In [3]: c.intersect([1.5, 2.5], outer=True).coordinates
-            Out[3]: array([1., 2., 3.])
-
-        The *outer* selection also returns a boundary coordinate if the other coordinates are outside this
-        coordinates bounds but *inside* its area bounds::
-        
-            In [4]: c.intersect([3.25, 3.35], outer=True).coordinates
-            Out[4]: array([3.0], dtype=float64)
-
-            In [5]: c.intersect([10.0, 11.0], outer=True).coordinates
-            Out[5]: array([], dtype=float64)
-        
-        Arguments
-        ---------
-        bounds : low, high
-            selection bounds
-        outer : bool, optional
-            If True, do an *outer* selection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
-
-        Returns
-        -------
-        selection : :class:`UniformCoordinates`
-            UniformCoordinates1d object with coordinates within the other coordinates bounds.
-        I : slice or list
-            index or slice for the intersected coordinates (only if return_indices=True)
-        """
-
-        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
-
-        # full
-        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
-            return self._select_full(return_indices)
-
-        # none
-        if self.area_bounds[0] > bounds[1] or self.area_bounds[1] < bounds[0]:
-            return self._select_empty(return_indices)
-
+    def _select(self, bounds, return_indices, outer):
         # TODO is there an easier way to do this with the new outer flag?
 
         lo = max(bounds[0], self.bounds[0])

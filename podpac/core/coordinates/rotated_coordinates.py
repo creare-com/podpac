@@ -188,8 +188,13 @@ class RotatedCoordinates(DependentCoordinates):
     def copy(self):
         return RotatedCoordinates(self.shape, self.theta, self.ulc, self.step, **self.properties)
 
-    def intersect(self, other, outer=False):
-        raise NotImplementedError("TODO")
+    def intersect(self, other, outer=False, return_indices=False):
+        # TODO return RotatedCoordinates when possible
+        return super(RotatedCoordinates, self).intersect(other, outer=outer, return_indices=return_indices)
+
+    def select(self, bounds, outer=False, return_indices=False):
+        # TODO return RotatedCoordinates when possible
+        return super(RotatedCoordinates, self).select(bounds, outer=outer, return_indices=return_indices)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug

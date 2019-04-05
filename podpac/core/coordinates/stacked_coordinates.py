@@ -341,7 +341,7 @@ class StackedCoordinates(BaseCoordinates):
         
         Parameters
         ----------
-        other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
+        other : :class:`BaseCoordinates1d`, :class:`Coordinates`
             Coordinates to intersect with.
         outer : bool, optional
             If True, do an *outer* intersection. Default False.
@@ -352,16 +352,55 @@ class StackedCoordinates(BaseCoordinates):
         -------
         intersection : :class:`StackedCoordinates`
             StackedCoordinates object consisting of the intersection in all dimensions.
-        idx : slice or list
+        I : slice or list
             Slice or index for the intersected coordinates, only if ``return_indices`` is True.
         """
 
-        # intersections in each dimension
-        Is = [c.intersect(other, outer=outer, return_indices=True)[1] for c in self._coords]
+        # logical AND of the intersection in each dimension
+        indices = [c.intersect(other, outer=outer, return_indices=True)[1] for c in self._coords]
+        I = self._and_indices(indices)
 
-        # logical AND of the intersections
-        I = Is[0]
-        for J in Is[1:]:
+        if return_indices:
+            return self[I], I
+        else:
+            return self[I]
+
+    def select(self, bounds, return_indices=False, outer=False):
+        """
+        Get the coordinate values that are within the given bounds in all dimensions.
+
+        *Note: you should not generally need to call this method directly.*
+
+        Parameters
+        ----------
+        bounds : dict
+            dictionary of dim -> (low, high) selection bounds
+        outer : bool, optional
+            If True, do *outer* selections. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selections in addition to coordinates. Default False.
+
+        Returns
+        -------
+        intersection : :class:`StackedCoordinates`
+            StackedCoordinates object consisting of the intersection in all dimensions.
+        I : slice or list
+            Slice or index for the intersected coordinates, only if ``return_indices`` is True.
+        """
+
+        # logical AND of the selection in each dimension
+        indices = [c.select(bounds, outer=outer, return_indices=True)[1] for c in self._coords]
+        I = self._and_indices(indices)
+
+        if return_indices:
+            return self[I], I
+        else:
+            return self[I]
+
+    def _and_indices(self, indices):
+        # logical AND of the selected indices
+        I = indices[0]
+        for J in indices[1:]:
             if isinstance(I, slice) and isinstance(J, slice):
                 I = slice(max(I.start or 0, J.start or 0), min(I.stop or self.size, J.stop or self.size))
             else:
@@ -375,7 +414,6 @@ class StackedCoordinates(BaseCoordinates):
         if isinstance(I, slice) and I.start == 0 and I.stop == self.size:
             I = slice(None, None)
 
-        if return_indices:
-            return self[I], I
-        else:
-            return self[I]
+        return I
+
+

@@ -14,7 +14,7 @@ from collections import OrderedDict
 
 from podpac.core.utils import ArrayTrait
 from podpac.core.units import Units
-from podpac.core.coordinates.utils import make_coord_value, make_coord_array
+from podpac.core.coordinates.utils import make_coord_array
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 
 class ArrayCoordinates1d(Coordinates1d):
@@ -105,7 +105,6 @@ class ArrayCoordinates1d(Coordinates1d):
         if segment_lengths is None:
             if self.ctype == 'point' or self.size == 0:
                 self.set_trait('segment_lengths', None)
-                self._properties.remove('segment_lengths')
             elif self.dtype == np.datetime64:
                 raise TypeError("segment_lengths required for datetime coordinates (if ctype != 'point')")
             elif self.size == 1:
@@ -350,62 +349,7 @@ class ArrayCoordinates1d(Coordinates1d):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def select(self, bounds, outer=False, return_indices=False):
-        """
-        Get the coordinate values that are within the given bounds.
-
-        The default selection returns coordinates that are within the other coordinates bounds::
-
-            In [1]: c = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
-
-            In [2]: c.select([1.5, 2.5]).coordinates
-            Out[2]: array([2.])
-
-        The *outer* selection returns the minimal set of coordinates that contain the other coordinates::
-        
-            In [3]: c.intersect([1.5, 2.5], outer=True).coordinates
-            Out[3]: array([1., 2., 3.])
-
-        The *outer* selection also returns a boundary coordinate if the other coordinates are outside this
-        coordinates bounds but *inside* its area bounds::
-        
-            In [4]: c.intersect([3.25, 3.35], outer=True).coordinates
-            Out[4]: array([3.0], dtype=float64)
-
-            In [5]: c.intersect([10.0, 11.0], outer=True).coordinates
-            Out[5]: array([], dtype=float64)
-        
-        Arguments
-        ---------
-        bounds : low, high
-            selection bounds
-        outer : bool, optional
-            If True, do an *outer* selection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
-
-        Returns
-        -------
-        selection : :class:`ArrayCoordinates1d`
-            ArrayCoordinates1d object with coordinates within the other coordinates bounds.
-        I : slice or list
-            index or slice for the intersected coordinates (only if return_indices=True)
-        """
-
-        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
-
-        # empty
-        if self.size == 0:
-            return self._select_empty(return_indices)
-
-        # full
-        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
-            return self._select_full(return_indices)
-
-        # none
-        if self.area_bounds[0] > bounds[1] or self.area_bounds[1] < bounds[0]:
-            return self._select_empty(return_indices)
-
+    def _select(self, bounds, return_indices, outer):
         if not outer:
             gt = self.coordinates >= bounds[0]
             lt = self.coordinates <= bounds[1]
@@ -442,7 +386,7 @@ class ArrayCoordinates1d(Coordinates1d):
         else:
             return self[I]
 
-class _ArrayCoordinatesShaped(ArrayCoordinates1d):
+class ArrayCoordinatesNd(ArrayCoordinates1d):
     """
     Partial implementation for internal use.
     
@@ -457,7 +401,17 @@ class _ArrayCoordinatesShaped(ArrayCoordinates1d):
     def __init__(self, coordinates,
                        name=None, ctype=None, units=None, segment_lengths=None, coord_ref_sys=None):
 
-        raise NotImplementedError("TODO")
+        self.set_trait('coordinates', coordinates)
+        self._is_monotonic = None
+        self._is_descending = None
+        self._is_uniform = None
+
+        Coordinates1d.__init__(self,
+            name=name, ctype=ctype, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
+
+    def __repr__(self):
+        return "%s(%s): Bounds[%s, %s], shape%s, ctype['%s']" % (
+            self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.shape, self.ctype)
 
     @property
     def shape(self):
@@ -467,22 +421,22 @@ class _ArrayCoordinatesShaped(ArrayCoordinates1d):
 
     @classmethod
     def from_xarray(cls, x):
-        raise RuntimeError("_ArrayCoordinatesShaped from_xarray is unavailable.")
+        raise RuntimeError("ArrayCoordinatesNd from_xarray is unavailable.")
 
     @classmethod
     def from_definition(cls, d):
-        raise RuntimeError("_ArrayCoordinatesShaped from_definition is unavailable.")
+        raise RuntimeError("ArrayCoordinatesNd from_definition is unavailable.")
 
     @property
     def definition(self):
-        raise RuntimeError("_ArrayCoordinatesShaped definition is unavailable.")
+        raise RuntimeError("ArrayCoordinatesNd definition is unavailable.")
 
     @property
     def coords(self):
-        raise RuntimeError("_ArrayCoordinatesShaped coords is unavailable.")
+        raise RuntimeError("ArrayCoordinatesNd coords is unavailable.")
 
     def intersect(self, other, outer=False, return_indices=False):
-        raise RuntimeError("_ArrayCoordinatesShaped select is unavailable.")
+        raise RuntimeError("ArrayCoordinatesNd intersect is unavailable.")
 
     def select(self, bounds, outer=False, return_indices=False):
-        raise RuntimeError("_ArrayCoordinatesShaped intersect is unavailable.")
+        raise RuntimeError("ArrayCoordinatesNd select is unavailable.")

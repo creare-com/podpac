@@ -5,19 +5,16 @@ from collections import OrderedDict
 import numpy as np
 import traitlets as tl
 import lazy_import
+from six import string_types
 
 from podpac.core.settings import settings
 from podpac.core.units import Units
 from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import Dimension, CoordinateType, CoordinateReferenceSystem
+from podpac.core.coordinates.utils import make_coord_array, make_coord_value, make_coord_delta
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
-from podpac.core.coordinates.array_coordinates1d import ArrayCoordinatesShaped
-
-# TODO: integration with Coordinates
-# TODO: serialization
-# TODO: intersect
-
-
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d, ArrayCoordinatesNd
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 class DependentCoordinates(BaseCoordinates):
 
@@ -26,12 +23,14 @@ class DependentCoordinates(BaseCoordinates):
     idims = TupleTrait(trait=tl.Unicode(), read_only=True)
     units = TupleTrait(trait=tl.Instance(Units, allow_none=True), allow_none=True, read_only=True)
     ctypes = TupleTrait(trait=CoordinateType(), read_only=True)
-    segment_lengths = TupleTrait(trait=tl.Float(allow_none=True), read_only=True)
+    segment_lengths = TupleTrait(trait=tl.Any(allow_none=True), read_only=True)
     coord_ref_sys = CoordinateReferenceSystem(allow_none=True, read_only=True)
 
     _properties = tl.Set()
     
     def __init__(self, coordinates, dims=None, coord_ref_sys=None, units=None, ctypes=None, segment_lengths=None):
+        coordinates = [np.array(a) for a in coordinates]
+        coordinates = [make_coord_array(a.flatten()).reshape(a.shape) for a in coordinates]
         self.set_trait('coordinates', coordinates)
         self._set_properties(dims, coord_ref_sys, units, ctypes, segment_lengths)
 
@@ -50,7 +49,9 @@ class DependentCoordinates(BaseCoordinates):
         if segment_lengths is not None:
             if isinstance(segment_lengths, numbers.Number):
                 segment_lengths = tuple(segment_lengths for dim in self.dims)
+            segment_lengths = tuple(make_coord_delta(sl) for sl in segment_lengths)
             self.set_trait('segment_lengths', segment_lengths)
+        self.segment_lengths # force validation
 
     @tl.default('idims')
     def _default_idims(self):
@@ -59,6 +60,10 @@ class DependentCoordinates(BaseCoordinates):
     @tl.default('ctypes')
     def _default_ctype(self):
         return tuple('midpoint' for dim in self.dims)
+
+    @tl.default('segment_lengths')
+    def _default_segment_lengths(self):
+        return tuple(None for dim in self.dims)
 
     @tl.default('coord_ref_sys')
     def _default_coord_ref_sys(self):
@@ -78,7 +83,6 @@ class DependentCoordinates(BaseCoordinates):
 
     @tl.validate('dims')
     def _validate_dims(self, d):
-        print("validae dims")
         val = self._validate_sizes(d)
         if len(set(val)) != len(val):
             raise ValueError("Duplicate dimension in dims list %s" % val)
@@ -87,7 +91,7 @@ class DependentCoordinates(BaseCoordinates):
     @tl.validate('segment_lengths')
     def _validate_segment_lengths(self, d):
         val = self._validate_sizes(d)
-        for i, ctype in enumerate(self.ctypes):
+        for i, (segment_lengths, ctype) in enumerate(zip(val, self.ctypes)):
             if segment_lengths is None:
                 if ctype != 'point':
                     raise TypeError("segment_lengths cannot be None for '%s' coordinates at position %d" % (ctype, i))
@@ -100,9 +104,8 @@ class DependentCoordinates(BaseCoordinates):
 
     @tl.validate('idims', 'ctypes', 'units')
     def _validate_sizes(self, d):
-        print("validate sizes")
         if len(d['value']) != self.ndims:
-            raise ValueError("coordinates and %s size mismatch, %d != %d" % (
+            raise ValueError("%s and coordinates size mismatch, %d != %d" % (
                 d['trait'].name, len(d['value']), self.ndims))
         return d['value']
 
@@ -138,13 +141,16 @@ class DependentCoordinates(BaseCoordinates):
     # -----------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        if self.ctypes[0] == self.ctypes[1]:
-            ctypes = "ctype['%s']" % self.ctypes[0]
-        else:
-            ctypes = "ctypes[%s]" % ', '.join(self.ctypes)
+        rep = str(self.__class__.__name__)
+        for dim in self.dims:
+            rep += '\n\t%s' % self.rep(dim)
+        return rep
 
-        return "%s(%s): shape%s, %s" % (
-            self.__class__.__name__, self.dims, self.shape, ctypes)
+    def rep(self, dim):
+        i = self.dims.index(dim)
+        c = self[dim]
+        return "%s(%s->%s): Bounds[%s, %s], shape%s, ctype[%s]" % (
+            self.__class__.__name__, ','.join(self.idims), dim, c.bounds[0], c.bounds[1], self.shape, c.ctype)
 
     def __eq__(self):
         if not isinstance(other, DependentCoordinates):
@@ -168,31 +174,40 @@ class DependentCoordinates(BaseCoordinates):
     def __iter__(self):
         return tuple(getattr(self, dim) for dim in self.dims)
 
-    def _get(self, dim):
-        if dim not in self.dims:
-            raise KeyError("Cannot get dimension '%s' in RotatedCoordinates %s" % (dim, self.dims))
-        
-        idx = self.dims.index(idx)
-        coordinates = self.coordinates[idx]
-        properties = {}
-        if 'units' in self.properties:
-            properties['units'] = self.units[idx]
-        if 'ctypes' in self.properties:
-            properties['ctype'] = self.ctypes[idx]
-        if self.ctypes[idx] != 'point':
-            properties['segment_lengths'] = self.segment_lengths[idx]
-        if 'coord_ref_sys' in self.properties:
-            properties['coord_ref_sys'] = self.coord_ref_sys
-
-        return ArrayCoordinatesShaped(coordinates, name=dim, **properties)
-
     def __getitem__(self, index):
-        if isinstance(index, str):
-            return self._get(index)
+        if isinstance(index, string_types):
+            dim = index
+            if dim not in self.dims:
+                raise KeyError("Cannot get dimension '%s' in RotatedCoordinates %s" % (dim, self.dims))
+        
+            i = self.dims.index(dim)
+            return ArrayCoordinatesNd(self.coordinates[i], **self._properties_at(i))
 
         else:
-            coordinates = tuple(a for a in np.array(self.coordinates).T[index].T)
-            return DependentCoordinates(coordinates, **self.properties)
+            coordinates = tuple(a[index] for a in self.coordinates)
+            # return DependentCoordinates(coordinates, **self.properties)
+
+            # NOTE: this is optional, but we can convert to StackedCoordinates if ndim is 1
+            if coordinates[0].ndim == 1:
+                cs = [ArrayCoordinates1d(a, **self._properties_at(i)) for i, a in enumerate(coordinates)]
+                return StackedCoordinates(cs)
+            else:
+                return DependentCoordinates(coordinates, **self.properties)
+
+    def _properties_at(self, index=None, dim=None):
+        if index is None:
+            index = self.dims.index(dim)
+        properties = {}
+        properties['name'] = self.dims[index]
+        if 'units' in self._properties:
+            properties['units'] = self.units[index]
+        if 'ctypes' in self._properties:
+            properties['ctype'] = self.ctypes[index]
+        if self.ctypes[index] != 'point':
+            properties['segment_lengths'] = self.segment_lengths[index]
+        if 'coord_ref_sys' in self._properties:
+            properties['coord_ref_sys'] = self.coord_ref_sys
+        return properties
 
     # -----------------------------------------------------------------------------------------------------------------
     # properties
@@ -200,7 +215,11 @@ class DependentCoordinates(BaseCoordinates):
 
     @property
     def name(self):
-        return ','.join(self.dims)
+        return '%s' % ','.join(self.dims)
+
+    @name.setter
+    def name(self, value):
+        self.set_trait('dims', value.split(','))
 
     @property
     def udims(self):
@@ -222,6 +241,22 @@ class DependentCoordinates(BaseCoordinates):
     def coords(self):
         return dict(zip(self.dims, self.coordinates))
 
+    @property
+    def properties(self):
+        """:dict: Dictionary of the coordinate properties. """
+
+        return {key:getattr(self, key) for key in self._properties}
+
+    @property
+    def bounds(self):
+        """:dict: Dictionary of (low, high) coordinates bounds in each unstacked dimension"""
+        return {dim: self[dim].bounds for dim in self.dims}
+
+    @property
+    def area_bounds(self):
+        """:dict: Dictionary of (low, high) coordinates area_bounds in each unstacked dimension"""
+        return {dim: self[dim].area_bounds for dim in self.dims}
+
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
@@ -229,8 +264,62 @@ class DependentCoordinates(BaseCoordinates):
     def copy(self):
         return DependentCoordinates(self.coordinates, **self.properties)
 
-    def intersect(self, other, outer=False):
-        raise NotImplementedError("TODO")
+    def intersect(self, other, outer=False, return_indices=False):
+        if not isinstance(other, (BaseCoordinates, Coordinates)):
+            raise TypeError("Cannot intersect with type '%s'" % type(other))
+
+        # bundle Coordinates1d object, if necessary
+        if isinstance(other, Coordinates1d):
+            other = {other.name: other}
+
+        # check for compatibility
+        for dim, dtype, units in zip(self.dims, self.dtypes, self.units):
+            if dim not in other:
+                continue
+            o = other.get(dim) # get other once
+            if dtype is not None and o.dtype is not None and dtype != o.dtype:
+                raise ValueError("Cannot intersect mismatched dtypes ('%s' != '%s')" % (dtype, o.dtype))
+            if units != o.units:
+                raise NotImplementedError("Still need to implement handling different units")
+            if self.coord_ref_sys != o.coord_ref_sys:
+                raise NotImplementedError("Still need to implement handling different CRS")
+
+        # logical AND of selection in each dimension
+        Is = [self._within(a, other[dim].bounds, outer) for dim, a in zip(self.dims, self.coordinates)]
+        I = np.logical_and.reduce(Is)
+        
+        if return_indices:
+            return self[I], np.where(I)
+        else:
+            return self[I]
+
+    def select(self, bounds, outer=False, return_indices=False):
+        # logical AND of selection in each dimension
+        Is = [self._within(a, bounds.get(dim), outer) for dim, a in zip(self.dims, self.coordinates)]
+        I = np.logical_and.reduce(Is)
+
+        if return_indices:
+            return self[I], np.where(I)
+        else:
+            return self[I]
+
+    def _within(self, coordinates, bounds, outer):
+        if bounds is None:
+            return np.ones(self.shape, dtype=bool)
+
+        lo, hi = bounds
+        lo = make_coord_value(lo)
+        hi = make_coord_value(hi)
+
+        if outer:
+            below = coordinates[coordinates <= lo]
+            above = coordinates[coordinates >= hi]
+            lo = max(below) if below else -np.inf
+            hi = min(above) if above else  np.inf
+        
+        gt = coordinates >= lo
+        lt = coordinates <= hi
+        return gt & lt
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug
