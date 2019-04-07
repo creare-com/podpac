@@ -60,7 +60,7 @@ class StackedCoordinates(BaseCoordinates):
 
     _coords = tl.Tuple(trait=tl.Instance(Coordinates1d), read_only=True)
 
-    def __init__(self, coords, coord_ref_sys=None, ctype=None, distance_units=None):
+    def __init__(self, coords, name=None, dims=None, coord_ref_sys=None, ctype=None, distance_units=None):
         """
         Initialize a multidimensional coords object.
 
@@ -80,74 +80,91 @@ class StackedCoordinates(BaseCoordinates):
         clinspace, crange
         """
 
-        if isinstance(coords, StackedCoordinates):
-            coords = [c.copy() for c in coords]
-        elif not isinstance(coords, (list, tuple)):
+        if not isinstance(coords, (list, tuple)):
             raise TypeError("Unrecognized coords type '%s'" % type(coords))
 
         if len(coords) < 2:
             raise ValueError('Stacked coords must have at least 2 coords, got %d' % len(coords))
 
-        for i, c in enumerate(coords):
-            if not isinstance(c, Coordinates1d):
-                raise TypeError("Invalid coordinates of type '%s' in stacked coords at position %d" % (type(c), i))
-
-        self._check_sizes([c.size for c in coords])
-        self._check_names([c.name for c in coords])
-        self._check_coord_ref_sys(coords, coord_ref_sys)
-
-        # validation is complete, set properties, then set _coords trait
-        self._set_properties(coords, ctype, distance_units, coord_ref_sys)
-
+        # coerce
+        coords = tuple(c if isinstance(c, Coordinates1d) else ArrayCoordinates1d(c) for c in coords)
+        
+        # set coords
         self.set_trait('_coords', coords)
 
+        # propagate properties
+        if dims is not None and name is not None:
+            raise TypeError("StackedCoordinates expected 'dims' or 'name', not both")
+        if dims is not None:
+            self._set_dims(dims)
+        if name is not None:
+            self._set_name(name)
+        if coord_ref_sys is not None:
+            self._set_coord_ref_sys(coord_ref_sys)
+        if ctype is not None:
+            self._set_ctype(ctype)
+        if distance_units is not None:
+            self._set_distance_units(distance_units)
+
+        self._check_dims()
+        self._check_sizes()
+        self._check_crs()
+
+        # finalize
         super(StackedCoordinates, self).__init__()
 
-    def _check_names(self, names):
-        for i, name in enumerate(names):
-            if name is not None and name in names[:i]:
-                raise ValueError("Duplicate dimension name '%s' in stacked coords at position %d" % (name, i))
+    def _set_name(self, value):
+        dims = value.split('_')
+        
+        # check size
+        if len(dims) != len(self._coords):
+            raise ValueError("Invalid name '%s' for StackedCoordinates with length %d" % (value, len(self._coords)))
+        
+        self._set_dims(dims)
 
-    def _check_sizes(self, sizes):
-        for i, size in enumerate(sizes):
-            if size != sizes[0]:
-                raise ValueError("Size mismatch in stacked coords %d != %d at position %d" % (size, sizes[0], i))
+    def _set_dims(self, dims):
+        # check size
+        if len(dims) != len(self._coords):
+            raise ValueError("Invalid dims '%s' for StackedCoordinates with length %d" % (dims, len(self._coords)))
+        
+        # set names, checking for duplicates
+        for i, (c, dim) in enumerate(zip(self._coords, dims)):
+            if dim is None:
+                continue
+            c._set_name(dim)
 
-    def _check_coord_ref_sys(self, coords, crs=None):
-        # the coord_ref_sys should be the same, and should match the input coord_ref_sys if defined
-        if crs is None:
-            crs = coords[0].coord_ref_sys
+        self._check_dims()
 
-        for i, c in enumerate(coords):
-            if 'coord_ref_sys' in c.properties and c.coord_ref_sys != crs:
-                raise ValueError("coord_ref_sys mismatch in stacked coords %s != %s at position %d" % (
-                    c.coord_ref_sys, crs, i))
+    def _set_coord_ref_sys(self, value):
+        for c in self._coords:
+            c._set_coord_ref_sys(value)
 
-    def _set_properties(self, coords, ctype, distance_units, coord_ref_sys):
-        for c in coords:
-            if ctype is not None and 'ctype' not in c.properties:
-                c.set_trait('ctype', ctype)
-            if distance_units is not None and c.name in ['lat', 'lon', 'alt'] and 'units' not in c.properties:
-                c.set_trait('units', distance_units)
-            if coord_ref_sys is not None and 'coord_ref_sys' not in c.properties:
-                c.set_trait('coord_ref_sys', coord_ref_sys)
+    def _set_ctype(self, value):
+        for c in self._coords:
+            c._set_ctype(value)
 
-    def __eq__(self, other):
-        if not isinstance(other, StackedCoordinates):
-            return False
+    def _set_distance_units(self, value):
+        for c in self._coords:
+            c._set_distance_units(value)
 
-        # shortcuts
-        if self.dims != other.dims:
-            return False
+    def _check_sizes(self):
+        # check sizes
+        size = self._coords[0].size
+        for c in self._coords[1:]:
+            if c.size != size:
+                raise ValueError("Size mismatch in stacked coords %d != %d" % (c.size, size))
 
-        if self.size != other.size:
-            return False
+    def _check_dims(self):
+        dims = [c.name for c in self._coords]
+        for i, dim in enumerate(dims):
+            if dim is not None and dim in dims[:i]:
+                raise ValueError("Duplicate dimension '%s' in stacked coords" % dim)
 
-        # full check of underlying coordinates
-        if self._coords != other._coords:
-            return False
-
-        return True
+    def _check_crs(self):
+        crs = self._coords[0].coord_ref_sys
+        for c in self._coords:
+            if c.coord_ref_sys != crs:
+                raise ValueError("coord_ref_sys mismatch in stacked_coords %s != %s" % (c.coord_ref_sys, crs))
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors
@@ -212,18 +229,6 @@ class StackedCoordinates(BaseCoordinates):
 
         return cls(coords)
 
-    def copy(self):
-        """
-        Make a copy of the stacked coordinates.
-
-        Returns
-        -------
-        :class:`StackedCoordinates`
-            Copy of the stacked coordinates, with provided properties and name.
-        """
-
-        return StackedCoordinates(self._coords)
-
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods, tuple-like
     # ------------------------------------------------------------------------------------------------------------------
@@ -248,6 +253,23 @@ class StackedCoordinates(BaseCoordinates):
 
         else:
             return StackedCoordinates([c[index] for c in self._coords])
+
+    def __eq__(self, other):
+        if not isinstance(other, StackedCoordinates):
+            return False
+
+        # shortcuts
+        if self.dims != other.dims:
+            return False
+
+        if self.size != other.size:
+            return False
+
+        # full check of underlying coordinates
+        if self._coords != other._coords:
+            return False
+
+        return True
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -274,17 +296,6 @@ class StackedCoordinates(BaseCoordinates):
         """
 
         return '_'.join(dim or '?' for dim in self.dims)
-
-    @name.setter
-    def name(self, value):
-        names = value.split('_')
-        if len(names) != len(self._coords):
-            raise ValueError("Invalid name '%s' for StackedCoordinates with length %d" % (value, len(self._coords)))
-        
-        self._check_names(names)
-
-        for c, name in zip(self._coords, names):
-            c.name = name
 
     @property
     def size(self):
@@ -332,6 +343,18 @@ class StackedCoordinates(BaseCoordinates):
     # -----------------------------------------------------------------------------------------------------------------
     # Methods
     # -----------------------------------------------------------------------------------------------------------------
+            
+    def copy(self):
+        """
+        Make a copy of the stacked coordinates.
+
+        Returns
+        -------
+        :class:`StackedCoordinates`
+            Copy of the stacked coordinates, with provided properties and name.
+        """
+
+        return StackedCoordinates(self._coords)
 
     def intersect(self, other, outer=False, return_indices=False):
         """

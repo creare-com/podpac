@@ -71,11 +71,9 @@ def clinspace(start, stop, size, name=None):
     # so we have to explicitly check for sizes of start and stop (see above)
     a = np.array([start, stop])
     if a.ndim == 2:
-        c = StackedCoordinates([UniformCoordinates1d(start[i], stop[i], size=size) for i in range(a[0].size)])
+        cs = [UniformCoordinates1d(start[i], stop[i], size=size) for i in range(a[0].size)]
+        c = StackedCoordinates(cs, name=name)
     else:
-        c = UniformCoordinates1d(start, stop, size=size)
+        c = UniformCoordinates1d(start, stop, size=size, name=name)
 
-    if name is not None:
-        c.name = name
-        
     return c

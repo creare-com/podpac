@@ -107,7 +107,7 @@ class Coordinates1d(BaseCoordinates):
         if isinstance(val, np.ndarray):
             if val.size != self.size:
                 raise ValueError("coordinates and segment_lengths size mismatch, %d != %d" % (self.size, val.size))
-            if not np.issubdtype(val.dtype, self.deltatype):
+            if not np.issubdtype(val.dtype, np.dtype(self.deltatype).type):
                 raise ValueError("coordinates and segment_lengths dtype mismatch, %s != %s" % (self.dtype, self.deltatype))
 
         else:
@@ -123,6 +123,35 @@ class Coordinates1d(BaseCoordinates):
     def _default_coord_ref_sys(self):
         return settings['DEFAULT_COORD_REF_SYS']
 
+    def _set_name(self, value):
+        # set name if it is not set already, otherwise check that it matches
+        if 'name' not in self._properties:
+            self.name = value
+        elif self.name != value:
+            raise ValueError("Dimension mismatch, %s != %s" % (value, self.name))
+
+    def _set_coord_ref_sys(self, value):
+        # set name if it is not set already, otherwise check that it matches
+        if 'coord_ref_sys' not in self._properties:
+            self.set_trait('coord_ref_sys', value)
+
+        elif self.coord_ref_sys != value:
+            raise ValueError("coord_ref_sys mismatch, %s != %s" % (value, self.coord_ref_sys))
+
+    def _set_ctype(self, value):
+        # only set ctype if it is not set already
+        if 'ctype' not in self._properties:
+            self.set_trait('ctype', value)
+
+    def _set_distance_units(self, value):
+        # only set units if it is not set already
+        if self.name in ['lat', 'lon', 'alt'] and 'units' not in self._properties:
+            self.set_trait('units', value)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # standard methods
+    # ------------------------------------------------------------------------------------------------------------------
+    
     def __repr__(self):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
             self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)
@@ -136,9 +165,8 @@ class Coordinates1d(BaseCoordinates):
             if name == 'segment_lengths':
                 if not np.all(self.segment_lengths == other.segment_lengths):
                     return False
-                continue
 
-            if getattr(self, name) != getattr(other, name):
+            elif getattr(self, name) != getattr(other, name):
                 return False
         
         # shortcuts (not strictly necessary)
@@ -147,9 +175,6 @@ class Coordinates1d(BaseCoordinates):
                 return False
 
         return True
-
-    def from_definition(self, d):
-        raise NotImplementedError
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -378,15 +403,17 @@ class Coordinates1d(BaseCoordinates):
         if not isinstance(other, (BaseCoordinates, Coordinates)):
             raise TypeError("Cannot intersect with type '%s'" % type(other))
 
+            
         # extract the Coordinates1d object (or short-circuit) if necessary
         if isinstance(other, (Coordinates, StackedCoordinates, DependentCoordinates)):
             if self.name not in other.udims:
                 return self._select_full(return_indices)
             other = other[self.name]
-
-        # check for compatibility
+        
         if self.name != other.name:
-            raise ValueError("Cannot intersect mismatched dimensions ('%s' != '%s')" % (self.name, other.name))
+            return self._select_full(return_indices)
+            
+        # check for compatibility
         if self.dtype is not None and other.dtype is not None and self.dtype != other.dtype:
             raise ValueError("Cannot intersect mismatched dtypes ('%s' != '%s')" % (self.dtype, other.dtype))
         if self.units != other.units:

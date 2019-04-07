@@ -6,8 +6,11 @@ class TestCoordinates1d(object):
     def test_common_api(self):
         c = Coordinates1d(name='lat')
 
-        attrs = ['name', 'units', 'coord_ref_sys', 'ctype', 'segment_lengths', 'is_monotonic', 'is_descending', 'is_uniform',
-                 'dims', 'udims', 'properties', 'coordinates', 'dtype', 'size', 'bounds', 'area_bounds', 'definition']
+        attrs = ['name', 'units', 'coord_ref_sys', 'ctype', 'segment_lengths',
+                 'is_monotonic', 'is_descending', 'is_uniform',
+                 'dims', 'idims', 'udims', 'shape', 'size', 'dtype', 'deltatype',
+                 'bounds', 'area_bounds', 'coords',
+                 'properties', 'definition']
 
         for attr in attrs:
             try:

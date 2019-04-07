@@ -177,16 +177,16 @@ class TestCoordinateCreation(object):
             # this doesn't work because lat and lon are not named BaseCoordinates/xarray objects
             Coordinates([lat, lon])
 
-        with pytest.raises(ValueError, match="Duplicate dimension name"):
+        with pytest.raises(ValueError, match="Duplicate dimension"):
             Coordinates([lat, lon], dims=['lat', 'lat'])
 
-        with pytest.raises(ValueError, match="Duplicate dimension name"):
+        with pytest.raises(ValueError, match="Duplicate dimension"):
             Coordinates([[lat, lon], lon], dims=['lat_lon', 'lat'])
 
     def test_dims_mismatch(self):
         c1d = ArrayCoordinates1d([0, 1, 2], name='lat')
 
-        with pytest.raises(ValueError, match="Dimension name mismatch"):
+        with pytest.raises(ValueError, match="Dimension mismatch"):
             Coordinates([c1d], dims=['lon'])
 
     def test_invalid_coords(self):
@@ -478,7 +478,7 @@ class TestCoordinatesDict(object):
         with pytest.raises(KeyError, match="Cannot set dimension"):
             coords['alt'] = ArrayCoordinates1d([1, 2, 3], name='lat')
         
-        with pytest.raises(ValueError, match="Dimension name mismatch"):
+        with pytest.raises(ValueError, match="Dimension mismatch"):
             coords['time'] = ArrayCoordinates1d([1, 2, 3], name='alt')
 
         with pytest.raises(ValueError, match="coord_ref_sys mismatch"):
@@ -548,7 +548,7 @@ class TestCoordinatesDict(object):
         # duplicate dimension
         coords = deepcopy(self.coords)
         c = Coordinates([[0, 0.1, 0.2]], dims=['lat'])
-        with pytest.raises(ValueError, match="Duplicate dimension name 'lat'"):
+        with pytest.raises(ValueError, match="Duplicate dimension 'lat'"):
             coords.update(c)
 
     def test_len(self):
@@ -775,10 +775,10 @@ def test_merge_dims():
     c = merge_dims([ctime, clatlon_stacked])
     assert c.dims == ('time', 'lat_lon')
 
-    with pytest.raises(ValueError, match="Duplicate dimension name 'lat'"):
+    with pytest.raises(ValueError, match="Duplicate dimension 'lat'"):
         merge_dims([clatlon, clat])
     
-    with pytest.raises(ValueError, match="Duplicate dimension name 'lat'"):
+    with pytest.raises(ValueError, match="Duplicate dimension 'lat'"):
         merge_dims([clatlon_stacked, clat])
 
     with pytest.raises(TypeError, match="Cannot merge"):
@@ -798,7 +798,7 @@ def test_concat_and_union():
     with pytest.raises(TypeError, match="Cannot concat"):
         concat([c1, [1, 2]])
 
-    with pytest.raises(ValueError, match="Duplicate dimension name 'lat' in dims"):
+    with pytest.raises(ValueError, match="Duplicate dimension 'lat' in dims"):
         concat([c1, c3])
 
 def test_concat_stacked_datetimes():

@@ -22,6 +22,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [np.nan, np.nan])
         assert c.size == 0
+        assert c.shape == (0,)
         assert c.dtype is None
         assert c.ctype == 'point'
         assert c.is_monotonic is None
@@ -35,6 +36,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [10.0, 10.0])
         assert c.size == 1
+        assert c.shape == (1,)
         assert c.dtype == float
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -50,6 +52,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == float
         assert c.ctype == 'point'
         assert c.is_monotonic == False
@@ -64,6 +67,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == float
         assert c.ctype == 'midpoint'
         assert c.is_monotonic == True
@@ -78,6 +82,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == float
         assert c.ctype == 'midpoint'
         assert c.is_monotonic == True
@@ -92,6 +97,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == float
         assert c.ctype == 'midpoint'
         assert c.is_monotonic == True
@@ -106,6 +112,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == float
         assert c.ctype == 'midpoint'
         assert c.is_monotonic == True
@@ -119,6 +126,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2018-01-01', '2018-01-01']).astype(np.datetime64))
         assert c.size == 1
+        assert c.shape == (1,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -134,6 +142,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == False
@@ -148,6 +157,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -162,6 +172,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -176,6 +187,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 3
+        assert c.shape == (3,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -190,6 +202,7 @@ class TestArrayCoordinatesInit(object):
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 3
+        assert c.shape == (3,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -607,6 +620,13 @@ class TestArrayCoordinatesProperties(object):
         assert isinstance(c.properties, dict)
         assert set(c.properties) == {'segment_lengths'}
 
+    def test_coords(self):
+        c = ArrayCoordinates1d([1, 2], name='lat')
+        coords = c.coords
+        assert isinstance(coords, dict)
+        assert set(coords) == {'lat'}
+        assert_equal(coords['lat'], c.coordinates)
+
 class TestArrayCoordinatesIndexing(object):
     def test_len(self):
         c = ArrayCoordinates1d([])
@@ -959,6 +979,15 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
+    def test_select_dict(self):
+        c = ArrayCoordinates1d([20., 40., 60., 10., 90., 50.], name='lat')
+
+        s = c.select({'lat': [30., 55.]})
+        assert_equal(s.coordinates, [40., 50.])
+
+        s = c.select({'lon': [30., 55]})
+        assert_equal(s.coordinates, c.coordinates)
+
 class TestArrayCoordinatesIntersection(object):
     def test_intersect_invalid(self):
         a = ArrayCoordinates1d([20., 50., 60., 10.], ctype='point')
@@ -974,8 +1003,11 @@ class TestArrayCoordinatesIntersection(object):
         a = ArrayCoordinates1d([20., 50., 60., 10.], name='lat')
         b = ArrayCoordinates1d([55., 65., 95., 45.], name='lon')
 
-        with pytest.raises(ValueError, match="Cannot intersect mismatched dimensions"):
-            a.intersect(b)
+        ab = a.intersect(b)
+        assert_equal(ab.coordinates, a.coordinates)
+
+        ba = b.intersect(a)
+        assert_equal(ba.coordinates, b.coordinates)
 
     def test_intersect_dtype_mismatch(self):
         a = ArrayCoordinates1d([1., 2., 3., 4.], name='time')

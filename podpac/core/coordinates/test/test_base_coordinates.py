@@ -5,7 +5,7 @@ class TestBaseCoordinates(object):
     def test_common_api(self):
         c = BaseCoordinates()
 
-        attrs = ['name', 'dims', 'udims', 'coordinates', 'size', 'definition']
+        attrs = ['name', 'dims', 'idims', 'udims', 'coordinates', 'coords', 'size', 'shape', 'definition']
         for attr in attrs:
             try:
                 getattr(c, attr)

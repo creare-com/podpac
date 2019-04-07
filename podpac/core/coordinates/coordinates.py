@@ -107,19 +107,30 @@ class Coordinates(tl.HasTraits):
         dcoords = OrderedDict()
         for i, dim in enumerate(dims):
             if dim in dcoords:
-                raise ValueError("Duplicate dimension name '%s' at position %d" % (dim, i))
+                raise ValueError("Duplicate dimension '%s' at position %d" % (dim, i))
 
+            # coerce
             if isinstance(coords[i], BaseCoordinates):
                 c = coords[i]
             elif '_' in dim:
-                cs = [val if isinstance(val, Coordinates1d) else ArrayCoordinates1d(val) for val in coords[i]]
-                c = StackedCoordinates(cs)
+                c = StackedCoordinates(coords[i])
+            elif ',' in dim:
+                c = DependentCoordinates(coords[i])
             else:
                 c = ArrayCoordinates1d(coords[i])
 
+            # propagate properties and name
+            c._set_name(dim)
+            if coord_ref_sys is not None:
+                c._set_coord_ref_sys(coord_ref_sys)
+            if ctype is not None:
+                c._set_ctype(ctype)
+            if distance_units is not None:
+                c._set_distance_units(distance_units)
+            
+            # set coords
             dcoords[dim] = c
-            self._set_properties(c, dim, ctype, distance_units, coord_ref_sys, i)
-        
+            
         self.set_trait('_coords', dcoords)
         super(Coordinates, self).__init__()
 
@@ -132,12 +143,12 @@ class Coordinates(tl.HasTraits):
 
         for dim, c in val.items():
             if dim != c.name:
-                raise ValueError("Dimension name mismatch, '%s' != '%s'" % (dim, c.name))
+                raise ValueError("Dimension mismatch, '%s' != '%s'" % (dim, c.name))
 
         dims = [dim for c in val.values() for dim in c.dims]
         for dim in dims:
             if dims.count(dim) != 1:
-                raise ValueError("Duplicate dimension name '%s' in dims %s" % (dim, tuple(val.keys())))
+                raise ValueError("Duplicate dimension '%s' in dims %s" % (dim, tuple(val.keys())))
 
         crs = list(val.values())[0].coord_ref_sys
         for i, c in enumerate(val.values()):
@@ -145,36 +156,6 @@ class Coordinates(tl.HasTraits):
                 raise ValueError("coord_ref_sys mismatch '%s' != '%s' at pos %d" % (c.coord_ref_sys, crs, i))
 
         return val
-
-    def _set_properties(self, c, name, ctype, distance_units, coord_ref_sys, pos):
-        if isinstance(c, StackedCoordinates):
-            cs = list(c)
-            names = name.split('_')
-        else:
-            cs = [c]
-            names = [name]
-
-        for c, name in zip(cs, names):
-            # set or check the coord_ref_sys
-            if coord_ref_sys is not None:
-                if 'coord_ref_sys' not in c.properties:
-                    c.set_trait('coord_ref_sys', coord_ref_sys)
-                elif coord_ref_sys != c.coord_ref_sys:
-                    raise ValueError("coord_ref_sys mismatch %s != %s at pos %d" % (coord_ref_sys, c.coord_ref_sys, pos))
-
-            # only set name, ctype, and units if they aren't already set
-            if name is not None and 'name' not in c.properties and not isinstance(c, DependentCoordinates):
-                c.name = name
-            if ctype is not None and 'ctype' not in c.properties:
-                if isinstance(c, DependentCoordinates):
-                    c.set_trait('ctypes', tuple(ctype for dim in c.dims))
-                else:
-                    c.set_trait('ctype', ctype)
-            if distance_units is not None and 'units' not in c.properties:
-                if isinstance(c, DependentCoordinates) and ('lat' in c.dims or 'alt' in c.dims or 'lon' in c.dims):
-                    c.set_trait('units', tuple(distance_units for dim in c.dims))
-                elif c.name in ['lat', 'lon', 'alt']:
-                    c.set_trait('units', distance_units)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors

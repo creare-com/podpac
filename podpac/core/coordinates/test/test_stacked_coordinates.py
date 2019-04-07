@@ -78,12 +78,18 @@ class TestStackedCoordinatesCreation(object):
         assert c['lon'].units is units
         assert c['time'].units is not units
 
-    def test_StackedCoordinates(self):
-        lat = ArrayCoordinates1d([0, 1, 2], name='lat')
-        lon = ArrayCoordinates1d([10, 20, 30], name='lon')
-        c = StackedCoordinates([lat, lon])
-        c2 = StackedCoordinates(c)
-
+    def test_coercion_with_dims(self):
+        c = StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=['lat', 'lon'])
+        assert c.dims == ('lat', 'lon')
+        assert_equal(c['lat'].coordinates, [0, 1, 2])
+        assert_equal(c['lon'].coordinates, [10, 20, 30])
+        
+    def test_coercion_with_name(self):
+        c = StackedCoordinates([[0, 1, 2], [10, 20, 30]], name='lat_lon')
+        assert c.dims == ('lat', 'lon')
+        assert_equal(c['lat'].coordinates, [0, 1, 2])
+        assert_equal(c['lon'].coordinates, [10, 20, 30])
+        
     def test_invalid_coords(self):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')
         lon = ArrayCoordinates1d([0, 1, 2, 3], name='lon')
@@ -98,14 +104,15 @@ class TestStackedCoordinatesCreation(object):
         with pytest.raises(ValueError, match="Size mismatch in stacked coords"):
             StackedCoordinates([lat, lon])
 
-        with pytest.raises(ValueError, match="Duplicate dimension name"):
+        with pytest.raises(ValueError, match="Duplicate dimension"):
             StackedCoordinates([lat, lat])
 
         # but duplicate None name is okay
         StackedCoordinates([c, c])
 
-        with pytest.raises(TypeError, match='Invalid coordinates'):
-            StackedCoordinates([[0, 1, 2], [10, 20, 30]])
+        # dims and name
+        with pytest.raises(TypeError):
+            StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=['lat', 'lon'], name='lat_lon')
 
     def test_from_xarray(self):
         lat = ArrayCoordinates1d([0, 1, 2], name='lat')
@@ -181,27 +188,71 @@ class TestStackedCoordinatesSerialization(object):
             StackedCoordinates.from_definition([{'apple': 10}, {}])
 
 class TestStackedCoordinatesProperties(object):
-    def test_set_name(self):
+    def test_set_dims(self):
         lat = ArrayCoordinates1d([0, 1, 2])
         lon = ArrayCoordinates1d([10, 20, 30])
         time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'])
         c = StackedCoordinates([lat, lon, time])
-        c.name = 'lat_lon_time'
+        c._set_dims(['lat', 'lon', 'time'])
 
         assert c.dims == ('lat', 'lon', 'time')
-        assert c.udims == ('lat', 'lon', 'time')
-        assert c.name == 'lat_lon_time'
-        
-        # also sets the Coordinates1d objects:
         assert lat.name == 'lat'
         assert lon.name == 'lon'
         assert time.name == 'time'
 
-        with pytest.raises(ValueError, match="Invalid name"):
-            c.name = 'lat_lon'
+        # some can already be set
+        lat = ArrayCoordinates1d([0, 1, 2])
+        lon = ArrayCoordinates1d([10, 20, 30])
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'], name='time')
+        c = StackedCoordinates([lat, lon, time])
+        c._set_dims(['lat', 'lon', 'time'])
 
-        with pytest.raises(ValueError, match="Duplicate dimension name"):
-            c.name = 'lat_lat_time'
+        assert c.dims == ('lat', 'lon', 'time')
+        assert lat.name == 'lat'
+        assert lon.name == 'lon'
+        assert time.name == 'time'
+
+        # but they have to match
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'])
+        c = StackedCoordinates([lat, lon, time])
+        with pytest.raises(ValueError, match="Dimension mismatch"):
+            c._set_dims(['lon', 'lat', 'time'])
+
+        # invalid dims
+        lat = ArrayCoordinates1d([0, 1, 2])
+        lon = ArrayCoordinates1d([10, 20, 30])
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'])
+        c = StackedCoordinates([lat, lon, time])
+        with pytest.raises(ValueError, match="Invalid dims"):
+            c._set_dims(['lat', 'lon'])
+
+        # duplicate dims
+        lat = ArrayCoordinates1d([0, 1, 2])
+        lon = ArrayCoordinates1d([10, 20, 30])
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'])
+        c = StackedCoordinates([lat, lon, time])
+        with pytest.raises(ValueError, match="Duplicate dimension"):
+            c._set_dims(['lat', 'lat', 'time'])
+
+    def test_set_name(self):
+        # note: mostly tested by test_set_dims
+        lat = ArrayCoordinates1d([0, 1, 2])
+        lon = ArrayCoordinates1d([10, 20, 30])
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'])
+        c = StackedCoordinates([lat, lon, time])
+        
+        c._set_name('lat_lon_time')
+        assert c.name == 'lat_lon_time'
+
+        # invalid
+        lat = ArrayCoordinates1d([0, 1, 2])
+        lon = ArrayCoordinates1d([10, 20, 30])
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'])
+        c = StackedCoordinates([lat, lon, time])
+        with pytest.raises(ValueError, match="Invalid name"):
+            c._set_name('lat_lon')
 
     def test_size(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3])
@@ -305,10 +356,100 @@ class TestStackedCoordinatesIndexing(object):
         assert len(c) == 3
 
 class TestStackedCoordinatesSelection(object):
-    def test_intersect(self):
-        # TODO going to test Coordinates intersect first
-        pass
+    def test_select_single(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
+        c = StackedCoordinates([lat, lon, time])
 
-    @pytest.mark.skip(reason="not yet implemented")
-    def test_select(self):
-        pass
+        # single dimension
+        s = c.select({'lat': [0.5, 2.5]})
+        assert s == c[1:3]
+
+        s, I = c.select({'lat': [0.5, 2.5]}, return_indices=True)
+        assert s == c[I]
+        assert s == c[1:3]
+
+        # a different single dimension
+        s = c.select({'lon': [5, 25]})
+        assert s == c[0:2]
+
+        s, I = c.select({'lon': [5, 25]}, return_indices=True)
+        assert s == c[I]
+        assert s == c[0:2]
+
+        # outer
+        s = c.select({'lat': [0.5, 2.5]}, outer=True)
+        assert s == c[0:4]
+
+        s, I = c.select({'lat': [0.5, 2.5]}, outer=True, return_indices=True)
+        assert s == c[I]
+        assert s == c[0:4]
+
+        # no matching dimension
+        s = c.select({'alt': [0, 10]})
+        assert s == c
+
+        s, I = c.select({'alt': [0, 10]}, return_indices=True)
+        assert s == c[I]
+        assert s == c
+
+    def test_select_multiple(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
+        c = StackedCoordinates([lat, lon])
+
+        # this should be the AND of both intersections
+        slat = c.select({'lat': [0.5, 3.5]})
+        slon = c.select({'lon': [25, 55]})
+        s = c.select({'lat': [0.5, 3.5], 'lon': [25, 55]})
+        assert slat == c[1:4]
+        assert slon == c[2:5]
+        assert s == c[2:4]
+        
+        s, I = c.select({'lat': [0.5, 3.5], 'lon': [25, 55]}, return_indices=True)
+        assert s == c[2:4]
+        assert s == c[I]
+
+    def test_intersect(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
+        c = StackedCoordinates([lat, lon])
+
+        other_lat = ArrayCoordinates1d([0.5, 2.5, 3.5], name='lat')
+        other_lon = ArrayCoordinates1d([25, 35, 55], name='lon')
+
+        # single other
+        s = c.intersect(other_lat)
+        assert s == c[1:4]
+
+        s = c.intersect(other_lat, outer=True)
+        assert s == c[0:5]
+
+        s, I = c.intersect(other_lat, return_indices=True)
+        assert s == c[1:4]
+        assert s == c[I]
+
+        s = c.intersect(other_lon)
+        assert s == c[2:5]
+
+        # stacked other
+        other = StackedCoordinates([other_lat, other_lon])
+        s = c.intersect(other)
+        assert s == c[2:4]
+
+        other = StackedCoordinates([other_lon, other_lat])
+        s = c.intersect(other)
+        assert s == c[2:4]
+
+        # coordinates other
+        from podpac.coordinates import Coordinates
+        other = Coordinates([other_lat, other_lon])
+        s = c.intersect(other)
+        assert s == c[2:4]
+
+    def test_intersect_multiple(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
+        c = StackedCoordinates([lat, lon])
+

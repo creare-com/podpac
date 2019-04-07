@@ -13,7 +13,7 @@ from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import Dimension, CoordinateType, CoordinateReferenceSystem
 from podpac.core.coordinates.utils import make_coord_array, make_coord_value, make_coord_delta
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
-from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d, ArrayCoordinatesNd
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 class DependentCoordinates(BaseCoordinates):
@@ -32,20 +32,13 @@ class DependentCoordinates(BaseCoordinates):
         coordinates = [np.array(a) for a in coordinates]
         coordinates = [make_coord_array(a.flatten()).reshape(a.shape) for a in coordinates]
         self.set_trait('coordinates', coordinates)
-        self._set_properties(dims, coord_ref_sys, units, ctypes, segment_lengths)
-
-    def _set_properties(self, dims, coord_ref_sys, units, ctypes, segment_lengths):
         self.set_trait('dims', dims)
         if coord_ref_sys is not None:
             self.set_trait('coord_ref_sys', coord_ref_sys)
         if units is not None:
-            if isinstance(units, Units):
-                units = tuple(units for dim in self.dims)
-            self.set_trait('units', units)
+            self.set_units(units)
         if ctypes is not None:
-            if isinstance(ctypes, str):
-                ctypes = tuple(ctypes for dim in self.dims)
-            self.set_trait('ctypes', ctypes)
+            self.set_ctype(ctypes)
         if segment_lengths is not None:
             if isinstance(segment_lengths, numbers.Number):
                 segment_lengths = tuple(segment_lengths for dim in self.dims)
@@ -112,6 +105,39 @@ class DependentCoordinates(BaseCoordinates):
     @tl.observe('dims', 'idims', 'ctypes', 'units', 'coord_ref_sys', 'segment_lengths')
     def _set_property(self, d):
         self._properties.add(d['name'])
+
+    def _set_name(self, value):
+        # only check, don't set at all
+        if self.name != value:
+            raise ValueError("%s name mismatch, %s != %s" % (self.__class__.__name__, value, self.name))
+
+    def _set_coord_ref_sys(self, value):
+        # set name if it is not set already, otherwise check that it matches
+        if 'coord_ref_sys' not in self._properties:
+            self.set_trait('coord_ref_sys', value)
+
+        elif self.coord_ref_sys != value:
+            raise ValueError("%s coord_ref_sys mismatch, %s != %s" % (
+                self.__class__.__name__, value, self.coord_ref_sys))
+    
+    def _set_ctype(self, value):
+        # only set ctypes if they are not set already
+        if 'ctypes' not in properties:
+            if isinstance(value, six.string_types):
+                self.set_trait('ctypes', tuple(ctype for dim in self.dims))
+            else:
+                self.set_trait('ctypes', value)
+
+    def _set_units(self, value):
+        # only set units if is not not set already
+        if 'units' not in properties:
+            if isinstance(value, Units):
+                self.set_trait('units', tuple(units for dim in self.dims))
+            else:
+                self.set_trait('units', units)
+
+    def _set_distance_units(self, value):
+        self.set_units([value if dim in ['lat', 'lon', 'alt'] else None for dim in self.dims])
 
     # ------------------------------------------------------------------------------------------------------------------
     # Serialization
@@ -217,10 +243,6 @@ class DependentCoordinates(BaseCoordinates):
     def name(self):
         return '%s' % ','.join(self.dims)
 
-    @name.setter
-    def name(self, value):
-        self.set_trait('dims', value.split(','))
-
     @property
     def udims(self):
         return self.dims
@@ -238,16 +260,6 @@ class DependentCoordinates(BaseCoordinates):
         return len(self.coordinates)
 
     @property
-    def coords(self):
-        return dict(zip(self.dims, self.coordinates))
-
-    @property
-    def properties(self):
-        """:dict: Dictionary of the coordinate properties. """
-
-        return {key:getattr(self, key) for key in self._properties}
-
-    @property
     def bounds(self):
         """:dict: Dictionary of (low, high) coordinates bounds in each unstacked dimension"""
         return {dim: self[dim].bounds for dim in self.dims}
@@ -256,6 +268,16 @@ class DependentCoordinates(BaseCoordinates):
     def area_bounds(self):
         """:dict: Dictionary of (low, high) coordinates area_bounds in each unstacked dimension"""
         return {dim: self[dim].area_bounds for dim in self.dims}
+
+    @property
+    def coords(self):
+        return dict(zip(self.dims, self.coordinates))
+
+    @property
+    def properties(self):
+        """:dict: Dictionary of the coordinate properties. """
+
+        return {key:getattr(self, key) for key in self._properties}
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -334,3 +356,58 @@ class DependentCoordinates(BaseCoordinates):
         pyplot.xlabel(self.dims[0])
         pyplot.ylabel(self.dims[1])
         pyplot.axis('equal')
+
+class ArrayCoordinatesNd(ArrayCoordinates1d):
+    """
+    Partial implementation for internal use.
+    
+    Provides name, dtype, units, size, bounds, area_bounds (and others).
+    Prohibits coords, intersect, select (and others).
+
+    Used primarily for intersection with DependentCoordinates.
+    """
+
+    coordinates = ArrayTrait(read_only=True)
+
+    def __init__(self, coordinates,
+                       name=None, ctype=None, units=None, segment_lengths=None, coord_ref_sys=None):
+
+        self.set_trait('coordinates', coordinates)
+        self._is_monotonic = None
+        self._is_descending = None
+        self._is_uniform = None
+
+        Coordinates1d.__init__(self,
+            name=name, ctype=ctype, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
+
+    def __repr__(self):
+        return "%s(%s): Bounds[%s, %s], shape%s, ctype['%s']" % (
+            self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.shape, self.ctype)
+
+    @property
+    def shape(self):
+        return self.coordinates.shape
+
+    # Restricted methods and properties
+
+    @classmethod
+    def from_xarray(cls, x):
+        raise RuntimeError("ArrayCoordinatesNd from_xarray is unavailable.")
+
+    @classmethod
+    def from_definition(cls, d):
+        raise RuntimeError("ArrayCoordinatesNd from_definition is unavailable.")
+
+    @property
+    def definition(self):
+        raise RuntimeError("ArrayCoordinatesNd definition is unavailable.")
+
+    @property
+    def coords(self):
+        raise RuntimeError("ArrayCoordinatesNd coords is unavailable.")
+
+    def intersect(self, other, outer=False, return_indices=False):
+        raise RuntimeError("ArrayCoordinatesNd intersect is unavailable.")
+
+    def select(self, bounds, outer=False, return_indices=False):
+        raise RuntimeError("ArrayCoordinatesNd select is unavailable.")
