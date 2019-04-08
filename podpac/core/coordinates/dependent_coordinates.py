@@ -6,6 +6,7 @@ import numpy as np
 import traitlets as tl
 import lazy_import
 from six import string_types
+import numbers
 
 from podpac.core.settings import settings
 from podpac.core.units import Units
@@ -13,6 +14,7 @@ from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import Dimension, CoordinateType, CoordinateReferenceSystem
 from podpac.core.coordinates.utils import make_coord_array, make_coord_value, make_coord_delta
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
+from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
@@ -34,17 +36,15 @@ class DependentCoordinates(BaseCoordinates):
         self.set_trait('coordinates', coordinates)
         self.set_trait('dims', dims)
         if coord_ref_sys is not None:
-            self.set_trait('coord_ref_sys', coord_ref_sys)
+            self._set_coord_ref_sys(coord_ref_sys)
         if units is not None:
-            self.set_units(units)
+            self._set_units(units)
         if ctypes is not None:
-            self.set_ctype(ctypes)
+            self._set_ctype(ctypes)
         if segment_lengths is not None:
-            if isinstance(segment_lengths, numbers.Number):
-                segment_lengths = tuple(segment_lengths for dim in self.dims)
-            segment_lengths = tuple(make_coord_delta(sl) for sl in segment_lengths)
-            self.set_trait('segment_lengths', segment_lengths)
-        self.segment_lengths # force validation
+            self._set_segment_lengths(segment_lengths)
+        else:
+            self.segment_lengths # force validation
 
     @tl.default('idims')
     def _default_idims(self):
@@ -52,7 +52,7 @@ class DependentCoordinates(BaseCoordinates):
 
     @tl.default('ctypes')
     def _default_ctype(self):
-        return tuple('midpoint' for dim in self.dims)
+        return tuple('point' for dim in self.dims)
 
     @tl.default('segment_lengths')
     def _default_segment_lengths(self):
@@ -78,7 +78,7 @@ class DependentCoordinates(BaseCoordinates):
     def _validate_dims(self, d):
         val = self._validate_sizes(d)
         if len(set(val)) != len(val):
-            raise ValueError("Duplicate dimension in dims list %s" % val)
+            raise ValueError("Duplicate dimension in dims list %s" % (val,))
         return val
 
     @tl.validate('segment_lengths')
@@ -109,7 +109,7 @@ class DependentCoordinates(BaseCoordinates):
     def _set_name(self, value):
         # only check, don't set at all
         if self.name != value:
-            raise ValueError("%s name mismatch, %s != %s" % (self.__class__.__name__, value, self.name))
+            raise ValueError("Dimension mismatch, %s != %s" % (value, self.name))
 
     def _set_coord_ref_sys(self, value):
         # set name if it is not set already, otherwise check that it matches
@@ -122,22 +122,29 @@ class DependentCoordinates(BaseCoordinates):
     
     def _set_ctype(self, value):
         # only set ctypes if they are not set already
-        if 'ctypes' not in properties:
-            if isinstance(value, six.string_types):
-                self.set_trait('ctypes', tuple(ctype for dim in self.dims))
+        if 'ctypes' not in self._properties:
+            if isinstance(value, string_types):
+                self.set_trait('ctypes', tuple(value for dim in self.dims))
             else:
                 self.set_trait('ctypes', value)
 
     def _set_units(self, value):
         # only set units if is not not set already
-        if 'units' not in properties:
+        if 'units' not in self._properties:
             if isinstance(value, Units):
-                self.set_trait('units', tuple(units for dim in self.dims))
+                self.set_trait('units', tuple(value for dim in self.dims))
             else:
-                self.set_trait('units', units)
+                self.set_trait('units', value)
 
     def _set_distance_units(self, value):
-        self.set_units([value if dim in ['lat', 'lon', 'alt'] else None for dim in self.dims])
+        if 'units' not in self._properties:
+            self.set_trait('units', [value if dim in ['lat', 'lon', 'alt'] else None for dim in self.dims])
+
+    def _set_segment_lengths(self, value):
+        if isinstance(value, numbers.Number):
+            value = tuple(value for dim in self.dims)
+        value = tuple(make_coord_delta(sl) if sl is not None else None for sl in value)
+        self.set_trait('segment_lengths', value)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Serialization
@@ -178,7 +185,7 @@ class DependentCoordinates(BaseCoordinates):
         return "%s(%s->%s): Bounds[%s, %s], shape%s, ctype[%s]" % (
             self.__class__.__name__, ','.join(self.idims), dim, c.bounds[0], c.bounds[1], self.shape, c.ctype)
 
-    def __eq__(self):
+    def __eq__(self, other):
         if not isinstance(other, DependentCoordinates):
             return False
 
@@ -192,13 +199,13 @@ class DependentCoordinates(BaseCoordinates):
                 return False
 
         # full coordinates check
-        if self.coordinates != other.coordinates:
+        if not np.array_equal(self.coordinates, other.coordinates):
             return False
 
         return True
 
     def __iter__(self):
-        return tuple(getattr(self, dim) for dim in self.dims)
+        return iter(self[dim] for dim in self.dims)
 
     def __getitem__(self, index):
         if isinstance(index, string_types):
@@ -271,7 +278,7 @@ class DependentCoordinates(BaseCoordinates):
 
     @property
     def coords(self):
-        return dict(zip(self.dims, self.coordinates))
+        return {dim: (self.idims, c) for dim, c in (zip(self.dims, self.coordinates))}
 
     @property
     def properties(self):

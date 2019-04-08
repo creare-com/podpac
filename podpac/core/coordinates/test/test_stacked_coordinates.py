@@ -262,6 +262,14 @@ class TestStackedCoordinatesProperties(object):
 
         assert c.size == 4
 
+    def test_shape(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3])
+        lon = ArrayCoordinates1d([10, 20, 30, 40])
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
+        c = StackedCoordinates([lat, lon, time])
+
+        assert c.shape == (4,)
+
     def test_coordinates(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
         lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
