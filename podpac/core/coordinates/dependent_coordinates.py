@@ -327,6 +327,9 @@ class DependentCoordinates(BaseCoordinates):
         Is = [self._within(a, bounds.get(dim), outer) for dim, a in zip(self.dims, self.coordinates)]
         I = np.logical_and.reduce(Is)
 
+        if np.all(I):
+            return self._select_all(return_indices)
+        
         if return_indices:
             return self[I], np.where(I)
         else:
@@ -343,12 +346,18 @@ class DependentCoordinates(BaseCoordinates):
         if outer:
             below = coordinates[coordinates <= lo]
             above = coordinates[coordinates >= hi]
-            lo = max(below) if below else -np.inf
-            hi = min(above) if above else  np.inf
+            lo = max(below) if below.size else -np.inf
+            hi = min(above) if above.size else  np.inf
         
         gt = coordinates >= lo
         lt = coordinates <= hi
         return gt & lt
+
+    def _select_all(self, return_indices):
+        if return_indices:
+            return self, slice(None)
+        else:
+            return self
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug

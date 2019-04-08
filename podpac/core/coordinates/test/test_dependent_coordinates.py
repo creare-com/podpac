@@ -10,8 +10,9 @@ import xarray as xr
 from numpy.testing import assert_equal
 
 import podpac
-from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
 from podpac.core.units import Units
+from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
+from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
 
 LAT = np.linspace(0, 1, 12).reshape((3, 4))
 LON = np.linspace(10, 20, 12).reshape((3, 4))
@@ -191,8 +192,6 @@ class TestDependentCoordinatesStandardMethods(object):
         assert c1 != c2
 
     def test_eq_dims_shortcut(self):
-        lat = np.linspace(0, 1, 12).reshape((3, 4))
-        lon = np.linspace(10, 20, 12).reshape((3, 4))
         c1 = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
         c2 = DependentCoordinates([LAT, LON], dims=['lon', 'lat'])
         assert c1 != c2
@@ -207,16 +206,8 @@ class TestDependentCoordinatesStandardMethods(object):
         assert c1 != c3
         assert c1 != c4
 
-    def test_iter(self):
-        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
-        a, b = iter(c)
-        assert a == c['lat']
-        assert b == c['lon']
-
 class TestDependentCoordinatesSerialization(object):
     def test_definition(self):
-        lat = np.linspace(0, 1, 12).reshape((3, 4))
-        lon = np.linspace(10, 20, 12).reshape((3, 4))
         c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
         d = c.definition
         
@@ -272,121 +263,174 @@ class TestStackedCoordinatesIndexing(object):
     def test_get_dim(self):
         c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
 
-        assert_equal(c['lat'].coordinates, LAT)
-        assert_equal(c['lon'].coordinates, LON)
+        lat = c['lat']
+        lon = c['lon']
+        assert isinstance(lat, ArrayCoordinatesNd)
+        assert isinstance(lon, ArrayCoordinatesNd)
+        assert lat.name == 'lat'
+        assert lon.name == 'lon'
+        assert_equal(lat.coordinates, LAT)
+        assert_equal(lon.coordinates, LON)
         
         with pytest.raises(KeyError, match="Cannot get dimension"):
             c['other']
 
-#     def test_get_index(self):
-#         lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
-#         lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
-#         time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
-#         c = StackedCoordinates([lat, lon, time])
+    def test_get_dim_with_properties(self):
+        c = DependentCoordinates(
+            [LAT, LON],
+            dims=['lat', 'lon'],
+            ctypes=['left', 'right'],
+            segment_lengths=[1.0, 2.0],
+            coord_ref_sys='SPHER_MERC',
+            units=[Units(), Units()])
 
-#         # integer index
-#         I = 0
-#         cI = c[I]
-#         assert isinstance(cI, StackedCoordinates)
-#         assert cI.size == 1
-#         assert cI.dims == c.dims
-#         assert_equal(cI['lat'].coordinates, c['lat'].coordinates[I])
+        lat = c['lat']
+        assert isinstance(lat, ArrayCoordinatesNd)
+        assert lat.name == c.dims[0]
+        assert lat.ctype == c.ctypes[0]
+        assert lat.segment_lengths == c.segment_lengths[0]
+        assert lat.units is c.units[0]
+        assert lat.coord_ref_sys == c.coord_ref_sys
+        assert lat.shape == c.shape
+        repr(lat)
 
-#         # index array
-#         I = [1, 2]
-#         cI = c[I]
-#         assert isinstance(cI, StackedCoordinates)
-#         assert cI.size == 2
-#         assert cI.dims == c.dims
-#         assert_equal(cI['lat'].coordinates, c['lat'].coordinates[I])
+        lon = c['lon']
+        assert isinstance(lon, ArrayCoordinatesNd)
+        assert lon.name == c.dims[1]
+        assert lon.ctype == c.ctypes[1]
+        assert lon.segment_lengths == c.segment_lengths[1]
+        assert lon.units is c.units[1]
+        assert lon.coord_ref_sys == c.coord_ref_sys
+        assert lon.shape == c.shape
+        repr(lon)
 
-#         # boolean array
-#         I = [False, True, True, False]
-#         cI = c[I]
-#         assert isinstance(cI, StackedCoordinates)
-#         assert cI.size == 2
-#         assert cI.dims == c.dims
-#         assert_equal(cI['lat'].coordinates, c['lat'].coordinates[I])
+        # rare
+        assert c._properties_at(index=0) == c._properties_at(dim='lat')
+        assert c._properties_at(index=1) == c._properties_at(dim='lon')
 
-#         # slice
-#         cI = c[1:3]
-#         assert isinstance(cI, StackedCoordinates)
-#         assert cI.size == 2
-#         assert cI.dims == c.dims
-#         assert_equal(cI['lat'].coordinates, c['lat'].coordinates[1:3])
+    def test_get_index(self):
+        lat = np.linspace(0, 1, 60).reshape((5, 4, 3))
+        lon = np.linspace(1, 2, 60).reshape((5, 4, 3))
+        c = DependentCoordinates([lat, lon], dims=['lat', 'lon'])
 
-#     def test_iter(self):
-#         lat = ArrayCoordinates1d([0, 1, 2, 3])
-#         lon = ArrayCoordinates1d([10, 20, 30, 40])
-#         time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
-#         c = StackedCoordinates([lat, lon, time])
+        I = [3, 1, 2]
+        J = slice(1, 3)
+        K = 1
+        B = lat > 0.5
 
-#         for item in c:
-#             assert isinstance(item, Coordinates1d)
+        # partial
+        c2 = c[I, J, K]
+        assert isinstance(c2, DependentCoordinates)
+        assert c2.shape == (3, 2)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, lat[I, J, K])
+        assert_equal(c2['lon'].coordinates, lon[I, J, K])
 
-#     def test_len(self):
-#         lat = ArrayCoordinates1d([0, 1, 2, 3])
-#         lon = ArrayCoordinates1d([10, 20, 30, 40])
-#         time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
-#         c = StackedCoordinates([lat, lon, time])
+        # implicit
+        c2 = c[I, J]
+        assert isinstance(c2, DependentCoordinates)
+        assert c2.shape == (3, 2, 3)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, lat[I, J])
+        assert_equal(c2['lon'].coordinates, lon[I, J])
 
-#         assert len(c) == 3
+        # boolean
+        c2 = c[B]
+        assert isinstance(c2, StackedCoordinates)
+        assert c2.shape == (30,)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, lat[B])
+        assert_equal(c2['lon'].coordinates, lon[B])
 
-# class TestStackedCoordinatesSelection(object):
-#     def test_select_single(self):
-#         lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
-#         lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
-#         time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
-#         c = StackedCoordinates([lat, lon, time])
+    def test_get_index_with_properties(self):
+        c = DependentCoordinates(
+            [LAT, LON],
+            dims=['lat', 'lon'],
+            ctypes=['left', 'right'],
+            segment_lengths=[1.0, 2.0],
+            coord_ref_sys='SPHER_MERC',
+            units=[Units(), Units()])
 
-#         # single dimension
-#         s = c.select({'lat': [0.5, 2.5]})
-#         assert s == c[1:3]
+        c2 = c[[1, 2]]
+        assert c2.ctypes == c.ctypes
+        assert c2.segment_lengths == c.segment_lengths
+        assert c2.units == c.units
+        assert c2.coord_ref_sys == c.coord_ref_sys
 
-#         s, I = c.select({'lat': [0.5, 2.5]}, return_indices=True)
-#         assert s == c[I]
-#         assert s == c[1:3]
+    def test_iter(self):
+        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
+        a, b = iter(c)
+        assert a == c['lat']
+        assert b == c['lon']
 
-#         # a different single dimension
-#         s = c.select({'lon': [5, 25]})
-#         assert s == c[0:2]
+class TestStackedCoordinatesSelection(object):
+    def test_select_single(self):
+        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
 
-#         s, I = c.select({'lon': [5, 25]}, return_indices=True)
-#         assert s == c[I]
-#         assert s == c[0:2]
-
-#         # outer
-#         s = c.select({'lat': [0.5, 2.5]}, outer=True)
-#         assert s == c[0:4]
-
-#         s, I = c.select({'lat': [0.5, 2.5]}, outer=True, return_indices=True)
-#         assert s == c[I]
-#         assert s == c[0:4]
-
-#         # no matching dimension
-#         s = c.select({'alt': [0, 10]})
-#         assert s == c
-
-#         s, I = c.select({'alt': [0, 10]}, return_indices=True)
-#         assert s == c[I]
-#         assert s == c
-
-#     def test_select_multiple(self):
-#         lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
-#         lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
-#         c = StackedCoordinates([lat, lon])
-
-#         # this should be the AND of both intersections
-#         slat = c.select({'lat': [0.5, 3.5]})
-#         slon = c.select({'lon': [25, 55]})
-#         s = c.select({'lat': [0.5, 3.5], 'lon': [25, 55]})
-#         assert slat == c[1:4]
-#         assert slon == c[2:5]
-#         assert s == c[2:4]
+        # single dimension
+        bounds = {'lat': [0.25, .55]}
+        E0, E1 = [0, 1, 1, 1], [3, 0, 1, 2] # expected
         
-#         s, I = c.select({'lat': [0.5, 3.5], 'lon': [25, 55]}, return_indices=True)
-#         assert s == c[2:4]
-#         assert s == c[I]
+        s = c.select(bounds)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[E0, E1]
+
+        s, I = c.select(bounds, return_indices=True)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[I]
+        assert_equal(I[0], E0)
+        assert_equal(I[1], E1)
+
+        # a different single dimension
+        bounds = {'lon': [12.5, 17.5]}
+        E0, E1 = [0, 1, 1, 1, 1, 2], [3, 0, 1, 2, 3, 0]
+        
+        s = c.select(bounds)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[E0, E1]
+
+        s, I = c.select(bounds, return_indices=True)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[I]
+        assert_equal(I[0], E0)
+        assert_equal(I[1], E1)
+
+        # outer
+        bounds = {'lat': [0.25, .75]}
+        E0, E1 = [0, 0, 1, 1, 1, 1, 2, 2], [2, 3, 0, 1, 2, 3, 0, 1]
+        
+        s = c.select(bounds, outer=True)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[E0, E1]
+
+        s, I = c.select(bounds, outer=True, return_indices=True)
+        assert isinstance(s, StackedCoordinates)
+        assert s == c[E0, E1]
+        assert_equal(I[0], E0)
+        assert_equal(I[1], E1)
+
+        # no matching dimension
+        bounds = {'alt': [0, 10]}
+        s = c.select(bounds)
+        assert s == c
+
+        s, I = c.select(bounds, return_indices=True)
+        assert s == c[I]
+        assert s == c
+
+    def test_select_multiple(self):
+        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
+
+        # this should be the AND of both intersections
+        bounds = {'lat': [0.25, 0.95], 'lon': [10.5, 17.5]}
+        E0, E1 = [0, 1, 1, 1, 1, 2], [3, 0, 1, 2, 3, 0]
+        s = c.select(bounds)
+        assert s == c[E0, E1]
+        
+        s, I = c.select(bounds, return_indices=True)
+        assert s == c[E0, E1]
+        assert_equal(I[0], E0)
+        assert_equal(I[1], E1)
 
 #     def test_intersect(self):
 #         lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
@@ -430,3 +474,24 @@ class TestStackedCoordinatesIndexing(object):
 #         lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
 #         c = StackedCoordinates([lat, lon])
 
+class TestArrayCoordinatesNd(object):
+    def test_unavailable(self):
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd from_definition is unavailable"):
+            ArrayCoordinatesNd.from_definition({})
+
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd from_xarray is unavailable"):
+            ArrayCoordinatesNd.from_xarray(xr.DataArray([]))
+        
+        a = ArrayCoordinatesNd([])
+
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd definition is unavailable"):
+            a.definition
+
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd coords is unavailable"):
+            a.coords
+
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd intersect is unavailable"):
+            a.intersect(a)
+
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd select is unavailable"):
+            a.select([0, 1])
