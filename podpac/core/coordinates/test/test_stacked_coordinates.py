@@ -295,6 +295,29 @@ class TestStackedCoordinatesProperties(object):
         c = StackedCoordinates([lat, lon], coord_ref_sys='SPHER_MERC')
         assert c.coord_ref_sys == 'SPHER_MERC'
 
+    def test_bounds(self):
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+        
+        c = StackedCoordinates([lat, lon], dims=['lat', 'lon'])
+        bounds = c.bounds
+        assert isinstance(bounds, dict)
+        assert set(bounds.keys()) == set(c.udims)
+        assert_equal(bounds['lat'], c['lat'].bounds)
+        assert_equal(bounds['lon'], c['lon'].bounds)
+
+    def test_area_bounds(self):
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+        dates = ['2018-01-01', '2018-01-02']
+
+        c = StackedCoordinates([lat, lon], dims=['lat', 'lon'])
+        area_bounds = c.area_bounds
+        assert isinstance(area_bounds, dict)
+        assert set(area_bounds.keys()) == set(c.udims)
+        assert_equal(area_bounds['lat'], c['lat'].area_bounds)
+        assert_equal(area_bounds['lon'], c['lon'].area_bounds)
+
 class TestStackedCoordinatesIndexing(object):
     def test_get_dim(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
@@ -315,28 +338,35 @@ class TestStackedCoordinatesIndexing(object):
         c = StackedCoordinates([lat, lon, time])
 
         # integer index
-        assert isinstance(c[0], StackedCoordinates)
-        assert c[0].size == 1
-        assert c[0].dims == c.dims
-        assert_equal(c[0]['lat'].coordinates, c['lat'].coordinates[0])
+        I = 0
+        cI = c[I]
+        assert isinstance(cI, StackedCoordinates)
+        assert cI.size == 1
+        assert cI.dims == c.dims
+        assert_equal(cI['lat'].coordinates, c['lat'].coordinates[I])
 
         # index array
-        assert isinstance(c[[1, 2]], StackedCoordinates)
-        assert c[[1, 2]].size == 2
-        assert c[[1, 2]].dims == c.dims
-        assert_equal(c[[1, 2]]['lat'].coordinates, c['lat'].coordinates[[1, 2]])
+        I = [1, 2]
+        cI = c[I]
+        assert isinstance(cI, StackedCoordinates)
+        assert cI.size == 2
+        assert cI.dims == c.dims
+        assert_equal(cI['lat'].coordinates, c['lat'].coordinates[I])
 
         # boolean array
-        assert isinstance(c[[False, True, True, False]], StackedCoordinates)
-        assert c[[False, True, True, False]].size == 2
-        assert c[[False, True, True, False]].dims == c.dims
-        assert_equal(c[[False, True, True, False]]['lat'].coordinates, c['lat'].coordinates[[False, True, True, False]])
+        I = [False, True, True, False]
+        cI = c[I]
+        assert isinstance(cI, StackedCoordinates)
+        assert cI.size == 2
+        assert cI.dims == c.dims
+        assert_equal(cI['lat'].coordinates, c['lat'].coordinates[I])
 
         # slice
-        assert isinstance(c[1:3], StackedCoordinates)
-        assert c[1:3].size == 2
-        assert c[1:3].dims == c.dims
-        assert_equal(c[1:3]['lat'].coordinates, c['lat'].coordinates[1:3])
+        cI = c[1:3]
+        assert isinstance(cI, StackedCoordinates)
+        assert cI.size == 2
+        assert cI.dims == c.dims
+        assert_equal(cI['lat'].coordinates, c['lat'].coordinates[1:3])
 
     def test_iter(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3])

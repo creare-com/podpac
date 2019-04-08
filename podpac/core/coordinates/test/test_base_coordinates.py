@@ -12,6 +12,13 @@ class TestBaseCoordinates(object):
             except NotImplementedError:
                 pass
 
+        for method_name in ['_set_name', '_set_coord_ref_sys', '_set_distance_units', '_set_ctype']:
+            try:
+                method = getattr(c, method_name)
+                method(None)
+            except NotImplementedError:
+                pass
+
         try:
             c.from_definition({})
         except NotImplementedError:

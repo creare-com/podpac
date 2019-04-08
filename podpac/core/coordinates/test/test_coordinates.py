@@ -426,6 +426,32 @@ class TestCoordinatesProperties(object):
         assert c.coord_ref_sys == 'SPHER_MERC'
         assert c.gdal_crs == 'EPSG:3857'
 
+    def test_bounds(self):
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+        dates = ['2018-01-01', '2018-01-02']
+
+        c = Coordinates([[lat, lon], dates], dims=['lat_lon', 'time'])
+        bounds = c.bounds
+        assert isinstance(bounds, dict)
+        assert set(bounds.keys()) == set(c.udims)
+        assert_equal(bounds['lat'], c['lat'].bounds)
+        assert_equal(bounds['lon'], c['lon'].bounds)
+        assert_equal(bounds['time'], c['time'].bounds)
+
+    def test_area_bounds(self):
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+        dates = ['2018-01-01', '2018-01-02']
+
+        c = Coordinates([[lat, lon], dates], dims=['lat_lon', 'time'])
+        area_bounds = c.area_bounds
+        assert isinstance(area_bounds, dict)
+        assert set(area_bounds.keys()) == set(c.udims)
+        assert_equal(area_bounds['lat'], c['lat'].area_bounds)
+        assert_equal(area_bounds['lon'], c['lon'].area_bounds)
+        assert_equal(area_bounds['time'], c['time'].area_bounds)
+
 class TestCoordinatesDict(object):
     coords = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
 
@@ -553,6 +579,46 @@ class TestCoordinatesDict(object):
 
     def test_len(self):
         assert len(self.coords) == 2
+
+class TestCoordinatesIndexing(object):
+    def test_get_index(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3, 5], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'], name='time')
+        c = Coordinates([lat, lon, time])
+
+        I = [2, 1, 3]
+        J = slice(1, 3)
+        K = 1
+        
+        # full
+        c2 = c[I, J, K]
+        assert isinstance(c2, Coordinates)
+        assert c2.shape == (3, 2, 1)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, c['lat'].coordinates[I])
+        assert_equal(c2['lon'].coordinates, c['lon'].coordinates[J])
+        assert_equal(c2['time'].coordinates, c['time'].coordinates[K])
+
+        # partial
+        c2 = c[I]
+        assert isinstance(c2, Coordinates)
+        assert c2.shape == (3, 4, 3)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, c['lat'].coordinates[I])
+        assert_equal(c2['lon'].coordinates, c['lon'].coordinates)
+        assert_equal(c2['time'].coordinates, c['time'].coordinates)
+
+        c2 = c[I, J]
+        assert isinstance(c2, Coordinates)
+        assert c2.shape == (3, 2, 3)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, c['lat'].coordinates[I])
+        assert_equal(c2['lon'].coordinates, c['lon'].coordinates[J])
+        assert_equal(c2['time'].coordinates, c['time'].coordinates)
+
+    def test_get_index_dependent(self):
+        pass # TODO
 
 class TestCoordinatesMethods(object):
     coords = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], 10], dims=['lat_lon', 'time', 'alt'])
@@ -709,8 +775,10 @@ class TestCoordinatesMethods(object):
             c.transpose('lon', 'lat')
 
     def test_intersect(self):
-        pass
-        # TODO
+        pass # TODO
+
+    def test_select(self):
+        pass # TODO
 
 class TestCoordinatesSpecial(object):
     def test_repr(self):
@@ -719,6 +787,7 @@ class TestCoordinatesSpecial(object):
         repr(Coordinates([0, 10, []], dims=['lat', 'lon', 'time'], ctype='point'))
         repr(Coordinates([crange(0, 10, 0.5)], dims=['alt']))
         repr(Coordinates([]))
+        # TODO dependent coordinates
 
     def test_eq(self):
         c1 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])

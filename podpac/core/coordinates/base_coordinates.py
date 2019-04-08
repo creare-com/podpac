@@ -7,6 +7,18 @@ import traitlets as tl
 class BaseCoordinates(tl.HasTraits):
     """Base class for single or stacked one-dimensional coordinates."""
 
+    def _set_name(self, value):
+        raise NotImplementedError
+
+    def _set_coord_ref_sys(self, value):
+        raise NotImplementedError
+
+    def _set_ctype(self, value):
+        raise NotImplementedError
+
+    def _set_distance_units(self, value):
+        raise NotImplementedError
+
     @property
     def name(self):
         """:str: Dimension name."""

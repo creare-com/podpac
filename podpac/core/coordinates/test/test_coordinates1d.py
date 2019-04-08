@@ -44,6 +44,11 @@ class TestCoordinates1d(object):
             pass
 
         try:
+            c._select([0, 1], False, False)
+        except NotImplementedError:
+            pass
+
+        try:
             c.intersect(c)
         except NotImplementedError:
             pass

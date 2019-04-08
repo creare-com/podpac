@@ -250,15 +250,13 @@ class ArrayCoordinates1d(Coordinates1d):
     def __getitem__(self, index):
         coordinates = self.coordinates[index]
         kwargs = self.properties
+        kwargs['ctype'] = self.ctype
         
         if self.ctype != 'point':
             if isinstance(self.segment_lengths, np.ndarray):
                 kwargs['segment_lengths'] = self.segment_lengths[index]
             else:
-                kwargs['segment_lengths'] = self.segment_lengths
-            
-            if (coordinates.size == 0 or coordinates.size == 1) and 'ctype' not in self.properties:
-                kwargs['ctype'] = self.ctype
+                kwargs['segment_lengths'] = self.segment_lengths    
 
         return ArrayCoordinates1d(coordinates, **kwargs)
 

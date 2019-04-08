@@ -307,6 +307,16 @@ class StackedCoordinates(BaseCoordinates):
         return (self.size,)
 
     @property
+    def bounds(self):
+        """:dict: Dictionary of (low, high) coordinates bounds in each dimension"""
+        return {dim: self[dim].bounds for dim in self.udims}
+
+    @property
+    def area_bounds(self):
+        """:dict: Dictionary of (low, high) coordinates area_bounds in each dimension"""
+        return {dim: self[dim].area_bounds for dim in self.udims}
+
+    @property
     def coordinates(self):
         """:pandas.MultiIndex: MultiIndex of stacked coordinates values."""
 

@@ -490,5 +490,5 @@ class Coordinates1d(BaseCoordinates):
         # partial, implemented in child classes
         return self._select(bounds, return_indices, outer)
 
-    def _select(bounds, return_indices, outer):
+    def _select(self, bounds, return_indices, outer):
         raise NotImplementedError

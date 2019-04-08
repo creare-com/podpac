@@ -260,6 +260,94 @@ class TestArrayCoordinatesInit(object):
 
         repr(ArrayCoordinates1d([], name='lat'))
 
+    def test_set_name(self):
+        # set if not already set
+        c = ArrayCoordinates1d([])
+        c._set_name('lat')
+        assert c.name == 'lat'
+
+        # check if set already
+        c = ArrayCoordinates1d([], name='lat')
+        c._set_name('lat')
+        assert c.name == 'lat'
+
+        with pytest.raises(ValueError, match="Dimension mismatch"):
+            c._set_name('lon')
+
+        # invalid name
+        c = ArrayCoordinates1d([])
+        with pytest.raises(tl.TraitError):
+            c._set_name('depth')
+
+    def test_set_coord_ref_sys(self):
+        # set if not already set
+        c = ArrayCoordinates1d([])
+        c._set_coord_ref_sys('SPHER_MERC')
+        assert c.coord_ref_sys == 'SPHER_MERC'
+
+        # check if set already
+        c = ArrayCoordinates1d([], coord_ref_sys='SPHER_MERC')
+        c._set_coord_ref_sys('SPHER_MERC')
+        assert c.coord_ref_sys == 'SPHER_MERC'
+
+        with pytest.raises(ValueError, match="coord_ref_sys mismatch"):
+            c._set_coord_ref_sys('WGS84')
+
+        # invalid crs
+        c = ArrayCoordinates1d([])
+        with pytest.raises(tl.TraitError):
+            c._set_coord_ref_sys('ABC')
+
+    def test_set_ctype(self):
+        # set if not already set
+        c = ArrayCoordinates1d([])
+        c._set_ctype('point')
+        assert c.ctype == 'point'
+
+        # ignore if set already
+        c = ArrayCoordinates1d([], ctype='point')
+        c._set_ctype('point')
+        assert c.ctype == 'point'
+
+        c._set_ctype('left')
+        assert c.ctype == 'point'
+
+        # invalid ctype
+        c = ArrayCoordinates1d([])
+        with pytest.raises(tl.TraitError):
+            c._set_ctype('ABC')
+
+    def test_set_distance_units(self):
+        ua = Units()
+        ub = Units()
+
+        # set if not already set
+        c = ArrayCoordinates1d([], name='lat')
+        c._set_distance_units(ua)
+        assert c.units is ua
+
+        # ignore if set already
+        c = ArrayCoordinates1d([], name='lat', units=ua)
+        c._set_distance_units(ua)
+        assert c.units is ua
+
+        c._set_distance_units(ub)
+        assert c.units is ua
+
+        # ignore if not a distance dimension
+        c = ArrayCoordinates1d([], name='time')
+        c._set_distance_units(ua)
+        assert c.units is None
+
+        c = ArrayCoordinates1d([])
+        c._set_distance_units(ua)
+        assert c.units is None
+
+        # invalid units
+        c = ArrayCoordinates1d([], name='lat')
+        with pytest.raises(tl.TraitError):
+            c._set_distance_units('string')
+
     def test_segment_lenths_point(self):
         with pytest.raises(TypeError, match="segment_lengths must be None"):
             ArrayCoordinates1d([1, 2], ctype='point', segment_lengths=1.0)
