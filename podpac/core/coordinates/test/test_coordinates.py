@@ -10,12 +10,13 @@ import pandas as pd
 from numpy.testing import assert_equal
 
 import podpac
-from podpac.core.coordinates.coordinates1d import Coordinates1d, DEFAULT_CRS
+from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.cfunctions import crange, clinspace
 from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.coordinates.coordinates import concat, union, merge_dims
+from podpac.core.settings import settings
 
 class TestCoordinateCreation(object):
     def test_empty(self):
@@ -418,8 +419,8 @@ class TestCoordinatesProperties(object):
 
         # default
         c = Coordinates([[0, 1, 2]], dims=['lat'])
-        assert c.coord_ref_sys == DEFAULT_CRS
-        assert c.crs == DEFAULT_CRS
+        assert c.coord_ref_sys == settings['DEFAULT_CRS']
+        assert c.crs == settings['DEFAULT_CRS']
 
         # set
         c = Coordinates([[0, 1, 2]], dims=['lat'], coord_ref_sys='EPSG:2193')
@@ -741,25 +742,25 @@ class TestCoordinatesMethods(object):
         c1 = Coordinates([[[0, 1], [10, 20]], [100, 200, 300]], dims=['lat_lon', 'alt'])
 
         # default crs
-        assert c.crs == DEFAULT_CRS
+        assert c.crs == settings['DEFAULT_CRS']
 
         # transform
         c_trans = c.transform('EPSG:2193')
-        assert c.crs == DEFAULT_CRS
+        assert c.crs == settings['DEFAULT_CRS']
         assert c_trans.crs == 'EPSG:2193'
         assert round(c_trans['lat'].values[0]) == 29995930.0
 
         # support proj4 strings
         proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
         c_trans = c.transform(proj)
-        assert c.crs == DEFAULT_CRS
+        assert c.crs == settings['DEFAULT_CRS']
         assert c_trans.crs == proj
         assert round(c_trans['lat'].values[0]) == 615849.0
 
         # support stacked coordinates
         proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
         c1_trans = c1.transform(proj)
-        assert c1.crs == DEFAULT_CRS
+        assert c1.crs == settings['DEFAULT_CRS']
         assert c1_trans.crs == proj
         assert round(c1_trans['lat'].values[0]) == 615849.0
 
@@ -773,7 +774,7 @@ class TestCoordinatesMethods(object):
                 dims=['lat', 'lon', 'time'], coord_ref_sys='EPSG:2193')
 
         c_int = c.intersect(o)
-        assert c_int.crs == DEFAULT_CRS
+        assert c_int.crs == settings['DEFAULT_CRS']
         assert np.all(c_int['lat'].bounds == np.array([5., 10.]))
         assert np.all(c_int['lon'].bounds == np.array([4., 10.]))
         assert np.all(c_int['time'].values == c['time'].values)

@@ -10,10 +10,10 @@ from numpy.testing import assert_equal
 import podpac
 from podpac.core.units import Units
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
-from podpac.core.coordinates.coordinates1d import DEFAULT_CRS
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.coordinates import Coordinates
+from podpac.core.settings import settings
 
 class TestArrayCoordinatesInit(object):
     def test_empty(self):
@@ -372,7 +372,7 @@ class TestArrayCoordinatesInit(object):
 
     def test_coord_ref_sys(self):
         c = ArrayCoordinates1d([])
-        assert c.coord_ref_sys == DEFAULT_CRS
+        assert c.coord_ref_sys == settings['DEFAULT_CRS']
 
         c = ArrayCoordinates1d([], coord_ref_sys='SPHER_MERC')
         assert c.coord_ref_sys == 'SPHER_MERC'

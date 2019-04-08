@@ -14,9 +14,7 @@ from podpac.core.units import Units
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_delta, make_coord_delta_array, add_coord, divide_delta
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
-
-DEFAULT_CRS = 'EPSG:4326'
-""":str: Default coordinate reference system """
+from podpac.core.settings import settings
 
 class Coordinates1d(BaseCoordinates):
     """
@@ -46,7 +44,7 @@ class Coordinates1d(BaseCoordinates):
         Coordinate units.
     coord_ref_sys : str
         Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
-        If not defined, set to :str:`DEFAULT_CRS`
+        If not defined, set to settings entry: `DEFAULT_CRS`
     ctype : str
         Coordinates type: 'point', 'left', 'right', or 'midpoint'.
     segment_lengths : array, float, timedelta
@@ -127,7 +125,7 @@ class Coordinates1d(BaseCoordinates):
 
     @tl.default('coord_ref_sys')
     def _default_coord_ref_sys(self):
-        return DEFAULT_CRS
+        return settings['DEFAULT_CRS']
 
     def __repr__(self):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
