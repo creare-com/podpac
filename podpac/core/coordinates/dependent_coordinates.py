@@ -54,6 +54,10 @@ class DependentCoordinates(BaseCoordinates):
     def _default_ctype(self):
         return tuple('point' for dim in self.dims)
 
+    @tl.default('units')
+    def _default_units(self):
+        return tuple(None for dim in self.dims)
+
     @tl.default('segment_lengths')
     def _default_segment_lengths(self):
         return tuple(None for dim in self.dims)
@@ -267,6 +271,10 @@ class DependentCoordinates(BaseCoordinates):
         return len(self.coordinates)
 
     @property
+    def dtypes(self):
+        return tuple(c.dtype for c in self.coordinates)
+
+    @property
     def bounds(self):
         """:dict: Dictionary of (low, high) coordinates bounds in each unstacked dimension"""
         return {dim: self[dim].bounds for dim in self.dims}
@@ -294,12 +302,13 @@ class DependentCoordinates(BaseCoordinates):
         return DependentCoordinates(self.coordinates, **self.properties)
 
     def intersect(self, other, outer=False, return_indices=False):
+        from podpac.core.coordinates.coordinates import Coordinates
         if not isinstance(other, (BaseCoordinates, Coordinates)):
             raise TypeError("Cannot intersect with type '%s'" % type(other))
 
         # bundle Coordinates1d object, if necessary
         if isinstance(other, Coordinates1d):
-            other = {other.name: other}
+            other = Coordinates([other])
 
         # check for compatibility
         for dim, dtype, units in zip(self.dims, self.dtypes, self.units):
@@ -313,14 +322,7 @@ class DependentCoordinates(BaseCoordinates):
             if self.coord_ref_sys != o.coord_ref_sys:
                 raise NotImplementedError("Still need to implement handling different CRS")
 
-        # logical AND of selection in each dimension
-        Is = [self._within(a, other[dim].bounds, outer) for dim, a in zip(self.dims, self.coordinates)]
-        I = np.logical_and.reduce(Is)
-        
-        if return_indices:
-            return self[I], np.where(I)
-        else:
-            return self[I]
+        return self.select(other.bounds, outer=outer, return_indices=return_indices)
 
     def select(self, bounds, outer=False, return_indices=False):
         # logical AND of selection in each dimension
@@ -363,15 +365,15 @@ class DependentCoordinates(BaseCoordinates):
     # Debug
     # ------------------------------------------------------------------------------------------------------------------
     
-    def plot(self, marker='b.'):
-        from matplotlib import pyplot
-        if self.ndims != 2:
-            raise NotImplementedError("Only 2d DependentCoordinates plots are supported")
-        x, y = self.coordinates
-        pyplot.plot(x, y, marker)
-        pyplot.xlabel(self.dims[0])
-        pyplot.ylabel(self.dims[1])
-        pyplot.axis('equal')
+    # def plot(self, marker='b.'):
+    #     from matplotlib import pyplot
+    #     if self.ndims != 2:
+    #         raise NotImplementedError("Only 2d DependentCoordinates plots are supported")
+    #     x, y = self.coordinates
+    #     pyplot.plot(x, y, marker)
+    #     pyplot.xlabel(self.dims[0])
+    #     pyplot.ylabel(self.dims[1])
+    #     pyplot.axis('equal')
 
 class ArrayCoordinatesNd(ArrayCoordinates1d):
     """

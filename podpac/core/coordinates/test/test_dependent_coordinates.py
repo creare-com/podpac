@@ -11,6 +11,7 @@ from numpy.testing import assert_equal
 
 import podpac
 from podpac.core.units import Units
+from podpac.coordinates import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
 
@@ -432,47 +433,63 @@ class TestStackedCoordinatesSelection(object):
         assert_equal(I[0], E0)
         assert_equal(I[1], E1)
 
-#     def test_intersect(self):
-#         lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
-#         lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
-#         c = StackedCoordinates([lat, lon])
+    def test_intersect(self):
+        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
 
-#         other_lat = ArrayCoordinates1d([0.5, 2.5, 3.5], name='lat')
-#         other_lon = ArrayCoordinates1d([25, 35, 55], name='lon')
+        
+        other_lat = ArrayCoordinates1d([0.25, 0.5, .95], name='lat')
+        other_lon = ArrayCoordinates1d([10.5, 15, 17.5], name='lon')
 
-#         # single other
-#         s = c.intersect(other_lat)
-#         assert s == c[1:4]
+        # single other
+        E0, E1 = [0, 1, 1, 1, 1, 2, 2, 2], [3, 0, 1, 2, 3, 0, 1, 2]
+        s = c.intersect(other_lat)
+        assert s == c[E0, E1]
 
-#         s = c.intersect(other_lat, outer=True)
-#         assert s == c[0:5]
+        s, I = c.intersect(other_lat, return_indices=True)
+        assert s == c[E0, E1]
+        assert s == c[I]
+        
+        E0, E1 = [0, 0, 1, 1, 1, 1, 2, 2, 2, 2], [2, 3, 0, 1, 2, 3, 0, 1, 2, 3]
+        s = c.intersect(other_lat, outer=True)
+        assert s == c[E0, E1]
 
-#         s, I = c.intersect(other_lat, return_indices=True)
-#         assert s == c[1:4]
-#         assert s == c[I]
+        E0, E1 = [0, 0, 0, 1, 1, 1, 1, 2], [1, 2, 3, 0, 1, 2, 3, 0]
+        s = c.intersect(other_lon)
+        assert s == c[E0, E1]
 
-#         s = c.intersect(other_lon)
-#         assert s == c[2:5]
+        # multiple, in various ways
+        E0, E1 = [0, 1, 1, 1, 1, 2], [3, 0, 1, 2, 3, 0]
+        
+        other = StackedCoordinates([other_lat, other_lon])
+        s = c.intersect(other)
+        assert s == c[E0, E1]
 
-#         # stacked other
-#         other = StackedCoordinates([other_lat, other_lon])
-#         s = c.intersect(other)
-#         assert s == c[2:4]
+        other = StackedCoordinates([other_lon, other_lat])
+        s = c.intersect(other)
+        assert s == c[E0, E1]
 
-#         other = StackedCoordinates([other_lon, other_lat])
-#         s = c.intersect(other)
-#         assert s == c[2:4]
+        from podpac.coordinates import Coordinates
+        other = Coordinates([other_lat, other_lon])
+        s = c.intersect(other)
+        assert s == c[E0, E1]
 
-#         # coordinates other
-#         from podpac.coordinates import Coordinates
-#         other = Coordinates([other_lat, other_lon])
-#         s = c.intersect(other)
-#         assert s == c[2:4]
+        # full
+        other = Coordinates(['2018-01-01'], dims=['time'])
+        s = c.intersect(other)
+        assert s == c
 
-#     def test_intersect_multiple(self):
-#         lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
-#         lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
-#         c = StackedCoordinates([lat, lon])
+        s, I = c.intersect(other, return_indices=True)
+        assert s == c
+        assert s == c[I]
+
+    def test_intersect_invalid(self):
+        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
+
+        with pytest.raises(TypeError, match="Cannot intersect with type"):
+            c.intersect({})
+
+        with pytest.raises(ValueError, match="Cannot intersect mismatched dtypes"):
+            c.intersect(ArrayCoordinates1d(['2018-01-01'], name='lat'))
 
 class TestArrayCoordinatesNd(object):
     def test_unavailable(self):

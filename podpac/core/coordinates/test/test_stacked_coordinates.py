@@ -486,8 +486,3 @@ class TestStackedCoordinatesSelection(object):
         s = c.intersect(other)
         assert s == c[2:4]
 
-    def test_intersect_multiple(self):
-        lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
-        lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
-        c = StackedCoordinates([lat, lon])
-
