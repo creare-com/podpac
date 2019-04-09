@@ -21,7 +21,7 @@ from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 class DependentCoordinates(BaseCoordinates):
 
     coordinates = TupleTrait(trait=ArrayTrait(), read_only=True)
-    dims = TupleTrait(trait=Dimension(), read_only=True)
+    dims = TupleTrait(trait=Dimension(allow_none=True), read_only=True)
     idims = TupleTrait(trait=tl.Unicode(), read_only=True)
     units = TupleTrait(trait=tl.Instance(Units, allow_none=True), allow_none=True, read_only=True)
     ctypes = TupleTrait(trait=CoordinateType(), read_only=True)
@@ -37,7 +37,8 @@ class DependentCoordinates(BaseCoordinates):
         self._set_properties(dims, coord_ref_sys, units, ctypes, segment_lengths)
         
     def _set_properties(self, dims, coord_ref_sys, units, ctypes, segment_lengths):
-        self.set_trait('dims', dims)
+        if dims is not None:
+            self.set_trait('dims', dims)
         if coord_ref_sys is not None:
             self._set_coord_ref_sys(coord_ref_sys)
         if units is not None:
@@ -48,6 +49,10 @@ class DependentCoordinates(BaseCoordinates):
             self._set_segment_lengths(segment_lengths)
         else:
             self.segment_lengths # force validation
+
+    @tl.default('dims')
+    def _default_dims(self):
+        return tuple(None for c in self.coordinates)
 
     @tl.default('idims')
     def _default_idims(self):
@@ -84,8 +89,9 @@ class DependentCoordinates(BaseCoordinates):
     @tl.validate('dims')
     def _validate_dims(self, d):
         val = self._validate_sizes(d)
-        if len(set(val)) != len(val):
-            raise ValueError("Duplicate dimension in dims list %s" % (val,))
+        for i, dim in enumerate(val):
+            if dim is not None and dim in val[:i]:
+                raise ValueError("Duplicate dimension '%s' in stacked coords" % dim)
         return val
 
     @tl.validate('segment_lengths')
@@ -114,8 +120,10 @@ class DependentCoordinates(BaseCoordinates):
         self._properties.add(d['name'])
 
     def _set_name(self, value):
-        # only check, don't set at all
-        if self.name != value:
+        # only set if the dims have not been set already
+        if 'dims' not in self._properties:
+            self.set_trait('dims', value.split(','))
+        elif self.name != value:
             raise ValueError("Dimension mismatch, %s != %s" % (value, self.name))
 
     def _set_coord_ref_sys(self, value):
@@ -167,8 +175,6 @@ class DependentCoordinates(BaseCoordinates):
 
     @classmethod
     def from_definition(cls, d):
-        if 'dims' not in d:
-            raise ValueError('DependentCoordinates definition requires "dims" property')
         if 'values' not in d:
             raise ValueError('DependentCoordinates definition requires "values" property')
         
@@ -182,15 +188,21 @@ class DependentCoordinates(BaseCoordinates):
 
     def __repr__(self):
         rep = str(self.__class__.__name__)
-        for dim in self.dims:
-            rep += '\n\t%s' % self.rep(dim)
+        for i, dim in enumerate(self.dims):
+            rep += '\n\t%s' % self.rep(dim, index=i)
         return rep
 
-    def rep(self, dim):
-        i = self.dims.index(dim)
-        c = self[dim]
+    def rep(self, dim, index=None):
+        if dim is not None:
+            index = self.dims.index(dim)
+        else:
+            dim = '?'# unnamed dimensions
+
+        c = self.coordinates[index]
+        ctype = self.ctypes[index]
+        bounds = np.min(c), np.max(c)
         return "%s(%s->%s): Bounds[%s, %s], shape%s, ctype[%s]" % (
-            self.__class__.__name__, ','.join(self.idims), dim, c.bounds[0], c.bounds[1], self.shape, c.ctype)
+            self.__class__.__name__, ','.join(self.idims), dim, bounds[0], bounds[1], self.shape, ctype)
 
     def __eq__(self, other):
         if not isinstance(other, DependentCoordinates):
@@ -255,7 +267,7 @@ class DependentCoordinates(BaseCoordinates):
 
     @property
     def name(self):
-        return '%s' % ','.join(self.dims)
+        return '%s' % ','.join([dim or '?' for dim in self.dims])
 
     @property
     def udims(self):
@@ -280,15 +292,21 @@ class DependentCoordinates(BaseCoordinates):
     @property
     def bounds(self):
         """:dict: Dictionary of (low, high) coordinates bounds in each unstacked dimension"""
+        if None in self.dims:
+            raise ValueError("Cannot get bounds for DependentCoordinates with un-named dimensions")
         return {dim: self[dim].bounds for dim in self.dims}
 
     @property
     def area_bounds(self):
         """:dict: Dictionary of (low, high) coordinates area_bounds in each unstacked dimension"""
+        if None in self.dims:
+            raise ValueError("Cannot get area_bounds for DependentCoordinates with un-named dimensions")
         return {dim: self[dim].area_bounds for dim in self.dims}
 
     @property
     def coords(self):
+        if None in self.dims:
+            raise ValueError("Cannot get coords for DependentCoordinates with un-named dimensions")
         return {dim: (self.idims, c) for dim, c in (zip(self.dims, self.coordinates))}
 
     @property

@@ -297,6 +297,13 @@ class TestStackedCoordinatesProperties(object):
         assert_equal(x.coords['lon'], c['lon'].coordinates)
         assert_equal(x.coords['time'], c['time'].coordinates)
 
+        lat = ArrayCoordinates1d([0, 1, 2, 3])
+        lon = ArrayCoordinates1d([10, 20, 30, 40])
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'])
+        c = StackedCoordinates([lat, lon, time])
+        with pytest.raises(ValueError, match="Cannot get coords"):
+            c.coords
+
     def test_coord_ref_sys(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
         lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
@@ -314,6 +321,10 @@ class TestStackedCoordinatesProperties(object):
         assert_equal(bounds['lat'], c['lat'].bounds)
         assert_equal(bounds['lon'], c['lon'].bounds)
 
+        c = StackedCoordinates([lat, lon])
+        with pytest.raises(ValueError, match="Cannot get bounds"):
+            c.bounds
+
     def test_area_bounds(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
@@ -325,6 +336,10 @@ class TestStackedCoordinatesProperties(object):
         assert set(area_bounds.keys()) == set(c.udims)
         assert_equal(area_bounds['lat'], c['lat'].area_bounds)
         assert_equal(area_bounds['lon'], c['lon'].area_bounds)
+
+        c = StackedCoordinates([lat, lon])
+        with pytest.raises(ValueError, match="Cannot get area_bounds"):
+            c.area_bounds
 
 class TestStackedCoordinatesIndexing(object):
     def test_get_dim(self):

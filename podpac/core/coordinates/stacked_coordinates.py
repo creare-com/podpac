@@ -309,11 +309,15 @@ class StackedCoordinates(BaseCoordinates):
     @property
     def bounds(self):
         """:dict: Dictionary of (low, high) coordinates bounds in each dimension"""
+        if None in self.dims:
+            raise ValueError("Cannot get bounds for StackedCoordinates with un-named dimensions")
         return {dim: self[dim].bounds for dim in self.udims}
 
     @property
     def area_bounds(self):
         """:dict: Dictionary of (low, high) coordinates area_bounds in each dimension"""
+        if None in self.dims:
+            raise ValueError("Cannot get area_bounds for StackedCoordinates with un-named dimensions")
         return {dim: self[dim].area_bounds for dim in self.udims}
 
     @property
@@ -325,7 +329,8 @@ class StackedCoordinates(BaseCoordinates):
     @property
     def coords(self):
         """:dict-like: xarray coordinates (container of coordinate arrays)"""
-
+        if None in self.dims:
+            raise ValueError("Cannot get coords for StackedCoordinates with un-named dimensions")
         return {self.name: self.coordinates}
 
     @property

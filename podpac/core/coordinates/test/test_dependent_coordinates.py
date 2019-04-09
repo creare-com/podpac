@@ -28,10 +28,17 @@ class TestDependentCoordinatesCreation(object):
         assert c.name == 'lat,lon'
         repr(c)
 
+        c = DependentCoordinates((LAT, LON))
+        assert c.dims == (None, None)
+        assert c.udims == (None, None)
+        assert c.idims == ('i', 'j')
+        assert c.name == '?,?'
+        repr(c)
+
     def test_invalid(self):
         # mismatched shape
         with pytest.raises(ValueError, match="coordinates shape mismatch"):
-            DependentCoordinates((LAT, LON.reshape((4, 3))), dims=['lat', 'lon'])
+            DependentCoordinates((LAT, LON.reshape((4, 3))))
 
         # invalid dims
         with pytest.raises(ValueError, match="dims and coordinates size mismatch"):
@@ -50,6 +57,11 @@ class TestDependentCoordinatesCreation(object):
             DependentCoordinates([], dims=[])
 
     def test_set_name(self):
+        # set when empty
+        c = DependentCoordinates((LAT, LON))
+        c._set_name('lat,lon')
+        assert c.name == 'lat,lon'
+
         # check when setting
         c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'])
         c._set_name('lat,lon')
@@ -60,86 +72,86 @@ class TestDependentCoordinatesCreation(object):
 
     def test_ctype_and_segment_lengths(self):
         # explicit
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes=['left', 'right'], segment_lengths=[1.0, 2.0])
+        c = DependentCoordinates((LAT, LON), ctypes=['left', 'right'], segment_lengths=[1.0, 2.0])
         assert c.ctypes == ('left', 'right')
         assert c.segment_lengths == (1.0, 2.0)
 
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes=['point', 'point'])
+        c = DependentCoordinates((LAT, LON), ctypes=['point', 'point'])
         assert c.ctypes == ('point', 'point')
         assert c.segment_lengths == (None, None)
 
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes=['midpoint', 'point'], segment_lengths=[1.0, None])
+        c = DependentCoordinates((LAT, LON), ctypes=['midpoint', 'point'], segment_lengths=[1.0, None])
         assert c.ctypes == ('midpoint', 'point')
         assert c.segment_lengths == (1.0, None)
 
         # single value
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes='left', segment_lengths=1.0)
+        c = DependentCoordinates((LAT, LON), ctypes='left', segment_lengths=1.0)
         assert c.ctypes == ('left', 'left')
         assert c.segment_lengths == (1.0, 1.0)
 
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes='point')
+        c = DependentCoordinates((LAT, LON), ctypes='point')
         assert c.ctypes == ('point', 'point')
         assert c.segment_lengths == (None, None)
         
         # defaults
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'])
+        c = DependentCoordinates((LAT, LON))
         assert c.ctypes == ('point', 'point')
 
         # don't overwrite
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes='left', segment_lengths=1.0)
+        c = DependentCoordinates((LAT, LON), ctypes='left', segment_lengths=1.0)
         c._set_ctype('right')
         assert c.ctypes == ('left', 'left')
 
         # size mismatch
         with pytest.raises(ValueError, match='size mismatch'):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes=['left', 'left', 'left'], segment_lengths=1.0)
+            DependentCoordinates((LAT, LON), ctypes=['left', 'left', 'left'], segment_lengths=1.0)
 
         with pytest.raises(ValueError, match='segment_lengths and coordinates size mismatch'):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes='left', segment_lengths=[1.0, 1.0, 1.0])
+            DependentCoordinates((LAT, LON), ctypes='left', segment_lengths=[1.0, 1.0, 1.0])
 
         # segment lengths required
         with pytest.raises(TypeError, match='segment_lengths cannot be None'):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes='left')
+            DependentCoordinates((LAT, LON), ctypes='left')
         
         with pytest.raises(TypeError, match='segment_lengths cannot be None'):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes=['left', 'point'])
+            DependentCoordinates((LAT, LON), ctypes=['left', 'point'])
         
         with pytest.raises(TypeError, match='segment_lengths cannot be None'):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes=['left', 'point'], segment_lengths=[None, None])
+            DependentCoordinates((LAT, LON), ctypes=['left', 'point'], segment_lengths=[None, None])
 
         # segment lengths prohibited
         with pytest.raises(TypeError, match='segment_lengths must be None'):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], segment_lengths=1.0)
+            DependentCoordinates((LAT, LON), segment_lengths=1.0)
         
         with pytest.raises(TypeError, match='segment_lengths must be None'):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes='point', segment_lengths=1.0)
+            DependentCoordinates((LAT, LON), ctypes='point', segment_lengths=1.0)
         
         with pytest.raises(TypeError, match='segment_lengths must be None'):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes=['left', 'point'], segment_lengths=[1.0, 1.0])
+            DependentCoordinates((LAT, LON), ctypes=['left', 'point'], segment_lengths=[1.0, 1.0])
 
         # invalid
         with pytest.raises(tl.TraitError):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes='abc')
+            DependentCoordinates((LAT, LON), ctypes='abc')
         
         # invalid segment_lengths
         with pytest.raises(ValueError):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes='left', segment_lengths='abc')
+            DependentCoordinates((LAT, LON), ctypes='left', segment_lengths='abc')
 
         with pytest.raises(ValueError, match="segment_lengths must be positive"):
-            DependentCoordinates((LAT, LON), dims=['lat', 'lon'], ctypes=['left', 'right'], segment_lengths=[1.0, -2.0])
+            DependentCoordinates((LAT, LON), ctypes=['left', 'right'], segment_lengths=[1.0, -2.0])
 
     def test_coord_ref_sys(self):
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], coord_ref_sys='SPHER_MERC')
+        c = DependentCoordinates((LAT, LON), coord_ref_sys='SPHER_MERC')
         assert c.coord_ref_sys == 'SPHER_MERC'
 
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'])
+        c = DependentCoordinates((LAT, LON))
         assert c.coord_ref_sys == 'WGS84'
 
         # check when setting
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], coord_ref_sys='SPHER_MERC')
+        c = DependentCoordinates((LAT, LON), coord_ref_sys='SPHER_MERC')
         c._set_coord_ref_sys('SPHER_MERC')
 
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], coord_ref_sys='SPHER_MERC')
+        c = DependentCoordinates((LAT, LON), coord_ref_sys='SPHER_MERC')
         with pytest.raises(ValueError, match="coord_ref_sys mismatch"):
             c._set_coord_ref_sys('WGS84')
 
@@ -148,19 +160,19 @@ class TestDependentCoordinatesCreation(object):
         ub = Units()
 
         # explicit
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], units=[ua, ub])
+        c = DependentCoordinates((LAT, LON), units=[ua, ub])
         assert len(c.units) == 2
         assert c.units[0] is ua
         assert c.units[1] is ub
 
         # single value
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], units=ua)
+        c = DependentCoordinates((LAT, LON), units=ua)
         assert len(c.units) == 2
         assert c.units[0] is ua
         assert c.units[1] is ua
 
         # don't overwrite
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'], units=ua)
+        c = DependentCoordinates((LAT, LON), units=ua)
         c._set_units(ub)
         assert len(c.units) == 2
         assert c.units[0] is ua
@@ -176,7 +188,7 @@ class TestDependentCoordinatesCreation(object):
         assert c.units[2] is None
 
     def test_copy(self):
-        c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'])
+        c = DependentCoordinates((LAT, LON))
 
         c2 = c.copy()
         assert c2 is not c
@@ -184,12 +196,12 @@ class TestDependentCoordinatesCreation(object):
 
 class TestDependentCoordinatesStandardMethods(object):
     def test_eq_type(self):
-        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
+        c = DependentCoordinates([LAT, LON])
         assert c != [[0, 1, 2], [10, 20, 30]]
 
     def test_eq_shape_shortcut(self):
-        c1 = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
-        c2 = DependentCoordinates([LAT[:2], LON[:2]], dims=['lat', 'lon'])
+        c1 = DependentCoordinates([LAT, LON])
+        c2 = DependentCoordinates([LAT[:2], LON[:2]])
         assert c1 != c2
 
     def test_eq_dims(self):
@@ -198,10 +210,10 @@ class TestDependentCoordinatesStandardMethods(object):
         assert c1 != c2
 
     def test_eq_coordinates(self):
-        c1 = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
-        c2 = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
-        c3 = DependentCoordinates([LAT[::-1], LON], dims=['lat', 'lon'])
-        c4 = DependentCoordinates([LAT, LON[::-1]], dims=['lat', 'lon'])
+        c1 = DependentCoordinates([LAT, LON])
+        c2 = DependentCoordinates([LAT, LON])
+        c3 = DependentCoordinates([LAT[::-1], LON])
+        c4 = DependentCoordinates([LAT, LON[::-1]])
         
         assert c1 == c2
         assert c1 != c3
@@ -209,7 +221,7 @@ class TestDependentCoordinatesStandardMethods(object):
 
 class TestDependentCoordinatesSerialization(object):
     def test_definition(self):
-        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
+        c = DependentCoordinates([LAT, LON])
         d = c.definition
         
         assert isinstance(d, dict)
@@ -218,19 +230,16 @@ class TestDependentCoordinatesSerialization(object):
         assert c2 == c
 
     def test_invalid_definition(self):
-        with pytest.raises(ValueError, match='DependentCoordinates definition requires "dims"'):
-            DependentCoordinates.from_definition({'values': [0, 1]})
-
         with pytest.raises(ValueError, match='DependentCoordinates definition requires "values"'):
             DependentCoordinates.from_definition({'dims':['lat', 'lon']})
 
-class TestStackedCoordinatesProperties(object):
+class TestDependentCoordinatesProperties(object):
     def test_size(self):
-        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
+        c = DependentCoordinates([LAT, LON])
         assert c.size == 12
 
-    def test_shaped(self):
-        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
+    def test_shape(self):
+        c = DependentCoordinates([LAT, LON])
         assert c.shape == (3, 4)
 
     def test_coords(self):
@@ -243,6 +252,10 @@ class TestStackedCoordinatesProperties(object):
         assert_equal(x.coords['j'], np.arange(c.shape[1]))
         assert_equal(x.coords['lat'], c['lat'].coordinates)
         assert_equal(x.coords['lon'], c['lon'].coordinates)
+        
+        c = DependentCoordinates([LAT, LON])
+        with pytest.raises(ValueError, match="Cannot get coords"):
+            c.coords
 
     def test_bounds(self):
         c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
@@ -252,6 +265,10 @@ class TestStackedCoordinatesProperties(object):
         assert_equal(bounds['lat'], c['lat'].bounds)
         assert_equal(bounds['lon'], c['lon'].bounds)
 
+        c = DependentCoordinates([LAT, LON])
+        with pytest.raises(ValueError, match="Cannot get bounds"):
+            c.bounds
+
     def test_area_bounds(self):
         c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
         area_bounds = c.area_bounds
@@ -260,7 +277,11 @@ class TestStackedCoordinatesProperties(object):
         assert_equal(area_bounds['lat'], c['lat'].area_bounds)
         assert_equal(area_bounds['lon'], c['lon'].area_bounds)
 
-class TestStackedCoordinatesIndexing(object):
+        c = DependentCoordinates([LAT, LON])
+        with pytest.raises(ValueError, match="Cannot get area_bounds"):
+            c.area_bounds
+
+class TestDependentCoordinatesIndexing(object):
     def test_get_dim(self):
         c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
 
@@ -312,7 +333,7 @@ class TestStackedCoordinatesIndexing(object):
     def test_get_index(self):
         lat = np.linspace(0, 1, 60).reshape((5, 4, 3))
         lon = np.linspace(1, 2, 60).reshape((5, 4, 3))
-        c = DependentCoordinates([lat, lon], dims=['lat', 'lon'])
+        c = DependentCoordinates([lat, lon])
 
         I = [3, 1, 2]
         J = slice(1, 3)
@@ -323,25 +344,22 @@ class TestStackedCoordinatesIndexing(object):
         c2 = c[I, J, K]
         assert isinstance(c2, DependentCoordinates)
         assert c2.shape == (3, 2)
-        assert c2.dims == c.dims
-        assert_equal(c2['lat'].coordinates, lat[I, J, K])
-        assert_equal(c2['lon'].coordinates, lon[I, J, K])
+        assert_equal(c2.coordinates[0], lat[I, J, K])
+        assert_equal(c2.coordinates[1], lon[I, J, K])
 
         # partial/implicit
         c2 = c[I, J]
         assert isinstance(c2, DependentCoordinates)
         assert c2.shape == (3, 2, 3)
-        assert c2.dims == c.dims
-        assert_equal(c2['lat'].coordinates, lat[I, J])
-        assert_equal(c2['lon'].coordinates, lon[I, J])
+        assert_equal(c2.coordinates[0], lat[I, J])
+        assert_equal(c2.coordinates[1], lon[I, J])
 
         # boolean
         c2 = c[B]
         assert isinstance(c2, StackedCoordinates)
         assert c2.shape == (30,)
-        assert c2.dims == c.dims
-        assert_equal(c2['lat'].coordinates, lat[B])
-        assert_equal(c2['lon'].coordinates, lon[B])
+        assert_equal(c2._coords[0].coordinates, lat[B])
+        assert_equal(c2._coords[1].coordinates, lon[B])
 
     def test_get_index_with_properties(self):
         c = DependentCoordinates(
@@ -353,6 +371,7 @@ class TestStackedCoordinatesIndexing(object):
             units=[Units(), Units()])
 
         c2 = c[[1, 2]]
+        assert c2.dims == c.dims
         assert c2.ctypes == c.ctypes
         assert c2.segment_lengths == c.segment_lengths
         assert c2.units == c.units
@@ -364,7 +383,7 @@ class TestStackedCoordinatesIndexing(object):
         assert a == c['lat']
         assert b == c['lon']
 
-class TestStackedCoordinatesSelection(object):
+class TestDependentCoordinatesSelection(object):
     def test_select_single(self):
         c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
 

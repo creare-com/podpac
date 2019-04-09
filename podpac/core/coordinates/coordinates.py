@@ -115,7 +115,7 @@ class Coordinates(tl.HasTraits):
             elif '_' in dim:
                 c = StackedCoordinates(coords[i])
             elif ',' in dim:
-                c = DependentCoordinates(coords[i], dims=dim.split(','))
+                c = DependentCoordinates(coords[i])
             else:
                 c = ArrayCoordinates1d(coords[i])
 
