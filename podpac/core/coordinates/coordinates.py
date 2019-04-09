@@ -11,6 +11,7 @@ import itertools
 import json
 from collections import OrderedDict
 from hashlib import md5 as hash_alg
+import re
 
 import numpy as np
 import traitlets as tl
@@ -1051,14 +1052,20 @@ class Coordinates(tl.HasTraits):
 
         # convert alt units into proj4 syntax
         if alt_units is not None:
-            to_crs = pyproj.CRS('{} +vunits={}'.format(to_crs.to_proj4(), alt_units))
+            proj4crs = to_crs.to_proj4()
+
+            # remove old vunits string if present
+            if '+vunits' in proj4crs:
+                proj4crs = re.sub(r'\+vunits=[a-z\-]+\s', '', proj4crs)
+
+            to_crs = pyproj.CRS('{} +vunits={}'.format(proj4crs, alt_units))
 
         # create proj4 transformer
         transformer = pyproj.Transformer.from_crs(from_crs, to_crs)
 
         # update crs on the individual coords - this must be done before assigning new values
         # note using `srs` here so it captures the user input (i.e. EPSG:4193)
-        # if alt_units included, this will be a whole proj4 string
+        # if alt_units included, this will be a whole proj4 string because of conversion above
         for dim in t_coords.udims:
             t_coords[dim].coord_ref_sys = to_crs.srs
 

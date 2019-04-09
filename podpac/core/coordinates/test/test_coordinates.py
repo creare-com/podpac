@@ -779,6 +779,11 @@ class TestCoordinatesMethods(object):
         assert round(c1_trans['alt'].values[1]) == 656.0
         assert '+vunits=us-ft' in c1_trans.crs
 
+        # make sure vunits can be overwritten appropriately
+        c2_trans = c1_trans.transform(alt_units='m')
+        assert round(c2_trans['alt'].values[0]) == 100.0
+        assert '+vunits=m' in c2_trans.crs and '+vunits=us-ft' not in c2_trans.crs
+
         # alt_units parameter
         c_trans = c.transform('EPSG:2193', alt_units='us-ft')
         assert round(c_trans['alt'].values[1]) == 3.0
