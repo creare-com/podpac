@@ -8,6 +8,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 from numpy.testing import assert_equal
+import pyproj
 
 import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -738,7 +739,8 @@ class TestCoordinatesMethods(object):
             c.transpose('lon', 'lat')
 
     def test_transform(self):
-        c = Coordinates([[0, 1], [10, 20], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
+        c = Coordinates([[0, 1], [10, 20], ['2018-01-01', '2018-01-02'], [0, 1, 2]], \
+                        dims=['lat', 'lon', 'time', 'alt'])
         c1 = Coordinates([[[0, 1], [10, 20]], [100, 200, 300]], dims=['lat_lon', 'alt'])
 
         # default crs
@@ -754,15 +756,39 @@ class TestCoordinatesMethods(object):
         proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
         c_trans = c.transform(proj)
         assert c.crs == settings['DEFAULT_CRS']
-        assert c_trans.crs == proj
+        assert c_trans.crs == pyproj.CRS(proj).srs
         assert round(c_trans['lat'].values[0]) == 615849.0
 
         # support stacked coordinates
         proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
         c1_trans = c1.transform(proj)
         assert c1.crs == settings['DEFAULT_CRS']
-        assert c1_trans.crs == proj
+        assert c_trans.crs == pyproj.CRS(proj).srs
         assert round(c1_trans['lat'].values[0]) == 615849.0
+
+        # support altitude unit transformations
+        proj = '+proj=merc +vunits=us-ft'
+        c_trans = c.transform(proj)
+        assert round(c_trans['lat'].values[0]) == 1113195.0
+        assert round(c_trans['alt'].values[1]) == 3.0
+        assert round(c_trans['alt'].values[2]) == 7.0
+        assert '+vunits=us-ft' in c_trans.crs
+        c1_trans = c1.transform(proj)
+        assert round(c1_trans['lat'].values[0]) == 1113195.0
+        assert round(c1_trans['alt'].values[0]) == 328.0
+        assert round(c1_trans['alt'].values[1]) == 656.0
+        assert '+vunits=us-ft' in c1_trans.crs
+
+        # alt_units parameter
+        c_trans = c.transform('EPSG:2193', alt_units='us-ft')
+        assert round(c_trans['alt'].values[1]) == 3.0
+        assert round(c_trans['alt'].values[2]) == 7.0
+        assert '+vunits=us-ft' in c_trans.crs
+        c_trans = c.transform('EPSG:2193', alt_units='km')
+        assert c_trans['alt'].values[1] == 0.001
+        assert c_trans['alt'].values[2] == 0.002
+        assert '+vunits=km' in c_trans.crs
+
 
     def test_intersect(self):
         # TODO: add additional testing
