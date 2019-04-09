@@ -353,7 +353,7 @@ class DataSource(Node):
             self.native_coordinates.intersect(coordinates, outer=True, return_indices=True)
 
         # if requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
-        if np.prod(self._requested_source_coordinates.shape) == 0:
+        if self._requested_source_coordinates.size == 0:
             if output is None:
                 output = self.create_output_array(self._evaluated_coordinates)
             else:
