@@ -192,7 +192,7 @@ class TestDependentCoordinatesStandardMethods(object):
         c2 = DependentCoordinates([LAT[:2], LON[:2]], dims=['lat', 'lon'])
         assert c1 != c2
 
-    def test_eq_dims_shortcut(self):
+    def test_eq_dims(self):
         c1 = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
         c2 = DependentCoordinates([LAT, LON], dims=['lon', 'lat'])
         assert c1 != c2
@@ -319,7 +319,7 @@ class TestStackedCoordinatesIndexing(object):
         K = 1
         B = lat > 0.5
 
-        # partial
+        # full
         c2 = c[I, J, K]
         assert isinstance(c2, DependentCoordinates)
         assert c2.shape == (3, 2)
@@ -327,7 +327,7 @@ class TestStackedCoordinatesIndexing(object):
         assert_equal(c2['lat'].coordinates, lat[I, J, K])
         assert_equal(c2['lon'].coordinates, lon[I, J, K])
 
-        # implicit
+        # partial/implicit
         c2 = c[I, J]
         assert isinstance(c2, DependentCoordinates)
         assert c2.shape == (3, 2, 3)

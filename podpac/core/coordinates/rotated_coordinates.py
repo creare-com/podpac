@@ -43,7 +43,7 @@ class RotatedCoordinates(DependentCoordinates):
     def _validate_shape(self, d):
         val = d['value']
         if val[0] <= 0 or val[1] <= 0:
-            raise ValueError("Invalid shape %s, shape must be positive" % val)
+            raise ValueError("Invalid shape %s, shape must be positive" % (val,))
         return val
 
     @tl.validate('step')
@@ -58,14 +58,14 @@ class RotatedCoordinates(DependentCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_geotransform(cls, geotransform, shape,
-                          ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
-        affine = rasterio.Affine.from_gdal(geotransform)
-        ulc = affice.c, affine.f
+    def from_geotransform(cls, geotransform, shape, dims=None,
+                               ctypes=None, units=None, segment_lengths=None, coord_ref_sys=None):
+        affine = rasterio.Affine.from_gdal(*geotransform)
+        ulc = affine.c, affine.f
         deg = affine.rotation_angle
-        scale = affine * ~affine.rotation(deg) * ~affine.tranlation(*ulc)
+        scale = ~affine.rotation(deg) * ~affine.translation(*ulc) * affine
         step = np.array([scale.a, scale.e])
-        return cls(np.deg2rad(deg), ulc, step, shape,
+        return cls(shape, np.deg2rad(deg), ulc, step, dims=dims,
                    ctypes=ctypes, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -115,14 +115,14 @@ class RotatedCoordinates(DependentCoordinates):
         return "%s(%s): ULC%s, LRC%s, rad[%.4f], shape%s, %s" % (
             self.__class__.__name__, self.dims, self.ulc, self.lrc, self.theta, self.shape, ctypes)
 
-    def __eq__(self):
+    def __eq__(self, other):
         if not isinstance(other, RotatedCoordinates):
             return False
 
-        if self.affine != other.affine:
-            return False
-        
         if self.shape != other.shape:
+            return False
+
+        if self.affine != other.affine:
             return False
 
         # defined coordinate properties should match
@@ -142,7 +142,7 @@ class RotatedCoordinates(DependentCoordinates):
             ulc = self.affine * [I[0], J[0]]
             step = self.step * [index[0].step or 1, index[1].step or 1]
             shape = I.size, J.size
-            return RotatedCoordinates(self.theta, ulc, step, shape, **self.properties)
+            return RotatedCoordinates(shape, self.theta, ulc, step, **self.properties)
 
         else:
             return super(RotatedCoordinates, self).__getitem__(index)
@@ -174,7 +174,8 @@ class RotatedCoordinates(DependentCoordinates):
     def coordinates(self):
         I = np.arange(self.shape[0])
         J = -np.arange(self.shape[1])
-        return self.affine * np.meshgrid(I, J)
+        c1, c2 = self.affine * np.meshgrid(I, J)
+        return c1.T, c2.T
 
     @property
     def properties(self):
@@ -200,10 +201,10 @@ class RotatedCoordinates(DependentCoordinates):
     # Debug
     # ------------------------------------------------------------------------------------------------------------------
     
-    def plot(self, marker='b.', ulc_marker='bo', lrc_marker='bx'):
-        from matplotlib import pyplot
-        super(RotatedCoordinates, self).plot(marker=marker)
-        ulcx, ulcy = self.ulc
-        lrcx, lrcy = self.lrc
-        pyplot.plot(ulcx, ulcy, ulc_marker)
-        pyplot.plot(lrcx, lrcy, 'bx')
+    # def plot(self, marker='b.', ulc_marker='bo', lrc_marker='bx'):
+    #     from matplotlib import pyplot
+    #     super(RotatedCoordinates, self).plot(marker=marker)
+    #     ulcx, ulcy = self.ulc
+    #     lrcx, lrcy = self.lrc
+    #     pyplot.plot(ulcx, ulcy, ulc_marker)
+    #     pyplot.plot(lrcx, lrcy, 'bx')

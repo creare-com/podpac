@@ -34,6 +34,9 @@ class DependentCoordinates(BaseCoordinates):
         coordinates = [np.array(a) for a in coordinates]
         coordinates = [make_coord_array(a.flatten()).reshape(a.shape) for a in coordinates]
         self.set_trait('coordinates', coordinates)
+        self._set_properties(dims, coord_ref_sys, units, ctypes, segment_lengths)
+        
+    def _set_properties(self, dims, coord_ref_sys, units, ctypes, segment_lengths):
         self.set_trait('dims', dims)
         if coord_ref_sys is not None:
             self._set_coord_ref_sys(coord_ref_sys)
