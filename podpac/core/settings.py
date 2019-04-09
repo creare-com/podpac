@@ -38,7 +38,8 @@ DEFAULT_SETTINGS = {
     'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log'),
     'MULTITHREADING': False,
     'N_THREADS': 8,
-    'CHUNK_SIZE': None
+    'CHUNK_SIZE': None,
+    'DEFAULT_CRS': 'EPSG:4326'
 }
 
 

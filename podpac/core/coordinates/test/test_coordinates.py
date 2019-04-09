@@ -8,6 +8,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 from numpy.testing import assert_equal
+import pyproj
 
 import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -16,6 +17,7 @@ from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.cfunctions import crange, clinspace
 from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.coordinates.coordinates import concat, union, merge_dims
+from podpac.core.settings import settings
 
 class TestCoordinateCreation(object):
     def test_empty(self):
@@ -414,17 +416,17 @@ class TestCoordinatesProperties(object):
         # empty
         c = Coordinates([])
         assert c.coord_ref_sys == None
-        assert c.gdal_crs == None
+        assert c.crs == None
 
         # default
         c = Coordinates([[0, 1, 2]], dims=['lat'])
-        assert c.coord_ref_sys == 'WGS84'
-        assert c.gdal_crs == 'EPSG:4326'
+        assert c.coord_ref_sys == settings['DEFAULT_CRS']
+        assert c.crs == settings['DEFAULT_CRS']
 
         # set
-        c = Coordinates([[0, 1, 2]], dims=['lat'], coord_ref_sys='SPHER_MERC')
-        assert c.coord_ref_sys == 'SPHER_MERC'
-        assert c.gdal_crs == 'EPSG:3857'
+        c = Coordinates([[0, 1, 2]], dims=['lat'], coord_ref_sys='EPSG:2193')
+        assert c.coord_ref_sys == 'EPSG:2193'
+        assert c.crs == 'EPSG:2193'
 
 class TestCoordinatesDict(object):
     coords = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
@@ -736,9 +738,77 @@ class TestCoordinatesMethods(object):
         with pytest.raises(ValueError, match="Invalid transpose dimensions"):
             c.transpose('lon', 'lat')
 
+    def test_transform(self):
+        c = Coordinates([[0, 1], [10, 20], ['2018-01-01', '2018-01-02'], [0, 1, 2]], \
+                        dims=['lat', 'lon', 'time', 'alt'])
+        c1 = Coordinates([[[0, 1], [10, 20]], [100, 200, 300]], dims=['lat_lon', 'alt'])
+
+        # default crs
+        assert c.crs == settings['DEFAULT_CRS']
+
+        # transform
+        c_trans = c.transform('EPSG:2193')
+        assert c.crs == settings['DEFAULT_CRS']
+        assert c_trans.crs == 'EPSG:2193'
+        assert round(c_trans['lat'].values[0]) == 29995930.0
+
+        # support proj4 strings
+        proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
+        c_trans = c.transform(proj)
+        assert c.crs == settings['DEFAULT_CRS']
+        assert c_trans.crs == pyproj.CRS(proj).srs
+        assert round(c_trans['lat'].values[0]) == 615849.0
+
+        # support stacked coordinates
+        proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
+        c1_trans = c1.transform(proj)
+        assert c1.crs == settings['DEFAULT_CRS']
+        assert c_trans.crs == pyproj.CRS(proj).srs
+        assert round(c1_trans['lat'].values[0]) == 615849.0
+
+        # support altitude unit transformations
+        proj = '+proj=merc +vunits=us-ft'
+        c_trans = c.transform(proj)
+        assert round(c_trans['lat'].values[0]) == 1113195.0
+        assert round(c_trans['alt'].values[1]) == 3.0
+        assert round(c_trans['alt'].values[2]) == 7.0
+        assert '+vunits=us-ft' in c_trans.crs
+        c1_trans = c1.transform(proj)
+        assert round(c1_trans['lat'].values[0]) == 1113195.0
+        assert round(c1_trans['alt'].values[0]) == 328.0
+        assert round(c1_trans['alt'].values[1]) == 656.0
+        assert '+vunits=us-ft' in c1_trans.crs
+
+        # make sure vunits can be overwritten appropriately
+        c2_trans = c1_trans.transform(alt_units='m')
+        assert round(c2_trans['alt'].values[0]) == 100.0
+        assert '+vunits=m' in c2_trans.crs and '+vunits=us-ft' not in c2_trans.crs
+
+        # alt_units parameter
+        c_trans = c.transform('EPSG:2193', alt_units='us-ft')
+        assert round(c_trans['alt'].values[1]) == 3.0
+        assert round(c_trans['alt'].values[2]) == 7.0
+        assert '+vunits=us-ft' in c_trans.crs
+        c_trans = c.transform('EPSG:2193', alt_units='km')
+        assert c_trans['alt'].values[1] == 0.001
+        assert c_trans['alt'].values[2] == 0.002
+        assert '+vunits=km' in c_trans.crs
+
+
     def test_intersect(self):
-        pass
-        # TODO
+        # TODO: add additional testing
+        
+        # should change the other coordinates crs into the native coordinates crs for intersect
+        c = Coordinates([np.linspace(0, 10, 11), np.linspace(0, 10, 11), ['2018-01-01', '2018-01-02']], \
+                        dims=['lat', 'lon', 'time'])
+        o = Coordinates([np.linspace(28000000, 29500000, 20), np.linspace(-280000, 400000, 20), ['2018-01-01', '2018-01-02']], \
+                dims=['lat', 'lon', 'time'], coord_ref_sys='EPSG:2193')
+
+        c_int = c.intersect(o)
+        assert c_int.crs == settings['DEFAULT_CRS']
+        assert np.all(c_int['lat'].bounds == np.array([5., 10.]))
+        assert np.all(c_int['lon'].bounds == np.array([4., 10.]))
+        assert np.all(c_int['time'].values == c['time'].values)
 
 class TestCoordinatesSpecial(object):
     def test_repr(self):

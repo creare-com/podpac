@@ -233,6 +233,37 @@ class TestDataSource(object):
 
         # output data and returned output data should match
         np.testing.assert_equal(output.transpose('lat', 'lon').data, returned_output.data)
+        np.testing.assert_equal(output.transpose('lat', 'lon').data, returned_output.data)
+
+
+    def test_evaluate_with_crs_transform(self):
+        # initialize coords with dims=[lon, lat]
+        grid_coords = Coordinates([np.linspace(-10, 10, 21), np.linspace(-10, -10, 21)], dims=['lat', 'lon'])
+        stack_coords = Coordinates([(np.linspace(-10, 10, 21), np.linspace(-10, -10, 21)), np.linspace(0, 10, 10)], dims=['lat_lon', 'time'])
+        
+        # transform coords so we know they will intersect with MockDataSource
+        grid_coords = grid_coords.transform('EPSG:2193')
+        stack_coords = stack_coords.transform('EPSG:2193')
+
+        # grid coords
+        node = MockDataSource()
+        out = node.eval(grid_coords)
+
+        assert round(out.coords['lat'].values[0]) == -8889021.0
+        assert round(out.coords['lon'].values[0]) == 1928929.0
+
+        # stacked coords
+        node = MockDataSource()
+        out = node.eval(stack_coords)
+
+        assert 'lat_lon' in out.coords
+        assert round(out.coords['lat'].values[0]) == -8889021.0
+        assert round(out.coords['lon'].values[0]) == 1928929.0
+
+
+
+
+    
 
     def test_evaluate_extra_dims(self):
         # drop extra dimension
@@ -323,7 +354,6 @@ class TestDataSource(object):
 
         assert isinstance(output, UnitsDataArray)
         assert node.native_coordinates['lat'].coordinates[4] == output.coords['lat'].values[4]
-
 
 
 

@@ -14,8 +14,7 @@ from podpac.core.units import Units
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_delta, make_coord_delta_array, add_coord, divide_delta
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
-
-DEFAULT_COORD_REF_SYS = 'WGS84'
+from podpac.core.settings import settings
 
 class Coordinates1d(BaseCoordinates):
     """
@@ -44,7 +43,8 @@ class Coordinates1d(BaseCoordinates):
     units : podpac.Units
         Coordinate units.
     coord_ref_sys : str
-        Coordinate reference system.
+        Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
+        If not defined, set to settings entry: `DEFAULT_CRS`
     ctype : str
         Coordinates type: 'point', 'left', 'right', or 'midpoint'.
     segment_lengths : array, float, timedelta
@@ -58,7 +58,7 @@ class Coordinates1d(BaseCoordinates):
 
     name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
     units = tl.Instance(Units, allow_none=True, read_only=True)
-    coord_ref_sys = tl.Enum(['WGS84', 'SPHER_MERC'], allow_none=True, read_only=True)
+    coord_ref_sys = tl.Unicode(default_value=None, allow_none=True)
     ctype = tl.Enum(['point', 'left', 'right', 'midpoint'], read_only=True)
     segment_lengths = tl.Any(read_only=True)
 
@@ -125,7 +125,7 @@ class Coordinates1d(BaseCoordinates):
 
     @tl.default('coord_ref_sys')
     def _default_coord_ref_sys(self):
-        return DEFAULT_COORD_REF_SYS
+        return settings['DEFAULT_CRS']
 
     def __repr__(self):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
@@ -175,6 +175,12 @@ class Coordinates1d(BaseCoordinates):
 
         raise NotImplementedError
 
+    @property
+    def values(self):
+        """:array, read-only: Full array of coordinates values."""
+
+        return self.coordinates
+        
     @property
     def dtype(self):
         """:type: Coordinates dtype.
