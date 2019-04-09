@@ -13,6 +13,8 @@ import podpac
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
+from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
+from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 from podpac.core.coordinates.cfunctions import crange, clinspace
 from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.coordinates.coordinates import concat, union, merge_dims
@@ -22,6 +24,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([])
         assert c.dims == tuple()
         assert c.udims == tuple()
+        assert c.idims == tuple()
         assert c.shape == tuple()
         assert c.ndim == 0
         assert c.size == 0
@@ -33,6 +36,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([date], dims=['time'])
         assert c.dims == ('time',)
         assert c.udims == ('time',)
+        assert c.idims == ('time',)
         assert c.shape == (1,)
         assert c.ndim == 1
         assert c.size == 1
@@ -41,8 +45,9 @@ class TestCoordinateCreation(object):
         dates = ['2018-01-01', '2018-01-02']
 
         c = Coordinates([dates], dims=['time'])
-        assert c.udims == ('time',)
         assert c.dims == ('time',)
+        assert c.udims == ('time',)
+        assert c.idims == ('time',)
         assert c.shape == (2,)
         assert c.ndim == 1
         assert c.size == 2
@@ -50,12 +55,14 @@ class TestCoordinateCreation(object):
         c = Coordinates([np.array(dates).astype(np.datetime64)], dims=['time'])
         assert c.dims == ('time',)
         assert c.udims == ('time',)
+        assert c.idims == ('time',)
         assert c.shape == (2,)
         assert c.ndim == 1
 
         c = Coordinates([xr.DataArray(dates).astype(np.datetime64)], dims=['time'])
         assert c.dims == ('time',)
         assert c.udims == ('time',)
+        assert c.idims == ('time',)
         assert c.shape == (2,)
         assert c.ndim == 1
         assert c.size == 2
@@ -64,6 +71,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([xr.DataArray(dates, name='time').astype(np.datetime64)])
         assert c.dims == ('time',)
         assert c.udims == ('time',)
+        assert c.idims == ('time',)
         assert c.shape == (2,)
         assert c.ndim == 1
         assert c.size == 2
@@ -71,6 +79,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([xr.DataArray(dates, name='a').astype(np.datetime64)], dims=['time'])
         assert c.dims == ('time',)
         assert c.udims == ('time',)
+        assert c.idims == ('time',)
         assert c.shape == (2,)
         assert c.ndim == 1
         assert c.size == 2
@@ -80,6 +89,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([0, 10], dims=['lat', 'lon'])
         assert c.dims == ('lat', 'lon')
         assert c.udims == ('lat', 'lon',)
+        assert c.idims == ('lat', 'lon',)
         assert c.shape == (1, 1)
         assert c.ndim == 2
         assert c.size == 1
@@ -91,6 +101,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([lat, lon], dims=['lat', 'lon'])
         assert c.dims == ('lat', 'lon')
         assert c.udims == ('lat', 'lon',)
+        assert c.idims == ('lat', 'lon',)
         assert c.shape == (3, 4)
         assert c.ndim == 2
         assert c.size == 12
@@ -99,6 +110,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([xr.DataArray(lat, name='lat'), xr.DataArray(lon, name='lon')])
         assert c.dims == ('lat', 'lon')
         assert c.udims == ('lat', 'lon',)
+        assert c.idims == ('lat', 'lon',)
         assert c.shape == (3, 4)
         assert c.ndim == 2
         assert c.size == 12
@@ -107,6 +119,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([xr.DataArray(lat, name='a'), xr.DataArray(lon, name='b')], dims=['lat', 'lon'])
         assert c.dims == ('lat', 'lon')
         assert c.udims == ('lat', 'lon',)
+        assert c.idims == ('lat', 'lon',)
         assert c.shape == (3, 4)
         assert c.ndim == 2
         assert c.size == 12
@@ -116,6 +129,7 @@ class TestCoordinateCreation(object):
         c = Coordinates([[0, 10]], dims=['lat_lon'])
         assert c.dims == ('lat_lon',)
         assert c.udims == ('lat', 'lon',)
+        assert c.idims == ('lat_lon',)
         assert c.shape == (1,)
         assert c.ndim == 1
         assert c.size == 1
@@ -126,13 +140,45 @@ class TestCoordinateCreation(object):
         c = Coordinates([[lat, lon]], dims=['lat_lon'])
         assert c.dims == ('lat_lon',)
         assert c.udims == ('lat', 'lon',)
+        assert c.idims == ('lat_lon',)
         assert c.shape == (3,)
         assert c.ndim == 1
         assert c.size == 3
 
-        # TODO lat_lon MultiIndex
+    def test_dependent(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        latlon = DependentCoordinates([lat, lon], dims=['lat', 'lon'])
+        c = Coordinates([latlon])
+        assert c.dims == ('lat,lon',)
+        assert c.udims == ('lat', 'lon')
+        assert c.idims == ('i', 'j')
+        assert c.shape == (3, 4)
+        assert c.ndim == 2
+        assert c.size == 12
+        
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = Coordinates([[lat, lon]], dims=['lat,lon'])
+        assert c.dims == ('lat,lon',)
+        assert c.udims == ('lat', 'lon')
+        assert c.idims == ('i', 'j')
+        assert c.shape == (3, 4)
+        assert c.ndim == 2
+        assert c.size == 12
+
+    def test_rotated(self):
+        latlon = RotatedCoordinates((3, 4), np.pi/4, [10, 20], [1.0, 2.0], dims=['lat', 'lon'])
+        c = Coordinates([latlon])
+        assert c.dims == ('lat,lon',)
+        assert c.udims == ('lat', 'lon')
+        assert c.idims == ('i', 'j')
+        assert c.shape == (3, 4)
+        assert c.ndim == 2
+        assert c.size == 12
 
     def test_mixed(self):
+        # stacked
         lat = [0, 1, 2]
         lon = [10, 20, 30]
         dates = ['2018-01-01', '2018-01-02']
@@ -140,9 +186,35 @@ class TestCoordinateCreation(object):
         c = Coordinates([[lat, lon], dates], dims=['lat_lon', 'time'])
         assert c.dims == ('lat_lon', 'time')
         assert c.udims == ('lat', 'lon', 'time')
+        assert c.idims == ('lat_lon', 'time')
         assert c.shape == (3, 2)
         assert c.ndim == 2
         assert c.size == 6
+        repr(c)
+
+        # dependent
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        dates = ['2018-01-01', '2018-01-02']
+        c = Coordinates([[lat, lon], dates], dims=['lat,lon', 'time'])
+        assert c.dims == ('lat,lon', 'time')
+        assert c.udims == ('lat', 'lon', 'time')
+        assert c.idims == ('i', 'j', 'time')
+        assert c.shape == (3, 4, 2)
+        assert c.ndim == 3
+        assert c.size == 24
+        repr(c)
+
+        # rotated
+        latlon = RotatedCoordinates((3, 4), np.pi/4, [10, 20], [1.0, 2.0], dims=['lat', 'lon'])
+        c = Coordinates([latlon, dates], dims=['lat,lon', 'time'])
+        assert c.dims == ('lat,lon', 'time')
+        assert c.udims == ('lat', 'lon', 'time')
+        assert c.idims == ('i', 'j', 'time')
+        assert c.shape == (3, 4, 2)
+        assert c.ndim == 3
+        assert c.size == 24
+        repr(c)
 
     def test_invalid_dims(self):
         lat = [0, 1, 2]
@@ -365,11 +437,25 @@ class TestCoordinatesSerialization(object):
         c = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], crange(0, 10, 0.5)],
             dims=['lat_lon', 'time', 'alt'])
-
         d = c.definition
-        
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
+        c2 = Coordinates.from_definition(d)
+        assert c2 == c
 
+    def test_definition_dependent(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        c = Coordinates([[lat, lon]], dims=['lat,lon'])
+        d = c.definition
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder)
+        c2 = Coordinates.from_definition(d)
+        assert c2 == c
+
+    def test_definition_rotated(self):
+        latlon = RotatedCoordinates((3, 4), np.pi/4, [10, 20], [1.0, 2.0], dims=['lat', 'lon'])
+        c = Coordinates([latlon])
+        d = c.definition
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder)
         c2 = Coordinates.from_definition(d)
         assert c2 == c
         
@@ -395,6 +481,22 @@ class TestCoordinatesSerialization(object):
 class TestCoordinatesProperties(object):
     def test_xarray_coords(self):
         lat = [0, 1, 2]
+        lon = [10, 20, 30, 40]
+        dates = ['2018-01-01', '2018-01-02']
+
+        c = Coordinates([
+            ArrayCoordinates1d(lat, name='lat'),
+            ArrayCoordinates1d(lon, name='lon'),
+            ArrayCoordinates1d(dates, name='time')])
+        
+        assert isinstance(c.coords, xr.core.coordinates.DataArrayCoordinates)
+        assert c.coords.dims == ('lat', 'lon', 'time')
+        np.testing.assert_equal(c.coords['lat'].data, np.array(lat, dtype=float))
+        np.testing.assert_equal(c.coords['lon'].data, np.array(lon, dtype=float))
+        np.testing.assert_equal(c.coords['time'].data, np.array(dates).astype(np.datetime64))        
+    
+    def test_xarray_coords_stacked(self):
+        lat = [0, 1, 2]
         lon = [10, 20, 30]
         dates = ['2018-01-01', '2018-01-02']
 
@@ -408,6 +510,23 @@ class TestCoordinatesProperties(object):
         assert c.coords.dims == ('lat_lon', 'time')
         np.testing.assert_equal(c.coords['lat'].data, np.array(lat, dtype=float))
         np.testing.assert_equal(c.coords['lon'].data, np.array(lon, dtype=float))
+        np.testing.assert_equal(c.coords['time'].data, np.array(dates).astype(np.datetime64))
+
+    def test_xarray_coords_dependent(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        dates = ['2018-01-01', '2018-01-02']
+
+        c = Coordinates([
+            DependentCoordinates([lat, lon], dims=['lat', 'lon']),
+            ArrayCoordinates1d(dates, name='time')])
+        
+        assert isinstance(c.coords, xr.core.coordinates.DataArrayCoordinates)
+        assert c.coords.dims == ('i', 'j', 'time')
+        np.testing.assert_equal(c.coords['i'].data, np.arange(3))
+        np.testing.assert_equal(c.coords['j'].data, np.arange(4))
+        np.testing.assert_equal(c.coords['lat'].data, lat)
+        np.testing.assert_equal(c.coords['lon'].data, lon)
         np.testing.assert_equal(c.coords['time'].data, np.array(dates).astype(np.datetime64))
     
     def test_coord_ref_sys(self):
@@ -601,14 +720,6 @@ class TestCoordinatesIndexing(object):
         assert_equal(c2['time'].coordinates, c['time'].coordinates[K])
 
         # partial
-        c2 = c[I]
-        assert isinstance(c2, Coordinates)
-        assert c2.shape == (3, 4, 3)
-        assert c2.dims == c.dims
-        assert_equal(c2['lat'].coordinates, c['lat'].coordinates[I])
-        assert_equal(c2['lon'].coordinates, c['lon'].coordinates)
-        assert_equal(c2['time'].coordinates, c['time'].coordinates)
-
         c2 = c[I, J]
         assert isinstance(c2, Coordinates)
         assert c2.shape == (3, 2, 3)
@@ -617,8 +728,84 @@ class TestCoordinatesIndexing(object):
         assert_equal(c2['lon'].coordinates, c['lon'].coordinates[J])
         assert_equal(c2['time'].coordinates, c['time'].coordinates)
 
+        c2 = c[I]
+        assert isinstance(c2, Coordinates)
+        assert c2.shape == (3, 4, 3)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, c['lat'].coordinates[I])
+        assert_equal(c2['lon'].coordinates, c['lon'].coordinates)
+        assert_equal(c2['time'].coordinates, c['time'].coordinates)
+
+    def test_get_index_stacked(self):
+        lat = [0, 1, 2, 3, 4]
+        lon = [10, 20, 30, 40, 50]
+        dates = ['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04']
+
+        c = Coordinates([
+            StackedCoordinates([
+                ArrayCoordinates1d(lat, name='lat'),
+                ArrayCoordinates1d(lon, name='lon')]),
+            ArrayCoordinates1d(dates, name='time')])
+
+        I = [2, 1, 3]
+        J = slice(1, 3)
+        
+        # full
+        c2 = c[I, J]
+        assert isinstance(c2, Coordinates)
+        assert c2.shape == (3, 2)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, c['lat'].coordinates[I])
+        assert_equal(c2['lon'].coordinates, c['lon'].coordinates[I])
+        assert_equal(c2['time'].coordinates, c['time'].coordinates[J])
+
+        # partial
+        c2 = c[I]
+        assert isinstance(c2, Coordinates)
+        assert c2.shape == (3, 4)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, c['lat'].coordinates[I])
+        assert_equal(c2['lon'].coordinates, c['lon'].coordinates[I])
+        assert_equal(c2['time'].coordinates, c['time'].coordinates)
+
     def test_get_index_dependent(self):
-        pass # TODO
+        lat = np.linspace(0, 1, 20).reshape((5, 4))
+        lon = np.linspace(10, 20, 20).reshape((5, 4))
+        dates = ['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04']
+
+        c = Coordinates([
+            DependentCoordinates([lat, lon], dims=['lat', 'lon']),
+            ArrayCoordinates1d(dates, name='time')])
+
+        I = [2, 1, 3]
+        J = slice(1, 3)
+        K = 1
+        
+        # full
+        c2 = c[I, J, K]
+        assert isinstance(c2, Coordinates)
+        assert c2.shape == (3, 2, 1)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, c['lat'].coordinates[I, J])
+        assert_equal(c2['lon'].coordinates, c['lon'].coordinates[I, J])
+        assert_equal(c2['time'].coordinates, c['time'].coordinates[K])
+
+        # partial
+        c2 = c[I, J]
+        assert isinstance(c2, Coordinates)
+        assert c2.shape == (3, 2, 4)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, c['lat'].coordinates[I, J])
+        assert_equal(c2['lon'].coordinates, c['lon'].coordinates[I, J])
+        assert_equal(c2['time'].coordinates, c['time'].coordinates)
+        
+        c2 = c[I]
+        assert isinstance(c2, Coordinates)
+        assert c2.shape == (3, 4, 4)
+        assert c2.dims == c.dims
+        assert_equal(c2['lat'].coordinates, c['lat'].coordinates[I])
+        assert_equal(c2['lon'].coordinates, c['lon'].coordinates[I])
+        assert_equal(c2['time'].coordinates, c['time'].coordinates)
 
 class TestCoordinatesMethods(object):
     coords = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], 10], dims=['lat_lon', 'time', 'alt'])

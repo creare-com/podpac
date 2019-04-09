@@ -115,7 +115,7 @@ class Coordinates(tl.HasTraits):
             elif '_' in dim:
                 c = StackedCoordinates(coords[i])
             elif ',' in dim:
-                c = DependentCoordinates(coords[i])
+                c = DependentCoordinates(coords[i], dims=dim.split(','))
             else:
                 c = ArrayCoordinates1d(coords[i])
 
@@ -353,7 +353,7 @@ class Coordinates(tl.HasTraits):
                 c = StackedCoordinates.from_definition(e)
             elif 'start' in e and 'stop' in e and ('step' in e or 'size' in e):
                 c = UniformCoordinates1d.from_definition(e)
-            elif 'values' in e:
+            elif 'name' in e and 'values' in e:
                 c = ArrayCoordinates1d.from_definition(e)
             elif 'dims' in e and 'values' in e:
                 c = DependentCoordinates.from_definition(e)
@@ -465,7 +465,7 @@ class Coordinates(tl.HasTraits):
             i = 0
             for c in self._coords.values():
                 if isinstance(c, DependentCoordinates):
-                    indices += tuple(index[i:i+len(c.dims)])
+                    indices.append(tuple(index[i:i+len(c.dims)]))
                     i += len(c.dims)
                 else:
                     indices.append(index[i])
