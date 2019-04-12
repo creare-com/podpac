@@ -11,7 +11,7 @@ import functools
 import importlib
 from collections import OrderedDict
 import logging
-
+from copy import deepcopy
 import traitlets as tl
 import numpy as np
 
@@ -263,5 +263,11 @@ class JSONEncoder(json.JSONEncoder):
         elif isinstance(obj, np.timedelta64):
             return podpac.core.coordinates.utils.make_timedelta_string(obj)
         
+        # Interpolator
+        elif obj in podpac.core.data.interpolation.INTERPOLATORS:
+            interpolater_class = deepcopy(obj)
+            interpolator = interpolater_class()
+            return interpolator.definition
+
         # default
         return json.JSONEncoder.default(self, obj)

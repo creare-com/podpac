@@ -4,12 +4,14 @@ Multidimensional Coordinates
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import copy
+import warnings
+from copy import deepcopy
 import sys
 import itertools
 import json
 from collections import OrderedDict
 from hashlib import md5 as hash_alg
+import re
 
 import numpy as np
 import traitlets as tl
@@ -17,10 +19,10 @@ import pandas as pd
 import xarray as xr
 import xarray.core.coordinates
 from six import string_types
+import pyproj
 
 import podpac
 from podpac.core.utils import OrderedDictTrait
-from podpac.core.coordinates.utils import GDAL_CRS
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -77,7 +79,7 @@ class Coordinates(tl.HasTraits):
              * 'lat', 'lon', 'alt', or 'time' for unstacked coordinates
              * dimension names joined by an underscore for stacked coordinates
         coord_ref_sys : str, optional
-            Default coordinates reference system
+            Default coordinates reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
         distance_units : Units
@@ -460,19 +462,37 @@ class Coordinates(tl.HasTraits):
         raise KeyError("Dimension '%s' not found in Coordinates %s" % (dim, self.dims))
 
     def __setitem__(self, dim, c):
-        if not dim in self.dims:
-            raise KeyError("Cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
 
-        # try to cast to ArrayCoordinates1d
-        if not isinstance(c, BaseCoordinates):
-            c = ArrayCoordinates1d(c)
+        # cast input coordinates
+        #             if isinstance(coords[i], BaseCoordinates):
+        if isinstance(c, BaseCoordinates):
+            pass
+        elif isinstance(c, Coordinates):
+            c = c[dim]
+        elif isinstance(c, (list, tuple, np.ndarray)):
+            if '_' in dim:
+                cs = [val if isinstance(val, Coordinates1d) else ArrayCoordinates1d(val) for val in c]
+                c = StackedCoordinates(cs)
+            else:
+                c = ArrayCoordinates1d(c)
+        else:
+            raise TypeError("Invalid coords, expected list, array, " +
+                            "or class implementing BaseCoordinates, not '%s'" % type(c))
 
         if c.name is None:
             c.name = dim
 
-        d = self._coords.copy()
-        d[dim] = c
-        self._coords = d
+        if dim in self.dims:
+            d = self._coords.copy()
+            d[dim] = c
+            self._coords = d
+        
+        elif dim in self.udims:
+            stacked_dim = [sd for sd in self.dims if dim in sd][0]
+            self._coords[stacked_dim][dim] = c
+        else:
+            raise KeyError("Cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
+
 
     def __delitem__(self, dim):
         if not dim in self.dims:
@@ -637,34 +657,33 @@ class Coordinates(tl.HasTraits):
 
         return hash_alg(self.json.encode('utf-8')).hexdigest()
 
-    # #@property
-    # #def gdal_transform(self):
-    #     if self['lon'].regularity == 'regular' and self['lat'].regularity == 'regular':
-    #         lon_bounds = self['lon'].area_bounds
-    #         lat_bounds = self['lat'].area_bounds
-    #         transform = [lon_bounds[0], self['lon'].delta, 0, lat_bounds[0], 0, -self['lat'].delta]
-    #     else:
-    #         raise NotImplementedError
-    #     return transform
-
     @property
     def coord_ref_sys(self):
-        """:str: coordinate reference system."""
+        """
+        :str: coordinate reference system.
 
+        .. deprecated:: 1.0.0
+              `coord_ref_sys` will be removed in podpac 1.0.0, it is replaced by
+              `crs` for consistency
+        """
+
+        warnings.warn('`coord_ref_sys` has been replaced with `crs` and will be deprecated in future releases', DeprecationWarning)
+        return self.crs
+    
+    @property
+    def crs(self):
+        """:str: coordinate reference system."""
         if not self._coords:
             return None
         
         # the coord_ref_sys is the same for all coords
         return list(self._coords.values())[0].coord_ref_sys
-    
-    @property
-    def gdal_crs(self):
-        """:str: GDAL coordinate reference system."""
 
-        if not self._coords:
-            return None
+        # key = 'lat' if 'lat' in self.udims else 'lon'
+        # if key == 'lon' and 'lon' not in self.udims:
+        #     return None
 
-        return GDAL_CRS[self.coord_ref_sys]
+        # return GDAL_CRS.get(self[key].coord_ref_sys, self[key].coord_ref_sys)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -829,6 +848,8 @@ class Coordinates(tl.HasTraits):
         idx : list
             List of indices for each dimension that produces the intersection, only if ``return_indices`` is True.
         """
+        if other.crs != self.crs:
+            other = other.transform(self.crs)
 
         intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self.values()]
         if return_indices:
@@ -838,7 +859,7 @@ class Coordinates(tl.HasTraits):
         else:
             return Coordinates(intersections)
 
-    def unique(self, return_index=False):
+    def unique(self, return_indices=False):
         """
         Remove duplicate coordinate values from each dimension.
 
@@ -847,11 +868,12 @@ class Coordinates(tl.HasTraits):
         coords : Coordinates
             New Coordinates object with unique, sorted coordinate values in each dimension.
         """
-        if return_index:
-            inds = [np.unique(c.coordinates, return_index=True)[1] for c in self.values()]
-            return Coordinates([c[i] for c, i in zip(self.values(), inds)]), inds
+        inds = [np.unique(c.coordinates, return_index=True)[1] for c in self.values()]
+        c = Coordinates([c[i] for c, i in zip(self.values(), inds)])
+        if return_indices:
+            return c, inds
         else:
-            return Coordinates([c[np.unique(c.coordinates, return_index=True)[1]] for c in self.values()])
+            return c
 
     def unstack(self):
         """
@@ -933,6 +955,143 @@ class Coordinates(tl.HasTraits):
 
         else:
             return Coordinates([self._coords[dim] for dim in dims])
+
+    def transform(self, crs=None, alt_units=None):
+        """
+        Transform coordinate dimensions (`lat`, `lon`, `alt`) into a different coordinate reference system.
+        Uses PROJ4 syntax for coordinate reference systems and units.
+        
+        See `PROJ4 Documentation <https://proj4.org/usage/projections.html#cartographic-projection>`_ for
+        more information about creating PROJ4 strings. See `PROJ4 Distance Units
+        <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`_ for unit string
+        references.
+        
+        Examples
+        --------
+        Transform gridded coordinates::
+        
+            c = Coordinates([np.linspace(-10, 10, 21), np.linspace(-30, -10, 21)], dims=['lat', 'lon'])
+            c.crs
+
+            >> 'EPSG:4326'
+
+            c.transform('EPSG:2193')
+        
+            >> Coordinates
+                lat: ArrayCoordinates1d(lat): Bounds[-9881992.849134896, 29995929.885877542], N[21], ctype['point']
+                lon: ArrayCoordinates1d(lon): Bounds[1928928.7360588573, 4187156.434405213], N[21], ctype['midpoint']
+        
+        Transform stacked coordinates::
+        
+            c = Coordinates([(np.linspace(-10, 10, 21), np.linspace(-30, -10, 21))], dims=['lat_lon'])
+            c.transform('EPSG:2193')
+        
+            >> Coordinates
+                lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[-9881992.849134896, 29995929.885877542], N[21], ctype['point']
+                lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[1928928.7360588573, 4187156.434405213], N[21], ctype['midpoint']
+        
+        Transform coordinates using a PROJ4 string::
+        
+            c = Coordinates([np.linspace(-10, 10, 21), np.linspace(-30, -10, 21)], dims=['lat', 'lon'])
+            c.transform('+proj=merc +lat_ts=56.5 +ellps=GRS80')
+        
+            >> Coordinates
+                lat: ArrayCoordinates1d(lat): Bounds[-1847545.541169525, -615848.513723175], N[21], ctype['midpoint']
+                lon: ArrayCoordinates1d(lon): Bounds[-614897.0725896168, 614897.0725896184], N[21], ctype['midpoint']
+        
+        Transform coordinates with altitude::
+        
+            # include alt units in proj4 string
+            c = Coordinates([[0, 1, 2], [0, 1, 2], [1, 2, 3]], dims=['lat', 'lon', 'alt'])
+            c.transform('+init=epsg:2193 +vunits=ft')
+        
+            >> Coordinates
+                lat: ArrayCoordinates1d(lat): Bounds[594971.8894642257, 819117.0608407748], N[3], ctype['midpoint']
+                lon: ArrayCoordinates1d(lon): Bounds[29772096.71234478, 29995929.885877542], N[3], ctype['midpoint']
+                alt: ArrayCoordinates1d(alt): Bounds[3.280839895013123, 9.842519685039369], N[3], ctype['midpoint']
+
+
+            # specify alt units seperately
+            c.transform('EPSG:2193', alt_units='ft')
+        
+            >> Coordinates
+                lat: ArrayCoordinates1d(lat): Bounds[594971.8894642257, 819117.0608407748], N[3], ctype['midpoint']
+                lon: ArrayCoordinates1d(lon): Bounds[29772096.71234478, 29995929.885877542], N[3], ctype['midpoint']
+                alt: ArrayCoordinates1d(alt): Bounds[3.280839895013123, 9.842519685039369], N[3], ctype['midpoint']
+
+            # using alt_units will save the property `crs` as a proj4 string:
+            ct = c.transform('EPSG:2193', alt_units='ft')
+            ct.crs
+
+            >> '+proj=tmerc +lat_0=0 +lon_0=173 +k=0.9996 +x_0=1600000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs +type=crs +vunits=ft'
+        
+        Parameters
+        ----------
+        crs : str, optional
+            PROJ4 compatible coordinate reference system string.
+            Defaults to the current `crs`
+        alt_units : str, optional
+            Override the alt units defined in `crs` string.
+            This is implemented to provide a shorthand for transforming alt units
+            without specifying the whole proj4 string.
+        
+        Returns
+        -------
+        :class:`podpac.Coordinates`
+            Transformed Coordinates
+        
+        Raises
+        ------
+        ValueError
+            Coordinates must have both lat and lon dimensions if either is defined
+        """
+
+        t_coords = deepcopy(self)
+
+        if crs is None:
+            crs = self.crs
+
+        from_crs = pyproj.CRS(self.crs)
+        to_crs = pyproj.CRS(crs)
+
+        # convert alt units into proj4 syntax
+        if alt_units is not None:
+            proj4crs = to_crs.to_proj4()
+
+            # remove old vunits string if present
+            if '+vunits' in proj4crs:
+                proj4crs = re.sub(r'\+vunits=[a-z\-]+\s', '', proj4crs)
+
+            to_crs = pyproj.CRS('{} +vunits={}'.format(proj4crs, alt_units))
+
+        # create proj4 transformer
+        transformer = pyproj.Transformer.from_crs(from_crs, to_crs)
+
+        # update crs on the individual coords - this must be done before assigning new values
+        # note using `srs` here so it captures the user input (i.e. EPSG:4193)
+        # if alt_units included, this will be a whole proj4 string because of conversion above
+        for dim in t_coords.udims:
+            t_coords[dim].coord_ref_sys = to_crs.srs
+
+        # if lat or lon is present, coordinates MUST have both, even if stacked:
+        if ('lat' in self.udims or 'lon' in self.udims):
+            
+            if (set(['lat', 'lon']) - set(self.udims)):
+                raise ValueError('Coordinates must have both lat and lon dimensions to transform coordinate reference systems')
+
+            (lat, lon) = transformer.transform(self.coords['lat'].values, self.coords['lon'].values)
+            t_coords['lat'] = ArrayCoordinates1d(lat, coord_ref_sys=t_coords.crs)
+            t_coords['lon'] = ArrayCoordinates1d(lon, coord_ref_sys=t_coords.crs)
+
+        # by keeping these seperate, we can handle altitude dimensions that are a different length from lat/lon
+        if 'alt' in self.udims:
+  
+            dummy = np.zeros(len(self.coords['alt'].values))  # must be same length as alt
+            (lat, lon, alt) = transformer.transform(dummy, dummy, self.coords['alt'].values)
+            t_coords['alt'] = ArrayCoordinates1d(alt, coord_ref_sys=t_coords.crs)
+
+        return t_coords
+
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods

@@ -33,7 +33,14 @@ class TestStackedCoordinatesCreation(object):
         c = StackedCoordinates([lat, lon, time])
         assert c.dims == (None, None, None)
         assert c.udims == (None, None, None)
-        assert c.name == '?_?_?'
+        assert c.name is None
+
+        lat = ArrayCoordinates1d([0, 1, 2], name='lat')
+        c = StackedCoordinates([lat, lon, time])
+        assert c.dims == ('lat', None, None)
+        assert c.udims == ('lat', None, None)
+        assert c.name == 'lat_?_?'
+
         repr(c)
 
     def test_ctype(self):

@@ -40,6 +40,7 @@ DEFAULT_SETTINGS = {
     'N_THREADS': 8,
     'CHUNK_SIZE': None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
     'ENABLE_UNITS': True,
+    'DEFAULT_CRS': 'EPSG:4326'
 }
 
 

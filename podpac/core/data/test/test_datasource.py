@@ -16,7 +16,8 @@ from podpac.core.node import COMMON_NODE_DOC, NodeException
 from podpac.core.style import Style
 from podpac.core.coordinates import Coordinates, clinspace, crange
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
-from podpac.core.data.interpolate import Interpolation, Interpolator
+from podpac.core.data.interpolation import Interpolation
+from podpac.core.data.interpolator import Interpolator
 
 class MockArrayDataSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
@@ -224,7 +225,7 @@ class TestDataSource(object):
         output = node.create_output_array(coords.transpose('lon', 'lat'))
         returned_output = node.eval(coords, output=output)
         
-        # returned output sohuld match the requested coordinates
+        # returned output should match the requested coordinates
         assert returned_output.dims == ('lat', 'lon')
 
         # dims should stay in the order of the output, rather than the order of the requested coordinates
@@ -232,6 +233,37 @@ class TestDataSource(object):
 
         # output data and returned output data should match
         np.testing.assert_equal(output.transpose('lat', 'lon').data, returned_output.data)
+        np.testing.assert_equal(output.transpose('lat', 'lon').data, returned_output.data)
+
+
+    def test_evaluate_with_crs_transform(self):
+        # initialize coords with dims=[lon, lat]
+        grid_coords = Coordinates([np.linspace(-10, 10, 21), np.linspace(-10, -10, 21)], dims=['lat', 'lon'])
+        stack_coords = Coordinates([(np.linspace(-10, 10, 21), np.linspace(-10, -10, 21)), np.linspace(0, 10, 10)], dims=['lat_lon', 'time'])
+        
+        # transform coords so we know they will intersect with MockDataSource
+        grid_coords = grid_coords.transform('EPSG:2193')
+        stack_coords = stack_coords.transform('EPSG:2193')
+
+        # grid coords
+        node = MockDataSource()
+        out = node.eval(grid_coords)
+
+        assert round(out.coords['lat'].values[0]) == -8889021.0
+        assert round(out.coords['lon'].values[0]) == 1928929.0
+
+        # stacked coords
+        node = MockDataSource()
+        out = node.eval(stack_coords)
+
+        assert 'lat_lon' in out.coords
+        assert round(out.coords['lat'].values[0]) == -8889021.0
+        assert round(out.coords['lon'].values[0]) == 1928929.0
+
+
+
+
+    
 
     def test_evaluate_extra_dims(self):
         # drop extra dimension
@@ -322,7 +354,6 @@ class TestDataSource(object):
 
         assert isinstance(output, UnitsDataArray)
         assert node.native_coordinates['lat'].coordinates[4] == output.coords['lat'].values[4]
-
 
 
 

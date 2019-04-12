@@ -1028,7 +1028,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
                     
                     # Make sure the coordinates are unique 
                     # (we actually know SMAP-Sentinel is NOT unique, so we can't do this)
-                    #crdsunique, inds = crdsfull.unique(return_index=True)
+                    #crdsunique, inds = crdsfull.unique(return_indices=True)
                     #sources.filenames = np.array(sources.filenames)[inds[0]].tolist()
                     #sources.dates = np.array(sources.dates)[inds[0]].tolist()
                     
