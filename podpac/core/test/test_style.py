@@ -3,6 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 from podpac.core.node import Node
 from podpac.core.style import Style
+from podpac.core.units import ureg
 
 class TestStyleCreation(object):
     def test_basic_creation(self):
@@ -15,3 +16,9 @@ class TestStyleCreation(object):
     def test_get_default_cmap(self):
         style = Style()
         style.cmap
+        
+    def test_serialization(self):
+        style1 = Style(units=ureg.meter)
+        style2 = Style.from_json(style1.json)
+        for t in style1.trait_names():
+            assert getattr(style1, t) == getattr(style2, t)

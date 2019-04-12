@@ -233,10 +233,18 @@ class JSONEncoder(json.JSONEncoder):
         if isinstance(obj, podpac.Coordinates):
             return obj.definition
 
-        # podpac Coordinates objects
+        # podpac Node objects
         elif isinstance(obj, podpac.Node):
             return obj.definition
 
+        # podpac Style objects
+        elif isinstance(obj, podpac.core.style.Style):
+            return obj.definition
+       
+        # pint Units
+        elif isinstance(obj, podpac.core.units.ureg.Unit):
+            return str(obj)
+    
         # numpy arrays
         elif isinstance(obj, np.ndarray):
             if np.issubdtype(obj.dtype, np.datetime64):
