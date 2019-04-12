@@ -241,44 +241,52 @@ class UnitsDataArray(xr.DataArray):
 
 for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
-
-    def func(self, other, meth=meth, tp=tp):
-        x = getattr(super(UnitsDataArray, self), meth)(other)
-        return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-
+    def make_func(meth, tp):
+        def func(self, other):
+            x = getattr(super(UnitsDataArray, self), meth)(other)
+            return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+        return func
+    
+    func = make_func(meth, tp)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
 
 
 for tp in ("add", "sub", "mod", "floordiv"): #, "divmod", ):
     meth = "__{:s}__".format(tp)
-
-    def func(self, other, meth=meth, tp=tp):
-        multiplier = self._get_unit_multiplier(other)
-        x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-        return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-
+    def make_func(meth, tp):
+        def func(self, other):
+            multiplier = self._get_unit_multiplier(other)
+            x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
+            return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+        return func
+    
+    func = make_func(meth, tp)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
 
 
 for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     meth = "__{:s}__".format(tp)
+    def make_func(meth):
+        def func(self, other):
+            multiplier = self._get_unit_multiplier(other)
+            return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
+        return func
 
-    def func(self, other, meth=meth, tp=tp):
-        multiplier = self._get_unit_multiplier(other)
-        return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-
+    func = make_func(meth)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
 
 
 for tp in ("mean", 'min', 'max', 'sum', 'cumsum'):
+    def make_func(tp):
+        def func(self, *args, **kwargs):
+            x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
+            return self._copy_units(x)
+        return func
 
-    def func(self, tp=tp, *args, **kwargs):
-        x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
-        return self._copy_units(x)
-
+    func = make_func(tp)
     func.__name__ = tp
     setattr(UnitsDataArray, tp, func)
 

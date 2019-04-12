@@ -85,6 +85,15 @@ class TestUnitDataArray(object):
         assert np.cumsum(a, axis=0).attrs.get("units", None) is not None
         assert np.min(a, axis=0).attrs.get("units", None) is not None
         assert np.max(a, axis=0).attrs.get("units", None) is not None
+        
+    def test_reductions_over_named_axes(self):
+        n_lats = 3
+        n_lons = 4
+        n_alts = 2
+        a = UnitsDataArray(np.arange(n_lats*n_lons*n_alts).reshape((n_lats,n_lons,n_alts)), 
+                            dims=['lat', 'lon', 'alt'],
+                            attrs={'units': ureg.meter})
+        assert len(a.mean(['lat', 'lon']).data) == 2
 
     def test_set_to_value_using_UnitsDataArray_as_mask_does_nothing_if_mask_has_dim_not_in_array(self):
         a = UnitsDataArray(
