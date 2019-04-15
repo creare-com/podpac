@@ -13,6 +13,7 @@ import datetime
 import calendar
 import numbers
 import numpy as np
+import traitlets as tl
 from six import string_types
 
 def get_timedelta(s):
@@ -427,7 +428,15 @@ _TIMEDELTA_ZOOM = {
     '<m8[D]': '<m8[h]',
     '<m8[h]': '<m8[m]',
     '<m8[m]': '<m8[s]',
-    '<m8[s]': '<m8[ms]', # alredy probably farther then necessary...
+    '<m8[s]': '<m8[ms]', # already probably farther then necessary...
     '<m8[ms]': '<m8[us]',
     '<m8[us]': '<m8[ns]'
 }
+
+class Dimension(tl.Enum):
+    def __init__(self, *args, **kwargs):
+        super(Dimension, self).__init__(['lat', 'lon', 'alt', 'time'], *args, **kwargs)
+
+class CoordinateType(tl.Enum):
+    def __init__(self, *args, **kwargs):
+        super(CoordinateType, self).__init__(['point', 'left', 'right', 'midpoint'], *args, **kwargs)

@@ -40,7 +40,7 @@ class UniformCoordinates1d(Coordinates1d):
         Full array of coordinate values.
     units : podpac.Units
         Coordinate units.
-    coord_ref_sys : str
+    crs : str
         Coordinate reference system.
     ctype : str
         Coordinates type, one of'point', 'left', 'right', or 'midpoint'.
@@ -62,7 +62,7 @@ class UniformCoordinates1d(Coordinates1d):
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
     def __init__(self, start, stop, step=None, size=None,
-                       name=None, ctype=None, units=None, coord_ref_sys=None, segment_lengths=None):
+                       name=None, ctype=None, units=None, crs=None, segment_lengths=None):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -76,6 +76,14 @@ class UniformCoordinates1d(Coordinates1d):
             Signed, nonzero step between coordinates (either step or size required).
         size : int
             Number of coordinates (either step or size required).
+        name : str, optional
+            Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+        units : Units, optional
+            Coordinate units.
+        crs : str, optional
+            Coordinate reference system.
+        ctype : str, optional
+            Coordinates type: 'point', 'left', 'right', or 'midpoint'.
         segment_lengths: array, float, timedelta, optional
             When ctype is a segment type, the segment lengths for the coordinates. By defaul, the segment_lengths are
             equal the step.
@@ -118,7 +126,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         # set common properties
         super(UniformCoordinates1d, self).__init__(
-            name=name, ctype=ctype, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
+            name=name, ctype=ctype, units=units, segment_lengths=segment_lengths, crs=crs)
         
     @tl.default('ctype')
     def _default_ctype(self):
@@ -226,8 +234,6 @@ class UniformCoordinates1d(Coordinates1d):
         """
 
         kwargs = self.properties
-        if self._segment_lengths:
-            kwargs['segment_lengths'] = self.segment_lengths
         return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -278,7 +284,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         else:
             # coordinates
-            coords = self.coordinates[index]
+            coordinates = self.coordinates[index]
 
             # properties and segment_lengths
             kwargs = self.properties
@@ -291,7 +297,7 @@ class UniformCoordinates1d(Coordinates1d):
 
             kwargs['ctype'] = self.ctype
 
-            return ArrayCoordinates1d(coords, **kwargs)
+            return ArrayCoordinates1d(coordinates, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -393,8 +399,6 @@ class UniformCoordinates1d(Coordinates1d):
         d['start'] = self.start
         d['stop'] = self.stop
         d['step'] = self.step
-        if self._segment_lengths:
-            d['segment_lengths'] = self.segment_lengths
         d.update(self.properties)
         return d
 
@@ -402,58 +406,7 @@ class UniformCoordinates1d(Coordinates1d):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def select(self, bounds, outer=False, return_indices=False):
-        """
-        Get the coordinate values that are within the given bounds.
-
-        The default selection returns coordinates that are within the other coordinates bounds::
-
-            In [1]: c = UniformCoordinates1d(0, 3, step=1, name='lat')
-
-            In [2]: c.select([1.5, 2.5]).coordinates
-            Out[2]: array([2.])
-
-        The *outer* selection returns the minimal set of coordinates that contain the other coordinates::
-        
-            In [3]: c.intersect([1.5, 2.5], outer=True).coordinates
-            Out[3]: array([1., 2., 3.])
-
-        The *outer* selection also returns a boundary coordinate if the other coordinates are outside this
-        coordinates bounds but *inside* its area bounds::
-        
-            In [4]: c.intersect([3.25, 3.35], outer=True).coordinates
-            Out[4]: array([3.0], dtype=float64)
-
-            In [5]: c.intersect([10.0, 11.0], outer=True).coordinates
-            Out[5]: array([], dtype=float64)
-        
-        Arguments
-        ---------
-        bounds : low, high
-            selection bounds
-        outer : bool, optional
-            If True, do an *outer* selection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
-
-        Returns
-        -------
-        selection : :class:`UniformCoordinates`
-            UniformCoordinates1d object with coordinates within the other coordinates bounds.
-        I : slice or list
-            index or slice for the intersected coordinates (only if return_indices=True)
-        """
-
-        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
-
-        # full
-        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
-            return self._select_full(return_indices)
-
-        # none
-        if self.area_bounds[0] > bounds[1] or self.area_bounds[1] < bounds[0]:
-            return self._select_empty(return_indices)
-
+    def _select(self, bounds, return_indices, outer):
         # TODO is there an easier way to do this with the new outer flag?
 
         lo = max(bounds[0], self.bounds[0])

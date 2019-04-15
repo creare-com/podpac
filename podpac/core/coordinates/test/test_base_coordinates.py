@@ -5,10 +5,17 @@ class TestBaseCoordinates(object):
     def test_common_api(self):
         c = BaseCoordinates()
 
-        attrs = ['name', 'dims', 'udims', 'coordinates', 'size', 'definition']
+        attrs = ['name', 'dims', 'idims', 'udims', 'coordinates', 'coords', 'size', 'shape', 'definition']
         for attr in attrs:
             try:
                 getattr(c, attr)
+            except NotImplementedError:
+                pass
+
+        for method_name in ['_set_name', '_set_crs', '_set_distance_units', '_set_ctype']:
+            try:
+                method = getattr(c, method_name)
+                method(None)
             except NotImplementedError:
                 pass
 
@@ -38,11 +45,6 @@ class TestBaseCoordinates(object):
             pass
 
         try:
-            len(c)
-        except NotImplementedError:
-            pass
-
-        try:
             repr(c)
         except NotImplementedError:
             pass
@@ -51,5 +53,3 @@ class TestBaseCoordinates(object):
             c == c
         except NotImplementedError:
             pass
-
-        assert c != None

@@ -19,10 +19,10 @@ class TestArrayCoordinatesInit(object):
     def test_empty(self):
         c = ArrayCoordinates1d([])
         a = np.array([], dtype=float)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [np.nan, np.nan])
         assert c.size == 0
+        assert c.shape == (0,)
         assert c.dtype is None
         assert c.ctype == 'point'
         assert c.is_monotonic is None
@@ -33,10 +33,10 @@ class TestArrayCoordinatesInit(object):
     def test_numerical_singleton(self):
         a = np.array([10], dtype=float)
         c = ArrayCoordinates1d(10)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [10.0, 10.0])
         assert c.size == 1
+        assert c.shape == (1,)
         assert c.dtype == float
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -49,10 +49,10 @@ class TestArrayCoordinatesInit(object):
         values = [1, 6, 0, 4.]
         a = np.array(values, dtype=float)
         c = ArrayCoordinates1d(a)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == float
         assert c.ctype == 'point'
         assert c.is_monotonic == False
@@ -64,10 +64,10 @@ class TestArrayCoordinatesInit(object):
         values = [0, 1, 4, 6]
         a = np.array(values, dtype=float)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == float
         assert c.ctype == 'midpoint'
         assert c.is_monotonic == True
@@ -79,10 +79,10 @@ class TestArrayCoordinatesInit(object):
         values = [6, 4, 1, 0]
         a = np.array(values, dtype=float)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == float
         assert c.ctype == 'midpoint'
         assert c.is_monotonic == True
@@ -94,10 +94,10 @@ class TestArrayCoordinatesInit(object):
         values = [0, 2, 4, 6]
         a = np.array(values, dtype=float)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == float
         assert c.ctype == 'midpoint'
         assert c.is_monotonic == True
@@ -109,10 +109,10 @@ class TestArrayCoordinatesInit(object):
         values = [6, 4, 2, 0]
         a = np.array(values, dtype=float)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, [0., 6.])
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == float
         assert c.ctype == 'midpoint'
         assert c.is_monotonic == True
@@ -123,10 +123,10 @@ class TestArrayCoordinatesInit(object):
     def test_datetime_singleton(self):
         a = np.array('2018-01-01').astype(np.datetime64)
         c = ArrayCoordinates1d('2018-01-01')
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2018-01-01', '2018-01-01']).astype(np.datetime64))
         assert c.size == 1
+        assert c.shape == (1,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -139,10 +139,10 @@ class TestArrayCoordinatesInit(object):
         values = ['2018-01-01', '2019-01-01', '2017-01-01', '2018-01-02']
         a = np.array(values).astype(np.datetime64)
         c = ArrayCoordinates1d(values, ctype='point')
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == False
@@ -154,10 +154,10 @@ class TestArrayCoordinatesInit(object):
         values = ['2017-01-01', '2018-01-01', '2018-01-02', '2019-01-01']
         a = np.array(values).astype(np.datetime64)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -169,10 +169,10 @@ class TestArrayCoordinatesInit(object):
         values = ['2019-01-01', '2018-01-02', '2018-01-01', '2017-01-01']
         a = np.array(values).astype(np.datetime64)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 4
+        assert c.shape == (4,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -184,10 +184,10 @@ class TestArrayCoordinatesInit(object):
         values = ['2017-01-01', '2018-01-01', '2019-01-01']
         a = np.array(values).astype(np.datetime64)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 3
+        assert c.shape == (3,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -199,10 +199,10 @@ class TestArrayCoordinatesInit(object):
         values = ['2019-01-01', '2018-01-01', '2017-01-01']
         a = np.array(values).astype(np.datetime64)
         c = ArrayCoordinates1d(values)
-        assert_equal(c.coords, a)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(['2017-01-01', '2019-01-01']).astype(np.datetime64))
         assert c.size == 3
+        assert c.shape == (3,)
         assert c.dtype == np.datetime64
         assert c.ctype == 'point'
         assert c.is_monotonic == True
@@ -259,6 +259,89 @@ class TestArrayCoordinatesInit(object):
             ArrayCoordinates1d([], name='depth')
 
         repr(ArrayCoordinates1d([], name='lat'))
+
+    def test_set_name(self):
+        # set if not already set
+        c = ArrayCoordinates1d([])
+        c._set_name('lat')
+        assert c.name == 'lat'
+
+        # check if set already
+        c = ArrayCoordinates1d([], name='lat')
+        c._set_name('lat')
+        assert c.name == 'lat'
+
+        with pytest.raises(ValueError, match="Dimension mismatch"):
+            c._set_name('lon')
+
+        # invalid name
+        c = ArrayCoordinates1d([])
+        with pytest.raises(tl.TraitError):
+            c._set_name('depth')
+
+    def test_set_crs(self):
+        # set if not already set
+        c = ArrayCoordinates1d([])
+        c._set_crs('SPHER_MERC')
+        assert c.crs == 'SPHER_MERC'
+
+        # check if set already
+        c = ArrayCoordinates1d([], crs='SPHER_MERC')
+        c._set_crs('SPHER_MERC')
+        assert c.crs == 'SPHER_MERC'
+
+        with pytest.raises(ValueError, match="crs mismatch"):
+            c._set_crs('WGS84')
+
+    def test_set_ctype(self):
+        # set if not already set
+        c = ArrayCoordinates1d([])
+        c._set_ctype('point')
+        assert c.ctype == 'point'
+
+        # ignore if set already
+        c = ArrayCoordinates1d([], ctype='point')
+        c._set_ctype('point')
+        assert c.ctype == 'point'
+
+        c._set_ctype('left')
+        assert c.ctype == 'point'
+
+        # invalid ctype
+        c = ArrayCoordinates1d([])
+        with pytest.raises(tl.TraitError):
+            c._set_ctype('ABC')
+
+    def test_set_distance_units(self):
+        ua = Units()
+        ub = Units()
+
+        # set if not already set
+        c = ArrayCoordinates1d([], name='lat')
+        c._set_distance_units(ua)
+        assert c.units is ua
+
+        # ignore if set already
+        c = ArrayCoordinates1d([], name='lat', units=ua)
+        c._set_distance_units(ua)
+        assert c.units is ua
+
+        c._set_distance_units(ub)
+        assert c.units is ua
+
+        # ignore if not a distance dimension
+        c = ArrayCoordinates1d([], name='time')
+        c._set_distance_units(ua)
+        assert c.units is None
+
+        c = ArrayCoordinates1d([])
+        c._set_distance_units(ua)
+        assert c.units is None
+
+        # invalid units
+        c = ArrayCoordinates1d([], name='lat')
+        with pytest.raises(tl.TraitError):
+            c._set_distance_units('string')
 
     def test_segment_lenths_point(self):
         with pytest.raises(TypeError, match="segment_lengths must be None"):
@@ -370,15 +453,15 @@ class TestArrayCoordinatesInit(object):
         with pytest.raises(ValueError, match="segment_lengths must be positive"):
             ArrayCoordinates1d([0, 1, 2], segment_lengths=-1.0)
 
-    def test_coord_ref_sys(self):
+    def test_crs(self):
         c = ArrayCoordinates1d([])
-        assert c.coord_ref_sys == settings['DEFAULT_CRS']
+        assert c.crs == settings['DEFAULT_CRS']
 
-        c = ArrayCoordinates1d([], coord_ref_sys='SPHER_MERC')
-        assert c.coord_ref_sys == 'SPHER_MERC'
+        c = ArrayCoordinates1d([], crs='SPHER_MERC')
+        assert c.crs == 'SPHER_MERC'
         
         with pytest.raises(tl.TraitError):
-            ArrayCoordinates1d([], coord_ref_sys=1)
+            ArrayCoordinates1d([], crs=1)
 
 class TestArrayCoordinatesEq(object):
     def test_eq_type(self):
@@ -454,7 +537,7 @@ class TestArrayCoordinatesSerialization(object):
         c = ArrayCoordinates1d([0, 1, 2], name="lat", ctype="point")
         d = c.definition
         assert isinstance(d, dict)
-        assert set(d.keys()) == set(['values', 'name', 'ctype'])
+        assert set(d.keys()) == {'values', 'name', 'ctype'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
         c2 = ArrayCoordinates1d.from_definition(d) # test from_definition
         assert c2 == c
@@ -463,7 +546,7 @@ class TestArrayCoordinatesSerialization(object):
         c = ArrayCoordinates1d(['2018-01-01', '2018-01-02'])
         d = c.definition
         assert isinstance(d, dict)
-        assert set(d.keys()) == set(['values'])
+        assert set(d.keys()) == {'values'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
         c2 = ArrayCoordinates1d.from_definition(d) #test from_definition
         assert c2 == c
@@ -472,21 +555,22 @@ class TestArrayCoordinatesSerialization(object):
         c = ArrayCoordinates1d([0, 1, 2], segment_lengths=0.5)
         d = c.definition
         assert isinstance(d, dict)
-        assert set(d.keys()) == set(['values', 'segment_lengths'])
+        assert set(d.keys()) == {'values', 'segment_lengths'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
         c2 = ArrayCoordinates1d.from_definition(d) # test from_definition
         assert c2 == c
 
     def test_invalid_definition(self):
-        d = {'coords': [0, 1, 2]}
+        d = {'coordinates': [0, 1, 2]}
         with pytest.raises(ValueError, match='ArrayCoordinates1d definition requires "values" property'):
             ArrayCoordinates1d.from_definition(d)
 
 class TestArrayCoordinatesProperties(object):
     def test_dims(self):
         c = ArrayCoordinates1d([], name='lat')
-        assert c.dims == ['lat']
-        assert c.udims == ['lat']
+        assert c.dims == ('lat',)
+        assert c.udims == ('lat',)
+        assert c.idims == ('lat',)
 
         c = ArrayCoordinates1d([])
         with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
@@ -494,6 +578,9 @@ class TestArrayCoordinatesProperties(object):
 
         with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
             c.udims
+
+        with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
+            c.idims
 
     def test_area_bounds_point(self):
         # numerical
@@ -594,32 +681,34 @@ class TestArrayCoordinatesProperties(object):
     def test_properties(self):
         c = ArrayCoordinates1d([])
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set([])
+        assert set(c.properties) == set()
 
         c = ArrayCoordinates1d([], name='lat')
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set(['name'])
+        assert set(c.properties) == {'name'}
 
         c = ArrayCoordinates1d([], ctype='point')
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set(['ctype'])
+        assert set(c.properties) == {'ctype'}
 
         c = ArrayCoordinates1d([], units=Units())
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set(['units'])
+        assert set(c.properties) == {'units'}
 
-        c = ArrayCoordinates1d([], coord_ref_sys='WGS84')
+        c = ArrayCoordinates1d([], crs='WGS84')
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set(['coord_ref_sys'])
+        assert set(c.properties) == {'crs'}
 
-        # segment_lengths are not properties
         c = ArrayCoordinates1d([1, 2], segment_lengths=1)
         assert isinstance(c.properties, dict)
-        assert set(c.properties) == set()
+        assert set(c.properties) == {'segment_lengths'}
 
-        c = ArrayCoordinates1d([1, 2], name='lat', ctype='left', segment_lengths=1)
-        assert isinstance(c.properties, dict)
-        assert set(c.properties) == set(['name', 'ctype'])
+    def test_coords(self):
+        c = ArrayCoordinates1d([1, 2], name='lat')
+        coords = c.coords
+        assert isinstance(coords, dict)
+        assert set(coords) == {'lat'}
+        assert_equal(coords['lat'], c.coordinates)
 
 class TestArrayCoordinatesIndexing(object):
     def test_len(self):
@@ -637,45 +726,45 @@ class TestArrayCoordinatesIndexing(object):
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [60])
+        assert_equal(c2.coordinates, [60])
 
         c2 = c[-2]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [40])
+        assert_equal(c2.coordinates, [40])
 
         # slice
         c2 = c[:2]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [20, 50])
+        assert_equal(c2.coordinates, [20, 50])
         
         c2 = c[::2]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [20, 60, 40])
+        assert_equal(c2.coordinates, [20, 60, 40])
         
         c2 = c[1:-1]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [50, 60, 90, 40])
+        assert_equal(c2.coordinates, [50, 60, 90, 40])
         
         c2 = c[::-1]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [10, 40, 90, 60, 50, 20])
+        assert_equal(c2.coordinates, [10, 40, 90, 60, 50, 20])
         
         # array
         c2 = c[[0, 3, 1]]
         assert isinstance(c2, ArrayCoordinates1d)
         assert c2.name == c.name
         assert c2.properties == c.properties
-        assert_equal(c2.coords, [20, 90, 50])
+        assert_equal(c2.coordinates, [20, 90, 50])
 
         # boolean array
         c2 = c[[True, True, True, False, True, False]]
@@ -973,6 +1062,15 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
 
+    def test_select_dict(self):
+        c = ArrayCoordinates1d([20., 40., 60., 10., 90., 50.], name='lat')
+
+        s = c.select({'lat': [30., 55.]})
+        assert_equal(s.coordinates, [40., 50.])
+
+        s = c.select({'lon': [30., 55]})
+        assert_equal(s.coordinates, c.coordinates)
+
 class TestArrayCoordinatesIntersection(object):
     def test_intersect_invalid(self):
         a = ArrayCoordinates1d([20., 50., 60., 10.], ctype='point')
@@ -988,8 +1086,11 @@ class TestArrayCoordinatesIntersection(object):
         a = ArrayCoordinates1d([20., 50., 60., 10.], name='lat')
         b = ArrayCoordinates1d([55., 65., 95., 45.], name='lon')
 
-        with pytest.raises(ValueError, match="Cannot intersect mismatched dimensions"):
-            a.intersect(b)
+        ab = a.intersect(b)
+        assert_equal(ab.coordinates, a.coordinates)
+
+        ba = b.intersect(a)
+        assert_equal(ba.coordinates, b.coordinates)
 
     def test_intersect_dtype_mismatch(self):
         a = ArrayCoordinates1d([1., 2., 3., 4.], name='time')
