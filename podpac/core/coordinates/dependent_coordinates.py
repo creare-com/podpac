@@ -122,7 +122,8 @@ class DependentCoordinates(BaseCoordinates):
     def _set_name(self, value):
         # only set if the dims have not been set already
         if 'dims' not in self._properties:
-            self.set_trait('dims', value.split(','))
+            dims = [dim.strip() for dim in value.split(',')]
+            self.set_trait('dims', dims)
         elif self.name != value:
             raise ValueError("Dimension mismatch, %s != %s" % (value, self.name))
 

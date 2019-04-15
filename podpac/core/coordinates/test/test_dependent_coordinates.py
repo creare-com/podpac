@@ -62,6 +62,11 @@ class TestDependentCoordinatesCreation(object):
         c._set_name('lat,lon')
         assert c.name == 'lat,lon'
 
+        # allow a space
+        c = DependentCoordinates((LAT, LON))
+        c._set_name('lat, lon')
+        assert c.name == 'lat,lon'        
+
         # check when setting
         c = DependentCoordinates((LAT, LON), dims=['lat', 'lon'])
         c._set_name('lat,lon')
