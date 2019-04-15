@@ -164,7 +164,7 @@ class RotatedCoordinates(DependentCoordinates):
 
     @property
     def lrc(self):
-        return self.affine * np.array([self.shape[0]-1, -(self.shape[1]-1)])
+        return np.array(self.affine * np.array([self.shape[0]-1, -(self.shape[1]-1)]))
 
     @property
     def geotransform(self):

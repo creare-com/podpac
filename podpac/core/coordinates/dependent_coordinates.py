@@ -202,7 +202,7 @@ class DependentCoordinates(BaseCoordinates):
         c = self.coordinates[index]
         ctype = self.ctypes[index]
         bounds = np.min(c), np.max(c)
-        return "%s(%s->%s): Bounds[%s, %s], shape%s, ctype[%s]" % (
+        return "%s(%s->%s): Bounds[%f, %f], shape%s, ctype[%s]" % (
             self.__class__.__name__, ','.join(self.idims), dim, bounds[0], bounds[1], self.shape, ctype)
 
     def __eq__(self, other):
@@ -421,7 +421,7 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
             name=name, ctype=ctype, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
 
     def __repr__(self):
-        return "%s(%s): Bounds[%s, %s], shape%s, ctype['%s']" % (
+        return "%s(%s): Bounds[%f, %f], shape%s, ctype['%s']" % (
             self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.shape, self.ctype)
 
     @property
