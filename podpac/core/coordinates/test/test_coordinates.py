@@ -961,11 +961,142 @@ class TestCoordinatesMethods(object):
         with pytest.raises(ValueError, match="Invalid transpose dimensions"):
             c.transpose('lon', 'lat')
 
-    def test_intersect(self):
-        pass # TODO
+    def test_select_single(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
+        c = Coordinates([lat, lon, time])
 
-    def test_select(self):
-        pass # TODO
+        # single dimension
+        s = c.select({'lat': [0.5, 2.5]})
+        assert isinstance(s, Coordinates)
+        assert s.dims == c.dims
+        assert s['lat'] == c['lat'][1:3]
+        assert s['lon'] == c['lon']
+        assert s['time'] == c['time']
+
+        s, I = c.select({'lat': [0.5, 2.5]}, return_indices=True)
+        assert isinstance(s, Coordinates)
+        assert s.dims == c.dims
+        assert s['lat'] == c['lat'][1:3]
+        assert s['lon'] == c['lon']
+        assert s['time'] == c['time']
+        assert s == c[I]
+
+        # a different single dimension
+        s = c.select({'lon': [5, 25]})
+        assert isinstance(s, Coordinates)
+        assert s.dims == c.dims
+        assert s['lat'] == c['lat']
+        assert s['lon'] == c['lon'][0:2]
+        assert s['time'] == c['time']
+
+        s, I = c.select({'lon': [5, 25]}, return_indices=True)
+        assert isinstance(s, Coordinates)
+        assert s.dims == c.dims
+        assert s['lat'] == c['lat']
+        assert s['lon'] == c['lon'][0:2]
+        assert s['time'] == c['time']
+        assert s == c[I]
+
+        # outer
+        s = c.select({'lat': [0.5, 2.5]}, outer=True)
+        assert isinstance(s, Coordinates)
+        assert s.dims == c.dims
+        assert s['lat'] == c['lat'][0:4]
+        assert s['lon'] == c['lon']
+        assert s['time'] == c['time']
+
+        s, I = c.select({'lat': [0.5, 2.5]}, outer=True, return_indices=True)
+        assert isinstance(s, Coordinates)
+        assert s.dims == c.dims
+        assert s['lat'] == c['lat'][0:4]
+        assert s['lon'] == c['lon']
+        assert s['time'] == c['time']
+        assert s == c[I]
+
+        # no matching dimension
+        s = c.select({'alt': [0, 10]})
+        assert s == c
+
+        s, I = c.select({'alt': [0, 10]}, return_indices=True)
+        assert s == c[I]
+        assert s == c
+
+    def test_select_multiple(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
+        c = Coordinates([lat, lon])
+
+        s = c.select({'lat': [0.5, 3.5], 'lon': [25, 55]})
+        assert isinstance(s, Coordinates)
+        assert s.dims == c.dims
+        assert s['lat'] == c['lat'][1:4]
+        assert s['lon'] == c['lon'][2:5]
+        
+        s, I = c.select({'lat': [0.5, 3.5], 'lon': [25, 55]}, return_indices=True)
+        assert isinstance(s, Coordinates)
+        assert s.dims == c.dims
+        assert s['lat'] == c['lat'][1:4]
+        assert s['lon'] == c['lon'][2:5]
+        assert s == c[I]
+
+    def test_intersect(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
+        c = Coordinates([lat, lon])
+
+        other_lat = ArrayCoordinates1d([0.5, 2.5, 3.5], name='lat')
+        other_lon = ArrayCoordinates1d([25, 35, 55], name='lon')
+
+        # single other
+        c2 = c.intersect(other_lat)
+        assert isinstance(c2, Coordinates)
+        assert c2.dims == c.dims
+        assert c2['lat'] == c['lat'][1:4]
+        assert c2['lon'] == c['lon']
+
+        c2 = c.intersect(other_lat, outer=True)
+        assert isinstance(c2, Coordinates)
+        assert c2.dims == c.dims
+        assert c2['lat'] == c['lat'][0:5]
+        assert c2['lon'] == c['lon']
+
+        c2, I = c.intersect(other_lat, return_indices=True)
+        assert isinstance(c2, Coordinates)
+        assert c2.dims == c.dims
+        assert c2['lat'] == c['lat'][1:4]
+        assert c2['lon'] == c['lon']
+        assert c2 == c[I]
+
+        c2 = c.intersect(other_lon)
+        assert isinstance(c2, Coordinates)
+        assert c2.dims == c.dims
+        assert c2['lat'] == c['lat']
+        assert c2['lon'] == c['lon'][2:5]
+
+        # stacked other
+        other = Coordinates([other_lat, other_lon])
+        c2 = c.intersect(other)
+        assert isinstance(c2, Coordinates)
+        assert c2.dims == c.dims
+        assert c2['lat'] == c['lat'][1:4]
+        assert c2['lon'] == c['lon'][2:5]
+
+        other = Coordinates([other_lon, other_lat])
+        c2 = c.intersect(other)
+        assert isinstance(c2, Coordinates)
+        assert c2.dims == c.dims
+        assert c2['lat'] == c['lat'][1:4]
+        assert c2['lon'] == c['lon'][2:5]
+
+        # coordinates other
+        other = Coordinates([other_lat, other_lon])
+        c2 = c.intersect(other)
+        assert isinstance(c2, Coordinates)
+        assert c2.dims == c.dims
+        assert c2['lat'] == c['lat'][1:4]
+        assert c2['lon'] == c['lon'][2:5]
 
 class TestCoordinatesSpecial(object):
     def test_repr(self):

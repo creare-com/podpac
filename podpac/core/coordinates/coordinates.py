@@ -868,32 +868,38 @@ class Coordinates(tl.HasTraits):
         intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self._coords.values()]
         return self._make_selected_coordinates(intersections, return_indices)
 
-    def select(self, lat=None, lon=None, alt=None, time=None, return_indices=False, outer=False):
+    def select(self, bounds, return_indices=False, outer=False):
         """
         Get the coordinate values that are within the given bounds for each dimension.
 
         The default selection returns coordinates that are within the bounds::
 
-            In [1]: c = Coordinates([[0, 1, 2, 3], [10, 20, 30, 40], dims=['lat', 'lon'])
+            In [1]: c = Coordinates([[0, 1, 2, 3], [10, 20, 30, 40]], dims=['lat', 'lon'])
 
-            In [2]: c.select(lat=[1.5, 2.5])
-            Out[2]: TODO
+            In [2]: c.select({'lat': [1.5, 3.5]})
+            Out[2]:
+            Coordinates
+                    lat: ArrayCoordinates1d(lat): Bounds[2.0, 3.0], N[2], ctype['midpoint']
+                    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
+
+            In [3]: c.select({'lat': [1.5, 3.5], 'lon': [25, 45]})
+            Out[3]: 
+            Coordinates
+                    lat: ArrayCoordinates1d(lat): Bounds[2.0, 3.0], N[2], ctype['midpoint']
+                    lon: ArrayCoordinates1d(lon): Bounds[30.0, 40.0], N[2], ctype['midpoint']
 
         The *outer* selection returns the minimal set of coordinates that contain the bounds::
         
-            In [3]: c.select(lat=[1.5, 2.5], outer=True)
-            Out[3]: TODO
+            In [4]: c.select({'lat':[1.5, 3.5]}, outer=True)
+            Out[4]:
+            Coordinates
+                    lat: ArrayCoordinates1d(lat): Bounds[1.0, 3.0], N[3], ctype['midpoint']
+                    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
         
         Parameters
         ----------
-        lat : (low, high), optional
-            lat selection bounds
-        lon : (low, high), optional
-            lon selection bounds
-        alt : (low, high), optional
-            alt selection bounds
-        time : (low, high), optional
-            time selection bounds
+        bounds : dict
+            Selection bounds for the desired coordinates.
         outer : bool, optional
             If True, do *outer* selections. Default False.
         return_indices : bool, optional
@@ -907,9 +913,8 @@ class Coordinates(tl.HasTraits):
             index or slice for the selected coordinates in each dimension (only if return_indices=True)
         """
 
-        bounds = {'lat':lat, 'lon':lon, 'alt':alt, 'time':time}
         selections = [c.select(bounds, outer=outer, return_indices=return_indices) for c in self._coords.values()]
-        return _make_selected_coordinates(selections, return_indices)
+        return self._make_selected_coordinates(selections, return_indices)
 
     def _make_selected_coordinates(self, selections, return_indices):
         if return_indices:
@@ -917,7 +922,7 @@ class Coordinates(tl.HasTraits):
             # unbundle DepedentCoordinates indices
             I = [I if isinstance(c, DependentCoordinates) else [I] for c, I in selections]
             I = [e for l in I for e in l]
-            return coords, I
+            return coords, tuple(I)
         else:
             return Coordinates(selections)
 
