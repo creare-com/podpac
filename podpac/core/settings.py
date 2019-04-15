@@ -16,7 +16,7 @@ except ImportError:
 
 # Settings Defaults
 DEFAULT_SETTINGS = {
-    'DEBUG': False,
+    'DEBUG': False,  # This flag currently sets self._output on nodes
     'DEFAULT_CACHE': ['ram'],
     'CACHE_OUTPUT_DEFAULT': True,
     'RAM_CACHE_MAX_BYTES': 1e9, # ~1GB    TODO
@@ -39,7 +39,8 @@ DEFAULT_SETTINGS = {
     'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log'),
     'MULTITHREADING': False,
     'N_THREADS': 8,
-    'CHUNK_SIZE': None,
+    'CHUNK_SIZE': None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
+    'ENABLE_UNITS': True,
     'DEFAULT_CRS': 'EPSG:4326'
 }
 

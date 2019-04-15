@@ -9,6 +9,7 @@ ureg : TYPE
 from copy import deepcopy
 from numbers import Number
 import operator
+from six import string_types
 
 from io import BytesIO
 import base64
@@ -21,6 +22,8 @@ from pint.unit import _Unit
 ureg = UnitRegistry()
 
 import podpac
+from podpac.core.settings import settings
+from podpac.core.utils import trait_is_defined
 
 class UnitsNode(tl.TraitType):
     """UnitsNode Summary
@@ -49,7 +52,7 @@ class UnitsNode(tl.TraitType):
         """
         
         if isinstance(value, podpac.Node):
-            if 'units' in self.metadata and value.units is not None:
+            if 'units' in self.metadata and value.units is not None and settings['ENABLE_UNITS']:
                 u = ureg.check(self.metadata['units'])(lambda x: x)(value.units*1)
                 return value
         self.error(obj, value)
@@ -90,22 +93,37 @@ class Units(tl.TraitType):
 class UnitsDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
     """
+    
+    def __init__(self, *args, **kwargs):
+        super(UnitsDataArray, self).__init__(*args, **kwargs)
 
+        # Deserialize units 
+        if self.attrs.get('units') and isinstance(self.attrs['units'], string_types):
+            self.attrs['units'] = ureg(self.attrs['units']).u
+
+        # Deserialize layer_stylers
+        if self.attrs.get('layer_style') and isinstance(self.attrs['layer_style'], string_types): 
+            self.attrs['layer_style'] = podpac.core.style.Style.from_json(self.attrs['layer_style']) 
+       
+            
     def __array_wrap__(self, obj, context=None):
         new_var = super(UnitsDataArray, self).__array_wrap__(obj, context)
         if self.attrs.get("units"):
-            new_var.attrs["units"] = context[0](ureg.Quantity(1, self.attrs.get("units"))).u
+            if context and settings['ENABLE_UNITS']:
+                new_var.attrs["units"] = context[0](ureg.Quantity(1, self.attrs.get("units"))).u
+            elif settings['ENABLE_UNITS']:
+                new_var = self._copy_units(new_var)
         return new_var
 
     def _apply_binary_op_to_units(self, func, other, x):
-        if self.attrs.get("units", None) or getattr(other, 'units', None):
+        if (self.attrs.get("units", None) or getattr(other, 'units', None)) and settings['ENABLE_UNITS']:
             x.attrs["units"] = func(ureg.Quantity(1, getattr(self, "units", "1")),
                                     ureg.Quantity(1, getattr(other, "units", "1"))).u
         return x
 
     def _get_unit_multiplier(self, other):
         multiplier = 1
-        if self.attrs.get("units", None) or getattr(other, 'units', None):
+        if (self.attrs.get("units", None) or getattr(other, 'units', None)) and settings['ENABLE_UNITS']:
             otheru = ureg.Quantity(1, getattr(other, "units", "1"))
             myu = ureg.Quantity(1, getattr(self, "units", "1"))
             multiplier = otheru.to(myu.u).magnitude
@@ -115,7 +133,7 @@ class UnitsDataArray(xr.DataArray):
     # unit of argument (which must be unitless)
     def __pow__(self, other):
         x = super(UnitsDataArray, self).__pow__(other)
-        if self.attrs.get("units"):
+        if self.attrs.get("units") and settings['ENABLE_UNITS']:
             x.attrs["units"] = pow(
                 ureg.Quantity(1, getattr(self, "units", "1")),
                 ureg.Quantity(other, getattr(other, "units", "1"))
@@ -128,17 +146,22 @@ class UnitsDataArray(xr.DataArray):
         return x
 
     def to(self, unit):
-        """Summary
+        """Converts the UnitsDataArray units to the requested unit
 
         Parameters
         ----------
-        unit : TYPE
-            Description
+        unit : pint.UnitsRegistry unit
+            The desired unit from podpac.unit
 
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            The array converted to the desired unit
+            
+        Raises
+        --------
+        DimensionalityError
+            If the requested unit is not dimensionally consistent with the original unit.
         """
         x = self.copy()
         if self.attrs.get("units", None):
@@ -148,13 +171,13 @@ class UnitsDataArray(xr.DataArray):
             x.attrs['units'] = unit
         return x
 
-    def to_base_units(self):
-        """Summary
+    def to_base_units(self): 
+        """Converts the UnitsDataArray units to the base SI units.
 
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            The units data array converted to the base SI units
         """
         if self.attrs.get("units", None):
             myu = ureg.Quantity(1, getattr(self, "units", "1")).to_base_units()
@@ -162,6 +185,18 @@ class UnitsDataArray(xr.DataArray):
         else:
             return self.copy()
 
+    def to_netcdf(self, *args, **kwargs):
+        attrs = self.attrs.copy()
+        if self.attrs.get('units'):
+            self.attrs['units'] = str(self.attrs['units'])
+        if self.attrs.get('layer_style'):
+            self.attrs['layer_style'] = self.attrs['layer_style'].json
+            
+        r = super(UnitsDataArray, self).to_netcdf(*args, **kwargs)
+        self.attrs.update(attrs)
+        return r
+    
+    
     def __getitem__(self, key):
         # special cases when key is also a DataArray
         # and has only one dimension
@@ -180,18 +215,26 @@ class UnitsDataArray(xr.DataArray):
 
         return super(UnitsDataArray, self).__getitem__(key)
 
+#     def reduce(self, func, *args, **kwargs):
+#         new_var = super(UnitsDataArray, self).reduce(func, *args, **kwargs)
+#         if self.attrs.get("units", None):
+#            new_var.attrs['units'] = self.units
+#         return new_var
+
     def part_transpose(self, new_dims):
-        """Summary
+        """Partially transpose the UnitsDataArray based on the input dimensions. The remaining
+        dimensions will have their original order, and will be included at the end of the 
+        transpose.
 
         Parameters
         ----------
-        new_dims : TYPE
-            Description
+        new_dims : list
+            List of dimensions in the order they should be transposed
 
         Returns
         -------
-        TYPE
-            Description
+        UnitsDataArray
+            The UnitsDataArray transposed according to the user inputs
         """
         shared_dims = [dim for dim in new_dims if dim in self.dims]
         self_only_dims = [dim for dim in self.dims if dim not in new_dims]
@@ -206,15 +249,14 @@ class UnitsDataArray(xr.DataArray):
 
         Parameters
         ----------
-        value : TYPE
-            Description
-        mask : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
+        value : Number
+            A constant number that will replace the masked values.
+        mask : UnitsDataArray
+            A UnitsDataArray representing a boolean index.
+            
+        Notes
+        ------
+        This function modifies the UnitsDataArray inplace
         """
 
         if isinstance(mask,UnitsDataArray) and isinstance(value,Number):
@@ -241,44 +283,52 @@ class UnitsDataArray(xr.DataArray):
 
 for tp in ("mul", "matmul", "truediv", "div"):
     meth = "__{:s}__".format(tp)
-
-    def func(self, other, meth=meth, tp=tp):
-        x = getattr(super(UnitsDataArray, self), meth)(other)
-        return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-
+    def make_func(meth, tp):
+        def func(self, other):
+            x = getattr(super(UnitsDataArray, self), meth)(other)
+            return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+        return func
+    
+    func = make_func(meth, tp)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
 
 
 for tp in ("add", "sub", "mod", "floordiv"): #, "divmod", ):
     meth = "__{:s}__".format(tp)
-
-    def func(self, other, meth=meth, tp=tp):
-        multiplier = self._get_unit_multiplier(other)
-        x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-        return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
-
+    def make_func(meth, tp):
+        def func(self, other):
+            multiplier = self._get_unit_multiplier(other)
+            x = getattr(super(UnitsDataArray, self), meth)(other * multiplier)
+            return self._apply_binary_op_to_units(getattr(operator, tp), other, x)
+        return func
+    
+    func = make_func(meth, tp)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
 
 
 for tp in ("lt", "le", "eq", "ne", "gt", "ge"):
     meth = "__{:s}__".format(tp)
+    def make_func(meth):
+        def func(self, other):
+            multiplier = self._get_unit_multiplier(other)
+            return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
+        return func
 
-    def func(self, other, meth=meth, tp=tp):
-        multiplier = self._get_unit_multiplier(other)
-        return getattr(super(UnitsDataArray, self), meth)(other * multiplier)
-
+    func = make_func(meth)
     func.__name__ = meth
     setattr(UnitsDataArray, meth, func)
 
 
 for tp in ("mean", 'min', 'max', 'sum', 'cumsum'):
+    def make_func(tp):
+        def func(self, *args, **kwargs):
+            x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
+            return self._copy_units(x)
+        return func
 
-    def func(self, tp=tp, *args, **kwargs):
-        x = getattr(super(UnitsDataArray, self), tp)(*args, **kwargs)
-        return self._copy_units(x)
-
+    func = make_func(tp)
     func.__name__ = tp
     setattr(UnitsDataArray, tp, func)
 
