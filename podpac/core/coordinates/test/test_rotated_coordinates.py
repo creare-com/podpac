@@ -16,9 +16,6 @@ from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 
-LAT = np.linspace(0, 1, 12).reshape((3, 4))
-LON = np.linspace(10, 20, 12).reshape((3, 4))
-
 class TestRotatedCoordinatesCreation(object):
     def test_init_step(self):
         # positive steps
@@ -130,7 +127,7 @@ class TestRotatedCoordinatesGeotransform(object):
         c2 = RotatedCoordinates.from_geotransform(c.geotransform, c.shape, dims=['lat', 'lon'])
         assert c == c2
 
-class TestDependentCoordinatesStandardMethods(object):
+class TestRotatedCoordinatesStandardMethods(object):
     def test_eq_type(self):
         c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         assert c != []
@@ -157,7 +154,7 @@ class TestDependentCoordinatesStandardMethods(object):
         c2 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lon', 'lat'])
         assert c1 != c2
 
-class TestDependentCoordinatesSerialization(object):
+class TestRotatedCoordinatesSerialization(object):
     def test_definition(self):
         c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         d = c.definition
