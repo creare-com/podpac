@@ -19,6 +19,37 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 
 class DependentCoordinates(BaseCoordinates):
+    """
+    Base class for dependent/calculated coordinates.
+
+    DependentCoordinates are coordinates from one or more different dimensions that are determined or calculated from
+    indexing dimensions. The base class simply contains the dependent coordinates for each dimension. Generally, you
+    should not need to create DependentCoordinates, but DependentCoordinates may be the return type when indexing,
+    selecting, or intersecting its subclasses.
+
+    DependentCoordinates map an indexing dimension to its dependent coordinate values. For example, rotated coordinates
+    are a 2d grid that map index dimensions ('i', 'j') to dependent dimensions ('lat', 'lon').
+
+        >>> import podpac
+        >>> c = podpac.coordinates.RotatedCoordinates([20, 30], 0.2, [0, 0], [2, 2], dims=['lat', 'lon'])
+        >>> c.dims
+        ['lat', 'lon']
+        >>> c.idims
+        ['i', 'j']
+        >>> c[2, 3].coordinates.values
+        array([(5.112282296135334, -5.085722143867205)], dtype=object)
+
+    Parameters
+    ----------
+    dims : tuple
+        Tuple of dimension names.
+    idims: tuple
+        Tuple of indexing dimensions, default ('i', 'j', 'k', 'l') as needed.
+    coords : dict-like
+        xarray coordinates (container of coordinate arrays)
+    coordinates : tuple
+        Tuple of coordinate values in each dimension.
+    """
 
     coordinates = TupleTrait(trait=ArrayTrait(), read_only=True)
     dims = TupleTrait(trait=Dimension(allow_none=True), read_only=True)
@@ -31,6 +62,27 @@ class DependentCoordinates(BaseCoordinates):
     _properties = tl.Set()
     
     def __init__(self, coordinates, dims=None, coord_ref_sys=None, units=None, ctypes=None, segment_lengths=None):
+        """
+        Create dependent coordinates manually. You should not need to use this class directly.
+
+        Parameters
+        ----------
+        coordinates : tuple
+            tuple of coordinate values for each dimension, each the same shape.
+        dims : tuple (optional)
+            tuple of dimension names ('lat', 'lon', 'time', or 'alt').
+        coord_ref_sys : str (optional)
+            Coordinate reference system.
+        units : tuple or Units, optional
+            tuple of Units for each dimension. A single Units object can be specified for all dimensions.
+        ctype : tuple, str (optional)
+            tuple of coordinates types ('point', 'left', 'right', or 'midpoint') for each dimension. A single ctype
+            str can be specified for all dimensions.
+        segment_lengths : tuple, float, or timedelta (optional)
+            tuple of segment lengths for each dimension. A single segment length can be specified for all dimensions.
+            For point coordinates, the segment_lengths must be None; omit if all dimensions are point coordinates.
+        """
+
         coordinates = [np.array(a) for a in coordinates]
         coordinates = [make_coord_array(a.flatten()).reshape(a.shape) for a in coordinates]
         self.set_trait('coordinates', coordinates)
@@ -168,6 +220,18 @@ class DependentCoordinates(BaseCoordinates):
 
     @property
     def definition(self):
+        """:dict: Serializable dependent coordinates definition.
+
+        The ``definition`` can be used to create new DependentCoordinates::
+
+            c = podpac.DependentCoordinates(...)
+            c2 = podpac.DependentCoordinates.from_definition(c.definition)
+
+        See Also
+        --------
+        from_definition
+        """
+
         d = OrderedDict()
         d['dims'] = self.dims
         d['values'] = self.coordinates
@@ -176,6 +240,24 @@ class DependentCoordinates(BaseCoordinates):
 
     @classmethod
     def from_definition(cls, d):
+        """
+        Create DependentCoordinates from a dependent coordinates definition.
+
+        Arguments
+        ---------
+        d : dict
+            dependent coordinates definition
+
+        Returns
+        -------
+        :class:`DependentCoordinates`
+            dependent coordinates object
+
+        See Also
+        --------
+        definition
+        """
+
         if 'values' not in d:
             raise ValueError('DependentCoordinates definition requires "values" property')
         
@@ -190,10 +272,10 @@ class DependentCoordinates(BaseCoordinates):
     def __repr__(self):
         rep = str(self.__class__.__name__)
         for i, dim in enumerate(self.dims):
-            rep += '\n\t%s' % self.rep(dim, index=i)
+            rep += '\n\t%s' % self._rep(dim, index=i)
         return rep
 
-    def rep(self, dim, index=None):
+    def _rep(self, dim, index=None):
         if dim is not None:
             index = self.dims.index(dim)
         else:
@@ -241,7 +323,7 @@ class DependentCoordinates(BaseCoordinates):
             # return DependentCoordinates(coordinates, **self.properties)
 
             # NOTE: this is optional, but we can convert to StackedCoordinates if ndim is 1
-            if coordinates[0].ndim == 1:
+            if coordinates[0].ndim == 1 or coordinates[0].size <= 1:
                 cs = [ArrayCoordinates1d(a, **self._properties_at(i)) for i, a in enumerate(coordinates)]
                 return StackedCoordinates(cs)
             else:
@@ -268,26 +350,35 @@ class DependentCoordinates(BaseCoordinates):
 
     @property
     def name(self):
+        """:str: combined dependent dimensions name.
+
+        The combined dependent dimension name is the individual `dims` joined by a comma.
+        """
         return '%s' % ','.join([dim or '?' for dim in self.dims])
 
     @property
     def udims(self):
+        """:tuple: Tuple of unstacked dimension names, for compatibility. This is the same as the dims."""
         return self.dims
 
     @property
     def shape(self):
+        """:tuple: Shape of the coordinates (in every dimension)."""
         return self.coordinates[0].shape
 
     @property
     def size(self):
+        """:int: Number of coordinates (in every dimension)."""
         return np.prod(self.shape)
 
     @property
     def ndims(self):
+        """:int: Number of dependent dimensions."""
         return len(self.coordinates)
 
     @property
     def dtypes(self):
+        """:tuple: Dtype for each dependent dimension."""
         return tuple(c.dtype for c in self.coordinates)
 
     @property
@@ -306,6 +397,7 @@ class DependentCoordinates(BaseCoordinates):
 
     @property
     def coords(self):
+        """:dict-like: xarray coordinates (container of coordinate arrays)"""
         if None in self.dims:
             raise ValueError("Cannot get coords for DependentCoordinates with un-named dimensions")
         return {dim: (self.idims, c) for dim, c in (zip(self.dims, self.coordinates))}
@@ -321,9 +413,40 @@ class DependentCoordinates(BaseCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     def copy(self):
+        """
+        Make a copy of the dependent coordinates.
+
+        Returns
+        -------
+        :class:`DependentCoordinates`
+            Copy of the dependent coordinates.
+        """
+
         return DependentCoordinates(self.coordinates, **self.properties)
 
     def intersect(self, other, outer=False, return_indices=False):
+        """
+        Get the coordinate values that are within the bounds of a given coordinates object in all dimensions.
+
+        *Note: you should not generally need to call this method directly.*
+        
+        Parameters
+        ----------
+        other : :class:`BaseCoordinates1d`, :class:`Coordinates`
+            Coordinates to intersect with.
+        outer : bool, optional
+            If True, do an *outer* intersection. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selection in addition to coordinates. Default False.
+
+        Returns
+        -------
+        intersection : :class:`DependentCoordinates`, :class:`StackedCoordinates`
+            DependentCoordinates or StackedCoordinates object consisting of the intersection in all dimensions.
+        I : slice or list
+            Slice or index for the intersected coordinates, only if ``return_indices`` is True.
+        """
+
         from podpac.core.coordinates.coordinates import Coordinates
         if not isinstance(other, (BaseCoordinates, Coordinates)):
             raise TypeError("Cannot intersect with type '%s'" % type(other))
@@ -347,6 +470,28 @@ class DependentCoordinates(BaseCoordinates):
         return self.select(other.bounds, outer=outer, return_indices=return_indices)
 
     def select(self, bounds, outer=False, return_indices=False):
+        """
+        Get the coordinate values that are within the given bounds in all dimensions.
+
+        *Note: you should not generally need to call this method directly.*
+
+        Parameters
+        ----------
+        bounds : dict
+            dictionary of dim -> (low, high) selection bounds
+        outer : bool, optional
+            If True, do *outer* selections. Default False.
+        return_indices : bool, optional
+            If True, return slice or indices for the selections in addition to coordinates. Default False.
+
+        Returns
+        -------
+        selection : :class:`DependentCoordinates`, :class:`StackedCoordinates`
+            DependentCoordinates or StackedCoordinates object consisting of the intersection in all dimensions.
+        I : slice or list
+            Slice or index for the selected coordinates, only if ``return_indices`` is True.
+        """
+
         # logical AND of selection in each dimension
         Is = [self._within(a, bounds.get(dim), outer) for dim, a in zip(self.dims, self.coordinates)]
         I = np.logical_and.reduce(Is)
@@ -411,6 +556,24 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
 
     def __init__(self, coordinates,
                        name=None, ctype=None, units=None, segment_lengths=None, coord_ref_sys=None):
+        """
+        Create shaped array coordinates. You should not need to use this class directly.
+
+        Parameters
+        ----------
+        coordinates : array
+            coordinate values.
+        name : str, optional
+            Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+        units : Units, optional
+            Coordinate units.
+        coord_ref_sys : str, optional
+            Coordinate reference system.
+        ctype : str, optional
+            Coordinates type: 'point', 'left', 'right', or 'midpoint'.
+        segment_lengths: float or timedelta, optional
+            When ctype is a segment type, the segment lengths for the coordinates.
+        """
 
         self.set_trait('coordinates', coordinates)
         self._is_monotonic = None
@@ -426,28 +589,35 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
 
     @property
     def shape(self):
+        """:tuple: Shape of the coordinates."""
         return self.coordinates.shape
 
     # Restricted methods and properties
 
     @classmethod
     def from_xarray(cls, x):
+        """ restricted """
         raise RuntimeError("ArrayCoordinatesNd from_xarray is unavailable.")
 
     @classmethod
     def from_definition(cls, d):
+        """ restricted """
         raise RuntimeError("ArrayCoordinatesNd from_definition is unavailable.")
 
     @property
     def definition(self):
+        """ restricted """
         raise RuntimeError("ArrayCoordinatesNd definition is unavailable.")
 
     @property
     def coords(self):
+        """ restricted """
         raise RuntimeError("ArrayCoordinatesNd coords is unavailable.")
 
     def intersect(self, other, outer=False, return_indices=False):
+        """ restricted """
         raise RuntimeError("ArrayCoordinatesNd intersect is unavailable.")
 
     def select(self, bounds, outer=False, return_indices=False):
+        """ restricted """
         raise RuntimeError("ArrayCoordinatesNd select is unavailable.")

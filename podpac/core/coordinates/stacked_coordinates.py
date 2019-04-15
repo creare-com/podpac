@@ -196,6 +196,10 @@ class StackedCoordinates(BaseCoordinates):
         coords = [ArrayCoordinates1d.from_xarray(xcoords[dims]) for dims in dims]
         return cls(coords, coord_ref_sys=coord_ref_sys, ctype=ctype, distance_units=distance_units)
 
+    # ------------------------------------------------------------------------------------------------------------------
+    # Serialization
+    # ------------------------------------------------------------------------------------------------------------------
+
     @classmethod
     def from_definition(cls, d):
         """
@@ -228,6 +232,22 @@ class StackedCoordinates(BaseCoordinates):
             coords.append(c)
 
         return cls(coords)
+
+    @property
+    def definition(self):
+        """:list: Serializable stacked coordinates definition.
+
+        The ``definition`` can be used to create new StackedCoordinates::
+
+            c = podpac.StackedCoordinates(...)
+            c2 = podpac.StackedCoordinates.from_definition(c.definition)
+
+        See Also
+        --------
+        from_definition
+        """
+        
+        return [c.definition for c in self._coords]
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods, tuple-like
@@ -282,28 +302,31 @@ class StackedCoordinates(BaseCoordinates):
 
     @property
     def udims(self):
+        """:tuple: Tuple of unstacked dimension names, for compatibility. This is the same as the dims."""
         return self.dims
 
     @property
     def idims(self):
+        """:tuple: Tuple of indexing dimensions.
+
+        For stacked coordinates, this is a singleton of the stacked coordinates name ``(self.name,)``.
+        """
         return (self.name,)
 
     @property
     def name(self):
-        """:str: Stacked dimension name.
-
-        Stacked dimension names are the individual `dims` joined by an underscore.
-        """
+        """:str: Stacked dimension name. Stacked dimension names are the individual `dims` joined by an underscore."""
 
         return '_'.join(dim or '?' for dim in self.dims)
 
     @property
     def size(self):
-        """ Number of stacked coordinates. """
+        """:int: Number of stacked coordinates. """
         return self._coords[0].size
 
     @property
     def shape(self):
+        """:tuple: Shape of the stacked coordinates."""
         return (self.size,)
 
     @property
@@ -340,21 +363,6 @@ class StackedCoordinates(BaseCoordinates):
         # the coord_ref_sys is the same for all coords
         return self._coords[0].coord_ref_sys
 
-    @property
-    def definition(self):
-        """:list: Serializable stacked coordinates definition.
-
-        The ``definition`` can be used to create new StackedCoordinates::
-
-            c = podpac.StackedCoordinates(...)
-            c2 = podpac.StackedCoordinates.from_definition(c.definition)
-
-        See Also
-        --------
-        from_definition
-        """
-        return [c.definition for c in self._coords]
-
     # -----------------------------------------------------------------------------------------------------------------
     # Methods
     # -----------------------------------------------------------------------------------------------------------------
@@ -366,7 +374,7 @@ class StackedCoordinates(BaseCoordinates):
         Returns
         -------
         :class:`StackedCoordinates`
-            Copy of the stacked coordinates, with provided properties and name.
+            Copy of the stacked coordinates.
         """
 
         return StackedCoordinates(self._coords)
@@ -420,10 +428,10 @@ class StackedCoordinates(BaseCoordinates):
 
         Returns
         -------
-        intersection : :class:`StackedCoordinates`
-            StackedCoordinates object consisting of the intersection in all dimensions.
+        selection : :class:`StackedCoordinates`
+            StackedCoordinates object consisting of the selection in all dimensions.
         I : slice or list
-            Slice or index for the intersected coordinates, only if ``return_indices`` is True.
+            Slice or index for the selected coordinates, only if ``return_indices`` is True.
         """
 
         # logical AND of the selection in each dimension

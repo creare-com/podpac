@@ -158,7 +158,7 @@ class Coordinates(tl.HasTraits):
         return val
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Alternate constructors
+    # Alternate constructors and Serialization
     # ------------------------------------------------------------------------------------------------------------------
 
     @staticmethod
@@ -366,6 +366,8 @@ class Coordinates(tl.HasTraits):
 
         return cls(coords)
 
+
+
     @classmethod
     def from_json(cls, s):
         """
@@ -414,6 +416,65 @@ class Coordinates(tl.HasTraits):
 
         d = json.loads(s)
         return cls.from_definition(d)
+
+    @classmethod
+    def from_definition(cls, d):
+        """
+        Create podpac Coordinates from a coordinates definition.
+
+        Arguments
+        ---------
+        d : list
+            coordinates definition
+
+        Returns
+        -------
+        :class:`Coordinates`
+            podpac Coordinates
+
+        See Also
+        --------
+        from_json, definition
+        """
+
+        if not isinstance(d, list):
+            raise TypeError("Could not parse coordinates definition of type '%s'" % type(d))
+
+        coords = []
+        for e in d:
+            if isinstance(e, list):
+                c = StackedCoordinates.from_definition(e)
+            elif 'start' in e and 'stop' in e and ('step' in e or 'size' in e):
+                c = UniformCoordinates1d.from_definition(e)
+            elif 'name' in e and 'values' in e:
+                c = ArrayCoordinates1d.from_definition(e)
+            elif 'dims' in e and 'values' in e:
+                c = DependentCoordinates.from_definition(e)
+            elif 'dims' in e and 'shape' in e and 'theta' in e and 'ulc' in e and ('step' in e or 'lrc' in e):
+                c = RotatedCoordinates.from_definition(e)
+            else:
+                raise ValueError("Could not parse coordinates definition item with keys %s" % e.keys())
+
+            coords.append(c)
+
+        return cls(coords)
+
+    @property
+    def definition(self):
+        """
+        Serializable coordinates definition.
+
+        The ``definition`` can be used to create new Coordinates::
+
+            c = podpac.Coordinates(...)
+            c2 = podpac.Coordinates.from_definition(c.definition)
+
+        See Also
+        --------
+        from_definition, json
+        """
+
+        return [c.definition for c in self._coords.values()]
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard dict-like methods
@@ -540,7 +601,11 @@ class Coordinates(tl.HasTraits):
 
     @property
     def idims(self):
-        """:tuple: Tuple of dimension index names."""
+        """:tuple: Tuple of indexing dimension names.
+
+        Unless there are dependent coordinates, this will match the ``dims``. For dependent coordinates, indexing
+        dimensions `'i'`, `'j'`, etc are used by default.
+        """
 
         return tuple(dim for c in self._coords.values() for dim in c.idims)
 
@@ -625,23 +690,6 @@ class Coordinates(tl.HasTraits):
         # return coords
         x = xr.DataArray(np.empty(self.shape), dims=self.idims, coords=coords)
         return x.coords
-
-    @property
-    def definition(self):
-        """
-        Serializable coordinates definition.
-
-        The ``definition`` can be used to create new Coordinates::
-
-            c = podpac.Coordinates(...)
-            c2 = podpac.Coordinates.from_definition(c.definition)
-
-        See Also
-        --------
-        from_definition, json
-        """
-
-        return [c.definition for c in self._coords.values()]
 
     @property
     def json(self):
@@ -1033,7 +1081,7 @@ class Coordinates(tl.HasTraits):
                     rep += '\n\t%s[%s]: %s' % (c.name, dim, c[dim])
             elif isinstance(c, DependentCoordinates):
                 for dim in c.dims:
-                    rep += '\n\t%s[%s]: %s' % (c.name, dim, c.rep(dim))
+                    rep += '\n\t%s[%s]: %s' % (c.name, dim, c._rep(dim))
         return rep
 
 def merge_dims(coords_list):

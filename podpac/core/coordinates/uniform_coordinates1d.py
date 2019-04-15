@@ -76,6 +76,14 @@ class UniformCoordinates1d(Coordinates1d):
             Signed, nonzero step between coordinates (either step or size required).
         size : int
             Number of coordinates (either step or size required).
+        name : str, optional
+            Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+        units : Units, optional
+            Coordinate units.
+        coord_ref_sys : str, optional
+            Coordinate reference system.
+        ctype : str, optional
+            Coordinates type: 'point', 'left', 'right', or 'midpoint'.
         segment_lengths: array, float, timedelta, optional
             When ctype is a segment type, the segment lengths for the coordinates. By defaul, the segment_lengths are
             equal the step.
