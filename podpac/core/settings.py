@@ -19,8 +19,9 @@ DEFAULT_SETTINGS = {
     'DEBUG': False,
     'DEFAULT_CACHE': ['ram'],
     'CACHE_OUTPUT_DEFAULT': True,
-#    'RAM_CACHE_MAX_BYTES': 1e9, # ~1GB    TODO
-#    'DISK_CACHE_MAX_BYTES': 10e9, # ~10GB TODO
+    'RAM_CACHE_MAX_BYTES': 1e9, # ~1GB    TODO
+    'DISK_CACHE_MAX_BYTES': 10e9, # ~10GB TODO
+    'S3_CACHE_MAX_BYTES': 10e9, # ~10GB TODO
     'DISK_CACHE_DIR': 'cache',
     'S3_CACHE_DIR': 'cache',
     'RAM_CACHE_ENABLED': True,
@@ -90,6 +91,8 @@ class PodpacSettings(dict):
         Maximum RAM cache size in bytes. Defaults to ``1e9`` (~1G).
     DISK_CACHE_MAX_BYTES : int
         Maximum disk space for use by the disk cache in bytes. Defaults to ``10e9`` (~10G).
+    S3_CACHE_MAX_BYTES : int
+        Maximum storage space for use by the s3 cache in bytes. Defaults to ``10e9`` (~10G).
     DISK_CACHE_DIR : str
         Subdirectory to use for the disk cache. Defaults to ``'cache'`` in the podpac root directory.
     S3_CACHE_DIR : str
