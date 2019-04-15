@@ -737,10 +737,6 @@ class FileCacheStore(CacheStore):
         '''
         self.make_cache_dir(node)
 
-        if self.max_size and self.size() >= self.max_size:
-        #     # TODO removal policy
-            raise CacheException("Cache is full. Remove some old entries and try again.")
-
         listing = CacheListing(node=node, key=key, coordinates=coordinates, data=data)
         if self.has(node, key, coordinates): # a little inefficient but will do for now
             if not update:
@@ -765,6 +761,13 @@ class FileCacheStore(CacheStore):
         # if file for listing does not already exist, we need to create a new container, add the listing, and save to file
         else:
             self.save_new_container(listings=[listing], path=path)
+
+
+        if self.max_size and self.size() >= self.max_size:
+        #     # TODO removal policy
+            self.rem(node=node, key=key, coordinates=coordinates)
+            raise CacheException("Cache is full. Remove some old entries and try again.")
+
         return True
 
     def get(self, node, key, coordinates=None):
