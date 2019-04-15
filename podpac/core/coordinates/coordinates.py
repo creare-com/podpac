@@ -327,50 +327,6 @@ class Coordinates(tl.HasTraits):
         return cls(coords, crs=crs, ctype=ctype, distance_units=distance_units)
 
     @classmethod
-    def from_definition(cls, d):
-        """
-        Create podpac Coordinates from a coordinates definition.
-
-        Arguments
-        ---------
-        d : list
-            coordinates definition
-
-        Returns
-        -------
-        :class:`Coordinates`
-            podpac Coordinates
-
-        See Also
-        --------
-        from_json, definition
-        """
-
-        if not isinstance(d, list):
-            raise TypeError("Could not parse coordinates definition of type '%s'" % type(d))
-
-        coords = []
-        for e in d:
-            if isinstance(e, list):
-                c = StackedCoordinates.from_definition(e)
-            elif 'start' in e and 'stop' in e and ('step' in e or 'size' in e):
-                c = UniformCoordinates1d.from_definition(e)
-            elif 'name' in e and 'values' in e:
-                c = ArrayCoordinates1d.from_definition(e)
-            elif 'dims' in e and 'values' in e:
-                c = DependentCoordinates.from_definition(e)
-            elif 'dims' in e and 'shape' in e and 'theta' in e and 'ulc' in e and ('step' in e or 'lrc' in e):
-                c = RotatedCoordinates.from_definition(e)
-            else:
-                raise ValueError("Could not parse coordinates definition item with keys %s" % e.keys())
-
-            coords.append(c)
-
-        return cls(coords)
-
-
-
-    @classmethod
     def from_json(cls, s):
         """
         Create podpac Coordinates from a coordinates JSON definition.
