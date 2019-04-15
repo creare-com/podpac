@@ -737,9 +737,9 @@ class FileCacheStore(CacheStore):
         '''
         self.make_cache_dir(node)
 
-        if self.size() >= self.max_size:
+        if self.max_size and self.size() >= self.max_size:
         #     # TODO removal policy
-            raise CacheException("RAM cache full. Remove some old entries and try again.")
+            raise CacheException("Cache is full. Remove some old entries and try again.")
 
         listing = CacheListing(node=node, key=key, coordinates=coordinates, data=data)
         if self.has(node, key, coordinates): # a little inefficient but will do for now
@@ -996,7 +996,7 @@ class DiskCacheStore(FileCacheStore):
 
     def size(self):
         total_size = 0
-        for dirpath, dirnames, filenames in os.walk(start_path):
+        for dirpath, dirnames, filenames in os.walk(self._root_dir_path):
             for f in filenames:
                 fp = os.path.join(dirpath, f)
                 total_size += os.path.getsize(fp)
@@ -1109,8 +1109,9 @@ class S3CacheStore(FileCacheStore):
         page_iterator = paginator.paginate(**operation_parameters)
         total_size = 0
         for page in page_iterator:
-            for obj in page['Contents']:
-                total_size += obj['Size']
+            if 'Contents' in page:
+                for obj in page['Contents']:
+                    total_size += obj['Size']
         return total_size
 
     def make_cache_dir(self, node):
@@ -1278,7 +1279,7 @@ class RamCacheStore(CacheStore):
             if not update:
                 raise CacheException("Cache entry already exists. Use update=True to overwrite.")
 
-        if self.size() >= self.max_size:
+        if self.max_size and self.size() >= self.max_size:
         #     # TODO removal policy
             raise CacheException("RAM cache full. Remove some old entries and try again.")
 
