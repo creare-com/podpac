@@ -762,8 +762,7 @@ class FileCacheStore(CacheStore):
         else:
             self.save_new_container(listings=[listing], path=path)
 
-
-        if self.max_size and self.size() >= self.max_size:
+        if self.max_size is not None and self.size() >= self.max_size:
         #     # TODO removal policy
             self.rem(node=node, key=key, coordinates=coordinates)
             raise CacheException("Cache is full. Remove some old entries and try again.")
@@ -915,7 +914,7 @@ class DiskCacheStore(FileCacheStore):
         else:
             self._root_dir_path = self._path_join([settings['ROOT_PATH'], settings['DISK_CACHE_DIR']])
 
-        if max_size:
+        if max_size is not None:
             self.max_size = max_size
         elif 'DISK_CACHE_MAX_BYTES' in settings and settings['DISK_CACHE_MAX_BYTES']:
             self.max_size = settings['DISK_CACHE_MAX_BYTES']
@@ -1068,7 +1067,7 @@ class S3CacheStore(FileCacheStore):
                                              aws_secret_access_key=aws_secret_access_key)
         self._s3_bucket = s3_bucket
 
-        if max_size:
+        if max_size is not None:
             self.max_size = max_size
         elif 'S3_CACHE_MAX_BYTES' in settings and settings['S3_CACHE_MAX_BYTES']:
             self.max_size = settings['S3_CACHE_MAX_BYTES']
@@ -1238,7 +1237,7 @@ class RamCacheStore(CacheStore):
         if not settings['RAM_CACHE_ENABLED']:
             raise CacheException("RAM cache is disabled in the podpac settings.")
 
-        if max_size:
+        if max_size is not None:
             self.max_size = max_size
         elif 'RAM_CACHE_MAX_BYTES' in settings and settings['RAM_CACHE_MAX_BYTES']:
             self.max_size = settings['RAM_CACHE_MAX_BYTES']
@@ -1281,8 +1280,7 @@ class RamCacheStore(CacheStore):
         if full_key in _thread_local.cache:
             if not update:
                 raise CacheException("Cache entry already exists. Use update=True to overwrite.")
-
-        if self.max_size and self.size() >= self.max_size:
+        if self.max_size is not None and self.size() >= self.max_size:
         #     # TODO removal policy
             raise CacheException("RAM cache full. Remove some old entries and try again.")
 
