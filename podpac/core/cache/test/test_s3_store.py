@@ -46,6 +46,7 @@ node_funcs = [lambda: make_array_data_source(coords_func=c, data_func=d) for d i
 data_funcs = [lambda: np.zeros((2,3,4)), lambda: np.ones((2,3,4))]
 coord_funcs = coord_funcs + [lambda: None]
 
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_get_with_cache_limits():
     insufficient_sizes = [0, 10, 100]
     sufficient_sizes = [1e6, 1e9]
