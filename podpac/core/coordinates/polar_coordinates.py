@@ -48,7 +48,7 @@ class PolarCoordinates(DependentCoordinates):
     def _validate_dims(self, d):
         val = super(PolarCoordinates, self)._validate_dims(d)
         if val != ('lat', 'lon'):
-            raise ValueError("PolarCoordinates dims must be ('lat', 'lon'), not '%s'" % dim)
+            raise ValueError("PolarCoordinates dims must be ('lat', 'lon'), not '%s'" % (val,))
         return val
 
     @tl.validate('radius')
@@ -87,22 +87,26 @@ class PolarCoordinates(DependentCoordinates):
         center = d['center']
         
         # radius
-        if 'coordinates' in d['radius']:
+        if isinstance(d['radius'], list):
+            radius = ArrayCoordinates1d(d['radius'])
+        elif 'values' in d['radius']:
             radius = ArrayCoordinates1d.from_definition(d['radius'])
         elif 'start' in d['radius'] and 'stop' in d['radius'] and ('step' in d['radius'] or 'size' in d['radius']):
             radius = UniformCoordinates1d.from_definition(d['radius'])
         else:
-            raise ValueError("Could not parse radius coordinates definition with keys %s" % d['radius'].keys())
+            raise ValueError("Could not parse radius coordinates definition with keys %s" % d.keys())
         
         # theta
         if 'theta' not in d:
             theta = None
-        elif 'coordinates' in d['theta']:
+        elif isinstance(d['theta'], list):
+            theta = ArrayCoordinates1d(d['theta'])
+        elif 'values' in d['theta']:
             theta = ArrayCoordinates1d.from_definition(d['theta'])
         elif 'start' in d['theta'] and 'stop' in d['theta'] and ('step' in d['theta'] or 'size' in d['theta']):
             theta = UniformCoordinates1d.from_definition(d['theta'])
         else:
-            raise ValueError("Could not parse radius coordinates definition with keys %s" % d['radius'].keys())
+            raise ValueError("Could not parse theta coordinates definition with keys %s" % d.keys())
 
         kwargs = {k:v for k,v in d.items() if k not in ['center', 'radius', 'theta']}
         return PolarCoordinates(center, radius, theta, **kwargs)
@@ -117,15 +121,14 @@ class PolarCoordinates(DependentCoordinates):
         else:
             ctypes = "ctypes[%s]" % ', '.join(self.ctypes)
 
-        raise NotImplementedError("TODO")
-        # return "%s(%s): ULC%s, LRC%s, rad[%.4f], shape%s, %s" % (
-        #     self.__class__.__name__, self.dims, self.ulc, self.lrc, self.theta, self.shape, ctypes)
+        return "%s(%s): center%s, shape%s, %s" % (
+            self.__class__.__name__, self.dims, self.center, self.shape, ctypes)
 
-    def __eq__(self):
+    def __eq__(self, other):
         if not isinstance(other, PolarCoordinates):
             return False
 
-        if self.center != other.center:
+        if not np.allclose(self.center, other.center):
             return False
         
         if self.radius != other.radius:
@@ -167,7 +170,7 @@ class PolarCoordinates(DependentCoordinates):
         r, theta = np.meshgrid(self.radius.coordinates, self.theta.coordinates)
         lat = r * np.sin(theta) + self.center[0]
         lon = r * np.cos(theta) + self.center[1]
-        return lat, lon
+        return lat.T, lon.T
 
     @property
     def properties(self):
@@ -181,15 +184,20 @@ class PolarCoordinates(DependentCoordinates):
     def copy(self):
         return PolarCoordinates(self.center, self.radius, self.theta, **self.properties)
 
-    def intersect(self, other, outer=False):
-        raise NotImplementedError("TODO")
+    # TODO return PolarCoordinates when possible
+    # def intersect(self, other, outer=False):
+    #     raise NotImplementedError("TODO")
+
+    # TODO return PolarCoordinates when possible
+    # def select(self, other, outer=False):
+    #     raise NotImplementedError("TODO")
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug
     # ------------------------------------------------------------------------------------------------------------------
     
-    def plot(self, marker='b.', center_marker='bx'):
-        from matplotlib import pyplot
-        super(PolarCoordinates, self).plot(marker=marker)
-        cx, cy = self.center
-        pyplot.plot(cx, cy, center_marker)
+    # def plot(self, marker='b.', center_marker='bx'):
+    #     from matplotlib import pyplot
+    #     super(PolarCoordinates, self).plot(marker=marker)
+    #     cx, cy = self.center
+    #     pyplot.plot(cx, cy, center_marker)
