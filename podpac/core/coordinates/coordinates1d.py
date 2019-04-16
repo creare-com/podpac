@@ -10,11 +10,13 @@ import copy
 import numpy as np
 import traitlets as tl
 
+from podpac.core.settings import settings
 from podpac.core.units import Units
 from podpac.core.utils import ArrayTrait
-from podpac.core.coordinates.utils import make_coord_delta, make_coord_delta_array, add_coord, divide_delta
+from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
+from podpac.core.coordinates.utils import add_coord, divide_delta
+from podpac.core.coordinates.utils import Dimension, CoordinateType
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
-from podpac.core.settings import settings
 
 class Coordinates1d(BaseCoordinates):
     """
@@ -42,7 +44,7 @@ class Coordinates1d(BaseCoordinates):
         Full array of coordinate values.
     units : podpac.Units
         Coordinate units.
-    coord_ref_sys : str
+    crs : str
         Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
         If not defined, set to settings entry: `DEFAULT_CRS`
     ctype : str
@@ -56,16 +58,15 @@ class Coordinates1d(BaseCoordinates):
     :class:`ArrayCoordinates1d`, :class:`UniformCoordinates1d`
     """
 
-    name = tl.Enum(['lat', 'lon', 'time', 'alt'], allow_none=True)
+    name = Dimension(allow_none=True)
     units = tl.Instance(Units, allow_none=True, read_only=True)
-    coord_ref_sys = tl.Unicode(default_value=None, allow_none=True)
-    ctype = tl.Enum(['point', 'left', 'right', 'midpoint'], read_only=True)
+    crs = tl.Unicode(default_value=None, allow_none=True)
+    ctype = CoordinateType(read_only=True)
     segment_lengths = tl.Any(read_only=True)
 
     _properties = tl.Set()
-    _segment_lengths = tl.Bool()
 
-    def __init__(self, name=None, ctype=None, units=None, segment_lengths=None, coord_ref_sys=None):
+    def __init__(self, name=None, ctype=None, units=None, segment_lengths=None, crs=None):
         """*Do not use.*"""
 
         if name is not None:
@@ -77,8 +78,8 @@ class Coordinates1d(BaseCoordinates):
         if units is not None:
             self.set_trait('units', units)
 
-        if coord_ref_sys is not None:
-            self.set_trait('coord_ref_sys', coord_ref_sys)
+        if crs is not None:
+            self.set_trait('crs', crs)
 
         if segment_lengths is not None:
             if np.array(segment_lengths).ndim == 0:
@@ -91,13 +92,9 @@ class Coordinates1d(BaseCoordinates):
 
         super(Coordinates1d, self).__init__()
 
-    @tl.observe('name', 'units', 'coord_ref_sys', 'ctype')
+    @tl.observe('name', 'units', 'crs', 'ctype', 'segment_lengths')
     def _set_property(self, d):
         self._properties.add(d['name'])
-
-    @tl.observe('segment_lengths')
-    def _set_segment_lengths(self, d):
-        self._segment_lengths = True
 
     @tl.validate('segment_lengths')
     def _validate_segment_lengths(self, d):
@@ -111,7 +108,7 @@ class Coordinates1d(BaseCoordinates):
         if isinstance(val, np.ndarray):
             if val.size != self.size:
                 raise ValueError("coordinates and segment_lengths size mismatch, %d != %d" % (self.size, val.size))
-            if not np.issubdtype(val.dtype, self.deltatype):
+            if not np.issubdtype(val.dtype, np.dtype(self.deltatype).type):
                 raise ValueError("coordinates and segment_lengths dtype mismatch, %s != %s" % (self.dtype, self.deltatype))
 
         else:
@@ -123,10 +120,39 @@ class Coordinates1d(BaseCoordinates):
 
         return val
 
-    @tl.default('coord_ref_sys')
-    def _default_coord_ref_sys(self):
+    @tl.default('crs')
+    def _default_crs(self):
         return settings['DEFAULT_CRS']
 
+    def _set_name(self, value):
+        # set name if it is not set already, otherwise check that it matches
+        if 'name' not in self._properties:
+            self.name = value
+        elif self.name != value:
+            raise ValueError("Dimension mismatch, %s != %s" % (value, self.name))
+
+    def _set_crs(self, value):
+        # set name if it is not set already, otherwise check that it matches
+        if 'crs' not in self._properties:
+            self.set_trait('crs', value)
+
+        elif self.crs != value:
+            raise ValueError("crs mismatch, %s != %s" % (value, self.crs))
+
+    def _set_ctype(self, value):
+        # only set ctype if it is not set already
+        if 'ctype' not in self._properties:
+            self.set_trait('ctype', value)
+
+    def _set_distance_units(self, value):
+        # only set units if it is not set already
+        if self.name in ['lat', 'lon', 'alt'] and 'units' not in self._properties:
+            self.set_trait('units', value)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # standard methods
+    # ------------------------------------------------------------------------------------------------------------------
+    
     def __repr__(self):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
             self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)
@@ -137,7 +163,11 @@ class Coordinates1d(BaseCoordinates):
 
         # defined coordinate properties should match
         for name in self._properties.union(other._properties):
-            if getattr(self, name) != getattr(other, name):
+            if name == 'segment_lengths':
+                if not np.all(self.segment_lengths == other.segment_lengths):
+                    return False
+
+            elif getattr(self, name) != getattr(other, name):
                 return False
         
         # shortcuts (not strictly necessary)
@@ -145,15 +175,7 @@ class Coordinates1d(BaseCoordinates):
             if getattr(self, name) != getattr(other, name):
                 return False
 
-        # only check if one of the coordinates has custom segment lengths
-        if self._segment_lengths or other._segment_lengths:
-            if not np.all(self.segment_lengths == other.segment_lengths):
-                return False
-
         return True
-
-    def from_definition(self, d):
-        raise NotImplementedError
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -163,17 +185,25 @@ class Coordinates1d(BaseCoordinates):
     def dims(self):
         if self.name is None:
             raise TypeError("cannot access dims property of unnamed Coordinates1d")
-        return [self.name]
+        return (self.name,)
 
     @property
     def udims(self):
         return self.dims
 
     @property
-    def coordinates(self):
-        """:array, read-only: Full array of coordinates values."""
+    def idims(self):
+        return self.dims
 
-        raise NotImplementedError
+    @property
+    def shape(self):
+        return (self.size,)
+
+    @property
+    def coords(self):
+        """:dict-like: xarray coordinates (container of coordinate arrays)"""
+
+        return {self.name: self.coordinates}
 
     @property
     def values(self):
@@ -196,12 +226,6 @@ class Coordinates1d(BaseCoordinates):
             return np.timedelta64
         else:
             return self.dtype
-
-    @property
-    def size(self):
-        """Number of coordinates. """
-
-        raise NotImplementedError
 
     @property
     def is_monotonic(self):
@@ -267,9 +291,25 @@ class Coordinates1d(BaseCoordinates):
 
     @property
     def definition(self):
-        """ Serializable 1d coordinates definition."""
+        """:dict: Serializable 1d coordinates definition."""
+        return self._get_definition(full=False)
 
+    @property
+    def full_definition(self):
+        """:dict: Serializable 1d coordinates definition, containing all properties. For internal use."""
+        return self._get_definition(full=True)
+
+    def _get_definition(self, full=True):
         raise NotImplementedError
+
+    @property
+    def _full_properties(self):
+        return {
+            'name': self.name,
+            'units': self.units,
+            'crs': self.crs,
+            'ctype': self.ctype,
+            'segment_lengths': self.segment_lengths}
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -287,7 +327,7 @@ class Coordinates1d(BaseCoordinates):
         ---------
         name : str, optional
             Dimension name. One of 'lat', 'lon', 'alt', and 'time'.
-        coord_ref_sys : str, optional
+        crs : str, optional
             Coordinates reference system
         ctype : str, optional
             Coordinates type. One of 'point', 'midpoint', 'left', 'right'.
@@ -381,64 +421,67 @@ class Coordinates1d(BaseCoordinates):
         select : Get the coordinates within the given bounds.
         """
 
-        from podpac.core.coordinates import Coordinates, StackedCoordinates
+        from podpac.core.coordinates import Coordinates, StackedCoordinates, DependentCoordinates
 
         if not isinstance(other, (BaseCoordinates, Coordinates)):
             raise TypeError("Cannot intersect with type '%s'" % type(other))
 
-        if isinstance(other, (Coordinates, StackedCoordinates)):
-            # short-circuit
+            
+        # extract the Coordinates1d object (or short-circuit) if necessary
+        if isinstance(other, (Coordinates, StackedCoordinates, DependentCoordinates)):
             if self.name not in other.udims:
                 return self._select_full(return_indices)
-            
             other = other[self.name]
-
+        
         if self.name != other.name:
-            raise ValueError("Cannot intersect mismatched dimensions ('%s' != '%s')" % (self.name, other.name))
-
+            return self._select_full(return_indices)
+            
+        # check for compatibility
         if self.dtype is not None and other.dtype is not None and self.dtype != other.dtype:
             raise ValueError("Cannot intersect mismatched dtypes ('%s' != '%s')" % (self.dtype, other.dtype))
-
         if self.units != other.units:
             raise NotImplementedError("Still need to implement handling different units")
+        if self.crs != other.crs:
+            raise NotImplementedError("Still need to implement handling different CRS")
 
-        # no valid other bounds, empty
+        # short-circuit
         if other.size == 0:
             return self._select_empty(return_indices)
 
+        # select
+        # TODO should this be other.area_bounds
         return self.select(other.bounds, return_indices=return_indices, outer=outer)
 
     def select(self, bounds, return_indices=False, outer=False):
         """
         Get the coordinate values that are within the given bounds.
 
-        The default selection returns coordinates that are within the other coordinates bounds::
+        The default selection returns coordinates that are within the bounds::
 
             In [1]: c = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
 
             In [2]: c.select([1.5, 2.5]).coordinates
             Out[2]: array([2.])
 
-        The *outer* selection returns the minimal set of coordinates that contain the other coordinates::
+        The *outer* selection returns the minimal set of coordinates that contain the bounds::
         
-            In [3]: c.intersect([1.5, 2.5], outer=True).coordinates
+            In [3]: c.select([1.5, 2.5], outer=True).coordinates
             Out[3]: array([1., 2., 3.])
 
-        The *outer* selection also returns a boundary coordinate if the other coordinates are outside this
-        coordinates bounds but *inside* its area bounds::
+        The *outer* selection also returns a boundary coordinate if a bound is outside this coordinates bounds but
+        *inside* its area bounds::
         
-            In [4]: c.intersect([3.25, 3.35], outer=True).coordinates
+            In [4]: c.select([3.25, 3.35], outer=True).coordinates
             Out[4]: array([3.0], dtype=float64)
 
-            In [5]: c.intersect([10.0, 11.0], outer=True).coordinates
+            In [5]: c.select([10.0, 11.0], outer=True).coordinates
             Out[5]: array([], dtype=float64)
-
-        *Note: Defined in child classes.*
         
         Parameters
         ----------
-        bounds : low, high
-            selection bounds
+        bounds : (low, high) or dict
+            Selection bounds. If a dictionary of dim -> (low, high) bounds is supplied, the bounds matching these
+            coordinates will be selected if available, otherwise the full coordinates will be returned.
         outer : bool, optional
             If True, do an *outer* selection. Default False.
         return_indices : bool, optional
@@ -447,9 +490,28 @@ class Coordinates1d(BaseCoordinates):
         Returns
         -------
         selection : :class:`Coordinates1d`
-            Coordinates1d object with coordinates within the other coordinates bounds.
+            Coordinates1d object with coordinates within the bounds.
         I : slice or list
-            index or slice for the intersected coordinates (only if return_indices=True)
+            index or slice for the selected coordinates (only if return_indices=True)
         """
 
+        if isinstance(bounds, dict):
+            bounds = bounds.get(self.name)
+            if bounds is None:
+                return self._select_full(return_indices)
+
+        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
+
+        # full
+        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
+            return self._select_full(return_indices)
+
+        # none
+        if self.area_bounds[0] > bounds[1] or self.area_bounds[1] < bounds[0]:
+            return self._select_empty(return_indices)
+
+        # partial, implemented in child classes
+        return self._select(bounds, return_indices, outer)
+
+    def _select(self, bounds, return_indices, outer):
         raise NotImplementedError

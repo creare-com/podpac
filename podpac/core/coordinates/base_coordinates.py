@@ -7,6 +7,18 @@ import traitlets as tl
 class BaseCoordinates(tl.HasTraits):
     """Base class for single or stacked one-dimensional coordinates."""
 
+    def _set_name(self, value):
+        raise NotImplementedError
+
+    def _set_crs(self, value):
+        raise NotImplementedError
+
+    def _set_ctype(self, value):
+        raise NotImplementedError
+
+    def _set_distance_units(self, value):
+        raise NotImplementedError
+
     @property
     def name(self):
         """:str: Dimension name."""
@@ -23,8 +35,8 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     @property
-    def coordinates(self):
-        """Coordinate values."""
+    def idims(self):
+        """:tuple: Dimensions."""
         raise NotImplementedError
 
     @property
@@ -33,11 +45,32 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     @property
+    def shape(self):
+        """coordinates shape."""
+        raise NotImplementedError
+
+    @property
+    def coordinates(self):
+        """Coordinate values."""
+        raise NotImplementedError
+
+    @property
+    def coords(self):
+        """xarray coords value"""
+        raise NotImplementedError
+
+    @property
     def definition(self):
         """Coordinates definition."""
         raise NotImplementedError
 
-    def from_definition(self, d):
+    @property
+    def full_definition(self):
+        """Coordinates definition, containing all properties. For internal use."""
+        raise NotImplementedError
+
+    @classmethod
+    def from_definition(cls, d):
         """Get Coordinates from a coordinates definition."""
         raise NotImplementedError
 
@@ -52,8 +85,8 @@ class BaseCoordinates(tl.HasTraits):
     def __getitem__(self, index):
         raise NotImplementedError
 
-    def __len__(self):
-        return self.size
-
     def __repr__(self):
+        raise NotImplementedError
+
+    def __eq__(self, other):
         raise NotImplementedError

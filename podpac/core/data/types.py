@@ -509,9 +509,9 @@ class Rasterio(DataSource):
 
         # rasterio reads data upside-down from coordinate conventions, so lat goes from top to bottom
         return Coordinates([
-            UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat', coord_ref_sys=crs),
-            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon', coord_ref_sys=crs)
-        ], coord_ref_sys=crs)
+            UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat', crs=crs),
+            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon', crs=crs)
+        ])
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):

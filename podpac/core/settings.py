@@ -72,6 +72,8 @@ class PodpacSettings(dict):
 
     Attributes
     ----------
+    DEFAULT_CRS : str
+        Default coordinate reference system for spatial coordinates. Defaults to 'EPSG:4326'.
     AWS_ACCESS_KEY_ID : str
         The access key for your AWS account.
         See the `boto3 documentation

@@ -227,6 +227,13 @@ class ArrayTrait(tl.TraitType):
 
         return value
 
+class TupleTrait(tl.List):
+    """ An instance of a Python tuple that accepts the 'trait' argument (like Set, List, and Dict). """
+
+    def validate(self, obj, value):
+        value = super(TupleTrait, self).validate(obj, value)
+        return tuple(value)
+
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
         # podpac Coordinates objects
