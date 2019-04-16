@@ -10,7 +10,7 @@ class TestCoordinates1d(object):
                  'is_monotonic', 'is_descending', 'is_uniform',
                  'dims', 'idims', 'udims', 'shape', 'size', 'dtype', 'deltatype',
                  'bounds', 'area_bounds', 'coords',
-                 'properties', 'definition']
+                 'properties', 'definition', 'full_definition']
 
         for attr in attrs:
             try:

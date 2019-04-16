@@ -193,6 +193,14 @@ class TestRotatedCoordinatesSerialization(object):
         with pytest.raises(ValueError, match='RotatedCoordinates definition requires "dims"'):
             RotatedCoordinates.from_definition(d)
 
+    def test_full_definition(self):
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        d = c.full_definition
+        
+        assert isinstance(d, dict)
+        assert set(d.keys()) == {'dims', 'shape', 'theta', 'ulc', 'step', 'ctypes', 'segment_lengths', 'units', 'crs'}
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
+
 class TestRotatedCoordinatesProperties(object):
     def test_affine(self):
         c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])

@@ -215,28 +215,8 @@ class DependentCoordinates(BaseCoordinates):
         self.set_trait('segment_lengths', value)
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Serialization
+    # Alternate Constructors
     # ------------------------------------------------------------------------------------------------------------------
-
-    @property
-    def definition(self):
-        """:dict: Serializable dependent coordinates definition.
-
-        The ``definition`` can be used to create new DependentCoordinates::
-
-            c = podpac.DependentCoordinates(...)
-            c2 = podpac.DependentCoordinates.from_definition(c.definition)
-
-        See Also
-        --------
-        from_definition
-        """
-
-        d = OrderedDict()
-        d['dims'] = self.dims
-        d['values'] = self.coordinates
-        d.update(self.properties)
-        return d
 
     @classmethod
     def from_definition(cls, d):
@@ -407,6 +387,34 @@ class DependentCoordinates(BaseCoordinates):
         """:dict: Dictionary of the coordinate properties. """
 
         return {key:getattr(self, key) for key in self._properties}
+
+    @property
+    def definition(self):
+        """:dict: Serializable dependent coordinates definition."""
+
+        return self._get_definition(full=False)
+
+    @property
+    def full_definition(self):
+        """:dict: Serializable dependent coordinates definition, containing all properties. For internal use."""
+
+        return self._get_definition(full=True)
+
+    def _get_definition(self, full=True):
+        d = OrderedDict()
+        d['dims'] = self.dims
+        d['values'] = self.coordinates
+        d.update(self._full_properties if full else self.properties)
+        return d
+
+    @property
+    def _full_properties(self):
+        return {
+            'dims': self.dims,
+            'units': self.units,
+            'crs': self.crs,
+            'ctypes': self.ctypes,
+            'segment_lengths': self.segment_lengths}
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -608,6 +616,11 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
     def definition(self):
         """ restricted """
         raise RuntimeError("ArrayCoordinatesNd definition is unavailable.")
+
+    @property
+    def full_definition(self):
+        """ restricted """
+        raise RuntimeError("ArrayCoordinatesNd full_definition is unavailable.")
 
     @property
     def coords(self):

@@ -235,6 +235,14 @@ class TestDependentCoordinatesSerialization(object):
         with pytest.raises(ValueError, match='DependentCoordinates definition requires "values"'):
             DependentCoordinates.from_definition({'dims':['lat', 'lon']})
 
+    def test_full_definition(self):
+        c = DependentCoordinates([LAT, LON])
+        d = c.full_definition
+        
+        assert isinstance(d, dict)
+        assert set(d.keys()) == {'dims', 'values', 'ctypes', 'segment_lengths', 'units', 'crs'}
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
+
 class TestDependentCoordinatesProperties(object):
     def test_size(self):
         c = DependentCoordinates([LAT, LON])

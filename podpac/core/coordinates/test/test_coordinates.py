@@ -916,6 +916,14 @@ class TestCoordinatesMethods(object):
         assert_equal(c2['lat'].coordinates, [0, 1, 2])
         assert_equal(c2['time'].coordinates, [np.datetime64('2018-01-01'), np.datetime64('2018-01-02')])
         assert_equal(c2['alt'].coordinates, [])
+
+        # return indices
+        c = Coordinates([[2, 1, 0, 1], ['2018-01-01', '2018-01-02', '2018-01-01'], []], dims=['lat', 'time', 'alt'])
+        c2, I = c.unique(return_indices=True)
+        assert_equal(c2['lat'].coordinates, [0, 1, 2])
+        assert_equal(c2['time'].coordinates, [np.datetime64('2018-01-01'), np.datetime64('2018-01-02')])
+        assert_equal(c2['alt'].coordinates, [])
+        assert c2 == c[I]
         
         # stacked
         lat_lon = [
@@ -1242,6 +1250,14 @@ class TestCoordinatesSpecial(object):
         assert c1.hash != c4.hash
         assert c1.hash != c5.hash
         assert c1.hash != c6.hash
+
+    def test_hash_properties(self):
+        lat1 = podpac.coordinates.ArrayCoordinates1d([0, 1, 2])
+        lat2 = podpac.coordinates.ArrayCoordinates1d([0, 1, 2], ctype='midpoint')
+        c1 = podpac.coordinates.Coordinates([lat1], dims=['lat'])
+        c2 = podpac.coordinates.Coordinates([lat2], dims=['lat'])
+        assert c1 == c2
+        assert c1.hash == c2.hash
 
 def test_merge_dims():
     ctime = Coordinates([['2018-01-01', '2018-01-02']], dims=['time'])

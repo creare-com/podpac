@@ -125,33 +125,6 @@ class RotatedCoordinates(DependentCoordinates):
         return cls(shape, np.deg2rad(deg), ulc, step, dims=dims,
                    ctypes=ctypes, units=units, segment_lengths=segment_lengths, crs=crs)
 
-    # ------------------------------------------------------------------------------------------------------------------
-    # Serialization
-    # ------------------------------------------------------------------------------------------------------------------
-
-    @property
-    def definition(self):
-        """:dict: Serializable rotated coordinates definition.
-
-        The ``definition`` can be used to create new RotatedCoordinates::
-
-            c = podpac.RotatedCoordinates(...)
-            c2 = podpac.RotatedCoordinates.from_definition(c.definition)
-
-        See Also
-        --------
-        from_definition
-        """
-
-        d = OrderedDict()
-        d['shape'] = self.shape
-        d['theta'] = self.theta
-        d['ulc'] = self.ulc
-        d['step'] = self.step
-        d['dims'] = self.dims
-        d.update(self.properties)
-        return d
-
     @classmethod
     def from_definition(cls, d):
         """
@@ -281,6 +254,16 @@ class RotatedCoordinates(DependentCoordinates):
         """:dict: Dictionary of (low, high) coordinates area_bounds in each unstacked dimension"""
         # TODO this is not accurate, the segment lengths need to be rotated
         return super(RotatedCoordinates, self).area_bounds
+
+    def _get_definition(self, full=True):
+        d = OrderedDict()
+        d['dims'] = self.dims
+        d['shape'] = self.shape
+        d['theta'] = self.theta
+        d['ulc'] = self.ulc
+        d['step'] = self.step
+        d.update(self._full_properties if full else self.properties)
+        return d
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods

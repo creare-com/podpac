@@ -160,7 +160,7 @@ class Coordinates(tl.HasTraits):
         return val
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Alternate constructors and Serialization
+    # Alternate constructors
     # ------------------------------------------------------------------------------------------------------------------
 
     @staticmethod
@@ -417,23 +417,6 @@ class Coordinates(tl.HasTraits):
 
         return cls(coords)
 
-    @property
-    def definition(self):
-        """
-        Serializable coordinates definition.
-
-        The ``definition`` can be used to create new Coordinates::
-
-            c = podpac.Coordinates(...)
-            c2 = podpac.Coordinates.from_definition(c.definition)
-
-        See Also
-        --------
-        from_definition, json
-        """
-
-        return [c.definition for c in self._coords.values()]
-
     # ------------------------------------------------------------------------------------------------------------------
     # standard dict-like methods
     # ------------------------------------------------------------------------------------------------------------------
@@ -663,6 +646,18 @@ class Coordinates(tl.HasTraits):
         return x.coords
 
     @property
+    def definition(self):
+        """:list: Serializable coordinates definition."""
+
+        return [c.definition for c in self._coords.values()]
+
+    @property
+    def full_definition(self):
+        """:list: Serializable coordinates definition, containing all properties. For internal use."""
+
+        return [c.full_definition for c in self._coords.values()]
+
+    @property
     def json(self):
         """:str: JSON-serialized coordinates definition.
 
@@ -683,13 +678,10 @@ class Coordinates(tl.HasTraits):
 
     @property
     def hash(self):
-        """
-        Coordinates hash.
+        """:str: Coordinates hash value."""
 
-        *Note: To be replaced with the __hash__ method.*
-        """
-
-        return hash_alg(self.json.encode('utf-8')).hexdigest()
+        s = json.dumps(self.full_definition, cls=podpac.core.utils.JSONEncoder)
+        return hash_alg(s.encode('utf-8')).hexdigest()
     
     @property
     def crs(self):

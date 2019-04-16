@@ -194,10 +194,6 @@ class StackedCoordinates(BaseCoordinates):
         coords = [ArrayCoordinates1d.from_xarray(xcoords[dims]) for dims in dims]
         return cls(coords, crs=crs, ctype=ctype, distance_units=distance_units)
 
-    # ------------------------------------------------------------------------------------------------------------------
-    # Serialization
-    # ------------------------------------------------------------------------------------------------------------------
-
     @classmethod
     def from_definition(cls, d):
         """
@@ -230,22 +226,6 @@ class StackedCoordinates(BaseCoordinates):
             coords.append(c)
 
         return cls(coords)
-
-    @property
-    def definition(self):
-        """:list: Serializable stacked coordinates definition.
-
-        The ``definition`` can be used to create new StackedCoordinates::
-
-            c = podpac.StackedCoordinates(...)
-            c2 = podpac.StackedCoordinates.from_definition(c.definition)
-
-        See Also
-        --------
-        from_definition
-        """
-        
-        return [c.definition for c in self._coords]
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods, list-like
@@ -388,6 +368,18 @@ class StackedCoordinates(BaseCoordinates):
 
         # the crs is the same for all coords
         return self._coords[0].crs
+
+    @property
+    def definition(self):
+        """:list: Serializable stacked coordinates definition. """
+
+        return [c.definition for c in self._coords]
+
+    @property
+    def full_definition(self):
+        """:list: Serializable stacked coordinates definition, containing all properties. For internal use."""
+        
+        return [c.full_definition for c in self._coords]
 
     # -----------------------------------------------------------------------------------------------------------------
     # Methods

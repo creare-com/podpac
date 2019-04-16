@@ -160,6 +160,14 @@ class TestPolarCoordinatesSerialization(object):
         with pytest.raises(ValueError, match='Could not parse theta coordinates'):
             PolarCoordinates.from_definition(d)
 
+    def test_full_definition(self):
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta=[0, 1, 2], dims=['lat', 'lon'])
+        d = c.full_definition
+        
+        assert isinstance(d, dict)
+        assert set(d.keys()) == {'dims', 'radius', 'center', 'theta', 'ctypes', 'segment_lengths', 'units', 'crs'}
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
+
 class TestPolarCoordinatesProperties(object):
     def test_coordinates(self):
         c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4], theta_size=4, dims=['lat', 'lon'])

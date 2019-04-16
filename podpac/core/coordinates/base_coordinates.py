@@ -64,6 +64,11 @@ class BaseCoordinates(tl.HasTraits):
         """Coordinates definition."""
         raise NotImplementedError
 
+    @property
+    def full_definition(self):
+        """Coordinates definition, containing all properties. For internal use."""
+        raise NotImplementedError
+
     @classmethod
     def from_definition(cls, d):
         """Get Coordinates from a coordinates definition."""

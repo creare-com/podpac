@@ -121,6 +121,9 @@ class ArrayCoordinates1d(Coordinates1d):
 
     @tl.default('segment_lengths')
     def _default_segment_lengths(self):
+        if self.ctype == 'point':
+            return None
+
         if self.is_uniform:
             return np.abs(self.coordinates[1] - self.coordinates[0])
 
@@ -324,23 +327,10 @@ class ArrayCoordinates1d(Coordinates1d):
         else:
             return -1, 0
 
-    @property
-    def definition(self):
-        """:dict: Serializable 1d coordinates array definition.
-
-        The ``definition`` can be used to create new ArrayCoordinates1d::
-
-            c = podpac.ArrayCoordinates1d([0, 1, 2, 3])
-            c2 = podpac.ArrayCoordinates1d.from_definition(c.definition)
-
-        See Also
-        --------
-        from_definition
-        """
-
+    def _get_definition(self, full=True):
         d = OrderedDict()
         d['values'] = self.coordinates
-        d.update(self.properties)
+        d.update(self._full_properties if full else self.properties)
         return d
 
     # ------------------------------------------------------------------------------------------------------------------

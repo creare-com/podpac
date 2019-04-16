@@ -291,9 +291,25 @@ class Coordinates1d(BaseCoordinates):
 
     @property
     def definition(self):
-        """ Serializable 1d coordinates definition."""
+        """:dict: Serializable 1d coordinates definition."""
+        return self._get_definition(full=False)
 
+    @property
+    def full_definition(self):
+        """:dict: Serializable 1d coordinates definition, containing all properties. For internal use."""
+        return self._get_definition(full=True)
+
+    def _get_definition(self, full=True):
         raise NotImplementedError
+
+    @property
+    def _full_properties(self):
+        return {
+            'name': self.name,
+            'units': self.units,
+            'crs': self.crs,
+            'ctype': self.ctype,
+            'segment_lengths': self.segment_lengths}
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods

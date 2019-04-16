@@ -223,19 +223,6 @@ class UniformCoordinates1d(Coordinates1d):
         kwargs = {k:v for k,v in d.items() if k not in ['start', 'stop']}
         return cls(start, stop, **kwargs)
 
-    def copy(self):
-        """
-        Make a deep copy of the uniform 1d Coordinates.
-
-        Returns
-        -------
-        :class:`UniformCoordinates1d`
-            Copy of the coordinates.
-        """
-
-        kwargs = self.properties
-        return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
-
     # -----------------------------------------------------------------------------------------------------------------
     # Standard methods, array-like
     # -----------------------------------------------------------------------------------------------------------------
@@ -381,30 +368,30 @@ class UniformCoordinates1d(Coordinates1d):
         else:
             return 0, -1
 
-    @property
-    def definition(self):
-        """:dict: Serializable uniform 1d coordinates definition.
-
-        The ``definition`` can be used to create new UniformCoordinates1d::
-
-            c = podpac.UniformCoordinates1d(0, 10, step=1)
-            c2 = podpac.UniformCoordinates1d.from_definition(c.definition)
-
-        See Also
-        --------
-        from_definition
-        """
-
+    def _get_definition(self, full=True):
         d = OrderedDict()
         d['start'] = self.start
         d['stop'] = self.stop
         d['step'] = self.step
-        d.update(self.properties)
+        d.update(self._full_properties if full else self.properties)
         return d
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
+
+    def copy(self):
+        """
+        Make a deep copy of the uniform 1d Coordinates.
+
+        Returns
+        -------
+        :class:`UniformCoordinates1d`
+            Copy of the coordinates.
+        """
+
+        kwargs = self.properties
+        return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
     def _select(self, bounds, return_indices, outer):
         # TODO is there an easier way to do this with the new outer flag?

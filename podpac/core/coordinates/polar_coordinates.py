@@ -59,18 +59,8 @@ class PolarCoordinates(DependentCoordinates):
         return val
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Serialization
+    # Alternate Constructors
     # ------------------------------------------------------------------------------------------------------------------
-
-    @property
-    def definition(self):
-        d = OrderedDict()
-        d['dims'] = self.dims
-        d['center'] = self.center
-        d['radius'] = self.radius.definition
-        d['theta'] = self.theta.definition
-        d.update(self.properties)
-        return d
 
     @classmethod
     def from_definition(cls, d):
@@ -176,6 +166,15 @@ class PolarCoordinates(DependentCoordinates):
     def properties(self):
         """:dict: Dictionary of the coordinate properties. """
         return {key:getattr(self, key) for key in self._properties}
+
+    def _get_definition(self, full=True):
+        d = OrderedDict()
+        d['dims'] = self.dims
+        d['center'] = self.center
+        d['radius'] = self.radius.definition
+        d['theta'] = self.theta.definition
+        d.update(self._full_properties if full else self.properties)
+        return d
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
