@@ -476,6 +476,28 @@ class TestArrayCoordinatesEq(object):
         c5 = ArrayCoordinates1d([0, 3, 1])
 
         assert c1 == c2
+        assert not c1 == c3
+        assert not c1 == c4
+        assert not c1 == c5
+
+        c1 = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-04'])
+        c2 = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-04'])
+        c3 = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-04', '2018-01-05'])
+        c4 = ArrayCoordinates1d(['2018-01-01', '2018-01-04', '2018-01-02'])
+
+        assert c1 == c2
+        assert not c1 == c3
+        assert not c1 == c4
+
+    def test_ne(self):
+        # this matters in python 2
+        c1 = ArrayCoordinates1d([0, 1, 3])
+        c2 = ArrayCoordinates1d([0, 1, 3])
+        c3 = ArrayCoordinates1d([0, 1, 3, 4])
+        c4 = ArrayCoordinates1d([0, 1, 4])
+        c5 = ArrayCoordinates1d([0, 3, 1])
+
+        assert not c1 != c2
         assert c1 != c3
         assert c1 != c4
         assert c1 != c5
@@ -485,7 +507,7 @@ class TestArrayCoordinatesEq(object):
         c3 = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-04', '2018-01-05'])
         c4 = ArrayCoordinates1d(['2018-01-01', '2018-01-04', '2018-01-02'])
 
-        assert c1 == c2
+        assert not c1 != c2
         assert c1 != c3
         assert c1 != c4
 

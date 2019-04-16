@@ -1227,6 +1227,27 @@ class TestCoordinatesSpecial(object):
         assert c1 == c2
         assert c1 == deepcopy(c1)
 
+        assert not c1 == c3
+        assert not c1 == c4
+        assert not c1 == c5
+        assert not c1 == c6
+        assert not c1 == c7
+        assert not c1 == None
+
+    def test_ne(self):
+        # this matters only in python 2
+        c1 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
+        c2 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
+        c3 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'], ctype='point')
+        c4 = Coordinates([[[0, 2, 1], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
+        c5 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lon_lat', 'time'])
+        c6 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01']], dims=['lat_lon', 'time'])
+        c7 = Coordinates([[0, 1, 2], [10, 20, 30], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
+
+        assert not c1 != c1
+        assert not c1 != c2
+        assert not c1 != deepcopy(c1)
+
         assert c1 != c3
         assert c1 != c4
         assert c1 != c5

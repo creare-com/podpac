@@ -1,7 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import json
-
+import sys
 import traitlets as tl
 
 class BaseCoordinates(tl.HasTraits):
@@ -90,3 +89,8 @@ class BaseCoordinates(tl.HasTraits):
 
     def __eq__(self, other):
         raise NotImplementedError
+
+    # python 2 compatibility
+    if sys.version < '3':
+        def __ne__(self, other):
+            return not self.__eq__(other)
