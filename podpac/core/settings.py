@@ -91,7 +91,7 @@ class PodpacSettings(dict):
     CACHE_OUTPUT_DEFAULT : bool
         Default value for node ``cache_output`` trait.
     RAM_CACHE_MAX_BYTES : int
-        Maximum RAM cache size in bytes. Defaults to ``1e9`` (~1G). Set to `None` explicitly for no limit.
+        Maximum RAM cache size in bytes. Note, for RAM cache only, the limit is applied to the total amount of RAM used by the python process; not just the contents of the RAM cache. Defaults to ``1e9`` (~1G). Set to `None` explicitly for no limit.
     DISK_CACHE_MAX_BYTES : int
         Maximum disk space for use by the disk cache in bytes. Defaults to ``10e9`` (~10G). Set to `None` explicitly for no limit.
     S3_CACHE_MAX_BYTES : int
