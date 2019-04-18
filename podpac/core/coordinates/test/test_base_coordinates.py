@@ -12,7 +12,7 @@ class TestBaseCoordinates(object):
             except NotImplementedError:
                 pass
 
-        for method_name in ['_set_name', '_set_crs', '_set_distance_units', '_set_ctype']:
+        for method_name in ['_set_name', '_set_distance_units', '_set_ctype']:
             try:
                 method = getattr(c, method_name)
                 method(None)
@@ -30,12 +30,12 @@ class TestBaseCoordinates(object):
             pass
 
         try:
-            c.intersect(None)
+            c.select([0, 1])
         except NotImplementedError:
             pass
 
         try:
-            c.intersect(None, outer=True, return_indices=True)
+            c.select([0, 1], outer=True, return_indices=True)
         except NotImplementedError:
             pass
 

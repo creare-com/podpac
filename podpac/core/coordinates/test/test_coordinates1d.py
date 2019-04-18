@@ -6,7 +6,7 @@ class TestCoordinates1d(object):
     def test_common_api(self):
         c = Coordinates1d(name='lat')
 
-        attrs = ['name', 'units', 'crs', 'ctype', 'segment_lengths',
+        attrs = ['name', 'units', 'ctype', 'segment_lengths',
                  'is_monotonic', 'is_descending', 'is_uniform',
                  'dims', 'idims', 'udims', 'shape', 'size', 'dtype', 'deltatype',
                  'bounds', 'area_bounds', 'coords',
@@ -29,11 +29,6 @@ class TestCoordinates1d(object):
             pass
 
         try:
-            c.copy(name='lon', ctype='point')
-        except NotImplementedError:
-            pass
-
-        try:
             c.select([0, 1])
         except NotImplementedError:
             pass
@@ -45,16 +40,6 @@ class TestCoordinates1d(object):
 
         try:
             c._select([0, 1], False, False)
-        except NotImplementedError:
-            pass
-
-        try:
-            c.intersect(c)
-        except NotImplementedError:
-            pass
-
-        try:
-            c.intersect(c, outer=True, return_indices=True)
         except NotImplementedError:
             pass
 

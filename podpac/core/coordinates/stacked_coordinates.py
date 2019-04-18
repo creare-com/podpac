@@ -60,7 +60,7 @@ class StackedCoordinates(BaseCoordinates):
 
     _coords = tl.List(trait=tl.Instance(Coordinates1d), read_only=True)
 
-    def __init__(self, coords, name=None, dims=None, crs=None, ctype=None, distance_units=None):
+    def __init__(self, coords, name=None, dims=None, ctype=None, distance_units=None):
         """
         Initialize a multidimensional coords object.
 
@@ -68,8 +68,6 @@ class StackedCoordinates(BaseCoordinates):
         ----------
         coords : list, :class:`StackedCoordinates`
             Coordinate values in a list, or a StackedCoordinates object to copy.
-        crs : str, optional
-            Default coordinates reference system.
         ctype : str, optional
             Default coordinates type.
         distance_units : Units, optional
@@ -99,8 +97,6 @@ class StackedCoordinates(BaseCoordinates):
             self._set_dims(dims)
         if name is not None:
             self._set_name(name)
-        if crs is not None:
-            self._set_crs(crs)
         if ctype is not None:
             self._set_ctype(ctype)
         if distance_units is not None:
@@ -125,11 +121,6 @@ class StackedCoordinates(BaseCoordinates):
             if dim is not None and dim in dims[:i]:
                 raise ValueError("Duplicate dimension '%s' in stacked coords" % dim)
 
-        # check crs
-        for c in val:
-            if c.crs != val[0].crs:
-                raise ValueError("crs mismatch in stacked_coords %s != %s" % (c.crs, val[0].crs))
-
         return val
 
     def _set_name(self, value):
@@ -152,10 +143,6 @@ class StackedCoordinates(BaseCoordinates):
                 continue
             c._set_name(dim)
 
-    def _set_crs(self, value):
-        for c in self._coords:
-            c._set_crs(value)
-
     def _set_ctype(self, value):
         for c in self._coords:
             c._set_ctype(value)
@@ -169,7 +156,7 @@ class StackedCoordinates(BaseCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_xarray(cls, xcoords, crs=None, ctype=None, distance_units=None):
+    def from_xarray(cls, xcoords, ctype=None, distance_units=None):
         """
         Convert an xarray coord to StackedCoordinates
 
@@ -177,8 +164,6 @@ class StackedCoordinates(BaseCoordinates):
         ----------
         xcoords : DataArrayCoordinates
             xarray coords attribute to convert
-        crs : str, optional
-            Default coordinates reference system.
         ctype : str, optional
             Default coordinates type.
         distance_units : Units, optional
@@ -192,7 +177,7 @@ class StackedCoordinates(BaseCoordinates):
 
         dims = xcoords.indexes[xcoords.dims[0]].names
         coords = [ArrayCoordinates1d.from_xarray(xcoords[dims]) for dims in dims]
-        return cls(coords, crs=crs, ctype=ctype, distance_units=distance_units)
+        return cls(coords, ctype=ctype, distance_units=distance_units)
 
     @classmethod
     def from_definition(cls, d):
@@ -363,13 +348,6 @@ class StackedCoordinates(BaseCoordinates):
         return {self.name: self.coordinates}
 
     @property
-    def crs(self):
-        """:str: coordinate reference system."""
-
-        # the crs is the same for all coords
-        return self._coords[0].crs
-
-    @property
     def definition(self):
         """:list: Serializable stacked coordinates definition. """
 
@@ -396,38 +374,6 @@ class StackedCoordinates(BaseCoordinates):
         """
 
         return StackedCoordinates(self._coords)
-
-    def intersect(self, other, outer=False, return_indices=False):
-        """
-        Get the stacked coordinate values that are within the bounds of a given coordinates object in all dimensions.
-
-        *Note: you should not generally need to call this method directly.*
-        
-        Parameters
-        ----------
-        other : :class:`BaseCoordinates1d`, :class:`Coordinates`
-            Coordinates to intersect with.
-        outer : bool, optional
-            If True, do an *outer* intersection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
-
-        Returns
-        -------
-        intersection : :class:`StackedCoordinates`
-            StackedCoordinates object consisting of the intersection in all dimensions.
-        I : slice or list
-            Slice or index for the intersected coordinates, only if ``return_indices`` is True.
-        """
-
-        # logical AND of the intersection in each dimension
-        indices = [c.intersect(other, outer=outer, return_indices=True)[1] for c in self._coords]
-        I = self._and_indices(indices)
-
-        if return_indices:
-            return self[I], I
-        else:
-            return self[I]
 
     def select(self, bounds, return_indices=False, outer=False):
         """

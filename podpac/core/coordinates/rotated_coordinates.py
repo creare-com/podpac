@@ -46,7 +46,7 @@ class RotatedCoordinates(DependentCoordinates):
     ndims = 2
 
     def __init__(self, shape=None, theta=None, ulc=None, step=None, lrc=None,
-                 dims=None, ctypes=None, units=None, segment_lengths=None, crs=None):
+                 dims=None, ctypes=None, units=None, segment_lengths=None):
         """
         Create a grid of rotated coordinates from a `shape`, `theta`, `ulc`, and `step` or `ulc`.
 
@@ -64,8 +64,6 @@ class RotatedCoordinates(DependentCoordinates):
             Scaling, ie rotated distance between points in the grid, in each dimension. (lrc or step required)
         dims : tuple (required)
             tuple of dimension names ('lat', 'lon', 'time', or 'alt').
-        crs : str (optional)
-            Coordinate reference system.
         units : tuple or Units, optional
             tuple of Units for each dimension. A single Units object can be specified for all dimensions.
         ctype : tuple, str (optional)
@@ -86,7 +84,7 @@ class RotatedCoordinates(DependentCoordinates):
             step = d / np.array([shape[0]-1, -(shape[1]-1)])
         self.set_trait('step', step)
 
-        self._set_properties(dims, crs, units, ctypes, segment_lengths)
+        self._set_properties(dims, units, ctypes, segment_lengths)
 
     @tl.validate('dims')
     def _validate_dims(self, d):
@@ -115,15 +113,14 @@ class RotatedCoordinates(DependentCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_geotransform(cls, geotransform, shape, dims=None,
-                               ctypes=None, units=None, segment_lengths=None, crs=None):
+    def from_geotransform(cls, geotransform, shape, dims=None, ctypes=None, units=None, segment_lengths=None):
         affine = rasterio.Affine.from_gdal(*geotransform)
         ulc = affine.c, affine.f
         deg = affine.rotation_angle
         scale = ~affine.rotation(deg) * ~affine.translation(*ulc) * affine
         step = np.array([scale.a, scale.e])
         return cls(shape, np.deg2rad(deg), ulc, step, dims=dims,
-                   ctypes=ctypes, units=units, segment_lengths=segment_lengths, crs=crs)
+                   ctypes=ctypes, units=units, segment_lengths=segment_lengths)
 
     @classmethod
     def from_definition(cls, d):
@@ -279,32 +276,6 @@ class RotatedCoordinates(DependentCoordinates):
             Copy of the rotated coordinates.
         """
         return RotatedCoordinates(self.shape, self.theta, self.ulc, self.step, **self.properties)
-
-    def intersect(self, other, outer=False, return_indices=False):
-        """
-        Get the coordinate values that are within the bounds of a given coordinates object in all dimensions.
-
-        *Note: you should not generally need to call this method directly.*
-        
-        Parameters
-        ----------
-        other : :class:`BaseCoordinates1d`, :class:`Coordinates`
-            Coordinates to intersect with.
-        outer : bool, optional
-            If True, do an *outer* intersection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
-
-        Returns
-        -------
-        intersection : :class:`RotatedCoordinates`, :class:`DependentCoordinates`, :class:`StackedCoordinates`
-            rotated, dependent, or stacked coordinates consisting of the intersection in all dimensions.
-        I : slice or list
-            Slice or index for the intersected coordinates, only if ``return_indices`` is True.
-        """
-
-        # TODO return RotatedCoordinates when possible
-        return super(RotatedCoordinates, self).intersect(other, outer=outer, return_indices=return_indices)
 
     def select(self, bounds, outer=False, return_indices=False):
         """

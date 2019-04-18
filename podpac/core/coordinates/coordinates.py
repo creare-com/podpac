@@ -22,6 +22,7 @@ from six import string_types
 import pyproj
 
 import podpac
+from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -60,7 +61,10 @@ class Coordinates(tl.HasTraits):
         Tuple of individual dimension names, always unstacked.
     """
 
+    crs = tl.Unicode(read_only=True, allow_none=True)
+
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
+    _properties = tl.Set()
 
     def __init__(self, coords, dims=None, crs=None, ctype=None, distance_units=None):
         """
@@ -123,8 +127,6 @@ class Coordinates(tl.HasTraits):
 
             # propagate properties and name
             c._set_name(dim)
-            if crs is not None:
-                c._set_crs(crs)
             if ctype is not None:
                 c._set_ctype(ctype)
             if distance_units is not None:
@@ -134,6 +136,8 @@ class Coordinates(tl.HasTraits):
             dcoords[dim] = c
             
         self.set_trait('_coords', dcoords)
+        if crs is not None:
+            self.set_trait('crs', crs)
         super(Coordinates, self).__init__()
 
     @tl.validate('_coords')
@@ -152,12 +156,15 @@ class Coordinates(tl.HasTraits):
             if dims.count(dim) != 1:
                 raise ValueError("Duplicate dimension '%s' in dims %s" % (dim, tuple(val.keys())))
 
-        crs = list(val.values())[0].crs
-        for i, c in enumerate(val.values()):
-            if c.crs != crs:
-                raise ValueError("crs mismatch '%s' != '%s' at pos %d" % (c.crs, crs, i))
-
         return val
+
+    @tl.default('crs')
+    def _default_crs(self):
+        return settings['DEFAULT_CRS']
+
+    @tl.observe('crs')
+    def _set_property(self, d):
+        self._properties.add(d['name'])
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors
@@ -395,11 +402,18 @@ class Coordinates(tl.HasTraits):
         from_json, definition
         """
 
-        if not isinstance(d, list):
-            raise TypeError("Could not parse coordinates definition of type '%s'" % type(d))
+        if not isinstance(d, dict):
+            raise TypeError("Could not parse coordinates definition, expected type 'dict', got '%s'" % type(d))
+
+        if 'coords' not in d:
+            raise ValueError("Could not parse coordinates definition, 'coords' required")
+
+        if not isinstance(d['coords'], list):
+            raise TypeError("Could not parse coordinates definition, expected 'coords' of type 'list', got '%s'" % (
+                type(d['coords'])))
 
         coords = []
-        for e in d:
+        for e in d['coords']:
             if isinstance(e, list):
                 c = StackedCoordinates.from_definition(e)
             elif 'start' in e and 'stop' in e and ('step' in e or 'size' in e):
@@ -415,7 +429,8 @@ class Coordinates(tl.HasTraits):
 
             coords.append(c)
 
-        return cls(coords)
+        kwargs = {k:v for k,v in d.items() if k != 'coords'}
+        return cls(coords, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard dict-like methods
@@ -473,7 +488,7 @@ class Coordinates(tl.HasTraits):
                     indices.append(index[i])
                     i += 1
 
-            return Coordinates([c[I] for c, I in zip(self._coords.values(), indices)])
+            return Coordinates([c[I] for c, I in zip(self._coords.values(), indices)], **self.properties)
 
     def __setitem__(self, dim, c):
 
@@ -531,6 +546,11 @@ class Coordinates(tl.HasTraits):
 
         if self.shape != other.shape:
             return False
+
+        # properties
+        for name in self._properties.union(other._properties):
+            if getattr(self, name) != getattr(other, name):
+                return False
 
         # full check of underlying coordinates
         if self._coords != other._coords:
@@ -650,16 +670,32 @@ class Coordinates(tl.HasTraits):
         return x.coords
 
     @property
+    def properties(self):
+        """:dict: Dictionary of the coordinate properties. """
+
+        return {key:getattr(self, key) for key in self._properties}
+
+    @property
+    def _full_properties(self):
+        return {'crs': self.crs}
+
+    @property
     def definition(self):
         """:list: Serializable coordinates definition."""
 
-        return [c.definition for c in self._coords.values()]
+        d = OrderedDict()
+        d['coords'] = [c.definition for c in self._coords.values()]
+        d.update(self.properties)
+        return d
 
     @property
     def full_definition(self):
         """:list: Serializable coordinates definition, containing all properties. For internal use."""
 
-        return [c.full_definition for c in self._coords.values()]
+        d = OrderedDict()
+        d['coords'] = [c.full_definition for c in self._coords.values()]
+        d.update(self._full_properties)
+        return d
 
     @property
     def json(self):
@@ -686,21 +722,6 @@ class Coordinates(tl.HasTraits):
 
         s = json.dumps(self.full_definition, cls=podpac.core.utils.JSONEncoder)
         return hash_alg(s.encode('utf-8')).hexdigest()
-    
-    @property
-    def crs(self):
-        """:str: coordinate reference system."""
-        if not self._coords:
-            return None
-        
-        # the crs is the same for all coords
-        return list(self._coords.values())[0].crs
-
-        # key = 'lat' if 'lat' in self.udims else 'lon'
-        # if key == 'lon' and 'lon' not in self.udims:
-        #     return None
-
-        # return GDAL_CRS.get(self[key].crs, self[key].crs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -741,7 +762,7 @@ class Coordinates(tl.HasTraits):
             if dim not in self.dims and not ignore_missing:
                 raise KeyError("Dimension '%s' not found in Coordinates with dims %s" % (dim, self.dims))
 
-        return Coordinates([c for c in self._coords.values() if c.name not in dims])
+        return Coordinates([c for c in self._coords.values() if c.name not in dims], **self.properties)
 
     # do we ever need this?
     def udrop(self, dims, ignore_missing=False):
@@ -808,9 +829,9 @@ class Coordinates(tl.HasTraits):
                 elif len(stacked) == 1:
                     cs.append(stacked[0])
 
-        return Coordinates(cs)
+        return Coordinates(cs, **self.properties)
 
-    def intersect(self, other, outer=False, return_indices=False):
+    def intersect(self, other, dims=None, outer=False, return_indices=False):
         """
         Get the coordinate values that are within the bounds of a given coordinates object.
 
@@ -853,6 +874,8 @@ class Coordinates(tl.HasTraits):
         ----------
         other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
             Coordinates to intersect with.
+        dims : list, optional
+            Restrict intersection to the given dimensions. Default is all available dimensions.
         outer : bool, optional
             If True, do an *outer* intersection. Default False.
         return_indices : bool, optional
@@ -865,11 +888,18 @@ class Coordinates(tl.HasTraits):
         idx : list
             List of indices for each dimension that produces the intersection, only if ``return_indices`` is True.
         """
+        
+        if not isinstance(other, Coordinates):
+            raise TypeError("Coordinates cannot be intersected with type '%s'" % type(other))
+
         if other.crs != self.crs:
             other = other.transform(self.crs)
 
-        intersections = [c.intersect(other, outer=outer, return_indices=return_indices) for c in self._coords.values()]
-        return self._make_selected_coordinates(intersections, return_indices)
+        bounds = other.bounds
+        if dims is not None:
+            bounds = {dim: bounds[dim] for dim in dims} # if dim in bounds}
+
+        return self.select(bounds, outer=outer, return_indices=return_indices)
 
     def select(self, bounds, return_indices=False, outer=False):
         """
@@ -927,7 +957,7 @@ class Coordinates(tl.HasTraits):
             I = [e for l in I for e in l]
             return coords, tuple(I)
         else:
-            return Coordinates(selections)
+            return Coordinates(selections, **self.properties)
 
     def unique(self, return_indices=False):
         """
@@ -966,7 +996,7 @@ class Coordinates(tl.HasTraits):
         xr.DataArray.unstack
         """
 
-        return Coordinates([self[dim] for dim in self.udims])
+        return Coordinates([self[dim] for dim in self.udims], **self.properties)
 
     def iterchunks(self, shape, return_slices=False):
         """
@@ -989,7 +1019,7 @@ class Coordinates(tl.HasTraits):
 
         l = [[slice(i, i+n) for i in range(0, m, n)] for m, n in zip(self.shape, shape)]
         for slices in itertools.product(*l):
-            coords = Coordinates([self._coords[dim][slc] for dim, slc in zip(self.dims, slices)])
+            coords = Coordinates([self._coords[dim][slc] for dim, slc in zip(self.dims, slices)], **self.properties)
             if return_slices:
                 yield coords, slices
             else:
@@ -1031,7 +1061,7 @@ class Coordinates(tl.HasTraits):
             return self
 
         else:
-            return Coordinates([self._coords[dim] for dim in dims])
+            return Coordinates([self._coords[dim] for dim in dims], **self.properties)
 
     def transform(self, crs=None, alt_units=None):
         """
@@ -1123,7 +1153,8 @@ class Coordinates(tl.HasTraits):
             Coordinates must have both lat and lon dimensions if either is defined
         """
 
-        t_coords = deepcopy(self)
+        if self.crs == crs and alt_units is None:
+            return self
 
         if crs is None:
             crs = self.crs
@@ -1144,28 +1175,28 @@ class Coordinates(tl.HasTraits):
         # create proj4 transformer
         transformer = pyproj.Transformer.from_crs(from_crs, to_crs)
 
-        # update crs on the individual coords - this must be done before assigning new values
+        # initialize transformed coordinates
+        t_coords = deepcopy(self)
+        
+        # update crs
         # note using `srs` here so it captures the user input (i.e. EPSG:4193)
         # if alt_units included, this will be a whole proj4 string because of conversion above
-        for dim in t_coords.udims:
-            t_coords[dim].crs = to_crs.srs
-
+        t_coords.set_trait('crs', to_crs.srs)
+        
         # if lat or lon is present, coordinates MUST have both, even if stacked:
-        if ('lat' in self.udims or 'lon' in self.udims):
-            
-            if (set(['lat', 'lon']) - set(self.udims)):
+        if 'lat' in self.udims or 'lon' in self.udims:
+            if 'lat' not in self.udims or 'lon' not in self.udims:
                 raise ValueError('Coordinates must have both lat and lon dimensions to transform coordinate reference systems')
 
             (lat, lon) = transformer.transform(self.coords['lat'].values, self.coords['lon'].values)
-            t_coords['lat'] = ArrayCoordinates1d(lat, crs=t_coords.crs)
-            t_coords['lon'] = ArrayCoordinates1d(lon, crs=t_coords.crs)
+            t_coords['lat'] = ArrayCoordinates1d(lat)
+            t_coords['lon'] = ArrayCoordinates1d(lon)
 
         # by keeping these seperate, we can handle altitude dimensions that are a different length from lat/lon
         if 'alt' in self.udims:
-  
             dummy = np.zeros(len(self.coords['alt'].values))  # must be same length as alt
             (lat, lon, alt) = transformer.transform(dummy, dummy, self.coords['alt'].values)
-            t_coords['alt'] = ArrayCoordinates1d(alt, crs=t_coords.crs)
+            t_coords['alt'] = ArrayCoordinates1d(alt)
 
         return t_coords
 
@@ -1207,12 +1238,23 @@ def merge_dims(coords_list):
         If dimensions are duplicated.
     """
 
+
+    coords_list = list(coords_list)
     for coords in coords_list:
         if not isinstance(coords, Coordinates):
             raise TypeError("Cannot merge '%s' with Coordinates" % type(coords))
 
+    if len(coords_list) == 0:
+        return Coordinates([])
+
+    # check crs
+    crs = coords_list[0].crs
+    if not all(coords.crs == crs for coords in coords_list):
+        raise ValueError("Cannot merge Coordinates, crs mismatch")
+
+    # merge
     coords = sum([list(coords.values()) for coords in coords_list], [])
-    return Coordinates(coords)
+    return Coordinates(coords, crs=crs)
 
 def concat(coords_list):
     """
@@ -1238,6 +1280,15 @@ def concat(coords_list):
         if not isinstance(coords, Coordinates):
             raise TypeError("Cannot concat '%s' with Coordinates" % type(coords))
 
+    if not coords_list:
+        return Coordinates([])
+
+    # check crs
+    crs = coords_list[0].crs
+    if not all(coords.crs == crs for coords in coords_list):
+        raise ValueError("Cannot concat Coordinates, crs mismatch")
+
+    # concatenate
     d = OrderedDict()
     for coords in coords_list:
         for dim, c in coords.items():
@@ -1252,7 +1303,7 @@ def concat(coords_list):
                 else:
                     d[dim] = [np.concatenate([d[dim][i], s.coordinates]) for i, s in enumerate(c)]
 
-    return Coordinates(list(d.values()), list(d.keys()))
+    return Coordinates(list(d.values()), dims=list(d.keys()), crs=crs)
 
 def union(coords_list):
     """

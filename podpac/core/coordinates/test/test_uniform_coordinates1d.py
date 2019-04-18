@@ -1184,11 +1184,3 @@ class TestUniformCoordinatesSelection(object):
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
-
-    def test_intersect(self):
-        a = ArrayCoordinates1d([40., 70., 50.,])
-        u1 = UniformCoordinates1d(10., 60., 10.)
-        u2 = UniformCoordinates1d(35., 85., 5.)
-        
-        assert isinstance(u1.intersect(a), UniformCoordinates1d)
-        assert isinstance(u1.intersect(u2), UniformCoordinates1d)

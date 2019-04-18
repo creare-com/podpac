@@ -10,7 +10,6 @@ import copy
 import numpy as np
 import traitlets as tl
 
-from podpac.core.settings import settings
 from podpac.core.units import Units
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
@@ -44,9 +43,6 @@ class Coordinates1d(BaseCoordinates):
         Full array of coordinate values.
     units : podpac.Units
         Coordinate units.
-    crs : str
-        Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
-        If not defined, set to settings entry: `DEFAULT_CRS`
     ctype : str
         Coordinates type: 'point', 'left', 'right', or 'midpoint'.
     segment_lengths : array, float, timedelta
@@ -60,13 +56,12 @@ class Coordinates1d(BaseCoordinates):
 
     name = Dimension(allow_none=True)
     units = tl.Instance(Units, allow_none=True, read_only=True)
-    crs = tl.Unicode(default_value=None, allow_none=True)
     ctype = CoordinateType(read_only=True)
     segment_lengths = tl.Any(read_only=True)
 
     _properties = tl.Set()
 
-    def __init__(self, name=None, ctype=None, units=None, segment_lengths=None, crs=None):
+    def __init__(self, name=None, ctype=None, units=None, segment_lengths=None):
         """*Do not use.*"""
 
         if name is not None:
@@ -77,9 +72,6 @@ class Coordinates1d(BaseCoordinates):
 
         if units is not None:
             self.set_trait('units', units)
-
-        if crs is not None:
-            self.set_trait('crs', crs)
 
         if segment_lengths is not None:
             if np.array(segment_lengths).ndim == 0:
@@ -92,7 +84,7 @@ class Coordinates1d(BaseCoordinates):
 
         super(Coordinates1d, self).__init__()
 
-    @tl.observe('name', 'units', 'crs', 'ctype', 'segment_lengths')
+    @tl.observe('name', 'units', 'ctype', 'segment_lengths')
     def _set_property(self, d):
         self._properties.add(d['name'])
 
@@ -120,24 +112,12 @@ class Coordinates1d(BaseCoordinates):
 
         return val
 
-    @tl.default('crs')
-    def _default_crs(self):
-        return settings['DEFAULT_CRS']
-
     def _set_name(self, value):
         # set name if it is not set already, otherwise check that it matches
         if 'name' not in self._properties:
             self.name = value
         elif self.name != value:
             raise ValueError("Dimension mismatch, %s != %s" % (value, self.name))
-
-    def _set_crs(self, value):
-        # set name if it is not set already, otherwise check that it matches
-        if 'crs' not in self._properties:
-            self.set_trait('crs', value)
-
-        elif self.crs != value:
-            raise ValueError("crs mismatch, %s != %s" % (value, self.crs))
 
     def _set_ctype(self, value):
         # only set ctype if it is not set already
@@ -307,7 +287,6 @@ class Coordinates1d(BaseCoordinates):
         return {
             'name': self.name,
             'units': self.units,
-            'crs': self.crs,
             'ctype': self.ctype,
             'segment_lengths': self.segment_lengths}
 
@@ -315,29 +294,14 @@ class Coordinates1d(BaseCoordinates):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def copy(self, **kwargs):
+    def copy(self):
         """
         Make a deep copy of the 1d Coordinates.
-
-        The coordinates properties will be copied. Any provided keyword arguments will override these properties.
-
-        *Note: Defined in child classes.*
-
-        Arguments
-        ---------
-        name : str, optional
-            Dimension name. One of 'lat', 'lon', 'alt', and 'time'.
-        crs : str, optional
-            Coordinates reference system
-        ctype : str, optional
-            Coordinates type. One of 'point', 'midpoint', 'left', 'right'.
-        units : podpac.Units, optional
-            Coordinates units.
 
         Returns
         -------
         :class:`Coordinates1d`
-            Copy of the coordinates, with provided properties.
+            Copy of the coordinates.
         """
 
         raise NotImplementedError
@@ -355,102 +319,6 @@ class Coordinates1d(BaseCoordinates):
             return self[I], I
         else:
             return self[I]
-
-    def intersect(self, other, return_indices=False, outer=False):
-        """
-        Get the coordinate values that are within the bounds of a given coordinates object.
-
-        If a Coordinates1d ``other`` is provided, then this dimension must match the other dimension
-        (``self.name == other.name``). If a multidimensional :class:`Coordinates` ``other`` is provided, then the
-        corresponding 1d coordinates are used for the intersection if available, and otherwise the entire coordinates
-        are returned.
-
-        The default intersection selects coordinates that are within the other coordinates bounds::
-
-            In [1]: c = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
-
-            In [2]: other = ArrayCoordinates1d([1.5, 2.5], name='lat')
-
-            In [3]: c.intersect(other).coordinates
-            Out[3]: array([2.])
-
-        The *outer* intersection selects the minimal set of coordinates that contain the other coordinates::
-        
-            In [4]: c.intersect(other, outer=True).coordinates
-            Out[4]: array([1., 2., 3.])
-
-        The *outer* intersection also selects a boundary coordinate if the other coordinates are outside this
-        coordinates bounds but *inside* its area bounds::
-        
-            In [5]: c.area_bounds
-            Out[5]: array([-0.5,  3.5])
-
-            In [6]: other1 = podpac.coordinates.ArrayCoordinates1d([3.25], name='lat')
-            
-            In [7]: other2 = podpac.coordinates.ArrayCoordinates1d([3.75], name='lat')
-
-            In [8]: c.intersect(o2, outer=True).coordinates
-            Out[8]: array([3.0], dtype=float64)
-
-            In [9]: c.intersect(o2, outer=True).coordinates
-            Out[9]: array([], dtype=float64)
-        
-        Parameters
-        ----------
-        other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
-            Coordinates to intersect with.
-        outer : bool, optional
-            If True, do an *outer* intersection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
-        
-        Returns
-        -------
-        intersection : :class:`Coordinates1d`
-            Coordinates1d object with coordinates within the other coordinates bounds.
-        I : slice or list
-            index or slice for the intersected coordinates (only if return_indices=True)
-        
-        Raises
-        ------
-        ValueError
-            If the coordinates names do not match, when intersecting with a Coordinates1d other.
-
-        See Also
-        --------
-        select : Get the coordinates within the given bounds.
-        """
-
-        from podpac.core.coordinates import Coordinates, StackedCoordinates, DependentCoordinates
-
-        if not isinstance(other, (BaseCoordinates, Coordinates)):
-            raise TypeError("Cannot intersect with type '%s'" % type(other))
-
-            
-        # extract the Coordinates1d object (or short-circuit) if necessary
-        if isinstance(other, (Coordinates, StackedCoordinates, DependentCoordinates)):
-            if self.name not in other.udims:
-                return self._select_full(return_indices)
-            other = other[self.name]
-        
-        if self.name != other.name:
-            return self._select_full(return_indices)
-            
-        # check for compatibility
-        if self.dtype is not None and other.dtype is not None and self.dtype != other.dtype:
-            raise ValueError("Cannot intersect mismatched dtypes ('%s' != '%s')" % (self.dtype, other.dtype))
-        if self.units != other.units:
-            raise NotImplementedError("Still need to implement handling different units")
-        if self.crs != other.crs:
-            raise NotImplementedError("Still need to implement handling different CRS")
-
-        # short-circuit
-        if other.size == 0:
-            return self._select_empty(return_indices)
-
-        # select
-        # TODO should this be other.area_bounds
-        return self.select(other.bounds, return_indices=return_indices, outer=outer)
 
     def select(self, bounds, return_indices=False, outer=False):
         """
