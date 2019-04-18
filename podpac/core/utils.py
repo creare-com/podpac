@@ -234,6 +234,16 @@ class TupleTrait(tl.List):
         value = super(TupleTrait, self).validate(obj, value)
         return tuple(value)
 
+class NodeTrait(tl.ForwardDeclaredInstance):
+    def __init__(self, *args, **kwargs):
+        super(NodeTrait, self).__init__('Node', *args, **kwargs)
+
+    def validate(self, obj, value):
+        super(NodeTrait, self).validate(obj, value)
+        if podpac.core.settings.settings['DEBUG']:
+            value = deepcopy(value)
+        return value
+
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
         # podpac Coordinates objects

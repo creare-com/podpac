@@ -279,20 +279,6 @@ class TestArrayCoordinatesInit(object):
         with pytest.raises(tl.TraitError):
             c._set_name('depth')
 
-    def test_set_crs(self):
-        # set if not already set
-        c = ArrayCoordinates1d([])
-        c._set_crs('SPHER_MERC')
-        assert c.crs == 'SPHER_MERC'
-
-        # check if set already
-        c = ArrayCoordinates1d([], crs='SPHER_MERC')
-        c._set_crs('SPHER_MERC')
-        assert c.crs == 'SPHER_MERC'
-
-        with pytest.raises(ValueError, match="crs mismatch"):
-            c._set_crs('WGS84')
-
     def test_set_ctype(self):
         # set if not already set
         c = ArrayCoordinates1d([])
@@ -453,16 +439,6 @@ class TestArrayCoordinatesInit(object):
         with pytest.raises(ValueError, match="segment_lengths must be positive"):
             ArrayCoordinates1d([0, 1, 2], segment_lengths=-1.0)
 
-    def test_crs(self):
-        c = ArrayCoordinates1d([])
-        assert c.crs == settings['DEFAULT_CRS']
-
-        c = ArrayCoordinates1d([], crs='SPHER_MERC')
-        assert c.crs == 'SPHER_MERC'
-        
-        with pytest.raises(tl.TraitError):
-            ArrayCoordinates1d([], crs=1)
-
 class TestArrayCoordinatesEq(object):
     def test_eq_type(self):
         c1 = ArrayCoordinates1d([0, 1, 3])
@@ -476,6 +452,28 @@ class TestArrayCoordinatesEq(object):
         c5 = ArrayCoordinates1d([0, 3, 1])
 
         assert c1 == c2
+        assert not c1 == c3
+        assert not c1 == c4
+        assert not c1 == c5
+
+        c1 = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-04'])
+        c2 = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-04'])
+        c3 = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-04', '2018-01-05'])
+        c4 = ArrayCoordinates1d(['2018-01-01', '2018-01-04', '2018-01-02'])
+
+        assert c1 == c2
+        assert not c1 == c3
+        assert not c1 == c4
+
+    def test_ne(self):
+        # this matters in python 2
+        c1 = ArrayCoordinates1d([0, 1, 3])
+        c2 = ArrayCoordinates1d([0, 1, 3])
+        c3 = ArrayCoordinates1d([0, 1, 3, 4])
+        c4 = ArrayCoordinates1d([0, 1, 4])
+        c5 = ArrayCoordinates1d([0, 3, 1])
+
+        assert not c1 != c2
         assert c1 != c3
         assert c1 != c4
         assert c1 != c5
@@ -485,7 +483,7 @@ class TestArrayCoordinatesEq(object):
         c3 = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-04', '2018-01-05'])
         c4 = ArrayCoordinates1d(['2018-01-01', '2018-01-04', '2018-01-02'])
 
-        assert c1 == c2
+        assert not c1 != c2
         assert c1 != c3
         assert c1 != c4
 
@@ -694,10 +692,6 @@ class TestArrayCoordinatesProperties(object):
         c = ArrayCoordinates1d([], units=Units())
         assert isinstance(c.properties, dict)
         assert set(c.properties) == {'units'}
-
-        c = ArrayCoordinates1d([], crs='WGS84')
-        assert isinstance(c.properties, dict)
-        assert set(c.properties) == {'crs'}
 
         c = ArrayCoordinates1d([1, 2], segment_lengths=1)
         assert isinstance(c.properties, dict)
@@ -1069,130 +1063,18 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(s.coordinates, [40., 50.])
 
         s = c.select({'lon': [30., 55]})
-        assert_equal(s.coordinates, c.coordinates)
+        assert s == c
 
-class TestArrayCoordinatesIntersection(object):
-    def test_intersect_invalid(self):
-        a = ArrayCoordinates1d([20., 50., 60., 10.], ctype='point')
-        b = [55., 65., 95., 45.]
+    def test_select_time(self):
+        c = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
+        s = c.select({'time': [np.datetime64('2018-01-03'), '2018-02-06']})
+        assert_equal(s.coordinates, np.array(['2018-01-03', '2018-01-04']).astype(np.datetime64))
 
-        with pytest.raises(TypeError, match="Cannot intersect with type"):
-            a.intersect(b)
+    def test_select_dtype(self):
+        c = ArrayCoordinates1d([20., 40., 60., 10., 90., 50.], name='lat')
+        with pytest.raises(TypeError):
+            c.select({'lat': [np.datetime64('2018-01-01'), '2018-02-01']})
 
-    def test_inteserct_full_shortcut(self):
-        pass
-
-    def test_intersect_name_mismatch(self):
-        a = ArrayCoordinates1d([20., 50., 60., 10.], name='lat')
-        b = ArrayCoordinates1d([55., 65., 95., 45.], name='lon')
-
-        ab = a.intersect(b)
-        assert_equal(ab.coordinates, a.coordinates)
-
-        ba = b.intersect(a)
-        assert_equal(ba.coordinates, b.coordinates)
-
-    def test_intersect_dtype_mismatch(self):
-        a = ArrayCoordinates1d([1., 2., 3., 4.], name='time')
-        b = ArrayCoordinates1d(['2018-01-01', '2018-01-02'], name='time')
-
-        with pytest.raises(ValueError, match="Cannot intersect mismatched dtypes"):
-            a.intersect(b)
-
-    def test_intersect_units_mismatch(self):
-        pass
-
-    def test_intersect(self):
-        a = ArrayCoordinates1d([20., 50., 60., 10.], ctype='point')
-        b = ArrayCoordinates1d([55., 65., 95., 45.], ctype='point')
-        c = ArrayCoordinates1d([80., 70., 90.], ctype='point')
-        e = ArrayCoordinates1d([], ctype='point')
-        u = UniformCoordinates1d(45, 95, 10)
-        
-        # overlap, in both directions
-        ab = a.intersect(b)
-        assert_equal(ab.coordinates, [50., 60.])
-
-        ab, I = a.intersect(b, return_indices=True)
-        assert_equal(ab.coordinates, [50., 60.])
-        assert_equal(a.coordinates[I], [50., 60.])
-        
-        ba = b.intersect(a)
-        assert_equal(ba.coordinates, [55., 45.])
-
-        ba, I = b.intersect(a, return_indices=True)
-        assert_equal(ba.coordinates, [55., 45.])
-        assert_equal(b.coordinates[I], [55., 45.])
-
-        # no overlap
-        ac = a.intersect(c)
-        assert_equal(ac.coordinates, [])
-
-        ac, I = a.intersect(c, return_indices=True)
-        assert_equal(ac.coordinates, [])
-        assert_equal(a.coordinates[I], [])
-
-        ca = a.intersect(c)
-        assert_equal(ca.coordinates, [])
-
-        ca, I = a.intersect(c, return_indices=True)
-        assert_equal(ca.coordinates, [])
-        assert_equal(c.coordinates[I], [])
-
-        # empty self
-        ea = e.intersect(a)
-        assert_equal(ea.coordinates, [])
-
-        ea, I = e.intersect(a, return_indices=True)
-        assert_equal(ea.coordinates, [])
-        assert_equal(e.coordinates[I], [])
-
-        # empty other
-        ae = a.intersect(e)
-        assert_equal(ae.coordinates, [])
-
-        ae, I = a.intersect(e, return_indices=True)
-        assert_equal(ae.coordinates, [])
-        assert_equal(a.coordinates[I], [])
-
-        # UniformCoordinates1d other
-        au = a.intersect(u)
-        assert_equal(au.coordinates, [50., 60.])
-
-        au, I = a.intersect(u, return_indices=True)
-        assert_equal(au.coordinates, [50., 60.])
-        assert_equal(a.coordinates[I], [50., 60.])
-
-    def test_intersect_stacked(self):
-        lat = ArrayCoordinates1d([55., 65., 95., 45.], name='lat')
-        lon = ArrayCoordinates1d([ 1.,  2.,  3.,  4.], name='lon')
-        stacked = StackedCoordinates([lat, lon])
-        
-        # intersect correct dimension, or all coordinates if missing
-        a = ArrayCoordinates1d([50., 60., 10.], ctype='point', name='lat')
-        b = ArrayCoordinates1d([2.5, 3.5, 4.5], ctype='point', name='lon')
-        c = ArrayCoordinates1d([100., 200., 300.], ctype='point', name='alt')
-
-        ai = a.intersect(stacked)
-        bi = b.intersect(stacked)
-        ci = c.intersect(stacked)
-
-        assert_equal(ai.coordinates, [50., 60.])
-        assert_equal(bi.coordinates, [2.5, 3.5])
-        assert_equal(ci.coordinates, [100., 200., 300.])
-
-    def test_intersect_multi(self):
-        coords = Coordinates([[55., 65., 95., 45.], [1., 2., 3., 4.]], dims=['lat', 'lon'])
-        
-        # intersect correct dimension
-        a = ArrayCoordinates1d([50., 60., 10.], ctype='point', name='lat')
-        b = ArrayCoordinates1d([2.5, 3.5, 4.5], ctype='point', name='lon')
-        c = ArrayCoordinates1d([100., 200., 300.], ctype='point', name='alt')
-
-        ai = a.intersect(coords)
-        bi = b.intersect(coords)
-        ci = c.intersect(coords)
-
-        assert_equal(ai.coordinates, [50., 60.])
-        assert_equal(bi.coordinates, [2.5, 3.5])
-        assert_equal(ci.coordinates, [100., 200., 300.])
+        c = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
+        with pytest.raises(TypeError):
+            c.select({'time': [1, 10]})

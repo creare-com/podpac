@@ -379,31 +379,16 @@ class TestCoordinateCreation(object):
             Coordinates.from_xarray([0, 10])
 
     def test_crs(self):
-        # assign
         lat = ArrayCoordinates1d([0, 1, 2])
         lon = ArrayCoordinates1d([0, 1, 2])
         
-        c = Coordinates([lat, lon], dims=['lat', 'lon'], crs='SPHER_MERC')
-        assert c['lat'].crs == 'SPHER_MERC'
-        assert c['lon'].crs == 'SPHER_MERC'
+        # assign
+        c = Coordinates([lat, lon], dims=['lat', 'lon'], crs='EPSG:2193')
+        assert c.crs == 'EPSG:2193'
 
-        # don't overwrite
-        lat = ArrayCoordinates1d([0, 1, 2], crs='WGS84')
-        lon = ArrayCoordinates1d([0, 1, 2], crs='WGS84')
-
-        with pytest.raises(ValueError, match='crs mismatch'):
-             Coordinates([lat, lon], dims=['lat', 'lon'], crs='SPHER_MERC')
-        
-        # but just repeating is okay
-        lat = ArrayCoordinates1d([0, 1, 2], crs='WGS84')
-        lon = ArrayCoordinates1d([0, 1, 2], crs='WGS84')
-        c = Coordinates([lat, lon], dims=['lat', 'lon'], crs='WGS84')
-
-        # mismatch
-        lat = ArrayCoordinates1d([0, 1, 2], crs='WGS84')
-        lon = ArrayCoordinates1d([0, 1, 2], crs='SPHER_MERC')
-        with pytest.raises(ValueError, match='crs mismatch'):
-             Coordinates([lat, lon], dims=['lat', 'lon'])
+        # default
+        c = Coordinates([lat, lon], dims=['lat', 'lon'])
+        assert c.crs == settings['DEFAULT_CRS']
 
     def test_ctype(self):
         # assign
@@ -436,6 +421,7 @@ class TestCoordinateCreation(object):
 
 class TestCoordinatesSerialization(object):
     def test_definition(self):
+        # this tests array coordinates, uniform coordinates, and stacked coordinates
         c = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], crange(0, 10, 0.5)],
             dims=['lat_lon', 'time', 'alt'])
@@ -460,13 +446,53 @@ class TestCoordinatesSerialization(object):
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
         c2 = Coordinates.from_definition(d)
         assert c2 == c
+
+    def test_definition_properties(self):
+        c = Coordinates(
+            [[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], crange(0, 10, 0.5)],
+            dims=['lat_lon', 'time', 'alt'],
+            crs='EPSG:2193')
+        d = c.definition
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder)
+        c2 = Coordinates.from_definition(d)
+        assert c2 == c
+        assert c2.crs == 'EPSG:2193'
+
+    def test_from_definition(self):
+        d = {
+            'coords': [
+                {
+                    'name': 'lat',
+                    'values': [0, 1, 2]
+                },
+                {
+                    'name': 'lon',
+                    'start': 0,
+                    'stop': 10,
+                    'size': 6
+                }
+            ],
+            'crs': 'EPSG:2193'
+        }
+
+        c = Coordinates.from_definition(d)
+        assert c.dims == ('lat', 'lon')
+        assert c.crs == 'EPSG:2193'
+        assert_equal(c['lat'].coordinates, [0, 1, 2])
+        assert_equal(c['lon'].coordinates, [0, 2, 4, 6, 8, 10])
         
     def test_invalid_definition(self):
-        with pytest.raises(TypeError, match="Could not parse coordinates definition of type"):
-            Coordinates.from_definition({'lat': [0, 1, 2]})
+        with pytest.raises(TypeError, match="Could not parse coordinates definition"):
+            Coordinates.from_definition([0, 1, 2])
+
+        with pytest.raises(ValueError, match="Could not parse coordinates definition"):
+            Coordinates.from_definition({"data": [0, 1, 2]})
+
+        with pytest.raises(TypeError, match="Could not parse coordinates definition"):
+            Coordinates.from_definition({"coords": {}})
 
         with pytest.raises(ValueError, match="Could not parse coordinates definition item"):
-            Coordinates.from_definition([{"data": [0, 1, 2]}])
+            Coordinates.from_definition({"coords": [{}]})
 
     def test_json(self):
         c = Coordinates(
@@ -530,22 +556,6 @@ class TestCoordinatesProperties(object):
         np.testing.assert_equal(c.coords['lat'].data, lat)
         np.testing.assert_equal(c.coords['lon'].data, lon)
         np.testing.assert_equal(c.coords['time'].data, np.array(dates).astype(np.datetime64))
-    
-    def test_crs(self):
-        # empty
-        c = Coordinates([])
-        assert c.crs == None
-        assert c.crs == None
-
-        # default
-        c = Coordinates([[0, 1, 2]], dims=['lat'])
-        assert c.crs == settings['DEFAULT_CRS']
-        assert c.crs == settings['DEFAULT_CRS']
-
-        # set
-        c = Coordinates([[0, 1, 2]], dims=['lat'], crs='EPSG:2193')
-        assert c.crs == 'EPSG:2193'
-        assert c.crs == 'EPSG:2193'
 
     def test_bounds(self):
         lat = [0, 1, 2]
@@ -640,9 +650,6 @@ class TestCoordinatesDict(object):
         with pytest.raises(ValueError, match="Dimension mismatch"):
             coords['time'] = ArrayCoordinates1d([1, 2, 3], name='alt')
 
-        with pytest.raises(ValueError, match="crs mismatch"):
-            coords['time'] = ArrayCoordinates1d([1, 2, 3], crs='SPHER_MERC')
-
         with pytest.raises(KeyError, match="not found in Coordinates"):
             coords['lat_lon'] = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=['lon_lat'])
 
@@ -654,10 +661,6 @@ class TestCoordinatesDict(object):
 
         with pytest.raises(ValueError, match="Dimension mismatch"):
             coords['lat'] = clinspace(0, 10, 3, name='lon')
-
-        with pytest.raises(ValueError, match="crs mismatch"):
-            coords['lat_lon'] = Coordinates([(np.linspace(0, 10, 3), np.linspace(0, 10, 3))], dims=['lat_lon'], crs='WGS84')
-            coords['lat'] = Coordinates([np.linspace(0, 10, 3)], dims=['lat'], crs='SPHER_MERC') # should work
 
     def test_delitem(self):
         # unstacked
@@ -837,6 +840,19 @@ class TestCoordinatesIndexing(object):
         assert_equal(c2['lon'].coordinates, c['lon'].coordinates[I])
         assert_equal(c2['time'].coordinates, c['time'].coordinates)
 
+    def test_get_index_properties(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3, 5], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03'], name='time')
+        c = Coordinates([lat, lon, time], crs='EPSG:2193')
+
+        I = [2, 1, 3]
+        J = slice(1, 3)
+        K = 1
+        
+        c2 = c[I, J, K]
+        assert c2.crs == c.crs
+
 class TestCoordinatesMethods(object):
     coords = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], 10], dims=['lat_lon', 'time', 'alt'])
     
@@ -896,7 +912,7 @@ class TestCoordinatesMethods(object):
         c2 = coords.udrop('alt')
         assert c2.dims == ('lat_lon',)
 
-        # invalid type
+    def test_drop_invalid(self):
         with pytest.raises(TypeError, match="Invalid drop dimension type"):
             self.coords.drop(2)
 
@@ -908,6 +924,19 @@ class TestCoordinatesMethods(object):
 
         with pytest.raises(TypeError, match="Invalid drop dimension type"):
             self.coords.udrop([2, 3])
+
+    def test_drop_properties(self):
+        coords = Coordinates(
+            [[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], 10],
+            dims=['lat_lon', 'time', 'alt'],
+            crs='EPSG:2193')
+        
+        c1 = coords.drop('time')
+        c2 = coords.udrop('time')
+        
+        # check properties
+        assert c1.crs == 'EPSG:2193'
+        assert c2.crs == 'EPSG:2193'
 
     def test_unique(self):
         # unstacked (numerical, datetime, and empty)
@@ -941,6 +970,16 @@ class TestCoordinatesMethods(object):
         assert_equal(c2['lat'].coordinates, [0., 0., 0., 1., 1.])
         assert_equal(c2['lon'].coordinates, [0., 1., 2., 0., 1.])
 
+    def test_unique_properties(self):
+        c = Coordinates(
+            [[2, 1, 0, 1], ['2018-01-01', '2018-01-02', '2018-01-01'], []],
+            dims=['lat', 'time', 'alt'],
+            crs='EPSG:2193')
+        c2 = c.unique()
+        
+        # check properties
+        assert c2.crs == 'EPSG:2193'
+
     def test_unstack(self):
         c1 = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=['lat_lon_alt'])
         c2 = c1.unstack()
@@ -959,21 +998,41 @@ class TestCoordinatesMethods(object):
         assert c1['lon'] == c2['lon']
         assert c1['alt'] == c2['alt']
 
+    def test_unstack_properties(self):
+        c1 = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=['lat_lon_alt'], crs='EPSG:2193')
+        c2 = c1.unstack()
+        
+        # check properties
+        assert c2.crs == 'EPSG:2193'
+
     def test_iterchunks(self):
         c = Coordinates(
             [clinspace(0, 1, 100), clinspace(0, 1, 200), ['2018-01-01', '2018-01-02']],
             dims=['lat', 'lon', 'time'])
         
         for chunk in c.iterchunks(shape=(10, 10, 10)):
+            assert isinstance(chunk, Coordinates)
+            assert chunk.dims == c.dims
             assert chunk.shape == (10, 10, 2)
 
         for chunk, slices in c.iterchunks(shape=(10, 10, 10), return_slices=True):
+            assert isinstance(chunk, Coordinates)
+            assert chunk.dims == c.dims
+            assert chunk.shape == (10, 10, 2)
+
             assert isinstance(slices, tuple)
             assert len(slices) == 3
-            assert isinstance(slices[0], slice)
-            assert isinstance(slices[1], slice)
-            assert isinstance(slices[2], slice)
-            assert chunk.shape == (10, 10, 2)
+            assert all(isinstance(slc, slice) for slc in slices)
+
+    def test_iterchunks_properties(self):
+        c = Coordinates(
+            [clinspace(0, 1, 100), clinspace(0, 1, 200), ['2018-01-01', '2018-01-02']],
+            dims=['lat', 'lon', 'time'],
+            crs='EPSG:2193')
+        
+        for chunk in c.iterchunks(shape=(10, 10, 10)):
+            # check properties
+            assert chunk.crs == 'EPSG:2193'
 
     def test_tranpose(self):
         c = Coordinates([[0, 1], [10, 20], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
@@ -1135,6 +1194,17 @@ class TestCoordinatesMethods(object):
         assert s['lon'] == c['lon'][2:5]
         assert s == c[I]
 
+    def test_select_properties(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
+        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02', '2018-01-03', '2018-01-04'], name='time')
+        c = Coordinates([lat, lon, time], crs='EPSG:2193')
+        
+        s = c.select({'lat': [0.5, 2.5]})
+        
+        # check properties
+        assert s.crs == 'EPSG:2193'
+
     def test_intersect(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
         lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
@@ -1143,53 +1213,75 @@ class TestCoordinatesMethods(object):
         other_lat = ArrayCoordinates1d([0.5, 2.5, 3.5], name='lat')
         other_lon = ArrayCoordinates1d([25, 35, 55], name='lon')
 
-        # single other
-        c2 = c.intersect(other_lat)
+        other = Coordinates([other_lat, other_lon])
+        c2 = c.intersect(other)
         assert isinstance(c2, Coordinates)
         assert c2.dims == c.dims
         assert c2['lat'] == c['lat'][1:4]
-        assert c2['lon'] == c['lon']
+        assert c2['lon'] == c['lon'][2:5]
 
-        c2 = c.intersect(other_lat, outer=True)
+        c2, I = c.intersect(other, return_indices=True)
+        assert isinstance(c2, Coordinates)
+        assert c2.dims == c.dims
+        assert c2['lat'] == c['lat'][1:4]
+        assert c2['lon'] == c['lon'][2:5]
+        assert c2 == c[I]
+
+        other = Coordinates([other_lat, other_lon])
+        c2 = c.intersect(other, outer=True)
         assert isinstance(c2, Coordinates)
         assert c2.dims == c.dims
         assert c2['lat'] == c['lat'][0:5]
-        assert c2['lon'] == c['lon']
+        assert c2['lon'] == c['lon'][1:6]
 
-        c2, I = c.intersect(other_lat, return_indices=True)
+        # missing dimension
+        other = Coordinates([other_lat])
+        c2 = c.intersect(other)
         assert isinstance(c2, Coordinates)
         assert c2.dims == c.dims
         assert c2['lat'] == c['lat'][1:4]
         assert c2['lon'] == c['lon']
-        assert c2 == c[I]
 
-        c2 = c.intersect(other_lon)
+        other = Coordinates([other_lon])
+        c2 = c.intersect(other)
         assert isinstance(c2, Coordinates)
         assert c2.dims == c.dims
         assert c2['lat'] == c['lat']
         assert c2['lon'] == c['lon'][2:5]
 
-        # stacked other
-        other = Coordinates([other_lat, other_lon])
+        # extra dimension
+        other = Coordinates([other_lat, other_lon, [0, 1, 2]], dims=['lat', 'lon', 'time'])
         c2 = c.intersect(other)
         assert isinstance(c2, Coordinates)
         assert c2.dims == c.dims
         assert c2['lat'] == c['lat'][1:4]
         assert c2['lon'] == c['lon'][2:5]
 
-        other = Coordinates([other_lon, other_lat])
-        c2 = c.intersect(other)
+    def test_intersect_dims(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
+        c = Coordinates([lat, lon])
+
+        other_lat = ArrayCoordinates1d([0.5, 2.5, 3.5], name='lat')
+        other_lon = ArrayCoordinates1d([25, 35, 55], name='lon')
+        other = Coordinates([other_lat, other_lon])
+
+        c2 = c.intersect(other, dims=['lat', 'lon'])
         assert isinstance(c2, Coordinates)
         assert c2.dims == c.dims
         assert c2['lat'] == c['lat'][1:4]
         assert c2['lon'] == c['lon'][2:5]
 
-        # coordinates other
-        other = Coordinates([other_lat, other_lon])
-        c2 = c.intersect(other)
+        c2 = c.intersect(other, dims=['lat'])
         assert isinstance(c2, Coordinates)
         assert c2.dims == c.dims
         assert c2['lat'] == c['lat'][1:4]
+        assert c2['lon'] == c['lon']
+
+        c2 = c.intersect(other, dims=['lon'])
+        assert isinstance(c2, Coordinates)
+        assert c2.dims == c.dims
+        assert c2['lat'] == c['lat']
         assert c2['lon'] == c['lon'][2:5]
 
     def test_intersect_crs(self):
@@ -1200,10 +1292,22 @@ class TestCoordinatesMethods(object):
                 dims=['lat', 'lon', 'time'], crs='EPSG:2193')
 
         c_int = c.intersect(o)
-        assert c_int.crs == settings['DEFAULT_CRS']
+        assert c_int.crs == c.crs
+        assert o.crs == 'EPSG:2193' # didn't get changed
         assert np.all(c_int['lat'].bounds == np.array([5., 10.]))
         assert np.all(c_int['lon'].bounds == np.array([4., 10.]))
         assert np.all(c_int['time'].values == c['time'].values)
+
+    def test_intersect_invalid(self):
+        lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
+        lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
+        c = Coordinates([lat, lon])
+
+        with pytest.raises(TypeError, match="Coordinates cannot be intersected with type"):
+            c.intersect(lat)
+
+        with pytest.raises(TypeError, match="Coordinates cannot be intersected with type"):
+            c.intersect({'lat': [0, 1]})
 
 class TestCoordinatesSpecial(object):
     def test_repr(self):
@@ -1214,110 +1318,136 @@ class TestCoordinatesSpecial(object):
         repr(Coordinates([]))
         # TODO dependent coordinates
 
-    def test_eq(self):
+    def test_eq_ne_hash(self):
         c1 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
         c2 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
         c3 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'], ctype='point')
-        c4 = Coordinates([[[0, 2, 1], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
-        c5 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lon_lat', 'time'])
-        c6 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01']], dims=['lat_lon', 'time'])
-        c7 = Coordinates([[0, 1, 2], [10, 20, 30], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
+        c4 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'], crs='EPSG:2193')
+        c5 = Coordinates([[[0, 2, 1], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
+        c6 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lon_lat', 'time'])
+        c7 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01']], dims=['lat_lon', 'time'])
+        c8 = Coordinates([[0, 1, 2], [10, 20, 30], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
 
+        # eq
         assert c1 == c1
         assert c1 == c2
         assert c1 == deepcopy(c1)
+
+        assert not c1 == c3
+        assert not c1 == c4
+        assert not c1 == c5
+        assert not c1 == c6
+        assert not c1 == c7
+        assert not c1 == c8
+        assert not c1 == None
+
+        # ne (this only matters in python 2)
+        assert not c1 != c1
+        assert not c1 != c2
+        assert not c1 != deepcopy(c1)
 
         assert c1 != c3
         assert c1 != c4
         assert c1 != c5
         assert c1 != c6
         assert c1 != c7
+        assert c1 != c8
         assert c1 != None
 
-    def test_hash(self):
-        c1 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
-        c2 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'], ctype='point')
-        c3 = Coordinates([[[0, 2, 1], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
-        c4 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lon_lat', 'time'])
-        c5 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01']], dims=['lat_lon', 'time'])
-        c6 = Coordinates([[0, 1, 2], [10, 20, 30], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
-        
+        # hash
         assert c1.hash == c1.hash
+        assert c1.hash == c2.hash
         assert c1.hash == deepcopy(c1).hash
         
-        assert c1.hash != c2.hash
         assert c1.hash != c3.hash
         assert c1.hash != c4.hash
         assert c1.hash != c5.hash
         assert c1.hash != c6.hash
+        assert c1.hash != c7.hash
 
-    def test_hash_properties(self):
-        lat1 = podpac.coordinates.ArrayCoordinates1d([0, 1, 2])
-        lat2 = podpac.coordinates.ArrayCoordinates1d([0, 1, 2], ctype='midpoint')
-        c1 = podpac.coordinates.Coordinates([lat1], dims=['lat'])
-        c2 = podpac.coordinates.Coordinates([lat2], dims=['lat'])
-        assert c1 == c2
-        assert c1.hash == c2.hash
+class TestCoordinatesFunctions(object):
+    def test_merge_dims(self):
+        ctime = Coordinates([['2018-01-01', '2018-01-02']], dims=['time'])
+        clatlon = Coordinates([[2, 4, 5], [3, -1, 5]], dims=['lat', 'lon'])
+        clatlon_stacked = Coordinates([[[2, 4, 5], [3, -1, 5]]], dims=['lat_lon'])
+        clat = Coordinates([[2, 4, 5]], dims=['lat'])
 
-def test_merge_dims():
-    ctime = Coordinates([['2018-01-01', '2018-01-02']], dims=['time'])
-    clatlon = Coordinates([[2, 4, 5], [3, -1, 5]], dims=['lat', 'lon'])
-    clatlon_stacked = Coordinates([[[2, 4, 5], [3, -1, 5]]], dims=['lat_lon'])
-    clat = Coordinates([[2, 4, 5]], dims=['lat'])
+        c = merge_dims([clatlon, ctime])
+        assert c.dims == ('lat', 'lon', 'time')
 
-    c = merge_dims([clatlon, ctime])
-    assert c.dims == ('lat', 'lon', 'time')
+        c = merge_dims([ctime, clatlon])
+        assert c.dims == ('time', 'lat', 'lon')
 
-    c = merge_dims([ctime, clatlon])
-    assert c.dims == ('time', 'lat', 'lon')
+        c = merge_dims([clatlon_stacked, ctime])
+        assert c.dims == ('lat_lon', 'time')
 
-    c = merge_dims([clatlon_stacked, ctime])
-    assert c.dims == ('lat_lon', 'time')
+        c = merge_dims([ctime, clatlon_stacked])
+        assert c.dims == ('time', 'lat_lon')
 
-    c = merge_dims([ctime, clatlon_stacked])
-    assert c.dims == ('time', 'lat_lon')
+        c = merge_dims([])
+        assert c.dims == ()
 
-    with pytest.raises(ValueError, match="Duplicate dimension 'lat'"):
-        merge_dims([clatlon, clat])
-    
-    with pytest.raises(ValueError, match="Duplicate dimension 'lat'"):
-        merge_dims([clatlon_stacked, clat])
+        with pytest.raises(ValueError, match="Duplicate dimension 'lat'"):
+            merge_dims([clatlon, clat])
+        
+        with pytest.raises(ValueError, match="Duplicate dimension 'lat'"):
+            merge_dims([clatlon_stacked, clat])
 
-    with pytest.raises(TypeError, match="Cannot merge"):
-        merge_dims([clat, 0])
+        with pytest.raises(TypeError, match="Cannot merge"):
+            merge_dims([clat, 0])
 
-def test_concat_and_union():
-    c1 = Coordinates([[2, 4, 5], [3, -1, 5]], dims=['lat', 'lon'])
-    c2 = Coordinates([[2, 3], [3, 0], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
-    c3 = Coordinates([[[2, 3], [3, 0]]], dims=['lat_lon'])
+    def test_merge_dims_crs(self):
+        clat = Coordinates([[2, 4, 5]], dims=['lat'], crs='EPSG:4326')
+        clon = Coordinates([[3, -1, 5]], dims=['lon'], crs='EPSG:2193')
 
-    c = concat([c1, c2])
-    assert c.shape == (5, 5, 2)
+        with pytest.raises(ValueError, match="Cannot merge Coordinates"):
+            merge_dims([clat, clon])
 
-    c = union([c1, c2])
-    assert c.shape == (4, 4, 2)
+    def test_concat_and_union(self):
+        c1 = Coordinates([[2, 4, 5], [3, -1, 5]], dims=['lat', 'lon'])
+        c2 = Coordinates([[2, 3], [3, 0], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
+        c3 = Coordinates([[[2, 3], [3, 0]]], dims=['lat_lon'])
 
-    with pytest.raises(TypeError, match="Cannot concat"):
-        concat([c1, [1, 2]])
+        c = concat([c1, c2])
+        assert c.shape == (5, 5, 2)
 
-    with pytest.raises(ValueError, match="Duplicate dimension 'lat' in dims"):
-        concat([c1, c3])
+        c = union([c1, c2])
+        assert c.shape == (4, 4, 2)
 
-def test_concat_stacked_datetimes():
-    c1 = Coordinates([[0, 0.5, '2018-01-01']], dims=['lat_lon_time'])
-    c2 = Coordinates([[1, 1.5, '2018-01-02']], dims=['lat_lon_time'])
-    c = concat([c1, c2])
-    np.testing.assert_array_equal(c['lat'].coordinates, np.array([0.0, 1.0]))
-    np.testing.assert_array_equal(c['lon'].coordinates, np.array([0.5, 1.5]))
-    np.testing.assert_array_equal(
-        c['time'].coordinates,
-        np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64))
+        c = concat([])
+        assert c.dims == ()
 
-    c1 = Coordinates([[0, 0.5, '2018-01-01T01:01:01']], dims=['lat_lon_time'])
-    c2 = Coordinates([[1, 1.5, '2018-01-01T01:01:02']], dims=['lat_lon_time'])
-    c = concat([c1, c2])
-    np.testing.assert_array_equal(c['lat'].coordinates, np.array([0.0, 1.0]))
-    np.testing.assert_array_equal(c['lon'].coordinates, np.array([0.5, 1.5]))
-    np.testing.assert_array_equal(
-        c['time'].coordinates,
-        np.array(['2018-01-01T01:01:01', '2018-01-01T01:01:02']).astype(np.datetime64))
+        c = union([])
+        assert c.dims == ()
+
+        with pytest.raises(TypeError, match="Cannot concat"):
+            concat([c1, [1, 2]])
+
+        with pytest.raises(ValueError, match="Duplicate dimension 'lat' in dims"):
+            concat([c1, c3])
+
+    def test_concat_stacked_datetimes(self):
+        c1 = Coordinates([[0, 0.5, '2018-01-01']], dims=['lat_lon_time'])
+        c2 = Coordinates([[1, 1.5, '2018-01-02']], dims=['lat_lon_time'])
+        c = concat([c1, c2])
+        np.testing.assert_array_equal(c['lat'].coordinates, np.array([0.0, 1.0]))
+        np.testing.assert_array_equal(c['lon'].coordinates, np.array([0.5, 1.5]))
+        np.testing.assert_array_equal(
+            c['time'].coordinates,
+            np.array(['2018-01-01', '2018-01-02']).astype(np.datetime64))
+
+        c1 = Coordinates([[0, 0.5, '2018-01-01T01:01:01']], dims=['lat_lon_time'])
+        c2 = Coordinates([[1, 1.5, '2018-01-01T01:01:02']], dims=['lat_lon_time'])
+        c = concat([c1, c2])
+        np.testing.assert_array_equal(c['lat'].coordinates, np.array([0.0, 1.0]))
+        np.testing.assert_array_equal(c['lon'].coordinates, np.array([0.5, 1.5]))
+        np.testing.assert_array_equal(
+            c['time'].coordinates,
+            np.array(['2018-01-01T01:01:01', '2018-01-01T01:01:02']).astype(np.datetime64))
+
+    def test_concat_crs(self):
+        c1 = Coordinates([[0, 0.5, '2018-01-01']], dims=['lat_lon_time'], crs='EPSG:4326')
+        c2 = Coordinates([[1, 1.5, '2018-01-02']], dims=['lat_lon_time'], crs='EPSG:2193')
+
+        with pytest.raises(ValueError, match="Cannot concat Coordinates"):
+            concat([c1, c2])

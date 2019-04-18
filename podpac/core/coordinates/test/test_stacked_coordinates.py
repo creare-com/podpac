@@ -54,25 +54,6 @@ class TestStackedCoordinatesCreation(object):
         # but lat is left by StackedCoordinates because it was already explicitly set
         assert c['lat'].ctype == 'left'
 
-    def test_crs(self):
-        lat = ArrayCoordinates1d([0, 1, 2], name='lat')
-        lon = ArrayCoordinates1d([10, 20, 30], name='lon')
-        c = StackedCoordinates([lat, lon], crs='SPHER_MERC')
-
-        assert c['lat'].crs == 'SPHER_MERC'
-        assert c['lon'].crs == 'SPHER_MERC'
-
-        # must match
-        lat = ArrayCoordinates1d([0, 1, 2], name='lat', crs='WGS84')
-        lon = ArrayCoordinates1d([10, 20, 30], name='lon', crs='SPHER_MERC')
-        with pytest.raises(ValueError, match="crs mismatch"):
-            StackedCoordinates([lat, lon])
-
-        lat = ArrayCoordinates1d([0, 1, 2], name='lat', crs='WGS84')
-        lon = ArrayCoordinates1d([10, 20, 30], name='lon', crs='WGS84')
-        with pytest.raises(ValueError, match="crs mismatch"):
-            StackedCoordinates([lat, lon], crs='SPHER_MERC')
-
     def test_distance_units(self):
         lat = ArrayCoordinates1d([0, 1], name='lat')
         lon = ArrayCoordinates1d([0, 1], name='lon')
@@ -303,12 +284,6 @@ class TestStackedCoordinatesProperties(object):
         with pytest.raises(ValueError, match="Cannot get coords"):
             c.coords
 
-    def test_crs(self):
-        lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')
-        lon = ArrayCoordinates1d([10, 20, 30, 40], name='lon')
-        c = StackedCoordinates([lat, lon], crs='SPHER_MERC')
-        assert c.crs == 'SPHER_MERC'
-
     def test_bounds(self):
         lat = [0, 1, 2]
         lon = [10, 20, 30]
@@ -462,40 +437,3 @@ class TestStackedCoordinatesSelection(object):
         s, I = c.select({'lat': [0.5, 3.5], 'lon': [25, 55]}, return_indices=True)
         assert s == c[2:4]
         assert s == c[I]
-
-    def test_intersect(self):
-        lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')
-        lon = ArrayCoordinates1d([10, 20, 30, 40, 50, 60], name='lon')
-        c = StackedCoordinates([lat, lon])
-
-        other_lat = ArrayCoordinates1d([0.5, 2.5, 3.5], name='lat')
-        other_lon = ArrayCoordinates1d([25, 35, 55], name='lon')
-
-        # single other
-        s = c.intersect(other_lat)
-        assert s == c[1:4]
-
-        s = c.intersect(other_lat, outer=True)
-        assert s == c[0:5]
-
-        s, I = c.intersect(other_lat, return_indices=True)
-        assert s == c[1:4]
-        assert s == c[I]
-
-        s = c.intersect(other_lon)
-        assert s == c[2:5]
-
-        # stacked other
-        other = StackedCoordinates([other_lat, other_lon])
-        s = c.intersect(other)
-        assert s == c[2:4]
-
-        other = StackedCoordinates([other_lon, other_lat])
-        s = c.intersect(other)
-        assert s == c[2:4]
-
-        # coordinates other
-        from podpac.coordinates import Coordinates
-        other = Coordinates([other_lat, other_lon])
-        s = c.intersect(other)
-        assert s == c[2:4]

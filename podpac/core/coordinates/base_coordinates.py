@@ -1,16 +1,12 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import json
-
+import sys
 import traitlets as tl
 
 class BaseCoordinates(tl.HasTraits):
     """Base class for single or stacked one-dimensional coordinates."""
 
     def _set_name(self, value):
-        raise NotImplementedError
-
-    def _set_crs(self, value):
         raise NotImplementedError
 
     def _set_ctype(self, value):
@@ -78,8 +74,8 @@ class BaseCoordinates(tl.HasTraits):
         """Deep copy of the coordinates and their properties."""
         raise NotImplementedError
 
-    def intersect(self, other, outer=False, return_indices=False):
-        """Get coordinate values that are with the bounds of other Coordinates."""
+    def select(self, bounds, outer=False, return_indices=False):
+        """Get coordinate values that are with the given bounds."""
         raise NotImplementedError
 
     def __getitem__(self, index):
@@ -90,3 +86,8 @@ class BaseCoordinates(tl.HasTraits):
 
     def __eq__(self, other):
         raise NotImplementedError
+
+    # python 2 compatibility
+    if sys.version < '3':
+        def __ne__(self, other):
+            return not self.__eq__(other)

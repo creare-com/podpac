@@ -31,7 +31,7 @@ from lazy_import import lazy_module
 from podpac.core import authentication
 from podpac.core.node import Node
 from podpac.core.settings import settings
-from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait
+from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait, NodeTrait
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.algorithm.algorithm import Algorithm
@@ -508,10 +508,9 @@ class Rasterio(DataSource):
         left, bottom, right, top = self.dataset.bounds
 
         # rasterio reads data upside-down from coordinate conventions, so lat goes from top to bottom
-        return Coordinates([
-            UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat', crs=crs),
-            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon', crs=crs)
-        ])
+        lat = UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat')
+        lon = UniformCoordinates1d(left, right, size=self.dataset.width, name='lon')
+        return Coordinates([lat, lon], crs=crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -1074,13 +1073,13 @@ class ReprojectedSource(DataSource):
         Coordinates where the source node should be evaluated. 
     """
     
-    source = tl.Instance(Node)
+    source = NodeTrait()
     source_interpolation = interpolation_trait().tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     def _first_init(self, **kwargs):
         if 'reprojected_coordinates' in kwargs:
-            if isinstance(kwargs['reprojected_coordinates'], list):
+            if isinstance(kwargs['reprojected_coordinates'], dict):
                 kwargs['reprojected_coordinates'] = Coordinates.from_definition(kwargs['reprojected_coordinates'])
             elif isinstance(kwargs['reprojected_coordinates'], str):
                 kwargs['reprojected_coordinates'] = Coordinates.from_json(kwargs['reprojected_coordinates'])
@@ -1158,7 +1157,7 @@ class S3(DataSource):
     """
     
     source = tl.Unicode()
-    node = tl.Instance(Node)
+    node = NodeTrait()
     node_class = tl.Type(DataSource)  # A class
     node_kwargs = tl.Dict(default_value={})
     s3_bucket = tl.Unicode(allow_none=True)

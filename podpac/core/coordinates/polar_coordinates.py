@@ -20,7 +20,7 @@ class PolarCoordinates(DependentCoordinates):
     ndims = 2
 
     def __init__(self, center, radius, theta=None, theta_size=None,
-                 dims=None, ctypes=None, units=None, segment_lengths=None, crs=None):
+                 dims=None, ctypes=None, units=None, segment_lengths=None):
         
         # radius
         if not isinstance(radius, Coordinates1d):
@@ -42,7 +42,7 @@ class PolarCoordinates(DependentCoordinates):
         self.set_trait('theta', theta)
 
         # properties
-        self._set_properties(dims, crs, units, ctypes, segment_lengths)
+        self._set_properties(dims, units, ctypes, segment_lengths)
 
     @tl.validate('dims')
     def _validate_dims(self, d):
@@ -182,10 +182,6 @@ class PolarCoordinates(DependentCoordinates):
 
     def copy(self):
         return PolarCoordinates(self.center, self.radius, self.theta, **self.properties)
-
-    # TODO return PolarCoordinates when possible
-    # def intersect(self, other, outer=False):
-    #     raise NotImplementedError("TODO")
 
     # TODO return PolarCoordinates when possible
     # def select(self, other, outer=False):

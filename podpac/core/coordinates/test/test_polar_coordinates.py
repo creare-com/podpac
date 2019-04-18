@@ -165,7 +165,7 @@ class TestPolarCoordinatesSerialization(object):
         d = c.full_definition
         
         assert isinstance(d, dict)
-        assert set(d.keys()) == {'dims', 'radius', 'center', 'theta', 'ctypes', 'segment_lengths', 'units', 'crs'}
+        assert set(d.keys()) == {'dims', 'radius', 'center', 'theta', 'ctypes', 'segment_lengths', 'units'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
 
 class TestPolarCoordinatesProperties(object):
