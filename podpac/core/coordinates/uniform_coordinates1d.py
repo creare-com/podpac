@@ -40,8 +40,6 @@ class UniformCoordinates1d(Coordinates1d):
         Full array of coordinate values.
     units : podpac.Units
         Coordinate units.
-    crs : str
-        Coordinate reference system.
     ctype : str
         Coordinates type, one of'point', 'left', 'right', or 'midpoint'.
     segment_lengths : array, float, timedelta
@@ -62,7 +60,7 @@ class UniformCoordinates1d(Coordinates1d):
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
     def __init__(self, start, stop, step=None, size=None,
-                       name=None, ctype=None, units=None, crs=None, segment_lengths=None):
+                       name=None, ctype=None, units=None, segment_lengths=None):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -80,8 +78,6 @@ class UniformCoordinates1d(Coordinates1d):
             Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
         units : Units, optional
             Coordinate units.
-        crs : str, optional
-            Coordinate reference system.
         ctype : str, optional
             Coordinates type: 'point', 'left', 'right', or 'midpoint'.
         segment_lengths: array, float, timedelta, optional
@@ -126,7 +122,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         # set common properties
         super(UniformCoordinates1d, self).__init__(
-            name=name, ctype=ctype, units=units, segment_lengths=segment_lengths, crs=crs)
+            name=name, ctype=ctype, units=units, segment_lengths=segment_lengths)
         
     @tl.default('ctype')
     def _default_ctype(self):

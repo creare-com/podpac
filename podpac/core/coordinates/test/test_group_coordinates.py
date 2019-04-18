@@ -1,6 +1,8 @@
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import json
+
 import pytest
 
 import podpac
@@ -148,13 +150,45 @@ class TestGroupCoordinates(object):
         repr(g)
 
     def test_intersect(self):
-        pass
+        c1 = Coordinates([[0, 1, 2], [0, 1, 2]], dims=['lat', 'lon'])
+        c2 = Coordinates([[10, 11], [10, 11]], dims=['lat', 'lon'])
+        c3 = Coordinates([[0.5, 1.5, 2.5]], dims=['lat'])
+        
+        g = GroupCoordinates([c1, c2])
 
-    def test_getitem(self):
-        pass
+        g2 = g.intersect(c3)
+        g2 = g.intersect(c3, outer=True)
+        g2, I = g.intersect(c3, return_indices=True)
 
     def test_definition(self):
-        pass
+        c1 = Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
+        c2 = Coordinates([[10, 11], [10, 11]], dims=['lat', 'lon'])
+        g = GroupCoordinates([c1, c2])
 
-    def test_from_definition(self):
-        pass
+        d = g.definition
+        json.dumps(d, cls=podpac.core.utils.JSONEncoder)
+        g2 = GroupCoordinates.from_definition(d)
+
+    def test_json(self):
+        c1 = Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
+        c2 = Coordinates([[10, 11], [10, 11]], dims=['lat', 'lon'])
+        g = GroupCoordinates([c1, c2])
+
+        s = g.json
+        g2 = GroupCoordinates.from_json(s)
+
+    def test_hash(self):
+        c1 = Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
+        c2 = Coordinates([[10, 11], [10, 11]], dims=['lat', 'lon'])
+        c3 = Coordinates([[10, 11], [10, 11]], dims=['lat', 'lon'])
+        c4 = Coordinates([[10, 12], [10, 11]], dims=['lat', 'lon'])
+        
+        g1 = GroupCoordinates([c1, c2])
+        g2 = GroupCoordinates([c1, c2])
+        g3 = GroupCoordinates([c1, c3])
+        g4 = GroupCoordinates([c1, c4])
+
+        assert g1.hash == g1.hash
+        assert g1.hash == g2.hash
+        assert g1.hash == g3.hash
+        assert g1.hash != g4.hash

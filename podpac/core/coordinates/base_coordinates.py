@@ -9,9 +9,6 @@ class BaseCoordinates(tl.HasTraits):
     def _set_name(self, value):
         raise NotImplementedError
 
-    def _set_crs(self, value):
-        raise NotImplementedError
-
     def _set_ctype(self, value):
         raise NotImplementedError
 
@@ -77,8 +74,8 @@ class BaseCoordinates(tl.HasTraits):
         """Deep copy of the coordinates and their properties."""
         raise NotImplementedError
 
-    def intersect(self, other, outer=False, return_indices=False):
-        """Get coordinate values that are with the bounds of other Coordinates."""
+    def select(self, bounds, outer=False, return_indices=False):
+        """Get coordinate values that are with the given bounds."""
         raise NotImplementedError
 
     def __getitem__(self, index):

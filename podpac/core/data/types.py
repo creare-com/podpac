@@ -508,10 +508,9 @@ class Rasterio(DataSource):
         left, bottom, right, top = self.dataset.bounds
 
         # rasterio reads data upside-down from coordinate conventions, so lat goes from top to bottom
-        return Coordinates([
-            UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat', crs=crs),
-            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon', crs=crs)
-        ])
+        lat = UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat')
+        lon = UniformCoordinates1d(left, right, size=self.dataset.width, name='lon')
+        return Coordinates([lat, lon], crs=crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -1080,7 +1079,7 @@ class ReprojectedSource(DataSource):
 
     def _first_init(self, **kwargs):
         if 'reprojected_coordinates' in kwargs:
-            if isinstance(kwargs['reprojected_coordinates'], list):
+            if isinstance(kwargs['reprojected_coordinates'], dict):
                 kwargs['reprojected_coordinates'] = Coordinates.from_definition(kwargs['reprojected_coordinates'])
             elif isinstance(kwargs['reprojected_coordinates'], str):
                 kwargs['reprojected_coordinates'] = Coordinates.from_json(kwargs['reprojected_coordinates'])

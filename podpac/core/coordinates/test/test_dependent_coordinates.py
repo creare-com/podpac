@@ -145,18 +145,6 @@ class TestDependentCoordinatesCreation(object):
         with pytest.raises(ValueError, match="segment_lengths must be positive"):
             DependentCoordinates((LAT, LON), ctypes=['left', 'right'], segment_lengths=[1.0, -2.0])
 
-    def test_crs(self):
-        c = DependentCoordinates((LAT, LON), crs='SPHER_MERC')
-        assert c.crs == 'SPHER_MERC'
-
-        # check when setting
-        c = DependentCoordinates((LAT, LON), crs='SPHER_MERC')
-        c._set_crs('SPHER_MERC')
-
-        c = DependentCoordinates((LAT, LON), crs='SPHER_MERC')
-        with pytest.raises(ValueError, match="crs mismatch"):
-            c._set_crs('WGS84')
-
     def test_units(self):
         ua = Units()
         ub = Units()
@@ -240,7 +228,7 @@ class TestDependentCoordinatesSerialization(object):
         d = c.full_definition
         
         assert isinstance(d, dict)
-        assert set(d.keys()) == {'dims', 'values', 'ctypes', 'segment_lengths', 'units', 'crs'}
+        assert set(d.keys()) == {'dims', 'values', 'ctypes', 'segment_lengths', 'units'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
 
 class TestDependentCoordinatesProperties(object):
@@ -313,7 +301,6 @@ class TestDependentCoordinatesIndexing(object):
             dims=['lat', 'lon'],
             ctypes=['left', 'right'],
             segment_lengths=[1.0, 2.0],
-            crs='SPHER_MERC',
             units=[Units(), Units()])
 
         lat = c['lat']
@@ -322,7 +309,6 @@ class TestDependentCoordinatesIndexing(object):
         assert lat.ctype == c.ctypes[0]
         assert lat.segment_lengths == c.segment_lengths[0]
         assert lat.units is c.units[0]
-        assert lat.crs == c.crs
         assert lat.shape == c.shape
         repr(lat)
 
@@ -332,7 +318,6 @@ class TestDependentCoordinatesIndexing(object):
         assert lon.ctype == c.ctypes[1]
         assert lon.segment_lengths == c.segment_lengths[1]
         assert lon.units is c.units[1]
-        assert lon.crs == c.crs
         assert lon.shape == c.shape
         repr(lon)
 
@@ -377,7 +362,6 @@ class TestDependentCoordinatesIndexing(object):
             dims=['lat', 'lon'],
             ctypes=['left', 'right'],
             segment_lengths=[1.0, 2.0],
-            crs='SPHER_MERC',
             units=[Units(), Units()])
 
         c2 = c[[1, 2]]
@@ -385,7 +369,6 @@ class TestDependentCoordinatesIndexing(object):
         assert c2.ctypes == c.ctypes
         assert c2.segment_lengths == c.segment_lengths
         assert c2.units == c.units
-        assert c2.crs == c.crs
 
     def test_iter(self):
         c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
@@ -461,64 +444,6 @@ class TestDependentCoordinatesSelection(object):
         assert s == c[E0, E1]
         assert_equal(I[0], E0)
         assert_equal(I[1], E1)
-
-    def test_intersect(self):
-        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
-
-        
-        other_lat = ArrayCoordinates1d([0.25, 0.5, .95], name='lat')
-        other_lon = ArrayCoordinates1d([10.5, 15, 17.5], name='lon')
-
-        # single other
-        E0, E1 = [0, 1, 1, 1, 1, 2, 2, 2], [3, 0, 1, 2, 3, 0, 1, 2]
-        s = c.intersect(other_lat)
-        assert s == c[E0, E1]
-
-        s, I = c.intersect(other_lat, return_indices=True)
-        assert s == c[E0, E1]
-        assert s == c[I]
-        
-        E0, E1 = [0, 0, 1, 1, 1, 1, 2, 2, 2, 2], [2, 3, 0, 1, 2, 3, 0, 1, 2, 3]
-        s = c.intersect(other_lat, outer=True)
-        assert s == c[E0, E1]
-
-        E0, E1 = [0, 0, 0, 1, 1, 1, 1, 2], [1, 2, 3, 0, 1, 2, 3, 0]
-        s = c.intersect(other_lon)
-        assert s == c[E0, E1]
-
-        # multiple, in various ways
-        E0, E1 = [0, 1, 1, 1, 1, 2], [3, 0, 1, 2, 3, 0]
-        
-        other = StackedCoordinates([other_lat, other_lon])
-        s = c.intersect(other)
-        assert s == c[E0, E1]
-
-        other = StackedCoordinates([other_lon, other_lat])
-        s = c.intersect(other)
-        assert s == c[E0, E1]
-
-        from podpac.coordinates import Coordinates
-        other = Coordinates([other_lat, other_lon])
-        s = c.intersect(other)
-        assert s == c[E0, E1]
-
-        # full
-        other = Coordinates(['2018-01-01'], dims=['time'])
-        s = c.intersect(other)
-        assert s == c
-
-        s, I = c.intersect(other, return_indices=True)
-        assert s == c
-        assert s == c[I]
-
-    def test_intersect_invalid(self):
-        c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])
-
-        with pytest.raises(TypeError, match="Cannot intersect with type"):
-            c.intersect({})
-
-        with pytest.raises(ValueError, match="Cannot intersect mismatched dtypes"):
-            c.intersect(ArrayCoordinates1d(['2018-01-01'], name='lat'))
 
 class TestArrayCoordinatesNd(object):
     def test_unavailable(self):
