@@ -44,9 +44,6 @@ class TestGroupCoordinates(object):
         g = GroupCoordinates([])
         assert len(g) == 0
         assert g.udims == set()
-        # assert isinstance(g.definition, list)
-        # assert isinstance(g.json, str)
-        # assert isinstance(g.hash, int)
 
         c1 = Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
         c2 = Coordinates([[[10, 11], [10, 11]]], dims=['lat_lon'])
@@ -54,9 +51,6 @@ class TestGroupCoordinates(object):
         g = GroupCoordinates([c1, c2])
         assert len(g) == 2
         assert g.udims == set(['lat', 'lon'])
-        # assert isinstance(g.definition, list)
-        # assert isinstance(g.json, str)
-        # assert isinstance(g.hash, int)
 
     def test_iter(self):
         c1 = Coordinates([[0, 1], [0, 1]], dims=['lat', 'lon'])
