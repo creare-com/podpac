@@ -13,7 +13,7 @@ from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.coordinates import make_coord_value, make_coord_delta, add_coord
 from podpac.core.node import Node, COMMON_NODE_DOC
 from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, NodeTrait
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -31,8 +31,8 @@ class ModifyCoordinates(Algorithm):
         Modification parameters for given dimension. Varies by node.
     """
     
-    source = tl.Instance(Node)
-    coordinates_source = tl.Instance(Node)
+    source = NodeTrait()
+    coordinates_source = NodeTrait()
     lat = tl.List().tag(attr=True)
     lon = tl.List().tag(attr=True)
     time = tl.List().tag(attr=True)

@@ -31,7 +31,7 @@ from lazy_import import lazy_module
 from podpac.core import authentication
 from podpac.core.node import Node
 from podpac.core.settings import settings
-from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait
+from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait, NodeTrait
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.algorithm.algorithm import Algorithm
@@ -1073,7 +1073,7 @@ class ReprojectedSource(DataSource):
         Coordinates where the source node should be evaluated. 
     """
     
-    source = tl.Instance(Node)
+    source = NodeTrait()
     source_interpolation = interpolation_trait().tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
@@ -1157,7 +1157,7 @@ class S3(DataSource):
     """
     
     source = tl.Unicode()
-    node = tl.Instance(Node)
+    node = NodeTrait()
     node_class = tl.Type(DataSource)  # A class
     node_kwargs = tl.Dict(default_value={})
     s3_bucket = tl.Unicode(allow_none=True)

@@ -6,6 +6,7 @@ import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
 import traitlets as tl
 
+from podpac.core.settings import settings
 from podpac import Coordinates, clinspace, crange
 from podpac.algorithm import Arange
 from podpac.data import Array
@@ -62,23 +63,52 @@ class TestConvolution(object):
     def test_eval_nan(self):
         lat = clinspace(45, 66, 30, name='lat')
         lon = clinspace(-80, 70, 40, name='lon')
-
         coords = Coordinates([lat, lon])
+
         data = np.ones(coords.shape)
         data[10, 10] = np.nan
         source = Array(source=data, native_coordinates=coords)
         node = Convolution(source=source, kernel=[[1, 2, 1]])
+
         o = node.eval(coords[8:12, 7:13])
 
     def test_eval_with_output_argument(self):
         lat = clinspace(45, 66, 30, name='lat')
         lon = clinspace(-80, 70, 40, name='lon')
-
         coords = Coordinates([lat, lon])
-        node = Convolution(source=Arange(), kernel_type='mean,3', kernel_ndim=2)
+
+        node = Convolution(source=Arange(), kernel=[[1, 2, 1]], kernel_ndim=2)
+        
         a = node.create_output_array(coords)
         o = node.eval(coords, output=a)
         assert_array_equal(a, o)
+
+    def test_debuggable_source(self):
+        lat = clinspace(45, 66, 30, name='lat')
+        lon = clinspace(-80, 70, 40, name='lon')
+        coords = Coordinates([lat, lon])
+
+        # normal version
+        a = Arange()
+        node = Convolution(source=a, kernel=[[1, 2, 1]], kernel_ndim=2)
+        node.eval(coords)
+
+        assert node.source is a
+
+        # debuggable
+        settings['DEBUG'] = True
+
+        a = Arange()
+        node = Convolution(source=a, kernel=[[1, 2, 1]], kernel_ndim=2)
+        node.eval(coords)
+
+        assert node.source is not a
+        assert node._requested_coordinates == coords
+        assert node.source._requested_coordinates is not None
+        assert node.source._requested_coordinates != coords
+        assert a._requested_coordinates is None
+
+        settings['DEBUG'] = False
 
 class TestSpatialConvolution(object):
     def test_init_kernel(self):
