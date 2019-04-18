@@ -32,7 +32,7 @@ class TestPipeline(object):
         {
             "nodes": {
                 "a": {
-                    "node": "core.algorithm.algorithm.Arange"
+                    "node": "algorithm.Arange"
                 }
             }
         }
@@ -48,7 +48,7 @@ class TestPipeline(object):
         {
             "nodes": {
                 "a": {
-                    "node": "core.algorithm.algorithm.Arange"
+                    "node": "algorithm.Arange"
                 }
             }
         }
@@ -69,7 +69,7 @@ class TestPipeline(object):
         {
             "nodes": {
                 "a": {
-                    "node": "core.algorithm.algorithm.Arange"
+                    "node": "algorithm.Arange"
                 }
             }
         }
@@ -90,7 +90,7 @@ class TestPipeline(object):
         {
             "nodes": {
                 "a": {
-                    "node": "core.algorithm.algorithm.Arange"
+                    "node": "algorithm.Arange"
                 }
             },
             "output": {
@@ -115,7 +115,7 @@ class TestPipeline(object):
         {
             "nodes": {
                 "a": {
-                    "node": "core.algorithm.algorithm.Arange"
+                    "node": "algorithm.Arange"
                 }
             },
             "output": {
@@ -132,3 +132,32 @@ class TestPipeline(object):
         if pipeline.output.path is not None and os.path.isfile(pipeline.output.path):
             os.remove(pipeline.output.path)
         assert pipeline.output.path is None
+
+    def test_debuggable(self):
+        s = '''
+        {
+            "nodes": {
+                "a": {
+                    "node": "algorithm.Arange"
+                },
+                "mean": {
+                    "node": "algorithm.SpatialConvolution",
+                    "inputs": {"source": "a"},
+                    "attrs": {"kernel_type": "mean,3"}
+                },
+                "c": {
+                    "node": "algorithm.Arithmetic",
+                    "inputs": {"A": "a", "B": "mean"},
+                    "attrs": {"eqn": "a-b"}
+                }
+            }
+        }
+        '''
+
+        pipeline = Pipeline(json=s)
+        assert pipeline.node.A is pipeline.node.B.source
+
+        podpac.core.settings.settings['DEBUG'] = True
+        pipeline = Pipeline(json=s)
+        assert pipeline.node.A is not pipeline.node.B.source
+        podpac.core.settings.settings['DEBUG'] = False

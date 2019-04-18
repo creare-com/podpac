@@ -1,7 +1,7 @@
 {
     "nodes": {
         "a": {
-            "node": "core.algorithm.algorithm.Arange"
+            "node": "algorithm.Arange"
         }
     },
     "output": {
