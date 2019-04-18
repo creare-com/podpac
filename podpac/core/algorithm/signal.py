@@ -21,7 +21,7 @@ from podpac.core.coordinates import Coordinates, UniformCoordinates1d
 from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.utils import common_doc, ArrayTrait
+from podpac.core.utils import common_doc, ArrayTrait, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, node_eval
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
@@ -69,7 +69,7 @@ class Convolution(Algorithm):
         Note: These kernels are automatically normalized such that kernel.sum() == 1
     """
     
-    source = tl.Instance(Node)
+    source = NodeTrait
     kernel = ArrayTrait(dtype=float).tag(attr=True)
 
     def _first_init(self, kernel=None, kernel_type=None, kernel_ndim=None, **kwargs):
