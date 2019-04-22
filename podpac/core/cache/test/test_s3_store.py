@@ -14,11 +14,13 @@ from podpac.core.cache.cache import CacheListing
 
 from podpac.core.data.types import Array
 from podpac.core.coordinates.coordinates import Coordinates
+from podpac.core.settings import settings
 
 root_disk_cache_dir = 'tmp_cache'
 
 def make_cache_ctrl(max_size=None):
-    store = S3CacheStore(root_cache_dir_path=root_disk_cache_dir, s3_bucket='podpac-internal-test', max_size=max_size)
+    store = S3CacheStore(root_cache_dir_path=root_disk_cache_dir, s3_bucket='podpac-internal-test')
+    settings[store.limit_setting] = max_size
     ctrl = CacheCtrl(cache_stores=[store])
     ctrl.rem(node='*', key='*', coordinates='*', mode='all')
     return ctrl
@@ -60,7 +62,7 @@ def test_put_and_get_with_cache_limits():
                     n1,n2 = node_f(), node_f()
                     din = data_f()
                     k = "key"
-                    with pytest.raises(CacheException):
+                    with pytest.raises(ResourceWarning):
                         cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
                     assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
                     cache.rem(node='*', key='*', coordinates='*', mode='all')
