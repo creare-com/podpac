@@ -407,18 +407,6 @@ class TestCoordinateCreation(object):
         assert c['lat'].ctype == 'right'
         assert c['lon'].ctype == 'left'
 
-    def test_distance_units(self):
-        lat = ArrayCoordinates1d([0, 1, 2])
-        lon = ArrayCoordinates1d([0, 1, 2])
-        time = ArrayCoordinates1d('2018-01-01')
-
-        units = podpac.core.units.Units()
-        c = Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'], distance_units=units)
-
-        assert c['lat'].units is units
-        assert c['lon'].units is units
-        assert c['time'].units is not units
-
 class TestCoordinatesSerialization(object):
     def test_definition(self):
         # this tests array coordinates, uniform coordinates, and stacked coordinates

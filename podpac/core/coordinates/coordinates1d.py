@@ -10,7 +10,6 @@ import copy
 import numpy as np
 import traitlets as tl
 
-from podpac.core.units import Units
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta
@@ -41,8 +40,6 @@ class Coordinates1d(BaseCoordinates):
         Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    units : podpac.Units
-        Coordinate units.
     ctype : str
         Coordinates type: 'point', 'left', 'right', or 'midpoint'.
     segment_lengths : array, float, timedelta
@@ -55,13 +52,12 @@ class Coordinates1d(BaseCoordinates):
     """
 
     name = Dimension(allow_none=True)
-    units = tl.Instance(Units, allow_none=True, read_only=True)
     ctype = CoordinateType(read_only=True)
     segment_lengths = tl.Any(read_only=True)
 
     _properties = tl.Set()
 
-    def __init__(self, name=None, ctype=None, units=None, segment_lengths=None):
+    def __init__(self, name=None, ctype=None, segment_lengths=None):
         """*Do not use.*"""
 
         if name is not None:
@@ -69,9 +65,6 @@ class Coordinates1d(BaseCoordinates):
 
         if ctype is not None:
             self.set_trait('ctype', ctype)
-
-        if units is not None:
-            self.set_trait('units', units)
 
         if segment_lengths is not None:
             if np.array(segment_lengths).ndim == 0:
@@ -84,7 +77,7 @@ class Coordinates1d(BaseCoordinates):
 
         super(Coordinates1d, self).__init__()
 
-    @tl.observe('name', 'units', 'ctype', 'segment_lengths')
+    @tl.observe('name', 'ctype', 'segment_lengths')
     def _set_property(self, d):
         self._properties.add(d['name'])
 
@@ -123,11 +116,6 @@ class Coordinates1d(BaseCoordinates):
         # only set ctype if it is not set already
         if 'ctype' not in self._properties:
             self.set_trait('ctype', value)
-
-    def _set_distance_units(self, value):
-        # only set units if it is not set already
-        if self.name in ['lat', 'lon', 'alt'] and 'units' not in self._properties:
-            self.set_trait('units', value)
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods
@@ -286,7 +274,6 @@ class Coordinates1d(BaseCoordinates):
     def _full_properties(self):
         return {
             'name': self.name,
-            'units': self.units,
             'ctype': self.ctype,
             'segment_lengths': self.segment_lengths}
 

@@ -10,8 +10,6 @@ import xarray as xr
 from numpy.testing import assert_equal
 
 import podpac
-from podpac.core.units import Units
-from podpac.coordinates import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
 
@@ -145,38 +143,6 @@ class TestDependentCoordinatesCreation(object):
         with pytest.raises(ValueError, match="segment_lengths must be positive"):
             DependentCoordinates((LAT, LON), ctypes=['left', 'right'], segment_lengths=[1.0, -2.0])
 
-    def test_units(self):
-        ua = Units()
-        ub = Units()
-
-        # explicit
-        c = DependentCoordinates((LAT, LON), units=[ua, ub])
-        assert len(c.units) == 2
-        assert c.units[0] is ua
-        assert c.units[1] is ub
-
-        # single value
-        c = DependentCoordinates((LAT, LON), units=ua)
-        assert len(c.units) == 2
-        assert c.units[0] is ua
-        assert c.units[1] is ua
-
-        # don't overwrite
-        c = DependentCoordinates((LAT, LON), units=ua)
-        c._set_units(ub)
-        assert len(c.units) == 2
-        assert c.units[0] is ua
-        assert c.units[1] is ua
-
-        # distance only
-        time = np.linspace(1, 13, 12).reshape((3, 4))
-        c = DependentCoordinates((LAT, LON, time), dims=['lat', 'lon', 'time'])
-        c._set_distance_units(ua)
-        assert len(c.units) == 3
-        assert c.units[0] is ua
-        assert c.units[1] is ua
-        assert c.units[2] is None
-
     def test_copy(self):
         c = DependentCoordinates((LAT, LON))
 
@@ -228,7 +194,7 @@ class TestDependentCoordinatesSerialization(object):
         d = c.full_definition
         
         assert isinstance(d, dict)
-        assert set(d.keys()) == {'dims', 'values', 'ctypes', 'segment_lengths', 'units'}
+        assert set(d.keys()) == {'dims', 'values', 'ctypes', 'segment_lengths'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
 
 class TestDependentCoordinatesProperties(object):
@@ -300,15 +266,13 @@ class TestDependentCoordinatesIndexing(object):
             [LAT, LON],
             dims=['lat', 'lon'],
             ctypes=['left', 'right'],
-            segment_lengths=[1.0, 2.0],
-            units=[Units(), Units()])
+            segment_lengths=[1.0, 2.0])
 
         lat = c['lat']
         assert isinstance(lat, ArrayCoordinatesNd)
         assert lat.name == c.dims[0]
         assert lat.ctype == c.ctypes[0]
         assert lat.segment_lengths == c.segment_lengths[0]
-        assert lat.units is c.units[0]
         assert lat.shape == c.shape
         repr(lat)
 
@@ -317,7 +281,6 @@ class TestDependentCoordinatesIndexing(object):
         assert lon.name == c.dims[1]
         assert lon.ctype == c.ctypes[1]
         assert lon.segment_lengths == c.segment_lengths[1]
-        assert lon.units is c.units[1]
         assert lon.shape == c.shape
         repr(lon)
 
@@ -361,14 +324,12 @@ class TestDependentCoordinatesIndexing(object):
             [LAT, LON],
             dims=['lat', 'lon'],
             ctypes=['left', 'right'],
-            segment_lengths=[1.0, 2.0],
-            units=[Units(), Units()])
+            segment_lengths=[1.0, 2.0])
 
         c2 = c[[1, 2]]
         assert c2.dims == c.dims
         assert c2.ctypes == c.ctypes
         assert c2.segment_lengths == c.segment_lengths
-        assert c2.units == c.units
 
     def test_iter(self):
         c = DependentCoordinates([LAT, LON], dims=['lat', 'lon'])

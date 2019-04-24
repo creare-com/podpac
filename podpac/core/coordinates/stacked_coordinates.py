@@ -60,7 +60,7 @@ class StackedCoordinates(BaseCoordinates):
 
     _coords = tl.List(trait=tl.Instance(Coordinates1d), read_only=True)
 
-    def __init__(self, coords, name=None, dims=None, ctype=None, distance_units=None):
+    def __init__(self, coords, name=None, dims=None, ctype=None):
         """
         Initialize a multidimensional coords object.
 
@@ -70,9 +70,7 @@ class StackedCoordinates(BaseCoordinates):
             Coordinate values in a list, or a StackedCoordinates object to copy.
         ctype : str, optional
             Default coordinates type.
-        distance_units : Units, optional
-            Default distance units.
-
+        
         See Also
         --------
         clinspace, crange
@@ -99,9 +97,7 @@ class StackedCoordinates(BaseCoordinates):
             self._set_name(name)
         if ctype is not None:
             self._set_ctype(ctype)
-        if distance_units is not None:
-            self._set_distance_units(distance_units)
-
+        
         # finalize
         super(StackedCoordinates, self).__init__()
 
@@ -147,16 +143,12 @@ class StackedCoordinates(BaseCoordinates):
         for c in self._coords:
             c._set_ctype(value)
 
-    def _set_distance_units(self, value):
-        for c in self._coords:
-            c._set_distance_units(value)
-
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_xarray(cls, xcoords, ctype=None, distance_units=None):
+    def from_xarray(cls, xcoords, ctype=None):
         """
         Convert an xarray coord to StackedCoordinates
 
@@ -166,8 +158,6 @@ class StackedCoordinates(BaseCoordinates):
             xarray coords attribute to convert
         ctype : str, optional
             Default coordinates type.
-        distance_units : Units, optional
-            Default distance units.
 
         Returns
         -------
@@ -177,7 +167,7 @@ class StackedCoordinates(BaseCoordinates):
 
         dims = xcoords.indexes[xcoords.dims[0]].names
         coords = [ArrayCoordinates1d.from_xarray(xcoords[dims]) for dims in dims]
-        return cls(coords, ctype=ctype, distance_units=distance_units)
+        return cls(coords, ctype=ctype)
 
     @classmethod
     def from_definition(cls, d):

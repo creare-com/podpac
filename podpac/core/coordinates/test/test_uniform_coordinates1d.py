@@ -8,7 +8,6 @@ import numpy as np
 from numpy.testing import assert_equal
 
 import podpac
-from podpac.core.units import Units
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d

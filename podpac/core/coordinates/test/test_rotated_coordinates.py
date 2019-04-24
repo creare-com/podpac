@@ -10,7 +10,6 @@ import xarray as xr
 from numpy.testing import assert_equal, assert_allclose
 
 import podpac
-from podpac.core.units import Units
 from podpac.coordinates import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
@@ -198,7 +197,7 @@ class TestRotatedCoordinatesSerialization(object):
         d = c.full_definition
         
         assert isinstance(d, dict)
-        assert set(d.keys()) == {'dims', 'shape', 'theta', 'ulc', 'step', 'ctypes', 'segment_lengths', 'units'}
+        assert set(d.keys()) == {'dims', 'shape', 'theta', 'ulc', 'step', 'ctypes', 'segment_lengths'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
 
 class TestRotatedCoordinatesProperties(object):

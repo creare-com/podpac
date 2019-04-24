@@ -66,7 +66,7 @@ class Coordinates(tl.HasTraits):
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
     _properties = tl.Set()
 
-    def __init__(self, coords, dims=None, crs=None, ctype=None, distance_units=None):
+    def __init__(self, coords, dims=None, crs=None, alt_units=None, ctype=None):
         """
         Create multidimensional coordinates.
 
@@ -85,11 +85,12 @@ class Coordinates(tl.HasTraits):
              * 'lat', 'lon', 'alt', or 'time' for unstacked coordinates
              * dimension names joined by an underscore for stacked coordinates
         crs : str, optional
-            Default coordinates reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
+            Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
+        alt_units : str, optional
+            Altitude units. Supports any `PROJ4 Distance Units
+            <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`. Must not contradict the crs.
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
-        distance_units : Units
-            Default distance units.
         """
 
         if not isinstance(coords, (list, tuple, np.ndarray, xr.DataArray)):
@@ -129,8 +130,6 @@ class Coordinates(tl.HasTraits):
             c._set_name(dim)
             if ctype is not None:
                 c._set_ctype(ctype)
-            if distance_units is not None:
-                c._set_distance_units(distance_units)
             
             # set coords
             dcoords[dim] = c
@@ -195,7 +194,7 @@ class Coordinates(tl.HasTraits):
         return coords
 
     @classmethod
-    def grid(cls, dims=None, crs=None, ctype=None, distance_units=None, **kwargs):
+    def grid(cls, dims=None, crs=None, alt_units=None, ctype=None, **kwargs):
         """
         Create a grid of coordinates.
 
@@ -225,11 +224,12 @@ class Coordinates(tl.HasTraits):
             List of dimension names, must match the provided keyword arguments. In Python 3.6 and above, the ``dims``
             argument is optional, and the dims will match the order of the provided keyword arguments.
         crs : str, optional
-            Default coordinates reference system
+            Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
+        alt_units : str, optional
+            Altitude units. Supports any `PROJ4 Distance Units
+            <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`. Must not contradict the crs.
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
-        distance_units : Units
-            Default distance units.
 
         Returns
         -------
@@ -242,10 +242,10 @@ class Coordinates(tl.HasTraits):
         """
 
         coords = cls._coords_from_dict(kwargs, order=dims)
-        return cls(coords, crs=crs, ctype=ctype, distance_units=distance_units)
+        return cls(coords, crs=crs, ctype=ctype, alt_units=alt_units)
 
     @classmethod
-    def points(cls, crs=None, ctype=None, distance_units=None, dims=None, **kwargs):
+    def points(cls, crs=None, alt_units=None, ctype=None, dims=None, **kwargs):
         """
         Create a list of multidimensional coordinates.
 
@@ -278,11 +278,12 @@ class Coordinates(tl.HasTraits):
             List of dimension names, must match the provided keyword arguments. In Python 3.6 and above, the ``dims``
             argument is optional, and the dims will match the order of the provided keyword arguments.
         crs : str, optional
-            Default coordinates reference system
+            Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
+        alt_units : str, optional
+            Altitude units. Supports any `PROJ4 Distance Units
+            <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`. Must not contradict the crs.
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
-        distance_units : Units
-            Default distance units.
 
         Returns
         -------
@@ -296,10 +297,10 @@ class Coordinates(tl.HasTraits):
 
         coords = cls._coords_from_dict(kwargs, order=dims)
         stacked = StackedCoordinates(coords)
-        return cls([stacked], crs=crs, ctype=ctype, distance_units=distance_units)
+        return cls([stacked], crs=crs, ctype=ctype, alt_units=alt_units)
 
     @classmethod
-    def from_xarray(cls, xcoord, crs=None, ctype=None, distance_units=None):
+    def from_xarray(cls, xcoord, crs=None, alt_units=None, ctype=None):
         """
         Create podpac Coordinates from xarray coords.
 
@@ -308,11 +309,12 @@ class Coordinates(tl.HasTraits):
         xcoord : xarray.core.coordinates.DataArrayCoordinates
             xarray coords
         crs : str, optional
-            Default coordinates reference system
+            Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
+        alt_units : str, optional
+            Altitude units. Supports any `PROJ4 Distance Units
+            <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`. Must not contradict the crs.
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
-        distance_units : Units
-            Default distance units.
 
         Returns
         -------
@@ -331,7 +333,7 @@ class Coordinates(tl.HasTraits):
                 c = StackedCoordinates.from_xarray(xcoord[dim])
             coords.append(c)
 
-        return cls(coords, crs=crs, ctype=ctype, distance_units=distance_units)
+        return cls(coords, crs=crs, alt_units=alt_units, ctype=ctype)
 
     @classmethod
     def from_json(cls, s):

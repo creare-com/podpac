@@ -12,9 +12,6 @@ class BaseCoordinates(tl.HasTraits):
     def _set_ctype(self, value):
         raise NotImplementedError
 
-    def _set_distance_units(self, value):
-        raise NotImplementedError
-
     @property
     def name(self):
         """:str: Dimension name."""

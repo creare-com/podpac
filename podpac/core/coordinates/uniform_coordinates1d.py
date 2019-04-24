@@ -8,8 +8,6 @@ import numpy as np
 import traitlets as tl
 from collections import OrderedDict
 
-# from podpac.core.utils import cached_property, clear_cache
-from podpac.core.units import Units
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord, divide_delta
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -38,8 +36,6 @@ class UniformCoordinates1d(Coordinates1d):
         Dimension name, one of 'lat', 'lon', 'time', 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    units : podpac.Units
-        Coordinate units.
     ctype : str
         Coordinates type, one of'point', 'left', 'right', or 'midpoint'.
     segment_lengths : array, float, timedelta
@@ -59,8 +55,7 @@ class UniformCoordinates1d(Coordinates1d):
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
-    def __init__(self, start, stop, step=None, size=None,
-                       name=None, ctype=None, units=None, segment_lengths=None):
+    def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, segment_lengths=None):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -76,8 +71,6 @@ class UniformCoordinates1d(Coordinates1d):
             Number of coordinates (either step or size required).
         name : str, optional
             Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
-        units : Units, optional
-            Coordinate units.
         ctype : str, optional
             Coordinates type: 'point', 'left', 'right', or 'midpoint'.
         segment_lengths: array, float, timedelta, optional
@@ -121,8 +114,7 @@ class UniformCoordinates1d(Coordinates1d):
         self.set_trait('step', step)
 
         # set common properties
-        super(UniformCoordinates1d, self).__init__(
-            name=name, ctype=ctype, units=units, segment_lengths=segment_lengths)
+        super(UniformCoordinates1d, self).__init__(name=name, ctype=ctype, segment_lengths=segment_lengths)
         
     @tl.default('ctype')
     def _default_ctype(self):
