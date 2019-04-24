@@ -214,6 +214,7 @@ def SMAP_BASE_URL():
             BASE_URL = rf
     except Exception as e:
         _logger.warning("Could not retrieve SMAP url from %s: " % (SMAP_BASE_URL_FILE) + str(e))
+        rf = None
     try:
         r = requests.get('https://s3.amazonaws.com/podpac-s3/settings/nsidc_smap_opendap_url.txt').text
         if 'https://' in r and 'nsidc.org' in r:
@@ -226,7 +227,7 @@ def SMAP_BASE_URL():
                 except Exception as e:
                     _logger.warning("Could not overwrite SMAP url update on disk:" + str(e))
     except Exception as e:
-        logger.warning("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
+        _logger.warning("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
     _SMAP_BASE_URL = BASE_URL
     return BASE_URL
 
