@@ -222,7 +222,7 @@ def SMAP_BASE_URL():
                 except Exception as e:
                     _logger.warning("Could not overwrite SMAP url update on disk:" + str(e))
     except Exception as e:
-        logger.warning("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
+        _logger.warning("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
     _SMAP_BASE_URL = BASE_URL
     return BASE_URL
 
