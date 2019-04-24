@@ -12,7 +12,6 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 
 from podpac.core.units import Units
-from podpac.core.units import UnitsNode
 from podpac.core.units import UnitsDataArray
 from podpac.core.units import create_data_array
 from podpac.core.units import get_image
@@ -23,27 +22,6 @@ class Length(Node):
 
 class Area(Node):
     units = Units(ureg.meter ** 2)
-
-class StrictUnitsNode(Node):
-    length = UnitsNode().tag(units=ureg.meter)
-
-class TestUnitsNode(object):
-    def test_set_length_to_matching_dimension_units_node(self):
-        strict_node = StrictUnitsNode()
-        l = Length()
-        strict_node.length = l
-
-    def test_set_length_to_different_dimension_units_node_throws_error(self):
-        strict_node = StrictUnitsNode()
-        a = Area()
-        with pytest.raises(DimensionalityError):
-            strict_node.length = a
-
-    def test_set_length_to_number_throws_error(self):
-        strict_node = StrictUnitsNode()
-        with pytest.raises(tl.TraitError):
-            strict_node.length = 10
-
 
 class TestUnits(object):
     def test_set_units_to_related_unit(self):
