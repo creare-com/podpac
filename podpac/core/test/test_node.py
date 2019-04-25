@@ -8,7 +8,7 @@ import six
 import pytest
 import numpy as np
 import xarray as xr
-from pint.errors import DimensionalityError
+from pint.errors import DimensionalityError, UndefinedUnitError
 from pint import UnitRegistry; ureg = UnitRegistry()
 import traitlets as tl
 
@@ -43,6 +43,18 @@ class TestNode(object):
         assert isinstance(d['lookup_attrs'], OrderedDict)
         assert 'my_node_attr' in d['lookup_attrs']
         assert d['lookup_attrs']['my_node_attr'] is a
+
+    def test_base_definition_units(self):
+        n = Node(units='meters')
+        d = n.base_definition
+        assert 'attrs' in d
+        assert isinstance(d['attrs'], OrderedDict)
+        assert 'units' in d['attrs']
+        assert d['attrs']['units'] == 'meters'
+
+        n = Node()
+        d = n.base_definition
+        assert 'units' not in d
 
     def test_base_definition_array_attr(self):
         class N(Node):
@@ -178,40 +190,52 @@ class TestNode(object):
         with pytest.raises(Exception):
             n.eval(g)
 
-class TestCreateOutputArray(object):
-    @classmethod
-    def setup_class(cls):
-        cls.c1 = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
-        cls.c2 = podpac.Coordinates([podpac.clinspace((0.5, 0.1), (1.5, 1.1), 15)], dims=['lat_lon'])
-        cls.crds = [cls.c1, cls.c2]
+    def test_units(self):
+        n = Node(units='meters')
 
+        with pytest.raises(UndefinedUnitError):
+            Node(units='abc')
+
+class TestCreateOutputArray(object):
     def test_create_output_array_default(self):
+        c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
         node = Node()
 
-        for crd in self.crds:
-            output = node.create_output_array(crd)
-            assert isinstance(output, UnitsDataArray)
-            assert output.shape == crd.shape
-            assert output.dtype == node.dtype
-            assert np.all(np.isnan(output))
+        output = node.create_output_array(c)
+        assert isinstance(output, UnitsDataArray)
+        assert output.shape == c.shape
+        assert output.dtype == node.dtype
+        assert np.all(np.isnan(output))
 
     def test_create_output_array_data(self):
+        c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
         node = Node()
 
-        output = node.create_output_array(self.c1, data=0)
+        output = node.create_output_array(c, data=0)
         assert isinstance(output, UnitsDataArray)
-        assert output.shape == self.c1.shape
+        assert output.shape == c.shape
         assert output.dtype == node.dtype
         assert np.all(output == 0.0)
 
     def test_create_output_array_dtype(self):
+        c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
         node = Node(dtype=bool)
 
-        output = node.create_output_array(self.c1, data=0)
+        output = node.create_output_array(c, data=0)
         assert isinstance(output, UnitsDataArray)
-        assert output.shape == self.c1.shape
+        assert output.shape == c.shape
         assert output.dtype == node.dtype
         assert np.all(~output)
+
+    def test_create_output_array_units(self):
+        c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'])
+        node = Node(units='meters')
+
+        output = node.create_output_array(c)
+        assert isinstance(output, UnitsDataArray)
+        
+        from podpac.core.units import ureg as _ureg
+        assert output.units == _ureg.meters
 
 class TestCaching(object):
     @classmethod

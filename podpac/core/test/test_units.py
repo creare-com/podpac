@@ -6,36 +6,14 @@ import xarray as xr
 from pint.errors import DimensionalityError
 import traitlets as tl
 
-from podpac.core.units import ureg
-
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
+from podpac.core.style import Style
 
-from podpac.core.units import Units
+from podpac.core.units import ureg
 from podpac.core.units import UnitsDataArray
 from podpac.core.units import create_data_array
 from podpac.core.units import get_image
-from podpac.core.style import Style
-
-class Length(Node):
-    units = Units(ureg.meter)
-
-class Area(Node):
-    units = Units(ureg.meter ** 2)
-
-class TestUnits(object):
-    def test_set_units_to_related_unit(self):
-        l = Length()
-        l.units = ureg.feet
-
-    def test_set_units_to_unrelated_unit(self):
-        a = Area()
-        a.units = ureg.meter
-
-    def test_set_units_to_string_throws_error(self):
-        l = Length()
-        with pytest.raises(tl.TraitError):
-            l.units = 'meter'
 
 class TestUnitDataArray(object):
     def test_no_units_to_base_units_has_no_units(self):

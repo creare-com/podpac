@@ -7,7 +7,7 @@ import matplotlib.cm
 import json
 from collections import OrderedDict
 
-from podpac.core.units import Units, ureg
+from podpac.core.units import ureg
 from podpac.core.utils import trait_is_defined,JSONEncoder
 class Style(tl.HasTraits):
     """Summary
@@ -37,7 +37,7 @@ class Style(tl.HasTraits):
         super(Style, self).__init__(*args, **kwargs)
 
     name = tl.Unicode()
-    units = Units(allow_none=True)
+    units = tl.Unicode(allow_none=True)
 
     is_enumerated = tl.Bool(default_value=False)
     enumeration_legend = tl.Tuple(trait=tl.Unicode)
@@ -77,8 +77,6 @@ class Style(tl.HasTraits):
     def from_definition(cls, d):
         if 'cmap' in d:
             d['cmap'] = matplotlib.cm.get_cmap(d['cmap'])
-        if 'units' in d:
-            d['units'] = ureg(d['units']).u
         return cls(**d)
 
     @classmethod

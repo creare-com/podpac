@@ -24,38 +24,6 @@ ureg = UnitRegistry()
 import podpac
 from podpac.core.settings import settings
 
-class Units(tl.TraitType):
-    """Units Summary
-
-    Attributes
-    ----------
-    info_text : str
-        Description
-    """
-    info_text = "A pint Unit"
-    #default_value = None
-
-    def validate(self, obj, value):
-        """Summary
-
-        Parameters
-        ----------
-        obj : TYPE
-            Description
-        value : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        if isinstance(value, _Unit):
-            return value
-        self.error(obj, value)
-
-
-
 class UnitsDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
     """
