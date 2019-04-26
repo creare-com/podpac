@@ -423,6 +423,8 @@ class TestCoordinateCreation(object):
         assert c.alt_units is None
         assert set(c.properties.keys()) == {'crs'}
 
+        c.set_trait('alt_units', None)
+
         # proj4
         c = Coordinates([alt], crs='EPSG:2193', alt_units='ft')
         assert c.alt_units == 'ft'
@@ -1106,30 +1108,42 @@ class TestCoordinatesMethods(object):
             c.transpose('lon', 'lat')
 
     def test_transform(self):
-        c = Coordinates([[0, 1], [10, 20], ['2018-01-01', '2018-01-02'], [0, 1, 2]], \
-                        dims=['lat', 'lon', 'time', 'alt'])
-        c1 = Coordinates([[[0, 1], [10, 20]], [100, 200, 300]], dims=['lat_lon', 'alt'])
+        c = Coordinates(
+            [[0, 1], [10, 20], ['2018-01-01', '2018-01-02'], [0, 1, 2]],
+            dims=['lat', 'lon', 'time', 'alt'],
+            crs='EPSG:4326')
+        c1 = Coordinates(
+            [[[0, 1], [10, 20]], [100, 200, 300]],
+            dims=['lat_lon', 'alt'],
+            crs='EPSG:4326')
 
         # default crs
-        assert c.crs == settings['DEFAULT_CRS']
+        assert c.crs == 'EPSG:4326'
 
         # transform
         c_trans = c.transform('EPSG:2193')
-        assert c.crs == settings['DEFAULT_CRS']
+        assert c.crs == 'EPSG:4326'
         assert c_trans.crs == 'EPSG:2193'
         assert round(c_trans['lat'].values[0]) == 29995930.0
+
+        # no transform needed
+        c_trans = c.transform('EPSG:4326')
+        assert c.crs == 'EPSG:4326'
+        assert c_trans.crs == 'EPSG:4326'
+        assert c_trans is not c
+        assert c_trans == c
 
         # support proj4 strings
         proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
         c_trans = c.transform(proj)
-        assert c.crs == settings['DEFAULT_CRS']
+        assert c.crs == 'EPSG:4326'
         assert c_trans.crs == pyproj.CRS(proj).srs
         assert round(c_trans['lat'].values[0]) == 615849.0
 
         # support stacked coordinates
         proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
         c1_trans = c1.transform(proj)
-        assert c1.crs == settings['DEFAULT_CRS']
+        assert c1.crs == 'EPSG:4326'
         assert c_trans.crs == pyproj.CRS(proj).srs
         assert round(c1_trans['lat'].values[0]) == 615849.0
 
@@ -1160,6 +1174,10 @@ class TestCoordinatesMethods(object):
         assert c_trans['alt'].values[1] == 0.001
         assert c_trans['alt'].values[2] == 0.002
         assert '+vunits=km' in c_trans.crs
+
+        # no parameter
+        with pytest.raises(TypeError, match="transform requires crs and/or alt_units argument"):
+            c.transform()
 
     def test_select_single(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name='lat')

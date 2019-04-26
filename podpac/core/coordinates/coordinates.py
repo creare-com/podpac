@@ -1198,24 +1198,27 @@ class Coordinates(tl.HasTraits):
             Coordinates must have both lat and lon dimensions if either is defined
         """
 
-        if self.crs == crs and alt_units is None:
-            return self
+        if crs is None and alt_units is None:
+            raise TypeError('transform requires crs and/or alt_units argument')
 
+        # if only alt_units is provided, use self.crs
         if crs is None:
             crs = self.crs
-
-        from_crs = pyproj.CRS(self.crs)
-        to_crs = pyproj.CRS(crs)
-
-        # convert alt units into proj4 syntax
+        
+        # if no vunits are provided, but are necessary, use self.alt_units
+        # if alt_units is None and get_vunits(crs) is None and self.alt_units is not None:
+        #     alt_units = self.alt_units
+        
+        # combine crs and alt_units
         if alt_units is not None:
-            proj4crs = to_crs.to_proj4()
+            crs = set_vunits(crs, alt_units)
 
-            # remove old vunits string if present
-            if '+vunits' in proj4crs:
-                proj4crs = re.sub(r'\+vunits=[a-z\-]+\s', '', proj4crs)
-
-            to_crs = pyproj.CRS('{} +vunits={}'.format(proj4crs, alt_units))
+        from_crs = self.CRS
+        to_crs = pyproj.CRS(crs)
+        
+        # no transform needed
+        if from_crs == to_crs:
+            return deepcopy(self)
 
         # create proj4 transformer
         transformer = pyproj.Transformer.from_proj(from_crs, to_crs)

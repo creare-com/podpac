@@ -485,6 +485,7 @@ def set_vunits(crs, vunits):
     else:
         crs = pyproj.CRS(crs).to_proj4() # convert EPSG-style strings
         crs += ' +vunits={}'.format(vunits)
-        crs = pyproj.CRS(crs).to_proj4() # standardize, this is optional
+    
+    crs = pyproj.CRS(crs).to_proj4() # standardize, this is optional
 
     return crs
