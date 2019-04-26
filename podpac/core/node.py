@@ -14,7 +14,7 @@ import numpy as np
 import traitlets as tl
 
 from podpac.core.settings import settings
-from podpac.core.units import Units, UnitsDataArray, create_data_array
+from podpac.core.units import ureg, UnitsDataArray, create_data_array
 from podpac.core.utils import common_doc, JSONEncoder
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
@@ -88,8 +88,8 @@ class Node(tl.HasTraits):
     style : :class:`podpac.Style`
         Object discribing how the output of a node should be displayed. This attribute is planned for deprecation in the
         future.
-    units : :class:`podpac.Units`
-        The units of the output data, defined using the pint unit registry `podpac.units.ureg`.
+    units : str
+        The units of the output data. Must be pint compatible.
 
     Notes
     -----
@@ -98,11 +98,12 @@ class Node(tl.HasTraits):
      * ``_output``: the output of the most recent call to eval
     """
 
-    units = Units(default_value=None, allow_none=True)
+    units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     dtype = tl.Any(default_value=float)
     cache_output = tl.Bool()
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+    style = tl.Instance(Style)
 
     @tl.default('cache_output')
     def _cache_output_default(self):
@@ -118,11 +119,14 @@ class Node(tl.HasTraits):
             d['value']  = CacheCtrl([]) # no cache_stores
         return d['value']
 
-    style = tl.Instance(Style)
-
     @tl.default('style')
     def _style_default(self):
         return Style()
+
+    @tl.validate('units')
+    def _validate_units(self, d):
+        ureg.Unit(d['value']) # will throw an exception if this is not a valid pint Unit
+        return d['value']
 
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
@@ -224,7 +228,10 @@ class Node(tl.HasTraits):
         {arr_return}
         """
 
-        attrs = {'layer_style': self.style, 'units': self.units}
+        attrs = {}
+        attrs['layer_style'] = self.style
+        if self.units is not None:
+            attrs['units'] = ureg.Unit(self.units)
         return create_data_array(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -276,6 +283,9 @@ class Node(tl.HasTraits):
                 continue
 
             attr = getattr(self, key)
+            
+            if key is 'units' and attr is None:
+                continue
 
             # check serializable
             try:

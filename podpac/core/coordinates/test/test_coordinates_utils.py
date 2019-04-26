@@ -9,6 +9,7 @@ from datetime import datetime
 from podpac.core.coordinates.utils import get_timedelta, get_timedelta_unit, make_timedelta_string
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_array, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, divide_timedelta
+from podpac.core.coordinates.utils import get_vunits, set_vunits
 
 def test_get_timedelta():
     td64 = np.timedelta64
@@ -453,3 +454,28 @@ def test_divide_delta():
     assert divide_delta(np.timedelta64(1, 'D'), 2) == np.timedelta64(12, 'h')
     with pytest.raises(ValueError, match="Cannot divide timedelta .* evenly"):
         divide_delta(np.timedelta64(1, 'D'), 17)
+
+def test_get_vunits():
+    assert get_vunits('+proj=merc +vunits=m') == 'm'
+    assert get_vunits('+proj=merc +vunits=us-ft') == 'us-ft'
+    assert get_vunits('+proj=merc +lat_ts=56.5 +vunits=ft +ellps=GRS80') == 'ft'
+    assert get_vunits('+proj=merc +lat_ts=56.5 +ellps=GRS80') is None
+
+def test_set_vunits():
+    crs = set_vunits('+proj=merc +vunits=m', 'ft')
+    assert get_vunits(crs) == 'ft'
+
+    crs = set_vunits('+proj=merc +vunits=us-ft', 'm')
+    assert get_vunits(crs) == 'm'
+    
+    crs = set_vunits('+proj=merc +lat_ts=56.5 +vunits=m +ellps=GRS80', 'ft')
+    assert get_vunits(crs) == 'ft'
+    
+    crs = set_vunits('+proj=merc +lat_ts=56.5 +ellps=GRS80', 'ft')
+    assert get_vunits(crs) == 'ft'
+
+    crs = set_vunits('EPSG:2193', 'ft')
+    assert get_vunits(crs) == 'ft'
+
+    crs = set_vunits('EPSG:4326', 'ft')
+    assert get_vunits(crs) is None

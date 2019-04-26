@@ -13,7 +13,6 @@ import traitlets as tl
 from collections import OrderedDict
 
 from podpac.core.utils import ArrayTrait
-from podpac.core.units import Units
 from podpac.core.coordinates.utils import make_coord_array
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 
@@ -32,8 +31,6 @@ class ArrayCoordinates1d(Coordinates1d):
         Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    units : podpac.Units
-        Coordinate units.
     ctype : str
         Coordinates type: 'point', 'left', 'right', or 'midpoint'.
     segment_lengths : array, float, timedelta
@@ -47,8 +44,7 @@ class ArrayCoordinates1d(Coordinates1d):
     coordinates = ArrayTrait(ndim=1, read_only=True)
     coordinates.__doc__ = ":array: User-defined coordinate values"
 
-    def __init__(self, coordinates,
-                       name=None, ctype=None, units=None, segment_lengths=None):
+    def __init__(self, coordinates, name=None, ctype=None, segment_lengths=None):
         """
         Create 1d coordinates from an array.
 
@@ -58,8 +54,6 @@ class ArrayCoordinates1d(Coordinates1d):
             coordinate values.
         name : str, optional
             Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
-        units : Units, optional
-            Coordinate units.
         ctype : str, optional
             Coordinates type: 'point', 'left', 'right', or 'midpoint'.
         segment_lengths : array, optional
@@ -94,7 +88,7 @@ class ArrayCoordinates1d(Coordinates1d):
                 self._is_uniform = np.allclose(deltas, deltas[0])
         
         # set common properties
-        super(ArrayCoordinates1d, self).__init__(name=name, ctype=ctype, units=units, segment_lengths=segment_lengths)
+        super(ArrayCoordinates1d, self).__init__(name=name, ctype=ctype, segment_lengths=segment_lengths)
 
         # check segment lengths
         if segment_lengths is None:
@@ -166,8 +160,6 @@ class ArrayCoordinates1d(Coordinates1d):
         ---------
         x : xarray.DataArray
             Nade DataArray of the coordinate values
-        units : Units, optional
-            Coordinate units.
         ctype : str, optional
             Coordinates type: 'point', 'left', 'right', or 'midpoint'.
         segment_lengths : (low, high), optional

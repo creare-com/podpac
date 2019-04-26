@@ -19,8 +19,7 @@ class PolarCoordinates(DependentCoordinates):
     theta = tl.Instance(Coordinates1d, read_only=True)
     ndims = 2
 
-    def __init__(self, center, radius, theta=None, theta_size=None,
-                 dims=None, ctypes=None, units=None, segment_lengths=None):
+    def __init__(self, center, radius, theta=None, theta_size=None, dims=None, ctypes=None, segment_lengths=None):
         
         # radius
         if not isinstance(radius, Coordinates1d):
@@ -42,7 +41,7 @@ class PolarCoordinates(DependentCoordinates):
         self.set_trait('theta', theta)
 
         # properties
-        self._set_properties(dims, units, ctypes, segment_lengths)
+        self._set_properties(dims, ctypes, segment_lengths)
 
     @tl.validate('dims')
     def _validate_dims(self, d):

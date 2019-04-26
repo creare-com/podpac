@@ -54,18 +54,6 @@ class TestStackedCoordinatesCreation(object):
         # but lat is left by StackedCoordinates because it was already explicitly set
         assert c['lat'].ctype == 'left'
 
-    def test_distance_units(self):
-        lat = ArrayCoordinates1d([0, 1], name='lat')
-        lon = ArrayCoordinates1d([0, 1], name='lon')
-        time = ArrayCoordinates1d(['2018-01-01', '2018-01-02'], name='time')
-
-        units = podpac.core.units.Units()
-        c = StackedCoordinates([lat, lon, time], distance_units=units)
-
-        assert c['lat'].units is units
-        assert c['lon'].units is units
-        assert c['time'].units is not units
-
     def test_coercion_with_dims(self):
         c = StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=['lat', 'lon'])
         assert c.dims == ('lat', 'lon')

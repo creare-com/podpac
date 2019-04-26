@@ -8,7 +8,6 @@ import xarray as xr
 from numpy.testing import assert_equal
 
 import podpac
-from podpac.core.units import Units
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
@@ -298,38 +297,7 @@ class TestArrayCoordinatesInit(object):
         with pytest.raises(tl.TraitError):
             c._set_ctype('ABC')
 
-    def test_set_distance_units(self):
-        ua = Units()
-        ub = Units()
-
-        # set if not already set
-        c = ArrayCoordinates1d([], name='lat')
-        c._set_distance_units(ua)
-        assert c.units is ua
-
-        # ignore if set already
-        c = ArrayCoordinates1d([], name='lat', units=ua)
-        c._set_distance_units(ua)
-        assert c.units is ua
-
-        c._set_distance_units(ub)
-        assert c.units is ua
-
-        # ignore if not a distance dimension
-        c = ArrayCoordinates1d([], name='time')
-        c._set_distance_units(ua)
-        assert c.units is None
-
-        c = ArrayCoordinates1d([])
-        c._set_distance_units(ua)
-        assert c.units is None
-
-        # invalid units
-        c = ArrayCoordinates1d([], name='lat')
-        with pytest.raises(tl.TraitError):
-            c._set_distance_units('string')
-
-    def test_segment_lenths_point(self):
+    def test_segment_lengths_point(self):
         with pytest.raises(TypeError, match="segment_lengths must be None"):
             ArrayCoordinates1d([1, 2], ctype='point', segment_lengths=1.0)
         
@@ -688,10 +656,6 @@ class TestArrayCoordinatesProperties(object):
         c = ArrayCoordinates1d([], ctype='point')
         assert isinstance(c.properties, dict)
         assert set(c.properties) == {'ctype'}
-
-        c = ArrayCoordinates1d([], units=Units())
-        assert isinstance(c.properties, dict)
-        assert set(c.properties) == {'units'}
 
         c = ArrayCoordinates1d([1, 2], segment_lengths=1)
         assert isinstance(c.properties, dict)
