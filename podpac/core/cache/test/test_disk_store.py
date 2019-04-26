@@ -61,7 +61,7 @@ def test_put_and_get_with_cache_limits():
                     n1,n2 = node_f(), node_f()
                     din = data_f()
                     k = "key"
-                    with pytest.warns(ResourceWarning):
+                    with pytest.warns(RuntimeWarning):
                         cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
                     assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
                     cache.rem(node='*', key='*', coordinates='*', mode='all')

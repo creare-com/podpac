@@ -768,7 +768,7 @@ class FileCacheStore(CacheStore):
         if self.max_size is not None and self.size >= self.max_size:
         #     # TODO removal policy
             self.rem(node=node, key=key, coordinates=coordinates)
-            warnings.warn("Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(cache_mode=self.cache_mode, cache_limit_setting=self.limit_setting), ResourceWarning)
+            warnings.warn("Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(cache_mode=self.cache_mode, cache_limit_setting=self.limit_setting), RuntimeWarning)
             return False
 
         return True
@@ -1323,7 +1323,7 @@ class RamCacheStore(CacheStore):
 
         if self.max_size is not None and self.size >= self.max_size:
         #     # TODO removal policy
-            warnings.warn("Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. No longer caching. Consider increasing this limit or try clearing the cache (e.g. node.rem_cache(key='*', mode='RAM', all_cache=True) to clear ALL cached results in RAM)", ResourceWarning)
+            warnings.warn("Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. No longer caching. Consider increasing this limit or try clearing the cache (e.g. node.rem_cache(key='*', mode='RAM', all_cache=True) to clear ALL cached results in RAM)", RuntimeWarning)
             return False
 
         # TODO include insert date, last retrieval date, and/or # retrievals for use in a removal policy
