@@ -379,16 +379,73 @@ class TestCoordinateCreation(object):
             Coordinates.from_xarray([0, 10])
 
     def test_crs(self):
-        lat = ArrayCoordinates1d([0, 1, 2])
-        lon = ArrayCoordinates1d([0, 1, 2])
+        lat = ArrayCoordinates1d([0, 1, 2], 'lat')
+        lon = ArrayCoordinates1d([0, 1, 2], 'lon')
         
-        # assign
-        c = Coordinates([lat, lon], dims=['lat', 'lon'], crs='EPSG:2193')
-        assert c.crs == 'EPSG:2193'
-
         # default
-        c = Coordinates([lat, lon], dims=['lat', 'lon'])
+        c = Coordinates([lat, lon])
         assert c.crs == settings['DEFAULT_CRS']
+        assert c.alt_units is None
+        assert set(c.properties.keys()) == {'crs'}
+        
+        # crs
+        c = Coordinates([lat, lon], crs='EPSG:2193')
+        assert c.crs == 'EPSG:2193'
+        assert c.alt_units is None
+        assert set(c.properties.keys()) == {'crs'}
+
+        # proj4
+        c = Coordinates([lat, lon], crs='+init=epsg:2193')
+        assert c.crs == '+init=epsg:2193'
+        assert c.alt_units is None
+        assert set(c.properties.keys()) == {'crs'}
+
+        c = Coordinates([lat, lon], crs='+proj=merc +lat_ts=56.5 +ellps=GRS80')
+        assert c.crs == '+proj=merc +lat_ts=56.5 +ellps=GRS80'
+        assert c.alt_units is None
+        assert set(c.properties.keys()) == {'crs'}
+
+        # with vunits
+        c = Coordinates([lat, lon], crs='+init=epsg:2193 +vunits=ft')
+        assert c.crs == '+init=epsg:2193 +vunits=ft'
+        assert c.alt_units == 'ft'
+        assert set(c.properties.keys()) == {'crs'} # no alt_units, it is in the crs
+
+        # invalid
+        with pytest.raises(pyproj.crs.CRSError):
+            Coordinates([lat, lon], crs='abcd')
+
+    def test_alt_units(self):
+        alt = ArrayCoordinates1d([0, 1, 2], name='alt')
+        
+        # None
+        c = Coordinates([alt])
+        assert c.alt_units is None
+        assert set(c.properties.keys()) == {'crs'}
+
+        # proj4
+        c = Coordinates([alt], crs='EPSG:2193', alt_units='ft')
+        assert c.alt_units == 'ft'
+        assert set(c.properties.keys()) == {'crs', 'alt_units'}
+
+        # with crs
+        c = Coordinates([alt], crs='EPSG:2193', alt_units='ft')
+        assert c.crs == 'EPSG:2193'
+        assert c.alt_units == 'ft'
+        assert set(c.properties.keys()) == {'crs', 'alt_units'}
+        
+        # invalid
+        with pytest.raises(ValueError, match="Invalid alt_units"):
+            Coordinates([alt], alt_units='feet')
+
+        # crs mismatch
+        with pytest.raises(ValueError, match="crs and alt_units mismatch"):
+            Coordinates([alt], crs='+init=epsg:2193 +vunits=ft', alt_units='m')
+
+        # ignore
+        with pytest.warns(UserWarning, match="alt_units ignored"):
+            c = Coordinates([alt], crs="EPSG:4326", alt_units='ft')
+        assert c.alt_units is None
 
     def test_ctype(self):
         # assign
@@ -436,15 +493,17 @@ class TestCoordinatesSerialization(object):
         assert c2 == c
 
     def test_definition_properties(self):
-        c = Coordinates(
-            [[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02'], crange(0, 10, 0.5)],
-            dims=['lat_lon', 'time', 'alt'],
-            crs='EPSG:2193')
+        lat = ArrayCoordinates1d([0, 1, 2], 'lat')
+        lon = ArrayCoordinates1d([0, 1, 2], 'lon')
+        
+        # default
+        c = Coordinates([lat, lon], crs='EPSG:2193', alt_units='ft')
         d = c.definition
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
         c2 = Coordinates.from_definition(d)
         assert c2 == c
         assert c2.crs == 'EPSG:2193'
+        assert c2.alt_units == 'ft'
 
     def test_from_definition(self):
         d = {
@@ -1308,50 +1367,121 @@ class TestCoordinatesSpecial(object):
 
     def test_eq_ne_hash(self):
         c1 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
-        c2 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
-        c3 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'], ctype='point')
-        c4 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'], crs='EPSG:2193')
-        c5 = Coordinates([[[0, 2, 1], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
-        c6 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lon_lat', 'time'])
-        c7 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01']], dims=['lat_lon', 'time'])
-        c8 = Coordinates([[0, 1, 2], [10, 20, 30], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
+        c2 = Coordinates([[[0, 2, 1], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lat_lon', 'time'])
+        c3 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01', '2018-01-02']], dims=['lon_lat', 'time'])
+        c4 = Coordinates([[[0, 1, 2], [10, 20, 30]], ['2018-01-01']], dims=['lat_lon', 'time'])
+        c5 = Coordinates([[0, 1, 2], [10, 20, 30], ['2018-01-01', '2018-01-02']], dims=['lat', 'lon', 'time'])
 
         # eq
         assert c1 == c1
-        assert c1 == c2
         assert c1 == deepcopy(c1)
 
+        assert not c1 == None
+        assert not c1 == c2
         assert not c1 == c3
         assert not c1 == c4
         assert not c1 == c5
-        assert not c1 == c6
-        assert not c1 == c7
-        assert not c1 == c8
-        assert not c1 == None
-
+        
         # ne (this only matters in python 2)
         assert not c1 != c1
-        assert not c1 != c2
         assert not c1 != deepcopy(c1)
 
+        assert c1 != None
         assert c1 != c3
+        assert c1 != c2
         assert c1 != c4
         assert c1 != c5
-        assert c1 != c6
-        assert c1 != c7
-        assert c1 != c8
-        assert c1 != None
-
+        
         # hash
         assert c1.hash == c1.hash
-        assert c1.hash == c2.hash
         assert c1.hash == deepcopy(c1).hash
         
         assert c1.hash != c3.hash
+        assert c1.hash != c2.hash
         assert c1.hash != c4.hash
         assert c1.hash != c5.hash
-        assert c1.hash != c6.hash
-        assert c1.hash != c7.hash
+
+    def test_eq_ne_hash_ctype(self):
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+        c1 = Coordinates([lat, lon], dims=['lat', 'lon'])
+        c2 = Coordinates([lat, lon], dims=['lat', 'lon'], ctype='point')
+        
+        # eq
+        assert not c1 == c2
+        assert c2 == deepcopy(c2)
+        
+        # ne (this only matters in python 2)
+        assert c1 != c2
+        assert not c2 != deepcopy(c2)
+
+        # hash
+        assert c1.hash != c2.hash
+        assert c2.hash == deepcopy(c2).hash
+
+    def test_eq_ne_hash_crs(self):
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+        c1 = Coordinates([lat, lon], dims=['lat', 'lon'])
+        c2 = Coordinates([lat, lon], dims=['lat', 'lon'], crs='EPSG:2193')
+
+        # eq
+        assert not c1 == c2
+        assert c2 == deepcopy(c2)
+        
+        # ne (this only matters in python 2)
+        assert c1 != c2
+        assert not c2 != deepcopy(c2)
+
+        # hash
+        assert c1.hash != c2.hash
+        assert c2.hash == deepcopy(c2).hash
+
+    def test_eq_ne_hash_alt_units(self):
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+        c1 = Coordinates([lat, lon], dims=['lat', 'lon'], crs='EPSG:2193')
+        c2 = Coordinates([lat, lon], dims=['lat', 'lon'], crs='EPSG:2193', alt_units='ft')
+        c3 = Coordinates([lat, lon], dims=['lat', 'lon'], crs='EPSG:2193', alt_units='m')
+        
+        # eq
+        assert not c1 == c2
+        assert not c1 == c3
+        assert not c2 == c3
+        
+        assert c1 == deepcopy(c1)
+        assert c2 == deepcopy(c2)
+        assert c3 == deepcopy(c3)
+        
+        # ne (this only matters in python 2)
+        assert c1 != c2
+        assert c1 != c3
+        assert c2 != c3
+        
+        assert not c1 != deepcopy(c1)
+        assert not c2 != deepcopy(c2)
+        assert not c3 != deepcopy(c3)
+        
+        # hash
+        assert c1.hash != c2.hash
+        assert c1.hash != c3.hash
+        assert c2.hash != c3.hash
+        
+        assert c1.hash == deepcopy(c1).hash
+        assert c2.hash == deepcopy(c2).hash
+        assert c3.hash == deepcopy(c3).hash
+    
+    def test_eq_ne_hash_crs_alt_units(self):
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
+
+        # special case, these should be the same
+        c1 = Coordinates([lat, lon], dims=['lat', 'lon'], crs='EPSG:2193', alt_units='ft')
+        c2 = Coordinates([lat, lon], dims=['lat', 'lon'], crs='+init=EPSG:2193 +vunits=ft')
+        
+        assert c1 == c2
+        assert not c1 != c2
+        assert c1.hash == c2.hash
 
 class TestCoordinatesFunctions(object):
     def test_merge_dims(self):
