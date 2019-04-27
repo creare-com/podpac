@@ -633,6 +633,8 @@ class H5PY(DataSource):
         Default is ['lat', 'lon', 'time', 'alt']. The order of the dimensions in the dataset. For example,
         if self.datasets[datakey] has shape (1, 2, 3) and the (time, lon, lat) dimensions have sizes (1, 2, 3)
         then dim_order should be ['time', 'lon', 'lat']
+    file_mode : str, optional
+        Default is 'r'. The mode used to open the HDF5 file. Options are r, r+, w, w- or x, a (see h5py.File).
     """
     
     source = tl.Unicode(allow_none=False)
@@ -643,6 +645,7 @@ class H5PY(DataSource):
     timekey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     altkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     dim_order = tl.List(default_value=['lat', 'lon', 'time', 'alt']).tag(attr=True)
+    file_mode = tl.Unicode(default_value='r')
     
     @tl.default('dataset')
     def _open_dataset(self, source=None):
@@ -666,7 +669,7 @@ class H5PY(DataSource):
 
         # TODO: dataset should not open by default
         # prefer with as: syntax
-        return h5py.File(source)
+        return h5py.File(source, self.file_mode)
     
     def close_dataset(self):
         """Closes the file for the datasource

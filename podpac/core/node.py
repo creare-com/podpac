@@ -427,7 +427,7 @@ class Node(tl.HasTraits):
         """
 
         if not self.has_cache(key, coordinates=coordinates):
-            raise NodeException("cached data not found for key '%s' and cooordinates %s" % (key, coordinates))
+            raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
 
