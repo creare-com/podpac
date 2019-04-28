@@ -9,7 +9,7 @@ from datetime import datetime
 from podpac.core.coordinates.utils import get_timedelta, get_timedelta_unit, make_timedelta_string
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_array, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, divide_timedelta
-from podpac.core.coordinates.utils import get_vunits, set_vunits
+from podpac.core.coordinates.utils import get_vunits, set_vunits, rem_vunits
 
 def test_get_timedelta():
     td64 = np.timedelta64
@@ -478,4 +478,17 @@ def test_set_vunits():
     assert get_vunits(crs) == 'ft'
 
     crs = set_vunits('EPSG:4326', 'ft')
+    assert get_vunits(crs) is None
+
+def test_rem_vunits():
+    crs = rem_vunits('+proj=merc +vunits=m')
+    assert get_vunits(crs) is None
+
+    crs = rem_vunits('+proj=merc +vunits=us-ft')
+    assert get_vunits(crs) is None
+
+    crs = rem_vunits('+proj=merc +lat_ts=56.5 +vunits=ft +ellps=GRS80')
+    assert get_vunits(crs) is None
+
+    crs = rem_vunits('+proj=merc +lat_ts=56.5 +ellps=GRS80')
     assert get_vunits(crs) is None

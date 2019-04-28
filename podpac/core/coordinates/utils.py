@@ -489,3 +489,21 @@ def set_vunits(crs, vunits):
     crs = pyproj.CRS(crs).to_proj4() # standardize, this is optional
 
     return crs
+
+def rem_vunits(crs):
+    """
+    Remove the vunits of a coordinate reference system string, if present.
+
+    Arguments
+    ---------
+    crs : str
+        PROJ4 coordinate reference system.
+
+    Returns
+    crs : str
+        PROJ4 coordinate referenc system without vunits.
+    """
+
+    if '+vunits' in crs:
+        crs = re.sub(r'\+vunits=[a-z\-]+', '', crs)
+    return crs

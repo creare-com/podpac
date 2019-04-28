@@ -24,7 +24,7 @@ import pyproj
 import podpac
 from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait
-from podpac.core.coordinates.utils import get_vunits, set_vunits
+from podpac.core.coordinates.utils import get_vunits, set_vunits, rem_vunits
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -1201,18 +1201,17 @@ class Coordinates(tl.HasTraits):
         if crs is None and alt_units is None:
             raise TypeError('transform requires crs and/or alt_units argument')
 
-        # if only alt_units is provided, use self.crs
+        input_crs = crs
+        input_alt_units = alt_units
+
+        # use self.crs by default
         if crs is None:
             crs = self.crs
-        
-        # if no vunits are provided, but are necessary, use self.alt_units
-        # if alt_units is None and get_vunits(crs) is None and self.alt_units is not None:
-        #     alt_units = self.alt_units
-        
+
         # combine crs and alt_units
         if alt_units is not None:
             crs = set_vunits(crs, alt_units)
-
+        
         from_crs = self.CRS
         to_crs = pyproj.CRS(crs)
         
@@ -1220,34 +1219,41 @@ class Coordinates(tl.HasTraits):
         if from_crs == to_crs:
             return deepcopy(self)
 
-        # create proj4 transformer
+        cs = [c for c in self.values()]
+
+        # if lat-lon transform is required, check dims and convert unstacked lat-lon coordinates if necessary
+        from_spatial = pyproj.CRS(rem_vunits(self.crs))
+        to_spatial = pyproj.CRS(rem_vunits(crs))
+        if from_spatial != to_spatial:
+            if 'lat' in self.dims and 'lon' in self.dims:
+                ilat = self.dims.index('lat')
+                ilon = self.dims.index('lon')
+                if ilat == ilon-1:
+                    c1, c2 = self['lat'], self['lon']
+                elif ilon == ilat-1:
+                    c1, c2 = self['lon'], self['lat']
+                else:
+                    raise ValueError('Cannot transform coordinates with nonadjacent lat and lon, transpose first')
+
+                c = DependentCoordinates(
+                    np.meshgrid(c1.coordinates, c2.coordinates),
+                    dims=[c1.name, c2.name],
+                    ctypes=[c1.ctype, c2.ctype],
+                    segment_lengths=[c1.segment_lengths, c2.segment_lengths])
+
+                # replace 'lat' and 'lon' entries with single 'lat,lon' entry
+                i = min(ilat, ilon)
+                cs.pop(i)
+                cs.pop(i)
+                cs.insert(i, c)
+
+            elif 'lat' in self.dims or 'lon' in self.dims:
+                raise ValueError('Cannot transform lat coordinates without lon coordinates')
+
+        # transform
         transformer = pyproj.Transformer.from_proj(from_crs, to_crs)
-
-        # initialize transformed coordinates
-        t_coords = deepcopy(self)
-        
-        # update crs
-        # note using `srs` here so it captures the user input (i.e. EPSG:4193)
-        # if alt_units included, this will be a whole proj4 string because of conversion above
-        t_coords.set_trait('crs', to_crs.srs)
-        
-        # if lat or lon is present, coordinates MUST have both, even if stacked:
-        if 'lat' in self.udims or 'lon' in self.udims:
-            if 'lat' not in self.udims or 'lon' not in self.udims:
-                raise ValueError('Coordinates must have both lat and lon dimensions to transform coordinate reference systems')
-
-            (lat, lon) = transformer.transform(self.coords['lat'].values, self.coords['lon'].values)
-            t_coords['lat'] = ArrayCoordinates1d(lat)
-            t_coords['lon'] = ArrayCoordinates1d(lon)
-
-        # by keeping these seperate, we can handle altitude dimensions that are a different length from lat/lon
-        if 'alt' in self.udims:
-            dummy = np.zeros(len(self.coords['alt'].values))  # must be same length as alt
-            (lat, lon, alt) = transformer.transform(dummy, dummy, self.coords['alt'].values)
-            t_coords['alt'] = ArrayCoordinates1d(alt)
-
-        return t_coords
-
+        ts = [c._transform(transformer) for c in cs]
+        return Coordinates(ts, crs=input_crs, alt_units=input_alt_units)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods

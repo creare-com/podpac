@@ -1,6 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
+import warnings
 
 import numpy as np
 import traitlets as tl
@@ -444,6 +445,67 @@ class DependentCoordinates(BaseCoordinates):
             return self, slice(None)
         else:
             return self
+
+    def _transform(self, transformer):
+        coords = [c.copy() for c in self.coordinates]
+        properties = self.properties
+        
+        if 'lat' in self.dims and 'lon' in self.dims and 'alt' in self.dims:
+            ilat = self.dims.index('lat')
+            ilon = self.dims.index('lon')
+            ialt = self.dims.index('alt')
+
+            # coordinates
+            lat = coords[ilat].flatten()
+            lon = coords[ilon].flatten()
+            alt = coords[ialt].flatten()
+            tlat, tlon, talt = transformer.transform(lat, lon, alt)
+            coords[ilat] = tlat.reshape(self.shape)
+            coords[ilon] = tlon.reshape(self.shape)
+            coords[ialt] = talt.reshape(self.shape)
+
+            # segment lengths
+            # TODO can we use '+units' here, at least sometimes?
+            if self.ctypes[ilat] is not 'point':
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
+            if self.ctypes[ilon] is not 'point':
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
+            if self.ctypes[ialt] is not 'point':
+                _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
+                properties['segment_lengths'][ialt] = tls
+
+        elif 'lat' in self.dims and 'lon' in self.dims:
+            ilat = self.dims.index('lat')
+            ilon = self.dims.index('lon')
+
+            # coordinates
+            lat = coords[ilat].flatten()
+            lon = coords[ilon].flatten()
+            tlat, tlon = transformer.transform(lat, lon)
+            coords[ilat] = tlat.reshape(self.shape)
+            coords[ilon] = tlon.reshape(self.shape)
+
+            # segment lengths
+            # TODO can we use '+units' here, at least sometimes?
+            if self.ctypes[ilat] is not 'point':
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
+            if self.ctypes[ilon] is not 'point':
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
+
+        elif 'alt' in self.dims:
+            ialt = self.dims.index('alt')
+
+            # coordinates
+            alt = coords[ialt].flatten()
+            _, _, talt = transformer.transform(np.zeros(self.size), np.zeros(self.size), alt)
+            coords[ialt] = talt.reshape(self.shape)
+
+            # segment lengths
+            if self.ctypes[ialt] is not 'point':
+                _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
+                properties['segment_lengths'][ialt] = tls
+
+        return DependentCoordinates(coords, **properties)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug

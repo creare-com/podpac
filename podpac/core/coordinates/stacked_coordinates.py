@@ -2,6 +2,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
+import warnings
 
 import numpy as np
 import xarray as xr
@@ -415,3 +416,65 @@ class StackedCoordinates(BaseCoordinates):
             I = slice(None, None)
 
         return I
+
+    def _transform(self, transformer):
+        coords = [c.copy() for c in self._coords]
+
+        if 'lat' in self.dims and 'lon' in self.dims and 'alt' in self.dims:
+            ilat = self.dims.index('lat')
+            ilon = self.dims.index('lon')
+            ialt = self.dims.index('alt')
+
+            # coordinates
+            lat = coords[ilat]
+            lon = coords[ilon]
+            alt = coords[ialt]
+            tlat, tlon, talt = transformer.transform(lat.coordinates, lon.coordinates, alt.coordinates)
+            coords[ilat].set_trait('coordinates', tlat)
+            coords[ilon].set_trait('coordinates', tlon)
+            coords[ialt].set_trait('coordinates', talt)
+            
+            # segment lengths
+            # TODO can we use the proj4 '+units' here, at least sometimes?
+            if lat.ctype is not 'point' and 'segment_lengths' in lat.properties:
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
+            if lon.ctype is not 'point' and 'segment_lengths' in lon.properties:
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
+            if alt.ctype is not 'point' and 'segment_lengths' in lon.properties:
+                sl = alt.segment_lengths
+                _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
+                coords[ialt].set_trait('segment_lengths', tsl)
+
+        elif 'lat' in self.dims and 'lon' in self.dims:
+            ilat = self.dims.index('lat')
+            ilon = self.dims.index('lon')
+
+            # coordinates
+            lat = coords[ilat]
+            lon = coords[ilon]
+            tlat, tlon = transformer.transform(lat.coordinates, lon.coordinates)
+            coords[ilat].set_trait('coordinates', tlat)
+            coords[ilon].set_trait('coordinates', tlon)
+            
+            # segment lengths
+            # TODO can we use proj4 '+units' here, at least sometimes?
+            if lat.ctype is not 'point' and 'segment_lengths' in lat.properties:
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
+            if lon.ctype is not 'point' and 'segment_lengths' in lon.properties:
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
+
+        elif 'alt' in self.dims:
+            ialt = self.dims.index('alt')
+
+            # coordinates
+            alt = coords[ialt]
+            _, _, talt = transformer.transform(np.zeros(self.size), np.zeros(self.size), alt.coordinates)
+            coords[ialt].set_trait('coordinates', talt)
+            
+            # segment lengths
+            if alt.ctype is not 'point' and 'segment_lengths' in lon.properties:
+                sl = alt.segment_lengths
+                _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
+                coords[ialt].set_trait('segment_lengths', tsl)
+
+        return StackedCoordinates(coords)
