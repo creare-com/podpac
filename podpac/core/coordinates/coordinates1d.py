@@ -370,3 +370,26 @@ class Coordinates1d(BaseCoordinates):
 
     def _select(self, bounds, return_indices, outer):
         raise NotImplementedError
+
+    def _transform(self, transformer):
+        from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
+
+        if self.name == 'alt':
+            # coordinates
+            _, _, tcoordinates = transformer.transform(np.zeros(self.size), np.zeros(self.size), self.coordinates)
+            
+            # segment lengths
+            properties = self.properties
+            if self.ctype is not 'point' and 'segment_lengths' in self.properties:
+                _ = np.zeros_like(self.segment_lengths)
+                _, _, tsl = transformer.transform(_, _, self.segment_lengths)
+                properties['segment_lengths'] = tsl
+            
+            t = ArrayCoordinates1d(tcoordinates, **properties)
+
+        else:
+            # this assumes that the transformer has been checked and that if this is a lat or lon dimension, the
+            # transformer must not have a spatial transform
+            t = self.copy()
+
+        return t

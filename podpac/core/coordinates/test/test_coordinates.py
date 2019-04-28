@@ -1109,7 +1109,7 @@ class TestCoordinatesMethods(object):
 
     def test_transform(self):
         c = Coordinates(
-            [[0, 1], [10, 20], ['2018-01-01', '2018-01-02'], [0, 1, 2]],
+            [[0, 1], [10, 20, 30, 40], ['2018-01-01', '2018-01-02'], [0, 1, 2]],
             dims=['lat', 'lon', 'time', 'alt'],
             crs='EPSG:4326')
         c1 = Coordinates(
@@ -1124,7 +1124,7 @@ class TestCoordinatesMethods(object):
         c_trans = c.transform('EPSG:2193')
         assert c.crs == 'EPSG:4326'
         assert c_trans.crs == 'EPSG:2193'
-        assert round(c_trans['lat'].values[0]) == 29995930.0
+        assert round(c_trans['lat'].values[0, 0]) == 29995930.0
 
         # no transform needed
         c_trans = c.transform('EPSG:4326')
@@ -1137,43 +1137,45 @@ class TestCoordinatesMethods(object):
         proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
         c_trans = c.transform(proj)
         assert c.crs == 'EPSG:4326'
-        assert c_trans.crs == pyproj.CRS(proj).srs
-        assert round(c_trans['lat'].values[0]) == 615849.0
+        assert c_trans.crs == proj
+        assert round(c_trans['lat'].values[0, 0]) == 615849.0
 
         # support stacked coordinates
         proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
         c1_trans = c1.transform(proj)
         assert c1.crs == 'EPSG:4326'
-        assert c_trans.crs == pyproj.CRS(proj).srs
+        assert c_trans.crs == proj
         assert round(c1_trans['lat'].values[0]) == 615849.0
 
         # support altitude unit transformations
         proj = '+proj=merc +vunits=us-ft'
         c_trans = c.transform(proj)
-        assert round(c_trans['lat'].values[0]) == 1113195.0
+        assert round(c_trans['lat'].values[0, 0]) == 1113195.0
         assert round(c_trans['alt'].values[1]) == 3.0
         assert round(c_trans['alt'].values[2]) == 7.0
-        assert '+vunits=us-ft' in c_trans.crs
+        assert c_trans.crs == proj
         c1_trans = c1.transform(proj)
         assert round(c1_trans['lat'].values[0]) == 1113195.0
         assert round(c1_trans['alt'].values[0]) == 328.0
         assert round(c1_trans['alt'].values[1]) == 656.0
-        assert '+vunits=us-ft' in c1_trans.crs
+        assert c1_trans.crs == proj
 
         # make sure vunits can be overwritten appropriately
-        c2_trans = c1_trans.transform(alt_units='m')
+        c2_trans = c1_trans.transform('EPSG:2193', alt_units='m')
         assert round(c2_trans['alt'].values[0]) == 100.0
-        assert '+vunits=m' in c2_trans.crs and '+vunits=us-ft' not in c2_trans.crs
+        assert c2_trans.alt_units == 'm'
 
         # alt_units parameter
         c_trans = c.transform('EPSG:2193', alt_units='us-ft')
         assert round(c_trans['alt'].values[1]) == 3.0
         assert round(c_trans['alt'].values[2]) == 7.0
-        assert '+vunits=us-ft' in c_trans.crs
+        assert c_trans.crs == 'EPSG:2193'
+        assert c_trans.alt_units == 'us-ft'
         c_trans = c.transform('EPSG:2193', alt_units='km')
         assert c_trans['alt'].values[1] == 0.001
         assert c_trans['alt'].values[2] == 0.002
-        assert '+vunits=km' in c_trans.crs
+        assert c_trans.crs == 'EPSG:2193'
+        assert c_trans.alt_units == 'km'
 
         # no parameter
         with pytest.raises(TypeError, match="transform requires crs and/or alt_units argument"):
