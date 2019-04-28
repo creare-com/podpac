@@ -887,7 +887,7 @@ class DiskCacheStore(FileCacheStore):
 
     cache_mode = 'disk'
     cache_modes = set(['disk','all'])
-    limit_setting = 'DISK_CACHE_DIR'
+    limit_setting = 'DISK_CACHE_MAX_BYTES'
 
     def __init__(self, root_cache_dir_path=None, storage_format='pickle', max_size=None, use_settings_limit=True):
         """Initialize a cache that uses a folder on a local disk file system.

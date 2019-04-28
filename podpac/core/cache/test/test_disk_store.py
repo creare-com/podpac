@@ -2,8 +2,11 @@ import pytest
 import numpy as np
 import os
 import warnings
+from copy import deepcopy
 
 from numpy.testing import assert_equal
+
+import podpac
 
 from podpac.core.cache.cache import CacheException
 from podpac.core.cache.cache import CacheCtrl
@@ -17,12 +20,17 @@ from podpac.core.coordinates.coordinates import Coordinates
 
 from podpac.core.settings import settings
 
+settings_orig = deepcopy(settings)
 
 root_disk_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tmp_cache'))
 
+def restore_settings():
+    podpac.core.settings.settings = deepcopy(settings_orig)
+
 def make_cache_ctrl(max_size=None):
     store = DiskCacheStore(root_cache_dir_path=root_disk_cache_dir)
-    settings[store.limit_setting] = max_size
+    if max_size is not None:
+        settings[store.limit_setting] = max_size
     ctrl = CacheCtrl(cache_stores=[store])
     ctrl.rem(node='*', key='*', coordinates='*', mode='all')
     return ctrl
@@ -81,6 +89,7 @@ def test_put_and_get_with_cache_limits():
                     dout = cache.get(node=n2, key=k, coordinates=c2, mode='all')
                     assert (din == dout).all()
                     cache.rem(node='*', key='*', coordinates='*', mode='all')
+    restore_settings()
 
 def test_put_and_get():
     cache = make_cache_ctrl()

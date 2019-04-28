@@ -381,7 +381,11 @@ class DataSource(Node):
         else:
             requested_dims = coordinates.dims
             coordinates = coordinates.transpose(*output.dims)
-            # TODO: there is no real way to know the crs of an input output UnitsDataArray
+
+            # check crs compatibility
+            if output.crs != coordinates.crs:
+                raise ValueError('Output coordinate reference system ({}) does not match'.format(output.crs) +
+                                 'request Coordinates coordinate reference system ({})'.format(coordinates.crs))
 
 
         # interpolate data into output
