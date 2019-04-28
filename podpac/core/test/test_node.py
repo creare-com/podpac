@@ -205,6 +205,7 @@ class TestCreateOutputArray(object):
         assert isinstance(output, UnitsDataArray)
         assert output.shape == c.shape
         assert output.dtype == node.dtype
+        assert output.crs == c.crs
         assert np.all(np.isnan(output))
 
     def test_create_output_array_data(self):
@@ -215,6 +216,7 @@ class TestCreateOutputArray(object):
         assert isinstance(output, UnitsDataArray)
         assert output.shape == c.shape
         assert output.dtype == node.dtype
+        assert output.crs == c.crs
         assert np.all(output == 0.0)
 
     def test_create_output_array_dtype(self):
@@ -225,6 +227,7 @@ class TestCreateOutputArray(object):
         assert isinstance(output, UnitsDataArray)
         assert output.shape == c.shape
         assert output.dtype == node.dtype
+        assert output.crs == c.crs
         assert np.all(~output)
 
     def test_create_output_array_units(self):
@@ -236,6 +239,14 @@ class TestCreateOutputArray(object):
         
         from podpac.core.units import ureg as _ureg
         assert output.units == _ureg.meters
+
+    def test_create_output_array_crs(self):
+        crs = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
+        c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=['lat_lon', 'time'], crs=crs)
+        node = Node()
+
+        output = node.create_output_array(c)
+        assert output.crs == crs
 
 class TestCaching(object):
     @classmethod

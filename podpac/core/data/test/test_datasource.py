@@ -181,13 +181,12 @@ class TestDataSource(object):
         # assert attributes
         assert isinstance(output.attrs['layer_style'], Style)
 
-    # TODO: discuss test with MPU
     def test_evaluate_with_output(self):
         node = MockDataSource()
 
         # initialize a large output array
         fullcoords = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=['lat', 'lon'])
-        output = node.create_output_array(fullcoords) 
+        output = node.create_output_array(fullcoords)
 
         # evaluate a subset of the full coordinates
         coords = Coordinates([fullcoords['lat'][3:8], fullcoords['lon'][3:8]])
@@ -205,6 +204,22 @@ class TestDataSource(object):
         output[3:8, 3:8] = node.eval(coords, output=output[3:8, 3:8])
 
         np.testing.assert_equal(output.data, expected.data)
+
+    def test_evaluate_with_output_different_crs(self):
+
+        # default crs EPSG:4193
+        node = MockDataSource()
+        c = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=['lat', 'lon'])
+        c_x = Coordinates([crange(20, 30, 1), crange(20, 30, 1)], dims=['lat', 'lon'], crs='EPSG:2193')
+
+        # this will not throw an error because the requested coordinates will be transformed before request
+        output = node.create_output_array(c)
+        node.eval(c_x, output=output)
+        
+        # this will throw an error because output is not in the same crs as node
+        output = node.create_output_array(c_x)
+        with pytest.raises(ValueError, match="does not match"):
+            node.eval(c, output=output)
 
     def test_evaluate_with_output_no_intersect(self):
         # there is a shortcut if there is no intersect, so we test that here

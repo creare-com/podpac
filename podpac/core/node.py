@@ -25,8 +25,8 @@ COMMON_NODE_DOC = {
         """The set of coordinates requested by a user. The Node will be evaluated using these coordinates.""",
     'eval_output':
         """Default is None. Optional input array used to store the output data. When supplied, the node will not
-            allocate its own memory for the output array. This array needs to have the correct dimensions and
-            coordinates.""",
+            allocate its own memory for the output array. This array needs to have the correct dimensions,
+            coordinates, and coordinate reference system.""",
     'eval_return':
         """
         :class:`podpac.UnitsDataArray`
@@ -230,8 +230,10 @@ class Node(tl.HasTraits):
 
         attrs = {}
         attrs['layer_style'] = self.style
+        attrs['crs'] = coords.crs
         if self.units is not None:
             attrs['units'] = ureg.Unit(self.units)
+
         return create_data_array(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
