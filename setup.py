@@ -37,7 +37,7 @@ extras_require = {
     ],
     'intake': [
         'intake>=0.5.0'
-    ]
+    ],
     'aws': [
         'awscli>=1.11',
         'boto3>=1.4'
