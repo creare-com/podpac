@@ -31,7 +31,8 @@ class IntakeCatalog(podpac.data.DataSource):
     source : str, required
         Intake Catalog source
     field : str, optional,
-        If source is a dataframe with multiple fields, this specifies the field to use for analysis
+        If source is a dataframe with multiple fields, this specifies the field to use for analysis.for
+        Can be defined in the metadata in the intake catalog source.
     dims : dict, optional
         Dictionary defining the native coordinates dimensions in the intake catalog source.
         Keys are the podpac dimensions (lat, lon, time, alt) in stacked or unstacked form.
@@ -127,7 +128,7 @@ class IntakeCatalog(podpac.data.DataSource):
             if 'dims' in self.datasource.metadata:
                 self.dims = self.datasource.metadata['dims']
             else:
-                raise ValueError('No native coordinates dims defined in catalog or input to DataSource')
+                raise ValueError('No native coordinates dims defined in catalog or input')
 
         # look for crs in catalog
         if self.crs is None:
@@ -160,12 +161,17 @@ class IntakeCatalog(podpac.data.DataSource):
 
         data = self.datasource.read()  # TODO: support subselecting data
 
-        # select specific series from dataframe
-        if self.datasource.container == 'dataframe': 
+        # dataframe container
+        if self.datasource.container == 'dataframe':
+            
+            # look for field in catalog
             if self.field is None:
-                raise ValueError('Field is required when source container is a dataframe')
-            else:
-                data = data[self.field]
+                if 'field' in self.datasource.metadata:
+                    self.field = self.datasource.metadata['field']
+                else:
+                    raise ValueError('No field defined in catalog or input')
+
+            data = data[self.field]
 
         # create UnitDataArray with subselected data (idx)
         uda = self.create_output_array(coordinates, data=data[coordinates_index])
