@@ -33,7 +33,8 @@ extras_require = {
         'h5py>=2.7',
         'lxml>=4.2',
         'pydap>=3.2',
-        'rasterio>=1.0'
+        'rasterio>=1.0',
+        'intake>=0.5.0'
     ],
     'aws': [
         'awscli>=1.11',
