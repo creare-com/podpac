@@ -1124,7 +1124,7 @@ class TestCoordinatesMethods(object):
         c_trans = c.transform('EPSG:2193')
         assert c.crs == 'EPSG:4326'
         assert c_trans.crs == 'EPSG:2193'
-        assert round(c_trans['lat'].values[0, 0]) == 29995930.0
+        assert round(c_trans['lat'].coordinates[0, 0]) == 29995930.0
 
         # no transform needed
         c_trans = c.transform('EPSG:4326')
@@ -1138,42 +1138,42 @@ class TestCoordinatesMethods(object):
         c_trans = c.transform(proj)
         assert c.crs == 'EPSG:4326'
         assert c_trans.crs == proj
-        assert round(c_trans['lat'].values[0, 0]) == 615849.0
+        assert round(c_trans['lat'].coordinates[0, 0]) == 615849.0
 
         # support stacked coordinates
         proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
         c1_trans = c1.transform(proj)
         assert c1.crs == 'EPSG:4326'
         assert c_trans.crs == proj
-        assert round(c1_trans['lat'].values[0]) == 615849.0
+        assert round(c1_trans['lat'].coordinates[0]) == 615849.0
 
         # support altitude unit transformations
         proj = '+proj=merc +vunits=us-ft'
         c_trans = c.transform(proj)
-        assert round(c_trans['lat'].values[0, 0]) == 1113195.0
-        assert round(c_trans['alt'].values[1]) == 3.0
-        assert round(c_trans['alt'].values[2]) == 7.0
+        assert round(c_trans['lat'].coordinates[0, 0]) == 1113195.0
+        assert round(c_trans['alt'].coordinates[1]) == 3.0
+        assert round(c_trans['alt'].coordinates[2]) == 7.0
         assert c_trans.crs == proj
         c1_trans = c1.transform(proj)
-        assert round(c1_trans['lat'].values[0]) == 1113195.0
-        assert round(c1_trans['alt'].values[0]) == 328.0
-        assert round(c1_trans['alt'].values[1]) == 656.0
+        assert round(c1_trans['lat'].coordinates[0]) == 1113195.0
+        assert round(c1_trans['alt'].coordinates[0]) == 328.0
+        assert round(c1_trans['alt'].coordinates[1]) == 656.0
         assert c1_trans.crs == proj
 
         # make sure vunits can be overwritten appropriately
         c2_trans = c1_trans.transform('EPSG:2193', alt_units='m')
-        assert round(c2_trans['alt'].values[0]) == 100.0
+        assert round(c2_trans['alt'].coordinates[0]) == 100.0
         assert c2_trans.alt_units == 'm'
 
         # alt_units parameter
         c_trans = c.transform('EPSG:2193', alt_units='us-ft')
-        assert round(c_trans['alt'].values[1]) == 3.0
-        assert round(c_trans['alt'].values[2]) == 7.0
+        assert round(c_trans['alt'].coordinates[1]) == 3.0
+        assert round(c_trans['alt'].coordinates[2]) == 7.0
         assert c_trans.crs == 'EPSG:2193'
         assert c_trans.alt_units == 'us-ft'
         c_trans = c.transform('EPSG:2193', alt_units='km')
-        assert c_trans['alt'].values[1] == 0.001
-        assert c_trans['alt'].values[2] == 0.002
+        assert c_trans['alt'].coordinates[1] == 0.001
+        assert c_trans['alt'].coordinates[2] == 0.002
         assert c_trans.crs == 'EPSG:2193'
         assert c_trans.alt_units == 'km'
 
@@ -1363,7 +1363,7 @@ class TestCoordinatesMethods(object):
         assert o.crs == 'EPSG:2193' # didn't get changed
         assert np.all(c_int['lat'].bounds == np.array([5., 10.]))
         assert np.all(c_int['lon'].bounds == np.array([4., 10.]))
-        assert np.all(c_int['time'].values == c['time'].values)
+        assert np.all(c_int['time'] == c['time'])
 
     def test_intersect_invalid(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3, 4, 5], name='lat')

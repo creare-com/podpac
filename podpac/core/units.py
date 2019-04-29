@@ -289,7 +289,7 @@ def create_data_array(coords, data=np.nan, dtype=float, **kwargs):
     else:
         data = data.astype(dtype)
 
-    return UnitsDataArray(data, coords=coords.coords, dims=coords.dims, **kwargs)
+    return UnitsDataArray(data, coords=coords.coords, dims=coords.idims, **kwargs)
 
 def get_image(data, format='png', vmin=None, vmax=None):
     """Return a base64-encoded image of the data

@@ -1098,7 +1098,7 @@ class Coordinates(tl.HasTraits):
         if len(dims) == 0:
             dims = list(self._coords.keys())[::-1]
 
-        if len(dims) != self.ndim:
+        if len(dims) != len(self.dims):
             raise ValueError("Invalid transpose dimensions, input %s does not match dims %s" % (dims, self.dims))
 
         if in_place:

@@ -398,11 +398,10 @@ class DataSource(Node):
         if requested_dims is not None and requested_dims != output.dims:
             output = output.transpose(*requested_dims)
         
-        # transform the output crs to the r]equested coordinates crs
+        # transform the output crs to the requested coordinates crs
         # TODO: this could be made into method in/for UnitsDataArray 
         if self._evaluated_coordinates.crs != coordinates.crs:
-            coords = Coordinates.from_xarray(output.coords)
-            t_coords = coords.transform(self._evaluated_coordinates.crs)
+            t_coords = coordinates.transform(self._evaluated_coordinates.crs)
             output = output.assign_coords(**t_coords.coords)
 
         # save output to private for debugging
