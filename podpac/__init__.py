@@ -48,7 +48,6 @@ from podpac import interpolators
 from podpac import coordinates
 from podpac import compositor
 from podpac import pipeline
-from podpac import datalib   # handles imports in datalib/__init__.py
 
 ## Developer API
 from podpac import core
