@@ -1,4 +1,4 @@
-""" 
+"""
 podpac module
 """
 
@@ -20,7 +20,10 @@ install_requires = ['matplotlib>=2.1',
                     'traitlets>=4.3',
                     'xarray>=0.10',
                     'requests>=2.18',
-                    'lazy-import>=0.2.2']
+                    'pyproj>=2.1',
+                    'lazy-import>=0.2.2',
+                    'psutil']
+
 if sys.version_info.major == 2:
     install_requires += ['future>=0.16']
 

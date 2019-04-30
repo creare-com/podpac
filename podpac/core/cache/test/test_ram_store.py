@@ -1,8 +1,12 @@
 import pytest
 import numpy as np
 import os
+import warnings
+from copy import deepcopy
 
 from numpy.testing import assert_equal
+
+import podpac
 
 from podpac.core.cache.cache import CacheException
 from podpac.core.cache.cache import CacheCtrl
@@ -13,12 +17,20 @@ from podpac.core.cache.cache import CacheException
 from podpac.core.data.types import Array
 from podpac.core.coordinates.coordinates import Coordinates
 
-def make_cache_ctrl():
-    store = RamCacheStore()
-    ctrl = CacheCtrl(cache_stores=[store])
-    return ctrl
+from podpac.core.settings import settings
 
-cache = make_cache_ctrl()
+settings_orig = deepcopy(settings)
+
+def restore_settings():
+    podpac.core.settings.settings = deepcopy(settings_orig)
+
+def make_cache_ctrl(max_size=None):
+    store = RamCacheStore()
+    if max_size is not None:
+        settings[store.limit_setting] = max_size
+    ctrl = CacheCtrl(cache_stores=[store])
+    ctrl.rem(node='*', key='*', coordinates='*', mode='all')
+    return ctrl
 
 def make_array_data_source(coords_func=None, data_func=None):
     if data_func is None:
@@ -41,7 +53,44 @@ node_funcs = [lambda: make_array_data_source(coords_func=c, data_func=d) for d i
 data_funcs = [lambda: np.zeros((2,3,4)), lambda: np.ones((2,3,4))]
 coord_funcs = coord_funcs + [lambda: None]
 
+def test_put_and_get_with_cache_limits():
+    insufficient_sizes = [0, 10, 1e3]
+    sufficient_sizes = [1e9]
+
+    for s in insufficient_sizes:
+        cache = make_cache_ctrl(max_size=s)
+        for coord_f in coord_funcs:
+            for node_f in node_funcs:
+                for data_f in data_funcs:
+                    c1,c2 = coord_f(),coord_f()
+                    n1,n2 = node_f(), node_f()
+                    din = data_f()
+                    k = "key"
+                    with pytest.warns(RuntimeWarning):
+                        cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
+                    assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
+                    cache.rem(node='*', key='*', coordinates='*', mode='all')
+
+    for s in sufficient_sizes:
+        cache = make_cache_ctrl(max_size=s)
+        for coord_f in coord_funcs:
+            for node_f in node_funcs:
+                for data_f in data_funcs:
+                    c1,c2 = coord_f(),coord_f()
+                    n1,n2 = node_f(), node_f()
+                    din = data_f()
+                    k = "key"
+                    cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
+                    dout = cache.get(node=n1, key=k, coordinates=c1, mode='all')
+                    assert (din == dout).all()
+                    dout = cache.get(node=n2, key=k, coordinates=c2, mode='all')
+                    assert (din == dout).all()
+                    cache.rem(node='*', key='*', coordinates='*', mode='all')
+    restore_settings()
+
+
 def test_put_and_get():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -58,6 +107,7 @@ def test_put_and_get():
 
 
 def test_put_and_update():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -78,6 +128,7 @@ def test_put_and_update():
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_put_and_remove():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -94,6 +145,7 @@ def test_put_and_remove():
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_put_two_and_remove_one():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -115,6 +167,7 @@ def test_put_two_and_remove_one():
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_put_two_and_remove_all():
+    cache = make_cache_ctrl()
     for coord_f in coord_funcs:
         for node_f in node_funcs:
             for data_f in data_funcs:
@@ -138,6 +191,7 @@ def test_put_two_and_remove_all():
                 cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_two_different_nodes_put_and_one_node_removes_all():
+    cache = make_cache_ctrl()
     lat = np.random.rand(3)
     lon = np.random.rand(4)
     coords = Coordinates([lat,lon],['lat','lon'])
@@ -169,6 +223,7 @@ def test_two_different_nodes_put_and_one_node_removes_all():
     cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 def test_put_and_get_array_datasource_output():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
@@ -182,6 +237,7 @@ def test_put_and_get_array_datasource_output():
     cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
 def test_put_and_get_with_different_instances_of_same_key_objects_array_datasource_output():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
@@ -205,6 +261,7 @@ def test_put_and_get_with_different_instances_of_same_key_objects_array_datasour
     cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
 def test_put_and_update_array_datasource_numpy_array():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
@@ -225,6 +282,7 @@ def test_put_and_update_array_datasource_numpy_array():
     cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
 def test_put_and_remove_array_datasource_numpy_array():
+    cache = make_cache_ctrl()
     lat = [0, 1, 2]
     lon = [10, 20, 30, 40]
     dates = ['2018-01-01', '2018-01-02']
@@ -242,6 +300,7 @@ def test_put_and_remove_array_datasource_numpy_array():
     cache.rem(node='*', key='*', coordinates='*', mode='all') # clear the cache stores
 
 def test_modify_after_get():
+    cache = make_cache_ctrl()
     node = Array(source=[0, 1])
     cache.put(node, {'test': 0}, 'test')
     d = cache.get(node, 'test')

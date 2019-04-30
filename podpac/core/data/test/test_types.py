@@ -253,9 +253,9 @@ class TestCSV(object):
         node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col='data')
         nc = node.native_coordinates
         assert nc.size == 5
-        assert np.all(nc['lat'].coords == [0, 1, 1, 1, 1])
-        assert np.all(nc['lon'].coords == [0, 0, 2, 2, 2])
-        assert np.all(nc['alt'].coords == [0, 0, 0, 0, 4])
+        assert np.all(nc['lat'].coordinates == [0, 1, 1, 1, 1])
+        assert np.all(nc['lon'].coordinates == [0, 0, 2, 2, 2])
+        assert np.all(nc['alt'].coordinates == [0, 0, 0, 0, 4])
     
     def test_data(self):
         node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col='data')

@@ -9,10 +9,12 @@ import warnings
 import importlib
 from collections import OrderedDict
 import json
+from copy import deepcopy
 
 import traitlets as tl
 import numpy as np
 
+from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait, JSONEncoder
 from podpac.core.node import Node, NodeException
 from podpac.core.data.datasource import DataSource
@@ -65,9 +67,9 @@ class Pipeline(Node):
     @tl.validate('json')
     def _json_validate(self, proposal):
         s = proposal['value']
-        definition = json.loads(s)
+        definition = json.loads(s, object_pairs_hook=OrderedDict)
         parse_pipeline_definition(definition)
-        return json.dumps(json.loads(s), cls=JSONEncoder) # standardize
+        return json.dumps(json.loads(s, object_pairs_hook=OrderedDict), cls=JSONEncoder) # standardize
 
     @tl.validate('definition')
     def _validate_definition(self, proposal):
@@ -81,7 +83,6 @@ class Pipeline(Node):
 
     @tl.default('definition')
     def _definition_from_json(self):
-        print("definition from json")
         return json.loads(self.json, object_pairs_hook=OrderedDict)
 
     @tl.default('output')
@@ -123,8 +124,8 @@ class Pipeline(Node):
         return self.node.dtype
 
     @property
-    def cache_type(self):
-        return self.node.cache_type
+    def cache_ctrl(self):
+        return self.node.cache_ctrl
 
     @property
     def style(self):
@@ -285,4 +286,7 @@ def _get_subattr(nodes, name, ref):
     except (KeyError, AttributeError):
         raise PipelineError("'%s' references nonexistent node/attribute '%s'" % (name, ref))
     
+    if settings['DEBUG']:
+        attr = deepcopy(attr)
+
     return attr

@@ -51,6 +51,9 @@ from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.node import cache_func
 from podpac.core.node import NodeException
+from podpac.core.cache import cache, DiskCacheStore
+
+from . import nasaCMR
 
 COMMON_DOC = COMMON_DATA_DOC.copy()
 COMMON_DOC.update(
@@ -178,11 +181,12 @@ SMAP_PRODUCT_DICT = {
     #'<Product>.ver': ['latkey',               'lonkey',                     'rootdatakey',                       'layerkey'              'default_verison'
     'SPL4SMAU':   ['cell_lat',             'cell_lon',                   'Analysis_Data_',                    '{rdk}sm_surface_analysis',    4],
     'SPL4SMGP':   ['cell_lat',             'cell_lon',                   'Geophysical_Data_',                 '{rdk}sm_surface',             4],
-    'SPL3SMA':    ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          4],
-    'SPL3SMAP':   ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          4],
-    'SPL3SMP':    ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}_soil_moisture',         4],
+    'SPL3SMA':    ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          3],
+    'SPL3SMAP':   ['{rdk}latitude',        '{rdk}longitude',             'Soil_Moisture_Retrieval_Data_',     '{rdk}soil_moisture',          3],
+    'SPL3SMP':    ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}_soil_moisture',         5],
+    'SPL3SMP_E':  ['{rdk}AM_latitude',     '{rdk}AM_longitude',          'Soil_Moisture_Retrieval_Data_',     '{rdk}_soil_moisture',         5],
     'SPL4SMLM':   ['cell_lat',             'cell_lon',                   'Land_Model_Constants_Data_',        '',                            4],
-    'SPL2SMAP_S': ['{rdk}latitude_1km',    '{rdk}longitude_1km',         'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km',      4],
+    'SPL2SMAP_S': ['{rdk}latitude_1km',    '{rdk}longitude_1km',         'Soil_Moisture_Retrieval_Data_1km_', '{rdk}soil_moisture_1km',      2],
 }
 
 SMAP_PRODUCT_MAP = xr.DataArray(list(SMAP_PRODUCT_DICT.values()),
@@ -210,6 +214,7 @@ def SMAP_BASE_URL():
             BASE_URL = rf
     except Exception as e:
         _logger.warning("Could not retrieve SMAP url from %s: " % (SMAP_BASE_URL_FILE) + str(e))
+        rf = None
     try:
         r = requests.get('https://s3.amazonaws.com/podpac-s3/settings/nsidc_smap_opendap_url.txt').text
         if 'https://' in r and 'nsidc.org' in r:
@@ -222,7 +227,7 @@ def SMAP_BASE_URL():
                 except Exception as e:
                     _logger.warning("Could not overwrite SMAP url update on disk:" + str(e))
     except Exception as e:
-        logger.warning("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
+        _logger.warning("Could not retrieve SMAP url from PODPAC S3 Server. Using default." + str(e))
     _SMAP_BASE_URL = BASE_URL
     return BASE_URL
 
@@ -523,7 +528,15 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
     auth_class = tl.Type(authentication.EarthDataSession)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
-    cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True, default_value='disk')
+
+    @tl.default('cache_ctrl')
+    def _cache_ctrl_default(self):
+        # append disk store to default cache_ctrl if not present
+        default_ctrl = cache.get_default_cache_ctrl()
+        stores = default_ctrl._cache_stores
+        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
+            stores.append(cache.DiskCacheStore())
+        return cache.CacheCtrl(stores)
 
     @tl.default('auth_session')
     def _auth_session_default(self):
@@ -699,15 +712,12 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
             lonlat = None
             if m:
                 date_time = date_time_regex.search(m.group()).group()
-                times.append(np.datetime64(
-                    '%s-%s-%sT%s:%s:%s' % (date_time[:4], date_time[4:6], date_time[6:8], date_time[9:11],
-                                           date_time[11:13], date_time[13:15])
-                ))
+                times.append(smap2np_date(date_time))
 
             elif m2:
                 m = m2
                 date = date_regex.search(m.group()).group()
-                times.append(np.datetime64('%s-%s-%s' % (date[:4], date[4:6], date[6:8])))
+                times.append(smap2np_date(date))
             if m:
                 sources.append(m.group())
                 lonlat = latlon_regex.search(m.group())
@@ -717,7 +727,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
                                 float(lonlat[:3]) * (1 - 2 * (lonlat[3] == 'W'))
                                 ))
 
-        times = np.array(times)
+        times = np.atleast_1d(np.array(times).squeeze())
         latlons = np.array(latlons)
         sources = np.array(sources)
         I = np.argsort(times)
@@ -776,8 +786,6 @@ class SMAP(podpac.compositor.OrderedCompositor):
     auth_class = tl.Type(authentication.EarthDataSession)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
-
-    cache_type = tl.Enum([None, 'disk', 'ram'], allow_none=True, default_value='disk')
 
     @tl.default('auth_session')
     def _auth_session_default(self):
@@ -908,22 +916,28 @@ class SMAP(podpac.compositor.OrderedCompositor):
                                ).shared_coordinates
         return coords
 
-    def get_filename_coordinates_sources(self, bounds=None):
+    def get_filename_coordinates_sources(self, bounds=None, update_cache=False):
         """Returns coordinates solely based on the filenames of the sources. This function was motivated by the 
         SMAP-Sentinel product, which does not have regularly stored tiles (in space and time). 
 
         Parameters
         -----------
-        Bounds: podpac.Coordinates, Optional
-            Default is None. Return the coordinates based on filenames of the source only within the specified bounds. When 
-            not None, the result is not cached.
+        bounds: podpac.Coordinates, Optional
+            Default is None. Return the coordinates based on filenames of the source only within the specified bounds. 
+            When not None, the result is not cached.
+            
+        update_cache: bool, optional
+            Default is False. The results of this call are automatically cached to disk. This function will try to 
+            update the cache if new data arrives. Only set this flag to True to rebuild the entire index locally (which
+            may be needed when version numbers in the filenames change).
 
         Returns
         -------
         podpac.Coordinates
             Coordinates of all the sources in the product family
-        np.ndarray(dtype=object(SMAPSource))
-            Array of all the SMAPSources pointing to unique OpenDAP urls corresponding to the partial native coordinates
+        Container
+            Container that will generate an array of the SMAPSources pointing to unique OpenDAP urls corresponding to
+            the returned coordinates
         
 
         Notes
@@ -931,37 +945,118 @@ class SMAP(podpac.compositor.OrderedCompositor):
         The outputs of this function can be used to find source that overlap spatially or temporally with a subset 
         region specified by the user.
 
-        If 'bounds' is not specified, the result is cached for faster future access.
+        If 'bounds' is not specified, the result is cached for faster future access after the first invocation.
+        
+        This call uses NASA's Common Metadata Repository (CMR) and requires an internet connection.
         """
-        try:
+        def cmr_query(kwargs=None, bounds=None):
+            """ Helper function for making and parsing cmr queries. This is used for building the initial index
+            and for updating the cached index with new data.
+            """
+            if not kwargs:
+                kwargs = {}
+                
+            # Set up regular expressions and maps to convert filenames to coordinates
+            date_re = self.sources[0].date_url_re
+            date_time_re = self.sources[0].date_time_url_re
+            latlon_re = self.sources[0].latlon_url_re
+            
+            def datemap(x):
+                m = date_time_re.search(x)
+                if not m: 
+                    m = date_re.search(x)
+                return smap2np_date(m.group())
+
+            def latlonmap(x):
+                m = latlon_re.search(x)
+                if not m:
+                    return ()
+                lonlat = m.group()
+                return (float(lonlat[4:6]) * (1 - 2 * (lonlat[6] == 'S')),
+                        float(lonlat[:3])  * (1 - 2 * (lonlat[3] == 'W')))
+            
+            # Restrict the query to any specified bounds
+            if bounds: 
+                kwargs['temporal'] = ','.join([str(b.astype('datetime64[s]')) for b in bounds['time'].area_bounds])
+                
+            # Get CMR data
+            filenames = nasaCMR.search_granule_json(auth_session=self.auth_session, 
+                                                    entry_map=lambda x: x['producer_granule_id'], 
+                                                    short_name=self.product, **kwargs)
+            if not filenames:
+                return Coordinates([]), [], []
+            
+            # Extract coordinate information from filenames
+            #filenames.sort()  # Assume it comes sorted...
+            dims = ['time']
+            dates = [d for d in np.array(list(map(datemap, filenames))).squeeze()]
+            coords = [dates]
+            if latlonmap(filenames[0]):
+                latlons = list(map(latlonmap, filenames))
+                lats = np.array([l[0] for l in latlons])
+                lons = np.array([l[1] for l in latlons])
+                dims = ['time_lat_lon']
+                coords = [[dates, lats, lons]]
+            
+            # Create PODPAC Coordinates object, and return relevant data structures
+            crds = Coordinates(coords, dims)
+            return crds, filenames, dates
+        
+        # Create kwargs for making a SMAP source
+        create_kwargs = {'auth_session': self.auth_session,
+                         'layer_key': self.layerkey}
+        if self.interpolation:
+            create_kwargs['interpolation'] = self.interpolation
+        
+        
+        try:  # Try retrieving index from cache
+            if update_cache: raise NodeException 
             crds, sources =  (self.get_cache('filename.coordinates'),
                               self.get_cache('filename.sources'))
-            if bounds:
+            try:  # update the cache
+                # Specify the bounds based on the last entry in the cached coordinates
+                # Add a minute to the bounds to make sure we get unique coordinates
+                kwargs = {'temporal': str(crds['time'].area_bounds[-1].astype('datetime64[s]')
+                                          + np.timedelta64(5, 'm')) + '/'}
+                crds_new, filenames_new, dates_new = cmr_query(kwargs)
+                
+                # Update the cached coordinates
+                if len(filenames_new) > 1:
+                    # Append the new coordinates to the relevant data structures
+                    crdsfull = podpac.coordinates.concat([crds, crds_new])
+                    sources.filenames.extend(filenames_new)
+                    sources.dates.extend(dates_new)
+                    
+                    # Make sure the coordinates are unique 
+                    # (we actually know SMAP-Sentinel is NOT unique, so we can't do this)
+                    #crdsunique, inds = crdsfull.unique(return_indices=True)
+                    #sources.filenames = np.array(sources.filenames)[inds[0]].tolist()
+                    #sources.dates = np.array(sources.dates)[inds[0]].tolist()
+                    
+                    # Update the cache
+                    if filenames_new:
+                        self.put_cache(crdsfull, 'filename.coordinates', overwrite=True)
+                        self.put_cache(sources, 'filename.sources', overwrite=True)
+
+            except Exception as e:  # likely a connection or authentication error
+                _logger.warning("Failed to update cached filenames: ", str(e))
+                
+            if bounds:  # Restrict results to user-specified bounds
                 crds, I = crds.intersect(bounds, outer=True, return_indices=True)
-                sources = np.array(sources)[I].tolist()
-            return crds, sources
-        except NodeException:  # Not in cache
-            pass
-
-        if bounds is None:
-            active_sources = self.sources
-        else:
-            crds, I = self.source_coordinates.intersect(bounds, outer=True, return_indices=True)
-            active_sources = self.sources[I]
-
-        crds = active_sources[0].source_coordinates
-        sources = [active_sources[0].sources]
-        for s in active_sources[1:]:
-            if np.prod(s.source_coordinates.shape) > 0:
-                crds = concat([crds, s.source_coordinates])
-                sources.append(s.sources)
-        #if self.shared_coordinates is not None:
-            #crds = crds + self.shared_coordinates
-        sources = np.concatenate(sources)
-        if bounds is None:
-            self.put_cache(crds, 'filename.coordinates')
-            self.put_cache(sources, 'filename.sources')
+                sources = sources.intersect(I[0])
+                
+        except NodeException:  # Not in cache or forced update
+            crds, filenames, dates = cmr_query(bounds=bounds)
+            sources = GetSMAPSources(self.product, filenames, dates, create_kwargs)
+        
+            if bounds is None:
+                self.put_cache(crds, 'filename.coordinates', overwrite=update_cache)
+                self.put_cache(sources, 'filename.sources', overwrite=update_cache)
+                
+        # Update the auth_session and/or interpolation and/or other keyword arguments in the sources class
+        sources.create_kwargs = create_kwargs
         return crds, sources
+
 
     @property
     def base_ref(self):
@@ -1011,3 +1106,42 @@ class SMAPBestAvailable(podpac.compositor.OrderedCompositor):
 
     def get_shared_coordinates(self):
         return None # NO shared coordiantes
+    
+class GetSMAPSources(object):
+    def __init__(self, product, filenames, dates, create_kwargs):
+        self.product = product
+        self.filenames = filenames
+        self.dates = dates
+        self.create_kwargs = create_kwargs
+        self._base_url = None
+    
+    def __getitem__(self, slc):
+        return_slice = slice(None)
+        if not isinstance(slc, slice):
+            if isinstance(slc, (np.integer, int)):
+                slc = slice(slc, slc+1)
+                return_slice = 0
+            else: 
+                raise ValueError('Invalid slice')
+        base_url = self.base_url
+        source_urls = [base_url + np2smap_date(d)[:10] + '/' + f \
+                        for d, f in zip(self.dates[slc], self.filenames[slc])]        
+        return np.array([SMAPSource(source=s, **self.create_kwargs) \
+                         for s in source_urls], object)[return_slice]
+    
+    @property
+    def base_url(self):
+        if not self._base_url:
+            self._base_url = SMAPDateFolder(product=self.product, folder_date='00001122',
+                                            auth_session=self.create_kwargs['auth_session']).source[:-8]
+        return self._base_url
+
+
+    def __len__(self):
+        return len(self.filenames)
+    
+    def intersect(self, I):
+        return GetSMAPSources(product=self.product,
+                              filenames=[self.filenames[i] for i in I],
+                              dates=[self.dates[i] for i in I],
+                              create_kwargs=self.create_kwargs)

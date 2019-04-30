@@ -10,15 +10,13 @@ Utilities functions for handling podpac coordinates.
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import datetime
+import re
 import calendar
 import numbers
 import numpy as np
+import traitlets as tl
 from six import string_types
-
-GDAL_CRS = {
-    'WGS84': 'EPSG:4326',
-    'SPHER_MERC': 'EPSG:3857'
-}
+import pyproj
 
 def get_timedelta(s):
     """
@@ -432,7 +430,80 @@ _TIMEDELTA_ZOOM = {
     '<m8[D]': '<m8[h]',
     '<m8[h]': '<m8[m]',
     '<m8[m]': '<m8[s]',
-    '<m8[s]': '<m8[ms]', # alredy probably farther then necessary...
+    '<m8[s]': '<m8[ms]', # already probably farther then necessary...
     '<m8[ms]': '<m8[us]',
     '<m8[us]': '<m8[ns]'
 }
+
+class Dimension(tl.Enum):
+    def __init__(self, *args, **kwargs):
+        super(Dimension, self).__init__(['lat', 'lon', 'alt', 'time'], *args, **kwargs)
+
+class CoordinateType(tl.Enum):
+    def __init__(self, *args, **kwargs):
+        super(CoordinateType, self).__init__(['point', 'left', 'right', 'midpoint'], *args, **kwargs)
+
+def get_vunits(crs):
+    """
+    Get vunits from a coordinate reference system string.
+
+    Arguments
+    ---------
+    crs : str
+        PROJ4 coordinate reference system.
+
+    Returns
+    -------
+    vunits : str
+        PROJ4 distance units for altitude, or None if no vunits present.
+    """
+
+    if '+vunits' not in crs:
+        return None
+    
+    return re.search(r'(?<=\+vunits=)[a-z\-]+', crs).group(0)
+
+def set_vunits(crs, vunits):
+    """
+    Set the vunits of a coordinate reference system string. The vunits will be replaced or added, as needed.
+
+    Arguments
+    ---------
+    crs : str
+        PROJ4 coordinate reference system.
+    vunits : str
+        desired altitude units in PROJ4 distance units.
+
+    Returns
+    -------
+    crs : str
+        PROJ4 coordinate reference system string with the desired vunits.
+    """
+
+    if '+vunits' in crs:
+        crs = re.sub(r'(?<=\+vunits=)[a-z\-]+', vunits, crs)
+    else:
+        crs = pyproj.CRS(crs).to_proj4() # convert EPSG-style strings
+        crs += ' +vunits={}'.format(vunits)
+    
+    crs = pyproj.CRS(crs).to_proj4() # standardize, this is optional
+
+    return crs
+
+def rem_vunits(crs):
+    """
+    Remove the vunits of a coordinate reference system string, if present.
+
+    Arguments
+    ---------
+    crs : str
+        PROJ4 coordinate reference system.
+
+    Returns
+    crs : str
+        PROJ4 coordinate referenc system without vunits.
+    """
+
+    if '+vunits' in crs:
+        crs = re.sub(r'\+vunits=[a-z\-]+', '', crs)
+    return crs

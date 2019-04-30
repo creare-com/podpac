@@ -22,9 +22,20 @@ import logging
 import numpy as np
 import traitlets as tl
 import pandas as pd  # Core dependency of xarray
+import xarray  as xr
 
 # Helper utility for optional imports
 from lazy_import import lazy_module
+
+# Internal dependencies
+from podpac.core import authentication
+from podpac.core.node import Node
+from podpac.core.settings import settings
+from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait, NodeTrait
+from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
+from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.data.interpolation import interpolation_trait
 
 # Optional dependencies
 bs4 = lazy_module('bs4')
@@ -41,17 +52,6 @@ requests = lazy_module('requests')
 RasterToNumPyArray = lazy_module('arcpy.RasterToNumPyArray')
 urllib3 = lazy_module('urllib3')
 certifi = lazy_module('certifi')
-
-# Internal dependencies
-from podpac.core import authentication
-from podpac.core.node import Node
-from podpac.core.settings import settings
-from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait
-from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
-from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.data.interpolate import interpolation_trait
-
 
 # Set up logging
 _logger = logging.getLogger(__name__)
@@ -418,6 +418,45 @@ class Rasterio(DataSource):
         # local file
         else:
             return rasterio.open(self.source)
+
+    # TODO: remove when the reprojection is enabled
+    def _reproject(self, src_dataset=None, dst_crs='epsg:4326'):
+        # https://rasterio.readthedocs.io/en/latest/topics/reproject.html#reprojecting-a-geotiff-dataset
+         
+        # format for rasterio
+        dst_crs = {'init': dst_crs.lower()}
+
+        # use self.dataset as source
+        if src_dataset is None:
+            src_dataset = self.dataset
+
+        # calculate default transform
+        transform, width, height = rasterio.warp.calculate_default_transform(src_dataset.crs,
+                                                                             dst_crs,
+                                                                             src_dataset.width,
+                                                                             src_dataset.height,
+                                                                             *src_dataset.bounds)
+
+        kwargs = src_dataset.meta.copy()
+        kwargs.update({
+            'crs': dst_crs,
+            'transform': transform,
+            'width': width,
+            'height': height
+        })
+
+        # write out new file with new projection
+        with rasterio.MemoryFile() as f:
+            with f.open(**kwargs) as dataset:
+                for i in range(1, src_dataset.count + 1):
+                    rasterio.warp.reproject(
+                        source=rasterio.band(src_dataset, i),
+                        destination=rasterio.band(dataset, i),
+                        src_transform=src_dataset.transform,
+                        src_crs=src_dataset.crs,
+                        dst_transform=transform,
+                        dst_crs=dst_crs)
+            return f.open()
     
     def close_dataset(self):
         """Closes the file for the datasource
@@ -460,16 +499,18 @@ class Rasterio(DataSource):
         #         crs = None
         # except:
         #     crs = None
-        crs = None
+        try:
+            crs = self.dataset.crs['init'].upper()
+        except:
+            crs = None
 
         # get bounds
         left, bottom, right, top = self.dataset.bounds
 
         # rasterio reads data upside-down from coordinate conventions, so lat goes from top to bottom
-        return Coordinates([
-            UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat', coord_ref_sys=crs),
-            UniformCoordinates1d(left, right, size=self.dataset.width, name='lon', coord_ref_sys=crs)
-        ], coord_ref_sys=crs)
+        lat = UniformCoordinates1d(top, bottom, size=self.dataset.height, name='lat')
+        lon = UniformCoordinates1d(left, right, size=self.dataset.width, name='lon')
+        return Coordinates([lat, lon], crs=crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -592,6 +633,8 @@ class H5PY(DataSource):
         Default is ['lat', 'lon', 'time', 'alt']. The order of the dimensions in the dataset. For example,
         if self.datasets[datakey] has shape (1, 2, 3) and the (time, lon, lat) dimensions have sizes (1, 2, 3)
         then dim_order should be ['time', 'lon', 'lat']
+    file_mode : str, optional
+        Default is 'r'. The mode used to open the HDF5 file. Options are r, r+, w, w- or x, a (see h5py.File).
     """
     
     source = tl.Unicode(allow_none=False)
@@ -602,6 +645,7 @@ class H5PY(DataSource):
     timekey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     altkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     dim_order = tl.List(default_value=['lat', 'lon', 'time', 'alt']).tag(attr=True)
+    file_mode = tl.Unicode(default_value='r')
     
     @tl.default('dataset')
     def _open_dataset(self, source=None):
@@ -625,7 +669,7 @@ class H5PY(DataSource):
 
         # TODO: dataset should not open by default
         # prefer with as: syntax
-        return h5py.File(source)
+        return h5py.File(source, self.file_mode)
     
     def close_dataset(self):
         """Closes the file for the datasource
@@ -781,7 +825,7 @@ class WCS(DataSource):
             r = http.request('GET', self.get_capabilities_url)
             capabilities = r.data
             if r.status != 200:
-                raise Exception("Could not get capabilities from WCS server")
+                raise Exception("Could not get capabilities from WCS server:" + self.get_capabilities_url)
         else:
             raise Exception("Do not have a URL request library to get WCS data.")
 
@@ -894,7 +938,7 @@ class WCS(DataSource):
                 if requests is not None:
                     data = requests.get(url)
                     if data.status_code != 200:
-                        raise Exception("Could not get data from WCS server")
+                        raise Exception("Could not get data from WCS server:" + url)
                     io = BytesIO(bytearray(data.content))
                     content = data.content
 
@@ -906,7 +950,7 @@ class WCS(DataSource):
                         http = urllib3.PoolManager()
                     r = http.request('GET', url)
                     if r.status != 200:
-                        raise Exception("Could not get capabilities from WCS server")
+                        raise Exception("Could not get capabilities from WCS server:" + url)
                     content = r.data
                     io = BytesIO(bytearray(r.data))
                 else:
@@ -918,7 +962,7 @@ class WCS(DataSource):
                             output.data[i, ...] = dataset.read()
                     except Exception as e: # Probably python 2
                         print(e)
-                        tmppath = os.path.join(settings['CACHE_DIR'], 'wcs_temp.tiff')
+                        tmppath = os.path.join(settings['DISK_CACHE_DIR'], 'wcs_temp.tiff')
                         
                         if not os.path.exists(os.path.split(tmppath)[0]):
                             os.makedirs(os.path.split(tmppath)[0])
@@ -956,7 +1000,7 @@ class WCS(DataSource):
             if requests is not None:
                 data = requests.get(url)
                 if data.status_code != 200:
-                    raise Exception("Could not get data from WCS server")
+                    raise Exception("Could not get data from WCS server:" + url)
                 io = BytesIO(bytearray(data.content))
                 content = data.content
 
@@ -968,7 +1012,7 @@ class WCS(DataSource):
                     http = urllib3.PoolManager()
                 r = http.request('GET', url)
                 if r.status != 200:
-                    raise Exception("Could not get capabilities from WCS server")
+                    raise Exception("Could not get capabilities from WCS server:" + url)
                 content = r.data
                 io = BytesIO(bytearray(r.data))
             else:
@@ -983,8 +1027,7 @@ class WCS(DataSource):
                             output.data[:] = dataset.read()
                 except Exception as e: # Probably python 2
                     print(e)
-                    tmppath = os.path.join(
-                        settings['CACHE_DIR'], 'wcs_temp.tiff')
+                    tmppath = os.path.join(settings['DISK_CACHE_DIR'], 'wcs_temp.tiff')
                     if not os.path.exists(os.path.split(tmppath)[0]):
                         os.makedirs(os.path.split(tmppath)[0])
                     open(tmppath, 'wb').write(content)
@@ -1033,13 +1076,13 @@ class ReprojectedSource(DataSource):
         Coordinates where the source node should be evaluated. 
     """
     
-    source = tl.Instance(Node)
+    source = NodeTrait()
     source_interpolation = interpolation_trait().tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     def _first_init(self, **kwargs):
         if 'reprojected_coordinates' in kwargs:
-            if isinstance(kwargs['reprojected_coordinates'], list):
+            if isinstance(kwargs['reprojected_coordinates'], dict):
                 kwargs['reprojected_coordinates'] = Coordinates.from_definition(kwargs['reprojected_coordinates'])
             elif isinstance(kwargs['reprojected_coordinates'], str):
                 kwargs['reprojected_coordinates'] = Coordinates.from_json(kwargs['reprojected_coordinates'])
@@ -1117,7 +1160,7 @@ class S3(DataSource):
     """
     
     source = tl.Unicode()
-    node = tl.Instance(Node)
+    node = NodeTrait()
     node_class = tl.Type(DataSource)  # A class
     node_kwargs = tl.Dict(default_value={})
     s3_bucket = tl.Unicode(allow_none=True)
@@ -1184,7 +1227,7 @@ class S3(DataSource):
                                    #self.source.replace('\\', '').replace(':','')\
                                    #.replace('/', ''))
             tmppath = os.path.join(
-                settings['CACHE_DIR'],
+                settings['DISK_CACHE_DIR'],
                 self.source.replace('\\', '').replace(':', '').replace('/', ''))
             
             rootpath = os.path.split(tmppath)[0]
@@ -1220,3 +1263,63 @@ class S3(DataSource):
             super(S3).__del__(self)
         for f in self._temp_file_cleanup:
             os.remove(f)
+
+
+@common_doc(COMMON_DATA_DOC)
+class Dataset(DataSource):
+    """Create a DataSource node using xarray.open_dataset.
+    
+    Attributes
+    ----------
+    datakey : str
+        The 'key' for the data to be retrieved from the file. Datasource may have multiple keys, so this key
+        determines which variable is returned from the source.
+    dataset : xarray.Dataset, optional
+        The xarray dataset from which to retrieve data. If not specified, will be automatically created from the 'source'
+    native_coordinates : Coordinates
+        {native_coordinates}
+    source : str
+        Path to the data source
+    extra_dim : dict
+        In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected. 
+        For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
+    """
+    
+    extra_dim = tl.Dict({}).tag(attr=True)
+    datakey = tl.Unicode().tag(attr=True)
+    dataset = tl.Instance(xr.Dataset)
+        
+    @tl.default('dataset')
+    def _dataset_default(self):
+        return xr.open_dataset(self.source)
+    
+    @property
+    @common_doc(COMMON_DATA_DOC)
+    def native_coordinates(self):
+        """{native_coordinates}
+        """
+        # we have to remove any dimensions not in 'lat', 'lon', 'time', 'alt' for the 'get_data' machinery to work properly
+        coords = self.dataset[self.datakey].coords
+        crds = []
+        dims = []
+        for d in coords.dims:
+            if d not in ['lat', 'lon', 'time', 'alt']:
+                continue
+            crds.append(coords[d].data)
+            dims.append(d)
+        return Coordinates(crds, dims)
+    
+    def get_data(self, coordinates, coordinates_index):
+        return self.create_output_array(coordinates,
+                                        self.dataset[self.datakey][self.extra_dim].data[coordinates_index])
+    
+    @property
+    def keys(self):
+        """The list of available keys from the xarray dataset.
+        
+        Returns
+        -------
+        List
+            The list of available keys from the xarray dataset. Any of these keys can be set as self.datakey.
+        """
+        return list(self.dataset.keys())

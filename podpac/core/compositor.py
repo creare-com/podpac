@@ -18,7 +18,7 @@ from podpac.core.utils import ArrayTrait
 from podpac.core.node import COMMON_NODE_DOC 
 from podpac.core.node import node_eval 
 from podpac.core.data.datasource import COMMON_DATA_DOC
-from podpac.core.data.interpolate import interpolation_trait
+from podpac.core.data.interpolation import interpolation_trait
 from podpac.core.utils import trait_is_defined
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC

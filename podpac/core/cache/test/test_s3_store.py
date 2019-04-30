@@ -2,8 +2,12 @@ import pytest
 import numpy as np
 import os
 import time
+import warnings
+from copy import deepcopy
 
 from numpy.testing import assert_equal
+
+import podpac
 
 from podpac.core.cache.cache import CacheException
 from podpac.core.cache.cache import CacheCtrl
@@ -14,12 +18,21 @@ from podpac.core.cache.cache import CacheListing
 
 from podpac.core.data.types import Array
 from podpac.core.coordinates.coordinates import Coordinates
+from podpac.core.settings import settings
+
+settings_orig = deepcopy(settings)
 
 root_disk_cache_dir = 'tmp_cache'
 
-def make_cache_ctrl():
+def restore_settings():
+    podpac.core.settings.settings = deepcopy(settings_orig)
+
+def make_cache_ctrl(max_size=None):
     store = S3CacheStore(root_cache_dir_path=root_disk_cache_dir, s3_bucket='podpac-internal-test')
+    if max_size is not None:
+        settings[store.limit_setting] = max_size
     ctrl = CacheCtrl(cache_stores=[store])
+    ctrl.rem(node='*', key='*', coordinates='*', mode='all')
     return ctrl
 
 
@@ -44,6 +57,43 @@ array_data_funcs = [np.zeros, np.ones]
 node_funcs = [lambda: make_array_data_source(coords_func=c, data_func=d) for d in array_data_funcs for c in coord_funcs if c() is not None]
 data_funcs = [lambda: np.zeros((2,3,4)), lambda: np.ones((2,3,4))]
 coord_funcs = coord_funcs + [lambda: None]
+
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
+def test_put_and_get_with_cache_limits():
+    insufficient_sizes = [0, 10, 100]
+    sufficient_sizes = [1e6, 1e9]
+
+    for s in insufficient_sizes:
+        cache = make_cache_ctrl(max_size=s)
+        for coord_f in coord_funcs:
+            for node_f in node_funcs:
+                for data_f in data_funcs:
+                    c1,c2 = coord_f(),coord_f()
+                    n1,n2 = node_f(), node_f()
+                    din = data_f()
+                    k = "key"
+                    with pytest.warns(RuntimeWarning):
+                        cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
+                    assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
+                    cache.rem(node='*', key='*', coordinates='*', mode='all')
+
+    for s in sufficient_sizes:
+        cache = make_cache_ctrl(max_size=s)
+        for coord_f in coord_funcs:
+            for node_f in node_funcs:
+                for data_f in data_funcs:
+                    c1,c2 = coord_f(),coord_f()
+                    n1,n2 = node_f(), node_f()
+                    din = data_f()
+                    k = "key"
+                    cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
+                    dout = cache.get(node=n1, key=k, coordinates=c1, mode='all')
+                    assert (din == dout).all()
+                    dout = cache.get(node=n2, key=k, coordinates=c2, mode='all')
+                    assert (din == dout).all()
+                    cache.rem(node='*', key='*', coordinates='*', mode='all')
+    restore_settings()
+
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_get():

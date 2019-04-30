@@ -8,8 +8,6 @@ import numpy as np
 import traitlets as tl
 from collections import OrderedDict
 
-# from podpac.core.utils import cached_property, clear_cache
-from podpac.core.units import Units
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord, divide_delta
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -38,10 +36,6 @@ class UniformCoordinates1d(Coordinates1d):
         Dimension name, one of 'lat', 'lon', 'time', 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    units : podpac.Units
-        Coordinate units.
-    coord_ref_sys : str
-        Coordinate reference system.
     ctype : str
         Coordinates type, one of'point', 'left', 'right', or 'midpoint'.
     segment_lengths : array, float, timedelta
@@ -61,8 +55,7 @@ class UniformCoordinates1d(Coordinates1d):
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
-    def __init__(self, start, stop, step=None, size=None,
-                       name=None, ctype=None, units=None, coord_ref_sys=None, segment_lengths=None):
+    def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, segment_lengths=None):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -76,6 +69,10 @@ class UniformCoordinates1d(Coordinates1d):
             Signed, nonzero step between coordinates (either step or size required).
         size : int
             Number of coordinates (either step or size required).
+        name : str, optional
+            Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+        ctype : str, optional
+            Coordinates type: 'point', 'left', 'right', or 'midpoint'.
         segment_lengths: array, float, timedelta, optional
             When ctype is a segment type, the segment lengths for the coordinates. By defaul, the segment_lengths are
             equal the step.
@@ -107,18 +104,17 @@ class UniformCoordinates1d(Coordinates1d):
                 type(start), type(stop), type(step)))
 
         if fstep < 0 and start < stop:
-            raise ValueError("UniformCoordinates1d step must be less than zero if start > stop.")
+            raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
 
         if fstep > 0 and start > stop:
-            raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
+            raise ValueError("UniformCoordinates1d step must be less than zero if start > stop.")
 
         self.set_trait('start', start)
         self.set_trait('stop', stop)
         self.set_trait('step', step)
 
         # set common properties
-        super(UniformCoordinates1d, self).__init__(
-            name=name, ctype=ctype, units=units, segment_lengths=segment_lengths, coord_ref_sys=coord_ref_sys)
+        super(UniformCoordinates1d, self).__init__(name=name, ctype=ctype, segment_lengths=segment_lengths)
         
     @tl.default('ctype')
     def _default_ctype(self):
@@ -215,21 +211,6 @@ class UniformCoordinates1d(Coordinates1d):
         kwargs = {k:v for k,v in d.items() if k not in ['start', 'stop']}
         return cls(start, stop, **kwargs)
 
-    def copy(self):
-        """
-        Make a deep copy of the uniform 1d Coordinates.
-
-        Returns
-        -------
-        :class:`UniformCoordinates1d`
-            Copy of the coordinates.
-        """
-
-        kwargs = self.properties
-        if self._segment_lengths:
-            kwargs['segment_lengths'] = self.segment_lengths
-        return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
-
     # -----------------------------------------------------------------------------------------------------------------
     # Standard methods, array-like
     # -----------------------------------------------------------------------------------------------------------------
@@ -278,7 +259,7 @@ class UniformCoordinates1d(Coordinates1d):
 
         else:
             # coordinates
-            coords = self.coordinates[index]
+            coordinates = self.coordinates[index]
 
             # properties and segment_lengths
             kwargs = self.properties
@@ -291,7 +272,7 @@ class UniformCoordinates1d(Coordinates1d):
 
             kwargs['ctype'] = self.ctype
 
-            return ArrayCoordinates1d(coords, **kwargs)
+            return ArrayCoordinates1d(coordinates, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -375,85 +356,32 @@ class UniformCoordinates1d(Coordinates1d):
         else:
             return 0, -1
 
-    @property
-    def definition(self):
-        """:dict: Serializable uniform 1d coordinates definition.
-
-        The ``definition`` can be used to create new UniformCoordinates1d::
-
-            c = podpac.UniformCoordinates1d(0, 10, step=1)
-            c2 = podpac.UniformCoordinates1d.from_definition(c.definition)
-
-        See Also
-        --------
-        from_definition
-        """
-
+    def _get_definition(self, full=True):
         d = OrderedDict()
         d['start'] = self.start
         d['stop'] = self.stop
         d['step'] = self.step
-        if self._segment_lengths:
-            d['segment_lengths'] = self.segment_lengths
-        d.update(self.properties)
+        d.update(self._full_properties if full else self.properties)
         return d
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def select(self, bounds, outer=False, return_indices=False):
+    def copy(self):
         """
-        Get the coordinate values that are within the given bounds.
-
-        The default selection returns coordinates that are within the other coordinates bounds::
-
-            In [1]: c = UniformCoordinates1d(0, 3, step=1, name='lat')
-
-            In [2]: c.select([1.5, 2.5]).coordinates
-            Out[2]: array([2.])
-
-        The *outer* selection returns the minimal set of coordinates that contain the other coordinates::
-        
-            In [3]: c.intersect([1.5, 2.5], outer=True).coordinates
-            Out[3]: array([1., 2., 3.])
-
-        The *outer* selection also returns a boundary coordinate if the other coordinates are outside this
-        coordinates bounds but *inside* its area bounds::
-        
-            In [4]: c.intersect([3.25, 3.35], outer=True).coordinates
-            Out[4]: array([3.0], dtype=float64)
-
-            In [5]: c.intersect([10.0, 11.0], outer=True).coordinates
-            Out[5]: array([], dtype=float64)
-        
-        Arguments
-        ---------
-        bounds : low, high
-            selection bounds
-        outer : bool, optional
-            If True, do an *outer* selection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
+        Make a deep copy of the uniform 1d Coordinates.
 
         Returns
         -------
-        selection : :class:`UniformCoordinates`
-            UniformCoordinates1d object with coordinates within the other coordinates bounds.
-        I : slice or list
-            index or slice for the intersected coordinates (only if return_indices=True)
+        :class:`UniformCoordinates1d`
+            Copy of the coordinates.
         """
 
-        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
+        kwargs = self.properties
+        return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
-        # full
-        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
-            return self._select_full(return_indices)
-
-        # none
-        if self.area_bounds[0] > bounds[1] or self.area_bounds[1] < bounds[0]:
-            return self._select_empty(return_indices)
-
+    def _select(self, bounds, return_indices, outer):
         # TODO is there an easier way to do this with the new outer flag?
 
         lo = max(bounds[0], self.bounds[0])

@@ -114,9 +114,8 @@ class TerrainTilesSource(Rasterio):
             f.seek(0)
             
             dataset = f.open()
-            reprojected_dataset = self._reproject(dataset, {'init': 'epsg:4326'})  # reproject dataset into WGS84
 
-        return reprojected_dataset
+        return dataset
 
     def get_data(self, coordinates, coordinates_index):
         data = super(TerrainTilesSource, self).get_data(coordinates, coordinates_index)

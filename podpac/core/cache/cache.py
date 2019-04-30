@@ -13,10 +13,12 @@ from hashlib import md5 as hash_alg
 import six
 import fnmatch
 from lazy_import import lazy_module
+import psutil
 try:
     import cPickle  # Python 2.7
 except:
     import _pickle as cPickle
+import warnings
 
 boto3 = lazy_module('boto3')
 
@@ -75,6 +77,52 @@ def validate_inputs(node=None, key=None, coordinates=None, mode=None):
     if not (mode is None or isinstance(mode, six.string_types)):
         raise CacheException('`mode` should either be an instance of string or `None`.')
     return True
+
+def get_default_cache_ctrl():
+    """
+    Get the default CacheCtrl according to the settings.
+
+    Returns
+    -------
+    ctrl : CacheCtrl or None
+        Default CachCtrl
+    """
+
+    if settings.get('DEFAULT_CACHE') is None: # missing or None
+        return CacheCtrl([])
+
+    return make_cache_ctrl(settings['DEFAULT_CACHE'])
+
+def make_cache_ctrl(stores):
+    """
+    Make a cache_ctrl from a list of cache store types.
+
+    Arguments
+    ---------
+    stores : str or list
+        cache store or stores, e.g. 'ram' or ['ram', 'disk'].
+
+    Returns
+    -------
+    ctrl : CacheCtrl
+        CachCtrl using the specified cache stores
+    """
+
+    if isinstance(stores, str):
+        stores = [stores]
+
+    cache_stores = []
+    for elem in stores:
+        if elem == 'ram':
+            cache_stores.append(RamCacheStore())
+        elif elem == 'disk':
+            cache_stores.append(DiskCacheStore())
+        elif elem == 's3':
+            cache_stores.append(S3CacheStore())
+        else:
+            raise ValueError("Unknown cache store type '%s'" % elem)
+    
+    return CacheCtrl(cache_stores)
 
 class CacheCtrl(object):
 
@@ -271,6 +319,12 @@ class CacheStore(object):
         if len(self.cache_modes.intersection(modes)) > 0:
             return True
         return False
+
+    def size(self):
+        """Return size of cache store in bytes
+        """
+        raise NotImplementedError
+
 
     def put(self, node, data, key, coordinates=None, update=False):
         '''Cache data for specified node.
@@ -559,7 +613,9 @@ class FileCacheStore(CacheStore):
     """Abstract class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
     """
     
+    cache_mode = ''
     cache_modes = ['all']
+    limit_setting = ''
     _CacheContainerClass = CachePickleContainer
 
     def __init__(self, *args, **kwargs):
@@ -683,6 +739,7 @@ class FileCacheStore(CacheStore):
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         '''
         self.make_cache_dir(node)
+
         listing = CacheListing(node=node, key=key, coordinates=coordinates, data=data)
         if self.has(node, key, coordinates): # a little inefficient but will do for now
             if not update:
@@ -707,6 +764,13 @@ class FileCacheStore(CacheStore):
         # if file for listing does not already exist, we need to create a new container, add the listing, and save to file
         else:
             self.save_new_container(listings=[listing], path=path)
+
+        if self.max_size is not None and self.size >= self.max_size:
+        #     # TODO removal policy
+            self.rem(node=node, key=key, coordinates=coordinates)
+            warnings.warn("Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(cache_mode=self.cache_mode, cache_limit_setting=self.limit_setting), RuntimeWarning)
+            return False
+
         return True
 
     def get(self, node, key, coordinates=None):
@@ -821,9 +885,11 @@ class FileCacheStore(CacheStore):
 
 class DiskCacheStore(FileCacheStore):
 
+    cache_mode = 'disk'
     cache_modes = set(['disk','all'])
+    limit_setting = 'DISK_CACHE_MAX_BYTES'
 
-    def __init__(self, root_cache_dir_path=None, storage_format='pickle'):
+    def __init__(self, root_cache_dir_path=None, storage_format='pickle', max_size=None, use_settings_limit=True):
         """Initialize a cache that uses a folder on a local disk file system.
         
         Parameters
@@ -832,17 +898,37 @@ class DiskCacheStore(FileCacheStore):
             Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings. Should be a fully specified valid path.
         storage_format : str, optional
             Indicates the file format for storage. Defaults to 'pickle' which is currently the only supported format.
+        max_size : None, optional
+            Maximum allowed size of the cache store in bytes. Defaults to podpac 'DISK_CACHE_MAX_BYTES' setting, or no limit if this setting does not exist.
+        use_settings_limit : bool, optional
+            Use podpac settings to determine cache limits if True, this will also cause subsequent runtime changes to podpac settings module to effect the limit on this cache. Default is True.
         
         Raises
         ------
+        CacheException
+            Description
         NotImplementedError
             If unsupported `storage_format` is specified
         """
 
+        if not settings['DISK_CACHE_ENABLED']:
+            raise CacheException("Disk cache is disabled in the podpac settings.")
+
         # set cache dir
-        if root_cache_dir_path is None:
-            root_cache_dir_path = self._path_join(settings['ROOT_PATH'], settings['CACHE_DIR'])
-        self._root_dir_path = root_cache_dir_path
+        if root_cache_dir_path is not None:
+            self._root_dir_path = root_cache_dir_path
+        elif os.path.isabs(settings[self.limit_setting]):
+            self._root_dir_path = settings[self.limit_setting]
+        else:
+            self._root_dir_path = self._path_join([settings['ROOT_PATH'], settings[self.limit_setting]])
+
+        self._use_settings_limit = use_settings_limit
+        if max_size is not None:
+            self._max_size = max_size
+        elif self._use_settings_limit and self.limit_setting in settings and settings[self.limit_setting]:
+            self._max_size = settings[self.limit_setting]
+        else:
+            self._max_size = None
 
         # make directory if it doesn't already exist
         os.makedirs(self._root_dir_path, exist_ok=True)
@@ -919,12 +1005,29 @@ class DiskCacheStore(FileCacheStore):
     def rem_dir(self, directory):
         os.rmdir(directory)
 
+    @property
+    def max_size(self):
+        if self._use_settings_limit and self.limit_setting and self.limit_setting in settings:
+            return settings[self.limit_setting]
+        return self._max_size
+
+    @property
+    def size(self):
+        total_size = 0
+        for dirpath, dirnames, filenames in os.walk(self._root_dir_path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                total_size += os.path.getsize(fp)
+        return total_size
+
 class S3CacheStore(FileCacheStore):
 
+    cache_mode = 's3'
+    limit_setting = 'S3_CACHE_MAX_BYTES'
     cache_modes = set(['s3','all'])
     _delim = '/'
 
-    def __init__(self, root_cache_dir_path=None, storage_format='pickle', 
+    def __init__(self, root_cache_dir_path=None, storage_format='pickle', max_size=None, use_settings_limit=True,
                  s3_bucket=None, aws_region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
         """Initialize a cache that uses a folder on a local disk file system.
         
@@ -934,6 +1037,10 @@ class S3CacheStore(FileCacheStore):
             Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings. Should be the common "root" s3 prefix that you want to have all cached objects stored in. Do not store any objects in the bucket that share this prefix as they may be deleted by the cache.
         storage_format : str, optional
             Indicates the file format for storage. Defaults to 'pickle' which is currently the only supported format.
+        max_size : None, optional
+            Maximum allowed size of the cache store in bytes. Defaults to podpac 'S3_CACHE_MAX_BYTES' setting, or no limit if this setting does not exist.
+        use_settings_limit : bool, optional
+            Use podpac settings to determine cache limits if True, this will also cause subsequent runtime changes to podpac settings module to effect the limit on this cache. Default is True.
         s3_bucket : str, optional
             bucket name, overides settings
         aws_region_name : str, optional
@@ -952,9 +1059,13 @@ class S3CacheStore(FileCacheStore):
         NotImplementedError
             If unsupported `storage_format` is specified
         """
+        
+        if not settings['S3_CACHE_ENABLED']:
+            raise CacheException("S3 cache is disabled in the podpac settings.")
+
         self._cache_modes = set(['s3','all'])
         if root_cache_dir_path is None:
-            root_cache_dir_path = settings['CACHE_DIR']
+            root_cache_dir_path = settings['S3_CACHE_DIR']
         self._root_dir_path = root_cache_dir_path
         if storage_format == 'pickle':
             self._extension = 'pkl'
@@ -975,6 +1086,15 @@ class S3CacheStore(FileCacheStore):
                                              aws_access_key_id=aws_access_key_id,
                                              aws_secret_access_key=aws_secret_access_key)
         self._s3_bucket = s3_bucket
+
+        self._use_settings_limit = use_settings_limit
+        if max_size is not None:
+            self._max_size = max_size
+        elif self._use_settings_limit and self.limit_setting in settings and settings[self.limit_setting]:
+            self._max_size = settings[self.limit_setting]
+        else:
+            self._max_size = None
+
         try:
             self._s3_client.head_bucket(Bucket=self._s3_bucket)
         except Exception as e:
@@ -1004,6 +1124,25 @@ class S3CacheStore(FileCacheStore):
         response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=path)
         obj_count = response['KeyCount']
         return obj_count == 1 and response['Contents'][0]['Key'] == path
+
+    @property
+    def max_size(self):
+        if self._use_settings_limit and self.limit_setting and self.limit_setting in settings:
+            return settings[self.limit_setting]
+        return self._max_size
+
+    @property
+    def size(self):
+        paginator = self._s3_client.get_paginator('list_objects')
+        operation_parameters = {'Bucket': self._s3_bucket,
+                                'Prefix': self._root_dir_path}
+        page_iterator = paginator.paginate(**operation_parameters)
+        total_size = 0
+        for page in page_iterator:
+            if 'Contents' in page:
+                for obj in page['Contents']:
+                    total_size += obj['Size']
+        return total_size
 
     def make_cache_dir(self, node):
         """Create subdirectory for caching data for `node`
@@ -1108,7 +1247,37 @@ class RamCacheStore(CacheStore):
      * there is not yet a max RAM usage setting or a removal policy.
     """
 
+    cache_mode = 'ram'
     cache_modes = set(['ram', 'all'])
+    limit_setting = 'RAM_CACHE_MAX_BYTES'
+
+    def __init__(self, max_size=None, use_settings_limit=True):
+        """Summary
+        
+        Raises
+        ------
+        CacheException
+            Description
+        
+        Parameters
+        ----------
+        max_size : None, optional
+            Maximum allowed size of the cache store in bytes. Defaults to podpac 'S3_CACHE_MAX_BYTES' setting, or no limit if this setting does not exist.
+        use_settings_limit : bool, optional
+            Use podpac settings to determine cache limits if True, this will also cause subsequent runtime changes to podpac settings module to effect the limit on this cache. Default is True.
+        """
+        if not settings['RAM_CACHE_ENABLED']:
+            raise CacheException("RAM cache is disabled in the podpac settings.")
+
+        self._use_settings_limit = use_settings_limit
+        if max_size is not None:
+            self._max_size = max_size
+        elif self._use_settings_limit and self.limit_setting in settings and settings[self.limit_setting]:
+            self._max_size = settings[self.limit_setting]
+        else:
+            self._max_size = None
+
+        super(CacheStore, self).__init__()
 
     def _get_key(self, obj):
         # return obj.hash if obj else None
@@ -1117,6 +1286,17 @@ class RamCacheStore(CacheStore):
 
     def _get_full_key(self, node, coordinates, key):
         return (self._get_key(node), self._get_key(coordinates), key)
+
+    @property
+    def max_size(self):
+        if self._use_settings_limit and self.limit_setting and self.limit_setting in settings:
+            return settings[self.limit_setting]
+        return self._max_size
+
+    @property
+    def size(self):
+        process = psutil.Process(os.getpid())
+        return process.memory_info().rss # this is actually the total size of the process
 
     def put(self, node, data, key, coordinates=None, update=False):
         '''Cache data for specified node.
@@ -1141,10 +1321,10 @@ class RamCacheStore(CacheStore):
             if not update:
                 raise CacheException("Cache entry already exists. Use update=True to overwrite.")
 
-        # TODO
-        # elif current_size + data_size > max_size:
+        if self.max_size is not None and self.size >= self.max_size:
         #     # TODO removal policy
-        #     raise CacheException("RAM cache full. Remove some old entries and try again.")
+            warnings.warn("Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. No longer caching. Consider increasing this limit or try clearing the cache (e.g. node.rem_cache(key='*', mode='RAM', all_cache=True) to clear ALL cached results in RAM)", RuntimeWarning)
+            return False
 
         # TODO include insert date, last retrieval date, and/or # retrievals for use in a removal policy
         _thread_local.cache[full_key] = data
