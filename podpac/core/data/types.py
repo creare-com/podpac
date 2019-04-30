@@ -275,7 +275,7 @@ class CSV(DataSource):
     dataset : pd.DataFrame
         Raw Pandas DataFrame used to read the data
     """
-    source = tl.Unicode().tag(attr=True)
+    source = tl.Unicode()
     alt_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
     lat_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
     lon_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
