@@ -70,6 +70,10 @@ extras_require = {
     ]
 }
 
+# set long description to readme
+with open('README.MD') as f: 
+    long_description = f.read()
+
 all_reqs = []
 for key, val in extras_require.items():
     if 'key' == 'dev':
@@ -106,6 +110,8 @@ setup(
     packages=find_packages(),
     install_requires=install_requires,
     extras_require=extras_require,
+    long_description=long_description,
+    long_description_content_type='text/markdown'
     # entry_points = {
     #     'console_scripts' : []
     # }
