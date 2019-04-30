@@ -1020,7 +1020,7 @@ class DiskCacheStore(FileCacheStore):
                 total_size += os.path.getsize(fp)
         return total_size
 
-class S3CacheStore(FileCacheStore):
+class S3CacheStore(FileCacheStore): # pragma: no cover
 
     cache_mode = 's3'
     limit_setting = 'S3_CACHE_MAX_BYTES'
