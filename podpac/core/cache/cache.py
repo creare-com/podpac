@@ -917,10 +917,10 @@ class DiskCacheStore(FileCacheStore):
         # set cache dir
         if root_cache_dir_path is not None:
             self._root_dir_path = root_cache_dir_path
-        elif os.path.isabs(settings[self.limit_setting]):
-            self._root_dir_path = settings[self.limit_setting]
+        elif os.path.isabs(settings['DISK_CACHE_DIR']):
+            self._root_dir_path = settings['DISK_CACHE_DIR']
         else:
-            self._root_dir_path = self._path_join([settings['ROOT_PATH'], settings[self.limit_setting]])
+            self._root_dir_path = self._path_join([settings['ROOT_PATH'], settings['DISK_CACHE_DIR']])
 
         self._use_settings_limit = use_settings_limit
         if max_size is not None:
