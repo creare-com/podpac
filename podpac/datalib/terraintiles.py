@@ -146,38 +146,6 @@ class TerrainTilesSource(Rasterio):
         _logger.debug('Downloading terrain tile {} to filepath: {}'.format(self.source, filepath))
         _bucket.download_file(self.source, filepath)
 
-
-    def _reproject(self, src_dataset, dst_crs):
-        # https://rasterio.readthedocs.io/en/latest/topics/reproject.html#reprojecting-a-geotiff-dataset
-         
-        # calculate default transform
-        transform, width, height = rasterio.warp.calculate_default_transform(src_dataset.crs,
-                                                                             dst_crs,
-                                                                             src_dataset.width,
-                                                                             src_dataset.height,
-                                                                             *src_dataset.bounds)
-
-        kwargs = src_dataset.meta.copy()
-        kwargs.update({
-            'crs': dst_crs,
-            'transform': transform,
-            'width': width,
-            'height': height
-        })
-
-        # write out new file with new projection
-        with rasterio.MemoryFile() as f:
-            with f.open(**kwargs) as dataset:
-                for i in range(1, src_dataset.count + 1):
-                    rasterio.warp.reproject(
-                        source=rasterio.band(src_dataset, i),
-                        destination=rasterio.band(dataset, i),
-                        src_transform=src_dataset.transform,
-                        src_crs=src_dataset.crs,
-                        dst_transform=transform,
-                        dst_crs=dst_crs)
-            return f.open()
-
 class TerrainTiles(OrderedCompositor):
     """Terrain Tiles gridded elevation tiles data library
 
@@ -207,6 +175,10 @@ class TerrainTiles(OrderedCompositor):
     # parameters
     zoom = tl.Int(default_value=6).tag(attr=True)
     tile_format = tl.Enum(TILE_FORMATS, default_value='geotiff').tag(attr=True)
+
+    @tl.default('sources')
+    def _default_sources(self):
+        return np.array([])
 
     @property
     def source(self):
