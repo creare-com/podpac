@@ -26,7 +26,8 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # RUN cp -rfi /usr/local/lib/python3.6/site-packages/* /tmp/vendored/*
 
-RUN git clone -b feature/aws https://github.com/creare-com/podpac.git && \
+# !! set branch to master after release !!
+RUN git clone -b release/1.0.0 https://github.com/creare-com/podpac.git && \
     cd podpac/ && \
     pip3 install -r dist/aws/aws_requirements.txt -t /tmp/vendored/
 
