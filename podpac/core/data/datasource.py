@@ -10,6 +10,7 @@ from collections import OrderedDict
 from copy import deepcopy
 import warnings
 import logging
+from six import string_types
 
 import numpy as np
 import xarray as xr
@@ -490,7 +491,9 @@ class DataSource(Node):
         if source_name != 'DataSource':
             rep += ' DataSource'
 
-        rep += '\n\tsource: {}'.format(self.source)
+        source_disp = self.source if isinstance(self.source, string_types) else \
+                      '\n{}'.format(self.source)
+        rep += '\n\tsource: {}'.format(source_disp)
         if trait_is_defined(self, 'native_coordinates'):
             rep += '\n\tnative_coordinates: '
             for c in self.native_coordinates.values():
