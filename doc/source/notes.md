@@ -20,8 +20,8 @@ $ git clone https://github.com/creare-com/podpac_examples.git
 $ cd podpac
 $ git checkout -b release/<version> tags/<version>  # as of writing, the <version> is 0.3.0
 $ cd ..
-$ copy podpac\dist\local_Windows_install\* .
-$ bin/set_local_conda_path.bat
+$ xcopy podpac\dist\local_Windows_install\* . /E 
+$ bin\set_local_conda_path.bat
 
 # Verify path is set correctly
 $ where conda
@@ -34,16 +34,20 @@ $ where conda
 
 ```bash
 $ conda create -n podpac python=3
+$ bin\activate_podpac_conda_env.bat
 
 # Install core dependencies
-$ conda install matplotlib>=2.1 numpy>=1.14 pint>=0.8 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython
+$ conda install matplotlib>=2.1 numpy>=1.14 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython psutil requests>=2.18
+$ pip install pint>=0.8 lazy-import>=0.2.2
 
 # Install dependencies for handling various file datatype
 $ conda install rasterio>=0.36 -c conda-forge
-$ conda install beautifulsoup4>=4.6 h5py>=2.7 lxml>=4.2 pydap>=3.2 requests>=2.18 
+$ conda install beautifulsoup4>=4.6 h5py>=2.7 lxml>=4.2 
+$ pip install pydap>=3.2
 
 # Install dependencies for AWS
-$ conda install awscli>=1.11 boto3>=1.4
+$ conda install boto3>=1.4
+$ pip install awscli>=1.11
 
 # Install dependencies for algorithm nodes
 $ conda install numexpr>=2.6
