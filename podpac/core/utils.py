@@ -14,6 +14,7 @@ import logging
 from copy import deepcopy
 import traitlets as tl
 import numpy as np
+import pandas as pd  # Core dependency of xarray
 
 # create log for module
 _log = logging.getLogger(__name__)
@@ -280,11 +281,18 @@ class JSONEncoder(json.JSONEncoder):
         elif isinstance(obj, np.timedelta64):
             return podpac.core.coordinates.utils.make_timedelta_string(obj)
         
+        # dataframe
+        elif isinstance(obj, pd.DataFrame):
+            return obj.to_json()
+            
         # Interpolator
-        elif obj in podpac.core.data.interpolation.INTERPOLATORS:
-            interpolater_class = deepcopy(obj)
-            interpolator = interpolater_class()
-            return interpolator.definition
+        try:
+            if obj in podpac.core.data.interpolation.INTERPOLATORS:
+                interpolater_class = deepcopy(obj)
+                interpolator = interpolater_class()
+                return interpolator.definition
+        except Exception as e:
+            pass
 
         # default
         return json.JSONEncoder.default(self, obj)
