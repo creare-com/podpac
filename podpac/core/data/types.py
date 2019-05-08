@@ -808,6 +808,12 @@ class WCS(DataSource):
         times = str(timedomain).replace('<gml:timeposition>', '').replace('</gml:timeposition>', '').split('\n')
         times = np.array([t for t in times if date_re.match(t)], np.datetime64)
         
+        if len(times) == 0:
+            return Coordinates([
+                UniformCoordinates1d(top, bottom, size=size[1], name='lat'),
+                UniformCoordinates1d(left, right, size=size[0], name='lon')
+                ])            
+
         return Coordinates([
             ArrayCoordinates1d(times, name='time'),
             UniformCoordinates1d(top, bottom, size=size[1], name='lat'),
