@@ -28,11 +28,11 @@ for p, s in pgz.items():
 
 sdata = sorted(data.items(), key=lambda t: t[1]['ratio'])
 
-zipsize = data['podpac_dist.zip']['zip_size']
+zipsize = data['podpac_dist_latest.zip']['zip_size']
 totsize = sum([pg[k] for k in pg if (k + '.zip') not in pgz.keys()])
 pkgs = []
 for val in sdata[::-1]:
-    if val[0] == 'podpac_dist.zip':
+    if val[0] == 'podpac_dist_latest.zip' or 'rasterio' in val[0] or 'pyproj' in val[0]:
         continue
     key = val[0]
     pkgs.append(key)
@@ -45,13 +45,13 @@ for val in sdata[::-1]:
         zipsize -= data[k]['zip_size']
         totsize -= data[k]['size']
 
-core = [k[:-4] for k in pkgs if k != 'podpac_dist.zip']
-deps = [k[:-4] for k in data if k[:-4] not in core and k != 'podpac_dist.zip']
+core = [k[:-4] for k in pkgs if k != 'podpac_dist_latest.zip']
+deps = [k[:-4] for k in data if k[:-4] not in core and k != 'podpac_dist_latest.zip']
 dep_size = sum([data[k+'.zip']['size'] for k in deps])
 dep_size_zip = sum([data[k+'.zip']['zip_size'] for k in deps])
 
-# add core to podpac_dist.zip
-cmd = ['zip', '-9', '-rq', 'podpac_dist.zip'] + core
+# add core to podpac_dist_latest.zip
+cmd = ['zip', '-9', '-rq', 'podpac_dist_latest.zip'] + core
 subprocess.call(cmd)
-cmd = ['zip', '-9', '-rqy', 'podpac_deps.zip'] + deps
+cmd = ['zip', '-9', '-rqy', 'podpac_deps_latest.zip'] + deps
 subprocess.call(cmd)

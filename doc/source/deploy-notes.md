@@ -1,6 +1,26 @@
-# Notes
+# Deploy Notes for Developers
 
 > Note this it not included in built documentation
+
+## Uploading to pypi
+Run this command to create the wheel and source code tarball
+```bash
+$ python setup.py sdist bdist_wheel
+```
+
+In case Twine is not installed, install it
+
+```bash
+$ pip install --upgrade twine
+```
+
+Now upload the package
+
+```bash
+$ python -m twine upload
+```
+
+This will prompt you for your username and password. At the moment, only mpu and mls have privileges to upload to the PODPAC PYPI index. 
 
 ## Creating the Windows Installation PODPAC Conda environment
 
@@ -18,10 +38,10 @@ These instructions only assume that you already have [git](https://git-scm.com/)
 $ git clone https://github.com/creare-com/podpac.git
 $ git clone https://github.com/creare-com/podpac_examples.git
 $ cd podpac
-$ git checkout tags/<version> release/<version>  # as of writing, the <version> is 0.3.0
+$ git checkout -b release/<version> tags/<version>  # as of writing, the <version> is 0.3.0
 $ cd ..
-$ copy podpac\dist\local_Windows_install\* .
-$ bin/set_local_conda_path.bat
+$ xcopy podpac\dist\local_Windows_install\* . /E 
+$ bin\set_local_conda_path.bat
 
 # Verify path is set correctly
 $ where conda
@@ -34,16 +54,20 @@ $ where conda
 
 ```bash
 $ conda create -n podpac python=3
+$ bin\activate_podpac_conda_env.bat
 
 # Install core dependencies
-$ conda install matplotlib>=2.1 numpy>=1.14 pint>=0.8 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython
+$ conda install matplotlib>=2.1 numpy>=1.14 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython psutil requests>=2.18
+$ pip install pint>=0.8 lazy-import>=0.2.2
 
 # Install dependencies for handling various file datatype
 $ conda install rasterio>=0.36 -c conda-forge
-$ conda install beautifulsoup4>=4.6 h5py>=2.7 lxml>=4.2 pydap>=3.2 requests>=2.18 
+$ conda install beautifulsoup4>=4.6 h5py>=2.7 lxml>=4.2 
+$ pip install pydap>=3.2
 
 # Install dependencies for AWS
-$ conda install awscli>=1.11 boto3>=1.4
+$ conda install boto3>=1.4
+$ pip install awscli>=1.11
 
 # Install dependencies for algorithm nodes
 $ conda install numexpr>=2.6

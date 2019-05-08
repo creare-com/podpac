@@ -5,4 +5,3 @@ SET CONDAPATH=%mypath%miniconda;%mypath%miniconda\Library\mingw-w64\bin;%mypath%
 SET PATH=%CONDAPATH%;%PATH%
 SET GDAL_DATA=%mypath%miniconda\envs\podpac\Lib\site-packages\osgeo\data\gdal
 SET PYTHONPATH=%mypath%podpac;
-SET CURL_CA_BUNDLE=%mypath%miniconda\envs\podpac\Library\ssl\cacert.pem

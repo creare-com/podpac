@@ -38,7 +38,7 @@ from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
 import podpac.core.authentication as authentication
 import podpac.core.utils as utils
-
+from podpac.core.units import ureg as units
 
 # Organized submodules
 # These files are simply wrappers to create a curated namespace of podpac modules
@@ -48,7 +48,6 @@ from podpac import interpolators
 from podpac import coordinates
 from podpac import compositor
 from podpac import pipeline
-from podpac import datalib   # handles imports in datalib/__init__.py
 
 ## Developer API
 from podpac import core

@@ -6,57 +6,14 @@ import xarray as xr
 from pint.errors import DimensionalityError
 import traitlets as tl
 
-from podpac.core.units import ureg
-
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
+from podpac.core.style import Style
 
-from podpac.core.units import Units
-from podpac.core.units import UnitsNode
+from podpac.core.units import ureg
 from podpac.core.units import UnitsDataArray
 from podpac.core.units import create_data_array
 from podpac.core.units import get_image
-
-class Length(Node):
-    units = Units(ureg.meter)
-
-class Area(Node):
-    units = Units(ureg.meter ** 2)
-
-class StrictUnitsNode(Node):
-    length = UnitsNode().tag(units=ureg.meter)
-
-class TestUnitsNode(object):
-    def test_set_length_to_matching_dimension_units_node(self):
-        strict_node = StrictUnitsNode()
-        l = Length()
-        strict_node.length = l
-
-    def test_set_length_to_different_dimension_units_node_throws_error(self):
-        strict_node = StrictUnitsNode()
-        a = Area()
-        with pytest.raises(DimensionalityError):
-            strict_node.length = a
-
-    def test_set_length_to_number_throws_error(self):
-        strict_node = StrictUnitsNode()
-        with pytest.raises(tl.TraitError):
-            strict_node.length = 10
-
-
-class TestUnits(object):
-    def test_set_units_to_related_unit(self):
-        l = Length()
-        l.units = ureg.feet
-
-    def test_set_units_to_unrelated_unit(self):
-        a = Area()
-        a.units = ureg.meter
-
-    def test_set_units_to_string_throws_error(self):
-        l = Length()
-        with pytest.raises(tl.TraitError):
-            l.units = 'meter'
 
 class TestUnitDataArray(object):
     def test_no_units_to_base_units_has_no_units(self):
@@ -79,12 +36,43 @@ class TestUnitDataArray(object):
         assert a.sum(axis=0).attrs.get("units", None) is not None
         assert a.cumsum(axis=0).attrs.get("units", None) is not None
         assert a.min(axis=0).attrs.get("units", None) is not None
-        assert a.max(axis=0).attrs.get("units", None) is not None
+        assert a.max('lon').attrs.get("units", None) is not None
         assert np.mean(a, axis=0).attrs.get("units", None) is not None
         assert np.sum(a, axis=0).attrs.get("units", None) is not None
         assert np.cumsum(a, axis=0).attrs.get("units", None) is not None
         assert np.min(a, axis=0).attrs.get("units", None) is not None
         assert np.max(a, axis=0).attrs.get("units", None) is not None
+        
+    def test_reductions_over_named_axes(self):
+        n_lats = 3
+        n_lons = 4
+        n_alts = 2
+        a = UnitsDataArray(np.arange(n_lats*n_lons*n_alts).reshape((n_lats,n_lons,n_alts)), 
+                            dims=['lat', 'lon', 'alt'],
+                            attrs={'units': ureg.meter})
+        assert len(a.mean(['lat', 'lon']).data) == 2
+        
+    def test_serialization_deserialization(self):
+        n_lats = 3
+        n_lons = 4
+        n_alts = 2
+        a = UnitsDataArray(np.arange(n_lats*n_lons*n_alts).reshape((n_lats,n_lons,n_alts)), 
+                            dims=['lat', 'lon', 'alt'],
+                            attrs={'units': ureg.meter, 'layer_style':Style()})
+        f = a.to_netcdf()
+        b = UnitsDataArray(xr.open_dataarray(f))
+        assert a.attrs['units'] == b.attrs['units']
+        assert a.attrs['layer_style'].json == b.attrs['layer_style'].json
+        
+    def test_pow(self):        
+        n_lats = 3
+        n_lons = 4
+        n_alts = 2
+        
+        a = UnitsDataArray(np.arange(n_lats*n_lons*n_alts).reshape((n_lats,n_lons,n_alts)), 
+                            dims=['lat', 'lon', 'alt'],
+                            attrs={'units': ureg.meter})
+        assert (a**2).attrs['units'] == ureg.meter **2
 
     def test_set_to_value_using_UnitsDataArray_as_mask_does_nothing_if_mask_has_dim_not_in_array(self):
         a = UnitsDataArray(

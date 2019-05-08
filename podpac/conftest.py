@@ -3,7 +3,7 @@ Test Setup
 """
 
 import pytest
-
+from podpac.core.settings import settings
 
 def pytest_addoption(parser):
     """Add command line option to pytest
@@ -38,3 +38,11 @@ def pytest_unconfigure(config):
 
     """
     pass
+
+original_default_cache = settings['DEFAULT_CACHE']
+
+def pytest_sessionstart(session):
+    settings['DEFAULT_CACHE'] = []
+
+def pytest_sessionfinish(session, exitstatus):
+    settings['DEFAULT_CACHE'] = original_default_cache

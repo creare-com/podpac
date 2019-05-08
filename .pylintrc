@@ -55,6 +55,7 @@ disable=
         C0103,      # snake case enforcement
         W0703,      # too broad except error
         R0201,      # no self-use
+        W0212,      # access to a protected member
         print-statement,
         parameter-unpacking,
         unpacking-in-except,

@@ -11,9 +11,10 @@ import functools
 import importlib
 from collections import OrderedDict
 import logging
-
+from copy import deepcopy
 import traitlets as tl
 import numpy as np
+import pandas as pd  # Core dependency of xarray
 
 # create log for module
 _log = logging.getLogger(__name__)
@@ -227,10 +228,43 @@ class ArrayTrait(tl.TraitType):
 
         return value
 
+class TupleTrait(tl.List):
+    """ An instance of a Python tuple that accepts the 'trait' argument (like Set, List, and Dict). """
+
+    def validate(self, obj, value):
+        value = super(TupleTrait, self).validate(obj, value)
+        return tuple(value)
+
+class NodeTrait(tl.ForwardDeclaredInstance):
+    def __init__(self, *args, **kwargs):
+        super(NodeTrait, self).__init__('Node', *args, **kwargs)
+
+    def validate(self, obj, value):
+        super(NodeTrait, self).validate(obj, value)
+        if podpac.core.settings.settings['DEBUG']:
+            value = deepcopy(value)
+        return value
+
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
+        # podpac Coordinates objects
+        if isinstance(obj, podpac.Coordinates):
+            return obj.definition
+
+        # podpac Node objects
+        elif isinstance(obj, podpac.Node):
+            return obj.definition
+
+        # podpac Style objects
+        elif isinstance(obj, podpac.core.style.Style):
+            return obj.definition
+       
+        # pint Units
+        elif isinstance(obj, podpac.core.units.ureg.Unit):
+            return str(obj)
+    
         # numpy arrays
-        if isinstance(obj, np.ndarray):
+        elif isinstance(obj, np.ndarray):
             if np.issubdtype(obj.dtype, np.datetime64):
                 return obj.astype(str).tolist()
             elif np.issubdtype(obj.dtype, np.timedelta64):
@@ -247,5 +281,18 @@ class JSONEncoder(json.JSONEncoder):
         elif isinstance(obj, np.timedelta64):
             return podpac.core.coordinates.utils.make_timedelta_string(obj)
         
+        # dataframe
+        elif isinstance(obj, pd.DataFrame):
+            return obj.to_json()
+            
+        # Interpolator
+        try:
+            if obj in podpac.core.data.interpolation.INTERPOLATORS:
+                interpolater_class = deepcopy(obj)
+                interpolator = interpolater_class()
+                return interpolator.definition
+        except Exception as e:
+            pass
+
         # default
         return json.JSONEncoder.default(self, obj)

@@ -14,10 +14,11 @@ import scipy.stats
 import traitlets as tl
 from six import string_types
 
+import podpac
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, node_eval
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
@@ -37,10 +38,8 @@ class Reduce(Algorithm):
         The source node that will be reduced. 
     """
     
-    source = tl.Instance(Node)
-
+    source = NodeTrait()
     dims = tl.List().tag(attr=True)
-    iter_chunk_size = tl.Union([tl.Int(), tl.Unicode()], allow_none=True, default_value=None)
 
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
     _dims = tl.List(trait_type=str)
@@ -91,10 +90,11 @@ class Reduce(Algorithm):
             Size of chunks
         """
 
-        if self.iter_chunk_size == 'auto':
+        chunk_size = podpac.settings['CHUNK_SIZE']
+        if chunk_size == 'auto':
             return 1024**2 # TODO
-
-        return self.iter_chunk_size
+        else:
+            return chunk_size
 
     def _get_chunk_shape(self, coords):
         """Shape of chunks for parallel processing or large arrays that do not fit in memory.
@@ -864,8 +864,8 @@ class GroupReduce(Algorithm):
         Source node
     """
 
-    source = tl.Instance(Node)
-    coordinates_source = tl.Instance(Node, allow_none=True)
+    source = NodeTrait()
+    coordinates_source = NodeTrait(allow_none=True)
     
     # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
     groupby = tl.CaselessStrEnum(['dayofyear']) # could add season, month, etc

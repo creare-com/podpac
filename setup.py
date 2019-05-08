@@ -1,4 +1,4 @@
-""" 
+"""
 podpac module
 """
 
@@ -20,7 +20,10 @@ install_requires = ['matplotlib>=2.1',
                     'traitlets>=4.3',
                     'xarray>=0.10',
                     'requests>=2.18',
-                    'lazy-import>=0.2.2']
+                    'pyproj>=2.1',
+                    'lazy-import>=0.2.2',
+                    'psutil']
+
 if sys.version_info.major == 2:
     install_requires += ['future>=0.16']
 
@@ -67,6 +70,10 @@ extras_require = {
     ]
 }
 
+# set long description to readme
+with open('README.MD') as f: 
+    long_description = f.read()
+
 all_reqs = []
 for key, val in extras_require.items():
     if 'key' == 'dev':
@@ -83,14 +90,14 @@ setup(
 
     description="Pipeline for Observational Data Processing, Analysis, and Collaboration",
     author='Creare',
-    url="https://github.com/creare-com/podpac",
+    url="https://podpac.org",
     license="APACHE 2.0",
     classifiers=[
         # How mature is this project? Common values are
         # 3 - Alpha
         # 4 - Beta
         # 5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
         'Topic :: Scientific/Engineering :: GIS',
@@ -103,6 +110,8 @@ setup(
     packages=find_packages(),
     install_requires=install_requires,
     extras_require=extras_require,
+    long_description=long_description,
+    long_description_content_type='text/markdown'
     # entry_points = {
     #     'console_scripts' : []
     # }

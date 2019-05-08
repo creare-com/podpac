@@ -22,6 +22,7 @@ from podpac.core.node import NodeException
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
 from podpac.core.utils import common_doc
+from podpac.core.utils import NodeTrait
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -254,13 +255,13 @@ class Arithmetic(Algorithm):
     arith = Arithmetic(A=a, B=b, eqn = 'A * B + {offset}', params={'offset': 1})
     """
     
-    A = tl.Instance(Node)
-    B = tl.Instance(Node, allow_none=True)
-    C = tl.Instance(Node, allow_none=True)
-    D = tl.Instance(Node, allow_none=True)
-    E = tl.Instance(Node, allow_none=True)
-    F = tl.Instance(Node, allow_none=True)
-    G = tl.Instance(Node, allow_none=True)
+    A = NodeTrait()
+    B = NodeTrait(allow_none=True)
+    C = NodeTrait(allow_none=True)
+    D = NodeTrait(allow_none=True)
+    E = NodeTrait(allow_none=True)
+    F = NodeTrait(allow_none=True)
+    G = NodeTrait(allow_none=True)
     eqn = tl.Unicode().tag(attr=True)
     params = tl.Dict().tag(attr=True)
 
