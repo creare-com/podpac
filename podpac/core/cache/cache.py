@@ -917,10 +917,10 @@ class DiskCacheStore(FileCacheStore):
         # set cache dir
         if root_cache_dir_path is not None:
             self._root_dir_path = root_cache_dir_path
-        elif os.path.isabs(settings[self.limit_setting]):
-            self._root_dir_path = settings[self.limit_setting]
+        elif os.path.isabs(settings['DISK_CACHE_DIR']):
+            self._root_dir_path = settings['DISK_CACHE_DIR']
         else:
-            self._root_dir_path = self._path_join([settings['ROOT_PATH'], settings[self.limit_setting]])
+            self._root_dir_path = self._path_join([settings['ROOT_PATH'], settings['DISK_CACHE_DIR']])
 
         self._use_settings_limit = use_settings_limit
         if max_size is not None:
@@ -1020,7 +1020,7 @@ class DiskCacheStore(FileCacheStore):
                 total_size += os.path.getsize(fp)
         return total_size
 
-class S3CacheStore(FileCacheStore):
+class S3CacheStore(FileCacheStore): # pragma: no cover
 
     cache_mode = 's3'
     limit_setting = 'S3_CACHE_MAX_BYTES'
@@ -1235,7 +1235,6 @@ class S3CacheStore(FileCacheStore):
 
 
 _thread_local = threading.local()
-_thread_local.cache = {}
 
 class RamCacheStore(CacheStore):
     """
@@ -1315,6 +1314,9 @@ class RamCacheStore(CacheStore):
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         '''
         
+        if not hasattr(_thread_local, 'cache'):
+            _thread_local.cache = {}
+
         full_key = self._get_full_key(node, coordinates, key)
         
         if full_key in _thread_local.cache:
@@ -1352,6 +1354,9 @@ class RamCacheStore(CacheStore):
             If the data is not in the cache.
         '''
 
+        if not hasattr(_thread_local, 'cache'):
+            _thread_local.cache = {}
+
         full_key = self._get_full_key(node, coordinates, key)
         
         if full_key not in _thread_local.cache:
@@ -1372,6 +1377,9 @@ class RamCacheStore(CacheStore):
             Delete only cached objects for these coordinates.
         '''
         
+        if not hasattr(_thread_local, 'cache'):
+            _thread_local.cache = {}
+
         # shortcut
         if isinstance(node, CacheWildCard) and isinstance(coordinates, CacheWildCard) and isinstance(key, CacheWildCard):
             _thread_local.cache = {}
@@ -1416,5 +1424,8 @@ class RamCacheStore(CacheStore):
              True if there as a cached object for this node for the given key and coordinates.
         '''
         
+        if not hasattr(_thread_local, 'cache'):
+            _thread_local.cache = {}
+
         full_key = self._get_full_key(node, coordinates, key)
         return full_key in _thread_local.cache

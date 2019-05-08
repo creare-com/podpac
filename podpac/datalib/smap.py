@@ -576,6 +576,12 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
             for s in self.sources:
                 s.layerkey = change['new']
 
+    def __repr__(self):
+        rep = '{}'.format('SMAP')
+        rep += '\n\tproduct: {}'.format(self.product)
+
+        return rep
+
     @property
     def source(self):
         """URL to OpenDAP dataset folder
@@ -803,6 +809,13 @@ class SMAP(podpac.compositor.OrderedCompositor):
         if change['old'] != change['new'] and change['old'] != '':
             for s in self.sources:
                 s.layerkey = change['new']
+
+    def __repr__(self):
+        rep = '{}'.format('SMAP')
+        rep += '\n\tproduct: {}'.format(self.product)
+        rep += '\n\tinterpolation: {}'.format(self.interpolation)
+
+        return rep
 
     @property
     def source(self):
@@ -1104,9 +1117,13 @@ class SMAPBestAvailable(podpac.compositor.OrderedCompositor):
         ])
         return src_objs
 
+    def __repr__(self):
+        rep = '{}'.format('SMAP (Best Available)')
+        return rep
+
     def get_shared_coordinates(self):
         return None # NO shared coordiantes
-    
+
 class GetSMAPSources(object):
     def __init__(self, product, filenames, dates, create_kwargs):
         self.product = product

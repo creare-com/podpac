@@ -116,6 +116,7 @@ class Lambda(Node):
         """
         Evaluate the source node on the AWS Lambda Function at the given coordinates
         """
+
         d = self.definition
         d['coordinates'] = json.loads(coordinates.json)
         filename = '%s%s_%s_%s.%s' % (
@@ -124,13 +125,23 @@ class Lambda(Node):
             self.source.hash,
             coordinates.hash,
             'json')
-        s3 = boto3.client('s3')
+
+        # create s3 client with credentials
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
+        s3 = boto3.client('s3',
+            region_name=self.AWS_REGION_NAME,
+            aws_access_key_id=self.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY
+        )
+
+        # put pipeline into s3 bucket
         s3.put_object(
             Body=(bytes(json.dumps(d, indent=4, cls=JSONEncoder).encode('UTF-8'))),
             Bucket=self.s3_bucket_name,
             Key=filename
         )
 
+        # wait for object to exist
         waiter = s3.get_waiter('object_exists')
         filename = '%s%s_%s_%s.%s' % (
             self.s3_output_folder,
@@ -139,6 +150,7 @@ class Lambda(Node):
             coordinates.hash,
             self.source_output.format)
         waiter.wait(Bucket=self.s3_bucket_name, Key=filename)
+
         # After waiting, load the pickle file like this:
         resource = boto3.resource('s3')
         with BytesIO() as data:

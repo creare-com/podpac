@@ -88,6 +88,16 @@ class Compositor(Node):
     def _source_coordinates_default(self):
         return self.get_source_coordinates()
 
+    # default representation
+    def __repr__(self):
+        source_name = str(self.__class__.__name__)
+
+        rep = '{}'.format(source_name)
+        rep += '\n\tsource: {}'.format(self.source)
+        rep += '\n\tinterpolation: {}'.format(self.interpolation)
+
+        return rep
+
     def get_source_coordinates(self):
         """
         Returns the coordinates describing each source.
@@ -274,7 +284,6 @@ class Compositor(Node):
         d['sources'] = self.sources
         d['interpolation'] = self.interpolation
         return d
-
 
 class OrderedCompositor(Compositor):
     """Compositor that combines sources based on their order in self.sources. Once a request contains no
