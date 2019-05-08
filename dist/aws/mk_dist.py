@@ -32,7 +32,7 @@ zipsize = data['podpac_dist_latest.zip']['zip_size']
 totsize = sum([pg[k] for k in pg if (k + '.zip') not in pgz.keys()])
 pkgs = []
 for val in sdata[::-1]:
-    if val[0] == 'podpac_dist_latest.zip':
+    if val[0] == 'podpac_dist_latest.zip' or 'rasterio' in val[0] or 'pyproj' in val[0]:
         continue
     key = val[0]
     pkgs.append(key)

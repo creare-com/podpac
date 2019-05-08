@@ -13,7 +13,7 @@ RUN yum -y groupinstall development
 
 # Mock current AWS Lambda docker image
 # Find complete list of package https://gist.github.com/vincentsarago/acb33eb9f0502fcd38e0feadfe098eb7
-RUN  yum install -y libjpeg-devel libpng-devel libcurl-devel ImageMagick-devel.x86_64 python3 which
+RUN  yum install -y libjpeg-devel libpng-devel libcurl-devel ImageMagick-devel.x86_64 python3-devel.x86_64 which
 
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
@@ -34,8 +34,7 @@ RUN cp -r /podpac/ /tmp/vendored/ && \
     cp -r /tmp/vendored/podpac/podpac/* /tmp/vendored/podpac/ && \
     rm -rf /tmp/vendored/podpac/podpac/*
 
-RUN cd /tmp/vendored && find . -name "*.so" > so_files.txt && \
-    cp podpac/dist/aws/link_so.py . && python3 link_so.py
+RUN pip3 install pyproj==2.1.3 -t /tmp/vendored/ --upgrade
 
 RUN cd /tmp/vendored && \
     find * -maxdepth 0 -type f | grep ".zip" -v | grep -v ".pyc" | xargs zip -9 -rqy podpac_dist_latest.zip
