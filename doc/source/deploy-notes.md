@@ -1,6 +1,26 @@
-# Notes
+# Deploy Notes for Developers
 
 > Note this it not included in built documentation
+
+## Uploading to pypi
+Run this command to create the wheel and source code tarball
+```bash
+$ python setup.py sdist bdist_wheel
+```
+
+In case Twine is not installed, install it
+
+```bash
+$ pip install --upgrade twine
+```
+
+Now upload the package
+
+```bash
+$ python -m twine upload
+```
+
+This will prompt you for your username and password. At the moment, only mpu and mls have privileges to upload to the PODPAC PYPI index. 
 
 ## Creating the Windows Installation PODPAC Conda environment
 
