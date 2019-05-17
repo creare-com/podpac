@@ -6,6 +6,8 @@
 # https://conda.io/docs/user-guide/tasks/use-conda-with-travis-ci.html
 
 language: python
+sudo: required
+dist: xenial
 python:
   - "2.7"
   - "3.5"
