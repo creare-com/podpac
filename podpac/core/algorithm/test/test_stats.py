@@ -30,13 +30,13 @@ class TestReduce(object):
     def setup_method(self):
         # save chunk size
         self.saved_chunk_size = podpac.settings['CHUNK_SIZE']
-        self.saved_cache_output_default = podpac.settings['CACHE_OUTPUT_DEFAULT']
+        # self.saved_cache_output_default = podpac.settings['CACHE_OUTPUT_DEFAULT']
         podpac.settings['CHUNK_SIZE'] = None
-        podpac.settings['CACHE_OUTPUT_DEFAULT'] = False
+        # podpac.settings['CACHE_OUTPUT_DEFAULT'] = False
 
     def teardown_method(self):
         podpac.settings['CHUNK_SIZE'] = self.saved_chunk_size
-        podpac.settings['CACHE_OUTPUT_DEFAULT'] = self.saved_cache_output_default
+        # podpac.settings['CACHE_OUTPUT_DEFAULT'] = self.saved_cache_output_default
 
     def test_auto_chunk(self):
         podpac.settings['CHUNK_SIZE'] = 'auto'
@@ -79,13 +79,13 @@ class BaseTests(object):
     def setup_method(self):
         # save chunk size
         self.saved_chunk_size = podpac.settings['CHUNK_SIZE']
-        self.saved_cache_output_default = podpac.settings['CACHE_OUTPUT_DEFAULT']
+        # self.saved_cache_output_default = podpac.settings['CACHE_OUTPUT_DEFAULT']
         podpac.settings['CHUNK_SIZE'] = None
-        podpac.settings['CACHE_OUTPUT_DEFAULT'] = False
+        # podpac.settings['CACHE_OUTPUT_DEFAULT'] = False
 
     def teardown_method(self):
         podpac.settings['CHUNK_SIZE'] = self.saved_chunk_size
-        podpac.settings['CACHE_OUTPUT_DEFAULT'] = self.saved_cache_output_default
+        # podpac.settings['CACHE_OUTPUT_DEFAULT'] = self.saved_cache_output_default
 
     def test_full(self):
         node = self.NodeClass(source=source)
