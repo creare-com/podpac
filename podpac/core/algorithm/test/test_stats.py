@@ -30,10 +30,13 @@ class TestReduce(object):
     def setup_method(self):
         # save chunk size
         self.saved_chunk_size = podpac.settings['CHUNK_SIZE']
+        self.saved_cache_output_default = podpac.settings['CACHE_OUTPUT_DEFAULT']
         podpac.settings['CHUNK_SIZE'] = None
+        podpac.settings['CACHE_OUTPUT_DEFAULT'] = False
 
     def teardown_method(self):
         podpac.settings['CHUNK_SIZE'] = self.saved_chunk_size
+        podpac.settings['CACHE_OUTPUT_DEFAULT'] = self.saved_cache_output_default
 
     def test_auto_chunk(self):
         podpac.settings['CHUNK_SIZE'] = 'auto'
@@ -64,7 +67,7 @@ class TestReduce(object):
         
         # fall back on reduce function with warning
         with pytest.warns(UserWarning):
-            podpac.settings['CHUNK_SIZE'] = 100
+            podpac.settings['CHUNK_SIZE'] = 500
             output_chunked = node.eval(coords)
 
         # should be the same
@@ -76,10 +79,13 @@ class BaseTests(object):
     def setup_method(self):
         # save chunk size
         self.saved_chunk_size = podpac.settings['CHUNK_SIZE']
+        self.saved_cache_output_default = podpac.settings['CACHE_OUTPUT_DEFAULT']
         podpac.settings['CHUNK_SIZE'] = None
+        podpac.settings['CACHE_OUTPUT_DEFAULT'] = False
 
     def teardown_method(self):
         podpac.settings['CHUNK_SIZE'] = self.saved_chunk_size
+        podpac.settings['CACHE_OUTPUT_DEFAULT'] = self.saved_cache_output_default
 
     def test_full(self):
         node = self.NodeClass(source=source)
@@ -93,7 +99,7 @@ class BaseTests(object):
         np.testing.assert_allclose(output.data, self.expected_full.data)
 
     def test_full_chunked(self):
-        podpac.settings['CHUNK_SIZE'] = 100
+        podpac.settings['CHUNK_SIZE'] = 500
         node = self.NodeClass(source=source, dims=coords.dims)
         output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_full)
@@ -104,10 +110,9 @@ class BaseTests(object):
         output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_latlon)
         np.testing.assert_allclose(output.data, self.expected_latlon.data)
-
-    @pytest.mark.xfail(reason="bug, to fix")
+    
     def test_lat_lon_chunked(self):
-        podpac.settings['CHUNK_SIZE'] = 100
+        podpac.settings['CHUNK_SIZE'] = 500
         node = self.NodeClass(source=source, dims=['lat', 'lon'])
         output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_latlon)
@@ -120,7 +125,7 @@ class BaseTests(object):
         np.testing.assert_allclose(output.data, self.expected_time.data)
 
     def test_time_chunked(self):
-        podpac.settings['CHUNK_SIZE'] = 100
+        podpac.settings['CHUNK_SIZE'] = 500
         node = self.NodeClass(source=source, dims='time')
         output = node.eval(coords)
         # xr.testing.assert_allclose(output, self.expected_time)
@@ -166,6 +171,14 @@ class TestMean(BaseTests):
         cls.expected_latlon = data.mean(dim=['lat', 'lon'])
         cls.expected_time = data.mean(dim='time')
 
+    def test_chunk_sizes(self):
+        for n in [20, 21, 1000, 1001]:
+            podpac.settings['CHUNK_SIZE'] = n
+            node = self.NodeClass(source=source, dims=coords.dims)
+            output = node.eval(coords)
+            # xr.testing.assert_allclose(output, self.expected_full)
+            np.testing.assert_allclose(output.data, self.expected_full.data)
+
 class TestVariance(BaseTests):
     @classmethod
     def setup_class(cls):
@@ -208,10 +221,12 @@ class TestMedian(BaseTests):
         cls.expected_latlon = data.median(dim=['lat', 'lon'])
         cls.expected_time = data.median(dim='time')
 
-# class TestPercentile(BaseTests):
-#     @classmethod
-#     def setup_class(cls):
-#         cls.NodeClass = Percentile
+@pytest.mark.skip("TODO")
+class TestPercentile(BaseTests):
+    @classmethod
+    def setup_class(cls):
+        cls.node = Percentile(source=source)
+        # TODO can we replace dims_axes with reshape (or vice versa)
 
 class TestGroupReduce(object):
     pass
