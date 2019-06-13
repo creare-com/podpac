@@ -106,3 +106,8 @@ class EGI(OrderedCompositor):
 
         """
         pass
+
+
+def authenticate():
+    pass
+    
