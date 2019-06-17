@@ -39,7 +39,6 @@ class Session(requests.Session):
         (username, password) string in plain text
     hostname : str
         Host address (eg. http://example.com) that gets authenticated.
-        By default, this is set to 'urs.earthdata.nasa.gov'
     password : str
         Password used for authentication.
         Loaded from podpac settings file using password@:attr:`hostname` as the key.
