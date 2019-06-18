@@ -18,9 +18,10 @@ from six import string_types
 import numpy as np
 import xarray as xr
 import traitlets as tl
+from lazy_import import lazy_module
 
-# Set up logging
-log = logging.getLogger(__name__)
+# optional imports
+h5py = lazy_module('h5py')
 
 # Internal dependencies
 from podpac import Coordinates, Node
@@ -28,25 +29,21 @@ from podpac.compositor import OrderedCompositor
 from podpac.data import DataSource, H5PY
 from podpac import authentication
 from podpac import settings
+from podpac.core.units import UnitsDataArray, create_data_array
 
-h5py = lazy_module('h5py')
+# Set up logging
+log = logging.getLogger(__name__)
 
 
 # Base URLs
 # https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs#egiparameters
-BASE_URL = "https://n5eil02u.ecs.nsidc.org/egi/request"
-
+BASE_URL = "https://n5eil01u.ecs.nsidc.org/egi/request"
 
 
 class EGI(H5PY):
     """
     PODPAC DataSource node to access the NASA EGI Programmatic Interface
     https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs#cmrparameters
-    
-    Design
-    ------
-    - only allow one set of "data layers" (aka coverage)
-    - always download geotif since we don't need to know lat/lon keys
     
     Parameters
     ----------
@@ -91,8 +88,8 @@ class EGI(H5PY):
 
     Attributes
     ----------
-    dataset : h5py.File
-        The h5py File object holding downloaded data
+    data : :class:`podpac.UnitsDataArray`
+        The data array compiled from downloaded EGI data
     """
 
     base_url = tl.Unicode().tag(attr=True)
@@ -106,11 +103,12 @@ class EGI(H5PY):
     lat_key = tl.Unicode().tag(attr=True)
     lon_key = tl.Unicode().tag(attr=True)
 
+
     # optional
     
     # full list of supported formats ["GeoTIFF", "HDF-EOS5", "NetCDF4-CF", "NetCDF-3", "ASCII", "HDF-EOS", "KML"]
     # response_format = tl.Enum(["HDF-EOS5"], default_value="HDF-EOS5", allow_none=True)
-    download_files = tl.Boolean(default_value=False)
+    # download_files = tl.Bool(default_value=False)
     version = tl.Union([tl.Unicode(default_value=None, allow_none=True), \
                         tl.Int(default_value=None, allow_none=True)]).tag(attr=True)
     @tl.validate('version')
@@ -138,17 +136,8 @@ class EGI(H5PY):
         return None
 
     # attributes
-    dataset_file = tl.Any(allow_none=True)
-    dataset = tl.Any(allow_none=True)
-    @tl.default('dataset')
-    def _open_dataset(self):
-
-        if self.dataset_file is None:
-            return None
-
-        # TODO: dataset should not open by default
-        # prefer with as: syntax
-        return h5py.File(self.dataset_file)
+    data = tl.Any(allow_none=True)
+    _url = tl.Unicode(allow_none=True)
 
     @property
     def source(self):
@@ -160,23 +149,21 @@ class EGI(H5PY):
         str
         """
         url = copy.copy(self.base_url)
+        url += "?short_name={}".format(self.short_name)
 
         def _append(u, key, val):
-            u += "?{key}={val}".format(key=key, val=val)
+            u += "&{key}={val}".format(key=key, val=val)
             return u
 
-        url = _append(url, "short_name", self.short_name)
+        url = _append(url, "Coverage", "{},{},{}".format(self.data_key, self.lat_key, self.lon_key))
 
         # Format could be customized - see response_format above
         # For now we set to HDF5
         # url = _append(url, "format", self.response_format)
-        url = _append(url, "format", "HDF-EOS5")
+        url = _append(url, "format", "HDF-EOS")
 
         if self.version:
             url = _append(url, "version", self.version)
-
-        if self.data_key:
-            url = _append(url, "Coverage", self.data_key)
         
         if self.updated_since:
             url = _append(url, "Updated_since", self.updated_since)
@@ -184,10 +171,21 @@ class EGI(H5PY):
         # other parameters are included at eval time
         return url
 
-    def eval(self, coordinates, output=None):
-        self.download(coordinates)
+    def get_native_coordinates(self):
+        if self.data is not None:
+            return Coordinates.from_xarray(self.data.coords)
 
-        super(EGI, self).eval(coordinates, output)
+    def get_data(self, coordinates, coordinates_index):
+        if self.data is not None:
+            da = self.data[coordinates_index]
+            return da
+    
+    def eval(self, coordinates, output=None):
+        # download data for coordinate bounds, then handle that data as an H5PY node
+        zip_file = self.download(coordinates)
+        self._load_zip(zip_file)
+
+        # super(EGI, self).eval(coordinates, output)
 
     def download(self, coordinates):
         """
@@ -202,6 +200,11 @@ class EGI(H5PY):
         ------
         ValueError
             Error raised when no spatial or temporal bounds are provided
+        
+        Returns
+        -------
+        zipfile.ZipFile
+            Returns zip file byte-str to downloaded data
         """
         self._authenticate()
 
@@ -209,7 +212,8 @@ class EGI(H5PY):
         bbox = None
 
         if 'time' in coordinates.udims:
-            time_bounds = [str(bound) for bound in coordinates['time'].bounds if isinstance(bound, np.datetime64)]
+            time_bounds = [str(np.datetime64(bound, 's')) for bound in \
+                           coordinates['time'].bounds if isinstance(bound, np.datetime64)]
             if len(time_bounds) < 2:
                 raise ValueError("Time coordinates must be of type np.datetime64")
 
@@ -225,37 +229,119 @@ class EGI(H5PY):
         url = self.source
 
         if time_bounds is not None:
-            url += "&time={start_time},{end_time}".format(start_time=start_time, end_time=end_time)
+            url += "&time={start_time},{end_time}".format(start_time=time_bounds[0], end_time=time_bounds[1])
 
         if bbox is not None:
-            url += "&Bbox={bbox}".format( bbox=bbox)
+            url += "&Bbox={bbox}".format(bbox=bbox)
 
         url += "&token={token}".format(token=self.token)
 
         log.debug("Querying EGI url: {}".format(url))
+        self._url = url         # for debugging
         r = requests.get(url)
+
+        if r.status_code != 200:
+            raise ValueError("Failed to download data from EGI Interface. EGI Reponse: {}".format(r.content))
 
         # load content into file-like object and then read into zip file
         f = BytesIO(r.content)
         zip_file = zipfile.ZipFile(f)
 
-        # iterate through each file in zip and load into output array
-        for name in zip_file.namelist():
-            h5data_bytes = zip_file.read(name)
-
-            bio = io.BytesIO(h5data_bytes)
-            with h5py.File(bio) as f:
-                f['dataset'] = range(10)
+        return zip_file
 
 
         # if self.download_files:
-        #     filepath = os.path.join(settings['ROOT_PATH'], 'egi', 'output.zip')
+        #     filepath = os.path.join(settings['ROOT_PATH'], settings['DISK_CACHE_DIR'], 'egi', 'output.zip')
 
         #     with open(filepath, 'wb') as f:
         #         f.write(r.content)
 
         #     with zipfile.ZipFile(filepath,"r") as zip_ref:
         #         zip_ref.extractall()
+
+    def _load_zip(self, zip_file):
+
+        data = None
+        lat = None
+        lon = None
+        time = None
+
+        for name in zip_file.namelist():
+            # BytesIO
+            bio = BytesIO(zip_file.read(name))
+            f_data, f_lat, f_lon, f_time = self._load_file(bio)   # 2D/3D, 1D, 1D, 1D
+
+            # initialize
+            if data is None:
+                data = f_data
+                lat = f_lat
+                lon = f_lon
+                time = f_time
+
+                continue
+
+            # TODO: We are assuming the lat/lon will not change between files of the same type
+            # this is likely a bad assumption, but will handle in the future
+            # lat/lon may either be gridded or stacked
+            if not np.all(lat == f_lat) or not np.all(lon == f_lon):
+                raise ValueError('Coordinates vary between individual data files in EGI zip archive')
+
+            # concatenate all data with new data @ time slice
+            data = np.concatenate([data, f_data])
+            time = np.concatenate([time, f_time])
+
+
+        # stacked coords
+        if data.ndim == 2:
+            c = Coordinates([(lat, lon), time], dims=['lat_lon', 'time'])
+
+        # gridded coords
+        elif data.ndim == 3:
+            c = Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
+        else:
+            raise ValueError('Data must have either 2 or 3 dimensions')
+        
+        self.data = create_data_array(c, data=data)
+
+    def _load_file(self, filelike):
+        hdf5_file = h5py.File(filelike)
+
+        data = hdf5_file[self.data_key]
+        lat = hdf5_file[self.lat_key]
+        lon = hdf5_file[self.lon_key]
+
+        # handle time (Not py2.7 compatible)
+        # take the midpoint between the range identified in the file
+        t_start = np.datetime64(hdf5_file['Metadata/Extent'].attrs['rangeBeginningDateTime'].replace(b'Z', b''))
+        t_end = np.datetime64(hdf5_file['Metadata/Extent'].attrs['rangeEndingDateTime'].replace(b'Z', b''))
+        time = np.array([t_start + (t_end - t_start)/2])
+
+
+        # determine if coordinates are gridded for specific file
+        if np.all(lat[:, 0] == lat[:, 1]) and np.all(lon[0, :] == lon[1, :]):
+            lat = lat[:, 0]
+            lon = lon[0, :]
+
+            # c = Coordinates([lat[:, 0], lon[0, :], time], dims=['lat', 'lon', 'time'])
+            # uda = create_data_array(c, data=dset[()])
+
+        # otherwise make stacked coordinates (inefficient)
+        else:
+            # TODO: remove when we can handle stacked coordinates
+            raise ValueError('Coordinates must be gridded')
+            lat = lat[()].ravel()
+            lon = lon[()].ravel()
+            data = data[()].ravel()
+
+            # # this could be done better with DependentCoordinates, but for now
+            # # we ravel all (lat, lon) coordinates to match dset[()]
+            # c = Coordinates([(lat[()].ravel(), lon[()].ravel()), time], dims=['lat_lon', 'time'])
+            # uda = create_data_array(c, data=dset[()].ravel())
+        
+        # add extra dimension for time
+        data = np.array([data])
+
+        return data, lat, lon, time
 
     def _authenticate(self):
         if self.token is None:
@@ -268,7 +354,9 @@ class EGI(H5PY):
         # if token is still not valid, throw error
         if not self.token_valid():
             raise ValueError("Failed to get a valid token from EGI Interface. " + \
-                             "Try requesting a token manually using `self.get_token()`") 
+                             "Try requesting a token manually using `self.get_token()`")
+
+        log.debug('EGI Token valid')
 
     def token_valid(self):
         """
