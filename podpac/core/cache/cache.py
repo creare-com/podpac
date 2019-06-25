@@ -401,121 +401,6 @@ class CacheStore(object):
         '''
         raise NotImplementedError
 
-class CachePickleContainer(object):
-
-    """Container for multiple cache listings that are different but whose signature (node, coordinates, key) hash are the same. Used for serializing the CacheListing objects to disk using pickle format.
-    
-    Attributes
-    ----------
-    listings : list
-        list of CacheListing objects that share the same signature hashes, but are actually different
-    """
-    
-    def __init__(self, listings=[]):
-        """
-        
-        Parameters
-        ----------
-        listings : list, optional
-            CacheListing objects that share the same signature hashes, but are actually different
-        """
-        self.listings = listings
-
-    def serialize(self):
-        """Convert this object to bytes so that it can be saved to local file, s3 object, etc.
-        """
-        return cPickle.dumps(self)
-
-    @staticmethod
-    def deserialize(s):
-        """Convert bytes to instance of CachePickleContainer. Used in conjunction with serialize.
-        
-        Parameters
-        ----------
-        s : str
-            bytes representing object
-        """
-        return cPickle.loads(s)
-
-
-
-
-    def put(self, listing):
-        """Add CacheListing object to this CachePickleContainer
-        
-        Parameters
-        ----------
-        listing : CacheListing
-            cache listing to add
-        """
-        self.listings.append(listing)
-
-    def get(self, listing):
-        """Check for CacheListing object from this CachePickleContainer
-        
-        Parameters
-        ----------
-        listing : CacheListing
-            listing with signature for lookup.
-        
-        Returns
-        -------
-        CacheListing
-            object in this CachePickleContainer that has the same signature as `listing`
-        
-        Raises
-        ------
-        CacheException
-            If no objects match signature of `liasting`
-        """
-        for l in self.listings:
-            if l == listing:
-                return l
-        raise CacheException("Could not find requested listing.")
-
-    def has(self, listing):
-        """Retrieve CacheListing object from this CachePickleContainer
-        
-        Parameters
-        ----------
-        listing : listing with signature for lookup.
-        
-        Returns
-        -------
-        boolean
-            True, if there is a CacheListing in this CachePickleContainer with the same signature as `listing`
-        """
-        for l in self.listings:
-            if l == listing:
-                return True
-        return False
-
-    def rem(self, listing):
-        """Removes CacheListing objecta from this CachePickleContainer
-        
-        Parameters
-        ----------
-        listing : CacheListing
-            cache listing with same signature as objects that should be removed
-        """
-        for i,l in enumerate(self.listings):
-            if l == listing:
-                self.listings.pop(i)
-
-    @property
-    def empty(self):
-        """Query for whether this CachePickleContainer is empty
-        
-        Returns
-        -------
-        boolean
-            True if this CachePickleContainer is empty
-        """
-        if len(self.listings) == 0:
-            return True
-        return False
-
-
 class FileCacheStore(CacheStore):
     """Base class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
     """
@@ -816,9 +701,6 @@ class DiskCacheStore(FileCacheStore):
         # make directory if it doesn't already exist
         os.makedirs(self._root_dir_path, exist_ok=True)
 
-        # set extension
-        self._CacheContainerClass = CachePickleContainer
-
     def save(self, path, data):
         """
         Save this object to disk using pickle format.
@@ -961,7 +843,6 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         if root_cache_dir_path is None:
             root_cache_dir_path = settings['S3_CACHE_DIR']
         self._root_dir_path = root_cache_dir_path
-        self._CacheContainerClass = CachePickleContainer
         if s3_bucket is None:
             s3_bucket = settings['S3_BUCKET_NAME']
         if aws_access_key_id is None or aws_secret_access_key is None: 
