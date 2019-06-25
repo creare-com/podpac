@@ -609,8 +609,7 @@ class CachePickleContainer(object):
 
 
 class FileCacheStore(CacheStore):
-
-    """Abstract class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
+    """Base class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
     """
     
     cache_mode = ''
@@ -682,9 +681,6 @@ class FileCacheStore(CacheStore):
         filename = filename + '.pkl'
         return filename
 
-    def cache_glob(self, node, key, coordinates):
-        raise NotImplementedError
-
     def cache_path(self, node, key, coordinates):
         """Filepath for storing cached data for specified node,key,coordinates
         
@@ -737,37 +733,35 @@ class FileCacheStore(CacheStore):
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         '''
+        
         self.make_cache_dir(node)
-
+        
         listing = CacheListing(node=node, key=key, coordinates=coordinates, data=data)
-        if self.has(node, key, coordinates): # a little inefficient but will do for now
-            if not update:
-                raise CacheException("Existing cache entry. Call put() with `update` argument set to True if you wish to overwrite.")
-            else:
-                paths = self.cache_glob(node, key, coordinates)
-                for p in paths:
-                    c = self.load_container(p)
-                    if c.has(listing):
-                        c.rem(listing)
-                        c.put(listing)
-                        self.save_container(c,p)
-                        return True
-                raise CacheException("Data is cached, but unable to find for update.")
-        # listing does not exist in cache
         path = self.cache_path(node, key, coordinates)
-        # if file for listing already exists, listing needs to be added to file
+        
         if self.file_exists(path):
             c = self.load_container(path)
+            
+            if c.has(listing):
+                if not update:
+                    raise CacheException("Existing cache entry. Use `update=True` to overwrite.")
+                else:
+                    c.rem(listing)
+            
             c.put(listing)
-            self.save_container(c,path)
-        # if file for listing does not already exist, we need to create a new container, add the listing, and save to file
+            self.save_container(c, path)
+
         else:
             self.save_new_container(listings=[listing], path=path)
 
+        # TODO we should check before adding a cache entry so that we do not exceed the max_size temporarily
         if self.max_size is not None and self.size >= self.max_size:
-        #     # TODO removal policy
+            # TODO removal policy
             self.rem(node=node, key=key, coordinates=coordinates)
-            warnings.warn("Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(cache_mode=self.cache_mode, cache_limit_setting=self.limit_setting), RuntimeWarning)
+            warnings.warn("Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
+                          "settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', "
+                          "mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(
+                            cache_mode=self.cache_mode, cache_limit_setting=self.limit_setting), RuntimeWarning)
             return False
 
         return True
@@ -794,16 +788,22 @@ class FileCacheStore(CacheStore):
         CacheError
             If the data is not in the cache.
         '''
+
+        path = self.cache_path(node, key, coordinates)
         listing = CacheListing(node=node, key=key, coordinates=coordinates)
-        paths = self.cache_glob(node, key, coordinates)
-        for p in paths:
-            c = self.load_container(p)
-            if c.has(listing):
-                data = c.get(listing).data
-                if data is None:
-                    CacheException("Stored data is None.")
-                return data
-        raise CacheException("Cache miss. Requested data not found.")
+
+        if not self.file_exists(path):
+            raise CacheException("Cache miss. Requested data not found.")
+
+        c = self.load_container(path)
+        if not c.has(listing):
+            raise CacheException("Cache miss. Requested data not found.")
+
+        data = c.get(listing).data
+        if data is None:
+            raise CacheException("Stored data is None.")
+
+        return data
 
     def clear_entire_cache_store(self):
         raise NotImplementedError
@@ -855,7 +855,6 @@ class FileCacheStore(CacheStore):
                 else:
                     self.save_container(c,p)
         return removed_something
-        
 
     def has(self, node, key, coordinates=None):
         '''Check for cached data for this node
@@ -874,13 +873,17 @@ class FileCacheStore(CacheStore):
         has_cache : bool
              True if there as a cached object for this node for the given key and coordinates.
         '''
+        path = self.cache_path(node, key, coordinates)
         listing = CacheListing(node=node, key=key, coordinates=coordinates)
-        paths = self.cache_glob(node, key, coordinates)
-        for p in paths:
-            c = self.load_container(p)
-            if c.has(listing):
-                return True
-        return False
+        
+        if not self.file_exists(path):
+            return False
+
+        c = self.load_container(path)
+        if not c.has(listing):
+            return False
+
+        return True
 
 class DiskCacheStore(FileCacheStore):
 
@@ -1146,7 +1149,7 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         key : str, CacheWildCard
             CacheWildCard indicates to match any key
         coordinates : podpac.core.coordinates.coordinates.Coordinates, CacheWildCard, None
-            CacheWildCard indicates to match any coordinates
+            CacheWildCard indicates to macth any coordinates
         
         Returns
         -------
