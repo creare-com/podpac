@@ -401,70 +401,6 @@ class CacheStore(object):
         '''
         raise NotImplementedError
 
-class CacheListing(object):
-
-    """Container for a single cached object. 
-    Includes information pertinent to retrieval of cached objects 
-    (e.g. representations of the node, key, and coordinages) and the actual cached data object.
-    
-    Attributes
-    ----------
-    coordinate_def : str
-        JSON representation of coordinates of cached object
-    data : any
-        actual cached data object
-    key : str
-        key for retrieval
-    """
-    
-    def __init__(self, node, key, coordinates, data=None):
-        """
-        
-        Parameters
-        ------------
-        node : Node
-            node requesting storage.
-        data : any
-            Data to cache
-        key : str
-            Cached object key, e.g. 'output'.
-        coordinates : Coordinates, optional
-            Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
-        """
-        self._node_def = node.definition
-        self.key = key
-        self.coordinate_def = None if coordinates is None else coordinates.json
-        self.data = data
-
-    @property
-    def node_def(self):
-        """Returns serialized representation of node definition for comparison purposes
-        
-        Returns
-        -------
-        bytes object
-            Serialized representation of node definition for comparison purposes
-        """
-        return cPickle.dumps(self._node_def)
-    
-    def __eq__(self, other):
-        """Compares two CacheListing objects to determine appropriate behaviour for common cache operations
-        (e.g. put(), get(), rem(), has())
-        
-        Parameters
-        ----------
-        other : CacheListing
-            Cache Listing object to compare to.
-        
-        Returns
-        -------
-        boolean
-            True, if the other listing is equivalent to this listing
-        """
-        return self.node_def == other.node_def and \
-               self.key == other.key and \
-               self.coordinate_def == other.coordinate_def
-
 class CachePickleContainer(object):
 
     """Container for multiple cache listings that are different but whose signature (node, coordinates, key) hash are the same. Used for serializing the CacheListing objects to disk using pickle format.
@@ -502,35 +438,7 @@ class CachePickleContainer(object):
         return cPickle.loads(s)
 
 
-    def save(self, filepath):
-        """Save this object to disk using pickle format.
-        This function can be used instead of serialize() to directly save to local disk.
-        
-        Parameters
-        ----------
-        filepath : str
-            path to file where this object should be saved
-        """
-        with open(filepath, 'wb') as f:
-            cPickle.dump(self, f)
 
-    @staticmethod
-    def load(path):
-        """Load this object from disk
-        This function can be used instead of deserialize() to directly load from local disk.
-        
-        Parameters
-        ----------
-        path : str
-            path to file where this object should be loaded from
-        
-        Returns
-        -------
-        CachePickleContainer
-            container stored at path
-        """
-        with open(path, 'rb') as f:
-            return cPickle.load(f)
 
     def put(self, listing):
         """Add CacheListing object to this CachePickleContainer
@@ -622,10 +530,10 @@ class FileCacheStore(CacheStore):
     def make_cache_dir(self, node):
         raise NotImplementedError
 
-    def save_container(self, container, path):
+    def save(self, path, data):
         raise NotImplementedError
 
-    def load_container(self, path):
+    def load(self, path):
         raise NotImplementedError
 
     def _path_join(self, parts):
@@ -734,25 +642,16 @@ class FileCacheStore(CacheStore):
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         '''
         
-        self.make_cache_dir(node)
-        
-        listing = CacheListing(node=node, key=key, coordinates=coordinates, data=data)
         path = self.cache_path(node, key, coordinates)
         
         if self.file_exists(path):
-            c = self.load_container(path)
-            
-            if c.has(listing):
-                if not update:
-                    raise CacheException("Existing cache entry. Use `update=True` to overwrite.")
-                else:
-                    c.rem(listing)
-            
-            c.put(listing)
-            self.save_container(c, path)
+            if not update:
+                raise CacheException("Existing cache entry. Use `update=True` to overwrite.")
 
-        else:
-            self.save_new_container(listings=[listing], path=path)
+            self.delete_file(path)
+        
+        self.make_cache_dir(node)
+        self.save(path, data)
 
         # TODO we should check before adding a cache entry so that we do not exceed the max_size temporarily
         if self.max_size is not None and self.size >= self.max_size:
@@ -790,16 +689,13 @@ class FileCacheStore(CacheStore):
         '''
 
         path = self.cache_path(node, key, coordinates)
-        listing = CacheListing(node=node, key=key, coordinates=coordinates)
-
+        
         if not self.file_exists(path):
             raise CacheException("Cache miss. Requested data not found.")
 
-        c = self.load_container(path)
-        if not c.has(listing):
-            raise CacheException("Cache miss. Requested data not found.")
+        data = self.load(path)
 
-        data = c.get(listing).data
+        # TODO should we allow None?
         if data is None:
             raise CacheException("Stored data is None.")
 
@@ -826,34 +722,32 @@ class FileCacheStore(CacheStore):
         coordinates : Coordinates, CacheWildCard, None, optional
             Delete only cached objects for these coordinates, or any coordinates if `coordinates` is a CacheWildCard. `None` specifically indicates entries that do not have coordinates.
         '''
+
+        removed_something = False
+
         if isinstance(node, CacheWildCard):
             # clear the entire cache store
-            return self.clear_entire_cache_store()
-        removed_something = False
-        if isinstance(key, CacheWildCard) or isinstance(coordinates, CacheWildCard):
-            # clear all files for data cached for `node`
-            # and delete its cache subdirectory if it is empty
-            paths = self.cache_glob(node, key=key, coordinates=coordinates)
-            for p in paths:
-                self.delete_file(p)
+            removed_something = self.clear_entire_cache_store()
+
+        elif isinstance(key, CacheWildCard) or isinstance(coordinates, CacheWildCard):
+            # remove matching cache entries for the given node
+            for path in self.cache_glob(node, key=key, coordinates=coordinates):
+                self.delete_file(path)
                 removed_something = True
+
+            # remove the directory if it is empty
             cache_dir = self.cache_dir(node=node)
             if self.dir_is_empty(cache_dir):
                 self.rem_dir(cache_dir)
-            return removed_something
-        listing = CacheListing(node=node, key=key, coordinates=coordinates)
-        paths = self.cache_glob(node, key, coordinates)
-        for p in paths:
-            #import pdb
-            #pdb.set_trace()
-            c = self.load_container(p)
-            if c.has(listing):
-                c.rem(listing)
+        
+        else:
+            # remove a single item
+            path = self.cache_path(node, key, coordinates)
+
+            if self.file_exists(path):
+                self.delete_file(path)
                 removed_something = True
-                if c.empty:
-                   self.delete_file(p)
-                else:
-                    self.save_container(c,p)
+
         return removed_something
 
     def has(self, node, key, coordinates=None):
@@ -874,16 +768,7 @@ class FileCacheStore(CacheStore):
              True if there as a cached object for this node for the given key and coordinates.
         '''
         path = self.cache_path(node, key, coordinates)
-        listing = CacheListing(node=node, key=key, coordinates=coordinates)
-        
-        if not self.file_exists(path):
-            return False
-
-        c = self.load_container(path)
-        if not c.has(listing):
-            return False
-
-        return True
+        return self.file_exists(path)
 
 class DiskCacheStore(FileCacheStore):
 
@@ -933,15 +818,35 @@ class DiskCacheStore(FileCacheStore):
 
         # set extension
         self._CacheContainerClass = CachePickleContainer
+
+    def save(self, path, data):
+        """
+        Save this object to disk using pickle format.
         
-    def save_container(self, container, path):
-        container.save(path)
+        Parameters
+        ----------
+        path : str
+            path to file where this object should be saved
+        """
+        
+        with open(path, 'wb') as f:
+            cPickle.dump(data, f)
 
-    def save_new_container(self, listings, path):
-        self.save_container(self._CacheContainerClass(listings=listings),path)
+    def load(self, path):
+        """Load this object from disk
+        
+        Parameters
+        ----------
+        path : str
+            path to file where this object should be loaded from
+        
+        Returns
+        -------
+        data : object
+        """
 
-    def load_container(self, path):
-        return self._CacheContainerClass.load(path)
+        with open(path, 'rb') as f:
+            return cPickle.load(f)
 
     def _path_join(self, parts):
         return os.path.join(*parts)
@@ -1089,9 +994,6 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         # note s needs to be b'bytes' or file below
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
         response = self._s3_client.put_object(Bucket=self._s3_bucket, Body=s, Key=path)
-
-    def save_new_container(self, listings, path):
-        self.save_container(self._CacheContainerClass(listings=listings),path)
 
     def load_container(self, path):
         response = self._s3_client.get_object(Bucket=self._s3_bucket, Key=path)

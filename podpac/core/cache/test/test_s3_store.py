@@ -14,7 +14,6 @@ from podpac.core.cache.cache import CacheCtrl
 from podpac.core.cache.cache import CacheStore
 from podpac.core.cache.cache import S3CacheStore
 from podpac.core.cache.cache import CacheException
-from podpac.core.cache.cache import CacheListing
 
 from podpac.core.data.types import Array
 from podpac.core.coordinates.coordinates import Coordinates
@@ -232,53 +231,6 @@ def test_two_different_nodes_put_and_one_node_removes_all():
                    cache.get(node=n1, key=k1, coordinates=c1, mode='all')
                 assert cache.has(node=persistent_node, key=persistent_node_key, coordinates=None)
     cache.rem(node='*', key='*', coordinates='*', mode='all')
-
-@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
-def test_put_something_new_into_existing_file():
-    cache = make_cache_ctrl()
-    lat = np.random.rand(3)
-    lon = np.random.rand(4)
-    dummy_coords = Coordinates([lat,lon],['lat','lon'])
-    dummy_node = Array(source=np.random.random_sample(dummy_coords.shape), native_coordinates=dummy_coords)
-    dummy_node_din = np.random.rand(6,7,8)
-    dummy_node_key = "key"
-    disk_stores = [c for c in cache._cache_stores if type(c) is S3CacheStore]
-    for coord_f in coord_funcs:
-        for node_f in node_funcs:
-            for data_f in data_funcs:
-                c1,c2 = coord_f(),coord_f()
-                n1,n2 = node_f(), node_f()
-                din = data_f()
-                k = "key"
-                assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
-                for store in disk_stores:
-                    store.make_cache_dir(node=n1)
-                    path = store.cache_path(node=n1, key=k, coordinates=c1)
-                    listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
-                    store.save_new_container(listings=[listing], path=path)
-                    #import pdb
-                    #pdb.set_trace()
-                time.sleep(1)
-                assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
-                cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
-                assert cache.has(node=n1, key=k, coordinates=c1, mode='all')
-                dout = cache.get(node=n1, key=k, coordinates=c1, mode='all')
-                assert (din == dout).all()
-                dout = cache.get(node=n2, key=k, coordinates=c2, mode='all')
-                assert (din == dout).all()
-                #assert False
-
-                cache.rem(node=n1, key=k, coordinates=c1, mode='all')
-
-                #assert False
-                assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
-                for store in disk_stores:
-                    path = store.cache_path(node=n1, key=k, coordinates=c1)
-#                    assert os.path.exists(path)
-                    c = store.load_container(path)
-                    listing = CacheListing(node=dummy_node, key=dummy_node_key, coordinates=dummy_coords, data=dummy_node_din)
-                    assert c.has(listing)
-                cache.rem(node='*', key='*', coordinates='*', mode='all')
 
 @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
 def test_put_and_get_array_datasource_output():
