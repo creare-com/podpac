@@ -616,7 +616,6 @@ class FileCacheStore(CacheStore):
     cache_mode = ''
     cache_modes = ['all']
     limit_setting = ''
-    _CacheContainerClass = CachePickleContainer
 
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
@@ -680,7 +679,7 @@ class FileCacheStore(CacheStore):
         kKeY = 'kKeY{}'.format(self.hash_key(key))
         cKeY = 'cKeY{}'.format(self.hash_coordinates(coordinates))
         filename = '_'.join([pre, nKeY, kKeY, cKeY])
-        filename = filename + '.' + self._extension
+        filename = filename + '.pkl'
         return filename
 
     def cache_glob(self, node, key, coordinates):
@@ -889,15 +888,13 @@ class DiskCacheStore(FileCacheStore):
     cache_modes = set(['disk','all'])
     limit_setting = 'DISK_CACHE_MAX_BYTES'
 
-    def __init__(self, root_cache_dir_path=None, storage_format='pickle', max_size=None, use_settings_limit=True):
+    def __init__(self, root_cache_dir_path=None, max_size=None, use_settings_limit=True):
         """Initialize a cache that uses a folder on a local disk file system.
         
         Parameters
         ----------
         root_cache_dir_path : None, optional
             Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings. Should be a fully specified valid path.
-        storage_format : str, optional
-            Indicates the file format for storage. Defaults to 'pickle' which is currently the only supported format.
         max_size : None, optional
             Maximum allowed size of the cache store in bytes. Defaults to podpac 'DISK_CACHE_MAX_BYTES' setting, or no limit if this setting does not exist.
         use_settings_limit : bool, optional
@@ -907,8 +904,6 @@ class DiskCacheStore(FileCacheStore):
         ------
         CacheException
             Description
-        NotImplementedError
-            If unsupported `storage_format` is specified
         """
 
         if not settings['DISK_CACHE_ENABLED']:
@@ -934,13 +929,8 @@ class DiskCacheStore(FileCacheStore):
         os.makedirs(self._root_dir_path, exist_ok=True)
 
         # set extension
-        if storage_format == 'pickle':
-            self._extension = 'pkl'
-            self._CacheContainerClass = CachePickleContainer
-        else:
-            raise NotImplementedError
-        self._storage_format = storage_format
-
+        self._CacheContainerClass = CachePickleContainer
+        
     def save_container(self, container, path):
         container.save(path)
 
@@ -992,7 +982,7 @@ class DiskCacheStore(FileCacheStore):
         kKeY = 'kKeY*' if isinstance(key, CacheWildCard) else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
         cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
         filename = '_'.join([pre, nKeY, kKeY, cKeY])
-        filename = filename + '.' + self._extension
+        filename = filename + '.pkl'
         return glob(self._path_join([self.cache_dir(node), filename]))
 
     def clear_entire_cache_store(self):
@@ -1027,7 +1017,7 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
     cache_modes = set(['s3','all'])
     _delim = '/'
 
-    def __init__(self, root_cache_dir_path=None, storage_format='pickle', max_size=None, use_settings_limit=True,
+    def __init__(self, root_cache_dir_path=None, max_size=None, use_settings_limit=True,
                  s3_bucket=None, aws_region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
         """Initialize a cache that uses a folder on a local disk file system.
         
@@ -1035,8 +1025,6 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         ----------
         root_cache_dir_path : None, optional
             Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings. Should be the common "root" s3 prefix that you want to have all cached objects stored in. Do not store any objects in the bucket that share this prefix as they may be deleted by the cache.
-        storage_format : str, optional
-            Indicates the file format for storage. Defaults to 'pickle' which is currently the only supported format.
         max_size : None, optional
             Maximum allowed size of the cache store in bytes. Defaults to podpac 'S3_CACHE_MAX_BYTES' setting, or no limit if this setting does not exist.
         use_settings_limit : bool, optional
@@ -1056,8 +1044,6 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
             Description
         e
             Description
-        NotImplementedError
-            If unsupported `storage_format` is specified
         """
         
         if not settings['S3_CACHE_ENABLED']:
@@ -1067,12 +1053,7 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         if root_cache_dir_path is None:
             root_cache_dir_path = settings['S3_CACHE_DIR']
         self._root_dir_path = root_cache_dir_path
-        if storage_format == 'pickle':
-            self._extension = 'pkl'
-            self._CacheContainerClass = CachePickleContainer
-        else:
-            raise NotImplementedError
-        self._storage_format = storage_format
+        self._CacheContainerClass = CachePickleContainer
         if s3_bucket is None:
             s3_bucket = settings['S3_BUCKET_NAME']
         if aws_access_key_id is None or aws_secret_access_key is None: 
@@ -1187,7 +1168,7 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         kKeY = 'kKeY*' if isinstance(key, CacheWildCard) else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
         cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
         pat = '_'.join([pre, nKeY, kKeY, cKeY])
-        pat = pat + '.' + self._extension
+        pat = pat + '.pkl'
 
         obj_names = fnmatch.filter(obj_names, pat)
 
