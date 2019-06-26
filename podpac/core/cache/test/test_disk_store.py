@@ -12,7 +12,6 @@ from podpac.core.cache.cache import CacheException
 from podpac.core.cache.cache import CacheCtrl
 from podpac.core.cache.cache import CacheStore
 from podpac.core.cache.cache import DiskCacheStore
-from podpac.core.cache.cache import CacheException
 
 from podpac.core.data.types import Array
 from podpac.core.coordinates.coordinates import Coordinates
@@ -21,15 +20,13 @@ from podpac.core.settings import settings
 
 settings_orig = deepcopy(settings)
 
-root_disk_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tmp_cache'))
-
 def restore_settings():
     podpac.core.settings.settings = deepcopy(settings_orig)
 
 def make_cache_ctrl(max_size=None):
-    store = DiskCacheStore(root_cache_dir_path=root_disk_cache_dir)
+    store = DiskCacheStore()
     if max_size is not None:
-        settings[store.limit_setting] = max_size
+        settings['DISK_CACHE_MAX_BYTES'] = max_size
     ctrl = CacheCtrl(cache_stores=[store])
     ctrl.rem(node='*', key='*', coordinates='*', mode='all')
     return ctrl
@@ -68,7 +65,7 @@ def test_put_and_get_with_cache_limits():
                     n1,n2 = node_f(), node_f()
                     din = data_f()
                     k = "key"
-                    with pytest.warns(RuntimeWarning):
+                    with pytest.warns(UserWarning):
                         cache.put(node=n1, data=din, key=k, coordinates=c1, mode='all', update=False)
                     assert not cache.has(node=n1, key=k, coordinates=c1, mode='all')
                     cache.rem(node='*', key='*', coordinates='*', mode='all')

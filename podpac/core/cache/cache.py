@@ -10,6 +10,7 @@ import copy
 from glob import glob
 import shutil
 import json
+import io
 from hashlib import md5 as hash_alg
 try:
     import cPickle  # Python 2.7
@@ -20,7 +21,9 @@ import six
 import fnmatch
 from lazy_import import lazy_module
 import psutil
+import numpy as np
 import xarray as xr
+import io
 
 import warnings
 
@@ -548,15 +551,20 @@ class FileCacheStore(CacheStore):
         # serialize
         rootpath = self.cache_path(node, key, coordinates)
         
-        if isinstance(data, (xr.DataArray, xr.DataArray)):
+        if isinstance(data, xr.DataArray):
             path = rootpath + '.netcdf'
             s = data.to_netcdf()
+        elif isinstance(data, np.ndarray):
+            path = rootpath + '.npy'
+            with io.BytesIO() as f:
+                np.save(f, data)
+                s = f.getvalue()
         elif isinstance(data, podpac.Coordinates):
             path = rootpath + '.coords'
-            s = data.json
+            s = data.json.encode()
         elif is_json_serializable(data):
             path = rootpath + '.json'
-            s = json.dumps(data)
+            s = json.dumps(data).encode()
         else:
             warnings.warn("Object of type '%s' is not json serializable; caching object to file using pickle, which "
                           "may not be compatible with other Python versions or podpac versions.")
@@ -569,7 +577,7 @@ class FileCacheStore(CacheStore):
             warnings.warn("Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
                           "settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', "
                           "mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(
-                            cache_mode=self.cache_mode, cache_limit_setting=self.limit_setting), RuntimeWarning)
+                            cache_mode=self.cache_mode, cache_limit_setting=self.limit_setting), UserWarning)
             return False
 
         # save
@@ -610,15 +618,18 @@ class FileCacheStore(CacheStore):
         
         # deserialize
         if path.endswith('.netcdf'):
-            data = xr.open_dataset(s)
+            data = xr.open_dataarray(s)
+        elif path.endswith('.npy'):
+            with io.BytesIO(s) as b:
+                data = np.load(b)
         elif path.endswith('.coords'):
-            data = Coordinates.from_json(s)
+            data = podpac.Coordinates.from_json(s)
         elif path.endswith('.json'):
             data = json.loads(s)
         elif path.endswith('.pkl'):
             data = cPickle.loads(s)
         else:
-            raise CacheException("Unexpected file type '%s'" % os.path.basename(path))
+            raise RuntimeError("Unexpected cached file type '%s'" % os.path.basename(path))
 
         # TODO should we allow None?
         if data is None:
@@ -632,7 +643,7 @@ class FileCacheStore(CacheStore):
         if len(paths) == 0:
             return None
         elif len(paths) > 1:
-            return CacheException("Too many files matching pattern root '%s'" % rootpath)
+            return RuntimeError("Too many cached files matching '%s'" % rootpath)
         else:
             return paths[0]
 
@@ -696,50 +707,29 @@ class FileCacheStore(CacheStore):
         return path is not None
 
 class DiskCacheStore(FileCacheStore):
+    """Cache that uses a folder on a local disk file system."""
 
     cache_mode = 'disk'
     cache_modes = set(['disk','all'])
-    limit_setting = 'DISK_CACHE_MAX_BYTES'
 
-    def __init__(self, root_cache_dir_path=None, max_size=None, use_settings_limit=True):
-        """Initialize a cache that uses a folder on a local disk file system.
-        
-        Parameters
-        ----------
-        root_cache_dir_path : None, optional
-            Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings. Should be a fully specified valid path.
-        max_size : None, optional
-            Maximum allowed size of the cache store in bytes. Defaults to podpac 'DISK_CACHE_MAX_BYTES' setting, or no limit if this setting does not exist.
-        use_settings_limit : bool, optional
-            Use podpac settings to determine cache limits if True, this will also cause subsequent runtime changes to podpac settings module to effect the limit on this cache. Default is True.
-        
-        Raises
-        ------
-        CacheException
-            Description
-        """
+    def __init__(self):
+        """Initialize a cache that uses a folder on a local disk file system."""
 
         if not settings['DISK_CACHE_ENABLED']:
             raise CacheException("Disk cache is disabled in the podpac settings.")
 
-        # set cache dir
-        if root_cache_dir_path is not None:
-            self._root_dir_path = root_cache_dir_path
-        elif os.path.isabs(settings['DISK_CACHE_DIR']):
+        if os.path.isabs(settings['DISK_CACHE_DIR']):
             self._root_dir_path = settings['DISK_CACHE_DIR']
         else:
-            self._root_dir_path = self._path_join([settings['ROOT_PATH'], settings['DISK_CACHE_DIR']])
+            self._root_dir_path = os.path.join(settings['ROOT_PATH'], settings['DISK_CACHE_DIR'])
 
-        self._use_settings_limit = use_settings_limit
-        if max_size is not None:
-            self._max_size = max_size
-        elif self._use_settings_limit and self.limit_setting in settings and settings[self.limit_setting]:
-            self._max_size = settings[self.limit_setting]
-        else:
-            self._max_size = None
+    @property
+    def max_size(self):
+        return settings['DISK_CACHE_MAX_BYTES']
 
-        # make directory if it doesn't already exist
-        os.makedirs(self._root_dir_path, exist_ok=True)
+    @property
+    def root_dir_path(self):
+        return self._root_dir_path
 
     def _save(self, path, s):
         with open(path, 'wb') as f:
@@ -803,12 +793,6 @@ class DiskCacheStore(FileCacheStore):
 
     def rem_dir(self, directory):
         os.rmdir(directory)
-
-    @property
-    def max_size(self):
-        if self._use_settings_limit and self.limit_setting and self.limit_setting in settings:
-            return settings[self.limit_setting]
-        return self._max_size
 
     @property
     def size(self):
@@ -1109,7 +1093,7 @@ class RamCacheStore(CacheStore):
 
         if self.max_size is not None and self.size >= self.max_size:
         #     # TODO removal policy
-            warnings.warn("Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. No longer caching. Consider increasing this limit or try clearing the cache (e.g. node.rem_cache(key='*', mode='RAM', all_cache=True) to clear ALL cached results in RAM)", RuntimeWarning)
+            warnings.warn("Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. No longer caching. Consider increasing this limit or try clearing the cache (e.g. node.rem_cache(key='*', mode='RAM', all_cache=True) to clear ALL cached results in RAM)", UserWarning)
             return False
 
         # TODO include insert date, last retrieval date, and/or # retrievals for use in a removal policy
