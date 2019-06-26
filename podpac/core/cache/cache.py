@@ -608,32 +608,21 @@ class FileCacheStore(CacheStore):
             Delete only cached objects for these coordinates, or any coordinates if `coordinates` is a CacheWildCard. `None` specifically indicates entries that do not have coordinates.
         '''
 
-        removed_something = False
-
+        # clear the entire cache store
         if isinstance(node, CacheWildCard):
-            # clear the entire cache store
-            removed_something = self.clear_entire_cache_store()
+            return self.clear_entire_cache_store()
 
-        elif isinstance(key, CacheWildCard) or isinstance(coordinates, CacheWildCard):
-            # remove matching cache entries for the given node
-            for path in self.cache_glob(node, key=key, coordinates=coordinates):
+        # otherwise, remove matching cache entries for the given node, and remove empty directories
+        else:
+            paths = self.cache_glob(node, key=key, coordinates=coordinates)
+            for path in paths:
                 self.delete_file(path)
-                removed_something = True
 
-            # remove the directory if it is empty
             cache_dir = self.cache_dir(node=node)
             if self.dir_is_empty(cache_dir):
                 self.rem_dir(cache_dir)
-        
-        else:
-            # remove a single item
-            path = self.cache_path(node, key, coordinates)
 
-            if self.file_exists(path):
-                self.delete_file(path)
-                removed_something = True
-
-        return removed_something
+            return len(paths) > 0
 
     def has(self, node, key, coordinates=None):
         '''Check for cached data for this node
@@ -870,16 +859,16 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         except Exception as e:
             raise e
 
-    def save_container(self, container, path):
-        s = container.serialize()
+    def save(self, path, data):
+        s = cPickle.dumps(data)
         # note s needs to be b'bytes' or file below
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
         response = self._s3_client.put_object(Bucket=self._s3_bucket, Body=s, Key=path)
 
-    def load_container(self, path):
+    def load(self, path):
         response = self._s3_client.get_object(Bucket=self._s3_bucket, Key=path)
         s = response['Body'].read()
-        return self._CacheContainerClass.deserialize(s)
+        return cPickle.loads(s)
 
     def _path_join(self, parts):
         return self._delim.join(parts)
