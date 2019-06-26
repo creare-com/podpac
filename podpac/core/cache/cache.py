@@ -9,22 +9,35 @@ import threading
 import copy
 from glob import glob
 import shutil
+import json
 from hashlib import md5 as hash_alg
-import six
-import fnmatch
-from lazy_import import lazy_module
-import psutil
 try:
     import cPickle  # Python 2.7
 except:
     import _pickle as cPickle
+
+import six
+import fnmatch
+from lazy_import import lazy_module
+import psutil
+import xarray as xr
+
 import warnings
 
 boto3 = lazy_module('boto3')
 
+import podpac
 from podpac.core.settings import settings
 
 _cache_types = {'ram','disk','network','all','s3'}
+
+def is_json_serializable(obj):
+    try:
+        json.dumps(obj)
+    except:
+        return False
+    else:
+        return True
 
 class CacheException(Exception):
     """Summary
@@ -415,10 +428,10 @@ class FileCacheStore(CacheStore):
     def make_cache_dir(self, node):
         raise NotImplementedError
 
-    def save(self, path, data):
+    def _save(self, path, s):
         raise NotImplementedError
 
-    def load(self, path):
+    def _load(self, path):
         raise NotImplementedError
 
     def _path_join(self, parts):
@@ -446,7 +459,7 @@ class FileCacheStore(CacheStore):
         basedir = self._root_dir_path
         subdir = str(node.__class__)[8:-2].split('.')
         dirs = [basedir] + subdir
-        return (self._path_join(dirs)).replace('<', '_').replace('>', '_')
+        return self._path_join(dirs).replace('<', '_').replace('>', '_')
 
     def cache_filename(self, node, key, coordinates):
         """Filename for storing cached data for specified node,key,coordinates
@@ -466,12 +479,10 @@ class FileCacheStore(CacheStore):
             filename (but not containing directory)
         """
         pre = self.cleanse_filename_str(str(node.base_ref))
-        self.cleanse_filename_str(pre)
         nKeY = 'nKeY{}'.format(self.hash_node(node))
         kKeY = 'kKeY{}'.format(self.hash_key(key))
         cKeY = 'cKeY{}'.format(self.hash_coordinates(coordinates))
         filename = '_'.join([pre, nKeY, kKeY, cKeY])
-        filename = filename + '.pkl'
         return filename
 
     def cache_path(self, node, key, coordinates):
@@ -527,27 +538,43 @@ class FileCacheStore(CacheStore):
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         '''
         
-        path = self.cache_path(node, key, coordinates)
         
-        if self.file_exists(path):
+        # check for existing entry
+        if self.has(node, key, coordinates):
             if not update:
                 raise CacheException("Existing cache entry. Use `update=True` to overwrite.")
+            self.rem(node, key, coordinates)
 
-            self.delete_file(path)
+        # serialize
+        rootpath = self.cache_path(node, key, coordinates)
         
-        self.make_cache_dir(node)
-        self.save(path, data)
+        if isinstance(data, (xr.DataArray, xr.DataArray)):
+            path = rootpath + '.netcdf'
+            s = data.to_netcdf()
+        elif isinstance(data, podpac.Coordinates):
+            path = rootpath + '.coords'
+            s = data.json
+        elif is_json_serializable(data):
+            path = rootpath + '.json'
+            s = json.dumps(data)
+        else:
+            warnings.warn("Object of type '%s' is not json serializable; caching object to file using pickle, which "
+                          "may not be compatible with other Python versions or podpac versions.")
+            path = rootpath + '.pkl'
+            s = cPickle.dumps(data)
 
-        # TODO we should check before adding a cache entry so that we do not exceed the max_size temporarily
-        if self.max_size is not None and self.size >= self.max_size:
+        # check size
+        if self.max_size is not None and self.size + len(s) > self.max_size:
             # TODO removal policy
-            self.rem(node=node, key=key, coordinates=coordinates)
             warnings.warn("Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
                           "settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', "
                           "mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(
                             cache_mode=self.cache_mode, cache_limit_setting=self.limit_setting), RuntimeWarning)
             return False
 
+        # save
+        self.make_cache_dir(node)
+        self._save(path, s)
         return True
 
     def get(self, node, key, coordinates=None):
@@ -573,18 +600,41 @@ class FileCacheStore(CacheStore):
             If the data is not in the cache.
         '''
 
-        path = self.cache_path(node, key, coordinates)
-        
-        if not self.file_exists(path):
+        path = self.find(node, key, coordinates)
+
+        if path is None:
             raise CacheException("Cache miss. Requested data not found.")
 
-        data = self.load(path)
+        # read
+        s = self._load(path)
+        
+        # deserialize
+        if path.endswith('.netcdf'):
+            data = xr.open_dataset(s)
+        elif path.endswith('.coords'):
+            data = Coordinates.from_json(s)
+        elif path.endswith('.json'):
+            data = json.loads(s)
+        elif path.endswith('.pkl'):
+            data = cPickle.loads(s)
+        else:
+            raise CacheException("Unexpected file type '%s'" % os.path.basename(path))
 
         # TODO should we allow None?
         if data is None:
             raise CacheException("Stored data is None.")
 
         return data
+
+    def find(self, node, key, coordinates=None):
+        rootpath = self.cache_path(node, key, coordinates)
+        paths = glob(rootpath + '.*')
+        if len(paths) == 0:
+            return None
+        elif len(paths) > 1:
+            return CacheException("Too many files matching pattern root '%s'" % rootpath)
+        else:
+            return paths[0]
 
     def clear_entire_cache_store(self):
         raise NotImplementedError
@@ -641,8 +691,9 @@ class FileCacheStore(CacheStore):
         has_cache : bool
              True if there as a cached object for this node for the given key and coordinates.
         '''
-        path = self.cache_path(node, key, coordinates)
-        return self.file_exists(path)
+        
+        path = self.find(node, key, coordinates)
+        return path is not None
 
 class DiskCacheStore(FileCacheStore):
 
@@ -690,34 +741,13 @@ class DiskCacheStore(FileCacheStore):
         # make directory if it doesn't already exist
         os.makedirs(self._root_dir_path, exist_ok=True)
 
-    def save(self, path, data):
-        """
-        Save this object to disk using pickle format.
-        
-        Parameters
-        ----------
-        path : str
-            path to file where this object should be saved
-        """
-        
+    def _save(self, path, s):
         with open(path, 'wb') as f:
-            cPickle.dump(data, f)
+            f.write(s)
 
-    def load(self, path):
-        """Load this object from disk
-        
-        Parameters
-        ----------
-        path : str
-            path to file where this object should be loaded from
-        
-        Returns
-        -------
-        data : object
-        """
-
+    def _load(self, path):
         with open(path, 'rb') as f:
-            return cPickle.load(f)
+            return f.read()
 
     def _path_join(self, parts):
         return os.path.join(*parts)
@@ -761,11 +791,11 @@ class DiskCacheStore(FileCacheStore):
         kKeY = 'kKeY*' if isinstance(key, CacheWildCard) else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
         cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
         filename = '_'.join([pre, nKeY, kKeY, cKeY])
-        filename = filename + '.pkl'
+        filename = filename + '.*'
         return glob(self._path_join([self.cache_dir(node), filename]))
 
     def clear_entire_cache_store(self):
-        shutil.rmtree(self._root_dir_path)
+        shutil.rmtree(self._root_dir_path, ignore_errors=True)
         return True
 
     def dir_is_empty(self, directory):
@@ -859,16 +889,14 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         except Exception as e:
             raise e
 
-    def save(self, path, data):
-        s = cPickle.dumps(data)
+    def _save(self, path, s):
         # note s needs to be b'bytes' or file below
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
-        response = self._s3_client.put_object(Bucket=self._s3_bucket, Body=s, Key=path)
+        self._s3_client.put_object(Bucket=self._s3_bucket, Body=s, Key=path)
 
-    def load(self, path):
+    def _load(self, path):
         response = self._s3_client.get_object(Bucket=self._s3_bucket, Key=path)
-        s = response['Body'].read()
-        return cPickle.loads(s)
+        return response['Body'].read()
 
     def _path_join(self, parts):
         return self._delim.join(parts)
@@ -943,7 +971,7 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         kKeY = 'kKeY*' if isinstance(key, CacheWildCard) else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
         cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
         pat = '_'.join([pre, nKeY, kKeY, cKeY])
-        pat = pat + '.pkl'
+        pat = pat + '.*'
 
         obj_names = fnmatch.filter(obj_names, pat)
 
