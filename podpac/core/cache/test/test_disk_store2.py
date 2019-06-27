@@ -213,20 +213,42 @@ class TestDiskCacheStore(object):
         store.has(NODE2, 'mykey1') is False
         store.has(NODE2, 'mykeyA', COORDS1) is False
 
+    def test_cache_units_data_array(self):
+        store = DiskCacheStore()
+
+        data = podpac.core.units.UnitsDataArray([1, 2, 3], attrs={'units': 'm'})
+        store.put(NODE1, data, 'mykey')
+        cached = store.get(NODE1, 'mykey')
+        assert isinstance(cached, podpac.core.units.UnitsDataArray)
+        xr.testing.assert_identical(cached, data) # assert_identical checks attributes as wel
+
     def test_cache_xarray(self):
         store = DiskCacheStore()
 
+        # data array
         data = xr.DataArray([1, 2, 3])
         store.put(NODE1, data, 'mykey')
         cached = store.get(NODE1, 'mykey')
-        xr.testing.assert_equal(cached, data)
+        xr.testing.assert_identical(cached, data) # assert_identical checks attributes as wel
 
-    def test_cache_podpac_coordinates(self):
+        # dataset
+        data = xr.Dataset({'a': [1, 2, 3]})
+        store.put(NODE1, data, 'mykey2')
+        cached = store.get(NODE1, 'mykey2')
+        xr.testing.assert_identical(cached, data) # assert_identical checks attributes as wel
+
+    def test_cache_podpac(self):
         store = DiskCacheStore()
 
+        # coords
         store.put(NODE1, COORDS1, 'mykey')
         cached = store.get(NODE1, 'mykey')
         assert cached == COORDS1
+
+        # node
+        store.put(NODE1, NODE2, 'mykey2')
+        cached = store.get(NODE1, 'mykey2')
+        assert cached.json == NODE2.json
 
     def test_cache_numpy(self):
         store = DiskCacheStore()
@@ -240,7 +262,8 @@ class TestDiskCacheStore(object):
         store = DiskCacheStore()
 
         data = [xr.DataArray([1, 2, 3]), np.array([1, 2, 3])]
-        store.put(NODE1, data, 'mykey')
+        with pytest.warns(UserWarning, match="caching object to file using pickle"):
+            store.put(NODE1, data, 'mykey')
         cached = store.get(NODE1, 'mykey')
         xr.testing.assert_equal(cached[0], data[0])
         np.testing.assert_equal(cached[1], data[1])

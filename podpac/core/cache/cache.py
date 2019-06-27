@@ -551,8 +551,14 @@ class FileCacheStore(CacheStore):
         # serialize
         rootpath = self.cache_path(node, key, coordinates)
         
-        if isinstance(data, xr.DataArray):
-            path = rootpath + '.netcdf'
+        if isinstance(data, podpac.core.units.UnitsDataArray):
+            path = rootpath + '.uda.nc'
+            s = data.to_netcdf()
+        elif isinstance(data, xr.DataArray):
+            path = rootpath + '.xrda.nc'
+            s = data.to_netcdf()
+        elif isinstance(data, xr.Dataset):
+            path = rootpath + '.xrds.nc'
             s = data.to_netcdf()
         elif isinstance(data, np.ndarray):
             path = rootpath + '.npy'
@@ -560,7 +566,10 @@ class FileCacheStore(CacheStore):
                 np.save(f, data)
                 s = f.getvalue()
         elif isinstance(data, podpac.Coordinates):
-            path = rootpath + '.coords'
+            path = rootpath + '.coords.json'
+            s = data.json.encode()
+        elif isinstance(data, podpac.Node):
+            path = rootpath + '.node.json'
             s = data.json.encode()
         elif is_json_serializable(data):
             path = rootpath + '.json'
@@ -617,13 +626,21 @@ class FileCacheStore(CacheStore):
         s = self._load(path)
         
         # deserialize
-        if path.endswith('.netcdf'):
+        if path.endswith('uda.nc'):
+            x = xr.open_dataarray(s)
+            data = podpac.core.units.UnitsDataArray(x)
+        elif path.endswith('.xrda.nc'):
             data = xr.open_dataarray(s)
+        elif path.endswith('.xrds.nc'):
+            data = xr.open_dataset(s)
         elif path.endswith('.npy'):
             with io.BytesIO(s) as b:
                 data = np.load(b)
-        elif path.endswith('.coords'):
+        elif path.endswith('.coords.json'):
             data = podpac.Coordinates.from_json(s)
+        elif path.endswith('.node.json'):
+            pipeline = podpac.pipeline.Pipeline(json=s)
+            data = pipeline.node
         elif path.endswith('.json'):
             data = json.loads(s)
         elif path.endswith('.pkl'):
