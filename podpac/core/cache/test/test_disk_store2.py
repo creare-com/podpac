@@ -40,16 +40,6 @@ class TestDiskCacheStore(object):
         with pytest.raises(CacheException, match="Disk cache is disabled"):
             store = DiskCacheStore()
 
-    def test_cache_dir(self):
-        # absolute path
-        store = DiskCacheStore()
-        assert store.root_dir_path == self.cache_dir
-
-        # relative path
-        podpac.settings['DISK_CACHE_DIR'] = 'test'
-        store = DiskCacheStore()
-        assert store.root_dir_path == os.path.join(podpac.settings['ROOT_PATH'], 'test')
-
     def test_empty(self):
         store = DiskCacheStore()
 
@@ -192,7 +182,7 @@ class TestDiskCacheStore(object):
         store.has(NODE2, 'mykey1') is True
         store.has(NODE2, 'mykeyA', COORDS1) is True
 
-    def test_rem_all(self):
+    def test_clear(self):
         store = DiskCacheStore()
 
         store.put(NODE1, 10, 'mykey1')
@@ -203,7 +193,7 @@ class TestDiskCacheStore(object):
         store.put(NODE2, 110, 'mykey1')
         store.put(NODE2, 120, 'mykeyA', COORDS1)
 
-        store.rem()
+        store.clear()
         
         store.has(NODE1, 'mykey1') is False
         store.has(NODE1, 'mykey2') is False
@@ -275,7 +265,9 @@ class TestDiskCacheStore(object):
         store.put(NODE1, 10, 'mykey1')
         store.put(NODE1, np.array([0, 1, 2]), 'mykey2')
 
-        expected_size = os.path.getsize(store.find(NODE1, 'mykey1')) + os.path.getsize(store.find(NODE1, 'mykey2'))
+        p1 = store.find(NODE1, 'mykey1', None)
+        p2 = store.find(NODE1, 'mykey2', None)
+        expected_size = os.path.getsize(p1) + os.path.getsize(p2)
         assert store.size == expected_size
 
     def test_max_size(self):
@@ -293,3 +285,21 @@ class TestDiskCacheStore(object):
         
         with pytest.warns(UserWarning, match="Warning: disk cache is full"):
             store.put(NODE1, '11111111', 'mykey2')
+
+    def test_cache_dir(self):
+        # absolute path
+        podpac.settings['DISK_CACHE_DIR'] = self.cache_dir
+        expected = self.cache_dir
+        store = DiskCacheStore()
+        store.put(NODE1, 10, 'mykey1')
+        assert store.find(NODE1, 'mykey1').startswith(expected)
+        store.clear()
+
+        # relative path
+        podpac.settings['DISK_CACHE_DIR'] = '_testcache_'
+        expected = os.path.join(podpac.core.settings.DEFAULT_SETTINGS['ROOT_PATH'], '_testcache_')
+        store = DiskCacheStore()
+        store.clear()
+        store.put(NODE1, 10, 'mykey1')
+        assert store.find(NODE1, 'mykey1').startswith(expected)
+        store.clear()

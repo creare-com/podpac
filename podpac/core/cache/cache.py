@@ -11,36 +11,28 @@ from glob import glob
 import shutil
 import json
 import io
-from hashlib import md5 as hash_alg
+import warnings
+import fnmatch
+import re
 try:
-    import cPickle  # Python 2.7
+    import cPickle as pickle # python 2
 except:
-    import _pickle as cPickle
+    import pickle
 
 import six
-import fnmatch
 from lazy_import import lazy_module
 import psutil
 import numpy as np
 import xarray as xr
-import io
-
-import warnings
 
 boto3 = lazy_module('boto3')
 
 import podpac
 from podpac.core.settings import settings
 
-_cache_types = {'ram','disk','network','all','s3'}
+from podpac.core.cache.utils import hash_string, is_json_serializable
 
-def is_json_serializable(obj):
-    try:
-        json.dumps(obj)
-    except:
-        return False
-    else:
-        return True
+_cache_types = {'ram','disk','network','all','s3'}
 
 class CacheException(Exception):
     """Summary
@@ -55,44 +47,6 @@ class CacheWildCard(object):
     
     def __eq__(self, other):
         return True
-
-def validate_inputs(node=None, key=None, coordinates=None, mode=None):
-    """Used for validating the type of common cache inputs.
-    Will throw an exception if any input is not the correct type.
-    `None` is allowed for all inputs
-    
-    Parameters
-    ----------
-    node : None, optional
-        podpac.core.node.Node
-    key : None, optional
-        str
-    coordinates : None, optional
-        podpac.core.coordinates.coordinates.Coordinates
-    mode : None, optional
-        str
-    
-    Returns
-    -------
-    TYPE bool
-        Returns true if all specified inputs are of the correct type
-    
-    Raises
-    ------
-    CacheException
-        Raises exception if any specified input is not of the correct type
-    """
-    from podpac.core.node import Node
-    from podpac.core.coordinates.coordinates import Coordinates
-    if not (node is None or isinstance(node, Node) or isinstance(node, CacheWildCard)):
-        raise CacheException('`node` should either be an instance of `podpac.core.node.Node` or `None`.')
-    if not (key is None or isinstance(key, six.string_types) or isinstance(key, CacheWildCard)):
-        raise CacheException('`key` should either be an instance of string or `None`.')
-    if not (coordinates is None or isinstance(coordinates, Coordinates) or isinstance(coordinates, CacheWildCard)):
-        raise CacheException('`coordinates` should either be an instance of `podpac.core.coordinates.coordinates.Coordinates` or `None`.')
-    if not (mode is None or isinstance(mode, six.string_types)):
-        raise CacheException('`mode` should either be an instance of string or `None`.')
-    return True
 
 def get_default_cache_ctrl():
     """
@@ -160,12 +114,13 @@ class CacheCtrl(object):
         self._cache_stores = cache_stores
         self._cache_mode = None
 
-    def _determine_mode(self, mode):
+    def _get_cache_stores(self, mode):
         if mode is None:
             mode = self._cache_mode
             if mode is None:
                 mode = 'all'
-        return mode
+        
+        return [c for c in self._cache_stores if mode in c.cache_modes]
 
     def put(self, node, data, key, coordinates=None, mode=None, update=False):
         '''Cache data for specified node.
@@ -185,16 +140,24 @@ class CacheCtrl(object):
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         '''
-        validate_inputs(node=node, key=key, coordinates=coordinates, mode=mode)
-        assert node is not None, "`node` can not be `None`"
-        assert key is not None, "`key` can not be `None`"
-        assert not isinstance(node, CacheWildCard)
-        assert not isinstance(key, CacheWildCard)
-        mode = self._determine_mode(mode)
-        for c in self._cache_stores:
-            if c.cache_modes_matches(set([mode])):
-                c.put(node=node, data=data, key=key, coordinates=coordinates, update=update)
         
+        if not isinstance(node, Node):
+            raise TypeError("node must of type 'Node', not '%s'" % type(Node))
+
+        if not isinstance(key, six.string_types):
+            raise TypeError("key must be a string type, not '%s'" % (type(key)))
+        
+        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
+            raise TypeError("coordinates must be of type 'Coordinates', not '%s'" % type(coordinates))
+
+        if not isinstance(mode, six.string_types) and mode is not None:
+            raise TypeError("mode must be of type 'str', not '%s'" % type(mode))
+
+        if key == '*':
+            raise ValueError("key cannot be '*'")
+
+        for c in self._get_cache_stores(mode):
+            c.put(node=node, data=data, key=key, coordinates=coordinates, update=update)
 
     def get(self, node, key, coordinates=None, mode=None):
         '''Get cached data for this node.
@@ -220,47 +183,26 @@ class CacheCtrl(object):
         CacheError
             If the data is not in the cache.
         '''
-        validate_inputs(node=node, key=key, coordinates=coordinates, mode=mode)
-        assert node is not None, "`node` can not be `None`"
-        assert key is not None, "`key` can not be `None`"
-        assert not isinstance(node, CacheWildCard)
-        assert not isinstance(key, CacheWildCard)
-        mode = self._determine_mode(mode)
-        for c in self._cache_stores:
-            if c.cache_modes_matches(set([mode])):
-                if c.has(node=node, key=key, coordinates=coordinates):
+        
+        if not isinstance(node, Node):
+            raise TypeError("node must of type 'Node', not '%s'" % type(Node))
+
+        if not isinstance(key, six.string_types):
+            raise TypeError("key must be a string type, not '%s'" % (type(key)))
+        
+        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
+            raise TypeError("coordinates must be of type 'Coordinates', not '%s'" % type(coordinates))
+
+        if not isinstance(mode, six.string_types) and mode is not None:
+            raise TypeError("mode must be of type 'str', not '%s'" % type(mode))
+
+        if key == '*':
+            raise ValueError("key cannot be '*'")
+
+        for c in self._get_cache_stores(mode):
+            if c.has(node=node, key=key, coordinates=coordinates):
                     return c.get(node=node, key=key, coordinates=coordinates)
         raise CacheException("Requested data is not in any cache stores.")
-
-    def rem(self, node, key, coordinates=None, mode=None):
-        '''Delete cached data for this node.
-        
-        Parameters
-        ----------
-        node : Node, str
-            node requesting storage. Use `'*'` to match all nodes.
-        key : str
-            Delete only cached objects with this key. Use `'*'` to match all keys.
-        coordinates : Coordinates, str
-            Delete only cached objects for these coordinates. Use `'*'` to match all coordinates.
-        mode : str
-            determines what types of the `CacheStore` are affected: 'ram','disk','network','all'. Defaults to `node._cache_mode` or 'all'. Overriden by `self._cache_mode` if `self._cache_mode` is not `None`.
-        '''
-        if isinstance(node, six.string_types) and node == '*': 
-            node = CacheWildCard()
-        if isinstance(coordinates, six.string_types) and coordinates == '*': 
-            coordinates = CacheWildCard()
-        validate_inputs(node=node, key=key, coordinates=coordinates, mode=mode)
-        assert node is not None, "`node` can not be `None`"
-        assert key is not None, "`key` can not be `None`"
-        if key == '*':
-            key = CacheWildCard()
-        else:
-            key = key.replace('*','_')
-        mode = self._determine_mode(mode)
-        for c in self._cache_stores:
-            if c.cache_modes_matches(set([mode])):
-                c.rem(node=node, key=key, coordinates=coordinates)
 
     def has(self, node, key, coordinates=None, mode=None):
         '''Check for cached data for this node
@@ -281,18 +223,82 @@ class CacheCtrl(object):
         has_cache : bool
              True if there as a cached object for this node for the given key and coordinates.
         '''
-        validate_inputs(node=node, key=key, coordinates=coordinates, mode=mode)
-        assert node is not None, "`node` can not be `None`"
-        assert key is not None, "`key` can not be `None`"
-        assert not isinstance(node, CacheWildCard)
-        assert not isinstance(key, CacheWildCard)
-        mode = self._determine_mode(mode)
-        for c in self._cache_stores:
-            if c.cache_modes_matches(set([mode])):
-                if c.has(node=node, key=key, coordinates=coordinates):
+        
+        if not isinstance(node, Node):
+            raise TypeError("node must of type 'Node', not '%s'" % type(Node))
+
+        if not isinstance(key, six.string_types):
+            raise TypeError("key must be a string type, not '%s'" % (type(key)))
+        
+        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
+            raise TypeError("coordinates must be of type 'Coordinates', not '%s'" % type(coordinates))
+
+        if not isinstance(mode, six.string_types) and mode is not None:
+            raise TypeError("mode must be of type 'str', not '%s'" % type(mode))
+
+        if key == '*':
+            raise ValueError("key cannot be '*'")
+
+        for c in self._get_cache_stores(mode):
+            if c.has(node=node, key=key, coordinates=coordinates):
                     return True
+        
         return False
 
+    def rem(self, node, key, coordinates=None, mode=None):
+        '''Delete cached data for this node.
+        
+        Parameters
+        ----------
+        node : Node, str
+            node requesting storage.
+        key : str
+            Delete only cached objects with this key. Use `'*'` to match all keys.
+        coordinates : Coordinates, str
+            Delete only cached objects for these coordinates. Use `'*'` to match all coordinates.
+        mode : str
+            determines what types of the `CacheStore` are affected: 'ram','disk','network','all'. Defaults to `node._cache_mode` or 'all'. Overriden by `self._cache_mode` if `self._cache_mode` is not `None`.
+        '''
+
+        if not isinstance(node, Node):
+            raise TypeError("node must of type 'Node', not '%s'" % type(Node))
+
+        if not isinstance(key, six.string_types):
+            raise TypeError("key must be a string type, not '%s'" % (type(key)))
+        
+        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None and coordinates != '*':
+            raise TypeError("coordinates must be '*' or of type 'Coordinates' not '%s'" % type(coordinates))
+
+        if not isinstance(mode, six.string_types) and mode is not None:
+            raise TypeError("mode must be of type 'str', not '%s'" % type(mode))
+
+        if key == '*':
+            key = CacheWildCard()
+
+        if coordinates == '*':
+            coordinates = CacheWildCard()
+
+        for c in self._get_cache_stores(mode):
+            c.rem(node=node, key=key, coordinates=coordinates)
+
+    def clear(self, mode=None):
+        """
+        Clear all cached data.
+
+        Parameters
+        ------------
+        mode : str
+            determines what types of the `CacheStore` are affected: 'ram','disk','network','all'. Defaults to `node._cache_mode` or 'all'. Overriden by `self._cache_mode` if `self._cache_mode` is not `None`.
+        """
+
+        if not isinstance(node, Node):
+            raise TypeError("node must of type 'Node', not '%s'" % type(Node))
+
+        if not isinstance(mode, six.string_types) and mode is not None:
+            raise TypeError("mode must be of type 'str', not '%s'" % type(mode))
+
+        for c in self._get_cache_stores(mode):
+            c.clear()
 
 class CacheStore(object):
 
@@ -302,45 +308,20 @@ class CacheStore(object):
     """
     
     cache_modes = []
+    _limit_setting = None
 
-    def get_hash_val(self, obj):
-        return hash_alg(obj).hexdigest()
-
-    def hash_node(self, node):
-        hashable_repr = 'None' if node is None else node.hash
-        return hashable_repr 
-
-    def hash_coordinates(self, coordinates):
-        hashable_repr = 'None' if coordinates is None else coordinates.hash
-        return hashable_repr 
-
-    def hash_key(self, key):
-        #hashable_repr = str(repr(key)).encode('utf-8')
-        #return self.get_hash_val(hashable_repr)
-        return key
-
-    def cache_modes_matches(self, modes):
-        """Returns True if this CacheStore matches any caching modes in `modes`
-        
-        Parameters
-        ----------
-        modes : List, Set
-            collection of cache modes: subset of ['ram','disk','all']
-        
-        Returns
-        -------
-        TYPE : bool
-            Returns True if this CacheStore matches any specified modes
-        """
-        if len(self.cache_modes.intersection(modes)) > 0:
-            return True
-        return False
-
-    def size(self):
-        """Return size of cache store in bytes
-        """
+    def __init__(self, *args, **kwargs):
         raise NotImplementedError
 
+    @property
+    def max_size(self):
+        return settings.get(self._limit_setting)
+
+    @property
+    def size(self):
+        """Return size of cache store in bytes"""
+
+        raise NotImplementedError
 
     def put(self, node, data, key, coordinates=None, update=False):
         '''Cache data for specified node.
@@ -417,112 +398,22 @@ class CacheStore(object):
         '''
         raise NotImplementedError
 
+    def clear(self, node):
+        """
+        Clear all cached data.
+        """
+        raise NotImplementedError
+
 class FileCacheStore(CacheStore):
-    """Base class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
+    """Abstract class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
     """
     
     cache_mode = ''
     cache_modes = ['all']
-    limit_setting = ''
 
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def make_cache_dir(self, node):
-        raise NotImplementedError
-
-    def _save(self, path, s):
-        raise NotImplementedError
-
-    def _load(self, path):
-        raise NotImplementedError
-
-    def _path_join(self, parts):
-        raise NotImplementedError
-
-    def delete_file(self, path):
-        raise NotImplementedError
-
-    def file_exists(self, path):
-        raise NotImplementedError
-
-    def cache_dir(self, node):
-        """subdirectory for caching data for `node`
-        
-        Parameters
-        ----------
-        node : podpac.core.node.Node
-            Description
-        
-        Returns
-        -------
-        TYPE : str
-            subdirectory path
-        """
-        basedir = self._root_dir_path
-        subdir = str(node.__class__)[8:-2].split('.')
-        dirs = [basedir] + subdir
-        return self._path_join(dirs).replace('<', '_').replace('>', '_')
-
-    def cache_filename(self, node, key, coordinates):
-        """Filename for storing cached data for specified node,key,coordinates
-        
-        Parameters
-        ----------
-        node : podpac.core.node.Node
-            Description
-        key : str
-            Description
-        coordinates : podpac.core.coordinates.coordinates.Coordinates
-            Description
-        
-        Returns
-        -------
-        TYPE : str
-            filename (but not containing directory)
-        """
-        pre = self.cleanse_filename_str(str(node.base_ref))
-        nKeY = 'nKeY{}'.format(self.hash_node(node))
-        kKeY = 'kKeY{}'.format(self.hash_key(key))
-        cKeY = 'cKeY{}'.format(self.hash_coordinates(coordinates))
-        filename = '_'.join([pre, nKeY, kKeY, cKeY])
-        return filename
-
-    def cache_path(self, node, key, coordinates):
-        """Filepath for storing cached data for specified node,key,coordinates
-        
-        Parameters
-        ----------
-        node : podpac.core.node.Node
-            Description
-        key : str
-            Description
-        coordinates : podpac.core.coordinates.coordinates.Coordinates
-            Description
-        
-        Returns
-        -------
-        TYPE : str
-            filename (including containing directory)
-        """
-        return self._path_join([self.cache_dir(node), self.cache_filename(node, key, coordinates)])
-
-    def cleanse_filename_str(self, s):
-        """Remove/replace characters from string `s` that could could interfere with proper functioning of cache if used to construct cache filenames.
-        
-        Parameters
-        ----------
-        s : str
-            Description
-        
-        Returns
-        -------
-        TYPE : str
-            Description
-        """
-        s = s.replace('/', '_').replace('\\', '_').replace(':', '_').replace('<', '_').replace('>', '_')
-        s = s.replace('nKeY', 'xxxx').replace('kKeY', 'xxxx').replace('cKeY', 'xxxx')
-        return s
+    # -----------------------------------------------------------------------------------------------------------------
+    # public cache API methods
+    # -----------------------------------------------------------------------------------------------------------------
 
     def put(self, node, data, key, coordinates=None, update=False):
         '''Cache data for specified node.
@@ -541,7 +432,6 @@ class FileCacheStore(CacheStore):
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         '''
         
-        
         # check for existing entry
         if self.has(node, key, coordinates):
             if not update:
@@ -549,36 +439,36 @@ class FileCacheStore(CacheStore):
             self.rem(node, key, coordinates)
 
         # serialize
-        rootpath = self.cache_path(node, key, coordinates)
+        path_root = self._path_join(self._get_node_dir(node), self._get_filename(node, key, coordinates))
         
         if isinstance(data, podpac.core.units.UnitsDataArray):
-            path = rootpath + '.uda.nc'
+            path = path_root + '.uda.nc'
             s = data.to_netcdf()
         elif isinstance(data, xr.DataArray):
-            path = rootpath + '.xrda.nc'
+            path = path_root + '.xrda.nc'
             s = data.to_netcdf()
         elif isinstance(data, xr.Dataset):
-            path = rootpath + '.xrds.nc'
+            path = path_root + '.xrds.nc'
             s = data.to_netcdf()
         elif isinstance(data, np.ndarray):
-            path = rootpath + '.npy'
+            path = path_root + '.npy'
             with io.BytesIO() as f:
                 np.save(f, data)
                 s = f.getvalue()
         elif isinstance(data, podpac.Coordinates):
-            path = rootpath + '.coords.json'
+            path = path_root + '.coords.json'
             s = data.json.encode()
         elif isinstance(data, podpac.Node):
-            path = rootpath + '.node.json'
+            path = path_root + '.node.json'
             s = data.json.encode()
         elif is_json_serializable(data):
-            path = rootpath + '.json'
+            path = path_root + '.json'
             s = json.dumps(data).encode()
         else:
             warnings.warn("Object of type '%s' is not json serializable; caching object to file using pickle, which "
                           "may not be compatible with other Python versions or podpac versions.")
-            path = rootpath + '.pkl'
-            s = cPickle.dumps(data)
+            path = path_root + '.pkl'
+            s = pickle.dumps(data)
 
         # check size
         if self.max_size is not None and self.size + len(s) > self.max_size:
@@ -586,11 +476,11 @@ class FileCacheStore(CacheStore):
             warnings.warn("Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
                           "settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', "
                           "mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(
-                            cache_mode=self.cache_mode, cache_limit_setting=self.limit_setting), UserWarning)
+                            cache_mode=self.cache_mode, cache_limit_setting=self._limit_setting), UserWarning)
             return False
 
         # save
-        self.make_cache_dir(node)
+        self._make_node_dir(node)
         self._save(path, s)
         return True
 
@@ -618,7 +508,6 @@ class FileCacheStore(CacheStore):
         '''
 
         path = self.find(node, key, coordinates)
-
         if path is None:
             raise CacheException("Cache miss. Requested data not found.")
 
@@ -644,7 +533,7 @@ class FileCacheStore(CacheStore):
         elif path.endswith('.json'):
             data = json.loads(s)
         elif path.endswith('.pkl'):
-            data = cPickle.loads(s)
+            data = pickle.loads(s)
         else:
             raise RuntimeError("Unexpected cached file type '%s'" % os.path.basename(path))
 
@@ -653,54 +542,6 @@ class FileCacheStore(CacheStore):
             raise CacheException("Stored data is None.")
 
         return data
-
-    def find(self, node, key, coordinates=None):
-        rootpath = self.cache_path(node, key, coordinates)
-        paths = glob(rootpath + '.*')
-        if len(paths) == 0:
-            return None
-        elif len(paths) > 1:
-            return RuntimeError("Too many cached files matching '%s'" % rootpath)
-        else:
-            return paths[0]
-
-    def clear_entire_cache_store(self):
-        raise NotImplementedError
-
-    def dir_is_empty(self, directory):
-        raise NotImplementedError
-
-    def rem_dir(self, directory):
-        raise NotImplementedError
-
-    def rem(self, node=CacheWildCard(), key=CacheWildCard(), coordinates=CacheWildCard()):
-        '''Delete cached data for this node.
-        
-        Parameters
-        ------------
-        node : Node, CacheWildCard
-            node requesting storage. If `node` is a `CacheWildCard` then everything in the cache will be deleted.
-        key : str, CacheWildCard, optional
-            Delete only cached objects with this key, or any key if `key` is a CacheWildCard.
-        coordinates : Coordinates, CacheWildCard, None, optional
-            Delete only cached objects for these coordinates, or any coordinates if `coordinates` is a CacheWildCard. `None` specifically indicates entries that do not have coordinates.
-        '''
-
-        # clear the entire cache store
-        if isinstance(node, CacheWildCard):
-            return self.clear_entire_cache_store()
-
-        # otherwise, remove matching cache entries for the given node, and remove empty directories
-        else:
-            paths = self.cache_glob(node, key=key, coordinates=coordinates)
-            for path in paths:
-                self.delete_file(path)
-
-            cache_dir = self.cache_dir(node=node)
-            if self.dir_is_empty(cache_dir):
-                self.rem_dir(cache_dir)
-
-            return len(paths) > 0
 
     def has(self, node, key, coordinates=None):
         '''Check for cached data for this node
@@ -723,11 +564,125 @@ class FileCacheStore(CacheStore):
         path = self.find(node, key, coordinates)
         return path is not None
 
+    def rem(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
+        '''Delete cached data for this node.
+        
+        Parameters
+        ------------
+        node : Node
+            node requesting storage
+        key : str, CacheWildCard, optional
+            Delete cached objects with this key, or any key if `key` is a CacheWildCard.
+        coordinates : Coordinates, CacheWildCard, None, optional
+            Delete only cached objects for these coordinates, or any coordinates if `coordinates` is a CacheWildCard. `None` specifically indicates entries that do not have coordinates.
+        '''
+
+        # delete matching cached objects
+        for path in self.search(node, key=key, coordinates=coordinates):
+            self._remove(path)
+
+        # remove empty node directories
+        node_dir = self._get_node_dir(node=node)
+        if self._is_empty(node_dir):
+            self._rmdir(node_dir)
+
+    def clear(self):
+        """
+        Clear all cached data.
+        """
+        
+        self._rmtree(self._root_dir_path)
+
+    # -----------------------------------------------------------------------------------------------------------------
+    # helper methods
+    # -----------------------------------------------------------------------------------------------------------------
+
+    def search(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
+        """
+        Search for matching cached objects.
+        """
+        NotImplementedError
+
+    def find(self, node, key, coordinates=None):
+        """
+        Find the path for a specific cached object.
+        """
+
+        paths = self.search(node, key=key, coordinates=coordinates)
+        
+        if len(paths) == 0:
+            return None
+        elif len(paths) == 1:
+            return paths[0]
+        elif len(paths) > 1:
+            return RuntimeError("Too many cached files matching '%s'" % rootpath)
+
+    def _get_node_dir(self, node):
+        fullclass = str(node.__class__)[8:-2]
+        subdirs = fullclass.split('.')
+        return self._path_join(self._root_dir_path, *subdirs)
+
+    def _get_filename(self, node, key, coordinates):
+        prefix = self._sanitize('%s-%s' % (node.base_ref, key))
+        filename = '%s_%s_%s_%s' % (prefix, node.hash, hash_string(key), coordinates.hash if coordinates else 'None')
+        return filename
+
+    def _match_filename(self, node, key, coordinates):
+        match_prefix = '*'
+        match_node = node.hash
+
+        if isinstance(key, CacheWildCard):
+            match_key = '*'
+        else:
+            match_key = hash_string(key)
+
+        if isinstance(coordinates, CacheWildCard):
+            match_coordinates = '*'
+        elif coordinates is None:
+            match_coordinates = 'None'
+        else:
+            match_coordinates = coordinates.hash
+
+        match_filename = '%s_%s_%s_%s.*' % (match_prefix, match_node, match_key, match_coordinates)
+        return match_filename
+
+    def _sanitize(self, s):
+        return re.sub('[_:<>/\\\\*]+', '-', s) # replaces _:<>/\*
+    
+    # -----------------------------------------------------------------------------------------------------------------
+    # file storage abstraction
+    # -----------------------------------------------------------------------------------------------------------------
+
+    def _save(self, path, s):
+        raise NotImplementedError
+
+    def _load(self, path):
+        raise NotImplementedError
+
+    def _path_join(self, path, *paths):
+        raise NotImplementedError
+
+    def _remove(self, path):
+        raise NotImplementedError
+
+    def _exists(self, path):
+        raise NotImplementedError
+
+    def _is_empty(self, directory):
+        raise NotImplementedError
+
+    def _rmdir(self, directory):
+        raise NotImplementedError
+
+    def _make_node_dir(self, node):
+        raise NotImplementedError
+
 class DiskCacheStore(FileCacheStore):
     """Cache that uses a folder on a local disk file system."""
 
     cache_mode = 'disk'
     cache_modes = set(['disk','all'])
+    _limit_setting = "DISK_CACHE_MAX_BYTES"
 
     def __init__(self):
         """Initialize a cache that uses a folder on a local disk file system."""
@@ -740,76 +695,9 @@ class DiskCacheStore(FileCacheStore):
         else:
             self._root_dir_path = os.path.join(settings['ROOT_PATH'], settings['DISK_CACHE_DIR'])
 
-    @property
-    def max_size(self):
-        return settings['DISK_CACHE_MAX_BYTES']
-
-    @property
-    def root_dir_path(self):
-        return self._root_dir_path
-
-    def _save(self, path, s):
-        with open(path, 'wb') as f:
-            f.write(s)
-
-    def _load(self, path):
-        with open(path, 'rb') as f:
-            return f.read()
-
-    def _path_join(self, parts):
-        return os.path.join(*parts)
-
-    def delete_file(self, path):
-        os.remove(path)
-
-    def file_exists(self, path):
-        return os.path.exists(path)
-
-    def make_cache_dir(self, node):
-        """Create subdirectory for caching data for `node`
-        
-        Parameters
-        ----------
-        node : podpac.core.node.Node
-            Description
-        """
-        cache_dir = self.cache_dir(node)
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-
-    def cache_glob(self, node, key, coordinates):
-        """Fileglob to match files that could be storing cached data for specified node,key,coordinates
-        
-        Parameters
-        ----------
-        node : podpac.core.node.Node
-        key : str, CacheWildCard
-            CacheWildCard indicates to match any key
-        coordinates : podpac.core.coordinates.coordinates.Coordinates, CacheWildCard, None
-            CacheWildCard indicates to match any coordinates
-        
-        Returns
-        -------
-        TYPE : str
-            Fileglob of existing paths that match the request
-        """
-        pre = '*'
-        nKeY = 'nKeY{}'.format(self.hash_node(node))
-        kKeY = 'kKeY*' if isinstance(key, CacheWildCard) else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
-        cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
-        filename = '_'.join([pre, nKeY, kKeY, cKeY])
-        filename = filename + '.*'
-        return glob(self._path_join([self.cache_dir(node), filename]))
-
-    def clear_entire_cache_store(self):
-        shutil.rmtree(self._root_dir_path, ignore_errors=True)
-        return True
-
-    def dir_is_empty(self, directory):
-        return os.path.exists(directory) and os.path.isdir(directory) and not os.listdir(directory)
-
-    def rem_dir(self, directory):
-        os.rmdir(directory)
+    # -----------------------------------------------------------------------------------------------------------------
+    # public cache API
+    # -----------------------------------------------------------------------------------------------------------------
 
     @property
     def size(self):
@@ -820,21 +708,61 @@ class DiskCacheStore(FileCacheStore):
                 total_size += os.path.getsize(fp)
         return total_size
 
+    # -----------------------------------------------------------------------------------------------------------------
+    # helper methods
+    # -----------------------------------------------------------------------------------------------------------------
+
+    def search(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):        
+        match_path = self._path_join(self._get_node_dir(node), self._match_filename(node, key, coordinates))
+        return glob(match_path)
+
+    # -----------------------------------------------------------------------------------------------------------------
+    # file storage abstraction
+    # -----------------------------------------------------------------------------------------------------------------
+    
+    def _save(self, path, s):
+        with open(path, 'wb') as f:
+            f.write(s)
+
+    def _load(self, path):
+        with open(path, 'rb') as f:
+            return f.read()
+
+    def _path_join(self, path, *paths):
+        return os.path.join(path, *paths)
+
+    def _remove(self, path):
+        os.remove(path)
+
+    def _exists(self, path):
+        return os.path.exists(path)
+
+    def _is_empty(self, directory):
+        return os.path.exists(directory) and os.path.isdir(directory) and not os.listdir(directory)
+
+    def _rmdir(self, directory):
+        os.rmdir(directory)
+
+    def _rmtree(self, path, ignore_errors=False):
+        shutil.rmtree(self._root_dir_path, ignore_errors=True)
+
+    def _make_node_dir(self, node):
+        node_dir = self._get_node_dir(node)
+        if not os.path.exists(node_dir):
+            os.makedirs(node_dir)
+
 class S3CacheStore(FileCacheStore): # pragma: no cover
 
     cache_mode = 's3'
-    limit_setting = 'S3_CACHE_MAX_BYTES'
     cache_modes = set(['s3','all'])
+    _limit_setting = 'S3_CACHE_MAX_BYTES'
     _delim = '/'
 
-    def __init__(self, root_cache_dir_path=None, max_size=None, use_settings_limit=True,
-                 s3_bucket=None, aws_region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
+    def __init__(self, s3_bucket=None, aws_region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
         """Initialize a cache that uses a folder on a local disk file system.
         
         Parameters
         ----------
-        root_cache_dir_path : None, optional
-            Root directory for the files managed by this cache. `None` indicates to use the folder specified in the global podpac settings. Should be the common "root" s3 prefix that you want to have all cached objects stored in. Do not store any objects in the bucket that share this prefix as they may be deleted by the cache.
         max_size : None, optional
             Maximum allowed size of the cache store in bytes. Defaults to podpac 'S3_CACHE_MAX_BYTES' setting, or no limit if this setting does not exist.
         use_settings_limit : bool, optional
@@ -858,11 +786,9 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         
         if not settings['S3_CACHE_ENABLED']:
             raise CacheException("S3 cache is disabled in the podpac settings.")
+        
+        self._root_dir_path = settings['S3_CACHE_DIR']
 
-        self._cache_modes = set(['s3','all'])
-        if root_cache_dir_path is None:
-            root_cache_dir_path = settings['S3_CACHE_DIR']
-        self._root_dir_path = root_cache_dir_path
         if s3_bucket is None:
             s3_bucket = settings['S3_BUCKET_NAME']
         if aws_access_key_id is None or aws_secret_access_key is None: 
@@ -877,45 +803,15 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
                                              aws_secret_access_key=aws_secret_access_key)
         self._s3_bucket = s3_bucket
 
-        self._use_settings_limit = use_settings_limit
-        if max_size is not None:
-            self._max_size = max_size
-        elif self._use_settings_limit and self.limit_setting in settings and settings[self.limit_setting]:
-            self._max_size = settings[self.limit_setting]
-        else:
-            self._max_size = None
-
         try:
             self._s3_client.head_bucket(Bucket=self._s3_bucket)
         except Exception as e:
             raise e
 
-    def _save(self, path, s):
-        # note s needs to be b'bytes' or file below
-        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
-        self._s3_client.put_object(Bucket=self._s3_bucket, Body=s, Key=path)
-
-    def _load(self, path):
-        response = self._s3_client.get_object(Bucket=self._s3_bucket, Key=path)
-        return response['Body'].read()
-
-    def _path_join(self, parts):
-        return self._delim.join(parts)
-
-    def delete_file(self, path):
-        self._s3_client.delete_object(Bucket=self._s3_bucket, Key=path)
-
-    def file_exists(self, path):
-        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=path)
-        obj_count = response['KeyCount']
-        return obj_count == 1 and response['Contents'][0]['Key'] == path
-
-    @property
-    def max_size(self):
-        if self._use_settings_limit and self.limit_setting and self.limit_setting in settings:
-            return settings[self.limit_setting]
-        return self._max_size
-
+    # -----------------------------------------------------------------------------------------------------------------
+    # main cache API
+    # -----------------------------------------------------------------------------------------------------------------
+    
     @property
     def size(self):
         paginator = self._s3_client.get_paginator('list_objects')
@@ -929,19 +825,11 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
                     total_size += obj['Size']
         return total_size
 
-    def make_cache_dir(self, node):
-        """Create subdirectory for caching data for `node`
-        
-        Parameters
-        ----------
-        node : podpac.core.node.Node
-            Description
-        """
-        # Place holder. Does not need to do anything for S3 as the prefix is just part of the object name.
-        # note: I believe AWS uses prefixes to decide how to partition objects in a bucket which could affect performance.
-        pass
+    # -----------------------------------------------------------------------------------------------------------------
+    # helper methods
+    # -----------------------------------------------------------------------------------------------------------------
 
-    def cache_glob(self, node, key, coordinates):
+    def search(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
         """Fileglob to match files that could be storing cached data for specified node,key,coordinates
         
         Parameters
@@ -957,8 +845,9 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         TYPE : str
             Fileglob of existing paths that match the request
         """
+
         delim = self._delim
-        prefix = self.cache_dir(node)
+        prefix = self._get_node_dir(node)
         prefix = prefix if prefix.endswith(delim) else prefix + delim
         response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter=delim)
 
@@ -967,22 +856,42 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         else:
             obj_names = []
 
-        pre = '*'
-        nKeY = 'nKeY{}'.format(self.hash_node(node))
-        kKeY = 'kKeY*' if isinstance(key, CacheWildCard) else 'kKeY{}'.format(self.cleanse_filename_str(self.hash_key(key)))
-        cKeY = 'cKeY*' if isinstance(coordinates, CacheWildCard) else 'cKeY{}'.format(self.hash_coordinates(coordinates))
-        pat = '_'.join([pre, nKeY, kKeY, cKeY])
-        pat = pat + '.*'
-
-        obj_names = fnmatch.filter(obj_names, pat)
-
-        paths = [delim.join([self.cache_dir(node), filename]) for filename in obj_names]
+        obj_names = fnmatch.filter(obj_names, self._match_filename(node, key, coordinates))
+        paths = [delim.join([self._get_node_dir(node), filename]) for filename in obj_names]
         return paths
 
-    def clear_entire_cache_store(self):
-        prefix = self._root_dir_path
+    # -----------------------------------------------------------------------------------------------------------------
+    # file storage abstraction
+    # -----------------------------------------------------------------------------------------------------------------
+
+    def _save(self, path, s):
+        # note s needs to be b'bytes' or file below
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
+        self._s3_client.put_object(Bucket=self._s3_bucket, Body=s, Key=path)
+
+    def _load(self, path):
+        response = self._s3_client.get_object(Bucket=self._s3_bucket, Key=path)
+        return response['Body'].read()
+
+    def _path_join(self, path, *paths):
+        return self._delim.join(path, *paths)
+
+    def _remove(self, path):
+        self._s3_client.delete_object(Bucket=self._s3_bucket, Key=path)
+
+    def _exists(self, path):
+        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=path)
+        obj_count = response['KeyCount']
+        return obj_count == 1 and response['Contents'][0]['Key'] == path
+
+    def _make_node_dir(self, node):
+        # Does not need to do anything for S3 as the prefix is just part of the object name.
+        # note: I believe AWS uses prefixes to decide how to partition objects in a bucket which could affect performance.
+        pass
+
+    def _rmtree(self, path):
         paginator = self._s3_client.get_paginator('list_objects_v2')
-        pages = paginator.paginate(Bucket=self._s3_bucket, Prefix=prefix)
+        pages = paginator.paginate(Bucket=self._s3_bucket, Prefix=path)
 
         to_delete = dict(Objects=[])
         for item in pages.search('Contents'):
@@ -995,16 +904,14 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         if len(to_delete['Objects']):
             self._s3_client.delete_objects(Bucket=self._s3_bucket, Delete=to_delete)
 
-        return True
-
-    def dir_is_empty(self, directory):
+    def _is_empty(self, directory):
         if not directory.endswith(self._delim):
             directory += self._delim
         response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=directory, MaxKeys=2)
 #TODO throw an error if key count is zero as this indicates `directory` is not an existing directory.
         return response['KeyCount'] == 1
 
-    def rem_dir(self, directory):
+    def _rmdir(self, directory):
         # s3 can have "empty" directories
         # should check if directory is empty and the delete
         # delete_objects could be used if recursive=True is specified to this function.
@@ -1033,7 +940,7 @@ class RamCacheStore(CacheStore):
 
     cache_mode = 'ram'
     cache_modes = set(['ram', 'all'])
-    limit_setting = 'RAM_CACHE_MAX_BYTES'
+    _limit_setting = 'RAM_CACHE_MAX_BYTES'
 
     def __init__(self, max_size=None, use_settings_limit=True):
         """Summary
@@ -1053,14 +960,6 @@ class RamCacheStore(CacheStore):
         if not settings['RAM_CACHE_ENABLED']:
             raise CacheException("RAM cache is disabled in the podpac settings.")
 
-        self._use_settings_limit = use_settings_limit
-        if max_size is not None:
-            self._max_size = max_size
-        elif self._use_settings_limit and self.limit_setting in settings and settings[self.limit_setting]:
-            self._max_size = settings[self.limit_setting]
-        else:
-            self._max_size = None
-
         super(CacheStore, self).__init__()
 
     def _get_key(self, obj):
@@ -1070,12 +969,6 @@ class RamCacheStore(CacheStore):
 
     def _get_full_key(self, node, coordinates, key):
         return (self._get_key(node), self._get_key(coordinates), key)
-
-    @property
-    def max_size(self):
-        if self._use_settings_limit and self.limit_setting and self.limit_setting in settings:
-            return settings[self.limit_setting]
-        return self._max_size
 
     @property
     def size(self):
