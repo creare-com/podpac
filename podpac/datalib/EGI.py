@@ -26,13 +26,13 @@ h5py = lazy_module('h5py')
 # Internal dependencies
 from podpac import Coordinates, Node
 from podpac.compositor import OrderedCompositor
-from podpac.data import DataSource, H5PY
+from podpac.data import DataSource
 from podpac import authentication
 from podpac import settings
 from podpac.core.units import UnitsDataArray, create_data_array
 
 # Set up logging
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
 # Base URLs
@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 BASE_URL = "https://n5eil01u.ecs.nsidc.org/egi/request"
 
 
-class EGI(H5PY):
+class EGI(DataSource):
     """
     PODPAC DataSource node to access the NASA EGI Programmatic Interface
     https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs#cmrparameters
@@ -138,6 +138,7 @@ class EGI(H5PY):
     # attributes
     data = tl.Any(allow_none=True)
     _url = tl.Unicode(allow_none=True)
+    _files = tl.Any(allow_none=True)
 
     @property
     def source(self):
@@ -182,12 +183,13 @@ class EGI(H5PY):
     
     def eval(self, coordinates, output=None):
         # download data for coordinate bounds, then handle that data as an H5PY node
-        zip_file = self.download(coordinates)
-        self._load_zip(zip_file)
+        zip_file = self._download_zip(coordinates)
+        self._read_zip(zip_file)  # reads each file in zip archive and creates single dataarray
 
-        # super(EGI, self).eval(coordinates, output)
+        self.merge_files(self._files)
+        super(EGI, self).eval(coordinates, output)
 
-    def download(self, coordinates):
+    def _download_zip(self, coordinates):
         """
         Download data from EGI Interface within PODPAC coordinates
         
@@ -236,7 +238,7 @@ class EGI(H5PY):
 
         url += "&token={token}".format(token=self.token)
 
-        log.debug("Querying EGI url: {}".format(url))
+        _log.debug("Querying EGI url: {}".format(url))
         self._url = url         # for debugging
         r = requests.get(url)
 
@@ -259,89 +261,33 @@ class EGI(H5PY):
         #     with zipfile.ZipFile(filepath,"r") as zip_ref:
         #         zip_ref.extractall()
 
-    def _load_zip(self, zip_file):
+    def _read_zip(self, zip_file):
 
-        data = None
-        lat = None
-        lon = None
-        time = None
-
+        self._files = []
         for name in zip_file.namelist():
+            _log.debug("Reading file: {}".format(name))
+            
             # BytesIO
             bio = BytesIO(zip_file.read(name))
-            f_data, f_lat, f_lon, f_time = self._load_file(bio)   # 2D/3D, 1D, 1D, 1D
 
-            # initialize
-            if data is None:
-                data = f_data
-                lat = f_lat
-                lon = f_lon
-                time = f_time
+            # append hdf5 file(s) to list
+            self._files.append([h5py.File(filelike)])
 
-                continue
-
-            # TODO: We are assuming the lat/lon will not change between files of the same type
-            # this is likely a bad assumption, but will handle in the future
-            # lat/lon may either be gridded or stacked
-            if not np.all(lat == f_lat) or not np.all(lon == f_lon):
-                raise ValueError('Coordinates vary between individual data files in EGI zip archive')
-
-            # concatenate all data with new data @ time slice
-            data = np.concatenate([data, f_data])
-            time = np.concatenate([time, f_time])
-
-
-        # stacked coords
-        if data.ndim == 2:
-            c = Coordinates([(lat, lon), time], dims=['lat_lon', 'time'])
-
-        # gridded coords
-        elif data.ndim == 3:
-            c = Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
-        else:
-            raise ValueError('Data must have either 2 or 3 dimensions')
+    def merge_files(self, files):
+        """Interpret individual hdf5 file from  EGI zip archive.
+        This method should be overwritten by EGI implementing method.
         
-        self.data = create_data_array(c, data=data)
-
-    def _load_file(self, filelike):
-        hdf5_file = h5py.File(filelike)
-
-        data = hdf5_file[self.data_key]
-        lat = hdf5_file[self.lat_key]
-        lon = hdf5_file[self.lon_key]
-
-        # handle time (Not py2.7 compatible)
-        # take the midpoint between the range identified in the file
-        t_start = np.datetime64(hdf5_file['Metadata/Extent'].attrs['rangeBeginningDateTime'].replace(b'Z', b''))
-        t_end = np.datetime64(hdf5_file['Metadata/Extent'].attrs['rangeEndingDateTime'].replace(b'Z', b''))
-        time = np.array([t_start + (t_end - t_start)/2])
-
-
-        # determine if coordinates are gridded for specific file
-        if np.all(lat[:, 0] == lat[:, 1]) and np.all(lon[0, :] == lon[1, :]):
-            lat = lat[:, 0]
-            lon = lon[0, :]
-
-            # c = Coordinates([lat[:, 0], lon[0, :], time], dims=['lat', 'lon', 'time'])
-            # uda = create_data_array(c, data=dset[()])
-
-        # otherwise make stacked coordinates (inefficient)
-        else:
-            # TODO: remove when we can handle stacked coordinates
-            raise ValueError('Coordinates must be gridded')
-            lat = lat[()].ravel()
-            lon = lon[()].ravel()
-            data = data[()].ravel()
-
-            # # this could be done better with DependentCoordinates, but for now
-            # # we ravel all (lat, lon) coordinates to match dset[()]
-            # c = Coordinates([(lat[()].ravel(), lon[()].ravel()), time], dims=['lat_lon', 'time'])
-            # uda = create_data_array(c, data=dset[()].ravel())
+        Parameters
+        ----------
+        files : list of h5py.Group
+            list of h5py files read from zip archive to be aggregate
         
-        # add extra dimension for time
-        data = np.array([data])
+        Raises
+        ------
+        NotImplementedError
+        """
 
-        return data, lat, lon, time
+        raise NotImplementedError('read_files must be implemented for EGI DataSource')
 
     def _authenticate(self):
         if self.token is None:
@@ -356,7 +302,7 @@ class EGI(H5PY):
             raise ValueError("Failed to get a valid token from EGI Interface. " + \
                              "Try requesting a token manually using `self.get_token()`")
 
-        log.debug('EGI Token valid')
+        _log.debug('EGI Token valid')
 
     def token_valid(self):
         """
@@ -412,13 +358,13 @@ class EGI(H5PY):
         try:
             tree = xml.etree.ElementTree.fromstring(r.text)
         except ParseError:
-            log.error('Failed to parse returned text from EGI interface: {}'.format(r.text))
+            _log.error('Failed to parse returned text from EGI interface: {}'.format(r.text))
             return
 
         try:
             token = [element.text for element in tree.findall('id')][0]
         except IndexError:
-            log.error('No token found in XML response from EGI: {}'.format(r.text))
+            _log.error('No token found in XML response from EGI: {}'.format(r.text))
             return
 
         self.token = token
