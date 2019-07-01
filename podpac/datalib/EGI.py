@@ -192,7 +192,7 @@ class EGI(DataSource):
         self._read_zip(zip_file)  # reads each file in zip archive and creates single dataarray
 
         # run normal eval once self.data is prepared
-        super(EGI, self).eval(coordinates, output)
+        return super(EGI, self).eval(coordinates, output)
 
     ##########
     # Data I/O
@@ -236,6 +236,22 @@ class EGI(DataSource):
         #     c = Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
         # else:
         #     raise ValueError('Data must have either 2 or 3 dimensions')
+
+    def append_file(self, all_data, data):
+        """Append new data
+        
+        Parameters
+        ----------
+        all_data : podpac.UnitsDataArray
+            aggregated data
+        data : podpac.UnitsDataArray
+            new data to append
+        
+        Raises
+        ------
+        NotImplementedError
+        """
+        raise NotImplementedError()
 
     def _download_zip(self, coordinates):
         """
@@ -311,7 +327,7 @@ class EGI(DataSource):
 
     def _read_zip(self, zip_file):
 
-        self.data = None
+        all_data = None
         _log.debug("Processing {} EGI files from zip archive".format(len(zip_file.namelist())))
 
         for name in zip_file.namelist():
@@ -326,12 +342,15 @@ class EGI(DataSource):
             # read file
             uda = self.read_file(bio)
 
+            # TODO: this can likely be simpler
             if uda is not None:
-                if self.data is None:
-                    self.data = uda
+                if all_data is None:
+                    all_data = uda
                 else:
-                    self.data = xr.combine_by_coords([self.data, uda])
+                    # self.data = xr.combine_by_coords([self.data, uda], data_vars='minimal', coords='all')
+                    all_data = self.append_file(all_data, uda)
 
+        self.data = all_data
 
     ################
     # Token Handling

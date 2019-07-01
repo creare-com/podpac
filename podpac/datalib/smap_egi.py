@@ -117,9 +117,27 @@ class SMAP(EGI):
         if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):
             return None
 
-        return (data, lat, lon, time)
-        # # make podpac coordinates
-        # c = Coordinates([time, lat, lon], dims=['time', 'lat', 'lon'])
+        # make podpac coordinates
+        c = Coordinates([time, lat, lon], dims=['time', 'lat', 'lon'])
 
-        # # make units data array with coordinates and data
-        # return create_data_array(c, data=data)
+        # make units data array with coordinates and data
+        return create_data_array(c, data=data)
+
+    def append_file(self, all_data, data):
+        """Append data
+        
+        Parameters
+        ----------
+        all_data : podpac.UnitsDataArray
+            aggregated data
+        data : podpac.UnitsDataArray
+            new data to append
+        
+        Raises
+        ------
+        NotImplementedError
+        """
+
+        all_data = xr.concat([all_data, data], dim='time')
+
+        return all_data
