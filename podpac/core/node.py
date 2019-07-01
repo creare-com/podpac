@@ -544,7 +544,7 @@ def node_eval(fn):
             self._from_cache = False
 
         # transpose data to match the dims order of the requested coordinates
-        order = [dim for dim in coordinates.dims if dim in data.dims]
+        order = [dim for dim in coordinates.idims if dim in data.dims]
         data = data.transpose(*order)
 
         if settings['DEBUG']:
