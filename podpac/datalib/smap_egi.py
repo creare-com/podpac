@@ -7,6 +7,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import os
 import copy
 import logging
+from datetime import datetime
 
 import requests
 from six import string_types
@@ -31,13 +32,13 @@ if not hasattr(np, 'isnat'):
 import podpac
 from podpac.core.coordinates import Coordinates
 from podpac.datalib import EGI
-from podpac.core.units import UnitsDataArray, create_data_array
+from podpac.core.units import create_data_array
 
 SMAP_PRODUCT_DICT = {
     #'shortname': ['lat_key', 'lon_key', 'data_key', 'default_verison']
-    'SPL4SMAU':   ['cell_lat', 'cell_lon', '/Analysis_Data/sm_surface_analysis',  4],
-    'SPL4SMGP':   ['cell_lat', 'cell_lon', '/Geophysical_Data/sm_surface',        4],
-    'SPL4SMLM':   ['cell_lat', 'cell_lon', '/Land_Model_Constants_Data',          4],
+    'SPL4SMAU':   ['/x', '/y', '/Analysis_Data/sm_surface_analysis',  4],
+    'SPL4SMGP':   ['/x', '/y', '/Geophysical_Data/sm_surface',        4],
+    'SPL4SMLM':   ['/x', '/y', '/Land_Model_Constants_Data',          4],
     'SPL3SMAP':   ['/Soil_Moisture_Retrieval_Data/latitude',    '/Soil_Moisture_Retrieval_Data/longitude',    '/Soil_Moisture_Retrieval_Data/soil_moisture', 3],
     'SPL3SMA':    ['/Soil_Moisture_Retrieval_Data/latitude',    '/Soil_Moisture_Retrieval_Data/longitude',    '/Soil_Moisture_Retrieval_Data/soil_moisture', 3],
     'SPL3SMP':    ['/Soil_Moisture_Retrieval_Data/AM_latitude', '/Soil_Moisture_Retrieval_Data/AM_longitude', '/Soil_Moisture_Retrieval_Data/soil_moisture', 5],
@@ -89,36 +90,51 @@ class SMAP(EGI):
         ------
         ValueError
         """
-        hdf5_file = h5py.File(filelike)
+        ds = h5py.File(filelike)
 
         # handle data
-        data = hdf5_file[self.data_key][()]
+        data = ds[self.data_key][()]
         data = np.array([data])  # add extra dimension for time slice
 
         # handle time
-        if self.product in ['SPL3SMA', 'SPL3SMAP']:
-            # handle time (Not py2.7 compatible)
+        if 'SPL3' in self.product:
+            # TODO: make this py2.7 compatible
             # take the midpoint between the range identified in the file
-            t_start = np.datetime64(hdf5_file['Metadata/Extent'].attrs['rangeBeginningDateTime'].replace(b'Z', b''))
-            t_end = np.datetime64(hdf5_file['Metadata/Extent'].attrs['rangeEndingDateTime'].replace(b'Z', b''))
+            t_start = np.datetime64(ds['Metadata/Extent'].attrs['rangeBeginningDateTime'].replace(b'Z', b''))
+            t_end = np.datetime64(ds['Metadata/Extent'].attrs['rangeEndingDateTime'].replace(b'Z', b''))
             time = np.array([t_start + (t_end - t_start)/2])
+        
+        elif 'SPL4' in self.product:
+            t_offset = datetime(2000, 1, 1).timestamp()  # all time relative to 2000-01-01
+            t_obs = ds['time'][()][0]                    # time give as seconds since 2000-01-01
+            time = np.datetime64(datetime.fromtimestamp(t_offset + t_obs))
 
-        # handle coordinates
-        # take nan mean along each axis 
-        lons = hdf5_file[self.lon_key][()]
-        lats = hdf5_file[self.lat_key][()]
-        lons[lons == self.nan_vals[0]] = np.nan
-        lats[lats == self.nan_vals[0]] = np.nan
-        lon = np.nanmean(lons, axis=0)
-        lat = np.nanmean(lats, axis=1)
 
-        # if all dims are returned None, we can't just along the dims
+        # handle spatial coordinates
+        if 'SPL3' in self.product:
+            # take nan mean along each axis 
+            lons = ds[self.lon_key][()]
+            lats = ds[self.lat_key][()]
+            lons[lons == self.nan_vals[0]] = np.nan
+            lats[lats == self.nan_vals[0]] = np.nan
+            lon = np.nanmean(lons, axis=0)
+            lat = np.nanmean(lats, axis=1)
+
+            # make podpac coordinates
+            c = Coordinates([time, lat, lon], dims=['time', 'lat', 'lon'])
+        
+        elif 'SPL4' in self.product:
+            # lat lon coordinates in EPSG:6933 (https://epsg.io/6933)
+            lon = ds['x'][()]
+            lat = ds['y'][()]
+
+            c = Coordinates([time, lat, lon], dims=['time', 'lat', 'lon'], crs='epsg:6933')
+
+        # Short-circuit
+        # if all dims are returned None, we can't just concat along the dims
         # so we need to skip this data (?)
         if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):
             return None
-
-        # make podpac coordinates
-        c = Coordinates([time, lat, lon], dims=['time', 'lat', 'lon'])
 
         # make units data array with coordinates and data
         return create_data_array(c, data=data)

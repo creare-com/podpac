@@ -173,7 +173,7 @@ class EGI(DataSource):
 
     def get_native_coordinates(self):
         if self.data is not None:
-            return Coordinates.from_xarray(self.data.coords)
+            return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs['crs'])
         else:
             _log.warning('No coordinates found in EGI source')
             return Coordinates([], dims=[])
@@ -315,16 +315,6 @@ class EGI(DataSource):
 
         return zip_file
 
-
-        # if self.download_files:
-        #     filepath = os.path.join(settings['ROOT_PATH'], settings['DISK_CACHE_DIR'], 'egi', 'output.zip')
-
-        #     with open(filepath, 'wb') as f:
-        #         f.write(r.content)
-
-        #     with zipfile.ZipFile(filepath,"r") as zip_ref:
-        #         zip_ref.extractall()
-
     def _read_zip(self, zip_file):
 
         all_data = None
@@ -342,7 +332,7 @@ class EGI(DataSource):
             # read file
             uda = self.read_file(bio)
 
-            # TODO: this can likely be simpler
+            # TODO: this can likely be simpler and automated
             if uda is not None:
                 if all_data is None:
                     all_data = uda
