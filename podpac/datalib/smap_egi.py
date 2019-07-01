@@ -132,7 +132,7 @@ class SMAP(EGI):
         # handle spatial coordinates
         if 'SPL3' in self.product:
 
-            # take nan mean along each axis 
+            # take nan mean along each axis
             lons = ds[self.lon_key][()]
             lats = ds[self.lat_key][()]
             lons[lons == self.nan_vals[0]] = np.nan
@@ -149,8 +149,8 @@ class SMAP(EGI):
         
         elif 'SPL4' in self.product:
             # lat/lon coordinates in EPSG:6933 (https://epsg.io/6933)
-            lon = ds['x'][()]
-            lat = ds['y'][()]
+            lon = ds['y'][()]
+            lat = ds['x'][()]
 
             # short-circuit if all lat/lon are non
             if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):

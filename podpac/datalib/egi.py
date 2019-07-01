@@ -126,7 +126,7 @@ class EGI(DataSource):
     
     # auth
     username = tl.Unicode(allow_none=True)
-    @tl.default('username@EGI')
+    @tl.default('username')
     def _username_default(self):
         if 'username@EGI' in settings:
             return settings['username@EGI']
@@ -134,7 +134,7 @@ class EGI(DataSource):
         return None
 
     password = tl.Unicode(allow_none=True)
-    @tl.default('password@EGI')
+    @tl.default('password')
     def _password_default(self):
         if 'password@EGI' in settings:
             return settings['password@EGI']
@@ -438,7 +438,7 @@ class EGI(DataSource):
             _log.error('No token found in XML response from EGI: {}'.format(r.text))
             return
 
-        settings['token'] = token
+        settings['token@EGI'] = token
         self.token = token
 
     def _get_ip(self):
