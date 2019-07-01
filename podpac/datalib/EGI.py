@@ -100,9 +100,9 @@ class EGI(DataSource):
     # required
     short_name = tl.Unicode().tag(attr=True)
     data_key = tl.Unicode().tag(attr=True)
-    lat_key = tl.Unicode().tag(attr=True)
-    lon_key = tl.Unicode().tag(attr=True)
-
+    lat_key = tl.Unicode(allow_none=True).tag(attr=True)
+    lon_key = tl.Unicode(allow_none=True).tag(attr=True)
+    time_key = tl.Unicode(allow_none=True).tag(attr=True)
 
     # optional
     
@@ -138,7 +138,6 @@ class EGI(DataSource):
     # attributes
     data = tl.Any(allow_none=True)
     _url = tl.Unicode(allow_none=True)
-    _files = tl.Any(allow_none=True)
 
     @property
     def source(self):
@@ -175,19 +174,68 @@ class EGI(DataSource):
     def get_native_coordinates(self):
         if self.data is not None:
             return Coordinates.from_xarray(self.data.coords)
+        else:
+            _log.warning('No coordinates found in EGI source')
+            return Coordinates([], dims=[])
 
     def get_data(self, coordinates, coordinates_index):
         if self.data is not None:
             da = self.data[coordinates_index]
             return da
-    
+        else:
+            _log.warning('No data found in EGI source')
+            return np.array([])
+
     def eval(self, coordinates, output=None):
         # download data for coordinate bounds, then handle that data as an H5PY node
         zip_file = self._download_zip(coordinates)
         self._read_zip(zip_file)  # reads each file in zip archive and creates single dataarray
 
-        self.merge_files(self._files)
+        # run normal eval once self.data is prepared
         super(EGI, self).eval(coordinates, output)
+
+    ##########
+    # Data I/O
+    ##########
+    def read_file(self, filelike):
+        """Interpret individual file from  EGI zip archive.
+        
+        Parameters
+        ----------
+        filelike : filelike
+            Reference to file inside EGI zip archive
+        
+        Returns
+        -------
+        podpac.UnitsDataArray
+        
+        Raises
+        ------
+        ValueError
+        """
+
+        raise NotImplementedError('read_file must be implemented for EGI DataSource')
+        
+        ## TODO: implement generic handler based on keys and dimensions
+
+        # # load file
+        # hdf5_file = h5py.File(filelike)
+
+        # # handle data
+        # data = hdf5_file[self.data_key]
+        # lat = hdf5_file[self.lat_key] if self.lat_key in hdf5_file else None
+        # lon = hdf5_file[self.lon_key] if self.lon_key in hdf5_file else None
+        # time = hdf5_file[self.time_key] if self.time_key in hdf5_file else None
+
+        # # stacked coords
+        # if data.ndim == 2:
+        #     c = Coordinates([(lat, lon), time], dims=['lat_lon', 'time'])
+
+        # # gridded coords
+        # elif data.ndim == 3:
+        #     c = Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
+        # else:
+        #     raise ValueError('Data must have either 2 or 3 dimensions')
 
     def _download_zip(self, coordinates):
         """
@@ -263,32 +311,31 @@ class EGI(DataSource):
 
     def _read_zip(self, zip_file):
 
-        self._files = []
+        self.data = None
+        _log.debug("Processing {} EGI files from zip archive".format(len(zip_file.namelist())))
+
         for name in zip_file.namelist():
             _log.debug("Reading file: {}".format(name))
             
             # BytesIO
             bio = BytesIO(zip_file.read(name))
 
-            # append hdf5 file(s) to list
-            self._files.append([h5py.File(filelike)])
+            with open('test.h5', 'wb') as f:
+                f.write(zip_file.read(name))
 
-    def merge_files(self, files):
-        """Interpret individual hdf5 file from  EGI zip archive.
-        This method should be overwritten by EGI implementing method.
-        
-        Parameters
-        ----------
-        files : list of h5py.Group
-            list of h5py files read from zip archive to be aggregate
-        
-        Raises
-        ------
-        NotImplementedError
-        """
+            # read file
+            uda = self.read_file(bio)
 
-        raise NotImplementedError('read_files must be implemented for EGI DataSource')
+            if uda is not None:
+                if self.data is None:
+                    self.data = uda
+                else:
+                    self.data = xr.combine_by_coords([self.data, uda])
 
+
+    ################
+    # Token Handling
+    ################
     def _authenticate(self):
         if self.token is None:
             self.get_token()
@@ -367,6 +414,7 @@ class EGI(DataSource):
             _log.error('No token found in XML response from EGI: {}'.format(r.text))
             return
 
+        settings['token'] = token
         self.token = token
 
     def _get_ip(self):

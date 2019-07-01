@@ -38,6 +38,7 @@ SMAP_PRODUCT_DICT = {
     'SPL4SMAU':   ['cell_lat', 'cell_lon', '/Analysis_Data/sm_surface_analysis',  4],
     'SPL4SMGP':   ['cell_lat', 'cell_lon', '/Geophysical_Data/sm_surface',        4],
     'SPL4SMLM':   ['cell_lat', 'cell_lon', '/Land_Model_Constants_Data',          4],
+    'SPL3SMAP':   ['/Soil_Moisture_Retrieval_Data/latitude',    '/Soil_Moisture_Retrieval_Data/longitude',    '/Soil_Moisture_Retrieval_Data/soil_moisture', 3],
     'SPL3SMA':    ['/Soil_Moisture_Retrieval_Data/latitude',    '/Soil_Moisture_Retrieval_Data/longitude',    '/Soil_Moisture_Retrieval_Data/soil_moisture', 3],
     'SPL3SMP':    ['/Soil_Moisture_Retrieval_Data/AM_latitude', '/Soil_Moisture_Retrieval_Data/AM_longitude', '/Soil_Moisture_Retrieval_Data/soil_moisture', 5],
 }
@@ -51,7 +52,11 @@ class SMAP(EGI):
     product = tl.Enum(SMAP_PRODUCTS).tag(attr=True)
     nan_vals = [-9999.0]
 
-    # set default data_key, lat_key, lon_key, version
+    # set default short_name, data_key, lat_key, lon_key, version
+    @tl.default('short_name')
+    def _short_name_default(self):
+        return self.product
+
     @tl.default('lat_key')
     def _lat_key_default(self):
         return SMAP_PRODUCT_DICT[self.product][0]
@@ -68,77 +73,53 @@ class SMAP(EGI):
     def _version_default(self):
         return SMAP_PRODUCT_DICT[self.product][3]
 
-    def _read_file(self):
-
-    def merge_files(self, files):
-        """Interpret SMAP files from EGI zip archive.
-
+    def read_file(self, filelike):
+        """Interpret individual SMAP file from  EGI zip archive.
+        
         Parameters
         ----------
-        files : list of h5py.Group
-            list of h5py files read from zip archive to merge
+        filelike : filelike
+            Reference to file inside EGI zip archive
+        
+        Returns
+        -------
+        podpac.UnitsDataArray
+        
+        Raises
+        ------
+        ValueError
         """
+        hdf5_file = h5py.File(filelike)
 
-        for f in files:
-
-            # handle data
-            data = hdf5_file[self.data_key]
-            data = np.array([data])  # add extra dimension for time slice
+        # handle data
+        data = hdf5_file[self.data_key][()]
+        data = np.array([data])  # add extra dimension for time slice
 
         # handle time
-        if self.product in ['SPL3SMA']:
+        if self.product in ['SPL3SMA', 'SPL3SMAP']:
             # handle time (Not py2.7 compatible)
             # take the midpoint between the range identified in the file
             t_start = np.datetime64(hdf5_file['Metadata/Extent'].attrs['rangeBeginningDateTime'].replace(b'Z', b''))
             t_end = np.datetime64(hdf5_file['Metadata/Extent'].attrs['rangeEndingDateTime'].replace(b'Z', b''))
             time = np.array([t_start + (t_end - t_start)/2])
 
-
         # handle coordinates
         # take nan mean along each axis 
-        lons = np.array(hdf5_file[self.lat_key][:, :])
-        lats = np.array(hdf5_file[self.lon_key][:, :])
+        lons = hdf5_file[self.lon_key][()]
+        lats = hdf5_file[self.lat_key][()]
         lons[lons == self.nan_vals[0]] = np.nan
         lats[lats == self.nan_vals[0]] = np.nan
         lon = np.nanmean(lons, axis=0)
         lat = np.nanmean(lats, axis=1)
 
+        # if all dims are returned None, we can't just along the dims
+        # so we need to skip this data (?)
+        if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):
+            return None
 
-        f_data, f_lat, f_lon, f_time = self.read_file(bio)   # ND, 1D, 1D, 1D
+        return (data, lat, lon, time)
+        # # make podpac coordinates
+        # c = Coordinates([time, lat, lon], dims=['time', 'lat', 'lon'])
 
-        # initialize
-        if data is None:
-            data = f_data
-            lat = f_lat
-            lon = f_lon
-            time = f_time
-
-            continue
-
-        # TODO: We are assuming the lat/lon will not change between files of the same type
-        # this is likely a bad assumption, but will handle in the future
-        # lat/lon may either be gridded or stacked
-        if not np.all(lat == f_lat):
-            lat = np.nanmean([lat, f_lat], axis=0)
-
-        if not np.all(lon == f_lon):
-            lon = np.nanmean([lat, f_lat], axis=0)
-
-        # if not np.all(lat == f_lat) or not np.all(lon == f_lon):
-        #     raise ValueError('Coordinates vary between individual data files in EGI zip archive')
-
-        # concatenate all data with new data @ time slice
-        data = np.concatenate([data, f_data])
-        time = np.concatenate([time, f_time])
-
-        # stacked coords
-        if data.ndim == 2:
-            c = Coordinates([(lat, lon), time], dims=['lat_lon', 'time'])
-
-        # gridded coords
-        elif data.ndim == 3:
-            c = Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
-        else:
-            raise ValueError('Data must have either 2 or 3 dimensions')
-        
-        self.data = create_data_array(c, data=data)
+        # # make units data array with coordinates and data
+        # return create_data_array(c, data=data)
