@@ -125,8 +125,15 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         response = self._s3_client.get_object(Bucket=self._s3_bucket, Key=path)
         return response['Body'].read()
 
-    def _path_join(self, path, *paths):
-        return self._delim.join(path, *paths)
+    def _path_join(self, *paths):
+        return self._delim.join(paths)
+
+    def _basename(self, path):
+        if self._delim in path:
+            dirname, basename = path.rsplit(self._delim, 1)
+        else:
+            basename = path
+        return basename
 
     def _remove(self, path):
         self._s3_client.delete_object(Bucket=self._s3_bucket, Key=path)

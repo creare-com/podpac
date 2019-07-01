@@ -206,18 +206,6 @@ class BaseCacheStoreTests(object):
         store.has(NODE2, 'mykey1') is False
         store.has(NODE2, 'mykeyA', COORDS1) is False
 
-    def test_size(self):
-        store = self.Store()
-        assert store.size == 0
-
-        store.put(NODE1, 10, 'mykey1')
-        store.put(NODE1, np.array([0, 1, 2]), 'mykey2')
-
-        p1 = store.find(NODE1, 'mykey1', None)
-        p2 = store.find(NODE1, 'mykey2', None)
-        expected_size = os.path.getsize(p1) + os.path.getsize(p2)
-        assert store.size == expected_size
-
     def test_max_size(self):
         store = self.Store()
         assert store.max_size == podpac.settings[self.limit_setting]
@@ -310,7 +298,7 @@ class TestRamCacheStore(BaseCacheStoreTests):
 
     @pytest.mark.skip(reason="not testable")
     def test_size(self):
-        super(TestRamCacheStore, self).test_size()
+        pass
 
     @pytest.mark.skip(reason="not testable")
     def test_limit(self):
@@ -320,23 +308,23 @@ class TestDiskCacheStore(FileCacheStoreTests):
     Store = DiskCacheStore
     enabled_setting = 'DISK_CACHE_ENABLED'
     limit_setting = 'DISK_CACHE_MAX_BYTES'
-    temp_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tmp_cache'))
+    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tmp_cache'))
 
     def setup_method(self):
         super(TestDiskCacheStore, self).setup_method()
 
-        podpac.settings['DISK_CACHE_DIR'] = self.temp_cache_dir
-        assert not os.path.exists(self.temp_cache_dir)
+        podpac.settings['DISK_CACHE_DIR'] = self.cache_dir
+        assert not os.path.exists(self.cache_dir)
 
     def teardown_method(self):
         super(TestDiskCacheStore, self).teardown_method()
 
-        shutil.rmtree(self.temp_cache_dir, ignore_errors=True)
+        shutil.rmtree(self.cache_dir, ignore_errors=True)
 
     def test_cache_dir(self):
         # absolute path
-        podpac.settings['DISK_CACHE_DIR'] = self.temp_cache_dir
-        expected = self.temp_cache_dir
+        podpac.settings['DISK_CACHE_DIR'] = self.cache_dir
+        expected = self.cache_dir
         store = DiskCacheStore()
         store.put(NODE1, 10, 'mykey1')
         assert store.find(NODE1, 'mykey1').startswith(expected)
@@ -350,3 +338,44 @@ class TestDiskCacheStore(FileCacheStoreTests):
         store.put(NODE1, 10, 'mykey1')
         assert store.find(NODE1, 'mykey1').startswith(expected)
         store.clear()
+
+    def test_size(self):
+        store = self.Store()
+        assert store.size == 0
+
+        store.put(NODE1, 10, 'mykey1')
+        store.put(NODE1, np.array([0, 1, 2]), 'mykey2')
+
+        p1 = store.find(NODE1, 'mykey1', None)
+        p2 = store.find(NODE1, 'mykey2', None)
+        expected_size = os.path.getsize(p1) + os.path.getsize(p2)
+        assert store.size == expected_size
+
+@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="skip AWS tests during CI")
+class TestS3CacheStore(FileCacheStoreTests):
+    Store = S3CacheStore
+    enabled_setting = 'S3_CACHE_ENABLED'
+    limit_setting = 'S3_CACHE_MAX_BYTES'
+    cache_dir = 'tmp_cache'
+
+    def setup_method(self):
+        super(TestS3CacheStore, self).setup_method()
+
+        podpac.settings['S3_CACHE_DIR'] = self.cache_dir
+
+    def teardown_method(self):
+        try:
+            store = S3CacheStore()
+            store._rmtree(self.cache_dir)
+        except:
+            pass
+
+        super(TestS3CacheStore, self).teardown_method()
+
+    def test_size(self):
+        store = self.Store()
+        assert store.size == 0
+
+        store.put(NODE1, 10, 'mykey1')
+        store.put(NODE1, np.array([0, 1, 2]), 'mykey2')
+        assert store.size == 154
