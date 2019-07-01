@@ -131,29 +131,33 @@ class SMAP(EGI):
 
         # handle spatial coordinates
         if 'SPL3' in self.product:
+
             # take nan mean along each axis 
             lons = ds[self.lon_key][()]
             lats = ds[self.lat_key][()]
             lons[lons == self.nan_vals[0]] = np.nan
             lats[lats == self.nan_vals[0]] = np.nan
-            lon = np.nanmean(lons, axis=0)
-            lat = np.nanmean(lats, axis=1)
+            
+            # short-circuit if all lat/lon are non
+            if np.all(np.isnan(lats)) and np.all(np.isnan(lons)):
+                return None
 
             # make podpac coordinates
+            lon = np.nanmean(lons, axis=0)
+            lat = np.nanmean(lats, axis=1)
             c = Coordinates([time, lat, lon], dims=['time', 'lat', 'lon'])
         
         elif 'SPL4' in self.product:
-            # lat lon coordinates in EPSG:6933 (https://epsg.io/6933)
+            # lat/lon coordinates in EPSG:6933 (https://epsg.io/6933)
             lon = ds['x'][()]
             lat = ds['y'][()]
 
+            # short-circuit if all lat/lon are non
+            if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):
+                return None
+
             c = Coordinates([time, lat, lon], dims=['time', 'lat', 'lon'], crs='epsg:6933')
 
-        # Short-circuit
-        # if all dims are returned None, we can't just concat along the dims
-        # so we need to skip this data (?)
-        if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):
-            return None
 
         # make units data array with coordinates and data
         return create_data_array(c, data=data)

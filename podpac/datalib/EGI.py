@@ -125,8 +125,22 @@ class EGI(DataSource):
     updated_since = tl.Unicode(default_value=None, allow_none=True)
     
     # auth
-    username = tl.Unicode(default_value=None, allow_none=True)
-    password = tl.Unicode(default_value=None, allow_none=True)
+    username = tl.Unicode(allow_none=True)
+    @tl.default('username@EGI')
+    def _username_default(self):
+        if 'username@EGI' in settings:
+            return settings['username@EGI']
+
+        return None
+
+    password = tl.Unicode(allow_none=True)
+    @tl.default('password@EGI')
+    def _password_default(self):
+        if 'password@EGI' in settings:
+            return settings['password@EGI']
+
+        return None
+
     token = tl.Unicode(allow_none=True)
     @tl.default('token')
     def _token_default(self):
@@ -337,6 +351,9 @@ class EGI(DataSource):
                     # self.data = xr.combine_by_coords([self.data, uda], data_vars='minimal', coords='all')
                     all_data = self.append_file(all_data, uda)
 
+            else:
+                _log.warning('No data returned from file: {}'.format(name))
+
         self.data = all_data
 
     ################
@@ -387,13 +404,14 @@ class EGI(DataSource):
         # token access URL
         url = 'https://cmr.earthdata.nasa.gov/legacy-services/rest/tokens'
 
-        # use EathDataSession auth class to handle auth parameters and settings
-        _session = authentication.EarthDataSession(username=self.username, password=self.password)
-        
-        if _session.username is None:
+        if self.username is not None:
+            settings['username@EGI'] = self.username
+        else:
             raise ValueError('No EarthData username available to request EGI token')
 
-        if _session.password is None:
+        if self.password is not None:
+            settings['password@EGI'] = self.password
+        else:
             raise ValueError('No EarthData password available to request EGI token')
 
         _ip = self._get_ip()
@@ -404,7 +422,7 @@ class EGI(DataSource):
             <client_id>podpac</client_id>
             <user_ip_address>{ip}</user_ip_address>
         </token>
-        """.format(username=_session.username, password=_session.password, ip=_ip)
+        """.format(username=self.username, password=self.password, ip=_ip)
         headers = {"Content-Type": "application/xml"}
         r = requests.post(url, data=request, headers=headers)
 
