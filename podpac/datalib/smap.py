@@ -51,7 +51,7 @@ from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.node import cache_func
 from podpac.core.node import NodeException
-from podpac.core.cache import cache, DiskCacheStore
+from podpac.core import cache
 
 from . import nasaCMR
 

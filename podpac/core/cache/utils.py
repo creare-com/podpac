@@ -1,14 +1,11 @@
 
-import hashlib
-import json
+class CacheException(Exception):
+    pass
 
-def is_json_serializable(obj):
-    try:
-        json.dumps(obj)
-    except:
-        return False
-    else:
+class CacheWildCard(object):
+    """Represent wildcard matches for inputs to remove operations (`rem`)
+    that can match multiple items in the cache.
+    """
+    
+    def __eq__(self, other):
         return True
-
-def hash_string(s):
-    return hashlib.md5(s.encode()).hexdigest()

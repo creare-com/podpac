@@ -9,53 +9,38 @@ import xarray as xr
 
 import podpac
 
-from podpac.core.cache.cache import DiskCacheStore
-from podpac.core.cache.cache import CacheException
+from podpac.core.cache.utils import CacheException
+from podpac.core.cache.ram_cache_store import RamCacheStore
+from podpac.core.cache.disk_cache_store import DiskCacheStore
+from podpac.core.cache.s3_cache_store import S3CacheStore
 
 COORDS1 = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40], ['2018-01-01', '2018-01-02']], dims=['lat','lon','time'])
-COORDS2 = podpac.Coordinates([[0, 1, 2], [10, 20, 30], ['2018-01-01', '2018-01-02']], dims=['lat','lon','time'])
+COORDS2 = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=['lat','lon'])
 NODE1 = podpac.data.Array(source=np.ones(COORDS1.shape), source_coordinates=COORDS1)
 NODE2 = podpac.algorithm.Arange()
 
-class TestDiskCacheStore(object):
-    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tmp_cache'))
+class BaseCacheStoreTests(object):
+    Store = None
+    enabled_setting = None
+    limit_setting = None    
 
     def setup_method(self):
         self.settings_orig = copy.deepcopy(podpac.settings)
 
-        podpac.settings['DISK_CACHE_DIR'] = self.cache_dir
-        assert not os.path.exists(self.cache_dir)
-
     def teardown_method(self):
         for key in podpac.settings:
             podpac.settings[key] = self.settings_orig[key]
-        
-        shutil.rmtree(self.cache_dir, ignore_errors=True)
 
     def test_init(self):
-        store = DiskCacheStore()
+        store = self.Store()
         
     def test_disabled(self):
-        podpac.settings['DISK_CACHE_ENABLED'] = False
-        with pytest.raises(CacheException, match="Disk cache is disabled"):
-            store = DiskCacheStore()
+        podpac.settings[self.enabled_setting] = False
+        with pytest.raises(CacheException, match="cache is disabled"):
+            store = self.Store()
 
-    def test_empty(self):
-        store = DiskCacheStore()
-
-        assert store.has(NODE1, 'mykey') is False
-        assert store.has(NODE1, 'mykey', COORDS1) is False
-
-        with pytest.raises(CacheException, match="Cache miss"):
-            store.get(NODE1, 'mykey')
-        with pytest.raises(CacheException, match="Cache miss"):
-            store.get(NODE1, 'mykey', COORDS1)
-
-        store.rem(NODE1, 'mykey')
-        store.rem(NODE1, 'mykey', COORDS1)
-
-    def test_cache(self):
-        store = DiskCacheStore()
+    def test_put_has_get(self):
+        store = self.Store()
 
         store.put(NODE1, 10, 'mykey1')
         store.put(NODE1, 20, 'mykey2')
@@ -81,14 +66,27 @@ class TestDiskCacheStore(object):
         assert store.get(NODE2, 'mykey1') == 110
         assert store.get(NODE2, 'mykeyA', COORDS1) == 120
 
+    def test_has_empty(self):
+        store = self.Store()
+        assert store.has(NODE1, 'mykey') is False
+
+    def test_get_empty(self):
+        store = self.Store()
+        with pytest.raises(CacheException, match="Cache miss"):
+            store.get(NODE1, 'mykey')
+
+    def test_rem_empty(self):
+        store = self.Store()
+        store.rem(NODE1, 'mykey')
+
     def test_update(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         store.put(NODE1, 10, 'mykey1')
         assert store.get(NODE1, 'mykey1') == 10
 
         # raise exception and do not change
-        with pytest.raises(CacheException, match='Existing cache entry'):
+        with pytest.raises(CacheException, match='Cache entry already exists.'):
             store.put(NODE1, 10, 'mykey1')
         assert store.get(NODE1, 'mykey1') == 10
 
@@ -96,8 +94,13 @@ class TestDiskCacheStore(object):
         store.put(NODE1, 20, 'mykey1', update=True)
         assert store.get(NODE1, 'mykey1') == 20
 
+    def test_get_put_none(self):
+        store = self.Store()
+        store.put(NODE1, None, 'mykey')
+        assert store.get(NODE1, 'mykey') is None
+
     def test_rem_object(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         store.put(NODE1, 10, 'mykey1')
         store.put(NODE1, 20, 'mykey2')
@@ -119,7 +122,7 @@ class TestDiskCacheStore(object):
         store.has(NODE2, 'mykeyA', COORDS1) is True
 
     def test_rem_key(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         store.put(NODE1, 10, 'mykey1')
         store.put(NODE1, 20, 'mykey2')
@@ -141,7 +144,7 @@ class TestDiskCacheStore(object):
         store.has(NODE2, 'mykeyA', COORDS1) is True
 
     def test_rem_coordinates(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         store.put(NODE1, 10, 'mykey1')
         store.put(NODE1, 20, 'mykey2')
@@ -162,7 +165,7 @@ class TestDiskCacheStore(object):
         store.has(NODE2, 'mykeyA', COORDS1) is True
 
     def test_rem_node(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         store.put(NODE1, 10, 'mykey1')
         store.put(NODE1, 20, 'mykey2')
@@ -183,7 +186,7 @@ class TestDiskCacheStore(object):
         store.has(NODE2, 'mykeyA', COORDS1) is True
 
     def test_clear(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         store.put(NODE1, 10, 'mykey1')
         store.put(NODE1, 20, 'mykey2')
@@ -203,8 +206,37 @@ class TestDiskCacheStore(object):
         store.has(NODE2, 'mykey1') is False
         store.has(NODE2, 'mykeyA', COORDS1) is False
 
+    def test_size(self):
+        store = self.Store()
+        assert store.size == 0
+
+        store.put(NODE1, 10, 'mykey1')
+        store.put(NODE1, np.array([0, 1, 2]), 'mykey2')
+
+        p1 = store.find(NODE1, 'mykey1', None)
+        p2 = store.find(NODE1, 'mykey2', None)
+        expected_size = os.path.getsize(p1) + os.path.getsize(p2)
+        assert store.size == expected_size
+
+    def test_max_size(self):
+        store = self.Store()
+        assert store.max_size == podpac.settings[self.limit_setting]
+
+        podpac.settings[self.limit_setting] = 1000
+        assert store.max_size == 1000
+
+    def test_limit(self):
+        podpac.settings[self.limit_setting] = 10
+        store = self.Store()
+
+        store.put(NODE1, '11111111', 'mykey1')
+        
+        with pytest.warns(UserWarning, match="Warning: .* cache is full"):
+            store.put(NODE1, '11111111', 'mykey2')
+
+class FileCacheStoreTests(BaseCacheStoreTests):
     def test_cache_units_data_array(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         data = podpac.core.units.UnitsDataArray([1, 2, 3], attrs={'units': 'm'})
         store.put(NODE1, data, 'mykey')
@@ -213,7 +245,7 @@ class TestDiskCacheStore(object):
         xr.testing.assert_identical(cached, data) # assert_identical checks attributes as wel
 
     def test_cache_xarray(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         # data array
         data = xr.DataArray([1, 2, 3])
@@ -228,7 +260,7 @@ class TestDiskCacheStore(object):
         xr.testing.assert_identical(cached, data) # assert_identical checks attributes as wel
 
     def test_cache_podpac(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         # coords
         store.put(NODE1, COORDS1, 'mykey')
@@ -241,7 +273,7 @@ class TestDiskCacheStore(object):
         assert cached.json == NODE2.json
 
     def test_cache_numpy(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         data = np.array([1, 2, 3])
         store.put(NODE1, data, 'mykey')
@@ -249,7 +281,7 @@ class TestDiskCacheStore(object):
         np.testing.assert_equal(cached, data)
 
     def test_pkl_fallback(self):
-        store = DiskCacheStore()
+        store = self.Store()
 
         data = [xr.DataArray([1, 2, 3]), np.array([1, 2, 3])]
         with pytest.warns(UserWarning, match="caching object to file using pickle"):
@@ -258,38 +290,53 @@ class TestDiskCacheStore(object):
         xr.testing.assert_equal(cached[0], data[0])
         np.testing.assert_equal(cached[1], data[1])
 
+class TestRamCacheStore(BaseCacheStoreTests):
+    Store = RamCacheStore
+    enabled_setting = 'RAM_CACHE_ENABLED'
+    limit_setting = 'RAM_CACHE_MAX_BYTES'
+
+    def setup_method(self):
+        super(TestRamCacheStore, self).setup_method()
+
+        from podpac.core.cache.ram_cache_store import _thread_local
+        assert not hasattr(_thread_local, 'cache')
+
+    def teardown_method(self):
+        super(TestRamCacheStore, self).teardown_method()
+
+        from podpac.core.cache.ram_cache_store import _thread_local
+        if hasattr(_thread_local, 'cache'):
+            delattr(_thread_local, 'cache')
+
+    @pytest.mark.skip(reason="not testable")
     def test_size(self):
-        store = DiskCacheStore()
-        assert store.size == 0
+        super(TestRamCacheStore, self).test_size()
 
-        store.put(NODE1, 10, 'mykey1')
-        store.put(NODE1, np.array([0, 1, 2]), 'mykey2')
-
-        p1 = store.find(NODE1, 'mykey1', None)
-        p2 = store.find(NODE1, 'mykey2', None)
-        expected_size = os.path.getsize(p1) + os.path.getsize(p2)
-        assert store.size == expected_size
-
-    def test_max_size(self):
-        store = DiskCacheStore()
-        assert store.max_size == podpac.settings['DISK_CACHE_MAX_BYTES']
-
-        podpac.settings['DISK_CACHE_MAX_BYTES'] = 1000
-        assert store.max_size == 1000
-
+    @pytest.mark.skip(reason="not testable")
     def test_limit(self):
-        podpac.settings['DISK_CACHE_MAX_BYTES'] = 10
-        store = DiskCacheStore()
+        super(TestRamCacheStore, self).test_size()
 
-        store.put(NODE1, '11111111', 'mykey1')
-        
-        with pytest.warns(UserWarning, match="Warning: disk cache is full"):
-            store.put(NODE1, '11111111', 'mykey2')
+class TestDiskCacheStore(FileCacheStoreTests):
+    Store = DiskCacheStore
+    enabled_setting = 'DISK_CACHE_ENABLED'
+    limit_setting = 'DISK_CACHE_MAX_BYTES'
+    temp_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tmp_cache'))
+
+    def setup_method(self):
+        super(TestDiskCacheStore, self).setup_method()
+
+        podpac.settings['DISK_CACHE_DIR'] = self.temp_cache_dir
+        assert not os.path.exists(self.temp_cache_dir)
+
+    def teardown_method(self):
+        super(TestDiskCacheStore, self).teardown_method()
+
+        shutil.rmtree(self.temp_cache_dir, ignore_errors=True)
 
     def test_cache_dir(self):
         # absolute path
-        podpac.settings['DISK_CACHE_DIR'] = self.cache_dir
-        expected = self.cache_dir
+        podpac.settings['DISK_CACHE_DIR'] = self.temp_cache_dir
+        expected = self.temp_cache_dir
         store = DiskCacheStore()
         store.put(NODE1, 10, 'mykey1')
         assert store.find(NODE1, 'mykey1').startswith(expected)
