@@ -326,9 +326,6 @@ class EGI(DataSource):
             # BytesIO
             bio = BytesIO(zip_file.read(name))
 
-            with open('test.h5', 'wb') as f:
-                f.write(zip_file.read(name))
-
             # read file
             uda = self.read_file(bio)
 
@@ -441,3 +438,4 @@ class EGI(DataSource):
             s.close()
 
         return ip
+

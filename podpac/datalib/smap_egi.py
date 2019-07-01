@@ -30,6 +30,7 @@ if not hasattr(np, 'isnat'):
 
 # Internal dependencies
 import podpac
+import podpac.datalib
 from podpac.core.coordinates import Coordinates
 from podpac.datalib import EGI
 from podpac.core.units import create_data_array
@@ -41,13 +42,28 @@ SMAP_PRODUCT_DICT = {
     'SPL4SMLM':   ['/x', '/y', '/Land_Model_Constants_Data',          4],
     'SPL3SMAP':   ['/Soil_Moisture_Retrieval_Data/latitude',    '/Soil_Moisture_Retrieval_Data/longitude',    '/Soil_Moisture_Retrieval_Data/soil_moisture', 3],
     'SPL3SMA':    ['/Soil_Moisture_Retrieval_Data/latitude',    '/Soil_Moisture_Retrieval_Data/longitude',    '/Soil_Moisture_Retrieval_Data/soil_moisture', 3],
-    'SPL3SMP':    ['/Soil_Moisture_Retrieval_Data/AM_latitude', '/Soil_Moisture_Retrieval_Data/AM_longitude', '/Soil_Moisture_Retrieval_Data/soil_moisture', 5],
+    'SPL3SMP_AM':    ['/Soil_Moisture_Retrieval_Data_AM/latitude', '/Soil_Moisture_Retrieval_Data_AM/longitude', '/Soil_Moisture_Retrieval_Data_AM/soil_moisture', 5],
+    'SPL3SMP_PM':    ['/Soil_Moisture_Retrieval_Data_PM/latitude', '/Soil_Moisture_Retrieval_Data_PM/longitude', '/Soil_Moisture_Retrieval_Data_PM/soil_moisture', 5],
+    'SPL3SMP_E_AM':  ['/Soil_Moisture_Retrieval_Data_AM/latitude', '/Soil_Moisture_Retrieval_Data_AM/longitude', '/Soil_Moisture_Retrieval_Data_AM/soil_moisture', 2],
+    'SPL3SMP_E_PM':  ['/Soil_Moisture_Retrieval_Data_PM/latitude', '/Soil_Moisture_Retrieval_Data_PM/longitude', '/Soil_Moisture_Retrieval_Data_PM/soil_moisture', 2],
 }
 SMAP_PRODUCTS = list(SMAP_PRODUCT_DICT.keys())
 
 
 class SMAP(EGI):
     """
+    SMAP interface using the EGI Data Portal
+    https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs
+
+    Parameters
+    ----------
+    product : str
+        One of the :list:`SMAP_PRODUCTS` strings
+
+    Attributes
+    ----------
+    nan_vals : list
+        Nan values in SMAP data
     """
 
     product = tl.Enum(SMAP_PRODUCTS).tag(attr=True)
@@ -56,7 +72,10 @@ class SMAP(EGI):
     # set default short_name, data_key, lat_key, lon_key, version
     @tl.default('short_name')
     def _short_name_default(self):
-        return self.product
+        if 'SPL3SMP' in self.product:
+            return self.product.replace('_AM', '').replace('_PM', '')
+        else:
+            return self.product
 
     @tl.default('lat_key')
     def _lat_key_default(self):
