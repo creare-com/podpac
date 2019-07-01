@@ -347,17 +347,18 @@ class ArrayCoordinates1d(Coordinates1d):
             try:
                 gt = self.coordinates >= max(self.coordinates[self.coordinates <= bounds[0]])
             except ValueError as e:
-                try:
+                if self.dtype == np.datetime64:
+                    gt = ~np.isnat(self.coordinates)
+                else:
                     gt = self.coordinates >= -np.inf
-                except TypeError as e:  # TODO: datetimes throw TypeError: invalid type promotion
-                    gt = self.coordinates
             try:
                 lt = self.coordinates <= min(self.coordinates[self.coordinates >= bounds[1]])
             except ValueError as e:
-                try:
+                if self.dtype == np.datetime64:
+                    lt = ~np.isnat(self.coordinates)
+                else:
                     lt = self.coordinates <= np.inf
-                except TypeError as e:  # TODO: datetimes throw TypeError: invalid type promotion
-                    lt = self.coordinates
+
             I = np.where(gt & lt)[0]
 
         if return_indices:
