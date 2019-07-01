@@ -289,6 +289,13 @@ def create_data_array(coords, data=np.nan, dtype=float, **kwargs):
     else:
         data = data.astype(dtype)
 
+    # add crs attr
+    if 'attrs' in kwargs:
+        if 'crs' not in kwargs['attrs']:
+            kwargs['attrs']['crs'] = coords.crs
+    else:
+        kwargs['attrs'] = { 'crs': coords.crs }
+
     return UnitsDataArray(data, coords=coords.coords, dims=coords.idims, **kwargs)
 
 def get_image(data, format='png', vmin=None, vmax=None):

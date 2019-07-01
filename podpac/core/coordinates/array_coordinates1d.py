@@ -347,11 +347,17 @@ class ArrayCoordinates1d(Coordinates1d):
             try:
                 gt = self.coordinates >= max(self.coordinates[self.coordinates <= bounds[0]])
             except ValueError as e:
-                gt = self.coordinates >= -np.inf
+                try:
+                    gt = self.coordinates >= -np.inf
+                except TypeError as e:  # TODO: datetimes throw TypeError: invalid type promotion
+                    gt = self.coordinates
             try:
                 lt = self.coordinates <= min(self.coordinates[self.coordinates >= bounds[1]])
             except ValueError as e:
-                lt = self.coordinates <= np.inf
+                try:
+                    lt = self.coordinates <= np.inf
+                except TypeError as e:  # TODO: datetimes throw TypeError: invalid type promotion
+                    lt = self.coordinates
             I = np.where(gt & lt)[0]
 
         if return_indices:
