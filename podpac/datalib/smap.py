@@ -534,7 +534,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         # append disk store to default cache_ctrl if not present
         default_ctrl = cache.get_default_cache_ctrl()
         stores = default_ctrl._cache_stores
-        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
+        if not any(isinstance(store, cache.DiskCacheStore) for store in default_ctrl._cache_stores):
             stores.append(cache.DiskCacheStore())
         return cache.CacheCtrl(stores)
 

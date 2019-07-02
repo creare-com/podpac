@@ -224,7 +224,7 @@ class CacheCtrl(object):
         '''
 
         if not isinstance(node, podpac.Node):
-            raise TypeError("node must of type 'Node', not '%s'" % type(Node))
+            raise TypeError("node must of type 'Node', not '%s'" % type(podpac.Node))
 
         if not isinstance(key, six.string_types):
             raise TypeError("key must be a string type, not '%s'" % (type(key)))
@@ -253,9 +253,6 @@ class CacheCtrl(object):
         mode : str
             determines what types of the `CacheStore` are affected: 'ram','disk','network','all'. Defaults to `node._cache_mode` or 'all'. Overriden by `self._cache_mode` if `self._cache_mode` is not `None`.
         """
-
-        if not isinstance(node, podpac.Node):
-            raise TypeError("node must of type 'Node', not '%s'" % type(Node))
 
         if not isinstance(mode, six.string_types) and mode is not None:
             raise TypeError("mode must be of type 'str', not '%s'" % type(mode))
