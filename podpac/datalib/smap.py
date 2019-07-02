@@ -51,7 +51,7 @@ from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.node import cache_func
 from podpac.core.node import NodeException
-from podpac.core.cache import cache, DiskCacheStore
+from podpac.core import cache
 
 from . import nasaCMR
 
@@ -534,7 +534,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         # append disk store to default cache_ctrl if not present
         default_ctrl = cache.get_default_cache_ctrl()
         stores = default_ctrl._cache_stores
-        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
+        if not any(isinstance(store, cache.DiskCacheStore) for store in default_ctrl._cache_stores):
             stores.append(cache.DiskCacheStore())
         return cache.CacheCtrl(stores)
 
