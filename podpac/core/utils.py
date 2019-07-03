@@ -296,3 +296,11 @@ class JSONEncoder(json.JSONEncoder):
 
         # default
         return json.JSONEncoder.default(self, obj)
+
+def is_json_serializable(obj, cls=json.JSONEncoder):
+    try:
+        json.dumps(obj, cls=cls)
+    except:
+        return False
+    else:
+        return True
