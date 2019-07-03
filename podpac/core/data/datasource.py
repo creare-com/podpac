@@ -401,9 +401,7 @@ class DataSource(Node):
         # if requested crs is differented than native coordinates,
         # fabricate a new output with the original coordinates and new values
         if self._evaluated_coordinates.crs != coordinates.crs:
-            trans_output = self.create_output_array(self._evaluated_coordinates)
-            trans_output[:] = output[:].values
-            output = trans_output
+            output = self.create_output_array(self._evaluated_coordinates, data=output[:].values)
 
         # save output to private for debugging
         if settings['DEBUG']:
