@@ -36,7 +36,7 @@ extras_require = {
         'rasterio>=1.0'
     ],
     'intake': [
-        'intake>=0.5.0'
+        'intake>=0.5.1'
     ],
     'aws': [
         'awscli>=1.11',
