@@ -119,8 +119,9 @@ class Lambda(Node):
 
         d = self.definition
         d['coordinates'] = json.loads(coordinates.json)
+        slash = '/' if not self.s3_json_folder.endswith('/') else ''
         filename = '%s%s_%s_%s.%s' % (
-            self.s3_json_folder,
+            self.s3_json_folder + slash,
             self.source_output.name,
             self.source.hash,
             coordinates.hash,
