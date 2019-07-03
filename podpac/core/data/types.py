@@ -774,7 +774,10 @@ class Zarr(DataSource):
         else:
             store = self.source
         
-        return zarr.open(store, mode='r')
+        try:
+            return zarr.open(store, mode='r')
+        except ValueError:
+            raise ValueError("No Zarr store found at path '%s'" % self.source)
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):

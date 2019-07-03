@@ -8,6 +8,7 @@ from io import BytesIO
 import urllib3
 import lxml
 from six import string_types
+import shutil
 
 import pytest
 
@@ -20,6 +21,7 @@ import rasterio
 import boto3
 import botocore
 import requests
+import zarr
 
 import podpac
 from podpac.core.coordinates import Coordinates, clinspace
@@ -27,7 +29,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
-from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, CSV, H5PY
+from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, CSV, H5PY, Zarr
 from podpac.core.settings import settings
 
 # Trying to fix test
@@ -794,3 +796,61 @@ class MockRasterio(Rasterio):
     def get_native_coordinates(self):
         return self.native_coordinates
 
+class TestZarr(object):
+    path = os.path.join(os.path.dirname(__file__), 'assets', 'zarr')
+
+    def test_local(self):
+        node = Zarr(source=self.path, datakey='a', dims=['lat', 'lon'])
+
+    def test_local_invalid_path(self):
+        with pytest.raises(ValueError, match="No Zarr store found"):
+            Zarr(source='/does/not/exist', datakey='a', dims=['lat', 'lon'])
+
+    def test_invalid_datakey(self):
+        with pytest.raises(ValueError, match="Zarr data key 'other' not found"):
+            Zarr(source=self.path, datakey='other', dims=['lat', 'lon'])
+
+    def test_invalid_dims(self):
+        with pytest.raises(TraitError):
+            Zarr(source=self.path, datakey='a', dims=['y', 'x'])
+
+        with pytest.raises(ValueError, match="Zarr time key 'time' not found"):
+            Zarr(source=self.path, datakey='a', dims=['lat', 'lon', 'time'])
+    
+    def test_invalid_dimkey(self):
+        with pytest.raises(TypeError, match="Zarr node 'latkey' is required"):
+            Zarr(source=self.path, datakey='a', dims=['lat', 'lon'], latkey=None)
+
+        with pytest.raises(TypeError, match="Zarr node 'lonkey' is required"):
+            Zarr(source=self.path, datakey='a', dims=['lat', 'lon'], lonkey=None)
+
+        # these can be None because they are not in the store
+        Zarr(source=self.path, datakey='a', dims=['lat', 'lon'], timekey=None)
+        Zarr(source=self.path, datakey='a', dims=['lat', 'lon'], altkey=None)
+        
+        with pytest.raises(ValueError, match="Zarr lat key 'latitude' not found"):
+            Zarr(source=self.path, datakey='a', dims=['lat', 'lon'], latkey='latitude')
+
+        with pytest.raises(ValueError, match="Zarr lon key 'longitude' not found"):
+            Zarr(source=self.path, datakey='a', dims=['lat', 'lon'], lonkey='longitude')
+
+    def test_native_coordinates(self):
+        node = Zarr(source=self.path, datakey='a', dims=['lat', 'lon'])
+        assert node.native_coordinates == podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=['lat', 'lon'])
+
+    def test_eval(self):
+        c = podpac.Coordinates([0, 10], dims=['lat', 'lon'])
+        a = Zarr(source=self.path, datakey='a', dims=['lat', 'lon'])
+        b = Zarr(source=self.path, datakey='b', dims=['lat', 'lon'])
+
+        assert a.eval(c)[0, 0] == 0.0
+        assert b.eval(c)[0, 0] == 1.0
+
+    @pytest.mark.skipif(pytest.config.getoption('--ci'), reason="skip AWS tests during CI")
+    def test_s3(self):
+        path = "s3://podpac-internal-test/drought_parameters.zarr"
+        node = Zarr(source=path, datakey='d0', dims=['lat', 'lon', 'time'])
+
+    def test_group(self):
+        group = zarr.open(self.path, 'r')
+        node = Zarr(group=group, datakey='a', dims=['lat', 'lon'])
