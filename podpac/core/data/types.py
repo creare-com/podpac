@@ -842,7 +842,6 @@ class Zarr(DataSource):
 
         values = self.group[self.timekey]
         if self.cf_time:
-            # values = cftime.num2date(values, self.cf_units, self.cf_calendar)
             values = xr.coding.times.decode_cf_datetime(values, self.cf_units, self.cf_calendar)
         return values
 
