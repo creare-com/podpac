@@ -321,7 +321,7 @@ class EGI(DataSource):
         r = requests.get(url)
 
         if r.status_code != 200:
-            raise ValueError("Failed to download data from EGI Interface. EGI Reponse: {}".format(r.content))
+            raise ValueError("Failed to download data from EGI Interface. EGI Reponse: {}".format(r.text))
 
         # load content into file-like object and then read into zip file
         f = BytesIO(r.content)

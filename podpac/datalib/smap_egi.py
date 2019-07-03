@@ -66,7 +66,7 @@ class SMAP(EGI):
         Nan values in SMAP data
     """
 
-    product = tl.Enum(SMAP_PRODUCTS).tag(attr=True)
+    product = tl.Enum(SMAP_PRODUCTS, default_value='SPL4SMAU').tag(attr=True)
     nan_vals = [-9999.0]
 
     # set default short_name, data_key, lat_key, lon_key, version
