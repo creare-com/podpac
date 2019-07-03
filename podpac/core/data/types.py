@@ -34,6 +34,7 @@ from podpac.core.settings import settings
 from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait, NodeTrait
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
+from podpac.core.coordinates.utils import Dimension
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.data.interpolation import interpolation_trait
 
@@ -48,6 +49,8 @@ rasterio = lazy_module('rasterio')
 h5py = lazy_module('h5py')
 boto3 = lazy_module('boto3')
 requests = lazy_module('requests')
+zarr = lazy_module('zarr')
+s3fs = lazy_module('s3fs')
 # esri
 RasterToNumPyArray = lazy_module('arcpy.RasterToNumPyArray')
 urllib3 = lazy_module('urllib3')
@@ -694,7 +697,163 @@ class H5PY(DataSource):
         keys = list(set(keys))
         keys.sort()
         return keys
-            
+
+class Zarr(DataSource):
+    source = tl.Unicode(allow_none=True)
+    group = tl.Instance(zarr.Group, allow_none=False)
+    datakey = tl.Unicode(allow_none=False).tag(attr=True)
+    latkey = tl.Unicode(allow_none=True, default_value='lat').tag(attr=True)
+    lonkey = tl.Unicode(allow_none=True, default_value='lon').tag(attr=True)
+    timekey = tl.Unicode(allow_none=True, default_value='time').tag(attr=True)
+    altkey = tl.Unicode(allow_none=True, default_value='alt').tag(attr=True)
+    dims = tl.List(trait=Dimension(), allow_none=False).tag(attr=True)
+    crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    cf_time = tl.Bool(False).tag(attr=True)
+    cf_units = tl.Unicode(allow_none=True).tag(attr=True)
+    cf_calendar = tl.Unicode(allow_none=True).tag(attr=True)
+
+    access_key_id = tl.Unicode()
+    secret_access_key = tl.Unicode()
+    region_name = tl.Unicode()
+
+    @tl.default('access_key_id')
+    def _get_access_key_id(self):
+        return settings['AWS_ACCESS_KEY_ID']
+
+    @tl.default('secret_access_key')
+    def _get_secret_access_key(self):
+        return settings['AWS_SECRET_ACCESS_KEY']
+
+    @tl.default('region_name')
+    def _get_region_name(self):
+        return settings['AWS_REGION_NAME']
+
+    def init(self):
+        # check that source or group is provided
+        if self.source is None:
+            self.group
+
+        # check dim keys
+        for dim in self.dims:
+            if dim == 'lat':
+                if self.latkey is None:
+                    raise TypeError("Zarr node 'latkey' is required for dims %s" % self.dims)
+                if self.latkey not in self.group:
+                    raise ValueError("Zarr lat key '%s' not found" % self.latkey)
+            elif dim == 'lon':
+                if self.lonkey is None:
+                    raise TypeError("Zarr node 'lonkey' is required for dims %s" % self.dims)
+                if self.lonkey not in self.group:
+                    raise ValueError("Zarr lon key '%s' not found" % self.lonkey)
+            elif dim == 'time':
+                if self.timekey is None:
+                    raise TypeError("Zarr node 'timekey' is required for dims %s" % self.dims)
+                if self.timekey not in self.group:
+                    raise ValueError("Zarr time key '%s' not found" % self.timekey)
+            elif dim == 'alt':
+                if self.altkey is None:
+                    raise TypeError("Zarr node 'altkey' is required for dims %s" % self.dims)
+                if self.altkey not in self.group:
+                    raise ValueError("Zarr alt key '%s' not found" % self.altkey)
+
+        # check data key
+        if self.datakey not in self.group:
+            raise ValueError("Zarr data key '%s' not found" % self.datakey)
+
+    @tl.default('group')
+    def _open_group(self):
+        if self.source is None:
+            raise TypeError("Zarr node requires 'source' or 'group'")
+
+        if self.source.startswith('s3://'):
+            root = self.source.strip('s3://')
+            kwargs = {'region_name': self.region_name}
+            s3 = s3fs.S3FileSystem(key=self.access_key_id, secret=self.secret_access_key, client_kwargs=kwargs)
+            s3map = s3fs.S3Map(root=root, s3=s3, check=False)
+            store = s3map
+        else:
+            store = self.source
+        
+        return zarr.open(store, mode='r')
+
+    @common_doc(COMMON_DATA_DOC)
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
+        """
+
+        cs = []
+        for dim in self.dims:
+            if dim == 'lat':
+                cs.append(self.get_lat())
+            elif dim == 'lon':
+                cs.append(self.get_lon())
+            elif dim == 'time':
+                cs.append(self.get_time())
+            elif dim == 'alt':
+                cs.append(self.get_alt())
+
+        return Coordinates(cs, dims=self.dims, crs=self.crs)
+
+    @common_doc(COMMON_DATA_DOC)
+    def get_data(self, coordinates, coordinates_index):
+        """{get_data}
+        """
+        data = self.create_output_array(coordinates)
+        a = self.group[self.datakey][coordinates_index]
+        data.data.ravel()[:] = a.ravel()
+        return data
+
+    def get_lat(self):
+        """
+        Get the native lat coordinates. Subclasses should customize as needed.
+
+        Returns
+        -------
+        lat : array-like or Coordinates1d
+            native latitude coordinates.
+        """
+
+        return self.group[self.latkey]
+
+    def get_lon(self):
+        """
+        Get the native lon coordinates. Subclasses should customize as needed.
+
+        Returns
+        -------
+        lon : array-like or Coordinates1d
+            native latitude coordinates.
+        """
+
+        return self.group[self.lonkey]
+
+    def get_time(self):
+        """
+        Get the native time coordinates. Subclasses should customize as needed.
+
+        Returns
+        -------
+        time : array-like or Coordinates1d
+            native latitude coordinates.
+        """
+
+        values = self.group[self.timekey]
+        if self.cf_time:
+            # values = cftime.num2date(values, self.cf_units, self.cf_calendar)
+            values = xr.coding.times.decode_cf_datetime(values, self.cf_units, self.cf_calendar)
+        return values
+
+    def get_alt(self):
+        """
+        Get the native alt coordinates. Subclasses should customize as needed.
+
+        Returns
+        -------
+        alt : array-like or Coordinates1d
+            native latitude coordinates.
+        """
+
+        return self.group[self.altkey]
 
 WCS_DEFAULT_VERSION = u'1.0.0'
 WCS_DEFAULT_CRS = 'EPSG:4326'
