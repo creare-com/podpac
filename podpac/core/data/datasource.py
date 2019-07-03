@@ -10,6 +10,7 @@ from collections import OrderedDict
 from copy import deepcopy
 import warnings
 import logging
+from six import string_types
 
 import numpy as np
 import xarray as xr
@@ -398,11 +399,10 @@ class DataSource(Node):
         if requested_dims is not None and requested_dims != output.dims:
             output = output.transpose(*requested_dims)
         
-        # transform the output crs to the r]equested coordinates crs
+        # transform the output crs to the requested coordinates crs
         # TODO: this could be made into method in/for UnitsDataArray 
         if self._evaluated_coordinates.crs != coordinates.crs:
-            coords = Coordinates.from_xarray(output.coords)
-            t_coords = coords.transform(self._evaluated_coordinates.crs)
+            t_coords = coordinates.transform(self._evaluated_coordinates.crs)
             output = output.assign_coords(**t_coords.coords)
 
         # save output to private for debugging
@@ -491,7 +491,9 @@ class DataSource(Node):
         if source_name != 'DataSource':
             rep += ' DataSource'
 
-        rep += '\n\tsource: {}'.format(self.source)
+        source_disp = self.source if isinstance(self.source, string_types) else \
+                      '\n{}'.format(self.source)
+        rep += '\n\tsource: {}'.format(source_disp)
         if trait_is_defined(self, 'native_coordinates'):
             rep += '\n\tnative_coordinates: '
             for c in self.native_coordinates.values():

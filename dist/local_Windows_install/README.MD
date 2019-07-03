@@ -6,7 +6,7 @@ To get started running Jupyter notebooks, double-click on the `run_podpac_jupyte
 
 To run an IPython session:
 1. Open a Windows command prompt in this directory
-2. Run the `bin\run_ipython.bat` script
+2. Run the `run_ipython.bat` script
 
 For additional documentation, see the [README.MD](podpac/README.MD) file in the PODPAC folder. 
 

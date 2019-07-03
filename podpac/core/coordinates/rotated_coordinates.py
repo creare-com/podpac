@@ -24,10 +24,10 @@ class RotatedCoordinates(DependentCoordinates):
         shape (m, n) of the grid.
     theta : float
         rotation angle, in radians
-    ulc : np.ndarray(shape=(2,), dtype=float)
-        upper left corner of the grid (position (0, 0))
-    lrc : np.ndarray(shape=(2,), dtype=float)
-        lower right corner of the grid (position (m-1, n-1))
+    origin : np.ndarray(shape=(2,), dtype=float)
+        origin coordinates (position [0, 0])
+    corner : np.ndarray(shape=(2,), dtype=float)
+        opposing corner coordinates (position [m-1, n-1])
     step : np.ndarray(shape=(2,), dtype=float)
         Rotated distance between points in the grid, in each dimension. This is equivalent to the scaling of the
         affine transformation used to calculate the coordinates.
@@ -41,14 +41,14 @@ class RotatedCoordinates(DependentCoordinates):
 
     shape = tl.Tuple(tl.Integer(), tl.Integer(), read_only=True)
     theta = tl.Float(read_only=True)
-    ulc = ArrayTrait(shape=(2,), dtype=float, read_only=True)
+    origin = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     step = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     ndims = 2
 
-    def __init__(self, shape=None, theta=None, ulc=None, step=None, lrc=None,
+    def __init__(self, shape=None, theta=None, origin=None, step=None, corner=None,
                        dims=None, ctypes=None, segment_lengths=None):
         """
-        Create a grid of rotated coordinates from a `shape`, `theta`, `ulc`, and `step` or `ulc`.
+        Create a grid of rotated coordinates from a `shape`, `theta`, `origin`, and `step` or `corner`.
 
         Parameters
         ----------
@@ -56,12 +56,12 @@ class RotatedCoordinates(DependentCoordinates):
             shape (m, n) of the grid.
         theta : float
             rotation angle, in radians
-        ulc : np.ndarray(shape=(2,), dtype=float)
-            upper left corner of the grid
-        lrc : np.ndarray(shape=(2,), dtype=float)
-            lower right corner of the grid (lrc or step required)
+        origin : np.ndarray(shape=(2,), dtype=float)
+            origin coordinates
+        corner : np.ndarray(shape=(2,), dtype=float)
+            opposing corner coordinates (corner or step required)
         step : np.ndarray(shape=(2,), dtype=float)
-            Scaling, ie rotated distance between points in the grid, in each dimension. (lrc or step required)
+            Scaling, ie rotated distance between points in the grid, in each dimension. (corner or step required)
         dims : tuple (required)
             tuple of dimension names ('lat', 'lon', 'time', or 'alt').
         ctype : tuple, str (optional)
@@ -74,12 +74,12 @@ class RotatedCoordinates(DependentCoordinates):
 
         self.set_trait('shape', shape)
         self.set_trait('theta', theta)
-        self.set_trait('ulc', ulc)
+        self.set_trait('origin', origin)
         if step is None:
             deg = np.rad2deg(theta)
-            a = ~rasterio.Affine.rotation(deg) * ~rasterio.Affine.translation(*ulc)
-            d = np.array(a * lrc) - np.array(a * ulc)
-            step = d / np.array([shape[0]-1, -(shape[1]-1)])
+            a = ~rasterio.Affine.rotation(deg) * ~rasterio.Affine.translation(*origin)
+            d = np.array(a * corner) - np.array(a * origin)
+            step = d / np.array([shape[0]-1, shape[1]-1])
         self.set_trait('step', step)
 
         self._set_properties(dims, ctypes, segment_lengths)
@@ -113,11 +113,11 @@ class RotatedCoordinates(DependentCoordinates):
     @classmethod
     def from_geotransform(cls, geotransform, shape, dims=None, ctypes=None, segment_lengths=None):
         affine = rasterio.Affine.from_gdal(*geotransform)
-        ulc = affine.c, affine.f
+        origin = affine.c, affine.f
         deg = affine.rotation_angle
-        scale = ~affine.rotation(deg) * ~affine.translation(*ulc) * affine
+        scale = ~affine.rotation(deg) * ~affine.translation(*origin) * affine
         step = np.array([scale.a, scale.e])
-        return cls(shape, np.deg2rad(deg), ulc, step, dims=dims, ctypes=ctypes, segment_lengths=segment_lengths)
+        return cls(shape, np.deg2rad(deg), origin, step, dims=dims, ctypes=ctypes, segment_lengths=segment_lengths)
 
     @classmethod
     def from_definition(cls, d):
@@ -143,18 +143,18 @@ class RotatedCoordinates(DependentCoordinates):
             raise ValueError('RotatedCoordinates definition requires "shape" property')
         if 'theta' not in d:
             raise ValueError('RotatedCoordinates definition requires "theta" property')
-        if 'ulc' not in d:
-            raise ValueError('RotatedCoordinates definition requires "ulc" property')
-        if 'step' not in d and 'lrc' not in d:
-            raise ValueError('RotatedCoordinates definition requires "step" or "lrc" property')
+        if 'origin' not in d:
+            raise ValueError('RotatedCoordinates definition requires "origin" property')
+        if 'step' not in d and 'corner' not in d:
+            raise ValueError('RotatedCoordinates definition requires "step" or "corner" property')
         if 'dims' not in d:
             raise ValueError('RotatedCoordinates definition requires "dims" property')
 
         shape = d['shape']
         theta = d['theta']
-        ulc = d['ulc']
-        kwargs = {k:v for k,v in d.items() if k not in ['shape', 'theta', 'ulc']}
-        return RotatedCoordinates(shape, theta, ulc, **kwargs)
+        origin = d['origin']
+        kwargs = {k:v for k,v in d.items() if k not in ['shape', 'theta', 'origin']}
+        return RotatedCoordinates(shape, theta, origin, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods
@@ -166,8 +166,8 @@ class RotatedCoordinates(DependentCoordinates):
         else:
             ctypes = "ctypes[%s]" % ', '.join(self.ctypes)
 
-        return "%s(%s): ULC%s, LRC%s, rad[%.4f], shape%s, %s" % (
-            self.__class__.__name__, self.dims, self.ulc, self.lrc, self.theta, self.shape, ctypes)
+        return "%s(%s): Origin%s, Corner%s, rad[%.4f], shape%s, %s" % (
+            self.__class__.__name__, self.dims, self.origin, self.corner, self.theta, self.shape, ctypes)
 
     def __eq__(self, other):
         if not isinstance(other, RotatedCoordinates):
@@ -192,11 +192,11 @@ class RotatedCoordinates(DependentCoordinates):
 
         if isinstance(index, tuple) and isinstance(index[0], slice) and isinstance(index[1], slice):
             I = np.arange(self.shape[0])[index[0]]
-            J = -np.arange(self.shape[1])[index[1]]
-            ulc = self.affine * [I[0], J[0]]
+            J = np.arange(self.shape[1])[index[1]]
+            origin = self.affine * [I[0], J[0]]
             step = self.step * [index[0].step or 1, index[1].step or 1]
             shape = I.size, J.size
-            return RotatedCoordinates(shape, self.theta, ulc, step, **self.properties)
+            return RotatedCoordinates(shape, self.theta, origin, step, **self.properties)
 
         else:
             return super(RotatedCoordinates, self).__getitem__(index)
@@ -215,15 +215,15 @@ class RotatedCoordinates(DependentCoordinates):
         """ :rasterio.Affine: affine transformation for computing the coordinates from indexing values. Contains the 
             tranlation, rotation, and scaling.
         """
-        t = rasterio.Affine.translation(*self.ulc)
+        t = rasterio.Affine.translation(*self.origin)
         r = rasterio.Affine.rotation(self.deg)
         s = rasterio.Affine.scale(*self.step)
         return t * r * s
 
     @property
-    def lrc(self):
+    def corner(self):
         """ :array: lower right corner. """
-        return np.array(self.affine * np.array([self.shape[0]-1, -(self.shape[1]-1)]))
+        return np.array(self.affine * np.array([self.shape[0]-1, self.shape[1]-1]))
 
     @property
     def geotransform(self):
@@ -234,7 +234,7 @@ class RotatedCoordinates(DependentCoordinates):
     def coordinates(self):
         """ :tuple: computed coordinave values for each dimension. """
         I = np.arange(self.shape[0])
-        J = -np.arange(self.shape[1])
+        J = np.arange(self.shape[1])
         c1, c2 = self.affine * np.meshgrid(I, J)
         return c1.T, c2.T
 
@@ -254,7 +254,7 @@ class RotatedCoordinates(DependentCoordinates):
         d['dims'] = self.dims
         d['shape'] = self.shape
         d['theta'] = self.theta
-        d['ulc'] = self.ulc
+        d['origin'] = self.origin
         d['step'] = self.step
         d.update(self._full_properties if full else self.properties)
         return d
@@ -272,7 +272,7 @@ class RotatedCoordinates(DependentCoordinates):
         :class:`RotatedCoordinates`
             Copy of the rotated coordinates.
         """
-        return RotatedCoordinates(self.shape, self.theta, self.ulc, self.step, **self.properties)
+        return RotatedCoordinates(self.shape, self.theta, self.origin, self.step, **self.properties)
 
     def select(self, bounds, outer=False, return_indices=False):
         """
@@ -304,10 +304,10 @@ class RotatedCoordinates(DependentCoordinates):
     # Debug
     # ------------------------------------------------------------------------------------------------------------------
     
-    # def plot(self, marker='b.', ulc_marker='bo', lrc_marker='bx'):
+    # def plot(self, marker='b.', origin_marker='bo', corner_marker='bx'):
     #     from matplotlib import pyplot
     #     super(RotatedCoordinates, self).plot(marker=marker)
-    #     ulcx, ulcy = self.ulc
-    #     lrcx, lrcy = self.lrc
-    #     pyplot.plot(ulcx, ulcy, ulc_marker)
-    #     pyplot.plot(lrcx, lrcy, 'bx')
+    #     ox, oy = self.origin
+    #     cx, cy = self.corner
+    #     pyplot.plot(ox, oy, origin_marker)
+    #     pyplot.plot(cx, cy, corner_marker)

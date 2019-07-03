@@ -172,12 +172,6 @@ class Coordinates1d(BaseCoordinates):
         """:dict-like: xarray coordinates (container of coordinate arrays)"""
 
         return {self.name: self.coordinates}
-
-    @property
-    def values(self):
-        """:array, read-only: Full array of coordinates values."""
-
-        return self.coordinates
         
     @property
     def dtype(self):

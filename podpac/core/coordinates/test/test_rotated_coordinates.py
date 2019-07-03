@@ -18,13 +18,13 @@ from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 class TestRotatedCoordinatesCreation(object):
     def test_init_step(self):
         # positive steps
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
 
         assert c.shape == (3, 4)
         assert c.theta == np.pi/4
-        assert_equal(c.ulc, [10, 20])
+        assert_equal(c.origin, [10, 20])
         assert_equal(c.step, [1.0, 2.0])
-        assert_allclose(c.lrc, [15.656854, 17.171573])
+        assert_allclose(c.corner, [ 7.171573, 25.656854])
         assert c.dims == ('lat', 'lon')
         assert c.udims == ('lat', 'lon')
         assert c.idims == ('i', 'j')
@@ -32,25 +32,25 @@ class TestRotatedCoordinatesCreation(object):
         repr(c)
 
         # negative steps
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[-1.0, -2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[-1.0, -2.0], dims=['lat', 'lon'])
         assert c.shape == (3, 4)
         assert c.theta == np.pi/4
-        assert_equal(c.ulc, [10, 20])
+        assert_equal(c.origin, [10, 20])
         assert_equal(c.step, [-1.0, -2.0])
-        assert_allclose(c.lrc, [4.343146, 22.828427])
+        assert_allclose(c.corner, [12.828427, 14.343146])
         assert c.dims == ('lat', 'lon')
         assert c.udims == ('lat', 'lon')
         assert c.idims == ('i', 'j')
         assert c.name == 'lat,lon'
         repr(c)
 
-    def test_init_lrc(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], lrc=[15, 17], dims=['lat', 'lon'])
+    def test_init_corner(self):
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], corner=[15, 17], dims=['lat', 'lon'])
         assert c.shape == (3, 4)
         assert c.theta == np.pi/4
-        assert_equal(c.ulc, [10, 20])
-        assert_allclose(c.step, [0.70710678, 1.88561808])
-        assert_allclose(c.lrc, [15., 17.])
+        assert_equal(c.origin, [10, 20])
+        assert_allclose(c.step, [0.70710678, -1.88561808])
+        assert_allclose(c.corner, [15., 17.])
         assert c.dims == ('lat', 'lon')
         assert c.udims == ('lat', 'lon')
         assert c.idims == ('i', 'j')
@@ -58,69 +58,69 @@ class TestRotatedCoordinatesCreation(object):
         repr(c)
 
     def test_thetas(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=0*np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        assert_allclose(c.lrc, [12.0, 14.0])
+        c = RotatedCoordinates(shape=(3, 4), theta=0*np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        assert_allclose(c.corner, [12.0, 26.0])
 
-        c = RotatedCoordinates(shape=(3, 4), theta=1*np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        assert_allclose(c.lrc, [15.656854, 17.171573])
+        c = RotatedCoordinates(shape=(3, 4), theta=1*np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        assert_allclose(c.corner, [7.171573, 25.656854])
 
-        c = RotatedCoordinates(shape=(3, 4), theta=2*np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        assert_allclose(c.lrc, [16.0, 22.0])
+        c = RotatedCoordinates(shape=(3, 4), theta=2*np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        assert_allclose(c.corner, [4.0, 22.0])
 
-        c = RotatedCoordinates(shape=(3, 4), theta=3*np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        assert_allclose(c.lrc, [12.828427, 25.656854])
+        c = RotatedCoordinates(shape=(3, 4), theta=3*np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        assert_allclose(c.corner, [4.343146, 17.171573])
 
-        c = RotatedCoordinates(shape=(3, 4), theta=4*np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        assert_allclose(c.lrc, [8.0, 26.0])
+        c = RotatedCoordinates(shape=(3, 4), theta=4*np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        assert_allclose(c.corner, [8.0, 14.0])
 
-        c = RotatedCoordinates(shape=(3, 4), theta=5*np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        assert_allclose(c.lrc, [4.3431458, 22.828427])
+        c = RotatedCoordinates(shape=(3, 4), theta=5*np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        assert_allclose(c.corner, [12.828427, 14.343146])
 
-        c = RotatedCoordinates(shape=(3, 4), theta=6*np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        assert_allclose(c.lrc, [4.0, 18.0])
+        c = RotatedCoordinates(shape=(3, 4), theta=6*np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        assert_allclose(c.corner, [16.0, 18.0])
 
-        c = RotatedCoordinates(shape=(3, 4), theta=7*np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        assert_allclose(c.lrc, [7.1715729, 14.343146])
+        c = RotatedCoordinates(shape=(3, 4), theta=7*np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        assert_allclose(c.corner, [15.656854, 22.828427])
 
-        c = RotatedCoordinates(shape=(3, 4), theta=8*np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        assert_allclose(c.lrc, [12.0, 14.0])
+        c = RotatedCoordinates(shape=(3, 4), theta=8*np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        assert_allclose(c.corner, [12.0, 26.0])
 
-        c = RotatedCoordinates(shape=(3, 4), theta=-np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        assert_allclose(c.lrc, [7.1715729, 14.343146])
+        c = RotatedCoordinates(shape=(3, 4), theta=-np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        assert_allclose(c.corner, [15.656854, 22.828427])
 
     def test_ctypes(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'],
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'],
                                ctypes=['left', 'right'], segment_lengths=1.0)
         repr(c)
         
     def test_invalid(self):
         with pytest.raises(ValueError, match="Invalid shape"):
-            RotatedCoordinates(shape=(-3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+            RotatedCoordinates(shape=(-3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
 
         with pytest.raises(ValueError, match="Invalid shape"):
-            RotatedCoordinates(shape=(3, 0), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+            RotatedCoordinates(shape=(3, 0), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
 
         with pytest.raises(ValueError, match="Invalid step"):
-            RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[0, 2.0], dims=['lat', 'lon'])
+            RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[0, 2.0], dims=['lat', 'lon'])
 
         with pytest.raises(ValueError, match="RotatedCoordinates dims"):
-            RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'time'])
+            RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'time'])
 
         with pytest.raises(ValueError, match="dims and coordinates size mismatch"):
-            RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat'])
+            RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat'])
 
         with pytest.raises(ValueError, match="Duplicate dimension"):
-            RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lat'])
+            RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lat'])
 
     def test_copy(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         c2 = c.copy()
         assert c2 is not c
         assert c2 == c
 
 class TestRotatedCoordinatesGeotransform(object):
     def test_geotransform(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         assert_allclose(c.geotransform, (10.0, 0.7071068, -1.4142136, 20.0, 0.7071068, 1.4142136))
 
         c2 = RotatedCoordinates.from_geotransform(c.geotransform, c.shape, dims=['lat', 'lon'])
@@ -128,20 +128,20 @@ class TestRotatedCoordinatesGeotransform(object):
 
 class TestRotatedCoordinatesStandardMethods(object):
     def test_eq_type(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         assert c != []
 
     def test_eq_shape(self):
-        c1 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        c2 = RotatedCoordinates(shape=(4, 3), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c1 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c2 = RotatedCoordinates(shape=(4, 3), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         assert c1 != c2
 
     def test_eq_affine(self):
-        c1 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        c2 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        c3 = RotatedCoordinates(shape=(3, 4), theta=np.pi/3, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        c4 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[11, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        c5 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.1, 2.0], dims=['lat', 'lon'])
+        c1 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c2 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c3 = RotatedCoordinates(shape=(3, 4), theta=np.pi/3, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c4 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[11, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c5 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.1, 2.0], dims=['lat', 'lon'])
         
         assert c1 == c2
         assert c1 != c3
@@ -149,13 +149,13 @@ class TestRotatedCoordinatesStandardMethods(object):
         assert c1 != c5
     
     def test_eq_dims(self):
-        c1 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
-        c2 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lon', 'lat'])
+        c1 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c2 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lon', 'lat'])
         assert c1 != c2
 
 class TestRotatedCoordinatesSerialization(object):
     def test_definition(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         d = c.definition
         
         assert isinstance(d, dict)
@@ -163,69 +163,69 @@ class TestRotatedCoordinatesSerialization(object):
         c2 = RotatedCoordinates.from_definition(d)
         assert c2 == c
 
-    def test_from_definition_lrc(self):
-        c1 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], lrc=[15, 17], dims=['lat', 'lon'])
+    def test_from_definition_corner(self):
+        c1 = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], corner=[15, 17], dims=['lat', 'lon'])
 
-        d = {'shape': (3, 4), 'theta': np.pi/4, 'ulc':[10, 20], 'lrc':[15, 17], 'dims':['lat', 'lon']}
+        d = {'shape': (3, 4), 'theta': np.pi/4, 'origin':[10, 20], 'corner':[15, 17], 'dims':['lat', 'lon']}
         c2 = RotatedCoordinates.from_definition(d)
         
         assert c1 == c2  
 
     def test_invalid_definition(self):
-        d = {'theta': np.pi/4, 'ulc':[10, 20], 'step':[1.0, 2.0], 'dims':['lat', 'lon']}
+        d = {'theta': np.pi/4, 'origin':[10, 20], 'step':[1.0, 2.0], 'dims':['lat', 'lon']}
         with pytest.raises(ValueError, match='RotatedCoordinates definition requires "shape"'):
             RotatedCoordinates.from_definition(d)
 
-        d = {'shape': (3, 4), 'ulc':[10, 20], 'step':[1.0, 2.0], 'dims':['lat', 'lon']}
+        d = {'shape': (3, 4), 'origin':[10, 20], 'step':[1.0, 2.0], 'dims':['lat', 'lon']}
         with pytest.raises(ValueError, match='RotatedCoordinates definition requires "theta"'):
             RotatedCoordinates.from_definition(d)
 
         d = {'shape': (3, 4), 'theta': np.pi/4, 'step':[1.0, 2.0], 'dims':['lat', 'lon']}
-        with pytest.raises(ValueError, match='RotatedCoordinates definition requires "ulc"'):
+        with pytest.raises(ValueError, match='RotatedCoordinates definition requires "origin"'):
             RotatedCoordinates.from_definition(d)
 
-        d = {'shape': (3, 4), 'theta': np.pi/4, 'ulc':[10, 20], 'dims':['lat', 'lon']}
-        with pytest.raises(ValueError, match='RotatedCoordinates definition requires "step" or "lrc"'):
+        d = {'shape': (3, 4), 'theta': np.pi/4, 'origin':[10, 20], 'dims':['lat', 'lon']}
+        with pytest.raises(ValueError, match='RotatedCoordinates definition requires "step" or "corner"'):
             RotatedCoordinates.from_definition(d)
 
-        d = {'shape': (3, 4), 'theta': np.pi/4, 'ulc':[10, 20], 'step':[1.0, 2.0]}
+        d = {'shape': (3, 4), 'theta': np.pi/4, 'origin':[10, 20], 'step':[1.0, 2.0]}
         with pytest.raises(ValueError, match='RotatedCoordinates definition requires "dims"'):
             RotatedCoordinates.from_definition(d)
 
     def test_full_definition(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         d = c.full_definition
         
         assert isinstance(d, dict)
-        assert set(d.keys()) == {'dims', 'shape', 'theta', 'ulc', 'step', 'ctypes', 'segment_lengths'}
+        assert set(d.keys()) == {'dims', 'shape', 'theta', 'origin', 'step', 'ctypes', 'segment_lengths'}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder) # test serializable
 
 class TestRotatedCoordinatesProperties(object):
     def test_affine(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         R = c.affine
         assert_allclose([R.a, R.b, R.c, R.d, R.e, R.f], [0.70710678, -1.41421356, 10.0, 0.70710678, 1.41421356, 20.0])
         
     def test_coordinates(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         lat, lon = c.coordinates
 
         assert_allclose(
             lat,
-            [[10.        , 11.41421356, 12.82842712, 14.24264069],
-             [10.70710678, 12.12132034, 13.53553391, 14.94974747],
-             [11.41421356, 12.82842712, 14.24264069, 15.65685425]])
+            [[10.        ,  8.58578644,  7.17157288,  5.75735931],
+             [10.70710678,  9.29289322,  7.87867966,  6.46446609],
+             [11.41421356, 10.        ,  8.58578644,  7.17157288]])
 
         assert_allclose(
             lon,
-            [[20.        , 18.58578644, 17.17157288, 15.75735931],
-             [20.70710678, 19.29289322, 17.87867966, 16.46446609],
-             [21.41421356, 20.        , 18.58578644, 17.17157288]])
+            [[20.        , 21.41421356, 22.82842712, 24.24264069],
+             [20.70710678, 22.12132034, 23.53553391, 24.94974747],
+             [21.41421356, 22.82842712, 24.24264069, 25.65685425]])
 
 
 class TestRotatedCoordinatesIndexing(object):
     def test_get_dim(self):
-        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
 
         lat = c['lat']
         lon = c['lon']
@@ -240,15 +240,15 @@ class TestRotatedCoordinatesIndexing(object):
             c['other']
 
     def test_get_index_slices(self):
-        c = RotatedCoordinates(shape=(5, 7), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(5, 7), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
 
         # full
         c2 = c[1:4, 2:4]
         assert isinstance(c2, RotatedCoordinates)
         assert c2.shape == (3, 2)
         assert c2.theta == c.theta
-        assert_allclose(c2.ulc, c.coordinates[0][1, 2], c.coordinates[1][1, 2])
-        assert_allclose(c2.lrc, c.coordinates[0][3, 3], c.coordinates[1][3, 3])
+        assert_allclose(c2.origin, [c.coordinates[0][1, 2], c.coordinates[1][1, 2]])
+        assert_allclose(c2.corner, [c.coordinates[0][3, 3], c.coordinates[1][3, 3]])
         assert c2.dims == c.dims
         assert_allclose(c2.coordinates[0], c.coordinates[0][1:4, 2:4])
         assert_allclose(c2.coordinates[1], c.coordinates[1][1:4, 2:4])
@@ -258,8 +258,8 @@ class TestRotatedCoordinatesIndexing(object):
         assert isinstance(c2, RotatedCoordinates)
         assert c2.shape == (3, 7)
         assert c2.theta == c.theta
-        assert_allclose(c2.ulc, c.coordinates[0][1, 0], c.coordinates[0][1, 0])
-        assert_allclose(c2.lrc, c.coordinates[0][3, -1], c.coordinates[0][3, -1])
+        assert_allclose(c2.origin, c.coordinates[0][1, 0], c.coordinates[1][1, 0])
+        assert_allclose(c2.corner, c.coordinates[0][3, -1], c.coordinates[1][3, -1])
         assert c2.dims == c.dims
         assert_allclose(c2.coordinates[0], c.coordinates[0][1:4])
         assert_allclose(c2.coordinates[1], c.coordinates[1][1:4])
@@ -269,8 +269,8 @@ class TestRotatedCoordinatesIndexing(object):
         assert isinstance(c2, RotatedCoordinates)
         assert c2.shape == (2, 2)
         assert c2.theta == c.theta
-        assert_allclose(c2.ulc, c.coordinates[0][1, 2], c.coordinates[0][1, 2])
-        assert_allclose(c2.lrc, c.coordinates[0][3, 3], c.coordinates[0][3, 3])
+        assert_allclose(c2.origin, [c.coordinates[0][1, 2], c.coordinates[1][1, 2]])
+        assert_allclose(c2.corner, [c.coordinates[0][3, 3], c.coordinates[1][3, 3]])
         assert c2.dims == c.dims
         assert_allclose(c2.coordinates[0], c.coordinates[0][1:4:2, 2:4])
         assert_allclose(c2.coordinates[1], c.coordinates[1][1:4:2, 2:4])
@@ -280,19 +280,19 @@ class TestRotatedCoordinatesIndexing(object):
         assert isinstance(c2, RotatedCoordinates)
         assert c2.shape == (3, 2)
         assert c2.theta == c.theta
-        assert_allclose(c2.ulc, c.coordinates[0][1, 2], c.coordinates[0][1, 2])
-        assert_allclose(c2.lrc, c.coordinates[0][3, 3], c.coordinates[0][3, 3])
+        assert_allclose(c2.origin, c.coordinates[0][1, 2], c.coordinates[0][1, 2])
+        assert_allclose(c2.corner, c.coordinates[0][3, 3], c.coordinates[0][3, 3])
         assert c2.dims == c.dims
         assert_allclose(c2.coordinates[0], c.coordinates[0][4:1:-1, 2:4])
         assert_allclose(c2.coordinates[1], c.coordinates[1][4:1:-1, 2:4])
 
     def test_get_index_fallback(self):
-        c = RotatedCoordinates(shape=(5, 7), theta=np.pi/4, ulc=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
+        c = RotatedCoordinates(shape=(5, 7), theta=np.pi/4, origin=[10, 20], step=[1.0, 2.0], dims=['lat', 'lon'])
         lat, lon = c.coordinates
 
         I = [3, 1]
         J = slice(1, 4)
-        B = lat > 12
+        B = lat > 6
 
         # int/slice/indices
         c2 = c[I, J]
@@ -305,7 +305,7 @@ class TestRotatedCoordinatesIndexing(object):
         # boolean
         c2 = c[B]
         assert isinstance(c2, StackedCoordinates)
-        assert c2.shape == (31,)
+        assert c2.shape == (21,)
         assert c2.dims == c.dims
         assert_equal(c2['lat'].coordinates, lat[B])
         assert_equal(c2['lon'].coordinates, lon[B])

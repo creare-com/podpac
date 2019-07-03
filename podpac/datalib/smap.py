@@ -51,7 +51,7 @@ from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.node import cache_func
 from podpac.core.node import NodeException
-from podpac.core.cache import cache, DiskCacheStore
+from podpac.core import cache
 
 from . import nasaCMR
 
@@ -534,7 +534,7 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         # append disk store to default cache_ctrl if not present
         default_ctrl = cache.get_default_cache_ctrl()
         stores = default_ctrl._cache_stores
-        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
+        if not any(isinstance(store, cache.DiskCacheStore) for store in default_ctrl._cache_stores):
             stores.append(cache.DiskCacheStore())
         return cache.CacheCtrl(stores)
 
@@ -575,6 +575,12 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         if change['old'] != change['new'] and change['old'] != '':
             for s in self.sources:
                 s.layerkey = change['new']
+
+    def __repr__(self):
+        rep = '{}'.format('SMAP')
+        rep += '\n\tproduct: {}'.format(self.product)
+
+        return rep
 
     @property
     def source(self):
@@ -803,6 +809,13 @@ class SMAP(podpac.compositor.OrderedCompositor):
         if change['old'] != change['new'] and change['old'] != '':
             for s in self.sources:
                 s.layerkey = change['new']
+
+    def __repr__(self):
+        rep = '{}'.format('SMAP')
+        rep += '\n\tproduct: {}'.format(self.product)
+        rep += '\n\tinterpolation: {}'.format(self.interpolation)
+
+        return rep
 
     @property
     def source(self):
@@ -1104,9 +1117,13 @@ class SMAPBestAvailable(podpac.compositor.OrderedCompositor):
         ])
         return src_objs
 
+    def __repr__(self):
+        rep = '{}'.format('SMAP (Best Available)')
+        return rep
+
     def get_shared_coordinates(self):
         return None # NO shared coordiantes
-    
+
 class GetSMAPSources(object):
     def __init__(self, product, filenames, dates, create_kwargs):
         self.product = product

@@ -67,6 +67,7 @@ Data Sources
     :template: class.rst
 
     podpac.data.Array
+    podpac.data.CSV
     podpac.data.PyDAP
     podpac.data.Rasterio
     podpac.data.WCS

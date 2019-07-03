@@ -459,7 +459,7 @@ class Coordinates(tl.HasTraits):
                 c = ArrayCoordinates1d.from_definition(e)
             elif 'dims' in e and 'values' in e:
                 c = DependentCoordinates.from_definition(e)
-            elif 'dims' in e and 'shape' in e and 'theta' in e and 'ulc' in e and ('step' in e or 'lrc' in e):
+            elif 'dims' in e and 'shape' in e and 'theta' in e and 'origin' in e and ('step' in e or 'corner' in e):
                 c = RotatedCoordinates.from_definition(e)
             else:
                 raise ValueError("Could not parse coordinates definition item with keys %s" % e.keys())
@@ -1098,7 +1098,7 @@ class Coordinates(tl.HasTraits):
         if len(dims) == 0:
             dims = list(self._coords.keys())[::-1]
 
-        if len(dims) != self.ndim:
+        if len(dims) != len(self.dims):
             raise ValueError("Invalid transpose dimensions, input %s does not match dims %s" % (dims, self.dims))
 
         if in_place:
@@ -1247,8 +1247,11 @@ class Coordinates(tl.HasTraits):
                 cs.pop(i)
                 cs.insert(i, c)
 
-            elif 'lat' in self.dims or 'lon' in self.dims:
+            elif 'lat' in self.dims:
                 raise ValueError('Cannot transform lat coordinates without lon coordinates')
+
+            elif 'lon' in self.dims:
+                raise ValueError('Cannot transform lon coordinates without lat coordinates')
 
         # transform
         transformer = pyproj.Transformer.from_proj(from_crs, to_crs)

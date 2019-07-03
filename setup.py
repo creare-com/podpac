@@ -73,6 +73,10 @@ extras_require = {
     ]
 }
 
+# set long description to readme
+with open('README.MD') as f: 
+    long_description = f.read()
+
 all_reqs = []
 for key, val in extras_require.items():
     if 'key' == 'dev':
@@ -96,7 +100,7 @@ setup(
         # 3 - Alpha
         # 4 - Beta
         # 5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
         'Topic :: Scientific/Engineering :: GIS',
@@ -109,6 +113,8 @@ setup(
     packages=find_packages(),
     install_requires=install_requires,
     extras_require=extras_require,
+    long_description=long_description,
+    long_description_content_type='text/markdown'
     # entry_points = {
     #     'console_scripts' : []
     # }
