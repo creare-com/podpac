@@ -759,14 +759,13 @@ class Coordinates(tl.HasTraits):
         from_json
         """
 
-        return json.dumps(self.definition, cls=podpac.core.utils.JSONEncoder)
+        return json.dumps(self.definition, separators=(',', ':'), cls=podpac.core.utils.JSONEncoder)
 
     @property
     def hash(self):
         """:str: Coordinates hash value."""
 
-        s = json.dumps(self.full_definition, cls=podpac.core.utils.JSONEncoder)
-        return hash_alg(s.encode('utf-8')).hexdigest()
+        return hash_alg(self.json.encode('utf-8')).hexdigest()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
