@@ -177,6 +177,6 @@ class SMAP(EGI):
         NotImplementedError
         """
 
-        all_data = xr.concat([all_data, data], dim='time')
+        all_data = all_data.combine_first(data.isel(lon=np.isfinite(data.lon), lat=np.isfinite(data.lat)))
 
         return all_data
