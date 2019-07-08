@@ -388,7 +388,6 @@ class DataSource(Node):
                 raise ValueError('Output coordinate reference system ({}) does not match'.format(output.crs) +
                                  'request Coordinates coordinate reference system ({})'.format(coordinates.crs))
 
-
         # interpolate data into output
         output = self._interpolation.interpolate(self._requested_source_coordinates,
                                                  self._requested_source_data,
@@ -398,12 +397,11 @@ class DataSource(Node):
         # return the output to the originally requested output dims
         if requested_dims is not None and requested_dims != output.dims:
             output = output.transpose(*requested_dims)
-        
-        # transform the output crs to the requested coordinates crs
-        # TODO: this could be made into method in/for UnitsDataArray 
+
+        # if requested crs is differented than native coordinates,
+        # fabricate a new output with the original coordinates and new values
         if self._evaluated_coordinates.crs != coordinates.crs:
-            t_coords = coordinates.transform(self._evaluated_coordinates.crs)
-            output = output.assign_coords(**t_coords.coords)
+            output = self.create_output_array(self._evaluated_coordinates, data=output[:].values)
 
         # save output to private for debugging
         if settings['DEBUG']:

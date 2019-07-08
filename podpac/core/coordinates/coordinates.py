@@ -1263,6 +1263,8 @@ class Coordinates(tl.HasTraits):
 
     def __repr__(self):
         rep = str(self.__class__.__name__)
+        if self.crs:
+            rep += ' ({})'.format(self.crs)
         for c in self._coords.values():
             if isinstance(c, Coordinates1d):
                 rep += '\n\t%s: %s' % (c.name, c)
