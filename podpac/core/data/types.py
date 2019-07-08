@@ -573,9 +573,9 @@ class H5PY(DataSource):
         Path to the data source
     latkey : str
         The 'key' for the data that described the latitude coordinate of the data
-    lonkey : str 
+    lonkey : str
         The 'key' for the data that described the longitude coordinate of the data
-    timekey : str 
+    timekey : str
         The 'key' for the data that described the time coordinate of the data
     altkey : str
         The 'key' for the data that described the altitude coordinate of the data
