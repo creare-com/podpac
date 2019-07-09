@@ -145,9 +145,9 @@ class FileCacheStore(CacheStore):
             with io.BytesIO(s) as b:
                 data = np.load(b)
         elif path.endswith('.coords.json'):
-            data = podpac.Coordinates.from_json(s)
+            data = podpac.Coordinates.from_json(s.decode())
         elif path.endswith('.node.json'):
-            pipeline = podpac.pipeline.Pipeline(json=s)
+            pipeline = podpac.pipeline.Pipeline(json=s.decode())
             data = pipeline.node
         elif path.endswith('.json'):
             data = json.loads(s.decode())
