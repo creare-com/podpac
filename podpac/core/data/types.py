@@ -772,7 +772,7 @@ class Zarr(DataSource):
             s3map = s3fs.S3Map(root=root, s3=s3, check=False)
             store = s3map
         else:
-            store = self.source
+            store = str(self.source) # has to be a string in Python2.7 for local files 
         
         try:
             return zarr.open(store, mode='r')
