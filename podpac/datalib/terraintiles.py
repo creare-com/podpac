@@ -126,6 +126,7 @@ class TerrainTilesSource(Rasterio):
     def download(self, path='terraintiles'):
         """
         Download the TerrainTile file from S3 to a local file.
+        This is not used by the podpac evaluation
 
         Parameters
         ----------
