@@ -45,7 +45,7 @@ SMAP_PRODUCT_DICT = {
     'SPL3SMP_AM':    ['/Soil_Moisture_Retrieval_Data_AM/latitude', '/Soil_Moisture_Retrieval_Data_AM/longitude', '/Soil_Moisture_Retrieval_Data_AM/soil_moisture', 5],
     'SPL3SMP_PM':    ['/Soil_Moisture_Retrieval_Data_PM/latitude', '/Soil_Moisture_Retrieval_Data_PM/longitude', '/Soil_Moisture_Retrieval_Data_PM/soil_moisture', 5],
     'SPL3SMP_E_AM':  ['/Soil_Moisture_Retrieval_Data_AM/latitude', '/Soil_Moisture_Retrieval_Data_AM/longitude', '/Soil_Moisture_Retrieval_Data_AM/soil_moisture', 2],
-    'SPL3SMP_E_PM':  ['/Soil_Moisture_Retrieval_Data_PM/latitude', '/Soil_Moisture_Retrieval_Data_PM/longitude', '/Soil_Moisture_Retrieval_Data_PM/soil_moisture', 2],
+    'SPL3SMP_E_PM':  ['/Soil_Moisture_Retrieval_Data_PM/latitude_pm', '/Soil_Moisture_Retrieval_Data_PM/longitude_pm', '/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm', 2],
 }
 SMAP_PRODUCTS = list(SMAP_PRODUCT_DICT.keys())
 
@@ -153,11 +153,11 @@ class SMAP(EGI):
             lon = ds['y'][()]
             lat = ds['x'][()]
 
-            # short-circuit if all lat/lon are non
+            # short-circuit if all lat/lon are nan
             if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):
                 return None
 
-            c = Coordinates([time, lat, lon], dims=['time', 'lat', 'lon'], crs='epsg:6933')
+            c = Coordinates([time, lon, lat], dims=['time', 'lon', 'lat'], crs='epsg:6933')
 
 
         # make units data array with coordinates and data
