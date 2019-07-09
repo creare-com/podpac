@@ -30,17 +30,19 @@ if sys.version_info.major == 2:
 extras_require = {
     'datatype': [
         'beautifulsoup4>=4.6',
-        'h5py>=2.7',
+        'h5py>=2.9',
         'lxml>=4.2',
         'pydap>=3.2',
-        'rasterio>=1.0'
+        'rasterio>=1.0',
+        'zarr>=2.3'
     ],
     'intake': [
         'intake>=0.5.1'
     ],
     'aws': [
         'awscli>=1.11',
-        'boto3>=1.4'
+        'boto3>=1.4',
+        's3fs>=0.2'
     ],
     'algorithms': [
         'numexpr>=2.6',

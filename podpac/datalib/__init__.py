@@ -12,5 +12,5 @@ from podpac.datalib.smap import (
 )
 from podpac.datalib.terraintiles import TerrainTiles
 from podpac.datalib.gfs import GFS, GFSLatest
-
+from podpac.datalib.egi import EGI
 from podpac.datalib.intake import IntakeCatalog

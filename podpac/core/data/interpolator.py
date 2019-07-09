@@ -9,8 +9,13 @@ COMMON_INTERPOLATOR_DOCS : dict
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import logging
+
 import numpy as np
 import traitlets as tl
+
+# Set up logging
+_log = logging.getLogger(__name__)
 
 from podpac.core.utils import common_doc
 
@@ -288,12 +293,25 @@ class Interpolator(tl.HasTraits):
         """
         loop_dims = [d for d in source_data.dims if d not in keep_dims]
         if loop_dims:
-            for i in source_data.coords[loop_dims[0]]:
-                ind = {loop_dims[0]: i}
-                output_data.loc[ind] = \
+            dim = loop_dims[0]
+            for i in output_data.coords[dim]:
+                idx = {dim: i}
+
+                # TODO: handle this using presecribed interpolation method instead of "nearest"
+                if not i.isin(source_data.coords[dim]):
+                    if self.method is not 'nearest':
+                        _log.warning("Interpolation method {} is not supported yet in this context. Using 'nearest' for {}".format(self.method, dim))
+                
+                    # find the closest value
+                    src_i = (np.abs(source_data.coords[dim].values - i.values)).argmin()
+                    src_idx = {dim: source_data.coords[dim][src_i]}
+                else:
+                    src_idx = idx
+
+                output_data.loc[idx] = \
                     self._loop_helper(func, keep_dims, udims,
-                                      source_coordinates, source_data.loc[ind],
-                                      eval_coordinates, output_data.loc[ind], **kwargs)
+                                      source_coordinates, source_data.loc[src_idx],
+                                      eval_coordinates, output_data.loc[idx], **kwargs)
         else:
             return func(udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs)
 
