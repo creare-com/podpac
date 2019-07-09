@@ -4,8 +4,9 @@ import pytest
 
 import podpac
 from podpac.core.data.datasource import DataSource
+from podpac.core.data.types import Array
 from podpac.core.algorithm.algorithm import Arange
-from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates
+from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates, YearSubstituteCoordinates
 
 # TODO move to test setup
 coords = podpac.Coordinates(
@@ -77,3 +78,38 @@ class TestSelectCoordinates(object):
         
         node = SelectCoordinates(source=MyDataSource(), time=('2011-01-01', '2017-01-01', '1,Y'))
         o = node.eval(coords)
+
+class TestYearSubstituteCoordinates(object):
+    def test_year_substitution(self):
+        node = YearSubstituteCoordinates(source=Arange(), year='2018')
+        o = node.eval(coords)
+        assert o.time.dt.year.data[0] == 2018
+        assert o['time'].data != coords.coords['time'].data
+        
+    def test_year_substitution_orig_coords(self):
+        node = YearSubstituteCoordinates(source=Arange(), year='2018', substitute_eval_coords=True)
+        o = node.eval(coords)
+        assert o.time.dt.year.data[0] == coords.coords['time'].dt.year.data[0]
+        assert o['time'].data == coords.coords['time'].data
+        
+    def test_year_substitution_missing_coords(self):
+        source = Array(source=[[1, 2, 3], [4, 5, 6]], 
+                       native_coordinates=podpac.Coordinates(
+                           [podpac.crange('2018-01-01', '2018-01-02', '1,D'),
+                            podpac.clinspace(45, 66, 3)],
+                           dims=['time', 'lat']))
+        node = YearSubstituteCoordinates(source=source, year='2018')
+        o = node.eval(coords)
+        assert o.time.dt.year.data[0] == 2018
+        assert o['time'].data != coords.coords['time'].data        
+        
+    def test_year_substitution_missing_coords_orig_coords(self):
+        source = Array(source=[[1, 2, 3], [4, 5, 6]], 
+                       native_coordinates=podpac.Coordinates(
+                           [podpac.crange('2018-01-01', '2018-01-02', '1,D'),
+                            podpac.clinspace(45, 66, 3)],
+                           dims=['time', 'lat']))
+        node = YearSubstituteCoordinates(source=source, year='2018', substitute_eval_coords=True)
+        o = node.eval(coords)
+        assert o.time.dt.year.data[0] == 2017
+        assert o['time'].data == coords.coords['time'].data            
