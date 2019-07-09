@@ -416,7 +416,7 @@ class Coordinates(tl.HasTraits):
         json
         """
 
-        d = json.loads(s)
+        d = json.loads(s.decode())
         return cls.from_definition(d)
 
     @classmethod
