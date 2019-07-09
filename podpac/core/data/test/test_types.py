@@ -800,8 +800,6 @@ class TestZarr(object):
     path = os.path.join(os.path.dirname(__file__), 'assets', 'zarr')
 
     def test_local(self):
-        print (self.path)
-        print (os.listdir(self.path))
         node = Zarr(source=self.path, datakey='a', dims=['lat', 'lon'])
 
     def test_local_invalid_path(self):
