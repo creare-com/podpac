@@ -75,6 +75,10 @@ extras_require = {
     ]
 }
 
+# Intake only supports Python > 3.6
+if sys.version_info.major < 3 or sys.version_info.minor < 6:
+    del extras_require['intake']
+
 # set long description to readme
 with open('README.MD') as f: 
     long_description = f.read()
