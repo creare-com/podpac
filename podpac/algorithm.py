@@ -13,7 +13,7 @@ from podpac.core.algorithm.stats import (
     DayOfYear, GroupReduce
 )
 from podpac.core.algorithm.coord_select import (
-    ExpandCoordinates, SelectCoordinates,
+    ExpandCoordinates, SelectCoordinates, YearSubstituteCoordinates
     )
 from podpac.core.algorithm.signal import (
     Convolution, SpatialConvolution, TimeConvolution,

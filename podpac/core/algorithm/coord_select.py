@@ -213,7 +213,15 @@ class SelectCoordinates(ModifyCoordinates):
 
 
 class YearSubstituteCoordinates(ModifyCoordinates):
-    year = tl.Unicode()
+    year = tl.Unicode().tag(attr=True)
+    
+    # Remove tags from attributes
+    lat = tl.List()
+    lon = tl.List()
+    time = tl.List()
+    alt = tl.List()
+    coordinates_source = None
+    
     def get_modified_coordinates1d(self, coord, dim):
         if dim != 'time':
             return coord[dim]
