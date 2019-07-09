@@ -150,7 +150,7 @@ class FileCacheStore(CacheStore):
             pipeline = podpac.pipeline.Pipeline(json=s)
             data = pipeline.node
         elif path.endswith('.json'):
-            data = json.loads(s)
+            data = json.loads(s.decode())
         elif path.endswith('.pkl'):
             data = pickle.loads(s)
         else:

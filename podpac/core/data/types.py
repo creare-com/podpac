@@ -1201,7 +1201,7 @@ class ReprojectedSource(DataSource):
         if 'reprojected_coordinates' in kwargs:
             if isinstance(kwargs['reprojected_coordinates'], dict):
                 kwargs['reprojected_coordinates'] = Coordinates.from_definition(kwargs['reprojected_coordinates'])
-            elif isinstance(kwargs['reprojected_coordinates'], str):
+            elif isinstance(kwargs['reprojected_coordinates'], string_types):
                 kwargs['reprojected_coordinates'] = Coordinates.from_json(kwargs['reprojected_coordinates'])
                 
         return kwargs
