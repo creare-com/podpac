@@ -68,6 +68,7 @@ class SMAP(EGI):
 
     product = tl.Enum(SMAP_PRODUCTS, default_value='SPL4SMAU').tag(attr=True)
     nan_vals = [-9999.0]
+    min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3}).tag(attr=True)
 
     # set default short_name, data_key, lat_key, lon_key, version
     @tl.default('short_name')

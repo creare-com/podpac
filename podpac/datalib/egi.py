@@ -103,6 +103,8 @@ class EGI(DataSource):
     lat_key = tl.Unicode(allow_none=True).tag(attr=True)
     lon_key = tl.Unicode(allow_none=True).tag(attr=True)
     time_key = tl.Unicode(allow_none=True).tag(attr=True)
+    
+    min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
 
     # optional
     
@@ -302,12 +304,26 @@ class EGI(DataSource):
         if 'time' in coordinates.udims:
             time_bounds = [str(np.datetime64(bound, 's')) for bound in \
                            coordinates['time'].bounds if isinstance(bound, np.datetime64)]
+            if self.min_bounds_span != None and 'time' in self.min_bounds_span: 
+                raise NotImplementedError # TODO
+            
             if len(time_bounds) < 2:
                 raise ValueError("Time coordinates must be of type np.datetime64")
 
         if 'lat' in coordinates.udims or 'lon' in coordinates.udims:
             lat = coordinates['lat'].bounds
             lon = coordinates['lon'].bounds
+            if (self.min_bounds_span != None) and ('lat' in self.min_bounds_span) and ('lon' in self.min_bounds_span): 
+                latdiff = np.diff(lat)
+                londiff = np.diff(lon)
+                if latdiff < self.min_bounds_span['lat']:
+                    pad = ((self.min_bounds_span['lat'] - latdiff) / 2)[0]
+                    lat = [lat[0] - pad, lat[1] + pad]
+                    
+                if londiff < self.min_bounds_span['lon']:
+                    pad = ((self.min_bounds_span['lon'] - londiff) / 2)[0]
+                    lon = [lon[0] - pad, lon[1] + pad]
+            
             bbox = "{},{},{},{}".format(lon[0], lat[0], lon[1], lat[1])
 
         # TODO: do we actually want to limit an open query?
