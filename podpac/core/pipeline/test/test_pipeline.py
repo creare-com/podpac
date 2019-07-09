@@ -154,10 +154,11 @@ class TestPipeline(object):
         }
         '''
 
+        debug = podpac.core.settings.settings['DEBUG']
+        podpac.core.settings.settings['DEBUG'] = False
         pipeline = Pipeline(json=s)
         assert pipeline.node.A is pipeline.node.B.source
-
         podpac.core.settings.settings['DEBUG'] = True
         pipeline = Pipeline(json=s)
         assert pipeline.node.A is not pipeline.node.B.source
-        podpac.core.settings.settings['DEBUG'] = False
+        podpac.core.settings.settings['DEBUG'] = debug

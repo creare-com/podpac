@@ -1344,6 +1344,7 @@ class S3(DataSource):
                                    #self.source.replace('\\', '').replace(':','')\
                                    #.replace('/', ''))
             tmppath = os.path.join(
+                settings['ROOT_PATH'],
                 settings['DISK_CACHE_DIR'],
                 self.source.replace('\\', '').replace(':', '').replace('/', ''))
             

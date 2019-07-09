@@ -764,8 +764,10 @@ class Coordinates(tl.HasTraits):
     @property
     def hash(self):
         """:str: Coordinates hash value."""
-
-        return hash_alg(self.json.encode('utf-8')).hexdigest()
+        # We can't use self.json for the hash because the CRS is not standardized. 
+        # As such, we json.dumps the full definition. 
+        json_d = json.dumps(self.full_definition, separators=(',', ':'), cls=podpac.core.utils.JSONEncoder)
+        return hash_alg(json_d.encode('utf-8')).hexdigest()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods

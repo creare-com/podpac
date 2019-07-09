@@ -84,6 +84,8 @@ class TestConvolution(object):
         assert_array_equal(a, o)
 
     def test_debuggable_source(self):
+        debug = settings['DEBUG']
+        settings['DEBUG'] = False
         lat = clinspace(45, 66, 30, name='lat')
         lon = clinspace(-80, 70, 40, name='lon')
         coords = Coordinates([lat, lon])
@@ -108,7 +110,7 @@ class TestConvolution(object):
         assert node.source._requested_coordinates != coords
         assert a._requested_coordinates is None
 
-        settings['DEBUG'] = False
+        settings['DEBUG'] = debug
 
 class TestSpatialConvolution(object):
     def test_init_kernel(self):

@@ -290,7 +290,7 @@ class Node(tl.HasTraits):
                 continue
 
             # check serializable
-            if not is_json_serializable(attr):
+            if not is_json_serializable(attr, cls=JSONEncoder):
                 raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
             
             if isinstance(attr, Node):
