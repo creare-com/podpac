@@ -7,6 +7,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import os
 import sys
 import json
+import datetime
 import functools
 import importlib
 from collections import OrderedDict
@@ -280,6 +281,10 @@ class JSONEncoder(json.JSONEncoder):
         # timedelta64
         elif isinstance(obj, np.timedelta64):
             return podpac.core.coordinates.utils.make_timedelta_string(obj)
+        
+        # datetime
+        elif isinstance(obj, datetime.datetime):
+            return obj.isoformat()
         
         # dataframe
         elif isinstance(obj, pd.DataFrame):

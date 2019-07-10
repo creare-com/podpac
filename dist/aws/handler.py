@@ -50,14 +50,14 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
     coords = Coordinates.from_json(
         json.dumps(_json['coordinates'], indent=4, cls=JSONEncoder))
-    pipeline.eval(coords)
+    output = pipeline.eval(coords)
     if ret_pipeline:
         return pipeline
 
     filename = file_key.replace('.json', '.' + pipeline.output.format)
     filename = filename.replace(settings['S3_JSON_FOLDER'], settings['S3_OUTPUT_FOLDER'])
 
-    body = cPickle.dumps(pipeline._output)
+    body = output.to_format(pipeline.output.format)
     s3.put_object(Bucket=bucket_name,
                   Key=filename, Body=body)
     return

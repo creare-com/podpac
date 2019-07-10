@@ -10,6 +10,7 @@ from copy import deepcopy
 from numbers import Number
 import operator
 from six import string_types
+import json
 
 from io import BytesIO
 import base64
@@ -23,6 +24,7 @@ ureg = UnitRegistry()
 
 import podpac
 from podpac.core.settings import settings
+from podpac.core.utils import JSONEncoder
 
 class UnitsDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
@@ -30,15 +32,7 @@ class UnitsDataArray(xr.DataArray):
     
     def __init__(self, *args, **kwargs):
         super(UnitsDataArray, self).__init__(*args, **kwargs)
-
-        # Deserialize units 
-        if self.attrs.get('units') and isinstance(self.attrs['units'], string_types):
-            self.attrs['units'] = ureg(self.attrs['units']).u
-
-        # Deserialize layer_stylers
-        if self.attrs.get('layer_style') and isinstance(self.attrs['layer_style'], string_types): 
-            self.attrs['layer_style'] = podpac.core.style.Style.from_json(self.attrs['layer_style']) 
-       
+        self.deserialize()
             
     def __array_wrap__(self, obj, context=None):
         new_var = super(UnitsDataArray, self).__array_wrap__(obj, context)
@@ -120,16 +114,72 @@ class UnitsDataArray(xr.DataArray):
             return self.copy()
 
     def to_netcdf(self, *args, **kwargs):
-        attrs = self.attrs.copy()
+        self.serialize()
+        r = super(UnitsDataArray, self).to_netcdf(*args, **kwargs)
+        self.deserialize()
+        return r
+    
+    def to_format(self, format, *args, **kwargs):
+        """
+        Helper function for converting Node outputs to alternative formats.
+        
+        Parameters
+        -----------
+        format: str
+            Format to which output should be converted. This is uses the to_* functions provided by xarray
+        *args: *list
+            Extra arguments for a particular output function
+        **kwargs: **dict
+            Extra keyword arguments for a particular output function
+            
+        Returns
+        --------
+        io.BytesIO()
+            In-memory version of the file or Python object. Note, depending on the input arguments, the file may instead
+            be saved to disk.
+            
+        Notes
+        ------
+        This is a helper function for accessing existing to_* methods provided by the base xarray.DataArray object, with 
+        a few additional formats supported: 
+            * json
+            * png, jpg, jpeg
+            * tiff (GEOtiff)
+        """
+        self.serialize()
+        if format in ['netcdf', 'nc', 'hdf5', 'hdf']:
+            r = self.to_netcdf(*args, **kwargs)
+        elif format in ['json', 'dict']:
+            r = self.to_dict()
+            if format == 'json':
+                r = json.dumps(r, cls=JSONEncoder)
+        elif format in ['png', 'jpg', 'jpeg']:
+            raise NotImplementedError
+        elif format in ['tiff', 'tif', 'TIFF', 'TIF']:
+            raise NotImplementedError
+        else:
+            try: 
+                getattr(self, 'to_' + format)(*args, **kwargs)
+            except: 
+                raise NotImplementedError
+        self.deserialize()
+        return r
+    
+    def serialize(self):
         if self.attrs.get('units'):
             self.attrs['units'] = str(self.attrs['units'])
         if self.attrs.get('layer_style'):
             self.attrs['layer_style'] = self.attrs['layer_style'].json
             
-        r = super(UnitsDataArray, self).to_netcdf(*args, **kwargs)
-        self.attrs.update(attrs)
-        return r
-    
+    def deserialize(self):
+        # Deserialize units 
+        if self.attrs.get('units') and isinstance(self.attrs['units'], string_types):
+            self.attrs['units'] = ureg(self.attrs['units']).u
+
+        # Deserialize layer_stylers
+        if self.attrs.get('layer_style') and isinstance(self.attrs['layer_style'], string_types): 
+            self.attrs['layer_style'] = podpac.core.style.Style.from_json(self.attrs['layer_style']) 
+            
     
     def __getitem__(self, key):
         # special cases when key is also a DataArray
