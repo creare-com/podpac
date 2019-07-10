@@ -431,7 +431,7 @@ class EGI(DataSource):
                 # TODO: this can likely be simpler and automated
                 if uda is not None:
                     if all_data is None:
-                        all_data = uda
+                        all_data = uda.isel(lon=np.isfinite(uda.lon), lat=np.isfinite(uda.lat))
                     else:
                         all_data = self.append_file(all_data, uda)
                 else:

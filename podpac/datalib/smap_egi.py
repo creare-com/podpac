@@ -19,8 +19,9 @@ import traitlets as tl
 _log = logging.getLogger(__name__)
 
 # Helper utility for optional imports
-from lazy_import import lazy_module
+from lazy_import import lazy_module, lazy_class
 h5py = lazy_module('h5py')
+lazy_class('h5py.File')
 
 # fixing problem with older versions of numpy
 if not hasattr(np, 'isnat'):
