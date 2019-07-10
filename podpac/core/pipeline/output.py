@@ -85,7 +85,7 @@ class FileOutput(Output):
 
     outdir = tl.Unicode()
     format = tl.CaselessStrEnum(
-        values=['pickle', 'geotif', 'png'], default_value='pickle').tag(attr=True)
+        values=['pickle', 'geotif', 'png', 'nc'], default_value='pickle').tag(attr=True)
     mode = tl.Unicode(default_value="file").tag(attr=True)
 
     _path = tl.Unicode(allow_none=True, default_value=None)
@@ -116,6 +116,8 @@ class FileOutput(Output):
         elif self.format == 'png':
             raise NotImplementedError("format '%s' not yet implemented" % self.format)
         elif self.format == 'geotif':
+            raise NotImplementedError("format '%s' not yet implemented" % self.format)
+        elif self.format == 'nc':
             raise NotImplementedError("format '%s' not yet implemented" % self.format)
 
         self._path = path
