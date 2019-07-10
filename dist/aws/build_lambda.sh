@@ -37,8 +37,8 @@ if [ -z $TAG ]
     aws s3 cp podpac_deps_latest.zip s3://podpac-s3/podpac/podpac_deps_$TAG.zip
     aws s3 cp podpac_dist_latest.zip s3://podpac-s3/podpac/podpac_dist_$TAG.zip
 fi
-aws s3 cp podpac_deps_latest.zip s3://podpac-s3/podpac/podpac_deps_latest.zip
-aws s3 cp podpac_dist_latest.zip s3://podpac-s3/podpac/podpac_dist_latest.zip
+aws s3 cp podpac_deps_latest.zip s3://podpac-s3/podpac/podpac_deps_ESIP.zip
+aws s3 cp podpac_dist_latest.zip s3://podpac-s3/podpac/podpac_dist_ESIP.zip
 
 # Update lambda function to use the zips from S3 (uploaded above).
-aws lambda update-function-code --function-name podpac_lambda --s3-bucket podpac-s3 --s3-key podpac/podpac_dist_latest.zip
+aws lambda update-function-code --function-name podpac_lambda_ESIP --s3-bucket podpac-s3 --s3-key podpac/podpac_dist_ESIP.zip

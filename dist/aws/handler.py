@@ -16,7 +16,7 @@ sys.path.append('/tmp/')
 # sys.path.append(os.getcwd() + '/podpac/')
 
 s3 = boto3.client('s3')
-deps = 'podpac_deps_latest.zip'
+deps = 'podpac_deps_ESIP.zip'
 
 def handler(event, context, get_deps=True, ret_pipeline=False):
     bucket_name = event['Records'][0]['s3']['bucket']['name']
