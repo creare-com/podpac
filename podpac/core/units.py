@@ -15,6 +15,11 @@ import json
 from io import BytesIO
 import base64
 
+try:
+    import cPickle  # Python 2.7
+except:
+    import _pickle as cPickle
+
 import numpy as np
 import xarray as xr
 import traitlets as tl
@@ -154,21 +159,23 @@ class UnitsDataArray(xr.DataArray):
             if format == 'json':
                 r = json.dumps(r, cls=JSONEncoder)
         elif format in ['png', 'jpg', 'jpeg']:
-            raise NotImplementedError
+            raise NotImplementedError('Format {} is not implemented.'.format(format))
         elif format in ['tiff', 'tif', 'TIFF', 'TIF']:
-            raise NotImplementedError
+            raise NotImplementedError('Format {} is not implemented.'.format(format))
+        elif format in ['pickle', 'pkl']: 
+            r = cPickle.dumps(self)
         else:
             try: 
                 getattr(self, 'to_' + format)(*args, **kwargs)
             except: 
-                raise NotImplementedError
+                raise NotImplementedError('Format {} is not implemented.'.format(format))
         self.deserialize()
         return r
     
     def serialize(self):
         if self.attrs.get('units'):
             self.attrs['units'] = str(self.attrs['units'])
-        if self.attrs.get('layer_style'):
+        if self.attrs.get('layer_style') and not isinstance(self.attrs['layer_style'], string_types):
             self.attrs['layer_style'] = self.attrs['layer_style'].json
             
     def deserialize(self):

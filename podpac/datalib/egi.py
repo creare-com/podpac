@@ -417,7 +417,11 @@ class EGI(DataSource):
                 _log.debug("Reading file: {}".format(name))
                 
                 # BytesIO
-                bio = BytesIO(zip_file.read(name))
+                try: 
+                    bio = BytesIO(zip_file.read(name))
+                except (zipfile.BadZipfile, EOFError) as e:
+                    _log.warn(str(e))
+                    continue
 
                 # read file
                 uda = self.read_file(bio)
