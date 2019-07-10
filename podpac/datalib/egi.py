@@ -30,6 +30,7 @@ from podpac.data import DataSource
 from podpac import authentication
 from podpac import settings
 from podpac.core.units import UnitsDataArray, create_data_array
+from podpac.core.node import node_eval
 
 # Set up logging
 _log = logging.getLogger(__name__)
@@ -200,6 +201,7 @@ class EGI(DataSource):
             _log.warning('No data found in EGI source')
             return np.array([])
 
+    @node_eval
     def eval(self, coordinates, output=None):
         # download data for coordinate bounds, then handle that data as an H5PY node
         zip_files = self._download(coordinates)
