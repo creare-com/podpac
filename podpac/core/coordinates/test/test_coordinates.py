@@ -554,6 +554,25 @@ class TestCoordinatesSerialization(object):
         
         c2 = Coordinates.from_json(s)
         assert c2 == c
+        
+    def test_from_url(self):
+        crds = Coordinates([[41, 40], [-71, -70], '2018-05-19'], dims=['lat', 'lon', 'time'])
+        crds2 = crds.transform('EPSG:3857')
+        
+        url = (r'http://testwms/?map=map&&service=WMS&request=GetMap&layers=layer&styles=&format=image%2Fpng'
+               r'&transparent=true&version={version}&transparency=true&width=256&height=256&srs=EPSG%3A{epsg}'
+               r'&bbox={},{},{},{}&time={}'
+               )
+        
+        
+        for version in ['1.1.1', '1.3']:
+            for cc, epsg in zip([crds, crds2], ['3857', '4326']):
+                c = Coordinates.from_url(url.format(crds2.bounds['lat'].min(), crds2.bounds['lon'].min(),
+                                                    crds2.bounds['lat'].max(), crds2.bounds['lon'].max(),
+                                                    crds2.bounds['time'][0],
+                                                    version=version, epsg=epsg))
+                for d in crds.dims:
+                    assert np.all(c.bounds[d] == crds2.bounds[d])
 
 class TestCoordinatesProperties(object):
     def test_xarray_coords(self):

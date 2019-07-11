@@ -12,6 +12,11 @@ import json
 from collections import OrderedDict
 from hashlib import md5 as hash_alg
 import re
+try: 
+    import urllib.parse as urllib
+except:   # Python 2.7
+    import urlparse as urllib
+
 
 import numpy as np
 import traitlets as tl
@@ -418,6 +423,58 @@ class Coordinates(tl.HasTraits):
 
         d = json.loads(s)
         return cls.from_definition(d)
+    
+    @classmethod
+    def from_url(cls, url):
+        """
+        Create podpac Coordinates from a WMS/WCS request.
+
+        Arguments
+        ---------
+        url : str, dict
+            The raw WMS/WCS request url, or a dictionary of query parameters
+
+        Returns
+        -------
+        :class:`Coordinates`
+            podpac Coordinates
+        """
+        if isinstance(url, string_types):
+            url = urllib.parse_qs(urllib.urlparse(url).query)
+
+        # Capitalize the keywords for consistency
+        params = {}
+        for k in url: 
+            params[k.upper()] = url[k]
+
+        # The ordering here is lat/lon or y/x for WMS 1.3.0
+        # The ordering here is lon/lat or x/y for WMS 1.1
+        # See https://docs.geoserver.org/stable/en/user/services/wms/reference.html
+        bbox = np.array(params['BBOX'][0].split(','), float)
+        
+        # I don't seem to need to reverse one of these... perhaps one of my test servers did not implement the spec? 
+        if params['VERSION'][0].startswith('1.1'):
+            r = 1
+        elif params['VERSION'][0].startswith('1.3'):
+            r = 1  
+            
+        # Extract bounding box information and translate to PODPAC coordinates
+        start = bbox[:2][::r]
+        stop = bbox[2::][::r]
+        size = np.array([params['WIDTH'][0], params['HEIGHT'][0]], int)[::r]
+        
+        coords = OrderedDict()
+        
+        # Note, version 1.1 used "SRS" and 1.3 uses 'CRS'
+        coords['crs'] = params.get('SRS', params.get("CRS"))[0]
+
+        coords['coords'] = [{'name': 'lat', 'start': start[0], 'stop': stop[0], 'size': size[0]},
+                            {'name': 'lon', 'start': start[1], 'stop': stop[1], 'size': size[1]}]
+        
+        if 'TIME' in params:
+            coords['coords'].append({'name': 'time', 'values': [params['TIME'][0]]})
+
+        return cls.from_definition(coords)
 
     @classmethod
     def from_definition(cls, d):
