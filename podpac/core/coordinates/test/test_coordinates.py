@@ -1124,7 +1124,7 @@ class TestCoordinatesMethods(object):
         c_trans = c.transform('EPSG:2193')
         assert c.crs == 'EPSG:4326'
         assert c_trans.crs == 'EPSG:2193'
-        assert round(c_trans['lat'].coordinates[0, 0]) == 29995930.0
+        assert round(c_trans['lat'].coordinates[0, 0]) == 29995929.0
 
         # no transform needed
         c_trans = c.transform('EPSG:4326')

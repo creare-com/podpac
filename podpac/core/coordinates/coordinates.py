@@ -1254,7 +1254,7 @@ class Coordinates(tl.HasTraits):
                 raise ValueError('Cannot transform lon coordinates without lat coordinates')
 
         # transform
-        transformer = pyproj.Transformer.from_proj(from_crs, to_crs)
+        transformer = pyproj.Transformer.from_proj(from_crs, to_crs, always_xy=True)
         ts = [c._transform(transformer) for c in cs]
         return Coordinates(ts, crs=input_crs, alt_units=input_alt_units)
 

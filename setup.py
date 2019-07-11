@@ -20,7 +20,7 @@ install_requires = ['matplotlib>=2.1',
                     'traitlets>=4.3',
                     'xarray>=0.10',
                     'requests>=2.18',
-                    'pyproj>=2.1',
+                    'pyproj>=2.2',
                     'lazy-import>=0.2.2',
                     'psutil']
 
