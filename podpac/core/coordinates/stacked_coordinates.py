@@ -429,7 +429,7 @@ class StackedCoordinates(BaseCoordinates):
             lat = coords[ilat]
             lon = coords[ilon]
             alt = coords[ialt]
-            tlat, tlon, talt = transformer.transform(lat.coordinates, lon.coordinates, alt.coordinates)
+            tlon, tlat, talt = transformer.transform(lon.coordinates, lat.coordinates, alt.coordinates)
             coords[ilat].set_trait('coordinates', tlat)
             coords[ilon].set_trait('coordinates', tlon)
             coords[ialt].set_trait('coordinates', talt)
@@ -452,7 +452,7 @@ class StackedCoordinates(BaseCoordinates):
             # coordinates
             lat = coords[ilat]
             lon = coords[ilon]
-            tlat, tlon = transformer.transform(lat.coordinates, lon.coordinates)
+            tlon, tlat = transformer.transform(lon.coordinates, lat.coordinates)
             coords[ilat].set_trait('coordinates', tlat)
             coords[ilon].set_trait('coordinates', tlon)
             

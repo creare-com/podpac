@@ -1138,24 +1138,24 @@ class TestCoordinatesMethods(object):
         c_trans = c.transform(proj)
         assert c.crs == 'EPSG:4326'
         assert c_trans.crs == proj
-        assert round(c_trans['lat'].coordinates[0, 0]) == 615849.0
+        assert round(c_trans['lat'].coordinates[0, 0]) == 0.0
 
         # support stacked coordinates
         proj = '+proj=merc +lat_ts=56.5 +ellps=GRS80'
         c1_trans = c1.transform(proj)
         assert c1.crs == 'EPSG:4326'
         assert c_trans.crs == proj
-        assert round(c1_trans['lat'].coordinates[0]) == 615849.0
+        assert round(c1_trans['lat'].coordinates[0]) == 0.0
 
         # support altitude unit transformations
         proj = '+proj=merc +vunits=us-ft'
         c_trans = c.transform(proj)
-        assert round(c_trans['lat'].coordinates[0, 0]) == 1113195.0
+        assert round(c_trans['lat'].coordinates[0, 0]) == 0.0
         assert round(c_trans['alt'].coordinates[1]) == 3.0
         assert round(c_trans['alt'].coordinates[2]) == 7.0
         assert c_trans.crs == proj
         c1_trans = c1.transform(proj)
-        assert round(c1_trans['lat'].coordinates[0]) == 1113195.0
+        assert round(c1_trans['lat'].coordinates[0]) == 0.0
         assert round(c1_trans['alt'].coordinates[0]) == 328.0
         assert round(c1_trans['alt'].coordinates[1]) == 656.0
         assert c1_trans.crs == proj
