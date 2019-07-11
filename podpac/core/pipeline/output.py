@@ -119,6 +119,8 @@ class FileOutput(Output):
             raise NotImplementedError("format '%s' not yet implemented" % self.format)
         elif self.format == 'nc':
             raise NotImplementedError("format '%s' not yet implemented" % self.format)
+        elif self.format == 'json':
+            raise NotImplementedError("format '$s' not yet implemented" % self.format)
 
         self._path = path
 
