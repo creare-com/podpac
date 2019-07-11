@@ -149,6 +149,10 @@ class EGI(DataSource):
             return settings['token@EGI']
 
         return None
+    
+    @property
+    def coverage(self):
+        return (self.data_key, self.lat_key, self.lon_key)
 
     # attributes
     data = tl.Any(allow_none=True)
@@ -170,7 +174,7 @@ class EGI(DataSource):
             u += "&{key}={val}".format(key=key, val=val)
             return u
 
-        url = _append(url, "Coverage", "{},{},{}".format(self.data_key, self.lat_key, self.lon_key))
+        url = _append(url, "Coverage", ",".join(self.coverage))
 
         # Format could be customized - see response_format above
         # For now we set to HDF5
