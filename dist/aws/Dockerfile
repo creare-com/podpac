@@ -21,7 +21,7 @@ ADD . /podpac/
 
 RUN mkdir /tmp/vendored/ && \
     cp /podpac/settings.json /tmp/vendored/settings.json && \
-    cd /podpac/ && \
+    cd /podpac/ && rm -rf .git/ && \
     pip3 install -r dist/aws/aws_requirements.txt -t /tmp/vendored/ --upgrade
 
 RUN cd /tmp/vendored/ && touch pydap/__init__.py && \
