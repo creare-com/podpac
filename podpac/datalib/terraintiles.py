@@ -49,12 +49,8 @@ from podpac.data import interpolation_trait
 
 from lazy_import import lazy_module
 
-#### REMOVE #####
-from pdb import set_trace
-
 # optional imports
 s3fs = lazy_module('s3fs')
-botocore = lazy_module('botocore')
 rasterio = lazy_module('rasterio')
 
 ####
