@@ -1236,7 +1236,7 @@ class Coordinates(tl.HasTraits):
                     raise ValueError('Cannot transform coordinates with nonadjacent lat and lon, transpose first')
 
                 c = DependentCoordinates(
-                    np.meshgrid(c1.coordinates, c2.coordinates),
+                    np.meshgrid(c1.coordinates, c2.coordinates, indexing='ij'),
                     dims=[c1.name, c2.name],
                     ctypes=[c1.ctype, c2.ctype],
                     segment_lengths=[c1.segment_lengths, c2.segment_lengths])
