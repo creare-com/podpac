@@ -18,17 +18,16 @@ Documentation: https://mapzen.com/documentation/terrain-tiles/
 Attribution
 -----------
 - Some source adapted from https://github.com/tilezen/joerd
+- See required attribution when using terrain tiles:
+  https://github.com/tilezen/joerd/blob/master/docs/attribution.md
 
 Attributes
 ----------
-BUCKET : str
-    AWS S3 bucket
 TILE_FORMATS : list
     list of support tile formats
 
 Notes
 -----
-
 See https://github.com/racemap/elevation-service/blob/master/tileset.js
 for example skadi implementation
 """
@@ -98,11 +97,18 @@ class TerrainTilesSource(Rasterio):
                 data = self.get_cache(key=cache_key)
                 f.write(data)
 
-            # download and put in cache
             else:
-                _logger.info("Downloading S3 fileobj: {}".format(self.source))
-                with _s3.open(self.source, "rb") as s3f:
-                    data = s3f.read()
+
+                # try finding local file first
+                try:
+                    with open(self.source, "rb") as localfile:
+                        data = localfile.read()
+                        
+                # download and put in cache
+                except FileNotFoundError:
+                    _logger.info("Downloading S3 fileobj: {}".format(self.source))
+                    with _s3.open(self.source, "rb") as s3file:
+                        data = s3file.read()
 
                 # write to memory file
                 f.write(data)
@@ -144,7 +150,7 @@ class TerrainTilesSource(Rasterio):
             os.makedirs(joined_path)
 
         # download the file
-        _logger.debug('Downloading terrain tile {} to filepath: {}'.format(self.source, filepath))
+        _logger.debug("Downloading terrain tile {} to filepath: {}".format(self.source, filepath))
         _s3.get(self.source, filepath)
 
 class TerrainTiles(OrderedCompositor):
@@ -287,8 +293,8 @@ def _get_tile_tuples(zoom, coordinates=None):
 
     # if no coordinates are supplied, get all tiles for zoom level
     if coordinates is None:
-        # clip lat to +/- 85.051129 because that's all that spherical mercator
-        tiles = _get_tiles_grid([-85.051129, 85.051129], [-180, 180], zoom)
+        # get whole world
+        tiles = _get_tiles_grid([-20037508.34, 20037508.34], [-20037508.34, 20037508.34], zoom)
 
     # down select tiles based on coordinates
     else:
@@ -297,8 +303,9 @@ def _get_tile_tuples(zoom, coordinates=None):
         if 'lat' not in coordinates or 'lon' not in coordinates:
             raise TypeError('input coordinates must have lat and lon dimensions to get tiles')
 
-        # transform to WGS 84 / Pseudo-Mercator (epsg:3857)
-        c = coordinates.transform('epsg:3857')
+        # transform to WGS84 (epsg:4326) to use the mapzen example for transforming coordinates to tilespace
+        # it doesn't seem to conform to standard google tile indexing
+        c = coordinates.transform('epsg:4326')
 
         # point coordinates
         if 'lat_lon' in c.dims or 'lon_lat' in c.dims:
@@ -362,9 +369,9 @@ def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
     Parameters
     ----------
     lat_bounds : :class:`np.array` of float
-        [min, max] bounds from lat coordinates
+        [min, max] bounds from lat (y) coordinates
     lon_bounds : :class:`np.array` of float
-        [min, max] bounds from lon coordinates
+        [min, max] bounds from lon (x) coordinates
     zoom : int
         zoom level
     
@@ -374,9 +381,13 @@ def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
         list of tuples (x, y, zoom) describing the tiles to cover coordinates
     """
 
+    # convert to mercator
+    xm_min, ym_min = _mercator(lat_bounds[1], lon_bounds[0])
+    xm_max, ym_max = _mercator(lat_bounds[0], lon_bounds[1])
+
     # convert to tile-space bounding box
-    xmin, ymin = _mercator_to_tilespace(lat_bounds[0], lon_bounds[0], zoom)
-    xmax, ymax = _mercator_to_tilespace(lat_bounds[1], lon_bounds[1], zoom)
+    xmin, ymin = _mercator_to_tilespace(xm_min, ym_min, zoom)
+    xmax, ymax = _mercator_to_tilespace(xm_max, ym_max, zoom)
 
     # generate a list of tiles
     xs = range(xmin, xmax+1)
@@ -402,9 +413,35 @@ def _get_tiles_point(lat, lon, zoom):
     tuple
         (x, y, zoom) tile url
     """
-    x, y = _mercator_to_tilespace(lat, lon, zoom)
+    xm, ym = _mercator(lat, lon)
+    x, y = _mercator_to_tilespace(xm, ym, zoom)
 
     return x, y, zoom
+
+def _mercator(lat, lon):
+    """Convert latitude, longitude to x, y mercator coordinate at given zoom
+    Adapted from https://github.com/tilezen/joerd
+
+    Parameters
+    ----------
+    lat : float
+        latitude
+    lon : float
+        longitude
+    
+    Returns
+    -------
+    tuple
+        (x, y) float mercator coordinates
+    """
+    # convert to radians
+    x1, y1 = lon * np.pi/180, lat * np.pi/180
+
+    # project to mercator
+    x, y = x1, np.log(np.tan(0.25 * np.pi + 0.5 * y1))
+
+    return x, y
+
 
 def _mercator_to_tilespace(xm, ym, zoom):
     """Convert mercator to tilespace coordinates
@@ -424,10 +461,9 @@ def _mercator_to_tilespace(xm, ym, zoom):
         (x, y) int tile coordinates
     """
 
-    mercator_diameter = 40075016.68557849
-    tiles = 2 ** zoom  # number of tiles along each axis
-
-    x = int(tiles * (xm/mercator_diameter + 1/2))
-    y = int(tiles * (ym/mercator_diameter + 1/2))
+    tiles = 2 ** zoom
+    diameter = 2 * np.pi
+    x = int(tiles * (xm + np.pi) / diameter)
+    y = int(tiles * (np.pi - ym) / diameter)
 
     return x, y
