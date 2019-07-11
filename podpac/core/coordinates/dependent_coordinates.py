@@ -459,7 +459,7 @@ class DependentCoordinates(BaseCoordinates):
             lat = coords[ilat].flatten()
             lon = coords[ilon].flatten()
             alt = coords[ialt].flatten()
-            tlat, tlon, talt = transformer.transform(lat, lon, alt)
+            tlon, tlat, talt = transformer.transform(lon, lat, alt)
             coords[ilat] = tlat.reshape(self.shape)
             coords[ilon] = tlon.reshape(self.shape)
             coords[ialt] = talt.reshape(self.shape)
@@ -472,7 +472,7 @@ class DependentCoordinates(BaseCoordinates):
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
             if self.ctypes[ialt] is not 'point':
                 _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
-                properties['segment_lengths'][ialt] = tls
+                properties['segment_lengths'][ialt] = tsl
 
         elif 'lat' in self.dims and 'lon' in self.dims:
             ilat = self.dims.index('lat')
@@ -481,7 +481,7 @@ class DependentCoordinates(BaseCoordinates):
             # coordinates
             lat = coords[ilat].flatten()
             lon = coords[ilon].flatten()
-            tlat, tlon = transformer.transform(lat, lon)
+            tlon, tlat  = transformer.transform(lon, lat)
             coords[ilat] = tlat.reshape(self.shape)
             coords[ilon] = tlon.reshape(self.shape)
 
@@ -503,7 +503,7 @@ class DependentCoordinates(BaseCoordinates):
             # segment lengths
             if self.ctypes[ialt] is not 'point':
                 _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
-                properties['segment_lengths'][ialt] = tls
+                properties['segment_lengths'][ialt] = tsl
 
         return DependentCoordinates(coords, **properties)
 
