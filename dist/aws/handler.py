@@ -47,6 +47,23 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
     from podpac.core.utils import JSONEncoder
+    
+    # check if file exists
+    filename = file_key.replace('.json', '.' + pipeline.output.format)
+    filename = filename.replace(settings['S3_JSON_FOLDER'], settings['S3_OUTPUT_FOLDER'])
+    try:
+        s3.head_object(Bucket=bucket_name, Key=filename)
+        # Object exists, so we don't have to recompute
+        if not _json.get('force_compute', False):
+            return 
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            # It does not exist, so we should proceed
+            pass
+        else:
+            # Something else has gone wrong... not handling this case.
+            pass
+    
     pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
     coords = Coordinates.from_json(
         json.dumps(_json['coordinates'], indent=4, cls=JSONEncoder))
@@ -54,8 +71,6 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     if ret_pipeline:
         return pipeline
 
-    filename = file_key.replace('.json', '.' + pipeline.output.format)
-    filename = filename.replace(settings['S3_JSON_FOLDER'], settings['S3_OUTPUT_FOLDER'])
 
     body = output.to_format(pipeline.output.format)
     s3.put_object(Bucket=bucket_name,
