@@ -93,30 +93,33 @@ class TerrainTilesSource(Rasterio):
     def open_dataset(self):
         """Opens the data source"""
 
-        self.download(path='')
-        return rasterio.open(self.source)
+        cache_key = 'fileobj'
+        with rasterio.MemoryFile() as f:
 
-        # with _s3.open(self.source, 'rb') as f:
-        #     with rasterio.MemoryFile(f) as memfile:
-        #         return memfile.open()
+            # load data from cache
+            if self.cache_ctrl and self.has_cache(key=cache_key):
+                _logger.debug("Retrieving terrain tile {} from cache'".format(self.source))
+                data = self.get_cache(key=cache_key)
+                f.write(data)
 
-        # # check cache for this tile
-        # cache_key = 'fileobj'
-        # if self.cache_ctrl and self.has_cache(key=cache_key):
-        #     data = self.get_cache(key=cache_key)
-        #     with rasterio.MemoryFile(data) as memfile:
-        #         with memfile.open() as dataset:
-        #             ds = dataset
+            # download and put in cache
+            else:
+                _logger.info("Downloading S3 fileobj: {}".format(self.source))
+                with _s3.open(self.source, "rb") as s3f:
+                    data = s3f.read()
 
-        # else:
-        #     with rasterio.MemoryFile() as memfile:
-        #         _logger.info('Downloading S3 fileobj (Bucket: %s, Key: %s)' % (BUCKET, self.source))
-        #         _bucket.download_fileobj(self.source, memfile)
-        #         self.cache_ctrl and self.put_cache(memfile.read(), key=cache_key)
-        #         with memfile.open() as dataset:
-        #             ds = dataset
+                # write to memory file
+                f.write(data)
 
-        # return ds
+                # put data in the cache
+                _logger.debug("Caching terrain tile {} in key 'fileobj'".format(self.source))
+                self.cache_ctrl   # confirm this is initialized
+                self.put_cache(data, key=cache_key)
+
+            f.seek(0)
+            dataset = f.open()
+
+        return dataset
 
     def get_data(self, coordinates, coordinates_index):
         data = super(TerrainTilesSource, self).get_data(coordinates, coordinates_index)
@@ -181,7 +184,7 @@ class TerrainTiles(OrderedCompositor):
     
     # parameters
     zoom = tl.Int(default_value=6).tag(attr=True)
-    tile_format = tl.Enum(['geotiff', 'terrarium', 'normal'], default_value='geotiff').tag(attr=True)   
+    tile_format = tl.Enum(['geotiff', 'terrarium', 'normal'], default_value='geotiff').tag(attr=True)
     bucket = tl.Unicode(default_value='elevation-tiles-prod').tag(attr=True)
 
     @tl.default('sources')
@@ -233,48 +236,6 @@ class TerrainTiles(OrderedCompositor):
 ############
 # Utilities
 ############
-
-
-def get_zoom_levels(tile_format='geotiff'):
-    """Get available zoom levels for certain tile formats
-    
-    Parameters
-    ----------
-    tile_format : str, optional
-        Tile format to query. Defaults to 'geotiff'
-        Available formats: :attr:`TILE_FORMATS`
-    
-    Raises
-    ------
-    TypeError
-    
-    Returns
-    -------
-    list of int
-        list of zoom levels
-    """
-
-    # check format (`skadi` format not supported)
-    if tile_format not in TILE_FORMATS:
-        raise TypeError("format must be one of {}".format(TILE_FORMATS))
-
-    zoom_re = re.compile(r'^.*\/(\d*)\/')
-    prefix = '{}/'.format(tile_format)
-
-    # get list of objects in bucket
-    resp = _bucket.meta.client.list_objects(Bucket=BUCKET, Prefix=prefix, Delimiter='/')
-
-    zoom_levels = []
-    for entry in resp['CommonPrefixes']:
-        match = zoom_re.match(entry['Prefix'])
-        if match is not None:
-            zoom_levels.append(int(match.group(1)))
-
-    # sort from low to high
-    zoom_levels.sort()
-
-    return zoom_levels
-
 def get_tile_urls(tile_format, zoom, coordinates=None):
     """Get tile urls for a specific zoom level and geospatial coordinates
     
@@ -417,8 +378,6 @@ def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
         list of tuples (x, y, zoom) describing the tiles to cover coordinates
     """
 
-    print(lat_bounds)
-    print(lon_bounds)
     # convert to tile-space bounding box
     xmin, ymin = _mercator_to_tilespace(lat_bounds[0], lon_bounds[0], zoom)
     xmax, ymax = _mercator_to_tilespace(lat_bounds[1], lon_bounds[1], zoom)
@@ -427,12 +386,7 @@ def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
     xs = range(xmin, xmax+1)
     ys = range(ymin, ymax+1)
 
-    print(xs)
-    print(ys)
-    set_trace()
     tiles = [(x, y, zoom) for (y, x) in product(ys, xs)]
-
-    print(tiles)
     return tiles
 
 def _get_tiles_point(lat, lon, zoom):
@@ -474,13 +428,10 @@ def _mercator_to_tilespace(xm, ym, zoom):
         (x, y) int tile coordinates
     """
 
-    mercator_world_size = 40075016.68
-    tiles = 2 ** zoom
-    diameter = 2 * np.pi
-    x = int(tiles * (xm/mercator_world_size + np.pi) / diameter)
-    y = int(tiles * (np.pi - ym/mercator_world_size) / diameter)
+    mercator_diameter = 40075016.68557849
+    tiles = 2 ** zoom  # number of tiles along each axis
 
-    set_trace()
-
+    x = int(tiles * (xm/mercator_diameter + 1/2))
+    y = int(tiles * (ym/mercator_diameter + 1/2))
 
     return x, y
