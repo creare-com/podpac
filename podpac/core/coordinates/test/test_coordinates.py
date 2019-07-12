@@ -572,7 +572,7 @@ class TestCoordinatesSerialization(object):
                                                     crds2.bounds['time'][0],
                                                     version=version, epsg=epsg))
                 for d in crds.dims:
-                    assert np.allclose(c.bounds[d], crds2.bounds[d])
+                    assert np.allclose(c.bounds[d].astype(float), crds2.bounds[d].astype(float))
 
 class TestCoordinatesProperties(object):
     def test_xarray_coords(self):
