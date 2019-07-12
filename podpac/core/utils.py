@@ -13,9 +13,19 @@ import importlib
 from collections import OrderedDict
 import logging
 from copy import deepcopy
+from six import string_types
+import lazy_import
+try: 
+    import urllib.parse as urllib
+except:   # Python 2.7
+    import urlparse as urllib
+
 import traitlets as tl
 import numpy as np
 import pandas as pd  # Core dependency of xarray
+
+# Optional Imports
+requests = lazy_import.lazy_module('requests')
 
 # create log for module
 _log = logging.getLogger(__name__)
@@ -309,3 +319,36 @@ def is_json_serializable(obj, cls=json.JSONEncoder):
         return False
     else:
         return True
+    
+def _get_query_params_from_url(url):
+    if isinstance(url, string_types):
+        url = urllib.parse_qs(urllib.urlparse(url).query)
+    
+    # Capitalize the keywords for consistency
+    params = {}
+    for k in url: 
+        params[k.upper()] = url[k]
+        
+    return params
+
+def _get_from_url(url):
+    """Helper function to get data from an url with error checking. 
+    
+    Parameters
+    -----------
+    auth_session: podpac.core.authentication.EarthDataSession
+        Authenticated EDS session
+    url: str
+        URL to website
+    """
+    try:
+        r = requests.get(url)
+        if r.status_code != 200:
+            _log.warning('Could not connect to {}, status code {}. \n *** Return Text *** \n {} \n *** End Return Text ***'.format(url, r.status_code, r.text))
+
+    except requests.ConnectionError as e:
+        _log.warning('Cannot connect to {}:'.format(url) + str(e))
+        r = None
+    except RuntimeError as e:
+        _log.warning('Cannot authenticate to {}. Check credentials. Error was as follows:'.format(url) + str(e))
+    return r.text

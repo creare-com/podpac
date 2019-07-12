@@ -44,8 +44,8 @@ class S3CacheStore(FileCacheStore): # pragma: no cover
         if s3_bucket is None:
             s3_bucket = settings['S3_BUCKET_NAME']
         if aws_access_key_id is None or aws_secret_access_key is None: 
-             aws_access_key_id = settings['AWS_ACCESS_KEY_ID']
-             aws_secret_access_key = settings['AWS_SECRET_ACCESS_KEY']
+            aws_access_key_id = settings['AWS_ACCESS_KEY_ID']
+            aws_secret_access_key = settings['AWS_SECRET_ACCESS_KEY']
         if aws_region_name is None:
             aws_region_name = settings['AWS_REGION_NAME']
         aws_session = boto3.session.Session(region_name=aws_region_name)

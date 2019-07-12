@@ -10,38 +10,40 @@ from collections import OrderedDict
 import functools
 from hashlib import md5 as hash_alg
 import json
+
 import numpy as np
 import traitlets as tl
 
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray, create_data_array
-from podpac.core.utils import common_doc, JSONEncoder, is_json_serializable
+from podpac.core.utils import common_doc, JSONEncoder, is_json_serializable, _get_query_params_from_url, _get_from_url
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, get_default_cache_ctrl
+from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore
+
 
 COMMON_NODE_DOC = {
     'requested_coordinates':
-        """The set of coordinates requested by a user. The Node will be evaluated using these coordinates.""",
+    """The set of coordinates requested by a user. The Node will be evaluated using these coordinates.""",
     'eval_output':
-        """Default is None. Optional input array used to store the output data. When supplied, the node will not
+    """Default is None. Optional input array used to store the output data. When supplied, the node will not
             allocate its own memory for the output array. This array needs to have the correct dimensions,
             coordinates, and coordinate reference system.""",
     'eval_return':
-        """
+    """
         :class:`podpac.UnitsDataArray`
             Unit-aware xarray DataArray containing the results of the node evaluation.
         """,
     'hash_return': 'A unique hash capturing the coordinates and parameters used to evaluate the node. ',
     'outdir': "Optional output directory. Uses :attr:`podpac.settings['DISK_CACHE_DIR']` by default",
     'definition_return':
-        """
+    """
         OrderedDict
             Dictionary containing the location of the Node, the name of the plugin (if required), as well as any
             parameters and attributes that were tagged by children.
         """,
     'arr_init_type':
-        """How to initialize the array. Options are:
+    """How to initialize the array. Options are:
                 nan: uses np.full(..., np.nan) (Default option)
                 empty: uses np.empty
                 zeros: uses np.zeros()
@@ -59,11 +61,11 @@ COMMON_NODE_DOC = {
     'arr_dtype' :"Default is np.float. Datatype used by default",
     'arr_kwargs' : "Dictioary of any additional keyword arguments that will be passed to UnitsDataArray.",
     'arr_return' :
-        """
+    """
         :class:`podpac.UnitsDataArray`
             Unit-aware xarray DataArray of the desired size initialized using the method specified.
         """
-    }
+}
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -285,14 +287,14 @@ class Node(tl.HasTraits):
                 continue
 
             attr = getattr(self, key)
-            
+
             if key is 'units' and attr is None:
                 continue
 
             # check serializable
             if not is_json_serializable(attr, cls=JSONEncoder):
                 raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
-            
+
             if isinstance(attr, Node):
                 lookup_attrs[key] = attr
             else:
@@ -454,7 +456,7 @@ class Node(tl.HasTraits):
 
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
-        
+
         self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
 
     def has_cache(self, key, coordinates=None):
@@ -495,6 +497,69 @@ class Node(tl.HasTraits):
         `podpac.core.cache.cache.CacheCtrl.clear` to remove ALL cache for ALL nodes.
         """
         self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
+
+
+    #--------------------------------------------------------#
+    #  Class Methods
+    #--------------------------------------------------------#
+
+    @classmethod
+    def from_url(cls, url):
+        """
+        Create podpac Node from a WMS/WCS request.
+
+        Arguments
+        ---------
+        url : str, dict
+            The raw WMS/WCS request url, or a dictionary of query parameters
+
+        Returns
+        -------
+        :class:`Node`
+            A full Node with sub-nodes based on the definition of the node from the URL
+
+        Notes
+        -------
+        The request can specify the PODPAC node by four different mechanism:
+        * Direct node name: PODPAC will look for an appropriate node in podpac.datalib
+        * JSON definition passed using the 'PARAMS' query string: Need to specify the special LAYER/COVERAGE value of
+          "%PARAMS%"
+        * By pointing at the JSON definition retrievable with a http GET request: 
+          e.g. by setting LAYER/COVERAGE value to https://my-site.org/pipeline_definition.json
+        * By pointing at the JSON definition retrievable from an S3 bucket that the user has access to:
+          e.g by setting LAYER/COVERAGE value to s3://my-bucket-name/pipeline_definition.json
+        """
+        from podpac.core.pipeline import Pipeline
+        
+        params = _get_query_params_from_url(url)
+
+        if params['SERVICE'][0] == 'WMS':
+            layer = params["LAYERS"][0]
+        elif params['SERVICE'][0] == 'WCS':
+            layer = params["COVERAGE"][0]
+
+        pipeline_dict = None
+        if layer.startswith('https://'):
+            pipeline_json = _get_from_url(layer)
+        elif layer.startswith('s3://'):
+            parts = layer.split('/')
+            bucket = parts[2]
+            key = '/'.join(parts[3:])
+            s3 = S3CacheStore(s3_bucket=bucket)
+            pipeline_json = s3._load(key)
+        elif layer == '%PARAMS%':
+            pipeline_json = params["PARAMS"][0]
+        else:
+            pipeline_dict = OrderedDict({'nodes': 
+                                         OrderedDict({layer.replace('.', '-'): {'node': layer, 
+                                                   'attrs': json.loads(params.get("PARAMS", '[{}]')[0])
+                                                }
+                                           })
+                                         })
+        if pipeline_dict is None:
+            pipeline_dict = json.loads(pipeline_json)
+            
+        return Pipeline(definition=pipeline_dict)
 
 
 #--------------------------------------------------------#
@@ -558,12 +623,12 @@ def cache_func(key, depends=None):
     depends: str, list, traitlets.All (optional)
         Default is None. Any traits that the cached property depends on. The cached function may NOT
         change the value of any of these dependencies (this will result in a RecursionError)
-    
+
 
     Notes
     -----
     This decorator cannot handle function input parameters.
-    
+
     If the function uses any tagged attributes, these will essentially operate like dependencies
     because the cache key changes based on the node definition, which is affected by tagged attributes.
 
@@ -610,7 +675,7 @@ def cache_func(key, depends=None):
                 # print("Updating value on self:", id(self))
                 out = func(self)
                 self.put_cache(out, key, overwrite=True)
-            
+
             if depends:
                 # This sets up the observer on the dependent traits
                 # print ("setting up observer on self: ", id(self))
@@ -629,12 +694,12 @@ def cache_func(key, depends=None):
                     out = func(self)
                     self.put_cache(out, key)
                 return out
-            
+
             # Since this is the first time the function is run, set the new wrapper 
             # on the class instance so that the current function won't be called again
             # (which would set up an additional observer)
             setattr(self, func.__name__, cached_function)
-            
+
             # Return the value on the first run
             return cached_function()
         return cache_wrapper

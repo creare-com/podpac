@@ -12,11 +12,6 @@ import json
 from collections import OrderedDict
 from hashlib import md5 as hash_alg
 import re
-try: 
-    import urllib.parse as urllib
-except:   # Python 2.7
-    import urlparse as urllib
-
 
 import numpy as np
 import traitlets as tl
@@ -28,7 +23,7 @@ import pyproj
 
 import podpac
 from podpac.core.settings import settings
-from podpac.core.utils import OrderedDictTrait
+from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url
 from podpac.core.coordinates.utils import get_vunits, set_vunits, rem_vunits
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -439,17 +434,13 @@ class Coordinates(tl.HasTraits):
         :class:`Coordinates`
             podpac Coordinates
         """
-        if isinstance(url, string_types):
-            url = urllib.parse_qs(urllib.urlparse(url).query)
-
-        # Capitalize the keywords for consistency
-        params = {}
-        for k in url: 
-            params[k.upper()] = url[k]
+        params = _get_query_params_from_url(url)
 
         # The ordering here is lat/lon or y/x for WMS 1.3.0
         # The ordering here is lon/lat or x/y for WMS 1.1
         # See https://docs.geoserver.org/stable/en/user/services/wms/reference.html
+        # and https://docs.geoserver.org/stable/en/user/services/wms/basics.html
+        
         bbox = np.array(params['BBOX'][0].split(','), float)
         
         # I don't seem to need to reverse one of these... perhaps one of my test servers did not implement the spec? 
