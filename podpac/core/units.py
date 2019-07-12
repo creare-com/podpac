@@ -159,8 +159,8 @@ class UnitsDataArray(xr.DataArray):
             if format == 'json':
                 r = json.dumps(r, cls=JSONEncoder)
         elif format in ['png', 'jpg', 'jpeg']:
-            raise NotImplementedError('Format {} is not implemented.'.format(format))
-        elif format in ['tiff', 'tif', 'TIFF', 'TIF']:
+            r = get_image(self, format, *args, **kwargs)
+        elif format.upper() in ['TIFF', 'TIF', 'GEOTIFF']:
             raise NotImplementedError('Format {} is not implemented.'.format(format))
         elif format in ['pickle', 'pkl']: 
             r = cPickle.dumps(self)
@@ -355,7 +355,7 @@ def create_data_array(coords, data=np.nan, dtype=float, **kwargs):
 
     return UnitsDataArray(data, coords=coords.coords, dims=coords.idims, **kwargs)
 
-def get_image(data, format='png', vmin=None, vmax=None):
+def get_image(data, format='png', vmin=None, vmax=None, return_base64=False):
     """Return a base64-encoded image of the data
 
     Parameters
@@ -368,11 +368,14 @@ def get_image(data, format='png', vmin=None, vmax=None):
         Minimum value of colormap
     vmax : vmax, optional
         Maximum value of colormap
+    return_base64: bool, optional
+        Default is False. Normally this returns an io.BytesIO, but if True, will return a base64 encoded string.
+        
 
     Returns
     -------
-    str
-        Base64 encoded image. 
+    BytesIO/str
+        Binary or Base64 encoded image. 
     """
 
     import matplotlib
@@ -388,6 +391,7 @@ def get_image(data, format='png', vmin=None, vmax=None):
 
     data = data.squeeze()
 
+    # TODO: add styling information
     if vmin is None or np.isnan(vmin):
         vmin = np.nanmin(data)
     if vmax is None or np.isnan(vmax):
@@ -400,4 +404,7 @@ def get_image(data, format='png', vmin=None, vmax=None):
     im_data = BytesIO()
     imsave(im_data, i, format=format)
     im_data.seek(0)
-    return base64.b64encode(im_data.getvalue())
+    if return_base64:
+        return base64.b64encode(im_data.getvalue())
+    else:
+        return im_data

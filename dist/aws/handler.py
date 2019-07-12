@@ -46,7 +46,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     from podpac import settings
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
-    from podpac.core.utils import JSONEncoder
+    from podpac.core.utils import JSONEncoder, _get_query_params_from_url
     
     # check if file exists
     filename = file_key.replace('.json', '.' + pipeline.output.format)
@@ -64,15 +64,25 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
             # Something else has gone wrong... not handling this case.
             pass
     
+    # if from lambda trigger
     pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
     coords = Coordinates.from_json(
         json.dumps(_json['coordinates'], indent=4, cls=JSONEncoder))
+    format = pipeline.output.format
+    args = []
+    kwargs = {}
+    # else from api gateway and it's a WMS/WCS request
+    #    coords = Coordinates.from_url(url)
+    #    pipeline = Node.from_url(url)
+    #    format = _get_query_params_from_url(url)['FORMAT'][0].split('/')[-1]
+    #    if format in ['png', 'jpg', 'jpeg']:
+    #        kwargs['return_base64'] = True
+    
     output = pipeline.eval(coords)
     if ret_pipeline:
         return pipeline
 
-
-    body = output.to_format(pipeline.output.format)
+    body = output.to_format(format, *args, **kwargs)
     s3.put_object(Bucket=bucket_name,
                   Key=filename, Body=body)
     return
