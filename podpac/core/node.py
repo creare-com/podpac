@@ -557,7 +557,7 @@ class Node(tl.HasTraits):
                                            })
                                          })
         if pipeline_dict is None:
-            pipeline_dict = json.loads(pipeline_json)
+            pipeline_dict = json.loads(pipeline_json, object_pairs_hook=OrderedDict)
             
         return Pipeline(definition=pipeline_dict)
 
