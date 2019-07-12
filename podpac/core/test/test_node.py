@@ -527,7 +527,7 @@ class TestCachePropertyDecorator(object):
         assert t2.c2() == 2
         assert t2.d2() == 2
         
-class TestFromClassMethods(self):
+class TestFromClassMethods(object):
     def test_from_url(self):
         url = (r'http://testwms/?map=map&&service={service}&request=GetMap&{layername}={layer}&styles=&format=image%2Fpng'
                r'&transparent=true&version=1.1.1&transparency=true&width=256&height=256&srs=EPSG%3A4326'

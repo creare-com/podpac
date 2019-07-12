@@ -25,6 +25,8 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         subprocess.call(['unzip', '/tmp/' + deps, '-d', '/tmp'])
         sys.path.append('/tmp/')
         subprocess.call(['rm', '/tmp/' + deps])
+        
+    # <start S3 trigger specific>
     file_key = urllib.unquote_plus(
         event['Records'][0]['s3']['object']['key'])
     _json = ''
@@ -39,11 +41,13 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     _json = json.loads(
         _json, object_pairs_hook=OrderedDict)
     pipeline_json = _json['pipeline']
+    # < End S3 trigger specific >
 
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
     import matplotlib
     matplotlib.use('agg')
     from podpac import settings
+    from podpac.core.node import Node
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
     from podpac.core.utils import JSONEncoder, _get_query_params_from_url
@@ -64,7 +68,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
             # Something else has gone wrong... not handling this case.
             pass
     
-    # if from lambda trigger
+    # if from S3 trigger
     pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
     coords = Coordinates.from_json(
         json.dumps(_json['coordinates'], indent=4, cls=JSONEncoder))

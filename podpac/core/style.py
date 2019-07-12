@@ -87,7 +87,7 @@ class Style(tl.HasTraits):
         -----------
         s : str
             JSON definition
-            kkkk
+
         Returns
         --------
         Style
