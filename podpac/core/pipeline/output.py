@@ -207,4 +207,4 @@ class ImageOutput(Output):
 
     # TODO: docstring?
     def write(self, output, coordinates):
-        self.image = get_image(output, format=self.format, vmin=self.vmin, vmax=self.vmax)
+        self.image = get_image(output, format=self.format, vmin=self.vmin, vmax=self.vmax, return_base64=True)

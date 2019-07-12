@@ -540,7 +540,7 @@ class TestFromClassMethods(object):
         for service, layername in zip(['WMS', 'WCS'], ['LAYERS', 'COVERAGE']):
             for layer, param in zip(
                     ['algorithm.SinCoords', '%PARAMS%', 
-                    urllib.urlencode({'a':'https://raw.githubusercontent.com/creare-com/podpac/develop/podpac/core/pipeline/test/test.json'})[2:],
+                    #urllib.urlencode({'a':'https://raw.githubusercontent.com/creare-com/podpac/develop/podpac/core/pipeline/test/test.json'})[2:],
                     #urllib.urlencode({'a':'s3://podpac-s3/test/test.json'})[2:]  # Tested locally, works fine. Hard to test with CI
                     ],
                     params):
