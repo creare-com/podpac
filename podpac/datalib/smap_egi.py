@@ -71,7 +71,7 @@ class SMAP(EGI):
     nan_vals = [-9999.0]
     min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3}).tag(attr=True)
     check_quality_flags = tl.Bool(True).tag(attr=True)
-    quality_flag_key = tl.Unicode().tag(attr=True)
+    quality_flag_key = tl.Unicode(allow_none=True).tag(attr=True)
 
     # set default short_name, data_key, lat_key, lon_key, version
     @tl.default('short_name')
