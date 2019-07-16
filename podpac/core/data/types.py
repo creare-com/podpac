@@ -31,7 +31,7 @@ from lazy_import import lazy_module, lazy_class
 from podpac.core import authentication
 from podpac.core.node import Node
 from podpac.core.settings import settings
-from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait, NodeTrait
+from podpac.core.utils import common_doc, trait_is_defined, ArrayTrait, NodeTrait
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import Dimension
@@ -430,6 +430,14 @@ class Rasterio(DataSource):
 
     @tl.observe('source')
     def _update_dataset(self, change):
+        if hasattr(self, '_band_count'):
+            delattr(self, '_band_count')
+
+        if hasattr(self, '_band_descriptions'):
+            delattr(self, '_band_descriptions')
+        
+        if hasattr(self, '_band_keys'):
+            delattr(self, '_band_keys')
 
         # only update dataset if dataset trait has been defined the first time
         if trait_is_defined(self, 'dataset'):
@@ -481,18 +489,22 @@ class Rasterio(DataSource):
         data.data.ravel()[:] = raster_data.ravel()
         return data
     
-    @cached_property
+    @property
     def band_count(self):
         """The number of bands
-        
+
         Returns
         -------
         int
             The number of bands in the dataset
         """
-        return self.dataset.count
+        
+        if not hasattr(self, '_band_count'):
+            self._band_count = self.dataset.count
+        
+        return self._band_count
     
-    @cached_property
+    @property
     def band_descriptions(self):
         """A description of each band contained in dataset.tags
         
@@ -502,12 +514,13 @@ class Rasterio(DataSource):
             Dictionary of band_number: band_description pairs. The band_description values are a dictionary, each 
             containing a number of keys -- depending on the metadata
         """
-        bands = OrderedDict()
-        for i in range(self.dataset.count):
-            bands[i] = self.dataset.tags(i + 1)
-        return bands
 
-    @cached_property
+        if not hasattr(self, '_band_descriptions'):
+            self._band_descriptions = OrderedDict((i, self.dataset.tags(i+1)) for i in range(self.band_count))
+
+        return self._band_descriptions
+
+    @property
     def band_keys(self):
         """An alternative view of band_descriptions based on the keys present in the metadata
         
@@ -517,22 +530,13 @@ class Rasterio(DataSource):
             Dictionary of metadata keys, where the values are the value of the key for each band. 
             For example, band_keys['TIME'] = ['2015', '2016', '2017'] for a dataset with three bands.
         """
-        keys = {}
-        for i in range(self.band_count):
-            for k in self.band_descriptions[i].keys():
-                keys[k] = None
-        keys = keys.keys()
-        band_keys = defaultdict(lambda: [])
-        for k in keys:
-            for i in range(self.band_count):
-                band_keys[k].append(self.band_descriptions[i].get(k, None))
-        return band_keys
-    
-    @tl.observe('source')
-    def _clear_band_description(self, change):
-        clear_cache(self, change, ['band_descriptions', 'band_count',
-                                   'band_keys'])
 
+        if not hasattr(self, '_band_keys'):
+            keys = {k for i in range(self.band_count) for k in self.band_descriptions[i]} # set
+            self._band_keys = {k: [self.band_descriptions[i].get(k) for i in range(self.band_count)] for k in keys}
+
+        return self._band_keys
+    
     def get_band_numbers(self, key, value):
         """Return the bands that have a key equal to a specified value.
         

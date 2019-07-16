@@ -350,14 +350,18 @@ class TestRasterio(object):
         assert isinstance(numbers, np.ndarray)
         np.testing.assert_array_equal(numbers, np.arange(3) + 1)
 
-    def tests_source(self):
+    def test_source(self):
         """test source attribute and trailets observe"""
         
         node = Rasterio(source=self.source)
         assert node.source == self.source
 
-        # clear cache when source changes
-        node._clear_band_description(change={'old': None, 'new': None})
+    def test_change_source(self):
+        node = Rasterio(source=self.source)
+        assert node.band_count == 3
+        
+        node.source = self.source.replace('RGB.byte.tif', 'h5raster.hdf5')
+        assert node.band_count == 1
 
 class TestH5PY(object):
     source = os.path.join(os.path.dirname(__file__), 'assets/h5raster.hdf5')
