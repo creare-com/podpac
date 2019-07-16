@@ -27,7 +27,9 @@ install_requires = [
 ]
 
 if sys.version_info.major == 2:
-    install_requires += ["future>=0.16"]
+    install_requires += [
+        "future>=0.16"
+    ]
 
 extras_require = {
     "datatype": [
@@ -39,9 +41,13 @@ extras_require = {
         "zarr>=2.3",
     ],
     "aws": [
-        "awscli>=1.11", "boto3>=1.4", "s3fs>=0.2"],
+        "awscli>=1.11",
+        "boto3>=1.4",
+        "s3fs>=0.2"
+    ],
     "algorithms": [
-        "numexpr>=2.6"],
+        "numexpr>=2.6"
+    ],
     "notebook": [
         "jupyterlab",
         "ipyleaflet",
