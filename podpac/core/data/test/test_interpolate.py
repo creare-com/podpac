@@ -27,13 +27,7 @@ from podpac.core.data.interpolation import (
 )
 
 from podpac.core.data.interpolator import Interpolator, InterpolatorException
-from podpac.core.data.interpolators import (
-    NearestNeighbor,
-    NearestPreview,
-    Rasterio,
-    ScipyGrid,
-    ScipyPoint,
-)
+from podpac.core.data.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyGrid, ScipyPoint
 
 # test fixtures
 from podpac.core.data.test.test_datasource import MockArrayDataSource
@@ -47,9 +41,7 @@ class TestInterpolation(object):
         pass
 
     def test_interpolation_methods(self):
-        assert len(
-            set(INTERPOLATION_METHODS) & set(INTERPOLATION_METHODS_DICT.keys())
-        ) == len(INTERPOLATION_METHODS)
+        assert len(set(INTERPOLATION_METHODS) & set(INTERPOLATION_METHODS_DICT.keys())) == len(INTERPOLATION_METHODS)
 
     def test_interpolator_init_type(self):
         """test constructor
@@ -73,9 +65,7 @@ class TestInterpolation(object):
     def test_dict_definition(self):
 
         # should handle a default definition without any dimensions specified as keys
-        interp = Interpolation(
-            {"method": "nearest", "params": {"spatial_tolerance": 1}}
-        )
+        interp = Interpolation({"method": "nearest", "params": {"spatial_tolerance": 1}})
         assert isinstance(interp.config[("default",)], dict)
         assert interp.config[("default",)]["method"] == "nearest"
         assert isinstance(interp.config[("default",)]["interpolators"][0], Interpolator)
@@ -113,20 +103,11 @@ class TestInterpolation(object):
 
         # should throw an error if interpolators is not a list
         with pytest.raises(TypeError):
-            Interpolation(
-                {("lat", "lon"): {"method": "nearest", "interpolators": "test"}}
-            )
+            Interpolation({("lat", "lon"): {"method": "nearest", "interpolators": "test"}})
 
         # should throw an error if interpolators are not Interpolator classes
         with pytest.raises(TypeError):
-            Interpolation(
-                {
-                    ("lat", "lon"): {
-                        "method": "nearest",
-                        "interpolators": [NearestNeighbor, "test"],
-                    }
-                }
-            )
+            Interpolation({("lat", "lon"): {"method": "nearest", "interpolators": [NearestNeighbor, "test"]}})
 
         # should throw an error if dimension is defined twice
         with pytest.raises(InterpolationException):
@@ -136,41 +117,26 @@ class TestInterpolation(object):
         interp = Interpolation({("lat", "lon"): {"method": "nearest"}})
         assert isinstance(interp.config[("lat", "lon")], dict)
         assert interp.config[("lat", "lon")]["method"] == "nearest"
-        assert isinstance(
-            interp.config[("lat", "lon")]["interpolators"][0], Interpolator
-        )
+        assert isinstance(interp.config[("lat", "lon")]["interpolators"][0], Interpolator)
         assert interp.config[("lat", "lon")]["params"] == {}
 
         # should not allow custom methods if interpolators can't support
         with pytest.raises(InterpolatorException):
             interp = Interpolation(
-                {
-                    ("lat", "lon"): {
-                        "method": "myinter",
-                        "interpolators": [NearestNeighbor, NearestPreview],
-                    }
-                }
+                {("lat", "lon"): {"method": "myinter", "interpolators": [NearestNeighbor, NearestPreview]}}
             )
 
         # should allow custom methods if interpolators can support
         class MyInterp(Interpolator):
             methods_supported = ["myinter"]
 
-        interp = Interpolation(
-            {("lat", "lon"): {"method": "myinter", "interpolators": [MyInterp]}}
-        )
+        interp = Interpolation({("lat", "lon"): {"method": "myinter", "interpolators": [MyInterp]}})
         assert interp.config[("lat", "lon")]["method"] == "myinter"
         assert isinstance(interp.config[("lat", "lon")]["interpolators"][0], MyInterp)
 
         # should allow params to be set
         interp = Interpolation(
-            {
-                ("lat", "lon"): {
-                    "method": "myinter",
-                    "interpolators": [MyInterp],
-                    "params": {"spatial_tolerance": 5},
-                }
-            }
+            {("lat", "lon"): {"method": "myinter", "interpolators": [MyInterp], "params": {"spatial_tolerance": 5}}}
         )
         assert interp.config[("lat", "lon")]["params"] == {"spatial_tolerance": 5}
 
@@ -193,39 +159,22 @@ class TestInterpolation(object):
         assert interp.config[("default",)]["interpolators"][0].method == "nearest"
 
         # Interpolation init should init all interpolators in the list
-        interp = Interpolation(
-            {"default": {"method": "nearest", "params": {"spatial_tolerance": 1}}}
-        )
+        interp = Interpolation({"default": {"method": "nearest", "params": {"spatial_tolerance": 1}}})
         assert interp.config[("default",)]["interpolators"][0].spatial_tolerance == 1
 
         # should throw TraitErrors defined by Interpolator
         with pytest.raises(tl.TraitError):
-            Interpolation(
-                {
-                    "default": {
-                        "method": "nearest",
-                        "params": {"spatial_tolerance": "tol"},
-                    }
-                }
-            )
+            Interpolation({"default": {"method": "nearest", "params": {"spatial_tolerance": "tol"}}})
 
         # should not allow undefined params
-        interp = Interpolation(
-            {"default": {"method": "nearest", "params": {"myarg": 1}}}
-        )
+        interp = Interpolation({"default": {"method": "nearest", "params": {"myarg": 1}}})
         with pytest.raises(AttributeError):
             assert interp.config[("default",)]["interpolators"][0].myarg == "tol"
 
     def test_select_interpolator_queue(self):
 
-        reqcoords = Coordinates(
-            [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
-            dims=["lat", "lon", "time", "alt"],
-        )
-        srccoords = Coordinates(
-            [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
-            dims=["lat", "lon", "time", "alt"],
-        )
+        reqcoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"])
+        srccoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"])
 
         # create a few dummy interpolators that handle certain dimensions
         # (can_select is defined by default to look at dims_supported)
@@ -263,40 +212,25 @@ class TestInterpolation(object):
         # we want to interpolate (lat, lon) first, then after (time, alt)
         interp = Interpolation(
             {
-                ("lat", "lon"): {
-                    "method": "myinterp",
-                    "interpolators": [LatLon, TimeLat],
-                },
-                ("time", "alt"): {
-                    "method": "myinterp",
-                    "interpolators": [TimeLat, Lon],
-                },
+                ("lat", "lon"): {"method": "myinterp", "interpolators": [LatLon, TimeLat]},
+                ("time", "alt"): {"method": "myinterp", "interpolators": [TimeLat, Lon]},
             }
         )
 
         # default = 'nearest', which will return NearestPreview for can_select
-        interpolator_queue = interp._select_interpolator_queue(
-            srccoords, reqcoords, "can_select"
-        )
+        interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, "can_select")
         assert isinstance(interpolator_queue, OrderedDict)
         assert isinstance(interpolator_queue[("lat", "lon")], LatLon)
-        assert ("time", "alt") not in interpolator_queue and (
-            "alt",
-            "time",
-        ) not in interpolator_queue
+        assert ("time", "alt") not in interpolator_queue and ("alt", "time") not in interpolator_queue
 
         # should throw an error if strict is set and not all dimensions can be handled
         with pytest.raises(InterpolationException):
             interp_copy = deepcopy(interp)
             del interp_copy.config[("default",)]
-            interpolator_queue = interp_copy._select_interpolator_queue(
-                srccoords, reqcoords, "can_select", strict=True
-            )
+            interpolator_queue = interp_copy._select_interpolator_queue(srccoords, reqcoords, "can_select", strict=True)
 
         # default = Nearest, which can handle all dims for can_interpolate
-        interpolator_queue = interp._select_interpolator_queue(
-            srccoords, reqcoords, "can_interpolate"
-        )
+        interpolator_queue = interp._select_interpolator_queue(srccoords, reqcoords, "can_interpolate")
         assert isinstance(interpolator_queue, OrderedDict)
         assert isinstance(interpolator_queue[("lat", "lon")], LatLon)
 
@@ -307,14 +241,8 @@ class TestInterpolation(object):
 
     def test_select_coordinates(self):
 
-        reqcoords = Coordinates(
-            [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
-            dims=["lat", "lon", "time", "alt"],
-        )
-        srccoords = Coordinates(
-            [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
-            dims=["lat", "lon", "time", "alt"],
-        )
+        reqcoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"])
+        srccoords = Coordinates([[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"])
 
         # create a few dummy interpolators that handle certain dimensions
         # (can_select is defined by default to look at dims_supported)
@@ -343,14 +271,8 @@ class TestInterpolation(object):
         # we want to interpolate (lat, lon) first, then after (time, alt)
         interp = Interpolation(
             {
-                ("lat", "lon"): {
-                    "method": "myinterp",
-                    "interpolators": [LatLon, TimeLat],
-                },
-                ("time", "alt"): {
-                    "method": "myinterp",
-                    "interpolators": [TimeLat, Lon],
-                },
+                ("lat", "lon"): {"method": "myinterp", "interpolators": [LatLon, TimeLat]},
+                ("time", "alt"): {"method": "myinterp", "interpolators": [TimeLat, Lon]},
             }
         )
 
@@ -364,36 +286,21 @@ class TestInterpolation(object):
         class TestInterp(Interpolator):
             dims_supported = ["lat", "lon"]
 
-            def interpolate(
-                self,
-                udims,
-                source_coordinates,
-                source_data,
-                eval_coordinates,
-                output_data,
-            ):
+            def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
                 output_data = source_data
                 return output_data
 
         # test basic functionality
-        reqcoords = Coordinates(
-            [[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"]
-        )
+        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
         srccoords = Coordinates([[0, 2, 4], [0, 3, 4]], dims=["lat", "lon"])
         srcdata = UnitsDataArray(
-            np.random.rand(3, 3),
-            coords=[srccoords[c].coordinates for c in srccoords],
-            dims=srccoords.dims,
+            np.random.rand(3, 3), coords=[srccoords[c].coordinates for c in srccoords], dims=srccoords.dims
         )
         outdata = UnitsDataArray(
-            np.zeros(srcdata.shape),
-            coords=[reqcoords[c].coordinates for c in reqcoords],
-            dims=reqcoords.dims,
+            np.zeros(srcdata.shape), coords=[reqcoords[c].coordinates for c in reqcoords], dims=reqcoords.dims
         )
 
-        interp = Interpolation(
-            {("lat", "lon"): {"method": "myinterp", "interpolators": [TestInterp]}}
-        )
+        interp = Interpolation({("lat", "lon"): {"method": "myinterp", "interpolators": [TestInterp]}})
         outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
@@ -402,32 +309,19 @@ class TestInterpolation(object):
         class TestFakeInterp(Interpolator):
             dims_supported = ["lat"]
 
-            def interpolate(
-                self,
-                udims,
-                source_coordinates,
-                source_data,
-                eval_coordinates,
-                output_data,
-            ):
+            def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
                 return None
 
         reqcoords = Coordinates([[1]], dims=["lat"])
         srccoords = Coordinates([[1]], dims=["lat"])
         srcdata = UnitsDataArray(
-            np.random.rand(1),
-            coords=[srccoords[c].coordinates for c in srccoords],
-            dims=srccoords.dims,
+            np.random.rand(1), coords=[srccoords[c].coordinates for c in srccoords], dims=srccoords.dims
         )
         outdata = UnitsDataArray(
-            np.zeros(srcdata.shape),
-            coords=[reqcoords[c].coordinates for c in reqcoords],
-            dims=reqcoords.dims,
+            np.zeros(srcdata.shape), coords=[reqcoords[c].coordinates for c in reqcoords], dims=reqcoords.dims
         )
 
-        interp = Interpolation(
-            {("lat", "lon"): {"method": "myinterp", "interpolators": [TestFakeInterp]}}
-        )
+        interp = Interpolation({("lat", "lon"): {"method": "myinterp", "interpolators": [TestFakeInterp]}})
         outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
@@ -457,9 +351,7 @@ class TestInterpolators(object):
         def test_dim_in(self):
             interpolator = Interpolator(methods_supported=["test"], method="test")
 
-            coords = Coordinates(
-                [clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"]
-            )
+            coords = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
             assert interpolator._dim_in("lat", coords)
             assert interpolator._dim_in("lat", coords, unstacked=True)
             assert not interpolator._dim_in("time", coords)
@@ -468,33 +360,21 @@ class TestInterpolators(object):
             assert interpolator._dim_in("lat", coords, coords_two)
             assert not interpolator._dim_in("lon", coords, coords_two)
 
-            coords_three = Coordinates(
-                [(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"]
-            )
+            coords_three = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
             assert not interpolator._dim_in("lat", coords, coords_two, coords_three)
-            assert interpolator._dim_in(
-                "lat", coords, coords_two, coords_three, unstacked=True
-            )
+            assert interpolator._dim_in("lat", coords, coords_two, coords_three, unstacked=True)
 
     class TestNearest(object):
         def test_nearest_preview_select(self):
 
             # test straight ahead functionality
-            reqcoords = Coordinates(
-                [[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"]
-            )
-            srccoords = Coordinates(
-                [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"]
-            )
+            reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
+            srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
 
             interp = Interpolation("nearest_preview")
 
-            srccoords, srccoords_index = srccoords.intersect(
-                reqcoords, outer=True, return_indices=True
-            )
-            coords, cidx = interp.select_coordinates(
-                srccoords, srccoords_index, reqcoords
-            )
+            srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+            coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
 
             assert len(coords) == len(srccoords) == len(cidx)
             assert len(coords["lat"]) == len(reqcoords["lat"])
@@ -503,21 +383,13 @@ class TestInterpolators(object):
 
             # test when selection is applied serially
             # this is equivalent to above
-            reqcoords = Coordinates(
-                [[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"]
-            )
-            srccoords = Coordinates(
-                [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"]
-            )
+            reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
+            srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
 
             interp = Interpolation({"lat": "nearest_preview", "lon": "nearest_preview"})
 
-            srccoords, srccoords_index = srccoords.intersect(
-                reqcoords, outer=True, return_indices=True
-            )
-            coords, cidx = interp.select_coordinates(
-                srccoords, srccoords_index, reqcoords
-            )
+            srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
+            coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
 
             assert len(coords) == len(srccoords) == len(cidx)
             assert len(coords["lat"]) == len(reqcoords["lat"])
@@ -546,37 +418,21 @@ class TestInterpolators(object):
                 # unstacked 1D
                 source = np.random.rand(5)
                 coords_src = Coordinates([np.linspace(0, 10, 5)], dims=["lat"])
-                node = MockArrayDataSource(
-                    source=source,
-                    native_coordinates=coords_src,
-                    interpolation=interpolation,
-                )
+                node = MockArrayDataSource(source=source, native_coordinates=coords_src, interpolation=interpolation)
 
                 coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=["lat"])
                 output = node.eval(coords_dst)
 
                 assert isinstance(output, UnitsDataArray)
                 assert np.all(output.lat.values == coords_dst.coords["lat"])
-                assert (
-                    output.values[0] == source[0]
-                    and output.values[1] == source[0]
-                    and output.values[2] == source[1]
-                )
+                assert output.values[0] == source[0] and output.values[1] == source[0] and output.values[2] == source[1]
 
                 # unstacked N-D
                 source = np.random.rand(5, 5)
-                coords_src = Coordinates(
-                    [clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"]
-                )
-                coords_dst = Coordinates(
-                    [clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"]
-                )
+                coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
+                coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
-                node = MockArrayDataSource(
-                    source=source,
-                    native_coordinates=coords_src,
-                    interpolation=interpolation,
-                )
+                node = MockArrayDataSource(source=source, native_coordinates=coords_src, interpolation=interpolation)
                 output = node.eval(coords_dst)
 
                 assert isinstance(output, UnitsDataArray)
@@ -586,17 +442,10 @@ class TestInterpolators(object):
                 # stacked
                 # TODO: implement stacked handling
                 source = np.random.rand(5)
-                coords_src = Coordinates(
-                    [(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"]
-                )
+                coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
                 node = MockArrayDataSource(source=source, native_coordinates=coords_src)
-                node.interpolation = {
-                    "method": "nearest",
-                    "interpolators": [NearestNeighbor],
-                }
-                coords_dst = Coordinates(
-                    [(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"]
-                )
+                node.interpolation = {"method": "nearest", "interpolators": [NearestNeighbor]}
+                coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
                 with pytest.raises(InterpolationException):
                     output = node.eval(coords_dst)
@@ -604,17 +453,10 @@ class TestInterpolators(object):
                 # TODO: implement stacked handling
                 # source = stacked, dest = unstacked
                 source = np.random.rand(5)
-                coords_src = Coordinates(
-                    [(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"]
-                )
+                coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
                 node = MockArrayDataSource(source=source, native_coordinates=coords_src)
-                node.interpolation = {
-                    "method": "nearest",
-                    "interpolators": [NearestNeighbor],
-                }
-                coords_dst = Coordinates(
-                    [np.linspace(1, 9, 3), np.linspace(1, 9, 3)], dims=["lat", "lon"]
-                )
+                node.interpolation = {"method": "nearest", "interpolators": [NearestNeighbor]}
+                coords_dst = Coordinates([np.linspace(1, 9, 3), np.linspace(1, 9, 3)], dims=["lat", "lon"])
 
                 with pytest.raises(InterpolationException):
                     output = node.eval(coords_dst)
@@ -622,17 +464,10 @@ class TestInterpolators(object):
                 # TODO: implement stacked handling
                 # source = unstacked, dest = stacked
                 source = np.random.rand(5, 5)
-                coords_src = Coordinates(
-                    [np.linspace(0, 10, 5), np.linspace(0, 10, 5)], dims=["lat", "lon"]
-                )
+                coords_src = Coordinates([np.linspace(0, 10, 5), np.linspace(0, 10, 5)], dims=["lat", "lon"])
                 node = MockArrayDataSource(source=source, native_coordinates=coords_src)
-                node.interpolation = {
-                    "method": "nearest",
-                    "interpolators": [NearestNeighbor],
-                }
-                coords_dst = Coordinates(
-                    [(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"]
-                )
+                node.interpolation = {"method": "nearest", "interpolators": [NearestNeighbor]}
+                coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
                 with pytest.raises(InterpolationException):
                     output = node.eval(coords_dst)
@@ -645,34 +480,24 @@ class TestInterpolators(object):
             node = MockArrayDataSource(
                 source=source,
                 native_coordinates=coords_src,
-                interpolation={
-                    "default": {
-                        "method": "nearest",
-                        "params": {"spatial_tolerance": 1.1},
-                    }
-                },
+                interpolation={"default": {"method": "nearest", "params": {"spatial_tolerance": 1.1}}},
             )
 
             coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=["lat"])
             output = node.eval(coords_dst)
 
-            print(output)
-            print(source)
+            print (output)
+            print (source)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
-            assert (
-                output.values[0] == source[0]
-                and np.isnan(output.values[1])
-                and output.values[2] == source[1]
-            )
+            assert output.values[0] == source[0] and np.isnan(output.values[1]) and output.values[2] == source[1]
 
         def test_time_tolerance(self):
 
             # unstacked 1D
             source = np.random.rand(5, 5)
             coords_src = Coordinates(
-                [np.linspace(0, 10, 5), clinspace("2018-01-01", "2018-01-09", 5)],
-                dims=["lat", "time"],
+                [np.linspace(0, 10, 5), clinspace("2018-01-01", "2018-01-09", 5)], dims=["lat", "time"]
             )
             node = MockArrayDataSource(
                 source=source,
@@ -680,17 +505,13 @@ class TestInterpolators(object):
                 interpolation={
                     "default": {
                         "method": "nearest",
-                        "params": {
-                            "spatial_tolerance": 1.1,
-                            "time_tolerance": np.timedelta64(1, "D"),
-                        },
+                        "params": {"spatial_tolerance": 1.1, "time_tolerance": np.timedelta64(1, "D")},
                     }
                 },
             )
 
             coords_dst = Coordinates(
-                [[1, 1.2, 1.5, 5, 9], clinspace("2018-01-01", "2018-01-09", 3)],
-                dims=["lat", "time"],
+                [[1, 1.2, 1.5, 5, 9], clinspace("2018-01-01", "2018-01-09", 3)], dims=["lat", "time"]
             )
             output = node.eval(coords_dst)
 
@@ -716,12 +537,8 @@ class TestInterpolators(object):
             source = np.arange(0, 15)
             source.resize((3, 5))
 
-            coords_src = Coordinates(
-                [clinspace(0, 10, 3), clinspace(0, 10, 5)], dims=["lat", "lon"]
-            )
-            coords_dst = Coordinates(
-                [clinspace(1, 11, 3), clinspace(1, 11, 5)], dims=["lat", "lon"]
-            )
+            coords_src = Coordinates([clinspace(0, 10, 3), clinspace(0, 10, 5)], dims=["lat", "lon"])
+            coords_dst = Coordinates([clinspace(1, 11, 3), clinspace(1, 11, 5)], dims=["lat", "lon"])
 
             # try one specific rasterio case to measure output
             node = MockArrayDataSource(source=source, native_coordinates=coords_src)
@@ -751,12 +568,8 @@ class TestInterpolators(object):
             """should handle descending"""
 
             source = np.random.rand(5, 5)
-            coords_src = Coordinates(
-                [clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"]
-            )
-            coords_dst = Coordinates(
-                [clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"]
-            )
+            coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
+            coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
             node = MockArrayDataSource(
                 source=source,
@@ -777,12 +590,8 @@ class TestInterpolators(object):
             source = np.arange(0, 25)
             source.resize((5, 5))
 
-            coords_src = Coordinates(
-                [clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"]
-            )
-            coords_dst = Coordinates(
-                [clinspace(1, 11, 5), clinspace(1, 11, 5)], dims=["lat", "lon"]
-            )
+            coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
+            coords_dst = Coordinates([clinspace(1, 11, 5), clinspace(1, 11, 5)], dims=["lat", "lon"])
 
             # try one specific rasterio case to measure output
             node = MockArrayDataSource(source=source, native_coordinates=coords_src)
@@ -791,16 +600,13 @@ class TestInterpolators(object):
 
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
-            print(output)
+            print (output)
             assert output.data[0, 0] == 0.0
             assert output.data[0, 3] == 3.0
             assert output.data[1, 3] == 8.0
             assert np.isnan(output.data[0, 4])  # TODO: how to handle outside bounds
 
-            node.interpolation = {
-                "method": "cubic_spline",
-                "interpolators": [ScipyGrid],
-            }
+            node.interpolation = {"method": "cubic_spline", "interpolators": [ScipyGrid]}
             output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
@@ -820,14 +626,8 @@ class TestInterpolators(object):
 
             # try >2 dims
             source = np.random.rand(5, 5, 3)
-            coords_src = Coordinates(
-                [clinspace(0, 10, 5), clinspace(0, 10, 5), [2, 3, 5]],
-                dims=["lat", "lon", "time"],
-            )
-            coords_dst = Coordinates(
-                [clinspace(1, 11, 5), clinspace(1, 11, 5), [2, 3, 5]],
-                dims=["lat", "lon", "time"],
-            )
+            coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5), [2, 3, 5]], dims=["lat", "lon", "time"])
+            coords_dst = Coordinates([clinspace(1, 11, 5), clinspace(1, 11, 5), [2, 3, 5]], dims=["lat", "lon", "time"])
 
             node = MockArrayDataSource(
                 source=source,
@@ -847,12 +647,8 @@ class TestInterpolators(object):
             """should handle descending"""
 
             source = np.random.rand(5, 5)
-            coords_src = Coordinates(
-                [clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"]
-            )
-            coords_dst = Coordinates(
-                [clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"]
-            )
+            coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
+            coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
             node = MockArrayDataSource(
                 source=source,
@@ -869,12 +665,8 @@ class TestInterpolators(object):
             """should handle descending"""
 
             source = np.random.rand(5, 5)
-            coords_src = Coordinates(
-                [clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"]
-            )
-            coords_dst = Coordinates(
-                [clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"]
-            )
+            coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
+            coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
             node = MockArrayDataSource(
                 source=source,
@@ -891,12 +683,8 @@ class TestInterpolators(object):
             """ irregular interpolation """
 
             source = np.random.rand(5, 5)
-            coords_src = Coordinates(
-                [clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"]
-            )
-            coords_dst = Coordinates(
-                [[[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]], dims=["lat_lon"]
-            )
+            coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
+            coords_dst = Coordinates([[[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]], dims=["lat_lon"])
 
             node = MockArrayDataSource(
                 source=source,
@@ -916,12 +704,8 @@ class TestInterpolators(object):
             """ interpolate point data to nearest neighbor with various coords_dst"""
 
             source = np.random.rand(6)
-            coords_src = Coordinates(
-                [[[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]], dims=["lat_lon"]
-            )
-            coords_dst = Coordinates(
-                [[[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]], dims=["lat_lon"]
-            )
+            coords_src = Coordinates([[[0, 2, 4, 6, 8, 10], [0, 2, 4, 5, 6, 10]]], dims=["lat_lon"])
+            coords_dst = Coordinates([[[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]], dims=["lat_lon"])
             node = MockArrayDataSource(
                 source=source,
                 native_coordinates=coords_src,
@@ -934,9 +718,7 @@ class TestInterpolators(object):
             assert output.values[0] == source[0]
             assert output.values[-1] == source[3]
 
-            coords_dst = Coordinates(
-                [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]], dims=["lat", "lon"]
-            )
+            coords_dst = Coordinates([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]], dims=["lat", "lon"])
             output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])

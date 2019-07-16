@@ -8,13 +8,7 @@ import numpy as np
 
 # podpac imports
 from podpac.core.data.interpolator import Interpolator
-from podpac.core.data.interpolators import (
-    NearestNeighbor,
-    NearestPreview,
-    Rasterio,
-    ScipyPoint,
-    ScipyGrid,
-)
+from podpac.core.data.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGrid
 
 INTERPOLATION_DEFAULT = "nearest"
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
@@ -117,12 +111,8 @@ class Interpolation(object):
 
     definition = None
     config = OrderedDict()  # container for interpolation methods for each dimension
-    _last_interpolator_queue = (
-        None
-    )  # container for the last run interpolator queue - useful for debugging
-    _last_select_queue = (
-        None
-    )  # container for the last run select queue - useful for debugging
+    _last_interpolator_queue = None  # container for the last run interpolator queue - useful for debugging
+    _last_select_queue = None  # container for the last run select queue - useful for debugging
 
     def __init__(self, definition=INTERPOLATION_DEFAULT):
 
@@ -161,9 +151,7 @@ class Interpolation(object):
                     if set(config_dims) & set(udims):
                         raise InterpolationException(
                             'Dimensions "{}" cannot be defined '.format(udims)
-                            + "multiple times in interpolation definition {}".format(
-                                definition
-                            )
+                            + "multiple times in interpolation definition {}".format(definition)
                         )
 
                 # get interpolation method
@@ -230,11 +218,7 @@ class Interpolation(object):
                     '"{}" is not a valid interpolation shortcut. '.format(definition)
                     + "Valid interpolation shortcuts: {}".format(INTERPOLATION_METHODS)
                 )
-            return {
-                "method": definition,
-                "interpolators": INTERPOLATION_METHODS_DICT[definition],
-                "params": {},
-            }
+            return {"method": definition, "interpolators": INTERPOLATION_METHODS_DICT[definition], "params": {}}
 
         elif isinstance(definition, dict):
 
@@ -248,16 +232,11 @@ class Interpolation(object):
                 method_string = definition["method"]
 
             # if specifying custom method, user must include interpolators
-            if (
-                "interpolators" not in definition
-                and method_string not in INTERPOLATION_METHODS
-            ):
+            if "interpolators" not in definition and method_string not in INTERPOLATION_METHODS:
                 raise InterpolationException(
                     '"{}" is not a valid interpolation shortcut. '.format(method_string)
                     + 'Specify list "interpolators" or change "method" '
-                    + "to a valid interpolation shortcut: {}".format(
-                        INTERPOLATION_METHODS
-                    )
+                    + "to a valid interpolation shortcut: {}".format(INTERPOLATION_METHODS)
                 )
             elif "interpolators" not in definition:
                 interpolators = INTERPOLATION_METHODS_DICT[method_string]
@@ -296,9 +275,7 @@ class Interpolation(object):
                         interpolators[idx] = INTERPOLATORS_DICT[interpolator_class]
                     else:
                         raise TypeError(
-                            'Interpolator "{}" is not in the dictionary of valid '.format(
-                                interpolator_class
-                            )
+                            'Interpolator "{}" is not in the dictionary of valid '.format(interpolator_class)
                             + "interpolators: {}".format(INTERPOLATORS_DICT)
                         )
 
@@ -307,11 +284,7 @@ class Interpolation(object):
                 self._validate_interpolator(interpolator)
 
             # if all checks pass, return the definition
-            return {
-                "method": method_string,
-                "interpolators": interpolators,
-                "params": params,
-            }
+            return {"method": method_string, "interpolators": interpolators, "params": params}
 
         else:
             raise TypeError(
@@ -366,9 +339,7 @@ class Interpolation(object):
         # set to interpolation configuration for dims
         self.config[udims] = definition
 
-    def _select_interpolator_queue(
-        self, source_coordinates, eval_coordinates, select_method, strict=False
-    ):
+    def _select_interpolator_queue(self, source_coordinates, eval_coordinates, select_method, strict=False):
         """Create interpolator queue based on interpolation configuration and requested/native source_coordinates
         
         Parameters
@@ -417,9 +388,7 @@ class Interpolation(object):
                     break
 
                 # see which dims the interpolator can handle
-                can_handle = getattr(interpolator, select_method)(
-                    udims, source_coordinates, eval_coordinates
-                )
+                can_handle = getattr(interpolator, select_method)(udims, source_coordinates, eval_coordinates)
 
                 # if interpolator can handle all udims
                 if not set(udims) - set(can_handle):
@@ -443,9 +412,7 @@ class Interpolation(object):
         # TODO: adjust by interpolation cost
         return interpolator_queue
 
-    def select_coordinates(
-        self, source_coordinates, source_coordinates_index, eval_coordinates
-    ):
+    def select_coordinates(self, source_coordinates, source_coordinates_index, eval_coordinates):
         """
         Select a subset or coordinates if interpolator can downselect.
         
@@ -475,9 +442,7 @@ class Interpolation(object):
         if source_coordinates == eval_coordinates:
             return source_coordinates, tuple(source_coordinates_index)
 
-        interpolator_queue = self._select_interpolator_queue(
-            source_coordinates, eval_coordinates, "can_select"
-        )
+        interpolator_queue = self._select_interpolator_queue(source_coordinates, eval_coordinates, "can_select")
 
         self._last_select_queue = interpolator_queue
 
@@ -494,9 +459,7 @@ class Interpolation(object):
 
         return selected_coords, tuple(selected_coords_idx)
 
-    def interpolate(
-        self, source_coordinates, source_data, eval_coordinates, output_data
-    ):
+    def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
         """Interpolate data from requested coordinates to source coordinates
         
         Parameters
@@ -533,16 +496,11 @@ class Interpolation(object):
         if not (set(source_coordinates.udims) - set(eval_coordinates.udims)):
             eq = True
             for udim in source_coordinates.udims:
-                if not np.all(
-                    source_coordinates[udim].coordinates
-                    == eval_coordinates[udim].coordinates
-                ):
+                if not np.all(source_coordinates[udim].coordinates == eval_coordinates[udim].coordinates):
                     eq = False
 
             if eq:
-                output_data.data = source_data.transpose(
-                    *output_data.dims
-                ).data  # transpose and insert
+                output_data.data = source_data.transpose(*output_data.dims).data  # transpose and insert
                 return output_data
 
         interpolator_queue = self._select_interpolator_queue(

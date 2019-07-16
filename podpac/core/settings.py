@@ -36,9 +36,7 @@ DEFAULT_SETTINGS = {
     "S3_OUTPUT_FOLDER": None,
     "AUTOSAVE_SETTINGS": False,
     "LOG_TO_FILE": False,
-    "LOG_FILE_PATH": os.path.join(
-        os.path.expanduser("~"), ".podpac", "logs", "podpac.log"
-    ),
+    "LOG_FILE_PATH": os.path.join(os.path.expanduser("~"), ".podpac", "logs", "podpac.log"),
     "MULTITHREADING": False,
     "N_THREADS": 8,
     "CHUNK_SIZE": None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
@@ -204,9 +202,7 @@ class PodpacSettings(dict):
 
             # make empty settings path
             if not os.path.exists(path):
-                raise ValueError(
-                    "Input podpac settings path does not exist: {}".format(path)
-                )
+                raise ValueError("Input podpac settings path does not exist: {}".format(path))
 
         # order of paths to import settings - the later settings will overwrite earlier ones
         filepath_choices = [root_filepath, cwd_filepath, filepath]

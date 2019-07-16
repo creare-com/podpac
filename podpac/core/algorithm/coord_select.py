@@ -68,22 +68,14 @@ class ModifyCoordinates(Algorithm):
         self._requested_coordinates = coordinates
         self.outputs = {}
         self._modified_coordinates = Coordinates(
-            [
-                self.get_modified_coordinates1d(coordinates, dim)
-                for dim in coordinates.dims
-            ]
+            [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims]
         )
 
         for dim in self._modified_coordinates.udims:
             if self._modified_coordinates[dim].size == 0:
-                raise ValueError(
-                    "Modified coordinates do not intersect with source data (dim '%s')"
-                    % dim
-                )
+                raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
 
-        self.outputs["source"] = self.source.eval(
-            self._modified_coordinates, output=output
-        )
+        self.outputs["source"] = self.source.eval(self._modified_coordinates, output=output)
 
         if output is None:
             output = self.outputs["source"]
@@ -137,31 +129,21 @@ class ExpandCoordinates(ModifyCoordinates):
 
             available_coordinates = self.coordinates_source.find_coordinates()
             if len(available_coordinates) != 1:
-                raise ValueError(
-                    "Cannot implicity expand coordinates; too many available coordinates"
-                )
+                raise ValueError("Cannot implicity expand coordinates; too many available coordinates")
             acoords = available_coordinates[0][dim]
-            cs = [
-                acoords.select((add_coord(x, dstart), add_coord(x, dstop)))
-                for x in coords1d.coordinates
-            ]
+            cs = [acoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in coords1d.coordinates]
 
         elif len(expansion) == 3:
             # use a explicit step size
             dstart = make_coord_delta(expansion[0])
             dstop = make_coord_delta(expansion[1])
             step = make_coord_delta(expansion[2])
-            cs = [
-                UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step)
-                for x in coords1d.coordinates
-            ]
+            cs = [UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step) for x in coords1d.coordinates]
 
         else:
             raise ValueError("Invalid expansion attrs for '%s'" % dim)
 
-        return ArrayCoordinates1d(
-            np.concatenate([c.coordinates for c in cs]), **coords1d.properties
-        )
+        return ArrayCoordinates1d(np.concatenate([c.coordinates for c in cs]), **coords1d.properties)
 
 
 class SelectCoordinates(ModifyCoordinates):
@@ -210,9 +192,7 @@ class SelectCoordinates(ModifyCoordinates):
             # use available source coordinates within the selected bounds
             available_coordinates = self.coordinates_source.find_coordinates()
             if len(available_coordinates) != 1:
-                raise ValueError(
-                    "Cannot select within bounds; too many available coordinates"
-                )
+                raise ValueError("Cannot select within bounds; too many available coordinates")
             coords1d = available_coordinates[0][dim].select(selection)
 
         elif len(selection) == 3:

@@ -44,17 +44,13 @@ class Lambda(Node):
         additional attributes passed on to the Lambda definition of the base node
     """
 
-    AWS_ACCESS_KEY_ID = tl.Unicode(
-        allow_none=False, help="Access key ID from AWS for S3 bucket."
-    )
+    AWS_ACCESS_KEY_ID = tl.Unicode(allow_none=False, help="Access key ID from AWS for S3 bucket.")
 
     @tl.default("AWS_ACCESS_KEY_ID")
     def _AWS_ACCESS_KEY_ID_default(self):
         return settings["AWS_ACCESS_KEY_ID"]
 
-    AWS_SECRET_ACCESS_KEY = tl.Unicode(
-        allow_none=False, help="Access key value from AWS for S3 bucket."
-    )
+    AWS_SECRET_ACCESS_KEY = tl.Unicode(allow_none=False, help="Access key value from AWS for S3 bucket.")
 
     @tl.default("AWS_SECRET_ACCESS_KEY")
     def _AWS_SECRET_ACCESS_KEY_default(self):
@@ -66,13 +62,9 @@ class Lambda(Node):
     def _AWS_REGION_NAME_default(self):
         return settings["AWS_REGION_NAME"]
 
-    source = tl.Instance(
-        Node, allow_none=False, help="Node to evaluate in a Lambda function."
-    )
+    source = tl.Instance(Node, allow_none=False, help="Node to evaluate in a Lambda function.")
 
-    source_output = tl.Instance(
-        Output, allow_none=False, help="Image output information."
-    )
+    source_output = tl.Instance(Output, allow_none=False, help="Image output information.")
 
     attrs = tl.Dict()
 

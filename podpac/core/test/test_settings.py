@@ -12,9 +12,7 @@ class TestSettingsFile(object):
 
     def make_settings_tmp_dir(self):
         path = self.tmp_dir_path()
-        os.mkdir(
-            path
-        )  # intentionally fails if this folder already exists as it will be deleted
+        os.mkdir(path)  # intentionally fails if this folder already exists as it will be deleted
         return path
 
     def teardown_method(self):

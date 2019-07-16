@@ -13,10 +13,7 @@ from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
 from podpac.core.cache.s3_cache_store import S3CacheStore
 
-COORDS1 = podpac.Coordinates(
-    [[0, 1, 2], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]],
-    dims=["lat", "lon", "time"],
-)
+COORDS1 = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
 COORDS2 = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"])
 NODE1 = podpac.data.Array(source=np.ones(COORDS1.shape), source_coordinates=COORDS1)
 NODE2 = podpac.algorithm.Arange()
@@ -234,9 +231,7 @@ class FileCacheStoreTests(BaseCacheStoreTests):
         store.put(NODE1, data, "mykey")
         cached = store.get(NODE1, "mykey")
         assert isinstance(cached, podpac.core.units.UnitsDataArray)
-        xr.testing.assert_identical(
-            cached, data
-        )  # assert_identical checks attributes as wel
+        xr.testing.assert_identical(cached, data)  # assert_identical checks attributes as wel
 
     def test_cache_xarray(self):
         store = self.Store()
@@ -245,17 +240,13 @@ class FileCacheStoreTests(BaseCacheStoreTests):
         data = xr.DataArray([1, 2, 3])
         store.put(NODE1, data, "mykey")
         cached = store.get(NODE1, "mykey")
-        xr.testing.assert_identical(
-            cached, data
-        )  # assert_identical checks attributes as wel
+        xr.testing.assert_identical(cached, data)  # assert_identical checks attributes as wel
 
         # dataset
         data = xr.Dataset({"a": [1, 2, 3]})
         store.put(NODE1, data, "mykey2")
         cached = store.get(NODE1, "mykey2")
-        xr.testing.assert_identical(
-            cached, data
-        )  # assert_identical checks attributes as wel
+        xr.testing.assert_identical(cached, data)  # assert_identical checks attributes as wel
 
     def test_cache_podpac(self):
         store = self.Store()
@@ -346,9 +337,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
 
         # relative path
         podpac.settings["DISK_CACHE_DIR"] = "_testcache_"
-        expected = os.path.join(
-            podpac.core.settings.DEFAULT_SETTINGS["ROOT_PATH"], "_testcache_"
-        )
+        expected = os.path.join(podpac.core.settings.DEFAULT_SETTINGS["ROOT_PATH"], "_testcache_")
         store = DiskCacheStore()
         store.clear()
         store.put(NODE1, 10, "mykey1")

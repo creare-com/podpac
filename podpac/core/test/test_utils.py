@@ -13,7 +13,7 @@ import podpac.core.utils as ut
 class Foo(tl.HasTraits):
     @ut.cached_property
     def test(self):
-        print("Calculating Test")
+        print ("Calculating Test")
         return "test_" + str(self.bar)
 
     bar = tl.Int(0)

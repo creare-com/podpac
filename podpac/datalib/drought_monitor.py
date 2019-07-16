@@ -17,16 +17,16 @@ if __name__ == "__main__":
     # local
     path = "droughtmonitor/beta_parameters.zarr"
     d0 = DroughtMonitorCategory(source=path, datakey="d0")
-    print(d0.native_coordinates)
-    print(d0.eval(c))
+    print (d0.native_coordinates)
+    print (d0.eval(c))
 
     # s3
     bucket = "podpac-internal-test"
     store = "drought_parameters.zarr"
     path = "s3://%s/%s" % (bucket, store)
     d0 = DroughtMonitorCategory(source=path, datakey="d0")
-    print(d0.native_coordinates)
-    print(d0.eval(c))
+    print (d0.native_coordinates)
+    print (d0.eval(c))
 
     # the Zarr node uses the podpac AWS settings by default, but credentials can be explicitly provided, too
     d0 = DroughtMonitorCategory(

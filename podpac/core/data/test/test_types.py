@@ -29,17 +29,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
-from podpac.core.data.types import (
-    Array,
-    PyDAP,
-    Rasterio,
-    WCS,
-    ReprojectedSource,
-    S3,
-    CSV,
-    H5PY,
-    Zarr,
-)
+from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, CSV, H5PY, Zarr
 from podpac.core.settings import settings
 
 # Trying to fix test
@@ -55,9 +45,7 @@ class TestArray(object):
     """Test Array datasource class (formerly Array)"""
 
     data = np.random.rand(11, 11)
-    coordinates = Coordinates(
-        [clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"]
-    )
+    coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
 
     def test_source_trait(self):
         """ must be an ndarray """
@@ -122,9 +110,7 @@ class TestPyDAP(object):
 
     # mock parameters and data
     data = np.random.rand(11, 11)  # mocked from pydap endpoint
-    coordinates = Coordinates(
-        [clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"]
-    )
+    coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
 
     def mock_pydap(self):
         def open_url(url, session=None):
@@ -138,12 +124,7 @@ class TestPyDAP(object):
     def test_init(self):
         """test basic init of class"""
 
-        node = PyDAP(
-            source=self.source,
-            datakey=self.datakey,
-            username=self.username,
-            password=self.password,
-        )
+        node = PyDAP(source=self.source, datakey=self.datakey, username=self.username, password=self.password)
         assert isinstance(node, PyDAP)
 
         node = MockPyDAP()
@@ -186,12 +167,7 @@ class TestPyDAP(object):
         assert node.auth_session is None
 
         # default to none if no auth_class
-        node = PyDAP(
-            source=self.source,
-            datakey=self.datakey,
-            username=self.username,
-            password=self.password,
-        )
+        node = PyDAP(source=self.source, datakey=self.datakey, username=self.username, password=self.password)
         assert node.auth_session is None
 
     def test_dataset(self):
@@ -209,11 +185,7 @@ class TestPyDAP(object):
         """test source attribute and trailet observer """
         self.mock_pydap()
 
-        node = PyDAP(
-            source=self.source,
-            datakey=self.datakey,
-            native_coordinates=self.coordinates,
-        )
+        node = PyDAP(source=self.source, datakey=self.datakey, native_coordinates=self.coordinates)
 
         # observe source
         node._update_dataset(change={"old": None})
@@ -228,11 +200,7 @@ class TestPyDAP(object):
         """test get_data function of pydap"""
         self.mock_pydap()
 
-        node = PyDAP(
-            source=self.source,
-            datakey=self.datakey,
-            native_coordinates=self.coordinates,
-        )
+        node = PyDAP(source=self.source, datakey=self.datakey, native_coordinates=self.coordinates)
         output = node.eval(self.coordinates)
         assert isinstance(output, UnitsDataArray)
         assert output.values[0, 0] == self.data[0, 0]
@@ -267,23 +235,14 @@ class TestCSV(object):
         except TypeError:
             pass
 
-        node = CSV(
-            source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col=4
-        )
+        node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col=4)
         assert node._lat_col == 0
         assert node._lon_col == 1
         assert node._time_col == 2
         assert node._alt_col == 3
         assert node._data_col == 4
 
-        node = CSV(
-            source=self.source,
-            lat_col="lat",
-            lon_col="lon",
-            time_col="time",
-            alt_col="alt",
-            data_col="data",
-        )
+        node = CSV(source=self.source, lat_col="lat", lon_col="lon", time_col="time", alt_col="alt", data_col="data")
         assert node._lat_col == 0
         assert node._lon_col == 1
         assert node._time_col == 2
@@ -291,14 +250,7 @@ class TestCSV(object):
         assert node._data_col == 4
 
     def test_native_coordinates(self):
-        node = CSV(
-            source=self.source,
-            lat_col=0,
-            lon_col=1,
-            time_col=2,
-            alt_col=3,
-            data_col="data",
-        )
+        node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col="data")
         nc = node.native_coordinates
         assert nc.size == 5
         assert np.all(nc["lat"].coordinates == [0, 1, 1, 1, 1])
@@ -306,14 +258,7 @@ class TestCSV(object):
         assert np.all(nc["alt"].coordinates == [0, 0, 0, 0, 4])
 
     def test_data(self):
-        node = CSV(
-            source=self.source,
-            lat_col=0,
-            lon_col=1,
-            time_col=2,
-            alt_col=3,
-            data_col="data",
-        )
+        node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col="data")
         d = node.eval(node.native_coordinates)
         assert np.all(d == [0, 1, 2, 3, 4])
 
@@ -417,58 +362,30 @@ class TestH5PY(object):
     source = os.path.join(os.path.dirname(__file__), "assets/h5raster.hdf5")
 
     def test_init(self):
-        node = H5PY(
-            source=self.source,
-            datakey="data/init",
-            latkey="coords/lat",
-            lonkey="coords/lon",
-        )
+        node = H5PY(source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon")
         node.dataset
         node.close_dataset()
 
     def test_native_coordinates(self):
-        node = H5PY(
-            source=self.source,
-            datakey="data/init",
-            latkey="coords/lat",
-            lonkey="coords/lon",
-        )
+        node = H5PY(source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon")
 
         nc = node.native_coordinates
         assert node.native_coordinates.shape == (3, 4)
         assert np.all(node.native_coordinates["lat"].coordinates == [45.1, 45.2, 45.3])
-        assert np.all(
-            node.native_coordinates["lon"].coordinates
-            == [-100.1, -100.2, -100.3, -100.4]
-        )
+        assert np.all(node.native_coordinates["lon"].coordinates == [-100.1, -100.2, -100.3, -100.4])
 
     def test_data(self):
-        node = H5PY(
-            source=self.source,
-            datakey="data/init",
-            latkey="coords/lat",
-            lonkey="coords/lon",
-        )
+        node = H5PY(source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon")
 
         o = node.eval(node.native_coordinates)
         assert np.all(o.data.ravel() == np.arange(12))
 
     def test_keys(self):
-        node = H5PY(
-            source=self.source,
-            datakey="data/init",
-            latkey="coords/lat",
-            lonkey="coords/lon",
-        )
+        node = H5PY(source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon")
         assert node.keys == ["/coords/lat", "/coords/lon", "/data/init"]
 
     def test_attrs(self):
-        node = H5PY(
-            source=self.source,
-            datakey="data/init",
-            latkey="coords/lat",
-            lonkey="coords/lon",
-        )
+        node = H5PY(source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon")
         assert node.attrs() == {}
         assert node.attrs("data") == {"test": "test"}
         assert node.attrs("coords/lat") == {"unit": "degrees"}
@@ -484,15 +401,11 @@ class TestWCS(object):
     source = "WCSsource"
     layer_name = "layer"
 
-    with open(
-        os.path.join(os.path.dirname(__file__), "assets/capabilites.xml"), "r"
-    ) as f:
+    with open(os.path.join(os.path.dirname(__file__), "assets/capabilites.xml"), "r") as f:
         capabilities = f.read()
 
     # TODO load a better geotiff example so get_data works below
-    with open(
-        os.path.join(os.path.dirname(__file__), "assets/RGB.byte.tif"), "rb"
-    ) as f:
+    with open(os.path.join(os.path.dirname(__file__), "assets/RGB.byte.tif"), "rb") as f:
         geotiff = f.read()
 
     def mock_requests(self, cap_status_code=200, data_status_code=200):
@@ -638,28 +551,18 @@ class TestWCS(object):
 
         # no time
         notime_coordinates = Coordinates(
-            [
-                clinspace(lat[0], lat[-2], 10),
-                clinspace(lon[0], lon[-2], 10),
-                "2006-06-14T17:00:00",
-            ],
+            [clinspace(lat[0], lat[-2], 10), clinspace(lon[0], lon[-2], 10), "2006-06-14T17:00:00"],
             dims=["lat", "lon", "time"],
         )
 
         with pytest.raises(ValueError):
             output = node.eval(notime_coordinates)
             assert isinstance(output, UnitsDataArray)
-            assert (
-                output.native_coordinates["lat"][0] == node.native_coordinates["lat"][0]
-            )
+            assert output.native_coordinates["lat"][0] == node.native_coordinates["lat"][0]
 
         # time
         time_coordinates = Coordinates(
-            [
-                clinspace(lat[0], lat[-2], 10),
-                clinspace(lon[0], lon[-2], 10),
-                clinspace(time[0], time[-1], len(time)),
-            ],
+            [clinspace(lat[0], lat[-2], 10), clinspace(lon[0], lon[-2], 10), clinspace(time[0], time[-1], len(time))],
             dims=["lat", "lon", "time"],
         )
 
@@ -683,12 +586,8 @@ class TestReprojectedSource(object):
 
     source = Node()
     data = np.random.rand(11, 11)
-    native_coordinates = Coordinates(
-        [clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"]
-    )
-    reprojected_coordinates = Coordinates(
-        [clinspace(-25, 50, 11), clinspace(-25, 50, 11)], dims=["lat", "lon"]
-    )
+    native_coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
+    reprojected_coordinates = Coordinates([clinspace(-25, 50, 11), clinspace(-25, 50, 11)], dims=["lat", "lon"])
 
     def test_init(self):
         """test basic init of class"""
@@ -720,54 +619,35 @@ class TestReprojectedSource(object):
             node.native_coordinates
 
         # source as Node
-        node = ReprojectedSource(
-            source=self.source, reprojected_coordinates=self.reprojected_coordinates
-        )
+        node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         assert isinstance(node.native_coordinates, Coordinates)
-        assert (
-            node.native_coordinates["lat"].coordinates[0]
-            == self.reprojected_coordinates["lat"].coordinates[0]
-        )
+        assert node.native_coordinates["lat"].coordinates[0] == self.reprojected_coordinates["lat"].coordinates[0]
 
     def test_get_data(self):
         """test get data from reprojected source"""
         datanode = Array(source=self.data, native_coordinates=self.native_coordinates)
-        node = ReprojectedSource(
-            source=datanode, reprojected_coordinates=datanode.native_coordinates
-        )
+        node = ReprojectedSource(source=datanode, reprojected_coordinates=datanode.native_coordinates)
         output = node.eval(node.native_coordinates)
         assert isinstance(output, UnitsDataArray)
 
     def test_base_ref(self):
         """test base ref"""
 
-        node = ReprojectedSource(
-            source=self.source, reprojected_coordinates=self.reprojected_coordinates
-        )
+        node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         ref = node.base_ref
         assert "_reprojected" in ref
 
     def test_base_definition(self):
         """test definition"""
 
-        node = ReprojectedSource(
-            source=self.source, reprojected_coordinates=self.reprojected_coordinates
-        )
+        node = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
         d = node.base_definition
         assert d["attrs"]["reprojected_coordinates"] == self.reprojected_coordinates
 
     def test_deserialize_reprojected_coordinates(self):
-        node1 = ReprojectedSource(
-            source=self.source, reprojected_coordinates=self.reprojected_coordinates
-        )
-        node2 = ReprojectedSource(
-            source=self.source,
-            reprojected_coordinates=self.reprojected_coordinates.definition,
-        )
-        node3 = ReprojectedSource(
-            source=self.source,
-            reprojected_coordinates=self.reprojected_coordinates.json,
-        )
+        node1 = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates)
+        node2 = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates.definition)
+        node3 = ReprojectedSource(source=self.source, reprojected_coordinates=self.reprojected_coordinates.json)
 
         assert node1.reprojected_coordinates == self.reprojected_coordinates
         assert node2.reprojected_coordinates == self.reprojected_coordinates
@@ -779,9 +659,7 @@ class TestS3(object):
 
     source = "s3://bucket.aws.com/file"
     bucket = "bucket"
-    coordinates = Coordinates(
-        [clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"]
-    )
+    coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
 
     def test_init(self):
         """test basic init of class"""
@@ -870,11 +748,7 @@ class TestS3(object):
 
         # TODO: figure out how to mock S3 response
         with pytest.raises(botocore.auth.NoCredentialsError):
-            node = S3(
-                source=self.source,
-                native_coordinates=self.coordinates,
-                s3_bucket=self.bucket,
-            )
+            node = S3(source=self.source, native_coordinates=self.coordinates, s3_bucket=self.bucket)
             output = node.eval(self.coordinates)
 
             assert isinstance(output, UnitsDataArray)
@@ -961,9 +835,7 @@ class TestZarr(object):
 
     def test_native_coordinates(self):
         node = Zarr(source=self.path, datakey="a", dims=["lat", "lon"])
-        assert node.native_coordinates == podpac.Coordinates(
-            [[0, 1, 2], [10, 20, 30, 40]], dims=["lat", "lon"]
-        )
+        assert node.native_coordinates == podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=["lat", "lon"])
 
     def test_eval(self):
         c = podpac.Coordinates([0, 10], dims=["lat", "lon"])
@@ -973,9 +845,7 @@ class TestZarr(object):
         assert a.eval(c)[0, 0] == 0.0
         assert b.eval(c)[0, 0] == 1.0
 
-    @pytest.mark.skipif(
-        pytest.config.getoption("--ci"), reason="skip AWS tests during CI"
-    )
+    @pytest.mark.skipif(pytest.config.getoption("--ci"), reason="skip AWS tests during CI")
     def test_s3(self):
         path = "s3://podpac-internal-test/drought_parameters.zarr"
         node = Zarr(source=path, datakey="d0", dims=["lat", "lon", "time"])

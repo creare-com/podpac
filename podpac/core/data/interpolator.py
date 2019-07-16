@@ -185,11 +185,7 @@ class Interpolator(tl.HasTraits):
 
         # check method
         if len(self.methods_supported) and self.method not in self.methods_supported:
-            raise InterpolatorException(
-                "Method {} is not supported by Interpolator {}".format(
-                    self.method, self.name
-                )
-            )
+            raise InterpolatorException("Method {} is not supported by Interpolator {}".format(self.method, self.name))
         self.init()
 
     def __repr__(self):
@@ -259,23 +255,13 @@ class Interpolator(tl.HasTraits):
 
         for coord in coords:
             for d in dim:
-                if (unstacked and d not in coord.udims) or (
-                    not unstacked and d not in coord.dims
-                ):
+                if (unstacked and d not in coord.udims) or (not unstacked and d not in coord.dims):
                     return False
 
         return True
 
     def _loop_helper(
-        self,
-        func,
-        keep_dims,
-        udims,
-        source_coordinates,
-        source_data,
-        eval_coordinates,
-        output_data,
-        **kwargs
+        self, func, keep_dims, udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs
     ):
         """Loop helper
         
@@ -335,14 +321,7 @@ class Interpolator(tl.HasTraits):
                     **kwargs
                 )
         else:
-            return func(
-                udims,
-                source_coordinates,
-                source_data,
-                eval_coordinates,
-                output_data,
-                **kwargs
-            )
+            return func(udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs)
 
         return output_data
 
@@ -355,9 +334,7 @@ class Interpolator(tl.HasTraits):
         return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def select_coordinates(
-        self, udims, source_coordinates, source_coordinates_index, eval_coordinates
-    ):
+    def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
         """
         {interpolator_select}
         """
@@ -371,9 +348,7 @@ class Interpolator(tl.HasTraits):
         return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(
-        self, udims, source_coordinates, source_data, eval_coordinates, output_data
-    ):
+    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """

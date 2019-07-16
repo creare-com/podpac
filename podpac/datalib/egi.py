@@ -111,10 +111,7 @@ class EGI(DataSource):
     # response_format = tl.Enum(["HDF-EOS5"], default_value="HDF-EOS5", allow_none=True)
     # download_files = tl.Bool(default_value=False)
     version = tl.Union(
-        [
-            tl.Unicode(default_value=None, allow_none=True),
-            tl.Int(default_value=None, allow_none=True),
-        ]
+        [tl.Unicode(default_value=None, allow_none=True), tl.Int(default_value=None, allow_none=True)]
     ).tag(attr=True)
 
     @tl.validate("version")
@@ -178,11 +175,7 @@ class EGI(DataSource):
             u += "&{key}={val}".format(key=key, val=val)
             return u
 
-        url = _append(
-            url,
-            "Coverage",
-            "{},{},{}".format(self.data_key, self.lat_key, self.lon_key),
-        )
+        url = _append(url, "Coverage", "{},{},{}".format(self.data_key, self.lat_key, self.lon_key))
 
         # Format could be customized - see response_format above
         # For now we set to HDF5
@@ -217,14 +210,10 @@ class EGI(DataSource):
         # download data for coordinate bounds, then handle that data as an H5PY node
         zip_file = self._download_zip(coordinates)
         try:
-            self.data = self._read_zip(
-                zip_file
-            )  # reads each file in zip archive and creates single dataarray
+            self.data = self._read_zip(zip_file)  # reads each file in zip archive and creates single dataarray
         except KeyError as e:
-            print(
-                "This following error may occur if data_key, lat_key, or lon_key is not correct."
-            )
-            print(
+            print ("This following error may occur if data_key, lat_key, or lon_key is not correct.")
+            print (
                 "This error may also occur if the specified area bounds are smaller than the dataset pixel size, in"
                 " which case EGI is returning no data."
             )
@@ -339,9 +328,7 @@ class EGI(DataSource):
         url = self.source
 
         if time_bounds is not None:
-            url += "&time={start_time},{end_time}".format(
-                start_time=time_bounds[0], end_time=time_bounds[1]
-            )
+            url += "&time={start_time},{end_time}".format(start_time=time_bounds[0], end_time=time_bounds[1])
 
         if bbox is not None:
             url += "&Bbox={bbox}".format(bbox=bbox)
@@ -353,11 +340,7 @@ class EGI(DataSource):
         r = requests.get(url)
 
         if r.status_code != 200:
-            raise ValueError(
-                "Failed to download data from EGI Interface. EGI Reponse: {}".format(
-                    r.text
-                )
-            )
+            raise ValueError("Failed to download data from EGI Interface. EGI Reponse: {}".format(r.text))
 
         # load content into file-like object and then read into zip file
         f = BytesIO(r.content)
@@ -368,9 +351,7 @@ class EGI(DataSource):
     def _read_zip(self, zip_file):
 
         all_data = None
-        _log.debug(
-            "Processing {} EGI files from zip archive".format(len(zip_file.namelist()))
-        )
+        _log.debug("Processing {} EGI files from zip archive".format(len(zip_file.namelist())))
 
         for name in zip_file.namelist():
             _log.debug("Reading file: {}".format(name))
@@ -421,9 +402,7 @@ class EGI(DataSource):
         Bool
             True if token is valid, False if token is invalid
         """
-        r = requests.get(
-            "{base_url}?token={token}".format(base_url=self.base_url, token=self.token)
-        )
+        r = requests.get("{base_url}?token={token}".format(base_url=self.base_url, token=self.token))
 
         return r.status_code != 401
 
@@ -471,9 +450,7 @@ class EGI(DataSource):
         try:
             tree = xml.etree.ElementTree.fromstring(r.text)
         except ParseError:
-            _log.error(
-                "Failed to parse returned text from EGI interface: {}".format(r.text)
-            )
+            _log.error("Failed to parse returned text from EGI interface: {}".format(r.text))
             return
 
         try:

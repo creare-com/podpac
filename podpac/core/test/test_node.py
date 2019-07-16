@@ -202,9 +202,7 @@ class TestNode(object):
 
 class TestCreateOutputArray(object):
     def test_create_output_array_default(self):
-        c = podpac.Coordinates(
-            [podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"]
-        )
+        c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"])
         node = Node()
 
         output = node.create_output_array(c)
@@ -215,9 +213,7 @@ class TestCreateOutputArray(object):
         assert np.all(np.isnan(output))
 
     def test_create_output_array_data(self):
-        c = podpac.Coordinates(
-            [podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"]
-        )
+        c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"])
         node = Node()
 
         output = node.create_output_array(c, data=0)
@@ -228,9 +224,7 @@ class TestCreateOutputArray(object):
         assert np.all(output == 0.0)
 
     def test_create_output_array_dtype(self):
-        c = podpac.Coordinates(
-            [podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"]
-        )
+        c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"])
         node = Node(dtype=bool)
 
         output = node.create_output_array(c, data=0)
@@ -241,9 +235,7 @@ class TestCreateOutputArray(object):
         assert np.all(~output)
 
     def test_create_output_array_units(self):
-        c = podpac.Coordinates(
-            [podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"]
-        )
+        c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"])
         node = Node(units="meters")
 
         output = node.create_output_array(c)
@@ -255,11 +247,7 @@ class TestCreateOutputArray(object):
 
     def test_create_output_array_crs(self):
         crs = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
-        c = podpac.Coordinates(
-            [podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]],
-            dims=["lat_lon", "time"],
-            crs=crs,
-        )
+        c = podpac.Coordinates([podpac.clinspace((0, 0), (1, 1), 10), [0, 1, 2]], dims=["lat_lon", "time"], crs=crs)
         node = Node()
 
         output = node.create_output_array(c)
@@ -458,12 +446,8 @@ class TestCachePropertyDecorator(object):
         t.b = 2
         assert t.b2() == 4  # This happens because the node definition changed
         t.rem_cache(key="*", coordinates="*")
-        assert (
-            t.c2() == 2
-        )  # This forces the cache to update based on the new node definition
-        assert (
-            t.d2() == 2
-        )  # This forces the cache to update based on the new node definition
+        assert t.c2() == 2  # This forces the cache to update based on the new node definition
+        assert t.d2() == 2  # This forces the cache to update based on the new node definition
         t.c = 2
         assert t.c2() == 4  # This happens because of depends
         t.d = 2
@@ -533,12 +517,8 @@ class TestCachePropertyDecorator(object):
         t.b = 2
         assert t.b2() == 4  # This happens because the node definition changed
         t.rem_cache(key="*", coordinates="*")
-        assert (
-            t.c2() == 2
-        )  # This forces the cache to update based on the new node definition
-        assert (
-            t.d2() == 2
-        )  # This forces the cache to update based on the new node definition
+        assert t.c2() == 2  # This forces the cache to update based on the new node definition
+        assert t.d2() == 2  # This forces the cache to update based on the new node definition
         t.c = 2
         assert t.c2() == 4  # This happens because of depends
         t.d = 2

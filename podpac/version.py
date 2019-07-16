@@ -71,16 +71,7 @@ def version():
 
         git_hash = (
             subprocess.check_output(
-                [
-                    git,
-                    "describe",
-                    "--always",
-                    "--abbrev=0",
-                    "--match",
-                    '"NOT A TAG"',
-                    "--dirty=*",
-                ],
-                cwd=CWD,
+                [git, "describe", "--always", "--abbrev=0", "--match", '"NOT A TAG"', "--dirty=*"], cwd=CWD
             )
             .strip()
             .decode("ascii")[:-1]
@@ -91,6 +82,6 @@ def version():
             version_full += "+" + git_hash_short
 
     except Exception as e:
-        print("Could not determine PODPAC version from git repo.\n" + str(e))
+        print ("Could not determine PODPAC version from git repo.\n" + str(e))
 
     return version_full

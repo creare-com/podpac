@@ -20,9 +20,7 @@ node.eval(coords)
 
 class TestPipeline(object):
     def test_init_path(self):
-        path = os.path.join(
-            os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test", "test.json"
-        )
+        path = os.path.join(os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test", "test.json")
         pipeline = Pipeline(path=path)
 
         assert pipeline.json
@@ -86,9 +84,7 @@ class TestPipeline(object):
         pipeline.style
 
     def test_eval_output(self):
-        path = os.path.join(
-            os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test"
-        )
+        path = os.path.join(os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test")
 
         s = """
         {
@@ -113,9 +109,7 @@ class TestPipeline(object):
         os.remove(pipeline.output.path)
 
     def test_eval_no_output(self):
-        path = os.path.join(
-            os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test"
-        )
+        path = os.path.join(os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test")
 
         s = """
         {

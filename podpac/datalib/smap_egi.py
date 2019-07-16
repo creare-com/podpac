@@ -152,18 +152,12 @@ class SMAP(EGI):
         if "SPL3" in self.product:
             # TODO: make this py2.7 compatible
             # take the midpoint between the range identified in the file
-            t_start = np.datetime64(
-                ds["Metadata/Extent"].attrs["rangeBeginningDateTime"].replace(b"Z", b"")
-            )
-            t_end = np.datetime64(
-                ds["Metadata/Extent"].attrs["rangeEndingDateTime"].replace(b"Z", b"")
-            )
+            t_start = np.datetime64(ds["Metadata/Extent"].attrs["rangeBeginningDateTime"].replace(b"Z", b""))
+            t_end = np.datetime64(ds["Metadata/Extent"].attrs["rangeEndingDateTime"].replace(b"Z", b""))
             time = np.array([t_start + (t_end - t_start) / 2])
 
         elif "SPL4" in self.product:
-            t_offset = datetime(
-                2000, 1, 1
-            ).timestamp()  # all time relative to 2000-01-01
+            t_offset = datetime(2000, 1, 1).timestamp()  # all time relative to 2000-01-01
             t_obs = ds["time"][()][0]  # time give as seconds since 2000-01-01
             time = np.datetime64(datetime.fromtimestamp(t_offset + t_obs))
 
@@ -194,9 +188,7 @@ class SMAP(EGI):
             if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):
                 return None
 
-            c = Coordinates(
-                [time, lat, lon], dims=["time", "lat", "lon"], crs="epsg:6933"
-            )
+            c = Coordinates([time, lat, lon], dims=["time", "lat", "lon"], crs="epsg:6933")
 
         # make units data array with coordinates and data
         return create_data_array(c, data=data)
@@ -216,8 +208,6 @@ class SMAP(EGI):
         NotImplementedError
         """
 
-        all_data = all_data.combine_first(
-            data.isel(lon=np.isfinite(data.lon), lat=np.isfinite(data.lat))
-        )
+        all_data = all_data.combine_first(data.isel(lon=np.isfinite(data.lon), lat=np.isfinite(data.lat)))
 
         return all_data

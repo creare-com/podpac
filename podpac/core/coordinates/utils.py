@@ -161,9 +161,7 @@ def make_coord_value(val):
         try:
             val = val.item()
         except ValueError:
-            raise TypeError(
-                "Invalid coordinate value, unsupported type '%s'" % type(val)
-            )
+            raise TypeError("Invalid coordinate value, unsupported type '%s'" % type(val))
 
     # type checking and conversion
     if isinstance(val, (string_types, datetime.date)):
@@ -211,9 +209,7 @@ def make_coord_delta(val):
         try:
             val = val.item()
         except ValueError:
-            raise TypeError(
-                "Invalid coordinate delta, unsuported type '%s'" % type(val)
-            )
+            raise TypeError("Invalid coordinate delta, unsuported type '%s'" % type(val))
 
     # type checking and conversion
     if isinstance(val, string_types):
@@ -263,14 +259,10 @@ def make_coord_array(values):
         a = a.astype(float)
 
     else:
-        a = np.array(
-            [make_coord_value(e) for e in np.atleast_1d(np.array(values, dtype=object))]
-        )
+        a = np.array([make_coord_value(e) for e in np.atleast_1d(np.array(values, dtype=object))])
 
         if not np.issubdtype(a.dtype, np.datetime64):
-            raise ValueError(
-                "Invalid coordinate values (must be all numbers or all datetimes)"
-            )
+            raise ValueError("Invalid coordinate values (must be all numbers or all datetimes)")
 
     return a
 
@@ -308,14 +300,10 @@ def make_coord_delta_array(values):
         a = a.astype(float)
 
     else:
-        a = np.array(
-            [make_coord_delta(e) for e in np.atleast_1d(np.array(values, dtype=object))]
-        )
+        a = np.array([make_coord_delta(e) for e in np.atleast_1d(np.array(values, dtype=object))])
 
         if not np.issubdtype(a.dtype, np.timedelta64):
-            raise ValueError(
-                "Invalid coordinate deltas (must be all numbers or all compatible timedeltas)"
-            )
+            raise ValueError("Invalid coordinate deltas (must be all numbers or all compatible timedeltas)")
 
     return a
 
@@ -370,9 +358,7 @@ def add_coord(base, delta):
     try:
         return base + delta
     except TypeError as e:
-        if isinstance(base, np.datetime64) and np.issubdtype(
-            delta.dtype, np.timedelta64
-        ):
+        if isinstance(base, np.datetime64) and np.issubdtype(delta.dtype, np.timedelta64):
             return _add_nominal_timedelta(base, delta)
         else:
             raise e
@@ -435,10 +421,7 @@ def divide_delta(delta, divisor):
         try:
             return divide_timedelta(delta, divisor)
         except ValueError:
-            raise ValueError(
-                "Cannot divide timedelta '%s' evenly by %d"
-                % (make_timedelta_string(delta), divisor)
-            )
+            raise ValueError("Cannot divide timedelta '%s' evenly by %d" % (make_timedelta_string(delta), divisor))
     else:
         return delta / divisor
 
@@ -452,10 +435,7 @@ def divide_timedelta(delta, divisor):
         return divide_timedelta(delta.astype(_TIMEDELTA_ZOOM[delta.dtype.str]), divisor)
 
     # months, for example
-    raise ValueError(
-        "Cannot divide timedelta '%s' evenly by %d"
-        % (make_timedelta_string(delta), divisor)
-    )
+    raise ValueError("Cannot divide timedelta '%s' evenly by %d" % (make_timedelta_string(delta), divisor))
 
 
 _TIMEDELTA_ZOOM = {
@@ -476,9 +456,7 @@ class Dimension(tl.Enum):
 
 class CoordinateType(tl.Enum):
     def __init__(self, *args, **kwargs):
-        super(CoordinateType, self).__init__(
-            ["point", "left", "right", "midpoint"], *args, **kwargs
-        )
+        super(CoordinateType, self).__init__(["point", "left", "right", "midpoint"], *args, **kwargs)
 
 
 def get_vunits(crs):

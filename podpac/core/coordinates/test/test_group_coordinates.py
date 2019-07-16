@@ -37,9 +37,7 @@ class TestGroupCoordinates(object):
     def test_init_mismatching_dims(self):
         # mismatching dims
         c1 = Coordinates([[0, 1], [0, 1]], dims=["lat", "lon"])
-        c2 = Coordinates(
-            [[10, 11], [10, 11], "2018-01-01"], dims=["lat", "lon", "time"]
-        )
+        c2 = Coordinates([[10, 11], [10, 11], "2018-01-01"], dims=["lat", "lon", "time"])
 
         with pytest.raises(ValueError, match="Mismatching dims"):
             GroupCoordinates([c1, c2])

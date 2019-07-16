@@ -49,9 +49,7 @@ class Algorithm(Node):
         return {
             ref: getattr(self, ref)
             for ref, trait in self.traits().items()
-            if hasattr(trait, "klass")
-            and Node in inspect.getmro(trait.klass)
-            and getattr(self, ref) is not None
+            if hasattr(trait, "klass") and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
         }
 
     @common_doc(COMMON_DOC)
@@ -89,9 +87,7 @@ class Algorithm(Node):
                 output.data[:] = result
         elif isinstance(result, xr.DataArray):
             if output is None:
-                output = self.create_output_array(
-                    Coordinates.from_xarray(result.coords), data=result.data
-                )
+                output = self.create_output_array(Coordinates.from_xarray(result.coords), data=result.data)
             else:
                 output[:] = result.data
         elif isinstance(result, UnitsDataArray):
@@ -163,9 +159,7 @@ class Arange(Algorithm):
         UnitsDataArray
             A row-majored numbered array of the requested size. 
         """
-        data = np.arange(self._requested_coordinates.size).reshape(
-            self._requested_coordinates.shape
-        )
+        data = np.arange(self._requested_coordinates.size).reshape(self._requested_coordinates.shape)
         return self.create_output_array(self._requested_coordinates, data=data)
 
 

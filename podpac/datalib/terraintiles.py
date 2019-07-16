@@ -80,10 +80,7 @@ class TerrainTilesSource(Rasterio):
 
     # attributes
     interpolation = interpolation_trait(
-        default_value={
-            "method": "nearest",
-            "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint],
-        }
+        default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
     )
 
     dataset = tl.Any()
@@ -97,9 +94,7 @@ class TerrainTilesSource(Rasterio):
 
             # load data from cache
             if self.cache_ctrl and self.has_cache(key=cache_key):
-                _logger.debug(
-                    "Retrieving terrain tile {} from cache'".format(self.source)
-                )
+                _logger.debug("Retrieving terrain tile {} from cache'".format(self.source))
                 data = self.get_cache(key=cache_key)
                 f.write(data)
 
@@ -120,9 +115,7 @@ class TerrainTilesSource(Rasterio):
                 f.write(data)
 
                 # put data in the cache
-                _logger.debug(
-                    "Caching terrain tile {} in key 'fileobj'".format(self.source)
-                )
+                _logger.debug("Caching terrain tile {} in key 'fileobj'".format(self.source))
                 self.cache_ctrl  # confirm this is initialized
                 self.put_cache(data, key=cache_key)
 
@@ -158,9 +151,7 @@ class TerrainTilesSource(Rasterio):
             os.makedirs(joined_path)
 
         # download the file
-        _logger.debug(
-            "Downloading terrain tile {} to filepath: {}".format(self.source, filepath)
-        )
+        _logger.debug("Downloading terrain tile {} to filepath: {}".format(self.source, filepath))
         _s3.get(self.source, filepath)
 
 
@@ -197,9 +188,7 @@ class TerrainTiles(OrderedCompositor):
 
     # parameters
     zoom = tl.Int(default_value=6).tag(attr=True)
-    tile_format = tl.Enum(
-        ["geotiff", "terrarium", "normal"], default_value="geotiff"
-    ).tag(attr=True)
+    tile_format = tl.Enum(["geotiff", "terrarium", "normal"], default_value="geotiff").tag(attr=True)
     bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
 
     @tl.default("sources")
@@ -241,9 +230,7 @@ class TerrainTiles(OrderedCompositor):
             for source in self.sources:
                 source.download(path)
         except tl.TraitError as e:
-            raise ValueError(
-                "No terrain tile sources selected. Evaluate node at coordinates to select sources."
-            )
+            raise ValueError("No terrain tile sources selected. Evaluate node at coordinates to select sources.")
 
     def _create_source(self, source):
         return TerrainTilesSource(source="{}/{}".format(self.bucket, source))
@@ -309,18 +296,14 @@ def _get_tile_tuples(zoom, coordinates=None):
     # if no coordinates are supplied, get all tiles for zoom level
     if coordinates is None:
         # get whole world
-        tiles = _get_tiles_grid(
-            [-20037508.34, 20037508.34], [-20037508.34, 20037508.34], zoom
-        )
+        tiles = _get_tiles_grid([-20037508.34, 20037508.34], [-20037508.34, 20037508.34], zoom)
 
     # down select tiles based on coordinates
     else:
         _logger.debug("Getting tiles for coordinates {}".format(coordinates))
 
         if "lat" not in coordinates or "lon" not in coordinates:
-            raise TypeError(
-                "input coordinates must have lat and lon dimensions to get tiles"
-            )
+            raise TypeError("input coordinates must have lat and lon dimensions to get tiles")
 
         # transform to WGS84 (epsg:4326) to use the mapzen example for transforming coordinates to tilespace
         # it doesn't seem to conform to standard google tile indexing
@@ -375,9 +358,7 @@ def _tile_url(tile_format, x, y, zoom):
     tile_url = "{tile_format}/{zoom}/{x}/{y}.{ext}"
     ext = {"geotiff": "tif", "normal": "png", "terrarium": "png"}
 
-    return tile_url.format(
-        tile_format=tile_format, zoom=zoom, x=x, y=y, ext=ext[tile_format]
-    )
+    return tile_url.format(tile_format=tile_format, zoom=zoom, x=x, y=y, ext=ext[tile_format])
 
 
 def _get_tiles_grid(lat_bounds, lon_bounds, zoom):

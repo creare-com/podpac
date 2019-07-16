@@ -122,9 +122,7 @@ class Node(tl.HasTraits):
 
     @tl.validate("units")
     def _validate_units(self, d):
-        ureg.Unit(
-            d["value"]
-        )  # will throw an exception if this is not a valid pint Unit
+        ureg.Unit(d["value"])  # will throw an exception if this is not a valid pint Unit
         return d["value"]
 
     # debugging
@@ -233,9 +231,7 @@ class Node(tl.HasTraits):
         if self.units is not None:
             attrs["units"] = ureg.Unit(self.units)
 
-        return create_data_array(
-            coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs
-        )
+        return create_data_array(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization properties
@@ -294,9 +290,7 @@ class Node(tl.HasTraits):
             try:
                 json.dumps(attr, cls=JSONEncoder)
             except:
-                raise NodeException(
-                    "Cannot serialize attr '%s' with type '%s'" % (key, type(attr))
-                )
+                raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
 
             if isinstance(attr, Node):
                 lookup_attrs[key] = attr
@@ -304,14 +298,10 @@ class Node(tl.HasTraits):
                 attrs[key] = attr
 
         if attrs:
-            d["attrs"] = OrderedDict(
-                [(key, attrs[key]) for key in sorted(attrs.keys())]
-            )
+            d["attrs"] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
 
         if lookup_attrs:
-            d["lookup_attrs"] = OrderedDict(
-                [(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())]
-            )
+            d["lookup_attrs"] = OrderedDict([(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())])
 
         return d
 
@@ -346,9 +336,7 @@ class Node(tl.HasTraits):
                     if input_node is not None:
                         d["inputs"][key] = add_node(input_node)
             if "sources" in d:
-                sources = (
-                    []
-                )  # we need this list so that we don't overwrite the actual sources array
+                sources = []  # we need this list so that we don't overwrite the actual sources array
                 for i, source_node in enumerate(d["sources"]):
                     sources.append(add_node(source_node))
                 d["sources"] = sources
@@ -439,10 +427,7 @@ class Node(tl.HasTraits):
         """
 
         if not self.has_cache(key, coordinates=coordinates):
-            raise NodeException(
-                "cached data not found for key '%s' and coordinates %s"
-                % (key, coordinates)
-            )
+            raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
 
@@ -468,10 +453,7 @@ class Node(tl.HasTraits):
         """
 
         if not overwrite and self.has_cache(key, coordinates=coordinates):
-            raise NodeException(
-                "Cached data already exists for key '%s' and coordinates %s"
-                % (key, coordinates)
-            )
+            raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
         self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
 
@@ -540,15 +522,11 @@ def node_eval(fn):
         if settings["DEBUG"]:
             self._requested_coordinates = coordinates
         key = cache_key
-        cache_coordinates = coordinates.transpose(
-            *sorted(coordinates.dims)
-        )  # order agnostic caching
+        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
         if self.has_cache(key, cache_coordinates) and not self.cache_update:
             data = self.get_cache(key, cache_coordinates)
             if output is not None:
-                order = [dim for dim in output.dims if dim not in data.dims] + list(
-                    data.dims
-                )
+                order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
                 output.transpose(*order)[:] = data
             self._from_cache = True
         else:
@@ -556,12 +534,8 @@ def node_eval(fn):
 
             # We need to check if the cache now has the key because it is possible that
             # the previous function call added the key with the coordinates to the cache
-            if self.cache_output and not (
-                self.has_cache(key, cache_coordinates) and not self.cache_update
-            ):
-                self.put_cache(
-                    data, key, cache_coordinates, overwrite=self.cache_update
-                )
+            if self.cache_output and not (self.has_cache(key, cache_coordinates) and not self.cache_update):
+                self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update)
             self._from_cache = False
 
         # transpose data to match the dims order of the requested coordinates

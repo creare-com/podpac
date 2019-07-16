@@ -53,9 +53,7 @@ class RamCacheStore(CacheStore):
     @property
     def size(self):
         process = psutil.Process(os.getpid())
-        return (
-            process.memory_info().rss
-        )  # this is actually the total size of the process
+        return process.memory_info().rss  # this is actually the total size of the process
 
     def put(self, node, data, key, coordinates=None, update=False):
         """Cache data for specified node.
@@ -81,9 +79,7 @@ class RamCacheStore(CacheStore):
 
         if full_key in _thread_local.cache:
             if not update:
-                raise CacheException(
-                    "Cache entry already exists. Use update=True to overwrite."
-                )
+                raise CacheException("Cache entry already exists. Use update=True to overwrite.")
 
         if self.max_size is not None and self.size >= self.max_size:
             #     # TODO removal policy

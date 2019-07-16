@@ -18,13 +18,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
     _limit_setting = "S3_CACHE_MAX_BYTES"
     _delim = "/"
 
-    def __init__(
-        self,
-        s3_bucket=None,
-        aws_region_name=None,
-        aws_access_key_id=None,
-        aws_secret_access_key=None,
-    ):
+    def __init__(self, s3_bucket=None, aws_region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
         """Initialize a cache that uses a folder on a local disk file system.
         
         Parameters
@@ -76,10 +70,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
     @property
     def size(self):
         paginator = self._s3_client.get_paginator("list_objects")
-        operation_parameters = {
-            "Bucket": self._s3_bucket,
-            "Prefix": self._root_dir_path,
-        }
+        operation_parameters = {"Bucket": self._s3_bucket, "Prefix": self._root_dir_path}
         page_iterator = paginator.paginate(**operation_parameters)
         total_size = 0
         for page in page_iterator:
@@ -112,21 +103,15 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         delim = self._delim
         prefix = self._get_node_dir(node)
         prefix = prefix if prefix.endswith(delim) else prefix + delim
-        response = self._s3_client.list_objects_v2(
-            Bucket=self._s3_bucket, Prefix=prefix, Delimiter=delim
-        )
+        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter=delim)
 
         if response["KeyCount"] > 0:
             obj_names = [o["Key"].replace(prefix, "") for o in response["Contents"]]
         else:
             obj_names = []
 
-        obj_names = fnmatch.filter(
-            obj_names, self._match_filename(node, key, coordinates)
-        )
-        paths = [
-            delim.join([self._get_node_dir(node), filename]) for filename in obj_names
-        ]
+        obj_names = fnmatch.filter(obj_names, self._match_filename(node, key, coordinates))
+        paths = [delim.join([self._get_node_dir(node), filename]) for filename in obj_names]
         return paths
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -183,9 +168,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
     def _is_empty(self, directory):
         if not directory.endswith(self._delim):
             directory += self._delim
-        response = self._s3_client.list_objects_v2(
-            Bucket=self._s3_bucket, Prefix=directory, MaxKeys=2
-        )
+        response = self._s3_client.list_objects_v2(Bucket=self._s3_bucket, Prefix=directory, MaxKeys=2)
         # TODO throw an error if key count is zero as this indicates `directory` is not an existing directory.
         return response["KeyCount"] == 1
 

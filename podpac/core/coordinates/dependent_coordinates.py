@@ -12,11 +12,7 @@ import numbers
 from podpac.core.settings import settings
 from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import Dimension, CoordinateType
-from podpac.core.coordinates.utils import (
-    make_coord_array,
-    make_coord_value,
-    make_coord_delta,
-)
+from podpac.core.coordinates.utils import make_coord_array, make_coord_value, make_coord_delta
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -83,9 +79,7 @@ class DependentCoordinates(BaseCoordinates):
         """
 
         coordinates = [np.array(a) for a in coordinates]
-        coordinates = [
-            make_coord_array(a.flatten()).reshape(a.shape) for a in coordinates
-        ]
+        coordinates = [make_coord_array(a.flatten()).reshape(a.shape) for a in coordinates]
         self.set_trait("coordinates", coordinates)
         self._set_properties(dims, ctypes, segment_lengths)
 
@@ -123,10 +117,7 @@ class DependentCoordinates(BaseCoordinates):
 
         for i, a in enumerate(val):
             if a.shape != val[0].shape:
-                raise ValueError(
-                    "coordinates shape mismatch at position %d, %s != %s"
-                    % (i, a.shape, val[0].shape)
-                )
+                raise ValueError("coordinates shape mismatch at position %d, %s != %s" % (i, a.shape, val[0].shape))
         return val
 
     @tl.validate("dims")
@@ -143,16 +134,10 @@ class DependentCoordinates(BaseCoordinates):
         for i, (segment_lengths, ctype) in enumerate(zip(val, self.ctypes)):
             if segment_lengths is None:
                 if ctype != "point":
-                    raise TypeError(
-                        "segment_lengths cannot be None for '%s' coordinates at position %d"
-                        % (ctype, i)
-                    )
+                    raise TypeError("segment_lengths cannot be None for '%s' coordinates at position %d" % (ctype, i))
             else:
                 if ctype == "point":
-                    raise TypeError(
-                        "segment_lengths must be None for '%s' coordinates at position %d"
-                        % (ctype, i)
-                    )
+                    raise TypeError("segment_lengths must be None for '%s' coordinates at position %d" % (ctype, i))
                 if segment_lengths <= 0.0:
                     raise ValueError("segment_lengths must be positive at pos %d" % i)
         return val
@@ -161,8 +146,7 @@ class DependentCoordinates(BaseCoordinates):
     def _validate_sizes(self, d):
         if len(d["value"]) != self.ndims:
             raise ValueError(
-                "%s and coordinates size mismatch, %d != %d"
-                % (d["trait"].name, len(d["value"]), self.ndims)
+                "%s and coordinates size mismatch, %d != %d" % (d["trait"].name, len(d["value"]), self.ndims)
             )
         return d["value"]
 
@@ -217,9 +201,7 @@ class DependentCoordinates(BaseCoordinates):
         """
 
         if "values" not in d:
-            raise ValueError(
-                'DependentCoordinates definition requires "values" property'
-            )
+            raise ValueError('DependentCoordinates definition requires "values" property')
 
         coordinates = d["values"]
         kwargs = {k: v for k, v in d.items() if k not in ["values"]}
@@ -280,10 +262,7 @@ class DependentCoordinates(BaseCoordinates):
         if isinstance(index, string_types):
             dim = index
             if dim not in self.dims:
-                raise KeyError(
-                    "Cannot get dimension '%s' in RotatedCoordinates %s"
-                    % (dim, self.dims)
-                )
+                raise KeyError("Cannot get dimension '%s' in RotatedCoordinates %s" % (dim, self.dims))
 
             i = self.dims.index(dim)
             return ArrayCoordinatesNd(self.coordinates[i], **self._properties_at(i))
@@ -294,10 +273,7 @@ class DependentCoordinates(BaseCoordinates):
 
             # NOTE: this is optional, but we can convert to StackedCoordinates if ndim is 1
             if coordinates[0].ndim == 1 or coordinates[0].size <= 1:
-                cs = [
-                    ArrayCoordinates1d(a, **self._properties_at(i))
-                    for i, a in enumerate(coordinates)
-                ]
+                cs = [ArrayCoordinates1d(a, **self._properties_at(i)) for i, a in enumerate(coordinates)]
                 return StackedCoordinates(cs)
             else:
                 return DependentCoordinates(coordinates, **self.properties)
@@ -354,27 +330,21 @@ class DependentCoordinates(BaseCoordinates):
     def bounds(self):
         """:dict: Dictionary of (low, high) coordinates bounds in each unstacked dimension"""
         if None in self.dims:
-            raise ValueError(
-                "Cannot get bounds for DependentCoordinates with un-named dimensions"
-            )
+            raise ValueError("Cannot get bounds for DependentCoordinates with un-named dimensions")
         return {dim: self[dim].bounds for dim in self.dims}
 
     @property
     def area_bounds(self):
         """:dict: Dictionary of (low, high) coordinates area_bounds in each unstacked dimension"""
         if None in self.dims:
-            raise ValueError(
-                "Cannot get area_bounds for DependentCoordinates with un-named dimensions"
-            )
+            raise ValueError("Cannot get area_bounds for DependentCoordinates with un-named dimensions")
         return {dim: self[dim].area_bounds for dim in self.dims}
 
     @property
     def coords(self):
         """:dict-like: xarray coordinates (container of coordinate arrays)"""
         if None in self.dims:
-            raise ValueError(
-                "Cannot get coords for DependentCoordinates with un-named dimensions"
-            )
+            raise ValueError("Cannot get coords for DependentCoordinates with un-named dimensions")
         return {dim: (self.idims, c) for dim, c in (zip(self.dims, self.coordinates))}
 
     @property
@@ -404,11 +374,7 @@ class DependentCoordinates(BaseCoordinates):
 
     @property
     def _full_properties(self):
-        return {
-            "dims": self.dims,
-            "ctypes": self.ctypes,
-            "segment_lengths": self.segment_lengths,
-        }
+        return {"dims": self.dims, "ctypes": self.ctypes, "segment_lengths": self.segment_lengths}
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -450,10 +416,7 @@ class DependentCoordinates(BaseCoordinates):
         """
 
         # logical AND of selection in each dimension
-        Is = [
-            self._within(a, bounds.get(dim), outer)
-            for dim, a in zip(self.dims, self.coordinates)
-        ]
+        Is = [self._within(a, bounds.get(dim), outer) for dim, a in zip(self.dims, self.coordinates)]
         I = np.logical_and.reduce(Is)
 
         if np.all(I):
@@ -509,13 +472,9 @@ class DependentCoordinates(BaseCoordinates):
             # segment lengths
             # TODO can we use '+units' here, at least sometimes?
             if self.ctypes[ilat] is not "point":
-                warnings.warn(
-                    "transformation of coordinate segment lengths not yet implemented"
-                )
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
             if self.ctypes[ilon] is not "point":
-                warnings.warn(
-                    "transformation of coordinate segment lengths not yet implemented"
-                )
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
             if self.ctypes[ialt] is not "point":
                 _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
                 properties["segment_lengths"][ialt] = tsl
@@ -534,22 +493,16 @@ class DependentCoordinates(BaseCoordinates):
             # segment lengths
             # TODO can we use '+units' here, at least sometimes?
             if self.ctypes[ilat] is not "point":
-                warnings.warn(
-                    "transformation of coordinate segment lengths not yet implemented"
-                )
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
             if self.ctypes[ilon] is not "point":
-                warnings.warn(
-                    "transformation of coordinate segment lengths not yet implemented"
-                )
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
 
         elif "alt" in self.dims:
             ialt = self.dims.index("alt")
 
             # coordinates
             alt = coords[ialt].flatten()
-            _, _, talt = transformer.transform(
-                np.zeros(self.size), np.zeros(self.size), alt
-            )
+            _, _, talt = transformer.transform(np.zeros(self.size), np.zeros(self.size), alt)
             coords[ialt] = talt.reshape(self.shape)
 
             # segment lengths
@@ -607,9 +560,7 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
         self._is_descending = None
         self._is_uniform = None
 
-        Coordinates1d.__init__(
-            self, name=name, ctype=ctype, segment_lengths=segment_lengths
-        )
+        Coordinates1d.__init__(self, name=name, ctype=ctype, segment_lengths=segment_lengths)
 
     def __repr__(self):
         return "%s(%s): Bounds[%f, %f], shape%s, ctype['%s']" % (
