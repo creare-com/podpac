@@ -38,8 +38,10 @@ extras_require = {
         "rasterio>=1.0",
         "zarr>=2.3",
     ],
-    "aws": ["awscli>=1.11", "boto3>=1.4", "s3fs>=0.2"],
-    "algorithms": ["numexpr>=2.6"],
+    "aws": [
+        "awscli>=1.11", "boto3>=1.4", "s3fs>=0.2"],
+    "algorithms": [
+        "numexpr>=2.6"],
     "notebook": [
         "jupyterlab",
         "ipyleaflet",
