@@ -4,8 +4,10 @@ podpac module
 
 # Always perfer setuptools over distutils
 import sys
+import subprocess
 
 from setuptools import find_packages, setup
+from setuptools.command.develop import develop
 
 # get version
 sys.path.insert(0, "podpac")
@@ -27,9 +29,7 @@ install_requires = [
 ]
 
 if sys.version_info.major == 2:
-    install_requires += [
-        "future>=0.16"
-    ]
+    install_requires += ["future>=0.16"]
 
 extras_require = {
     "datatype": [
@@ -38,7 +38,7 @@ extras_require = {
         "lxml>=4.2",
         "pydap>=3.2",
         "rasterio>=1.0",
-        "zarr>=2.3",
+        "zarr>=2.3"
     ],
     "aws": [
         "awscli>=1.11",
@@ -74,6 +74,7 @@ extras_require = {
         "six>=1.0",
         "attrs>=17.4.0",
         "pre_commit>=1",
+        "black",
     ],
 }
 
@@ -88,6 +89,13 @@ for key, val in extras_require.items():
     all_reqs += val
 extras_require["all"] = all_reqs
 extras_require["devall"] = all_reqs + extras_require["dev"]
+
+# install pre-commit hooks after setup in develop mode
+class PostDevelopCommand(develop):
+    def run(self):
+        subprocess.check_call(["pre-commit", "install"])
+        develop.run(self)
+
 
 setup(
     # ext_modules=None,
