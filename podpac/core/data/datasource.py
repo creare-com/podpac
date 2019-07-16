@@ -380,11 +380,11 @@ class DataSource(Node):
             requested_dims = None
             output = self.create_output_array(coordinates)
         else:
-            requested_dims = coordinates.dims
-            coordinates = coordinates.transpose(*output.dims)
+            requested_dims = self._evaluated_coordinates.dims  
+            # coordinates = coordinates.transpose(*output.dims)
 
             # check crs compatibility
-            if output.crs != coordinates.crs:
+            if output.crs != self._evaluated_coordinates.crs:
                 raise ValueError('Output coordinate reference system ({}) does not match'.format(output.crs) +
                                  'request Coordinates coordinate reference system ({})'.format(coordinates.crs))
 
