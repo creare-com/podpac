@@ -1,4 +1,3 @@
-
 from __future__ import division, print_function, absolute_import
 
 import threading
@@ -13,6 +12,7 @@ from podpac.core.cache.cache_store import CacheStore
 
 _thread_local = threading.local()
 
+
 class RamCacheStore(CacheStore):
     """
     RAM CacheStore.
@@ -23,9 +23,9 @@ class RamCacheStore(CacheStore):
      * there is not yet a max RAM usage setting or a removal policy.
     """
 
-    cache_mode = 'ram'
-    cache_modes = set(['ram', 'all'])
-    _limit_setting = 'RAM_CACHE_MAX_BYTES'
+    cache_mode = "ram"
+    cache_modes = set(["ram", "all"])
+    _limit_setting = "RAM_CACHE_MAX_BYTES"
 
     def __init__(self, max_size=None, use_settings_limit=True):
         """Summary
@@ -42,7 +42,7 @@ class RamCacheStore(CacheStore):
         use_settings_limit : bool, optional
             Use podpac settings to determine cache limits if True, this will also cause subsequent runtime changes to podpac settings module to effect the limit on this cache. Default is True.
         """
-        if not settings['RAM_CACHE_ENABLED']:
+        if not settings["RAM_CACHE_ENABLED"]:
             raise CacheException("RAM cache is disabled in the podpac settings.")
 
         super(CacheStore, self).__init__()
@@ -53,10 +53,12 @@ class RamCacheStore(CacheStore):
     @property
     def size(self):
         process = psutil.Process(os.getpid())
-        return process.memory_info().rss # this is actually the total size of the process
+        return (
+            process.memory_info().rss
+        )  # this is actually the total size of the process
 
     def put(self, node, data, key, coordinates=None, update=False):
-        '''Cache data for specified node.
+        """Cache data for specified node.
         
         Parameters
         ------------
@@ -70,27 +72,32 @@ class RamCacheStore(CacheStore):
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
-        '''
-        
-        if not hasattr(_thread_local, 'cache'):
+        """
+
+        if not hasattr(_thread_local, "cache"):
             _thread_local.cache = {}
 
         full_key = self._get_full_key(node, key, coordinates)
-        
+
         if full_key in _thread_local.cache:
             if not update:
-                raise CacheException("Cache entry already exists. Use update=True to overwrite.")
+                raise CacheException(
+                    "Cache entry already exists. Use update=True to overwrite."
+                )
 
         if self.max_size is not None and self.size >= self.max_size:
-        #     # TODO removal policy
-            warnings.warn("Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. No longer caching. Consider increasing this limit or try clearing the cache (e.g. node.rem_cache(key='*', mode='RAM', all_cache=True) to clear ALL cached results in RAM)", UserWarning)
+            #     # TODO removal policy
+            warnings.warn(
+                "Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. No longer caching. Consider increasing this limit or try clearing the cache (e.g. node.rem_cache(key='*', mode='RAM', all_cache=True) to clear ALL cached results in RAM)",
+                UserWarning,
+            )
             return False
 
         # TODO include insert date, last retrieval date, and/or # retrievals for use in a removal policy
         _thread_local.cache[full_key] = data
 
     def get(self, node, key, coordinates=None):
-        '''Get cached data for this node.
+        """Get cached data for this node.
         
         Parameters
         ------------
@@ -110,20 +117,20 @@ class RamCacheStore(CacheStore):
         -------
         CacheError
             If the data is not in the cache.
-        '''
+        """
 
-        if not hasattr(_thread_local, 'cache'):
+        if not hasattr(_thread_local, "cache"):
             _thread_local.cache = {}
 
         full_key = self._get_full_key(node, key, coordinates)
-        
+
         if full_key not in _thread_local.cache:
             raise CacheException("Cache miss. Requested data not found.")
-        
+
         return copy.deepcopy(_thread_local.cache[full_key])
 
     def has(self, node, key, coordinates=None):
-        '''Check for cached data for this node
+        """Check for cached data for this node
         
         Parameters
         ------------
@@ -138,16 +145,16 @@ class RamCacheStore(CacheStore):
         -------
         has_cache : bool
              True if there as a cached object for this node for the given key and coordinates.
-        '''
-        
-        if not hasattr(_thread_local, 'cache'):
+        """
+
+        if not hasattr(_thread_local, "cache"):
             _thread_local.cache = {}
 
         full_key = self._get_full_key(node, key, coordinates)
         return full_key in _thread_local.cache
 
     def rem(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
-        '''Delete cached data for this node.
+        """Delete cached data for this node.
         
         Parameters
         ------------
@@ -157,11 +164,11 @@ class RamCacheStore(CacheStore):
             Delete only cached objects with this key.
         coordinates : Coordinates
             Delete only cached objects for these coordinates.
-        '''
-        
-        if not hasattr(_thread_local, 'cache'):
+        """
+
+        if not hasattr(_thread_local, "cache"):
             _thread_local.cache = {}
-        
+
         node_key = node.json
 
         if not isinstance(coordinates, CacheWildCard):

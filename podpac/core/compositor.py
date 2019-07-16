@@ -15,13 +15,14 @@ from podpac.core.coordinates import Coordinates, merge_dims
 from podpac.core.node import Node
 from podpac.core.utils import common_doc
 from podpac.core.utils import ArrayTrait
-from podpac.core.node import COMMON_NODE_DOC 
-from podpac.core.node import node_eval 
+from podpac.core.node import COMMON_NODE_DOC
+from podpac.core.node import node_eval
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.interpolation import interpolation_trait
 from podpac.core.utils import trait_is_defined
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
+
 
 @common_doc(COMMON_COMPOSITOR_DOC)
 class Compositor(Node):
@@ -65,26 +66,32 @@ class Compositor(Node):
       * NASA data servers seem to have a hard limit of 10 simultaneous requests, so a max of 10 threads is recommend
         for most use-cases.
     """
+
     shared_coordinates = tl.Instance(Coordinates, allow_none=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True)
-    is_source_coordinates_complete = tl.Bool(False, help=("This allows some optimizations but assumes that a node's "
-                                                          "native_coordinates=source_coordinate + shared_coordinate "
-                                                          "IN THAT ORDER"))
+    is_source_coordinates_complete = tl.Bool(
+        False,
+        help=(
+            "This allows some optimizations but assumes that a node's "
+            "native_coordinates=source_coordinate + shared_coordinate "
+            "IN THAT ORDER"
+        ),
+    )
 
     source = tl.Unicode().tag(attr=True)
     sources = ArrayTrait(ndim=1)
     cache_native_coordinates = tl.Bool(True)
-    
+
     interpolation = interpolation_trait(default_value=None)
-    
-    @tl.default('source')
+
+    @tl.default("source")
     def _source_default(self):
         source = []
         for s in self.sources[:3]:
             source.append(str(s))
-        return '_'.join(source)
-    
-    @tl.default('source_coordinates')
+        return "_".join(source)
+
+    @tl.default("source_coordinates")
     def _source_coordinates_default(self):
         return self.get_source_coordinates()
 
@@ -92,9 +99,9 @@ class Compositor(Node):
     def __repr__(self):
         source_name = str(self.__class__.__name__)
 
-        rep = '{}'.format(source_name)
-        rep += '\n\tsource: {}'.format(self.source)
-        rep += '\n\tinterpolation: {}'.format(self.interpolation)
+        rep = "{}".format(source_name)
+        rep += "\n\tsource: {}".format(self.source)
+        rep += "\n\tinterpolation: {}".format(self.interpolation)
 
         return rep
 
@@ -109,8 +116,8 @@ class Compositor(Node):
             Coordinates describing each source.
         """
         return None
-        
-    @tl.default('shared_coordinates')
+
+    @tl.default("shared_coordinates")
     def _shared_coordinates_default(self):
         return self.get_shared_coordinates()
 
@@ -123,7 +130,6 @@ class Compositor(Node):
             Description
         """
         raise NotImplementedError()
-
 
     def select_sources(self, coordinates):
         """Downselect compositor sources based on requested coordinates.
@@ -146,20 +152,22 @@ class Compositor(Node):
         if self.source_coordinates is not None:
             # intersecting sources only
             try:
-                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
+                _, I = self.source_coordinates.intersect(
+                    coordinates, outer=True, return_indices=True
+                )
 
-            except: # Likely non-monotonic coordinates
-                _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
-            
+            except:  # Likely non-monotonic coordinates
+                _, I = self.source_coordinates.intersect(
+                    coordinates, outer=False, return_indices=True
+                )
+
             src_subset = self.sources[I]
-        
 
         # no downselection possible - get all sources compositor
         else:
             src_subset = self.sources
 
         return src_subset
-
 
     def composite(self, outputs, result=None):
         """Implements the rules for compositing multiple sources together.
@@ -176,7 +184,7 @@ class Compositor(Node):
         NotImplementedError
         """
         raise NotImplementedError()
-    
+
     def iteroutputs(self, coordinates):
         """Summary
         
@@ -200,7 +208,7 @@ class Compositor(Node):
         # Set the interpolation properties for sources
         if self.interpolation is not None:
             for s in src_subset.ravel():
-                if trait_is_defined(self, 'interpolation'):
+                if trait_is_defined(self, "interpolation"):
                     s.interpolation = self.interpolation
 
         # Optimization: if coordinates complete and source coords is 1D,
@@ -209,32 +217,42 @@ class Compositor(Node):
         #              native_coords = source_coords + shared_coordinates
         #         NOT  native_coords = shared_coords + source_coords
         if self.is_source_coordinates_complete and self.source_coordinates.ndim == 1:
-            coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
+            coords_subset = list(
+                self.source_coordinates.intersect(
+                    coordinates, outer=True
+                ).coords.values()
+            )[0]
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
-                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
-                
-                if trait_is_defined(s,'native_coordinates') is False:
+                nc = merge_dims(
+                    [
+                        Coordinates(np.atleast_1d(c), dims=[coords_dim]),
+                        self.shared_coordinates,
+                    ]
+                )
+
+                if trait_is_defined(s, "native_coordinates") is False:
                     s.native_coordinates = nc
 
-        if settings['MULTITHREADING']:
+        if settings["MULTITHREADING"]:
             # TODO pool of pre-allocated scratch space
             # TODO: docstring?
             def f(src):
                 return src.eval(coordinates)
-            pool = ThreadPool(processes=settings.get('N_THREADS', 10))
+
+            pool = ThreadPool(processes=settings.get("N_THREADS", 10))
             results = [pool.apply_async(f, [src]) for src in src_subset]
-            
+
             for src, res in zip(src_subset, results):
                 yield res.get()
-                #src._output = None # free up memory
+                # src._output = None # free up memory
 
         else:
-            output = None # scratch space
+            output = None  # scratch space
             for src in src_subset:
                 output = src.eval(coordinates, output)
                 yield output
-                #output[:] = np.nan
+                # output[:] = np.nan
 
     @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
@@ -252,9 +270,9 @@ class Compositor(Node):
         -------
         {eval_return}
         """
-        
+
         self._requested_coordinates = coordinates
-         
+
         outputs = self.iteroutputs(coordinates)
         output = self.composite(outputs, output)
         return output
@@ -281,14 +299,16 @@ class Compositor(Node):
         {definition_return}
         """
         d = super(Compositor, self).base_definition
-        d['sources'] = self.sources
-        d['interpolation'] = self.interpolation
+        d["sources"] = self.sources
+        d["interpolation"] = self.interpolation
         return d
+
 
 class OrderedCompositor(Compositor):
     """Compositor that combines sources based on their order in self.sources. Once a request contains no
     nans, the result is returned. 
     """
+
     @common_doc(COMMON_COMPOSITOR_DOC)
     def composite(self, outputs, result=None):
         """Composites outputs in order that they appear.
@@ -313,7 +333,7 @@ class OrderedCompositor(Compositor):
         mask = np.isfinite(result.data)
         if np.all(mask):
             return result
-        
+
         # loop through remaining outputs
         for output in outputs:
             output = output.transpose(*result.dims)

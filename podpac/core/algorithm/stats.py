@@ -27,6 +27,7 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 # Reduce Nodes
 # =============================================================================
 
+
 class Reduce(Algorithm):
     """Base node for statistical algorithms
     
@@ -37,7 +38,7 @@ class Reduce(Algorithm):
     source : podpac.Node
         The source node that will be reduced. 
     """
-    
+
     source = NodeTrait()
     dims = tl.List().tag(attr=True)
 
@@ -45,8 +46,8 @@ class Reduce(Algorithm):
     _dims = tl.List(trait_type=str)
 
     def _first_init(self, **kwargs):
-        if 'dims' in kwargs and isinstance(kwargs['dims'], string_types):
-            kwargs['dims'] = [kwargs['dims']]
+        if "dims" in kwargs and isinstance(kwargs["dims"], string_types):
+            kwargs["dims"] = [kwargs["dims"]]
         return super(Reduce, self)._first_init(**kwargs)
 
     def _get_dims(self, out):
@@ -63,7 +64,7 @@ class Reduce(Algorithm):
         list
             List of dimensions after reduction
         """
-    
+
     def dims_axes(self, output):
         """Finds the indices for the dimensions that will be reduced. This is passed to numpy. 
         
@@ -90,9 +91,9 @@ class Reduce(Algorithm):
             Size of chunks
         """
 
-        chunk_size = podpac.settings['CHUNK_SIZE']
-        if chunk_size == 'auto':
-            return 1024**2 # TODO
+        chunk_size = podpac.settings["CHUNK_SIZE"]
+        if chunk_size == "auto":
+            return 1024 ** 2  # TODO
         else:
             return chunk_size
 
@@ -108,8 +109,8 @@ class Reduce(Algorithm):
             return None
 
         chunk_size = self.chunk_size
-        
-        d = {k:coords[k].size for k in coords.dims if k not in self._dims}
+
+        d = {k: coords[k].size for k in coords.dims if k not in self._dims}
         s = reduce(mul, d.values(), 1)
         for dim in self._dims:
             n = chunk_size // s
@@ -179,7 +180,7 @@ class Reduce(Algorithm):
         """
 
         self._requested_coordinates = coordinates
-        
+
         if self.dims:
             self._dims = [dim for dim in self.dims if dim in coordinates.dims]
         else:
@@ -245,10 +246,11 @@ class Reduce(Algorithm):
 
         raise NotImplementedError
 
+
 class Min(Reduce):
     """Computes the minimum across dimension(s)
     """
-    
+
     def reduce(self, x):
         """Computes the minimum across dimension(s)
         
@@ -263,7 +265,7 @@ class Min(Reduce):
             Minimum of the source data over dims
         """
         return x.min(dim=self._dims)
-    
+
     def reduce_chunked(self, xs, output):
         """Computes the minimum across a chunk
         
@@ -287,7 +289,7 @@ class Min(Reduce):
 class Max(Reduce):
     """Computes the maximum across dimension(s)
     """
-    
+
     def reduce(self, x):
         """Computes the maximum across dimension(s)
         
@@ -326,7 +328,7 @@ class Max(Reduce):
 class Sum(Reduce):
     """Computes the sum across dimension(s)
     """
-    
+
     def reduce(self, x):
         """Computes the sum across dimension(s)
         
@@ -364,7 +366,7 @@ class Sum(Reduce):
 class Count(Reduce):
     """Counts the finite values across dimension(s)
     """
-    
+
     def reduce(self, x):
         """Counts the finite values across dimension(s)
         
@@ -402,7 +404,7 @@ class Count(Reduce):
 class Mean(Reduce):
     """Computes the mean across dimension(s)
     """
-    
+
     def reduce(self, x):
         """Computes the mean across dimension(s)
         
@@ -444,7 +446,7 @@ class Mean(Reduce):
 class Variance(Reduce):
     """Computes the variance across dimension(s)
     """
-    
+
     def reduce(self, x):
         """Computes the variance across dimension(s)
         
@@ -481,9 +483,9 @@ class Variance(Reduce):
         for x in xs:
             n += np.isfinite(x).sum(dim=self._dims)
             d = x - m
-            m += (d/n).sum(dim=self._dims)
+            m += (d / n).sum(dim=self._dims)
             d2 = x - m
-            m2 += (d*d2).sum(dim=self._dims)
+            m2 += (d * d2).sum(dim=self._dims)
 
         return m2 / n
 
@@ -518,9 +520,9 @@ class Skew(Reduce):
         # skew = self.skew(M3, M2, N)
 
         a = self._reshape(x)
-        skew = scipy.stats.skew(a, nan_policy='omit')
+        skew = scipy.stats.skew(a, nan_policy="omit")
         return skew
-        
+
     def reduce_chunked(self, xs, output):
         """Computes the skew across a chunk
         
@@ -544,8 +546,8 @@ class Skew(Reduce):
             Nx = np.isfinite(x).sum(dim=self._dims)
             M1x = x.mean(dim=self._dims)
             Ex = x - M1x
-            Ex2 = Ex**2
-            Ex3 = Ex2*Ex
+            Ex2 = Ex ** 2
+            Ex3 = Ex2 * Ex
             M2x = (Ex2).sum(dim=self._dims)
             M3x = (Ex3).sum(dim=self._dims)
 
@@ -555,7 +557,7 @@ class Skew(Reduce):
             M1x = M1x.data[b]
             M2x = M2x.data[b]
             M3x = M3x.data[b]
-            
+
             Nb = N.data[b]
             M1b = M1.data[b]
             M2b = M2.data[b]
@@ -565,16 +567,19 @@ class Skew(Reduce):
             n = Nb + Nx
             NNx = Nb * Nx
 
-            M3.data[b] += (M3x +
-                           d**3 * NNx * (Nb-Nx) / n**2 +
-                           3 * d * (Nb*M2x - Nx*M2b) / n)
-            M2.data[b] += M2x + d**2 * NNx / n
+            M3.data[b] += (
+                M3x
+                + d ** 3 * NNx * (Nb - Nx) / n ** 2
+                + 3 * d * (Nb * M2x - Nx * M2b) / n
+            )
+            M2.data[b] += M2x + d ** 2 * NNx / n
             M1.data[b] += d * Nx / n
             N.data[b] = n
 
         # calculate skew
-        skew = np.sqrt(N) * M3 / np.sqrt(M2**3)
+        skew = np.sqrt(N) * M3 / np.sqrt(M2 ** 3)
         return skew
+
 
 class Kurtosis(Reduce):
     """Computes the kurtosis across dimension(s)
@@ -596,7 +601,7 @@ class Kurtosis(Reduce):
             Kurtosis of the source data over dims
         """
         # N = np.isfinite(x).sum(dim=self._dims)
-        # M1 = x.mean(dim=self._dims)        
+        # M1 = x.mean(dim=self._dims)
         # E = x - M1
         # E2 = E**2
         # E4 = E2**2
@@ -605,7 +610,7 @@ class Kurtosis(Reduce):
         # kurtosis = N * M4 / M2**2 - 3
 
         a = self._reshape(x)
-        kurtosis = scipy.stats.kurtosis(a, nan_policy='omit')
+        kurtosis = scipy.stats.kurtosis(a, nan_policy="omit")
         return kurtosis
 
     def reduce_chunked(self, xs, output):
@@ -631,13 +636,13 @@ class Kurtosis(Reduce):
             Nx = np.isfinite(x).sum(dim=self._dims)
             M1x = x.mean(dim=self._dims)
             Ex = x - M1x
-            Ex2 = Ex**2
-            Ex3 = Ex2*Ex
-            Ex4 = Ex2**2
+            Ex2 = Ex ** 2
+            Ex3 = Ex2 * Ex
+            Ex4 = Ex2 ** 2
             M2x = (Ex2).sum(dim=self._dims)
             M3x = (Ex3).sum(dim=self._dims)
             M4x = (Ex4).sum(dim=self._dims)
-            
+
             # premask to omit NaNs
             b = Nx.data > 0
             Nx = Nx.data[b]
@@ -645,7 +650,7 @@ class Kurtosis(Reduce):
             M2x = M2x.data[b]
             M3x = M3x.data[b]
             M4x = M4x.data[b]
-            
+
             Nb = N.data[b]
             M1b = M1.data[b]
             M2b = M2.data[b]
@@ -656,27 +661,31 @@ class Kurtosis(Reduce):
             n = Nb + Nx
             NNx = Nb * Nx
 
-            M4.data[b] += (M4x +
-                           d**4 * NNx * (Nb**2 - NNx + Nx**2) / n**3 +
-                           6 * d**2 * (Nb**2*M2x + Nx**2*M2b) / n**2 +
-                           4 * d * (Nb*M3x - Nx*M3b) / n)
+            M4.data[b] += (
+                M4x
+                + d ** 4 * NNx * (Nb ** 2 - NNx + Nx ** 2) / n ** 3
+                + 6 * d ** 2 * (Nb ** 2 * M2x + Nx ** 2 * M2b) / n ** 2
+                + 4 * d * (Nb * M3x - Nx * M3b) / n
+            )
 
-            M3.data[b] += (M3x +
-                           d**3 * NNx * (Nb-Nx) / n**2 +
-                           3 * d * (Nb*M2x - Nx*M2b) / n)
-            M2.data[b] += M2x + d**2 * NNx / n
+            M3.data[b] += (
+                M3x
+                + d ** 3 * NNx * (Nb - Nx) / n ** 2
+                + 3 * d * (Nb * M2x - Nx * M2b) / n
+            )
+            M2.data[b] += M2x + d ** 2 * NNx / n
             M1.data[b] += d * Nx / n
             N.data[b] = n
 
         # calculate kurtosis
-        kurtosis = N * M4 / M2**2 - 3
+        kurtosis = N * M4 / M2 ** 2 - 3
         return kurtosis
 
 
 class StandardDeviation(Variance):
     """Computes the standard deviation across dimension(s)
     """
-    
+
     def reduce(self, x):
         """Computes the standard deviation across dimension(s)
         
@@ -708,9 +717,11 @@ class StandardDeviation(Variance):
         var = super(StandardDeviation, self).reduce_chunked(xs, output)
         return np.sqrt(var)
 
+
 # =============================================================================
 # Orthogonally chunked reduce
 # =============================================================================
+
 
 class Reduce2(Reduce):
     """
@@ -738,9 +749,9 @@ class Reduce2(Reduce):
             return None
 
         chunk_size = self.chunk_size
-        
+
         # here, the minimum size is the reduce-dimensions size
-        d = {k:coords[k].size for k in self._dims}
+        d = {k: coords[k].size for k in self._dims}
         s = reduce(mul, d.values(), 1)
         for dim in coords.dims[::-1]:
             if dim in self._dims:
@@ -792,7 +803,9 @@ class Reduce2(Reduce):
 
         y = xr.full_like(output, np.nan)
         for x, xslices in xs:
-            yslc = [xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims]
+            yslc = [
+                xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims
+            ]
             y.data[yslc] = self.reduce(x)
         return y
 
@@ -800,7 +813,7 @@ class Reduce2(Reduce):
 class Median(Reduce2):
     """Computes the median across dimension(s)
     """
-    
+
     def reduce(self, x):
         """Computes the median across dimension(s)
         
@@ -825,7 +838,7 @@ class Percentile(Reduce2):
     percentile : TYPE
         Description
     """
-    
+
     percentile = tl.Float(default=50.0).tag(attr=True)
 
     def reduce(self, x):
@@ -844,9 +857,11 @@ class Percentile(Reduce2):
 
         return np.nanpercentile(x, self.percentile, self.dims_axes(x))
 
+
 # =============================================================================
 # Time-Grouped Reduce
 # =============================================================================
+
 
 class GroupReduce(Algorithm):
     """
@@ -866,17 +881,31 @@ class GroupReduce(Algorithm):
 
     source = NodeTrait()
     coordinates_source = NodeTrait(allow_none=True)
-    
+
     # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
-    groupby = tl.CaselessStrEnum(['dayofyear']) # could add season, month, etc
+    groupby = tl.CaselessStrEnum(["dayofyear"])  # could add season, month, etc
 
     reduce_fn = tl.CaselessStrEnum(
-        ['all', 'any', 'count', 'max', 'mean', 'median', 'min', 'prod', 'std', 'sum', 'var', 'custom'])
+        [
+            "all",
+            "any",
+            "count",
+            "max",
+            "mean",
+            "median",
+            "min",
+            "prod",
+            "std",
+            "sum",
+            "var",
+            "custom",
+        ]
+    )
     custom_reduce_fn = tl.Any()
-    
+
     _source_coordinates = tl.Instance(Coordinates)
 
-    @tl.default('coordinates_source')
+    @tl.default("coordinates_source")
     def _default_coordinates_source(self):
         return self.source
 
@@ -885,14 +914,18 @@ class GroupReduce(Algorithm):
         # TODO do these two checks during node initialization
         available_coordinates = self.coordinates_source.find_coordinates()
         if len(available_coordinates) != 1:
-            raise ValueError("Cannot evaluate this node; too many available coordinates")
+            raise ValueError(
+                "Cannot evaluate this node; too many available coordinates"
+            )
         avail_coords = available_coordinates[0]
-        if 'time' not in avail_coords.udims:
-            raise ValueError("GroupReduce coordinates source node must be time-dependent")
+        if "time" not in avail_coords.udims:
+            raise ValueError(
+                "GroupReduce coordinates source node must be time-dependent"
+            )
 
         # intersect grouped time coordinates using groupby DatetimeAccessor
-        avail_time = xr.DataArray(avail_coords.coords['time'])
-        eval_time = xr.DataArray(requested_coordinates.coords['time'])
+        avail_time = xr.DataArray(avail_coords.coords["time"])
+        eval_time = xr.DataArray(requested_coordinates.coords["time"])
         N = getattr(avail_time.dt, self.groupby)
         E = getattr(eval_time.dt, self.groupby)
         native_time_mask = np.in1d(N, E)
@@ -900,9 +933,10 @@ class GroupReduce(Algorithm):
         # use requested spatial coordinates and filtered available times
         coords = Coordinates(
             time=avail_time.data[native_time_mask],
-            lat=requested_coordinates['lat'],
-            lon=requested_coordinates['lon'],
-            order=('time', 'lat', 'lon'))
+            lat=requested_coordinates["lat"],
+            lon=requested_coordinates["lon"],
+            order=("time", "lat", "lon"),
+        )
 
         return coords
 
@@ -927,28 +961,28 @@ class GroupReduce(Algorithm):
         ValueError
             If source it not time-depended (required by this node).
         """
-        
+
         self._source_coordinates = self._get_source_coordinates(coordinates)
-        
+
         if output is None:
             output = self.create_output_array(coordinates)
-        
+
         source_output = self.source.eval(self._source_coordinates)
 
         # group
-        grouped = source_output.groupby('time.%s' % self.groupby)
-        
+        grouped = source_output.groupby("time.%s" % self.groupby)
+
         # reduce
-        if self.reduce_fn is 'custom':
-            out = grouped.apply(self.custom_reduce_fn, 'time')
+        if self.reduce_fn is "custom":
+            out = grouped.apply(self.custom_reduce_fn, "time")
         else:
             # standard, e.g. grouped.median('time')
-            out = getattr(grouped, self.reduce_fn)('time')
+            out = getattr(grouped, self.reduce_fn)("time")
 
         # map
-        eval_time = xr.DataArray(coordinates.coords['time'])
+        eval_time = xr.DataArray(coordinates.coords["time"])
         E = getattr(eval_time.dt, self.groupby)
-        out = out.sel(**{self.groupby:E}).rename({self.groupby: 'time'})
+        out = out.sel(**{self.groupby: E}).rename({self.groupby: "time"})
         output[:] = out.transpose(*output.dims).data
 
         return output
@@ -962,7 +996,8 @@ class GroupReduce(Algorithm):
         str
             Default pipeline node reference/name in pipeline node definitions
         """
-        return '%s.%s.%s' % (self.source.base_ref,self.groupby,self.reduce_fn)
+        return "%s.%s.%s" % (self.source.base_ref, self.groupby, self.reduce_fn)
+
 
 class DayOfYear(GroupReduce):
     """
@@ -978,4 +1013,4 @@ class DayOfYear(GroupReduce):
         Source node
     """
 
-    groupby = 'dayofyear'
+    groupby = "dayofyear"

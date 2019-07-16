@@ -11,10 +11,15 @@ import numpy as np
 import traitlets as tl
 
 from podpac.core.utils import ArrayTrait
-from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
+from podpac.core.coordinates.utils import (
+    make_coord_value,
+    make_coord_delta,
+    make_coord_delta_array,
+)
 from podpac.core.coordinates.utils import add_coord, divide_delta
 from podpac.core.coordinates.utils import Dimension, CoordinateType
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
+
 
 class Coordinates1d(BaseCoordinates):
     """
@@ -64,7 +69,7 @@ class Coordinates1d(BaseCoordinates):
             self.name = name
 
         if ctype is not None:
-            self.set_trait('ctype', ctype)
+            self.set_trait("ctype", ctype)
 
         if segment_lengths is not None:
             if np.array(segment_lengths).ndim == 0:
@@ -72,33 +77,42 @@ class Coordinates1d(BaseCoordinates):
             else:
                 segment_lengths = make_coord_delta_array(segment_lengths)
                 segment_lengths.setflags(write=False)
-            
-            self.set_trait('segment_lengths', segment_lengths)
+
+            self.set_trait("segment_lengths", segment_lengths)
 
         super(Coordinates1d, self).__init__()
 
-    @tl.observe('name', 'ctype', 'segment_lengths')
+    @tl.observe("name", "ctype", "segment_lengths")
     def _set_property(self, d):
-        self._properties.add(d['name'])
+        self._properties.add(d["name"])
 
-    @tl.validate('segment_lengths')
+    @tl.validate("segment_lengths")
     def _validate_segment_lengths(self, d):
-        val = d['value']
-        
-        if self.ctype == 'point':
+        val = d["value"]
+
+        if self.ctype == "point":
             if val is not None:
                 raise TypeError("segment_lengths must be None when ctype='point'")
             return None
-        
+
         if isinstance(val, np.ndarray):
             if val.size != self.size:
-                raise ValueError("coordinates and segment_lengths size mismatch, %d != %d" % (self.size, val.size))
+                raise ValueError(
+                    "coordinates and segment_lengths size mismatch, %d != %d"
+                    % (self.size, val.size)
+                )
             if not np.issubdtype(val.dtype, np.dtype(self.deltatype).type):
-                raise ValueError("coordinates and segment_lengths dtype mismatch, %s != %s" % (self.dtype, self.deltatype))
+                raise ValueError(
+                    "coordinates and segment_lengths dtype mismatch, %s != %s"
+                    % (self.dtype, self.deltatype)
+                )
 
         else:
             if self.size > 0 and not isinstance(val, self.deltatype):
-                raise TypeError("coordinates and segment_lengths type mismatch, %s != %s" % (self.deltatype, type(val)))
+                raise TypeError(
+                    "coordinates and segment_lengths type mismatch, %s != %s"
+                    % (self.deltatype, type(val))
+                )
 
         if np.any(np.array(val).astype(float) <= 0.0):
             raise ValueError("segment_lengths must be positive")
@@ -107,23 +121,29 @@ class Coordinates1d(BaseCoordinates):
 
     def _set_name(self, value):
         # set name if it is not set already, otherwise check that it matches
-        if 'name' not in self._properties:
+        if "name" not in self._properties:
             self.name = value
         elif self.name != value:
             raise ValueError("Dimension mismatch, %s != %s" % (value, self.name))
 
     def _set_ctype(self, value):
         # only set ctype if it is not set already
-        if 'ctype' not in self._properties:
-            self.set_trait('ctype', value)
+        if "ctype" not in self._properties:
+            self.set_trait("ctype", value)
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods
     # ------------------------------------------------------------------------------------------------------------------
-    
+
     def __repr__(self):
         return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
-            self.__class__.__name__, self.name or '?', self.bounds[0], self.bounds[1], self.size, self.ctype)
+            self.__class__.__name__,
+            self.name or "?",
+            self.bounds[0],
+            self.bounds[1],
+            self.size,
+            self.ctype,
+        )
 
     def __eq__(self, other):
         if not isinstance(other, Coordinates1d):
@@ -131,15 +151,15 @@ class Coordinates1d(BaseCoordinates):
 
         # defined coordinate properties should match
         for name in self._properties.union(other._properties):
-            if name == 'segment_lengths':
+            if name == "segment_lengths":
                 if not np.all(self.segment_lengths == other.segment_lengths):
                     return False
 
             elif getattr(self, name) != getattr(other, name):
                 return False
-        
+
         # shortcuts (not strictly necessary)
-        for name in ['size', 'is_monotonic', 'is_descending', 'is_uniform']:
+        for name in ["size", "is_monotonic", "is_descending", "is_uniform"]:
             if getattr(self, name) != getattr(other, name):
                 return False
 
@@ -172,7 +192,7 @@ class Coordinates1d(BaseCoordinates):
         """:dict-like: xarray coordinates (container of coordinate arrays)"""
 
         return {self.name: self.coordinates}
-        
+
     @property
     def dtype(self):
         """:type: Coordinates dtype.
@@ -206,7 +226,7 @@ class Coordinates1d(BaseCoordinates):
         """ Low and high coordinate bounds. """
 
         raise NotImplementedError
-    
+
     @property
     def area_bounds(self):
         """
@@ -216,7 +236,7 @@ class Coordinates1d(BaseCoordinates):
         """
 
         # point ctypes, just use bounds
-        if self.ctype == 'point':
+        if self.ctype == "point":
             return self.bounds
 
         # empty coordinates [np.nan, np.nan]
@@ -226,17 +246,17 @@ class Coordinates1d(BaseCoordinates):
         # segment ctypes, calculated
         L, H = self.argbounds
         lo, hi = self.bounds
-        
+
         if not isinstance(self.segment_lengths, np.ndarray):
-            lo_length = hi_length = self.segment_lengths # uniform segment_lengths
+            lo_length = hi_length = self.segment_lengths  # uniform segment_lengths
         else:
             lo_length, hi_length = self.segment_lengths[L], self.segment_lengths[H]
 
-        if self.ctype == 'left':
+        if self.ctype == "left":
             hi = add_coord(hi, hi_length)
-        elif self.ctype == 'right':
+        elif self.ctype == "right":
             lo = add_coord(lo, -lo_length)
-        elif self.ctype == 'midpoint':
+        elif self.ctype == "midpoint":
             lo = add_coord(lo, -divide_delta(lo_length, 2.0))
             hi = add_coord(hi, divide_delta(hi_length, 2.0))
 
@@ -249,7 +269,7 @@ class Coordinates1d(BaseCoordinates):
     def properties(self):
         """:dict: Dictionary of the coordinate properties. """
 
-        return {key:getattr(self, key) for key in self._properties}
+        return {key: getattr(self, key) for key in self._properties}
 
     @property
     def definition(self):
@@ -267,9 +287,10 @@ class Coordinates1d(BaseCoordinates):
     @property
     def _full_properties(self):
         return {
-            'name': self.name,
-            'ctype': self.ctype,
-            'segment_lengths': self.segment_lengths}
+            "name": self.name,
+            "ctype": self.ctype,
+            "segment_lengths": self.segment_lengths,
+        }
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -368,17 +389,19 @@ class Coordinates1d(BaseCoordinates):
     def _transform(self, transformer):
         from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
-        if self.name == 'alt':
+        if self.name == "alt":
             # coordinates
-            _, _, tcoordinates = transformer.transform(np.zeros(self.size), np.zeros(self.size), self.coordinates)
-            
+            _, _, tcoordinates = transformer.transform(
+                np.zeros(self.size), np.zeros(self.size), self.coordinates
+            )
+
             # segment lengths
             properties = self.properties
-            if self.ctype is not 'point' and 'segment_lengths' in self.properties:
+            if self.ctype is not "point" and "segment_lengths" in self.properties:
                 _ = np.zeros_like(self.segment_lengths)
                 _, _, tsl = transformer.transform(_, _, self.segment_lengths)
-                properties['segment_lengths'] = tsl
-            
+                properties["segment_lengths"] = tsl
+
             t = ArrayCoordinates1d(tcoordinates, **properties)
 
         else:

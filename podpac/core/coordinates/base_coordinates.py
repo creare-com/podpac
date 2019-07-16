@@ -3,6 +3,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import sys
 import traitlets as tl
 
+
 class BaseCoordinates(tl.HasTraits):
     """Base class for single or stacked one-dimensional coordinates."""
 
@@ -85,6 +86,7 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     # python 2 compatibility
-    if sys.version < '3':
+    if sys.version < "3":
+
         def __ne__(self, other):
             return not self.__eq__(other)

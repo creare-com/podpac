@@ -1,18 +1,29 @@
-
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
+
 
 class TestBaseCoordinates(object):
     def test_common_api(self):
         c = BaseCoordinates()
 
-        attrs = ['name', 'dims', 'idims', 'udims', 'coordinates', 'coords', 'size', 'shape', 'definition', 'full_definition']
+        attrs = [
+            "name",
+            "dims",
+            "idims",
+            "udims",
+            "coordinates",
+            "coords",
+            "size",
+            "shape",
+            "definition",
+            "full_definition",
+        ]
         for attr in attrs:
             try:
                 getattr(c, attr)
             except NotImplementedError:
                 pass
 
-        for method_name in ['_set_name', '_set_ctype']:
+        for method_name in ["_set_name", "_set_ctype"]:
             try:
                 method = getattr(c, method_name)
                 method(None)
