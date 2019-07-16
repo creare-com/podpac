@@ -74,6 +74,7 @@ extras_require = {
         "six>=1.0",
         "attrs>=17.4.0",
         "pre_commit>=1",
+        "black"
     ],
 }
 
