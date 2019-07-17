@@ -50,7 +50,6 @@ h5py = lazy_module("h5py")
 boto3 = lazy_module("boto3")
 requests = lazy_module("requests")
 zarr = lazy_module("zarr")
-zarrGroup = lazy_class("zarr.Group")
 s3fs = lazy_module("s3fs")
 # esri
 RasterToNumPyArray = lazy_module("arcpy.RasterToNumPyArray")
@@ -706,7 +705,7 @@ class H5PY(DataSource):
 
 class Zarr(DataSource):
     source = tl.Unicode(allow_none=True)
-    group = tl.ForwardDeclaredInstance("zarrGroup", allow_none=False)
+    group = tl.Any(allow_none=False)
     datakey = tl.Unicode(allow_none=False).tag(attr=True)
     latkey = tl.Unicode(allow_none=True, default_value="lat").tag(attr=True)
     lonkey = tl.Unicode(allow_none=True, default_value="lon").tag(attr=True)
