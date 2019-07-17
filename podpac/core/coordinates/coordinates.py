@@ -33,6 +33,7 @@ from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 
+
 class Coordinates(tl.HasTraits):
     """
     Multidimensional Coordinates.
@@ -103,8 +104,10 @@ class Coordinates(tl.HasTraits):
         if dims is None:
             for i, c in enumerate(coords):
                 if not isinstance(c, (BaseCoordinates, xr.DataArray)):
-                    raise TypeError("Cannot get dim for coordinates at position %d with type '%s'"
-                                    "(expected 'Coordinates1d' or 'DataArray')" % (i, type(c)))
+                    raise TypeError(
+                        "Cannot get dim for coordinates at position %d with type '%s'"
+                        "(expected 'Coordinates1d' or 'DataArray')" % (i, type(c))
+                    )
 
             dims = [c.name for c in coords]
 
@@ -120,9 +123,9 @@ class Coordinates(tl.HasTraits):
             # coerce
             if isinstance(coords[i], BaseCoordinates):
                 c = coords[i]
-            elif '_' in dim:
+            elif "_" in dim:
                 c = StackedCoordinates(coords[i])
-            elif ',' in dim:
+            elif "," in dim:
                 c = DependentCoordinates(coords[i])
             else:
                 c = ArrayCoordinates1d(coords[i])
@@ -131,20 +134,20 @@ class Coordinates(tl.HasTraits):
             c._set_name(dim)
             if ctype is not None:
                 c._set_ctype(ctype)
-            
+
             # set coords
             dcoords[dim] = c
-            
-        self.set_trait('_coords', dcoords)
+
+        self.set_trait("_coords", dcoords)
         if crs is not None:
-            self.set_trait('crs', crs)
+            self.set_trait("crs", crs)
         if alt_units is not None:
-            self.set_trait('alt_units', alt_units)
+            self.set_trait("alt_units", alt_units)
         super(Coordinates, self).__init__()
 
-    @tl.validate('_coords')
+    @tl.validate("_coords")
     def _validate_coords(self, d):
-        val = d['value']
+        val = d["value"]
 
         if len(val) == 0:
             return val
@@ -160,24 +163,24 @@ class Coordinates(tl.HasTraits):
 
         return val
 
-    @tl.default('crs')
+    @tl.default("crs")
     def _default_crs(self):
-        return settings['DEFAULT_CRS']
+        return settings["DEFAULT_CRS"]
 
-    @tl.validate('crs')
+    @tl.validate("crs")
     def _validate_crs(self, d):
-        val = d['value']
-        pyproj.CRS(val) # raises pyproj.CRSError if invalid
+        val = d["value"]
+        pyproj.CRS(val)  # raises pyproj.CRSError if invalid
         return val
 
-    @tl.observe('crs')
+    @tl.observe("crs")
     def _observe_crs(self, d):
-        crs = d['new']
-        self.set_trait('alt_units', get_vunits(crs))
+        crs = d["new"]
+        self.set_trait("alt_units", get_vunits(crs))
 
-    @tl.validate('alt_units')
+    @tl.validate("alt_units")
     def _validate_alt_units(self, d):
-        val = d['value']
+        val = d["value"]
         if val is None:
             return None
 
@@ -206,9 +209,9 @@ class Coordinates(tl.HasTraits):
 
     @staticmethod
     def _coords_from_dict(d, order=None):
-        if sys.version < '3.6':
+        if sys.version < "3.6":
             if order is None and len(d) > 1:
-                raise TypeError('order required')
+                raise TypeError("order required")
 
         if order is not None:
             if set(order) != set(d):
@@ -442,31 +445,33 @@ class Coordinates(tl.HasTraits):
         if not isinstance(d, dict):
             raise TypeError("Could not parse coordinates definition, expected type 'dict', got '%s'" % type(d))
 
-        if 'coords' not in d:
+        if "coords" not in d:
             raise ValueError("Could not parse coordinates definition, 'coords' required")
 
-        if not isinstance(d['coords'], list):
-            raise TypeError("Could not parse coordinates definition, expected 'coords' of type 'list', got '%s'" % (
-                type(d['coords'])))
+        if not isinstance(d["coords"], list):
+            raise TypeError(
+                "Could not parse coordinates definition, expected 'coords' of type 'list', got '%s'"
+                % (type(d["coords"]))
+            )
 
         coords = []
-        for e in d['coords']:
+        for e in d["coords"]:
             if isinstance(e, list):
                 c = StackedCoordinates.from_definition(e)
-            elif 'start' in e and 'stop' in e and ('step' in e or 'size' in e):
+            elif "start" in e and "stop" in e and ("step" in e or "size" in e):
                 c = UniformCoordinates1d.from_definition(e)
-            elif 'name' in e and 'values' in e:
+            elif "name" in e and "values" in e:
                 c = ArrayCoordinates1d.from_definition(e)
-            elif 'dims' in e and 'values' in e:
+            elif "dims" in e and "values" in e:
                 c = DependentCoordinates.from_definition(e)
-            elif 'dims' in e and 'shape' in e and 'theta' in e and 'origin' in e and ('step' in e or 'corner' in e):
+            elif "dims" in e and "shape" in e and "theta" in e and "origin" in e and ("step" in e or "corner" in e):
                 c = RotatedCoordinates.from_definition(e)
             else:
                 raise ValueError("Could not parse coordinates definition item with keys %s" % e.keys())
 
             coords.append(c)
 
-        kwargs = {k:v for k,v in d.items() if k != 'coords'}
+        kwargs = {k: v for k, v in d.items() if k != "coords"}
         return cls(coords, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -505,7 +510,7 @@ class Coordinates(tl.HasTraits):
             for c in self._coords.values():
                 if isinstance(c, (StackedCoordinates, DependentCoordinates)) and dim in c.dims:
                     return c[dim]
-                
+
             raise KeyError("Dimension '%s' not found in Coordinates %s" % (dim, self.dims))
 
         else:
@@ -519,7 +524,7 @@ class Coordinates(tl.HasTraits):
             i = 0
             for c in self._coords.values():
                 if isinstance(c, DependentCoordinates):
-                    indices.append(tuple(index[i:i+len(c.dims)]))
+                    indices.append(tuple(index[i : i + len(c.dims)]))
                     i += len(c.dims)
                 else:
                     indices.append(index[i])
@@ -534,9 +539,9 @@ class Coordinates(tl.HasTraits):
             pass
         elif isinstance(c, Coordinates):
             c = c[dim]
-        elif '_' in dim:
+        elif "_" in dim:
             c = StackedCoordinates(c)
-        elif ',' in dim:
+        elif "," in dim:
             c = DependentCoordinates(c)
         else:
             c = ArrayCoordinates1d(c)
@@ -547,13 +552,12 @@ class Coordinates(tl.HasTraits):
             d = self._coords.copy()
             d[dim] = c
             self._coords = d
-        
+
         elif dim in self.udims:
             stacked_dim = [sd for sd in self.dims if dim in sd][0]
             self._coords[stacked_dim][dim] = c
         else:
             raise KeyError("Cannot set dimension '%s' in Coordinates %s" % (dim, self.dims))
-
 
     def __delitem__(self, dim):
         if not dim in self.dims:
@@ -594,7 +598,8 @@ class Coordinates(tl.HasTraits):
 
         return True
 
-    if sys.version < '3':
+    if sys.version < "3":
+
         def __ne__(self, other):
             return not self.__eq__(other)
 
@@ -664,7 +669,7 @@ class Coordinates(tl.HasTraits):
     @property
     def shape(self):
         """:tuple: Tuple of the number of coordinates in each dimension."""
-        
+
         return tuple(size for c in self._coords.values() for size in c.shape)
 
     @property
@@ -719,9 +724,9 @@ class Coordinates(tl.HasTraits):
         """:dict: Dictionary of the coordinate properties. """
 
         d = OrderedDict()
-        d['crs'] = self.crs
+        d["crs"] = self.crs
         if self.alt_units is not None and self.alt_units != get_vunits(self.crs):
-            d['alt_units'] = self.alt_units
+            d["alt_units"] = self.alt_units
         return d
 
     @property
@@ -729,7 +734,7 @@ class Coordinates(tl.HasTraits):
         """:list: Serializable coordinates definition."""
 
         d = OrderedDict()
-        d['coords'] = [c.definition for c in self._coords.values()]
+        d["coords"] = [c.definition for c in self._coords.values()]
         d.update(self.properties)
         return d
 
@@ -738,8 +743,8 @@ class Coordinates(tl.HasTraits):
         """:list: Serializable coordinates definition, containing all properties. For internal use."""
 
         d = OrderedDict()
-        d['coords'] = [c.full_definition for c in self._coords.values()]
-        d['crs'] = self.CRS.to_proj4()
+        d["coords"] = [c.full_definition for c in self._coords.values()]
+        d["crs"] = self.CRS.to_proj4()
         return d
 
     @property
@@ -766,7 +771,7 @@ class Coordinates(tl.HasTraits):
         """:str: Coordinates hash value."""
 
         s = json.dumps(self.full_definition, cls=podpac.core.utils.JSONEncoder)
-        return hash_alg(s.encode('utf-8')).hexdigest()
+        return hash_alg(s.encode("utf-8")).hexdigest()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -933,7 +938,7 @@ class Coordinates(tl.HasTraits):
         idx : list
             List of indices for each dimension that produces the intersection, only if ``return_indices`` is True.
         """
-        
+
         if not isinstance(other, Coordinates):
             raise TypeError("Coordinates cannot be intersected with type '%s'" % type(other))
 
@@ -942,7 +947,7 @@ class Coordinates(tl.HasTraits):
 
         bounds = other.bounds
         if dims is not None:
-            bounds = {dim: bounds[dim] for dim in dims} # if dim in bounds}
+            bounds = {dim: bounds[dim] for dim in dims}  # if dim in bounds}
 
         return self.select(bounds, outer=outer, return_indices=return_indices)
 
@@ -1062,7 +1067,7 @@ class Coordinates(tl.HasTraits):
             slices for this Coordinates chunk, only if ``return_slices`` is True
         """
 
-        l = [[slice(i, i+n) for i in range(0, m, n)] for m, n in zip(self.shape, shape)]
+        l = [[slice(i, i + n) for i in range(0, m, n)] for m, n in zip(self.shape, shape)]
         for slices in itertools.product(*l):
             coords = Coordinates([self._coords[dim][slc] for dim, slc in zip(self.dims, slices)], **self.properties)
             if return_slices:
@@ -1093,7 +1098,7 @@ class Coordinates(tl.HasTraits):
 
         """
 
-        in_place = kwargs.get('in_place', False)
+        in_place = kwargs.get("in_place", False)
 
         if len(dims) == 0:
             dims = list(self._coords.keys())[::-1]
@@ -1199,7 +1204,7 @@ class Coordinates(tl.HasTraits):
         """
 
         if crs is None and alt_units is None:
-            raise TypeError('transform requires crs and/or alt_units argument')
+            raise TypeError("transform requires crs and/or alt_units argument")
 
         input_crs = crs
         input_alt_units = alt_units
@@ -1211,10 +1216,10 @@ class Coordinates(tl.HasTraits):
         # combine crs and alt_units
         if alt_units is not None:
             crs = set_vunits(crs, alt_units)
-        
+
         from_crs = self.CRS
         to_crs = pyproj.CRS(crs)
-        
+
         # no transform needed
         if from_crs == to_crs:
             return deepcopy(self)
@@ -1225,21 +1230,22 @@ class Coordinates(tl.HasTraits):
         from_spatial = pyproj.CRS(rem_vunits(self.crs))
         to_spatial = pyproj.CRS(rem_vunits(crs))
         if from_spatial != to_spatial:
-            if 'lat' in self.dims and 'lon' in self.dims:
-                ilat = self.dims.index('lat')
-                ilon = self.dims.index('lon')
-                if ilat == ilon-1:
-                    c1, c2 = self['lat'], self['lon']
-                elif ilon == ilat-1:
-                    c1, c2 = self['lon'], self['lat']
+            if "lat" in self.dims and "lon" in self.dims:
+                ilat = self.dims.index("lat")
+                ilon = self.dims.index("lon")
+                if ilat == ilon - 1:
+                    c1, c2 = self["lat"], self["lon"]
+                elif ilon == ilat - 1:
+                    c1, c2 = self["lon"], self["lat"]
                 else:
-                    raise ValueError('Cannot transform coordinates with nonadjacent lat and lon, transpose first')
+                    raise ValueError("Cannot transform coordinates with nonadjacent lat and lon, transpose first")
 
                 c = DependentCoordinates(
-                    np.meshgrid(c1.coordinates, c2.coordinates, indexing='ij'),
+                    np.meshgrid(c1.coordinates, c2.coordinates, indexing="ij"),
                     dims=[c1.name, c2.name],
                     ctypes=[c1.ctype, c2.ctype],
-                    segment_lengths=[c1.segment_lengths, c2.segment_lengths])
+                    segment_lengths=[c1.segment_lengths, c2.segment_lengths],
+                )
 
                 # replace 'lat' and 'lon' entries with single 'lat,lon' entry
                 i = min(ilat, ilon)
@@ -1247,11 +1253,11 @@ class Coordinates(tl.HasTraits):
                 cs.pop(i)
                 cs.insert(i, c)
 
-            elif 'lat' in self.dims:
-                raise ValueError('Cannot transform lat coordinates without lon coordinates')
+            elif "lat" in self.dims:
+                raise ValueError("Cannot transform lat coordinates without lon coordinates")
 
-            elif 'lon' in self.dims:
-                raise ValueError('Cannot transform lon coordinates without lat coordinates')
+            elif "lon" in self.dims:
+                raise ValueError("Cannot transform lon coordinates without lat coordinates")
 
         # transform
         transformer = pyproj.Transformer.from_proj(from_crs, to_crs, always_xy=True)
@@ -1265,17 +1271,18 @@ class Coordinates(tl.HasTraits):
     def __repr__(self):
         rep = str(self.__class__.__name__)
         if self.crs:
-            rep += ' ({})'.format(self.crs)
+            rep += " ({})".format(self.crs)
         for c in self._coords.values():
             if isinstance(c, Coordinates1d):
-                rep += '\n\t%s: %s' % (c.name, c)
+                rep += "\n\t%s: %s" % (c.name, c)
             elif isinstance(c, StackedCoordinates):
                 for dim in c.dims:
-                    rep += '\n\t%s[%s]: %s' % (c.name, dim, c[dim])
+                    rep += "\n\t%s[%s]: %s" % (c.name, dim, c[dim])
             elif isinstance(c, DependentCoordinates):
                 for dim in c.dims:
-                    rep += '\n\t%s[%s]: %s' % (c.name, dim, c._rep(dim))
+                    rep += "\n\t%s[%s]: %s" % (c.name, dim, c._rep(dim))
         return rep
+
 
 def merge_dims(coords_list):
     """
@@ -1297,7 +1304,6 @@ def merge_dims(coords_list):
         If dimensions are duplicated.
     """
 
-
     coords_list = list(coords_list)
     for coords in coords_list:
         if not isinstance(coords, Coordinates):
@@ -1314,6 +1320,7 @@ def merge_dims(coords_list):
     # merge
     coords = sum([list(coords.values()) for coords in coords_list], [])
     return Coordinates(coords, crs=crs)
+
 
 def concat(coords_list):
     """
@@ -1363,6 +1370,7 @@ def concat(coords_list):
                     d[dim] = [np.concatenate([d[dim][i], s.coordinates]) for i, s in enumerate(c)]
 
     return Coordinates(list(d.values()), dims=list(d.keys()), crs=crs)
+
 
 def union(coords_list):
     """

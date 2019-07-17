@@ -6,12 +6,13 @@ from __future__ import division, print_function, absolute_import
 
 from podpac.core.settings import settings
 
+
 class CacheStore(object):
     """Abstract parent class for classes representing actual data stores (e.g. RAM, local disk, network storage).
     Includes implementation of common hashing operations and call signature for required abstract methods: 
     put(), get(), rem(), has()
     """
-    
+
     cache_modes = []
     _limit_setting = None
 
@@ -29,7 +30,7 @@ class CacheStore(object):
         raise NotImplementedError
 
     def put(self, node, data, key, coordinates=None, update=False):
-        '''Cache data for specified node.
+        """Cache data for specified node.
         
         Parameters
         ------------
@@ -43,11 +44,11 @@ class CacheStore(object):
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
-        '''
+        """
         raise NotImplementedError
 
     def get(self, node, key, coordinates=None):
-        '''Get cached data for this node.
+        """Get cached data for this node.
         
         Parameters
         ------------
@@ -67,11 +68,11 @@ class CacheStore(object):
         -------
         CacheError
             If the data is not in the cache.
-        '''
+        """
         raise NotImplementedError
 
     def rem(self, node=None, key=None, coordinates=None):
-        '''Delete cached data for this node.
+        """Delete cached data for this node.
         
         Parameters
         ------------
@@ -81,11 +82,11 @@ class CacheStore(object):
             Delete only cached objects with this key.
         coordinates : Coordinates
             Delete only cached objects for these coordinates.
-        '''
+        """
         raise NotImplementedError
 
     def has(self, node, key, coordinates=None):
-        '''Check for cached data for this node
+        """Check for cached data for this node
         
         Parameters
         ------------
@@ -100,7 +101,7 @@ class CacheStore(object):
         -------
         has_cache : bool
              True if there as a cached object for this node for the given key and coordinates.
-        '''
+        """
         raise NotImplementedError
 
     def clear(self, node):

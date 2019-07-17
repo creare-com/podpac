@@ -33,6 +33,10 @@ At this point we will review your changes, request modifications, and ultimately
 * Generally try to follow PEP8, but we're not strict about it. 
 * Code should be compatible with both Python 2 and 3
 
+### Autoformatting
+
+Podpac uses [Python Black](https://github.com/python/black) autoformatting. Configuratin can be found in `pyproject.toml`. During installation for development, pre-commit hooks are automatically installed, including a hook that will run Black. Code that is not formatted with Black will fail in CI.
+
 ### Docstrings
 
 All classes and methods should be properly documented with docstrings.

@@ -21,27 +21,22 @@ from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl
 
 COMMON_NODE_DOC = {
-    'requested_coordinates':
-        """The set of coordinates requested by a user. The Node will be evaluated using these coordinates.""",
-    'eval_output':
-        """Default is None. Optional input array used to store the output data. When supplied, the node will not
+    "requested_coordinates": """The set of coordinates requested by a user. The Node will be evaluated using these coordinates.""",
+    "eval_output": """Default is None. Optional input array used to store the output data. When supplied, the node will not
             allocate its own memory for the output array. This array needs to have the correct dimensions,
             coordinates, and coordinate reference system.""",
-    'eval_return':
-        """
+    "eval_return": """
         :class:`podpac.UnitsDataArray`
             Unit-aware xarray DataArray containing the results of the node evaluation.
         """,
-    'hash_return': 'A unique hash capturing the coordinates and parameters used to evaluate the node. ',
-    'outdir': "Optional output directory. Uses :attr:`podpac.settings['DISK_CACHE_DIR']` by default",
-    'definition_return':
-        """
+    "hash_return": "A unique hash capturing the coordinates and parameters used to evaluate the node. ",
+    "outdir": "Optional output directory. Uses :attr:`podpac.settings['DISK_CACHE_DIR']` by default",
+    "definition_return": """
         OrderedDict
             Dictionary containing the location of the Node, the name of the plugin (if required), as well as any
             parameters and attributes that were tagged by children.
         """,
-    'arr_init_type':
-        """How to initialize the array. Options are:
+    "arr_init_type": """How to initialize the array. Options are:
                 nan: uses np.full(..., np.nan) (Default option)
                 empty: uses np.empty
                 zeros: uses np.zeros()
@@ -49,27 +44,29 @@ COMMON_NODE_DOC = {
                 full: uses np.full(..., fillval)
                 data: uses the fillval as the input array
         """,
-    'arr_fillval' : "used if init_type=='full' or 'data', default = 0",
-    'arr_style' : "The style to use for plotting. Uses self.style by default",
-    'arr_no_style' : "Default is False. If True, self.style will not be assigned to arr.attr['layer_style']",
-    'arr_shape': 'Shape of array. Uses self.shape by default.',
-    'arr_coords' : "Input to UnitsDataArray (i.e. an xarray coords dictionary/list)",
-    'arr_dims' : "Input to UnitsDataArray (i.e. an xarray dims list of strings)",
-    'arr_units' : "Default is self.units The Units for the data contained in the DataArray.",
-    'arr_dtype' :"Default is np.float. Datatype used by default",
-    'arr_kwargs' : "Dictioary of any additional keyword arguments that will be passed to UnitsDataArray.",
-    'arr_return' :
-        """
+    "arr_fillval": "used if init_type=='full' or 'data', default = 0",
+    "arr_style": "The style to use for plotting. Uses self.style by default",
+    "arr_no_style": "Default is False. If True, self.style will not be assigned to arr.attr['layer_style']",
+    "arr_shape": "Shape of array. Uses self.shape by default.",
+    "arr_coords": "Input to UnitsDataArray (i.e. an xarray coords dictionary/list)",
+    "arr_dims": "Input to UnitsDataArray (i.e. an xarray dims list of strings)",
+    "arr_units": "Default is self.units The Units for the data contained in the DataArray.",
+    "arr_dtype": "Default is np.float. Datatype used by default",
+    "arr_kwargs": "Dictioary of any additional keyword arguments that will be passed to UnitsDataArray.",
+    "arr_return": """
         :class:`podpac.UnitsDataArray`
             Unit-aware xarray DataArray of the desired size initialized using the method specified.
-        """
-    }
+        """,
+}
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
+
 class NodeException(Exception):
     """ Summary """
+
     pass
+
 
 @common_doc(COMMON_DOC)
 class Node(tl.HasTraits):
@@ -105,28 +102,28 @@ class Node(tl.HasTraits):
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     style = tl.Instance(Style)
 
-    @tl.default('cache_output')
+    @tl.default("cache_output")
     def _cache_output_default(self):
-        return settings['CACHE_OUTPUT_DEFAULT']
+        return settings["CACHE_OUTPUT_DEFAULT"]
 
-    @tl.default('cache_ctrl')
+    @tl.default("cache_ctrl")
     def _cache_ctrl_default(self):
         return get_default_cache_ctrl()
 
-    @tl.validate('cache_ctrl')
+    @tl.validate("cache_ctrl")
     def _validate_cache_ctrl(self, d):
-        if d['value'] is None:
-            d['value']  = CacheCtrl([]) # no cache_stores
-        return d['value']
+        if d["value"] is None:
+            d["value"] = CacheCtrl([])  # no cache_stores
+        return d["value"]
 
-    @tl.default('style')
+    @tl.default("style")
     def _style_default(self):
         return Style()
 
-    @tl.validate('units')
+    @tl.validate("units")
     def _validate_units(self, d):
-        ureg.Unit(d['value']) # will throw an exception if this is not a valid pint Unit
-        return d['value']
+        ureg.Unit(d["value"])  # will throw an exception if this is not a valid pint Unit
+        return d["value"]
 
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
@@ -229,10 +226,10 @@ class Node(tl.HasTraits):
         """
 
         attrs = {}
-        attrs['layer_style'] = self.style
-        attrs['crs'] = coords.crs
+        attrs["layer_style"] = self.style
+        attrs["crs"] = coords.crs
         if self.units is not None:
-            attrs['units'] = ureg.Unit(self.units)
+            attrs["units"] = ureg.Unit(self.units)
 
         return create_data_array(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
 
@@ -268,25 +265,25 @@ class Node(tl.HasTraits):
 
         d = OrderedDict()
 
-        if self.__module__ == 'podpac':
-            d['node'] = self.__class__.__name__
-        elif self.__module__.startswith('podpac.'):
-            _, module = self.__module__.split('.', 1)
-            d['node'] = '%s.%s' % (module, self.__class__.__name__)
+        if self.__module__ == "podpac":
+            d["node"] = self.__class__.__name__
+        elif self.__module__.startswith("podpac."):
+            _, module = self.__module__.split(".", 1)
+            d["node"] = "%s.%s" % (module, self.__class__.__name__)
         else:
-            d['plugin'] = self.__module__
-            d['node'] = self.__class__.__name__
+            d["plugin"] = self.__module__
+            d["node"] = self.__class__.__name__
 
         attrs = {}
         lookup_attrs = {}
 
         for key, value in self.traits().items():
-            if not value.metadata.get('attr', False):
+            if not value.metadata.get("attr", False):
                 continue
 
             attr = getattr(self, key)
-            
-            if key is 'units' and attr is None:
+
+            if key is "units" and attr is None:
                 continue
 
             # check serializable
@@ -294,17 +291,17 @@ class Node(tl.HasTraits):
                 json.dumps(attr, cls=JSONEncoder)
             except:
                 raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
-            
+
             if isinstance(attr, Node):
                 lookup_attrs[key] = attr
             else:
                 attrs[key] = attr
 
         if attrs:
-            d['attrs'] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
+            d["attrs"] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
 
         if lookup_attrs:
-            d['lookup_attrs'] = OrderedDict([(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())])
+            d["lookup_attrs"] = OrderedDict([(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())])
 
         return d
 
@@ -329,30 +326,30 @@ class Node(tl.HasTraits):
 
             # get base definition and then replace nodes with references, adding nodes depth first
             d = node.base_definition
-            if 'lookup_source' in d:
-                d['lookup_source'] = add_node(d['lookup_source'])
-            if 'lookup_attrs' in d:
-                for key, attr_node in d['lookup_attrs'].items():
-                    d['lookup_attrs'][key] = add_node(input_node)
-            if 'inputs' in d:
-                for key, input_node in d['inputs'].items():
+            if "lookup_source" in d:
+                d["lookup_source"] = add_node(d["lookup_source"])
+            if "lookup_attrs" in d:
+                for key, attr_node in d["lookup_attrs"].items():
+                    d["lookup_attrs"][key] = add_node(input_node)
+            if "inputs" in d:
+                for key, input_node in d["inputs"].items():
                     if input_node is not None:
-                        d['inputs'][key] = add_node(input_node)
-            if 'sources' in d:
+                        d["inputs"][key] = add_node(input_node)
+            if "sources" in d:
                 sources = []  # we need this list so that we don't overwrite the actual sources array
-                for i, source_node in enumerate(d['sources']):
+                for i, source_node in enumerate(d["sources"]):
                     sources.append(add_node(source_node))
-                d['sources'] = sources
+                d["sources"] = sources
 
             # get base ref and then ensure it is unique
             ref = node.base_ref
             while ref in refs:
-                if re.search('_[1-9][0-9]*$', ref):
-                    ref, i = ref.rsplit('_', 1)
+                if re.search("_[1-9][0-9]*$", ref):
+                    ref, i = ref.rsplit("_", 1)
                     i = int(i)
                 else:
                     i = 0
-                ref = '%s_%d' % (ref, i+1)
+                ref = "%s_%d" % (ref, i + 1)
 
             nodes.append(node)
             refs.append(ref)
@@ -363,7 +360,7 @@ class Node(tl.HasTraits):
         add_node(self)
 
         d = OrderedDict()
-        d['nodes'] = OrderedDict(zip(refs, definitions))
+        d["nodes"] = OrderedDict(zip(refs, definitions))
         return d
 
     @property
@@ -376,6 +373,7 @@ class Node(tl.HasTraits):
             A pipeline node that wraps this node
         """
         from podpac.core.pipeline import Pipeline
+
         return Pipeline(definition=self.definition)
 
     @property
@@ -400,7 +398,7 @@ class Node(tl.HasTraits):
 
     @property
     def hash(self):
-        return hash_alg(self.json.encode('utf-8')).hexdigest()
+        return hash_alg(self.json.encode("utf-8")).hexdigest()
 
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface
@@ -456,7 +454,7 @@ class Node(tl.HasTraits):
 
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
-        
+
         self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
 
     def has_cache(self, key, coordinates=None):
@@ -499,9 +497,10 @@ class Node(tl.HasTraits):
         self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
 
 
-#--------------------------------------------------------#
+# --------------------------------------------------------#
 #  Decorators
-#--------------------------------------------------------#
+# --------------------------------------------------------#
+
 
 def node_eval(fn):
     """
@@ -516,14 +515,14 @@ def node_eval(fn):
         Wrapped node eval method
     """
 
-    cache_key = 'output'
+    cache_key = "output"
 
     @functools.wraps(fn)
     def wrapper(self, coordinates, output=None):
-        if settings['DEBUG']:
+        if settings["DEBUG"]:
             self._requested_coordinates = coordinates
         key = cache_key
-        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims)) # order agnostic caching
+        cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
         if self.has_cache(key, cache_coordinates) and not self.cache_update:
             data = self.get_cache(key, cache_coordinates)
             if output is not None:
@@ -543,11 +542,13 @@ def node_eval(fn):
         order = [dim for dim in coordinates.idims if dim in data.dims]
         data = data.transpose(*order)
 
-        if settings['DEBUG']:
+        if settings["DEBUG"]:
             self._output = data
 
         return data
+
     return wrapper
+
 
 def cache_func(key, depends=None):
     """
@@ -612,12 +613,12 @@ def cache_func(key, depends=None):
                 # print("Updating value on self:", id(self))
                 out = func(self)
                 self.put_cache(out, key, overwrite=True)
-            
+
             if depends:
                 # This sets up the observer on the dependent traits
                 # print ("setting up observer on self: ", id(self))
                 self.observe(cache_updator, depends)
-                # Since attributes could change on instantiation, anything we previously 
+                # Since attributes could change on instantiation, anything we previously
                 # stored is likely out of date. So, force and update to the cache.
                 cache_updator(None)
 
@@ -625,19 +626,21 @@ def cache_func(key, depends=None):
             # after the observer has been set up.
             @functools.wraps(func)
             def cached_function():
-                try: 
+                try:
                     out = self.get_cache(key)
                 except NodeException:
                     out = func(self)
                     self.put_cache(out, key)
                 return out
-            
-            # Since this is the first time the function is run, set the new wrapper 
+
+            # Since this is the first time the function is run, set the new wrapper
             # on the class instance so that the current function won't be called again
             # (which would set up an additional observer)
             setattr(self, func.__name__, cached_function)
-            
+
             # Return the value on the first run
             return cached_function()
+
         return cache_wrapper
+
     return cache_decorator
