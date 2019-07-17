@@ -290,7 +290,8 @@ class TestRamCacheStore(BaseCacheStoreTests):
 
         from podpac.core.cache.ram_cache_store import _thread_local
 
-        assert not hasattr(_thread_local, "cache")
+        if hasattr(_thread_local, "cache"):
+            delattr(_thread_local, "cache")
 
     def teardown_method(self):
         super(TestRamCacheStore, self).teardown_method()
