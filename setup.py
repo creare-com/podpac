@@ -81,6 +81,9 @@ if sys.version >= '3.6':
     extras_require["dev"] += [
         "black",
     ]
+    extras_require["intake"] = [
+    	"intake>=0.5.1"
+    ]
 
 # set long description to readme
 with open("README.MD") as f:
