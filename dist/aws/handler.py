@@ -8,6 +8,7 @@ import urllib.parse as urllib
 from collections import OrderedDict
 
 import boto3
+import botocore
 
 import _pickle as cPickle
 
