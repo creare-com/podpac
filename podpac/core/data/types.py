@@ -560,8 +560,88 @@ class Rasterio(DataSource):
 
         return matches
 
+class SpecifyCoordinatedMixin(tl.HasTraits):
+    latkey = tl.Unicode(allow_none=True, default_value='lat').tag(attr=True)
+    lonkey = tl.Unicode(allow_none=True, default_value='lon').tag(attr=True)
+    timekey = tl.Unicode(allow_none=True, default_value='time').tag(attr=True)
+    altkey = tl.Unicode(allow_none=True, default_value='alt').tag(attr=True)
+    dims = tl.List(trait=Dimension(), allow_none=False).tag(attr=True)
+    crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    cf_time = tl.Bool(False).tag(attr=True)
+    cf_units = tl.Unicode(allow_none=True).tag(attr=True)
+    cf_calendar = tl.Unicode(allow_none=True).tag(attr=True)
+    
+    @common_doc(COMMON_DATA_DOC)
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
+        """
+
+        cs = []
+        for dim in self.dims:
+            if dim == 'lat':
+                cs.append(self.get_lat())
+            elif dim == 'lon':
+                cs.append(self.get_lon())
+            elif dim == 'time':
+                cs.append(self.get_time())
+            elif dim == 'alt':
+                cs.append(self.get_alt())
+
+        return Coordinates(cs, dims=self.dims, crs=self.crs)
+
+    def get_lat(self):
+        """
+        Get the native lat coordinates. Subclasses should customize as needed.
+
+        Returns
+        -------
+        lat : array-like or Coordinates1d
+            native latitude coordinates.
+        """
+
+        return self.dataset[self.latkey]
+
+    def get_lon(self):
+        """
+        Get the native lon coordinates. Subclasses should customize as needed.
+
+        Returns
+        -------
+        lon : array-like or Coordinates1d
+            native latitude coordinates.
+        """
+
+        return self.dataset[self.lonkey]
+
+    def get_time(self):
+        """
+        Get the native time coordinates. Subclasses should customize as needed.
+
+        Returns
+        -------
+        time : array-like or Coordinates1d
+            native latitude coordinates.
+        """
+
+        values = self.dataset[self.timekey]
+        if self.cf_time:
+            values = xr.coding.times.decode_cf_datetime(values, self.cf_units, self.cf_calendar)
+        return values
+
+    def get_alt(self):
+        """
+        Get the native alt coordinates. Subclasses should customize as needed.
+
+        Returns
+        -------
+        alt : array-like or Coordinates1d
+            native latitude coordinates.
+        """
+
+        return self.dataset[self.altkey]
+    
 @common_doc(COMMON_DATA_DOC)
-class H5PY(DataSource):
+class H5PY(SpecifyCoordinatedMixin, DataSource):
     """Create a DataSource node using h5py.
     
     Attributes
@@ -575,18 +655,9 @@ class H5PY(DataSource):
         {native_coordinates}
     source : str
         Path to the data source
-    latkey : str
-        The 'key' for the data that described the latitude coordinate of the data
-    lonkey : str
-        The 'key' for the data that described the longitude coordinate of the data
-    timekey : str
-        The 'key' for the data that described the time coordinate of the data
-    altkey : str
-        The 'key' for the data that described the altitude coordinate of the data
-    dim_order : list, optional
-        Default is ['lat', 'lon', 'time', 'alt']. The order of the dimensions in the dataset. For example,
+For example,
         if self.datasets[datakey] has shape (1, 2, 3) and the (time, lon, lat) dimensions have sizes (1, 2, 3)
-        then dim_order should be ['time', 'lon', 'lat']
+        then dims should be ['time', 'lon', 'lat']
     file_mode : str, optional
         Default is 'r'. The mode used to open the HDF5 file. Options are r, r+, w, w- or x, a (see h5py.File).
     """
@@ -594,11 +665,6 @@ class H5PY(DataSource):
     source = tl.Unicode(allow_none=False)
     dataset = tl.Any(allow_none=True)
     datakey = tl.Unicode(allow_none=False).tag(attr=True)
-    latkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
-    lonkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
-    timekey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
-    altkey = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
-    dim_order = tl.List(default_value=['lat', 'lon', 'time', 'alt']).tag(attr=True)
     file_mode = tl.Unicode(default_value='r')
     
     @tl.default('dataset')
@@ -640,34 +706,6 @@ class H5PY(DataSource):
             self.native_coordinates = self.get_native_coordinates()
         
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
-        
-        The default implementation tries to find the lat/lon coordinates based on dataset.affine or dataset.transform
-        (depending on the version of rasterio). It cannot determine the alt or time dimensions, so child classes may
-        have to overload this method.
-        """
-        coords = []
-        dims = []
-        if self.latkey:
-            coords.append(self.dataset[self.latkey][:])
-            dims.append('lat')
-        if self.lonkey:
-            coords.append(self.dataset[self.lonkey][:])
-            dims.append('lon')
-        if self.timekey:
-            coords.append(self.dataset[self.timekey][:])
-            dims.append('time')
-        if self.altkey:
-            coords.append(self.dataset[self.altkey][:])
-            dims.append('alt')
-        if not coords:
-            return None
-        # Some dimensions may not be present in the default dim_order, so remove these
-        dim_order = [d for d in self.dim_order if d in dims]
-        return Coordinates(coords, dims).transpose(*dim_order)
-
-    @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
@@ -699,19 +737,10 @@ class H5PY(DataSource):
         keys.sort()
         return keys
 
-class Zarr(DataSource):
+class Zarr(SpecifyCoordinatedMixin, DataSource):
     source = tl.Unicode(allow_none=True)
-    group = tl.Any(allow_none=False)
+    dataset = tl.Any(allow_none=False)
     datakey = tl.Unicode(allow_none=False).tag(attr=True)
-    latkey = tl.Unicode(allow_none=True, default_value='lat').tag(attr=True)
-    lonkey = tl.Unicode(allow_none=True, default_value='lon').tag(attr=True)
-    timekey = tl.Unicode(allow_none=True, default_value='time').tag(attr=True)
-    altkey = tl.Unicode(allow_none=True, default_value='alt').tag(attr=True)
-    dims = tl.List(trait=Dimension(), allow_none=False).tag(attr=True)
-    crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
-    cf_time = tl.Bool(False).tag(attr=True)
-    cf_units = tl.Unicode(allow_none=True).tag(attr=True)
-    cf_calendar = tl.Unicode(allow_none=True).tag(attr=True)
 
     access_key_id = tl.Unicode()
     secret_access_key = tl.Unicode()
@@ -732,37 +761,37 @@ class Zarr(DataSource):
     def init(self):
         # check that source or group is provided
         if self.source is None:
-            self.group
+            self.dataset
 
         # check dim keys
         for dim in self.dims:
             if dim == 'lat':
                 if self.latkey is None:
                     raise TypeError("Zarr node 'latkey' is required for dims %s" % self.dims)
-                if self.latkey not in self.group:
+                if self.latkey not in self.dataset:
                     raise ValueError("Zarr lat key '%s' not found" % self.latkey)
             elif dim == 'lon':
                 if self.lonkey is None:
                     raise TypeError("Zarr node 'lonkey' is required for dims %s" % self.dims)
-                if self.lonkey not in self.group:
+                if self.lonkey not in self.dataset:
                     raise ValueError("Zarr lon key '%s' not found" % self.lonkey)
             elif dim == 'time':
                 if self.timekey is None:
                     raise TypeError("Zarr node 'timekey' is required for dims %s" % self.dims)
-                if self.timekey not in self.group:
+                if self.timekey not in self.dataset:
                     raise ValueError("Zarr time key '%s' not found" % self.timekey)
             elif dim == 'alt':
                 if self.altkey is None:
                     raise TypeError("Zarr node 'altkey' is required for dims %s" % self.dims)
-                if self.altkey not in self.group:
+                if self.altkey not in self.dataset:
                     raise ValueError("Zarr alt key '%s' not found" % self.altkey)
 
         # check data key
         if self.datakey not in self.group:
             raise ValueError("Zarr data key '%s' not found" % self.datakey)
 
-    @tl.default('group')
-    def _open_group(self):
+    @tl.default('dataset')
+    def _open_dataset(self):
         if self.source is None:
             raise TypeError("Zarr node requires 'source' or 'group'")
 
@@ -781,82 +810,14 @@ class Zarr(DataSource):
             raise ValueError("No Zarr store found at path '%s'" % self.source)
 
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
-        """
-
-        cs = []
-        for dim in self.dims:
-            if dim == 'lat':
-                cs.append(self.get_lat())
-            elif dim == 'lon':
-                cs.append(self.get_lon())
-            elif dim == 'time':
-                cs.append(self.get_time())
-            elif dim == 'alt':
-                cs.append(self.get_alt())
-
-        return Coordinates(cs, dims=self.dims, crs=self.crs)
-
-    @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
         data = self.create_output_array(coordinates)
-        a = self.group[self.datakey][coordinates_index]
+        a = self.dataset[self.datakey][coordinates_index]
         data.data.ravel()[:] = a.ravel()
         return data
 
-    def get_lat(self):
-        """
-        Get the native lat coordinates. Subclasses should customize as needed.
-
-        Returns
-        -------
-        lat : array-like or Coordinates1d
-            native latitude coordinates.
-        """
-
-        return self.group[self.latkey]
-
-    def get_lon(self):
-        """
-        Get the native lon coordinates. Subclasses should customize as needed.
-
-        Returns
-        -------
-        lon : array-like or Coordinates1d
-            native latitude coordinates.
-        """
-
-        return self.group[self.lonkey]
-
-    def get_time(self):
-        """
-        Get the native time coordinates. Subclasses should customize as needed.
-
-        Returns
-        -------
-        time : array-like or Coordinates1d
-            native latitude coordinates.
-        """
-
-        values = self.group[self.timekey]
-        if self.cf_time:
-            values = xr.coding.times.decode_cf_datetime(values, self.cf_units, self.cf_calendar)
-        return values
-
-    def get_alt(self):
-        """
-        Get the native alt coordinates. Subclasses should customize as needed.
-
-        Returns
-        -------
-        alt : array-like or Coordinates1d
-            native latitude coordinates.
-        """
-
-        return self.group[self.altkey]
 
 WCS_DEFAULT_VERSION = u'1.0.0'
 WCS_DEFAULT_CRS = 'EPSG:4326'
