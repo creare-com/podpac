@@ -73,12 +73,7 @@ extras_require = {
         "coveralls>=1.3",
         "six>=1.0",
         "attrs>=17.4.0",
-<<<<<<< HEAD
-        "pre_commit>=1",
-        "black"
-=======
         "pre_commit>=1"
->>>>>>> feature/black-auto-install-hook
     ],
 }
 
