@@ -357,7 +357,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
         assert store.size == expected_size
 
 
-@pytest.mark.skipif(pytest.config.getoption("--ci"), reason="skip AWS tests during CI")
+@pytest.mark.aws
 class TestS3CacheStore(FileCacheStoreTests):
     Store = S3CacheStore
     enabled_setting = "S3_CACHE_ENABLED"

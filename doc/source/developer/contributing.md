@@ -33,6 +33,10 @@ At this point we will review your changes, request modifications, and ultimately
 * Generally try to follow PEP8, but we're not strict about it. 
 * Code should be compatible with both Python 2 and 3
 
+### Autoformatting
+
+Podpac uses [Python Black](https://github.com/python/black) autoformatting. Configuratin can be found in `pyproject.toml`. During installation for development, pre-commit hooks are automatically installed, including a hook that will run Black. Code that is not formatted with Black will fail in CI.
+
 ### Docstrings
 
 All classes and methods should be properly documented with docstrings.
@@ -289,31 +293,43 @@ $ pytest -m integration
 
 See [working with custom markers](https://docs.pytest.org/en/latest/example/markers.html) for more details on how to use markers in pytest.
 
-### Skip Test on CI
+### Skip Tests on CI
 
-In some circumstances, we don't want tests to run during the CI process (i.e. when the test will incur charges from a cloud provider).
-
-To specify that a test should not be run on the CI test, use a pytest skipif statement that reads `--ci` config option:
-
-```python
-import pytest
-
-@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
-def test_function():
-    pass
-
-@pytest.mark.skipif(pytest.config.getoption('--ci'), reason="not a ci test")
-class TestClass(object):
-
-    def test_method(self):
-        pass
-```
+In some circumstances, we don't want tests to run during the CI process, e.g. when the test will incur charges from a cloud provider).
 
 To invoke tests with `--ci` command line option:
 
 ```bash
 $ pytest --ci podpac
 ```
+
+#### AWS Marker
+
+To specify that a test uses AWS and should not be run during CI tests, mark it as such:
+
+```python
+import pytest
+
+@pytest.mark.aws
+def test_function():
+    pass
+
+@pytest.mark.aws
+class TestClass(object):
+
+    def test_method(self):
+        pass
+```
+
+Alternatively, you can specifically run *only* AWS tests by using the `-m` command line option:
+
+```bash
+$ pytest -m aws podpac
+```
+
+#### Adding Markers
+
+See `conftest.py` to add additional custom markers and behavior.
 
 ### Code Coverage
 

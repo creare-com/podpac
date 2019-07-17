@@ -20,6 +20,12 @@ def pytest_addoption(parser):
     parser.addoption("--ci", action="store_true", default=False)
 
 
+def pytest_runtest_setup(item):
+    markers = [marker.name for marker in item.iter_markers()]
+    if item.config.getoption("--ci") and "aws" in markers:
+        pytest.skip("Skip aws tests during CI")
+
+
 def pytest_configure(config):
     """Configuration before all tests are run
 
@@ -29,7 +35,7 @@ def pytest_configure(config):
 
     """
 
-    pass
+    config.addinivalue_line("markers", "aws: mark test as an aws test")
 
 
 def pytest_unconfigure(config):
