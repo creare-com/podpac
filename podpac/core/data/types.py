@@ -759,7 +759,7 @@ class Zarr(SpecifyCoordinatedMixin, DataSource):
         return settings['AWS_REGION_NAME']
 
     def init(self):
-        # check that source or group is provided
+        # check that source or dataset is provided
         if self.source is None:
             self.dataset
 
@@ -787,13 +787,13 @@ class Zarr(SpecifyCoordinatedMixin, DataSource):
                     raise ValueError("Zarr alt key '%s' not found" % self.altkey)
 
         # check data key
-        if self.datakey not in self.group:
+        if self.datakey not in self.dataset:
             raise ValueError("Zarr data key '%s' not found" % self.datakey)
 
     @tl.default('dataset')
     def _open_dataset(self):
         if self.source is None:
-            raise TypeError("Zarr node requires 'source' or 'group'")
+            raise TypeError("Zarr node requires 'source' or 'dataset'")
 
         if self.source.startswith('s3://'):
             root = self.source.strip('s3://')
