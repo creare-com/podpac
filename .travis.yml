@@ -47,6 +47,10 @@ script:
 # deploy docs to `podpac-docs` repository. This script only pushes the docs on pushes to develop and master.
 jobs:
   include:
+    - stage: test
+      python: "3.7"
+      script: black --check podpac
+  include:
     - stage: docs deploy
       python: "3.7"
       script: cd doc && ./ci-deploy.sh && cd ..
