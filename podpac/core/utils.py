@@ -42,61 +42,6 @@ def common_doc(doc_dict):
     return _decorator
 
 
-def cached_property(func):
-    """Summary
-
-    Parameters
-    ----------
-    func : TYPE
-        Description
-
-    Returns
-    -------
-    TYPE
-        Description
-    """
-
-    @property
-    @functools.wraps(func)
-    def f(self):
-        """Summary
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        cache_name = "_cached_" + func.__name__
-        if hasattr(self, cache_name):
-            cache_val = getattr(self, cache_name)
-        else:
-            cache_val = None
-        if cache_val is not None:
-            return cache_val
-        cache_val = func(self)
-        setattr(self, cache_name, cache_val)
-        return cache_val
-
-    return f
-
-
-def clear_cache(self, change, attrs):
-    """Summary
-
-    Parameters
-    ----------
-    change : TYPE
-        Description
-    attrs : TYPE
-        Description
-    """
-    if (change["old"] is None and change["new"] is not None) or np.any(
-        np.array(change["old"]) != np.array(change["new"])
-    ):
-        for attr in attrs:
-            setattr(self, "_cached_" + attr, None)
-
-
 def trait_is_defined(obj, trait):
     """Utility method to determine if trait is defined on object without
     call to default (@tl.default)

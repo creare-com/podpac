@@ -1,4 +1,3 @@
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import logging
@@ -14,7 +13,7 @@ from lazy_import import lazy_module
 import podpac
 from podpac import Coordinates
 
-intake = lazy_module('intake')
+intake = lazy_module("intake")
 # lazy_module('intake.catalog.local.LocalCatalogEntry')
 
 
@@ -60,7 +59,7 @@ class IntakeCatalog(podpac.data.DataSource):
     # input parameters
     uri = tl.Unicode(allow_none=False)
     source = tl.Unicode(allow_none=False)
-    
+
     # optional input parameters
     field = tl.Unicode(default_value=None, allow_none=True)
     dims = tl.Dict(default_value=None, allow_none=True)
@@ -70,11 +69,11 @@ class IntakeCatalog(podpac.data.DataSource):
     catalog = tl.Instance(intake.catalog.Catalog)
     datasource = tl.Instance(intake.catalog.local.LocalCatalogEntry)
 
-    @tl.default('catalog')
+    @tl.default("catalog")
     def _default_catalog(self):
         return intake.open_catalog(self.uri)
 
-    @tl.default('datasource')
+    @tl.default("datasource")
     def _default_datasource(self):
         return getattr(self.catalog, self.source)
 
@@ -91,12 +90,12 @@ class IntakeCatalog(podpac.data.DataSource):
     #     s = proposed['value']
     #     self.datasource = getattr(self.catalog, s)
 
-    @tl.validate('field')
+    @tl.validate("field")
     def _validate_field(self, proposed):
-        f = proposed['value']
+        f = proposed["value"]
 
-        if self.datasource.container == 'dataframe' and f is None:
-            raise ValueError('Field is required when source container is a dataframe')
+        if self.datasource.container == "dataframe" and f is None:
+            raise ValueError("Field is required when source container is a dataframe")
 
         return f
 
@@ -106,18 +105,19 @@ class IntakeCatalog(podpac.data.DataSource):
         # if f not in self.datasource.metadata['fields'].keys():
         #     raise ValueError('Field {} not defined in catalog'.format(f))
 
-    @tl.validate('dims')
+    @tl.validate("dims")
     def _validate_dims(self, proposed):
-        dims = proposed['value']
+        dims = proposed["value"]
 
         # TODO: this needs to be improved to expand validation
         for dim in dims:
-            udims = dim.split('_')
+            udims = dim.split("_")
             if isinstance(dims[dim], list) and len(dims[dim]) != len(udims):
-                raise ValueError('Native Coordinate dimension "{}" does not have an identifier defined'.format(dims[dim]))
+                raise ValueError(
+                    'Native Coordinate dimension "{}" does not have an identifier defined'.format(dims[dim])
+                )
 
         return dims
-
 
     def get_native_coordinates(self):
         """Get native coordinates from catalog definition or input dims
@@ -125,36 +125,37 @@ class IntakeCatalog(podpac.data.DataSource):
 
         # look for dims in catalog
         if self.dims is None:
-            if 'dims' in self.datasource.metadata:
-                self.dims = self.datasource.metadata['dims']
+            if "dims" in self.datasource.metadata:
+                self.dims = self.datasource.metadata["dims"]
             else:
-                raise ValueError('No native coordinates dims defined in catalog or input')
+                raise ValueError("No native coordinates dims defined in catalog or input")
 
         # look for crs in catalog
         if self.crs is None:
-            if 'crs' in self.datasource.metadata:
-                self.crs = self.datasource.metadata['crs']
+            if "crs" in self.datasource.metadata:
+                self.crs = self.datasource.metadata["crs"]
 
         src_data = self.datasource.read()  # TODO: support subselecting data
         c_data = []
 
         # indentifiers are columns when container is a dataframe
-        if self.datasource.container == 'dataframe':
+        if self.datasource.container == "dataframe":
             for dim in self.dims:
                 c_data.append(src_data[self.dims[dim]].values)
 
             return Coordinates(c_data, dims=list(self.dims.keys()))
-        
+
         ## TODO: this needs to be tested
-        elif self.datasource.container == 'ndarray':
+        elif self.datasource.container == "ndarray":
             for dim in self.dims:
                 c_data.append(src_data[self.dims[dim]])
 
             return Coordinates(c_data, dims=list(self.dims.keys()))
 
         else:
-            raise ValueError('podpac does not currently support datasource container {}'.format(self.datasource.container))
-
+            raise ValueError(
+                "podpac does not currently support datasource container {}".format(self.datasource.container)
+            )
 
     def get_data(self, coordinates, coordinates_index):
         """Get Data from intake catalog source definition"""
@@ -162,14 +163,14 @@ class IntakeCatalog(podpac.data.DataSource):
         data = self.datasource.read()  # TODO: support subselecting data
 
         # dataframe container
-        if self.datasource.container == 'dataframe':
-            
+        if self.datasource.container == "dataframe":
+
             # look for field in catalog
             if self.field is None:
-                if 'field' in self.datasource.metadata:
-                    self.field = self.datasource.metadata['field']
+                if "field" in self.datasource.metadata:
+                    self.field = self.datasource.metadata["field"]
                 else:
-                    raise ValueError('No field defined in catalog or input')
+                    raise ValueError("No field defined in catalog or input")
 
             data = data[self.field]
 
