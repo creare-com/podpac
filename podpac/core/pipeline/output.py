@@ -21,6 +21,7 @@ import traitlets as tl
 from podpac.core.node import Node
 from podpac.core.units import get_image
 
+
 class Output(tl.HasTraits):
     """
     Base class for Pipeline Outputs.
@@ -57,7 +58,7 @@ class Output(tl.HasTraits):
     def definition(self):
         d = OrderedDict()
         for key, value in self.traits().items():
-            if value.metadata.get('attr', False):
+            if value.metadata.get("attr", False):
                 d[key] = getattr(self, key)
         return d
 
@@ -84,8 +85,7 @@ class FileOutput(Output):
     """
 
     outdir = tl.Unicode()
-    format = tl.CaselessStrEnum(
-        values=['pickle', 'geotif', 'png'], default_value='pickle').tag(attr=True)
+    format = tl.CaselessStrEnum(values=["pickle", "geotif", "png"], default_value="pickle").tag(attr=True)
     mode = tl.Unicode(default_value="file").tag(attr=True)
 
     _path = tl.Unicode(allow_none=True, default_value=None)
@@ -93,11 +93,11 @@ class FileOutput(Output):
     def __init__(self, node, name, format=None, outdir=None, mode=None):
         kwargs = {}
         if format is not None:
-            kwargs['format'] = format
+            kwargs["format"] = format
         if outdir is not None:
-            kwargs['outdir'] = outdir
+            kwargs["outdir"] = outdir
         if mode is not None:
-            kwargs['mode'] = mode
+            kwargs["mode"] = mode
         super(FileOutput, self).__init__(node=node, name=name, **kwargs)
 
     @property
@@ -106,19 +106,20 @@ class FileOutput(Output):
 
     # TODO: docstring?
     def write(self, output, coordinates):
-        filename = '%s_%s_%s' % (self.name, self.node.hash, coordinates.hash)
+        filename = "%s_%s_%s" % (self.name, self.node.hash, coordinates.hash)
         path = os.path.join(self.outdir, filename)
 
-        if self.format == 'pickle':
-            path = '%s.pkl' % path
-            with open(path, 'wb') as f:
+        if self.format == "pickle":
+            path = "%s.pkl" % path
+            with open(path, "wb") as f:
                 cPickle.dump(output, f)
-        elif self.format == 'png':
+        elif self.format == "png":
             raise NotImplementedError("format '%s' not yet implemented" % self.format)
-        elif self.format == 'geotif':
+        elif self.format == "geotif":
             raise NotImplementedError("format '%s' not yet implemented" % self.format)
 
         self._path = path
+
 
 class FTPOutput(Output):
     """Output a file and send over FTP.
@@ -138,12 +139,13 @@ class FTPOutput(Output):
     def __init__(self, node, name, url=None, user=None, pw=None):
         kwargs = {}
         if url is not None:
-            kwargs['url'] = url
+            kwargs["url"] = url
         if user is not None:
-            kwargs['user'] = user
+            kwargs["user"] = user
         if pw is not None:
-            kwargs['pw'] = pw
+            kwargs["pw"] = pw
         super(FTPOutput, self).__init__(node=node, name=name, **kwargs)
+
 
 class S3Output(Output):
     """Output a file and send to S3
@@ -162,10 +164,11 @@ class S3Output(Output):
     def __init__(self, node, name, bucket=None, user=None):
         kwargs = {}
         if bucket is not None:
-            kwargs['bucket'] = bucket
+            kwargs["bucket"] = bucket
         if user is not None:
-            kwargs['user'] = user
+            kwargs["user"] = user
         super(S3Output, self).__init__(node=node, name=name, **kwargs)
+
 
 class ImageOutput(Output):
     """Output an image in RAM
@@ -182,7 +185,7 @@ class ImageOutput(Output):
         Description
     """
 
-    format = tl.CaselessStrEnum(values=['png'], default_value='png').tag(attr=True)
+    format = tl.CaselessStrEnum(values=["png"], default_value="png").tag(attr=True)
     mode = tl.Unicode(default_value="image").tag(attr=True)
     vmin = tl.CFloat(allow_none=True, default_value=np.nan).tag(attr=True)
     vmax = tl.CFloat(allow_none=True, default_value=np.nan).tag(attr=True)
@@ -191,13 +194,13 @@ class ImageOutput(Output):
     def __init__(self, node, name, format=None, mode=None, vmin=None, vmax=None):
         kwargs = {}
         if format is not None:
-            kwargs['format'] = format
+            kwargs["format"] = format
         if mode is not None:
-            kwargs['mode'] = mode
+            kwargs["mode"] = mode
         if vmin is not None:
-            kwargs['vmin'] = vmin
+            kwargs["vmin"] = vmin
         if vmax is not None:
-            kwargs['vmax'] = vmax
+            kwargs["vmax"] = vmax
 
         super(ImageOutput, self).__init__(node=node, name=name, **kwargs)
 
