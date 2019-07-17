@@ -82,6 +82,6 @@ def version():
             version_full += "+" + git_hash_short
 
     except Exception as e:
-        print("Could not determine PODPAC version from git repo.\n" + str(e))
+        print ("Could not determine PODPAC version from git repo.\n" + str(e))
 
     return version_full

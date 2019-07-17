@@ -156,7 +156,7 @@ class EarthDataSession(Session):
         password : str, optional
             Password input
         """
-        print("Updating login information for: ", self.hostname)
+        print ("Updating login information for: ", self.hostname)
 
         if username is None:
             username = input("Username: ")

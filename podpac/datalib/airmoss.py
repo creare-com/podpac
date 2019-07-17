@@ -201,17 +201,17 @@ class AirMOSS(podpac.OrderedCompositor):
 
 if __name__ == "__main__":
     ams = AirMOSS_Site(interpolation="nearest_preview", site="BermsP")
-    print(ams.native_coordinates)
+    print (ams.native_coordinates)
 
     source = "https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1421/L4RZSM_BermsP_20121025_v5.nc4"
     am = AirMOSS_Source(source=source, interpolation="nearest_preview")
     coords = am.native_coordinates
-    print(coords)
-    print(coords["time"].area_bounds)
+    print (coords)
+    print (coords["time"].area_bounds)
 
     lat, lon = am.native_coordinates.coords["lat"], am.native_coordinates.coords["lon"]
     lat = lat[::10][np.isfinite(lat[::10])]
     lon = lon[::10][np.isfinite(lon[::10])]
     coords = podpac.Coordinates([lat, lon], dims=["lat", "lon"])
     o = am.eval(coords)
-    print("Done")
+    print ("Done")
