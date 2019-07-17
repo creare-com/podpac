@@ -77,7 +77,7 @@ extras_require = {
     ],
 }
 
-if sys.version => 3.6:
+if sys.version >= 3.6:
     extras_require["dev"] += [
         "black",
     ]
