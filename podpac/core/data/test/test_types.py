@@ -845,7 +845,7 @@ class TestZarr(object):
         assert a.eval(c)[0, 0] == 0.0
         assert b.eval(c)[0, 0] == 1.0
 
-    @pytest.mark.skipif(pytest.config.getoption("--ci"), reason="skip AWS tests during CI")
+    @pytest.mark.aws
     def test_s3(self):
         path = "s3://podpac-internal-test/drought_parameters.zarr"
         node = Zarr(source=path, datakey="d0", dims=["lat", "lon", "time"])
