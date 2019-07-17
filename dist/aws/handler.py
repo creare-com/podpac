@@ -17,7 +17,7 @@ sys.path.append('/tmp/')
 # sys.path.append(os.getcwd() + '/podpac/')
 
 s3 = boto3.client('s3')
-deps = 'podpac_deps_ESIP.zip'
+deps = 'podpac_deps_ESIP2.zip'
 
 def handler(event, context, get_deps=True, ret_pipeline=False):
     bucket_name = event['Records'][0]['s3']['bucket']['name']
@@ -26,7 +26,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         subprocess.call(['unzip', '/tmp/' + deps, '-d', '/tmp'])
         sys.path.append('/tmp/')
         subprocess.call(['rm', '/tmp/' + deps])
-        
+
     # <start S3 trigger specific>
     file_key = urllib.unquote_plus(
         event['Records'][0]['s3']['object']['key'])
@@ -52,7 +52,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
     from podpac.core.utils import JSONEncoder, _get_query_params_from_url
-    
+
     # check if file exists
     pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
     filename = file_key.replace('.json', '.' + pipeline.output.format)
@@ -61,7 +61,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         s3.head_object(Bucket=bucket_name, Key=filename)
         # Object exists, so we don't have to recompute
         if not _json.get('force_compute', False):
-            return 
+            return
     except botocore.exceptions.ClientError as e:
         if e.response['Error']['Code'] == "404":
             # It does not exist, so we should proceed
@@ -69,7 +69,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         else:
             # Something else has gone wrong... not handling this case.
             pass
-    
+
     # if from S3 trigger
     pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
     coords = Coordinates.from_json(
@@ -83,7 +83,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     #    format = _get_query_params_from_url(url)['FORMAT'][0].split('/')[-1]
     #    if format in ['png', 'jpg', 'jpeg']:
     #        kwargs['return_base64'] = True
-    
+
     output = pipeline.eval(coords)
     if ret_pipeline:
         return pipeline
