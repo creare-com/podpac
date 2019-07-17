@@ -49,8 +49,8 @@ from podpac.data import interpolation_trait
 from lazy_import import lazy_module
 
 # optional imports
-s3fs = lazy_module('s3fs')
-rasterio = lazy_module('rasterio')
+s3fs = lazy_module("s3fs")
+rasterio = lazy_module("rasterio")
 
 ####
 # private module attributes
@@ -59,6 +59,7 @@ rasterio = lazy_module('rasterio')
 # create log for module
 _logger = logging.getLogger(__name__)
 _s3 = s3fs.S3FileSystem(anon=True)
+
 
 class TerrainTilesSource(Rasterio):
     """DataSource to handle individual TerrainTiles raster files
@@ -78,22 +79,27 @@ class TerrainTilesSource(Rasterio):
     source = tl.Unicode()
 
     # attributes
-    interpolation = interpolation_trait(default_value={
-        'method': 'nearest',
-        'interpolators': [RasterioInterpolator, ScipyGrid, ScipyPoint]
-    })
+    interpolation = interpolation_trait(
+        default_value={
+            "method": "nearest",
+            "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint],
+        }
+    )
 
     dataset = tl.Any()
-    @tl.default('dataset')
+
+    @tl.default("dataset")
     def open_dataset(self):
         """Opens the data source"""
 
-        cache_key = 'fileobj'
+        cache_key = "fileobj"
         with rasterio.MemoryFile() as f:
 
             # load data from cache
             if self.cache_ctrl and self.has_cache(key=cache_key):
-                _logger.debug("Retrieving terrain tile {} from cache'".format(self.source))
+                _logger.debug(
+                    "Retrieving terrain tile {} from cache'".format(self.source)
+                )
                 data = self.get_cache(key=cache_key)
                 f.write(data)
 
@@ -103,7 +109,7 @@ class TerrainTilesSource(Rasterio):
                 try:
                     with open(self.source, "rb") as localfile:
                         data = localfile.read()
-                        
+
                 # download and put in cache
                 except FileNotFoundError:
                     _logger.info("Downloading S3 fileobj: {}".format(self.source))
@@ -114,8 +120,10 @@ class TerrainTilesSource(Rasterio):
                 f.write(data)
 
                 # put data in the cache
-                _logger.debug("Caching terrain tile {} in key 'fileobj'".format(self.source))
-                self.cache_ctrl   # confirm this is initialized
+                _logger.debug(
+                    "Caching terrain tile {} in key 'fileobj'".format(self.source)
+                )
+                self.cache_ctrl  # confirm this is initialized
                 self.put_cache(data, key=cache_key)
 
             f.seek(0)
@@ -128,8 +136,8 @@ class TerrainTilesSource(Rasterio):
         data.data[data.data < 0] = np.nan
         # data.data[data.data < 0] = np.nan  # TODO: handle really large values
         return data
-    
-    def download(self, path='terraintiles'):
+
+    def download(self, path="terraintiles"):
         """
         Download the TerrainTile file from S3 to a local file.
         This is a convience method for users and not used by PODPAC machinery.
@@ -150,8 +158,11 @@ class TerrainTilesSource(Rasterio):
             os.makedirs(joined_path)
 
         # download the file
-        _logger.debug("Downloading terrain tile {} to filepath: {}".format(self.source, filepath))
+        _logger.debug(
+            "Downloading terrain tile {} to filepath: {}".format(self.source, filepath)
+        )
         _s3.get(self.source, filepath)
+
 
 class TerrainTiles(OrderedCompositor):
     """Terrain Tiles gridded elevation tiles data library
@@ -183,13 +194,15 @@ class TerrainTiles(OrderedCompositor):
         Bucket of the terrain tiles.
         Defaults to 'elevation-tiles-prod'
     """
-    
+
     # parameters
     zoom = tl.Int(default_value=6).tag(attr=True)
-    tile_format = tl.Enum(['geotiff', 'terrarium', 'normal'], default_value='geotiff').tag(attr=True)
-    bucket = tl.Unicode(default_value='elevation-tiles-prod').tag(attr=True)
+    tile_format = tl.Enum(
+        ["geotiff", "terrarium", "normal"], default_value="geotiff"
+    ).tag(attr=True)
+    bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
 
-    @tl.default('sources')
+    @tl.default("sources")
     def _default_sources(self):
         return np.array([])
 
@@ -207,13 +220,13 @@ class TerrainTiles(OrderedCompositor):
     def select_sources(self, coordinates):
         # get all the tile sources for the requested zoom level and coordinates
         sources = get_tile_urls(self.tile_format, self.zoom, coordinates)
-        
+
         # create TerrainTilesSource classes for each url source
         self.sources = np.array([self._create_source(source) for source in sources])
 
         return self.sources
 
-    def download(self, path='terraintiles'):
+    def download(self, path="terraintiles"):
         """
         Download active terrain tile source files to local directory
 
@@ -228,11 +241,12 @@ class TerrainTiles(OrderedCompositor):
             for source in self.sources:
                 source.download(path)
         except tl.TraitError as e:
-            raise ValueError('No terrain tile sources selected. Evaluate node at coordinates to select sources.')
+            raise ValueError(
+                "No terrain tile sources selected. Evaluate node at coordinates to select sources."
+            )
 
     def _create_source(self, source):
-        return TerrainTilesSource(source='{}/{}'.format(self.bucket, source))
-
+        return TerrainTilesSource(source="{}/{}".format(self.bucket, source))
 
 
 ############
@@ -258,7 +272,7 @@ def get_tile_urls(tile_format, zoom, coordinates=None):
 
     # get all the tile definitions for the requested zoom level
     tiles = _get_tile_tuples(zoom, coordinates)
-    
+
     # get source urls
     return [_tile_url(tile_format, x, y, z) for (x, y, z) in tiles]
 
@@ -266,6 +280,7 @@ def get_tile_urls(tile_format, zoom, coordinates=None):
 ############
 # Private Utilites
 ############
+
 
 def _get_tile_tuples(zoom, coordinates=None):
     """Query for tiles within podpac coordinates
@@ -294,22 +309,26 @@ def _get_tile_tuples(zoom, coordinates=None):
     # if no coordinates are supplied, get all tiles for zoom level
     if coordinates is None:
         # get whole world
-        tiles = _get_tiles_grid([-20037508.34, 20037508.34], [-20037508.34, 20037508.34], zoom)
+        tiles = _get_tiles_grid(
+            [-20037508.34, 20037508.34], [-20037508.34, 20037508.34], zoom
+        )
 
     # down select tiles based on coordinates
     else:
-        _logger.debug('Getting tiles for coordinates {}'.format(coordinates))
+        _logger.debug("Getting tiles for coordinates {}".format(coordinates))
 
-        if 'lat' not in coordinates or 'lon' not in coordinates:
-            raise TypeError('input coordinates must have lat and lon dimensions to get tiles')
+        if "lat" not in coordinates or "lon" not in coordinates:
+            raise TypeError(
+                "input coordinates must have lat and lon dimensions to get tiles"
+            )
 
         # transform to WGS84 (epsg:4326) to use the mapzen example for transforming coordinates to tilespace
         # it doesn't seem to conform to standard google tile indexing
-        c = coordinates.transform('epsg:4326')
+        c = coordinates.transform("epsg:4326")
 
         # point coordinates
-        if 'lat_lon' in c.dims or 'lon_lat' in c.dims:
-            lat_lon = zip(c['lat'].coordinates, c['lon'].coordinates)
+        if "lat_lon" in c.dims or "lon_lat" in c.dims:
+            lat_lon = zip(c["lat"].coordinates, c["lon"].coordinates)
 
             tiles = []
             for (lat, lon) in lat_lon:
@@ -319,12 +338,13 @@ def _get_tile_tuples(zoom, coordinates=None):
 
         # gridded coordinates
         else:
-            lat_bounds = c['lat'].bounds
-            lon_bounds = c['lon'].bounds
+            lat_bounds = c["lat"].bounds
+            lon_bounds = c["lon"].bounds
 
             tiles = _get_tiles_grid(lat_bounds, lon_bounds, zoom)
 
     return tiles
+
 
 def _tile_url(tile_format, x, y, zoom):
     """Build S3 URL prefix
@@ -352,14 +372,13 @@ def _tile_url(tile_format, x, y, zoom):
     TypeError
     """
 
-    tile_url = '{tile_format}/{zoom}/{x}/{y}.{ext}'
-    ext = {
-        'geotiff': 'tif',
-        'normal': 'png',
-        'terrarium': 'png'
-    }
+    tile_url = "{tile_format}/{zoom}/{x}/{y}.{ext}"
+    ext = {"geotiff": "tif", "normal": "png", "terrarium": "png"}
 
-    return tile_url.format(tile_format=tile_format, zoom=zoom, x=x, y=y, ext=ext[tile_format])
+    return tile_url.format(
+        tile_format=tile_format, zoom=zoom, x=x, y=y, ext=ext[tile_format]
+    )
+
 
 def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
     """
@@ -390,11 +409,12 @@ def _get_tiles_grid(lat_bounds, lon_bounds, zoom):
     xmax, ymax = _mercator_to_tilespace(xm_max, ym_max, zoom)
 
     # generate a list of tiles
-    xs = range(xmin, xmax+1)
-    ys = range(ymin, ymax+1)
+    xs = range(xmin, xmax + 1)
+    ys = range(ymin, ymax + 1)
 
     tiles = [(x, y, zoom) for (y, x) in product(ys, xs)]
     return tiles
+
 
 def _get_tiles_point(lat, lon, zoom):
     """Get tiles at a single point and zoom level
@@ -418,6 +438,7 @@ def _get_tiles_point(lat, lon, zoom):
 
     return x, y, zoom
 
+
 def _mercator(lat, lon):
     """Convert latitude, longitude to x, y mercator coordinate at given zoom
     Adapted from https://github.com/tilezen/joerd
@@ -435,7 +456,7 @@ def _mercator(lat, lon):
         (x, y) float mercator coordinates
     """
     # convert to radians
-    x1, y1 = lon * np.pi/180, lat * np.pi/180
+    x1, y1 = lon * np.pi / 180, lat * np.pi / 180
 
     # project to mercator
     x, y = x1, np.log(np.tan(0.25 * np.pi + 0.5 * y1))

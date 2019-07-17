@@ -1,10 +1,10 @@
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import numpy as np
 
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
+
 
 def crange(start, stop, step, name=None, ctype=None):
     """
@@ -35,6 +35,7 @@ def crange(start, stop, step, name=None, ctype=None):
     """
 
     return UniformCoordinates1d(start, stop, step=step, name=name, ctype=ctype)
+
 
 def clinspace(start, stop, size, name=None, ctype=None):
     """
@@ -68,14 +69,18 @@ def clinspace(start, stop, size, name=None, ctype=None):
         If the start and stop are not the same size.
     """
     if np.array(start).size != np.array(stop).size:
-        raise ValueError("Size mismatch, 'start' and 'stop' must have the same size (%s != %s)" % (
-            np.array(start).size, np.array(stop).size))
-    
+        raise ValueError(
+            "Size mismatch, 'start' and 'stop' must have the same size (%s != %s)"
+            % (np.array(start).size, np.array(stop).size)
+        )
+
     # As of numpy 0.16, np.array([0, (0, 10)]) no longer raises a ValueError
     # so we have to explicitly check for sizes of start and stop (see above)
     a = np.array([start, stop])
     if a.ndim == 2:
-        cs = [UniformCoordinates1d(start[i], stop[i], size=size) for i in range(a[0].size)]
+        cs = [
+            UniformCoordinates1d(start[i], stop[i], size=size) for i in range(a[0].size)
+        ]
         c = StackedCoordinates(cs, name=name)
     else:
         c = UniformCoordinates1d(start, stop, size=size, name=name, ctype=ctype)
