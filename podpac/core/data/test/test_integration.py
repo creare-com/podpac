@@ -10,7 +10,7 @@ import boto3
 
 import podpac
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.data.types import Array, S3, ReprojectedSource, WCS
+from podpac.core.data.types import Array, ReprojectedSource, WCS
 
 # from podpac.datalib.smap import SMAPSentinelSource
 
