@@ -10,10 +10,7 @@ from numpy.testing import assert_equal
 
 import podpac
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.dependent_coordinates import (
-    DependentCoordinates,
-    ArrayCoordinatesNd,
-)
+from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
 
 LAT = np.linspace(0, 1, 12).reshape((3, 4))
 LON = np.linspace(10, 20, 12).reshape((3, 4))
@@ -78,9 +75,7 @@ class TestDependentCoordinatesCreation(object):
 
     def test_ctype_and_segment_lengths(self):
         # explicit
-        c = DependentCoordinates(
-            (LAT, LON), ctypes=["left", "right"], segment_lengths=[1.0, 2.0]
-        )
+        c = DependentCoordinates((LAT, LON), ctypes=["left", "right"], segment_lengths=[1.0, 2.0])
         assert c.ctypes == ("left", "right")
         assert c.segment_lengths == (1.0, 2.0)
 
@@ -88,9 +83,7 @@ class TestDependentCoordinatesCreation(object):
         assert c.ctypes == ("point", "point")
         assert c.segment_lengths == (None, None)
 
-        c = DependentCoordinates(
-            (LAT, LON), ctypes=["midpoint", "point"], segment_lengths=[1.0, None]
-        )
+        c = DependentCoordinates((LAT, LON), ctypes=["midpoint", "point"], segment_lengths=[1.0, None])
         assert c.ctypes == ("midpoint", "point")
         assert c.segment_lengths == (1.0, None)
 
@@ -114,16 +107,10 @@ class TestDependentCoordinatesCreation(object):
 
         # size mismatch
         with pytest.raises(ValueError, match="size mismatch"):
-            DependentCoordinates(
-                (LAT, LON), ctypes=["left", "left", "left"], segment_lengths=1.0
-            )
+            DependentCoordinates((LAT, LON), ctypes=["left", "left", "left"], segment_lengths=1.0)
 
-        with pytest.raises(
-            ValueError, match="segment_lengths and coordinates size mismatch"
-        ):
-            DependentCoordinates(
-                (LAT, LON), ctypes="left", segment_lengths=[1.0, 1.0, 1.0]
-            )
+        with pytest.raises(ValueError, match="segment_lengths and coordinates size mismatch"):
+            DependentCoordinates((LAT, LON), ctypes="left", segment_lengths=[1.0, 1.0, 1.0])
 
         # segment lengths required
         with pytest.raises(TypeError, match="segment_lengths cannot be None"):
@@ -133,9 +120,7 @@ class TestDependentCoordinatesCreation(object):
             DependentCoordinates((LAT, LON), ctypes=["left", "point"])
 
         with pytest.raises(TypeError, match="segment_lengths cannot be None"):
-            DependentCoordinates(
-                (LAT, LON), ctypes=["left", "point"], segment_lengths=[None, None]
-            )
+            DependentCoordinates((LAT, LON), ctypes=["left", "point"], segment_lengths=[None, None])
 
         # segment lengths prohibited
         with pytest.raises(TypeError, match="segment_lengths must be None"):
@@ -145,9 +130,7 @@ class TestDependentCoordinatesCreation(object):
             DependentCoordinates((LAT, LON), ctypes="point", segment_lengths=1.0)
 
         with pytest.raises(TypeError, match="segment_lengths must be None"):
-            DependentCoordinates(
-                (LAT, LON), ctypes=["left", "point"], segment_lengths=[1.0, 1.0]
-            )
+            DependentCoordinates((LAT, LON), ctypes=["left", "point"], segment_lengths=[1.0, 1.0])
 
         # invalid
         with pytest.raises(tl.TraitError):
@@ -158,9 +141,7 @@ class TestDependentCoordinatesCreation(object):
             DependentCoordinates((LAT, LON), ctypes="left", segment_lengths="abc")
 
         with pytest.raises(ValueError, match="segment_lengths must be positive"):
-            DependentCoordinates(
-                (LAT, LON), ctypes=["left", "right"], segment_lengths=[1.0, -2.0]
-            )
+            DependentCoordinates((LAT, LON), ctypes=["left", "right"], segment_lengths=[1.0, -2.0])
 
     def test_copy(self):
         c = DependentCoordinates((LAT, LON))
@@ -207,9 +188,7 @@ class TestDependentCoordinatesSerialization(object):
         assert c2 == c
 
     def test_invalid_definition(self):
-        with pytest.raises(
-            ValueError, match='DependentCoordinates definition requires "values"'
-        ):
+        with pytest.raises(ValueError, match='DependentCoordinates definition requires "values"'):
             DependentCoordinates.from_definition({"dims": ["lat", "lon"]})
 
     def test_full_definition(self):
@@ -287,12 +266,7 @@ class TestDependentCoordinatesIndexing(object):
             c["other"]
 
     def test_get_dim_with_properties(self):
-        c = DependentCoordinates(
-            [LAT, LON],
-            dims=["lat", "lon"],
-            ctypes=["left", "right"],
-            segment_lengths=[1.0, 2.0],
-        )
+        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"], ctypes=["left", "right"], segment_lengths=[1.0, 2.0])
 
         lat = c["lat"]
         assert isinstance(lat, ArrayCoordinatesNd)
@@ -346,12 +320,7 @@ class TestDependentCoordinatesIndexing(object):
         assert_equal(c2._coords[1].coordinates, lon[B])
 
     def test_get_index_with_properties(self):
-        c = DependentCoordinates(
-            [LAT, LON],
-            dims=["lat", "lon"],
-            ctypes=["left", "right"],
-            segment_lengths=[1.0, 2.0],
-        )
+        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"], ctypes=["left", "right"], segment_lengths=[1.0, 2.0])
 
         c2 = c[[1, 2]]
         assert c2.dims == c.dims
@@ -437,34 +406,22 @@ class TestDependentCoordinatesSelection(object):
 
 class TestArrayCoordinatesNd(object):
     def test_unavailable(self):
-        with pytest.raises(
-            RuntimeError, match="ArrayCoordinatesNd from_definition is unavailable"
-        ):
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd from_definition is unavailable"):
             ArrayCoordinatesNd.from_definition({})
 
-        with pytest.raises(
-            RuntimeError, match="ArrayCoordinatesNd from_xarray is unavailable"
-        ):
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd from_xarray is unavailable"):
             ArrayCoordinatesNd.from_xarray(xr.DataArray([]))
 
         a = ArrayCoordinatesNd([])
 
-        with pytest.raises(
-            RuntimeError, match="ArrayCoordinatesNd definition is unavailable"
-        ):
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd definition is unavailable"):
             a.definition
 
-        with pytest.raises(
-            RuntimeError, match="ArrayCoordinatesNd coords is unavailable"
-        ):
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd coords is unavailable"):
             a.coords
 
-        with pytest.raises(
-            RuntimeError, match="ArrayCoordinatesNd intersect is unavailable"
-        ):
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd intersect is unavailable"):
             a.intersect(a)
 
-        with pytest.raises(
-            RuntimeError, match="ArrayCoordinatesNd select is unavailable"
-        ):
+        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd select is unavailable"):
             a.select([0, 1])

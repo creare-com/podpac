@@ -10,10 +10,7 @@ from numpy.testing import assert_equal, assert_allclose
 
 import podpac
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.dependent_coordinates import (
-    DependentCoordinates,
-    ArrayCoordinatesNd,
-)
+from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
 from podpac.core.coordinates.polar_coordinates import PolarCoordinates
 from podpac.core.coordinates.cfunctions import clinspace
 
@@ -22,9 +19,7 @@ class TestPolarCoordinatesCreation(object):
     def test_init(self):
         theta = np.linspace(0, 2 * np.pi, 9)[:-1]
 
-        c = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta=theta, dims=["lat", "lon"]
-        )
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta=theta, dims=["lat", "lon"])
         assert_equal(c.center, [1.5, 2.0])
         assert_equal(c.theta.coordinates, theta)
         assert_equal(c.radius.coordinates, [1, 2, 4, 5])
@@ -36,9 +31,7 @@ class TestPolarCoordinatesCreation(object):
         repr(c)
 
         # uniform theta
-        c = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
         assert c.theta.start == 0
         assert c.theta.size == 8
         assert c.dims == ("lat", "lon")
@@ -49,59 +42,26 @@ class TestPolarCoordinatesCreation(object):
         repr(c)
 
     def test_invalid(self):
-        with pytest.raises(
-            TypeError, match="PolarCoordinates expected theta or theta_size, not both"
-        ):
-            PolarCoordinates(
-                center=[1.5, 2.0],
-                radius=[1, 2, 4, 5],
-                theta=[0, 1, 2],
-                theta_size=8,
-                dims=["lat", "lon"],
-            )
+        with pytest.raises(TypeError, match="PolarCoordinates expected theta or theta_size, not both"):
+            PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta=[0, 1, 2], theta_size=8, dims=["lat", "lon"])
 
-        with pytest.raises(
-            TypeError, match="PolarCoordinates requires theta or theta_size"
-        ):
-            PolarCoordinates(
-                center=[1.5, 2.0], radius=[1, 2, 4, 5], dims=["lat", "lon"]
-            )
+        with pytest.raises(TypeError, match="PolarCoordinates requires theta or theta_size"):
+            PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], dims=["lat", "lon"])
 
-        with pytest.raises(
-            ValueError, match="PolarCoordinates radius must all be positive"
-        ):
-            PolarCoordinates(
-                center=[1.5, 2.0],
-                radius=[-1, 2, 4, 5],
-                theta_size=8,
-                dims=["lat", "lon"],
-            )
+        with pytest.raises(ValueError, match="PolarCoordinates radius must all be positive"):
+            PolarCoordinates(center=[1.5, 2.0], radius=[-1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
 
         with pytest.raises(ValueError, match="PolarCoordinates dims"):
-            PolarCoordinates(
-                center=[1.5, 2.0],
-                radius=[1, 2, 4, 5],
-                theta_size=8,
-                dims=["lat", "time"],
-            )
+            PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "time"])
 
         with pytest.raises(ValueError, match="dims and coordinates size mismatch"):
-            PolarCoordinates(
-                center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat"]
-            )
+            PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat"])
 
         with pytest.raises(ValueError, match="Duplicate dimension"):
-            PolarCoordinates(
-                center=[1.5, 2.0],
-                radius=[1, 2, 4, 5],
-                theta_size=8,
-                dims=["lat", "lat"],
-            )
+            PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lat"])
 
     def test_copy(self):
-        c = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
         c2 = c.copy()
         assert c2 is not c
         assert c2 == c
@@ -109,73 +69,43 @@ class TestPolarCoordinatesCreation(object):
 
 class TestDependentCoordinatesStandardMethods(object):
     def test_eq_type(self):
-        c = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
         assert c != []
 
     def test_eq_center(self):
-        c1 = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
-        c2 = PolarCoordinates(
-            center=[1.5, 2.5], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
+        c1 = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
+        c2 = PolarCoordinates(center=[1.5, 2.5], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
         assert c1 != c2
 
     def test_eq_radius(self):
-        c1 = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
-        c2 = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4], theta_size=8, dims=["lat", "lon"]
-        )
+        c1 = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
+        c2 = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4], theta_size=8, dims=["lat", "lon"])
         assert c1 != c2
 
     def test_eq_theta(self):
-        c1 = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
-        c2 = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=7, dims=["lat", "lon"]
-        )
+        c1 = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
+        c2 = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=7, dims=["lat", "lon"])
         assert c1 != c2
 
     def test_eq_properties(self):
         c1 = PolarCoordinates(
-            center=[1.5, 2.0],
-            radius=[1, 2, 4, 5],
-            theta_size=8,
-            dims=["lat", "lon"],
-            ctypes="left",
-            segment_lengths=1,
+            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"], ctypes="left", segment_lengths=1
         )
         c2 = PolarCoordinates(
-            center=[1.5, 2.0],
-            radius=[1, 2, 4, 5],
-            theta_size=8,
-            dims=["lat", "lon"],
-            ctypes="right",
-            segment_lengths=1,
+            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"], ctypes="right", segment_lengths=1
         )
         assert c1 != c2
 
     def test_eq(self):
-        c1 = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
-        c2 = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
+        c1 = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
+        c2 = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
         assert c1 == c2
 
 
 class TestPolarCoordinatesSerialization(object):
     def test_definition(self):
         # array radius and theta, plus other checks
-        c = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta=[0, 1, 2], dims=["lat", "lon"]
-        )
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta=[0, 1, 2], dims=["lat", "lon"])
         d = c.definition
 
         assert isinstance(d, dict)
@@ -185,10 +115,7 @@ class TestPolarCoordinatesSerialization(object):
 
         # uniform radius and theta
         c = PolarCoordinates(
-            center=[1.5, 2.0],
-            radius=clinspace(1, 5, 4),
-            theta=clinspace(0, np.pi, 5),
-            dims=["lat", "lon"],
+            center=[1.5, 2.0], radius=clinspace(1, 5, 4), theta=clinspace(0, np.pi, 5), dims=["lat", "lon"]
         )
         d = c.definition
         c2 = PolarCoordinates.from_definition(d)
@@ -196,12 +123,7 @@ class TestPolarCoordinatesSerialization(object):
 
     def test_from_definition(self):
         # radius and theta lists
-        d = {
-            "center": [1.5, 2.0],
-            "radius": [1, 2, 4, 5],
-            "theta": [0, 1, 2],
-            "dims": ["lat", "lon"],
-        }
+        d = {"center": [1.5, 2.0], "radius": [1, 2, 4, 5], "theta": [0, 1, 2], "dims": ["lat", "lon"]}
         c = PolarCoordinates.from_definition(d)
         assert_allclose(c.center, [1.5, 2.0])
         assert_allclose(c.radius.coordinates, [1, 2, 4, 5])
@@ -209,12 +131,7 @@ class TestPolarCoordinatesSerialization(object):
         assert c.dims == ("lat", "lon")
 
         # theta size
-        d = {
-            "center": [1.5, 2.0],
-            "radius": [1, 2, 4, 5],
-            "theta_size": 8,
-            "dims": ["lat", "lon"],
-        }
+        d = {"center": [1.5, 2.0], "radius": [1, 2, 4, 5], "theta_size": 8, "dims": ["lat", "lon"]}
         c = PolarCoordinates.from_definition(d)
         assert_allclose(c.center, [1.5, 2.0])
         assert_allclose(c.radius.coordinates, [1, 2, 4, 5])
@@ -223,87 +140,51 @@ class TestPolarCoordinatesSerialization(object):
 
     def test_invalid_definition(self):
         d = {"radius": [1, 2, 4, 5], "theta": [0, 1, 2], "dims": ["lat", "lon"]}
-        with pytest.raises(
-            ValueError, match='PolarCoordinates definition requires "center"'
-        ):
+        with pytest.raises(ValueError, match='PolarCoordinates definition requires "center"'):
             PolarCoordinates.from_definition(d)
 
         d = {"center": [1.5, 2.0], "theta": [0, 1, 2], "dims": ["lat", "lon"]}
-        with pytest.raises(
-            ValueError, match='PolarCoordinates definition requires "radius"'
-        ):
+        with pytest.raises(ValueError, match='PolarCoordinates definition requires "radius"'):
             PolarCoordinates.from_definition(d)
 
         d = {"center": [1.5, 2.0], "radius": [1, 2, 4, 5], "dims": ["lat", "lon"]}
-        with pytest.raises(
-            ValueError,
-            match='PolarCoordinates definition requires "theta" or "theta_size"',
-        ):
+        with pytest.raises(ValueError, match='PolarCoordinates definition requires "theta" or "theta_size"'):
             PolarCoordinates.from_definition(d)
 
         d = {"center": [1.5, 2.0], "radius": [1, 2, 4, 5], "theta": [0, 1, 2]}
-        with pytest.raises(
-            ValueError, match='PolarCoordinates definition requires "dims"'
-        ):
+        with pytest.raises(ValueError, match='PolarCoordinates definition requires "dims"'):
             PolarCoordinates.from_definition(d)
 
-        d = {
-            "center": [1.5, 2.0],
-            "radius": {"a": 1},
-            "theta": [0, 1, 2],
-            "dims": ["lat", "lon"],
-        }
+        d = {"center": [1.5, 2.0], "radius": {"a": 1}, "theta": [0, 1, 2], "dims": ["lat", "lon"]}
         with pytest.raises(ValueError, match="Could not parse radius coordinates"):
             PolarCoordinates.from_definition(d)
 
-        d = {
-            "center": [1.5, 2.0],
-            "radius": [1, 2, 4, 5],
-            "theta": {"a": 1},
-            "dims": ["lat", "lon"],
-        }
+        d = {"center": [1.5, 2.0], "radius": [1, 2, 4, 5], "theta": {"a": 1}, "dims": ["lat", "lon"]}
         with pytest.raises(ValueError, match="Could not parse theta coordinates"):
             PolarCoordinates.from_definition(d)
 
     def test_full_definition(self):
-        c = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta=[0, 1, 2], dims=["lat", "lon"]
-        )
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta=[0, 1, 2], dims=["lat", "lon"])
         d = c.full_definition
 
         assert isinstance(d, dict)
-        assert set(d.keys()) == {
-            "dims",
-            "radius",
-            "center",
-            "theta",
-            "ctypes",
-            "segment_lengths",
-        }
+        assert set(d.keys()) == {"dims", "radius", "center", "theta", "ctypes", "segment_lengths"}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)  # test serializable
 
 
 class TestPolarCoordinatesProperties(object):
     def test_coordinates(self):
-        c = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4], theta_size=4, dims=["lat", "lon"]
-        )
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4], theta_size=4, dims=["lat", "lon"])
         lat, lon = c.coordinates
 
-        assert_allclose(
-            lat, [[1.5, 2.5, 1.5, 0.5], [1.5, 3.5, 1.5, -0.5], [1.5, 5.5, 1.5, -2.5]]
-        )
+        assert_allclose(lat, [[1.5, 2.5, 1.5, 0.5], [1.5, 3.5, 1.5, -0.5], [1.5, 5.5, 1.5, -2.5]])
 
-        assert_allclose(
-            lon, [[3.0, 2.0, 1.0, 2.0], [4.0, 2.0, 0.0, 2.0], [6.0, 2.0, -2.0, 2.0]]
-        )
+        assert_allclose(lon, [[3.0, 2.0, 1.0, 2.0], [4.0, 2.0, 0.0, 2.0], [6.0, 2.0, -2.0, 2.0]])
 
 
 class TestPolarCoordinatesIndexing(object):
     def test_get_dim(self):
-        c = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
 
         lat = c["lat"]
         lon = c["lon"]
@@ -318,9 +199,7 @@ class TestPolarCoordinatesIndexing(object):
             c["other"]
 
     def test_get_index_slices(self):
-        c = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5, 6], theta_size=8, dims=["lat", "lon"]
-        )
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5, 6], theta_size=8, dims=["lat", "lon"])
 
         # full
         c2 = c[1:4, 2:4]
@@ -367,9 +246,7 @@ class TestPolarCoordinatesIndexing(object):
         assert_allclose(c2.coordinates[1], c.coordinates[1][4:1:-1, 2:4])
 
     def test_get_index_fallback(self):
-        c = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"]
-        )
+        c = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
         lat, lon = c.coordinates
 
         Ra = [3, 1]

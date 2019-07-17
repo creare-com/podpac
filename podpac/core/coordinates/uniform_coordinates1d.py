@@ -7,12 +7,7 @@ import numpy as np
 import traitlets as tl
 from collections import OrderedDict
 
-from podpac.core.coordinates.utils import (
-    make_coord_value,
-    make_coord_delta,
-    add_coord,
-    divide_delta,
-)
+from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord, divide_delta
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
@@ -60,16 +55,7 @@ class UniformCoordinates1d(Coordinates1d):
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
-    def __init__(
-        self,
-        start,
-        stop,
-        step=None,
-        size=None,
-        name=None,
-        ctype=None,
-        segment_lengths=None,
-    ):
+    def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, segment_lengths=None):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -104,24 +90,14 @@ class UniformCoordinates1d(Coordinates1d):
             raise ValueError("step must be nonzero")
         elif step is not None:
             step = make_coord_delta(step)
-        elif isinstance(size, (int, np.long, np.integer)) and not isinstance(
-            size, np.timedelta64
-        ):
+        elif isinstance(size, (int, np.long, np.integer)) and not isinstance(size, np.timedelta64):
             step = divide_delta(stop - start, size - 1)
         else:
             raise TypeError("size must be an integer, not '%s'" % type(size))
 
-        if (
-            isinstance(start, float)
-            and isinstance(stop, float)
-            and isinstance(step, float)
-        ):
+        if isinstance(start, float) and isinstance(stop, float) and isinstance(step, float):
             fstep = step
-        elif (
-            isinstance(start, np.datetime64)
-            and isinstance(stop, np.datetime64)
-            and isinstance(step, np.timedelta64)
-        ):
+        elif isinstance(start, np.datetime64) and isinstance(stop, np.datetime64) and isinstance(step, np.timedelta64):
             fstep = step.astype(float)
         else:
             raise TypeError(
@@ -130,23 +106,17 @@ class UniformCoordinates1d(Coordinates1d):
             )
 
         if fstep < 0 and start < stop:
-            raise ValueError(
-                "UniformCoordinates1d step must be greater than zero if start < stop."
-            )
+            raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
 
         if fstep > 0 and start > stop:
-            raise ValueError(
-                "UniformCoordinates1d step must be less than zero if start > stop."
-            )
+            raise ValueError("UniformCoordinates1d step must be less than zero if start > stop.")
 
         self.set_trait("start", start)
         self.set_trait("stop", stop)
         self.set_trait("step", step)
 
         # set common properties
-        super(UniformCoordinates1d, self).__init__(
-            name=name, ctype=ctype, segment_lengths=segment_lengths
-        )
+        super(UniformCoordinates1d, self).__init__(name=name, ctype=ctype, segment_lengths=segment_lengths)
 
     @tl.default("ctype")
     def _default_ctype(self):
@@ -182,8 +152,7 @@ class UniformCoordinates1d(Coordinates1d):
     def from_tuple(cls, items, **kwargs):
         if not isinstance(items, tuple) or len(items) != 3:
             raise ValueError(
-                "UniformCoordinates1d.from_tuple expects a tuple of (start, stop, step/size), got %s"
-                % (items,)
+                "UniformCoordinates1d.from_tuple expects a tuple of (start, stop, step/size), got %s" % (items,)
             )
         elif isinstance(items[2], int):
             return cls(items[0], items[1], size=items[2], **kwargs)
@@ -236,9 +205,7 @@ class UniformCoordinates1d(Coordinates1d):
         """
 
         if "start" not in d:
-            raise ValueError(
-                'UniformCoordinates1d definition requires "start" property'
-            )
+            raise ValueError('UniformCoordinates1d definition requires "start" property')
         if "stop" not in d:
             raise ValueError('UniformCoordinates1d definition requires "stop" property')
 
@@ -260,24 +227,16 @@ class UniformCoordinates1d(Coordinates1d):
             if index.start is None:
                 start = self.start
             elif index.start >= 0:
-                start = add_coord(
-                    self.start, self.step * min(index.start, self.size - 1)
-                )
+                start = add_coord(self.start, self.step * min(index.start, self.size - 1))
             else:
-                start = add_coord(
-                    self.start, self.step * max(0, self.size + index.start)
-                )
+                start = add_coord(self.start, self.step * max(0, self.size + index.start))
 
             if index.stop is None:
                 stop = self.stop
             elif index.stop >= 0:
-                stop = add_coord(
-                    self.start, self.step * (min(index.stop, self.size) - 1)
-                )
+                stop = add_coord(self.start, self.step * (min(index.stop, self.size) - 1))
             else:
-                stop = add_coord(
-                    self.start, self.step * max(0, self.size + index.stop - 1)
-                )
+                stop = add_coord(self.start, self.step * max(0, self.size + index.stop - 1))
 
             if index.step is None:
                 step = self.step

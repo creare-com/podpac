@@ -21,16 +21,7 @@ class PolarCoordinates(DependentCoordinates):
     theta = tl.Instance(Coordinates1d, read_only=True)
     ndims = 2
 
-    def __init__(
-        self,
-        center,
-        radius,
-        theta=None,
-        theta_size=None,
-        dims=None,
-        ctypes=None,
-        segment_lengths=None,
-    ):
+    def __init__(self, center, radius, theta=None, theta_size=None, dims=None, ctypes=None, segment_lengths=None):
 
         # radius
         if not isinstance(radius, Coordinates1d):
@@ -43,9 +34,7 @@ class PolarCoordinates(DependentCoordinates):
             raise TypeError("PolarCoordinates requires theta or theta_size.")
 
         if theta_size is not None:
-            theta = UniformCoordinates1d(start=0, stop=2 * np.pi, size=theta_size + 1)[
-                :-1
-            ]
+            theta = UniformCoordinates1d(start=0, stop=2 * np.pi, size=theta_size + 1)[:-1]
         elif not isinstance(theta, Coordinates1d):
             theta = ArrayCoordinates1d(theta)
 
@@ -60,9 +49,7 @@ class PolarCoordinates(DependentCoordinates):
     def _validate_dims(self, d):
         val = super(PolarCoordinates, self)._validate_dims(d)
         if val != ("lat", "lon"):
-            raise ValueError(
-                "PolarCoordinates dims must be ('lat', 'lon'), not '%s'" % (val,)
-            )
+            raise ValueError("PolarCoordinates dims must be ('lat', 'lon'), not '%s'" % (val,))
         return val
 
     @tl.validate("radius")
@@ -83,9 +70,7 @@ class PolarCoordinates(DependentCoordinates):
         if "radius" not in d:
             raise ValueError('PolarCoordinates definition requires "radius" property')
         if "theta" not in d and "theta_size" not in d:
-            raise ValueError(
-                'PolarCoordinates definition requires "theta" or "theta_size" property'
-            )
+            raise ValueError('PolarCoordinates definition requires "theta" or "theta_size" property')
         if "dims" not in d:
             raise ValueError('PolarCoordinates definition requires "dims" property')
 
@@ -97,16 +82,10 @@ class PolarCoordinates(DependentCoordinates):
             radius = ArrayCoordinates1d(d["radius"])
         elif "values" in d["radius"]:
             radius = ArrayCoordinates1d.from_definition(d["radius"])
-        elif (
-            "start" in d["radius"]
-            and "stop" in d["radius"]
-            and ("step" in d["radius"] or "size" in d["radius"])
-        ):
+        elif "start" in d["radius"] and "stop" in d["radius"] and ("step" in d["radius"] or "size" in d["radius"]):
             radius = UniformCoordinates1d.from_definition(d["radius"])
         else:
-            raise ValueError(
-                "Could not parse radius coordinates definition with keys %s" % d.keys()
-            )
+            raise ValueError("Could not parse radius coordinates definition with keys %s" % d.keys())
 
         # theta
         if "theta" not in d:
@@ -115,16 +94,10 @@ class PolarCoordinates(DependentCoordinates):
             theta = ArrayCoordinates1d(d["theta"])
         elif "values" in d["theta"]:
             theta = ArrayCoordinates1d.from_definition(d["theta"])
-        elif (
-            "start" in d["theta"]
-            and "stop" in d["theta"]
-            and ("step" in d["theta"] or "size" in d["theta"])
-        ):
+        elif "start" in d["theta"] and "stop" in d["theta"] and ("step" in d["theta"] or "size" in d["theta"]):
             theta = UniformCoordinates1d.from_definition(d["theta"])
         else:
-            raise ValueError(
-                "Could not parse theta coordinates definition with keys %s" % d.keys()
-            )
+            raise ValueError("Could not parse theta coordinates definition with keys %s" % d.keys())
 
         kwargs = {k: v for k, v in d.items() if k not in ["center", "radius", "theta"]}
         return PolarCoordinates(center, radius, theta, **kwargs)
@@ -139,13 +112,7 @@ class PolarCoordinates(DependentCoordinates):
         else:
             ctypes = "ctypes[%s]" % ", ".join(self.ctypes)
 
-        return "%s(%s): center%s, shape%s, %s" % (
-            self.__class__.__name__,
-            self.dims,
-            self.center,
-            self.shape,
-            ctypes,
-        )
+        return "%s(%s): center%s, shape%s, %s" % (self.__class__.__name__, self.dims, self.center, self.shape, ctypes)
 
     def __eq__(self, other):
         if not isinstance(other, PolarCoordinates):
@@ -171,17 +138,8 @@ class PolarCoordinates(DependentCoordinates):
         if isinstance(index, slice):
             index = index, slice(None)
 
-        if (
-            isinstance(index, tuple)
-            and isinstance(index[0], slice)
-            and isinstance(index[1], slice)
-        ):
-            return PolarCoordinates(
-                self.center,
-                self.radius[index[0]],
-                self.theta[index[1]],
-                **self.properties
-            )
+        if isinstance(index, tuple) and isinstance(index[0], slice) and isinstance(index[1], slice):
+            return PolarCoordinates(self.center, self.radius[index[0]], self.theta[index[1]], **self.properties)
         else:
             return super(PolarCoordinates, self).__getitem__(index)
 

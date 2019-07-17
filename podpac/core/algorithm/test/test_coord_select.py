@@ -9,8 +9,7 @@ from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordina
 
 # TODO move to test setup
 coords = podpac.Coordinates(
-    ["2017-09-01", podpac.clinspace(45, 66, 4), podpac.clinspace(-80, -70, 5)],
-    dims=["time", "lat", "lon"],
+    ["2017-09-01", podpac.clinspace(45, 66, 4), podpac.clinspace(-80, -70, 5)], dims=["time", "lat", "lon"]
 )
 
 
@@ -71,9 +70,7 @@ class TestSelectCoordinates(object):
         o = node.eval(coords)
 
     def test_time_selection(self):
-        node = SelectCoordinates(
-            source=Arange(), time=("2017-08-01", "2017-09-30", "1,D")
-        )
+        node = SelectCoordinates(source=Arange(), time=("2017-08-01", "2017-09-30", "1,D"))
         o = node.eval(coords)
 
     def test_spatial_selection(self):
@@ -81,12 +78,8 @@ class TestSelectCoordinates(object):
         o = node.eval(coords)
 
     def test_time_selection_implicit_coordinates(self):
-        node = SelectCoordinates(
-            source=MyDataSource(), time=("2011-01-01", "2011-02-01")
-        )
+        node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2011-02-01"))
         o = node.eval(coords)
 
-        node = SelectCoordinates(
-            source=MyDataSource(), time=("2011-01-01", "2017-01-01", "1,Y")
-        )
+        node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2017-01-01", "1,Y"))
         o = node.eval(coords)

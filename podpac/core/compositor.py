@@ -152,14 +152,10 @@ class Compositor(Node):
         if self.source_coordinates is not None:
             # intersecting sources only
             try:
-                _, I = self.source_coordinates.intersect(
-                    coordinates, outer=True, return_indices=True
-                )
+                _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
 
             except:  # Likely non-monotonic coordinates
-                _, I = self.source_coordinates.intersect(
-                    coordinates, outer=False, return_indices=True
-                )
+                _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
 
             src_subset = self.sources[I]
 
@@ -217,19 +213,10 @@ class Compositor(Node):
         #              native_coords = source_coords + shared_coordinates
         #         NOT  native_coords = shared_coords + source_coords
         if self.is_source_coordinates_complete and self.source_coordinates.ndim == 1:
-            coords_subset = list(
-                self.source_coordinates.intersect(
-                    coordinates, outer=True
-                ).coords.values()
-            )[0]
+            coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
             coords_dim = list(self.source_coordinates.dims)[0]
             for s, c in zip(src_subset, coords_subset):
-                nc = merge_dims(
-                    [
-                        Coordinates(np.atleast_1d(c), dims=[coords_dim]),
-                        self.shared_coordinates,
-                    ]
-                )
+                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
 
                 if trait_is_defined(s, "native_coordinates") is False:
                     s.native_coordinates = nc

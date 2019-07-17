@@ -7,27 +7,15 @@ import traitlets as tl
 import pytest
 
 import podpac
-from podpac.core.pipeline.pipeline import (
-    Pipeline,
-    PipelineError,
-    parse_pipeline_definition,
-)
-from podpac.core.pipeline.output import (
-    NoOutput,
-    FTPOutput,
-    S3Output,
-    FileOutput,
-    ImageOutput,
-)
+from podpac.core.pipeline.pipeline import Pipeline, PipelineError, parse_pipeline_definition
+from podpac.core.pipeline.output import NoOutput, FTPOutput, S3Output, FileOutput, ImageOutput
 
 
 class TestParsePipelineDefinition(object):
     def test_empty(self):
         s = "{ }"
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(
-            PipelineError, match="Pipeline definition requires 'nodes' property"
-        ):
+        with pytest.raises(PipelineError, match="Pipeline definition requires 'nodes' property"):
             parse_pipeline_definition(d)
 
     def test_no_nodes(self):
@@ -95,9 +83,7 @@ class TestParsePipelineDefinition(object):
         """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(
-            PipelineError, match="The 'source' property cannot be in attrs"
-        ):
+        with pytest.raises(PipelineError, match="The 'source' property cannot be in attrs"):
             parse_pipeline_definition(d)
 
     def test_datasource_lookup_source(self):
@@ -148,9 +134,7 @@ class TestParsePipelineDefinition(object):
         """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(
-            PipelineError, match="'mydata2' references nonexistent node/attribute"
-        ):
+        with pytest.raises(PipelineError, match="'mydata2' references nonexistent node/attribute"):
             parse_pipeline_definition(d)
 
         # nonexistent subattr
@@ -175,9 +159,7 @@ class TestParsePipelineDefinition(object):
         """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(
-            PipelineError, match="'mydata2' references nonexistent node/attribute"
-        ):
+        with pytest.raises(PipelineError, match="'mydata2' references nonexistent node/attribute"):
             parse_pipeline_definition(d)
 
         # nonexistent subsubattr
@@ -202,9 +184,7 @@ class TestParsePipelineDefinition(object):
         """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(
-            PipelineError, match="'mydata2' references nonexistent node/attribute"
-        ):
+        with pytest.raises(PipelineError, match="'mydata2' references nonexistent node/attribute"):
             parse_pipeline_definition(d)
 
         # in attrs (incorrect)
@@ -222,9 +202,7 @@ class TestParsePipelineDefinition(object):
         """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(
-            PipelineError, match="The 'lookup_source' property cannot be in attrs"
-        ):
+        with pytest.raises(PipelineError, match="The 'lookup_source' property cannot be in attrs"):
             parse_pipeline_definition(d)
 
     def test_reprojected_source_lookup_source(self):
@@ -499,9 +477,7 @@ class TestParsePipelineDefinition(object):
         """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(
-            PipelineError, match="The 'interpolation' property cannot be in attrs"
-        ):
+        with pytest.raises(PipelineError, match="The 'interpolation' property cannot be in attrs"):
             parse_pipeline_definition(d)
 
     def test_compositor_interpolation(self):

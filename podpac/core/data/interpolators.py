@@ -22,17 +22,9 @@ except:
     scipy = None
 
 # podac imports
-from podpac.core.data.interpolator import (
-    COMMON_INTERPOLATOR_DOCS,
-    Interpolator,
-    InterpolatorException,
-)
+from podpac.core.data.interpolator import COMMON_INTERPOLATOR_DOCS, Interpolator, InterpolatorException
 from podpac.core.units import UnitsDataArray
-from podpac.core.coordinates import (
-    Coordinates,
-    UniformCoordinates1d,
-    StackedCoordinates,
-)
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.utils import common_doc
 
 
@@ -71,9 +63,7 @@ class NearestNeighbor(Interpolator):
             return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(
-        self, udims, source_coordinates, source_data, eval_coordinates, output_data
-    ):
+    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
@@ -92,18 +82,14 @@ class NearestNeighbor(Interpolator):
                 # TODO: how do we choose a dimension to use from the stacked coordinates?
                 # For now, choose the first coordinate found in the udims definition
                 if udims_in_stack:
-                    raise InterpolatorException(
-                        "Nearest interpolation does not yet support stacked dimensions"
-                    )
+                    raise InterpolatorException("Nearest interpolation does not yet support stacked dimensions")
                     # dim = udims_in_stack[0]
                 else:
                     continue
 
             # TODO: handle if the source coordinates contain `dim` within a stacked coordinate
             elif dim not in source_coordinates.dims:
-                raise InterpolatorException(
-                    "Nearest interpolation does not yet support stacked dimensions"
-                )
+                raise InterpolatorException("Nearest interpolation does not yet support stacked dimensions")
 
             elif dim not in udims:
                 continue
@@ -118,9 +104,7 @@ class NearestNeighbor(Interpolator):
             # reindex using xarray
             indexer = {dim: eval_coordinates[dim].coordinates.copy()}
             indexers += [dim]
-            source_data = source_data.reindex(
-                method=str("nearest"), tolerance=tolerance, **indexer
-            )
+            source_data = source_data.reindex(method=str("nearest"), tolerance=tolerance, **indexer)
 
         # at this point, output_data and eval_coordinates have the same dim order
         # this transpose makes sure the source_data has the same dim order as the eval coordinates
@@ -154,9 +138,7 @@ class NearestPreview(NearestNeighbor):
             return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def select_coordinates(
-        self, udims, source_coordinates, source_coordinates_index, eval_coordinates
-    ):
+    def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
         """
         {interpolator_select}
         """
@@ -168,9 +150,7 @@ class NearestPreview(NearestNeighbor):
 
             # TODO: handle stacked coordinates
             if isinstance(source_coordinates[src_dim], StackedCoordinates):
-                raise InterpolatorException(
-                    "NearestPreview select does not yet support stacked dimensions"
-                )
+                raise InterpolatorException("NearestPreview select does not yet support stacked dimensions")
 
             if src_dim in eval_coordinates.dims:
                 src_coords = source_coordinates[src_dim]
@@ -198,9 +178,7 @@ class NearestPreview(NearestNeighbor):
                 if src_coords.size == 1:
                     c = src_coords.copy()
                 else:
-                    c = UniformCoordinates1d(
-                        src_start, src_stop, ndelta * src_delta, **src_coords.properties
-                    )
+                    c = UniformCoordinates1d(src_start, src_stop, ndelta * src_delta, **src_coords.properties)
 
                 if isinstance(idx, slice):
                     idx = slice(idx.start, idx.stop, int(ndelta))
@@ -271,9 +249,7 @@ class Rasterio(Interpolator):
         return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(
-        self, udims, source_coordinates, source_data, eval_coordinates, output_data
-    ):
+    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
@@ -284,13 +260,7 @@ class Rasterio(Interpolator):
         if len(source_data.dims) > 2:
             keep_dims = ["lat", "lon"]
             return self._loop_helper(
-                self.interpolate,
-                keep_dims,
-                udims,
-                source_coordinates,
-                source_data,
-                eval_coordinates,
-                output_data,
+                self.interpolate, keep_dims, udims, source_coordinates, source_data, eval_coordinates, output_data
             )
 
         def get_rasterio_transform(c):
@@ -386,9 +356,7 @@ class ScipyPoint(Interpolator):
         return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(
-        self, udims, source_coordinates, source_data, eval_coordinates, output_data
-    ):
+    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
@@ -399,36 +367,26 @@ class ScipyPoint(Interpolator):
         if isinstance(eval_coordinates["lat"], UniformCoordinates1d):
             dlat = eval_coordinates["lat"].step
         else:
-            dlat = (
-                eval_coordinates["lat"].bounds[1] - eval_coordinates["lat"].bounds[0]
-            ) / (eval_coordinates["lat"].size - 1)
+            dlat = (eval_coordinates["lat"].bounds[1] - eval_coordinates["lat"].bounds[0]) / (
+                eval_coordinates["lat"].size - 1
+            )
 
         if isinstance(eval_coordinates["lon"], UniformCoordinates1d):
             dlon = eval_coordinates["lon"].step
         else:
-            dlon = (
-                eval_coordinates["lon"].bounds[1] - eval_coordinates["lon"].bounds[0]
-            ) / (eval_coordinates["lon"].size - 1)
+            dlon = (eval_coordinates["lon"].bounds[1] - eval_coordinates["lon"].bounds[0]) / (
+                eval_coordinates["lon"].size - 1
+            )
 
         tol = np.linalg.norm([dlat, dlon]) * 8
 
         if self._dim_in(["lat", "lon"], eval_coordinates):
-            pts = np.stack(
-                [
-                    source_coordinates[dim].coordinates
-                    for dim in source_coordinates[order].dims
-                ],
-                axis=1,
-            )
+            pts = np.stack([source_coordinates[dim].coordinates for dim in source_coordinates[order].dims], axis=1)
             if order == "lat_lon":
                 pts = pts[:, ::-1]
             pts = KDTree(pts)
-            lon, lat = np.meshgrid(
-                eval_coordinates.coords["lon"], eval_coordinates.coords["lat"]
-            )
-            dist, ind = pts.query(
-                np.stack((lon.ravel(), lat.ravel()), axis=1), distance_upper_bound=tol
-            )
+            lon, lat = np.meshgrid(eval_coordinates.coords["lon"], eval_coordinates.coords["lat"])
+            dist, ind = pts.query(np.stack((lon.ravel(), lat.ravel()), axis=1), distance_upper_bound=tol)
             mask = ind == source_data[order].size
             ind[mask] = 0  # This is a hack to make the select on the next line work
             # (the masked values are set to NaN on the following line)
@@ -438,14 +396,9 @@ class ScipyPoint(Interpolator):
             dims = [dim for dim in source_data.dims if dim != order]
             vals = vals.transpose(order, *dims).data
             shape = vals.shape
-            coords = [
-                eval_coordinates["lat"].coordinates,
-                eval_coordinates["lon"].coordinates,
-            ]
+            coords = [eval_coordinates["lat"].coordinates, eval_coordinates["lon"].coordinates]
             coords += [source_coordinates[d].coordinates for d in dims]
-            vals = vals.reshape(
-                eval_coordinates["lat"].size, eval_coordinates["lon"].size, *shape[1:]
-            )
+            vals = vals.reshape(eval_coordinates["lat"].size, eval_coordinates["lon"].size, *shape[1:])
             vals = UnitsDataArray(vals, coords=coords, dims=["lat", "lon"] + dims)
             # and transpose back to the destination order
             output_data.data[:] = vals.transpose(*output_data.dims).data[:]
@@ -455,18 +408,10 @@ class ScipyPoint(Interpolator):
         elif self._dim_in(["lat", "lon"], eval_coordinates, unstacked=True):
             dst_order = "lat_lon" if "lat_lon" in eval_coordinates.dims else "lon_lat"
             src_stacked = np.stack(
-                [
-                    source_coordinates[dim].coordinates
-                    for dim in source_coordinates[order].dims
-                ],
-                axis=1,
+                [source_coordinates[dim].coordinates for dim in source_coordinates[order].dims], axis=1
             )
             new_stacked = np.stack(
-                [
-                    eval_coordinates[dim].coordinates
-                    for dim in source_coordinates[order].dims
-                ],
-                axis=1,
+                [eval_coordinates[dim].coordinates for dim in source_coordinates[order].dims], axis=1
             )
             pts = KDTree(src_stacked)
             dist, ind = pts.query(new_stacked, distance_upper_bound=tol)
@@ -490,14 +435,7 @@ class ScipyGrid(ScipyPoint):
     {interpolator_attributes}
     """
 
-    methods_supported = [
-        "nearest",
-        "bilinear",
-        "cubic_spline",
-        "spline_2",
-        "spline_3",
-        "spline_4",
-    ]
+    methods_supported = ["nearest", "bilinear", "cubic_spline", "spline_2", "spline_3", "spline_4"]
     method = tl.Unicode(default_value="nearest", allow_none=False)
 
     # TODO: implement these parameters for the method 'nearest'
@@ -525,42 +463,24 @@ class ScipyGrid(ScipyPoint):
         return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(
-        self, udims, source_coordinates, source_data, eval_coordinates, output_data
-    ):
+    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
 
         if self._dim_in(["lat", "lon"], eval_coordinates):
             return self._interpolate_irregular_grid(
-                udims,
-                source_coordinates,
-                source_data,
-                eval_coordinates,
-                output_data,
-                grid=True,
+                udims, source_coordinates, source_data, eval_coordinates, output_data, grid=True
             )
 
         elif self._dim_in(["lat", "lon"], eval_coordinates, unstacked=True):
             eval_coordinates_us = eval_coordinates.unstack()
             return self._interpolate_irregular_grid(
-                udims,
-                source_coordinates,
-                source_data,
-                eval_coordinates_us,
-                output_data,
-                grid=False,
+                udims, source_coordinates, source_data, eval_coordinates_us, output_data, grid=False
             )
 
     def _interpolate_irregular_grid(
-        self,
-        udims,
-        source_coordinates,
-        source_data,
-        eval_coordinates,
-        output_data,
-        grid=True,
+        self, udims, source_coordinates, source_data, eval_coordinates, output_data, grid=True
     ):
 
         if len(source_data.dims) > 2:
@@ -595,10 +515,7 @@ class ScipyGrid(ScipyPoint):
         # remove nan's
         I, J = np.isfinite(lat), np.isfinite(lon)
         coords_i = lat[I], lon[J]
-        coords_i_dst = [
-            eval_coordinates["lon"].coordinates,
-            eval_coordinates["lat"].coordinates,
-        ]
+        coords_i_dst = [eval_coordinates["lon"].coordinates, eval_coordinates["lat"].coordinates]
 
         # Swap order in case datasource uses lon,lat ordering instead of lat,lon
         if source_coordinates.dims.index("lat") > source_coordinates.dims.index("lon"):
@@ -609,11 +526,7 @@ class ScipyGrid(ScipyPoint):
 
         if self.method in ["bilinear", "nearest"]:
             f = RegularGridInterpolator(
-                coords_i,
-                data,
-                method=self.method.replace("bi", ""),
-                bounds_error=False,
-                fill_value=np.nan,
+                coords_i, data, method=self.method.replace("bi", ""), bounds_error=False, fill_value=np.nan
             )
             if grid:
                 x, y = np.meshgrid(*coords_i_dst)
@@ -629,11 +542,7 @@ class ScipyGrid(ScipyPoint):
                 # TODO: make this a parameter
                 order = int(self.method.split("_")[-1])
 
-            f = RectBivariateSpline(
-                coords_i[0], coords_i[1], data, kx=max(1, order), ky=max(1, order)
-            )
-            output_data.data[:] = f(
-                coords_i_dst[1], coords_i_dst[0], grid=grid
-            ).reshape(output_data.shape)
+            f = RectBivariateSpline(coords_i[0], coords_i[1], data, kx=max(1, order), ky=max(1, order))
+            output_data.data[:] = f(coords_i_dst[1], coords_i_dst[0], grid=grid).reshape(output_data.shape)
 
         return output_data

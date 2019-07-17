@@ -83,9 +83,7 @@ class TestUnitDataArray(object):
         )
         assert (a ** 2).attrs["units"] == ureg.meter ** 2
 
-    def test_set_to_value_using_UnitsDataArray_as_mask_does_nothing_if_mask_has_dim_not_in_array(
-        self
-    ):
+    def test_set_to_value_using_UnitsDataArray_as_mask_does_nothing_if_mask_has_dim_not_in_array(self):
         a = UnitsDataArray(
             np.arange(24, dtype=np.float64).reshape((3, 4, 2)),
             coords={"x": np.arange(3), "y": np.arange(4) * 10, "z": np.arange(2) + 100},
@@ -104,9 +102,7 @@ class TestUnitDataArray(object):
         # dims of a remain unchanged
         assert not np.any(np.isnan(a.data))
 
-    def test_set_to_value_using_UnitsDataArray_as_mask_broadcasts_to_dimensions_not_in_mask(
-        self
-    ):
+    def test_set_to_value_using_UnitsDataArray_as_mask_broadcasts_to_dimensions_not_in_mask(self):
         a = UnitsDataArray(
             np.arange(24, dtype=np.float64).reshape((3, 4, 2)),
             coords={"x": np.arange(3), "y": np.arange(4) * 10, "z": np.arange(2) + 100},
@@ -134,9 +130,7 @@ class TestUnitDataArray(object):
                     else:
                         assert not np.isnan(a[x, y, z])
 
-    def test_get_item_with_1d_units_data_array_as_key_boradcasts_to_correct_dimension(
-        self
-    ):
+    def test_get_item_with_1d_units_data_array_as_key_boradcasts_to_correct_dimension(self):
         a = UnitsDataArray(
             np.arange(24).reshape((3, 4, 2)),
             coords={"x": np.arange(3), "y": np.arange(4) * 10, "z": np.arange(2) + 100},
@@ -176,9 +170,7 @@ class TestUnitDataArray(object):
         n_lats = 3
         n_lons = 4
         lat_lon = UnitsDataArray(
-            np.arange(12).reshape((n_lats, n_lons)),
-            dims=["lat", "lon"],
-            attrs={"units": ureg.meter},
+            np.arange(12).reshape((n_lats, n_lons)), dims=["lat", "lon"], attrs={"units": ureg.meter}
         )
         lon_lat = lat_lon.part_transpose(["lon"])
         for lat in range(n_lats):
@@ -189,9 +181,7 @@ class TestUnitDataArray(object):
         n_lats = 3
         n_lons = 4
         lat_lon = UnitsDataArray(
-            np.arange(12).reshape((n_lats, n_lons)),
-            dims=["lat", "lon"],
-            attrs={"units": ureg.meter},
+            np.arange(12).reshape((n_lats, n_lons)), dims=["lat", "lon"], attrs={"units": ureg.meter}
         )
         lon_lat = lat_lon.part_transpose(["lon", "lat"])
         for lat in range(n_lats):
@@ -202,9 +192,7 @@ class TestUnitDataArray(object):
         n_lats = 3
         n_lons = 4
         lat_lon = UnitsDataArray(
-            np.arange(12).reshape((n_lats, n_lons)),
-            dims=["lat", "lon"],
-            attrs={"units": ureg.meter},
+            np.arange(12).reshape((n_lats, n_lons)), dims=["lat", "lon"], attrs={"units": ureg.meter}
         )
         lat_lon_2 = lat_lon.part_transpose([])
         for lat in range(n_lats):
@@ -225,9 +213,7 @@ class TestUnitDataArray(object):
         a10 = a1 % a2
 
     def test_first_units_coord(self):
-        a1 = UnitsDataArray(
-            np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter}
-        )
+        a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter})
         a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={})
         with pytest.raises(DimensionalityError):
             a3 = a1 + a2
@@ -248,9 +234,7 @@ class TestUnitDataArray(object):
 
     def test_second_units_coord(self):
         a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={})
-        a2 = UnitsDataArray(
-            np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.inch}
-        )
+        a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.inch})
         with pytest.raises(DimensionalityError):
             a3 = a1 + a2
         with pytest.raises(DimensionalityError):
@@ -269,23 +253,13 @@ class TestUnitDataArray(object):
             a10 = a1 % a2
 
     def test_units_allpass(self):
-        a1 = UnitsDataArray(
-            np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter}
-        )
-        a2 = UnitsDataArray(
-            np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.inch}
-        )
+        a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter})
+        a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.inch})
         a3 = a1 + a2
-        assert (
-            a3[0, 0].data[()]
-            == (1 * ureg.meter + 1 * ureg.inch).to(ureg.meter).magnitude
-        )
+        assert a3[0, 0].data[()] == (1 * ureg.meter + 1 * ureg.inch).to(ureg.meter).magnitude
 
         a3b = a2 + a1
-        assert (
-            a3b[0, 0].data[()]
-            == (1 * ureg.meter + 1 * ureg.inch).to(ureg.inch).magnitude
-        )
+        assert a3b[0, 0].data[()] == (1 * ureg.meter + 1 * ureg.inch).to(ureg.inch).magnitude
 
         a4 = a1 > a2
         assert a4[0, 0].data[()] == True
@@ -297,36 +271,20 @@ class TestUnitDataArray(object):
         assert a6[0, 0].data[()] == False
 
         a7 = a1 * a2
-        assert (
-            a7[0, 0].to(ureg.m ** 2).data[()]
-            == (1 * ureg.meter * ureg.inch).to(ureg.meter ** 2).magnitude
-        )
+        assert a7[0, 0].to(ureg.m ** 2).data[()] == (1 * ureg.meter * ureg.inch).to(ureg.meter ** 2).magnitude
 
         a8 = a2 / a1
-        assert (
-            a8[0, 0].to_base_units().data[()]
-            == (1 * ureg.inch / ureg.meter).to_base_units().magnitude
-        )
+        assert a8[0, 0].to_base_units().data[()] == (1 * ureg.inch / ureg.meter).to_base_units().magnitude
 
         a9 = a1 // a2
-        assert (
-            a9[0, 0].to_base_units().data[()]
-            == ((1 * ureg.meter) // (1 * ureg.inch)).to_base_units().magnitude
-        )
+        assert a9[0, 0].to_base_units().data[()] == ((1 * ureg.meter) // (1 * ureg.inch)).to_base_units().magnitude
 
         a10 = a1 % a2
-        assert (
-            a10[0, 0].to_base_units().data[()]
-            == ((1 * ureg.meter) % (1 * ureg.inch)).to_base_units().magnitude
-        )
+        assert a10[0, 0].to_base_units().data[()] == ((1 * ureg.meter) % (1 * ureg.inch)).to_base_units().magnitude
 
     def test_units_somefail(self):
-        a1 = UnitsDataArray(
-            np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter}
-        )
-        a2 = UnitsDataArray(
-            np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.kelvin}
-        )
+        a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter})
+        a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.kelvin})
         with pytest.raises(DimensionalityError):
             a3 = a1 + a2
         with pytest.raises(DimensionalityError):
@@ -339,16 +297,10 @@ class TestUnitDataArray(object):
             a6 = a1 == a2
 
         a7 = a1 * a2
-        assert (
-            a7[0, 0].to(ureg.meter * ureg.kelvin).data[()]
-            == (1 * ureg.meter * ureg.kelvin).magnitude
-        )
+        assert a7[0, 0].to(ureg.meter * ureg.kelvin).data[()] == (1 * ureg.meter * ureg.kelvin).magnitude
 
         a8 = a1 / a2
-        assert (
-            a8[0, 0].to(ureg.meter / ureg.kelvin).data[()]
-            == (1 * ureg.meter / ureg.kelvin).magnitude
-        )
+        assert a8[0, 0].to(ureg.meter / ureg.kelvin).data[()] == (1 * ureg.meter / ureg.kelvin).magnitude
 
         with pytest.raises(DimensionalityError):
             a9 = a1 // a2
@@ -358,12 +310,8 @@ class TestUnitDataArray(object):
 
     @pytest.mark.skip(reason="Error in xarray layer")
     def test_ufuncs(self):
-        a1 = UnitsDataArray(
-            np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter}
-        )
-        a2 = UnitsDataArray(
-            np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.kelvin}
-        )
+        a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter})
+        a2 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.kelvin})
 
         np.sqrt(a1)
         np.mean(a1)
@@ -459,9 +407,7 @@ class TestCreateDataArray(object):
 class TestGetImage(object):
     def test_get_image(self):
         data = np.ones((10, 10))
-        assert isinstance(
-            get_image(UnitsDataArray(data)), bytes
-        )  # UnitsDataArray input
+        assert isinstance(get_image(UnitsDataArray(data)), bytes)  # UnitsDataArray input
         assert isinstance(get_image(xr.DataArray(data)), bytes)  # xr.DataArray input
         assert isinstance(get_image(data), bytes)  # np.ndarray input
         assert isinstance(get_image(np.array([data])), bytes)  # squeeze

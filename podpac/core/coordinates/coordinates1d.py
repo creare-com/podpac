@@ -11,11 +11,7 @@ import numpy as np
 import traitlets as tl
 
 from podpac.core.utils import ArrayTrait
-from podpac.core.coordinates.utils import (
-    make_coord_value,
-    make_coord_delta,
-    make_coord_delta_array,
-)
+from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta
 from podpac.core.coordinates.utils import Dimension, CoordinateType
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
@@ -97,22 +93,15 @@ class Coordinates1d(BaseCoordinates):
 
         if isinstance(val, np.ndarray):
             if val.size != self.size:
-                raise ValueError(
-                    "coordinates and segment_lengths size mismatch, %d != %d"
-                    % (self.size, val.size)
-                )
+                raise ValueError("coordinates and segment_lengths size mismatch, %d != %d" % (self.size, val.size))
             if not np.issubdtype(val.dtype, np.dtype(self.deltatype).type):
                 raise ValueError(
-                    "coordinates and segment_lengths dtype mismatch, %s != %s"
-                    % (self.dtype, self.deltatype)
+                    "coordinates and segment_lengths dtype mismatch, %s != %s" % (self.dtype, self.deltatype)
                 )
 
         else:
             if self.size > 0 and not isinstance(val, self.deltatype):
-                raise TypeError(
-                    "coordinates and segment_lengths type mismatch, %s != %s"
-                    % (self.deltatype, type(val))
-                )
+                raise TypeError("coordinates and segment_lengths type mismatch, %s != %s" % (self.deltatype, type(val)))
 
         if np.any(np.array(val).astype(float) <= 0.0):
             raise ValueError("segment_lengths must be positive")
@@ -286,11 +275,7 @@ class Coordinates1d(BaseCoordinates):
 
     @property
     def _full_properties(self):
-        return {
-            "name": self.name,
-            "ctype": self.ctype,
-            "segment_lengths": self.segment_lengths,
-        }
+        return {"name": self.name, "ctype": self.ctype, "segment_lengths": self.segment_lengths}
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -391,9 +376,7 @@ class Coordinates1d(BaseCoordinates):
 
         if self.name == "alt":
             # coordinates
-            _, _, tcoordinates = transformer.transform(
-                np.zeros(self.size), np.zeros(self.size), self.coordinates
-            )
+            _, _, tcoordinates = transformer.transform(np.zeros(self.size), np.zeros(self.size), self.coordinates)
 
             # segment lengths
             properties = self.properties

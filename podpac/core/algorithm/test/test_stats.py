@@ -7,17 +7,7 @@ import scipy.stats
 
 import podpac
 from podpac.core.data.types import Array
-from podpac.core.algorithm.stats import (
-    Min,
-    Max,
-    Sum,
-    Count,
-    Mean,
-    Variance,
-    Skew,
-    Kurtosis,
-    StandardDeviation,
-)
+from podpac.core.algorithm.stats import Min, Max, Sum, Count, Mean, Variance, Skew, Kurtosis, StandardDeviation
 from podpac.core.algorithm.stats import Median, Percentile
 from podpac.core.algorithm.stats import GroupReduce, DayOfYear
 
@@ -25,11 +15,7 @@ from podpac.core.algorithm.stats import GroupReduce, DayOfYear
 def setup_module():
     global coords, source, data
     coords = podpac.Coordinates(
-        [
-            podpac.clinspace(0, 1, 10),
-            podpac.clinspace(0, 1, 10),
-            podpac.crange("2018-01-01", "2018-01-10", "1,D"),
-        ],
+        [podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 10), podpac.crange("2018-01-01", "2018-01-10", "1,D")],
         dims=["lat", "lon", "time"],
     )
 
@@ -226,12 +212,8 @@ class TestSkew(BaseTests):
     def setup_class(cls):
         cls.NodeClass = Skew
         n, m, l = data.shape
-        cls.expected_full = xr.DataArray(
-            scipy.stats.skew(data.data.reshape(n * m * l), nan_policy="omit")
-        )
-        cls.expected_latlon = scipy.stats.skew(
-            data.data.reshape((n * m, l)), axis=0, nan_policy="omit"
-        )
+        cls.expected_full = xr.DataArray(scipy.stats.skew(data.data.reshape(n * m * l), nan_policy="omit"))
+        cls.expected_latlon = scipy.stats.skew(data.data.reshape((n * m, l)), axis=0, nan_policy="omit")
         cls.expected_time = scipy.stats.skew(data, axis=2, nan_policy="omit")
 
 
@@ -240,12 +222,8 @@ class TestKurtosis(BaseTests):
     def setup_class(cls):
         cls.NodeClass = Kurtosis
         n, m, l = data.shape
-        cls.expected_full = xr.DataArray(
-            scipy.stats.kurtosis(data.data.reshape(n * m * l), nan_policy="omit")
-        )
-        cls.expected_latlon = scipy.stats.kurtosis(
-            data.data.reshape((n * m, l)), axis=0, nan_policy="omit"
-        )
+        cls.expected_full = xr.DataArray(scipy.stats.kurtosis(data.data.reshape(n * m * l), nan_policy="omit"))
+        cls.expected_latlon = scipy.stats.kurtosis(data.data.reshape((n * m, l)), axis=0, nan_policy="omit")
         cls.expected_time = scipy.stats.kurtosis(data, axis=2, nan_policy="omit")
 
 

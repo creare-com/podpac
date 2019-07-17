@@ -5,13 +5,7 @@ import numpy as np
 from collections import OrderedDict
 
 import podpac
-from podpac.core.algorithm.algorithm import (
-    Algorithm,
-    Arange,
-    CoordData,
-    SinCoords,
-    Arithmetic,
-)
+from podpac.core.algorithm.algorithm import Algorithm, Arange, CoordData, SinCoords, Arithmetic
 
 
 class TestAlgorithm(object):
@@ -71,11 +65,7 @@ class TestCoordData(object):
 class TestSinCoords(object):
     def test_SinCoords(self):
         coords = podpac.Coordinates(
-            [
-                podpac.crange(-90, 90, 1.0),
-                podpac.crange("2018-01-01", "2018-01-30", "1,D"),
-            ],
-            dims=["lat", "time"],
+            [podpac.crange(-90, 90, 1.0), podpac.crange("2018-01-01", "2018-01-30", "1,D")], dims=["lat", "time"]
         )
         node = SinCoords()
         output = node.eval(coords)
@@ -84,17 +74,9 @@ class TestSinCoords(object):
 
 class TestArithmetic(object):
     def test_Arithmetic(self):
-        coords = podpac.Coordinates(
-            [podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)],
-            dims=["lat", "lon"],
-        )
+        coords = podpac.Coordinates([podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)], dims=["lat", "lon"])
         sine_node = SinCoords()
-        node = Arithmetic(
-            A=sine_node,
-            B=sine_node,
-            eqn="2*abs(A) - B + {offset}",
-            params={"offset": 1},
-        )
+        node = Arithmetic(A=sine_node, B=sine_node, eqn="2*abs(A) - B + {offset}", params={"offset": 1})
         output = node.eval(coords)
 
         a = sine_node.eval(coords)

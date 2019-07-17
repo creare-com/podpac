@@ -140,9 +140,7 @@ def _get_all_granule_pages(auth_session, url, entry_map, max_paging_depth=100000
         Function for mapping the entries to a desired format
     max_paging_depth 
     """
-    page_size = int(
-        [q for q in url.split("?")[1].split("&") if "page_size" in q][0].split("=")[1]
-    )
+    page_size = int([q for q in url.split("?")[1].split("&") if "page_size" in q][0].split("=")[1])
     max_pages = int(max_paging_depth / page_size)
 
     pydict = json.loads(_get_from_url(auth_session, url))
@@ -150,9 +148,7 @@ def _get_all_granule_pages(auth_session, url, entry_map, max_paging_depth=100000
 
     for i in range(1, max_pages):
         page_url = url + "&page_num=%d" % (i + 1)
-        page_entries = json.loads(_get_from_url(auth_session, page_url))["feed"][
-            "entry"
-        ]
+        page_entries = json.loads(_get_from_url(auth_session, page_url))["feed"]["entry"]
         if not page_entries:
             break
         entries.extend(list(map(entry_map, page_entries)))
@@ -182,10 +178,5 @@ def _get_from_url(auth_session, url):
         _logger.warning("Cannot connect to {}:".format(url) + str(e))
         r = None
     except RuntimeError as e:
-        _logger.warning(
-            "Cannot authenticate to {}. Check credentials. Error was as follows:".format(
-                url
-            )
-            + str(e)
-        )
+        _logger.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
     return r.text

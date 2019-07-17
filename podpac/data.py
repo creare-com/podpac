@@ -15,15 +15,4 @@ from podpac.core.data.interpolation import (
     INTERPOLATORS_DICT,
     INTERPOLATION_METHODS_DICT,
 )
-from podpac.core.data.types import (
-    Array,
-    PyDAP,
-    Rasterio,
-    WCS,
-    ReprojectedSource,
-    S3,
-    H5PY,
-    CSV,
-    Dataset,
-    Zarr,
-)
+from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, H5PY, CSV, Dataset, Zarr

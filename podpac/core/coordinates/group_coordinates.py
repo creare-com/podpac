@@ -132,17 +132,13 @@ class GroupCoordinates(tl.HasTraits):
 
     def __add__(self, other):
         if not isinstance(other, GroupCoordinates):
-            raise TypeError(
-                "Can only add GroupCoordinates objects, not '%s'" % type(other)
-            )
+            raise TypeError("Can only add GroupCoordinates objects, not '%s'" % type(other))
 
         return GroupCoordinates(self._items + other._items)
 
     def __iadd__(self, other):
         if not isinstance(other, GroupCoordinates):
-            raise TypeError(
-                "Can only add GroupCoordinates objects, not '%s'" % type(other)
-            )
+            raise TypeError("Can only add GroupCoordinates objects, not '%s'" % type(other))
 
         self._items = self._items + other._items
         return self
@@ -229,9 +225,7 @@ class GroupCoordinates(tl.HasTraits):
             List of lists of indices for each :class:`Coordinates` item, only if ``return_indices`` is True.
         """
 
-        intersections = [
-            c.intersect(other, outer=outer, return_indices=True) for c in self._items
-        ]
+        intersections = [c.intersect(other, outer=outer, return_indices=True) for c in self._items]
         g = [c for c, I in intersections]
 
         if return_indices:

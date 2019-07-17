@@ -103,9 +103,7 @@ class EarthDataSession(Session):
 
         # make all numbers in product_url_hostname wildcards
         self.product_url_regex = (
-            re.compile(re.sub(r"\d", r"\\d", product_url_hostname))
-            if product_url_hostname is not None
-            else None
+            re.compile(re.sub(r"\d", r"\\d", product_url_hostname)) if product_url_hostname is not None else None
         )
 
     def rebuild_auth(self, prepared_request, response):
@@ -141,9 +139,7 @@ class EarthDataSession(Session):
             ):
 
                 # if redirect matches product_url_regex, then allow the headers to stay
-                if self.product_url_regex is not None and self.product_url_regex.match(
-                    redirect_parsed.hostname
-                ):
+                if self.product_url_regex is not None and self.product_url_regex.match(redirect_parsed.hostname):
                     pass
                 else:
                     del headers["Authorization"]

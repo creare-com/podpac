@@ -71,16 +71,7 @@ def version():
 
         git_hash = (
             subprocess.check_output(
-                [
-                    git,
-                    "describe",
-                    "--always",
-                    "--abbrev=0",
-                    "--match",
-                    '"NOT A TAG"',
-                    "--dirty=*",
-                ],
-                cwd=CWD,
+                [git, "describe", "--always", "--abbrev=0", "--match", '"NOT A TAG"', "--dirty=*"], cwd=CWD
             )
             .strip()
             .decode("ascii")[:-1]

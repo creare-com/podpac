@@ -90,35 +90,22 @@ class ArrayCoordinates1d(Coordinates1d):
                 self._is_uniform = np.allclose(deltas, deltas[0])
 
         # set common properties
-        super(ArrayCoordinates1d, self).__init__(
-            name=name, ctype=ctype, segment_lengths=segment_lengths
-        )
+        super(ArrayCoordinates1d, self).__init__(name=name, ctype=ctype, segment_lengths=segment_lengths)
 
         # check segment lengths
         if segment_lengths is None:
             if self.ctype == "point" or self.size == 0:
                 self.set_trait("segment_lengths", None)
             elif self.dtype == np.datetime64:
-                raise TypeError(
-                    "segment_lengths required for datetime coordinates (if ctype != 'point')"
-                )
+                raise TypeError("segment_lengths required for datetime coordinates (if ctype != 'point')")
             elif self.size == 1:
-                raise TypeError(
-                    "segment_lengths required for coordinates of size 1 (if ctype != 'point')"
-                )
+                raise TypeError("segment_lengths required for coordinates of size 1 (if ctype != 'point')")
             elif not self.is_monotonic:
-                raise TypeError(
-                    "segment_lengths required for nonmonotonic coordinates (if ctype != 'point')"
-                )
+                raise TypeError("segment_lengths required for nonmonotonic coordinates (if ctype != 'point')")
 
     @tl.default("ctype")
     def _default_ctype(self):
-        if (
-            self.size == 0
-            or self.size == 1
-            or not self.is_monotonic
-            or self.dtype == np.datetime64
-        ):
+        if self.size == 0 or self.size == 1 or not self.is_monotonic or self.dtype == np.datetime64:
             return "point"
         else:
             return "midpoint"
@@ -360,18 +347,14 @@ class ArrayCoordinates1d(Coordinates1d):
 
         else:
             try:
-                gt = self.coordinates >= max(
-                    self.coordinates[self.coordinates <= bounds[0]]
-                )
+                gt = self.coordinates >= max(self.coordinates[self.coordinates <= bounds[0]])
             except ValueError as e:
                 if self.dtype == np.datetime64:
                     gt = ~np.isnat(self.coordinates)
                 else:
                     gt = self.coordinates >= -np.inf
             try:
-                lt = self.coordinates <= min(
-                    self.coordinates[self.coordinates >= bounds[1]]
-                )
+                lt = self.coordinates <= min(self.coordinates[self.coordinates >= bounds[1]])
             except ValueError as e:
                 if self.dtype == np.datetime64:
                     lt = ~np.isnat(self.coordinates)

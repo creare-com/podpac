@@ -74,9 +74,7 @@ class TestUniformCoordinatesCreation(object):
     def test_datetime(self):
         # ascending
         c = UniformCoordinates1d("2018-01-01", "2018-01-04", "1,D")
-        a = np.array(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"]).astype(
-            np.datetime64
-        )
+        a = np.array(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"]).astype(np.datetime64)
         assert c.start == np.datetime64("2018-01-01")
         assert c.stop == np.datetime64("2018-01-04")
         assert c.step == np.timedelta64(1, "D")
@@ -90,9 +88,7 @@ class TestUniformCoordinatesCreation(object):
 
         # descending
         c = UniformCoordinates1d("2018-01-04", "2018-01-01", "-1,D")
-        a = np.array(["2018-01-04", "2018-01-03", "2018-01-02", "2018-01-01"]).astype(
-            np.datetime64
-        )
+        a = np.array(["2018-01-04", "2018-01-03", "2018-01-02", "2018-01-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2018-01-04")
         assert c.stop == np.datetime64("2018-01-01")
         assert c.step == np.timedelta64(-1, "D")
@@ -136,9 +132,7 @@ class TestUniformCoordinatesCreation(object):
     def test_datetime_month_step(self):
         # ascending
         c = UniformCoordinates1d("2018-01-01", "2018-04-01", "1,M")
-        a = np.array(["2018-01-01", "2018-02-01", "2018-03-01", "2018-04-01"]).astype(
-            np.datetime64
-        )
+        a = np.array(["2018-01-01", "2018-02-01", "2018-03-01", "2018-04-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2018-01-01")
         assert c.stop == np.datetime64("2018-04-01")
         assert c.step == np.timedelta64(1, "M")
@@ -152,9 +146,7 @@ class TestUniformCoordinatesCreation(object):
 
         # descending
         c = UniformCoordinates1d("2018-04-01", "2018-01-01", "-1,M")
-        a = np.array(["2018-04-01", "2018-03-01", "2018-02-01", "2018-01-01"]).astype(
-            np.datetime64
-        )
+        a = np.array(["2018-04-01", "2018-03-01", "2018-02-01", "2018-01-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2018-04-01")
         assert c.stop == np.datetime64("2018-01-01")
         assert c.step == np.timedelta64(-1, "M")
@@ -169,9 +161,7 @@ class TestUniformCoordinatesCreation(object):
     def test_datetime_year_step(self):
         # ascending, exact
         c = UniformCoordinates1d("2018-01-01", "2021-01-01", "1,Y")
-        a = np.array(["2018-01-01", "2019-01-01", "2020-01-01", "2021-01-01"]).astype(
-            np.datetime64
-        )
+        a = np.array(["2018-01-01", "2019-01-01", "2020-01-01", "2021-01-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2018-01-01")
         assert c.stop == np.datetime64("2021-01-01")
         assert c.step == np.timedelta64(1, "Y")
@@ -185,9 +175,7 @@ class TestUniformCoordinatesCreation(object):
 
         # descending, exact
         c = UniformCoordinates1d("2021-01-01", "2018-01-01", "-1,Y")
-        a = np.array(["2021-01-01", "2020-01-01", "2019-01-01", "2018-01-01"]).astype(
-            np.datetime64
-        )
+        a = np.array(["2021-01-01", "2020-01-01", "2019-01-01", "2018-01-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2021-01-01")
         assert c.stop == np.datetime64("2018-01-01")
         assert c.step == np.timedelta64(-1, "Y")
@@ -201,9 +189,7 @@ class TestUniformCoordinatesCreation(object):
 
         # ascending, inexact (two cases)
         c = UniformCoordinates1d("2018-01-01", "2021-04-01", "1,Y")
-        a = np.array(["2018-01-01", "2019-01-01", "2020-01-01", "2021-01-01"]).astype(
-            np.datetime64
-        )
+        a = np.array(["2018-01-01", "2019-01-01", "2020-01-01", "2021-01-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2018-01-01")
         assert c.stop == np.datetime64("2021-04-01")
         assert c.step == np.timedelta64(1, "Y")
@@ -230,9 +216,7 @@ class TestUniformCoordinatesCreation(object):
 
         # descending, inexact (two cases)
         c = UniformCoordinates1d("2021-01-01", "2018-04-01", "-1,Y")
-        a = np.array(["2021-01-01", "2020-01-01", "2019-01-01", "2018-01-01"]).astype(
-            np.datetime64
-        )
+        a = np.array(["2021-01-01", "2020-01-01", "2019-01-01", "2018-01-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2021-01-01")
         assert c.stop == np.datetime64("2018-04-01")
         assert c.step == np.timedelta64(-1, "Y")
@@ -245,9 +229,7 @@ class TestUniformCoordinatesCreation(object):
         assert c.is_uniform == True
 
         c = UniformCoordinates1d("2021-04-01", "2018-01-01", "-1,Y")
-        a = np.array(["2021-04-01", "2020-04-01", "2019-04-01", "2018-04-01"]).astype(
-            np.datetime64
-        )
+        a = np.array(["2021-04-01", "2020-04-01", "2019-04-01", "2018-04-01"]).astype(np.datetime64)
         assert c.start == np.datetime64("2021-04-01")
         assert c.stop == np.datetime64("2018-01-01")
         assert c.step == np.timedelta64(-1, "Y")
@@ -291,9 +273,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d("2018-01-01", "2018-01-10", size=10)
         assert c.start == np.datetime64("2018-01-01")
         assert c.stop == np.datetime64("2018-01-10")
-        assert_equal(
-            c.bounds, [np.datetime64("2018-01-01"), np.datetime64("2018-01-10")]
-        )
+        assert_equal(c.bounds, [np.datetime64("2018-01-01"), np.datetime64("2018-01-10")])
         assert c.size == 10
         assert c.dtype == np.datetime64
         assert c.is_descending == False
@@ -302,9 +282,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d("2018-01-10", "2018-01-01", size=10)
         assert c.start == np.datetime64("2018-01-10")
         assert c.stop == np.datetime64("2018-01-01")
-        assert_equal(
-            c.bounds, [np.datetime64("2018-01-01"), np.datetime64("2018-01-10")]
-        )
+        assert_equal(c.bounds, [np.datetime64("2018-01-01"), np.datetime64("2018-01-10")])
         assert c.size == 10
         assert c.dtype == np.datetime64
         assert c.is_descending == True
@@ -313,9 +291,7 @@ class TestUniformCoordinatesCreation(object):
         c = UniformCoordinates1d("2018-01-01", "2018-01-10", size=21)
         assert c.start == np.datetime64("2018-01-01")
         assert c.stop == np.datetime64("2018-01-10")
-        assert_equal(
-            c.bounds, [np.datetime64("2018-01-01"), np.datetime64("2018-01-10")]
-        )
+        assert_equal(c.bounds, [np.datetime64("2018-01-01"), np.datetime64("2018-01-10")])
         assert c.size == 21
         assert c.dtype == np.datetime64
         assert c.is_descending == False
@@ -407,14 +383,12 @@ class TestUniformCoordinatesCreation(object):
 
         # invalid
         with pytest.raises(
-            ValueError,
-            match="UniformCoordinates1d.from_tuple expects a tuple of \(start, stop, step/size\)",
+            ValueError, match="UniformCoordinates1d.from_tuple expects a tuple of \(start, stop, step/size\)"
         ):
             UniformCoordinates1d.from_tuple((0, 10))
 
         with pytest.raises(
-            ValueError,
-            match="UniformCoordinates1d.from_tuple expects a tuple of \(start, stop, step/size\)",
+            ValueError, match="UniformCoordinates1d.from_tuple expects a tuple of \(start, stop, step/size\)"
         ):
             UniformCoordinates1d.from_tuple(np.array([0, 10, 0.5]))
 
@@ -574,15 +548,11 @@ class TestUniformCoordinatesSerialization(object):
     def test_invalid_definition(self):
         # incorrect definition
         d = {"stop": 50}
-        with pytest.raises(
-            ValueError, match='UniformCoordinates1d definition requires "start"'
-        ):
+        with pytest.raises(ValueError, match='UniformCoordinates1d definition requires "start"'):
             UniformCoordinates1d.from_definition(d)
 
         d = {"start": 0}
-        with pytest.raises(
-            ValueError, match='UniformCoordinates1d definition requires "stop"'
-        ):
+        with pytest.raises(ValueError, match='UniformCoordinates1d definition requires "stop"'):
             UniformCoordinates1d.from_definition(d)
 
     def test_from_definition_size(self):
@@ -594,10 +564,7 @@ class TestUniformCoordinatesSerialization(object):
         # datetime, size
         d = {"start": "2018-01-01", "stop": "2018-01-03", "size": 3}
         c = UniformCoordinates1d.from_definition(d)
-        assert_equal(
-            c.coordinates,
-            np.array(["2018-01-01", "2018-01-02", "2018-01-03"]).astype(np.datetime64),
-        )
+        assert_equal(c.coordinates, np.array(["2018-01-01", "2018-01-02", "2018-01-03"]).astype(np.datetime64))
 
 
 class TestUniformCoordinatesProperties(object):
@@ -614,21 +581,13 @@ class TestUniformCoordinatesProperties(object):
 
         # datetime, ascending/descending and exact/inexact
         c = UniformCoordinates1d("2018-01-01", "2018-01-04", "1,D", ctype="point")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-01", "2018-01-04"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-01", "2018-01-04"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-04", "2018-01-01", "-1,D", ctype="point")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-01", "2018-01-04"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-01", "2018-01-04"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-01", "2018-01-06", "2,D", ctype="point")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-01", "2018-01-05"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-01", "2018-01-05"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-06", "2018-01-01", "-2,D", ctype="point")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-02", "2018-01-06"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-02", "2018-01-06"]).astype(np.datetime64))
 
     def test_area_bounds_left(self):
         # numerical, ascending/descending and exact/inexact/singleton
@@ -647,29 +606,17 @@ class TestUniformCoordinatesProperties(object):
 
         # datetime, ascending/descending and exact/inexact/singleton
         c = UniformCoordinates1d("2018-01-01", "2018-01-04", "1,D", ctype="left")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-01", "2018-01-05"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-01", "2018-01-05"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-04", "2018-01-01", "-1,D", ctype="left")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-01", "2018-01-05"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-01", "2018-01-05"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-01", "2018-01-06", "2,D", ctype="left")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-01", "2018-01-07"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-01", "2018-01-07"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-06", "2018-01-01", "-2,D", ctype="left")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-02", "2018-01-08"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-02", "2018-01-08"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-01", "2018-01-01", "1,D", ctype="left")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-01", "2018-01-02"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-01", "2018-01-02"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-01", "2018-01-01", "-1,D", ctype="left")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-01", "2018-01-02"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-01", "2018-01-02"]).astype(np.datetime64))
 
     def test_area_bounds_right(self):
         # numerical, ascending/descending and exact/inexact/singleton
@@ -688,29 +635,17 @@ class TestUniformCoordinatesProperties(object):
 
         # datetime, ascending/descending and exact/inexact/singleton
         c = UniformCoordinates1d("2018-01-01", "2018-01-04", "1,D", ctype="right")
-        assert_equal(
-            c.area_bounds, np.array(["2017-12-31", "2018-01-04"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-31", "2018-01-04"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-04", "2018-01-01", "-1,D", ctype="right")
-        assert_equal(
-            c.area_bounds, np.array(["2017-12-31", "2018-01-04"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-31", "2018-01-04"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-01", "2018-01-06", "2,D", ctype="right")
-        assert_equal(
-            c.area_bounds, np.array(["2017-12-30", "2018-01-05"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-30", "2018-01-05"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-06", "2018-01-01", "-2,D", ctype="right")
-        assert_equal(
-            c.area_bounds, np.array(["2017-12-31", "2018-01-06"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-31", "2018-01-06"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-01", "2018-01-01", "1,D", ctype="right")
-        assert_equal(
-            c.area_bounds, np.array(["2017-12-31", "2018-01-01"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-31", "2018-01-01"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-01", "2018-01-01", "-1,D", ctype="right")
-        assert_equal(
-            c.area_bounds, np.array(["2017-12-31", "2018-01-01"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-31", "2018-01-01"]).astype(np.datetime64))
 
     def test_area_bounds_midpoint(self):
         # numerical, ascending/descending and exact/inexact/singleton
@@ -729,33 +664,17 @@ class TestUniformCoordinatesProperties(object):
 
         # datetime, ascending/descending and exact/inexact/singleton
         c = UniformCoordinates1d("2018-01-01", "2018-01-04", "1,D", ctype="midpoint")
-        assert_equal(
-            c.area_bounds,
-            np.array(["2017-12-31 12", "2018-01-04 12"]).astype(np.datetime64),
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-31 12", "2018-01-04 12"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-04", "2018-01-01", "-1,D", ctype="midpoint")
-        assert_equal(
-            c.area_bounds,
-            np.array(["2017-12-31 12", "2018-01-04 12"]).astype(np.datetime64),
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-31 12", "2018-01-04 12"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-01", "2018-01-06", "2,D", ctype="midpoint")
-        assert_equal(
-            c.area_bounds, np.array(["2017-12-31", "2018-01-06"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-31", "2018-01-06"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-06", "2018-01-01", "-2,D", ctype="midpoint")
-        assert_equal(
-            c.area_bounds, np.array(["2018-01-01", "2018-01-07"]).astype(np.datetime64)
-        )
+        assert_equal(c.area_bounds, np.array(["2018-01-01", "2018-01-07"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-01", "2018-01-01", "1,D", ctype="midpoint")
-        assert_equal(
-            c.area_bounds,
-            np.array(["2017-12-31 12", "2018-01-01 12"]).astype(np.datetime64),
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-31 12", "2018-01-01 12"]).astype(np.datetime64))
         c = UniformCoordinates1d("2018-01-01", "2018-01-01", "-1,D", ctype="midpoint")
-        assert_equal(
-            c.area_bounds,
-            np.array(["2017-12-31 12", "2018-01-01 12"]).astype(np.datetime64),
-        )
+        assert_equal(c.area_bounds, np.array(["2017-12-31 12", "2018-01-01 12"]).astype(np.datetime64))
 
 
 class TestUniformCoordinatesIndexing(object):
@@ -972,9 +891,7 @@ class TestUniformCoordinatesIndexing(object):
 
     def test_index_segment_lengths(self):
         # array of segment_lengths
-        c = UniformCoordinates1d(
-            0, 50, 10, segment_lengths=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-        )
+        c = UniformCoordinates1d(0, 50, 10, segment_lengths=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
 
         c2 = c[1]
         assert c2.segment_lengths == 0.2 or np.array_equal(c2.segment_lengths, [0.2])

@@ -80,19 +80,13 @@ class Convolution(Algorithm):
     def _first_init(self, kernel=None, kernel_type=None, kernel_ndim=None, **kwargs):
         if kernel is not None:
             if kernel_type is not None:
-                raise TypeError(
-                    "Convolution expected 'kernel' or 'kernel_type', not both"
-                )
+                raise TypeError("Convolution expected 'kernel' or 'kernel_type', not both")
 
         if kernel is None:
             if kernel_type is None:
-                raise TypeError(
-                    "Convolution requires 'kernel' array or 'kernel_type' string"
-                )
+                raise TypeError("Convolution requires 'kernel' array or 'kernel_type' string")
             if kernel_ndim is None:
-                raise TypeError(
-                    "Convolution requires 'kernel_ndim' when supplying a 'kernel_type' string"
-                )
+                raise TypeError("Convolution requires 'kernel_ndim' when supplying a 'kernel_type' string")
 
             kernel = self._make_kernel(kernel_type, kernel_ndim)
 
@@ -219,9 +213,7 @@ class TimeConvolution(Convolution):
             If source data doesn't have time dimension.
         """
         if "time" not in coordinates.dims:
-            raise ValueError(
-                "cannot compute time convolution with time-independent coordinates"
-            )
+            raise ValueError("cannot compute time convolution with time-independent coordinates")
         if "lat" not in coordinates.dims and "lon" not in coordinates.dims:
             return self.kernel
 
@@ -251,10 +243,7 @@ class SpatialConvolution(Convolution):
         """{full_kernel}
         """
         if "lat" not in coordinates.dims or "lon" not in coordinates.dims:
-            raise ValueError(
-                "cannot compute spatial convolution with coordinate dims %s"
-                % coordinates.dims
-            )
+            raise ValueError("cannot compute spatial convolution with coordinate dims %s" % coordinates.dims)
         if "time" not in coordinates.dims:
             return self.kernel
 

@@ -74,7 +74,5 @@ def test_clinspace_stacked():
 
 
 def test_clinspace_shape_mismatch():
-    with pytest.raises(
-        ValueError, match="Size mismatch, 'start' and 'stop' must have the same size"
-    ):
+    with pytest.raises(ValueError, match="Size mismatch, 'start' and 'stop' must have the same size"):
         clinspace(0, (0, 10), 6)

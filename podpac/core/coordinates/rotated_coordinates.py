@@ -48,15 +48,7 @@ class RotatedCoordinates(DependentCoordinates):
     ndims = 2
 
     def __init__(
-        self,
-        shape=None,
-        theta=None,
-        origin=None,
-        step=None,
-        corner=None,
-        dims=None,
-        ctypes=None,
-        segment_lengths=None,
+        self, shape=None, theta=None, origin=None, step=None, corner=None, dims=None, ctypes=None, segment_lengths=None
     ):
         """
         Create a grid of rotated coordinates from a `shape`, `theta`, `origin`, and `step` or `corner`.
@@ -100,9 +92,7 @@ class RotatedCoordinates(DependentCoordinates):
         val = super(RotatedCoordinates, self)._validate_dims(d)
         for dim in val:
             if dim not in ["lat", "lon"]:
-                raise ValueError(
-                    "RotatedCoordinates dims must be 'lat' or 'lon', not '%s'" % dim
-                )
+                raise ValueError("RotatedCoordinates dims must be 'lat' or 'lon', not '%s'" % dim)
         return val
 
     @tl.validate("shape")
@@ -124,23 +114,13 @@ class RotatedCoordinates(DependentCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_geotransform(
-        cls, geotransform, shape, dims=None, ctypes=None, segment_lengths=None
-    ):
+    def from_geotransform(cls, geotransform, shape, dims=None, ctypes=None, segment_lengths=None):
         affine = rasterio.Affine.from_gdal(*geotransform)
         origin = affine.c, affine.f
         deg = affine.rotation_angle
         scale = ~affine.rotation(deg) * ~affine.translation(*origin) * affine
         step = np.array([scale.a, scale.e])
-        return cls(
-            shape,
-            np.deg2rad(deg),
-            origin,
-            step,
-            dims=dims,
-            ctypes=ctypes,
-            segment_lengths=segment_lengths,
-        )
+        return cls(shape, np.deg2rad(deg), origin, step, dims=dims, ctypes=ctypes, segment_lengths=segment_lengths)
 
     @classmethod
     def from_definition(cls, d):
@@ -169,9 +149,7 @@ class RotatedCoordinates(DependentCoordinates):
         if "origin" not in d:
             raise ValueError('RotatedCoordinates definition requires "origin" property')
         if "step" not in d and "corner" not in d:
-            raise ValueError(
-                'RotatedCoordinates definition requires "step" or "corner" property'
-            )
+            raise ValueError('RotatedCoordinates definition requires "step" or "corner" property')
         if "dims" not in d:
             raise ValueError('RotatedCoordinates definition requires "dims" property')
 
@@ -222,19 +200,13 @@ class RotatedCoordinates(DependentCoordinates):
         if isinstance(index, slice):
             index = index, slice(None)
 
-        if (
-            isinstance(index, tuple)
-            and isinstance(index[0], slice)
-            and isinstance(index[1], slice)
-        ):
+        if isinstance(index, tuple) and isinstance(index[0], slice) and isinstance(index[1], slice):
             I = np.arange(self.shape[0])[index[0]]
             J = np.arange(self.shape[1])[index[1]]
             origin = self.affine * [I[0], J[0]]
             step = self.step * [index[0].step or 1, index[1].step or 1]
             shape = I.size, J.size
-            return RotatedCoordinates(
-                shape, self.theta, origin, step, **self.properties
-            )
+            return RotatedCoordinates(shape, self.theta, origin, step, **self.properties)
 
         else:
             return super(RotatedCoordinates, self).__getitem__(index)
@@ -310,9 +282,7 @@ class RotatedCoordinates(DependentCoordinates):
         :class:`RotatedCoordinates`
             Copy of the rotated coordinates.
         """
-        return RotatedCoordinates(
-            self.shape, self.theta, self.origin, self.step, **self.properties
-        )
+        return RotatedCoordinates(self.shape, self.theta, self.origin, self.step, **self.properties)
 
     def select(self, bounds, outer=False, return_indices=False):
         """
@@ -338,9 +308,7 @@ class RotatedCoordinates(DependentCoordinates):
         """
 
         # TODO return RotatedCoordinates when possible
-        return super(RotatedCoordinates, self).select(
-            bounds, outer=outer, return_indices=return_indices
-        )
+        return super(RotatedCoordinates, self).select(bounds, outer=outer, return_indices=return_indices)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug

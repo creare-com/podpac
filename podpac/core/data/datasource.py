@@ -155,9 +155,7 @@ class DataSource(Node):
     source = tl.Any()
     native_coordinates = tl.Instance(Coordinates)
     interpolation = interpolation_trait()
-    coordinate_index_type = tl.Enum(
-        ["list", "numpy", "xarray", "pandas"], default_value="numpy"
-    )
+    coordinate_index_type = tl.Enum(["list", "numpy", "xarray", "pandas"], default_value="numpy")
     nan_vals = tl.List(allow_none=True)
 
     # privates
@@ -248,9 +246,7 @@ class DataSource(Node):
 
         """
         # get data from data source at requested source coordinates and requested source coordinates index
-        data = self.get_data(
-            self._requested_source_coordinates, self._requested_source_coordinates_index
-        )
+        data = self.get_data(self._requested_source_coordinates, self._requested_source_coordinates_index)
 
         # convert data into UnitsDataArray depending on format
         # TODO: what other processing needs to happen here?
@@ -258,13 +254,9 @@ class DataSource(Node):
             udata_array = data
         elif isinstance(data, xr.DataArray):
             # TODO: check order of coordinates here
-            udata_array = self.create_output_array(
-                self._requested_source_coordinates, data=data.data
-            )
+            udata_array = self.create_output_array(self._requested_source_coordinates, data=data.data)
         elif isinstance(data, np.ndarray):
-            udata_array = self.create_output_array(
-                self._requested_source_coordinates, data=data
-            )
+            udata_array = self.create_output_array(self._requested_source_coordinates, data=data)
         else:
             raise ValueError(
                 "Unknown data type passed back from "
@@ -319,9 +311,7 @@ class DataSource(Node):
 
         if self.coordinate_index_type != "numpy":
             warnings.warn(
-                "Coordinates index type {} is not yet supported.".format(
-                    self.coordinate_index_type
-                )
+                "Coordinates index type {} is not yet supported.".format(self.coordinate_index_type)
                 + "`coordinate_index_type` is set to `numpy`",
                 UserWarning,
             )
@@ -334,15 +324,10 @@ class DataSource(Node):
         for c in self.native_coordinates.values():
             if isinstance(c, Coordinates1d):
                 if c.name not in coordinates.udims:
-                    raise ValueError(
-                        "Cannot evaluate these coordinates, missing dim '%s'" % c.name
-                    )
+                    raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
             elif isinstance(c, StackedCoordinates):
                 if any(s.name not in coordinates.udims for s in c):
-                    raise ValueError(
-                        "Cannot evaluate these coordinates, missing at least one dim in '%s'"
-                        % c.name
-                    )
+                    raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
 
         # remove extra dimensions
         extra = []
@@ -382,9 +367,7 @@ class DataSource(Node):
 
         # interpolate requested coordinates before getting data
         self._requested_source_coordinates, self._requested_source_coordinates_index = self._interpolation.select_coordinates(
-            self._requested_source_coordinates,
-            self._requested_source_coordinates_index,
-            coordinates,
+            self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
         )
 
         # get data from data source
@@ -403,20 +386,13 @@ class DataSource(Node):
             # check crs compatibility
             if output.crs != coordinates.crs:
                 raise ValueError(
-                    "Output coordinate reference system ({}) does not match".format(
-                        output.crs
-                    )
-                    + "request Coordinates coordinate reference system ({})".format(
-                        coordinates.crs
-                    )
+                    "Output coordinate reference system ({}) does not match".format(output.crs)
+                    + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
                 )
 
         # interpolate data into output
         output = self._interpolation.interpolate(
-            self._requested_source_coordinates,
-            self._requested_source_data,
-            coordinates,
-            output,
+            self._requested_source_coordinates, self._requested_source_data, coordinates, output
         )
 
         # return the output to the originally requested output dims
@@ -426,9 +402,7 @@ class DataSource(Node):
         # if requested crs is differented than native coordinates,
         # fabricate a new output with the original coordinates and new values
         if self._evaluated_coordinates.crs != coordinates.crs:
-            output = self.create_output_array(
-                self._evaluated_coordinates, data=output[:].values
-            )
+            output = self.create_output_array(self._evaluated_coordinates, data=output[:].values)
 
         # save output to private for debugging
         if settings["DEBUG"]:
@@ -474,9 +448,7 @@ class DataSource(Node):
         else:
             raise NotImplementedError(
                 "{0}.native_coordinates is not defined and "
-                "{0}.get_native_coordinates() is not implemented".format(
-                    self.__class__.__name__
-                )
+                "{0}.get_native_coordinates() is not implemented".format(self.__class__.__name__)
             )
 
     @property
@@ -493,14 +465,10 @@ class DataSource(Node):
 
         if "attrs" in d:
             if "source" in d["attrs"]:
-                raise NodeException(
-                    "The 'source' property cannot be tagged as an 'attr'"
-                )
+                raise NodeException("The 'source' property cannot be tagged as an 'attr'")
 
             if "interpolation" in d["attrs"]:
-                raise NodeException(
-                    "The 'interpolation' property cannot be tagged as an 'attr'"
-                )
+                raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
 
         if isinstance(self.source, Node):
             d["lookup_source"] = self.source
@@ -524,11 +492,7 @@ class DataSource(Node):
         if source_name != "DataSource":
             rep += " DataSource"
 
-        source_disp = (
-            self.source
-            if isinstance(self.source, string_types)
-            else "\n{}".format(self.source)
-        )
+        source_disp = self.source if isinstance(self.source, string_types) else "\n{}".format(self.source)
         rep += "\n\tsource: {}".format(source_disp)
         if trait_is_defined(self, "native_coordinates"):
             rep += "\n\tnative_coordinates: "

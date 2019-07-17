@@ -81,14 +81,10 @@ class StackedCoordinates(BaseCoordinates):
             raise TypeError("Unrecognized coords type '%s'" % type(coords))
 
         if len(coords) < 2:
-            raise ValueError(
-                "Stacked coords must have at least 2 coords, got %d" % len(coords)
-            )
+            raise ValueError("Stacked coords must have at least 2 coords, got %d" % len(coords))
 
         # coerce
-        coords = tuple(
-            c if isinstance(c, Coordinates1d) else ArrayCoordinates1d(c) for c in coords
-        )
+        coords = tuple(c if isinstance(c, Coordinates1d) else ArrayCoordinates1d(c) for c in coords)
 
         # set coords
         self.set_trait("_coords", coords)
@@ -114,9 +110,7 @@ class StackedCoordinates(BaseCoordinates):
         size = val[0].size
         for c in val[1:]:
             if c.size != size:
-                raise ValueError(
-                    "Size mismatch in stacked coords %d != %d" % (c.size, size)
-                )
+                raise ValueError("Size mismatch in stacked coords %d != %d" % (c.size, size))
 
         # check dims
         dims = [c.name for c in val]
@@ -131,20 +125,14 @@ class StackedCoordinates(BaseCoordinates):
 
         # check size
         if len(dims) != len(self._coords):
-            raise ValueError(
-                "Invalid name '%s' for StackedCoordinates with length %d"
-                % (value, len(self._coords))
-            )
+            raise ValueError("Invalid name '%s' for StackedCoordinates with length %d" % (value, len(self._coords)))
 
         self._set_dims(dims)
 
     def _set_dims(self, dims):
         # check size
         if len(dims) != len(self._coords):
-            raise ValueError(
-                "Invalid dims '%s' for StackedCoordinates with length %d"
-                % (dims, len(self._coords))
-            )
+            raise ValueError("Invalid dims '%s' for StackedCoordinates with length %d" % (dims, len(self._coords)))
 
         # set names, checking for duplicates
         for i, (c, dim) in enumerate(zip(self._coords, dims)):
@@ -204,18 +192,12 @@ class StackedCoordinates(BaseCoordinates):
 
         coords = []
         for elem in d:
-            if (
-                "start" in elem
-                and "stop" in elem
-                and ("step" in elem or "size" in elem)
-            ):
+            if "start" in elem and "stop" in elem and ("step" in elem or "size" in elem):
                 c = UniformCoordinates1d.from_definition(elem)
             elif "values" in elem:
                 c = ArrayCoordinates1d.from_definition(elem)
             else:
-                raise ValueError(
-                    "Could not parse coordinates definition with keys %s" % elem.keys()
-                )
+                raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
 
             coords.append(c)
 
@@ -240,9 +222,7 @@ class StackedCoordinates(BaseCoordinates):
     def __getitem__(self, index):
         if isinstance(index, string_types):
             if index not in self.dims:
-                raise KeyError(
-                    "Dimension '%s' not found in dims %s" % (index, self.dims)
-                )
+                raise KeyError("Dimension '%s' not found in dims %s" % (index, self.dims))
 
             return self._coords[self.dims.index(index)]
 
@@ -251,9 +231,7 @@ class StackedCoordinates(BaseCoordinates):
 
     def __setitem__(self, dim, c):
         if not dim in self.dims:
-            raise KeyError(
-                "Cannot set dimension '%s' in StackedCoordinates %s" % (dim, self.dims)
-            )
+            raise KeyError("Cannot set dimension '%s' in StackedCoordinates %s" % (dim, self.dims))
 
         # try to cast to ArrayCoordinates1d
         if not isinstance(c, Coordinates1d):
@@ -331,27 +309,21 @@ class StackedCoordinates(BaseCoordinates):
     def bounds(self):
         """:dict: Dictionary of (low, high) coordinates bounds in each dimension"""
         if None in self.dims:
-            raise ValueError(
-                "Cannot get bounds for StackedCoordinates with un-named dimensions"
-            )
+            raise ValueError("Cannot get bounds for StackedCoordinates with un-named dimensions")
         return {dim: self[dim].bounds for dim in self.udims}
 
     @property
     def area_bounds(self):
         """:dict: Dictionary of (low, high) coordinates area_bounds in each dimension"""
         if None in self.dims:
-            raise ValueError(
-                "Cannot get area_bounds for StackedCoordinates with un-named dimensions"
-            )
+            raise ValueError("Cannot get area_bounds for StackedCoordinates with un-named dimensions")
         return {dim: self[dim].area_bounds for dim in self.udims}
 
     @property
     def coordinates(self):
         """:pandas.MultiIndex: MultiIndex of stacked coordinates values."""
 
-        return pd.MultiIndex.from_arrays(
-            [np.array(c.coordinates) for c in self._coords], names=self.dims
-        )
+        return pd.MultiIndex.from_arrays([np.array(c.coordinates) for c in self._coords], names=self.dims)
 
     @property
     def values(self):
@@ -363,9 +335,7 @@ class StackedCoordinates(BaseCoordinates):
     def coords(self):
         """:dict-like: xarray coordinates (container of coordinate arrays)"""
         if None in self.dims:
-            raise ValueError(
-                "Cannot get coords for StackedCoordinates with un-named dimensions"
-            )
+            raise ValueError("Cannot get coords for StackedCoordinates with un-named dimensions")
         return {self.name: self.coordinates}
 
     @property
@@ -420,9 +390,7 @@ class StackedCoordinates(BaseCoordinates):
         """
 
         # logical AND of the selection in each dimension
-        indices = [
-            c.select(bounds, outer=outer, return_indices=True)[1] for c in self._coords
-        ]
+        indices = [c.select(bounds, outer=outer, return_indices=True)[1] for c in self._coords]
         I = self._and_indices(indices)
 
         if return_indices:
@@ -435,10 +403,7 @@ class StackedCoordinates(BaseCoordinates):
         I = indices[0]
         for J in indices[1:]:
             if isinstance(I, slice) and isinstance(J, slice):
-                I = slice(
-                    max(I.start or 0, J.start or 0),
-                    min(I.stop or self.size, J.stop or self.size),
-                )
+                I = slice(max(I.start or 0, J.start or 0), min(I.stop or self.size, J.stop or self.size))
             else:
                 if isinstance(I, slice):
                     I = np.arange(self.size)[I]
@@ -464,9 +429,7 @@ class StackedCoordinates(BaseCoordinates):
             lat = coords[ilat]
             lon = coords[ilon]
             alt = coords[ialt]
-            tlon, tlat, talt = transformer.transform(
-                lon.coordinates, lat.coordinates, alt.coordinates
-            )
+            tlon, tlat, talt = transformer.transform(lon.coordinates, lat.coordinates, alt.coordinates)
             coords[ilat].set_trait("coordinates", tlat)
             coords[ilon].set_trait("coordinates", tlon)
             coords[ialt].set_trait("coordinates", talt)
@@ -474,18 +437,12 @@ class StackedCoordinates(BaseCoordinates):
             # segment lengths
             # TODO can we use the proj4 '+units' here, at least sometimes?
             if lat.ctype is not "point" and "segment_lengths" in lat.properties:
-                warnings.warn(
-                    "transformation of coordinate segment lengths not yet implemented"
-                )
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
             if lon.ctype is not "point" and "segment_lengths" in lon.properties:
-                warnings.warn(
-                    "transformation of coordinate segment lengths not yet implemented"
-                )
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
             if alt.ctype is not "point" and "segment_lengths" in lon.properties:
                 sl = alt.segment_lengths
-                _, _, tsl = transformer.transform(
-                    np.zeros_like(sl), np.zeros_like(sl), sl
-                )
+                _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
                 coords[ialt].set_trait("segment_lengths", tsl)
 
         elif "lat" in self.dims and "lon" in self.dims:
@@ -502,30 +459,22 @@ class StackedCoordinates(BaseCoordinates):
             # segment lengths
             # TODO can we use proj4 '+units' here, at least sometimes?
             if lat.ctype is not "point" and "segment_lengths" in lat.properties:
-                warnings.warn(
-                    "transformation of coordinate segment lengths not yet implemented"
-                )
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
             if lon.ctype is not "point" and "segment_lengths" in lon.properties:
-                warnings.warn(
-                    "transformation of coordinate segment lengths not yet implemented"
-                )
+                warnings.warn("transformation of coordinate segment lengths not yet implemented")
 
         elif "alt" in self.dims:
             ialt = self.dims.index("alt")
 
             # coordinates
             alt = coords[ialt]
-            _, _, talt = transformer.transform(
-                np.zeros(self.size), np.zeros(self.size), alt.coordinates
-            )
+            _, _, talt = transformer.transform(np.zeros(self.size), np.zeros(self.size), alt.coordinates)
             coords[ialt].set_trait("coordinates", talt)
 
             # segment lengths
             if alt.ctype is not "point" and "segment_lengths" in lon.properties:
                 sl = alt.segment_lengths
-                _, _, tsl = transformer.transform(
-                    np.zeros_like(sl), np.zeros_like(sl), sl
-                )
+                _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
                 coords[ialt].set_trait("segment_lengths", tsl)
 
         return StackedCoordinates(coords)

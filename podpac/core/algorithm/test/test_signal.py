@@ -10,11 +10,7 @@ from podpac.core.settings import settings
 from podpac import Coordinates, clinspace, crange
 from podpac.algorithm import Arange
 from podpac.data import Array
-from podpac.core.algorithm.signal import (
-    Convolution,
-    TimeConvolution,
-    SpatialConvolution,
-)
+from podpac.core.algorithm.signal import Convolution, TimeConvolution, SpatialConvolution
 
 
 class TestConvolution(object):
@@ -34,16 +30,11 @@ class TestConvolution(object):
         assert node.kernel.shape == (3, 3)
 
         # kernel and kernel_type invalid
-        with pytest.raises(
-            TypeError, match="Convolution expected 'kernel' or 'kernel_type', not both"
-        ):
+        with pytest.raises(TypeError, match="Convolution expected 'kernel' or 'kernel_type', not both"):
             Convolution(source=Arange(), kernel=[1, 2, 1], kernel_type="mean, 5")
 
         # kernel or kernel_type required
-        with pytest.raises(
-            TypeError,
-            match="Convolution requires 'kernel' array or 'kernel_type' string",
-        ):
+        with pytest.raises(TypeError, match="Convolution requires 'kernel' array or 'kernel_type' string"):
             Convolution(source=Arange())
 
         # ndim required
@@ -67,10 +58,7 @@ class TestConvolution(object):
         o = node2d.eval(Coordinates([lat, lon]))
         o = node3d.eval(Coordinates([lat, lon, time]))
 
-        with pytest.raises(
-            ValueError,
-            match="Cannot evaluate coordinates, kernel and coordinates ndims mismatch",
-        ):
+        with pytest.raises(ValueError, match="Cannot evaluate coordinates, kernel and coordinates ndims mismatch"):
             node2d.eval(Coordinates([lat, lon, time]))
 
     def test_eval_nan(self):
@@ -137,18 +125,11 @@ class TestSpatialConvolution(object):
         assert node.kernel.shape == (3, 3)
 
         # kernel and kernel_type invalid
-        with pytest.raises(
-            TypeError, match="Convolution expected 'kernel' or 'kernel_type', not both"
-        ):
-            SpatialConvolution(
-                source=Arange(), kernel=[[1, 2, 1]], kernel_type="mean, 5"
-            )
+        with pytest.raises(TypeError, match="Convolution expected 'kernel' or 'kernel_type', not both"):
+            SpatialConvolution(source=Arange(), kernel=[[1, 2, 1]], kernel_type="mean, 5")
 
         # kernel or kernel_type required
-        with pytest.raises(
-            TypeError,
-            match="Convolution requires 'kernel' array or 'kernel_type' string",
-        ):
+        with pytest.raises(TypeError, match="Convolution requires 'kernel' array or 'kernel_type' string"):
             SpatialConvolution(source=Arange())
 
         # kernel ndim must be 2
@@ -167,9 +148,7 @@ class TestSpatialConvolution(object):
         o = node.eval(Coordinates([lat, lon]))
         o = node.eval(Coordinates([lat, lon, time]))
 
-        with pytest.raises(
-            ValueError, match="cannot compute spatial convolution with coordinate dims"
-        ):
+        with pytest.raises(ValueError, match="cannot compute spatial convolution with coordinate dims"):
             node.eval(Coordinates([time]))
 
 
@@ -186,16 +165,11 @@ class TestTimeConvolution(object):
         assert node.kernel.shape == (3,)
 
         # kernel and kernel_type invalid
-        with pytest.raises(
-            TypeError, match="Convolution expected 'kernel' or 'kernel_type', not both"
-        ):
+        with pytest.raises(TypeError, match="Convolution expected 'kernel' or 'kernel_type', not both"):
             TimeConvolution(source=Arange(), kernel=[1, 2, 1], kernel_type="mean, 5")
 
         # kernel or kernel_type required
-        with pytest.raises(
-            TypeError,
-            match="Convolution requires 'kernel' array or 'kernel_type' string",
-        ):
+        with pytest.raises(TypeError, match="Convolution requires 'kernel' array or 'kernel_type' string"):
             TimeConvolution(source=Arange())
 
         # kernel ndim must be 2
@@ -214,8 +188,5 @@ class TestTimeConvolution(object):
         o = node.eval(Coordinates([time]))
         o = node.eval(Coordinates([lat, lon, time]))
 
-        with pytest.raises(
-            ValueError,
-            match="cannot compute time convolution with time-independent coordinates",
-        ):
+        with pytest.raises(ValueError, match="cannot compute time convolution with time-independent coordinates"):
             node.eval(Coordinates([lat, lon]))

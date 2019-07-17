@@ -5,17 +5,8 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 
-from podpac.core.coordinates.utils import (
-    get_timedelta,
-    get_timedelta_unit,
-    make_timedelta_string,
-)
-from podpac.core.coordinates.utils import (
-    make_coord_value,
-    make_coord_delta,
-    make_coord_array,
-    make_coord_delta_array,
-)
+from podpac.core.coordinates.utils import get_timedelta, get_timedelta_unit, make_timedelta_string
+from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_array, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, divide_timedelta
 from podpac.core.coordinates.utils import get_vunits, set_vunits, rem_vunits
 
@@ -241,19 +232,11 @@ class TestMakeCoordArray(object):
         # not tested here because these always have h:m:s
 
     def test_datetime_array(self):
-        a = np.array(["2018-01-01T01:01:01", "2018-01-01T01:01:02"]).astype(
-            np.datetime64
-        )
+        a = np.array(["2018-01-01T01:01:01", "2018-01-01T01:01:02"]).astype(np.datetime64)
         s = ["2018-01-01T01:01:01", "2018-01-01T01:01:02"]
         u = ["2018-01-01T01:01:01", "2018-01-01T01:01:02"]
-        dt64 = [
-            np.datetime64("2018-01-01T01:01:01"),
-            np.datetime64("2018-01-01T01:01:02"),
-        ]
-        dt = [
-            np.datetime64("2018-01-01T01:01:01").item(),
-            np.datetime64("2018-01-01T01:01:02").item(),
-        ]
+        dt64 = [np.datetime64("2018-01-01T01:01:01"), np.datetime64("2018-01-01T01:01:02")]
+        dt = [np.datetime64("2018-01-01T01:01:01").item(), np.datetime64("2018-01-01T01:01:02").item()]
         ts = [pd.Timestamp("2018-01-01T01:01:01"), pd.Timestamp("2018-01-01T01:01:02")]
 
         # str
@@ -447,9 +430,7 @@ def test_add_coord():
     # this base case is generally not encountered
     from podpac.core.coordinates.utils import _add_nominal_timedelta
 
-    assert _add_nominal_timedelta(dt64("2018-01-30"), td64(1, "D")) == dt64(
-        "2018-01-31"
-    )
+    assert _add_nominal_timedelta(dt64("2018-01-30"), td64(1, "D")) == dt64("2018-01-31")
 
 
 def test_divide_timedelta():

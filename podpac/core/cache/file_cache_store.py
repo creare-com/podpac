@@ -56,15 +56,11 @@ class FileCacheStore(CacheStore):
         # check for existing entry
         if self.has(node, key, coordinates):
             if not update:
-                raise CacheException(
-                    "Cache entry already exists. Use `update=True` to overwrite."
-                )
+                raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
             self.rem(node, key, coordinates)
 
         # serialize
-        path_root = self._path_join(
-            self._get_node_dir(node), self._get_filename(node, key, coordinates)
-        )
+        path_root = self._path_join(self._get_node_dir(node), self._get_filename(node, key, coordinates))
 
         if isinstance(data, podpac.core.units.UnitsDataArray):
             path = path_root + ".uda.nc"
@@ -166,9 +162,7 @@ class FileCacheStore(CacheStore):
         elif path.endswith(".pkl"):
             data = pickle.loads(s)
         else:
-            raise RuntimeError(
-                "Unexpected cached file type '%s'" % self._basename(path)
-            )
+            raise RuntimeError("Unexpected cached file type '%s'" % self._basename(path))
 
         return data
 
@@ -253,12 +247,7 @@ class FileCacheStore(CacheStore):
 
     def _get_filename(self, node, key, coordinates):
         prefix = self._sanitize("%s-%s" % (node.base_ref, key))
-        filename = "%s_%s_%s_%s" % (
-            prefix,
-            node.hash,
-            _hash_string(key),
-            coordinates.hash if coordinates else "None",
-        )
+        filename = "%s_%s_%s_%s" % (prefix, node.hash, _hash_string(key), coordinates.hash if coordinates else "None")
         return filename
 
     def _match_filename(self, node, key, coordinates):
@@ -277,12 +266,7 @@ class FileCacheStore(CacheStore):
         else:
             match_coordinates = coordinates.hash
 
-        match_filename = "%s_%s_%s_%s.*" % (
-            match_prefix,
-            match_node,
-            match_key,
-            match_coordinates,
-        )
+        match_filename = "%s_%s_%s_%s.*" % (match_prefix, match_node, match_key, match_coordinates)
         return match_filename
 
     def _sanitize(self, s):

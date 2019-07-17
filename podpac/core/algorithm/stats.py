@@ -567,11 +567,7 @@ class Skew(Reduce):
             n = Nb + Nx
             NNx = Nb * Nx
 
-            M3.data[b] += (
-                M3x
-                + d ** 3 * NNx * (Nb - Nx) / n ** 2
-                + 3 * d * (Nb * M2x - Nx * M2b) / n
-            )
+            M3.data[b] += M3x + d ** 3 * NNx * (Nb - Nx) / n ** 2 + 3 * d * (Nb * M2x - Nx * M2b) / n
             M2.data[b] += M2x + d ** 2 * NNx / n
             M1.data[b] += d * Nx / n
             N.data[b] = n
@@ -668,11 +664,7 @@ class Kurtosis(Reduce):
                 + 4 * d * (Nb * M3x - Nx * M3b) / n
             )
 
-            M3.data[b] += (
-                M3x
-                + d ** 3 * NNx * (Nb - Nx) / n ** 2
-                + 3 * d * (Nb * M2x - Nx * M2b) / n
-            )
+            M3.data[b] += M3x + d ** 3 * NNx * (Nb - Nx) / n ** 2 + 3 * d * (Nb * M2x - Nx * M2b) / n
             M2.data[b] += M2x + d ** 2 * NNx / n
             M1.data[b] += d * Nx / n
             N.data[b] = n
@@ -803,9 +795,7 @@ class Reduce2(Reduce):
 
         y = xr.full_like(output, np.nan)
         for x, xslices in xs:
-            yslc = [
-                xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims
-            ]
+            yslc = [xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims]
             y.data[yslc] = self.reduce(x)
         return y
 
@@ -886,20 +876,7 @@ class GroupReduce(Algorithm):
     groupby = tl.CaselessStrEnum(["dayofyear"])  # could add season, month, etc
 
     reduce_fn = tl.CaselessStrEnum(
-        [
-            "all",
-            "any",
-            "count",
-            "max",
-            "mean",
-            "median",
-            "min",
-            "prod",
-            "std",
-            "sum",
-            "var",
-            "custom",
-        ]
+        ["all", "any", "count", "max", "mean", "median", "min", "prod", "std", "sum", "var", "custom"]
     )
     custom_reduce_fn = tl.Any()
 
@@ -914,14 +891,10 @@ class GroupReduce(Algorithm):
         # TODO do these two checks during node initialization
         available_coordinates = self.coordinates_source.find_coordinates()
         if len(available_coordinates) != 1:
-            raise ValueError(
-                "Cannot evaluate this node; too many available coordinates"
-            )
+            raise ValueError("Cannot evaluate this node; too many available coordinates")
         avail_coords = available_coordinates[0]
         if "time" not in avail_coords.udims:
-            raise ValueError(
-                "GroupReduce coordinates source node must be time-dependent"
-            )
+            raise ValueError("GroupReduce coordinates source node must be time-dependent")
 
         # intersect grouped time coordinates using groupby DatetimeAccessor
         avail_time = xr.DataArray(avail_coords.coords["time"])

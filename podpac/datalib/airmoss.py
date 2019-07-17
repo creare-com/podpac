@@ -53,9 +53,7 @@ class AirMOSS_Source(datatype.PyDAP):
         ds = self.dataset
         base_date = ds["time"].attributes["units"]
         base_date = self.date_url_re.search(base_date).group()
-        times = (ds["time"][:]).astype("timedelta64[h]") + np.array(
-            base_date, "datetime64"
-        )
+        times = (ds["time"][:]).astype("timedelta64[h]") + np.array(base_date, "datetime64")
 
         lons = podpac.crange(ds["lon"][0], ds["lon"][-1], ds["lon"][1] - ds["lon"][0])
         lats = podpac.crange(ds["lat"][0], ds["lat"][-1], ds["lat"][1] - ds["lat"][0])
@@ -103,9 +101,7 @@ class AirMOSS_Site(podpac.OrderedCompositor):
 
     product = tl.Enum(["L4RZSM"], default_value="L4RZSM")
     base_url = tl.Unicode("https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1421")
-    base_dir_url = tl.Unicode(
-        "https://thredds.daac.ornl.gov/thredds/catalog/ornldaac/1421/catalog.html"
-    )
+    base_dir_url = tl.Unicode("https://thredds.daac.ornl.gov/thredds/catalog/ornldaac/1421/catalog.html")
     site = tl.Unicode("")
     date_url_re = re.compile("[0-9]{8}")
 

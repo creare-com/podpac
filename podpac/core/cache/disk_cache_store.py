@@ -26,9 +26,7 @@ class DiskCacheStore(FileCacheStore):
         if os.path.isabs(settings["DISK_CACHE_DIR"]):
             self._root_dir_path = settings["DISK_CACHE_DIR"]
         else:
-            self._root_dir_path = os.path.join(
-                settings["ROOT_PATH"], settings["DISK_CACHE_DIR"]
-            )
+            self._root_dir_path = os.path.join(settings["ROOT_PATH"], settings["DISK_CACHE_DIR"])
 
     # -----------------------------------------------------------------------------------------------------------------
     # public cache API
@@ -48,9 +46,7 @@ class DiskCacheStore(FileCacheStore):
     # -----------------------------------------------------------------------------------------------------------------
 
     def search(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
-        match_path = self._path_join(
-            self._get_node_dir(node), self._match_filename(node, key, coordinates)
-        )
+        match_path = self._path_join(self._get_node_dir(node), self._match_filename(node, key, coordinates))
         return glob.glob(match_path)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -78,11 +74,7 @@ class DiskCacheStore(FileCacheStore):
         return os.path.exists(path)
 
     def _is_empty(self, directory):
-        return (
-            os.path.exists(directory)
-            and os.path.isdir(directory)
-            and not os.listdir(directory)
-        )
+        return os.path.exists(directory) and os.path.isdir(directory) and not os.listdir(directory)
 
     def _rmdir(self, directory):
         os.rmdir(directory)

@@ -19,9 +19,7 @@ class TestStackedCoordinatesCreation(object):
     def test_init_Coordinates1d(self):
         lat = ArrayCoordinates1d([0, 1, 2], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30], name="lon")
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03"], name="time"
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03"], name="time")
         c = StackedCoordinates([lat, lon, time])
         assert c.dims == ("lat", "lon", "time")
         assert c.udims == ("lat", "lon", "time")
@@ -76,9 +74,7 @@ class TestStackedCoordinatesCreation(object):
         with pytest.raises(TypeError, match="Unrecognized coords type"):
             StackedCoordinates({})
 
-        with pytest.raises(
-            ValueError, match="Stacked coords must have at least 2 coords"
-        ):
+        with pytest.raises(ValueError, match="Stacked coords must have at least 2 coords"):
             StackedCoordinates([lat])
 
         with pytest.raises(ValueError, match="Size mismatch in stacked coords"):
@@ -92,16 +88,12 @@ class TestStackedCoordinatesCreation(object):
 
         # dims and name
         with pytest.raises(TypeError):
-            StackedCoordinates(
-                [[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"], name="lat_lon"
-            )
+            StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"], name="lat_lon")
 
     def test_from_xarray(self):
         lat = ArrayCoordinates1d([0, 1, 2], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30], name="lon")
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03"], name="time"
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03"], name="time")
         c = StackedCoordinates([lat, lon, time])
         x = xr.DataArray(np.empty(c.shape), coords=c.coords, dims=c.idims)
 
@@ -114,9 +106,7 @@ class TestStackedCoordinatesCreation(object):
     def test_copy(self):
         lat = ArrayCoordinates1d([0, 1, 2], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30], name="lon")
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03"], name="time"
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03"], name="time")
         c = StackedCoordinates([lat, lon, time])
 
         c2 = c.copy()
@@ -172,9 +162,7 @@ class TestStackedCoordinatesSerialization(object):
         assert c2 == c
 
     def test_invalid_definition(self):
-        with pytest.raises(
-            ValueError, match="Could not parse coordinates definition with keys"
-        ):
+        with pytest.raises(ValueError, match="Could not parse coordinates definition with keys"):
             StackedCoordinates.from_definition([{"apple": 10}, {}])
 
 
@@ -194,9 +182,7 @@ class TestStackedCoordinatesProperties(object):
         # some can already be set
         lat = ArrayCoordinates1d([0, 1, 2])
         lon = ArrayCoordinates1d([10, 20, 30])
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03"], name="time"
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03"], name="time")
         c = StackedCoordinates([lat, lon, time])
         c._set_dims(["lat", "lon", "time"])
 
@@ -242,9 +228,7 @@ class TestStackedCoordinatesProperties(object):
     def test_size(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3])
         lon = ArrayCoordinates1d([10, 20, 30, 40])
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"]
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"])
         c = StackedCoordinates([lat, lon, time])
 
         assert c.size == 4
@@ -252,9 +236,7 @@ class TestStackedCoordinatesProperties(object):
     def test_shape(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3])
         lon = ArrayCoordinates1d([10, 20, 30, 40])
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"]
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"])
         c = StackedCoordinates([lat, lon, time])
 
         assert c.shape == (4,)
@@ -262,9 +244,7 @@ class TestStackedCoordinatesProperties(object):
     def test_coordinates(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time"
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time")
         c = StackedCoordinates([lat, lon, time])
 
         assert isinstance(c.coordinates, pd.MultiIndex)
@@ -278,9 +258,7 @@ class TestStackedCoordinatesProperties(object):
     def test_coords(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time"
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time")
         c = StackedCoordinates([lat, lon, time])
 
         assert isinstance(c.coords, dict)
@@ -292,9 +270,7 @@ class TestStackedCoordinatesProperties(object):
 
         lat = ArrayCoordinates1d([0, 1, 2, 3])
         lon = ArrayCoordinates1d([10, 20, 30, 40])
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"]
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"])
         c = StackedCoordinates([lat, lon, time])
         with pytest.raises(ValueError, match="Cannot get coords"):
             c.coords
@@ -335,9 +311,7 @@ class TestStackedCoordinatesIndexing(object):
     def test_get_dim(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time"
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time")
         c = StackedCoordinates([lat, lon, time])
 
         assert c["lat"] is lat
@@ -349,9 +323,7 @@ class TestStackedCoordinatesIndexing(object):
     def test_get_index(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time"
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time")
         c = StackedCoordinates([lat, lon, time])
 
         # integer index
@@ -388,9 +360,7 @@ class TestStackedCoordinatesIndexing(object):
     def test_iter(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3])
         lon = ArrayCoordinates1d([10, 20, 30, 40])
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"]
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"])
         c = StackedCoordinates([lat, lon, time])
 
         for item in c:
@@ -399,9 +369,7 @@ class TestStackedCoordinatesIndexing(object):
     def test_len(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3])
         lon = ArrayCoordinates1d([10, 20, 30, 40])
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"]
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"])
         c = StackedCoordinates([lat, lon, time])
 
         assert len(c) == 3
@@ -411,9 +379,7 @@ class TestStackedCoordinatesSelection(object):
     def test_select_single(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time"
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time")
         c = StackedCoordinates([lat, lon, time])
 
         # single dimension

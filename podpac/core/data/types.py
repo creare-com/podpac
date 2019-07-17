@@ -33,12 +33,7 @@ from podpac.core.node import Node
 from podpac.core.settings import settings
 from podpac.core.utils import common_doc, trait_is_defined, ArrayTrait, NodeTrait
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.coordinates import (
-    Coordinates,
-    UniformCoordinates1d,
-    ArrayCoordinates1d,
-    StackedCoordinates,
-)
+from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import Dimension
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.data.interpolation import interpolation_trait
@@ -297,14 +292,9 @@ class CSV(DataSource):
         # First part of if tests to make sure this is the CSV parent class
         # It's assumed that derived classes will define alt_col etc for specialized readers
         if type(self) == CSV and not (
-            ("alt_col" in kwargs)
-            or ("time_col" in kwargs)
-            or ("lon_col" in kwargs)
-            or ("lat_col" in kwargs)
+            ("alt_col" in kwargs) or ("time_col" in kwargs) or ("lon_col" in kwargs) or ("lat_col" in kwargs)
         ):
-            raise TypeError(
-                "CSV requires at least one of time_col, alt_col, lat_col, or lon_col."
-            )
+            raise TypeError("CSV requires at least one of time_col, alt_col, lat_col, or lon_col.")
 
         return kwargs
 
@@ -496,9 +486,7 @@ class Rasterio(DataSource):
 
         # read data within coordinates_index window
         window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
-        raster_data = self.dataset.read(
-            self.band, out_shape=tuple(coordinates.shape), window=window
-        )
+        raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
 
         # set raster data to output array
         data.data.ravel()[:] = raster_data.ravel()
@@ -531,9 +519,7 @@ class Rasterio(DataSource):
         """
 
         if not hasattr(self, "_band_descriptions"):
-            self._band_descriptions = OrderedDict(
-                (i, self.dataset.tags(i + 1)) for i in range(self.band_count)
-            )
+            self._band_descriptions = OrderedDict((i, self.dataset.tags(i + 1)) for i in range(self.band_count))
 
         return self._band_descriptions
 
@@ -549,13 +535,8 @@ class Rasterio(DataSource):
         """
 
         if not hasattr(self, "_band_keys"):
-            keys = {
-                k for i in range(self.band_count) for k in self.band_descriptions[i]
-            }  # set
-            self._band_keys = {
-                k: [self.band_descriptions[i].get(k) for i in range(self.band_count)]
-                for k in keys
-            }
+            keys = {k for i in range(self.band_count) for k in self.band_descriptions[i]}  # set
+            self._band_keys = {k: [self.band_descriptions[i].get(k) for i in range(self.band_count)] for k in keys}
 
         return self._band_keys
 
@@ -767,30 +748,22 @@ class Zarr(DataSource):
         for dim in self.dims:
             if dim == "lat":
                 if self.latkey is None:
-                    raise TypeError(
-                        "Zarr node 'latkey' is required for dims %s" % self.dims
-                    )
+                    raise TypeError("Zarr node 'latkey' is required for dims %s" % self.dims)
                 if self.latkey not in self.group:
                     raise ValueError("Zarr lat key '%s' not found" % self.latkey)
             elif dim == "lon":
                 if self.lonkey is None:
-                    raise TypeError(
-                        "Zarr node 'lonkey' is required for dims %s" % self.dims
-                    )
+                    raise TypeError("Zarr node 'lonkey' is required for dims %s" % self.dims)
                 if self.lonkey not in self.group:
                     raise ValueError("Zarr lon key '%s' not found" % self.lonkey)
             elif dim == "time":
                 if self.timekey is None:
-                    raise TypeError(
-                        "Zarr node 'timekey' is required for dims %s" % self.dims
-                    )
+                    raise TypeError("Zarr node 'timekey' is required for dims %s" % self.dims)
                 if self.timekey not in self.group:
                     raise ValueError("Zarr time key '%s' not found" % self.timekey)
             elif dim == "alt":
                 if self.altkey is None:
-                    raise TypeError(
-                        "Zarr node 'altkey' is required for dims %s" % self.dims
-                    )
+                    raise TypeError("Zarr node 'altkey' is required for dims %s" % self.dims)
                 if self.altkey not in self.group:
                     raise ValueError("Zarr alt key '%s' not found" % self.altkey)
 
@@ -806,11 +779,7 @@ class Zarr(DataSource):
         if self.source.startswith("s3://"):
             root = self.source.strip("s3://")
             kwargs = {"region_name": self.region_name}
-            s3 = s3fs.S3FileSystem(
-                key=self.access_key_id,
-                secret=self.secret_access_key,
-                client_kwargs=kwargs,
-            )
+            s3 = s3fs.S3FileSystem(key=self.access_key_id, secret=self.secret_access_key, client_kwargs=kwargs)
             s3map = s3fs.S3Map(root=root, s3=s3, check=False)
             store = s3map
         else:
@@ -884,9 +853,7 @@ class Zarr(DataSource):
 
         values = self.group[self.timekey]
         if self.cf_time:
-            values = xr.coding.times.decode_cf_datetime(
-                values, self.cf_units, self.cf_calendar
-            )
+            values = xr.coding.times.decode_cf_datetime(values, self.cf_units, self.cf_calendar)
         return values
 
     def get_alt(self):
@@ -930,9 +897,7 @@ class WCS(DataSource):
     crs = tl.Unicode(WCS_DEFAULT_CRS).tag(attr=True)
     wcs_coordinates = tl.Instance(Coordinates)  # default below
 
-    _get_capabilities_qs = tl.Unicode(
-        "SERVICE=WCS&REQUEST=DescribeCoverage&" "VERSION={version}&COVERAGE={layer}"
-    )
+    _get_capabilities_qs = tl.Unicode("SERVICE=WCS&REQUEST=DescribeCoverage&" "VERSION={version}&COVERAGE={layer}")
     _get_data_qs = tl.Unicode(
         "SERVICE=WCS&VERSION={version}&REQUEST=GetCoverage&"
         "FORMAT=GeoTIFF&COVERAGE={layer}&"
@@ -950,13 +915,7 @@ class WCS(DataSource):
         str
             The url that requests the WCS capabilities
         """
-        return (
-            self.source
-            + "?"
-            + self._get_capabilities_qs.format(
-                version=self.version, layer=self.layer_name
-            )
-        )
+        return self.source + "?" + self._get_capabilities_qs.format(version=self.version, layer=self.layer_name)
 
     @tl.default("wcs_coordinates")
     def get_wcs_coordinates(self):
@@ -992,10 +951,7 @@ class WCS(DataSource):
             r = http.request("GET", self.get_capabilities_url)
             capabilities = r.data
             if r.status != 200:
-                raise Exception(
-                    "Could not get capabilities from WCS server:"
-                    + self.get_capabilities_url
-                )
+                raise Exception("Could not get capabilities from WCS server:" + self.get_capabilities_url)
         else:
             raise Exception("Do not have a URL request library to get WCS data.")
 
@@ -1029,12 +985,7 @@ class WCS(DataSource):
             )
 
         date_re = re.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}")
-        times = (
-            str(timedomain)
-            .replace("<gml:timeposition>", "")
-            .replace("</gml:timeposition>", "")
-            .split("\n")
-        )
+        times = str(timedomain).replace("<gml:timeposition>", "").replace("</gml:timeposition>", "").split("\n")
         times = np.array([t for t in times if date_re.match(t)], np.datetime64)
 
         if len(times) == 0:
@@ -1080,19 +1031,11 @@ class WCS(DataSource):
                 if c.size == 1:
                     cs.append(ArrayCoordinates1d(c.coordinates[0], name=dim))
                 elif isinstance(c, UniformCoordinates1d):
-                    cs.append(
-                        UniformCoordinates1d(
-                            c.bounds[0], c.bounds[1], abs(c.step), name=dim
-                        )
-                    )
+                    cs.append(UniformCoordinates1d(c.bounds[0], c.bounds[1], abs(c.step), name=dim))
                 else:
                     # TODO: generalize/fix this
                     # WCS calls require a regular grid, could (otherwise we have to do multiple WCS calls)
-                    cs.append(
-                        UniformCoordinates1d(
-                            c.bounds[0], c.bounds[1], size=c.size, name=dim
-                        )
-                    )
+                    cs.append(UniformCoordinates1d(c.bounds[0], c.bounds[1], size=c.size, name=dim))
             else:
                 cs.append(self.wcs_coordinates[dim])
         c = Coordinates(cs)
@@ -1152,15 +1095,11 @@ class WCS(DataSource):
                         http = urllib3.PoolManager()
                     r = http.request("GET", url)
                     if r.status != 200:
-                        raise Exception(
-                            "Could not get capabilities from WCS server:" + url
-                        )
+                        raise Exception("Could not get capabilities from WCS server:" + url)
                     content = r.data
                     io = BytesIO(bytearray(r.data))
                 else:
-                    raise Exception(
-                        "Do not have a URL request library to get WCS data."
-                    )
+                    raise Exception("Do not have a URL request library to get WCS data.")
 
                 try:
                     try:  # This works with rasterio v1.0a8 or greater, but not on python 2
@@ -1168,9 +1107,7 @@ class WCS(DataSource):
                             output.data[i, ...] = dataset.read()
                     except Exception as e:  # Probably python 2
                         print(e)
-                        tmppath = os.path.join(
-                            settings["DISK_CACHE_DIR"], "wcs_temp.tiff"
-                        )
+                        tmppath = os.path.join(settings["DISK_CACHE_DIR"], "wcs_temp.tiff")
 
                         if not os.path.exists(os.path.split(tmppath)[0]):
                             os.makedirs(os.path.split(tmppath)[0])
@@ -1297,13 +1234,9 @@ class ReprojectedSource(DataSource):
     def _first_init(self, **kwargs):
         if "reprojected_coordinates" in kwargs:
             if isinstance(kwargs["reprojected_coordinates"], dict):
-                kwargs["reprojected_coordinates"] = Coordinates.from_definition(
-                    kwargs["reprojected_coordinates"]
-                )
+                kwargs["reprojected_coordinates"] = Coordinates.from_definition(kwargs["reprojected_coordinates"])
             elif isinstance(kwargs["reprojected_coordinates"], str):
-                kwargs["reprojected_coordinates"] = Coordinates.from_json(
-                    kwargs["reprojected_coordinates"]
-                )
+                kwargs["reprojected_coordinates"] = Coordinates.from_json(kwargs["reprojected_coordinates"])
 
         return kwargs
 
@@ -1323,24 +1256,17 @@ class ReprojectedSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        if (
-            hasattr(self.source, "interpolation")
-            and self.source_interpolation is not None
-        ):
+        if hasattr(self.source, "interpolation") and self.source_interpolation is not None:
             si = self.source.interpolation
             self.source.interpolation = self.source_interpolation
         elif self.source_interpolation is not None:
             _logger.warn(
                 "ReprojectedSource cannot set the 'source_interpolation'"
                 " since self.source does not have an 'interpolation' "
-                " attribute. \n type(self.source): %s\nself.source: "
-                % (str(type(self.source)), str(self.source))
+                " attribute. \n type(self.source): %s\nself.source: " % (str(type(self.source)), str(self.source))
             )
         data = self.source.eval(coordinates)
-        if (
-            hasattr(self.source, "interpolation")
-            and self.source_interpolation is not None
-        ):
+        if hasattr(self.source, "interpolation") and self.source_interpolation is not None:
             self.source.interpolation = si
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of
@@ -1454,8 +1380,7 @@ class S3(DataSource):
             # self.source.replace('\\', '').replace(':','')\
             # .replace('/', ''))
             tmppath = os.path.join(
-                settings["DISK_CACHE_DIR"],
-                self.source.replace("\\", "").replace(":", "").replace("/", ""),
+                settings["DISK_CACHE_DIR"], self.source.replace("\\", "").replace(":", "").replace("/", "")
             )
 
             rootpath = os.path.split(tmppath)[0]
@@ -1538,10 +1463,7 @@ class Dataset(DataSource):
         return Coordinates(crds, dims)
 
     def get_data(self, coordinates, coordinates_index):
-        return self.create_output_array(
-            coordinates,
-            self.dataset[self.datakey][self.extra_dim].data[coordinates_index],
-        )
+        return self.create_output_array(coordinates, self.dataset[self.datakey][self.extra_dim].data[coordinates_index])
 
     @property
     def keys(self):

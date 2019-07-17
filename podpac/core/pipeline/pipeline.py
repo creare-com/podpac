@@ -22,14 +22,7 @@ from podpac.core.data.types import ReprojectedSource, Array
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
 
-from podpac.core.pipeline.output import (
-    Output,
-    NoOutput,
-    FileOutput,
-    S3Output,
-    FTPOutput,
-    ImageOutput,
-)
+from podpac.core.pipeline.output import Output, NoOutput, FileOutput, S3Output, FTPOutput, ImageOutput
 
 
 class PipelineError(NodeException):
@@ -65,9 +58,7 @@ class Pipeline(Node):
 
     def _first_init(self, path=None, **kwargs):
         if (path is not None) + ("definition" in kwargs) + ("json" in kwargs) != 1:
-            raise TypeError(
-                "Pipeline requires exactly one 'path', 'json', or 'definition' argument"
-            )
+            raise TypeError("Pipeline requires exactly one 'path', 'json', or 'definition' argument")
 
         if path is not None:
             with open(path) as f:
@@ -80,9 +71,7 @@ class Pipeline(Node):
         s = proposal["value"]
         definition = json.loads(s, object_pairs_hook=OrderedDict)
         parse_pipeline_definition(definition)
-        return json.dumps(
-            json.loads(s, object_pairs_hook=OrderedDict), cls=JSONEncoder
-        )  # standardize
+        return json.dumps(json.loads(s, object_pairs_hook=OrderedDict), cls=JSONEncoder)  # standardize
 
     @tl.validate("definition")
     def _validate_definition(self, proposal):
@@ -180,9 +169,7 @@ def _parse_node_definition(nodes, name, d):
     try:
         node_class = getattr(module, node_name)
     except AttributeError:
-        raise PipelineError(
-            "Node '%s' not found in module '%s'" % (node_name, module_name)
-        )
+        raise PipelineError("Node '%s' not found in module '%s'" % (node_name, module_name))
 
     # parse and configure kwargs
     kwargs = {}
@@ -251,9 +238,7 @@ def _parse_output_definition(nodes, d):
     node = _get_subattr(nodes, "output", name)
 
     # output parameters
-    config = {
-        k: v for k, v in d.items() if k not in ["node", "mode", "plugin", "output"]
-    }
+    config = {k: v for k, v in d.items() if k not in ["node", "mode", "plugin", "output"]}
 
     # get output class from mode
     if "plugin" not in d:
@@ -285,22 +270,15 @@ def _parse_output_definition(nodes, d):
         try:
             output_class = getattr(module, class_name)
         except AttributeError:
-            raise PipelineError(
-                "Output '%s' not found in module '%s'" % (class_name, module_name)
-            )
+            raise PipelineError("Output '%s' not found in module '%s'" % (class_name, module_name))
 
         try:
             output = output_class(node, name, **config)
         except Exception as e:
-            raise PipelineError(
-                "Could not create custom output '%s': %s" % (custom_output, e)
-            )
+            raise PipelineError("Could not create custom output '%s': %s" % (custom_output, e))
 
         if not isinstance(output, Output):
-            raise PipelineError(
-                "Custom output '%s' must subclass 'podpac.core.pipeline.output.Output'"
-                % custom_output
-            )
+            raise PipelineError("Custom output '%s' must subclass 'podpac.core.pipeline.output.Output'" % custom_output)
 
     return output
 
@@ -313,9 +291,7 @@ def _get_subattr(nodes, name, ref):
         for _name in refs[1:]:
             attr = getattr(attr, _name)
     except (KeyError, AttributeError):
-        raise PipelineError(
-            "'%s' references nonexistent node/attribute '%s'" % (name, ref)
-        )
+        raise PipelineError("'%s' references nonexistent node/attribute '%s'" % (name, ref))
 
     if settings["DEBUG"]:
         attr = deepcopy(attr)

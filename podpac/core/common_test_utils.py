@@ -224,9 +224,7 @@ def make_coordinate_combinations(lat=None, lon=None, alt=None, time=None):
     if alt is None:
         alt = ArrayCoordinates1d([6, 9, 12], name="alt")
     if time is None:
-        time = ArrayCoordinates1d(
-            ["2018-01-01", "2018-02-01", "2018-03-01"], name="time"
-        )
+        time = ArrayCoordinates1d(["2018-01-01", "2018-02-01", "2018-03-01"], name="time")
 
     d = dict([("lat", lat), ("lon", lon), ("alt", alt), ("tim", time)])
 

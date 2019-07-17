@@ -127,10 +127,7 @@ class CacheCtrl(object):
             raise TypeError("key must be a string type, not '%s'" % (type(key)))
 
         if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
-            raise TypeError(
-                "coordinates must be of type 'Coordinates', not '%s'"
-                % type(coordinates)
-            )
+            raise TypeError("coordinates must be of type 'Coordinates', not '%s'" % type(coordinates))
 
         if not isinstance(mode, six.string_types) and mode is not None:
             raise TypeError("mode must be of type 'str', not '%s'" % type(mode))
@@ -173,10 +170,7 @@ class CacheCtrl(object):
             raise TypeError("key must be a string type, not '%s'" % (type(key)))
 
         if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
-            raise TypeError(
-                "coordinates must be of type 'Coordinates', not '%s'"
-                % type(coordinates)
-            )
+            raise TypeError("coordinates must be of type 'Coordinates', not '%s'" % type(coordinates))
 
         if not isinstance(mode, six.string_types) and mode is not None:
             raise TypeError("mode must be of type 'str', not '%s'" % type(mode))
@@ -216,10 +210,7 @@ class CacheCtrl(object):
             raise TypeError("key must be a string type, not '%s'" % (type(key)))
 
         if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None:
-            raise TypeError(
-                "coordinates must be of type 'Coordinates', not '%s'"
-                % type(coordinates)
-            )
+            raise TypeError("coordinates must be of type 'Coordinates', not '%s'" % type(coordinates))
 
         if not isinstance(mode, six.string_types) and mode is not None:
             raise TypeError("mode must be of type 'str', not '%s'" % type(mode))
@@ -254,15 +245,8 @@ class CacheCtrl(object):
         if not isinstance(key, six.string_types):
             raise TypeError("key must be a string type, not '%s'" % (type(key)))
 
-        if (
-            not isinstance(coordinates, podpac.Coordinates)
-            and coordinates is not None
-            and coordinates != "*"
-        ):
-            raise TypeError(
-                "coordinates must be '*' or of type 'Coordinates' not '%s'"
-                % type(coordinates)
-            )
+        if not isinstance(coordinates, podpac.Coordinates) and coordinates is not None and coordinates != "*":
+            raise TypeError("coordinates must be '*' or of type 'Coordinates' not '%s'" % type(coordinates))
 
         if not isinstance(mode, six.string_types) and mode is not None:
             raise TypeError("mode must be of type 'str', not '%s'" % type(mode))

@@ -38,39 +38,28 @@ class UnitsDataArray(xr.DataArray):
             self.attrs["units"] = ureg(self.attrs["units"]).u
 
         # Deserialize layer_stylers
-        if self.attrs.get("layer_style") and isinstance(
-            self.attrs["layer_style"], string_types
-        ):
-            self.attrs["layer_style"] = podpac.core.style.Style.from_json(
-                self.attrs["layer_style"]
-            )
+        if self.attrs.get("layer_style") and isinstance(self.attrs["layer_style"], string_types):
+            self.attrs["layer_style"] = podpac.core.style.Style.from_json(self.attrs["layer_style"])
 
     def __array_wrap__(self, obj, context=None):
         new_var = super(UnitsDataArray, self).__array_wrap__(obj, context)
         if self.attrs.get("units"):
             if context and settings["ENABLE_UNITS"]:
-                new_var.attrs["units"] = context[0](
-                    ureg.Quantity(1, self.attrs.get("units"))
-                ).u
+                new_var.attrs["units"] = context[0](ureg.Quantity(1, self.attrs.get("units"))).u
             elif settings["ENABLE_UNITS"]:
                 new_var = self._copy_units(new_var)
         return new_var
 
     def _apply_binary_op_to_units(self, func, other, x):
-        if (
-            self.attrs.get("units", None) or getattr(other, "units", None)
-        ) and settings["ENABLE_UNITS"]:
+        if (self.attrs.get("units", None) or getattr(other, "units", None)) and settings["ENABLE_UNITS"]:
             x.attrs["units"] = func(
-                ureg.Quantity(1, getattr(self, "units", "1")),
-                ureg.Quantity(1, getattr(other, "units", "1")),
+                ureg.Quantity(1, getattr(self, "units", "1")), ureg.Quantity(1, getattr(other, "units", "1"))
             ).u
         return x
 
     def _get_unit_multiplier(self, other):
         multiplier = 1
-        if (
-            self.attrs.get("units", None) or getattr(other, "units", None)
-        ) and settings["ENABLE_UNITS"]:
+        if (self.attrs.get("units", None) or getattr(other, "units", None)) and settings["ENABLE_UNITS"]:
             otheru = ureg.Quantity(1, getattr(other, "units", "1"))
             myu = ureg.Quantity(1, getattr(self, "units", "1"))
             multiplier = otheru.to(myu.u).magnitude
@@ -82,8 +71,7 @@ class UnitsDataArray(xr.DataArray):
         x = super(UnitsDataArray, self).__pow__(other)
         if self.attrs.get("units") and settings["ENABLE_UNITS"]:
             x.attrs["units"] = pow(
-                ureg.Quantity(1, getattr(self, "units", "1")),
-                ureg.Quantity(other, getattr(other, "units", "1")),
+                ureg.Quantity(1, getattr(self, "units", "1")), ureg.Quantity(other, getattr(other, "units", "1"))
             ).u
         return x
 
@@ -297,9 +285,7 @@ del func
 
 def create_data_array(coords, data=np.nan, dtype=float, **kwargs):
     if not isinstance(coords, podpac.Coordinates):
-        raise TypeError(
-            "create_data_array expected Coordinates object, not '%s'" % type(coords)
-        )
+        raise TypeError("create_data_array expected Coordinates object, not '%s'" % type(coords))
 
     if data is None:
         data = np.empty(coords.shape, dtype=dtype)
