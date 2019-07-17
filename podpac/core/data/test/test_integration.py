@@ -37,37 +37,6 @@ class TestDataSourceIntegration:
         node.eval(coordt)
         node.eval(coordg)
 
-    def test_s3_source(self):
-        """test s3 data source"""
-        source = r"SMAPSentinel/SMAP_L2_SM_SP_1AIWDV_20170801T000000_20170731T114719_094E21N_T15110_002.h5"
-        s3 = S3(source=source)
-
-        assert s3.s3_data
-
-        s3.node_class = SMAPSentinelSource
-        assert s3.node_class
-
-        ###
-        # Copied from main of s3Source
-        ###
-
-        # Rename files in s3 bucket
-        s3_bucket = "podpac-s3"  # TODO: what bucket was this referring to?
-        s3 = boto3.resource("s3").Bucket(s3_bucket)
-        s3.Bucket(name=s3_bucket)
-        obs = list(s3.objects.all())
-        obs2 = [o for o in obs if "SMAP_L2_SM_SP" in o.key]
-
-        rootpath = obs2[0].key.split("/")[0] + "/"
-        for o in obs2:
-            newkey = rootpath + os.path.split(o.key)[1]
-            s3.Object(newkey).copy_from(CopySource=s3_bucket + "/" + o.key)
-
-        obs3 = list(s3.objects.all())
-        obsD = [o for o in obs3 if "ASOwusu" in o.key]
-        for o in obsD:
-            o.delete()
-
     def test_wcs_source(self):
         """test wcs and reprojected source"""
 
