@@ -5,6 +5,8 @@ This module gets imported in the root __init__.py
 and exposed its contents to podpac.datalib
 """
 
+import sys
+
 from podpac.datalib import smap
 from podpac.datalib.smap import (
     SMAP,
@@ -18,3 +20,7 @@ from podpac.datalib.smap import (
 from podpac.datalib.terraintiles import TerrainTiles
 from podpac.datalib.gfs import GFS, GFSLatest
 from podpac.datalib.egi import EGI
+
+# intake requires python >= 3.6
+if sys.version >= "3.6":
+    from podpac.datalib.intake import IntakeCatalog
