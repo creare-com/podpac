@@ -68,7 +68,7 @@ class ModifyCoordinates(Algorithm):
         self._requested_coordinates = coordinates
         self.outputs = {}
         self._modified_coordinates = Coordinates(
-            [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims])
+            [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims], crs=coordinates.crs)
         
         for dim in self._modified_coordinates.udims:
             if self._modified_coordinates[dim].size == 0:
