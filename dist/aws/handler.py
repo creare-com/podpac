@@ -53,6 +53,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     from podpac.core.utils import JSONEncoder, _get_query_params_from_url
     
     # check if file exists
+    pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
     filename = file_key.replace('.json', '.' + pipeline.output.format)
     filename = filename.replace(settings['S3_JSON_FOLDER'], settings['S3_OUTPUT_FOLDER'])
     try:
