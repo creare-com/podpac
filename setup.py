@@ -73,10 +73,14 @@ extras_require = {
         "coveralls>=1.3",
         "six>=1.0",
         "attrs>=17.4.0",
-        "pre_commit>=1",
-        "black",
+        "pre_commit>=1"
     ],
 }
+
+if sys.version_info.major == 3:
+    extras_require["dev"] += [
+        "black",
+    ]
 
 # set long description to readme
 with open("README.MD") as f:
@@ -95,7 +99,6 @@ class PostDevelopCommand(develop):
     def run(self):
         subprocess.check_call(["pre-commit", "install"])
         develop.run(self)
-
 
 setup(
     # ext_modules=None,
