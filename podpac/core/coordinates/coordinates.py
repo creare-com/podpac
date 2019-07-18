@@ -23,7 +23,7 @@ import pyproj
 
 import podpac
 from podpac.core.settings import settings
-from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url
+from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param
 from podpac.core.coordinates.utils import get_vunits, set_vunits, rem_vunits
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
@@ -82,7 +82,7 @@ class Coordinates(tl.HasTraits):
              * :class:`Coordinates1d` or :class:`StackedCoordinates` object
         dims : list of str, optional
             List of dimension names. Optional if all items in ``coords`` are named. Valid names are
-           
+
              * 'lat', 'lon', 'alt', or 'time' for unstacked coordinates
              * dimension names joined by an underscore for stacked coordinates
         crs : str, optional
@@ -131,10 +131,10 @@ class Coordinates(tl.HasTraits):
             c._set_name(dim)
             if ctype is not None:
                 c._set_ctype(ctype)
-            
+
             # set coords
             dcoords[dim] = c
-            
+
         self.set_trait('_coords', dcoords)
         if crs is not None:
             self.set_trait('crs', crs)
@@ -418,7 +418,7 @@ class Coordinates(tl.HasTraits):
 
         d = json.loads(s)
         return cls.from_definition(d)
-    
+
     @classmethod
     def from_url(cls, url):
         """
@@ -440,30 +440,32 @@ class Coordinates(tl.HasTraits):
         # The ordering here is lon/lat or x/y for WMS 1.1
         # See https://docs.geoserver.org/stable/en/user/services/wms/reference.html
         # and https://docs.geoserver.org/stable/en/user/services/wms/basics.html
-        
-        bbox = np.array(params['BBOX'][0].split(','), float)
-        
-        # I don't seem to need to reverse one of these... perhaps one of my test servers did not implement the spec? 
-        if params['VERSION'][0].startswith('1.1'):
+
+        bbox = np.array(_get_param(params, 'BBOX').split(','), float)
+
+        # I don't seem to need to reverse one of these... perhaps one of my test servers did not implement the spec?
+        if _get_param(params, 'VERSION').startswith('1.1'):
             r = 1
-        elif params['VERSION'][0].startswith('1.3'):
-            r = 1  
-            
+        elif _get_param(params, 'VERSION').startswith('1.3'):
+            r = 1
+
         # Extract bounding box information and translate to PODPAC coordinates
         start = bbox[:2][::r]
         stop = bbox[2::][::r]
-        size = np.array([params['WIDTH'][0], params['HEIGHT'][0]], int)[::r]
-        
+        size = np.array([_get_param(params, 'WIDTH'), _get_param(params, 'HEIGHT')], int)[::r]
+
         coords = OrderedDict()
-        
+
         # Note, version 1.1 used "SRS" and 1.3 uses 'CRS'
-        coords['crs'] = params.get('SRS', params.get("CRS"))[0]
+        coords['crs'] = _get_param(params, 'SRS')
+        if coords['crs'] is None:
+            coords['crs'] = _get_param(params, 'CRS')
 
         coords['coords'] = [{'name': 'lat', 'start': start[0], 'stop': stop[0], 'size': size[0]},
                             {'name': 'lon', 'start': start[1], 'stop': stop[1], 'size': size[1]}]
-        
+
         if 'TIME' in params:
-            coords['coords'].append({'name': 'time', 'values': [params['TIME'][0]]})
+            coords['coords'].append({'name': 'time', 'values': [_get_param(params, 'TIME')]})
 
         return cls.from_definition(coords)
 
@@ -553,7 +555,7 @@ class Coordinates(tl.HasTraits):
             for c in self._coords.values():
                 if isinstance(c, (StackedCoordinates, DependentCoordinates)) and dim in c.dims:
                     return c[dim]
-                
+
             raise KeyError("Dimension '%s' not found in Coordinates %s" % (dim, self.dims))
 
         else:
@@ -595,7 +597,7 @@ class Coordinates(tl.HasTraits):
             d = self._coords.copy()
             d[dim] = c
             self._coords = d
-        
+
         elif dim in self.udims:
             stacked_dim = [sd for sd in self.dims if dim in sd][0]
             self._coords[stacked_dim][dim] = c
@@ -682,12 +684,12 @@ class Coordinates(tl.HasTraits):
             In [2]: lon = [10, 20]
 
             In [3]: time = '2018-01-01'
-           
+
             In [4]: c = podpac.Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
-           
+
             In [5]: c.dims
             Out[5]: ('lat', 'lon', 'time')
-           
+
             In [6]: c.udims
             Out[6]: ('lat', 'lon', 'time')
 
@@ -712,7 +714,7 @@ class Coordinates(tl.HasTraits):
     @property
     def shape(self):
         """:tuple: Tuple of the number of coordinates in each dimension."""
-        
+
         return tuple(size for c in self._coords.values() for size in c.shape)
 
     @property
@@ -812,8 +814,8 @@ class Coordinates(tl.HasTraits):
     @property
     def hash(self):
         """:str: Coordinates hash value."""
-        # We can't use self.json for the hash because the CRS is not standardized. 
-        # As such, we json.dumps the full definition. 
+        # We can't use self.json for the hash because the CRS is not standardized.
+        # As such, we json.dumps the full definition.
         json_d = json.dumps(self.full_definition, separators=(',', ':'), cls=podpac.core.utils.JSONEncoder)
         return hash_alg(json_d.encode('utf-8')).hexdigest()
 
@@ -873,7 +875,7 @@ class Coordinates(tl.HasTraits):
                 lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 1.0], N[2], ctype['midpoint']
                 lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2], ctype['midpoint']
                 time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1], ctype['midpoint']
-           
+
             In [3]: c.udrop('lat')
             Out[3]:
             Coordinates
@@ -943,17 +945,17 @@ class Coordinates(tl.HasTraits):
               * lat      (lat) float64 2.0
 
         The *outer* intersection selects the minimal set of coordinates that contain the other coordinates::
-        
+
             In [4]: coords.intersect(other, outer=True).coords
-            Out[4]: 
+            Out[4]:
             Coordinates:
               * lat      (lat) float64 1.0 2.0 3.0
 
         The *outer* intersection also selects a boundary coordinate if the other coordinates are outside this
         coordinates bounds but *inside* its area bounds::
-        
+
             In [5]: other_near = Coordinates([[3.25]], dims=['lat'])
-            
+
             In [6]: other_far = Coordinates([[10.0]], dims=['lat'])
 
             In [7]: coords.intersect(other_near, outer=True).coords
@@ -963,7 +965,7 @@ class Coordinates(tl.HasTraits):
             In [8]: coords.intersect(other_far, outer=True).coords
             Coordinates:
               * lat      (lat) float64
-        
+
         Parameters
         ----------
         other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
@@ -982,7 +984,7 @@ class Coordinates(tl.HasTraits):
         idx : list
             List of indices for each dimension that produces the intersection, only if ``return_indices`` is True.
         """
-        
+
         if not isinstance(other, Coordinates):
             raise TypeError("Coordinates cannot be intersected with type '%s'" % type(other))
 
@@ -1010,19 +1012,19 @@ class Coordinates(tl.HasTraits):
                     lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
 
             In [3]: c.select({'lat': [1.5, 3.5], 'lon': [25, 45]})
-            Out[3]: 
+            Out[3]:
             Coordinates
                     lat: ArrayCoordinates1d(lat): Bounds[2.0, 3.0], N[2], ctype['midpoint']
                     lon: ArrayCoordinates1d(lon): Bounds[30.0, 40.0], N[2], ctype['midpoint']
 
         The *outer* selection returns the minimal set of coordinates that contain the bounds::
-        
+
             In [4]: c.select({'lat':[1.5, 3.5]}, outer=True)
             Out[4]:
             Coordinates
                     lat: ArrayCoordinates1d(lat): Bounds[1.0, 3.0], N[3], ctype['midpoint']
                     lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
-        
+
         Parameters
         ----------
         bounds : dict
@@ -1161,51 +1163,51 @@ class Coordinates(tl.HasTraits):
         """
         Transform coordinate dimensions (`lat`, `lon`, `alt`) into a different coordinate reference system.
         Uses PROJ4 syntax for coordinate reference systems and units.
-        
+
         See `PROJ4 Documentation <https://proj4.org/usage/projections.html#cartographic-projection>`_ for
         more information about creating PROJ4 strings. See `PROJ4 Distance Units
         <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`_ for unit string
         references.
-        
+
         Examples
         --------
         Transform gridded coordinates::
-        
+
             c = Coordinates([np.linspace(-10, 10, 21), np.linspace(-30, -10, 21)], dims=['lat', 'lon'])
             c.crs
 
             >> 'EPSG:4326'
 
             c.transform('EPSG:2193')
-        
+
             >> Coordinates
                 lat: ArrayCoordinates1d(lat): Bounds[-9881992.849134896, 29995929.885877542], N[21], ctype['point']
                 lon: ArrayCoordinates1d(lon): Bounds[1928928.7360588573, 4187156.434405213], N[21], ctype['midpoint']
-        
+
         Transform stacked coordinates::
-        
+
             c = Coordinates([(np.linspace(-10, 10, 21), np.linspace(-30, -10, 21))], dims=['lat_lon'])
             c.transform('EPSG:2193')
-        
+
             >> Coordinates
                 lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[-9881992.849134896, 29995929.885877542], N[21], ctype['point']
                 lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[1928928.7360588573, 4187156.434405213], N[21], ctype['midpoint']
-        
+
         Transform coordinates using a PROJ4 string::
-        
+
             c = Coordinates([np.linspace(-10, 10, 21), np.linspace(-30, -10, 21)], dims=['lat', 'lon'])
             c.transform('+proj=merc +lat_ts=56.5 +ellps=GRS80')
-        
+
             >> Coordinates
                 lat: ArrayCoordinates1d(lat): Bounds[-1847545.541169525, -615848.513723175], N[21], ctype['midpoint']
                 lon: ArrayCoordinates1d(lon): Bounds[-614897.0725896168, 614897.0725896184], N[21], ctype['midpoint']
-        
+
         Transform coordinates with altitude::
-        
+
             # include alt units in proj4 string
             c = Coordinates([[0, 1, 2], [0, 1, 2], [1, 2, 3]], dims=['lat', 'lon', 'alt'])
             c.transform('+init=epsg:2193 +vunits=ft')
-        
+
             >> Coordinates
                 lat: ArrayCoordinates1d(lat): Bounds[594971.8894642257, 819117.0608407748], N[3], ctype['midpoint']
                 lon: ArrayCoordinates1d(lon): Bounds[29772096.71234478, 29995929.885877542], N[3], ctype['midpoint']
@@ -1214,7 +1216,7 @@ class Coordinates(tl.HasTraits):
 
             # specify alt units seperately
             c.transform('EPSG:2193', alt_units='ft')
-        
+
             >> Coordinates
                 lat: ArrayCoordinates1d(lat): Bounds[594971.8894642257, 819117.0608407748], N[3], ctype['midpoint']
                 lon: ArrayCoordinates1d(lon): Bounds[29772096.71234478, 29995929.885877542], N[3], ctype['midpoint']
@@ -1225,7 +1227,7 @@ class Coordinates(tl.HasTraits):
             ct.crs
 
             >> '+proj=tmerc +lat_0=0 +lon_0=173 +k=0.9996 +x_0=1600000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs +type=crs +vunits=ft'
-        
+
         Parameters
         ----------
         crs : str, optional
@@ -1235,12 +1237,12 @@ class Coordinates(tl.HasTraits):
             Override the alt units defined in `crs` string.
             This is implemented to provide a shorthand for transforming alt units
             without specifying the whole proj4 string.
-        
+
         Returns
         -------
         :class:`podpac.Coordinates`
             Transformed Coordinates
-        
+
         Raises
         ------
         ValueError
@@ -1260,10 +1262,10 @@ class Coordinates(tl.HasTraits):
         # combine crs and alt_units
         if alt_units is not None:
             crs = set_vunits(crs, alt_units)
-        
+
         from_crs = self.CRS
         to_crs = pyproj.CRS(crs)
-        
+
         # no transform needed
         if from_crs == to_crs:
             return deepcopy(self)

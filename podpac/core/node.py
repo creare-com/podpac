@@ -16,7 +16,7 @@ import traitlets as tl
 
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray, create_data_array
-from podpac.core.utils import common_doc, JSONEncoder, is_json_serializable, _get_query_params_from_url, _get_from_url
+from podpac.core.utils import common_doc, JSONEncoder, is_json_serializable, _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore
@@ -82,7 +82,7 @@ class Node(tl.HasTraits):
     cache_output: bool
         Should the node's output be cached? If not provided or None, uses default based on settings.
     cache_update: bool
-        Default is False. Should the node's cached output be updated from the source data? 
+        Default is False. Should the node's cached output be updated from the source data?
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
         Class that controls caching. If not provided, uses default based on settings.
     dtype : type
@@ -486,10 +486,10 @@ class Node(tl.HasTraits):
         key : str
             Delete cached objects with this key. If `'*'`, cached data is deleted for all keys.
         coordinates : podpac.Coordinates, str, optional
-            Default is None. Delete cached objects for these coordinates. If `'*'`, cached data is deleted for all 
+            Default is None. Delete cached objects for these coordinates. If `'*'`, cached data is deleted for all
             coordinates, including coordinate-independent data. If None, will only affect coordinate-independent data.
         mode: str, optional
-            Specify which cache stores are affected. 
+            Specify which cache stores are affected.
 
 
         See Also
@@ -524,19 +524,19 @@ class Node(tl.HasTraits):
         * Direct node name: PODPAC will look for an appropriate node in podpac.datalib
         * JSON definition passed using the 'PARAMS' query string: Need to specify the special LAYER/COVERAGE value of
           "%PARAMS%"
-        * By pointing at the JSON definition retrievable with a http GET request: 
+        * By pointing at the JSON definition retrievable with a http GET request:
           e.g. by setting LAYER/COVERAGE value to https://my-site.org/pipeline_definition.json
         * By pointing at the JSON definition retrievable from an S3 bucket that the user has access to:
           e.g by setting LAYER/COVERAGE value to s3://my-bucket-name/pipeline_definition.json
         """
         from podpac.core.pipeline import Pipeline
-        
+
         params = _get_query_params_from_url(url)
 
-        if params['SERVICE'][0] == 'WMS':
-            layer = params["LAYERS"][0]
-        elif params['SERVICE'][0] == 'WCS':
-            layer = params["COVERAGE"][0]
+        if _get_param(params, 'SERVICE') == 'WMS':
+            layer = _get_param(params, "LAYERS")
+        elif _get_param(params, 'SERVICE') == 'WCS':
+            layer = _get_param(params, "COVERAGE")
 
         pipeline_dict = None
         if layer.startswith('https://'):
@@ -548,17 +548,20 @@ class Node(tl.HasTraits):
             s3 = S3CacheStore(s3_bucket=bucket)
             pipeline_json = s3._load(key)
         elif layer == '%PARAMS%':
-            pipeline_json = params["PARAMS"][0]
+            pipeline_json = _get_param(params, "PARAMS")
         else:
-            pipeline_dict = OrderedDict({'nodes': 
-                                         OrderedDict({layer.replace('.', '-'): {'node': layer, 
-                                                   'attrs': json.loads(params.get("PARAMS", '[{}]')[0])
+            p = _get_param(params, "PARAMS")
+            if p is None:
+                p = '{}'
+            pipeline_dict = OrderedDict({'nodes':
+                                         OrderedDict({layer.replace('.', '-'): {'node': layer,
+                                                   'attrs': json.loads(p)
                                                 }
                                            })
                                          })
         if pipeline_dict is None:
             pipeline_dict = json.loads(pipeline_json, object_pairs_hook=OrderedDict)
-            
+
         return Pipeline(definition=pipeline_dict)
 
 
@@ -680,7 +683,7 @@ def cache_func(key, depends=None):
                 # This sets up the observer on the dependent traits
                 # print ("setting up observer on self: ", id(self))
                 self.observe(cache_updator, depends)
-                # Since attributes could change on instantiation, anything we previously 
+                # Since attributes could change on instantiation, anything we previously
                 # stored is likely out of date. So, force and update to the cache.
                 cache_updator(None)
 
@@ -688,14 +691,14 @@ def cache_func(key, depends=None):
             # after the observer has been set up.
             @functools.wraps(func)
             def cached_function():
-                try: 
+                try:
                     out = self.get_cache(key)
                 except NodeException:
                     out = func(self)
                     self.put_cache(out, key)
                 return out
 
-            # Since this is the first time the function is run, set the new wrapper 
+            # Since this is the first time the function is run, set the new wrapper
             # on the class instance so that the current function won't be called again
             # (which would set up an additional observer)
             setattr(self, func.__name__, cached_function)

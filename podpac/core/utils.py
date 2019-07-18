@@ -15,7 +15,7 @@ import logging
 from copy import deepcopy
 from six import string_types
 import lazy_import
-try: 
+try:
     import urllib.parse as urllib
 except:   # Python 2.7
     import urlparse as urllib
@@ -128,7 +128,7 @@ def create_logfile(filename=settings.settings['LOG_FILE_PATH'],
                    ):
     """Convience method to create a log file that only logs
     podpac related messages
-    
+
     Parameters
     ----------
     filename : str, optional
@@ -139,9 +139,9 @@ def create_logfile(filename=settings.settings['LOG_FILE_PATH'],
     format : str, optional
         String format for log messages.
         See https://docs.python.org/3/library/logging.html#logrecord-attributes
-        for creating format. Default is: 
+        for creating format. Default is:
         format='[%(asctime)s] %(name)s.%(funcName)s[%(lineno)d] - %(levelname)s - %(message)s'
-    
+
     Returns
     -------
     logging.Logger, logging.Handler, logging.Formatter
@@ -152,7 +152,7 @@ def create_logfile(filename=settings.settings['LOG_FILE_PATH'],
     log.setLevel(level)
 
     # Create directory if it doesn't exist
-    os.makedirs(os.path.dirname(filename), exist_ok=True)    
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     # create a file handler
     handler = logging.FileHandler(filename, 'a')
@@ -177,7 +177,7 @@ if sys.version < '3.6':
         """ OrderedDict trait """
 
         default_value = OrderedDict()
-        
+
         def validate(self, obj, value):
             if value == {}:
                 value = OrderedDict()
@@ -269,11 +269,11 @@ class JSONEncoder(json.JSONEncoder):
         # podpac Style objects
         elif isinstance(obj, podpac.core.style.Style):
             return obj.definition
-       
+
         # pint Units
         elif isinstance(obj, podpac.core.units.ureg.Unit):
             return str(obj)
-    
+
         # numpy arrays
         elif isinstance(obj, np.ndarray):
             if np.issubdtype(obj.dtype, np.datetime64):
@@ -283,7 +283,7 @@ class JSONEncoder(json.JSONEncoder):
                 return f(obj).tolist()
             elif np.issubdtype(obj.dtype, np.number):
                 return obj.tolist()
-        
+
         # datetime64
         elif isinstance(obj, np.datetime64):
             return obj.astype(str)
@@ -291,15 +291,15 @@ class JSONEncoder(json.JSONEncoder):
         # timedelta64
         elif isinstance(obj, np.timedelta64):
             return podpac.core.coordinates.utils.make_timedelta_string(obj)
-        
+
         # datetime
         elif isinstance(obj, datetime.datetime):
             return obj.isoformat()
-        
+
         # dataframe
         elif isinstance(obj, pd.DataFrame):
             return obj.to_json()
-            
+
         # Interpolator
         try:
             if obj in podpac.core.data.interpolation.INTERPOLATORS:
@@ -319,21 +319,26 @@ def is_json_serializable(obj, cls=json.JSONEncoder):
         return False
     else:
         return True
-    
+
+def _get_param(params, key):
+    if isinstance(params[key], list):
+        return params[key][0]
+    return params[key]
+
 def _get_query_params_from_url(url):
     if isinstance(url, string_types):
         url = urllib.parse_qs(urllib.urlparse(url).query)
-    
+
     # Capitalize the keywords for consistency
     params = {}
-    for k in url: 
+    for k in url:
         params[k.upper()] = url[k]
-        
+
     return params
 
 def _get_from_url(url):
-    """Helper function to get data from an url with error checking. 
-    
+    """Helper function to get data from an url with error checking.
+
     Parameters
     -----------
     auth_session: podpac.core.authentication.EarthDataSession
