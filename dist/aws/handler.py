@@ -79,6 +79,8 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
                 # Something else has gone wrong... not handling this case.
                 pass
 
+    args = []
+    kwargs = {}
     # if from S3 trigger
     if pipeline_json is not None:
     # if 'Records' in event and event['Records'][0]['eventSource'] is 'aws:s3':
@@ -86,8 +88,6 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         coords = Coordinates.from_json(
             json.dumps(_json['coordinates'], indent=4, cls=JSONEncoder))
         format = pipeline.output.format
-        args = []
-        kwargs = {}
 
     # else from api gateway and it's a WMS/WCS request
     else:
@@ -95,8 +95,9 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         print(_get_query_params_from_url(event['queryStringParameters']))
         coords = Coordinates.from_url(event['queryStringParameters'])
         pipeline = Node.from_url(event['queryStringParameters'])
+        pipeline.do_write_output = False
         format = _get_query_params_from_url(event['queryStringParameters'])[
-                                           'FORMAT'][0].split('/')[-1]
+                                           'FORMAT'].split('/')[-1]
         if format in ['png', 'jpg', 'jpeg']:
             kwargs['return_base64'] = True
 
@@ -105,8 +106,9 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         return pipeline
 
     body = output.to_format(format, *args, **kwargs)
-    s3.put_object(Bucket=bucket_name,
-                  Key=filename, Body=body)
+    if pipeline_json is not None:
+        s3.put_object(Bucket=bucket_name,
+                      Key=filename, Body=body)
     return {
         "statusCode": 200,
         "body": body
