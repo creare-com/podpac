@@ -215,7 +215,7 @@ class EGI(DataSource):
     def eval(self, coordinates, output=None):
         # download data for coordinate bounds, then handle that data as an H5PY node
         zip_files = self._download(coordinates)
-        try:
+        try: 
             self.data = self._read_zips(zip_files)  # reads each file in zip archive and creates single dataarray
         except KeyError as e:
             print ("This following error may occur if data_key, lat_key, or lon_key is not correct.")

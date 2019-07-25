@@ -31,7 +31,7 @@ from lazy_import import lazy_module, lazy_class
 from podpac.core import authentication
 from podpac.core.node import Node
 from podpac.core.settings import settings
-from podpac.core.utils import cached_property, clear_cache, common_doc, trait_is_defined, ArrayTrait, NodeTrait
+from podpac.core.utils import common_doc, trait_is_defined, ArrayTrait, NodeTrait
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
 from podpac.core.coordinates.utils import Dimension
@@ -433,6 +433,14 @@ class Rasterio(DataSource):
 
     @tl.observe("source")
     def _update_dataset(self, change):
+        if hasattr(self, "_band_count"):
+            delattr(self, "_band_count")
+
+        if hasattr(self, "_band_descriptions"):
+            delattr(self, "_band_descriptions")
+
+        if hasattr(self, "_band_keys"):
+            delattr(self, "_band_keys")
 
         # only update dataset if dataset trait has been defined the first time
         if trait_is_defined(self, "dataset"):
@@ -483,19 +491,23 @@ class Rasterio(DataSource):
         # set raster data to output array
         data.data.ravel()[:] = raster_data.ravel()
         return data
-
-    @cached_property
+    
+    @property
     def band_count(self):
         """The number of bands
-        
+
         Returns
         -------
         int
             The number of bands in the dataset
         """
-        return self.dataset.count
+    
+        if not hasattr(self, "_band_count"):
+            self._band_count = self.dataset.count
 
-    @cached_property
+        return self._band_count
+
+    @property
     def band_descriptions(self):
         """A description of each band contained in dataset.tags
         
@@ -505,12 +517,13 @@ class Rasterio(DataSource):
             Dictionary of band_number: band_description pairs. The band_description values are a dictionary, each 
             containing a number of keys -- depending on the metadata
         """
-        bands = OrderedDict()
-        for i in range(self.dataset.count):
-            bands[i] = self.dataset.tags(i + 1)
-        return bands
 
-    @cached_property
+        if not hasattr(self, "_band_descriptions"):
+            self._band_descriptions = OrderedDict((i, self.dataset.tags(i + 1)) for i in range(self.band_count))
+
+        return self._band_descriptions
+
+    @property
     def band_keys(self):
         """An alternative view of band_descriptions based on the keys present in the metadata
         
@@ -520,20 +533,12 @@ class Rasterio(DataSource):
             Dictionary of metadata keys, where the values are the value of the key for each band. 
             For example, band_keys['TIME'] = ['2015', '2016', '2017'] for a dataset with three bands.
         """
-        keys = {}
-        for i in range(self.band_count):
-            for k in self.band_descriptions[i].keys():
-                keys[k] = None
-        keys = keys.keys()
-        band_keys = defaultdict(lambda: [])
-        for k in keys:
-            for i in range(self.band_count):
-                band_keys[k].append(self.band_descriptions[i].get(k, None))
-        return band_keys
+    
+        if not hasattr(self, "_band_keys"):
+            keys = {k for i in range(self.band_count) for k in self.band_descriptions[i]}  # set
+            self._band_keys = {k: [self.band_descriptions[i].get(k) for i in range(self.band_count)] for k in keys}
 
-    @tl.observe("source")
-    def _clear_band_description(self, change):
-        clear_cache(self, change, ["band_descriptions", "band_count", "band_keys"])
+        return self._band_keys
 
     def get_band_numbers(self, key, value):
         """Return the bands that have a key equal to a specified value.
@@ -671,7 +676,7 @@ For example,
     dataset = tl.Any(allow_none=True)
     datakey = tl.Unicode(allow_none=False).tag(attr=True)
     file_mode = tl.Unicode(default_value="r")
-
+    
     @tl.default("dataset")
     def _open_dataset(self, source=None):
         """Opens the data source
@@ -1193,7 +1198,7 @@ class ReprojectedSource(DataSource):
                 kwargs["reprojected_coordinates"] = Coordinates.from_definition(kwargs["reprojected_coordinates"])
             elif isinstance(kwargs["reprojected_coordinates"], string_types):
                 kwargs["reprojected_coordinates"] = Coordinates.from_json(kwargs["reprojected_coordinates"])
-
+                
         return kwargs
 
     @common_doc(COMMON_DATA_DOC)
@@ -1243,137 +1248,6 @@ class ReprojectedSource(DataSource):
             Description
         """
         return "{}_reprojected".format(self.source.base_ref)
-
-
-class S3(DataSource):
-    """Create a DataSource from a file on an S3 Bucket. 
-    
-    Attributes
-    ----------
-    node : Node, optional
-        The DataSource node used to interpret the S3 file
-    node_class : DataSource, optional
-        The class type of self.node. This is used to create self.node if self.node is not specified
-    node_kwargs : dict, optional
-        Keyword arguments passed to `node_class` when automatically creating `node`
-    return_type : str, optional
-        Either: 'file_handle' (for files downloaded to RAM); or
-        the default option 'path' (for files downloaded to disk)
-    s3_bucket : str, optional
-        Name of the S3 bucket. Uses ``podpac.settings['S3_BUCKET_NAME']`` by default.
-    s3_data : file/str
-        If return_type == 'file_handle' returns a file pointer object
-        If return_type == 'path' returns a string to the data
-    source : str
-        Path to the file residing in the S3 bucket that will be loaded
-    """
-
-    source = tl.Unicode()
-    node = NodeTrait()
-    node_class = tl.Type(DataSource)  # A class
-    node_kwargs = tl.Dict(default_value={})
-    s3_bucket = tl.Unicode(allow_none=True)
-    s3_data = tl.Any(allow_none=True)
-    _temp_file_cleanup = tl.List()
-    return_type = tl.Enum(["file_handle", "path"], default_value="path")
-    # TODO: handle s3 auth setup
-
-    @tl.default("node")
-    def node_default(self):
-        """Creates the default node using the node_class and node_kwargs
-        
-        Returns
-        -------
-        self.node_class
-            Instance of self.node_class
-        
-        Raises
-        ------
-        Exception
-            This function sets the source in the node, so 'source' cannot be present in node_kwargs
-        """
-        if "source" in self.node_kwargs:
-            raise Exception("'source' present in node_kwargs for S3")
-
-        return self.node_class(source=self.s3_data, **self.node_kwargs)
-
-    @tl.default("s3_bucket")
-    def s3_bucket_default(self):
-        """Retrieves default S3 Bucket from settings
-        
-        Returns
-        -------
-        Str
-            Name of the S3 bucket
-        """
-        return settings["S3_BUCKET_NAME"]
-
-    @tl.default("s3_data")
-    def s3_data_default(self):
-        """Returns the file handle or path to the S3 bucket
-        
-        Returns
-        -------
-        str/file
-            Either a string to the downloaded file path, or a file handle
-        """
-        if self.s3_bucket is None:
-            raise ValueError("No s3 bucket set")
-
-        s3 = boto3.resource("s3").Bucket(self.s3_bucket)
-
-        if self.return_type == "file_handle":
-            # TODO: should this use the with/as syntax
-            # https://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.download_fileobj
-            # download into memory
-            io = BytesIO()
-            s3.download_fileobj(self.source, io)
-            io.seek(0)
-            return io
-        elif self.return_type == "path":
-            # Download the file to cache directory
-            # tmppath = os.path.join(tempfile.gettempdir(),
-            # self.source.replace('\\', '').replace(':','')\
-            # .replace('/', ''))
-            tmppath = os.path.join(
-                settings["ROOT_PATH"],
-                settings["DISK_CACHE_DIR"],
-                self.source.replace("\\", "").replace(":", "").replace("/", ""),
-            )
-
-            rootpath = os.path.split(tmppath)[0]
-            if not os.path.exists(rootpath):
-                os.makedirs(rootpath)
-            # i = 0
-            # while os.path.exists(tmppath):
-            # tmppath = os.path.join(tempfile.gettempdir(),
-            # self.source + '.%d' % i)
-            if not os.path.exists(tmppath):
-                s3.download_file(self.source, tmppath)
-
-            # TODO: should we handle temp files here?
-            # self._temp_file_cleanup.append(tmppath)
-            return tmppath
-
-    @common_doc(COMMON_DATA_DOC)
-    def get_data(self, coordinates, coordinates_index):
-        """{get_data}
-        """
-        self.nan_vals = getattr(self.node, "nan_vals", [])
-        return self.node.get_data(coordinates, coordinates_index)
-
-    @property
-    @common_doc(COMMON_DATA_DOC)
-    def native_coordinates(self):
-        """{native_coordinates}
-        """
-        return self.node.native_coordinates
-
-    def __del__(self):
-        if hasattr(super(S3), "__del__"):
-            super(S3).__del__(self)
-        for f in self._temp_file_cleanup:
-            os.remove(f)
 
 
 @common_doc(COMMON_DATA_DOC)

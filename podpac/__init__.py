@@ -43,7 +43,6 @@ from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
 import podpac.core.authentication as authentication
-import podpac.core.utils as utils
 from podpac.core.utils import NodeTrait
 from podpac.core.units import ureg as units
 
@@ -56,6 +55,7 @@ from podpac import coordinates
 from podpac import compositor
 from podpac import pipeline
 from podpac import managers
+from podpac import utils
 
 ## Developer API
 from podpac import core

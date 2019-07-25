@@ -71,13 +71,13 @@ class ModifyCoordinates(Algorithm):
         self._modified_coordinates = Coordinates(
             [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims], crs=coordinates.crs
         )
-
+        
         for dim in self._modified_coordinates.udims:
             if self._modified_coordinates[dim].size == 0:
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
 
         self.outputs["source"] = self.source.eval(self._modified_coordinates, output=output)
-
+        
         if self.substitute_eval_coords:
             dims = self.outputs["source"].dims
             coords = self._requested_coordinates

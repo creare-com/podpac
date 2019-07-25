@@ -59,6 +59,20 @@ def make_cache_ctrl(stores):
     return CacheCtrl(cache_stores)
 
 
+def clear_cache(mode=None):
+    """
+    Clear the entire default cache_ctrl.
+
+    Arguments
+    ---------
+    mode : str
+        determines what types of the `CacheStore` are affected: 'ram','disk','network','all'.
+    """
+
+    cache_ctrl = get_default_cache_ctrl()
+    cache_ctrl.clear(mode=mode)
+
+
 class CacheCtrl(object):
 
     """Objects of this class are used to manage multiple CacheStore objects of different types

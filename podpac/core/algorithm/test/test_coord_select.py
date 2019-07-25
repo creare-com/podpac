@@ -81,7 +81,7 @@ class TestSelectCoordinates(object):
     def test_time_selection_implicit_coordinates(self):
         node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2011-02-01"))
         o = node.eval(coords)
-
+        
         node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2017-01-01", "1,Y"))
         o = node.eval(coords)
 

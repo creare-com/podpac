@@ -29,7 +29,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
-from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, S3, CSV, H5PY, Zarr
+from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, CSV, H5PY, Zarr
 from podpac.core.settings import settings
 
 # Trying to fix test
@@ -348,14 +348,18 @@ class TestRasterio(object):
         assert isinstance(numbers, np.ndarray)
         np.testing.assert_array_equal(numbers, np.arange(3) + 1)
 
-    def tests_source(self):
+    def test_source(self):
         """test source attribute and trailets observe"""
 
         node = Rasterio(source=self.source)
         assert node.source == self.source
 
-        # clear cache when source changes
-        node._clear_band_description(change={"old": None, "new": None})
+    def test_change_source(self):
+        node = Rasterio(source=self.source)
+        assert node.band_count == 3
+
+        node.source = self.source.replace("RGB.byte.tif", "h5raster.hdf5")
+        assert node.band_count == 1
 
 
 class TestH5PY(object):
@@ -652,122 +656,6 @@ class TestReprojectedSource(object):
         assert node1.reprojected_coordinates == self.reprojected_coordinates
         assert node2.reprojected_coordinates == self.reprojected_coordinates
         assert node3.reprojected_coordinates == self.reprojected_coordinates
-
-
-class TestS3(object):
-    """test S3 data source"""
-
-    source = "s3://bucket.aws.com/file"
-    bucket = "bucket"
-    coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
-
-    def test_init(self):
-        """test basic init of class"""
-
-        node = S3(source=self.source)
-        assert isinstance(node, S3)
-
-    def test_traits(self):
-        """ check each of the s3 traits """
-
-        S3(source=self.source, s3_bucket=self.bucket)
-        with pytest.raises(TraitError):
-            S3(source=self.source, s3_bucket=5)
-
-        S3(source=self.source, node=Node())
-        with pytest.raises(TraitError):
-            S3(source=self.source, node="not a node")
-
-        S3(source=self.source, node_kwargs={})
-        with pytest.raises(TraitError):
-            S3(source=self.source, node_kwargs=5)
-
-        S3(source=self.source, node_class=DataSource)
-        with pytest.raises(TraitError):
-            S3(source=self.source, node_class=5)
-
-        S3(source=self.source, s3_bucket="testbucket")
-        with pytest.raises(TraitError):
-            S3(source=self.source, s3_bucket=5)
-
-        S3(source=self.source, return_type="path")
-        with pytest.raises(TraitError):
-            S3(source=self.source, return_type="notpath")
-
-    def test_node(self):
-        """test node attribute and defaults"""
-
-        parent_node = Node()
-        node = S3(source=self.source, node=parent_node)
-
-        assert node.node_class
-
-        # TODO: this should raise
-        # with pytest.raises(Exception):
-        #     S3(source=self.source, node_kwargs={'source': 'test'})
-        #     node.node_default
-
-    def test_s3_bucket(self):
-        """test s3_bucket attribute and default"""
-
-        node = S3()
-
-        # default
-        assert node.s3_bucket == settings["S3_BUCKET_NAME"]
-
-        # set value
-        node = S3(s3_bucket=self.bucket)
-        assert node.s3_bucket == self.bucket
-
-    def test_s3_data(self):
-        """test s3_data attribute and default"""
-
-        # requires s3 bucket to be set
-        with pytest.raises(ValueError):
-            node = S3(source=self.source, return_type="file_handle")
-            node.s3_data
-
-        # path
-        node = S3(source=self.source, s3_bucket=self.bucket)
-        # TODO: figure out how to mock S3 response
-        with pytest.raises(botocore.auth.NoCredentialsError):
-            node.s3_data
-
-        # file handle
-        node = S3(source=self.source, s3_bucket=self.bucket, return_type="file_handle")
-        # TODO: figure out how to mock S3 response
-        with pytest.raises(botocore.auth.NoCredentialsError):
-            node.s3_data
-
-    def test_path_exists(self):
-        """test when the tmppath exists for the file to download to"""
-        pass
-
-    def test_get_data(self):
-        """test get_data method"""
-
-        # TODO: figure out how to mock S3 response
-        with pytest.raises(botocore.auth.NoCredentialsError):
-            node = S3(source=self.source, native_coordinates=self.coordinates, s3_bucket=self.bucket)
-            output = node.eval(self.coordinates)
-
-            assert isinstance(output, UnitsDataArray)
-
-    def test_del(self):
-        """test destructor"""
-
-        # smoke test
-        node = S3()
-        del node
-        assert True
-
-        # should remove tmp files
-        filepath = os.path.join(os.path.dirname(__file__), ".temp")
-        open(filepath, "a").close()
-        node = S3()
-        node._temp_file_cleanup = [filepath]
-        del node
-        assert ~os.path.exists(filepath)
 
 
 #####

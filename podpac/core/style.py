@@ -61,9 +61,9 @@ class Style(tl.HasTraits):
         ----------
         from_json
         """
-
+        
         return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
-
+    
     @property
     def definition(self):
         d = OrderedDict()
