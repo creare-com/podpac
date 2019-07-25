@@ -378,10 +378,13 @@ class DataSource(Node):
         # Note that at this point the coordinates are in the same CRS as the native_coordinates
         if output is None:
             requested_dims = None
+            output_dims = None
             output = self.create_output_array(coordinates)
         else:
             requested_dims = self._evaluated_coordinates.dims
-            # coordinates = coordinates.transpose(*output.dims)
+            output_dims = output.dims
+            o = output
+            output = output.transpose(*requested_dims)
 
             # check crs compatibility
             if output.crs != self._evaluated_coordinates.crs:
@@ -395,9 +398,10 @@ class DataSource(Node):
             self._requested_source_coordinates, self._requested_source_data, coordinates, output
         )
 
-        # return the output to the originally requested output dims
-        if requested_dims is not None and requested_dims != output.dims:
-            output = output.transpose(*requested_dims)
+        # Fill the output that was passed to eval with the new data
+        if requested_dims is not None and requested_dims != output_dims:
+            o = o.transpose(*output_dims)
+            o.data[:] = output.transpose(*output_dims).data
 
         # if requested crs is differented than native coordinates,
         # fabricate a new output with the original coordinates and new values
