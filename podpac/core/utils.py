@@ -254,7 +254,7 @@ class JSONEncoder(json.JSONEncoder):
         # timedelta64
         elif isinstance(obj, np.timedelta64):
             return podpac.core.coordinates.utils.make_timedelta_string(obj)
-        
+
         # datetime
         elif isinstance(obj, datetime.datetime):
             return obj.isoformat()
@@ -283,6 +283,7 @@ def is_json_serializable(obj, cls=json.JSONEncoder):
         return False
     else:
         return True
+
 
 def _get_param(params, key):
     if isinstance(params[key], list):

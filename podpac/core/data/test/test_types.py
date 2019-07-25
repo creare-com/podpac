@@ -371,8 +371,9 @@ class TestH5PY(object):
         node.close_dataset()
 
     def test_native_coordinates(self):
-        node = H5PY(source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon",
-                    dims=['lat', 'lon'])
+        node = H5PY(
+            source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon", dims=["lat", "lon"]
+        )
 
         nc = node.native_coordinates
         assert node.native_coordinates.shape == (3, 4)
@@ -380,8 +381,9 @@ class TestH5PY(object):
         assert np.all(node.native_coordinates["lon"].coordinates == [-100.1, -100.2, -100.3, -100.4])
 
     def test_data(self):
-        node = H5PY(source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon",
-                    dims=['lat', 'lon'])
+        node = H5PY(
+            source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon", dims=["lat", "lon"]
+        )
 
         o = node.eval(node.native_coordinates)
         assert np.all(o.data.ravel() == np.arange(12))

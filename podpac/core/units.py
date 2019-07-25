@@ -33,7 +33,6 @@ from podpac.core.settings import settings
 from podpac.core.utils import JSONEncoder
 
 
-
 class UnitsDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
     """
@@ -126,7 +125,7 @@ class UnitsDataArray(xr.DataArray):
         r = super(UnitsDataArray, self).to_netcdf(*args, **kwargs)
         self.deserialize()
         return r
-    
+
     def to_format(self, format, *args, **kwargs):
         """
         Helper function for converting Node outputs to alternative formats.

@@ -505,6 +505,7 @@ class TestParsePipelineDefinition(object):
 
     def test_attrs(self):
         import podpac.datalib.smap
+
         s = """
         {
             "nodes": {

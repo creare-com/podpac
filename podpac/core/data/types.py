@@ -491,7 +491,7 @@ class Rasterio(DataSource):
         # set raster data to output array
         data.data.ravel()[:] = raster_data.ravel()
         return data
-    
+
     @property
     def band_count(self):
         """The number of bands
@@ -501,7 +501,7 @@ class Rasterio(DataSource):
         int
             The number of bands in the dataset
         """
-    
+
         if not hasattr(self, "_band_count"):
             self._band_count = self.dataset.count
 
@@ -533,7 +533,7 @@ class Rasterio(DataSource):
             Dictionary of metadata keys, where the values are the value of the key for each band. 
             For example, band_keys['TIME'] = ['2015', '2016', '2017'] for a dataset with three bands.
         """
-    
+
         if not hasattr(self, "_band_keys"):
             keys = {k for i in range(self.band_count) for k in self.band_descriptions[i]}  # set
             self._band_keys = {k: [self.band_descriptions[i].get(k) for i in range(self.band_count)] for k in keys}
@@ -676,7 +676,7 @@ For example,
     dataset = tl.Any(allow_none=True)
     datakey = tl.Unicode(allow_none=False).tag(attr=True)
     file_mode = tl.Unicode(default_value="r")
-    
+
     @tl.default("dataset")
     def _open_dataset(self, source=None):
         """Opens the data source
@@ -1198,7 +1198,7 @@ class ReprojectedSource(DataSource):
                 kwargs["reprojected_coordinates"] = Coordinates.from_definition(kwargs["reprojected_coordinates"])
             elif isinstance(kwargs["reprojected_coordinates"], string_types):
                 kwargs["reprojected_coordinates"] = Coordinates.from_json(kwargs["reprojected_coordinates"])
-                
+
         return kwargs
 
     @common_doc(COMMON_DATA_DOC)

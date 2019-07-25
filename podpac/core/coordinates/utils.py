@@ -251,7 +251,7 @@ def make_coord_array(values):
 
     if a.ndim != 1:
         raise ValueError("Invalid coordinate values (ndim=%d, must be ndim=1)" % a.ndim)
-    
+
     if a.dtype == float or np.issubdtype(a.dtype, np.datetime64):
         pass
 
@@ -260,7 +260,7 @@ def make_coord_array(values):
 
     else:
         a = np.array([make_coord_value(e) for e in np.atleast_1d(np.array(values, dtype=object))])
-        
+
         if not np.issubdtype(a.dtype, np.datetime64):
             raise ValueError("Invalid coordinate values (must be all numbers or all datetimes)")
 
@@ -301,7 +301,7 @@ def make_coord_delta_array(values):
 
     else:
         a = np.array([make_coord_delta(e) for e in np.atleast_1d(np.array(values, dtype=object))])
-        
+
         if not np.issubdtype(a.dtype, np.timedelta64):
             raise ValueError("Invalid coordinate deltas (must be all numbers or all compatible timedeltas)")
 
@@ -380,9 +380,9 @@ def _add_nominal_timedelta(base, delta):
     dates = []
     for td in tds:
         if dunit == "Y":
-            date = _replace_safe(base, year=base.year+td)
+            date = _replace_safe(base, year=base.year + td)
         elif dunit == "M":
-            date = _replace_safe(base, month=base.month+td)
+            date = _replace_safe(base, month=base.month + td)
         dates.append(date)
 
     dates = np.array([np.datetime64(date) for date in dates]).reshape(shape)
@@ -397,8 +397,8 @@ def _replace_safe(dt, year=None, month=None):
     if month is None:
         month = dt.month
 
-    year = year + (month-1) // 12
-    month = (month-1) % 12 + 1
+    year = year + (month - 1) // 12
+    month = (month - 1) % 12 + 1
     day = min(dt.day, calendar.monthrange(year, month)[1])
     return dt.replace(year=year, month=month, day=day)
 
@@ -437,7 +437,7 @@ def divide_timedelta(delta, divisor):
 
     if delta.dtype.str in _TIMEDELTA_ZOOM:
         return divide_timedelta(delta.astype(_TIMEDELTA_ZOOM[delta.dtype.str]), divisor)
-    
+
     # months, for example
     raise ValueError("Cannot divide timedelta '%s' evenly by %d" % (make_timedelta_string(delta), divisor))
 
@@ -480,7 +480,7 @@ def get_vunits(crs):
 
     if "+vunits" not in crs:
         return None
-    
+
     return re.search(r"(?<=\+vunits=)[a-z\-]+", crs).group(0)
 
 
@@ -504,10 +504,10 @@ def set_vunits(crs, vunits):
     if "+vunits" in crs:
         crs = re.sub(r"(?<=\+vunits=)[a-z\-]+", vunits, crs)
     else:
-        crs = pyproj.CRS(crs).to_proj4() # convert EPSG-style strings
+        crs = pyproj.CRS(crs).to_proj4()  # convert EPSG-style strings
         crs += " +vunits={}".format(vunits)
-    
-    crs = pyproj.CRS(crs).to_proj4() # standardize, this is optional
+
+    crs = pyproj.CRS(crs).to_proj4()  # standardize, this is optional
 
     return crs
 
