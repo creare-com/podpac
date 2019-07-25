@@ -1375,7 +1375,7 @@ class TestCoordinatesMethods(object):
         o = Coordinates(
             [np.linspace(28000000, 29500000, 20), np.linspace(-280000, 400000, 20), ["2018-01-01", "2018-01-02"]],
             dims=["lat", "lon", "time"],
-            crs="EPSG:6693",
+            crs="EPSG:2193",
         )
 
         c_int = c.intersect(o)
