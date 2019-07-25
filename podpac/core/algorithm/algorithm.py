@@ -12,7 +12,7 @@ import traitlets as tl
 from lazy_import import lazy_module
 
 # Optional dependencies
-ne = lazy_module('numexpr')
+ne = lazy_module("numexpr")
 
 # Internal dependencies
 from podpac.core.coordinates import Coordinates, union
@@ -25,6 +25,7 @@ from podpac.core.utils import common_doc
 from podpac.core.utils import NodeTrait
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
+
 
 class Algorithm(Node):
     """Base class for algorithm and computation nodes.
@@ -44,11 +45,11 @@ class Algorithm(Node):
         #     for ref in self.trait_names()
         #     if isinstance(getattr(self, ref, None), Node)
         # }
-        
+
         return {
-            ref:getattr(self, ref)
+            ref: getattr(self, ref)
             for ref, trait in self.traits().items()
-            if hasattr(trait, 'klass') and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
+            if hasattr(trait, "klass") and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
         }
 
     @common_doc(COMMON_DOC)
@@ -73,9 +74,9 @@ class Algorithm(Node):
         inputs = {}
         for key, node in self._inputs.items():
             inputs[key] = node.eval(coordinates)
-        
+
         # accumulate output coordinates
-        coords_list = [Coordinates.from_xarray(a.coords, crs=a.attrs.get('crs')) for a in inputs.values()]
+        coords_list = [Coordinates.from_xarray(a.coords, crs=a.attrs.get("crs")) for a in inputs.values()]
         output_coordinates = union([coordinates] + coords_list)
 
         result = self.algorithm(inputs)
@@ -86,7 +87,9 @@ class Algorithm(Node):
                 output.data[:] = result
         elif isinstance(result, xr.DataArray):
             if output is None:
-                output = self.create_output_array(Coordinates.from_xarray(result.coords, crs=result.attrs.get('crs')), data=result.data)
+                output = self.create_output_array(
+                    Coordinates.from_xarray(result.coords, crs=result.attrs.get("crs")), data=result.data
+                )
             else:
                 output[:] = result.data
         elif isinstance(result, UnitsDataArray):
@@ -94,7 +97,7 @@ class Algorithm(Node):
                 output = result
             else:
                 output[:] = result
-        else: 
+        else:
             raise NodeException
 
         return output
@@ -110,7 +113,7 @@ class Algorithm(Node):
         """
 
         return [c for node in self._inputs.values() for c in node.find_coordinates()]
-        
+
     def algorithm(self, inputs):
         """
         Arguments
@@ -137,12 +140,13 @@ class Algorithm(Node):
 
         d = super(Algorithm, self).base_definition
         inputs = self._inputs
-        d['inputs'] = OrderedDict([(key, inputs[key]) for key in sorted(inputs.keys())])
+        d["inputs"] = OrderedDict([(key, inputs[key]) for key in sorted(inputs.keys())])
         return d
 
+
 class Arange(Algorithm):
-    '''A simple test node that gives each value in the output a number.
-    '''
+    """A simple test node that gives each value in the output a number.
+    """
 
     def algorithm(self, inputs):
         """Uses np.arange to give each value in output a unique number
@@ -159,7 +163,7 @@ class Arange(Algorithm):
         """
         data = np.arange(self._requested_coordinates.size).reshape(self._requested_coordinates.shape)
         return self.create_output_array(self._requested_coordinates, data=data)
-      
+
 
 class CoordData(Algorithm):
     """Extracts the coordinates from a request and makes it available as a data
@@ -169,8 +173,8 @@ class CoordData(Algorithm):
     coord_name : str
         Name of coordinate to extract (one of lat, lon, time, alt)
     """
-    
-    coord_name = tl.Unicode('').tag(attr=True)
+
+    coord_name = tl.Unicode("").tag(attr=True)
 
     def algorithm(self, inputs):
         """Extract coordinate from request and makes data available.
@@ -185,10 +189,10 @@ class CoordData(Algorithm):
         UnitsDataArray
             The coordinates as data for the requested coordinate.
         """
-        
+
         if self.coord_name not in self._requested_coordinates.udims:
-            raise ValueError('Coordinate name not in evaluated coordinates')
-       
+            raise ValueError("Coordinate name not in evaluated coordinates")
+
         c = self._requested_coordinates[self.coord_name]
         coords = Coordinates([c])
         return self.create_output_array(coords, data=c.coordinates)
@@ -197,7 +201,7 @@ class CoordData(Algorithm):
 class SinCoords(Algorithm):
     """A simple test node that creates a data based on coordinates and trigonometric (sin) functions. 
     """
-    
+
     def algorithm(self, inputs):
         """Computes sinusoids of all the coordinates. 
         
@@ -214,12 +218,12 @@ class SinCoords(Algorithm):
         out = self.create_output_array(self._requested_coordinates, data=1.0)
         crds = list(out.coords.values())
         try:
-            i_time = list(out.coords.keys()).index('time')
-            crds[i_time] = crds[i_time].astype('datetime64[h]').astype(float)
+            i_time = list(out.coords.keys()).index("time")
+            crds[i_time] = crds[i_time].astype("datetime64[h]").astype(float)
         except ValueError:
             pass
-        
-        crds = np.meshgrid(*crds, indexing='ij')
+
+        crds = np.meshgrid(*crds, indexing="ij")
         for crd in crds:
             out *= np.sin(np.pi * crd / 90.0)
         return out
@@ -254,7 +258,7 @@ class Arithmetic(Algorithm):
     b = Arange()
     arith = Arithmetic(A=a, B=b, eqn = 'A * B + {offset}', params={'offset': 1})
     """
-    
+
     A = NodeTrait()
     B = NodeTrait(allow_none=True)
     C = NodeTrait(allow_none=True)
@@ -266,9 +270,9 @@ class Arithmetic(Algorithm):
     params = tl.Dict().tag(attr=True)
 
     def init(self):
-        if self.eqn == '':
+        if self.eqn == "":
             raise ValueError("Arithmetic eqn cannot be empty")
-    
+
     def algorithm(self, inputs):
         """ Compute the algorithms equation
 
@@ -282,10 +286,10 @@ class Arithmetic(Algorithm):
         UnitsDataArray
             Description
         """
-        
-        eqn = self.eqn.format(**self.params)        
-        
-        fields = [f for f in 'ABCDEFG' if getattr(self, f) is not None]
+
+        eqn = self.eqn.format(**self.params)
+
+        fields = [f for f in "ABCDEFG" if getattr(self, f) is not None]
         res = xr.broadcast(*[inputs[f] for f in fields])
         f_locals = dict(zip(fields, res))
 
@@ -296,4 +300,3 @@ class Arithmetic(Algorithm):
         res = res[0].copy()  # Make an xarray object with correct dimensions
         res[:] = result
         return res
-

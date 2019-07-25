@@ -16,32 +16,32 @@ except ImportError:
 
 # Settings Defaults
 DEFAULT_SETTINGS = {
-    'DEBUG': False,  # This flag currently sets self._output on nodes
-    'DEFAULT_CACHE': ['ram'],
-    'CACHE_OUTPUT_DEFAULT': True,
-    'RAM_CACHE_MAX_BYTES': 1e9,   # ~1GB
-    'DISK_CACHE_MAX_BYTES': 10e9, # ~10GB
-    'S3_CACHE_MAX_BYTES': 10e9,   # ~10GB
-    'DISK_CACHE_DIR': 'cache',
-    'S3_CACHE_DIR': 'cache',
-    'RAM_CACHE_ENABLED': True,
-    'DISK_CACHE_ENABLED': True,
-    'S3_CACHE_ENABLED': True,
-    'ROOT_PATH': os.path.join(os.path.expanduser('~'), '.podpac'),
-    'AWS_ACCESS_KEY_ID': None,
-    'AWS_SECRET_ACCESS_KEY': None,
-    'AWS_REGION_NAME': None,
-    'S3_BUCKET_NAME': None,
-    'S3_JSON_FOLDER': None,
-    'S3_OUTPUT_FOLDER': None,
-    'AUTOSAVE_SETTINGS': False,
-    'LOG_TO_FILE': False,
-    'LOG_FILE_PATH': os.path.join(os.path.expanduser('~'), '.podpac', 'logs', 'podpac.log'),
-    'MULTITHREADING': False,
-    'N_THREADS': 8,
-    'CHUNK_SIZE': None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
-    'ENABLE_UNITS': True,
-    'DEFAULT_CRS': 'EPSG:4326'
+    "DEBUG": False,  # This flag currently sets self._output on nodes
+    "DEFAULT_CACHE": ["ram"],
+    "CACHE_OUTPUT_DEFAULT": True,
+    "RAM_CACHE_MAX_BYTES": 1e9,  # ~1GB
+    "DISK_CACHE_MAX_BYTES": 10e9,  # ~10GB
+    "S3_CACHE_MAX_BYTES": 10e9,  # ~10GB
+    "DISK_CACHE_DIR": "cache",
+    "S3_CACHE_DIR": "cache",
+    "RAM_CACHE_ENABLED": True,
+    "DISK_CACHE_ENABLED": True,
+    "S3_CACHE_ENABLED": True,
+    "ROOT_PATH": os.path.join(os.path.expanduser("~"), ".podpac"),
+    "AWS_ACCESS_KEY_ID": None,
+    "AWS_SECRET_ACCESS_KEY": None,
+    "AWS_REGION_NAME": None,
+    "S3_BUCKET_NAME": None,
+    "S3_JSON_FOLDER": None,
+    "S3_OUTPUT_FOLDER": None,
+    "AUTOSAVE_SETTINGS": False,
+    "LOG_TO_FILE": False,
+    "LOG_FILE_PATH": os.path.join(os.path.expanduser("~"), ".podpac", "logs", "podpac.log"),
+    "MULTITHREADING": False,
+    "N_THREADS": 8,
+    "CHUNK_SIZE": None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
+    "ENABLE_UNITS": True,
+    "DEFAULT_CRS": "EPSG:4326",
 }
 
 
@@ -133,7 +133,7 @@ class PodpacSettings(dict):
         Chunk size for iterative evaluation, when applicable (e.g. Reduce Nodes). Use None for no iterative evaluation,
         and 'auto' to automatically calculate a chunk size based on the system. Defaults to ``None``.
     """
-    
+
     def __init__(self):
         self._loaded = False
 
@@ -157,7 +157,7 @@ class PodpacSettings(dict):
         super(PodpacSettings, self).__setitem__(key, value)
 
         # save settings file if value has changed
-        if self._loaded and self['AUTOSAVE_SETTINGS'] and old_val != value:
+        if self._loaded and self["AUTOSAVE_SETTINGS"] and old_val != value:
             self.save()
 
     def __getitem__(self, key):
@@ -174,7 +174,7 @@ class PodpacSettings(dict):
         for key in DEFAULT_SETTINGS:
             self[key] = DEFAULT_SETTINGS[key]
 
-    def _load_user_settings(self, path=None, filename='settings.json'):
+    def _load_user_settings(self, path=None, filename="settings.json"):
         """Load user settings from settings.json file
         
         Parameters
@@ -189,8 +189,8 @@ class PodpacSettings(dict):
         filepath = os.path.join(path, filename) if path is not None else None
 
         # home path location is in the ROOT_PATH
-        root_filepath = os.path.join(self['ROOT_PATH'], filename)
-        
+        root_filepath = os.path.join(self["ROOT_PATH"], filename)
+
         # cwd path
         cwd_filepath = os.path.join(os.getcwd(), filename)
 
@@ -202,14 +202,10 @@ class PodpacSettings(dict):
 
             # make empty settings path
             if not os.path.exists(path):
-                raise ValueError('Input podpac settings path does not exist: {}'.format(path))
+                raise ValueError("Input podpac settings path does not exist: {}".format(path))
 
         # order of paths to import settings - the later settings will overwrite earlier ones
-        filepath_choices = [
-            root_filepath,
-            cwd_filepath,
-            filepath
-        ]
+        filepath_choices = [root_filepath, cwd_filepath, filepath]
 
         # try path choices in order, overwriting earlier ones with later ones
         for p in filepath_choices:
@@ -220,7 +216,7 @@ class PodpacSettings(dict):
             if p is not None and os.path.exists(p):
 
                 try:
-                    with open(p, 'r') as f:
+                    with open(p, "r") as f:
                         json_settings = json.load(f)
                 except JSONDecodeError:
 
@@ -253,7 +249,7 @@ class PodpacSettings(dict):
         Show the podpac default settings
         """
         return DEFAULT_SETTINGS
-    
+
     def save(self, filepath=None):
         """
         Save current settings to active settings file
@@ -269,15 +265,15 @@ class PodpacSettings(dict):
         # custom filepath
         if filepath is not None:
             self._settings_filepath = filepath
-    
+
         # if no settings path is found, create
         if not os.path.exists(self._settings_filepath):
             os.makedirs(os.path.dirname(self._settings_filepath), exist_ok=True)
 
-        with open(self._settings_filepath, 'w') as f:
+        with open(self._settings_filepath, "w") as f:
             json.dump(self, f, indent=4)
 
-    def load(self, path=None, filename='settings.json'):
+    def load(self, path=None, filename="settings.json"):
         """
         Load a new settings file to be active
 
@@ -297,14 +293,14 @@ class PodpacSettings(dict):
         self._load_user_settings(path, filename)
 
         # it breaks things to set these paths to None, set back to default if set to None
-        if self['ROOT_PATH'] is None:
-            self['ROOT_PATH'] = DEFAULT_SETTINGS['ROOT_PATH']
+        if self["ROOT_PATH"] is None:
+            self["ROOT_PATH"] = DEFAULT_SETTINGS["ROOT_PATH"]
 
-        if self['DISK_CACHE_DIR'] is None:
-            self['DISK_CACHE_DIR'] = DEFAULT_SETTINGS['DISK_CACHE_DIR']
-        
-        if self['S3_CACHE_DIR'] is None:
-            self['S3_CACHE_DIR'] = DEFAULT_SETTINGS['S3_CACHE_DIR']
+        if self["DISK_CACHE_DIR"] is None:
+            self["DISK_CACHE_DIR"] = DEFAULT_SETTINGS["DISK_CACHE_DIR"]
+
+        if self["S3_CACHE_DIR"] is None:
+            self["S3_CACHE_DIR"] = DEFAULT_SETTINGS["S3_CACHE_DIR"]
 
 
 # load settings dict when module is loaded

@@ -13,6 +13,7 @@ from io import BytesIO
 from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.pipeline.output import FileOutput, Output
+
 # from podpac.core.pipeline import Pipeline
 from podpac.core.utils import common_doc, JSONEncoder
 
@@ -45,61 +46,53 @@ class Lambda(Node):
         Flag that indicated whether node should wait to download the data.
     """
 
-    AWS_ACCESS_KEY_ID = tl.Unicode(
-        allow_none=False, help="Access key ID from AWS for S3 bucket.")
+    AWS_ACCESS_KEY_ID = tl.Unicode(allow_none=False, help="Access key ID from AWS for S3 bucket.")
 
-    @tl.default('AWS_ACCESS_KEY_ID')
+    @tl.default("AWS_ACCESS_KEY_ID")
     def _AWS_ACCESS_KEY_ID_default(self):
-        return settings['AWS_ACCESS_KEY_ID']
+        return settings["AWS_ACCESS_KEY_ID"]
 
-    AWS_SECRET_ACCESS_KEY = tl.Unicode(
-        allow_none=False, help="Access key value from AWS for S3 bucket.")
+    AWS_SECRET_ACCESS_KEY = tl.Unicode(allow_none=False, help="Access key value from AWS for S3 bucket.")
 
-    @tl.default('AWS_SECRET_ACCESS_KEY')
+    @tl.default("AWS_SECRET_ACCESS_KEY")
     def _AWS_SECRET_ACCESS_KEY_default(self):
-        return settings['AWS_SECRET_ACCESS_KEY']
+        return settings["AWS_SECRET_ACCESS_KEY"]
 
-    AWS_REGION_NAME = tl.Unicode(
-        allow_none=False, help="Region name of AWS S3 bucket.")
+    AWS_REGION_NAME = tl.Unicode(allow_none=False, help="Region name of AWS S3 bucket.")
 
-    @tl.default('AWS_REGION_NAME')
+    @tl.default("AWS_REGION_NAME")
     def _AWS_REGION_NAME_default(self):
-        return settings['AWS_REGION_NAME']
+        return settings["AWS_REGION_NAME"]
 
-    source = tl.Instance(Node, allow_none=False,
-                              help="Node to evaluate in a Lambda function.")
+    source = tl.Instance(Node, allow_none=False, help="Node to evaluate in a Lambda function.")
 
-    source_output = tl.Instance(Output, allow_none=False,
-                                help="Image output information.")
+    source_output = tl.Instance(Output, allow_none=False, help="Image output information.")
 
     attrs = tl.Dict()
-    
+
     download_result = tl.Bool(True).tag(attr=True)
 
-    @tl.default('source_output')
+    @tl.default("source_output")
     def _source_output_default(self):
         return FileOutput(node=self.source, name=self.source.__class__.__name__)
 
-    s3_bucket_name = tl.Unicode(
-        allow_none=False, help="Name of AWS s3 bucket.")
+    s3_bucket_name = tl.Unicode(allow_none=False, help="Name of AWS s3 bucket.")
 
-    @tl.default('s3_bucket_name')
+    @tl.default("s3_bucket_name")
     def _s3_bucket_name_default(self):
-        return settings['S3_BUCKET_NAME']
+        return settings["S3_BUCKET_NAME"]
 
-    s3_json_folder = tl.Unicode(
-        allow_none=False, help="S3 folder to put JSON in.")
+    s3_json_folder = tl.Unicode(allow_none=False, help="S3 folder to put JSON in.")
 
-    @tl.default('s3_json_folder')
+    @tl.default("s3_json_folder")
     def _s3_json_folder_default(self):
-        return settings['S3_JSON_FOLDER']
+        return settings["S3_JSON_FOLDER"]
 
-    s3_output_folder = tl.Unicode(
-        allow_none=False, help="S3 folder to put output in.")
+    s3_output_folder = tl.Unicode(allow_none=False, help="S3 folder to put output in.")
 
-    @tl.default('s3_output_folder')
+    @tl.default("s3_output_folder")
     def _s3_output_folder_default(self):
-        return settings['S3_OUTPUT_FOLDER']
+        return settings["S3_OUTPUT_FOLDER"]
 
     @property
     def definition(self):
@@ -108,11 +101,11 @@ class Lambda(Node):
         and source output.
         """
         d = OrderedDict()
-        d['pipeline'] = self.source.definition
+        d["pipeline"] = self.source.definition
         if self.attrs:
-            out_node = next(reversed(d['pipeline']['nodes'].keys()))
-            d['pipeline']['nodes'][out_node]['attrs'].update(self.attrs)
-        d['pipeline']['output'] = self.source_output.definition
+            out_node = next(reversed(d["pipeline"]["nodes"].keys()))
+            d["pipeline"]["nodes"][out_node]["attrs"].update(self.attrs)
+        d["pipeline"]["output"] = self.source_output.definition
         return d
 
     @common_doc(COMMON_DOC)
@@ -122,45 +115,48 @@ class Lambda(Node):
         """
 
         d = self.definition
-        d['coordinates'] = json.loads(coordinates.json)
-        slash = '/' if not self.s3_json_folder.endswith('/') else ''
-        filename = '%s%s_%s_%s.%s' % (
+        d["coordinates"] = json.loads(coordinates.json)
+        slash = "/" if not self.s3_json_folder.endswith("/") else ""
+        filename = "%s%s_%s_%s.%s" % (
             self.s3_json_folder + slash,
             self.source_output.name,
             self.source.hash,
             coordinates.hash,
-            'json')
+            "json",
+        )
 
         # create s3 client with credentials
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
-        s3 = boto3.client('s3',
+        s3 = boto3.client(
+            "s3",
             region_name=self.AWS_REGION_NAME,
             aws_access_key_id=self.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY
+            aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY,
         )
 
         # put pipeline into s3 bucket
         s3.put_object(
-            Body=(bytes(json.dumps(d, indent=4, cls=JSONEncoder).encode('UTF-8'))),
+            Body=(bytes(json.dumps(d, indent=4, cls=JSONEncoder).encode("UTF-8"))),
             Bucket=self.s3_bucket_name,
-            Key=filename
+            Key=filename,
         )
 
         # wait for object to exist
         if not self.download_result:
             return
-        
-        waiter = s3.get_waiter('object_exists')
-        filename = '%s%s_%s_%s.%s' % (
+
+        waiter = s3.get_waiter("object_exists")
+        filename = "%s%s_%s_%s.%s" % (
             self.s3_output_folder,
             self.source_output.name,
             self.source.hash,
             coordinates.hash,
-            self.source_output.format)
+            self.source_output.format,
+        )
         waiter.wait(Bucket=self.s3_bucket_name, Key=filename)
 
         # After waiting, load the pickle file like this:
         response = s3.get_object(Key=filename, Bucket=self.s3_bucket_name)
-        body = response['Body'].read()
+        body = response["Body"].read()
         self._output = cPickle.loads(body)
         return self._output

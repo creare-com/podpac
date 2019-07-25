@@ -1,4 +1,3 @@
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import json
@@ -11,9 +10,10 @@ import podpac
 from podpac.core.pipeline.pipeline import Pipeline, PipelineError, parse_pipeline_definition
 from podpac.core.pipeline.output import NoOutput, FTPOutput, S3Output, FileOutput, ImageOutput
 
+
 class TestParsePipelineDefinition(object):
     def test_empty(self):
-        s = '{ }'
+        s = "{ }"
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="Pipeline definition requires 'nodes' property"):
             parse_pipeline_definition(d)
@@ -28,7 +28,7 @@ class TestParsePipelineDefinition(object):
         # module does not exist
         s = '{"nodes": {"a": {"node": "nonexistent.Arbitrary"} } }'
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError, match='No module found'):
+        with pytest.raises(PipelineError, match="No module found"):
             parse_pipeline_definition(d)
 
         # node does not exist in module
@@ -39,7 +39,7 @@ class TestParsePipelineDefinition(object):
 
     def test_datasource_source(self):
         # basic
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -48,14 +48,14 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert output.node.source == "my_data_string"
 
         # not required
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -63,13 +63,13 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
 
         # incorrect
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -80,7 +80,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="The 'source' property cannot be in attrs"):
@@ -88,7 +88,7 @@ class TestParsePipelineDefinition(object):
 
     def test_datasource_lookup_source(self):
         # sub-node
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -106,14 +106,14 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
-        assert output.node.source == 'my_data_string'
+        assert output.node.source == "my_data_string"
 
         # nonexistent node
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -131,14 +131,14 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="'mydata2' references nonexistent node/attribute"):
             parse_pipeline_definition(d)
 
         # nonexistent subattr
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -156,14 +156,14 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="'mydata2' references nonexistent node/attribute"):
             parse_pipeline_definition(d)
 
         # nonexistent subsubattr
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -181,14 +181,14 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="'mydata2' references nonexistent node/attribute"):
             parse_pipeline_definition(d)
 
         # in attrs (incorrect)
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -199,7 +199,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="The 'lookup_source' property cannot be in attrs"):
@@ -207,7 +207,7 @@ class TestParsePipelineDefinition(object):
 
     def test_reprojected_source_lookup_source(self):
         # source doesn't work
-        s = '''
+        s = """
         {
             "nodes": {
                 "mysource": {
@@ -220,14 +220,14 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(tl.TraitError):
             parse_pipeline_definition(d)
 
         # lookup_source
-        s = '''
+        s = """
         {
             "nodes": {
                 "mysource": {
@@ -240,15 +240,15 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert output.node.source
-        assert output.node.source.source == 'my_data_string'
-        
+        assert output.node.source.source == "my_data_string"
+
         # lookup_source subattr
-        s = '''
+        s = """
         {
             "nodes": {
                 "mysource": {
@@ -266,7 +266,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
@@ -276,7 +276,7 @@ class TestParsePipelineDefinition(object):
         # nonexistent node/attribute references are tested in test_datasource_lookup_source
 
     def test_array_source(self):
-        s = '''
+        s = """
         {
             "nodes": {
                 "mysource": {
@@ -285,7 +285,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
@@ -293,7 +293,7 @@ class TestParsePipelineDefinition(object):
 
     def test_array_lookup_source(self):
         # source doesn't work
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -306,14 +306,14 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(ValueError):
             parse_pipeline_definition(d)
 
         # lookup_source does work
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -326,7 +326,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
@@ -334,7 +334,7 @@ class TestParsePipelineDefinition(object):
 
     def test_algorithm_inputs(self):
         # basic
-        s = '''
+        s = """
         {
             "nodes": {
                 "source1": {"node": "algorithm.Arange"},
@@ -351,7 +351,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
@@ -360,7 +360,7 @@ class TestParsePipelineDefinition(object):
         assert isinstance(output.node.B, podpac.algorithm.CoordData)
 
         # sub-node
-        s = '''
+        s = """
         {
             "nodes": {
                 "mysource": {"node": "algorithm.Arange"},
@@ -376,7 +376,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
@@ -387,7 +387,7 @@ class TestParsePipelineDefinition(object):
 
     def test_compositor_sources(self):
         # basic
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {"node": "algorithm.Arange"},
@@ -398,7 +398,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
@@ -406,7 +406,7 @@ class TestParsePipelineDefinition(object):
         assert isinstance(output.node.sources[1], podpac.algorithm.CoordData)
 
         # sub-node
-        s = '''
+        s = """
         {
             "nodes": {
                 "source1": {"node": "algorithm.Arange"},
@@ -422,7 +422,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
@@ -432,7 +432,7 @@ class TestParsePipelineDefinition(object):
         # nonexistent node/attribute references are tested in test_datasource_lookup_source
 
     def test_datasource_interpolation(self):
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -442,14 +442,14 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert output.node.interpolation == "nearest"
 
         # not required
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -457,13 +457,13 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
 
         # incorrect
-        s = '''
+        s = """
         {
             "nodes": {
                 "mydata": {
@@ -474,14 +474,14 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="The 'interpolation' property cannot be in attrs"):
             parse_pipeline_definition(d)
 
     def test_compositor_interpolation(self):
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -497,15 +497,14 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert output.node.interpolation == "nearest"
 
-
     def test_attrs(self):
-        s = '''
+        s = """
         {
             "nodes": {
                 "sm": {
@@ -516,7 +515,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
@@ -524,7 +523,7 @@ class TestParsePipelineDefinition(object):
 
     def test_lookup_attrs(self):
         # attrs doesn't work
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -537,15 +536,15 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         with pytest.raises(AssertionError):
-            assert output.node.coord_name == 'lat'
+            assert output.node.coord_name == "lat"
 
         # but lookup_attrs does
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -558,11 +557,11 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
-        assert output.node.coord_name == 'lat'
+        assert output.node.coord_name == "lat"
 
         # NOTE: no nodes currently have a Node as an attr
         # # lookup node directly (instead of a sub-attr)
@@ -589,7 +588,7 @@ class TestParsePipelineDefinition(object):
         # nonexistent node/attribute references are tested in test_datasource_lookup_source
 
     def test_invalid_property(self):
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -598,7 +597,7 @@ class TestParsePipelineDefinition(object):
                 }
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="node 'a' has unexpected property"):
@@ -608,20 +607,20 @@ class TestParsePipelineDefinition(object):
         pass
 
     def test_parse_output_none(self):
-        s = '''
+        s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {"node": "a", "mode": "none"}
         }
-        '''
+        """
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert isinstance(output, NoOutput)
         assert isinstance(output.node, podpac.algorithm.Arange)
-        assert output.name == 'a'
+        assert output.name == "a"
 
     def test_parse_output_file(self):
-        s = '''
+        s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
@@ -631,17 +630,17 @@ class TestParsePipelineDefinition(object):
                 "outdir": "my_directory"
             }
         }
-        '''
+        """
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert isinstance(output, FileOutput)
         assert isinstance(output.node, podpac.algorithm.Arange)
-        assert output.name == 'a'
-        assert output.format == 'pickle'
-        assert output.outdir == 'my_directory'
+        assert output.name == "a"
+        assert output.format == "pickle"
+        assert output.outdir == "my_directory"
 
     def test_parse_output_s3(self):
-        s = '''
+        s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
@@ -651,17 +650,17 @@ class TestParsePipelineDefinition(object):
                 "bucket": "my_bucket"
             }
         }
-        '''
+        """
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert isinstance(output, S3Output)
         assert isinstance(output.node, podpac.algorithm.Arange)
-        assert output.name == 'a'
-        assert output.user == 'my_user'
-        assert output.bucket == 'my_bucket'
+        assert output.name == "a"
+        assert output.user == "my_user"
+        assert output.bucket == "my_bucket"
 
     def test_parse_output_ftp(self):
-        s = '''
+        s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
@@ -671,18 +670,18 @@ class TestParsePipelineDefinition(object):
                 "user": "my_user"
             }
         }
-        '''
+        """
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert isinstance(output, FTPOutput)
         assert isinstance(output.node, podpac.algorithm.Arange)
-        assert output.name == 'a'
-        assert output.user == 'my_user'
-        assert output.url == 'my_url'
+        assert output.name == "a"
+        assert output.user == "my_user"
+        assert output.url == "my_url"
         # TODO password
 
     def test_parse_output_image(self):
-        s = '''
+        s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
@@ -690,40 +689,40 @@ class TestParsePipelineDefinition(object):
                 "mode": "image"
             }
         }
-        '''
+        """
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert isinstance(output, ImageOutput)
         assert isinstance(output.node, podpac.algorithm.Arange)
-        assert output.name == 'a'
+        assert output.name == "a"
 
     def test_parse_output_invalid_mode(self):
         # invalid mode
-        s = '''
+        s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {"mode": "nonexistent_mode"}
         }
-        '''
+        """
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError, match='output has unexpected mode'):
+        with pytest.raises(PipelineError, match="output has unexpected mode"):
             parse_pipeline_definition(d)
 
     def test_parse_output_implicit_mode(self):
-        s = '''
+        s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {"node": "a"}
         }
-        '''
+        """
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert isinstance(output, NoOutput)
         assert isinstance(output.node, podpac.algorithm.Arange)
-        assert output.name == 'a'
+        assert output.name == "a"
 
     def test_parse_output_nonexistent_node(self):
-        s = '''
+        s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
@@ -733,13 +732,13 @@ class TestParsePipelineDefinition(object):
                 "outdir": "my_directory"
             }
         }
-        '''
+        """
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="output' references nonexistent node"):
             parse_pipeline_definition(d)
 
     def test_parse_output_implicit_node(self):
-        s = '''
+        s = """
         {
             "nodes": {
                 "source1": {"node": "algorithm.Arange"},
@@ -759,45 +758,45 @@ class TestParsePipelineDefinition(object):
                 "mode": "none"
             }
         }
-        '''
+        """
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert isinstance(output.node, podpac.algorithm.Arithmetic)
 
     def test_parse_output_implicit(self):
-        s = '''
+        s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} }
         }
-        '''
+        """
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert isinstance(output, NoOutput)
         assert isinstance(output.node, podpac.algorithm.Arange)
-        assert output.name == 'a'
+        assert output.name == "a"
 
     def test_parse_custom_output(self):
-        s = ''' {
+        s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "podpac.core.pipeline.output",
                 "output": "ImageOutput"
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
         assert isinstance(output, ImageOutput)
 
-        s = ''' {
+        s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "podpac",
                 "output": "core.pipeline.output.ImageOutput"
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
@@ -805,56 +804,56 @@ class TestParsePipelineDefinition(object):
 
     def test_parse_custom_output_invalid(self):
         # no module
-        s = ''' {
+        s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "nonexistent_module",
                 "output": "arbitrary"
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="No module found"):
             parse_pipeline_definition(d)
 
         # module okay, but no such class
-        s = ''' {
+        s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "podpac.core.pipeline.output",
                 "output": "Nonexistent"
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         with pytest.raises(PipelineError, match="Output 'Nonexistent' not found"):
             parse_pipeline_definition(d)
 
         # module okay, class found, could not create
-        s = ''' {
+        s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "numpy",
                 "output": "ndarray"
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
-        with pytest.raises(PipelineError, match='Could not create custom output'):
+        with pytest.raises(PipelineError, match="Could not create custom output"):
             parse_pipeline_definition(d)
 
         # module okay, class found, incorrect type
-        s = ''' {
+        s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
             "output": {
                 "plugin": "numpy",
                 "output": "array"
             }
         }
-        '''
+        """
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         m = "Custom output '.*' must subclass 'podpac.core.pipeline.output.Output'"
