@@ -15,15 +15,20 @@ version_info : OrderedDict
 # Monkey patch os.makedirs for Python 2 compatibility
 import sys
 import os
+
 _osmakedirs = os.makedirs
+
+
 def makedirs(name, mode=511, exist_ok=False):
-    try: 
+    try:
         _osmakedirs(name, mode)
     except Exception as e:
         if exist_ok:
             pass
         else:
             raise e
+
+
 if sys.version_info.major == 2:
     makedirs.__doc__ = os.makedirs.__doc__
     os.makedirs = makedirs
@@ -57,5 +62,6 @@ from podpac import core
 
 # version handling
 from podpac import version
+
 __version__ = version.version()
 version_info = version.VERSION_INFO

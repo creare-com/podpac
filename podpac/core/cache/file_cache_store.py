@@ -1,4 +1,3 @@
-
 from __future__ import division, print_function, absolute_import
 
 import json
@@ -6,8 +5,9 @@ import io
 import warnings
 import re
 import hashlib
+
 try:
-    import cPickle as pickle # python 2
+    import cPickle as pickle  # python 2
 except:
     import pickle
 
@@ -20,22 +20,24 @@ from podpac.core.utils import is_json_serializable
 from podpac.core.cache.utils import CacheException, CacheWildCard
 from podpac.core.cache.cache_store import CacheStore
 
+
 def _hash_string(s):
     return hashlib.md5(s.encode()).hexdigest()
+
 
 class FileCacheStore(CacheStore):
     """Abstract class with functionality common to persistent CacheStore objects (e.g. local disk, s3) that store things using multiple paths (filepaths or object paths)
     """
-    
-    cache_mode = ''
-    cache_modes = ['all']
+
+    cache_mode = ""
+    cache_modes = ["all"]
 
     # -----------------------------------------------------------------------------------------------------------------
     # public cache API methods
     # -----------------------------------------------------------------------------------------------------------------
 
     def put(self, node, data, key, coordinates=None, update=False):
-        '''Cache data for specified node.
+        """Cache data for specified node.
         
         Parameters
         ------------
@@ -49,8 +51,8 @@ class FileCacheStore(CacheStore):
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
-        '''
-        
+        """
+
         # check for existing entry
         if self.has(node, key, coordinates):
             if not update:
@@ -59,43 +61,49 @@ class FileCacheStore(CacheStore):
 
         # serialize
         path_root = self._path_join(self._get_node_dir(node), self._get_filename(node, key, coordinates))
-        
+
         if isinstance(data, podpac.core.units.UnitsDataArray):
-            path = path_root + '.uda.nc'
+            path = path_root + ".uda.nc"
             s = data.to_netcdf()
         elif isinstance(data, xr.DataArray):
-            path = path_root + '.xrda.nc'
+            path = path_root + ".xrda.nc"
             s = data.to_netcdf()
         elif isinstance(data, xr.Dataset):
-            path = path_root + '.xrds.nc'
+            path = path_root + ".xrds.nc"
             s = data.to_netcdf()
         elif isinstance(data, np.ndarray):
-            path = path_root + '.npy'
+            path = path_root + ".npy"
             with io.BytesIO() as f:
                 np.save(f, data)
                 s = f.getvalue()
         elif isinstance(data, podpac.Coordinates):
-            path = path_root + '.coords.json'
+            path = path_root + ".coords.json"
             s = data.json.encode()
         elif isinstance(data, podpac.Node):
-            path = path_root + '.node.json'
+            path = path_root + ".node.json"
             s = data.json.encode()
         elif is_json_serializable(data):
-            path = path_root + '.json'
+            path = path_root + ".json"
             s = json.dumps(data).encode()
         else:
-            warnings.warn("Object of type '%s' is not json serializable; caching object to file using pickle, which "
-                          "may not be compatible with other Python versions or podpac versions.")
-            path = path_root + '.pkl'
+            warnings.warn(
+                "Object of type '%s' is not json serializable; caching object to file using pickle, which "
+                "may not be compatible with other Python versions or podpac versions."
+            )
+            path = path_root + ".pkl"
             s = pickle.dumps(data)
 
         # check size
         if self.max_size is not None and self.size + len(s) > self.max_size:
             # TODO removal policy
-            warnings.warn("Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
-                          "settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', "
-                          "mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(
-                            cache_mode=self.cache_mode, cache_limit_setting=self._limit_setting), UserWarning)
+            warnings.warn(
+                "Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
+                "settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', "
+                "mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(
+                    cache_mode=self.cache_mode, cache_limit_setting=self._limit_setting
+                ),
+                UserWarning,
+            )
             return False
 
         # save
@@ -104,7 +112,7 @@ class FileCacheStore(CacheStore):
         return True
 
     def get(self, node, key, coordinates=None):
-        '''Get cached data for this node.
+        """Get cached data for this node.
         
         Parameters
         ------------
@@ -124,7 +132,7 @@ class FileCacheStore(CacheStore):
         -------
         CacheError
             If the data is not in the cache.
-        '''
+        """
 
         path = self.find(node, key, coordinates)
         if path is None:
@@ -132,26 +140,26 @@ class FileCacheStore(CacheStore):
 
         # read
         s = self._load(path)
-        
+
         # deserialize
-        if path.endswith('uda.nc'):
+        if path.endswith("uda.nc"):
             x = xr.open_dataarray(s)
             data = podpac.core.units.UnitsDataArray(x)
-        elif path.endswith('.xrda.nc'):
+        elif path.endswith(".xrda.nc"):
             data = xr.open_dataarray(s)
-        elif path.endswith('.xrds.nc'):
+        elif path.endswith(".xrds.nc"):
             data = xr.open_dataset(s)
-        elif path.endswith('.npy'):
+        elif path.endswith(".npy"):
             with io.BytesIO(s) as b:
                 data = np.load(b)
-        elif path.endswith('.coords.json'):
+        elif path.endswith(".coords.json"):
             data = podpac.Coordinates.from_json(s.decode())
-        elif path.endswith('.node.json'):
+        elif path.endswith(".node.json"):
             pipeline = podpac.pipeline.Pipeline(json=s.decode())
             data = pipeline.node
-        elif path.endswith('.json'):
+        elif path.endswith(".json"):
             data = json.loads(s.decode())
-        elif path.endswith('.pkl'):
+        elif path.endswith(".pkl"):
             data = pickle.loads(s)
         else:
             raise RuntimeError("Unexpected cached file type '%s'" % self._basename(path))
@@ -159,7 +167,7 @@ class FileCacheStore(CacheStore):
         return data
 
     def has(self, node, key, coordinates=None):
-        '''Check for cached data for this node
+        """Check for cached data for this node
         
         Parameters
         ------------
@@ -174,13 +182,13 @@ class FileCacheStore(CacheStore):
         -------
         has_cache : bool
              True if there as a cached object for this node for the given key and coordinates.
-        '''
-        
+        """
+
         path = self.find(node, key, coordinates)
         return path is not None
 
     def rem(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
-        '''Delete cached data for this node.
+        """Delete cached data for this node.
         
         Parameters
         ------------
@@ -190,7 +198,7 @@ class FileCacheStore(CacheStore):
             Delete cached objects with this key, or any key if `key` is a CacheWildCard.
         coordinates : Coordinates, CacheWildCard, None, optional
             Delete only cached objects for these coordinates, or any coordinates if `coordinates` is a CacheWildCard. `None` specifically indicates entries that do not have coordinates.
-        '''
+        """
 
         # delete matching cached objects
         for path in self.search(node, key=key, coordinates=coordinates):
@@ -205,7 +213,7 @@ class FileCacheStore(CacheStore):
         """
         Clear all cached data.
         """
-        
+
         self._rmtree(self._root_dir_path)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -224,7 +232,7 @@ class FileCacheStore(CacheStore):
         """
 
         paths = self.search(node, key=key, coordinates=coordinates)
-        
+
         if len(paths) == 0:
             return None
         elif len(paths) == 1:
@@ -234,36 +242,36 @@ class FileCacheStore(CacheStore):
 
     def _get_node_dir(self, node):
         fullclass = str(node.__class__)[8:-2]
-        subdirs = fullclass.split('.')
+        subdirs = fullclass.split(".")
         return self._path_join(self._root_dir_path, *subdirs)
 
     def _get_filename(self, node, key, coordinates):
-        prefix = self._sanitize('%s-%s' % (node.base_ref, key))
-        filename = '%s_%s_%s_%s' % (prefix, node.hash, _hash_string(key), coordinates.hash if coordinates else 'None')
+        prefix = self._sanitize("%s-%s" % (node.base_ref, key))
+        filename = "%s_%s_%s_%s" % (prefix, node.hash, _hash_string(key), coordinates.hash if coordinates else "None")
         return filename
 
     def _match_filename(self, node, key, coordinates):
-        match_prefix = '*'
+        match_prefix = "*"
         match_node = node.hash
 
         if isinstance(key, CacheWildCard):
-            match_key = '*'
+            match_key = "*"
         else:
             match_key = _hash_string(key)
 
         if isinstance(coordinates, CacheWildCard):
-            match_coordinates = '*'
+            match_coordinates = "*"
         elif coordinates is None:
-            match_coordinates = 'None'
+            match_coordinates = "None"
         else:
             match_coordinates = coordinates.hash
 
-        match_filename = '%s_%s_%s_%s.*' % (match_prefix, match_node, match_key, match_coordinates)
+        match_filename = "%s_%s_%s_%s.*" % (match_prefix, match_node, match_key, match_coordinates)
         return match_filename
 
     def _sanitize(self, s):
-        return re.sub('[_:<>/\\\\*]+', '-', s) # replaces _:<>/\*
-    
+        return re.sub("[_:<>/\\\\*]+", "-", s)  # replaces _:<>/\*
+
     # -----------------------------------------------------------------------------------------------------------------
     # file storage abstraction
     # -----------------------------------------------------------------------------------------------------------------

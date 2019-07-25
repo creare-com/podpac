@@ -11,4 +11,3 @@ from podpac.core.coordinates import Coordinates1d, ArrayCoordinates1d, UniformCo
 from podpac.core.coordinates import StackedCoordinates, DependentCoordinates, RotatedCoordinates
 from podpac.core.coordinates import merge_dims, concat, union
 from podpac.core.coordinates import GroupCoordinates
-

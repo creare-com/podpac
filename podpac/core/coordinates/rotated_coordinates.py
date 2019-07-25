@@ -5,10 +5,12 @@ from collections import OrderedDict
 import numpy as np
 import traitlets as tl
 import lazy_import
-rasterio = lazy_import.lazy_module('rasterio')
+
+rasterio = lazy_import.lazy_module("rasterio")
 
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
+
 
 class RotatedCoordinates(DependentCoordinates):
     """
@@ -45,8 +47,9 @@ class RotatedCoordinates(DependentCoordinates):
     step = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     ndims = 2
 
-    def __init__(self, shape=None, theta=None, origin=None, step=None, corner=None,
-                       dims=None, ctypes=None, segment_lengths=None):
+    def __init__(
+        self, shape=None, theta=None, origin=None, step=None, corner=None, dims=None, ctypes=None, segment_lengths=None
+    ):
         """
         Create a grid of rotated coordinates from a `shape`, `theta`, `origin`, and `step` or `corner`.
 
@@ -72,36 +75,36 @@ class RotatedCoordinates(DependentCoordinates):
             For point coordinates, the segment_lengths must be None; omit if all dimensions are point coordinates.
         """
 
-        self.set_trait('shape', shape)
-        self.set_trait('theta', theta)
-        self.set_trait('origin', origin)
+        self.set_trait("shape", shape)
+        self.set_trait("theta", theta)
+        self.set_trait("origin", origin)
         if step is None:
             deg = np.rad2deg(theta)
             a = ~rasterio.Affine.rotation(deg) * ~rasterio.Affine.translation(*origin)
             d = np.array(a * corner) - np.array(a * origin)
-            step = d / np.array([shape[0]-1, shape[1]-1])
-        self.set_trait('step', step)
+            step = d / np.array([shape[0] - 1, shape[1] - 1])
+        self.set_trait("step", step)
 
         self._set_properties(dims, ctypes, segment_lengths)
 
-    @tl.validate('dims')
+    @tl.validate("dims")
     def _validate_dims(self, d):
         val = super(RotatedCoordinates, self)._validate_dims(d)
         for dim in val:
-            if dim not in ['lat', 'lon']:
+            if dim not in ["lat", "lon"]:
                 raise ValueError("RotatedCoordinates dims must be 'lat' or 'lon', not '%s'" % dim)
         return val
 
-    @tl.validate('shape')
+    @tl.validate("shape")
     def _validate_shape(self, d):
-        val = d['value']
+        val = d["value"]
         if val[0] <= 0 or val[1] <= 0:
             raise ValueError("Invalid shape %s, shape must be positive" % (val,))
         return val
 
-    @tl.validate('step')
+    @tl.validate("step")
     def _validate_step(self, d):
-        val = d['value']
+        val = d["value"]
         if val[0] == 0 or val[1] == 0:
             raise ValueError("Invalid step %s, step cannot be 0" % val)
         return val
@@ -139,21 +142,21 @@ class RotatedCoordinates(DependentCoordinates):
         definition
         """
 
-        if 'shape' not in d:
+        if "shape" not in d:
             raise ValueError('RotatedCoordinates definition requires "shape" property')
-        if 'theta' not in d:
+        if "theta" not in d:
             raise ValueError('RotatedCoordinates definition requires "theta" property')
-        if 'origin' not in d:
+        if "origin" not in d:
             raise ValueError('RotatedCoordinates definition requires "origin" property')
-        if 'step' not in d and 'corner' not in d:
+        if "step" not in d and "corner" not in d:
             raise ValueError('RotatedCoordinates definition requires "step" or "corner" property')
-        if 'dims' not in d:
+        if "dims" not in d:
             raise ValueError('RotatedCoordinates definition requires "dims" property')
 
-        shape = d['shape']
-        theta = d['theta']
-        origin = d['origin']
-        kwargs = {k:v for k,v in d.items() if k not in ['shape', 'theta', 'origin']}
+        shape = d["shape"]
+        theta = d["theta"]
+        origin = d["origin"]
+        kwargs = {k: v for k, v in d.items() if k not in ["shape", "theta", "origin"]}
         return RotatedCoordinates(shape, theta, origin, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -164,10 +167,17 @@ class RotatedCoordinates(DependentCoordinates):
         if self.ctypes[0] == self.ctypes[1]:
             ctypes = "ctype['%s']" % self.ctypes[0]
         else:
-            ctypes = "ctypes[%s]" % ', '.join(self.ctypes)
+            ctypes = "ctypes[%s]" % ", ".join(self.ctypes)
 
         return "%s(%s): Origin%s, Corner%s, rad[%.4f], shape%s, %s" % (
-            self.__class__.__name__, self.dims, self.origin, self.corner, self.theta, self.shape, ctypes)
+            self.__class__.__name__,
+            self.dims,
+            self.origin,
+            self.corner,
+            self.theta,
+            self.shape,
+            ctypes,
+        )
 
     def __eq__(self, other):
         if not isinstance(other, RotatedCoordinates):
@@ -223,7 +233,7 @@ class RotatedCoordinates(DependentCoordinates):
     @property
     def corner(self):
         """ :array: lower right corner. """
-        return np.array(self.affine * np.array([self.shape[0]-1, self.shape[1]-1]))
+        return np.array(self.affine * np.array([self.shape[0] - 1, self.shape[1] - 1]))
 
     @property
     def geotransform(self):
@@ -241,7 +251,7 @@ class RotatedCoordinates(DependentCoordinates):
     @property
     def properties(self):
         """:dict: Dictionary of the coordinate properties. """
-        return {key:getattr(self, key) for key in self._properties}
+        return {key: getattr(self, key) for key in self._properties}
 
     @property
     def area_bounds(self):
@@ -251,11 +261,11 @@ class RotatedCoordinates(DependentCoordinates):
 
     def _get_definition(self, full=True):
         d = OrderedDict()
-        d['dims'] = self.dims
-        d['shape'] = self.shape
-        d['theta'] = self.theta
-        d['origin'] = self.origin
-        d['step'] = self.step
+        d["dims"] = self.dims
+        d["shape"] = self.shape
+        d["theta"] = self.theta
+        d["origin"] = self.origin
+        d["step"] = self.step
         d.update(self._full_properties if full else self.properties)
         return d
 
@@ -303,7 +313,7 @@ class RotatedCoordinates(DependentCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
     # Debug
     # ------------------------------------------------------------------------------------------------------------------
-    
+
     # def plot(self, marker='b.', origin_marker='bo', corner_marker='bx'):
     #     from matplotlib import pyplot
     #     super(RotatedCoordinates, self).plot(marker=marker)
