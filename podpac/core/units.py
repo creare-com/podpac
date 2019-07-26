@@ -405,10 +405,14 @@ def get_image(data, format="png", vmin=None, vmax=None, return_base64=False):
     data = data.squeeze()
 
     # TODO: add styling information
-    if vmin is None or np.isnan(vmin):
-        vmin = np.nanmin(data)
-    if vmax is None or np.isnan(vmax):
-        vmax = np.nanmax(data)
+    if not np.any(np.isfinite(data)):
+        vmin = 0
+        vmax = 1
+    else:
+        if vmin is None or np.isnan(vmin):
+            vmin = np.nanmin(data)
+        if vmax is None or np.isnan(vmax) and np.any(np.isfinite(data)):
+            vmax = np.nanmax(data)
     if vmax == vmin:
         vmax += 1e-15
 

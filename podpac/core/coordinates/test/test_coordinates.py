@@ -559,21 +559,37 @@ class TestCoordinatesSerialization(object):
             r"&bbox={},{},{},{}&time={}"
         )
 
-        for version in ["1.1.1", "1.3"]:
-            for cc, epsg in zip([crds, crds2], ["3857", "4326"]):
-                c = Coordinates.from_url(
-                    url.format(
-                        crds2.bounds["lat"].min(),
-                        crds2.bounds["lon"].min(),
-                        crds2.bounds["lat"].max(),
-                        crds2.bounds["lon"].max(),
-                        crds2.bounds["time"][0],
-                        version=version,
-                        epsg=epsg,
-                    )
+        version = "1.1.1"
+        for cc, epsg in zip([crds, crds2], ["3857", "4326"]):
+            c = Coordinates.from_url(
+                url.format(
+                    crds2.bounds["lon"].min(),
+                    crds2.bounds["lat"].min(),
+                    crds2.bounds["lon"].max(),
+                    crds2.bounds["lat"].max(),
+                    crds2.bounds["time"][0],
+                    version=version,
+                    epsg=epsg,
                 )
-                for d in crds.dims:
-                    assert np.allclose(c.bounds[d].astype(float), crds2.bounds[d].astype(float))
+            )
+            for d in crds.dims:
+                assert np.allclose(c.bounds[d].astype(float), crds2.bounds[d].astype(float))
+
+        version = "1.3"
+        for cc, epsg in zip([crds, crds2], ["3857", "4326"]):
+            c = Coordinates.from_url(
+                url.format(
+                    crds2.bounds["lat"].min(),
+                    crds2.bounds["lon"].min(),
+                    crds2.bounds["lat"].max(),
+                    crds2.bounds["lon"].max(),
+                    crds2.bounds["time"][0],
+                    version=version,
+                    epsg=epsg,
+                )
+            )
+            for d in crds.dims:
+                assert np.allclose(c.bounds[d].astype(float), crds2.bounds[d].astype(float))
 
 
 class TestCoordinatesProperties(object):

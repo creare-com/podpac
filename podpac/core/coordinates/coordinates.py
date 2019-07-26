@@ -448,7 +448,7 @@ class Coordinates(tl.HasTraits):
 
         # I don't seem to need to reverse one of these... perhaps one of my test servers did not implement the spec?
         if _get_param(params, "VERSION").startswith("1.1"):
-            r = 1
+            r = -1
         elif _get_param(params, "VERSION").startswith("1.3"):
             r = 1
 
