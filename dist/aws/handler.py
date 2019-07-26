@@ -59,6 +59,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
     from podpac.core.utils import JSONEncoder, _get_query_params_from_url
+    import podpac.datalib
 
     # check if file exists
     if pipeline_json is not None:

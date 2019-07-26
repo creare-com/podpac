@@ -23,6 +23,4 @@ plt = lazy_import.lazy_module("matplotlib.pyplot")
 np = lazy_import.lazy_module("numpy")
 sp = lazy_import.lazy_module("scipy")
 tl = lazy_import.lazy_module("traitlets")
-xr = lazy_import.lazy_module("xarray")
-
-from .managers import aws_lambda
+#xr = lazy_import.lazy_module("xarray")
