@@ -421,15 +421,15 @@ def get_image(data, format="png", vmin=None, vmax=None, return_base64=False):
         vmax = 1
     else:
         if vmin is None or np.isnan(vmin):
-            if style is None:
-                vmin = np.nanmin(data)
-            else:
+            if style is not None and style.clim[0] != None:
                 vmin = style.clim[0]
-        if vmax is None or np.isnan(vmax):
-            if style is None:
-                vmax = np.nanmax(data)
             else:
+                vmin = np.nanmin(data)
+        if vmax is None or np.isnan(vmax):
+            if style is not None and style.clim[1] != None:
                 vmax = style.clim[1]
+            else:
+                vmax = np.nanmax(data)
     if vmax == vmin:
         vmax += 1e-15
 
