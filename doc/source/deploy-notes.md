@@ -74,7 +74,7 @@ $ pip install awscli>=1.11
 $ conda install numexpr>=2.6
 
 # Install dependencies for JupyterLab and Jupyter Notebooks
-$ conda install jupyterlab ipyleaflet ipywidgets ipympl nodejs 
+$ conda install jupyterlab ipyleaflet ipywidgets ipympl nodejs -c conda-forge
 
 # Set up jupyter lab extensions
 $ jupyter labextension install @jupyter-widgets/jupyterlab-manager
