@@ -42,6 +42,8 @@ class Lambda(Node):
         how to output the evaluated results of `source`
     attrs: dict
         additional attributes passed on to the Lambda definition of the base node
+    download_result: Bool
+        Flag that indicated whether node should wait to download the data.
     """
 
     AWS_ACCESS_KEY_ID = tl.Unicode(allow_none=False, help="Access key ID from AWS for S3 bucket.")
@@ -67,6 +69,8 @@ class Lambda(Node):
     source_output = tl.Instance(Output, allow_none=False, help="Image output information.")
 
     attrs = tl.Dict()
+
+    download_result = tl.Bool(True).tag(attr=True)
 
     @tl.default("source_output")
     def _source_output_default(self):
@@ -112,8 +116,9 @@ class Lambda(Node):
 
         d = self.definition
         d["coordinates"] = json.loads(coordinates.json)
+        slash = "/" if not self.s3_json_folder.endswith("/") else ""
         filename = "%s%s_%s_%s.%s" % (
-            self.s3_json_folder,
+            self.s3_json_folder + slash,
             self.source_output.name,
             self.source.hash,
             coordinates.hash,
@@ -137,6 +142,9 @@ class Lambda(Node):
         )
 
         # wait for object to exist
+        if not self.download_result:
+            return
+
         waiter = s3.get_waiter("object_exists")
         filename = "%s%s_%s_%s.%s" % (
             self.s3_output_folder,
@@ -148,10 +156,7 @@ class Lambda(Node):
         waiter.wait(Bucket=self.s3_bucket_name, Key=filename)
 
         # After waiting, load the pickle file like this:
-        resource = boto3.resource("s3")
-        with BytesIO() as data:
-            # Get the bucket and file name programmatically - see above...
-            resource.Bucket(self.s3_bucket_name).download_fileobj(filename, data)
-            data.seek(0)  # move back to the beginning after writing
-            self._output = cPickle.load(data)
+        response = s3.get_object(Key=filename, Bucket=self.s3_bucket_name)
+        body = response["Body"].read()
+        self._output = cPickle.loads(body)
         return self._output

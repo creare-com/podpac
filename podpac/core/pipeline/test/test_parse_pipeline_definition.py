@@ -504,6 +504,8 @@ class TestParsePipelineDefinition(object):
         assert output.node.interpolation == "nearest"
 
     def test_attrs(self):
+        import podpac.datalib.smap
+
         s = """
         {
             "nodes": {

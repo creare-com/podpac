@@ -5,6 +5,11 @@ from collections import OrderedDict
 import json
 import six
 
+try:
+    import urllib.parse as urllib
+except:  # Python 2.7
+    import urlparse as urllib
+
 import pytest
 import numpy as np
 import xarray as xr
@@ -529,6 +534,34 @@ class TestCachePropertyDecorator(object):
         assert t2.b2() == 2
         assert t2.c2() == 2
         assert t2.d2() == 2
+
+
+class TestFromClassMethods(object):
+    def test_from_url(self):
+        url = (
+            r"http://testwms/?map=map&&service={service}&request=GetMap&{layername}={layer}&styles=&format=image%2Fpng"
+            r"&transparent=true&version=1.1.1&transparency=true&width=256&height=256&srs=EPSG%3A4326"
+            r"&bbox=40,-71,41,70&time=2018-05-19&PARAMS={params}"
+        )
+
+        params = [
+            "{}",
+            '{"nodes":{"a":{"node":"algorithm.Arange"}},"output": {"node": "a","mode": "file","format": "pickle","outdir": "."}}',
+            "{}",
+            "{}",
+        ]
+
+        for service, layername in zip(["WMS", "WCS"], ["LAYERS", "COVERAGE"]):
+            for layer, param in zip(
+                [
+                    "algorithm.SinCoords",
+                    "%PARAMS%",
+                    # urllib.urlencode({'a':'https://raw.githubusercontent.com/creare-com/podpac/develop/podpac/core/pipeline/test/test.json'})[2:],
+                    # urllib.urlencode({'a':'s3://podpac-s3/test/test.json'})[2:]  # Tested locally, works fine. Hard to test with CI
+                ],
+                params,
+            ):
+                pipe = Node.from_url(url.format(service=service, layername=layername, layer=layer, params=param))
 
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)

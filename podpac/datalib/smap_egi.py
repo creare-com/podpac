@@ -19,9 +19,10 @@ import traitlets as tl
 _log = logging.getLogger(__name__)
 
 # Helper utility for optional imports
-from lazy_import import lazy_module
+from lazy_import import lazy_module, lazy_class
 
 h5py = lazy_module("h5py")
+lazy_class("h5py.File")
 
 # fixing problem with older versions of numpy
 if not hasattr(np, "isnat"):
@@ -39,44 +40,50 @@ from podpac.datalib import EGI
 from podpac.core.units import create_data_array
 
 SMAP_PRODUCT_DICT = {
-    #'shortname': ['lat_key', 'lon_key', 'data_key', 'default_verison']
-    "SPL4SMAU": ["/x", "/y", "/Analysis_Data/sm_surface_analysis", 4],
-    "SPL4SMGP": ["/x", "/y", "/Geophysical_Data/sm_surface", 4],
-    "SPL4SMLM": ["/x", "/y", "/Land_Model_Constants_Data", 4],
+    #'shortname':    ['lat_key', 'lon_key', 'data_key', 'quality_flag', 'default_verison']
+    "SPL4SMAU": ["/x", "/y", "/Analysis_Data/sm_surface_analysis", None, 4],
+    "SPL4SMGP": ["/x", "/y", "/Geophysical_Data/sm_surface", None, 4],
+    "SPL4SMLM": ["/x", "/y", "/Land_Model_Constants_Data", None, 4],
     "SPL3SMAP": [
         "/Soil_Moisture_Retrieval_Data/latitude",
         "/Soil_Moisture_Retrieval_Data/longitude",
         "/Soil_Moisture_Retrieval_Data/soil_moisture",
+        "/Soil_Moisture_Retrieval_Data/retrieval_qual_flag",
         3,
     ],
     "SPL3SMA": [
         "/Soil_Moisture_Retrieval_Data/latitude",
         "/Soil_Moisture_Retrieval_Data/longitude",
         "/Soil_Moisture_Retrieval_Data/soil_moisture",
+        "/Soil_Moisture_Retrieval_Data/retrieval_qual_flag",
         3,
     ],
     "SPL3SMP_AM": [
         "/Soil_Moisture_Retrieval_Data_AM/latitude",
         "/Soil_Moisture_Retrieval_Data_AM/longitude",
         "/Soil_Moisture_Retrieval_Data_AM/soil_moisture",
+        "/Soil_Moisture_Retrieval_Data_AM/retrieval_qual_flag",
         5,
     ],
     "SPL3SMP_PM": [
         "/Soil_Moisture_Retrieval_Data_PM/latitude",
         "/Soil_Moisture_Retrieval_Data_PM/longitude",
         "/Soil_Moisture_Retrieval_Data_PM/soil_moisture",
+        "/Soil_Moisture_Retrieval_Data_PM/retrieval_qual_flag_pm",
         5,
     ],
     "SPL3SMP_E_AM": [
         "/Soil_Moisture_Retrieval_Data_AM/latitude",
         "/Soil_Moisture_Retrieval_Data_AM/longitude",
         "/Soil_Moisture_Retrieval_Data_AM/soil_moisture",
+        "/Soil_Moisture_Retrieval_Data_AM/retrieval_qual_flag",
         2,
     ],
     "SPL3SMP_E_PM": [
-        "/Soil_Moisture_Retrieval_Data_PM/latitude",
-        "/Soil_Moisture_Retrieval_Data_PM/longitude",
-        "/Soil_Moisture_Retrieval_Data_PM/soil_moisture",
+        "/Soil_Moisture_Retrieval_Data_PM/latitude_pm",
+        "/Soil_Moisture_Retrieval_Data_PM/longitude_pm",
+        "/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm",
+        "/Soil_Moisture_Retrieval_Data_PM/retrieval_qual_flag_pm",
         2,
     ],
 }
@@ -101,6 +108,9 @@ class SMAP(EGI):
 
     product = tl.Enum(SMAP_PRODUCTS, default_value="SPL4SMAU").tag(attr=True)
     nan_vals = [-9999.0]
+    min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3}).tag(attr=True)
+    check_quality_flags = tl.Bool(True).tag(attr=True)
+    quality_flag_key = tl.Unicode(allow_none=True).tag(attr=True)
 
     # set default short_name, data_key, lat_key, lon_key, version
     @tl.default("short_name")
@@ -118,13 +128,21 @@ class SMAP(EGI):
     def _lon_key_default(self):
         return SMAP_PRODUCT_DICT[self.product][1]
 
+    @tl.default("quality_flag_key")
+    def _quality_flag_key_default(self):
+        return SMAP_PRODUCT_DICT[self.product][3]
+
     @tl.default("data_key")
     def _data_key_default(self):
         return SMAP_PRODUCT_DICT[self.product][2]
 
+    @property
+    def coverage(self):
+        return (self.data_key, self.quality_flag_key, self.lat_key, self.lon_key)
+
     @tl.default("version")
     def _version_default(self):
-        return SMAP_PRODUCT_DICT[self.product][3]
+        return SMAP_PRODUCT_DICT[self.product][4]
 
     def read_file(self, filelike):
         """Interpret individual SMAP file from  EGI zip archive.
@@ -146,6 +164,12 @@ class SMAP(EGI):
 
         # handle data
         data = ds[self.data_key][()]
+
+        if self.check_quality_flags:
+            flag = ds[self.quality_flag_key][()]
+            flag = flag > 0
+            [flag] == np.nan
+
         data = np.array([data])  # add extra dimension for time slice
 
         # handle time
@@ -184,11 +208,11 @@ class SMAP(EGI):
             lon = ds["y"][()]
             lat = ds["x"][()]
 
-            # short-circuit if all lat/lon are non
+            # short-circuit if all lat/lon are nan
             if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):
                 return None
 
-            c = Coordinates([time, lat, lon], dims=["time", "lat", "lon"], crs="epsg:6933")
+            c = Coordinates([time, lon, lat], dims=["time", "lon", "lat"], crs="epsg:6933")
 
         # make units data array with coordinates and data
         return create_data_array(c, data=data)

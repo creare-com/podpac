@@ -10,9 +10,15 @@ from copy import deepcopy
 from numbers import Number
 import operator
 from six import string_types
+import json
 
 from io import BytesIO
 import base64
+
+try:
+    import cPickle  # Python 2.7
+except:
+    import _pickle as cPickle
 
 import numpy as np
 import xarray as xr
@@ -24,6 +30,8 @@ ureg = UnitRegistry()
 
 import podpac
 from podpac.core.settings import settings
+from podpac.core.utils import JSONEncoder
+from podpac.core.style import Style
 
 
 class UnitsDataArray(xr.DataArray):
@@ -32,14 +40,7 @@ class UnitsDataArray(xr.DataArray):
 
     def __init__(self, *args, **kwargs):
         super(UnitsDataArray, self).__init__(*args, **kwargs)
-
-        # Deserialize units
-        if self.attrs.get("units") and isinstance(self.attrs["units"], string_types):
-            self.attrs["units"] = ureg(self.attrs["units"]).u
-
-        # Deserialize layer_stylers
-        if self.attrs.get("layer_style") and isinstance(self.attrs["layer_style"], string_types):
-            self.attrs["layer_style"] = podpac.core.style.Style.from_json(self.attrs["layer_style"])
+        self.deserialize()
 
     def __array_wrap__(self, obj, context=None):
         new_var = super(UnitsDataArray, self).__array_wrap__(obj, context)
@@ -121,15 +122,73 @@ class UnitsDataArray(xr.DataArray):
             return self.copy()
 
     def to_netcdf(self, *args, **kwargs):
-        attrs = self.attrs.copy()
+        self.serialize()
+        r = super(UnitsDataArray, self).to_netcdf(*args, **kwargs)
+        self.deserialize()
+        return r
+
+    def to_format(self, format, *args, **kwargs):
+        """
+        Helper function for converting Node outputs to alternative formats.
+        
+        Parameters
+        -----------
+        format: str
+            Format to which output should be converted. This is uses the to_* functions provided by xarray
+        *args: *list
+            Extra arguments for a particular output function
+        **kwargs: **dict
+            Extra keyword arguments for a particular output function
+            
+        Returns
+        --------
+        io.BytesIO()
+            In-memory version of the file or Python object. Note, depending on the input arguments, the file may instead
+            be saved to disk.
+            
+        Notes
+        ------
+        This is a helper function for accessing existing to_* methods provided by the base xarray.DataArray object, with 
+        a few additional formats supported: 
+            * json
+            * png, jpg, jpeg
+            * tiff (GEOtiff)
+        """
+        self.serialize()
+        if format in ["netcdf", "nc", "hdf5", "hdf"]:
+            r = self.to_netcdf(*args, **kwargs)
+        elif format in ["json", "dict"]:
+            r = self.to_dict()
+            if format == "json":
+                r = json.dumps(r, cls=JSONEncoder)
+        elif format in ["png", "jpg", "jpeg"]:
+            r = get_image(self, format, *args, **kwargs)
+        elif format.upper() in ["TIFF", "TIF", "GEOTIFF"]:
+            raise NotImplementedError("Format {} is not implemented.".format(format))
+        elif format in ["pickle", "pkl"]:
+            r = cPickle.dumps(self)
+        else:
+            try:
+                getattr(self, "to_" + format)(*args, **kwargs)
+            except:
+                raise NotImplementedError("Format {} is not implemented.".format(format))
+        self.deserialize()
+        return r
+
+    def serialize(self):
         if self.attrs.get("units"):
             self.attrs["units"] = str(self.attrs["units"])
-        if self.attrs.get("layer_style"):
+        if self.attrs.get("layer_style") and not isinstance(self.attrs["layer_style"], string_types):
             self.attrs["layer_style"] = self.attrs["layer_style"].json
 
-        r = super(UnitsDataArray, self).to_netcdf(*args, **kwargs)
-        self.attrs.update(attrs)
-        return r
+    def deserialize(self):
+        # Deserialize units
+        if self.attrs.get("units") and isinstance(self.attrs["units"], string_types):
+            self.attrs["units"] = ureg(self.attrs["units"]).u
+
+        # Deserialize layer_stylers
+        if self.attrs.get("layer_style") and isinstance(self.attrs["layer_style"], string_types):
+            self.attrs["layer_style"] = podpac.core.style.Style.from_json(self.attrs["layer_style"])
 
     def __getitem__(self, key):
         # special cases when key is also a DataArray
@@ -309,7 +368,7 @@ def create_data_array(coords, data=np.nan, dtype=float, **kwargs):
     return UnitsDataArray(data, coords=coords.coords, dims=coords.idims, **kwargs)
 
 
-def get_image(data, format="png", vmin=None, vmax=None):
+def get_image(data, format="png", vmin=None, vmax=None, return_base64=False):
     """Return a base64-encoded image of the data
 
     Parameters
@@ -322,11 +381,14 @@ def get_image(data, format="png", vmin=None, vmax=None):
         Minimum value of colormap
     vmax : vmax, optional
         Maximum value of colormap
+    return_base64: bool, optional
+        Default is False. Normally this returns an io.BytesIO, but if True, will return a base64 encoded string.
+        
 
     Returns
     -------
-    str
-        Base64 encoded image. 
+    BytesIO/str
+        Binary or Base64 encoded image. 
     """
 
     import matplotlib
@@ -338,21 +400,52 @@ def get_image(data, format="png", vmin=None, vmax=None):
     if format != "png":
         raise ValueError("Invalid image format '%s', must be 'png'" % format)
 
+    style = None
     if isinstance(data, xr.DataArray):
+        style = data.attrs.get("layer_style", None)
+        if isinstance(style, string_types):
+            style = Style.from_json(style)
+        dims = data.squeeze().dims
+        y = data.coords[dims[0]]
+        x = data.coords[dims[1]]
         data = data.data
+        if y[1] > y[0]:
+            data = data[::-1, :]
+        if x[1] < x[0]:
+            data = data[:, ::1]
 
     data = data.squeeze()
 
-    if vmin is None or np.isnan(vmin):
-        vmin = np.nanmin(data)
-    if vmax is None or np.isnan(vmax):
-        vmax = np.nanmax(data)
+    if not np.any(np.isfinite(data)):
+        vmin = 0
+        vmax = 1
+    else:
+        if vmin is None or np.isnan(vmin):
+            if style is not None and style.clim[0] != None:
+                vmin = style.clim[0]
+            else:
+                vmin = np.nanmin(data)
+        if vmax is None or np.isnan(vmax):
+            if style is not None and style.clim[1] != None:
+                vmax = style.clim[1]
+            else:
+                vmax = np.nanmax(data)
     if vmax == vmin:
         vmax += 1e-15
 
+    # get the colormap
+    if style is None:
+        cmap = matplotlib.cm.viridis
+    else:
+        cmap = style.cmap
+
     c = (data - vmin) / (vmax - vmin)
-    i = matplotlib.cm.viridis(c, bytes=True)
+    i = cmap(c, bytes=True)
+    i[np.isnan(c), 3] = 0
     im_data = BytesIO()
     imsave(im_data, i, format=format)
     im_data.seek(0)
-    return base64.b64encode(im_data.getvalue())
+    if return_base64:
+        return base64.b64encode(im_data.getvalue())
+    else:
+        return im_data

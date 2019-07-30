@@ -30,6 +30,7 @@ from podpac.data import DataSource
 from podpac import authentication
 from podpac import settings
 from podpac.core.units import UnitsDataArray, create_data_array
+from podpac.core.node import node_eval
 
 # Set up logging
 _log = logging.getLogger(__name__)
@@ -58,31 +59,29 @@ class EGI(DataSource):
         Key for latitude data in endpoint HDF-5 file. Required.
     lon_key : str
         Key for longitude data in endpoint HDF-5 file. Required.
-    base_url : str
-        URL for EGI data endpoint. Optional.
+    base_url : str, optional
+        URL for EGI data endpoint.
         Defaults to :str:`BASE_URL`
         See https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs#egiparameters
-    updated_since : str
+    page_size : int, optional
+        Number of granules returned from CMR per HTTP call. Defaults to 20.
+        See https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs#cmrparameters
+    updated_since : str, optional
         Can be used to find granules recently updated in CMR. Optional.
         See https://developer.earthdata.nasa.gov/sdps/programmatic-access-docs#cmrparameters
-    version : str, int
+    version : str, int, optional
         Data product version. Optional.
         Number input will be cast into a 3 character string NNN, i.e. 3 -> "003"
-    download_files : bool
-        NOT YET IMPLEMENTED
-        If True, Download response data as files to cache.
-        If False, PODPAC will attempt to handle all response data in memory.
-        Set to True for large time/spatial queries
-    token : str
+    token : str, optional
         EGI Token from authentication process.
         See https://wiki.earthdata.nasa.gov/display/CMR/Creating+a+Token+Common
         If undefined, the node will look for a token under the setting key "token@EGI".
         If this setting is not defined, the node will attempt to generate a token using
         :attr:`self.username` and :attr:`self.password`
-    username : str
+    username : str, optional
         EarthData username (https://urs.earthdata.nasa.gov/)
         If undefined, node will look for a username under setting key "username@urs.earthdata.nasa.gov"
-    password : str
+    password : str, optional
         EarthData password (https://urs.earthdata.nasa.gov/)
         If undefined, node will look for a password under setting key "password@urs.earthdata.nasa.gov"
 
@@ -105,11 +104,13 @@ class EGI(DataSource):
     lon_key = tl.Unicode(allow_none=True).tag(attr=True)
     time_key = tl.Unicode(allow_none=True).tag(attr=True)
 
+    min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
+
     # optional
 
     # full list of supported formats ["GeoTIFF", "HDF-EOS5", "NetCDF4-CF", "NetCDF-3", "ASCII", "HDF-EOS", "KML"]
     # response_format = tl.Enum(["HDF-EOS5"], default_value="HDF-EOS5", allow_none=True)
-    # download_files = tl.Bool(default_value=False)
+    page_size = tl.Int(default_value=20)
     version = tl.Union(
         [tl.Unicode(default_value=None, allow_none=True), tl.Int(default_value=None, allow_none=True)]
     ).tag(attr=True)
@@ -155,6 +156,10 @@ class EGI(DataSource):
 
         return None
 
+    @property
+    def coverage(self):
+        return (self.data_key, self.lat_key, self.lon_key)
+
     # attributes
     data = tl.Any(allow_none=True)
     _url = tl.Unicode(allow_none=True)
@@ -175,7 +180,7 @@ class EGI(DataSource):
             u += "&{key}={val}".format(key=key, val=val)
             return u
 
-        url = _append(url, "Coverage", "{},{},{}".format(self.data_key, self.lat_key, self.lon_key))
+        url = _append(url, "Coverage", ",".join(self.coverage))
 
         # Format could be customized - see response_format above
         # For now we set to HDF5
@@ -206,11 +211,12 @@ class EGI(DataSource):
             _log.warning("No data found in EGI source")
             return np.array([])
 
+    @node_eval
     def eval(self, coordinates, output=None):
         # download data for coordinate bounds, then handle that data as an H5PY node
-        zip_file = self._download_zip(coordinates)
+        zip_files = self._download(coordinates)
         try:
-            self.data = self._read_zip(zip_file)  # reads each file in zip archive and creates single dataarray
+            self.data = self._read_zips(zip_files)  # reads each file in zip archive and creates single dataarray
         except KeyError as e:
             print ("This following error may occur if data_key, lat_key, or lon_key is not correct.")
             print (
@@ -283,7 +289,7 @@ class EGI(DataSource):
         """
         raise NotImplementedError()
 
-    def _download_zip(self, coordinates):
+    def _download(self, coordinates):
         """
         Download data from EGI Interface within PODPAC coordinates
         
@@ -313,12 +319,26 @@ class EGI(DataSource):
                 for bound in coordinates["time"].bounds
                 if isinstance(bound, np.datetime64)
             ]
+            if self.min_bounds_span != None and "time" in self.min_bounds_span:
+                raise NotImplementedError  # TODO
+
             if len(time_bounds) < 2:
                 raise ValueError("Time coordinates must be of type np.datetime64")
 
         if "lat" in coordinates.udims or "lon" in coordinates.udims:
             lat = coordinates["lat"].bounds
             lon = coordinates["lon"].bounds
+            if (self.min_bounds_span != None) and ("lat" in self.min_bounds_span) and ("lon" in self.min_bounds_span):
+                latdiff = np.diff(lat)
+                londiff = np.diff(lon)
+                if latdiff < self.min_bounds_span["lat"]:
+                    pad = ((self.min_bounds_span["lat"] - latdiff) / 2)[0]
+                    lat = [lat[0] - pad, lat[1] + pad]
+
+                if londiff < self.min_bounds_span["lon"]:
+                    pad = ((self.min_bounds_span["lon"] - londiff) / 2)[0]
+                    lon = [lon[0] - pad, lon[1] + pad]
+
             bbox = "{},{},{},{}".format(lon[0], lat[0], lon[1], lat[1])
 
         # TODO: do we actually want to limit an open query?
@@ -333,43 +353,104 @@ class EGI(DataSource):
         if bbox is not None:
             url += "&Bbox={bbox}".format(bbox=bbox)
 
-        url += "&token={token}".format(token=self.token)
-
-        _log.debug("Querying EGI url: {}".format(url))
+        # admin parameters
+        url += "&token={token}&page_size={page_size}".format(token=self.token, page_size=self.page_size)
         self._url = url  # for debugging
-        r = requests.get(url)
+
+        # iterate through pages to build up zipfiles containg data
+        return list(self._query_egi(url))
+
+    def _query_egi(self, url, page_num=1):
+        """Generator for getting zip files from EGI interface
+        
+        Parameters
+        ----------
+        url : str
+            base url without page_num attached
+        page_num : int, optional
+            page_num to query
+        
+        Yields
+        ------
+        zipfile.ZipFile
+            ZipFile of results from page
+        
+        Raises
+        ------
+        ValueError
+            Raises value error if no granules available from EGI
+        """
+
+        # create the full url
+        page_url = "{}&page_num={}".format(url, page_num)
+        _log.debug("Querying EGI url: {}".format(page_url))
+        r = requests.get(page_url)
 
         if r.status_code != 200:
-            raise ValueError("Failed to download data from EGI Interface. EGI Reponse: {}".format(r.text))
 
-        # load content into file-like object and then read into zip file
-        f = BytesIO(r.content)
-        zip_file = zipfile.ZipFile(f)
+            # raise exception if the status is not 200 on the first page
+            if page_num == 1:
+                raise ValueError("Failed to download data from EGI Interface. EGI Reponse: {}".format(r.text))
 
-        return zip_file
+            # end iteration
+            elif r.status_code == 501 and "No granules returned by CMR" in r.text:
+                _log.debug("Last page returned from EGI Interface: {}".format(page_num - 1))
 
-    def _read_zip(self, zip_file):
+            # not sure of response, so end iteration
+            else:
+                _log.warning("Page returned from EGI Interface with unknown response: {}".format(r.text))
+
+        else:
+
+            # most of the time, EGI returns a zip file
+            if ".zip" in r.headers["Content-Disposition"]:
+                # load content into file-like object and then read into zip file
+                f = BytesIO(r.content)
+                zip_file = zipfile.ZipFile(f)
+
+            # if only one file exists, it will return the single file. This puts the single file in a zip archive
+            else:
+                filename = r.headers["Content-Disposition"].split('filename="')[1].replace('"', "")
+                zip_file = zipfile.ZipFile("{}.zip".format(filename), "w")
+                zip_file.writestr(filename, r.content)
+
+            # yield the current zip file
+            yield zip_file
+
+            try:
+                while True:  # broken by StopIteration
+                    page_num += 1  # increase page_num
+                    yield next(self._query_egi(url, page_num=page_num))
+            except StopIteration:
+                pass
+
+    def _read_zips(self, zip_files):
 
         all_data = None
-        _log.debug("Processing {} EGI files from zip archive".format(len(zip_file.namelist())))
+        _log.debug("Processing {} zip files from EGI response".format(len(zip_files)))
 
-        for name in zip_file.namelist():
-            _log.debug("Reading file: {}".format(name))
+        for zip_file in zip_files:
+            for name in zip_file.namelist():
+                _log.debug("Reading file: {}".format(name))
 
-            # BytesIO
-            bio = BytesIO(zip_file.read(name))
+                # BytesIO
+                try:
+                    bio = BytesIO(zip_file.read(name))
+                except (zipfile.BadZipfile, EOFError) as e:
+                    _log.warn(str(e))
+                    continue
 
-            # read file
-            uda = self.read_file(bio)
+                # read file
+                uda = self.read_file(bio)
 
-            # TODO: this can likely be simpler and automated
-            if uda is not None:
-                if all_data is None:
-                    all_data = uda
+                # TODO: this can likely be simpler and automated
+                if uda is not None:
+                    if all_data is None:
+                        all_data = uda.isel(lon=np.isfinite(uda.lon), lat=np.isfinite(uda.lat))
+                    else:
+                        all_data = self.append_file(all_data, uda)
                 else:
-                    all_data = self.append_file(all_data, uda)
-            else:
-                _log.warning("No data returned from file: {}".format(name))
+                    _log.warning("No data returned from file: {}".format(name))
 
         return all_data
 

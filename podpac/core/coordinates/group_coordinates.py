@@ -188,7 +188,7 @@ class GroupCoordinates(tl.HasTraits):
         json
         """
 
-        return json.dumps(self.definition, cls=JSONEncoder)
+        return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
     @property
     def hash(self):

@@ -338,7 +338,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
 
         # relative path
         podpac.settings["DISK_CACHE_DIR"] = "_testcache_"
-        expected = os.path.join(podpac.core.settings.DEFAULT_SETTINGS["ROOT_PATH"], "_testcache_")
+        expected = os.path.join(podpac.settings["ROOT_PATH"], "_testcache_")
         store = DiskCacheStore()
         store.clear()
         store.put(NODE1, 10, "mykey1")
@@ -385,4 +385,4 @@ class TestS3CacheStore(FileCacheStoreTests):
 
         store.put(NODE1, 10, "mykey1")
         store.put(NODE1, np.array([0, 1, 2]), "mykey2")
-        assert store.size == 154
+        assert store.size == 142

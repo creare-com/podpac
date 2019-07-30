@@ -371,7 +371,9 @@ class TestH5PY(object):
         node.close_dataset()
 
     def test_native_coordinates(self):
-        node = H5PY(source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon")
+        node = H5PY(
+            source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon", dims=["lat", "lon"]
+        )
 
         nc = node.native_coordinates
         assert node.native_coordinates.shape == (3, 4)
@@ -379,7 +381,9 @@ class TestH5PY(object):
         assert np.all(node.native_coordinates["lon"].coordinates == [-100.1, -100.2, -100.3, -100.4])
 
     def test_data(self):
-        node = H5PY(source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon")
+        node = H5PY(
+            source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon", dims=["lat", "lon"]
+        )
 
         o = node.eval(node.native_coordinates)
         assert np.all(o.data.ravel() == np.arange(12))
@@ -739,5 +743,5 @@ class TestZarr(object):
         node = Zarr(source=path, datakey="d0", dims=["lat", "lon", "time"])
 
     def test_group(self):
-        group = zarr.open(self.path, "r")
-        node = Zarr(group=group, datakey="a", dims=["lat", "lon"])
+        dataset = zarr.open(self.path, "r")
+        node = Zarr(dataset=dataset, datakey="a", dims=["lat", "lon"])

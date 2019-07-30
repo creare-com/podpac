@@ -3,6 +3,7 @@ from __future__ import division, print_function, absolute_import
 import traitlets as tl
 import matplotlib
 import matplotlib.cm
+from matplotlib.colors import ListedColormap
 import json
 from collections import OrderedDict
 
@@ -49,6 +50,8 @@ class Style(tl.HasTraits):
 
     @tl.default("cmap")
     def _cmap_default(self):
+        if self.is_enumerated and self.enumeration_colors:
+            return ListedColormap(self.enumeration_colors)
         return matplotlib.cm.get_cmap("viridis")
 
     @property
@@ -62,7 +65,7 @@ class Style(tl.HasTraits):
         from_json
         """
 
-        return json.dumps(self.definition, cls=JSONEncoder)
+        return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
     @property
     def definition(self):
@@ -77,7 +80,10 @@ class Style(tl.HasTraits):
     @classmethod
     def from_definition(cls, d):
         if "cmap" in d:
-            d["cmap"] = matplotlib.cm.get_cmap(d["cmap"])
+            if d["cmap"] == "from_list":
+                del d["cmap"]
+            else:
+                d["cmap"] = matplotlib.cm.get_cmap(d["cmap"])
         return cls(**d)
 
     @classmethod
@@ -88,7 +94,7 @@ class Style(tl.HasTraits):
         -----------
         s : str
             JSON definition
-            kkkk
+
         Returns
         --------
         Style

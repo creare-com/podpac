@@ -36,6 +36,7 @@ else:
     del _osmakedirs
 del os
 del sys
+del makedirs
 
 # Public API
 from podpac.core.settings import settings
@@ -53,6 +54,7 @@ from podpac import interpolators
 from podpac import coordinates
 from podpac import compositor
 from podpac import pipeline
+from podpac import managers
 from podpac import utils
 
 ## Developer API

@@ -71,7 +71,9 @@ class Pipeline(Node):
         s = proposal["value"]
         definition = json.loads(s, object_pairs_hook=OrderedDict)
         parse_pipeline_definition(definition)
-        return json.dumps(json.loads(s, object_pairs_hook=OrderedDict), cls=JSONEncoder)  # standardize
+        return json.dumps(
+            json.loads(s, object_pairs_hook=OrderedDict), separators=(",", ":"), cls=JSONEncoder
+        )  # standardize
 
     @tl.validate("definition")
     def _validate_definition(self, proposal):
@@ -81,7 +83,7 @@ class Pipeline(Node):
 
     @tl.default("json")
     def _json_from_definition(self):
-        return json.dumps(self.definition, cls=JSONEncoder)
+        return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
     @tl.default("definition")
     def _definition_from_json(self):

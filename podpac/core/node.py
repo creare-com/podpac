@@ -10,15 +10,24 @@ from collections import OrderedDict
 import functools
 from hashlib import md5 as hash_alg
 import json
+
 import numpy as np
 import traitlets as tl
 
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray, create_data_array
-from podpac.core.utils import common_doc, JSONEncoder
+from podpac.core.utils import (
+    common_doc,
+    JSONEncoder,
+    is_json_serializable,
+    _get_query_params_from_url,
+    _get_from_url,
+    _get_param,
+)
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, get_default_cache_ctrl
+from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore
+
 
 COMMON_NODE_DOC = {
     "requested_coordinates": """The set of coordinates requested by a user. The Node will be evaluated using these coordinates.""",
@@ -77,7 +86,7 @@ class Node(tl.HasTraits):
     cache_output: bool
         Should the node's output be cached? If not provided or None, uses default based on settings.
     cache_update: bool
-        Default is False. Should the node's cached output be updated from the source data? 
+        Default is False. Should the node's cached output be updated from the source data?
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
         Class that controls caching. If not provided, uses default based on settings.
     dtype : type
@@ -287,9 +296,7 @@ class Node(tl.HasTraits):
                 continue
 
             # check serializable
-            try:
-                json.dumps(attr, cls=JSONEncoder)
-            except:
+            if not is_json_serializable(attr, cls=JSONEncoder):
                 raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
 
             if isinstance(attr, Node):
@@ -390,7 +397,7 @@ class Node(tl.HasTraits):
         This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to
         share algorithms and pipelines, or run code on cloud services.
         """
-        return json.dumps(self.definition, cls=JSONEncoder)
+        return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
     @property
     def json_pretty(self):
@@ -484,10 +491,10 @@ class Node(tl.HasTraits):
         key : str
             Delete cached objects with this key. If `'*'`, cached data is deleted for all keys.
         coordinates : podpac.Coordinates, str, optional
-            Default is None. Delete cached objects for these coordinates. If `'*'`, cached data is deleted for all 
+            Default is None. Delete cached objects for these coordinates. If `'*'`, cached data is deleted for all
             coordinates, including coordinate-independent data. If None, will only affect coordinate-independent data.
         mode: str, optional
-            Specify which cache stores are affected. 
+            Specify which cache stores are affected.
 
 
         See Also
@@ -495,6 +502,68 @@ class Node(tl.HasTraits):
         `podpac.core.cache.cache.CacheCtrl.clear` to remove ALL cache for ALL nodes.
         """
         self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
+
+    # --------------------------------------------------------#
+    #  Class Methods
+    # --------------------------------------------------------#
+
+    @classmethod
+    def from_url(cls, url):
+        """
+        Create podpac Node from a WMS/WCS request.
+
+        Arguments
+        ---------
+        url : str, dict
+            The raw WMS/WCS request url, or a dictionary of query parameters
+
+        Returns
+        -------
+        :class:`Node`
+            A full Node with sub-nodes based on the definition of the node from the URL
+
+        Notes
+        -------
+        The request can specify the PODPAC node by four different mechanism:
+        * Direct node name: PODPAC will look for an appropriate node in podpac.datalib
+        * JSON definition passed using the 'PARAMS' query string: Need to specify the special LAYER/COVERAGE value of
+          "%PARAMS%"
+        * By pointing at the JSON definition retrievable with a http GET request:
+          e.g. by setting LAYER/COVERAGE value to https://my-site.org/pipeline_definition.json
+        * By pointing at the JSON definition retrievable from an S3 bucket that the user has access to:
+          e.g by setting LAYER/COVERAGE value to s3://my-bucket-name/pipeline_definition.json
+        """
+        from podpac.core.pipeline import Pipeline
+
+        params = _get_query_params_from_url(url)
+
+        if _get_param(params, "SERVICE") == "WMS":
+            layer = _get_param(params, "LAYERS")
+        elif _get_param(params, "SERVICE") == "WCS":
+            layer = _get_param(params, "COVERAGE")
+
+        pipeline_dict = None
+        if layer.startswith("https://"):
+            pipeline_json = _get_from_url(layer)
+        elif layer.startswith("s3://"):
+            parts = layer.split("/")
+            bucket = parts[2]
+            key = "/".join(parts[3:])
+            s3 = S3CacheStore(s3_bucket=bucket)
+            pipeline_json = s3._load(key)
+        elif layer == "%PARAMS%":
+            pipeline_json = _get_param(params, "PARAMS")
+        else:
+            p = _get_param(params, "PARAMS")
+            if p is None:
+                p = "{}"
+            pipeline_dict = OrderedDict(
+                {"nodes": OrderedDict({layer.replace(".", "-"): {"node": layer, "attrs": json.loads(p)}})}
+            )
+        if pipeline_dict is None:
+            pipeline_dict = json.loads(pipeline_json, object_pairs_hook=OrderedDict)
+
+        return Pipeline(definition=pipeline_dict)
 
 
 # --------------------------------------------------------#
@@ -561,12 +630,12 @@ def cache_func(key, depends=None):
     depends: str, list, traitlets.All (optional)
         Default is None. Any traits that the cached property depends on. The cached function may NOT
         change the value of any of these dependencies (this will result in a RecursionError)
-    
+
 
     Notes
     -----
     This decorator cannot handle function input parameters.
-    
+
     If the function uses any tagged attributes, these will essentially operate like dependencies
     because the cache key changes based on the node definition, which is affected by tagged attributes.
 

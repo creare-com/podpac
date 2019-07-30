@@ -85,7 +85,7 @@ class FileOutput(Output):
     """
 
     outdir = tl.Unicode()
-    format = tl.CaselessStrEnum(values=["pickle", "geotif", "png"], default_value="pickle").tag(attr=True)
+    format = tl.CaselessStrEnum(values=["pickle", "geotif", "png", "nc", "json"], default_value="pickle").tag(attr=True)
     mode = tl.Unicode(default_value="file").tag(attr=True)
 
     _path = tl.Unicode(allow_none=True, default_value=None)
@@ -117,6 +117,10 @@ class FileOutput(Output):
             raise NotImplementedError("format '%s' not yet implemented" % self.format)
         elif self.format == "geotif":
             raise NotImplementedError("format '%s' not yet implemented" % self.format)
+        elif self.format == "nc":
+            raise NotImplementedError("format '%s' not yet implemented" % self.format)
+        elif self.format == "json":
+            raise NotImplementedError("format '$s' not yet implemented" % self.format)
 
         self._path = path
 
@@ -206,4 +210,4 @@ class ImageOutput(Output):
 
     # TODO: docstring?
     def write(self, output, coordinates):
-        self.image = get_image(output, format=self.format, vmin=self.vmin, vmax=self.vmax)
+        self.image = get_image(output, format=self.format, vmin=self.vmin, vmax=self.vmax, return_base64=True)

@@ -76,7 +76,7 @@ class Algorithm(Node):
             inputs[key] = node.eval(coordinates)
 
         # accumulate output coordinates
-        coords_list = [Coordinates.from_xarray(a.coords) for a in inputs.values()]
+        coords_list = [Coordinates.from_xarray(a.coords, crs=a.attrs.get("crs")) for a in inputs.values()]
         output_coordinates = union([coordinates] + coords_list)
 
         result = self.algorithm(inputs)
@@ -87,7 +87,9 @@ class Algorithm(Node):
                 output.data[:] = result
         elif isinstance(result, xr.DataArray):
             if output is None:
-                output = self.create_output_array(Coordinates.from_xarray(result.coords), data=result.data)
+                output = self.create_output_array(
+                    Coordinates.from_xarray(result.coords, crs=result.attrs.get("crs")), data=result.data
+                )
             else:
                 output[:] = result.data
         elif isinstance(result, UnitsDataArray):
@@ -293,7 +295,7 @@ class Arithmetic(Algorithm):
 
         try:
             result = ne.evaluate(eqn, f_locals)
-        except ImportError:
+        except (NotImplementedError, ImportError):
             result = eval(eqn, f_locals)
         res = res[0].copy()  # Make an xarray object with correct dimensions
         res[:] = result

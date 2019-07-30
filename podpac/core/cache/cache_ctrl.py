@@ -267,7 +267,7 @@ class CacheCtrl(object):
         Parameters
         ------------
         mode : str
-            determines what types of the `CacheStore` are affected: 'ram','disk','network','all'. Overriden by `self._cache_mode` if `self._cache_mode` is not `None`.
+            determines what types of the `CacheStore` are affected: 'ram','disk','network','all'. Defaults to `node._cache_mode` or 'all'. Overriden by `self._cache_mode` if `self._cache_mode` is not `None`.
         """
 
         if not isinstance(mode, six.string_types) and mode is not None:

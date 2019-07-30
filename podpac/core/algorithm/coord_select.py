@@ -38,6 +38,7 @@ class ModifyCoordinates(Algorithm):
     lon = tl.List().tag(attr=True)
     time = tl.List().tag(attr=True)
     alt = tl.List().tag(attr=True)
+    substitute_eval_coords = tl.Bool(False).tag(attr=True)
 
     _modified_coordinates = tl.Instance(Coordinates, allow_none=True)
 
@@ -68,7 +69,7 @@ class ModifyCoordinates(Algorithm):
         self._requested_coordinates = coordinates
         self.outputs = {}
         self._modified_coordinates = Coordinates(
-            [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims]
+            [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims], crs=coordinates.crs
         )
 
         for dim in self._modified_coordinates.udims:
@@ -76,6 +77,14 @@ class ModifyCoordinates(Algorithm):
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
 
         self.outputs["source"] = self.source.eval(self._modified_coordinates, output=output)
+
+        if self.substitute_eval_coords:
+            dims = self.outputs["source"].dims
+            coords = self._requested_coordinates
+            extra_dims = [d for d in coords.dims if d not in dims]
+            coords = coords.drop(extra_dims).coords
+
+            self.outputs["source"] = self.outputs["source"].assign_coords(**coords)
 
         if output is None:
             output = self.outputs["source"]
@@ -99,6 +108,8 @@ class ExpandCoordinates(ModifyCoordinates):
          * [start_offset, end_offset, step] to expand uniformly around each input coordinate.
          * [start_offset, end_offset] to expand using the available source coordinates around each input coordinate.
     """
+
+    substitute_eval_coords = tl.Bool(False, read_only=True)
 
     def get_modified_coordinates1d(self, coords, dim):
         """Returns the expanded coordinates for the requested dimension, depending on the expansion parameter for the
@@ -203,3 +214,23 @@ class SelectCoordinates(ModifyCoordinates):
             raise ValueError("Invalid selection attrs for '%s'" % dim)
 
         return coords1d
+
+
+class YearSubstituteCoordinates(ModifyCoordinates):
+    year = tl.Unicode().tag(attr=True)
+
+    # Remove tags from attributes
+    lat = tl.List()
+    lon = tl.List()
+    time = tl.List()
+    alt = tl.List()
+    coordinates_source = None
+
+    def get_modified_coordinates1d(self, coord, dim):
+        if dim != "time":
+            return coord[dim]
+        times = coord["time"]
+        delta = np.datetime64(self.year)
+        new_times = [add_coord(c, delta - c.astype("datetime64[Y]")) for c in times.coordinates]
+
+        return ArrayCoordinates1d(new_times, name="time")

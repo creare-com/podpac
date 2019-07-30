@@ -407,11 +407,11 @@ class TestCreateDataArray(object):
 class TestGetImage(object):
     def test_get_image(self):
         data = np.ones((10, 10))
-        assert isinstance(get_image(UnitsDataArray(data)), bytes)  # UnitsDataArray input
-        assert isinstance(get_image(xr.DataArray(data)), bytes)  # xr.DataArray input
-        assert isinstance(get_image(data), bytes)  # np.ndarray input
-        assert isinstance(get_image(np.array([data])), bytes)  # squeeze
+        assert isinstance(get_image(UnitsDataArray(data), return_base64=True), bytes)  # UnitsDataArray input
+        assert isinstance(get_image(xr.DataArray(data), return_base64=True), bytes)  # xr.DataArray input
+        assert isinstance(get_image(data, return_base64=True), bytes)  # np.ndarray input
+        assert isinstance(get_image(np.array([data]), return_base64=True), bytes)  # squeeze
 
     def test_get_image_vmin_vmax(self):
         data = np.ones((10, 10))
-        assert isinstance(get_image(data, vmin=0, vmax=2), bytes)
+        assert isinstance(get_image(data, vmin=0, vmax=2, return_base64=True), bytes)

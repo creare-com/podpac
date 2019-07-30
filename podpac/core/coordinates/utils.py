@@ -370,6 +370,10 @@ def _add_nominal_timedelta(base, delta):
         return base + delta
 
     shape = delta.shape
+    # The following is needed when the time resolution is smaller than a ms -- cannot create datetime in those cases
+
+    if not isinstance(base.item(), datetime.datetime):
+        base = base.astype("datetime64[ms]")
     base = base.item()
     tds = np.array(delta).astype(int).flatten()
 

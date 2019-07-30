@@ -411,6 +411,7 @@ def test_add_coord():
 
     # year timedeltas
     assert add_coord(dt64("2018-01-01"), td64(1, "Y")) == dt64("2019-01-01")
+    assert add_coord(dt64("2018-01-01T00:00:00.0000000"), td64(1, "Y")) == dt64("2019-01-01")
     assert add_coord(dt64("2018-01-01"), td64(-1, "Y")) == dt64("2017-01-01")
     assert add_coord(dt64("2020-02-29"), td64(1, "Y")) == dt64("2021-02-28")
 
