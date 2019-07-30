@@ -12,6 +12,7 @@ class DroughtMonitorCategory(Zarr):
     cf_units = "days since 2018-01-01 00:00:00"
     cf_calendar = "proleptic_gregorian"
 
+
 class DroughtCategory(Algorithm):
     soil_moisture = NodeTrait()
     d0 = NodeTrait()

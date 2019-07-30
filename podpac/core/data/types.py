@@ -569,7 +569,7 @@ class Rasterio(DataSource):
         return matches
 
 
-class SpecifyCoordinatedMixin(tl.HasTraits):
+class DatasetCoordinatedMixin(tl.HasTraits):
     latkey = tl.Unicode(allow_none=True, default_value="lat").tag(attr=True)
     lonkey = tl.Unicode(allow_none=True, default_value="lon").tag(attr=True)
     timekey = tl.Unicode(allow_none=True, default_value="time").tag(attr=True)
@@ -651,7 +651,7 @@ class SpecifyCoordinatedMixin(tl.HasTraits):
 
 
 @common_doc(COMMON_DATA_DOC)
-class H5PY(SpecifyCoordinatedMixin, DataSource):
+class H5PY(DatasetCoordinatedMixin, DataSource):
     """Create a DataSource node using h5py.
     
     Attributes
@@ -748,7 +748,7 @@ For example,
         return keys
 
 
-class Zarr(SpecifyCoordinatedMixin, DataSource):
+class Zarr(DatasetCoordinatedMixin, DataSource):
     source = tl.Unicode(allow_none=True)
     dataset = tl.Any(allow_none=False)
     datakey = tl.Unicode(allow_none=False).tag(attr=True)

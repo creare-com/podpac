@@ -80,8 +80,8 @@ class Style(tl.HasTraits):
     @classmethod
     def from_definition(cls, d):
         if "cmap" in d:
-            if d['cmap'] == 'from_list':
-                del d['cmap']
+            if d["cmap"] == "from_list":
+                del d["cmap"]
             else:
                 d["cmap"] = matplotlib.cm.get_cmap(d["cmap"])
         return cls(**d)
