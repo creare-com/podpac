@@ -66,8 +66,10 @@ class IntakeCatalog(podpac.data.DataSource):
     crs = tl.Unicode(default_value=None, allow_none=True)
 
     # attributes
-    catalog = tl.Instance(intake.catalog.Catalog)
-    datasource = tl.Instance(intake.catalog.local.LocalCatalogEntry)
+    catalog = tl.Any()  # This should be lazy-loaded, but haven't problems with that currently
+    # tl.Instance(intake.catalog.Catalog)
+    datasource = t.Any()  # Same as above
+    # datasource = tl.Instance(intake.catalog.local.LocalCatalogEntry)
 
     @tl.default("catalog")
     def _default_catalog(self):
