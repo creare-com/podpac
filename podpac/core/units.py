@@ -124,7 +124,7 @@ class UnitsDataArray(xr.DataArray):
     def to_netcdf(self, *args, **kwargs):
         o = self
         for d in self.dims:
-            if '_' in d:
+            if '_' in d and 'dim' not in d:  # This it is stacked
                 o = o.reset_index(d)
         o.serialize()
         r = super(UnitsDataArray, o).to_netcdf(*args, **kwargs)
