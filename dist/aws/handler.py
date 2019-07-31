@@ -107,14 +107,15 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         return pipeline
 
     body = output.to_format(format, *args, **kwargs)
-    try:
-        json.dumps(body)
-    except Exception as e:
-        print("AWS: body is not serializable, attempting to decode.")
-        body = body.decode()
     if pipeline_json is not None:
         s3.put_object(Bucket=bucket_name,
                       Key=filename, Body=body)
+    else:
+        try:
+            json.dumps(body)
+        except Exception as e:
+            print("AWS: body is not serializable, attempting to decode.")
+            body = body.decode()
     return {
         "statusCode": 200,
         "headers": {
