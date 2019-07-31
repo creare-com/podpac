@@ -29,7 +29,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         sys.path.append('/tmp/')
         subprocess.call(['rm', '/tmp/' + deps])
 
-    if 'Records' in event and event['Records'][0]['eventSource'] is 'aws:s3':
+    if 'Records' in event and event['Records'][0]['eventSource'] == 'aws:s3':
         # <start S3 trigger specific>
         file_key = urllib.unquote_plus(
             event['Records'][0]['s3']['object']['key'])
@@ -46,7 +46,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
             _json, object_pairs_hook=OrderedDict)
         pipeline_json = _json['pipeline']
     else:
-    # elif ('pathParameters' in event and event['pathParameters'] is not None and 'proxy' in event['pathParameters']) or ('authorizationToken' in event and event['authorizationToken'] is "incoming-client-token"):
+    # elif ('pathParameters' in event and event['pathParameters'] is not None and 'proxy' in event['pathParameters']) or ('authorizationToken' in event and event['authorizationToken'] == "incoming-client-token"):
         # TODO: Need to get the pipeline_json from the event...
         print("DSullivan: we have an API Gateway event")
         pipeline_json = None
@@ -84,7 +84,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     kwargs = {}
     # if from S3 trigger
     if pipeline_json is not None:
-    # if 'Records' in event and event['Records'][0]['eventSource'] is 'aws:s3':
+    # if 'Records' in event and event['Records'][0]['eventSource'] == 'aws:s3':
         pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
         coords = Coordinates.from_json(
             json.dumps(_json['coordinates'], indent=4, cls=JSONEncoder))
@@ -92,7 +92,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
 
     # else from api gateway and it's a WMS/WCS request
     else:
-    # elif ('pathParameters' in event and event['pathParameters'] is not None and 'proxy' in event['pathParameters']) or ('authorizationToken' in event and event['authorizationToken'] is "incoming-client-token"):
+    # elif ('pathParameters' in event and event['pathParameters'] is not None and 'proxy' in event['pathParameters']) or ('authorizationToken' in event and event['authorizationToken'] == "incoming-client-token"):
         print(_get_query_params_from_url(event['queryStringParameters']))
         coords = Coordinates.from_url(event['queryStringParameters'])
         pipeline = Node.from_url(event['queryStringParameters'])
