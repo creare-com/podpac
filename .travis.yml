@@ -6,10 +6,13 @@
 # https://conda.io/docs/user-guide/tasks/use-conda-with-travis-ci.html
 
 language: python
+sudo: required
+dist: xenial
 python:
   - "2.7"
   - "3.5"
   - "3.6"
+  - "3.7"
 
 # addons:
 #   # https://docs.travis-ci.com/user/uploading-artifacts/
@@ -44,6 +47,9 @@ script:
 # deploy docs to `podpac-docs` repository. This script only pushes the docs on pushes to develop and master.
 jobs:
   include:
+    - stage: formatting
+      python: "3.7"
+      script: black --check podpac
     - stage: docs deploy
-      python: "3.6"
+      python: "3.7"
       script: cd doc && ./ci-deploy.sh && cd ..

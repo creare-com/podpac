@@ -1,4 +1,3 @@
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
@@ -11,6 +10,7 @@ from collections import OrderedDict
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord, divide_delta
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
+
 
 class UniformCoordinates1d(Coordinates1d):
     """
@@ -48,7 +48,7 @@ class UniformCoordinates1d(Coordinates1d):
 
     start = tl.Union([tl.Float(), tl.Instance(np.datetime64)], read_only=True)
     start.__doc__ = ":float, datetime64: Start coordinate."
-    
+
     stop = tl.Union([tl.Float(), tl.Instance(np.datetime64)], read_only=True)
     stop.__doc__ = ":float, datetime64: Stop coordinate."
 
@@ -100,8 +100,10 @@ class UniformCoordinates1d(Coordinates1d):
         elif isinstance(start, np.datetime64) and isinstance(stop, np.datetime64) and isinstance(step, np.timedelta64):
             fstep = step.astype(float)
         else:
-            raise TypeError("UniformCoordinates1d mismatching types (start '%s', stop '%s', step '%s')." % (
-                type(start), type(stop), type(step)))
+            raise TypeError(
+                "UniformCoordinates1d mismatching types (start '%s', stop '%s', step '%s')."
+                % (type(start), type(stop), type(step))
+            )
 
         if fstep < 0 and start < stop:
             raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
@@ -109,20 +111,20 @@ class UniformCoordinates1d(Coordinates1d):
         if fstep > 0 and start > stop:
             raise ValueError("UniformCoordinates1d step must be less than zero if start > stop.")
 
-        self.set_trait('start', start)
-        self.set_trait('stop', stop)
-        self.set_trait('step', step)
+        self.set_trait("start", start)
+        self.set_trait("stop", stop)
+        self.set_trait("step", step)
 
         # set common properties
         super(UniformCoordinates1d, self).__init__(name=name, ctype=ctype, segment_lengths=segment_lengths)
-        
-    @tl.default('ctype')
-    def _default_ctype(self):
-        return 'midpoint'
 
-    @tl.default('segment_lengths')
+    @tl.default("ctype")
+    def _default_ctype(self):
+        return "midpoint"
+
+    @tl.default("segment_lengths")
     def _default_segment_lengths(self):
-        if self.ctype == 'point':
+        if self.ctype == "point":
             return None
 
         return np.abs(self.step)
@@ -139,7 +141,7 @@ class UniformCoordinates1d(Coordinates1d):
         if isinstance(other, ArrayCoordinates1d):
             if not np.array_equal(self.coordinates, other.coordinates):
                 return False
-        
+
         return True
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -150,7 +152,8 @@ class UniformCoordinates1d(Coordinates1d):
     def from_tuple(cls, items, **kwargs):
         if not isinstance(items, tuple) or len(items) != 3:
             raise ValueError(
-                "UniformCoordinates1d.from_tuple expects a tuple of (start, stop, step/size), got %s" % (items,))
+                "UniformCoordinates1d.from_tuple expects a tuple of (start, stop, step/size), got %s" % (items,)
+            )
         elif isinstance(items[2], int):
             return cls(items[0], items[1], size=items[2], **kwargs)
         else:
@@ -201,14 +204,14 @@ class UniformCoordinates1d(Coordinates1d):
         definition
         """
 
-        if 'start' not in d:
+        if "start" not in d:
             raise ValueError('UniformCoordinates1d definition requires "start" property')
-        if 'stop' not in d:
+        if "stop" not in d:
             raise ValueError('UniformCoordinates1d definition requires "stop" property')
 
-        start = d['start']
-        stop = d['stop']
-        kwargs = {k:v for k,v in d.items() if k not in ['start', 'stop']}
+        start = d["start"]
+        stop = d["stop"]
+        kwargs = {k: v for k, v in d.items() if k not in ["start", "stop"]}
         return cls(start, stop, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -224,16 +227,16 @@ class UniformCoordinates1d(Coordinates1d):
             if index.start is None:
                 start = self.start
             elif index.start >= 0:
-                start = add_coord(self.start, self.step * min(index.start, self.size-1))
+                start = add_coord(self.start, self.step * min(index.start, self.size - 1))
             else:
-                start = add_coord(self.start, self.step * max(0, self.size+index.start))
+                start = add_coord(self.start, self.step * max(0, self.size + index.start))
 
             if index.stop is None:
                 stop = self.stop
             elif index.stop >= 0:
-                stop = add_coord(self.start, self.step * (min(index.stop, self.size)-1))
+                stop = add_coord(self.start, self.step * (min(index.stop, self.size) - 1))
             else:
-                stop = add_coord(self.start, self.step * max(0, self.size+index.stop-1))
+                stop = add_coord(self.start, self.step * max(0, self.size + index.stop - 1))
 
             if index.step is None:
                 step = self.step
@@ -244,12 +247,12 @@ class UniformCoordinates1d(Coordinates1d):
 
             # properties and segment_lengths
             kwargs = self.properties
-            
-            if self.ctype != 'point':
+
+            if self.ctype != "point":
                 if isinstance(self.segment_lengths, np.ndarray):
-                    kwargs['segment_lengths'] = self.segment_lengths[index]
+                    kwargs["segment_lengths"] = self.segment_lengths[index]
                 elif self.segment_lengths != step:
-                    kwargs['segment_lengths'] = self.segment_lengths
+                    kwargs["segment_lengths"] = self.segment_lengths
 
             # reroute empty slices to the else clause
             if start > stop and step > 0:
@@ -263,14 +266,14 @@ class UniformCoordinates1d(Coordinates1d):
 
             # properties and segment_lengths
             kwargs = self.properties
-            
-            if self.ctype != 'point':
-                if isinstance(self.segment_lengths, np.ndarray):
-                    kwargs['segment_lengths'] = self.segment_lengths[index]
-                else:
-                    kwargs['segment_lengths'] = self.segment_lengths
 
-            kwargs['ctype'] = self.ctype
+            if self.ctype != "point":
+                if isinstance(self.segment_lengths, np.ndarray):
+                    kwargs["segment_lengths"] = self.segment_lengths[index]
+                else:
+                    kwargs["segment_lengths"] = self.segment_lengths
+
+            kwargs["ctype"] = self.ctype
 
             return ArrayCoordinates1d(coordinates, **kwargs)
 
@@ -283,7 +286,7 @@ class UniformCoordinates1d(Coordinates1d):
         """:array, read-only: Coordinate values. """
 
         coordinates = add_coord(self.start, np.arange(0, self.size) * self.step)
-        coordinates.setflags(write=False)
+        # coordinates.setflags(write=False)  # This breaks the 002-open-point-file example
         return coordinates
 
     @property
@@ -292,24 +295,24 @@ class UniformCoordinates1d(Coordinates1d):
 
         dname = np.array(self.step).dtype.name
 
-        if dname == 'timedelta64[Y]':
+        if dname == "timedelta64[Y]":
             dyear = self.stop.item().year - self.start.item().year
             if dyear > 0 and self.stop.item().month < self.start.item().month:
                 dyear -= 1
             range_ = dyear
             step = self.step.item()
 
-        elif dname == 'timedelta64[M]':
+        elif dname == "timedelta64[M]":
             dyear = self.stop.item().year - self.start.item().year
             dmonth = self.stop.item().month - self.start.item().month
-            range_ = 12*dyear + dmonth
+            range_ = 12 * dyear + dmonth
             step = self.step.item()
 
         else:
             range_ = self.stop - self.start
             step = self.step
 
-        return max(0, int(np.floor(range_/step + 1e-12) + 1))
+        return max(0, int(np.floor(range_ / step + 1e-12) + 1))
 
     @property
     def dtype(self):
@@ -328,7 +331,7 @@ class UniformCoordinates1d(Coordinates1d):
     def is_descending(self):
         if self.start == self.stop:
             return None
-        
+
         return self.stop < self.start
 
     @property
@@ -358,9 +361,9 @@ class UniformCoordinates1d(Coordinates1d):
 
     def _get_definition(self, full=True):
         d = OrderedDict()
-        d['start'] = self.start
-        d['stop'] = self.stop
-        d['step'] = self.step
+        d["start"] = self.start
+        d["stop"] = self.stop
+        d["step"] = self.step
         d.update(self._full_properties if full else self.properties)
         return d
 
@@ -398,7 +401,7 @@ class UniformCoordinates1d(Coordinates1d):
             if imax != fmax:
                 imax += 1
 
-        imax = np.clip(imax+1, 0, self.size)
+        imax = np.clip(imax + 1, 0, self.size)
         imin = np.clip(imin, 0, self.size)
 
         # empty case

@@ -1,4 +1,3 @@
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
@@ -14,21 +13,22 @@ from podpac.core.algorithm.algorithm import Arange
 from podpac.core.pipeline.pipeline import Pipeline, PipelineError
 from podpac.core.pipeline.output import FileOutput
 
-coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=['lat', 'lon'])
+coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"])
 node = Arange()
 node.eval(coords)
 
+
 class TestPipeline(object):
     def test_init_path(self):
-        path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'pipeline', 'test', 'test.json')
+        path = os.path.join(os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test", "test.json")
         pipeline = Pipeline(path=path)
-        
+
         assert pipeline.json
         assert pipeline.definition
         assert pipeline.output
 
     def test_init_json(self):
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -36,7 +36,7 @@ class TestPipeline(object):
                 }
             }
         }
-        '''
+        """
 
         pipeline = Pipeline(json=s)
         assert pipeline.json
@@ -44,7 +44,7 @@ class TestPipeline(object):
         assert pipeline.output
 
     def test_init_definition(self):
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -52,8 +52,8 @@ class TestPipeline(object):
                 }
             }
         }
-        '''
-        
+        """
+
         d = json.loads(s, object_pairs_hook=OrderedDict)
 
         pipeline = Pipeline(definition=d)
@@ -65,7 +65,7 @@ class TestPipeline(object):
         pass
 
     def test_eval(self):
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -73,20 +73,20 @@ class TestPipeline(object):
                 }
             }
         }
-        '''
+        """
 
         pipeline = Pipeline(json=s)
         pipeline.eval(coords)
-        
+
         pipeline.units
         pipeline.dtype
         pipeline.cache_ctrl
         pipeline.style
 
     def test_eval_output(self):
-        path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'pipeline', 'test')
+        path = os.path.join(os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test")
 
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -100,7 +100,7 @@ class TestPipeline(object):
                 "outdir": "."
             }
         }
-        '''
+        """
 
         pipeline = Pipeline(json=s)
         pipeline.eval(coords)
@@ -109,9 +109,9 @@ class TestPipeline(object):
         os.remove(pipeline.output.path)
 
     def test_eval_no_output(self):
-        path = os.path.join(os.path.abspath(podpac.__path__[0]), 'core', 'pipeline', 'test')
+        path = os.path.join(os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test")
 
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -125,7 +125,7 @@ class TestPipeline(object):
                 "outdir": "."
             }
         }
-        '''
+        """
 
         pipeline = Pipeline(json=s, do_write_output=False)
         pipeline.eval(coords)
@@ -134,7 +134,7 @@ class TestPipeline(object):
         assert pipeline.output.path is None
 
     def test_debuggable(self):
-        s = '''
+        s = """
         {
             "nodes": {
                 "a": {
@@ -152,12 +152,13 @@ class TestPipeline(object):
                 }
             }
         }
-        '''
+        """
 
+        debug = podpac.core.settings.settings["DEBUG"]
+        podpac.core.settings.settings["DEBUG"] = False
         pipeline = Pipeline(json=s)
         assert pipeline.node.A is pipeline.node.B.source
-
-        podpac.core.settings.settings['DEBUG'] = True
+        podpac.core.settings.settings["DEBUG"] = True
         pipeline = Pipeline(json=s)
         assert pipeline.node.A is not pipeline.node.B.source
-        podpac.core.settings.settings['DEBUG'] = False
+        podpac.core.settings.settings["DEBUG"] = debug

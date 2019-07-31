@@ -24,12 +24,14 @@ from podpac.core.compositor import Compositor
 
 from podpac.core.pipeline.output import Output, NoOutput, FileOutput, S3Output, FTPOutput, ImageOutput
 
+
 class PipelineError(NodeException):
     """
     Raised when parsing a Pipeline definition fails.
     """
 
     pass
+
 
 class Pipeline(Node):
     """
@@ -55,37 +57,39 @@ class Pipeline(Node):
     do_write_output = tl.Bool(True)
 
     def _first_init(self, path=None, **kwargs):
-        if (path is not None) + ('definition' in kwargs) + ('json' in kwargs) != 1:
+        if (path is not None) + ("definition" in kwargs) + ("json" in kwargs) != 1:
             raise TypeError("Pipeline requires exactly one 'path', 'json', or 'definition' argument")
 
         if path is not None:
             with open(path) as f:
-                kwargs['definition'] = json.load(f, object_pairs_hook=OrderedDict)
+                kwargs["definition"] = json.load(f, object_pairs_hook=OrderedDict)
 
         return kwargs
 
-    @tl.validate('json')
+    @tl.validate("json")
     def _json_validate(self, proposal):
-        s = proposal['value']
+        s = proposal["value"]
         definition = json.loads(s, object_pairs_hook=OrderedDict)
         parse_pipeline_definition(definition)
-        return json.dumps(json.loads(s, object_pairs_hook=OrderedDict), cls=JSONEncoder) # standardize
+        return json.dumps(
+            json.loads(s, object_pairs_hook=OrderedDict), separators=(",", ":"), cls=JSONEncoder
+        )  # standardize
 
-    @tl.validate('definition')
+    @tl.validate("definition")
     def _validate_definition(self, proposal):
-        definition = proposal['value']
+        definition = proposal["value"]
         parse_pipeline_definition(definition)
         return definition
 
-    @tl.default('json')
+    @tl.default("json")
     def _json_from_definition(self):
-        return json.dumps(self.definition, cls=JSONEncoder)
+        return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
-    @tl.default('definition')
+    @tl.default("definition")
     def _definition_from_json(self):
         return json.loads(self.json, object_pairs_hook=OrderedDict)
 
-    @tl.default('output')
+    @tl.default("output")
     def _parse_definition(self):
         return parse_pipeline_definition(self.definition)
 
@@ -131,32 +135,35 @@ class Pipeline(Node):
     def style(self):
         return self.node.style
 
+
 # ---------------------------------------------------------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------------------------------------------------------
 
+
 def parse_pipeline_definition(definition):
-    if 'nodes' not in definition:
+    if "nodes" not in definition:
         raise PipelineError("Pipeline definition requires 'nodes' property")
 
-    if len(definition['nodes']) == 0:
+    if len(definition["nodes"]) == 0:
         raise PipelineError("'nodes' property cannot be empty")
 
     # parse node definitions
     nodes = OrderedDict()
-    for key, d in definition['nodes'].items():
+    for key, d in definition["nodes"].items():
         nodes[key] = _parse_node_definition(nodes, key, d)
 
     # parse output definition
-    output = _parse_output_definition(nodes, definition.get('output', {}))
+    output = _parse_output_definition(nodes, definition.get("output", {}))
 
     return output
 
+
 def _parse_node_definition(nodes, name, d):
     # get node class
-    module_root = d.get('plugin', 'podpac')
-    node_string = '%s.%s' % (module_root, d['node'])
-    module_name, node_name = node_string.rsplit('.', 1)
+    module_root = d.get("plugin", "podpac")
+    node_string = "%s.%s" % (module_root, d["node"])
+    module_name, node_name = node_string.rsplit(".", 1)
     try:
         module = importlib.import_module(module_name)
     except ImportError:
@@ -168,51 +175,51 @@ def _parse_node_definition(nodes, name, d):
 
     # parse and configure kwargs
     kwargs = {}
-    whitelist = ['node', 'attrs', 'lookup_attrs', 'plugin']
+    whitelist = ["node", "attrs", "lookup_attrs", "plugin"]
 
     # DataSource, Compositor, and Algorithm specific properties
     parents = inspect.getmro(node_class)
 
     if DataSource in parents:
-        if 'attrs' in d:
-            if 'source' in d['attrs']:
+        if "attrs" in d:
+            if "source" in d["attrs"]:
                 raise PipelineError("The 'source' property cannot be in attrs")
 
-            if 'lookup_source' in d['attrs']:
+            if "lookup_source" in d["attrs"]:
                 raise PipelineError("The 'lookup_source' property cannot be in attrs")
 
-        if 'source' in d:
-            kwargs['source'] = d['source']
-            whitelist.append('source')
+        if "source" in d:
+            kwargs["source"] = d["source"]
+            whitelist.append("source")
 
-        elif 'lookup_source' in d:
-            kwargs['source'] = _get_subattr(nodes, name, d['lookup_source'])
-            whitelist.append('lookup_source')
+        elif "lookup_source" in d:
+            kwargs["source"] = _get_subattr(nodes, name, d["lookup_source"])
+            whitelist.append("lookup_source")
 
     if Compositor in parents:
-        if 'sources' in d:
-            sources = [_get_subattr(nodes, name, source) for source in d['sources']]
-            kwargs['sources'] = np.array(sources)
-            whitelist.append('sources')
+        if "sources" in d:
+            sources = [_get_subattr(nodes, name, source) for source in d["sources"]]
+            kwargs["sources"] = np.array(sources)
+            whitelist.append("sources")
 
     if DataSource in parents or Compositor in parents:
-        if 'attrs' in d and 'interpolation' in d['attrs']:
+        if "attrs" in d and "interpolation" in d["attrs"]:
             raise PipelineError("The 'interpolation' property cannot be in attrs")
 
-        if 'interpolation' in d:
-            kwargs['interpolation'] = d['interpolation']
-            whitelist.append('interpolation')
-            
-    if Algorithm in parents:
-        if 'inputs' in d:
-            inputs = {k:_get_subattr(nodes, name, v) for k, v in d['inputs'].items()}
-            kwargs.update(inputs)
-            whitelist.append('inputs')
+        if "interpolation" in d:
+            kwargs["interpolation"] = d["interpolation"]
+            whitelist.append("interpolation")
 
-    for k, v in d.get('attrs', {}).items():
+    if Algorithm in parents:
+        if "inputs" in d:
+            inputs = {k: _get_subattr(nodes, name, v) for k, v in d["inputs"].items()}
+            kwargs.update(inputs)
+            whitelist.append("inputs")
+
+    for k, v in d.get("attrs", {}).items():
         kwargs[k] = v
 
-    for k, v in d.get('lookup_attrs', {}).items():
+    for k, v in d.get("lookup_attrs", {}).items():
         kwargs[k] = _get_subattr(nodes, name, v)
 
     for key in d:
@@ -222,31 +229,32 @@ def _parse_node_definition(nodes, name, d):
     # return node info
     return node_class(**kwargs)
 
+
 def _parse_output_definition(nodes, d):
     # node (uses last node by default)
-    if 'node' in d:
-        name = d['node']
+    if "node" in d:
+        name = d["node"]
     else:
         name = list(nodes.keys())[-1]
 
-    node = _get_subattr(nodes, 'output', name)
-    
+    node = _get_subattr(nodes, "output", name)
+
     # output parameters
-    config = {k:v for k, v in d.items() if k not in ['node', 'mode', 'plugin', 'output']}
+    config = {k: v for k, v in d.items() if k not in ["node", "mode", "plugin", "output"]}
 
     # get output class from mode
-    if 'plugin' not in d:
+    if "plugin" not in d:
         # core output (from mode)
-        mode = d.get('mode', 'none')
-        if mode == 'none':
+        mode = d.get("mode", "none")
+        if mode == "none":
             output_class = NoOutput
-        elif mode == 'file':
+        elif mode == "file":
             output_class = FileOutput
-        elif mode == 'ftp':
+        elif mode == "ftp":
             output_class = FTPOutput
-        elif mode == 's3':
+        elif mode == "s3":
             output_class = S3Output
-        elif mode == 'image':
+        elif mode == "image":
             output_class = ImageOutput
         else:
             raise PipelineError("output has unexpected mode '%s'" % mode)
@@ -255,8 +263,8 @@ def _parse_output_definition(nodes, d):
 
     else:
         # custom output (from plugin)
-        custom_output = '%s.%s' % (d['plugin'], d['output'])
-        module_name, class_name = custom_output.rsplit('.', 1)
+        custom_output = "%s.%s" % (d["plugin"], d["output"])
+        module_name, class_name = custom_output.rsplit(".", 1)
         try:
             module = importlib.import_module(module_name)
         except ImportError:
@@ -276,17 +284,18 @@ def _parse_output_definition(nodes, d):
 
     return output
 
+
 def _get_subattr(nodes, name, ref):
-    refs = ref.split('.')
-    
+    refs = ref.split(".")
+
     try:
         attr = nodes[refs[0]]
         for _name in refs[1:]:
             attr = getattr(attr, _name)
     except (KeyError, AttributeError):
         raise PipelineError("'%s' references nonexistent node/attribute '%s'" % (name, ref))
-    
-    if settings['DEBUG']:
+
+    if settings["DEBUG"]:
         attr = deepcopy(attr)
 
     return attr

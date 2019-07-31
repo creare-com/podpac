@@ -240,7 +240,8 @@ Utilities
     :toctree: api/
     :template: module.rst
 
-    podpac.utils
+    podpac.utils.create_logfile
+    podpac.utils.clear_cache
 
 
 .. rubric:: Version

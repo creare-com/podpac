@@ -1,4 +1,3 @@
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import json
@@ -6,6 +5,7 @@ from hashlib import md5 as hash_alg
 import traitlets as tl
 from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.utils import JSONEncoder
+
 
 class GroupCoordinates(tl.HasTraits):
     """
@@ -23,12 +23,12 @@ class GroupCoordinates(tl.HasTraits):
     udims : tuple
         Tuple of shared dimensions.
     """
-    
+
     _items = tl.List(trait=tl.Instance(Coordinates))
 
-    @tl.validate('_items')
+    @tl.validate("_items")
     def _validate_items(self, d):
-        items = d['value']
+        items = d["value"]
         if not items:
             return items
 
@@ -54,13 +54,13 @@ class GroupCoordinates(tl.HasTraits):
 
     def __repr__(self):
         rep = self.__class__.__name__
-        rep += '\n' + '\n'.join([repr(c) for c in self._items])
+        rep += "\n" + "\n".join([repr(c) for c in self._items])
         return rep
 
     # ------------------------------------------------------------------------------------------------------------------
     # alternative constructors
     # ------------------------------------------------------------------------------------------------------------------
-    
+
     @classmethod
     def from_definition(cls, d):
         """
@@ -105,7 +105,7 @@ class GroupCoordinates(tl.HasTraits):
 
         d = json.loads(s)
         return cls.from_definition(d)
-    
+
     # ------------------------------------------------------------------------------------------------------------------
     # standard list-like methods
     # ------------------------------------------------------------------------------------------------------------------
@@ -142,7 +142,7 @@ class GroupCoordinates(tl.HasTraits):
 
         self._items = self._items + other._items
         return self
-    
+
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
@@ -153,7 +153,7 @@ class GroupCoordinates(tl.HasTraits):
 
         if len(self._items) == 0:
             return set()
-        
+
         return set(self._items[0].udims)
 
     @property
@@ -188,7 +188,7 @@ class GroupCoordinates(tl.HasTraits):
         json
         """
 
-        return json.dumps(self.definition, cls=JSONEncoder)
+        return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
     @property
     def hash(self):
@@ -198,7 +198,7 @@ class GroupCoordinates(tl.HasTraits):
         *Note: To be replaced with the __hash__ method.*
         """
 
-        return hash_alg(self.json.encode('utf-8')).hexdigest()
+        return hash_alg(self.json.encode("utf-8")).hexdigest()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods

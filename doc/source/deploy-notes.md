@@ -58,15 +58,16 @@ $ bin\activate_podpac_conda_env.bat
 
 # Install core dependencies
 $ conda install matplotlib>=2.1 numpy>=1.14 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython psutil requests>=2.18
+$ conda install -c conda-forge pyproj>=2.2
 $ pip install pint>=0.8 lazy-import>=0.2.2
 
 # Install dependencies for handling various file datatype
-$ conda install rasterio>=0.36 -c conda-forge
-$ conda install beautifulsoup4>=4.6 h5py>=2.7 lxml>=4.2 
+$ conda install rasterio>=1.0 -c conda-forge
+$ conda install beautifulsoup4>=4.6 h5py>=2.9 lxml>=4.2 zarr>=2.3
 $ pip install pydap>=3.2
 
 # Install dependencies for AWS
-$ conda install boto3>=1.4
+$ conda install boto3>=1.4 s3fs>=0.2
 $ pip install awscli>=1.11
 
 # Install dependencies for algorithm nodes

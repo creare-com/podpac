@@ -1,16 +1,32 @@
-
 # see test_array_coordinates1d.py
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 
+
 class TestCoordinates1d(object):
     def test_common_api(self):
-        c = Coordinates1d(name='lat')
+        c = Coordinates1d(name="lat")
 
-        attrs = ['name', 'ctype', 'segment_lengths',
-                 'is_monotonic', 'is_descending', 'is_uniform',
-                 'dims', 'idims', 'udims', 'shape', 'size', 'dtype', 'deltatype',
-                 'bounds', 'area_bounds', 'coords',
-                 'properties', 'definition', 'full_definition']
+        attrs = [
+            "name",
+            "ctype",
+            "segment_lengths",
+            "is_monotonic",
+            "is_descending",
+            "is_uniform",
+            "dims",
+            "idims",
+            "udims",
+            "shape",
+            "size",
+            "dtype",
+            "deltatype",
+            "bounds",
+            "area_bounds",
+            "coords",
+            "properties",
+            "definition",
+            "full_definition",
+        ]
 
         for attr in attrs:
             try:

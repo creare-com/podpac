@@ -1,4 +1,3 @@
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
@@ -14,6 +13,7 @@ from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
+
 
 class StackedCoordinates(BaseCoordinates):
     """
@@ -81,13 +81,13 @@ class StackedCoordinates(BaseCoordinates):
             raise TypeError("Unrecognized coords type '%s'" % type(coords))
 
         if len(coords) < 2:
-            raise ValueError('Stacked coords must have at least 2 coords, got %d' % len(coords))
+            raise ValueError("Stacked coords must have at least 2 coords, got %d" % len(coords))
 
         # coerce
         coords = tuple(c if isinstance(c, Coordinates1d) else ArrayCoordinates1d(c) for c in coords)
-        
+
         # set coords
-        self.set_trait('_coords', coords)
+        self.set_trait("_coords", coords)
 
         # propagate properties
         if dims is not None and name is not None:
@@ -98,20 +98,20 @@ class StackedCoordinates(BaseCoordinates):
             self._set_name(name)
         if ctype is not None:
             self._set_ctype(ctype)
-        
+
         # finalize
         super(StackedCoordinates, self).__init__()
 
-    @tl.validate('_coords')
+    @tl.validate("_coords")
     def _validate_coords(self, d):
-        val = d['value']
+        val = d["value"]
 
         # check sizes
         size = val[0].size
         for c in val[1:]:
             if c.size != size:
                 raise ValueError("Size mismatch in stacked coords %d != %d" % (c.size, size))
-        
+
         # check dims
         dims = [c.name for c in val]
         for i, dim in enumerate(dims):
@@ -121,19 +121,19 @@ class StackedCoordinates(BaseCoordinates):
         return val
 
     def _set_name(self, value):
-        dims = value.split('_')
-        
+        dims = value.split("_")
+
         # check size
         if len(dims) != len(self._coords):
             raise ValueError("Invalid name '%s' for StackedCoordinates with length %d" % (value, len(self._coords)))
-        
+
         self._set_dims(dims)
 
     def _set_dims(self, dims):
         # check size
         if len(dims) != len(self._coords):
             raise ValueError("Invalid dims '%s' for StackedCoordinates with length %d" % (dims, len(self._coords)))
-        
+
         # set names, checking for duplicates
         for i, (c, dim) in enumerate(zip(self._coords, dims)):
             if dim is None:
@@ -192,9 +192,9 @@ class StackedCoordinates(BaseCoordinates):
 
         coords = []
         for elem in d:
-            if 'start' in elem and 'stop' in elem and ('step' in elem or 'size' in elem):
+            if "start" in elem and "stop" in elem and ("step" in elem or "size" in elem):
                 c = UniformCoordinates1d.from_definition(elem)
-            elif 'values' in elem:
+            elif "values" in elem:
                 c = ArrayCoordinates1d.from_definition(elem)
             else:
                 raise ValueError("Could not parse coordinates definition with keys %s" % elem.keys())
@@ -210,7 +210,7 @@ class StackedCoordinates(BaseCoordinates):
     def __repr__(self):
         rep = str(self.__class__.__name__)
         for c in self._coords:
-            rep += '\n\t%s[%s]: %s' % (self.name, c.name or '?', c)
+            rep += "\n\t%s[%s]: %s" % (self.name, c.name or "?", c)
         return rep
 
     def __iter__(self):
@@ -223,7 +223,7 @@ class StackedCoordinates(BaseCoordinates):
         if isinstance(index, string_types):
             if index not in self.dims:
                 raise KeyError("Dimension '%s' not found in dims %s" % (index, self.dims))
-            
+
             return self._coords[self.dims.index(index)]
 
         else:
@@ -246,7 +246,7 @@ class StackedCoordinates(BaseCoordinates):
         coords[idx] = c
 
         # set (and check) new coords list
-        self.set_trait('_coords', coords)
+        self.set_trait("_coords", coords)
 
     def __eq__(self, other):
         if not isinstance(other, StackedCoordinates):
@@ -293,7 +293,7 @@ class StackedCoordinates(BaseCoordinates):
         """:str: Stacked dimension name. Stacked dimension names are the individual `dims` joined by an underscore."""
 
         if any(self.dims):
-            return '_'.join(dim or '?' for dim in self.dims)
+            return "_".join(dim or "?" for dim in self.dims)
 
     @property
     def size(self):
@@ -347,13 +347,13 @@ class StackedCoordinates(BaseCoordinates):
     @property
     def full_definition(self):
         """:list: Serializable stacked coordinates definition, containing all properties. For internal use."""
-        
+
         return [c.full_definition for c in self._coords]
 
     # -----------------------------------------------------------------------------------------------------------------
     # Methods
     # -----------------------------------------------------------------------------------------------------------------
-            
+
     def copy(self):
         """
         Make a copy of the stacked coordinates.
@@ -420,61 +420,61 @@ class StackedCoordinates(BaseCoordinates):
     def _transform(self, transformer):
         coords = [c.copy() for c in self._coords]
 
-        if 'lat' in self.dims and 'lon' in self.dims and 'alt' in self.dims:
-            ilat = self.dims.index('lat')
-            ilon = self.dims.index('lon')
-            ialt = self.dims.index('alt')
+        if "lat" in self.dims and "lon" in self.dims and "alt" in self.dims:
+            ilat = self.dims.index("lat")
+            ilon = self.dims.index("lon")
+            ialt = self.dims.index("alt")
 
             # coordinates
             lat = coords[ilat]
             lon = coords[ilon]
             alt = coords[ialt]
-            tlat, tlon, talt = transformer.transform(lat.coordinates, lon.coordinates, alt.coordinates)
-            coords[ilat].set_trait('coordinates', tlat)
-            coords[ilon].set_trait('coordinates', tlon)
-            coords[ialt].set_trait('coordinates', talt)
-            
+            tlon, tlat, talt = transformer.transform(lon.coordinates, lat.coordinates, alt.coordinates)
+            coords[ilat].set_trait("coordinates", tlat)
+            coords[ilon].set_trait("coordinates", tlon)
+            coords[ialt].set_trait("coordinates", talt)
+
             # segment lengths
             # TODO can we use the proj4 '+units' here, at least sometimes?
-            if lat.ctype is not 'point' and 'segment_lengths' in lat.properties:
+            if lat.ctype is not "point" and "segment_lengths" in lat.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if lon.ctype is not 'point' and 'segment_lengths' in lon.properties:
+            if lon.ctype is not "point" and "segment_lengths" in lon.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if alt.ctype is not 'point' and 'segment_lengths' in lon.properties:
+            if alt.ctype is not "point" and "segment_lengths" in lon.properties:
                 sl = alt.segment_lengths
                 _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
-                coords[ialt].set_trait('segment_lengths', tsl)
+                coords[ialt].set_trait("segment_lengths", tsl)
 
-        elif 'lat' in self.dims and 'lon' in self.dims:
-            ilat = self.dims.index('lat')
-            ilon = self.dims.index('lon')
+        elif "lat" in self.dims and "lon" in self.dims:
+            ilat = self.dims.index("lat")
+            ilon = self.dims.index("lon")
 
             # coordinates
             lat = coords[ilat]
             lon = coords[ilon]
-            tlat, tlon = transformer.transform(lat.coordinates, lon.coordinates)
-            coords[ilat].set_trait('coordinates', tlat)
-            coords[ilon].set_trait('coordinates', tlon)
-            
+            tlon, tlat = transformer.transform(lon.coordinates, lat.coordinates)
+            coords[ilat].set_trait("coordinates", tlat)
+            coords[ilon].set_trait("coordinates", tlon)
+
             # segment lengths
             # TODO can we use proj4 '+units' here, at least sometimes?
-            if lat.ctype is not 'point' and 'segment_lengths' in lat.properties:
+            if lat.ctype is not "point" and "segment_lengths" in lat.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if lon.ctype is not 'point' and 'segment_lengths' in lon.properties:
+            if lon.ctype is not "point" and "segment_lengths" in lon.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
 
-        elif 'alt' in self.dims:
-            ialt = self.dims.index('alt')
+        elif "alt" in self.dims:
+            ialt = self.dims.index("alt")
 
             # coordinates
             alt = coords[ialt]
             _, _, talt = transformer.transform(np.zeros(self.size), np.zeros(self.size), alt.coordinates)
-            coords[ialt].set_trait('coordinates', talt)
-            
+            coords[ialt].set_trait("coordinates", talt)
+
             # segment lengths
-            if alt.ctype is not 'point' and 'segment_lengths' in lon.properties:
+            if alt.ctype is not "point" and "segment_lengths" in lon.properties:
                 sl = alt.segment_lengths
                 _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
-                coords[ialt].set_trait('segment_lengths', tsl)
+                coords[ialt].set_trait("segment_lengths", tsl)
 
         return StackedCoordinates(coords)

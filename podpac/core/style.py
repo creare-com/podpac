@@ -1,14 +1,16 @@
-
 from __future__ import division, print_function, absolute_import
 
 import traitlets as tl
 import matplotlib
 import matplotlib.cm
+from matplotlib.colors import ListedColormap
 import json
 from collections import OrderedDict
 
 from podpac.core.units import ureg
-from podpac.core.utils import trait_is_defined,JSONEncoder
+from podpac.core.utils import trait_is_defined, JSONEncoder
+
+
 class Style(tl.HasTraits):
     """Summary
 
@@ -44,11 +46,13 @@ class Style(tl.HasTraits):
     enumeration_colors = tl.Tuple(trait=tl.Tuple)
 
     clim = tl.List(default_value=[None, None])
-    cmap = tl.Instance('matplotlib.colors.Colormap')
-    
-    @tl.default('cmap') 
+    cmap = tl.Instance("matplotlib.colors.Colormap")
+
+    @tl.default("cmap")
     def _cmap_default(self):
-        return matplotlib.cm.get_cmap('viridis')
+        if self.is_enumerated and self.enumeration_colors:
+            return ListedColormap(self.enumeration_colors)
+        return matplotlib.cm.get_cmap("viridis")
 
     @property
     def json(self):
@@ -60,23 +64,26 @@ class Style(tl.HasTraits):
         ----------
         from_json
         """
-        
-        return json.dumps(self.definition, cls=JSONEncoder)
-    
+
+        return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
+
     @property
     def definition(self):
-        d = OrderedDict() 
+        d = OrderedDict()
         for t in self.trait_names():
             if not trait_is_defined(self, t):
                 continue
             d[t] = getattr(self, t)
-        d['cmap'] = self.cmap.name
+        d["cmap"] = self.cmap.name
         return d
-           
+
     @classmethod
     def from_definition(cls, d):
-        if 'cmap' in d:
-            d['cmap'] = matplotlib.cm.get_cmap(d['cmap'])
+        if "cmap" in d:
+            if d["cmap"] == "from_list":
+                del d["cmap"]
+            else:
+                d["cmap"] = matplotlib.cm.get_cmap(d["cmap"])
         return cls(**d)
 
     @classmethod
@@ -87,12 +94,12 @@ class Style(tl.HasTraits):
         -----------
         s : str
             JSON definition
-            kkkk
+
         Returns
         --------
         Style
             podpac Style object
         """
-        
+
         d = json.loads(s)
         return cls.from_definition(d)
