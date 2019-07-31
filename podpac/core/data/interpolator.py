@@ -309,6 +309,8 @@ class Interpolator(tl.HasTraits):
                         tol = self.time_tolerance
                     else:
                         tol = self.spatial_tolerance
+                    if tol is None:
+                        tol = np.inf
 
                     diff = np.abs(source_data.coords[dim].values - i.values)
                     if diff <= tol:
