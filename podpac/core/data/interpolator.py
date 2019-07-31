@@ -309,11 +309,9 @@ class Interpolator(tl.HasTraits):
                         tol = self.time_tolerance
                     else:
                         tol = self.spatial_tolerance
-                    if tol is None:
-                        tol = np.inf
 
                     diff = np.abs(source_data.coords[dim].values - i.values)
-                    if diff <= tol:
+                    if tol == None or diff <= tol:
                         src_i = (diff).argmin()
                         src_idx = {dim: source_data.coords[dim][src_i]}
                     else:
