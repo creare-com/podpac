@@ -68,7 +68,7 @@ class IntakeCatalog(podpac.data.DataSource):
     # attributes
     catalog = tl.Any()  # This should be lazy-loaded, but haven't problems with that currently
     # tl.Instance(intake.catalog.Catalog)
-    datasource = t.Any()  # Same as above
+    datasource = tl.Any()  # Same as above
     # datasource = tl.Instance(intake.catalog.local.LocalCatalogEntry)
 
     @tl.default("catalog")
