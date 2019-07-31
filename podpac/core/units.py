@@ -122,8 +122,12 @@ class UnitsDataArray(xr.DataArray):
             return self.copy()
 
     def to_netcdf(self, *args, **kwargs):
-        self.serialize()
-        r = super(UnitsDataArray, self).to_netcdf(*args, **kwargs)
+        o = self
+        for d in self.dims:
+            if '_' in d:
+                o = o.reset_index(d)
+        o.serialize()
+        r = super(UnitsDataArray, o).to_netcdf(*args, **kwargs)
         self.deserialize()
         return r
 
