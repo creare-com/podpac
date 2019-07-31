@@ -305,8 +305,18 @@ class Interpolator(tl.HasTraits):
                         )
 
                     # find the closest value
-                    src_i = (np.abs(source_data.coords[dim].values - i.values)).argmin()
-                    src_idx = {dim: source_data.coords[dim][src_i]}
+                    if dim == "time":
+                        tol = self.time_tolerance
+                    else:
+                        tol = self.spatial_tolerance
+
+                    diff = np.abs(source_data.coords[dim].values - i.values)
+                    if tol == None or diff <= tol:
+                        src_i = (diff).argmin()
+                        src_idx = {dim: source_data.coords[dim][src_i]}
+                    else:
+                        src_idx = None  # There is no closest neighbor within the tolerance
+                        continue
                 else:
                     src_idx = idx
 

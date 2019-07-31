@@ -286,7 +286,7 @@ class UniformCoordinates1d(Coordinates1d):
         """:array, read-only: Coordinate values. """
 
         coordinates = add_coord(self.start, np.arange(0, self.size) * self.step)
-        coordinates.setflags(write=False)
+        # coordinates.setflags(write=False)  # This breaks the 002-open-point-file example
         return coordinates
 
     @property
