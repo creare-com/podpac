@@ -31,15 +31,15 @@ RUN cd /tmp/vendored/ && touch pydap/__init__.py && \
 
 RUN cp -r /podpac/ /tmp/vendored/ && \
     mv /tmp/vendored/podpac/dist/aws/handler.py /tmp/vendored/handler.py && \
-    cp tmp/vendored/podpac/dist/aws/mk_dist.py /tmp/vendored/mk_dist.py && \
+    cp tmp/vendored/podpac/dist/aws/_mk_dist.py /tmp/vendored/_mk_dist.py && \
     rm -rf /tmp/vendored/podpac/dist/ && \
     cp -r /tmp/vendored/podpac/podpac/* /tmp/vendored/podpac/ && \
     rm -rf /tmp/vendored/podpac/podpac/*
 
 RUN cd /tmp/vendored && \
-    find * -maxdepth 0 -type f | grep ".zip" -v | grep -v ".pyc" | xargs zip -9 -rqy podpac_dist_latest.zip
+    find * -maxdepth 0 -type f | grep ".zip" -v | grep -v ".pyc" | xargs zip -9 -rqy podpac_dist.zip
 RUN cd /tmp/vendored && \
     find * -maxdepth 0 -type d -exec zip -9 -rqy {}.zip {} \;
 RUN cd /tmp/vendored && du -s *.zip > zip_package_sizes.txt
 RUN cd /tmp/vendored && du -s * | grep .zip -v > package_sizes.txt
-RUN cd /tmp/vendored && python3 mk_dist.py
+RUN cd /tmp/vendored && python3 _mk_dist.py

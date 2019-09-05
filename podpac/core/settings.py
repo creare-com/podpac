@@ -8,6 +8,8 @@ import json
 from copy import deepcopy
 import errno
 
+from podpac import version
+
 # Python 2/3 handling for JSONDecodeError
 try:
     from json import JSONDecodeError
@@ -42,6 +44,7 @@ DEFAULT_SETTINGS = {
     "CHUNK_SIZE": None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
     "ENABLE_UNITS": True,
     "DEFAULT_CRS": "EPSG:4326",
+    "PODPAC_VERSION": version.version(),
 }
 
 

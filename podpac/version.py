@@ -43,8 +43,8 @@ def version():
     Returns
     -------
     str
-        Semantic version if on the master branch (or outside git repository).
-        Includes +git hash if in a git repository off the master branch (i.e. 0.0.0+hash)
+        Semantic version if outside git repository
+        Returns `git describe --always` if inside the git repository
     """
 
     version_full = semver()
@@ -53,7 +53,7 @@ def version():
     if not got_git:
         return version_full
     try:
-        current_branch = ""
+        # determine git binary
         git = "git"
         try:
             subprocess.check_output([git, "--version"])
@@ -64,22 +64,7 @@ def version():
             except Exception as e:
                 return version_full
 
-        branches = subprocess.check_output([git, "branch"], cwd=CWD).decode("ascii")
-        for branch in branches.split("\n"):
-            if branch.startswith("*"):
-                current_branch = branch.split(" ")[-1]
-
-        git_hash = (
-            subprocess.check_output(
-                [git, "describe", "--always", "--abbrev=0", "--match", '"NOT A TAG"', "--dirty=*"], cwd=CWD
-            )
-            .strip()
-            .decode("ascii")[:-1]
-        )
-        git_hash_short = git_hash[0:7]
-
-        if current_branch != "master":
-            version_full += "+" + git_hash_short
+        version_full = subprocess.check_output([git, "describe", "--always"], cwd=CWD).strip().decode("ascii")[:-1]
 
     except Exception as e:
         print ("Could not determine PODPAC version from git repo.\n" + str(e))
