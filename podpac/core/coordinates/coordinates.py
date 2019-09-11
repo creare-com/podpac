@@ -757,10 +757,7 @@ class Coordinates(tl.HasTraits):
         coords = OrderedDict()
         for c in self._coords.values():
             coords.update(c.coords)
-        # TODO just return coords?
-        # return coords
-        x = xr.DataArray(np.empty(self.shape), dims=self.idims, coords=coords)
-        return x.coords
+        return coords
 
     @property
     def CRS(self):

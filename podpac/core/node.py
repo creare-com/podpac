@@ -104,12 +104,18 @@ class Node(tl.HasTraits):
      * ``_output``: the output of the most recent call to eval
     """
 
+    n_outputs = tl.Integer(default_value=1).tag(attr=True)
+    outputs = tl.List(tl.Unicode, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     dtype = tl.Any(default_value=float)
     cache_output = tl.Bool()
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     style = tl.Instance(Style)
+
+    @tl.default("outputs")
+    def _outputs_default(self):
+        return None
 
     @tl.default("cache_output")
     def _cache_output_default(self):
@@ -240,7 +246,9 @@ class Node(tl.HasTraits):
         if self.units is not None:
             attrs["units"] = ureg.Unit(self.units)
 
-        return create_data_array(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
+        return create_data_array(
+            coords, data=data, n_outputs=self.n_outputs, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs
+        )
 
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization properties
@@ -609,6 +617,8 @@ def node_eval(fn):
 
         # transpose data to match the dims order of the requested coordinates
         order = [dim for dim in coordinates.idims if dim in data.dims]
+        if "data" in data.dims:
+            order.append("data")
         data = data.transpose(*order)
 
         if settings["DEBUG"]:

@@ -346,30 +346,74 @@ del func
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-def create_data_array(coords, data=np.nan, dtype=float, **kwargs):
-    if not isinstance(coords, podpac.Coordinates):
-        raise TypeError("create_data_array expected Coordinates object, not '%s'" % type(coords))
+def create_data_array(c, data=np.nan, n_outputs=None, outputs=None, dtype=float, **kwargs):
+    """
+    Initialize a units data array with the given coordinates and data.
 
-    if data is None:
-        data = np.empty(coords.shape, dtype=dtype)
-    elif np.shape(data) == ():
-        if data == 0:
-            data = np.zeros(coords.shape, dtype=dtype)
-        elif data == 1:
-            data = np.ones(coords.shape, dtype=dtype)
+    Parameters
+    ----------
+    c : Coordinates
+        Podpac Coordinates containing the desired array dimensions and coords
+    data : None, number, array-like (optional)
+        Initial array data value(s)
+    n_outputs : int (optional)
+        Number of data outputs. The default is 1. If ``data`` is array-like, the shape of the data is used.
+    outputs : list (optional)
+        Data output names (only when there are multiple outputs).
+    dtype : type (optional)
+        Array data type (default float)
+    **kwargs
+        Dictioary of any additional keyword arguments that will be passed to UnitsDataArray.
+    """
+
+    if not isinstance(c, podpac.Coordinates):
+        raise TypeError("create_data_array expected Coordinates object, not '%s'" % type(c))
+
+    # data outputs
+    if n_outputs is None:
+        if np.shape(data) == ():
+            n_outputs = 1
         else:
-            data = np.full(coords.shape, data, dtype=dtype)
+            n_outputs = data.shape[-1]
+
+    # data array
+    if np.shape(data) == ():
+        shape = c.shape
+        if n_outputs > 1:
+            shape = shape + (n_outputs,)
+
+        if data is None:
+            data = np.empty(shape, dtype=dtype)
+        elif data == 0:
+            data = np.zeros(shape, dtype=dtype)
+        elif data == 1:
+            data = np.ones(shape, dtype=dtype)
+        else:
+            data = np.full(shape, data, dtype=dtype)
     else:
+        if n_outputs != data.shape[-1]:
+            raise ValueError(
+                "data with shape %s does not match provided n_outputs (%d != %d)"
+                % (data.shape, n_outputs, data.shape[-1])
+            )
         data = data.astype(dtype)
 
-    # add crs attr
+    # coords and dims
+    coords = c.coords
+    dims = c.idims
+    if n_outputs > 1:
+        dims = dims + ("data",)
+        if outputs is not None:
+            coords["data"] = outputs
+
+    # crs attr
     if "attrs" in kwargs:
         if "crs" not in kwargs["attrs"]:
-            kwargs["attrs"]["crs"] = coords.crs
+            kwargs["attrs"]["crs"] = c.crs
     else:
-        kwargs["attrs"] = {"crs": coords.crs}
+        kwargs["attrs"] = {"crs": c.crs}
 
-    return UnitsDataArray(data, coords=coords.coords, dims=coords.idims, **kwargs)
+    return UnitsDataArray(data, coords=coords, dims=dims, **kwargs)
 
 
 def get_image(data, format="png", vmin=None, vmax=None, return_base64=False):
