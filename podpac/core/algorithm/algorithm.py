@@ -100,6 +100,9 @@ class Algorithm(Node):
         else:
             raise NodeException
 
+        if self.output is not None:
+            output = output.sel(data=self.output)
+
         return output
 
     def find_coordinates(self):

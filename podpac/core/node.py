@@ -105,6 +105,7 @@ class Node(tl.HasTraits):
     """
 
     outputs = tl.List(tl.Unicode, allow_none=True).tag(attr=True)
+    output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     dtype = tl.Any(default_value=float)
     cache_output = tl.Bool()
@@ -115,6 +116,14 @@ class Node(tl.HasTraits):
     @tl.default("outputs")
     def _outputs_default(self):
         return None
+
+    @tl.validate("output")
+    def _validate_output(self, d):
+        if self.outputs is None:
+            raise TypeError("Invalid output '%s' (output must be None for single-output nodes)." % self.output)
+        if d["value"] not in self.outputs:
+            raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
+        return d["value"]
 
     @tl.default("cache_output")
     def _cache_output_default(self):

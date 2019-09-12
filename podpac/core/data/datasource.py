@@ -264,6 +264,10 @@ class DataSource(Node):
                 + "Must be one of numpy.ndarray, xarray.DataArray, or podpac.UnitsDataArray"
             )
 
+        # select output data, if appropriate
+        if self.output is not None:
+            udata_array = udata_array.sel(data=self.output)
+
         # fill nan_vals in data array
         if self.nan_vals:
             for nan_val in self.nan_vals:
@@ -380,6 +384,8 @@ class DataSource(Node):
             requested_dims = None
             output_dims = None
             output = self.create_output_array(coordinates)
+            if self.output is not None:
+                output = output.sel(data=self.output)
         else:
             requested_dims = self._evaluated_coordinates.dims
             output_dims = output.dims
