@@ -67,7 +67,6 @@ class ModifyCoordinates(Algorithm):
         """
 
         self._requested_coordinates = coordinates
-        self.outputs = {}
         self._modified_coordinates = Coordinates(
             [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims], crs=coordinates.crs
         )
@@ -76,20 +75,21 @@ class ModifyCoordinates(Algorithm):
             if self._modified_coordinates[dim].size == 0:
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
 
-        self.outputs["source"] = self.source.eval(self._modified_coordinates, output=output)
+        outputs = {}
+        outputs["source"] = self.source.eval(self._modified_coordinates, output=output)
 
         if self.substitute_eval_coords:
-            dims = self.outputs["source"].dims
+            dims = outputs["source"].dims
             coords = self._requested_coordinates
             extra_dims = [d for d in coords.dims if d not in dims]
             coords = coords.drop(extra_dims).coords
 
-            self.outputs["source"] = self.outputs["source"].assign_coords(**coords)
+            outputs["source"] = outputs["source"].assign_coords(**coords)
 
         if output is None:
-            output = self.outputs["source"]
+            output = outputs["source"]
         else:
-            output[:] = self.outputs["source"]
+            output[:] = outputs["source"]
 
         if settings["DEBUG"]:
             self._output = output
