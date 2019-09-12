@@ -346,7 +346,7 @@ del func
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-def create_data_array(c, data=np.nan, n_outputs=None, outputs=None, dtype=float, **kwargs):
+def create_data_array(c, data=np.nan, outputs=None, dtype=float, **kwargs):
     """
     Initialize a units data array with the given coordinates and data.
 
@@ -356,10 +356,8 @@ def create_data_array(c, data=np.nan, n_outputs=None, outputs=None, dtype=float,
         Podpac Coordinates containing the desired array dimensions and coords
     data : None, number, array-like (optional)
         Initial array data value(s)
-    n_outputs : int (optional)
-        Number of data outputs. The default is 1. If ``data`` is array-like, the shape of the data is used.
     outputs : list (optional)
-        Data output names (only when there are multiple outputs).
+        Data output names (for multi-output nodes).
     dtype : type (optional)
         Array data type (default float)
     **kwargs
@@ -369,18 +367,11 @@ def create_data_array(c, data=np.nan, n_outputs=None, outputs=None, dtype=float,
     if not isinstance(c, podpac.Coordinates):
         raise TypeError("create_data_array expected Coordinates object, not '%s'" % type(c))
 
-    # data outputs
-    if n_outputs is None:
-        if np.shape(data) == ():
-            n_outputs = 1
-        else:
-            n_outputs = data.shape[-1]
-
     # data array
     if np.shape(data) == ():
         shape = c.shape
-        if n_outputs > 1:
-            shape = shape + (n_outputs,)
+        if outputs is not None:
+            shape = shape + (len(outputs),)
 
         if data is None:
             data = np.empty(shape, dtype=dtype)
@@ -391,20 +382,19 @@ def create_data_array(c, data=np.nan, n_outputs=None, outputs=None, dtype=float,
         else:
             data = np.full(shape, data, dtype=dtype)
     else:
-        if n_outputs != data.shape[-1]:
+        if outputs is not None and len(outputs) != data.shape[-1]:
             raise ValueError(
-                "data with shape %s does not match provided n_outputs (%d != %d)"
-                % (data.shape, n_outputs, data.shape[-1])
+                "data with shape %s does not match provided outputs %s (%d != %d)"
+                % (data.shape, outputs, data.shape[-1], len(outputs))
             )
         data = data.astype(dtype)
 
     # coords and dims
     coords = c.coords
     dims = c.idims
-    if n_outputs > 1:
+    if outputs is not None:
         dims = dims + ("data",)
-        if outputs is not None:
-            coords["data"] = outputs
+        coords["data"] = outputs
 
     # crs attr
     if "attrs" in kwargs:

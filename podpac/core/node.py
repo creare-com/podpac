@@ -104,7 +104,6 @@ class Node(tl.HasTraits):
      * ``_output``: the output of the most recent call to eval
     """
 
-    n_outputs = tl.Integer(default_value=1).tag(attr=True)
     outputs = tl.List(tl.Unicode, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     dtype = tl.Any(default_value=float)
@@ -246,9 +245,7 @@ class Node(tl.HasTraits):
         if self.units is not None:
             attrs["units"] = ureg.Unit(self.units)
 
-        return create_data_array(
-            coords, data=data, n_outputs=self.n_outputs, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs
-        )
+        return create_data_array(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization properties

@@ -76,10 +76,6 @@ class Array(DataSource):
 
     source = ArrayTrait()
 
-    @tl.default("n_outputs")
-    def _n_outputs_default(self):
-        return self.source.shape[-1]
-
     @tl.validate("source")
     def _validate_source(self, d):
         a = d["value"]
