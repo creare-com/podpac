@@ -247,19 +247,19 @@ class Node(tl.HasTraits):
     @property
     def base_ref(self):
         """
-        Default pipeline node reference/name in pipeline node definitions
+        Default reference/name in node definitions
 
         Returns
         -------
         str
-            Name of the node in pipeline definitions
+            Name of the node in node definitions
         """
         return self.__class__.__name__
 
     @property
     def base_definition(self):
         """
-        Pipeline node definition.
+        Base node definition.
 
         This property is implemented in the primary base nodes (DataSource, Algorithm, and Compositor). Node
         subclasses with additional attrs will need to extend this property.
