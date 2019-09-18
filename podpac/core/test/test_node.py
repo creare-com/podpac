@@ -28,141 +28,6 @@ from podpac.core.cache import CacheCtrl, RamCacheStore
 
 
 class TestNode(object):
-    def test_base_ref(self):
-        n = Node()
-        assert isinstance(n.base_ref, str)
-
-    def test_base_definition(self):
-        class N(Node):
-            my_attr = tl.Int().tag(attr=True)
-            my_node_attr = tl.Instance(Node).tag(attr=True)
-
-        a = Node()
-        n = N(my_attr=7, my_node_attr=a)
-
-        d = n.base_definition
-        assert isinstance(d, OrderedDict)
-        assert "node" in d
-        assert isinstance(d["node"], str)
-        assert "attrs" in d
-        assert isinstance(d["attrs"], OrderedDict)
-        assert "my_attr" in d["attrs"]
-        assert d["attrs"]["my_attr"] == 7
-        assert isinstance(d["lookup_attrs"], OrderedDict)
-        assert "my_node_attr" in d["lookup_attrs"]
-        assert d["lookup_attrs"]["my_node_attr"] is a
-
-    def test_base_definition_units(self):
-        n = Node(units="meters")
-        d = n.base_definition
-        assert "attrs" in d
-        assert isinstance(d["attrs"], OrderedDict)
-        assert "units" in d["attrs"]
-        assert d["attrs"]["units"] == "meters"
-
-        n = Node()
-        d = n.base_definition
-        assert "units" not in d
-
-    def test_base_definition_array_attr(self):
-        class N(Node):
-            my_attr = ArrayTrait().tag(attr=True)
-
-        node = N(my_attr=np.ones((2, 3, 4)))
-        d = node.base_definition
-        my_attr = np.array(d["attrs"]["my_attr"])
-        np.testing.assert_array_equal(my_attr, node.my_attr)
-
-    def test_base_definition_coordinates_attr(self):
-        class N(Node):
-            my_attr = tl.Instance(podpac.Coordinates).tag(attr=True)
-
-        node = N(my_attr=podpac.Coordinates([[0, 1], [1, 2, 3]], dims=["lat", "lon"]))
-        d = node.base_definition
-        assert d["attrs"]["my_attr"] == node.my_attr
-
-    def test_base_definition_unserializable(self):
-        class N(Node):
-            my_attr = tl.Instance(xr.DataArray).tag(attr=True)
-
-        node = N(my_attr=xr.DataArray([0, 1]))
-        with pytest.raises(NodeException, match="Cannot serialize attr 'my_attr'"):
-            node.base_definition
-
-    def test_definition(self):
-        n = Node()
-        d = n.definition
-        assert isinstance(d, OrderedDict)
-        assert list(d.keys()) == ["nodes"]
-
-    @pytest.mark.skip("deprecated")
-    def test_make_pipeline_definition(self):
-        a = podpac.algorithm.Arange()
-        b = podpac.algorithm.CoordData()
-        c = podpac.compositor.OrderedCompositor(sources=np.array([a, b]))
-
-        node = podpac.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
-        definition = node.definition
-
-        # make sure it is a valid pipeline
-        pipeline = podpac.pipeline.Pipeline(definition=definition)
-
-        assert isinstance(pipeline.node.A, podpac.algorithm.Arange)
-        assert isinstance(pipeline.node.B, podpac.algorithm.CoordData)
-        assert isinstance(pipeline.node.C, podpac.compositor.OrderedCompositor)
-        assert isinstance(pipeline.node, podpac.algorithm.Arithmetic)
-
-        assert isinstance(pipeline.output, podpac.pipeline.NoOutput)
-        assert pipeline.output.name == node.base_ref
-
-    @pytest.mark.skip("deprecated")
-    def test_make_pipeline_definition_duplicate_ref(self):
-        a = podpac.algorithm.Arange()
-        b = podpac.algorithm.Arange()
-        c = podpac.algorithm.Arange()
-
-        node = podpac.compositor.OrderedCompositor(sources=np.array([a, b, c]))
-        definition = node.definition
-
-        # make sure it is a valid pipeline
-        pipeline = podpac.pipeline.Pipeline(definition=definition)
-
-        # check that the arange refs are unique
-        assert len(pipeline.definition["nodes"]) == 4
-
-    @pytest.mark.skip("depracated")
-    def test_pipeline(self):
-        n = Node()
-        p = n.pipeline
-        assert isinstance(p, podpac.pipeline.Pipeline)
-
-    def test_json(self):
-        n = Node()
-
-        s = n.json
-        assert isinstance(s, str)
-        json.loads(s)
-
-        s = n.json_pretty
-        assert isinstance(s, str)
-        json.loads(s)
-
-    def test_hash(self):
-        class N(Node):
-            my_attr = tl.Int().tag(attr=True)
-
-        class M(Node):
-            my_attr = tl.Int().tag(attr=True)
-
-        n1 = N(my_attr=1)
-        n2 = N(my_attr=1)
-        n3 = N(my_attr=2)
-        m1 = M(my_attr=1)
-
-        assert n1.hash == n2.hash
-        assert n1.hash != n3.hash
-        assert n1.hash != m1.hash
-
     def test_eval_not_implemented(self):
         n = Node()
         with pytest.raises(NotImplementedError):
@@ -539,7 +404,151 @@ class TestCachePropertyDecorator(object):
         assert t2.d2() == 2
 
 
-class TestFromClassMethods(object):
+class TestSerialization(object):
+    @classmethod
+    def setup_class(cls):
+        a = podpac.algorithm.Arange()
+        b = podpac.algorithm.CoordData()
+        c = podpac.compositor.OrderedCompositor(sources=np.array([a, b]))
+        cls.node = podpac.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
+
+        cls.node_file_path = "node.json"
+        if os.path.exists(cls.node_file_path):
+            os.remove(cls.node_file_path)
+
+    @classmethod
+    def teardown_class(cls):
+        if os.path.exists(cls.node_file_path):
+            os.remove(cls.node_file_path)
+
+    def test_base_ref(self):
+        n = Node()
+        assert isinstance(n.base_ref, str)
+
+    def test_base_definition(self):
+        class N(Node):
+            my_attr = tl.Int().tag(attr=True)
+            my_node_attr = tl.Instance(Node).tag(attr=True)
+
+        a = Node()
+        node = N(my_attr=7, my_node_attr=a)
+
+        d = node.base_definition
+        assert isinstance(d, OrderedDict)
+        assert "node" in d
+        assert isinstance(d["node"], str)
+        assert "attrs" in d
+        assert isinstance(d["attrs"], OrderedDict)
+        assert "my_attr" in d["attrs"]
+        assert d["attrs"]["my_attr"] == 7
+        assert isinstance(d["lookup_attrs"], OrderedDict)
+        assert "my_node_attr" in d["lookup_attrs"]
+        assert d["lookup_attrs"]["my_node_attr"] is a
+
+    def test_base_definition_units(self):
+        n = Node(units="meters")
+
+        d = n.base_definition
+        assert "attrs" in d
+        assert isinstance(d["attrs"], OrderedDict)
+        assert "units" in d["attrs"]
+        assert d["attrs"]["units"] == "meters"
+
+        n = Node()
+        d = n.base_definition
+        assert "units" not in d
+
+    def test_base_definition_array_attr(self):
+        class N(Node):
+            my_attr = ArrayTrait().tag(attr=True)
+
+        node = N(my_attr=np.ones((2, 3, 4)))
+        d = node.base_definition
+        my_attr = np.array(d["attrs"]["my_attr"])
+        np.testing.assert_array_equal(my_attr, node.my_attr)
+
+    def test_base_definition_coordinates_attr(self):
+        class N(Node):
+            my_attr = tl.Instance(podpac.Coordinates).tag(attr=True)
+
+        node = N(my_attr=podpac.Coordinates([[0, 1], [1, 2, 3]], dims=["lat", "lon"]))
+        d = node.base_definition
+        assert d["attrs"]["my_attr"] == node.my_attr
+
+    def test_base_definition_unserializable(self):
+        class N(Node):
+            my_attr = tl.Instance(xr.DataArray).tag(attr=True)
+
+        node = N(my_attr=xr.DataArray([0, 1]))
+        with pytest.raises(NodeException, match="Cannot serialize attr 'my_attr'"):
+            node.base_definition
+
+    def test_definition(self):
+        # definition
+        d = self.node.definition
+        assert isinstance(d, OrderedDict)
+        assert len(d) == 4
+
+        # from_definition
+        node = Node.from_definition(d)
+        assert node is not self.node
+        assert node.hash == self.node.hash
+        assert isinstance(node, podpac.algorithm.Arithmetic)
+        assert isinstance(node.A, podpac.algorithm.Arange)
+        assert isinstance(node.B, podpac.algorithm.CoordData)
+        assert isinstance(node.C, podpac.compositor.OrderedCompositor)
+
+    def test_json(self):
+        # json
+        s = self.node.json
+        assert isinstance(s, str)
+        assert json.loads(s)
+
+        # test from_json
+        node = Node.from_json(s)
+        assert node is not self.node
+        assert node.hash == self.node.hash
+        assert isinstance(node, podpac.algorithm.Arithmetic)
+        assert isinstance(node.A, podpac.algorithm.Arange)
+        assert isinstance(node.B, podpac.algorithm.CoordData)
+        assert isinstance(node.C, podpac.compositor.OrderedCompositor)
+
+    def test_file(self):
+        # save
+        self.node.save(self.node_file_path)
+
+        assert os.path.exists(self.node_file_path)
+
+        node = Node.load(self.node_file_path)
+        assert node is not self.node
+        assert node.hash == self.node.hash
+        assert isinstance(node, podpac.algorithm.Arithmetic)
+        assert isinstance(node.A, podpac.algorithm.Arange)
+        assert isinstance(node.B, podpac.algorithm.CoordData)
+        assert isinstance(node.C, podpac.compositor.OrderedCompositor)
+
+    def test_json_pretty(self):
+        n = Node()
+        s = n.json_pretty
+        assert isinstance(s, str)
+        json.loads(s)
+
+    def test_hash(self):
+        class N(Node):
+            my_attr = tl.Int().tag(attr=True)
+
+        class M(Node):
+            my_attr = tl.Int().tag(attr=True)
+
+        n1 = N(my_attr=1)
+        n2 = N(my_attr=1)
+        n3 = N(my_attr=2)
+        m1 = M(my_attr=1)
+
+        assert n1.hash == n2.hash
+        assert n1.hash != n3.hash
+        assert n1.hash != m1.hash
+
     def test_from_url(self):
         url = (
             r"http://testwms/?map=map&&service={service}&request=GetMap&{layername}={layer}&styles=&format=image%2Fpng"
@@ -547,12 +556,7 @@ class TestFromClassMethods(object):
             r"&bbox=40,-71,41,70&time=2018-05-19&PARAMS={params}"
         )
 
-        params = [
-            "{}",
-            '{"nodes":{"a":{"node":"algorithm.Arange"}},"output": {"node": "a","mode": "file","format": "pickle","outdir": "."}}',
-            "{}",
-            "{}",
-        ]
+        params = ["{}", '{"a":{"node":"algorithm.Arange"}}', "{}", "{}"]
 
         for service, layername in zip(["WMS", "WCS"], ["LAYERS", "COVERAGE"]):
             for layer, param in zip(
@@ -565,6 +569,12 @@ class TestFromClassMethods(object):
                 params,
             ):
                 pipe = Node.from_url(url.format(service=service, layername=layername, layer=layer, params=param))
+
+    def test_pipeline(self):
+        n = Node()
+        with pytest.warns(DeprecationWarning):
+            p = n.pipeline
+        assert isinstance(p, podpac.pipeline.Pipeline)
 
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)

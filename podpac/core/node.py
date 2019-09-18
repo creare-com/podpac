@@ -364,16 +364,14 @@ class Node(tl.HasTraits):
 
         add_node(self)
 
-        d = OrderedDict()
-        d["nodes"] = OrderedDict(zip(refs, definitions))
-        return d
+        return OrderedDict(zip(refs, definitions))
 
     @property
     def pipeline(self):
         """Deprecated. See Node.definition and Node.from_definition."""
         from podpac.core.pipeline import Pipeline
 
-        return Pipeline(definition=self.definition)
+        return Pipeline(definition={"nodes": self.definition})
 
     @property
     def json(self):
@@ -409,7 +407,7 @@ class Node(tl.HasTraits):
         """
 
         with open(path, "w") as f:
-            json.dump(self.definition, j, separators=(",", ":"), cls=JSONEncoder)
+            json.dump(self.definition, f, separators=(",", ":"), cls=JSONEncoder)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface
@@ -537,15 +535,12 @@ class Node(tl.HasTraits):
         from podpac.core.algorithm.algorithm import Algorithm
         from podpac.core.compositor import Compositor
 
-        if "nodes" not in definition:
-            raise ValueError("Invalid Node definition: 'nodes' property required")
-
-        if len(definition["nodes"]) == 0:
-            raise ValueError("Invalid Node definition: 'nodes' property cannot be empty")
-
         # parse node definitions in order
         nodes = OrderedDict()
-        for name, d in definition["nodes"].items():
+        for name, d in definition.items():
+            if "node" not in d:
+                raise ValueError("Invalid definition for node '%s': 'node' property required" % name)
+
             # get node class
             module_root = d.get("plugin", "podpac")
             node_string = "%s.%s" % (module_root, d["node"])
@@ -553,12 +548,12 @@ class Node(tl.HasTraits):
             try:
                 module = importlib.import_module(module_name)
             except ImportError:
-                raise ValueError("Invalid definition for Node '%s': no module found '%s'" % (name, module_name))
+                raise ValueError("Invalid definition for node '%s': no module found '%s'" % (name, module_name))
             try:
                 node_class = getattr(module, node_name)
             except AttributeError:
                 raise ValueError(
-                    "Invalid definition for Node '%s': Node class '%s' not found in module '%s'"
+                    "Invalid definition for node '%s': class '%s' not found in module '%s'"
                     % (name, node_name, module_name)
                 )
 
@@ -573,12 +568,12 @@ class Node(tl.HasTraits):
                 if "attrs" in d:
                     if "source" in d["attrs"]:
                         raise ValueError(
-                            "Invalid definition for Node '%s': 'attrs' cannot have a 'source' property." % name
+                            "Invalid definition for node '%s': 'attrs' cannot have a 'source' property." % name
                         )
 
                     if "lookup_source" in d["attrs"]:
                         raise ValueError(
-                            "Invalid definition for Node '%s': 'attrs' cannot have a 'lookup_source' property" % name
+                            "Invalid definition for node '%s': 'attrs' cannot have a 'lookup_source' property" % name
                         )
 
                 if "source" in d:
@@ -598,7 +593,7 @@ class Node(tl.HasTraits):
             if DataSource in parents or Compositor in parents:
                 if "attrs" in d and "interpolation" in d["attrs"]:
                     raise ValueError(
-                        "Invalid definition for Node '%s': 'attrs' cannot have an 'interpolation' property" % name
+                        "Invalid definition for node '%s': 'attrs' cannot have an 'interpolation' property" % name
                     )
 
                 if "interpolation" in d:
@@ -619,14 +614,14 @@ class Node(tl.HasTraits):
 
             for k in d:
                 if k not in whitelist:
-                    raise ValueError("Invalid definition for Node '%s': unexpected property '%s'" % (name, k))
+                    raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
             nodes[name] = node_class(**kwargs)
 
         return list(nodes.values())[-1]
 
     @classmethod
-    def from_json(s):
+    def from_json(cls, s):
         """
         Create podpac Node from a JSON definition.
 
@@ -650,7 +645,7 @@ class Node(tl.HasTraits):
         return cls.from_definition(d)
 
     @classmethod
-    def load(path):
+    def load(cls, path):
         """
         Create podpac Node from file.
 
@@ -670,7 +665,7 @@ class Node(tl.HasTraits):
         """
 
         with open(path) as f:
-            d = json.loads(s, object_pairs_hook=OrderedDict)
+            d = json.load(f, object_pairs_hook=OrderedDict)
         return cls.from_definition(d)
 
     @classmethod
@@ -721,7 +716,7 @@ class Node(tl.HasTraits):
             p = _get_param(params, "PARAMS")
             if p is None:
                 p = "{}"
-            d = OrderedDict({"nodes": OrderedDict({layer.replace(".", "-"): {"node": layer, "attrs": json.loads(p)}})})
+            d = OrderedDict({layer.replace(".", "-"): {"node": layer, "attrs": json.loads(p)}})
 
         if d is None:
             d = json.loads(s, object_pairs_hook=OrderedDict)
@@ -736,7 +731,7 @@ def _get_subattr(nodes, name, ref):
         for _name in refs[1:]:
             attr = getattr(attr, _name)
     except (KeyError, AttributeError):
-        raise ValueError("Invalid Node definition: '%s' references nonexistent node/attribute '%s'" % (name, ref))
+        raise ValueError("Invalid definition for node '%s': reference to nonexistent node/attribute '%s'" % (name, ref))
     if settings["DEBUG"]:
         attr = deepcopy(attr)
     return attr
