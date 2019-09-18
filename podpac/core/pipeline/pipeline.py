@@ -34,22 +34,7 @@ class PipelineError(NodeException):
 
 
 class Pipeline(Node):
-    """
-    Node defined by a JSON definition.
-
-    Attributes
-    ----------
-    json : string
-        pipeline JSON definition
-    definition : OrderedDict
-        pipeline definition
-    output : Output
-        pipeline output
-    node : Node
-        pipeline output node
-    do_write_output : Bool
-        True to call output.write() on execute, false otherwise.
-    """
+    """Deprecated. See Node.definition and Node.from_definition."""
 
     definition = OrderedDictTrait(readonly=True, help="pipeline definition")
     json = tl.Unicode(readonly=True, help="JSON definition")
@@ -57,6 +42,12 @@ class Pipeline(Node):
     do_write_output = tl.Bool(True)
 
     def _first_init(self, path=None, **kwargs):
+        warnings.warn(
+            "Pipelines are deprecated and will be removed in podpac 2.0. See Node.definition and "
+            "Node.from_definition for Node serialization.",
+            DeprecationWarning,
+        )
+
         if (path is not None) + ("definition" in kwargs) + ("json" in kwargs) != 1:
             raise TypeError("Pipeline requires exactly one 'path', 'json', or 'definition' argument")
 

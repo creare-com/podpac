@@ -95,6 +95,7 @@ class TestNode(object):
         assert isinstance(d, OrderedDict)
         assert list(d.keys()) == ["nodes"]
 
+    @pytest.mark.skip("deprecated")
     def test_make_pipeline_definition(self):
         a = podpac.algorithm.Arange()
         b = podpac.algorithm.CoordData()
@@ -114,6 +115,7 @@ class TestNode(object):
         assert isinstance(pipeline.output, podpac.pipeline.NoOutput)
         assert pipeline.output.name == node.base_ref
 
+    @pytest.mark.skip("deprecated")
     def test_make_pipeline_definition_duplicate_ref(self):
         a = podpac.algorithm.Arange()
         b = podpac.algorithm.Arange()
@@ -128,6 +130,7 @@ class TestNode(object):
         # check that the arange refs are unique
         assert len(pipeline.definition["nodes"]) == 4
 
+    @pytest.mark.skip("depracated")
     def test_pipeline(self):
         n = Node()
         p = n.pipeline
