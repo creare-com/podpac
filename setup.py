@@ -77,9 +77,9 @@ extras_require = {
 }
 
 if sys.version_info.major == 2:
-    extra_requires["dev"] += "pytest>=3.3.2"
+    extras_require["dev"] += "pytest>=3.3.2"
 else:
-    extra_requires["dev"] += "pytest>=5.0"
+    extras_require["dev"] += "pytest>=5.0"
 
 if sys.version >= '3.6':
     extras_require["dev"] += [
