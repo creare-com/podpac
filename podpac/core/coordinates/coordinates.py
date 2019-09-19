@@ -808,7 +808,7 @@ class Coordinates(tl.HasTraits):
             c = podapc.Coordinates(...)
             c2 = podpac.Coordinates.from_json(c.definition)
 
-        The serialized definition is used to define coordinates in pipelines and to transport coordinates, e.g.
+        The serialized definition is used to define coordinates in node definitions and to transport coordinates, e.g.
         over HTTP and in AWS lambda functions. It also provides a consistent hashable value.
 
         See Also
