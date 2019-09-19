@@ -63,7 +63,6 @@ extras_require = {
     ],
     "dev": [
         "pylint>=1.8.2",
-        "pytest>=3.3.2",
         "pytest-cov>=2.5.1",
         "pytest-html>=1.7.0",
         "recommonmark>=0.4",
@@ -76,6 +75,11 @@ extras_require = {
         "pre_commit>=1"
     ],
 }
+
+if sys.version_info.major == 2:
+    extras_require["dev"] += ["pytest>=3.3.2"]
+else:
+    extras_require["dev"] += ["pytest>=5.0"]
 
 if sys.version >= '3.6':
     extras_require["dev"] += [
