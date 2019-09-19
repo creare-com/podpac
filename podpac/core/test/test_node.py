@@ -613,6 +613,12 @@ class TestSerialization(object):
             ):
                 pipe = Node.from_url(url.format(service=service, layername=layername, layer=layer, params=param))
 
+    def test_pipeline(self):
+        n = Node()
+        with pytest.warns(DeprecationWarning):
+            p = n.pipeline
+        assert isinstance(p, podpac.pipeline.Pipeline)
+
 
 class TestUserDefinition(object):
     def test_empty(self):
@@ -1230,12 +1236,6 @@ class TestUserDefinition(object):
 
         with pytest.raises(ValueError, match="no module found"):
             Node.from_json(s)
-
-    def test_pipeline(self):
-        n = Node()
-        with pytest.warns(DeprecationWarning):
-            p = n.pipeline
-        assert isinstance(p, podpac.pipeline.Pipeline)
 
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)

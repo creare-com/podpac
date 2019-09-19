@@ -371,7 +371,7 @@ class Node(tl.HasTraits):
         """Deprecated. See Node.definition and Node.from_definition."""
         from podpac.core.pipeline import Pipeline
 
-        return Pipeline(definition={"nodes": self.definition})
+        return Pipeline(definition=OrderedDict({"nodes": self.definition}))
 
     @property
     def json(self):
