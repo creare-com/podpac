@@ -962,12 +962,12 @@ class GroupReduce(Algorithm):
 
     def base_ref(self):
         """
-        Default pipeline node reference/name in pipeline node definitions
+        Default node reference/name in node definitions
         
         Returns
         -------
         str
-            Default pipeline node reference/name in pipeline node definitions
+            Default node reference/name in node definitions
         """
         return "%s.%s.%s" % (self.source.base_ref, self.groupby, self.reduce_fn)
 
