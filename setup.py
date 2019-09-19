@@ -63,7 +63,7 @@ extras_require = {
     ],
     "dev": [
         "pylint>=1.8.2",
-        "pytest>=3.3.2",
+        "pytest>=5.0",
         "pytest-cov>=2.5.1",
         "pytest-html>=1.7.0",
         "recommonmark>=0.4",
