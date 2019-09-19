@@ -408,7 +408,7 @@ class TestSerialization(object):
     @classmethod
     def setup_class(cls):
         a = podpac.algorithm.Arange()
-        b = podpac.algorithm.CoordData()
+        b = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         c = podpac.compositor.OrderedCompositor(sources=np.array([a, b]))
         cls.node = podpac.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
 
@@ -495,8 +495,51 @@ class TestSerialization(object):
         assert node.hash == self.node.hash
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.A, podpac.algorithm.Arange)
-        assert isinstance(node.B, podpac.algorithm.CoordData)
+        assert isinstance(node.B, podpac.data.Array)
         assert isinstance(node.C, podpac.compositor.OrderedCompositor)
+
+    def test_definition_duplicate_base_ref(self):
+        n1 = Node()
+        n2 = Node()
+        n3 = Node()
+        n = podpac.compositor.OrderedCompositor(sources=[n1, n2, n3])
+        d = n.definition
+        assert n1.base_ref == n2.base_ref == n3.base_ref
+        assert len(d) == 4
+
+    def test_definition_lookup_attrs(self):
+        global MyNodeWithNodeAttr
+
+        class MyNodeWithNodeAttr(Node):
+            my_node_attr = tl.Instance(Node).tag(attr=True)
+
+        node = MyNodeWithNodeAttr(my_node_attr=podpac.algorithm.Arange())
+        d = node.definition
+        assert isinstance(d, OrderedDict)
+        assert len(d) == 2
+
+        node2 = Node.from_definition(d)
+        assert node2 is not node
+        assert node2.hash == node.hash
+        assert isinstance(node2, MyNodeWithNodeAttr)
+        assert isinstance(node2.my_node_attr, podpac.algorithm.Arange)
+
+    def test_definition_lookup_source(self):
+        global MyNodeWithNodeSource
+
+        class MyNodeWithNodeSource(podpac.data.DataSource):
+            source = tl.Instance(Node)
+
+        node = MyNodeWithNodeSource(source=podpac.algorithm.Arange())
+        d = node.definition
+        assert isinstance(d, OrderedDict)
+        assert len(d) == 2
+
+        node2 = Node.from_definition(d)
+        assert node2 is not node
+        assert node2.hash == node.hash
+        assert isinstance(node2, MyNodeWithNodeSource)
+        assert isinstance(node2.source, podpac.algorithm.Arange)
 
     def test_json(self):
         # json
@@ -510,7 +553,7 @@ class TestSerialization(object):
         assert node.hash == self.node.hash
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.A, podpac.algorithm.Arange)
-        assert isinstance(node.B, podpac.algorithm.CoordData)
+        assert isinstance(node.B, podpac.data.Array)
         assert isinstance(node.C, podpac.compositor.OrderedCompositor)
 
     def test_file(self):
@@ -524,7 +567,7 @@ class TestSerialization(object):
         assert node.hash == self.node.hash
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.A, podpac.algorithm.Arange)
-        assert isinstance(node.B, podpac.algorithm.CoordData)
+        assert isinstance(node.B, podpac.data.Array)
         assert isinstance(node.C, podpac.compositor.OrderedCompositor)
 
     def test_json_pretty(self):
@@ -569,6 +612,624 @@ class TestSerialization(object):
                 params,
             ):
                 pipe = Node.from_url(url.format(service=service, layername=layername, layer=layer, params=param))
+
+
+class TestUserDefinition(object):
+    def test_empty(self):
+        s = "{ }"
+        with pytest.raises(ValueError, match="definition cannot be empty"):
+            Node.from_json(s)
+
+    def test_no_node(self):
+        s = '{"test": { } }'
+        with pytest.raises(ValueError, match="'node' property required"):
+            Node.from_json(s)
+
+    def test_invalid_node(self):
+        # module does not exist
+        s = '{"a": {"node": "nonexistent.Arbitrary"} }'
+        with pytest.raises(ValueError, match="no module found"):
+            Node.from_json(s)
+
+        # node does not exist in module
+        s = '{"a": {"node": "core.Nonexistent"} }'
+        with pytest.raises(ValueError, match="class 'Nonexistent' not found in module"):
+            Node.from_json(s)
+
+    def test_datasource_source(self):
+        # basic
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource",
+                "source": "my_data_string"
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.data.DataSource)
+        assert node.source == "my_data_string"
+
+        # not required
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource"
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.data.DataSource)
+
+        # incorrect
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource",
+                "attrs": {
+                    "source": "my_data_string"
+                }
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="DataSource 'attrs' cannot have a 'source' property"):
+            node = Node.from_json(s)
+
+    def test_datasource_lookup_source(self):
+        # sub-node
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource",
+                "source": "my_data_string"
+            },
+            "double": {
+                "node": "algorithm.Arithmetic",
+                "inputs": {"A": "mydata"},
+                "attrs": { "eqn": "2 * A" }
+            },
+            "mydata2": {
+                "node": "data.DataSource",
+                "lookup_source": "double.A.source"
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.data.DataSource)
+        assert node.source == "my_data_string"
+
+        # nonexistent node
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource",
+                "source": "my_data_string"
+            },
+            "double": {
+                "node": "algorithm.Arithmetic",
+                "inputs": {"A": "mydata"},
+                "attrs": { "eqn": "2 * A" }
+            },
+            "mydata2": {
+                "node": "data.DataSource",
+                "lookup_source": "nonexistent.source"
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="reference to nonexistent node/attribute"):
+            Node.from_json(s)
+
+        # nonexistent subattr
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource",
+                "source": "my_data_string"
+            },
+            "double": {
+                "node": "algorithm.Arithmetic",
+                "inputs": {"A": "mydata"},
+                "attrs": { "eqn": "2 * A" }
+            },
+            "mydata2": {
+                "node": "data.DataSource",
+                "lookup_source": "double.nonexistent.source"
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="reference to nonexistent node/attribute"):
+            Node.from_json(s)
+
+        # nonexistent subsubattr
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource",
+                "source": "my_data_string"
+            },
+            "double": {
+                "node": "algorithm.Arithmetic",
+                "inputs": {"A": "mydata"},
+                "attrs": { "eqn": "2 * A" }
+            },
+            "mydata2": {
+                "node": "data.DataSource",
+                "lookup_source": "double.A.nonexistent"
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="reference to nonexistent node/attribute"):
+            Node.from_json(s)
+
+        # in attrs (incorrect)
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource",
+                "attrs": {
+                    "lookup_source": "my_data_string"
+                }
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="DataSource 'attrs' cannot have a 'lookup_source' property"):
+            Node.from_json(s)
+
+    def test_reprojected_source_lookup_source(self):
+        # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
+
+        # lookup_source
+        s = """
+        {
+            "mysource": {
+                "node": "data.DataSource",
+                "source": "my_data_string"
+            },
+            "reprojected": {
+                "node": "data.ReprojectedSource",
+                "lookup_source": "mysource"
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.data.ReprojectedSource)
+        assert isinstance(node.source, podpac.data.DataSource)
+        assert node.source.source == "my_data_string"
+
+        # lookup_source subattr
+        s = """
+        {
+            "mysource": {
+                "node": "data.DataSource",
+                "source": "my_data_string"
+            },
+            "double": {
+                "node": "algorithm.Arithmetic",
+                "inputs": {"A": "mysource"},
+                "attrs": { "eqn": "2 * A" }
+            },
+            "reprojected": {
+                "node": "data.ReprojectedSource",
+                "lookup_source": "double.A"
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.data.ReprojectedSource)
+        assert isinstance(node.source, podpac.data.DataSource)
+        assert node.source.source == "my_data_string"
+
+        # 'source' should fail
+        s = """
+        {
+            "mysource": {
+                "node": "data.DataSource",
+                "source": "my_data_string"
+            },
+            "reprojected": {
+                "node": "data.ReprojectedSource",
+                "source": "mysource"
+            }
+        }
+        """
+
+        with pytest.raises(tl.TraitError):
+            Node.from_json(s)
+
+    def test_array_source(self):
+        s = """
+        {
+            "mysource": {
+                "node": "data.Array",
+                "source": [0, 1, 2]
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.data.Array)
+        np.testing.assert_array_equal(node.source, [0, 1, 2])
+
+    def test_array_lookup_source(self):
+        s = """
+        {
+            "a": {
+                "node": "data.Array",
+                "source": [0, 1, 2]
+            },
+            "b": {
+                "node": "data.Array",
+                "lookup_source": "a.source"
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.data.Array)
+        np.testing.assert_array_equal(node.source, [0, 1, 2])
+
+        # 'source' should fail
+        s = """
+        {
+            "a": {
+                "node": "data.Array",
+                "source": [0, 1, 2]
+            },
+            "b": {
+                "node": "data.Array",
+                "source": "a.source"
+            }
+        }
+        """
+
+        with pytest.raises(ValueError):
+            Node.from_json(s)
+
+    def test_algorithm_inputs(self):
+        # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
+
+        # basic
+        s = """
+        {
+            "source1": {"node": "algorithm.Arange"},
+            "source2": {"node": "algorithm.CoordData"},
+            "result": {        
+                "node": "algorithm.Arithmetic",
+                "inputs": {
+                    "A": "source1",
+                    "B": "source2"
+                },
+                "attrs": {
+                    "eqn": "A + B"
+                }
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.algorithm.Arithmetic)
+        assert isinstance(node.A, podpac.algorithm.Arange)
+        assert isinstance(node.B, podpac.algorithm.CoordData)
+
+        # sub-node
+        s = """
+        {
+            "mysource": {"node": "algorithm.Arange"},
+            "double": {        
+                "node": "algorithm.Arithmetic",
+                "inputs": { "A": "mysource" },
+                "attrs": { "eqn": "2 * A" }
+            },
+            "quadruple": {
+                "node": "algorithm.Arithmetic",
+                "inputs": { "A": "double.A" },
+                "attrs": { "eqn": "2 * A" }
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.algorithm.Arithmetic)
+        assert isinstance(node.A, podpac.algorithm.Arange)
+
+        # in attrs (incorrect)
+        s = """
+        {
+            "source1": {"node": "algorithm.Arange"},
+            "source2": {"node": "algorithm.CoordData"},
+            "result": {        
+                "node": "algorithm.Arithmetic",
+                "attrs": {
+                    "inputs": {
+                        "A": "source1",
+                        "B": "source2"
+                    },
+                    "eqn": "A + B"
+                }
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="Algorithm 'attrs' cannot have an 'inputs' property"):
+            Node.from_json(s)
+
+    def test_compositor_sources(self):
+        # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
+
+        # basic
+        s = """
+        {
+            "a": {"node": "algorithm.Arange"},
+            "b": {"node": "algorithm.CoordData"},
+            "c": {
+                "node": "compositor.OrderedCompositor",
+                "sources": ["a", "b"]
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.compositor.OrderedCompositor)
+        assert isinstance(node.sources[0], podpac.algorithm.Arange)
+        assert isinstance(node.sources[1], podpac.algorithm.CoordData)
+
+        # sub-node
+        s = """
+        {
+            "source1": {"node": "algorithm.Arange"},
+            "source2": {"node": "algorithm.CoordData"},
+            "double": {
+                "node": "algorithm.Arithmetic",
+                "inputs": { "A": "source1" },
+                "attrs": { "eqn": "2 * A" }
+            },
+            "c": {
+                "node": "compositor.OrderedCompositor",
+                "sources": ["double.A", "source2"]
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.compositor.OrderedCompositor)
+        assert isinstance(node.sources[0], podpac.algorithm.Arange)
+        assert isinstance(node.sources[1], podpac.algorithm.CoordData)
+
+    def test_datasource_interpolation(self):
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource",
+                "source": "my_data_string",
+                "interpolation": "nearest"
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.data.DataSource)
+        assert node.interpolation == "nearest"
+
+        # not required
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource"
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.data.DataSource)
+
+        # incorrect
+        s = """
+        {
+            "mydata": {
+                "node": "data.DataSource",
+                "attrs": {
+                    "interpolation": "nearest"
+                }
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="DataSource 'attrs' cannot have an 'interpolation' property"):
+            Node.from_json(s)
+
+    def test_compositor_interpolation(self):
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Arange"
+            },
+            "b": {
+                "node": "algorithm.Arange"
+            },
+            "c": {
+                "node": "compositor.OrderedCompositor",
+                "sources": ["a", "b"],
+                "interpolation": "nearest"
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.compositor.OrderedCompositor)
+        assert node.interpolation == "nearest"
+
+        # not required
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Arange"
+            },
+            "b": {
+                "node": "algorithm.Arange"
+            },
+            "c": {
+                "node": "compositor.OrderedCompositor",
+                "sources": ["a", "b"]
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.compositor.OrderedCompositor)
+
+        # incorrect
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Arange"
+            },
+            "b": {
+                "node": "algorithm.Arange"
+            },
+            "c": {
+                "node": "compositor.OrderedCompositor",
+                "sources": ["a", "b"],
+                "attrs": {
+                    "interpolation": "nearest"
+                }
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="Compositor 'attrs' cannot have an 'interpolation' property"):
+            Node.from_json(s)
+
+    def test_attrs(self):
+        s = """
+        {
+            "sm": {
+                "node": "datalib.smap.SMAP",
+                "attrs": {
+                    "product": "SPL4SMGP"
+                }
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.datalib.smap.SMAP)
+        assert node.product == "SPL4SMGP"
+
+    def test_lookup_attrs(self):
+        # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
+
+        s = """
+        {
+            "a": {
+                "node": "algorithm.CoordData",
+                "attrs": { "coord_name": "lat" }
+            },
+            "b": {
+                "node": "algorithm.CoordData",
+                "lookup_attrs": { "coord_name": "a.coord_name" }
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, podpac.algorithm.CoordData)
+        assert node.coord_name == "lat"
+
+        # lookup node directly (instead of a sub-attr)
+        global MyNodeWithNodeAttr
+
+        class MyNodeWithNodeAttr(Node):
+            my_node_attr = tl.Instance(Node).tag(attr=True)
+
+        s = """
+        {
+            "mysource": {
+                "node": "data.DataSource"
+            },
+            "mynode": {
+                "plugin": "test_node",
+                "node": "MyNodeWithNodeAttr",
+                "lookup_attrs": {
+                    "my_node_attr": "mysource"
+                }
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, MyNodeWithNodeAttr)
+        assert isinstance(node.my_node_attr, podpac.data.DataSource)
+
+        # attrs should not work
+        s = """
+        {
+            "a": {
+                "node": "algorithm.CoordData",
+                "attrs": { "coord_name": "lat" }
+            },
+            "b": {
+                "node": "algorithm.CoordData",
+                "attrs": { "coord_name": "a.coord_name" }
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert node.coord_name == "a.coord_name"  # this will fail at evaluation
+
+    def test_invalid_property(self):
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Arange",
+                "invalid_property": "value"
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="unexpected property"):
+            Node.from_json(s)
+
+    def test_plugin(self):
+        global MyPluginNode
+
+        class MyPluginNode(Node):
+            pass
+
+        s = """
+        {
+            "mynode": {
+                "plugin": "test_node",
+                "node": "MyPluginNode"
+            }
+        }
+        """
+
+        node = Node.from_json(s)
+        assert isinstance(node, MyPluginNode)
+
+        # missing plugin
+        s = """
+        {
+            "mynode": {
+                "plugin": "missing",
+                "node": "MyPluginNode"
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="no module found"):
+            Node.from_json(s)
 
     def test_pipeline(self):
         n = Node()

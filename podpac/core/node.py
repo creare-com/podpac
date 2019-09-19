@@ -335,7 +335,7 @@ class Node(tl.HasTraits):
                 d["lookup_source"] = add_node(d["lookup_source"])
             if "lookup_attrs" in d:
                 for key, attr_node in d["lookup_attrs"].items():
-                    d["lookup_attrs"][key] = add_node(input_node)
+                    d["lookup_attrs"][key] = add_node(attr_node)
             if "inputs" in d:
                 for key, input_node in d["inputs"].items():
                     if input_node is not None:
@@ -535,6 +535,9 @@ class Node(tl.HasTraits):
         from podpac.core.algorithm.algorithm import Algorithm
         from podpac.core.compositor import Compositor
 
+        if len(definition) == 0:
+            raise ValueError("Invalid definition: definition cannot be empty.")
+
         # parse node definitions in order
         nodes = OrderedDict()
         for name, d in definition.items():
@@ -568,12 +571,20 @@ class Node(tl.HasTraits):
                 if "attrs" in d:
                     if "source" in d["attrs"]:
                         raise ValueError(
-                            "Invalid definition for node '%s': 'attrs' cannot have a 'source' property." % name
+                            "Invalid definition for node '%s': DataSource 'attrs' cannot have a 'source' property."
+                            % name
                         )
 
                     if "lookup_source" in d["attrs"]:
                         raise ValueError(
-                            "Invalid definition for node '%s': 'attrs' cannot have a 'lookup_source' property" % name
+                            "Invalid definition for node '%s': DataSource 'attrs' cannot have a 'lookup_source' property"
+                            % name
+                        )
+
+                    if "interpolation" in d["attrs"]:
+                        raise ValueError(
+                            "Invalid definition for node '%s': DataSource 'attrs' cannot have an 'interpolation' property"
+                            % name
                         )
 
                 if "source" in d:
@@ -584,23 +595,35 @@ class Node(tl.HasTraits):
                     kwargs["source"] = _get_subattr(nodes, name, d["lookup_source"])
                     whitelist.append("lookup_source")
 
+                if "interpolation" in d:
+                    kwargs["interpolation"] = d["interpolation"]
+                    whitelist.append("interpolation")
+
             if Compositor in parents:
+                if "attrs" in d:
+                    if "interpolation" in d["attrs"]:
+                        raise ValueError(
+                            "Invalid definition for node '%s': Compositor 'attrs' cannot have an 'interpolation' property"
+                            % name
+                        )
+
                 if "sources" in d:
                     sources = [_get_subattr(nodes, name, source) for source in d["sources"]]
                     kwargs["sources"] = np.array(sources)
                     whitelist.append("sources")
-
-            if DataSource in parents or Compositor in parents:
-                if "attrs" in d and "interpolation" in d["attrs"]:
-                    raise ValueError(
-                        "Invalid definition for node '%s': 'attrs' cannot have an 'interpolation' property" % name
-                    )
 
                 if "interpolation" in d:
                     kwargs["interpolation"] = d["interpolation"]
                     whitelist.append("interpolation")
 
             if Algorithm in parents:
+                if "attrs" in d:
+                    if "inputs" in d["attrs"]:
+                        raise ValueError(
+                            "Invalid definition for node '%s': Algorithm 'attrs' cannot have an 'inputs' property"
+                            % name
+                        )
+
                 if "inputs" in d:
                     inputs = {k: _get_subattr(nodes, name, v) for k, v in d["inputs"].items()}
                     kwargs.update(inputs)
