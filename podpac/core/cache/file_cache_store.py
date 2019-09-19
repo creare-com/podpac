@@ -155,8 +155,7 @@ class FileCacheStore(CacheStore):
         elif path.endswith(".coords.json"):
             data = podpac.Coordinates.from_json(s.decode())
         elif path.endswith(".node.json"):
-            pipeline = podpac.pipeline.Pipeline(json=s.decode())
-            data = pipeline.node
+            data = podpac.Node.from_json(s.decode())
         elif path.endswith(".json"):
             data = json.loads(s.decode())
         elif path.endswith(".pkl"):
