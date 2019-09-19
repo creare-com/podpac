@@ -100,11 +100,11 @@ class Lambda(Node):
         The pipeline of this manager is the aggregation of the source node definition and the output.
         """
         d = OrderedDict()
-        d["nodes"] = self.source.definition
+        d["pipeline"] = self.source.definition
         if self.attrs:
-            out_node = next(reversed(d["nodes"].keys()))
-            d["nodes"][out_node]["attrs"].update(self.attrs)
-        d["output"] = {"format": self.source_output_format, "name": self.source_output_name}
+            out_node = next(reversed(d["pipeline"].keys()))
+            d["pipeline"][out_node]["attrs"].update(self.attrs)
+        d["output"] = {"format": self.source_output_format}
         return d
 
     @common_doc(COMMON_DOC)
