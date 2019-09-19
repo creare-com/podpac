@@ -65,7 +65,7 @@ class Lambda(Node):
 
     source = tl.Instance(Node, allow_none=False, help="Node to evaluate in a Lambda function.")
 
-    source_output_format = tl.Unicode(default_value="png", allow_none=False, help="Image output format.")
+    source_output_format = tl.Unicode(default_value="pkl", allow_none=False, help="Output format.")
     source_output_name = tl.Unicode(allow_none=False, help="Image output name.")
 
     attrs = tl.Dict()
