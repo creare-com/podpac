@@ -63,13 +63,12 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
             if len(_json) > 0:
                 _json += "\n"
             _json += r.decode()
-        _json = json.loads(_json, object_pairs_hook=OrderedDict)
-        pipeline_json = _json["pipeline"]
+        pipeline = json.loads(_json, object_pairs_hook=OrderedDict)
     else:
         # elif ('pathParameters' in event and event['pathParameters'] is not None and 'proxy' in event['pathParameters']) or ('authorizationToken' in event and event['authorizationToken'] == "incoming-client-token"):
-        # TODO: Need to get the pipeline_json from the event...
+        # TODO: Need to get the pipeline from the event...
         print ("DSullivan: we have an API Gateway event")
-        pipeline_json = None
+        pipeline = None
 
     # Download dependencies from specific bucket/object
     if get_deps:
@@ -84,20 +83,18 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     matplotlib.use("agg")
     from podpac import settings
     from podpac.core.node import Node
-    from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
     from podpac.core.utils import JSONEncoder, _get_query_params_from_url
     import podpac.datalib
 
     # check if file exists
-    if pipeline_json is not None:
-        pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
-        filename = file_key.replace(".json", "." + pipeline.output.format)
+    if pipeline is not None:
+        filename = file_key.replace(".json", "." + pipeline["output"]["format"])
         filename = filename.replace(settings["S3_JSON_FOLDER"], settings["S3_OUTPUT_FOLDER"])
         try:
             s3.head_object(Bucket=bucket, Key=filename)
             # Object exists, so we don't have to recompute
-            if not _json.get("force_compute", False):
+            if not pipeline.get("force_compute", False):
                 return
         except botocore.exceptions.ClientError as e:
             if e.response["Error"]["Code"] == "404":
@@ -110,29 +107,30 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     args = []
     kwargs = {}
     # if from S3 trigger
-    if pipeline_json is not None:
+    if pipeline is not None:
         # if 'Records' in event and event['Records'][0]['eventSource'] == 'aws:s3':
-        pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
-        coords = Coordinates.from_json(json.dumps(_json["coordinates"], indent=4, cls=JSONEncoder))
-        format = pipeline.output.format
+        node = Node.from_definition(pipeline["pipeline"])
+        coords = Coordinates.from_json(json.dumps(pipeline["coordinates"], indent=4, cls=JSONEncoder))
+        fmt = pipeline["output"]["format"]
+        kwargs = pipeline["output"].copy()
+        kwargs.pop("format")
 
     # else from api gateway and it's a WMS/WCS request
     else:
         # elif ('pathParameters' in event and event['pathParameters'] is not None and 'proxy' in event['pathParameters']) or ('authorizationToken' in event and event['authorizationToken'] == "incoming-client-token"):
         print (_get_query_params_from_url(event["queryStringParameters"]))
         coords = Coordinates.from_url(event["queryStringParameters"])
-        pipeline = Node.from_url(event["queryStringParameters"])
-        pipeline.do_write_output = False
-        format = _get_query_params_from_url(event["queryStringParameters"])["FORMAT"].split("/")[-1]
-        if format in ["png", "jpg", "jpeg"]:
+        node = Node.from_url(event["queryStringParameters"])
+        fmt = _get_query_params_from_url(event["queryStringParameters"])["FORMAT"].split("/")[-1]
+        if fmt in ["png", "jpg", "jpeg"]:
             kwargs["return_base64"] = True
 
-    output = pipeline.eval(coords)
+    output = node.eval(coords)
     if ret_pipeline:
-        return pipeline
+        return node
 
-    body = output.to_format(format, *args, **kwargs)
-    if pipeline_json is not None:
+    body = output.to_format(fmt, *args, **kwargs)
+    if pipeline is not None:
         s3.put_object(Bucket=bucket, Key=filename, Body=body)
     else:
         try:

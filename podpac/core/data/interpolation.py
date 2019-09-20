@@ -268,7 +268,7 @@ class Interpolation(object):
                     + "Interpolation params must be a dict"
                 )
 
-            # handle when interpolator is a string (most commonly from a pipeline definition)
+            # handle when interpolator is a string (most commonly from a node definition)
             for idx, interpolator_class in enumerate(interpolators):
                 if isinstance(interpolator_class, string_types):
                     if interpolator_class in INTERPOLATORS_DICT.keys():

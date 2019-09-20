@@ -36,6 +36,7 @@ def pytest_configure(config):
     """
 
     config.addinivalue_line("markers", "aws: mark test as an aws test")
+    config.addinivalue_line("markers", "integration: mark test as integration test")
 
 
 def pytest_unconfigure(config):

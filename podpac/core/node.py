@@ -6,24 +6,22 @@ from __future__ import division, print_function, absolute_import
 
 import os
 import re
-from collections import OrderedDict
 import functools
-from hashlib import md5 as hash_alg
 import json
+import inspect
+import warnings
+import importlib
+from collections import OrderedDict
+from hashlib import md5 as hash_alg
 
 import numpy as np
 import traitlets as tl
 
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray, create_data_array
-from podpac.core.utils import (
-    common_doc,
-    JSONEncoder,
-    is_json_serializable,
-    _get_query_params_from_url,
-    _get_from_url,
-    _get_param,
-)
+from podpac.core.utils import common_doc
+from podpac.core.utils import JSONEncoder, is_json_serializable
+from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore
@@ -243,25 +241,25 @@ class Node(tl.HasTraits):
         return create_data_array(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
-    # Serialization properties
+    # Serialization
     # -----------------------------------------------------------------------------------------------------------------
 
     @property
     def base_ref(self):
         """
-        Default pipeline node reference/name in pipeline node definitions
+        Default reference/name in node definitions
 
         Returns
         -------
         str
-            Name of the node in pipeline definitions
+            Name of the node in node definitions
         """
         return self.__class__.__name__
 
     @property
     def base_definition(self):
         """
-        Pipeline node definition.
+        Base node definition.
 
         This property is implemented in the primary base nodes (DataSource, Algorithm, and Compositor). Node
         subclasses with additional attrs will need to extend this property.
@@ -315,12 +313,12 @@ class Node(tl.HasTraits):
     @property
     def definition(self):
         """
-        Full pipeline definition for this node.
+        Full node definition.
 
         Returns
         -------
         OrderedDict
-            Dictionary-formatted definition of a PODPAC pipeline.
+            Dictionary-formatted node definition.
         """
 
         nodes = []
@@ -337,7 +335,7 @@ class Node(tl.HasTraits):
                 d["lookup_source"] = add_node(d["lookup_source"])
             if "lookup_attrs" in d:
                 for key, attr_node in d["lookup_attrs"].items():
-                    d["lookup_attrs"][key] = add_node(input_node)
+                    d["lookup_attrs"][key] = add_node(attr_node)
             if "inputs" in d:
                 for key, input_node in d["inputs"].items():
                     if input_node is not None:
@@ -366,22 +364,14 @@ class Node(tl.HasTraits):
 
         add_node(self)
 
-        d = OrderedDict()
-        d["nodes"] = OrderedDict(zip(refs, definitions))
-        return d
+        return OrderedDict(zip(refs, definitions))
 
     @property
     def pipeline(self):
-        """Create a pipeline node from this node
-
-        Returns
-        -------
-        podpac.Pipeline
-            A pipeline node that wraps this node
-        """
+        """Deprecated. See Node.definition and Node.from_definition."""
         from podpac.core.pipeline import Pipeline
 
-        return Pipeline(definition=self.definition)
+        return Pipeline(definition=OrderedDict({"nodes": self.definition}))
 
     @property
     def json(self):
@@ -390,12 +380,7 @@ class Node(tl.HasTraits):
         Returns
         -------
         str
-            JSON-formatted definition of a PODPAC pipeline.
-
-        Notes
-        ------
-        This definition can be used to create Pipeline Nodes. It also serves as a light-weight transport mechanism to
-        share algorithms and pipelines, or run code on cloud services.
+            JSON-formatted node definition.
         """
         return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
@@ -406,6 +391,23 @@ class Node(tl.HasTraits):
     @property
     def hash(self):
         return hash_alg(self.json.encode("utf-8")).hexdigest()
+
+    def save(self, path):
+        """
+        Write node to file.
+
+        Arguments
+        ---------
+        path : str
+            path to write to
+
+        See Also
+        --------
+        load : load podpac Node from file.
+        """
+
+        with open(path, "w") as f:
+            json.dump(self.definition, f, separators=(",", ":"), cls=JSONEncoder)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface
@@ -504,8 +506,190 @@ class Node(tl.HasTraits):
         self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
 
     # --------------------------------------------------------#
-    #  Class Methods
+    #  Class Methods (Deserialization)
     # --------------------------------------------------------#
+
+    @classmethod
+    def from_definition(cls, definition):
+        """
+        Create podpac Node from a dictionary definition.
+
+        Arguments
+        ---------
+        d : dict
+            node definition
+
+        Returns
+        -------
+        :class:`Node`
+            podpac Node
+
+        See Also
+        --------
+        definition : node definition as a dictionary
+        from_json : create podpac node from a JSON definition
+        load : create a node from file
+        """
+
+        from podpac.core.data.datasource import DataSource
+        from podpac.core.algorithm.algorithm import Algorithm
+        from podpac.core.compositor import Compositor
+
+        if len(definition) == 0:
+            raise ValueError("Invalid definition: definition cannot be empty.")
+
+        # parse node definitions in order
+        nodes = OrderedDict()
+        for name, d in definition.items():
+            if "node" not in d:
+                raise ValueError("Invalid definition for node '%s': 'node' property required" % name)
+
+            # get node class
+            module_root = d.get("plugin", "podpac")
+            node_string = "%s.%s" % (module_root, d["node"])
+            module_name, node_name = node_string.rsplit(".", 1)
+            try:
+                module = importlib.import_module(module_name)
+            except ImportError:
+                raise ValueError("Invalid definition for node '%s': no module found '%s'" % (name, module_name))
+            try:
+                node_class = getattr(module, node_name)
+            except AttributeError:
+                raise ValueError(
+                    "Invalid definition for node '%s': class '%s' not found in module '%s'"
+                    % (name, node_name, module_name)
+                )
+
+            # parse and configure kwargs
+            kwargs = {}
+            whitelist = ["node", "attrs", "lookup_attrs", "plugin"]
+
+            # DataSource, Compositor, and Algorithm specific properties
+            parents = inspect.getmro(node_class)
+
+            if DataSource in parents:
+                if "attrs" in d:
+                    if "source" in d["attrs"]:
+                        raise ValueError(
+                            "Invalid definition for node '%s': DataSource 'attrs' cannot have a 'source' property."
+                            % name
+                        )
+
+                    if "lookup_source" in d["attrs"]:
+                        raise ValueError(
+                            "Invalid definition for node '%s': DataSource 'attrs' cannot have a 'lookup_source' property"
+                            % name
+                        )
+
+                    if "interpolation" in d["attrs"]:
+                        raise ValueError(
+                            "Invalid definition for node '%s': DataSource 'attrs' cannot have an 'interpolation' property"
+                            % name
+                        )
+
+                if "source" in d:
+                    kwargs["source"] = d["source"]
+                    whitelist.append("source")
+
+                elif "lookup_source" in d:
+                    kwargs["source"] = _get_subattr(nodes, name, d["lookup_source"])
+                    whitelist.append("lookup_source")
+
+                if "interpolation" in d:
+                    kwargs["interpolation"] = d["interpolation"]
+                    whitelist.append("interpolation")
+
+            if Compositor in parents:
+                if "attrs" in d:
+                    if "interpolation" in d["attrs"]:
+                        raise ValueError(
+                            "Invalid definition for node '%s': Compositor 'attrs' cannot have an 'interpolation' property"
+                            % name
+                        )
+
+                if "sources" in d:
+                    sources = [_get_subattr(nodes, name, source) for source in d["sources"]]
+                    kwargs["sources"] = np.array(sources)
+                    whitelist.append("sources")
+
+                if "interpolation" in d:
+                    kwargs["interpolation"] = d["interpolation"]
+                    whitelist.append("interpolation")
+
+            if Algorithm in parents:
+                if "attrs" in d:
+                    if "inputs" in d["attrs"]:
+                        raise ValueError(
+                            "Invalid definition for node '%s': Algorithm 'attrs' cannot have an 'inputs' property"
+                            % name
+                        )
+
+                if "inputs" in d:
+                    inputs = {k: _get_subattr(nodes, name, v) for k, v in d["inputs"].items()}
+                    kwargs.update(inputs)
+                    whitelist.append("inputs")
+
+            for k, v in d.get("attrs", {}).items():
+                kwargs[k] = v
+
+            for k, v in d.get("lookup_attrs", {}).items():
+                kwargs[k] = _get_subattr(nodes, name, v)
+
+            for k in d:
+                if k not in whitelist:
+                    raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
+
+            nodes[name] = node_class(**kwargs)
+
+        return list(nodes.values())[-1]
+
+    @classmethod
+    def from_json(cls, s):
+        """
+        Create podpac Node from a JSON definition.
+
+        Arguments
+        ---------
+        s : str
+            JSON-formatted node definition
+
+        Returns
+        -------
+        :class:`Node`
+            podpac Node
+
+        See Also
+        --------
+        json : node definition as a JSON string
+        load : create a node from file
+        """
+
+        d = json.loads(s, object_pairs_hook=OrderedDict)
+        return cls.from_definition(d)
+
+    @classmethod
+    def load(cls, path):
+        """
+        Create podpac Node from file.
+
+        Arguments
+        ---------
+        path : str
+            path to text file containing a JSON-formatted node definition
+
+        Returns
+        -------
+        :class:`Node`
+            podpac Node
+
+        See Also
+        --------
+        save : save a node to file
+        """
+
+        with open(path) as f:
+            d = json.load(f, object_pairs_hook=OrderedDict)
+        return cls.from_definition(d)
 
     @classmethod
     def from_url(cls, url):
@@ -533,8 +717,6 @@ class Node(tl.HasTraits):
         * By pointing at the JSON definition retrievable from an S3 bucket that the user has access to:
           e.g by setting LAYER/COVERAGE value to s3://my-bucket-name/pipeline_definition.json
         """
-        from podpac.core.pipeline import Pipeline
-
         params = _get_query_params_from_url(url)
 
         if _get_param(params, "SERVICE") == "WMS":
@@ -542,28 +724,40 @@ class Node(tl.HasTraits):
         elif _get_param(params, "SERVICE") == "WCS":
             layer = _get_param(params, "COVERAGE")
 
-        pipeline_dict = None
+        d = None
         if layer.startswith("https://"):
-            pipeline_json = _get_from_url(layer)
+            s = _get_from_url(layer)
         elif layer.startswith("s3://"):
             parts = layer.split("/")
             bucket = parts[2]
             key = "/".join(parts[3:])
             s3 = S3CacheStore(s3_bucket=bucket)
-            pipeline_json = s3._load(key)
+            s = s3._load(key)
         elif layer == "%PARAMS%":
-            pipeline_json = _get_param(params, "PARAMS")
+            s = _get_param(params, "PARAMS")
         else:
             p = _get_param(params, "PARAMS")
             if p is None:
                 p = "{}"
-            pipeline_dict = OrderedDict(
-                {"nodes": OrderedDict({layer.replace(".", "-"): {"node": layer, "attrs": json.loads(p)}})}
-            )
-        if pipeline_dict is None:
-            pipeline_dict = json.loads(pipeline_json, object_pairs_hook=OrderedDict)
+            d = OrderedDict({layer.replace(".", "-"): {"node": layer, "attrs": json.loads(p)}})
 
-        return Pipeline(definition=pipeline_dict)
+        if d is None:
+            d = json.loads(s, object_pairs_hook=OrderedDict)
+
+        return cls.from_definition(d)
+
+
+def _get_subattr(nodes, name, ref):
+    refs = ref.split(".")
+    try:
+        attr = nodes[refs[0]]
+        for _name in refs[1:]:
+            attr = getattr(attr, _name)
+    except (KeyError, AttributeError):
+        raise ValueError("Invalid definition for node '%s': reference to nonexistent node/attribute '%s'" % (name, ref))
+    if settings["DEBUG"]:
+        attr = deepcopy(attr)
+    return attr
 
 
 # --------------------------------------------------------#

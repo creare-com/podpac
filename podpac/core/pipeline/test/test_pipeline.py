@@ -21,7 +21,8 @@ node.eval(coords)
 class TestPipeline(object):
     def test_init_path(self):
         path = os.path.join(os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test", "test.json")
-        pipeline = Pipeline(path=path)
+        with pytest.warns(DeprecationWarning):
+            pipeline = Pipeline(path=path)
 
         assert pipeline.json
         assert pipeline.definition
@@ -38,7 +39,8 @@ class TestPipeline(object):
         }
         """
 
-        pipeline = Pipeline(json=s)
+        with pytest.warns(DeprecationWarning):
+            pipeline = Pipeline(json=s)
         assert pipeline.json
         assert pipeline.definition
         assert pipeline.output
@@ -56,7 +58,8 @@ class TestPipeline(object):
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
 
-        pipeline = Pipeline(definition=d)
+        with pytest.warns(DeprecationWarning):
+            pipeline = Pipeline(definition=d)
         assert pipeline.json
         assert pipeline.definition
         assert pipeline.output
@@ -75,7 +78,8 @@ class TestPipeline(object):
         }
         """
 
-        pipeline = Pipeline(json=s)
+        with pytest.warns(DeprecationWarning):
+            pipeline = Pipeline(json=s)
         pipeline.eval(coords)
 
         pipeline.units
@@ -102,7 +106,8 @@ class TestPipeline(object):
         }
         """
 
-        pipeline = Pipeline(json=s)
+        with pytest.warns(DeprecationWarning):
+            pipeline = Pipeline(json=s)
         pipeline.eval(coords)
         assert pipeline.output.path is not None
         assert os.path.isfile(pipeline.output.path)
@@ -127,7 +132,8 @@ class TestPipeline(object):
         }
         """
 
-        pipeline = Pipeline(json=s, do_write_output=False)
+        with pytest.warns(DeprecationWarning):
+            pipeline = Pipeline(json=s, do_write_output=False)
         pipeline.eval(coords)
         if pipeline.output.path is not None and os.path.isfile(pipeline.output.path):
             os.remove(pipeline.output.path)
@@ -156,9 +162,11 @@ class TestPipeline(object):
 
         debug = podpac.core.settings.settings["DEBUG"]
         podpac.core.settings.settings["DEBUG"] = False
-        pipeline = Pipeline(json=s)
+        with pytest.warns(DeprecationWarning):
+            pipeline = Pipeline(json=s)
         assert pipeline.node.A is pipeline.node.B.source
         podpac.core.settings.settings["DEBUG"] = True
-        pipeline = Pipeline(json=s)
+        with pytest.warns(DeprecationWarning):
+            pipeline = Pipeline(json=s)
         assert pipeline.node.A is not pipeline.node.B.source
         podpac.core.settings.settings["DEBUG"] = debug

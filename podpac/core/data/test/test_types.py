@@ -96,8 +96,9 @@ class TestArray(object):
 
     def test_definition(self):
         node = Array(source=self.data)
-        pipeline = podpac.pipeline.Pipeline(definition=node.definition)
-        np.testing.assert_array_equal(pipeline.node.source, self.data)
+        node2 = Node.from_definition(node.definition)
+        assert isinstance(node2, Array)
+        np.testing.assert_array_equal(node2.source, self.data)
 
 
 class TestPyDAP(object):
