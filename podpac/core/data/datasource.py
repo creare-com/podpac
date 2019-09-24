@@ -265,8 +265,8 @@ class DataSource(Node):
             )
 
         # select output data, if appropriate
-        if self.output is not None:
-            udata_array = udata_array.sel(data=self.output)
+        if self.output is not None and "output" in udata_array.dims:
+            udata_array = udata_array.sel(output=self.output)
 
         # fill nan_vals in data array
         if self.nan_vals:
@@ -384,8 +384,8 @@ class DataSource(Node):
             requested_dims = None
             output_dims = None
             output = self.create_output_array(coordinates)
-            if self.output is not None:
-                output = output.sel(data=self.output)
+            if self.output is not None and "output" in output.dims:
+                output = output.sel(output=self.output)
         else:
             requested_dims = self._evaluated_coordinates.dims
             output_dims = output.dims

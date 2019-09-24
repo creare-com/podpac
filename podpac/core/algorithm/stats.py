@@ -45,6 +45,10 @@ class Reduce(Algorithm):
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
     _dims = tl.List(trait_type=str)
 
+    @tl.default("outputs")
+    def _default_outputs(self):
+        return self.source.outputs
+
     def _first_init(self, **kwargs):
         if "dims" in kwargs and isinstance(kwargs["dims"], string_types):
             kwargs["dims"] = [kwargs["dims"]]
@@ -187,6 +191,7 @@ class Reduce(Algorithm):
             self._dims = list(coordinates.dims)
         self._reduced_coordinates = coordinates.drop(self._dims)
 
+        x = output
         if output is None:
             output = self.create_output_array(self._reduced_coordinates)
 
@@ -881,6 +886,10 @@ class GroupReduce(Algorithm):
     custom_reduce_fn = tl.Any()
 
     _source_coordinates = tl.Instance(Coordinates)
+
+    @tl.default("outputs")
+    def _default_outputs(self):
+        return self.source.outputs
 
     @tl.default("coordinates_source")
     def _default_coordinates_source(self):

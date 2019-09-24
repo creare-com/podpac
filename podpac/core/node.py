@@ -621,10 +621,13 @@ def node_eval(fn):
                 self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update)
             self._from_cache = False
 
+        if "output" in data.dims and self.output is not None:
+            data = data.sel(output=self.output)
+
         # transpose data to match the dims order of the requested coordinates
         order = [dim for dim in coordinates.idims if dim in data.dims]
-        if "data" in data.dims:
-            order.append("data")
+        if "output" in data.dims:
+            order.append("output")
         data = data.transpose(*order)
 
         if settings["DEBUG"]:

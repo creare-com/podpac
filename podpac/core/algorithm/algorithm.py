@@ -100,8 +100,8 @@ class Algorithm(Node):
         else:
             raise NodeException
 
-        if self.output is not None:
-            output = output.sel(data=self.output)
+        if self.output is not None and "output" in output.dims:
+            output = output.sel(output=self.output)
 
         return output
 

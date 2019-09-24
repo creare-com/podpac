@@ -393,8 +393,8 @@ def create_data_array(c, data=np.nan, outputs=None, dtype=float, **kwargs):
     coords = c.coords
     dims = c.idims
     if outputs is not None:
-        dims = dims + ("data",)
-        coords["data"] = outputs
+        dims = dims + ("output",)
+        coords["output"] = outputs
 
     # crs attr
     if "attrs" in kwargs:
