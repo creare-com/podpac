@@ -254,14 +254,14 @@ class TestCSV(object):
         node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col="data")
         nc = node.native_coordinates
         assert nc.size == 5
-        assert np.all(nc["lat"].coordinates == [0, 1, 1, 1, 1])
-        assert np.all(nc["lon"].coordinates == [0, 0, 2, 2, 2])
-        assert np.all(nc["alt"].coordinates == [0, 0, 0, 0, 4])
+        np.testing.assert_array_equal(nc["lat"].coordinates, [0, 1, 1, 1, 1])
+        np.testing.assert_array_equal(nc["lon"].coordinates, [0, 0, 2, 2, 2])
+        np.testing.assert_array_equal(nc["alt"].coordinates, [0, 0, 0, 0, 4])
 
     def test_data(self):
         node = CSV(source=self.source, lat_col=0, lon_col=1, time_col=2, alt_col=3, data_col="data")
         d = node.eval(node.native_coordinates)
-        assert np.all(d == [0, 1, 2, 3, 4])
+        np.testing.assert_array_equal(d, [0, 1, 2, 3, 4])
 
 
 class TestRasterio(object):
@@ -379,8 +379,8 @@ class TestH5PY(object):
 
         nc = node.native_coordinates
         assert node.native_coordinates.shape == (3, 4)
-        assert np.all(node.native_coordinates["lat"].coordinates == [45.1, 45.2, 45.3])
-        assert np.all(node.native_coordinates["lon"].coordinates == [-100.1, -100.2, -100.3, -100.4])
+        np.testing.assert_array_equal(node.native_coordinates["lat"].coordinates, [45.1, 45.2, 45.3])
+        np.testing.assert_array_equal(node.native_coordinates["lon"].coordinates, [-100.1, -100.2, -100.3, -100.4])
 
     def test_data(self):
         node = H5PY(
@@ -388,7 +388,7 @@ class TestH5PY(object):
         )
 
         o = node.eval(node.native_coordinates)
-        assert np.all(o.data.ravel() == np.arange(12))
+        np.testing.assert_array_equal(o.data.ravel(), np.arange(12))
 
     def test_keys(self):
         node = H5PY(source=self.source, datakey="data/init", latkey="coords/lat", lonkey="coords/lon")
@@ -545,7 +545,7 @@ class TestWCS(object):
 
         assert isinstance(native_coordinates, Coordinates)
         # TODO: one returns monotonic, the other returns uniform
-        # assert native_coordinates == node._output_coordinates
+        assert native_coordinates == node._output_coordinates
         assert native_coordinates["lat"]
         assert native_coordinates["lon"]
         assert native_coordinates["time"]
