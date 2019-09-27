@@ -57,8 +57,8 @@ class IntakeCatalog(podpac.data.DataSource):
     """
 
     # input parameters
-    uri = tl.Unicode(allow_none=False)
-    source = tl.Unicode(allow_none=False)
+    uri = tl.Unicode()
+    source = tl.Unicode()
 
     # optional input parameters
     field = tl.Unicode(default_value=None, allow_none=True)

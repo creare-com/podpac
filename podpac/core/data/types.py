@@ -124,15 +124,15 @@ class PyDAP(DataSource):
     """
 
     # required inputs
-    source = tl.Unicode(allow_none=False, default_value="")
-    datakey = tl.Unicode(allow_none=False).tag(attr=True)
+    source = tl.Unicode(default_value="")
+    datakey = tl.Unicode().tag(attr=True)
 
     # optional inputs and later defined traits
     auth_session = tl.Instance(authentication.Session, allow_none=True)
     auth_class = tl.Type(authentication.Session)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
-    dataset = tl.Instance("pydap.model.DatasetType", allow_none=False)
+    dataset = tl.Instance("pydap.model.DatasetType")
 
     @tl.default("auth_session")
     def _auth_session_default(self):
@@ -397,7 +397,7 @@ class Rasterio(DataSource):
     * Linux: export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
     """
 
-    source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)], allow_none=False)
+    source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)])
 
     dataset = tl.Any(allow_none=True)
     band = tl.CInt(1).tag(attr=True)
@@ -574,7 +574,7 @@ class DatasetCoordinatedMixin(tl.HasTraits):
     lonkey = tl.Unicode(allow_none=True, default_value="lon").tag(attr=True)
     timekey = tl.Unicode(allow_none=True, default_value="time").tag(attr=True)
     altkey = tl.Unicode(allow_none=True, default_value="alt").tag(attr=True)
-    dims = tl.List(trait=Dimension(), allow_none=False).tag(attr=True)
+    dims = tl.List(trait=Dimension()).tag(attr=True)
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     cf_time = tl.Bool(False).tag(attr=True)
     cf_units = tl.Unicode(allow_none=True).tag(attr=True)
@@ -672,9 +672,9 @@ For example,
         Default is 'r'. The mode used to open the HDF5 file. Options are r, r+, w, w- or x, a (see h5py.File).
     """
 
-    source = tl.Unicode(allow_none=False)
+    source = tl.Unicode()
     dataset = tl.Any(allow_none=True)
-    datakey = tl.Unicode(allow_none=False).tag(attr=True)
+    datakey = tl.Unicode().tag(attr=True)
     file_mode = tl.Unicode(default_value="r")
 
     @tl.default("dataset")
@@ -750,8 +750,8 @@ For example,
 
 class Zarr(DatasetCoordinatedMixin, DataSource):
     source = tl.Unicode(allow_none=True)
-    dataset = tl.Any(allow_none=False)
-    datakey = tl.Unicode(allow_none=False).tag(attr=True)
+    dataset = tl.Any()
+    datakey = tl.Unicode().tag(attr=True)
 
     access_key_id = tl.Unicode()
     secret_access_key = tl.Unicode()

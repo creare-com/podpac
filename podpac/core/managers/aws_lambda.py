@@ -45,28 +45,28 @@ class Lambda(Node):
         Flag that indicated whether node should wait to download the data.
     """
 
-    AWS_ACCESS_KEY_ID = tl.Unicode(allow_none=False, help="Access key ID from AWS for S3 bucket.")
+    AWS_ACCESS_KEY_ID = tl.Unicode(help="Access key ID from AWS for S3 bucket.")
 
     @tl.default("AWS_ACCESS_KEY_ID")
     def _AWS_ACCESS_KEY_ID_default(self):
         return settings["AWS_ACCESS_KEY_ID"]
 
-    AWS_SECRET_ACCESS_KEY = tl.Unicode(allow_none=False, help="Access key value from AWS for S3 bucket.")
+    AWS_SECRET_ACCESS_KEY = tl.Unicode(help="Access key value from AWS for S3 bucket.")
 
     @tl.default("AWS_SECRET_ACCESS_KEY")
     def _AWS_SECRET_ACCESS_KEY_default(self):
         return settings["AWS_SECRET_ACCESS_KEY"]
 
-    AWS_REGION_NAME = tl.Unicode(allow_none=False, help="Region name of AWS S3 bucket.")
+    AWS_REGION_NAME = tl.Unicode(help="Region name of AWS S3 bucket.")
 
     @tl.default("AWS_REGION_NAME")
     def _AWS_REGION_NAME_default(self):
         return settings["AWS_REGION_NAME"]
 
-    source = tl.Instance(Node, allow_none=False, help="Node to evaluate in a Lambda function.")
+    source = tl.Instance(Node, help="Node to evaluate in a Lambda function.")
 
-    source_output_format = tl.Unicode(default_value="pkl", allow_none=False, help="Output format.")
-    source_output_name = tl.Unicode(allow_none=False, help="Image output name.")
+    source_output_format = tl.Unicode(default_value="pkl", help="Output format.")
+    source_output_name = tl.Unicode(help="Image output name.")
 
     attrs = tl.Dict()
 
@@ -76,19 +76,19 @@ class Lambda(Node):
     def _source_output_name_default(self):
         return self.source.__class__.__name__
 
-    s3_bucket_name = tl.Unicode(allow_none=False, help="Name of AWS s3 bucket.")
+    s3_bucket_name = tl.Unicode(help="Name of AWS s3 bucket.")
 
     @tl.default("s3_bucket_name")
     def _s3_bucket_name_default(self):
         return settings["S3_BUCKET_NAME"]
 
-    s3_json_folder = tl.Unicode(allow_none=False, help="S3 folder to put JSON in.")
+    s3_json_folder = tl.Unicode(help="S3 folder to put JSON in.")
 
     @tl.default("s3_json_folder")
     def _s3_json_folder_default(self):
         return settings["S3_JSON_FOLDER"]
 
-    s3_output_folder = tl.Unicode(allow_none=False, help="S3 folder to put output in.")
+    s3_output_folder = tl.Unicode(help="S3 folder to put output in.")
 
     @tl.default("s3_output_folder")
     def _s3_output_folder_default(self):

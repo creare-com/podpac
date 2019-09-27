@@ -39,7 +39,7 @@ class NearestNeighbor(Interpolator):
     methods_supported = ["nearest"]
 
     # defined at instantiation
-    method = tl.Unicode(default_value="nearest", allow_none=False)
+    method = tl.Unicode(default_value="nearest")
     spatial_tolerance = tl.Float(default_value=np.inf, allow_none=True)
     time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
 
@@ -121,7 +121,7 @@ class NearestPreview(NearestNeighbor):
     """
 
     methods_supported = ["nearest_preview"]
-    method = tl.Unicode(default_value="nearest_preview", allow_none=False)
+    method = tl.Unicode(default_value="nearest_preview")
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_select(self, udims, source_coordinates, eval_coordinates):
@@ -219,7 +219,7 @@ class Rasterio(Interpolator):
         "q1",
         "q3",
     ]
-    method = tl.Unicode(default_value="nearest", allow_none=False)
+    method = tl.Unicode(default_value="nearest")
 
     # TODO: implement these parameters for the method 'nearest'
     spatial_tolerance = tl.Float(default_value=np.inf)
@@ -328,7 +328,7 @@ class ScipyPoint(Interpolator):
     """
 
     methods_supported = ["nearest"]
-    method = tl.Unicode(default_value="nearest", allow_none=False)
+    method = tl.Unicode(default_value="nearest")
 
     # TODO: implement these parameters for the method 'nearest'
     spatial_tolerance = tl.Float(default_value=np.inf)
@@ -436,7 +436,7 @@ class ScipyGrid(ScipyPoint):
     """
 
     methods_supported = ["nearest", "bilinear", "cubic_spline", "spline_2", "spline_3", "spline_4"]
-    method = tl.Unicode(default_value="nearest", allow_none=False)
+    method = tl.Unicode(default_value="nearest")
 
     # TODO: implement these parameters for the method 'nearest'
     spatial_tolerance = tl.Float(default_value=np.inf)
