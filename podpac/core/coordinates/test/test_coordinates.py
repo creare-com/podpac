@@ -551,7 +551,8 @@ class TestCoordinatesSerialization(object):
 
     def test_from_url(self):
         crds = Coordinates([[41, 40], [-71, -70], "2018-05-19"], dims=["lat", "lon", "time"])
-        crds2 = crds.transform("EPSG:3857")
+        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
+            crds2 = crds.transform("EPSG:3857")
 
         url = (
             r"http://testwms/?map=map&&service=WMS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
@@ -1153,7 +1154,8 @@ class TestCoordinatesMethods(object):
         assert c.crs == "EPSG:4326"
 
         # transform
-        c_trans = c.transform("EPSG:2193")
+        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
+            c_trans = c.transform("EPSG:2193")
         assert c.crs == "EPSG:4326"
         assert c_trans.crs == "EPSG:2193"
         assert round(c_trans["lat"].coordinates[0, 0]) == 29995930.0
@@ -1167,7 +1169,8 @@ class TestCoordinatesMethods(object):
 
         # support proj4 strings
         proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
-        c_trans = c.transform(proj)
+        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
+            c_trans = c.transform(proj)
         assert c.crs == "EPSG:4326"
         assert c_trans.crs == proj
         assert round(c_trans["lat"].coordinates[0, 0]) == 0.0
@@ -1181,7 +1184,8 @@ class TestCoordinatesMethods(object):
 
         # support altitude unit transformations
         proj = "+proj=merc +vunits=us-ft"
-        c_trans = c.transform(proj)
+        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
+            c_trans = c.transform(proj)
         assert round(c_trans["lat"].coordinates[0, 0]) == 0.0
         assert round(c_trans["alt"].coordinates[1]) == 3.0
         assert round(c_trans["alt"].coordinates[2]) == 7.0
@@ -1198,12 +1202,15 @@ class TestCoordinatesMethods(object):
         assert c2_trans.alt_units == "m"
 
         # alt_units parameter
-        c_trans = c.transform("EPSG:2193", alt_units="us-ft")
+        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
+            c_trans = c.transform("EPSG:2193", alt_units="us-ft")
         assert round(c_trans["alt"].coordinates[1]) == 3.0
         assert round(c_trans["alt"].coordinates[2]) == 7.0
         assert c_trans.crs == "EPSG:2193"
         assert c_trans.alt_units == "us-ft"
-        c_trans = c.transform("EPSG:2193", alt_units="km")
+
+        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
+            c_trans = c.transform("EPSG:2193", alt_units="km")
         assert c_trans["alt"].coordinates[1] == 0.001
         assert c_trans["alt"].coordinates[2] == 0.002
         assert c_trans.crs == "EPSG:2193"
@@ -1394,7 +1401,8 @@ class TestCoordinatesMethods(object):
             crs="EPSG:2193",
         )
 
-        c_int = c.intersect(o)
+        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
+            c_int = c.intersect(o)
         assert c_int.crs == c.crs
         assert o.crs == "EPSG:2193"  # didn't get changed
         assert np.all(c_int["lat"].bounds == np.array([5.0, 10.0]))
