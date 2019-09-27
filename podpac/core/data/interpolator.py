@@ -167,6 +167,7 @@ class Interpolator(tl.HasTraits):
     # defined by implementing Interpolator class
     methods_supported = tl.List(tl.Unicode())
     dims_supported = tl.List(tl.Unicode())
+    spatial_tolerance = tl.Float(allow_none=True, default_value=np.inf)
 
     # defined at instantiation
     method = tl.Unicode()

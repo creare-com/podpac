@@ -359,7 +359,8 @@ class TestRasterio(object):
         node = Rasterio(source=self.source)
         assert node.band_count == 3
 
-        node.source = self.source.replace("RGB.byte.tif", "h5raster.hdf5")
+        with pytest.warns(rasterio.errors.NotGeoreferencedWarning):
+            node.source = self.source.replace("RGB.byte.tif", "h5raster.hdf5")
         assert node.band_count == 1
 
 

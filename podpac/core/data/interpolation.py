@@ -493,13 +493,8 @@ class Interpolation(object):
         # TODO: short circuit if source_coordinates contains eval_coordinates
         # this has to be done better...
         # short circuit if source and eval coordinates are the same
-        if not (set(source_coordinates.udims) - set(eval_coordinates.udims)):
-            eq = True
-            for udim in source_coordinates.udims:
-                if not np.all(source_coordinates[udim].coordinates == eval_coordinates[udim].coordinates):
-                    eq = False
-
-            if eq:
+        if all(udims in eval_coordinates.udims for udims in source_coordinates.udims):
+            if all(source_coordinates[udim] == eval_coordinates[udim] for udim in source_coordinates.udims):
                 output_data.data = source_data.transpose(*output_data.dims).data  # transpose and insert
                 return output_data
 

@@ -122,6 +122,7 @@ class NearestPreview(NearestNeighbor):
 
     methods_supported = ["nearest_preview"]
     method = tl.Unicode(default_value="nearest_preview")
+    spatial_tolerance = tl.Float(read_only=True, allow_none=True, default_value=None)
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_select(self, udims, source_coordinates, eval_coordinates):
@@ -163,7 +164,8 @@ class NearestPreview(NearestNeighbor):
                 else:
                     dst_start = dst_coords.coordinates[0]
                     dst_stop = dst_coords.coordinates[-1]
-                    dst_delta = (dst_stop - dst_start) / (dst_coords.size - 1)
+                    with np.errstate(invalid="ignore"):
+                        dst_delta = (dst_stop - dst_start) / (dst_coords.size - 1)
 
                 if isinstance(src_coords, UniformCoordinates1d):
                     src_start = src_coords.start
@@ -172,7 +174,8 @@ class NearestPreview(NearestNeighbor):
                 else:
                     src_start = src_coords.coordinates[0]
                     src_stop = src_coords.coordinates[-1]
-                    src_delta = (src_stop - src_start) / (src_coords.size - 1)
+                    with np.errstate(invalid="ignore"):
+                        src_delta = (src_stop - src_start) / (src_coords.size - 1)
 
                 ndelta = max(1, np.round(dst_delta / src_delta))
                 if src_coords.size == 1:
