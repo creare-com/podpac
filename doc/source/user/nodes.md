@@ -1,6 +1,6 @@
 # Nodes
 
-This document describes the detailed interfaces for Pipeline nodes so that a user may know what to expect. It also documents some of the available nodes implemented as part of the core library. 
+This document describes the detailed interfaces for core node types so that a user may know what to expect. It also documents some of the available nodes implemented as part of the core library. 
 
 ... tbd ... (for now see the [DeveloperSpec](https://github.com/creare-com/podpac/blob/develop/doc/source/developer/specs/nodes.md))
 
@@ -91,4 +91,109 @@ node = MyDataSource(my_attr1=0.3, my_attr2=0.5)
 output = node.execute(coords)
 ```
 
-You will also be able to set these tagged attrs in [pipelines](pipelines).
+You will also be able to set these tagged attrs in node definitions.
+
+## Serialization
+
+Any podpac Node can be saved, shared, and loaded using a JSON definition. This definition describes all of the nodes required to create and evaluate the final Node.
+
+**Serialization Properties and Methods:**
+
+ * `save(path)`: writes the node to file.
+ * `json`: provides the node definition as a JSON string.
+ * `definition`: provides the node definition as an ordered dictionary.
+
+**Deserialization Methods:**
+
+ * `load(path)`: load a Node from file.
+ * `from_json`: create a Node from a JSON definition
+ * `from_definition`: create a Node from a dictionary definition
+ * `from_url`: create a Node from a WMS/WCS request.
+
+## Node Definition
+
+The full JSON definition for a Node contains an entry for *all* of the nodes required. Input nodes must be defined before they can be referenced by later Nodes, so the final output Node must be at the end.
+
+Individual node definition specify the node class along with its inputs and attributes. It also names the node so that it can be used as an input to other nodes later in the pipeline. The following properties are common to all podpac node definitions:
+
+ * `node`: a path to the node class. The path is relative to the podpac module, unless `plugin` is defined. See Notes. *(string, required)*
+ * `plugin`: a path to a plugin module to use (prepended node path). See Notes. *(string, optional)*
+ * `attrs`: set attributes in the node for custom behavior. Each value can be a number, string, boolean, dictionary, or list. *(object, optional)*
+
+Additional properties and examples for each of the core node types are provided below.
+
+## DataSource
+
+### Sample
+
+```
+{
+    "mynode": {
+        "node": "algorithm.CoordData",
+        "attrs": {
+            "coord_name": "time"
+        }
+    }
+}
+```
+
+## Compositor
+
+### Additional Properties
+
+ * `sources`: nodes to composite *(list, required)*
+
+### Sample
+
+```
+{
+    "SourceA": { ... },
+    "SourceB": { ... },
+    "SourceC": { ... },
+
+    MyCompositor": {
+        "node": "OrderedCompositor",
+        "sources": ["SourceA", "SourceB", "SourceC"]
+    }
+}
+```
+
+## Algorithm
+
+### Additional Properties
+ * `inputs`: node inputs to the algorithm. *(object, required)*
+
+### Sample
+
+```
+{
+    "MyNode": { ... },
+    "MyOtherNode": { ... },
+    "MyThirdNode": { ... },
+
+    "MyResult": {
+        "node": "Arithmetic",
+        "inputs": {
+            "A": "MyNode",
+            "B": "MyOtherNode",
+            "C": "MyThirdNode"
+        },
+        "attrs": {
+            "eqn": "A + {tsmtr} / {kappa} * (B - C)",
+            "params": {
+                "kappa": "13",
+                "tsmtr": "0.3"
+            }
+        }
+    }
+}
+```
+
+## Notes
+
+ * The `node` path should include the submodule path and the node class. The submodule path is omitted for top-level classes. For example:
+   - `"node": "datalib.smap.SMAP"` is equivalent to `from podpac.datalib.smap import SMAP`.
+   - `"node": "compositor.OrderedCompositor"` is equivalent to `from podpac.compositor import OrderedCompositor`.
+ * The `plugin` path replaces 'podpac' in the full node path. For example
+   - `"plugin": "path.to.myplugin", "node": "mymodule.MyCustomNode"` is equivalent to `from path.to.myplugin.mymodule import MyCustomNode`.
+   - `"plugin": "myplugin", "node": "MyCustomNode"` is equivalent to `from myplugin import MyCustomNode`

@@ -1,23 +1,15 @@
 {
   "pipeline": {
-    "nodes": {
-      "SinCoords": {
-        "node": "core.algorithm.algorithm.SinCoords",
-        "inputs": {}
-      }
+    "SinCoords": {
+      "node": "core.algorithm.algorithm.SinCoords"
     }
   },
-  "output": [{
-    "mode": "image",
+  "output": {
     "format": "png",
     "vmin": -1.2,
     "vmax": 1.2,
-    "nodes": [
-      "SinCoords"
-    ]
-  }],
-  "coordinates":
-  {
+  },
+  "coordinates": {
     "TIME": "2018-03-03",
     "BBOX": "-180.0,-90.0,180.0,90.0",
     "WIDTH": 256,

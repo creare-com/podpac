@@ -74,7 +74,7 @@ class Array(DataSource):
     `native_coordinates` need to supplied by the user when instantiating this node.
     """
 
-    source = ArrayTrait()
+    source = ArrayTrait().tag(readonly=True)
 
     @tl.validate("source")
     def _validate_source(self, d):
@@ -123,16 +123,17 @@ class PyDAP(DataSource):
         auth_session instead if you have security concerns.
     """
 
-    # required inputs
-    source = tl.Unicode(allow_none=False, default_value="")
-    datakey = tl.Unicode(allow_none=False).tag(attr=True)
+    source = tl.Unicode().tag(readonly=True)
+    dataset = tl.Instance("pydap.model.DatasetType").tag(readonly=True)
 
-    # optional inputs and later defined traits
-    auth_session = tl.Instance(authentication.Session, allow_none=True)
+    # node attrs
+    datakey = tl.Unicode().tag(attr=True)
+
+    # optional inputs
     auth_class = tl.Type(authentication.Session)
-    username = tl.Unicode(None, allow_none=True)
-    password = tl.Unicode(None, allow_none=True)
-    dataset = tl.Instance("pydap.model.DatasetType", allow_none=False)
+    auth_session = tl.Instance(authentication.Session, allow_none=True)
+    username = tl.Unicode(default_value=None, allow_none=True)
+    password = tl.Unicode(default_value=None, allow_none=True)
 
     @tl.default("auth_session")
     def _auth_session_default(self):
@@ -157,7 +158,7 @@ class PyDAP(DataSource):
         return session
 
     @tl.default("dataset")
-    def _open_dataset(self, source=None):
+    def _open_dataset(self):
         """Summary
         
         Parameters
@@ -170,23 +171,17 @@ class PyDAP(DataSource):
         TYPE
             Description
         """
-        # TODO: is source ever None?
-        # TODO: enforce string source
-        if source is None:
-            source = self.source
-        else:
-            self.source = source
 
         # auth session
         # if self.auth_session:
         try:
-            dataset = pydap.client.open_url(source, session=self.auth_session)
+            dataset = self._open_url()
         except Exception:
             # TODO handle a 403 error
             # TODO: Check Url (probably inefficient...)
             try:
                 self.auth_session.get(self.source + ".dds")
-                dataset = pydap.client.open_url(source, session=self.auth_session)
+                dataset = self._open_url()
             except Exception:
                 # TODO: handle 403 error
                 print ("Warning, dataset could not be opened. Check login credentials.")
@@ -194,22 +189,8 @@ class PyDAP(DataSource):
 
         return dataset
 
-    @tl.observe("source")
-    def _update_dataset(self, change=None):
-        if change is None:
-            return
-
-        if change["old"] == None or change["old"] == "":
-            return
-
-        if self.dataset is not None and "new" in change:
-            self.dataset = self._open_dataset(source=change["new"])
-
-        try:
-            if self.native_coordinates is not None:
-                self.native_coordinates = self.get_native_coordinates()
-        except NotImplementedError:
-            pass
+    def _open_url(self):
+        return pydap.client.open_url(self.source, session=self.auth_session)
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -279,14 +260,16 @@ class CSV(DataSource):
         Raw Pandas DataFrame used to read the data
     """
 
-    source = tl.Unicode()
+    source = tl.Unicode().tag(readonly=True)
+    dataset = tl.Instance(pd.DataFrame).tag(readonly=True)
+
+    # node attrs
+    dims = tl.List(default_value=["alt", "lat", "lon", "time"]).tag(attr=True)
     alt_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
     lat_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
     lon_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
     time_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
     data_col = tl.Union([tl.Unicode(), tl.Int()]).tag(attr=True)
-    dims = tl.List(default_value=["alt", "lat", "lon", "time"]).tag(attr=True)
-    dataset = tl.Instance(pd.DataFrame)
 
     def _first_init(self, **kwargs):
         # First part of if tests to make sure this is the CSV parent class
@@ -296,7 +279,7 @@ class CSV(DataSource):
         ):
             raise TypeError("CSV requires at least one of time_col, alt_col, lat_col, or lon_col.")
 
-        return kwargs
+        return super(CSV, self)._first_init(**kwargs)
 
     @property
     def _alt_col(self):
@@ -397,9 +380,10 @@ class Rasterio(DataSource):
     * Linux: export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
     """
 
-    source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)], allow_none=False)
+    source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)]).tag(readonly=True)
+    dataset = tl.Any().tag(readonly=True)
 
-    dataset = tl.Any(allow_none=True)
+    # node attrs
     band = tl.CInt(1).tag(attr=True)
 
     @tl.default("dataset")
@@ -430,25 +414,6 @@ class Rasterio(DataSource):
         """Closes the file for the datasource
         """
         self.dataset.close()
-
-    @tl.observe("source")
-    def _update_dataset(self, change):
-        if hasattr(self, "_band_count"):
-            delattr(self, "_band_count")
-
-        if hasattr(self, "_band_descriptions"):
-            delattr(self, "_band_descriptions")
-
-        if hasattr(self, "_band_keys"):
-            delattr(self, "_band_keys")
-
-        # only update dataset if dataset trait has been defined the first time
-        if trait_is_defined(self, "dataset"):
-            self.dataset = self._open_dataset()
-
-            # update native_coordinates if they have been defined
-            if trait_is_defined(self, "native_coordinates"):
-                self.native_coordinates = self.get_native_coordinates()
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -574,7 +539,7 @@ class DatasetCoordinatedMixin(tl.HasTraits):
     lonkey = tl.Unicode(allow_none=True, default_value="lon").tag(attr=True)
     timekey = tl.Unicode(allow_none=True, default_value="time").tag(attr=True)
     altkey = tl.Unicode(allow_none=True, default_value="alt").tag(attr=True)
-    dims = tl.List(trait=Dimension(), allow_none=False).tag(attr=True)
+    dims = tl.List(trait=Dimension()).tag(attr=True)
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     cf_time = tl.Bool(False).tag(attr=True)
     cf_units = tl.Unicode(allow_none=True).tag(attr=True)
@@ -672,13 +637,15 @@ For example,
         Default is 'r'. The mode used to open the HDF5 file. Options are r, r+, w, w- or x, a (see h5py.File).
     """
 
-    source = tl.Unicode(allow_none=False)
-    dataset = tl.Any(allow_none=True)
-    datakey = tl.Unicode(allow_none=False).tag(attr=True)
-    file_mode = tl.Unicode(default_value="r")
+    source = tl.Unicode().tag(readonly=True)
+    dataset = tl.Any().tag(readonly=True)
+    file_mode = tl.Unicode(default_value="r").tag(readonly=True)
+
+    # node attrs
+    datakey = tl.Unicode().tag(attr=True)
 
     @tl.default("dataset")
-    def _open_dataset(self, source=None):
+    def _open_dataset(self):
         """Opens the data source
         
         Parameters
@@ -691,29 +658,15 @@ For example,
         Any
             raster.open(source)
         """
-        # TODO: update this to remove block (see Rasterio)
-        if source is None:
-            source = self.source
-        else:
-            self.source = source
 
         # TODO: dataset should not open by default
         # prefer with as: syntax
-        return h5py.File(source, self.file_mode)
+        return h5py.File(self.source, self.file_mode)
 
     def close_dataset(self):
         """Closes the file for the datasource
         """
         self.dataset.close()
-
-    @tl.observe("source")
-    def _update_dataset(self, change):
-        # TODO: update this to look like Rasterio
-        if self.dataset is not None:
-            self.close_dataset()
-            self.dataset = self._open_dataset(change["new"])
-        if trait_is_defined(self, "native_coordinates"):
-            self.native_coordinates = self.get_native_coordinates()
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -749,10 +702,13 @@ For example,
 
 
 class Zarr(DatasetCoordinatedMixin, DataSource):
-    source = tl.Unicode(allow_none=True)
-    dataset = tl.Any(allow_none=False)
-    datakey = tl.Unicode(allow_none=False).tag(attr=True)
+    source = tl.Unicode(default_value=None, allow_none=True).tag(readonly=True)
+    dataset = tl.Any().tag(readonly=True)
 
+    # node attrs
+    datakey = tl.Unicode().tag(attr=True)
+
+    # optional inputs
     access_key_id = tl.Unicode()
     secret_access_key = tl.Unicode()
     region_name = tl.Unicode()
@@ -852,11 +808,13 @@ class WCS(DataSource):
         The coordinates of the WCS source
     """
 
-    source = tl.Unicode()
+    source = tl.Unicode().tag(readonly=True)
+    wcs_coordinates = tl.Instance(Coordinates).tag(readonly=True)  # default below
+
+    # node attrs
     layer_name = tl.Unicode().tag(attr=True)
     version = tl.Unicode(WCS_DEFAULT_VERSION).tag(attr=True)
     crs = tl.Unicode(WCS_DEFAULT_CRS).tag(attr=True)
-    wcs_coordinates = tl.Instance(Coordinates)  # default below
 
     _get_capabilities_qs = tl.Unicode("SERVICE=WCS&REQUEST=DescribeCoverage&" "VERSION={version}&COVERAGE={layer}")
     _get_data_qs = tl.Unicode(
@@ -1188,7 +1146,9 @@ class ReprojectedSource(DataSource):
         Coordinates where the source node should be evaluated. 
     """
 
-    source = NodeTrait()
+    source = NodeTrait().tag(readonly=True)
+
+    # node attrs
     source_interpolation = interpolation_trait().tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
@@ -1199,7 +1159,7 @@ class ReprojectedSource(DataSource):
             elif isinstance(kwargs["reprojected_coordinates"], string_types):
                 kwargs["reprojected_coordinates"] = Coordinates.from_json(kwargs["reprojected_coordinates"])
 
-        return kwargs
+        return super(ReprojectedSource, self)._first_init(**kwargs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -1270,9 +1230,12 @@ class Dataset(DataSource):
         For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
     """
 
+    source = tl.Any(allow_none=True).tag(readonly=True)
+    dataset = tl.Instance(xr.Dataset).tag(readonly=True)
+
+    # node attrs
     extra_dim = tl.Dict({}).tag(attr=True)
     datakey = tl.Unicode().tag(attr=True)
-    dataset = tl.Instance(xr.Dataset)
 
     @tl.default("dataset")
     def _dataset_default(self):

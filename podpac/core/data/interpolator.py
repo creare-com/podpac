@@ -165,11 +165,12 @@ class Interpolator(tl.HasTraits):
     """
 
     # defined by implementing Interpolator class
-    methods_supported = tl.List(tl.Unicode(), allow_none=False)
-    dims_supported = tl.List(tl.Unicode(), allow_none=False)
+    methods_supported = tl.List(tl.Unicode())
+    dims_supported = tl.List(tl.Unicode())
+    spatial_tolerance = tl.Float(allow_none=True, default_value=np.inf)
 
     # defined at instantiation
-    method = tl.Unicode(allow_none=False)
+    method = tl.Unicode()
 
     # Next are used for optimizing the interpolation pipeline
     # If -1, it's cost is assume the same as a competing interpolator in the

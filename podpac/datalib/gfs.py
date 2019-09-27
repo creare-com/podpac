@@ -26,12 +26,11 @@ bucket = s3.Bucket(BUCKET)
 
 # TODO add time to native_coordinates
 class GFSSource(Rasterio):
-    parameter = tl.Unicode(readonly=True).tag(attr=True)
-    level = tl.Unicode(readonly=True).tag(attr=True)
-    date = tl.Unicode(readonly=True).tag(attr=True)
-    hour = tl.Unicode(readonly=True).tag(attr=True)
-    forecast = tl.Unicode(readonly=True).tag(attr=True)
-    dataset = tl.Any(readonly=True)
+    parameter = tl.Unicode().tag(attr=True)
+    level = tl.Unicode().tag(attr=True)
+    date = tl.Unicode().tag(attr=True)
+    hour = tl.Unicode().tag(attr=True)
+    forecast = tl.Unicode().tag(attr=True)
 
     def init(self):
         self._logger = logging.getLogger(__name__)
@@ -79,10 +78,10 @@ class GFSSource(Rasterio):
 
 
 class GFS(DataSource):
-    parameter = tl.Unicode(readonly=True).tag(attr=True)
-    level = tl.Unicode(readonly=True).tag(attr=True)
-    date = tl.Unicode(readonly=True).tag(attr=True)
-    hour = tl.Unicode(readonly=True).tag(attr=True)
+    parameter = tl.Unicode().tag(attr=True)
+    level = tl.Unicode().tag(attr=True)
+    date = tl.Unicode().tag(attr=True)
+    hour = tl.Unicode().tag(attr=True)
 
     @property
     def source(self):

@@ -34,29 +34,20 @@ class PipelineError(NodeException):
 
 
 class Pipeline(Node):
-    """
-    Node defined by a JSON definition.
+    """Deprecated. See Node.definition and Node.from_definition."""
 
-    Attributes
-    ----------
-    json : string
-        pipeline JSON definition
-    definition : OrderedDict
-        pipeline definition
-    output : Output
-        pipeline output
-    node : Node
-        pipeline output node
-    do_write_output : Bool
-        True to call output.write() on execute, false otherwise.
-    """
-
-    definition = OrderedDictTrait(readonly=True, help="pipeline definition")
-    json = tl.Unicode(readonly=True, help="JSON definition")
-    output = tl.Instance(Output, readonly=True, help="pipeline output")
+    definition = OrderedDictTrait(help="pipeline definition")
+    json = tl.Unicode(help="JSON definition")
+    output = tl.Instance(Output, help="pipeline output")
     do_write_output = tl.Bool(True)
 
     def _first_init(self, path=None, **kwargs):
+        warnings.warn(
+            "Pipelines are deprecated and will be removed in podpac 2.0. See Node.definition and "
+            "Node.from_definition for Node serialization.",
+            DeprecationWarning,
+        )
+
         if (path is not None) + ("definition" in kwargs) + ("json" in kwargs) != 1:
             raise TypeError("Pipeline requires exactly one 'path', 'json', or 'definition' argument")
 
@@ -64,7 +55,7 @@ class Pipeline(Node):
             with open(path) as f:
                 kwargs["definition"] = json.load(f, object_pairs_hook=OrderedDict)
 
-        return kwargs
+        return super(Pipeline, self)._first_init(**kwargs)
 
     @tl.validate("json")
     def _json_validate(self, proposal):

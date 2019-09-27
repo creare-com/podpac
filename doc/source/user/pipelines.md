@@ -1,5 +1,8 @@
 # Pipelines
 
+*DEPRECATED: This functionality has been integrated into the Node class. Pipelines will be removed in popdac 2*
+
+## Introduction
 A podpac pipeline can be defined using JSON. The pipeline definition describes the *nodes* used in the pipeline and the *output* for the pipeline.
 
 ### Attributes

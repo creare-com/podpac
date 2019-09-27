@@ -12,9 +12,6 @@ from io import BytesIO
 
 from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
-from podpac.core.pipeline.output import FileOutput, Output
-
-# from podpac.core.pipeline import Pipeline
 from podpac.core.utils import common_doc, JSONEncoder
 
 try:
@@ -38,74 +35,76 @@ class Lambda(Node):
         name of the AWS region
     source: Node
         node to be evaluated
-    source_output: Output
-        how to output the evaluated results of `source`
+    source_output_format: str
+        output format for the evaluated results of `source`
+    source_output_name: str
+        output name for the evaluated results of `source`
     attrs: dict
         additional attributes passed on to the Lambda definition of the base node
     download_result: Bool
         Flag that indicated whether node should wait to download the data.
     """
 
-    AWS_ACCESS_KEY_ID = tl.Unicode(allow_none=False, help="Access key ID from AWS for S3 bucket.")
+    AWS_ACCESS_KEY_ID = tl.Unicode(help="Access key ID from AWS for S3 bucket.")
 
     @tl.default("AWS_ACCESS_KEY_ID")
     def _AWS_ACCESS_KEY_ID_default(self):
         return settings["AWS_ACCESS_KEY_ID"]
 
-    AWS_SECRET_ACCESS_KEY = tl.Unicode(allow_none=False, help="Access key value from AWS for S3 bucket.")
+    AWS_SECRET_ACCESS_KEY = tl.Unicode(help="Access key value from AWS for S3 bucket.")
 
     @tl.default("AWS_SECRET_ACCESS_KEY")
     def _AWS_SECRET_ACCESS_KEY_default(self):
         return settings["AWS_SECRET_ACCESS_KEY"]
 
-    AWS_REGION_NAME = tl.Unicode(allow_none=False, help="Region name of AWS S3 bucket.")
+    AWS_REGION_NAME = tl.Unicode(help="Region name of AWS S3 bucket.")
 
     @tl.default("AWS_REGION_NAME")
     def _AWS_REGION_NAME_default(self):
         return settings["AWS_REGION_NAME"]
 
-    source = tl.Instance(Node, allow_none=False, help="Node to evaluate in a Lambda function.")
+    source = tl.Instance(Node, help="Node to evaluate in a Lambda function.")
 
-    source_output = tl.Instance(Output, allow_none=False, help="Image output information.")
+    source_output_format = tl.Unicode(default_value="pkl", help="Output format.")
+    source_output_name = tl.Unicode(help="Image output name.")
 
     attrs = tl.Dict()
 
     download_result = tl.Bool(True).tag(attr=True)
 
-    @tl.default("source_output")
-    def _source_output_default(self):
-        return FileOutput(node=self.source, name=self.source.__class__.__name__)
+    @tl.default("source_output_name")
+    def _source_output_name_default(self):
+        return self.source.__class__.__name__
 
-    s3_bucket_name = tl.Unicode(allow_none=False, help="Name of AWS s3 bucket.")
+    s3_bucket_name = tl.Unicode(help="Name of AWS s3 bucket.")
 
     @tl.default("s3_bucket_name")
     def _s3_bucket_name_default(self):
         return settings["S3_BUCKET_NAME"]
 
-    s3_json_folder = tl.Unicode(allow_none=False, help="S3 folder to put JSON in.")
+    s3_json_folder = tl.Unicode(help="S3 folder to put JSON in.")
 
     @tl.default("s3_json_folder")
     def _s3_json_folder_default(self):
         return settings["S3_JSON_FOLDER"]
 
-    s3_output_folder = tl.Unicode(allow_none=False, help="S3 folder to put output in.")
+    s3_output_folder = tl.Unicode(help="S3 folder to put output in.")
 
     @tl.default("s3_output_folder")
     def _s3_output_folder_default(self):
         return settings["S3_OUTPUT_FOLDER"]
 
     @property
-    def definition(self):
+    def pipeline(self):
         """
-        The definition of this manager is the aggregation of the source node
-        and source output.
+        The pipeline of this manager is the aggregation of the source node definition and the output.
         """
         d = OrderedDict()
         d["pipeline"] = self.source.definition
         if self.attrs:
-            out_node = next(reversed(d["pipeline"]["nodes"].keys()))
-            d["pipeline"]["nodes"][out_node]["attrs"].update(self.attrs)
-        d["pipeline"]["output"] = self.source_output.definition
+            out_node = next(reversed(d["pipeline"].keys()))
+            d["pipeline"][out_node]["attrs"].update(self.attrs)
+        d["output"] = {"format": self.source_output_format}
         return d
 
     @common_doc(COMMON_DOC)
@@ -114,12 +113,15 @@ class Lambda(Node):
         Evaluate the source node on the AWS Lambda Function at the given coordinates
         """
 
-        d = self.definition
-        d["coordinates"] = json.loads(coordinates.json)
+        # add coordinates to the pipeline
+        pipeline = self.pipeline
+        pipeline["coordinates"] = json.loads(coordinates.json)
+
+        # filename
         slash = "/" if not self.s3_json_folder.endswith("/") else ""
         filename = "%s%s_%s_%s.%s" % (
             self.s3_json_folder + slash,
-            self.source_output.name,
+            self.source_output_name,
             self.source.hash,
             coordinates.hash,
             "json",
@@ -136,7 +138,7 @@ class Lambda(Node):
 
         # put pipeline into s3 bucket
         s3.put_object(
-            Body=(bytes(json.dumps(d, indent=4, cls=JSONEncoder).encode("UTF-8"))),
+            Body=(bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))),
             Bucket=self.s3_bucket_name,
             Key=filename,
         )
@@ -148,10 +150,10 @@ class Lambda(Node):
         waiter = s3.get_waiter("object_exists")
         filename = "%s%s_%s_%s.%s" % (
             self.s3_output_folder,
-            self.source_output.name,
+            self.source_output_name,
             self.source.hash,
             coordinates.hash,
-            self.source_output.format,
+            self.source_output_format,
         )
         waiter.wait(Bucket=self.s3_bucket_name, Key=filename)
 

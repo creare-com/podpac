@@ -268,7 +268,7 @@ class Interpolation(object):
                     + "Interpolation params must be a dict"
                 )
 
-            # handle when interpolator is a string (most commonly from a pipeline definition)
+            # handle when interpolator is a string (most commonly from a node definition)
             for idx, interpolator_class in enumerate(interpolators):
                 if isinstance(interpolator_class, string_types):
                     if interpolator_class in INTERPOLATORS_DICT.keys():
@@ -493,13 +493,8 @@ class Interpolation(object):
         # TODO: short circuit if source_coordinates contains eval_coordinates
         # this has to be done better...
         # short circuit if source and eval coordinates are the same
-        if not (set(source_coordinates.udims) - set(eval_coordinates.udims)):
-            eq = True
-            for udim in source_coordinates.udims:
-                if not np.all(source_coordinates[udim].coordinates == eval_coordinates[udim].coordinates):
-                    eq = False
-
-            if eq:
+        if all(udims in eval_coordinates.udims for udims in source_coordinates.udims):
+            if all(source_coordinates[udim] == eval_coordinates[udim] for udim in source_coordinates.udims):
                 output_data.data = source_data.transpose(*output_data.dims).data  # transpose and insert
                 return output_data
 
