@@ -314,9 +314,9 @@ class TestCachePropertyDecorator(object):
         assert t2.c2() == 2
         assert t2.d2() == 2
 
-        t.a = 2
+        t.set_trait("a", 2)
         assert t.a2() == 4
-        t.b = 2
+        t.set_trait("b", 2)
         assert t.b2() == 4  # This happens because the node definition changed
         t.rem_cache(key="*", coordinates="*")
         assert t.c2() == 2  # This forces the cache to update based on the new node definition
@@ -332,9 +332,9 @@ class TestCachePropertyDecorator(object):
         assert t2.c2() == 2
         assert t2.d2() == 2
 
-        t2.a = 2
+        t2.set_trait("a", 2)
         assert t2.get_cache("a2") == 4  # This was cached by t
-        t2.b = 2
+        t2.set_trait("b", 2)
         assert t2.get_cache("c2") == 4  # This was cached by t
         assert t2.get_cache("d2") == 2  # This was cached by t
 
@@ -385,9 +385,9 @@ class TestCachePropertyDecorator(object):
         assert t2.c2() == 2
         assert t2.d2() == 2
 
-        t.a = 2
+        t.set_trait("a", 2)
         assert t.a2() == 4
-        t.b = 2
+        t.set_trait("b", 2)
         assert t.b2() == 4  # This happens because the node definition changed
         t.rem_cache(key="*", coordinates="*")
         assert t.c2() == 2  # This forces the cache to update based on the new node definition
