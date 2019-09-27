@@ -91,7 +91,7 @@ class Convolution(Algorithm):
             kernel = self._make_kernel(kernel_type, kernel_ndim)
 
         kwargs["kernel"] = kernel
-        return kwargs
+        return super(Convolution, self)._first_init(**kwargs)
 
     @common_doc(COMMON_DOC)
     @node_eval

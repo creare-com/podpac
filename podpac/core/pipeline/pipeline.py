@@ -55,7 +55,7 @@ class Pipeline(Node):
             with open(path) as f:
                 kwargs["definition"] = json.load(f, object_pairs_hook=OrderedDict)
 
-        return kwargs
+        return super(Pipeline, self)._first_init(**kwargs)
 
     @tl.validate("json")
     def _json_validate(self, proposal):

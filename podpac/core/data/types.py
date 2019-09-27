@@ -296,7 +296,7 @@ class CSV(DataSource):
         ):
             raise TypeError("CSV requires at least one of time_col, alt_col, lat_col, or lon_col.")
 
-        return kwargs
+        return super(CSV, self)._first_init(**kwargs)
 
     @property
     def _alt_col(self):
@@ -1199,7 +1199,7 @@ class ReprojectedSource(DataSource):
             elif isinstance(kwargs["reprojected_coordinates"], string_types):
                 kwargs["reprojected_coordinates"] = Coordinates.from_json(kwargs["reprojected_coordinates"])
 
-        return kwargs
+        return super(ReprojectedSource, self)._first_init(**kwargs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
