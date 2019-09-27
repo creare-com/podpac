@@ -639,7 +639,7 @@ For example,
 
     source = tl.Unicode(read_only=True)
     dataset = tl.Any(read_only=True)
-    file_mode = tl.Unicode(default_value="r", read_only=True)
+    file_mode = tl.Unicode(default_value="r")
 
     # node attrs
     datakey = tl.Unicode().tag(attr=True)
