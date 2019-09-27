@@ -445,7 +445,7 @@ class SMAPProperties(SMAPSource):
 
     file_url_re = re.compile(r"SMAP.*_[0-9]{8}T[0-9]{6}_.*\.h5")
 
-    source = tl.Unicode()
+    source = tl.Unicode(read_only=True)
 
     @tl.default("source")
     def _property_source_default(self):

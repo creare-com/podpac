@@ -76,7 +76,7 @@ class TerrainTilesSource(Rasterio):
     """
 
     # parameters
-    source = tl.Unicode()
+    source = tl.Unicode(read_only=True)
 
     # attributes
     interpolation = interpolation_trait(
