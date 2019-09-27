@@ -139,7 +139,17 @@ class Node(tl.HasTraits):
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """
+
         tkwargs = self._first_init(**kwargs)
+
+        # make tagged "readonly" and "attr" traits read_only, and set them using set_trait
+        # NOTE: The set_trait is required because this sets the traits read_only at the *class* level;
+        #       on subsequent initializations, they will already be read_only.
+        for name, trait in self.traits().items():
+            if trait.metadata.get("readonly") or trait.metadata.get("attr"):
+                if name in tkwargs:
+                    self.set_trait(name, tkwargs.pop(name))
+                trait.read_only = True
 
         # Call traitlest constructor
         super(Node, self).__init__(**tkwargs)

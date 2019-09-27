@@ -172,29 +172,10 @@ class TestPyDAP(object):
         assert node.auth_session is None
 
     def test_dataset(self):
-        """test dataset attribute and traitlet default """
+        """test dataset trait """
         self.mock_pydap()
 
         node = PyDAP(source=self.source, datakey=self.datakey)
-
-        # override/reset source on dataset opening
-        node._open_dataset(source="newsource")
-        assert node.source == "newsource"
-        assert isinstance(node.dataset, pydap.model.DatasetType)
-
-    def test_source(self):
-        """test source attribute and trailet observer """
-        self.mock_pydap()
-
-        node = PyDAP(source=self.source, datakey=self.datakey, native_coordinates=self.coordinates)
-
-        # observe source
-        node._update_dataset(change={"old": None})
-        assert node.source == self.source
-
-        output = node._update_dataset(change={"new": "newsource", "old": "oldsource"})
-        assert node.source == "newsource"
-        assert node.native_coordinates == self.coordinates
         assert isinstance(node.dataset, pydap.model.DatasetType)
 
     def test_get_data(self):
@@ -298,13 +279,6 @@ class TestRasterio(object):
             RasterReader = rasterio.io.DatasetReader  # Rasterio >= v1.0
         assert isinstance(node.dataset, RasterReader)
 
-        # update source when asked
-        with pytest.raises(rasterio.errors.RasterioIOError):
-            node.source = "assets/not-tiff"
-            node._open_dataset()
-
-        assert node.source == "assets/not-tiff"
-
         node.close_dataset()
 
     def test_default_native_coordinates(self):
@@ -348,20 +322,6 @@ class TestRasterio(object):
         numbers = node.get_band_numbers("STATISTICS_MINIMUM", "0")
         assert isinstance(numbers, np.ndarray)
         np.testing.assert_array_equal(numbers, np.arange(3) + 1)
-
-    def test_source(self):
-        """test source attribute and trailets observe"""
-
-        node = Rasterio(source=self.source)
-        assert node.source == self.source
-
-    def test_change_source(self):
-        node = Rasterio(source=self.source)
-        assert node.band_count == 3
-
-        with pytest.warns(rasterio.errors.NotGeoreferencedWarning):
-            node.source = self.source.replace("RGB.byte.tif", "h5raster.hdf5")
-        assert node.band_count == 1
 
 
 class TestH5PY(object):
