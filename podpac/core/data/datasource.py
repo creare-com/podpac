@@ -152,8 +152,8 @@ class DataSource(Node):
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
 
-    source = tl.Any(read_only=True)
-    native_coordinates = tl.Instance(Coordinates, read_only=True)
+    source = tl.Any().tag(readonly=True)
+    native_coordinates = tl.Instance(Coordinates).tag(readonly=True)
     interpolation = interpolation_trait()
     coordinate_index_type = tl.Enum(["list", "numpy", "xarray", "pandas"], default_value="numpy")
     nan_vals = tl.List(allow_none=True)
@@ -177,14 +177,6 @@ class DataSource(Node):
     def _default_interpolation(self):
         self._set_interpolation()
         return self._interpolation
-
-    def _first_init(self, **kwargs):
-        if "source" in kwargs:
-            self.set_trait("source", kwargs.pop("source"))
-        if "native_coordinates" in kwargs:
-            self.set_trait("native_coordinates", kwargs.pop("native_coordinates"))
-
-        return super(DataSource, self)._first_init(**kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties

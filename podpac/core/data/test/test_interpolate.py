@@ -167,7 +167,8 @@ class TestInterpolation(object):
             Interpolation({"default": {"method": "nearest", "params": {"spatial_tolerance": "tol"}}})
 
         # should not allow undefined params
-        interp = Interpolation({"default": {"method": "nearest", "params": {"myarg": 1}}})
+        with pytest.warns(DeprecationWarning):  # eventually, Traitlets will raise an exception here
+            interp = Interpolation({"default": {"method": "nearest", "params": {"myarg": 1}}})
         with pytest.raises(AttributeError):
             assert interp.config[("default",)]["interpolators"][0].myarg == "tol"
 

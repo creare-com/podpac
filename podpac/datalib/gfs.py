@@ -31,7 +31,6 @@ class GFSSource(Rasterio):
     date = tl.Unicode().tag(attr=True)
     hour = tl.Unicode().tag(attr=True)
     forecast = tl.Unicode().tag(attr=True)
-    dataset = tl.Any()
 
     def init(self):
         self._logger = logging.getLogger(__name__)

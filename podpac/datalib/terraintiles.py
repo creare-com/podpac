@@ -76,14 +76,12 @@ class TerrainTilesSource(Rasterio):
     """
 
     # parameters
-    source = tl.Unicode(read_only=True)
+    source = tl.Unicode().tag(readonly=True)
 
     # attributes
     interpolation = interpolation_trait(
         default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
-    )
-
-    dataset = tl.Any()
+    ).tag(readonly=True)
 
     @tl.default("dataset")
     def open_dataset(self):

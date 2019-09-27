@@ -74,7 +74,7 @@ class Array(DataSource):
     `native_coordinates` need to supplied by the user when instantiating this node.
     """
 
-    source = ArrayTrait(read_only=True)
+    source = ArrayTrait().tag(readonly=True)
 
     @tl.validate("source")
     def _validate_source(self, d):
@@ -123,8 +123,8 @@ class PyDAP(DataSource):
         auth_session instead if you have security concerns.
     """
 
-    source = tl.Unicode(read_only=True)
-    dataset = tl.Instance("pydap.model.DatasetType", read_only=True)
+    source = tl.Unicode().tag(readonly=True)
+    dataset = tl.Instance("pydap.model.DatasetType").tag(readonly=True)
 
     # node attrs
     datakey = tl.Unicode().tag(attr=True)
@@ -260,8 +260,8 @@ class CSV(DataSource):
         Raw Pandas DataFrame used to read the data
     """
 
-    source = tl.Unicode(read_only=True)
-    dataset = tl.Instance(pd.DataFrame, read_only=True)
+    source = tl.Unicode().tag(readonly=True)
+    dataset = tl.Instance(pd.DataFrame).tag(readonly=True)
 
     # node attrs
     dims = tl.List(default_value=["alt", "lat", "lon", "time"]).tag(attr=True)
@@ -380,10 +380,10 @@ class Rasterio(DataSource):
     * Linux: export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
     """
 
-    source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)], read_only=True)
-    dataset = tl.Any(read_only=True)
+    source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)]).tag(readonly=True)
+    dataset = tl.Any().tag(readonly=True)
 
-    # no deattrs
+    # node attrs
     band = tl.CInt(1).tag(attr=True)
 
     @tl.default("dataset")
@@ -637,9 +637,9 @@ For example,
         Default is 'r'. The mode used to open the HDF5 file. Options are r, r+, w, w- or x, a (see h5py.File).
     """
 
-    source = tl.Unicode(read_only=True)
-    dataset = tl.Any(read_only=True)
-    file_mode = tl.Unicode(default_value="r")
+    source = tl.Unicode().tag(readonly=True)
+    dataset = tl.Any().tag(readonly=True)
+    file_mode = tl.Unicode(default_value="r").tag(readonly=True)
 
     # node attrs
     datakey = tl.Unicode().tag(attr=True)
@@ -702,8 +702,8 @@ For example,
 
 
 class Zarr(DatasetCoordinatedMixin, DataSource):
-    source = tl.Unicode(read_only=True, default_value=None, allow_none=True)
-    dataset = tl.Any(read_only=True)
+    source = tl.Unicode(default_value=None, allow_none=True).tag(readonly=True)
+    dataset = tl.Any().tag(readonly=True)
 
     # node attrs
     datakey = tl.Unicode().tag(attr=True)
@@ -724,12 +724,6 @@ class Zarr(DatasetCoordinatedMixin, DataSource):
     @tl.default("region_name")
     def _get_region_name(self):
         return settings["AWS_REGION_NAME"]
-
-    def _first_init(self, **kwargs):
-        if "dataset" in kwargs:
-            self.set_trait("dataset", kwargs.pop("dataset"))
-
-        return super(Zarr, self)._first_init(**kwargs)
 
     def init(self):
         # check that source or dataset is provided
@@ -814,8 +808,8 @@ class WCS(DataSource):
         The coordinates of the WCS source
     """
 
-    source = tl.Unicode(read_only=True)
-    wcs_coordinates = tl.Instance(Coordinates)  # default below
+    source = tl.Unicode().tag(readonly=True)
+    wcs_coordinates = tl.Instance(Coordinates).tag(readonly=True)  # default below
 
     # node attrs
     layer_name = tl.Unicode().tag(attr=True)
@@ -1152,7 +1146,7 @@ class ReprojectedSource(DataSource):
         Coordinates where the source node should be evaluated. 
     """
 
-    source = NodeTrait(read_only=True)
+    source = NodeTrait().tag(readonly=True)
 
     # node attrs
     source_interpolation = interpolation_trait().tag(attr=True)
@@ -1236,8 +1230,8 @@ class Dataset(DataSource):
         For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
     """
 
-    source = tl.Any(allow_none=True, read_only=True)
-    dataset = tl.Instance(xr.Dataset, read_only=True)
+    source = tl.Any(allow_none=True).tag(readonly=True)
+    dataset = tl.Instance(xr.Dataset).tag(readonly=True)
 
     # node attrs
     extra_dim = tl.Dict({}).tag(attr=True)
@@ -1246,12 +1240,6 @@ class Dataset(DataSource):
     @tl.default("dataset")
     def _dataset_default(self):
         return xr.open_dataset(self.source)
-
-    def _first_init(self, **kwargs):
-        if "dataset" in kwargs:
-            self.set_trait("dataset", kwargs.pop("dataset"))
-
-        return super(DataSet, self)._first_init(**kwargs)
 
     @property
     @common_doc(COMMON_DATA_DOC)
