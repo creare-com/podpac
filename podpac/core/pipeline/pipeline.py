@@ -36,9 +36,9 @@ class PipelineError(NodeException):
 class Pipeline(Node):
     """Deprecated. See Node.definition and Node.from_definition."""
 
-    definition = OrderedDictTrait(readonly=True, help="pipeline definition")
-    json = tl.Unicode(readonly=True, help="JSON definition")
-    output = tl.Instance(Output, readonly=True, help="pipeline output")
+    definition = OrderedDictTrait(help="pipeline definition")
+    json = tl.Unicode(help="JSON definition")
+    output = tl.Instance(Output, help="pipeline output")
     do_write_output = tl.Bool(True)
 
     def _first_init(self, path=None, **kwargs):
