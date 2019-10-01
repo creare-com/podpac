@@ -41,7 +41,7 @@ class Style(tl.HasTraits):
     name = tl.Unicode()
     units = tl.Unicode(allow_none=True)
 
-    is_enumerated = tl.Bool(default_value=False)
+    is_enumerated = tl.Bool(allow_none=True, default_value=None)
     enumeration_legend = tl.Tuple(trait=tl.Unicode)
     enumeration_colors = tl.Tuple(trait=tl.Tuple)
 
@@ -70,11 +70,20 @@ class Style(tl.HasTraits):
     @property
     def definition(self):
         d = OrderedDict()
-        for t in self.trait_names():
-            if not trait_is_defined(self, t):
-                continue
-            d[t] = getattr(self, t)
-        d["cmap"] = self.cmap.name
+        if self.name:
+            d["name"] = self.name
+        if self.units:
+            d["units"] = self.units
+        if self.is_enumerated is not None:
+            d["is_enumerated"] = self.is_enumerated
+        if self.is_enumerated and self.enumeration_legend:
+            d["enumeration_legend"] = self.enumeration_legend
+        if self.is_enumerated and self.enumeration_colors:
+            d["enumeration_colors"] = self.enumeration_colors
+        else:
+            d["cmap"] = self.cmap.name
+        if self.clim != [None, None]:
+            d["clim"] = self.clim
         return d
 
     @classmethod
@@ -103,3 +112,9 @@ class Style(tl.HasTraits):
 
         d = json.loads(s)
         return cls.from_definition(d)
+
+    def __eq__(self, other):
+        if not isinstance(other, Style):
+            return False
+
+        return self.json == other.json
