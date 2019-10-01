@@ -22,7 +22,6 @@ class DroughtCategory(Algorithm):
     d4 = NodeTrait()
     style = Style(
         clim=[0, 6],
-        is_enumerated=True,
         enumeration_colors=[
             [0.45098039, 0.0, 0.0, 1.0],
             [0.90196078, 0.0, 0.0, 1.0],
