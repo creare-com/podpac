@@ -4,6 +4,7 @@ import os
 from collections import OrderedDict
 import json
 import six
+from copy import deepcopy
 
 try:
     import urllib.parse as urllib
@@ -23,6 +24,7 @@ import podpac
 from podpac.core import common_test_utils as ctu
 from podpac.core.utils import ArrayTrait
 from podpac.core.units import UnitsDataArray
+from podpac.core.style import Style
 from podpac.core.node import Node, NodeException
 from podpac.core.cache import CacheCtrl, RamCacheStore
 
@@ -618,6 +620,29 @@ class TestSerialization(object):
         with pytest.warns(DeprecationWarning):
             p = n.pipeline
         assert isinstance(p, podpac.pipeline.Pipeline)
+
+    def test_style(self):
+        node = podpac.data.Array(
+            source=[10, 20, 30],
+            native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]),
+            style=Style(name="test", units="m"),
+        )
+
+        d = node.definition
+        assert "style" in d[node.base_ref]
+
+        node2 = Node.from_definition(d)
+        assert node2 is not node
+        assert isinstance(node2, podpac.data.Array)
+        assert node2.style is not node.style
+        assert node2.style == node.style
+        assert node2.style.name == "test"
+        assert node2.style.units == "m"
+
+        # default style
+        node = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
+        d = node.definition
+        assert "style" not in d[node.base_ref]
 
 
 class TestUserDefinition(object):

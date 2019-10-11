@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 from collections import OrderedDict
 from matplotlib import pyplot
+import pytest
 
 from podpac.core.style import Style
 
@@ -20,59 +21,59 @@ class TestStyle(object):
         style = Style()
         assert style.cmap.name == "viridis"
 
-        style = Style(cmap=pyplot.get_cmap("cividis"))
+        style = Style(colormap="cividis")
         assert style.cmap.name == "cividis"
 
-        style = Style(is_enumerated=True, enumeration_colors=("c", "k"))
+        style = Style(enumeration_colors=("c", "k"))
         assert style.cmap.name == "from_list"
         assert style.cmap.colors == ("c", "k")
+
+        with pytest.raises(TypeError, match="Style can have a colormap or enumeration_colors"):
+            style = Style(colormap="cividis", enumeration_colors=("c", "k"))
 
     def test_serialization(self):
         # default
         style = Style()
         d = style.definition
         assert isinstance(d, OrderedDict)
-        assert set(d.keys()) == {"cmap"}
-        assert d["cmap"] == "viridis"
+        assert len(d.keys()) == 0
 
         s = Style.from_json(style.json)
         assert isinstance(s, Style)
 
         # with traits
-        style = Style(name="test", units="meters", cmap=pyplot.get_cmap("cividis"), clim=(-1, 1))
+        style = Style(name="test", units="meters", colormap="cividis", clim=(-1, 1))
         d = style.definition
         assert isinstance(d, OrderedDict)
-        assert set(d.keys()) == {"name", "units", "cmap", "clim"}
+        assert set(d.keys()) == {"name", "units", "colormap", "clim"}
         assert d["name"] == "test"
         assert d["units"] == "meters"
-        assert d["cmap"] == "cividis"
+        assert d["colormap"] == "cividis"
         assert d["clim"] == [-1, 1]
 
         s = Style.from_json(style.json)
         assert s.name == style.name
         assert s.units == style.units
-        assert s.cmap == style.cmap
+        assert s.colormap == style.colormap
         assert s.clim == style.clim
 
         # enumeration traits
-        style = Style(is_enumerated=True, enumeration_legend=("apples", "oranges"), enumeration_colors=["r", "o"])
+        style = Style(enumeration_legend=("apples", "oranges"), enumeration_colors=["r", "o"])
         d = style.definition
         assert isinstance(d, OrderedDict)
-        assert set(d.keys()) == {"is_enumerated", "enumeration_legend", "enumeration_colors"}
-        assert d["is_enumerated"] == True
+        assert set(d.keys()) == {"enumeration_legend", "enumeration_colors"}
         assert d["enumeration_legend"] == ("apples", "oranges")
         assert d["enumeration_colors"] == ("r", "o")
 
         s = Style.from_json(style.json)
-        assert s.is_enumerated == style.is_enumerated
         assert s.enumeration_legend == style.enumeration_legend
         assert s.enumeration_colors == style.enumeration_colors
         assert s.cmap.colors == style.cmap.colors
 
     def test_eq(self):
-        style1 = Style(units="meters")
-        style2 = Style(units="meters")
-        style3 = Style(units="feet")
+        style1 = Style(name="test")
+        style2 = Style(name="test")
+        style3 = Style(name="other")
 
         assert style1 is not style2
         assert style1 is not style3

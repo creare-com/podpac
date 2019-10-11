@@ -12,6 +12,7 @@ import inspect
 import warnings
 import importlib
 from collections import OrderedDict
+from copy import deepcopy
 from hashlib import md5 as hash_alg
 
 import numpy as np
@@ -318,6 +319,9 @@ class Node(tl.HasTraits):
         if lookup_attrs:
             d["lookup_attrs"] = OrderedDict([(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())])
 
+        if self.style.definition:
+            d["style"] = self.style.definition
+
         return d
 
     @property
@@ -572,7 +576,7 @@ class Node(tl.HasTraits):
 
             # parse and configure kwargs
             kwargs = {}
-            whitelist = ["node", "attrs", "lookup_attrs", "plugin"]
+            whitelist = ["node", "attrs", "lookup_attrs", "plugin", "style"]
 
             # DataSource, Compositor, and Algorithm specific properties
             parents = inspect.getmro(node_class)
@@ -644,6 +648,9 @@ class Node(tl.HasTraits):
 
             for k, v in d.get("lookup_attrs", {}).items():
                 kwargs[k] = _get_subattr(nodes, name, v)
+
+            if "style" in d:
+                kwargs["style"] = Style.from_definition(d["style"])
 
             for k in d:
                 if k not in whitelist:

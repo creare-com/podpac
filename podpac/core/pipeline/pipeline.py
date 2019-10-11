@@ -17,6 +17,7 @@ import numpy as np
 from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait, JSONEncoder
 from podpac.core.node import Node, NodeException
+from podpac.core.style import Style
 from podpac.core.data.datasource import DataSource
 from podpac.core.data.types import ReprojectedSource, Array
 from podpac.core.algorithm.algorithm import Algorithm
@@ -166,7 +167,7 @@ def _parse_node_definition(nodes, name, d):
 
     # parse and configure kwargs
     kwargs = {}
-    whitelist = ["node", "attrs", "lookup_attrs", "plugin"]
+    whitelist = ["node", "attrs", "lookup_attrs", "plugin", "style"]
 
     # DataSource, Compositor, and Algorithm specific properties
     parents = inspect.getmro(node_class)
@@ -212,6 +213,9 @@ def _parse_node_definition(nodes, name, d):
 
     for k, v in d.get("lookup_attrs", {}).items():
         kwargs[k] = _get_subattr(nodes, name, v)
+
+    if "style" in d:
+        kwargs["style"] = Style.from_definition(d["style"])
 
     for key in d:
         if key not in whitelist:
