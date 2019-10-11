@@ -6,12 +6,32 @@ from podpac.core.data.types import Zarr
 from podpac.core.coordinates import ArrayCoordinates1d
 
 
+def drought_style():
+    return Style(
+           clim=[0, 6],
+           is_enumerated=True,
+           enumeration_colors=[
+               [0.45098039, 0.0, 0.0, 1.0],
+               [0.90196078, 0.0, 0.0, 1.0],
+               [1.0, 0.66666667, 0.0, 1.0],
+               [0.98823529, 0.82745098, 0.49803922, 1.0],
+               [1.0, 1.0, 0.0, 1.0],
+               [1.0, 1.0, 1.0, 0.0],
+           ],
+       )
+
+def sm_style():
+    return Style(
+        clim=[0, 0.6],
+        cmap='gist_earth_r'
+        )
+
 class DroughtMonitorCategory(Zarr):
     dims = ["lat", "lon", "time"]
     cf_time = True
     cf_units = "days since 2018-01-01 00:00:00"
     cf_calendar = "proleptic_gregorian"
-
+    style = sm_style()
 
 class DroughtCategory(Algorithm):
     soil_moisture = NodeTrait()
@@ -20,18 +40,7 @@ class DroughtCategory(Algorithm):
     d2 = NodeTrait()
     d3 = NodeTrait()
     d4 = NodeTrait()
-    style = Style(
-        clim=[0, 6],
-        is_enumerated=True,
-        enumeration_colors=[
-            [0.45098039, 0.0, 0.0, 1.0],
-            [0.90196078, 0.0, 0.0, 1.0],
-            [1.0, 0.66666667, 0.0, 1.0],
-            [0.98823529, 0.82745098, 0.49803922, 1.0],
-            [1.0, 1.0, 0.0, 1.0],
-            [1.0, 1.0, 1.0, 1.0],
-        ],
-    )
+    style = drought_style()
 
     def algorithm(self, inputs):
         sm = inputs["soil_moisture"]
