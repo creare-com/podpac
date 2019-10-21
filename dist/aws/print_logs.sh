@@ -12,9 +12,9 @@
 # 
 # Example:
 # 
-# $ bash print_logs.sh /aws/lambda/podpac-s3            # show the last 10 minutes of logs
-# $ bash print_logs.sh /aws/lambda/podpac-s3 "1 hour"   # show the last hour of logs
-#
+# $ bash print_logs.sh /aws/lambda/podpac-dist            # show the last 10 minutes of logs
+# $ bash print_logs.sh /aws/lambda/podpac-dist "1 hour"   # show the last hour of logs
+
 
 function dumpstreams() {
   aws $AWSARGS logs describe-log-streams --order-by LastEventTime --log-group-name "$LOGGROUP" --output text | while read -a st; do 

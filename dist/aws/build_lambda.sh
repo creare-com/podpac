@@ -3,7 +3,7 @@
 # Build podpac lambda distribution and dependencies
 # 
 # Currently, this builds the function using the local 
-# podpac repository,including any outstanding changes.
+# podpac repository, including any outstanding changes.
 # 
 # Usage:
 # 

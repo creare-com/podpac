@@ -27,11 +27,11 @@ class Lambda(Node):
 
     Attributes
     ----------
-    AWS_ACCESS_KEY_ID : string
+    aws_access_key_id : string
         access key id from AWS credentials
-    AWS_SECRET_ACCESS_KEY : string`
+    aws_secret_access_key : string`
         access key value from AWS credentials
-    AWS_REGION_NAME : string
+    aws_region_name : string
         name of the AWS region
     source: Node
         node to be evaluated
@@ -45,24 +45,51 @@ class Lambda(Node):
         Flag that indicated whether node should wait to download the data.
     """
 
-    AWS_ACCESS_KEY_ID = tl.Unicode(help="Access key ID from AWS for S3 bucket.")
+    # aws parameters
+    aws_access_key_id = tl.Unicode(help="Access key ID from AWS for S3 bucket.")
 
-    @tl.default("AWS_ACCESS_KEY_ID")
-    def _AWS_ACCESS_KEY_ID_default(self):
-        return settings["AWS_ACCESS_KEY_ID"]
+    @tl.default("aws_access_key_id")
+    def _aws_access_key_id_default(self):
+        return settings["aws_access_key_id"]
 
-    AWS_SECRET_ACCESS_KEY = tl.Unicode(help="Access key value from AWS for S3 bucket.")
+    aws_secret_access_key = tl.Unicode(help="Access key value from AWS for S3 bucket.")
 
-    @tl.default("AWS_SECRET_ACCESS_KEY")
-    def _AWS_SECRET_ACCESS_KEY_default(self):
-        return settings["AWS_SECRET_ACCESS_KEY"]
+    @tl.default("aws_secret_access_key")
+    def _aws_secret_access_key_default(self):
+        return settings["aws_secret_access_key"]
 
-    AWS_REGION_NAME = tl.Unicode(help="Region name of AWS S3 bucket.")
+    aws_region_name = tl.Unicode(help="Region name of AWS S3 bucket.")
 
-    @tl.default("AWS_REGION_NAME")
-    def _AWS_REGION_NAME_default(self):
-        return settings["AWS_REGION_NAME"]
+    @tl.default("aws_region_name")
+    def _aws_region_name_default(self):
+        return settings["aws_region_name"]
 
+    # s3 parameters
+    s3_bucket_name = tl.Unicode(help="Name of AWS s3 bucket.")
+
+    @tl.default("s3_bucket_name")
+    def _s3_bucket_name_default(self):
+        return settings["S3_BUCKET_NAME"] or "podpac"
+
+    s3_json_folder = tl.Unicode(help="S3 folder to put JSON in.")
+
+    @tl.default("s3_json_folder")
+    def _s3_json_folder_default(self):
+        return settings["S3_JSON_FOLDER"] or "input"
+
+    s3_output_folder = tl.Unicode(help="S3 folder to put output in.")
+
+    @tl.default("s3_output_folder")
+    def _s3_output_folder_default(self):
+        return settings["S3_OUTPUT_FOLDER"] or "output"
+
+    # lambda function name
+    name = tl.Unicode()
+
+    def _name_default(self):
+        return "podpac-lambda"
+
+    # podpac source
     source = tl.Instance(Node, help="Node to evaluate in a Lambda function.")
 
     source_output_format = tl.Unicode(default_value="pkl", help="Output format.")
@@ -75,24 +102,6 @@ class Lambda(Node):
     @tl.default("source_output_name")
     def _source_output_name_default(self):
         return self.source.__class__.__name__
-
-    s3_bucket_name = tl.Unicode(help="Name of AWS s3 bucket.")
-
-    @tl.default("s3_bucket_name")
-    def _s3_bucket_name_default(self):
-        return settings["S3_BUCKET_NAME"]
-
-    s3_json_folder = tl.Unicode(help="S3 folder to put JSON in.")
-
-    @tl.default("s3_json_folder")
-    def _s3_json_folder_default(self):
-        return settings["S3_JSON_FOLDER"]
-
-    s3_output_folder = tl.Unicode(help="S3 folder to put output in.")
-
-    @tl.default("s3_output_folder")
-    def _s3_output_folder_default(self):
-        return settings["S3_OUTPUT_FOLDER"]
 
     @property
     def pipeline(self):
@@ -118,22 +127,22 @@ class Lambda(Node):
         pipeline["coordinates"] = json.loads(coordinates.json)
 
         # filename
-        slash = "/" if not self.s3_json_folder.endswith("/") else ""
-        filename = "%s%s_%s_%s.%s" % (
-            self.s3_json_folder + slash,
-            self.source_output_name,
-            self.source.hash,
-            coordinates.hash,
-            "json",
+        filename = "{folder}{slash}{output}_{source}_{coordinates}.{suffix}".format(
+            folder=self.s3_json_folder,
+            slash="/" if not self.s3_json_folder.endswith("/") else "",
+            output=self.source_output_name,
+            source=self.source.hash,
+            coordinates=coordinates.hash,
+            suffix="json",
         )
 
         # create s3 client with credentials
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
         s3 = boto3.client(
             "s3",
-            region_name=self.AWS_REGION_NAME,
-            aws_access_key_id=self.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY,
+            region_name=self.aws_region_name,
+            aws_access_key_id=self.aws_access_key_id,
+            aws_secret_access_key=self.aws_secret_access_key,
         )
 
         # put pipeline into s3 bucket
@@ -148,12 +157,13 @@ class Lambda(Node):
             return
 
         waiter = s3.get_waiter("object_exists")
-        filename = "%s%s_%s_%s.%s" % (
-            self.s3_output_folder,
-            self.source_output_name,
-            self.source.hash,
-            coordinates.hash,
-            self.source_output_format,
+        filename = "{folder}{slash}{output}_{source}_{coordinates}.{suffix}".format(
+            folder=self.s3_output_folder,
+            slash="/" if not self.s3_output_folder.endswith("/") else "",
+            output=self.source_output_name,
+            source=self.source.hash,
+            coordinates=coordinates.hash,
+            suffix=self.source_output_format,
         )
         waiter.wait(Bucket=self.s3_bucket_name, Key=filename)
 
@@ -162,3 +172,14 @@ class Lambda(Node):
         body = response["Body"].read()
         self._output = cPickle.loads(body)
         return self._output
+
+    def __repr__(self):
+        rep = "{}\n".format(str(self.__class__.__name__))
+        rep += "\tName: {}\n".format(self.name)
+        return rep
+
+
+if __name__ == "__main__":
+    node = Lambda(name="podpac-mls-test2")
+
+    print (node)

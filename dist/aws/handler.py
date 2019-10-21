@@ -1,3 +1,13 @@
+"""
+PODPAC AWS Handler
+
+Attributes
+----------
+s3 : TYPE
+    Description
+settings_json : dict
+    Description
+"""
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
