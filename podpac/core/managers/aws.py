@@ -4,8 +4,11 @@ function.
 """
 import json
 from collections import OrderedDict
+import logging
+import time
 
 import boto3
+import botocore
 import traitlets as tl
 
 from io import BytesIO
@@ -13,6 +16,10 @@ from io import BytesIO
 from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.utils import common_doc, JSONEncoder
+from podpac import version
+
+# Set up logging
+_log = logging.getLogger(__name__)
 
 try:
     import cPickle  # Python 2.7
@@ -24,45 +31,48 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 
 class Lambda(Node):
     """A `Node` wrapper to evaluate source on AWS Lambda function
-
+    
     Attributes
     ----------
+    attrs : dict
+        additional attributes passed on to the Lambda definition of the base node
     aws_access_key_id : string
         access key id from AWS credentials
-    aws_secret_access_key : string`
-        access key value from AWS credentials
     aws_region_name : string
         name of the AWS region
-    source: Node
+    aws_secret_access_key : string
+        access key value from AWS credentials
+    download_result : Bool
+        flag that indicated whether node should wait to download the data.
+    function_name : string
+        name of the lambda function to use or create
+    s3_bucket_name : string
+        s3 bucket name to use with lambda function
+    s3_json_folder : TYPE
+        folder in `s3_bucket_name` to store pipelines
+    s3_output_folder : TYPE
+        folder in `s3_bucket_name` to watch for output
+    source : :class:`podpac.Node`
         node to be evaluated
-    source_output_format: str
+    source_output_format : str
         output format for the evaluated results of `source`
-    source_output_name: str
+    source_output_name : str
         output name for the evaluated results of `source`
-    attrs: dict
-        additional attributes passed on to the Lambda definition of the base node
-    download_result: Bool
-        Flag that indicated whether node should wait to download the data.
     """
 
-    # aws parameters
-    aws_access_key_id = tl.Unicode(help="Access key ID from AWS for S3 bucket.")
+    # aws parameters - defaults are handled in Session
+    aws_access_key_id = tl.Unicode(default_value=None, allow_none=True)
+    aws_secret_access_key = tl.Unicode(default_value=None, allow_none=True)
+    aws_region_name = tl.Unicode(default_value=None, allow_none=True)
+    session = tl.Instance(boto3.Session)
 
-    @tl.default("aws_access_key_id")
-    def _aws_access_key_id_default(self):
-        return settings["aws_access_key_id"]
-
-    aws_secret_access_key = tl.Unicode(help="Access key value from AWS for S3 bucket.")
-
-    @tl.default("aws_secret_access_key")
-    def _aws_secret_access_key_default(self):
-        return settings["aws_secret_access_key"]
-
-    aws_region_name = tl.Unicode(help="Region name of AWS S3 bucket.")
-
-    @tl.default("aws_region_name")
-    def _aws_region_name_default(self):
-        return settings["aws_region_name"]
+    @tl.default("session")
+    def _session_default(self):
+        return Session(
+            aws_access_key_id=self.aws_access_key_id,
+            aws_secret_access_key=self.aws_secret_access_key,
+            region_name=self.aws_region_name,
+        )
 
     # s3 parameters
     s3_bucket_name = tl.Unicode(help="Name of AWS s3 bucket.")
@@ -83,20 +93,36 @@ class Lambda(Node):
     def _s3_output_folder_default(self):
         return settings["S3_OUTPUT_FOLDER"] or "output"
 
-    # lambda function name
-    name = tl.Unicode()
+    # lambda function parameters
+    function_name = tl.Unicode(default_value="podpac-lambda-autogen")
+    function_role_name = tl.Unicode(default_value=None, allow_none=True)  # will create role if None
+    function_handler = tl.Unicode(default_value="handler.handler")
+    function_description = tl.Unicode(default_value="PODPAC Lambda Function (https://podpac.org)")
+    function_env_variables = tl.Dict(default_value={})  # environment vars in function
+    function_tags = tl.Dict(default_value={})  # key: value for tags on function (and any created roles)
+    function_timeout = tl.Int(default_value=600)
+    function_memory = tl.Int(default_value=2048)
+    function_source_bucket = tl.Unicode(default_value="podpac-dist")
+    function_source_key = tl.Unicode()
 
-    def _name_default(self):
-        return "podpac-lambda"
+    @tl.default("function_source_key")
+    def _function_source_key_default(self):
+        return "{}/podpac_dist.zip".format(version.semver())
 
-    # podpac source
+    # readonly properties
+    function_arn = tl.Unicode()
+    function_last_modified = tl.Unicode()
+    function_version = tl.Unicode()
+    function_code_sha256 = tl.Unicode()
+    _function_triggers = (
+        {}
+    )  # dict of function triggers { statement_id: { "principle": principle, "source_arn": source_arn } } # TODO: is this necessary?
+
+    # podpac node parameters
     source = tl.Instance(Node, help="Node to evaluate in a Lambda function.")
-
     source_output_format = tl.Unicode(default_value="pkl", help="Output format.")
     source_output_name = tl.Unicode(help="Image output name.")
-
     attrs = tl.Dict()
-
     download_result = tl.Bool(True).tag(attr=True)
 
     @tl.default("source_output_name")
@@ -173,13 +199,368 @@ class Lambda(Node):
         self._output = cPickle.loads(body)
         return self._output
 
+    def create_function(self, recreate=False):
+        """Build Lambda function and associated resources on AWS
+        
+        Parameters
+        ----------
+        recreate : bool, optional
+            If function already exists on AWS, remove function and re-add
+        """
+
+        function = self.get_function()  # gets default self.function_name
+        if function is not None:
+            _log.debug("AWS lambda function '{}' already exists. Using existing function.".format(self.function_name))
+
+            if recreate:
+                _log.debug("Recreating lambda function '{}'".format(self.function_name))
+                self.delete_function()  # TODO: autoremove?
+
+            else:
+                # set function to class
+                self._set_function(function)
+
+                # try function? # compare function?
+                # TODO: Add comparison function here to see if function has changed
+                return
+
+        awslambda = self.session.client("lambda")
+        _log.debug("No AWS lambda function '{}' exists. Creating function...".format(self.function_name))
+
+        # create default role if it doesn't exist
+        role = self.get_role()  # gets default self.function_role_name
+        if role is None:
+            role = self.create_role(
+                role_tags=self.function_tags
+            )  # create role with the same tags as the function, by default
+
+            # after creating a role, you need to wait ~10 seconds before its active and will work with the lambda function
+            # this is not cool
+            time.sleep(10)
+
+        # create function
+        awslambda.create_function(
+            FunctionName=self.function_name,
+            Runtime="python3.7",
+            Role=role["Arn"],
+            Handler=self.function_handler,
+            Code={"S3Bucket": self.function_source_bucket, "S3Key": self.function_source_key},
+            Description=self.function_description,
+            Timeout=self.function_timeout,
+            MemorySize=self.function_memory,
+            Publish=True,
+            Environment={"Variables": self.function_env_variables},
+            Tags=self.function_tags,
+        )
+
+        # get function after created
+        function = self.get_function()  # gets default self.function_name after creation
+        if function is None:
+            raise ValueError("Failed to get created function from AWS lambda")
+
+        # set function to class
+        self._set_function(function)
+
+    def get_function(self, function_name=None):
+        """Get function definition from AWS
+        
+        Parameters
+        ----------
+        function_name : str, optional
+            function name to get. Defaults to :attr:`self.function_name`
+            
+        Returns
+        -------
+        dict
+            dict returned from AWS defining function
+            Equivalent to value returned by https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda.html#Lambda.Client.get_function
+            Returns None if not role is found
+        """
+        if function_name is None:
+            if self.function_name is not None:
+                function_name = self.function_name
+            else:
+                return None
+
+        awslambda = self.session.client("lambda")
+        try:
+            function = awslambda.get_function(FunctionName=function_name)
+            del function["ResponseMetadata"]  # remove response details from function
+            return function
+        except awslambda.exceptions.ResourceNotFoundException as e:
+            _log.debug("failed to get function {} with exception: {}".format(function_name, e))
+            return None
+
+    def delete_function(self, function_name=None, autoremove=False):
+        """Remove AWS Lambda function and associated resources on AWS
+        """
+
+        if function_name is None:
+            function_name = self.function_name
+
+        awslambda = self.session.client("lambda")
+        awslambda.delete_function(FunctionName=function_name)
+
+        # TODO add autoremove
+        # if autoremove:
+        #     self.delete_role(self.function_role_name)
+
+    def create_role(
+        self,
+        role_name="podpac-lambda-role-autogen",
+        role_description="PODPAC Lambda Role",
+        role_policies=["arn:aws:iam::aws:policy/AWSLambdaExecute"],
+        role_tags={},
+    ):
+        """Create IAM role to execute podpac lambda function
+        
+        Parameters
+        ----------
+        role_name : str, optional
+            Description
+        role_description : str, optional
+            Description
+        role_policies : list, optional
+            Description
+        role_tags : dict, optional
+            Description
+        
+        Returns
+        -------
+        dict
+            dict returned from AWS defining role.
+            Equivalent to value returned in the 'Role' key in https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.get_role 
+        """
+
+        role = self.get_role(role_name=role_name)
+        if role is not None:
+            _log.debug("AWS role '{}' already exists. Using existing role.".format(role_name))
+            return role
+
+        # create role
+        iam = self.session.client("iam")
+        _log.debug("No AWS role '{}' exists. Creating role...".format(role_name))
+
+        # for some reason the tags API is different here
+        tags = []
+        for key in role_tags.keys():
+            tags.append({"Key": key, "Value": role_tags[key]})
+
+        # enable role to be run by lambda - this document is defined by AWS
+        lambda_policy_document = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}
+            ],
+        }
+
+        response = iam.create_role(
+            RoleName=role_name,
+            AssumeRolePolicyDocument=json.dumps(lambda_policy_document),
+            Description=role_description,
+            Tags=tags,
+        )
+
+        # attached lambda execution policy
+        for policy in role_policies:
+            response = iam.attach_role_policy(RoleName=role_name, PolicyArn=policy)
+
+        # get finalized role
+        role = self.get_role(role_name=role_name)
+        _log.debug("Successfully created AWS role '{}'".format(role_name))
+
+        return role
+
+    def get_role(self, role_name=None):
+        """Get role definition from AWS
+        
+        Parameters
+        ----------
+        role_name : str, optional
+            Role name to get. Defaults to :attr:`self.function_role_name`
+        
+        Returns
+        -------
+        dict
+            dict returned from AWS defining role.
+            Equivalent to value returned in the 'Role' key in https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.get_role 
+            Returns None if not role is found
+        """
+        if role_name is None:
+            if self.function_role_name is not None:
+                role_name = self.function_role_name
+            else:
+                return None
+
+        iam = self.session.client("iam")
+        try:
+            response = iam.get_role(RoleName=role_name)
+            return response["Role"]
+        except iam.exceptions.NoSuchEntityException:
+            _log.debug("failed to get role {} with exception: {}".format(role_name, e))
+            return None
+
+    def get_role_name(self, role_arn):
+        """
+        CURRENTLY NOT USED
+
+        Get function role name based on role_arn
+        
+        Parameters
+        ----------
+        role_arn : str
+            role arn
+        
+        Returns
+        -------
+        str
+            role name
+        """
+        iam = self.session.client("iam")
+        roles = iam.list_roles()
+        role = [role for role in roles["Roles"] if role["Arn"] == role_arn]
+        role_name = role[0] if len(role) else None
+        return role_name
+
+    def delete_role(self, role_name=None):
+        """Remove role from AWS resources
+        
+        Parameters
+        ----------
+        role_name : str, optional
+            Role name to delete. Defaults to :attr:`self.function_role_name`
+        """
+        if role_name is None:
+            role_name = self.function_role_name
+
+        iam = self.session.client("iam")
+
+        # need to detach policies first
+        response = iam.list_attached_role_policies(RoleName=role_name)
+        for policy in response["AttachedPolicies"]:
+            iam.detach_role_policy(RoleName=role_name, PolicyArn=policy["PolicyArn"])
+
+        iam.delete_role(RoleName=role_name)
+        _log.debug("Successfully removed AWS role '{}'".format(role_name))
+
+    # -----------------------------------------------------------------------------------------------------------------
+    # Internals
+    # -----------------------------------------------------------------------------------------------------------------
+
+    def _set_function(self, function):
+        """Set function parameters based on function response from AWS
+        
+        Parameters
+        ----------
+        function : dict
+            dict returned from AWS defining role.
+            Equivalent to value returned in the 'Role' key in https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.get_role 
+        """
+        self.function_role_name = function["Configuration"]["Role"].split("/")[-1]  # get the last part of the role
+        self.function_handler = function["Configuration"]["Handler"]
+        self.function_description = function["Configuration"]["Description"]
+        self.function_env_variables = function["Configuration"]["Environment"]["Variables"]
+        self.function_timeout = function["Configuration"]["Timeout"]
+        self.function_memory = function["Configuration"]["MemorySize"]
+
+        # properties
+        self.function_arn = function["Configuration"]["FunctionArn"]
+        self.function_last_modified = function["Configuration"]["LastModified"]
+        self.function_version = function["Configuration"]["Version"]
+        self.function_code_sha256 = function["Configuration"][
+            "CodeSha256"
+        ]  # TODO: is this the best way to determine S3 source bucket and dist zip?
+
+        awslambda = self.session.client("lambda")
+        self.function_tags = awslambda.list_tags(Resource=self.function_arn)["Tags"]
+
+    def _add_trigger(self, statement_id, principle, source_arn):
+        """Add trigger (permission) to lambda function
+        
+        Parameters
+        ----------
+        statement_id : str
+            Description
+        principle : str
+            Description
+        source_arn : str
+            Description
+        
+        Returns
+        -------
+        dict
+            Description
+        """
+        awslambda = self.session.client("lambda")
+        trigger = awslambda.add_permission(
+            FunctionName=self.function_name,
+            StatementId=statement_id,
+            Action="lambda:InvokeFunction",
+            Principal=principle,
+            SourceArn=source_arn,
+        )
+        self._function_triggers[statement_id] = {
+            "principle": principle,
+            "source_arn": source_arn,
+        }  # TODO: is this necessary?
+        return trigger
+
+    # remove permission (trigger)
+    def _remove_trigger(self, statement_id):
+        """Remove trigger (permission) from lambda function
+        
+        Parameters
+        ----------
+        statement_id : str
+            Description
+        """
+        awslambda = self.session.client("lambda")
+        awslambda.remove_permission(FunctionName=self.function_name, StatementId=statement_id)
+
     def __repr__(self):
         rep = "{}\n".format(str(self.__class__.__name__))
-        rep += "\tName: {}\n".format(self.name)
+        rep += "\tName: {}\n".format(self.function_name)
         return rep
 
 
-if __name__ == "__main__":
-    node = Lambda(name="podpac-mls-test2")
+class Session(boto3.Session):
+    """Wrapper for :class:`boto3.Session`
+    See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
 
-    print (node)
+    We wrap the Session class to provide access to the podpac settings for the
+    aws_access_key_id, aws_secret_access_key, and region_name and to check the credentials
+    on session creation.
+    """
+
+    def __init__(self, aws_access_key_id=None, aws_secret_access_key=None, region_name=None):
+        aws_access_key_id = settings["AWS_ACCESS_KEY_ID"] if aws_access_key_id is None else aws_access_key_id
+        aws_secret_access_key = (
+            settings["AWS_SECRET_ACCESS_KEY"] if aws_secret_access_key is None else aws_secret_access_key
+        )
+        region_name = settings["AWS_REGION_NAME"] if region_name is None else region_name
+
+        super(Session, self).__init__(
+            aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key, region_name=region_name
+        )
+
+        try:
+            _ = self.get_account_id()
+        except botocore.exceptions.ClientError as e:
+            _log.error(
+                "AWS credential check failed. Confirm aws access key id and aws secred access key are valid. Credential check exception: {}".format(
+                    str(e)
+                )
+            )
+            raise ValueError(
+                "AWS credential check failed. Confirm aws access key id and aws secred access key are valid."
+            )
+
+    def get_account_id(self):
+        """Return the account ID assciated with this AWS session. The credentials will determine the account ID.
+        
+        Returns
+        -------
+        str
+            account id associated with credentials
+        """
+        return self.client("sts").get_caller_identity()["Account"]
