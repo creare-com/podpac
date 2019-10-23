@@ -114,9 +114,9 @@ class Lambda(Node):
     function_last_modified = tl.Unicode()
     function_version = tl.Unicode()
     function_code_sha256 = tl.Unicode()
-    _function_triggers = (
-        {}
-    )  # dict of function triggers { statement_id: { "principle": principle, "source_arn": source_arn } } # TODO: is this necessary?
+    function_api_url = tl.Unicode()
+    function_api_id = tl.Unicode()
+    function_triggers = tl.Dict(default_value={})
 
     # podpac node parameters
     source = tl.Instance(Node, help="Node to evaluate in a Lambda function.")
@@ -258,6 +258,9 @@ class Lambda(Node):
         if function is None:
             raise ValueError("Failed to get created function from AWS lambda")
 
+        # create API gateway
+        function["api"] = self.create_api(function_name=self.function_name)
+
         # set function to class
         self._set_function(function)
 
@@ -296,14 +299,20 @@ class Lambda(Node):
         """
 
         if function_name is None:
-            function_name = self.function_name
+            if self.function_name is not None:
+                function_name = self.function_name
+            else:
+                return
 
+        _log.debug("Removing lambda function '{}'".format(function_name))
         awslambda = self.session.client("lambda")
         awslambda.delete_function(FunctionName=function_name)
 
         # TODO add autoremove
-        # if autoremove:
-        #     self.delete_role(self.function_role_name)
+        if autoremove:
+            self.delete_role()
+            self.delete_api()
+            self._remove_triggers()
 
     def create_role(
         self,
@@ -396,7 +405,7 @@ class Lambda(Node):
         try:
             response = iam.get_role(RoleName=role_name)
             return response["Role"]
-        except iam.exceptions.NoSuchEntityException:
+        except iam.exceptions.NoSuchEntityException as e:
             _log.debug("failed to get role {} with exception: {}".format(role_name, e))
             return None
 
@@ -431,8 +440,12 @@ class Lambda(Node):
             Role name to delete. Defaults to :attr:`self.function_role_name`
         """
         if role_name is None:
-            role_name = self.function_role_name
+            if self.function_role_name is not None:
+                role_name = self.function_role_name
+            else:
+                return
 
+        _log.debug("Removing AWS role '{}'".format(role_name))
         iam = self.session.client("iam")
 
         # need to detach policies first
@@ -443,9 +456,215 @@ class Lambda(Node):
         iam.delete_role(RoleName=role_name)
         _log.debug("Successfully removed AWS role '{}'".format(role_name))
 
+    def create_api(
+        self,
+        function_name=None,
+        api_name=None,
+        api_description=None,
+        api_version=None,
+        api_tags={},
+        api_stage="prod",
+        api_resource_path="eval",
+    ):
+        """Create API Gateway API for lambda function
+        
+        Parameters
+        ----------
+        function_name : None, optional
+            Defaults to :attr:`self.function_name`
+        api_name : None, optional
+            API Name
+        api_description : None, optional
+            API Description
+        api_version : str, optional
+            API Version. Defaults to PODPAC version.
+        api_tags : dict, optional
+            API tags
+        api_stage : str, optional
+            API Stage
+        api_resource_path : str, optional
+            API endpoint
+        
+        Returns
+        -------
+        dict
+            dict returned from API gateway creation
+            Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.create_rest_api
+            with the addition of a "url" key with the API url
+        """
+        if function_name is None:
+            if self.function_name is not None:
+                function_name = self.function_name
+            else:
+                raise ValueError("Function name must be defined when creating api")
+
+        function = self.get_function(function_name=function_name)
+        function_arn = function["Configuration"]["FunctionArn"]
+
+        # set name and description
+        if api_name is None:
+            api_name = "{}-api".format(function_name)
+
+        if api_description is None:
+            api_description = "PODPAC Lambda REST API for {} function".format(function_name)
+
+        if api_version is None:
+            api_version = version.semver()
+
+        _log.debug("Creating API gateway for function {}".format(function_name))
+        apigateway = self.session.client("apigateway")
+
+        try:
+            api = None  # in case first command fails
+            api = apigateway.create_rest_api(
+                name=api_name,
+                description=api_description,
+                version=api_version,
+                binaryMediaTypes=["*/*"],
+                apiKeySource="HEADER",
+                endpointConfiguration={"types": ["REGIONAL"]},
+                tags=api_tags,
+            )
+
+            # get resources to get access to parentId ("/" path)
+            resources = apigateway.get_resources(restApiId=api["id"])
+            parent_id = resources["items"][0]["id"]  # to do - make this based on path == "/" ?
+
+            # create resource
+            resource = apigateway.create_resource(restApiId=api["id"], parentId=parent_id, pathPart=api_resource_path)
+
+            # put method
+            apigateway.put_method(
+                restApiId=api["id"],
+                resourceId=resource["id"],
+                httpMethod="ANY",
+                authorizationType="NONE",  # TODO: support "AWS_IAM"
+                apiKeyRequired=False,  # TODO: create "generate_key()" method
+            )
+
+            # lambda proxy integration - this feels pretty brittle due to uri
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.put_integration
+            aws_lambda_uri = "arn:aws:apigateway:{}:lambda:path/2015-03-31/functions".format(self.session.region_name)
+            uri = "{}/{}/invocations".format(aws_lambda_uri, function_arn)
+            apigateway.put_integration(
+                restApiId=api["id"],
+                resourceId=resource["id"],
+                httpMethod="ANY",
+                integrationHttpMethod="POST",
+                type="AWS_PROXY",
+                uri=uri,
+                passthroughBehavior="WHEN_NO_MATCH",
+                contentHandling="CONVERT_TO_TEXT",
+                timeoutInMillis=29000,
+            )
+
+            # get responses back
+            apigateway.put_integration_response(
+                restApiId=api["id"],
+                resourceId=resource["id"],
+                httpMethod="ANY",
+                statusCode="200",
+                selectionPattern="",  # bug, see https://github.com/aws/aws-sdk-ruby/issues/1080
+            )
+
+            # deploy
+            apigateway.create_deployment(
+                restApiId=api["id"],
+                stageName=api_stage,
+                stageDescription="Deployment of Lambda function API",
+                description="PODPAC Lambda Function API",
+            )
+
+            # add permission to invoke call lambda - this feels brittle due to source_arn
+            statement_id = "APIGateway"
+            principle = "apigateway.amazonaws.com"
+            source_arn = "arn:aws:execute-api:{}:{}:{}/*/*/*".format(
+                self.session.region_name, self.session.get_account_id(), api["id"]
+            )
+            self._add_trigger(statement_id, principle, source_arn)
+            api["url"] = self._get_api_url(api, api_stage, api_resource_path)
+
+            return api
+
+        except Exception as e:
+            # clean up
+            if api is not None:
+                try:
+                    self.delete_api(api["id"])
+                except:
+                    pass
+
+            _log.error("Failed to build API gateway with exception: {}".format(e))
+            return None
+
+    def get_api(self, api_id=None):
+        """Get API Gateway definition
+        
+        Parameters
+        ----------
+        api_id : None, optional
+            API ID. Defaults to :attr:`self.function_api_id
+        
+        Returns
+        -------
+        dict
+            dict returned from API gateway creation
+            Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.create_rest_api
+            returns None if no API found
+        """
+        if api_id is None:
+            if self.function_api_id is not None:
+                api_id = self.function_api_id
+            else:
+                return None
+
+        apigateway = self.session.client("apigateway")
+
+        try:
+            api = apigateway.get_rest_api(restApiId=api_id)
+            return api
+        except (botocore.exceptions.ParamValidationError, apigateway.exceptions.NotFoundException) as e:
+            _log.debug("failed to get API {} with exception: {}".format(api_id, e))
+            return None
+
+    def delete_api(self, api_id=None):
+        """Delete API Gateway API
+        
+        Parameters
+        ----------
+        api_id : None, optional
+            Description
+        """
+        if api_id is None:
+            if self.function_api_id is not None:
+                api_id = self.function_api_id
+            else:
+                return
+
+        _log.debug("Removing API gateway '{}'".format(api_id))
+        apigateway = self.session.client("apigateway")
+        apigateway.delete_rest_api(restApiId=api_id)
+        _log.debug("Successfully removed API gateway '{}'".format(api_id))
+
     # -----------------------------------------------------------------------------------------------------------------
     # Internals
     # -----------------------------------------------------------------------------------------------------------------
+
+    def _get_api_url(self, api, api_stage, api_resource_path):
+        """Generated API url
+        
+        Parameters
+        ----------
+        api : dict
+            API dict returned from :meth:`self.get_api`
+        api_stage : str
+            API Stage
+        api_resource_path : str
+            API resource path
+        """
+        return "https://{}.execute-api.{}.amazonaws.com/{}/{}".format(
+            api["id"], self.session.region_name, api_stage, api_resource_path
+        )
 
     def _set_function(self, function):
         """Set function parameters based on function response from AWS
@@ -474,6 +693,10 @@ class Lambda(Node):
         awslambda = self.session.client("lambda")
         self.function_tags = awslambda.list_tags(Resource=self.function_arn)["Tags"]
 
+        if "api" in function:
+            self.function_api_id = function["api"]["id"]
+            self.function_api_url = function["api"]["url"]
+
     def _add_trigger(self, statement_id, principle, source_arn):
         """Add trigger (permission) to lambda function
         
@@ -492,20 +715,15 @@ class Lambda(Node):
             Description
         """
         awslambda = self.session.client("lambda")
-        trigger = awslambda.add_permission(
+        awslambda.add_permission(
             FunctionName=self.function_name,
             StatementId=statement_id,
             Action="lambda:InvokeFunction",
             Principal=principle,
             SourceArn=source_arn,
         )
-        self._function_triggers[statement_id] = {
-            "principle": principle,
-            "source_arn": source_arn,
-        }  # TODO: is this necessary?
-        return trigger
+        self.function_triggers[statement_id] = source_arn
 
-    # remove permission (trigger)
     def _remove_trigger(self, statement_id):
         """Remove trigger (permission) from lambda function
         
@@ -516,10 +734,20 @@ class Lambda(Node):
         """
         awslambda = self.session.client("lambda")
         awslambda.remove_permission(FunctionName=self.function_name, StatementId=statement_id)
+        del self.function_triggers[statement_id]
+
+    def _remove_triggers(self):
+        """Remove all triggers from function
+        """
+        for trigger in self.function_triggers:
+            self._remove_trigger(trigger)
 
     def __repr__(self):
         rep = "{}\n".format(str(self.__class__.__name__))
         rep += "\tName: {}\n".format(self.function_name)
+
+        if self.function_api_url is not None:
+            rep += "\tAPI Url: {}\n".format(self.function_api_url)
         return rep
 
 
