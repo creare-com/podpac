@@ -46,12 +46,12 @@ class Lambda(Node):
         flag that indicated whether node should wait to download the data.
     function_name : string
         name of the lambda function to use or create
-    s3_bucket_name : string
+    function_s3_bucket : string
         s3 bucket name to use with lambda function
-    s3_json_folder : TYPE
-        folder in `s3_bucket_name` to store pipelines
-    s3_output_folder : TYPE
-        folder in `s3_bucket_name` to watch for output
+    function_s3_input : TYPE
+        folder in `function_s3_bucket` to store pipelines
+    function_s3_output : TYPE
+        folder in `function_s3_bucket` to watch for output
     source : :class:`podpac.Node`
         node to be evaluated
     source_output_format : str
@@ -74,48 +74,77 @@ class Lambda(Node):
             region_name=self.aws_region_name,
         )
 
-    # s3 parameters
-    s3_bucket_name = tl.Unicode(help="Name of AWS s3 bucket.")
-
-    @tl.default("s3_bucket_name")
-    def _s3_bucket_name_default(self):
-        return settings["S3_BUCKET_NAME"] or "podpac"
-
-    s3_json_folder = tl.Unicode(help="S3 folder to put JSON in.")
-
-    @tl.default("s3_json_folder")
-    def _s3_json_folder_default(self):
-        return settings["S3_JSON_FOLDER"] or "input"
-
-    s3_output_folder = tl.Unicode(help="S3 folder to put output in.")
-
-    @tl.default("s3_output_folder")
-    def _s3_output_folder_default(self):
-        return settings["S3_OUTPUT_FOLDER"] or "output"
+    # general function parameters
+    function_eval_trigger = tl.Enum(["S3", "APIGateway"], default_value="S3")
 
     # lambda function parameters
     function_name = tl.Unicode(default_value="podpac-lambda-autogen")
-    function_role_name = tl.Unicode(default_value=None, allow_none=True)  # will create role if None
     function_handler = tl.Unicode(default_value="handler.handler")
     function_description = tl.Unicode(default_value="PODPAC Lambda Function (https://podpac.org)")
     function_env_variables = tl.Dict(default_value={})  # environment vars in function
     function_tags = tl.Dict(default_value={})  # key: value for tags on function (and any created roles)
     function_timeout = tl.Int(default_value=600)
     function_memory = tl.Int(default_value=2048)
+    function_zip_file = tl.Unicode(default_value=None, allow_none=True)  # override zip archive with local file
     function_source_bucket = tl.Unicode(default_value="podpac-dist")
-    function_source_key = tl.Unicode()
+    function_source_key = tl.Unicode(default_value="{}/podpac_dist.zip".format(version.semver()))
 
-    @tl.default("function_source_key")
-    def _function_source_key_default(self):
-        return "{}/podpac_dist.zip".format(version.semver())
+    # role parameters
+    function_role_name = tl.Unicode(default_value="podpac-lambda-autogen")
+    function_role_description = tl.Unicode(default_value="PODPAC Lambda Role")
+    function_role_policies = tl.List(default_value=["arn:aws:iam::aws:policy/AWSLambdaExecute"])
+    function_role_tags = tl.Dict()  # see default below
+
+    @tl.default("function_role_tags")
+    def _function_role_tags_default(self):
+        return self.function_tags
+
+    # s3 parameters
+    function_s3_bucket = tl.Unicode()  # see default below
+    function_s3_input = tl.Unicode()  # see default below
+    function_s3_output = tl.Unicode()  # see default below
+
+    @tl.default("function_s3_bucket")
+    def _function_s3_bucket_default(self):
+        return settings["S3_BUCKET_NAME"] or "podpac-autogen"
+
+    @tl.default("function_s3_input")
+    def _function_s3_input_default(self):
+        return settings["S3_JSON_FOLDER"] or "input"
+
+    @tl.default("function_s3_output")
+    def _function_s3_output_default(self):
+        return settings["S3_OUTPUT_FOLDER"] or "output"
+
+    # api gateway parameters
+    function_api_id = tl.Unicode(default_value=None, allow_none=True)  # will create api if None
+    function_api_name = tl.Unicode()  # see default below
+    function_api_description = tl.Unicode()  # see default below
+    function_api_version = tl.Unicode(default_value="{}".format(version.semver()))
+    function_api_tags = tl.Dict()  # see default below
+    function_api_stage = tl.Unicode(default_value="prod")
+    function_api_endpoint = tl.Unicode(default_value="eval")
+
+    @tl.default("function_api_name")
+    def _function_api_name_default(self):
+        return "{}-api".format(self.function_name)
+
+    @tl.default("function_api_description")
+    def _function_api_description_default(self):
+        return "PODPAC Lambda REST API for {} function".format(self.function_name)
+
+    @tl.default("function_api_tags")
+    def _function_api_tags_default(self):
+        return self.function_tags
 
     # readonly properties
-    function_arn = tl.Unicode()
-    function_last_modified = tl.Unicode()
-    function_version = tl.Unicode()
-    function_code_sha256 = tl.Unicode()
-    function_api_url = tl.Unicode()
-    function_api_id = tl.Unicode()
+    function_arn = tl.Unicode(default_value=None, allow_none=True)
+    function_role_arn = tl.Unicode(default_value=None, allow_none=True)
+    function_last_modified = tl.Unicode(default_value=None, allow_none=True)
+    function_version = tl.Unicode(default_value=None, allow_none=True)
+    function_code_sha256 = tl.Unicode(default_value=None, allow_none=True)
+    function_api_url = tl.Unicode(default_value=None, allow_none=True)
+    function_resource_id = tl.Unicode(default_value=None, allow_none=True)
     function_triggers = tl.Dict(default_value={})
 
     # podpac node parameters
@@ -148,56 +177,10 @@ class Lambda(Node):
         Evaluate the source node on the AWS Lambda Function at the given coordinates
         """
 
-        # add coordinates to the pipeline
-        pipeline = self.pipeline
-        pipeline["coordinates"] = json.loads(coordinates.json)
-
-        # filename
-        filename = "{folder}{slash}{output}_{source}_{coordinates}.{suffix}".format(
-            folder=self.s3_json_folder,
-            slash="/" if not self.s3_json_folder.endswith("/") else "",
-            output=self.source_output_name,
-            source=self.source.hash,
-            coordinates=coordinates.hash,
-            suffix="json",
-        )
-
-        # create s3 client with credentials
-        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
-        s3 = boto3.client(
-            "s3",
-            region_name=self.aws_region_name,
-            aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
-        )
-
-        # put pipeline into s3 bucket
-        s3.put_object(
-            Body=(bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))),
-            Bucket=self.s3_bucket_name,
-            Key=filename,
-        )
-
-        # wait for object to exist
-        if not self.download_result:
-            return
-
-        waiter = s3.get_waiter("object_exists")
-        filename = "{folder}{slash}{output}_{source}_{coordinates}.{suffix}".format(
-            folder=self.s3_output_folder,
-            slash="/" if not self.s3_output_folder.endswith("/") else "",
-            output=self.source_output_name,
-            source=self.source.hash,
-            coordinates=coordinates.hash,
-            suffix=self.source_output_format,
-        )
-        waiter.wait(Bucket=self.s3_bucket_name, Key=filename)
-
-        # After waiting, load the pickle file like this:
-        response = s3.get_object(Key=filename, Bucket=self.s3_bucket_name)
-        body = response["Body"].read()
-        self._output = cPickle.loads(body)
-        return self._output
+        if self.function_eval_trigger == "S3":
+            return self._eval_s3(coordinates, output=None)
+        else:
+            raise NotImplementedError("APIGateway trigger not yet implemented through eval")
 
     def create_function(self, recreate=False):
         """Build Lambda function and associated resources on AWS
@@ -209,151 +192,119 @@ class Lambda(Node):
         """
 
         function = self.get_function()  # gets default self.function_name
-        if function is not None:
-            _log.debug("AWS lambda function '{}' already exists. Using existing function.".format(self.function_name))
-
-            if recreate:
-                _log.debug("Recreating lambda function '{}'".format(self.function_name))
-                self.delete_function()  # TODO: autoremove?
-
-            else:
-                # set function to class
-                self._set_function(function)
-
-                # try function? # compare function?
-                # TODO: Add comparison function here to see if function has changed
-                return
-
-        awslambda = self.session.client("lambda")
-        _log.debug("No AWS lambda function '{}' exists. Creating function...".format(self.function_name))
+        if function is not None and recreate:
+            self.delete_function()  # TODO: autoremove?
 
         # create default role if it doesn't exist
         role = self.get_role()  # gets default self.function_role_name
         if role is None:
-            role = self.create_role(
-                role_tags=self.function_tags
-            )  # create role with the same tags as the function, by default
+            self.create_role()
 
             # after creating a role, you need to wait ~10 seconds before its active and will work with the lambda function
             # this is not cool
             time.sleep(10)
 
-        # create function
-        awslambda.create_function(
-            FunctionName=self.function_name,
-            Runtime="python3.7",
-            Role=role["Arn"],
-            Handler=self.function_handler,
-            Code={"S3Bucket": self.function_source_bucket, "S3Key": self.function_source_key},
-            Description=self.function_description,
-            Timeout=self.function_timeout,
-            MemorySize=self.function_memory,
-            Publish=True,
-            Environment={"Variables": self.function_env_variables},
-            Tags=self.function_tags,
+        function = create_function(
+            self.session,
+            self.function_name,
+            self.function_role_arn,
+            self.function_handler,
+            self.function_description,
+            self.function_timeout,
+            self.function_memory,
+            self.function_env_variables,
+            self.function_tags,
+            self.function_zip_file,
+            self.function_source_bucket,
+            self.function_source_key,
         )
 
-        # get function after created
-        function = self.get_function()  # gets default self.function_name after creation
-        if function is None:
-            raise ValueError("Failed to get created function from AWS lambda")
-
         # create API gateway
-        function["api"] = self.create_api(function_name=self.function_name)
+        self.create_api()
 
-        # set function to class
+        # create S3 bucket
+        self.create_s3()
+
+        # set function parameters to class
         self._set_function(function)
 
-    def get_function(self, function_name=None):
+    def get_function(self):
         """Get function definition from AWS
-        
-        Parameters
-        ----------
-        function_name : str, optional
-            function name to get. Defaults to :attr:`self.function_name`
             
         Returns
         -------
         dict
-            dict returned from AWS defining function
-            Equivalent to value returned by https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda.html#Lambda.Client.get_function
-            Returns None if not role is found
+            See :func:`podpac.managers.aws.get_function`
         """
-        if function_name is None:
-            if self.function_name is not None:
-                function_name = self.function_name
-            else:
-                return None
+        return get_function(self.session, self.function_name)
 
-        awslambda = self.session.client("lambda")
-        try:
-            function = awslambda.get_function(FunctionName=function_name)
-            del function["ResponseMetadata"]  # remove response details from function
-            return function
-        except awslambda.exceptions.ResourceNotFoundException as e:
-            _log.debug("failed to get function {} with exception: {}".format(function_name, e))
-            return None
-
-    def delete_function(self, function_name=None, autoremove=False):
+    def delete_function(self, autoremove=False):
         """Remove AWS Lambda function and associated resources on AWS
+        
+        Parameters
+        ----------
+        autoremove : bool, optional
+            Remove all associated AWS resources. Defaults to False.
         """
+        delete_function(self.session, self.function_name)
 
-        if function_name is None:
-            if self.function_name is not None:
-                function_name = self.function_name
-            else:
-                return
-
-        _log.debug("Removing lambda function '{}'".format(function_name))
-        awslambda = self.session.client("lambda")
-        awslambda.delete_function(FunctionName=function_name)
+        # reset members
+        self.function_arn = None
+        self.function_last_modified = None
+        self.function_version = None
+        self.function_code_sha256 = None
 
         # TODO add autoremove
         if autoremove:
             self.delete_role()
             self.delete_api()
-            self._remove_triggers()
+            self.remove_triggers()
 
-    def create_role(
-        self,
-        role_name="podpac-lambda-role-autogen",
-        role_description="PODPAC Lambda Role",
-        role_policies=["arn:aws:iam::aws:policy/AWSLambdaExecute"],
-        role_tags={},
-    ):
-        """Create IAM role to execute podpac lambda function
+    def add_trigger(self, statement_id, principle, source_arn):
+        """Add trigger (permission) to lambda function
         
         Parameters
         ----------
-        role_name : str, optional
-            Description
-        role_description : str, optional
-            Description
-        role_policies : list, optional
-            Description
-        role_tags : dict, optional
-            Description
+        statement_id : str
+            Specific identifier for trigger
+        principle : str
+            Principle identifier from AWS
+        source_arn : str
+            Source ARN for trigger
+        """
+        add_trigger(self.session, self.function_name, statement_id, principle, source_arn)
+        self.function_triggers[statement_id] = source_arn
+
+    def remove_trigger(self, statement_id):
+        """Remove trigger (permission) from lambda function
+        
+        Parameters
+        ----------
+        statement_id : str
+            Specific identifier for trigger
+        """
+
+        remove_function_trigger(self.session, self.function_name, statement_id)
+
+        # remove from local dict
+        del self.function_triggers[statement_id]
+
+    def remove_triggers(self):
+        """
+        Remove all triggers from function
+        """
+        for trigger in self.function_triggers:
+            self.remove_trigger(trigger)
+
+    # IAM Roles
+    def create_role(self):
+        """Create IAM role to execute podpac lambda function
         
         Returns
         -------
         dict
-            dict returned from AWS defining role.
-            Equivalent to value returned in the 'Role' key in https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.get_role 
+            See :func:`podpac.managers.aws.get_role`
         """
-
-        role = self.get_role(role_name=role_name)
-        if role is not None:
-            _log.debug("AWS role '{}' already exists. Using existing role.".format(role_name))
-            return role
-
-        # create role
-        iam = self.session.client("iam")
-        _log.debug("No AWS role '{}' exists. Creating role...".format(role_name))
-
-        # for some reason the tags API is different here
-        tags = []
-        for key in role_tags.keys():
-            tags.append({"Key": key, "Value": role_tags[key]})
 
         # enable role to be run by lambda - this document is defined by AWS
         lambda_policy_document = {
@@ -363,189 +314,90 @@ class Lambda(Node):
             ],
         }
 
-        response = iam.create_role(
-            RoleName=role_name,
-            AssumeRolePolicyDocument=json.dumps(lambda_policy_document),
-            Description=role_description,
-            Tags=tags,
+        role = create_role(
+            self.session,
+            self.function_role_name,
+            self.function_role_description,
+            lambda_policy_document,
+            self.function_role_policies,
+            self.function_role_tags,
         )
 
-        # attached lambda execution policy
-        for policy in role_policies:
-            response = iam.attach_role_policy(RoleName=role_name, PolicyArn=policy)
+        if role is not None:
+            self.function_role_arn = role["Arn"]
 
-        # get finalized role
-        role = self.get_role(role_name=role_name)
-        _log.debug("Successfully created AWS role '{}'".format(role_name))
-
-        return role
-
-    def get_role(self, role_name=None):
+    def get_role(self):
         """Get role definition from AWS
         
-        Parameters
-        ----------
-        role_name : str, optional
-            Role name to get. Defaults to :attr:`self.function_role_name`
+        See :attr:`self.function_role_name` for role_name
         
         Returns
         -------
         dict
-            dict returned from AWS defining role.
-            Equivalent to value returned in the 'Role' key in https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.get_role 
-            Returns None if not role is found
+            See :func:`podpac.managers.aws.get_role`
         """
-        if role_name is None:
-            if self.function_role_name is not None:
-                role_name = self.function_role_name
-            else:
-                return None
+        return get_role(self.session, self.function_role_name)
 
-        iam = self.session.client("iam")
-        try:
-            response = iam.get_role(RoleName=role_name)
-            return response["Role"]
-        except iam.exceptions.NoSuchEntityException as e:
-            _log.debug("failed to get role {} with exception: {}".format(role_name, e))
-            return None
-
-    def get_role_name(self, role_arn):
-        """
-        CURRENTLY NOT USED
-
-        Get function role name based on role_arn
-        
-        Parameters
-        ----------
-        role_arn : str
-            role arn
-        
-        Returns
-        -------
-        str
-            role name
-        """
-        iam = self.session.client("iam")
-        roles = iam.list_roles()
-        role = [role for role in roles["Roles"] if role["Arn"] == role_arn]
-        role_name = role[0] if len(role) else None
-        return role_name
-
-    def delete_role(self, role_name=None):
+    def delete_role(self):
         """Remove role from AWS resources
-        
-        Parameters
-        ----------
-        role_name : str, optional
-            Role name to delete. Defaults to :attr:`self.function_role_name`
+
+        See :attr:`self.function_role_name` for role_name
         """
-        if role_name is None:
-            if self.function_role_name is not None:
-                role_name = self.function_role_name
-            else:
-                return
+        if self.function_role_name is None:
+            _log.debug("No role name defined for this function")
+            return
 
-        _log.debug("Removing AWS role '{}'".format(role_name))
-        iam = self.session.client("iam")
+        delete_role(self.session, self.function_role_name)
 
-        # need to detach policies first
-        response = iam.list_attached_role_policies(RoleName=role_name)
-        for policy in response["AttachedPolicies"]:
-            iam.detach_role_policy(RoleName=role_name, PolicyArn=policy["PolicyArn"])
+        # reset members
+        self.function_role_arn = None
 
-        iam.delete_role(RoleName=role_name)
-        _log.debug("Successfully removed AWS role '{}'".format(role_name))
+    # S3 Creation
+    # TODO: LAST PIECE
+    def create_s3(self):
+        pass
 
-    def create_api(
-        self,
-        function_name=None,
-        api_name=None,
-        api_description=None,
-        api_version=None,
-        api_tags={},
-        api_stage="prod",
-        api_resource_path="eval",
-    ):
+    def get_s3(self):
+        pass
+
+    def delete_s3(self):
+        pass
+
+    # API Gateway
+    def create_api(self):
         """Create API Gateway API for lambda function
-        
-        Parameters
-        ----------
-        function_name : None, optional
-            Defaults to :attr:`self.function_name`
-        api_name : None, optional
-            API Name
-        api_description : None, optional
-            API Description
-        api_version : str, optional
-            API Version. Defaults to PODPAC version.
-        api_tags : dict, optional
-            API tags
-        api_stage : str, optional
-            API Stage
-        api_resource_path : str, optional
-            API endpoint
-        
-        Returns
-        -------
-        dict
-            dict returned from API gateway creation
-            Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.create_rest_api
-            with the addition of a "url" key with the API url
         """
-        if function_name is None:
-            if self.function_name is not None:
-                function_name = self.function_name
-            else:
-                raise ValueError("Function name must be defined when creating api")
+        if self.function_name is None:
+            raise ValueError("Function name must be defined when creating API Gateway")
 
-        function = self.get_function(function_name=function_name)
+        function = self.get_function()
         function_arn = function["Configuration"]["FunctionArn"]
 
-        # set name and description
-        if api_name is None:
-            api_name = "{}-api".format(function_name)
+        # create api and resource
+        api, resource = create_api(
+            self.session,
+            self.function_api_id,
+            self.function_api_name,
+            self.function_api_description,
+            self.function_api_version,
+            self.function_api_tags,
+            self.function_api_endpoint,
+        )
 
-        if api_description is None:
-            api_description = "PODPAC Lambda REST API for {} function".format(function_name)
+        # set class values
+        if api is not None:
+            self.function_api_id = api["id"]
 
-        if api_version is None:
-            api_version = version.semver()
+        if resource is not None:
+            self.function_resource_id = resource["id"]
 
-        _log.debug("Creating API gateway for function {}".format(function_name))
-        apigateway = self.session.client("apigateway")
+        # lambda proxy integration - this feels pretty brittle due to uri
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.put_integration
+        aws_lambda_uri = "arn:aws:apigateway:{}:lambda:path/2015-03-31/functions".format(self.session.region_name)
+        uri = "{}/{}/invocations".format(aws_lambda_uri, function_arn)
 
         try:
-            api = None  # in case first command fails
-            api = apigateway.create_rest_api(
-                name=api_name,
-                description=api_description,
-                version=api_version,
-                binaryMediaTypes=["*/*"],
-                apiKeySource="HEADER",
-                endpointConfiguration={"types": ["REGIONAL"]},
-                tags=api_tags,
-            )
-
-            # get resources to get access to parentId ("/" path)
-            resources = apigateway.get_resources(restApiId=api["id"])
-            parent_id = resources["items"][0]["id"]  # to do - make this based on path == "/" ?
-
-            # create resource
-            resource = apigateway.create_resource(restApiId=api["id"], parentId=parent_id, pathPart=api_resource_path)
-
-            # put method
-            apigateway.put_method(
-                restApiId=api["id"],
-                resourceId=resource["id"],
-                httpMethod="ANY",
-                authorizationType="NONE",  # TODO: support "AWS_IAM"
-                apiKeyRequired=False,  # TODO: create "generate_key()" method
-            )
-
-            # lambda proxy integration - this feels pretty brittle due to uri
-            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.put_integration
-            aws_lambda_uri = "arn:aws:apigateway:{}:lambda:path/2015-03-31/functions".format(self.session.region_name)
-            uri = "{}/{}/invocations".format(aws_lambda_uri, function_arn)
+            apigateway = self.session.client("apigateway")
             apigateway.put_integration(
                 restApiId=api["id"],
                 resourceId=resource["id"],
@@ -567,90 +419,113 @@ class Lambda(Node):
                 selectionPattern="",  # bug, see https://github.com/aws/aws-sdk-ruby/issues/1080
             )
 
-            # deploy
-            apigateway.create_deployment(
-                restApiId=api["id"],
-                stageName=api_stage,
-                stageDescription="Deployment of Lambda function API",
-                description="PODPAC Lambda Function API",
-            )
+            # deploy the api. this has to happen after creating the integration
+            deploy_api(self.session, self.function_api_id, self.function_api_stage)
+            self.function_api_url = self._get_api_url(api, self.function_api_stage, self.function_api_endpoint)
 
             # add permission to invoke call lambda - this feels brittle due to source_arn
-            statement_id = "APIGateway"
+            statement_id = api["id"]
             principle = "apigateway.amazonaws.com"
             source_arn = "arn:aws:execute-api:{}:{}:{}/*/*/*".format(
                 self.session.region_name, self.session.get_account_id(), api["id"]
             )
-            self._add_trigger(statement_id, principle, source_arn)
-            api["url"] = self._get_api_url(api, api_stage, api_resource_path)
+            self.add_trigger(statement_id, principle, source_arn)
 
-            return api
-
+        # clean up if build API function fails
         except Exception as e:
-            # clean up
             if api is not None:
                 try:
-                    self.delete_api(api["id"])
+                    self.delete_api()
                 except:
                     pass
 
             _log.error("Failed to build API gateway with exception: {}".format(e))
-            return None
 
-    def get_api(self, api_id=None):
-        """Get API Gateway definition
-        
-        Parameters
-        ----------
-        api_id : None, optional
-            API ID. Defaults to :attr:`self.function_api_id
+    def get_api(self):
+        """Get API Gateway definition for function
         
         Returns
         -------
         dict
-            dict returned from API gateway creation
-            Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.create_rest_api
-            returns None if no API found
+            See :func:`podpac.managers.aws.get_api`
         """
-        if api_id is None:
-            if self.function_api_id is not None:
-                api_id = self.function_api_id
-            else:
-                return None
-
-        apigateway = self.session.client("apigateway")
-
-        try:
-            api = apigateway.get_rest_api(restApiId=api_id)
-            return api
-        except (botocore.exceptions.ParamValidationError, apigateway.exceptions.NotFoundException) as e:
-            _log.debug("failed to get API {} with exception: {}".format(api_id, e))
+        if self.function_api_id is None:
+            _log.debug("No API ID defined for function")
             return None
 
-    def delete_api(self, api_id=None):
-        """Delete API Gateway API
-        
-        Parameters
-        ----------
-        api_id : None, optional
-            Description
-        """
-        if api_id is None:
-            if self.function_api_id is not None:
-                api_id = self.function_api_id
-            else:
-                return
+        return get_api(self.session, self.function_api_id)
 
-        _log.debug("Removing API gateway '{}'".format(api_id))
-        apigateway = self.session.client("apigateway")
-        apigateway.delete_rest_api(restApiId=api_id)
-        _log.debug("Successfully removed API gateway '{}'".format(api_id))
+    def delete_api(self):
+        """Delete API Gateway for Function"""
+        if self.function_api_id is None:
+            _log.debug("No API ID defined for function")
+            return
+
+        # remove API
+        delete_api(self.session, self.function_api_id)
+
+        # reset
+        self.function_api_id = None
+        self.function_api_url = None
+        self.function_resource_id = None
 
     # -----------------------------------------------------------------------------------------------------------------
     # Internals
     # -----------------------------------------------------------------------------------------------------------------
 
-    def _get_api_url(self, api, api_stage, api_resource_path):
+    def _eval_s3(self, coordinates, output=None):
+        """Evaluate node through s3 trigger"""
+
+        # add coordinates to the pipeline
+        pipeline = self.pipeline
+        pipeline["coordinates"] = json.loads(coordinates.json)
+
+        # filename
+        filename = "{folder}{slash}{output}_{source}_{coordinates}.{suffix}".format(
+            folder=self.function_s3_input,
+            slash="/" if not self.function_s3_input.endswith("/") else "",
+            output=self.source_output_name,
+            source=self.source.hash,
+            coordinates=coordinates.hash,
+            suffix="json",
+        )
+
+        # create s3 client
+        s3 = self.session.client("s3")
+
+        # put pipeline into s3 bucket
+        s3.put_object(
+            Body=(bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))),
+            Bucket=self.function_s3_bucket,
+            Key=filename,
+        )
+
+        # wait for object to exist
+        if not self.download_result:
+            return
+
+        waiter = s3.get_waiter("object_exists")
+        filename = "{folder}{slash}{output}_{source}_{coordinates}.{suffix}".format(
+            folder=self.function_s3_output,
+            slash="/" if not self.function_s3_output.endswith("/") else "",
+            output=self.source_output_name,
+            source=self.source.hash,
+            coordinates=coordinates.hash,
+            suffix=self.source_output_format,
+        )
+        waiter.wait(Bucket=self.function_s3_bucket, Key=filename)
+
+        # After waiting, load the pickle file like this:
+        response = s3.get_object(Key=filename, Bucket=self.function_s3_bucket)
+        body = response["Body"].read()
+        self._output = cPickle.loads(body)
+        return self._output
+
+    def _eval_api(self, coordinates, output=None):
+        # TODO: implement
+        pass
+
+    def _get_api_url(self, api, api_stage, api_endpoint):
         """Generated API url
         
         Parameters
@@ -659,11 +534,11 @@ class Lambda(Node):
             API dict returned from :meth:`self.get_api`
         api_stage : str
             API Stage
-        api_resource_path : str
+        api_endpoint : str
             API resource path
         """
         return "https://{}.execute-api.{}.amazonaws.com/{}/{}".format(
-            api["id"], self.session.region_name, api_stage, api_resource_path
+            api["id"], self.session.region_name, api_stage, api_endpoint
         )
 
     def _set_function(self, function):
@@ -692,55 +567,6 @@ class Lambda(Node):
 
         awslambda = self.session.client("lambda")
         self.function_tags = awslambda.list_tags(Resource=self.function_arn)["Tags"]
-
-        if "api" in function:
-            self.function_api_id = function["api"]["id"]
-            self.function_api_url = function["api"]["url"]
-
-    def _add_trigger(self, statement_id, principle, source_arn):
-        """Add trigger (permission) to lambda function
-        
-        Parameters
-        ----------
-        statement_id : str
-            Description
-        principle : str
-            Description
-        source_arn : str
-            Description
-        
-        Returns
-        -------
-        dict
-            Description
-        """
-        awslambda = self.session.client("lambda")
-        awslambda.add_permission(
-            FunctionName=self.function_name,
-            StatementId=statement_id,
-            Action="lambda:InvokeFunction",
-            Principal=principle,
-            SourceArn=source_arn,
-        )
-        self.function_triggers[statement_id] = source_arn
-
-    def _remove_trigger(self, statement_id):
-        """Remove trigger (permission) from lambda function
-        
-        Parameters
-        ----------
-        statement_id : str
-            Description
-        """
-        awslambda = self.session.client("lambda")
-        awslambda.remove_permission(FunctionName=self.function_name, StatementId=statement_id)
-        del self.function_triggers[statement_id]
-
-    def _remove_triggers(self):
-        """Remove all triggers from function
-        """
-        for trigger in self.function_triggers:
-            self._remove_trigger(trigger)
 
     def __repr__(self):
         rep = "{}\n".format(str(self.__class__.__name__))
@@ -792,3 +618,623 @@ class Session(boto3.Session):
             account id associated with credentials
         """
         return self.client("sts").get_caller_identity()["Account"]
+
+
+# -----------------------------------------------------------------------------------------------------------------
+# S3
+# -----------------------------------------------------------------------------------------------------------------
+# TODO FILL IN S3
+def create_s3(session):
+    pass
+
+
+def get_s3(session):
+    pass
+
+
+def delete_s3(session):
+    pass
+
+
+# -----------------------------------------------------------------------------------------------------------------
+# Lambda
+# -----------------------------------------------------------------------------------------------------------------
+def create_function(
+    session,
+    function_name,
+    function_role_arn,
+    function_handler,
+    function_description,
+    function_timeout=600,
+    function_memory=2048,
+    function_env_variables={},
+    function_tags={},
+    function_zip_file=None,
+    function_source_bucket=None,
+    function_source_key=None,
+):
+    """Build Lambda function and associated resources on AWS
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    function_name : str
+        Function name
+    function_role_arn : str
+        Role ARN for the function
+    function_handler : str
+        Handler module and method (i.e. "module.method")
+    function_description : str
+        Function description
+    function_timeout : int, optional
+        Function timeout
+    function_memory : int, optional
+        Function memory limit
+    function_env_variables : dict, optional
+        Environment variables for function
+    function_tags : dict, optional
+        Function tags
+    function_zip_file : str, optional
+        Path to .zip archive containg the function source.
+    function_source_bucket : str
+        S3 Bucket containing .zip archive of the function source. If defined, :attr:`function_source_key` must be defined.
+    function_source_key : TYPE
+        If :attr:`function_source_bucket` is defined, this is the path to the .zip archive of the function source.
+    
+    Returns
+    -------
+    dict
+        See :func:`podpac.managers.aws.get_function`
+    """
+
+    function = get_function(session, function_name)
+
+    # TODO: add checks to make sure role parameters match
+    if function is not None:
+        _log.debug("AWS lambda function '{}' already exists. Using existing function.".format(function_name))
+        return function
+
+    if function_name is None:
+        raise ValueError("`function_name` is None in create_function")
+
+    _log.debug("Creating lambda function {}".format(function_name))
+    awslambda = session.client("lambda")
+
+    # read function from S3 (Default)
+    if function_source_bucket is not None:
+        code = {"S3Bucket": function_source_bucket, "S3Key": function_source_key}
+
+    # read function from zip file
+    if function_zip_file is not None:
+        with open(function_zip_file, "rb") as f:
+            code = {"ZipFile": f.read()}
+
+    # create function
+    awslambda.create_function(
+        FunctionName=function_name,
+        Runtime="python3.7",
+        Role=function_role_arn,
+        Handler=function_handler,
+        Code=code,
+        Description=function_description,
+        Timeout=function_timeout,
+        MemorySize=function_memory,
+        Publish=True,
+        Environment={"Variables": function_env_variables},
+        Tags=function_tags,
+    )
+
+    # get function after created
+    function = get_function(session, function_name)  # gets default self.function_name after creation
+
+    _log.debug("Successfully created lambda function '{}'".format(function_name))
+    return function
+
+
+def get_function(session, function_name):
+    """Get function definition from AWS
+    
+    Parameters
+    ----------
+    function_name : str
+        Function name
+        
+    Returns
+    -------
+    dict
+        Dict returned from Boto3 get_function
+        Equivalent to value returned by https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda.html#Lambda.Client.get_function
+        Returns None if no function role is found
+    """
+    if function_name is None:
+        return None
+
+    _log.debug("Getting lambda function {}".format(function_name))
+
+    awslambda = session.client("lambda")
+    try:
+        function = awslambda.get_function(FunctionName=function_name)
+        del function["ResponseMetadata"]  # remove response details from function
+        return function
+    except awslambda.exceptions.ResourceNotFoundException as e:
+        _log.debug("Failed to get lambda function {} with exception: {}".format(function_name, e))
+        return None
+
+
+def delete_function(session, function_name):
+    """Remove AWS Lambda function
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    function_name : str
+        Lambda function name
+    """
+    if function_name is None:
+        _log.error("`function_name` not defined in delete_function")
+        return
+
+    _log.debug("Removing lambda function '{}'".format(function_name))
+
+    awslambda = session.client("lambda")
+    awslambda.delete_function(FunctionName=function_name)
+
+    _log.debug("Removed lambda function '{}'".format(function_name))
+
+
+def add_trigger(session, function_name, statement_id, principle, source_arn):
+    """Add trigger (permission) to lambda function
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    function_name : str
+        Function name
+    statement_id : str
+        Specific identifier for trigger
+    principle : str
+        Principle identifier from AWS
+    source_arn : str
+        Source ARN for trigger
+    """
+    if function_name is None or statement_id is None or principle is None or source_arn is None:
+        raise ValueError(
+            "`function_name`, `statement_id`, `principle`, and `source_arn` are required to add function trigger"
+        )
+
+    awslambda = session.client("lambda")
+    awslambda.add_permission(
+        FunctionName=function_name,
+        StatementId=statement_id,
+        Action="lambda:InvokeFunction",
+        Principal=principle,
+        SourceArn=source_arn,
+    )
+
+
+def remove_function_trigger(session, function_name, statement_id):
+    """Remove trigger (permission) from lambda function
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    function_name : str
+        Function name
+    statement_id : str
+        Specific identifier for trigger
+    """
+    if function_name is None or statement_id is None:
+        _log.error("`api_id` or `statement_id` not defined in remove_function_trigger")
+        return
+
+    awslambda = session.client("lambda")
+    try:
+        awslambda.remove_permission(FunctionName=function_name, StatementId=statement_id)
+    except awslambda.exceptions.ResourceNotFoundException:
+        _log.warning("Failed to remove permission {} on function {}".format(statement_id, function_name))
+
+
+# -----------------------------------------------------------------------------------------------------------------
+# IAM Roles
+# -----------------------------------------------------------------------------------------------------------------
+
+
+def create_role(
+    session,
+    role_name,
+    role_description="PODPAC Role",
+    role_policy_document={},
+    role_policies=["arn:aws:iam::aws:policy/AWSLambdaExecute"],
+    role_tags={},
+):
+    """Create IAM role to execute podpac lambda function
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    role_name : str
+        Role name to create
+    role_description : str, optional
+        Role description
+    role_policy_document : dict, optional
+        Role policy document. See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.create_role
+    role_policies : list, optional
+        Role policies
+    role_tags : dict, optional
+        Role tags
+    
+    Returns
+    -------
+    dict
+        See :func:`podpac.managers.aws.get_role`
+    """
+
+    role = get_role(session, role_name)
+
+    # TODO: add checks to make sure role parameters match
+    if role is not None:
+        _log.debug("AWS role '{}' already exists. Using existing role.".format(role_name))
+        return role
+
+    if role_name is None:
+        raise ValueError("`role_name` is None in create_role")
+
+    _log.debug("Creating IAM role {} with policies {}".format(role_name, role_policies))
+    iam = session.client("iam")
+
+    # for some reason the tags API is different here
+    tags = []
+    for key in role_tags.keys():
+        tags.append({"Key": key, "Value": role_tags[key]})
+
+    # create role
+    iam.create_role(
+        RoleName=role_name,
+        AssumeRolePolicyDocument=json.dumps(role_policy_document),
+        Description=role_description,
+        Tags=tags,
+    )
+
+    # attached lambda execution policy
+    for policy in role_policies:
+        iam.attach_role_policy(RoleName=role_name, PolicyArn=policy)
+
+    # get finalized role
+    role = get_role(session, role_name)
+    _log.debug("Successfully created AWS role '{}'".format(role_name))
+
+    return role
+
+
+def get_role(session, role_name):
+    """Get role definition from AWS
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    role_name : str
+        Role name
+    
+    Returns
+    -------
+    dict
+        Dict returned from AWS defining role.
+        Equivalent to value returned in the 'Role' key in https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.get_role 
+        Returns None if no role is found
+    """
+    if role_name is None:
+        return None
+
+    _log.debug("Getting role from IAM with name {}".format(role_name))
+    iam = session.client("iam")
+    try:
+        response = iam.get_role(RoleName=role_name)
+        return response["Role"]
+    except iam.exceptions.NoSuchEntityException as e:
+        _log.debug("Failed to get role from IAM for name {} with exception: {}".format(role_name, e))
+        return None
+
+
+def get_role_name(session, role_arn):
+    """
+    Get function role name based on role_arn
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    role_arn : str
+        Role arn
+    
+    Returns
+    -------
+    str
+        Role name.
+        Returns None if no role name is found for role arn.
+    """
+    if role_arn is None:
+        return None
+
+    iam = session.client("iam")
+    roles = iam.list_roles()
+    role = [role for role in roles["Roles"] if role["Arn"] == role_arn]
+    role_name = role[0] if len(role) else None
+    return role_name
+
+
+def delete_role(session, role_name):
+    """Remove role from AWS resources
+    
+    Parameters
+    ----------
+    role_name : str
+        Role name to delete
+    """
+    if role_name is None:
+        _log.error("`role_name` not defined in delete_role")
+        return
+
+    _log.debug("Removing AWS role '{}'".format(role_name))
+    iam = session.client("iam")
+
+    # need to detach policies first
+    response = iam.list_attached_role_policies(RoleName=role_name)
+    for policy in response["AttachedPolicies"]:
+        iam.detach_role_policy(RoleName=role_name, PolicyArn=policy["PolicyArn"])
+
+    iam.delete_role(RoleName=role_name)
+    _log.debug("Successfully removed AWS role '{}'".format(role_name))
+
+
+# -----------------------------------------------------------------------------------------------------------------
+# API Gateway
+# -----------------------------------------------------------------------------------------------------------------
+
+
+def create_api(
+    session,
+    api_id,
+    api_name="podpac-api",
+    api_description="PODPAC API",
+    api_version=None,
+    api_tags={},
+    api_endpoint="eval",
+):
+    """Create API Gateway REST API
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    api_id : str
+        API ID. If None, the API will be created. If the `api_id` is not None, this method will try to return the API associated with the ID
+    api_name : str
+        API Name
+    api_description : str, optional
+        API Description. Defaults to "PODPAC API"
+    api_version : str, optional
+        API Version. Defaults to PODPAC version.
+    api_tags : dict, optional
+        API tags. Defaults to {}.
+    api_endpoint : str, optional
+        API endpoint. Defaults to "eval".
+    
+    No Longer Returned
+    ------------------
+    (dict, dict)
+        (api, resource) dicts returned from API gateway creation
+        ``api`` equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.create_rest_api
+        ``resource`` equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.create_resource
+    """
+    # set version to podpac version, if None
+    api = get_api(session, api_id)
+
+    # TODO: add checks to make sure api parameters match
+    if api is not None:
+        resource = get_api_resource(session, api["id"], api_endpoint)
+        _log.debug(
+            "API '{}' and API resource {} already exist. Using existing API ID and resource.".format(
+                api_name, api_endpoint
+            )
+        )
+        return api, resource
+
+    _log.debug("Creating API gateway with name {}".format(api_name))
+    apigateway = session.client("apigateway")
+
+    # set version default
+    if api_version is None:
+        api_version = version.semver()
+
+    try:
+        api = None  # in case commands fail, want to have this set to None
+        resource = None
+        api = apigateway.create_rest_api(
+            name=api_name,
+            description=api_description,
+            version=api_version,
+            binaryMediaTypes=["*/*"],
+            apiKeySource="HEADER",
+            endpointConfiguration={"types": ["REGIONAL"]},
+            tags=api_tags,
+        )
+
+        resource = create_api_resource(session, api["id"], api_endpoint)
+
+        # put method
+        apigateway.put_method(
+            restApiId=api["id"],
+            resourceId=resource["id"],
+            httpMethod="ANY",
+            authorizationType="NONE",  # TODO: support "AWS_IAM"
+            apiKeyRequired=False,  # TODO: create "generate_key()" method
+        )
+
+        return api, resource
+
+    # clean up if any API methods fail
+    except Exception as e:
+        if api is not None:
+            try:
+                delete_api(session, api["id"])
+            except:
+                pass
+
+        _log.error("Failed to build API gateway with name {} with exception: {}".format(api_name, e))
+        raise e
+
+
+def deploy_api(session, api_id, api_stage):
+    """Deploy API gateway definition
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    api_id : str
+        API ID. Generated during API Creation.
+    api_stage : str
+        API Stage
+    """
+    if api_id is None or api_stage is None:
+        raise ValueError("`api_id` and `api_stage` must be defined to deploy API")
+
+    _log.debug("Deploying API Gateway with ID {} and stage {}".format(api_id, api_stage))
+
+    apigateway = session.client("apigateway")
+    apigateway.create_deployment(
+        restApiId=api_id,
+        stageName=api_stage,
+        stageDescription="Deployment of Lambda function API",
+        description="PODPAC Lambda Function API",
+    )
+    _log.debug("Deployed API Gateway with ID {} and stage {}".format(api_id, api_stage))
+
+
+def get_api(session, api_id):
+    """Get API Gateway definition
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    api_id : str
+        API ID. Generated during API Creation.
+    
+    Returns
+    -------
+    dict
+        Returns output of Boto3 API Gateway creation
+        Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.create_rest_api
+        Returns None if API Id is not found
+    """
+    if api_id is None:
+        return None
+
+    _log.debug("Getting API Gateway with ID {}".format(api_id))
+    apigateway = session.client("apigateway")
+
+    try:
+        api = apigateway.get_rest_api(restApiId=api_id)
+        return api
+    except (botocore.exceptions.ParamValidationError, apigateway.exceptions.NotFoundException) as e:
+        _log.error("Failed to get API Gateway with ID {} with exception: {}".format(api_id, e))
+        return None
+
+
+def create_api_resource(session, api_id, api_endpoint):
+    """Create API Resource (endpoint)
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    api_id : str
+        API ID. Generated during API Creation.
+    api_endpoint : str
+        API endpoint path
+    
+    Returns
+    -------
+    dict
+        Returns output of Boto3 API Resource
+        Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.get_resource
+        Returns None if API Resource ID is not found
+    """
+    resource = get_api_resource(session, api_id, api_endpoint)
+    if resource is not None:
+        _log.debug("API resource '{}' already exists. Using existing resource.".format(api_endpoint))
+        return resource
+
+    _log.debug("Creating API Resource for  {}".format(api_id))
+    apigateway = session.client("apigateway")
+
+    # get resources to get access to parentId ("/" path)
+    resources = apigateway.get_resources(restApiId=api_id)
+    parent_id = resources["items"][0]["id"]  # TODO - make this based on path == "/" ?
+
+    # create resource
+    return apigateway.create_resource(restApiId=api_id, parentId=parent_id, pathPart=api_endpoint)
+
+
+def get_api_resource(session, api_id, api_endpoint):
+    """Get API Resource definition
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    api_id : str
+        API ID. Generated during API Creation.
+    api_endpoint : str
+        API endpoint path
+
+    Returns
+    -------
+    dict
+        Returns output of Boto3 API Resource
+        Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/apigateway.html#APIGateway.Client.get_resource
+        Returns None if API Resource ID is not found
+    """
+    if api_id is None or api_endpoint is None:
+        return None
+
+    _log.debug("Getting API resource {} for API ID {}".format(api_endpoint, api_id))
+    apigateway = session.client("apigateway")
+
+    try:
+        resources = apigateway.get_resources(restApiId=api_id)
+        resources_filtered = [r for r in resources["items"] if api_endpoint in r["path"]]
+        resource = resources_filtered[0] if len(resources_filtered) else None
+        return resource
+    except (botocore.exceptions.ParamValidationError, apigateway.exceptions.NotFoundException) as e:
+        _log.error("Failed to get API Gateway with ID {} with exception: {}".format(api_id, e))
+        return None
+
+
+def delete_api(session, api_id):
+    """Delete API Gateway API
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    api_id : str
+        API ID. Generated during API Creation.
+    """
+    if api_id is None:
+        _log.error("`api_id` not defined in delete_api")
+        return
+
+    _log.debug("Removing API Gateway with ID {}".format(api_id))
+
+    apigateway = session.client("apigateway")
+    apigateway.delete_rest_api(restApiId=api_id)
+
+    _log.debug("Successfully removed API Gateway with ID {}".format(api_id))
