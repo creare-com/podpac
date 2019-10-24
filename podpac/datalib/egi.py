@@ -437,7 +437,7 @@ class EGI(DataSource):
                 try:
                     bio = BytesIO(zip_file.read(name))
                 except (zipfile.BadZipfile, EOFError) as e:
-                    _log.warn(str(e))
+                    _log.warning(str(e))
                     continue
 
                 # read file

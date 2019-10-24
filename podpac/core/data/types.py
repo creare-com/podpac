@@ -1181,7 +1181,7 @@ class ReprojectedSource(DataSource):
             si = self.source.interpolation
             self.source.interpolation = self.source_interpolation
         elif self.source_interpolation is not None:
-            _logger.warn(
+            _logger.warning(
                 "ReprojectedSource cannot set the 'source_interpolation'"
                 " since self.source does not have an 'interpolation' "
                 " attribute. \n type(self.source): %s\nself.source: " % (str(type(self.source)), str(self.source))
