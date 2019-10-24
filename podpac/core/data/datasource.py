@@ -343,7 +343,7 @@ class DataSource(Node):
         self._evaluated_coordinates = deepcopy(coordinates)
 
         # transform coordinates into native crs if different
-        if self.native_coordinates.crs != coordinates.crs:
+        if self.native_coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.native_coordinates.crs)
 
         # intersect the native coordinates with requested coordinates
