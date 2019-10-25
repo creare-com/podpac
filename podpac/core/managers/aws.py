@@ -6,6 +6,7 @@ import json
 from collections import OrderedDict
 import logging
 import time
+import re
 
 import boto3
 import botocore
@@ -91,7 +92,9 @@ class Lambda(Node):
     # role parameters
     function_role_name = tl.Unicode(default_value="podpac-lambda-autogen")
     function_role_description = tl.Unicode(default_value="PODPAC Lambda Role")
-    function_role_policies = tl.List(default_value=["arn:aws:iam::aws:policy/AWSLambdaExecute"])
+    function_role_policies = tl.List(
+        default_value=["arn:aws:iam::aws:policy/AWSLambdaExecute"]
+    )  # TODO: This provides read/write access to ALL S3 buckets!!
     function_role_tags = tl.Dict()  # see default below
 
     @tl.default("function_role_tags")
@@ -102,10 +105,13 @@ class Lambda(Node):
     function_s3_bucket = tl.Unicode()  # see default below
     function_s3_input = tl.Unicode()  # see default below
     function_s3_output = tl.Unicode()  # see default below
+    function_s3_tags = tl.Dict()  # see default below
 
     @tl.default("function_s3_bucket")
     def _function_s3_bucket_default(self):
-        return settings["S3_BUCKET_NAME"] or "podpac-autogen"
+        return settings["S3_BUCKET_NAME"] or "podpac-autogen-{}".format(
+            np.datetime64("now").astype(int)
+        )  # must be globally unique
 
     @tl.default("function_s3_input")
     def _function_s3_input_default(self):
@@ -114,6 +120,10 @@ class Lambda(Node):
     @tl.default("function_s3_output")
     def _function_s3_output_default(self):
         return settings["S3_OUTPUT_FOLDER"] or "output"
+
+    @tl.default("function_s3_tags")
+    def _function_s3_tags_default(self):
+        return self.function_tags
 
     # api gateway parameters
     function_api_id = tl.Unicode(default_value=None, allow_none=True)  # will create api if None
@@ -218,14 +228,19 @@ class Lambda(Node):
             self.function_source_key,
         )
 
+        # set class properties
+        self.function_arn = function["Configuration"]["FunctionArn"]
+        self.function_last_modified = function["Configuration"]["LastModified"]
+        self.function_version = function["Configuration"]["Version"]
+        self.function_code_sha256 = function["Configuration"][
+            "CodeSha256"
+        ]  # TODO: is this the best way to determine S3 source bucket and dist zip?
+
         # create API gateway
         self.create_api()
 
         # create S3 bucket
-        self.create_s3()
-
-        # set function parameters to class
-        self._set_function(function)
+        self.create_bucket()
 
     def get_function(self):
         """Get function definition from AWS
@@ -352,15 +367,60 @@ class Lambda(Node):
         self.function_role_arn = None
 
     # S3 Creation
-    # TODO: LAST PIECE
-    def create_s3(self):
-        pass
+    def create_bucket(self):
+        """Create S3 bucket to work with function
+        """
+        if self.function_name is None:
+            raise ValueError("Function name must be defined when creating S3 bucket and trigger")
 
-    def get_s3(self):
-        pass
+        function = self.get_function()
+        function_arn = function["Configuration"]["FunctionArn"]
 
-    def delete_s3(self):
-        pass
+        # create bucket
+        bucket = create_bucket(
+            self.session, self.function_s3_bucket, bucket_policy=None, bucket_tags=self.function_s3_tags
+        )
+
+        # lambda integration on object creation events
+        s3 = self.session.client("s3")
+        s3.put_bucket_notification_configuration(
+            Bucket=self.function_s3_bucket,
+            NotificationConfiguration={
+                "LambdaFunctionConfigurations": [{"LambdaFunctionArn": function_arn, "Events": ["s3:ObjectCreated:*"]}]
+            },
+        )
+
+        # add permission to invoke call lambda - this feels brittle due to source_arn
+        statement_id = re.sub("[-_.]", "", self.function_s3_bucket)
+        principle = "s3.amazonaws.com"
+        source_arn = "arn:aws:s3:::{}".format(self.function_s3_bucket)
+        self.add_trigger(statement_id, principle, source_arn)
+
+        return bucket
+
+    def get_bucket(self):
+        """Get S3 Bucket for function
+        
+        Returns
+        -------
+        dict
+            See :func:`podpac.managers.aws.get_bucket`
+        """
+        return get_bucket(self.session, self.function_s3_bucket)
+
+    def delete_bucket(self, delete_objects=False):
+        """Delete bucket associated with this function
+        
+        Parameters
+        ----------
+        delete_objects : bool, optional
+            Delete all objects in the bucket while deleting bucket. Defaults to False.
+        """
+
+        # delete bucket
+        delete_bucket(self.session, self.function_s3_bucket, delete_objects=delete_objects)
+
+        # TODO: update manage attributes here?
 
     # API Gateway
     def create_api(self):
@@ -448,17 +508,10 @@ class Lambda(Node):
         dict
             See :func:`podpac.managers.aws.get_api`
         """
-        if self.function_api_id is None:
-            _log.debug("No API ID defined for function")
-            return None
-
         return get_api(self.session, self.function_api_id)
 
     def delete_api(self):
         """Delete API Gateway for Function"""
-        if self.function_api_id is None:
-            _log.debug("No API ID defined for function")
-            return
 
         # remove API
         delete_api(self.session, self.function_api_id)
@@ -539,33 +592,6 @@ class Lambda(Node):
         return "https://{}.execute-api.{}.amazonaws.com/{}/{}".format(
             api["id"], self.session.region_name, api_stage, api_endpoint
         )
-
-    def _set_function(self, function):
-        """Set function parameters based on function response from AWS
-        
-        Parameters
-        ----------
-        function : dict
-            dict returned from AWS defining role.
-            Equivalent to value returned in the 'Role' key in https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.get_role 
-        """
-        self.function_role_name = function["Configuration"]["Role"].split("/")[-1]  # get the last part of the role
-        self.function_handler = function["Configuration"]["Handler"]
-        self.function_description = function["Configuration"]["Description"]
-        self.function_env_variables = function["Configuration"]["Environment"]["Variables"]
-        self.function_timeout = function["Configuration"]["Timeout"]
-        self.function_memory = function["Configuration"]["MemorySize"]
-
-        # properties
-        self.function_arn = function["Configuration"]["FunctionArn"]
-        self.function_last_modified = function["Configuration"]["LastModified"]
-        self.function_version = function["Configuration"]["Version"]
-        self.function_code_sha256 = function["Configuration"][
-            "CodeSha256"
-        ]  # TODO: is this the best way to determine S3 source bucket and dist zip?
-
-        awslambda = self.session.client("lambda")
-        self.function_tags = awslambda.list_tags(Resource=self.function_arn)["Tags"]
 
     def __repr__(self):
         rep = "{}\n".format(str(self.__class__.__name__))
@@ -689,7 +715,38 @@ def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, 
     return bucket
 
 
-def put_object(session, bucket_name, bucket_path, file, object_acl="private", object_metadata=None):
+def get_object(session, bucket_name, bucket_path):
+    """Get an object from an S3 bucket
+    
+    See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.get_object
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    bucket_name : str
+        Bucket name
+    bucket_path : str
+        Path to object in bucket
+    """
+
+    if bucket_name is None or bucket_path is None:
+        return None
+
+    _log.debug("Getting object {} from S3 bucket {}".format(bucket_path, bucket_name))
+    s3 = session.client("s3")
+
+    # see if the object exists
+    try:
+        s3.head_object(Bucket=bucket_name, Key=bucket_path)
+    except botocore.exceptions.ClientError:
+        return None
+
+    # get the object
+    return s3.get_object(Bucket=bucket_name, Key=bucket_path)
+
+
+def put_object(session, bucket_name, bucket_path, file=None, object_acl="private", object_metadata=None):
     """Simple wrapper to put an object in an S3 bucket
     
     See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
@@ -702,8 +759,8 @@ def put_object(session, bucket_name, bucket_path, file, object_acl="private", ob
         Bucket name
     bucket_path : str
         Path in bucket to put object
-    file : str | bytes
-        Path to local object or b'bytes'
+    file : str | bytes, optional
+        Path to local object or b'bytes'. If none, this will create a directory in bucket.
     object_acl : str, optional
         Object ACL.
         One of: 'private'|'public-read'|'public-read-write'|'authenticated-read'|'aws-exec-read'|'bucket-owner-read'|'bucket-owner-full-control'
@@ -711,19 +768,23 @@ def put_object(session, bucket_name, bucket_path, file, object_acl="private", ob
         Metadata to add to object
     """
 
-    if bucket_name is None or bucket_path is None or file is None:
+    if bucket_name is None or bucket_path is None:
         return None
 
     _log.debug("Putting object {} into S3 bucket {}".format(bucket_path, bucket_name))
     s3 = session.client("s3")
 
+    object_config = {"ACL": object_acl, "Bucket": bucket_name, "Key": bucket_path}
+
+    object_body = None
     if isinstance(file, str):
         with open(file, "rb") as f:
             object_body = f.read()
     else:
         object_body = file
 
-    object_config = {"ACL": object_acl, "Bucket": bucket_name, "Body": object_body, "Key": bucket_path}
+    if object_body is not None:
+        object_config["Body"] = object_body
 
     if object_metadata is not None:
         object_config["Metadata"] = object_metadata
@@ -1040,7 +1101,7 @@ def create_role(
     role_name,
     role_description="PODPAC Role",
     role_policy_document=None,
-    role_policies=["arn:aws:iam::aws:policy/AWSLambdaExecute"],
+    role_policies=["arn:aws:iam::aws:policy/AWSLambdaBasicExecutionRole"],
     role_tags=None,
 ):
     """Create IAM role
@@ -1058,7 +1119,8 @@ def create_role(
     role_description : str, optional
         Role description
     role_policies : list, optional
-        Role policies
+        Role policies. Defaults to including the AWSLambdaBasicExecutionRole managed policy.
+        This policy gives the role read/write access to the CloudWatch logs.
     role_tags : dict, optional
         Role tags
     
