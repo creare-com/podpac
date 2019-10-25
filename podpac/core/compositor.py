@@ -205,7 +205,7 @@ class Compositor(Node):
         if self.interpolation is not None:
             for s in src_subset.ravel():
                 if trait_is_defined(self, "interpolation"):
-                    s.interpolation = self.interpolation
+                    s.set_trait("interpolation", self.interpolation)
 
         # Optimization: if coordinates complete and source coords is 1D,
         # set native_coordinates unless they are set already
