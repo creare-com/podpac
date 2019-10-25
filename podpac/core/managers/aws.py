@@ -10,8 +10,7 @@ import time
 import boto3
 import botocore
 import traitlets as tl
-
-from io import BytesIO
+import numpy as np
 
 from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
@@ -623,8 +622,6 @@ class Session(boto3.Session):
 # -----------------------------------------------------------------------------------------------------------------
 # S3
 # -----------------------------------------------------------------------------------------------------------------
-
-
 def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, bucket_tags={}):
     """Create S3 bucket
     
@@ -1461,3 +1458,74 @@ def delete_api(session, api_id):
     apigateway.delete_rest_api(restApiId=api_id)
 
     _log.debug("Successfully removed API Gateway with ID {}".format(api_id))
+
+
+# -----------------------------------------------------------------------------------------------------------------
+# Cloudwatch Logs
+# -----------------------------------------------------------------------------------------------------------------
+def get_logs(session, log_group_name, limit=100, start=None, end=None):
+    """Get logs from cloudwatch from specific log groups
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    log_group_name : str
+        Log group name
+    limit : int, optional
+        Limit logs to the most recent N logs
+    start : str, optional
+        Datetime string. Must work as input to np.datetime64 (i.e np.datetime64(start))
+        Defaults to 1 hour prior to ``end``.
+    end : str, optional
+        Datetime string. Must work as input to np.datetime64 (i.e np.datetime64(end))
+        Defaults to now.
+    
+    Returns
+    -------
+    list
+        list of log events
+    """
+
+    # default is now
+    if end is None:
+        end = np.datetime64("now")
+    else:
+        end = np.datetime64(end)
+
+    # default is 1 hour prior to now
+    if start is None:
+        start = end - np.timedelta64(1, "h")
+    else:
+        start = np.datetime64(start)
+
+    # convert to float and add precision for comparison with AWS response
+    start = start.astype(float) * 1000
+    end = end.astype(float) * 1000
+
+    # get client
+    cloudwatchlogs = session.client("logs")  # cloudwatch logs
+
+    try:
+        log_streams = cloudwatchlogs.describe_log_streams(
+            logGroupName=log_group_name, orderBy="LastEventTime", descending=True
+        )
+    except cloudwatchlogs.exceptions.ResourceNotFoundException:
+        _log.debug("No log streams found for log group name: {}".format(log_group_name))
+        return []
+
+    streams = [
+        s for s in log_streams["logStreams"] if (s["firstEventTimestamp"] < end and s["lastEventTimestamp"] > start)
+    ]
+    logs = []
+    for stream in streams:
+        response = cloudwatchlogs.get_log_events(
+            logGroupName=log_group_name,
+            logStreamName=stream["logStreamName"],
+            startTime=int(start),
+            endTime=int(end) + 1000,
+            limit=limit,
+        )
+        logs += response["events"]
+
+    return logs
