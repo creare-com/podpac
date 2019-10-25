@@ -254,7 +254,7 @@ class Lambda(Node):
         self.function_version = None
         self.function_code_sha256 = None
 
-        # TODO add autoremove
+        # remove all dependent resources
         if autoremove:
             self.delete_role()
             self.delete_api()
@@ -623,17 +623,204 @@ class Session(boto3.Session):
 # -----------------------------------------------------------------------------------------------------------------
 # S3
 # -----------------------------------------------------------------------------------------------------------------
-# TODO FILL IN S3
-def create_s3(session):
-    pass
 
 
-def get_s3(session):
-    pass
+def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, bucket_tags={}):
+    """Create S3 bucket
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    bucket_name : str
+        Bucket name
+    bucket_region : str, optional
+        Location constraint for bucket. Defaults to no location constraint
+    bucket_policy : dict, optional
+        Bucket policy document as dict. For parameters, see https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketPolicy.html#API_PutBucketPolicy_RequestSyntax 
+    bucket_tags : dict, optional
+        Description
+    
+    Returns
+    -------
+    dict
+        See :func:`podpac.managers.aws.get_bucket`
+    
+    Raises
+    ------
+    ValueError
+        Description
+    """
+
+    bucket = get_bucket(session, bucket_name)
+
+    # TODO: add checks to make sure bucket parameters match
+    if bucket is not None:
+        _log.debug("S3 bucket '{}' already exists. Using existing bucket.".format(bucket_name))
+        return bucket
+
+    if bucket_name is None:
+        raise ValueError("`bucket_name` is None in create_bucket")
+
+    # bucket configuration
+    bucket_config = {"ACL": "private", "Bucket": bucket_name}
+    if bucket_region is not None:
+        bucket_config["LocationConstraint"] = bucket_region
+
+    _log.debug("Creating S3 bucket {}".format(bucket_name))
+    s3 = session.client("s3")
+
+    # create bucket
+    s3.create_bucket(**bucket_config)
+
+    # add tags
+    # for some reason the tags API is different here
+    tags = []
+    for key in bucket_tags.keys():
+        tags.append({"Key": key, "Value": bucket_tags[key]})
+
+    s3.put_bucket_tagging(Bucket=bucket_name, Tagging={"TagSet": tags})
+
+    # set bucket policy
+    if bucket_policy is not None:
+        s3.put_bucket_policy(Bucket=bucket_name, Policy=json.dumps(bucket_policy))
+
+    # get finalized bucket
+    bucket = get_bucket(session, bucket_name)
+    _log.debug("Successfully created S3 bucket '{}'".format(bucket_name))
+
+    return bucket
 
 
-def delete_s3(session):
-    pass
+def put_object(session, bucket_name, bucket_path, file, object_acl="private", object_metadata=None):
+    """Simple wrapper to put an object in an S3 bucket
+    
+    See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    bucket_name : str
+        Bucket name
+    bucket_path : str
+        Path in bucket to put object
+    file : str | bytes
+        Path to local object or b'bytes'
+    object_acl : str, optional
+        Object ACL.
+        One of: 'private'|'public-read'|'public-read-write'|'authenticated-read'|'aws-exec-read'|'bucket-owner-read'|'bucket-owner-full-control'
+    object_metadata : dict, optional
+        Metadata to add to object
+    """
+
+    if bucket_name is None or bucket_path is None or file is None:
+        return None
+
+    _log.debug("Putting object {} into S3 bucket {}".format(bucket_path, bucket_name))
+    s3 = session.client("s3")
+
+    if isinstance(file, str):
+        with open(file, "rb") as f:
+            object_body = f.read()
+    else:
+        object_body = file
+
+    object_config = {"ACL": object_acl, "Bucket": bucket_name, "Body": object_body, "Key": bucket_path}
+
+    if object_metadata is not None:
+        object_config["Metadata"] = object_metadata
+
+    s3.put_object(**object_config)
+
+
+def get_bucket(session, bucket_name):
+    """Get S3 bucket parameters
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    bucket_name : str
+        Bucket name
+    
+    Returns
+    -------
+    dict
+        Bucket dict containing keys: "name", region", "policy", "tags"
+    """
+    if bucket_name is None:
+        return None
+
+    _log.debug("Getting S3 bucket {}".format(bucket_name))
+    s3 = session.client("s3")
+
+    # see if the bucket exists
+    try:
+        s3.head_bucket(Bucket=bucket_name)
+    except botocore.exceptions.ClientError:
+        return None
+
+    # init empty object
+    bucket = {"name": bucket_name}
+
+    # get location constraint. this will be None for no location constraint
+    bucket["region"] = s3.get_bucket_location(Bucket=bucket_name)["LocationConstraint"]
+
+    try:
+        bucket["policy"] = s3.get_bucket_policy(Bucket=bucket_name)["Policy"]
+    except botocore.exceptions.ClientError:
+        bucket["policy"] = None
+
+    # reverse tags into dict
+    tags = {}
+    try:
+        tag_set = s3.get_bucket_tagging(Bucket=bucket_name)["TagSet"]
+        for tag in tag_set:
+            tags[tag["Key"]] = tag["Value"]
+    except botocore.exceptions.ClientError:
+        pass
+
+    bucket["tags"] = tags
+
+    return bucket
+
+
+def delete_bucket(session, bucket_name, delete_objects=False):
+    """Remove S3 bucket from AWS resources
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    bucket_name : str
+        Bucket name to delete
+    delete_objects : bool, optional
+        Must be set to True if the bucket contains files. This helps avoid deleting buckets inadvertantly    
+    """
+    if bucket_name is None:
+        _log.error("`bucket_name` not defined in delete_bucket")
+        return
+
+    # make sure bucket exists
+    bucket = get_bucket(session, bucket_name)
+    if bucket is None:
+        _log.debug("S3 bucket '{}' does not exist".format(bucket_name))
+        return
+
+    _log.debug("Removing S3 bucket '{}'".format(bucket_name))
+    s3 = session.client("s3")
+
+    # need to remove all objects before it can be removed. Only do this if delete_objects is TRue
+    if delete_objects:
+        s3resource = session.resource("s3")
+        bucket = s3resource.Bucket(bucket_name)
+        bucket.object_versions.delete()  # delete objects that are versioned
+        bucket.objects.all().delete()  # delete objects that are not versioned
+
+    # now delete bucket
+    s3.delete_bucket(Bucket=bucket_name)
+    _log.debug("Successfully removed S3 bucket '{}'".format(bucket_name))
 
 
 # -----------------------------------------------------------------------------------------------------------------
@@ -644,7 +831,7 @@ def create_function(
     function_name,
     function_role_arn,
     function_handler,
-    function_description,
+    function_description="PODPAC function",
     function_timeout=600,
     function_memory=2048,
     function_env_variables={},
@@ -662,10 +849,12 @@ def create_function(
     function_name : str
         Function name
     function_role_arn : str
-        Role ARN for the function
+        Role ARN for the function.
+        Generate a role for lambda function execution with :func:`podpac.managers.aws.create_role`.
+        The "Arn" key in the output of this function can be used and this input.
     function_handler : str
         Handler module and method (i.e. "module.method")
-    function_description : str
+    function_description : str, optional
         Function description
     function_timeout : int, optional
         Function timeout
@@ -776,6 +965,12 @@ def delete_function(session, function_name):
         _log.error("`function_name` not defined in delete_function")
         return
 
+    # make sure function exists
+    function = get_function(session, function_name)
+    if function is None:
+        _log.debug("Lambda function '{}' does not exist".format(function_name))
+        return
+
     _log.debug("Removing lambda function '{}'".format(function_name))
 
     awslambda = session.client("lambda")
@@ -847,11 +1042,11 @@ def create_role(
     session,
     role_name,
     role_description="PODPAC Role",
-    role_policy_document={},
+    role_policy_document=None,
     role_policies=["arn:aws:iam::aws:policy/AWSLambdaExecute"],
-    role_tags={},
+    role_tags=None,
 ):
-    """Create IAM role to execute podpac lambda function
+    """Create IAM role
     
     Parameters
     ----------
@@ -859,10 +1054,12 @@ def create_role(
         AWS Boto3 Session. See :class:`Session` for creation.
     role_name : str
         Role name to create
+    role_policy_document : dict, optional
+        Role policy document. 
+        Defaults to trust policy allowing role to execute lambda functions.
+        See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.create_role
     role_description : str, optional
         Role description
-    role_policy_document : dict, optional
-        Role policy document. See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.create_role
     role_policies : list, optional
         Role policies
     role_tags : dict, optional
@@ -878,27 +1075,39 @@ def create_role(
 
     # TODO: add checks to make sure role parameters match
     if role is not None:
-        _log.debug("AWS role '{}' already exists. Using existing role.".format(role_name))
+        _log.debug("IAM role '{}' already exists. Using existing role.".format(role_name))
         return role
 
     if role_name is None:
         raise ValueError("`role_name` is None in create_role")
 
+    # default role_policy_document is lambda
+    if role_policy_document is None:
+        role_policy_document = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}
+            ],
+        }
+
     _log.debug("Creating IAM role {} with policies {}".format(role_name, role_policies))
     iam = session.client("iam")
 
+    iam_config = {
+        "RoleName": role_name,
+        "Description": role_description,
+        "AssumeRolePolicyDocument": json.dumps(role_policy_document),
+    }
+
     # for some reason the tags API is different here
-    tags = []
-    for key in role_tags.keys():
-        tags.append({"Key": key, "Value": role_tags[key]})
+    if role_tags is not None:
+        tags = []
+        for key in role_tags.keys():
+            tags.append({"Key": key, "Value": role_tags[key]})
+        iam_config["Tags"] = tags
 
     # create role
-    iam.create_role(
-        RoleName=role_name,
-        AssumeRolePolicyDocument=json.dumps(role_policy_document),
-        Description=role_description,
-        Tags=tags,
-    )
+    iam.create_role(**iam_config)
 
     # attached lambda execution policy
     for policy in role_policies:
@@ -906,7 +1115,7 @@ def create_role(
 
     # get finalized role
     role = get_role(session, role_name)
-    _log.debug("Successfully created AWS role '{}'".format(role_name))
+    _log.debug("Successfully created IAM role '{}'".format(role_name))
 
     return role
 
@@ -931,13 +1140,13 @@ def get_role(session, role_name):
     if role_name is None:
         return None
 
-    _log.debug("Getting role from IAM with name {}".format(role_name))
+    _log.debug("Getting IAM role with name {}".format(role_name))
     iam = session.client("iam")
     try:
         response = iam.get_role(RoleName=role_name)
         return response["Role"]
     except iam.exceptions.NoSuchEntityException as e:
-        _log.debug("Failed to get role from IAM for name {} with exception: {}".format(role_name, e))
+        _log.debug("Failed to get IAM role for name {} with exception: {}".format(role_name, e))
         return None
 
 
@@ -973,6 +1182,8 @@ def delete_role(session, role_name):
     
     Parameters
     ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
     role_name : str
         Role name to delete
     """
@@ -980,7 +1191,13 @@ def delete_role(session, role_name):
         _log.error("`role_name` not defined in delete_role")
         return
 
-    _log.debug("Removing AWS role '{}'".format(role_name))
+    # make sure function exists
+    role = get_role(session, role_name)
+    if role is None:
+        _log.debug("IAM role '{}' does not exist".format(role_name))
+        return
+
+    _log.debug("Removing IAM role '{}'".format(role_name))
     iam = session.client("iam")
 
     # need to detach policies first
@@ -989,7 +1206,7 @@ def delete_role(session, role_name):
         iam.detach_role_policy(RoleName=role_name, PolicyArn=policy["PolicyArn"])
 
     iam.delete_role(RoleName=role_name)
-    _log.debug("Successfully removed AWS role '{}'".format(role_name))
+    _log.debug("Successfully removed IAM role '{}'".format(role_name))
 
 
 # -----------------------------------------------------------------------------------------------------------------
@@ -1230,6 +1447,12 @@ def delete_api(session, api_id):
     """
     if api_id is None:
         _log.error("`api_id` not defined in delete_api")
+        return
+
+    # make sure api exists
+    api = get_api(session, api_id)
+    if api is None:
+        _log.debug("API Gateway '{}' does not exist".format(api_id))
         return
 
     _log.debug("Removing API Gateway with ID {}".format(api_id))
