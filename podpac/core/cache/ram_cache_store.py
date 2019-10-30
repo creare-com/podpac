@@ -84,7 +84,7 @@ class RamCacheStore(CacheStore):
         if self.max_size is not None and self.size >= self.max_size:
             #     # TODO removal policy
             warnings.warn(
-                "Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. No longer caching. Consider increasing this limit or try clearing the cache (e.g. node.rem_cache(key='*', mode='RAM', all_cache=True) to clear ALL cached results in RAM)",
+                "Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. No longer caching. Consider increasing this limit or try clearing the cache (e.g. podpac.utils.clear_cache(mode='RAM') to clear ALL cached results in RAM)",
                 UserWarning,
             )
             return False
