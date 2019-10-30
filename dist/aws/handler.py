@@ -52,8 +52,12 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     bucket = settings_json["S3_BUCKET_NAME"]
 
     # get dependencies path
-    # dependencies are labelled using `git describe`
-    dependencies = "podpac_deps_{}.zip".format(settings_json["PODPAC_VERSION"])
+    if "FUNCTION_DEPENDENCIES_KEY" in settings_json:
+        dependencies = settings_json["FUNCTION_DEPENDENCIES_KEY"]
+    else:
+        dependencies = "podpac_deps_{}.zip".format(
+            settings_json["PODPAC_VERSION"]
+        )  # this should be equivalent to version.semver()
 
     if "Records" in event and event["Records"][0]["eventSource"] == "aws:s3":
         # <start S3 trigger specific>
@@ -100,7 +104,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     # check if file exists
     if pipeline is not None:
         filename = file_key.replace(".json", "." + pipeline["output"]["format"])
-        filename = filename.replace(settings["S3_JSON_FOLDER"], settings["S3_OUTPUT_FOLDER"])
+        filename = filename.replace(settings["S3_INPUT_FOLDER"], settings["S3_OUTPUT_FOLDER"])
         try:
             s3.head_object(Bucket=bucket, Key=filename)
             # Object exists, so we don't have to recompute

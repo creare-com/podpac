@@ -18,7 +18,19 @@ except ImportError:
 
 # Settings Defaults
 DEFAULT_SETTINGS = {
+    # podpac core settings
     "DEBUG": False,  # This flag currently sets self._output on nodes
+    "ROOT_PATH": os.path.join(os.path.expanduser("~"), ".podpac"),
+    "AUTOSAVE_SETTINGS": False,
+    "LOG_TO_FILE": False,
+    "LOG_FILE_PATH": os.path.join(os.path.expanduser("~"), ".podpac", "logs", "podpac.log"),
+    "MULTITHREADING": False,
+    "N_THREADS": 8,
+    "CHUNK_SIZE": None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
+    "ENABLE_UNITS": True,
+    "DEFAULT_CRS": "EPSG:4326",
+    "PODPAC_VERSION": version.semver(),
+    # cache
     "DEFAULT_CACHE": ["ram"],
     "CACHE_OUTPUT_DEFAULT": True,
     "RAM_CACHE_MAX_BYTES": 1e9,  # ~1GB
@@ -29,22 +41,16 @@ DEFAULT_SETTINGS = {
     "RAM_CACHE_ENABLED": True,
     "DISK_CACHE_ENABLED": True,
     "S3_CACHE_ENABLED": True,
-    "ROOT_PATH": os.path.join(os.path.expanduser("~"), ".podpac"),
+    # AWS
     "AWS_ACCESS_KEY_ID": None,
     "AWS_SECRET_ACCESS_KEY": None,
     "AWS_REGION_NAME": None,
     "S3_BUCKET_NAME": None,
-    "S3_JSON_FOLDER": None,
+    "S3_INPUT_FOLDER": None,
     "S3_OUTPUT_FOLDER": None,
-    "AUTOSAVE_SETTINGS": False,
-    "LOG_TO_FILE": False,
-    "LOG_FILE_PATH": os.path.join(os.path.expanduser("~"), ".podpac", "logs", "podpac.log"),
-    "MULTITHREADING": False,
-    "N_THREADS": 8,
-    "CHUNK_SIZE": None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
-    "ENABLE_UNITS": True,
-    "DEFAULT_CRS": "EPSG:4326",
-    "PODPAC_VERSION": version.version(),
+    "FUNCTION_NAME": None,  # name of lambda function to eval
+    "FUNCTION_HANDLER": None,
+    "FUNCTION_DEPENDENCIES_KEY": None,  # path on S3 bucket where function depedencies live
 }
 
 
@@ -122,7 +128,7 @@ class PodpacSettings(dict):
         Path to primary podpac working directory. Defaults to the ``.podpac`` directory in the users home directory.
     S3_BUCKET_NAME : str
         The AWS S3 Bucket to use for cloud based processing.
-    S3_JSON_FOLDER : str
+    S3_INPUT_FOLDER : str
         Folder within :attr:`S3_BUCKET_NAME` to use for cloud based processing.
     S3_OUTPUT_FOLDER : str
         Folder within :attr:`S3_BUCKET_NAME` to use for outputs.
