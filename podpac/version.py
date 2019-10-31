@@ -68,6 +68,6 @@ def version():
         version_full = version_full.replace("-", "+", 1).replace("-", ".")  # Make this consistent with PEP440
 
     except Exception as e:
-        print ("Could not determine PODPAC version from git repo.\n" + str(e))
+        print("Could not determine PODPAC version from git repo.\n" + str(e))
 
     return version_full

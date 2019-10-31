@@ -349,9 +349,10 @@ class DataSource(Node):
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
-        self._requested_source_coordinates, self._requested_source_coordinates_index = self.native_coordinates.intersect(
-            coordinates, outer=True, return_indices=True
-        )
+        (
+            self._requested_source_coordinates,
+            self._requested_source_coordinates_index,
+        ) = self.native_coordinates.intersect(coordinates, outer=True, return_indices=True)
 
         # if requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
         if self._requested_source_coordinates.size == 0:
@@ -365,7 +366,10 @@ class DataSource(Node):
         self._set_interpolation()
 
         # interpolate requested coordinates before getting data
-        self._requested_source_coordinates, self._requested_source_coordinates_index = self._interpolation.select_coordinates(
+        (
+            self._requested_source_coordinates,
+            self._requested_source_coordinates_index,
+        ) = self._interpolation.select_coordinates(
             self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
         )
 
