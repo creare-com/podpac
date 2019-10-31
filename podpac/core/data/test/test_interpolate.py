@@ -487,8 +487,8 @@ class TestInterpolators(object):
             coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=["lat"])
             output = node.eval(coords_dst)
 
-            print(output)
-            print(source)
+            print (output)
+            print (source)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
             assert output.values[0] == source[0] and np.isnan(output.values[1]) and output.values[2] == source[1]
@@ -601,7 +601,7 @@ class TestInterpolators(object):
 
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
-            print(output)
+            print (output)
             assert output.data[0, 0] == 0.0
             assert output.data[0, 3] == 3.0
             assert output.data[1, 3] == 8.0
