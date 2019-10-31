@@ -28,6 +28,7 @@ install:
 
   # install setup.py and dev extras
   - pip install .[devall]
+  - touch podpac/ALLOW_PYTHON_EVAL_EXEC
 
 # cache pip dependencies for faster builds
 cache: pip
