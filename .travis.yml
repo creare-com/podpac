@@ -30,6 +30,7 @@ install:
   - pip install .[devall]
   
   # Allow Python exec and eval functions for unit tests
+  - sudo mkdir /home/travis/.podpac
   - sudo touch /home/travis/.podpac/ALLOW_PYTHON_EVAL_EXEC
   
 # cache pip dependencies for faster builds
