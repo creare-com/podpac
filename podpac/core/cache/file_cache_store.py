@@ -98,8 +98,8 @@ class FileCacheStore(CacheStore):
             # TODO removal policy
             warnings.warn(
                 "Warning: {cache_mode} cache is full. No longer caching. Consider increasing the limit in "
-                "settings.{cache_limit_setting} or try clearing the cache (e.g. node.rem_cache(key='*', "
-                "mode='{cache_mode}', all_cache=True) to clear ALL cached results in {cache_mode} cache)".format(
+                "settings.{cache_limit_setting} or try clearing the cache (e.g. podpac.utils.clear_cache(, "
+                "mode='{cache_mode}') to clear ALL cached results in {cache_mode} cache)".format(
                     cache_mode=self.cache_mode, cache_limit_setting=self._limit_setting
                 ),
                 UserWarning,

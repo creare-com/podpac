@@ -23,6 +23,7 @@ from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
 from podpac.core.utils import common_doc
 from podpac.core.utils import NodeTrait
+from podpac.core.settings import settings
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -272,6 +273,19 @@ class Arithmetic(Algorithm):
     eqn = tl.Unicode().tag(attr=True)
     params = tl.Dict().tag(attr=True)
 
+    def _first_init(self, **kwargs):
+        if not settings["ALLOW_PYTHON_EVAL_EXEC"]:
+            raise PermissionError(
+                "Insecure evaluation of Python code using Arithmetic node has not been allowed. If "
+                "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
+                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
+                    settings._allow_python_eval_exec_paths[-1]
+                )
+                + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
+                "Node definitions."
+            )
+        return kwargs
+
     def init(self):
         if self.eqn == "":
             raise ValueError("Arithmetic eqn cannot be empty")
@@ -303,3 +317,50 @@ class Arithmetic(Algorithm):
         res = res[0].copy()  # Make an xarray object with correct dimensions
         res[:] = result
         return res
+
+
+class Generic(Algorithm):
+    """
+    Generic Algorithm Node that allows arbitrary Python code to be executed.
+    
+    Attributes
+    ----------
+    code : str
+        The multi-line code that will be evaluated. This code should assign "output" to the desired result, and "output"
+        needs to be a "numpy array" or "xarray DataArray"
+    inputs : dict(str: podpac.Node)
+        A dictionary of PODPAC nodes that will serve as the input data for the Python script
+
+    Examples
+    ----------
+    a = SinCoords()
+    b = Arange()
+    code = '''import numpy as np
+    output = np.minimum(a, b)
+    '''
+    generic = Generic(code=code, inputs={'a': a, 'b': b'})
+    """
+
+    code = tl.Unicode().tag(attr=True, readonly=True)
+    inputs = tl.Dict().tag()
+
+    def _first_init(self, **kwargs):
+        if not settings["ALLOW_PYTHON_EVAL_EXEC"]:
+            raise PermissionError(
+                "Insecure evaluation of Python code using Generic node has not been allowed. If this "
+                "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
+                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
+                    settings._allow_python_eval_exec_paths[-1]
+                )
+                + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
+                "Node definitions."
+            )
+        return kwargs
+
+    def algorithm(self, inputs):
+        exec(self.code, inputs)
+        return inputs["output"]
+
+    @property
+    def _inputs(self):
+        return self.inputs

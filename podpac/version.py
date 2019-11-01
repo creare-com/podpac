@@ -65,8 +65,9 @@ def version():
                 return version_full
 
         version_full = subprocess.check_output([git, "describe", "--always"], cwd=CWD).strip().decode("ascii")[:-1]
+        version_full = version_full.replace("-", "+", 1).replace("-", ".")  # Make this consistent with PEP440
 
     except Exception as e:
-        print ("Could not determine PODPAC version from git repo.\n" + str(e))
+        print("Could not determine PODPAC version from git repo.\n" + str(e))
 
     return version_full

@@ -239,10 +239,15 @@ class UnitsDataArray(xr.DataArray):
         return self.transpose(*shared_dims + self_only_dims)
 
     def set(self, value, mask):
-        """ Set the UnitsDataArray data to have a particular value, possibly using a mask
+        """ This function sets the values of the dataarray equal to 'value' where ever mask is True. 
+        This operation happens in-place.
+        
+        Set the UnitsDataArray data to have a particular value, possibly using a mask
         in general, want to handle cases where value is a single value, an array,
         or a UnitsDataArray, and likewise for mask to be None, ndarray, or UnitsDataArray
         For now, focus on case where value is a single value and mask is a UnitsDataArray
+
+
 
         Parameters
         ----------

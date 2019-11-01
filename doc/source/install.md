@@ -17,6 +17,9 @@ For older versions, substitute `latest` in the url with the version number:
 
 Once downloaded, extract the zip file in a folder on your machine.
 We recommend expanding it near the root of your drive (e.g. `C:\PODPAC`) due to long file paths that are part of the installation.
+
+We also recommend **unblocking** the file to speed up the unzipping process, as suggested by this [Microsoft Developer Entry](https://blogs.msdn.microsoft.com/delay/p/unblockingdownloadedfile/).
+
 Once the folder is unzipped:
 
 * To run an IPython session:
