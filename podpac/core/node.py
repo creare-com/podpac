@@ -25,7 +25,7 @@ from podpac.core.utils import JSONEncoder, is_json_serializable
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore
+from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore, make_cache_ctrl
 
 
 COMMON_NODE_DOC = {
@@ -140,6 +140,10 @@ class Node(tl.HasTraits):
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """
+
+        # Shortcut for users to make setting the cache_ctrl simpler:
+        if "cache_ctrl" in kwargs and isinstance(kwargs["cache_ctrl"], list):
+            kwargs["cache_ctrl"] = make_cache_ctrl(kwargs["cache_ctrl"])
 
         tkwargs = self._first_init(**kwargs)
 
@@ -546,7 +550,7 @@ class Node(tl.HasTraits):
         """
 
         from podpac.core.data.datasource import DataSource
-        from podpac.core.algorithm.algorithm import Algorithm
+        from podpac.core.algorithm.algorithm import Algorithm, Generic
         from podpac.core.compositor import Compositor
 
         if len(definition) == 0:
@@ -632,7 +636,7 @@ class Node(tl.HasTraits):
 
             if Algorithm in parents:
                 if "attrs" in d:
-                    if "inputs" in d["attrs"]:
+                    if "inputs" in d["attrs"] and Generic not in parents:
                         raise ValueError(
                             "Invalid definition for node '%s': Algorithm 'attrs' cannot have an 'inputs' property"
                             % name
@@ -640,6 +644,8 @@ class Node(tl.HasTraits):
 
                 if "inputs" in d:
                     inputs = {k: _get_subattr(nodes, name, v) for k, v in d["inputs"].items()}
+                    if Generic in parents:
+                        inputs = {"inputs": inputs}
                     kwargs.update(inputs)
                     whitelist.append("inputs")
 
