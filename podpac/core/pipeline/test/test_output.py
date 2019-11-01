@@ -4,7 +4,7 @@ import os
 import pytest
 
 import podpac
-from podpac.core.algorithm.algorithm import Arange
+from podpac.core.algorithm.utility import Arange
 from podpac.core.pipeline.output import FileOutput, FTPOutput, S3Output, NoOutput, ImageOutput
 
 coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"])

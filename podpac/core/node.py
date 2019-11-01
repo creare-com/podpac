@@ -4,12 +4,10 @@ Node Summary
 
 from __future__ import division, print_function, absolute_import
 
-import os
 import re
 import functools
 import json
 import inspect
-import warnings
 import importlib
 from collections import OrderedDict
 from copy import deepcopy
@@ -550,7 +548,8 @@ class Node(tl.HasTraits):
         """
 
         from podpac.core.data.datasource import DataSource
-        from podpac.core.algorithm.algorithm import Algorithm, Generic
+        from podpac.core.algorithm.algorithm import Algorithm
+        from podpac.core.algorithm.general import Generic
         from podpac.core.compositor import Compositor
 
         if len(definition) == 0:
