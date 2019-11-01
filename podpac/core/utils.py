@@ -233,6 +233,9 @@ class JSONEncoder(json.JSONEncoder):
         elif isinstance(obj, podpac.core.style.Style):
             return obj.definition
 
+        elif isinstance(obj, podpac.data.Interpolation):
+            return obj.definition
+
         # pint Units
         elif isinstance(obj, podpac.core.units.ureg.Unit):
             return str(obj)
