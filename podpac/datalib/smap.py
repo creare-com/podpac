@@ -1074,7 +1074,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
                 auth_session=self.auth_session,
                 entry_map=lambda x: x["producer_granule_id"],
                 short_name=self.product,
-                **kwargs
+                **kwargs,
             )
             if not filenames:
                 return Coordinates([]), [], []

@@ -275,7 +275,7 @@ class Arithmetic(Algorithm):
             raise PermissionError(
                 "Insecure evaluation of Python code using Arithmetic node has not been allowed. If "
                 "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
-                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
+                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in '{}' ".format(
                     settings._allow_python_eval_exec_paths[-1]
                 )
                 + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
@@ -346,7 +346,7 @@ class Generic(Algorithm):
             raise PermissionError(
                 "Insecure evaluation of Python code using Generic node has not been allowed. If this "
                 "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
-                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
+                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in '{}' ".format(
                     settings._allow_python_eval_exec_paths[-1]
                 )
                 + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
@@ -355,7 +355,7 @@ class Generic(Algorithm):
         return kwargs
 
     def algorithm(self, inputs):
-        exec (self.code, inputs)
+        exec(self.code, inputs)
         return inputs["output"]
 
     @property
