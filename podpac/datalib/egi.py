@@ -218,8 +218,8 @@ class EGI(DataSource):
         try:
             self.data = self._read_zips(zip_files)  # reads each file in zip archive and creates single dataarray
         except KeyError as e:
-            print ("This following error may occur if data_key, lat_key, or lon_key is not correct.")
-            print (
+            print("This following error may occur if data_key, lat_key, or lon_key is not correct.")
+            print(
                 "This error may also occur if the specified area bounds are smaller than the dataset pixel size, in"
                 " which case EGI is returning no data."
             )

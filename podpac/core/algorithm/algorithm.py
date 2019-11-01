@@ -355,7 +355,7 @@ class Generic(Algorithm):
         return kwargs
 
     def algorithm(self, inputs):
-        exec (self.code, inputs)
+        exec(self.code, inputs)
         return inputs["output"]
 
     @property
