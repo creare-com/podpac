@@ -29,6 +29,16 @@ By default, every node caches their outputs to memory (RAM). These settings can 
 * S3_CACHE_ENABLED: bool
     * Enable caching to S3. Note that if disabled, some nodes may fail. Defaults to ``True``.
 
+## Clearing Cache
+To globally clear cache use:
+
+```python
+podpac.utils.clear_cache(mode)
+```
+where `mode` can be 'ram', 'disk', or 's3'. This will clean the entire cache store. 
+
+To clear cache for an individual node: 
+
 ## Examples
 
 To globally disable automatic caching of outputs use:
