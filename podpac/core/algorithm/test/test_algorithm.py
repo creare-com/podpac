@@ -120,3 +120,4 @@ class TestGeneric(object):
         b = Arange()
         with pytest.raises(PermissionError):
             node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", inputs={"a": a, "b": b})
+        podpac.settings.set_allow_python_eval_exec(setting)
