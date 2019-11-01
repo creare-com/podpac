@@ -104,7 +104,11 @@ extras_require["devall"] = all_reqs + extras_require["dev"]
 # install pre-commit hooks after setup in develop mode
 class PostDevelopCommand(develop):
     def run(self):
-        subprocess.check_call(["pre-commit", "install"])
+        try:
+            subprocess.check_call(["pre-commit", "install"])
+        except subprocess.CalledProcessError as e:
+            print("Failed to install pre-commit hook")
+            
         develop.run(self)
 
 setup(
