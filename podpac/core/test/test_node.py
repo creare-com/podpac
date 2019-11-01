@@ -615,12 +615,6 @@ class TestSerialization(object):
             ):
                 pipe = Node.from_url(url.format(service=service, layername=layername, layer=layer, params=param))
 
-    def test_pipeline(self):
-        n = Node()
-        with pytest.warns(DeprecationWarning):
-            p = n.pipeline
-        assert isinstance(p, podpac.pipeline.Pipeline)
-
     def test_style(self):
         node = podpac.data.Array(
             source=[10, 20, 30],
