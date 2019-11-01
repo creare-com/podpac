@@ -85,7 +85,7 @@ def interpolation_trait(default_value=INTERPOLATION_DEFAULT, allow_none=True, **
         Union trait for an interpolation definition
     """
     return tl.Union(
-        [tl.Dict(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(Interpolation)],
+        [tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(Interpolation)],
         allow_none=allow_none,
         default_value=default_value,
         **kwargs
