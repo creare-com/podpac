@@ -1,6 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import pytest
+import xarray as xr
 
 import podpac
 from podpac.core.data.datasource import DataSource
@@ -91,13 +92,13 @@ class TestYearSubstituteCoordinates(object):
         node = YearSubstituteCoordinates(source=Arange(), year="2018")
         o = node.eval(coords)
         assert o.time.dt.year.data[0] == 2018
-        assert o["time"].data != coords.coords["time"].data
+        assert o["time"].data != xr.DataArray(coords.coords["time"]).data
 
     def test_year_substitution_orig_coords(self):
         node = YearSubstituteCoordinates(source=Arange(), year="2018", substitute_eval_coords=True)
         o = node.eval(coords)
-        assert o.time.dt.year.data[0] == coords.coords["time"].dt.year.data[0]
-        assert o["time"].data == coords.coords["time"].data
+        assert o.time.dt.year.data[0] == xr.DataArray(coords.coords["time"]).dt.year.data[0]
+        assert o["time"].data == xr.DataArray(coords.coords["time"]).data
 
     def test_year_substitution_missing_coords(self):
         source = Array(
@@ -109,7 +110,7 @@ class TestYearSubstituteCoordinates(object):
         node = YearSubstituteCoordinates(source=source, year="2018")
         o = node.eval(coords)
         assert o.time.dt.year.data[0] == 2018
-        assert o["time"].data != coords.coords["time"].data
+        assert o["time"].data != xr.DataArray(coords.coords["time"]).data
 
     def test_year_substitution_missing_coords_orig_coords(self):
         source = Array(
@@ -121,4 +122,4 @@ class TestYearSubstituteCoordinates(object):
         node = YearSubstituteCoordinates(source=source, year="2018", substitute_eval_coords=True)
         o = node.eval(coords)
         assert o.time.dt.year.data[0] == 2017
-        assert o["time"].data == coords.coords["time"].data
+        assert o["time"].data == xr.DataArray(coords.coords["time"]).data
