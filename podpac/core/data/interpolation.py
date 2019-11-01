@@ -140,8 +140,9 @@ class Interpolation(object):
                 # specify dims
                 if "dims" in interp_definition:
                     if isinstance(interp_definition["dims"], list):
-                        interp_definition["dims"].sort()  # make sure the dims are always in the same order
-                        udims = tuple(interp_definition["dims"])
+                        udims = tuple(
+                            sorted(interp_definition["dims"])
+                        )  # make sure the dims are always in the same order
                     else:
                         raise TypeError('The "dims" key of an interpolation definition must be a list')
                 else:
@@ -371,7 +372,7 @@ class Interpolation(object):
             # if the key is set to (default,), it represents all the remaining dimensions that have not been handled
             # __init__ makes sure that (default,) will always be the last key in on
             if key == ("default",):
-                udims = tuple(source_dims - handled_dims)
+                udims = tuple(sorted(source_dims - handled_dims))
             else:
                 udims = key
 
@@ -390,11 +391,12 @@ class Interpolation(object):
                 # if interpolator can handle all udims
                 if not set(udims) - set(can_handle):
 
-                    # union of dims that can be handled by this interpolator and already supported dims
+                    # save union of dims that can be handled by this interpolator and already supported dims for next iteration
                     handled_dims = handled_dims | set(can_handle)
 
                     # set interpolator to work on that dimension in the interpolator_queue if dim has no interpolator
                     if udims not in interpolator_queue:
+
                         interpolator_queue[udims] = interpolator
 
         # throw error if the source_dims don't encompass all the supported dims
