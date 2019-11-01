@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 import podpac
-from podpac.core.algorithm.algorithm import Arange
+from podpac.core.algorithm.utility import Arange
 from podpac.core.pipeline.pipeline import Pipeline, PipelineError
 from podpac.core.pipeline.output import FileOutput
 
