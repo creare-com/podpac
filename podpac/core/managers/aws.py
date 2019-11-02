@@ -1168,6 +1168,8 @@ def get_bucket(session, bucket_name):
     # init empty object
     bucket = {"name": bucket_name}
 
+    # TODO: this is usually none, even though the bucket has a region. It could either be a bug
+    # in getting the region/LocationConstraint, or just misleading
     # get location constraint. this will be None for no location constraint
     bucket["region"] = s3.get_bucket_location(Bucket=bucket_name)["LocationConstraint"]
 
