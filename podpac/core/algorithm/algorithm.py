@@ -379,11 +379,18 @@ class Mask(Algorithm):
     bool_op : enum, optional
         Default value is '=='. One of ['==', '<', '<=', '>', '>=']
     in_place : bool, optional
-        Default is False. If True, the source array will be changed in placem which could affect the value of the source 
+        Default is False. If True, the source array will be changed in-place, which could affect the value of the source 
         in other parts of the pipeline. 
         
     Examples
     ----------
+    # Mask data from a boolean data node using the default behavior.
+    # Create a boolean masked Node (as an example)
+    b = Arithmetic(A=SinCoords(), eqn='A>0)  
+    # Create the source node
+    a = Arange()  
+    masked = Mask(source=a, mask=b)
+    
     # Create a node that make the following substitution "a[b > 0] = np.nan"
     a = Arange()
     b = SinCoords()
@@ -396,9 +403,9 @@ class Mask(Algorithm):
 
     source = NodeTrait()
     mask = NodeTrait()
-    masked_val = tl.Float(np.nan).tag(attr=True, readonly=True)
-    bool_val = tl.Float(1).tag(attr=True, readonly=True)
-    bool_op = tl.Enum(["==", "<", "<=", ">", ">="], default_value="==").tag(attr=True, readonly=True)
+    masked_val = tl.Float(np.nan).tag(attr=True)
+    bool_val = tl.Float(1).tag(attr=True)
+    bool_op = tl.Enum(["==", "<", "<=", ">", ">="], default_value="==").tag(attr=True)
     in_place = tl.Bool(False).tag(attr=True)
 
     def algorithm(self, inputs):
