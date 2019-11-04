@@ -364,7 +364,7 @@ class Generic(Algorithm):
 
 
 class Mask(Algorithm):
-    """ Masks the `source` based on a boolean expression involving the `mask`.
+    """ Masks the `source` based on a boolean expression involving the `mask` (i.e. source[mask <bool_op> <bool_val> ] = <masked_val>). For a normal boolean mask input, default values for `bool_op`, `bool_val` and `masked_val` can be used.
     
     Attributes
     ----------
