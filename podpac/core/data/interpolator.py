@@ -329,7 +329,7 @@ class Interpolator(tl.HasTraits):
                     source_data.loc[src_idx],
                     eval_coordinates,
                     output_data.loc[idx],
-                    **kwargs
+                    **kwargs,
                 )
         else:
             return func(udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs)
