@@ -124,16 +124,90 @@ class Lambda(Node):
     # role parameters
     function_role_name = tl.Unicode(default_value="podpac-lambda-autogen")
     function_role_description = tl.Unicode(default_value="PODPAC Lambda Role")
-    function_role_policies = tl.List(
-        default_value=["arn:aws:iam::aws:policy/AWSLambdaExecute"]
-    )  # TODO: This provides read/write access to ALL S3 buckets!!
-    function_role_policy_document = tl.Dict()  # see default below
+    function_role_policy_document = tl.Dict(allow_none=True)  # see default below - can be none
+    function_role_policy_arns = tl.List(
+        default_value=[
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ]  # allows read/write to cloudwatch
+    )
+    function_role_assume_policy_document = tl.Dict()  # see default below
     function_role_tags = tl.Dict()  # see default below
     _function_role_arn = tl.Unicode(default_value=None, allow_none=True)
     _role = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
 
     @tl.default("function_role_policy_document")
     def _function_role_policy_document_default(self):
+        # enable role to be run by lambda - this document is defined by AWS
+        return {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:PutAnalyticsConfiguration",
+                        "s3:GetObjectVersionTagging",
+                        "s3:CreateBucket",
+                        "s3:ReplicateObject",
+                        "s3:GetObjectAcl",
+                        "s3:DeleteBucketWebsite",
+                        "s3:PutLifecycleConfiguration",
+                        "s3:GetObjectVersionAcl",
+                        "s3:DeleteObject",
+                        "s3:GetBucketPolicyStatus",
+                        "s3:GetBucketWebsite",
+                        "s3:PutReplicationConfiguration",
+                        "s3:GetBucketNotification",
+                        "s3:PutBucketCORS",
+                        "s3:GetReplicationConfiguration",
+                        "s3:ListMultipartUploadParts",
+                        "s3:PutObject",
+                        "s3:GetObject",
+                        "s3:PutBucketNotification",
+                        "s3:PutBucketLogging",
+                        "s3:GetAnalyticsConfiguration",
+                        "s3:GetObjectVersionForReplication",
+                        "s3:GetLifecycleConfiguration",
+                        "s3:ListBucketByTags",
+                        "s3:GetInventoryConfiguration",
+                        "s3:GetBucketTagging",
+                        "s3:PutAccelerateConfiguration",
+                        "s3:DeleteObjectVersion",
+                        "s3:GetBucketLogging",
+                        "s3:ListBucketVersions",
+                        "s3:RestoreObject",
+                        "s3:ListBucket",
+                        "s3:GetAccelerateConfiguration",
+                        "s3:GetBucketPolicy",
+                        "s3:PutEncryptionConfiguration",
+                        "s3:GetEncryptionConfiguration",
+                        "s3:GetObjectVersionTorrent",
+                        "s3:AbortMultipartUpload",
+                        "s3:GetBucketRequestPayment",
+                        "s3:GetObjectTagging",
+                        "s3:GetMetricsConfiguration",
+                        "s3:DeleteBucket",
+                        "s3:PutBucketVersioning",
+                        "s3:GetBucketPublicAccessBlock",
+                        "s3:ListBucketMultipartUploads",
+                        "s3:PutMetricsConfiguration",
+                        "s3:GetBucketVersioning",
+                        "s3:GetBucketAcl",
+                        "s3:PutInventoryConfiguration",
+                        "s3:GetObjectTorrent",
+                        "s3:PutBucketWebsite",
+                        "s3:PutBucketRequestPayment",
+                        "s3:GetBucketCORS",
+                        "s3:GetBucketLocation",
+                        "s3:ReplicateDelete",
+                        "s3:GetObjectVersion",
+                    ],
+                    "Resource": ["arn:aws:s3:::{}".format(self.function_s3_bucket)],
+                }
+            ],
+        }
+
+    @tl.default("function_role_assume_policy_document")
+    def _function_role_assume_policy_document_default(self):
         # enable role to be run by lambda - this document is defined by AWS
         return {
             "Version": "2012-10-17",
@@ -451,6 +525,7 @@ class Lambda(Node):
         delete_function(self.session, self.function_name)
 
         # reset internals
+        self._function = None
         self._function_arn = None
         self._function_last_modified = None
         self._function_version = None
@@ -502,7 +577,8 @@ class Lambda(Node):
             self.function_role_name,
             self.function_role_description,
             self.function_role_policy_document,
-            self.function_role_policies,
+            self.function_role_policy_arns,
+            self.function_role_assume_policy_document,
             self.function_role_tags,
         )
 
@@ -541,7 +617,7 @@ class Lambda(Node):
             "Principal": {"Service": "lambda.amazonaws.com"},
             "Action": "sts:AssumeRole",
         }
-        for s in self.function_role_policy_document["Statement"]:
+        for s in self.function_role_assume_policy_document["Statement"]:
             if json.dumps(s) == json.dumps(valid_document):
                 document_valid = True
 
@@ -565,7 +641,10 @@ class Lambda(Node):
         delete_role(self.session, self.function_role_name)
 
         # reset members
+        self._role = None
         self._function_role_arn = None
+
+        # TODO: handle defaults after deletion
 
     # S3 Creation
     def create_bucket(self):
@@ -576,6 +655,9 @@ class Lambda(Node):
 
         if self._function_arn is None:
             raise ValueError("Lambda function must be created before creating a bucket")
+
+        if self._function_role_arn is None:
+            raise ValueError("Function role must be created before creating a bucket")
 
         # create bucket
         bucket = create_bucket(
@@ -652,6 +734,7 @@ class Lambda(Node):
         delete_bucket(self.session, self.function_s3_bucket, delete_objects=delete_objects)
 
         # TODO: update manage attributes here?
+        self._bucket = None
 
     # API Gateway
     def create_api(self):
@@ -746,6 +829,7 @@ class Lambda(Node):
         delete_api(self.session, self.function_api_name)
 
         # reset
+        self._api = None
         self._function_api_id = None
         self._function_api_url = None
         self._function_api_resource_id = None
@@ -818,9 +902,10 @@ class Lambda(Node):
         if role is not None:
             self.function_role_name = role["RoleName"]
             self.function_role_description = role["Description"]
-            self.function_role_policy_document = role["AssumeRolePolicyDocument"]
+            self.function_role_assume_policy_document = role["AssumeRolePolicyDocument"]
             self._function_role_arn = role["Arn"]
-            self.function_role_policies = role["policies"]
+            self.function_role_policy_arns = role["policy_arns"]
+            self.function_role_policy_document = role["policy_document"]
             self.function_role_tags = role["tags"]
 
             # store a copy of the whole response
@@ -1519,7 +1604,8 @@ def create_role(
     role_name,
     role_description="PODPAC Role",
     role_policy_document=None,
-    role_policies=["arn:aws:iam::aws:policy/AWSLambdaBasicExecutionRole"],
+    role_policy_arns=[],
+    role_assume_policy_document=None,
     role_tags=None,
 ):
     """Create IAM role
@@ -1530,17 +1616,20 @@ def create_role(
         AWS Boto3 Session. See :class:`Session` for creation.
     role_name : str
         Role name to create
+    role_description : str, optional
+        Role description
     role_policy_document : dict, optional
+        Role policy document allowing role access to AWS resources
+        See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.put_role
+    role_policy_arns : list, optional
+        List of role policy ARN's to attach to role
+    role_assume_policy_document : None, optional
         Role policy document. 
         Defaults to trust policy allowing role to execute lambda functions.
         See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.create_role
-    role_description : str, optional
-        Role description
-    role_policies : list, optional
-        Role policies. Defaults to including the AWSLambdaBasicExecutionRole managed policy.
-        This policy gives the role read/write access to the CloudWatch logs.
     role_tags : dict, optional
         Role tags
+    
     
     Returns
     -------
@@ -1558,22 +1647,22 @@ def create_role(
     if role_name is None:
         raise ValueError("`role_name` is None in create_role")
 
-    # default role_policy_document is lambda
-    if role_policy_document is None:
-        role_policy_document = {
+    # default role_assume_policy_document is lambda
+    if role_assume_policy_document is None:
+        role_assume_policy_document = {
             "Version": "2012-10-17",
             "Statement": [
                 {"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}
             ],
         }
 
-    _log.debug("Creating IAM role {} with policies {}".format(role_name, role_policies))
+    _log.debug("Creating IAM role {}".format(role_name))
     iam = session.client("iam")
 
     iam_config = {
         "RoleName": role_name,
         "Description": role_description,
-        "AssumeRolePolicyDocument": json.dumps(role_policy_document),
+        "AssumeRolePolicyDocument": json.dumps(role_assume_policy_document),
     }
 
     # for some reason the tags API is different here
@@ -1586,8 +1675,13 @@ def create_role(
     # create role
     iam.create_role(**iam_config)
 
-    # attached lambda execution policy
-    for policy in role_policies:
+    # add role policy document
+    if role_policy_document is not None:
+        policy_name = "{}-policy".format(role_name)
+        iam.put_role_policy(RoleName=role_name, PolicyName=policy_name, PolicyDocument=json.dumps(role_policy_document))
+
+    # attached role polcy ARNs
+    for policy in role_policy_arns:
         iam.attach_role_policy(RoleName=role_name, PolicyArn=policy)
 
     # get finalized role
@@ -1612,7 +1706,8 @@ def get_role(session, role_name):
     dict
         Dict returned from AWS defining role.
         Based on the 'Role' key in https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam.html#IAM.Client.get_role
-        Adds "policies" key to list attached policies.
+        Adds "policy_document" key to show inline policy document.
+        Adds "policy_arns" key to list attached policies.
         Adds "tags" key to list function tags
         Returns None if no role is found
     """
@@ -1629,12 +1724,20 @@ def get_role(session, role_name):
         _log.debug("Failed to get IAM role for name {} with exception: {}".format(role_name, e))
         return None
 
-    # get policies
+    # get inline policies
+    try:
+        policy_name = "{}-policy".format(role_name)
+        response = iam.get_role_policy(RoleName=role_name, PolicyName=policy_name)
+        role["policy_document"] = response["PolicyDocument"]
+    except botocore.exceptions.ClientError:
+        role["policy_document"] = None
+
+    # get attached policies
     try:
         response = iam.list_attached_role_policies(RoleName=role_name)
-        role["policies"] = [policy["PolicyArn"] for policy in response["AttachedPolicies"]]
+        role["policy_arns"] = [policy["PolicyArn"] for policy in response["AttachedPolicies"]]
     except botocore.exceptions.ClientError:
-        role["policies"] = []
+        role["policy_arns"] = []
 
     # get tags - reverse tags into dict
     tags = {}
@@ -1699,6 +1802,13 @@ def delete_role(session, role_name):
 
     _log.debug("Removing IAM role '{}'".format(role_name))
     iam = session.client("iam")
+
+    # need to remove inline policies first, if they exist
+    try:
+        policy_name = "{}-policy".format(role_name)
+        iam.delete_role_policy(RoleName=role_name, PolicyName=policy_name)
+    except botocore.exceptions.ClientError:
+        pass
 
     # need to detach policies first
     response = iam.list_attached_role_policies(RoleName=role_name)
