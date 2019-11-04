@@ -90,12 +90,12 @@ class Lambda(Node):
     function_source_dist_zip = tl.Unicode(
         default_value=None, allow_none=True
     )  # override published podpac archive with local file
-    function_source_dependencies_zip = tl.Unicode(  # NOT IMPLEMENTED YET
+    function_source_dependencies_zip = tl.Unicode(
         default_value=None, allow_none=True
     )  # override published podpac deps archive with local file
     function_source_bucket = tl.Unicode(default_value="podpac-dist", allow_none=True)
-    function_source_dist_key = tl.Unicode(default_value="{}/podpac_dist.zip".format(version.semver()))
-    function_source_dependencies_key = tl.Unicode(default_value="{}/podpac_deps.zip".format(version.semver()))
+    function_source_dist_key = tl.Unicode()  # see default below
+    function_source_dependencies_key = tl.Unicode()  # see default below
     _function_arn = tl.Unicode(default_value=None, allow_none=True)
     _function_last_modified = tl.Unicode(default_value=None, allow_none=True)
     _function_version = tl.Unicode(default_value=None, allow_none=True)
@@ -116,6 +116,22 @@ class Lambda(Node):
             settings["FUNCTION_HANDLER"] = "handler.handler"
 
         return settings["FUNCTION_HANDLER"]
+
+    @tl.default("function_source_dist_key")
+    def _function_source_dist_key_default(self):
+        v = version.version()
+        if "+" in v:
+            v = "dev"
+
+        return "{}/podpac_dist.zip".format(v)
+
+    @tl.default("function_source_dependencies_key")
+    def _function_source_dependencies_key_default(self):
+        v = version.version()
+        if "+" in v:
+            v = "dev"
+
+        return "{}/podpac_deps.zip".format(v)
 
     @property
     def function(self):
@@ -379,6 +395,8 @@ class Lambda(Node):
         # check to see if setup is valid after creation
         # TODO: remove this in favor of something more granular??
         self.validate(raise_exceptions=True)
+
+        _log.info("Successfully built AWS resources to support function {}".format(self.function_name))
 
     def validate(self, raise_exceptions=False):
         """
@@ -665,11 +683,21 @@ class Lambda(Node):
         )
         self._set_bucket(bucket)
 
-        # TODO: add support for local zip file to be uploaded
         # add podpac deps to bucket for version
-        s3resource = self.session.resource("s3")
-        copy_source = {"Bucket": self.function_source_bucket, "Key": self.function_source_dependencies_key}
-        s3resource.meta.client.copy(copy_source, self.function_s3_bucket, self.function_s3_dependencies_key)
+        # copy from user supplied dependencies
+        if self.function_source_dependencies_zip is not None:
+            put_object(
+                self.session,
+                self.function_s3_bucket,
+                self.function_s3_dependencies_key,
+                file=self.function_source_dependencies_zip,
+            )
+
+        # copy resources from podpac dist
+        else:
+            s3resource = self.session.resource("s3")
+            copy_source = {"Bucket": self.function_source_bucket, "Key": self.function_source_dependencies_key}
+            s3resource.meta.client.copy(copy_source, self.function_s3_bucket, self.function_s3_dependencies_key)
 
         # add permission to invoke call lambda - this feels brittle due to source_arn
         statement_id = re.sub("[-_.]", "", self.function_s3_bucket)
@@ -1027,6 +1055,8 @@ class Lambda(Node):
     def __repr__(self):
         rep = "{}\n".format(str(self.__class__.__name__))
         rep += "\tName: {}\n".format(self.function_name)
+        rep += "\tBucket: {}\n".format(self.function_s3_bucket)
+        rep += "\tRole: {}\n".format(self.function_role_name)
 
         if self._function_api_url is not None:
             rep += "\tAPI Url: {}\n".format(self._function_api_url)
@@ -1193,7 +1223,7 @@ def put_object(session, bucket_name, bucket_path, file=None, object_acl="private
     file : str | bytes, optional
         Path to local object or b'bytes'. If none, this will create a directory in bucket.
     object_acl : str, optional
-        Object ACL.
+        Object ACL. Defaults to 'private'
         One of: 'private'|'public-read'|'public-read-write'|'authenticated-read'|'aws-exec-read'|'bucket-owner-read'|'bucket-owner-full-control'
     object_metadata : dict, optional
         Metadata to add to object
