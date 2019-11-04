@@ -127,7 +127,7 @@ class Generic(GenericInputs):
     code = '''import numpy as np
     output = np.minimum(a, b)
     '''
-    generic = Generic(code=code, inputs={'a': a, 'b': b'})
+    generic = Generic(code=code, a=a, b=b)
     """
 
     code = tl.Unicode().tag(attr=True, readonly=True)
