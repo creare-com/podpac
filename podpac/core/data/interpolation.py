@@ -85,7 +85,7 @@ def interpolation_trait(default_value=INTERPOLATION_DEFAULT, allow_none=True, **
         Union trait for an interpolation definition
     """
     return tl.Union(
-        [tl.Dict(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(Interpolation)],
+        [tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(Interpolation)],
         allow_none=allow_none,
         default_value=default_value,
         **kwargs,
@@ -116,7 +116,7 @@ class Interpolation(object):
 
     def __init__(self, definition=INTERPOLATION_DEFAULT):
 
-        self.definition = definition
+        self.definition = deepcopy(definition)
         self.config = OrderedDict()
 
         # if definition is None, set to default
@@ -126,37 +126,35 @@ class Interpolation(object):
             self.definition = INTERPOLATION_DEFAULT
 
         # set each dim to interpolator definition
-        if isinstance(definition, dict):
+        if isinstance(definition, (dict, list)):
 
-            # covert input to an ordered dict to preserve order of dimensions
-            definition = OrderedDict(definition)
+            # convert dict to list
+            if isinstance(definition, dict):
+                definition = [definition]
 
-            for key in iter(definition):
+            for interp_definition in definition:
 
-                # if dict is a default definition, skip the rest of the handling
-                if not isinstance(key, tuple):
-                    if key in ["method", "params", "interpolators"]:
-                        method = self._parse_interpolation_method(definition)
-                        self._set_interpolation_method(("default",), method)
-                        break
+                # get interpolation method dict
+                method = self._parse_interpolation_method(interp_definition)
 
-                # if key is not a tuple, convert it to one and set it to the udims key
-                if not isinstance(key, tuple):
-                    udims = (key,)
+                # specify dims
+                if "dims" in interp_definition:
+                    if isinstance(interp_definition["dims"], list):
+                        udims = tuple(
+                            sorted(interp_definition["dims"])
+                        )  # make sure the dims are always in the same order
+                    else:
+                        raise TypeError('The "dims" key of an interpolation definition must be a list')
                 else:
-                    udims = key
+                    udims = ("default",)
 
                 # make sure udims are not already specified in config
                 for config_dims in iter(self.config):
                     if set(config_dims) & set(udims):
                         raise InterpolationException(
                             'Dimensions "{}" cannot be defined '.format(udims)
-                            + "multiple times in interpolation definition {}".format(definition)
+                            + "multiple times in interpolation definition {}".format(interp_definition)
                         )
-
-                # get interpolation method
-                method = self._parse_interpolation_method(definition[key])
-
                 # add all udims to definition
                 self._set_interpolation_method(udims, method)
 
@@ -173,7 +171,7 @@ class Interpolation(object):
         else:
             raise TypeError(
                 '"{}" is not a valid interpolation definition type. '.format(definition)
-                + "Interpolation definiton must be a string or dict"
+                + "Interpolation definiton must be a string or list of dicts"
             )
 
         # make sure ('default',) is always the last entry in config dictionary
@@ -374,7 +372,7 @@ class Interpolation(object):
             # if the key is set to (default,), it represents all the remaining dimensions that have not been handled
             # __init__ makes sure that (default,) will always be the last key in on
             if key == ("default",):
-                udims = tuple(source_dims - handled_dims)
+                udims = tuple(sorted(source_dims - handled_dims))
             else:
                 udims = key
 
@@ -393,11 +391,12 @@ class Interpolation(object):
                 # if interpolator can handle all udims
                 if not set(udims) - set(can_handle):
 
-                    # union of dims that can be handled by this interpolator and already supported dims
+                    # save union of dims that can be handled by this interpolator and already supported dims for next iteration
                     handled_dims = handled_dims | set(can_handle)
 
                     # set interpolator to work on that dimension in the interpolator_queue if dim has no interpolator
                     if udims not in interpolator_queue:
+
                         interpolator_queue[udims] = interpolator
 
         # throw error if the source_dims don't encompass all the supported dims
