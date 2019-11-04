@@ -33,6 +33,9 @@ class GenericInputs(Algorithm):
 
     def _first_init(self, **kwargs):
         trait_names = self.trait_names()
+        for key in kwargs:
+            if key in trait_names and isinstance(kwargs[key], Node):
+                raise RuntimeError("Trait '%s' is reserved and cannot be used as an Generic Algorithm input" % key)
         input_keys = [key for key in kwargs if key not in trait_names and isinstance(kwargs[key], Node)]
         inputs = {key: kwargs.pop(key) for key in input_keys}
         return super(GenericInputs, self)._first_init(inputs=inputs, **kwargs)

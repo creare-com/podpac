@@ -331,6 +331,13 @@ class PodpacSettings(dict):
                     pass
             self["ALLOW_PYTHON_EVAL_EXEC"] = False
 
+    def __enter__(self):
+        self.original = {k: v for k, v in self.items()}
+
+    def __exit__(self, type, value, traceback):
+        for k, v in self.original.items():
+            self[k] = v
+
 
 # load settings dict when module is loaded
 settings = PodpacSettings()
