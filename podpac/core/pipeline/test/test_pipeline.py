@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 import podpac
-from podpac.core.algorithm.algorithm import Arange
+from podpac.core.algorithm.utility import Arange
 from podpac.core.pipeline.pipeline import Pipeline, PipelineError
 from podpac.core.pipeline.output import FileOutput
 
@@ -164,9 +164,9 @@ class TestPipeline(object):
         podpac.core.settings.settings["DEBUG"] = False
         with pytest.warns(DeprecationWarning):
             pipeline = Pipeline(json=s)
-        assert pipeline.node.A is pipeline.node.B.source
+        assert pipeline.node.inputs["A"] is pipeline.node.inputs["B"].source
         podpac.core.settings.settings["DEBUG"] = True
         with pytest.warns(DeprecationWarning):
             pipeline = Pipeline(json=s)
-        assert pipeline.node.A is not pipeline.node.B.source
+        assert pipeline.node.inputs["A"] is not pipeline.node.inputs["B"].source
         podpac.core.settings.settings["DEBUG"] = debug

@@ -4,12 +4,10 @@ Node Summary
 
 from __future__ import division, print_function, absolute_import
 
-import os
 import re
 import functools
 import json
 import inspect
-import warnings
 import importlib
 from collections import OrderedDict
 from copy import deepcopy
@@ -550,7 +548,7 @@ class Node(tl.HasTraits):
         """
 
         from podpac.core.data.datasource import DataSource
-        from podpac.core.algorithm.algorithm import Algorithm, Generic
+        from podpac.core.algorithm.algorithm import Algorithm
         from podpac.core.compositor import Compositor
 
         if len(definition) == 0:
@@ -636,7 +634,7 @@ class Node(tl.HasTraits):
 
             if Algorithm in parents:
                 if "attrs" in d:
-                    if "inputs" in d["attrs"] and Generic not in parents:
+                    if "inputs" in d["attrs"]:
                         raise ValueError(
                             "Invalid definition for node '%s': Algorithm 'attrs' cannot have an 'inputs' property"
                             % name
@@ -644,8 +642,6 @@ class Node(tl.HasTraits):
 
                 if "inputs" in d:
                     inputs = {k: _get_subattr(nodes, name, v) for k, v in d["inputs"].items()}
-                    if Generic in parents:
-                        inputs = {"inputs": inputs}
                     kwargs.update(inputs)
                     whitelist.append("inputs")
 
