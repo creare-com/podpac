@@ -4,6 +4,8 @@ General-purpose Algorithm Nodes.
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import warnings
+
 import numpy as np
 import xarray as xr
 import traitlets as tl
@@ -20,28 +22,24 @@ from podpac.core.settings import settings
 from podpac.core.algorithm.algorithm import Algorithm
 
 
-class Arithmetic(Algorithm):
-    """Create a simple point-by-point computation of up to 7 different input nodes.
-    
-    Attributes
-    ----------
-    A : podpac.Node
-        An input node that can be used in a computation. 
-    B : podpac.Node
-        An input node that can be used in a computation. 
-    C : podpac.Node
-        An input node that can be used in a computation. 
-    D : podpac.Node
-        An input node that can be used in a computation. 
-    E : podpac.Node
-        An input node that can be used in a computation. 
-    F : podpac.Node
-        An input node that can be used in a computation. 
-    G : podpac.Node
-        An input node that can be used in a computation. 
-    eqn : str
-        An equation stating how the datasources can be combined. 
-        Parameters may be specified in {}'s
+class GenericInputs(Algorithm):
+    """Base class for Algorithms that accept generic named inputs."""
+
+    inputs = tl.Dict()
+
+    @property
+    def _inputs(self):
+        return self.inputs
+
+    def _first_init(self, **kwargs):
+        trait_names = self.trait_names()
+        input_keys = [key for key in kwargs if key not in trait_names and isinstance(kwargs[key], Node)]
+        inputs = {key: kwargs.pop(key) for key in input_keys}
+        return super(GenericInputs, self)._first_init(inputs=inputs, **kwargs)
+
+
+class Arithmetic(GenericInputs):
+    """Create a simple point-by-point computation using named input nodes.
         
     Examples
     ----------
@@ -50,19 +48,12 @@ class Arithmetic(Algorithm):
     arith = Arithmetic(A=a, B=b, eqn = 'A * B + {offset}', params={'offset': 1})
     """
 
-    A = NodeTrait()
-    B = NodeTrait(allow_none=True)
-    C = NodeTrait(allow_none=True)
-    D = NodeTrait(allow_none=True)
-    E = NodeTrait(allow_none=True)
-    F = NodeTrait(allow_none=True)
-    G = NodeTrait(allow_none=True)
     eqn = tl.Unicode().tag(attr=True)
     params = tl.Dict().tag(attr=True)
 
-    def _first_init(self, **kwargs):
+    def init(self):
         if not settings["ALLOW_PYTHON_EVAL_EXEC"]:
-            raise PermissionError(
+            warnings.warn(
                 "Insecure evaluation of Python code using Arithmetic node has not been allowed. If "
                 "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
                 "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
@@ -71,11 +62,11 @@ class Arithmetic(Algorithm):
                 + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
-        return kwargs
 
-    def init(self):
         if self.eqn == "":
             raise ValueError("Arithmetic eqn cannot be empty")
+
+        super(Arithmetic, self).init()
 
     def algorithm(self, inputs):
         """ Compute the algorithms equation
@@ -91,9 +82,20 @@ class Arithmetic(Algorithm):
             Description
         """
 
+        if not settings["ALLOW_PYTHON_EVAL_EXEC"]:
+            raise PermissionError(
+                "Insecure evaluation of Python code using Arithmetic node has not been allowed. If "
+                "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
+                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
+                    settings._allow_python_eval_exec_paths[-1]
+                )
+                + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
+                "Node definitions."
+            )
+
         eqn = self.eqn.format(**self.params)
 
-        fields = [f for f in "ABCDEFG" if getattr(self, f) is not None]
+        fields = self.inputs.keys()
         res = xr.broadcast(*[inputs[f] for f in fields])
         f_locals = dict(zip(fields, res))
 
@@ -106,7 +108,7 @@ class Arithmetic(Algorithm):
         return res
 
 
-class Generic(Algorithm):
+class Generic(GenericInputs):
     """
     Generic Algorithm Node that allows arbitrary Python code to be executed.
     
@@ -129,9 +131,21 @@ class Generic(Algorithm):
     """
 
     code = tl.Unicode().tag(attr=True, readonly=True)
-    inputs = tl.Dict()
 
-    def _first_init(self, **kwargs):
+    def init(self):
+        if not settings["ALLOW_PYTHON_EVAL_EXEC"]:
+            warnings.warn(
+                "Insecure evaluation of Python code using Generic node has not been allowed. If this "
+                "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
+                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
+                    settings._allow_python_eval_exec_paths[-1]
+                )
+                + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
+                "Node definitions."
+            )
+        super(Generic, self).init()
+
+    def algorithm(self, inputs):
         if not settings["ALLOW_PYTHON_EVAL_EXEC"]:
             raise PermissionError(
                 "Insecure evaluation of Python code using Generic node has not been allowed. If this "
@@ -142,31 +156,5 @@ class Generic(Algorithm):
                 + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
-        return kwargs
-
-    def algorithm(self, inputs):
         exec (self.code, inputs)
         return inputs["output"]
-
-    @property
-    def _inputs(self):
-        return self.inputs
-
-
-class CombineOutputs(Algorithm):
-    """ Combine nodes into a single node with multiple outputs."""
-
-    inputs = tl.Dict()
-
-    @property
-    def _inputs(self):
-        return self.inputs
-
-    @tl.default("outputs")
-    def _default_outputs(self):
-        return list(self.inputs.keys())
-
-    def algorithm(self, inputs):
-        data = np.array([inputs[key].data for key in self.inputs])
-        data = np.moveaxis(data, 0, -1)
-        return data

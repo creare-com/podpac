@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 import podpac
 from podpac.core.algorithm.utility import Arange
-from podpac.core.algorithm.general import Arithmetic
+from podpac.core.algorithm.generic import Arithmetic
 from podpac.core.algorithm.algorithm import Algorithm
 
 
@@ -28,7 +28,7 @@ class TestAlgorithm(object):
         assert "attrs" in d
 
         # base (node, params)
-        assert d["node"] == "core.algorithm.general.Arithmetic"
+        assert d["node"] == "core.algorithm.generic.Arithmetic"
         assert d["attrs"]["eqn"] == "A+B"
 
         # inputs
