@@ -98,7 +98,7 @@ class PodpacSettings(dict):
     DEFAULT_CACHE : list
         Defines a default list of cache stores in priority order. Defaults to `['ram']`.
     CACHE_OUTPUT_DEFAULT : bool
-        Default value for node ``cache_output`` trait.
+        Default value for node ``cache_output`` trait. If True, the outputs of nodes (eval) will be automatically cached.
     RAM_CACHE_MAX_BYTES : int
         Maximum RAM cache size in bytes. 
         Note, for RAM cache only, the limit is applied to the total amount of RAM used by the python process; 
@@ -310,6 +310,32 @@ class PodpacSettings(dict):
 
         if self["S3_CACHE_DIR"] is None:
             self["S3_CACHE_DIR"] = DEFAULT_SETTINGS["S3_CACHE_DIR"]
+
+        # This setting cannot come from the saved JSON file on disk but requires a file
+        # to exist at the root path of the code.
+        self["ALLOW_PYTHON_EVAL_EXEC"] = max([os.path.exists(p) for p in self._allow_python_eval_exec_paths])
+
+    @property
+    def _allow_python_eval_exec_paths(self):
+        return (
+            os.path.join(os.getcwd(), "ALLOW_PYTHON_EVAL_EXEC"),
+            os.path.join(os.path.dirname(__file__), "..", "ALLOW_PYTHON_EVAL_EXEC"),
+            os.path.join(self["ROOT_PATH"], "ALLOW_PYTHON_EVAL_EXEC"),
+        )
+
+    def set_allow_python_eval_exec(self, allow=False):
+        if allow:
+            f = open(self._allow_python_eval_exec_paths[-1], "w")
+            f.write("")
+            f.close()
+            self["ALLOW_PYTHON_EVAL_EXEC"] = True
+        else:
+            for p in self._allow_python_eval_exec_paths:
+                try:
+                    os.remove(p)
+                except FileNotFoundError as e:
+                    pass
+            self["ALLOW_PYTHON_EVAL_EXEC"] = False
 
 
 # load settings dict when module is loaded

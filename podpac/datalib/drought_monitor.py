@@ -51,13 +51,13 @@ class DroughtCategory(Algorithm):
         d4 = inputs["d4"]
 
         return (
-            (sm > 0) * (sm < d4) * ((sm - 0) / (d4 - 0) + 0)
-            + (sm > d4) * (sm < d3) * ((sm - d4) / (d3 - d4) + 1)
-            + (sm > d3) * (sm < d2) * ((sm - d3) / (d2 - d3) + 2)
-            + (sm > d2) * (sm < d1) * ((sm - d2) / (d1 - d2) + 3)
-            + (sm > d1) * (sm < d0) * ((sm - d1) / (d0 - d1) + 4)
-            + (sm > d0) * (sm < 0.75) * ((sm - d0) / (0.75 - d1) + 5)
-            + (sm > d0) * 6
+            (sm >= 0) * (sm < d4) * ((sm - 0) / (d4 - 0) + 0)
+            + (sm >= d4) * (sm < d3) * ((sm - d4) / (d3 - d4) + 1)
+            + (sm >= d3) * (sm < d2) * ((sm - d3) / (d2 - d3) + 2)
+            + (sm >= d2) * (sm < d1) * ((sm - d2) / (d1 - d2) + 3)
+            + (sm >= d1) * (sm < d0) * ((sm - d1) / (d0 - d1) + 4)
+            + (sm >= d0) * (sm < 0.75) * ((sm - d0) / (0.75 - d1) + 5)
+            + (sm >= 0.75) * 6
         )
 
 
@@ -69,16 +69,16 @@ if __name__ == "__main__":
     # local
     path = "droughtmonitor/beta_parameters.zarr"
     d0 = DroughtMonitorCategory(source=path, datakey="d0")
-    print (d0.native_coordinates)
-    print (d0.eval(c))
+    print(d0.native_coordinates)
+    print(d0.eval(c))
 
     # s3
     bucket = "podpac-internal-test"
     store = "drought_parameters.zarr"
     path = "s3://%s/%s" % (bucket, store)
     d0 = DroughtMonitorCategory(source=path, datakey="d0")
-    print (d0.native_coordinates)
-    print (d0.eval(c))
+    print(d0.native_coordinates)
+    print(d0.eval(c))
 
     # the Zarr node uses the podpac AWS settings by default, but credentials can be explicitly provided, too
     d0 = DroughtMonitorCategory(
