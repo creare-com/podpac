@@ -156,5 +156,81 @@ class Generic(GenericInputs):
                 + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
-        exec (self.code, inputs)
+        exec(self.code, inputs)
         return inputs["output"]
+
+
+class Mask(Algorithm):
+    """ Masks the `source` based on a boolean expression involving the `mask` (i.e. source[mask <bool_op> <bool_val> ] = <masked_val>). For a normal boolean mask input, default values for `bool_op`, `bool_val` and `masked_val` can be used.
+    
+    Attributes
+    ----------
+    source : podpac.Node
+        The source that will be masked
+    mask : podpac.Node
+        The data that will be used to compute the mask
+    masked_val : float, optional
+        Default value is np.nan. The value that will replace the masked items.
+    bool_val : float, optional
+        Default value is 1. The value used to compare the mask when creating the boolean expression
+    bool_op : enum, optional
+        Default value is '=='. One of ['==', '<', '<=', '>', '>=']
+    in_place : bool, optional
+        Default is False. If True, the source array will be changed in-place, which could affect the value of the source 
+        in other parts of the pipeline. 
+        
+    Examples
+    ----------
+    # Mask data from a boolean data node using the default behavior.
+    # Create a boolean masked Node (as an example)
+    b = Arithmetic(A=SinCoords(), eqn='A>0)  
+    # Create the source node
+    a = Arange()  
+    masked = Mask(source=a, mask=b)
+    
+    # Create a node that make the following substitution "a[b > 0] = np.nan"
+    a = Arange()
+    b = SinCoords()
+    masked = Mask(source=a, mask=b,
+                  masked_val=np.nan, 
+                  bool_val=0, bool_op='>'
+                  in_place=True)
+    
+    """
+
+    source = NodeTrait()
+    mask = NodeTrait()
+    masked_val = tl.Float(np.nan).tag(attr=True)
+    bool_val = tl.Float(1).tag(attr=True)
+    bool_op = tl.Enum(["==", "<", "<=", ">", ">="], default_value="==").tag(attr=True)
+    in_place = tl.Bool(False).tag(attr=True)
+
+    def algorithm(self, inputs):
+        """ Sets the values in inputs['source'] to self.masked_val using (inputs['mask'] <self.bool_op> <self.bool_val>)
+        """
+        # shorter names
+        mask = inputs["mask"]
+        source = inputs["source"]
+        op = self.bool_op
+        bv = self.bool_val
+
+        # Make a copy if we don't want to change the source in-place
+        if not self.in_place:
+            source = source.copy()
+
+        # Make the mask boolean
+        if op == "==":
+            mask = mask == bv
+        elif op == "<":
+            mask = mask < bv
+        elif op == "<=":
+            mask = mask <= bv
+        elif op == ">":
+            mask = mask > bv
+        elif op == ">=":
+            mask = mask >= bv
+
+        # Mask the values and return
+        source.set(self.masked_val, mask)
+
+        return source
