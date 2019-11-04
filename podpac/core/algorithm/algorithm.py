@@ -373,7 +373,7 @@ class Mask(Algorithm):
     mask : podpac.Node
         The data that will be used to compute the mask
     masked_val : float, optional
-        Default value is np.nan. The value that will replace the maked items.
+        Default value is np.nan. The value that will replace the masked items.
     bool_val : float, optional
         Default value is 1. The value used to compare the mask when creating the boolean expression
     bool_op : enum, optional
