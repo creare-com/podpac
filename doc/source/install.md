@@ -167,12 +167,11 @@ $ pip install -e .[devall]  # install podpac and all optional dependencies
 ```
 
 <small>
-\[[1](#a1)\] <span id="f1"></span>
+[1] <span id="f1"></span>
 We strongly suggest using Python 3 for all future development.
 Many of the libraries PODPAC utilizes will be dropping support for Python 2 starting in 2019.
 For more information see the following references:
-
-- [Python 3 Statement](http://www.python3statement.org/)
-- [Porting to Python 3](https://docs.python.org/3/howto/pyporting.html)
-
 </small>
+
+- <small>[Python 3 Statement](http://www.python3statement.org/)</small>
+- <small>[Porting to Python 3](https://docs.python.org/3/howto/pyporting.html)</small>

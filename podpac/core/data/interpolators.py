@@ -108,7 +108,7 @@ class NearestNeighbor(Interpolator):
 
         # at this point, output_data and eval_coordinates have the same dim order
         # this transpose makes sure the source_data has the same dim order as the eval coordinates
-        output_data.data = source_data.transpose(*indexers)
+        output_data.data = source_data.transpose(*eval_coordinates.dims)
 
         return output_data
 
