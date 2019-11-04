@@ -22,26 +22,70 @@ import _pickle as cPickle
 import boto3
 import botocore
 
-"""
-Helper method to determine if the given event was triggered by an S3 event
-"""
+
 def is_s3_trigger(event):
+    """
+    Helper method to determine if the given event was triggered by an S3 event
+    
+    Parameters
+    ----------
+    event : dict
+        Event dict from AWS. See [TODO: add link reference]
+    
+    Returns
+    -------
+    Bool
+        True if the event is an S3 trigger
+    """
     return "Records" in event and event["Records"][0]["eventSource"] == "aws:s3"
+
 
 """
 Helper method to merge two local settings json/dict objects, then update the `PodpacSettings`.
 
 The settings variable here is podpac.settings.
 """
+
+
 def update_podpac_settings(old_settings_json, new_settings_json):
+    """
+    Helper method to merge two local settings json/dict objects, then update the `PodpacSettings`.
+
+    The settings variable here is podpac.settings.
+
+    Parameters
+    ----------
+    old_settings_json : dict
+        old settings dict
+    new_settings_json : dict
+        new settings dict to merge in
+    """
     updated_settings = {**old_settings_json, **new_settings_json}
     for key in updated_settings:
         settings[key] = updated_settings[key]
 
-"""
-Returns true if the requested output is already computed (and force_compute is false.)
-"""
+
 def check_for_cached_output(input_file_key, pipeline, settings_json, bucket):
+    """
+    Helper function to determine if the requested output is already computed (and force_compute is false.)
+
+    
+    Parameters
+    ----------
+    input_file_key : str
+        Description
+    pipeline : dict
+        Description
+    settings_json : dict
+        Description
+    bucket : str
+        Description
+    
+    Returns
+    -------
+    Bool
+        Returns true if the requested output is already computed
+    """
     output_filename = input_file_key.replace(".json", "." + pipeline["output"]["format"])
     output_filename = output_filename.replace(settings_json["S3_INPUT_FOLDER"], settings_json["S3_OUTPUT_FOLDER"])
     try:
@@ -57,7 +101,26 @@ def check_for_cached_output(input_file_key, pipeline, settings_json, bucket):
         return False, output_filename
     return False, output_filename
 
+
 def handler(event, context, get_deps=True, ret_pipeline=False):
+    """Lambda function handler
+    
+    Parameters
+    ----------
+    event : TYPE
+        Description
+    context : TYPE
+        Description
+    get_deps : bool, optional
+        Description
+    ret_pipeline : bool, optional
+        Description
+    
+    Returns
+    -------
+    TYPE
+        Description
+    """
 
     # Add /tmp/ path to handle python path for dependencies
     sys.path.append("/tmp/")
@@ -74,7 +137,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     if is_s3_trigger(event):
 
         # We always have to look to the bucket that triggered the event for the input
-        bucket = event['Records'][0]['s3']['bucket']['name']
+        bucket = event["Records"][0]["s3"]["bucket"]["name"]
 
         file_key = urllib.unquote_plus(event["Records"][0]["s3"]["object"]["key"])
         _json = ""
@@ -96,7 +159,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         if cached:
             return
     else:
-        print ("DSullivan: we have an API Gateway event. Will now get deps in order to proceed.")
+        print("DSullivan: we have an API Gateway event. Will now get deps in order to proceed.")
         url = event["queryStringParameters"]
         if isinstance(url, string_types):
             url = urllib.parse_qs(urllib.urlparse(url).query)
@@ -166,11 +229,14 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         try:
             json.dumps(body)
         except Exception as e:
-            print ("AWS: body is not serializable, attempting to decode.")
+            print("AWS: body is not serializable, attempting to decode.")
             body = body.decode()
     return {"statusCode": 200, "headers": {"Content-Type": "image/png"}, "isBase64Encoded": True, "body": body}
 
 
+#############
+# Test Script
+#############
 if __name__ == "__main__":
     from podpac import settings
 
@@ -184,4 +250,4 @@ if __name__ == "__main__":
     event = {"Records": [{"s3": {"object": {"key": "json/SinCoords.json"}, "bucket": {"name": "podpac-mls-test"}}}]}
 
     example = handler(event, {}, get_deps=False)
-    print (example)
+    print(example)
