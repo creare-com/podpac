@@ -332,10 +332,15 @@ class PodpacSettings(dict):
             self["ALLOW_PYTHON_EVAL_EXEC"] = False
 
     def __enter__(self):
-        self.original = {k: v for k, v in self.items()}
+        # save original settings
+        self._original = {k: v for k, v in self.items()}
 
     def __exit__(self, type, value, traceback):
-        for k, v in self.original.items():
+        # restore eval/exec state (setting and file)
+        self.set_allow_python_eval_exec(self._original.get("ALLOW_PYTHON_EVAL_EXEC", False))
+
+        # restore original settings
+        for k, v in self._original.items():
             self[k] = v
 
 

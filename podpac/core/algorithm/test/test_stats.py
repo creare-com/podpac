@@ -72,15 +72,19 @@ class BaseTests(object):
     """ Common tests for Reduce subclasses """
 
     def test_full(self):
-        node = self.NodeClass(source=source)
-        output = node.eval(coords)
-        # xr.testing.assert_allclose(output, self.expected_full)
-        np.testing.assert_allclose(output.data, self.expected_full.data)
+        with podpac.settings:
+            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CHUNK_SIZE"] = None
 
-        node = self.NodeClass(source=source, dims=coords.dims)
-        output = node.eval(coords)
-        # xr.testing.assert_allclose(output, self.expected_full)
-        np.testing.assert_allclose(output.data, self.expected_full.data)
+            node = self.NodeClass(source=source)
+            output = node.eval(coords)
+            # xr.testing.assert_allclose(output, self.expected_full)
+            np.testing.assert_allclose(output.data, self.expected_full.data)
+
+            node = self.NodeClass(source=source, dims=coords.dims)
+            output = node.eval(coords)
+            # xr.testing.assert_allclose(output, self.expected_full)
+            np.testing.assert_allclose(output.data, self.expected_full.data)
 
     def test_full_chunked(self):
         with podpac.settings:
@@ -94,6 +98,7 @@ class BaseTests(object):
     def test_lat_lon(self):
         with podpac.settings:
             podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=source, dims=["lat", "lon"])
             output = node.eval(coords)
             # xr.testing.assert_allclose(output, self.expected_latlon)
@@ -111,6 +116,7 @@ class BaseTests(object):
     def test_time(self):
         with podpac.settings:
             podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=source, dims="time")
             output = node.eval(coords)
             # xr.testing.assert_allclose(output, self.expected_time)

@@ -67,42 +67,45 @@ class TestCompositor(object):
         np.testing.assert_array_equal(o.data, a.source[5, 5])
 
     def test_ordered_compositor(self):
-        # single thread
-        podpac.settings["MULTITHREADING"] = False
-        node = OrderedCompositor(
-            sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
-        )
-        result = node.eval(coordinates=self.coord_src)
+        with podpac.settings:
+            # single thread
+            podpac.settings["MULTITHREADING"] = False
+            node = OrderedCompositor(
+                sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
+            )
+            result = node.eval(coordinates=self.coord_src)
 
-        # multithreaded
-        podpac.settings["MULTITHREADING"] = True
-        node = OrderedCompositor(
-            sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
-        )
-        result = node.eval(coordinates=self.coord_src)
-        # assert self.node._native_coordinates_default().dims == self.coord_src.dims
+            # multithreaded
+            podpac.settings["MULTITHREADING"] = True
+            node = OrderedCompositor(
+                sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
+            )
+            result = node.eval(coordinates=self.coord_src)
+            # assert self.node._native_coordinates_default().dims == self.coord_src.dims
 
     def test_source_coordinates_ordered_compositor(self):
-        # single thread
-        podpac.settings["MULTITHREADING"] = False
-        node = OrderedCompositor(
-            sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
-        )
+        with podpac.settings:
+            # single thread
+            podpac.settings["MULTITHREADING"] = False
+            node = OrderedCompositor(
+                sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
+            )
 
-        # multithreaded
-        podpac.settings["MULTITHREADING"] = True
-        node = OrderedCompositor(
-            sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
-        )
+            # multithreaded
+            podpac.settings["MULTITHREADING"] = True
+            node = OrderedCompositor(
+                sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
+            )
 
     def test_caching_ordered_compositor(self):
-        # single thread
-        podpac.settings["MULTITHREADING"] = False
-        node = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src)
+        with podpac.settings:
+            # single thread
+            podpac.settings["MULTITHREADING"] = False
+            node = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src)
 
-        # multithreaded
-        podpac.settings["MULTITHREADING"] = True
-        node = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src)
+            # multithreaded
+            podpac.settings["MULTITHREADING"] = True
+            node = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src)
 
     def test_heterogeous_sources_composited(self):
         anative = podpac.Coordinates([podpac.clinspace((0, 1), (1, 2), size=3)], dims=["lat_lon"])

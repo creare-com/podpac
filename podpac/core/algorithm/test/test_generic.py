@@ -1,6 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import copy
+import warnings
 
 import pytest
 import numpy as np
@@ -32,6 +32,19 @@ class TestGenericInputs(object):
 
 
 class TestArithmetic(object):
+    def test_init(self):
+        sine_node = SinCoords()
+
+        with podpac.settings:
+            podpac.settings.set_allow_python_eval_exec(True)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("error", "Insecure evaluation.*")
+                node = Arithmetic(A=sine_node, B=sine_node, eqn="2*abs(A) - B + {offset}", params={"offset": 1})
+
+            podpac.settings.set_allow_python_eval_exec(False)
+            with pytest.warns(UserWarning, match="Insecure evaluation"):
+                node = Arithmetic(A=sine_node, B=sine_node, eqn="2*abs(A) - B + {offset}", params={"offset": 1})
+
     def test_evaluate(self):
         with podpac.settings:
             podpac.settings.set_allow_python_eval_exec(True)
@@ -63,22 +76,22 @@ class TestArithmetic(object):
                 node.eval(coords)
 
     def test_missing_equation(self):
-        with podpac.settings:
-            podpac.settings.set_allow_python_eval_exec(True)
-
-            sine_node = SinCoords()
-            with pytest.raises(ValueError):
-                Arithmetic(A=sine_node, B=sine_node)
+        sine_node = SinCoords()
+        with pytest.raises(ValueError), warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            Arithmetic(A=sine_node, B=sine_node)
 
 
 class TestGeneric(object):
-    def test_init_(self):
+    def test_init(self):
         a = SinCoords()
         b = Arange()
 
         with podpac.settings:
             podpac.settings.set_allow_python_eval_exec(True)
-            node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", a=a, b=b)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("error", "Insecure evaluation.*")
+                node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", a=a, b=b)
 
             podpac.settings.set_allow_python_eval_exec(False)
             with pytest.warns(UserWarning, match="Insecure evaluation"):

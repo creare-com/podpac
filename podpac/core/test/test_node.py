@@ -1,9 +1,10 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
-from collections import OrderedDict
 import json
 import six
+import warnings
+from collections import OrderedDict
 from copy import deepcopy
 
 try:
@@ -412,7 +413,10 @@ class TestSerialization(object):
         a = podpac.algorithm.Arange()
         b = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         c = podpac.compositor.OrderedCompositor(sources=np.array([a, b]))
-        cls.node = podpac.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            cls.node = podpac.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
 
         cls.node_file_path = "node.json"
         if os.path.exists(cls.node_file_path):
@@ -492,7 +496,10 @@ class TestSerialization(object):
         assert len(d) == 4
 
         # from_definition
-        node = Node.from_definition(d)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            node = Node.from_definition(d)
+
         assert node is not self.node
         assert node.hash == self.node.hash
         assert isinstance(node, podpac.algorithm.Arithmetic)
@@ -501,9 +508,9 @@ class TestSerialization(object):
         assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
 
     def test_definition_duplicate_base_ref(self):
-        n1 = Node()
-        n2 = Node()
-        n3 = Node()
+        n1 = Node(units="m")
+        n2 = Node(units="ft")
+        n3 = Node(units="in")
         n = podpac.compositor.OrderedCompositor(sources=[n1, n2, n3])
         d = n.definition
         assert n1.base_ref == n2.base_ref == n3.base_ref
@@ -550,7 +557,9 @@ class TestSerialization(object):
         assert json.loads(s)
 
         # test from_json
-        node = Node.from_json(s)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            node = Node.from_json(s)
         assert node is not self.node
         assert node.hash == self.node.hash
         assert isinstance(node, podpac.algorithm.Arithmetic)
@@ -564,7 +573,10 @@ class TestSerialization(object):
 
         assert os.path.exists(self.node_file_path)
 
-        node = Node.load(self.node_file_path)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            node = Node.load(self.node_file_path)
+
         assert node is not self.node
         assert node.hash == self.node.hash
         assert isinstance(node, podpac.algorithm.Arithmetic)
@@ -906,71 +918,73 @@ class TestUserDefinition(object):
             Node.from_json(s)
 
     def test_algorithm_inputs(self):
-        # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
 
-        # basic
-        s = """
-        {
-            "source1": {"node": "algorithm.Arange"},
-            "source2": {"node": "algorithm.CoordData"},
-            "result": {        
-                "node": "algorithm.Arithmetic",
-                "inputs": {
-                    "A": "source1",
-                    "B": "source2"
-                },
-                "attrs": {
-                    "eqn": "A + B"
-                }
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
-        assert isinstance(node.inputs["B"], podpac.algorithm.CoordData)
-
-        # sub-node
-        s = """
-        {
-            "mysource": {"node": "algorithm.Arange"},
-            "mean": {        
-                "node": "algorithm.Mean",
-                "inputs": { "source": "mysource" }
-            },
-            "double": {
-                "node": "algorithm.Arithmetic",
-                "inputs": { "A": "mean.source" },
-                "attrs": { "eqn": "2 * A" }
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
-
-        # in attrs (incorrect)
-        s = """
-        {
-            "source1": {"node": "algorithm.Arange"},
-            "source2": {"node": "algorithm.CoordData"},
-            "result": {        
-                "node": "algorithm.Arithmetic",
-                "attrs": {
+            # basic
+            s = """
+            {
+                "source1": {"node": "algorithm.Arange"},
+                "source2": {"node": "algorithm.CoordData"},
+                "result": {        
+                    "node": "algorithm.Arithmetic",
                     "inputs": {
                         "A": "source1",
                         "B": "source2"
                     },
-                    "eqn": "A + B"
+                    "attrs": {
+                        "eqn": "A + B"
+                    }
                 }
             }
-        }
-        """
+            """
 
-        with pytest.raises(ValueError, match="Algorithm 'attrs' cannot have an 'inputs' property"):
-            Node.from_json(s)
+            node = Node.from_json(s)
+            assert isinstance(node, podpac.algorithm.Arithmetic)
+            assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+            assert isinstance(node.inputs["B"], podpac.algorithm.CoordData)
+
+            # sub-node
+            s = """
+            {
+                "mysource": {"node": "algorithm.Arange"},
+                "mean": {        
+                    "node": "algorithm.Mean",
+                    "inputs": { "source": "mysource" }
+                },
+                "double": {
+                    "node": "algorithm.Arithmetic",
+                    "inputs": { "A": "mean.source" },
+                    "attrs": { "eqn": "2 * A" }
+                }
+            }
+            """
+
+            node = Node.from_json(s)
+            assert isinstance(node, podpac.algorithm.Arithmetic)
+            assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+
+            # in attrs (incorrect)
+            s = """
+            {
+                "source1": {"node": "algorithm.Arange"},
+                "source2": {"node": "algorithm.CoordData"},
+                "result": {        
+                    "node": "algorithm.Arithmetic",
+                    "attrs": {
+                        "inputs": {
+                            "A": "source1",
+                            "B": "source2"
+                        },
+                        "eqn": "A + B"
+                    }
+                }
+            }
+            """
+
+            with pytest.raises(ValueError, match="Algorithm 'attrs' cannot have an 'inputs' property"):
+                Node.from_json(s)
 
     def test_compositor_sources(self):
         # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
@@ -1257,17 +1271,18 @@ class TestUserDefinition(object):
         }
         """
 
-        original_debug = podpac.core.settings.settings["DEBUG"]
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
 
-        podpac.core.settings.settings["DEBUG"] = False
-        node = Node.from_json(s)
-        assert node.inputs["A"] is node.inputs["B"].source
+            # normally node objects can and should be re-used
+            podpac.settings["DEBUG"] = False
+            node = Node.from_json(s)
+            assert node.inputs["A"] is node.inputs["B"].source
 
-        podpac.core.settings.settings["DEBUG"] = True
-        node = Node.from_json(s)
-        assert node.inputs["A"] is not node.inputs["B"].source
-
-        podpac.core.settings.settings["DEBUG"] = original_debug
+            # when debugging is on, node objects should be unique
+            podpac.settings["DEBUG"] = True
+            node = Node.from_json(s)
+            assert node.inputs["A"] is not node.inputs["B"].source
 
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)
