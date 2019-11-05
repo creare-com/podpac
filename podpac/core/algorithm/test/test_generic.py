@@ -36,7 +36,7 @@ class TestArithmetic(object):
             podpac.settings[key] = self.settings_orig[key]
 
     def test_evaluate(self):
-        podpac.settings.set_allow_python_eval_exec(True)
+        podpac.settings.set_unsafe_eval(True)
 
         coords = podpac.Coordinates([podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)], dims=["lat", "lon"])
         sine_node = SinCoords()
@@ -48,7 +48,7 @@ class TestArithmetic(object):
         np.testing.assert_allclose(output, 2 * abs(a) - b + 1)
 
     def test_evaluate_not_allowed(self):
-        podpac.settings.set_allow_python_eval_exec(False)
+        podpac.settings.set_unsafe_eval(False)
 
         coords = podpac.Coordinates([podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)], dims=["lat", "lon"])
         sine_node = SinCoords()
@@ -66,19 +66,19 @@ class TestArithmetic(object):
 
 
 class TestGeneric(object):
-    def test_init_(self):
+    def test_init(self):
         a = SinCoords()
         b = Arange()
 
-        podpac.settings.set_allow_python_eval_exec(True)
+        podpac.settings.set_unsafe_eval(True)
         node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", a=a, b=b)
 
-        podpac.settings.set_allow_python_eval_exec(False)
+        podpac.settings.set_unsafe_eval(False)
         with pytest.warns(UserWarning, match="Insecure evaluation"):
             node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", a=a, b=b)
 
     def test_evaluate(self):
-        podpac.settings.set_allow_python_eval_exec(True)
+        podpac.settings.set_unsafe_eval(True)
 
         coords = podpac.Coordinates([podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)], dims=["lat", "lon"])
         a = SinCoords()
@@ -91,7 +91,7 @@ class TestGeneric(object):
         np.testing.assert_allclose(output, np.minimum(a, b))
 
     def test_evaluate_not_allowed(self):
-        podpac.settings.set_allow_python_eval_exec(False)
+        podpac.settings.set_unsafe_eval(False)
 
         coords = podpac.Coordinates([podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)], dims=["lat", "lon"])
         a = SinCoords()
@@ -100,6 +100,9 @@ class TestGeneric(object):
         with pytest.warns(UserWarning, match="Insecure evaluation"):
             node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", a=a, b=b)
 
+        node = Generic(
+            code="import numpy as np\noutput = np.minimum(b,a)", a=b, b=a
+        )  # needs to be different to avoid cache
         with pytest.raises(PermissionError):
             node.eval(coords)
 

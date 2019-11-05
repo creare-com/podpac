@@ -2,11 +2,11 @@
 Podpac Settings
 """
 
-
 import os
 import json
 from copy import deepcopy
 import errno
+import uuid
 
 from podpac import version
 
@@ -30,6 +30,7 @@ DEFAULT_SETTINGS = {
     "ENABLE_UNITS": True,
     "DEFAULT_CRS": "EPSG:4326",
     "PODPAC_VERSION": version.semver(),
+    "UNSAFE_EVAL_HASH": uuid.uuid4().hex,  # unique id for running unsafe evaluations
     # cache
     "DEFAULT_CACHE": ["ram"],
     "CACHE_OUTPUT_DEFAULT": True,
@@ -72,7 +73,7 @@ class PodpacSettings(dict):
       * current working directory settings (``./settings.json``)
     
     :attr:`settings.settings_path` shows the path of the last loaded settings file (e.g. the active settings file).
-    To persistenyl update the active settings file as changes are made at runtime,
+    To persistently update the active settings file as changes are made at runtime,
     set the ``settings['AUTOSAVE_SETTINGS']`` field to ``True``. The active setting file can be persistently
     saved at any time using :meth:`settings.save`.
     
@@ -310,31 +311,23 @@ class PodpacSettings(dict):
         if self["S3_CACHE_DIR"] is None:
             self["S3_CACHE_DIR"] = DEFAULT_SETTINGS["S3_CACHE_DIR"]
 
-        # This setting cannot come from the saved JSON file on disk but requires a file
-        # to exist at the root path of the code.
-        self["ALLOW_PYTHON_EVAL_EXEC"] = max([os.path.exists(p) for p in self._allow_python_eval_exec_paths])
-
     @property
-    def _allow_python_eval_exec_paths(self):
-        return (
-            os.path.join(os.getcwd(), "ALLOW_PYTHON_EVAL_EXEC"),
-            os.path.join(os.path.dirname(__file__), "..", "ALLOW_PYTHON_EVAL_EXEC"),
-            os.path.join(self["ROOT_PATH"], "ALLOW_PYTHON_EVAL_EXEC"),
-        )
+    def allow_unsafe_eval(self):
+        return "PODPAC_UNSAFE_EVAL" in os.environ and os.environ["PODPAC_UNSAFE_EVAL"] == self["UNSAFE_EVAL_HASH"]
 
-    def set_allow_python_eval_exec(self, allow=False):
+    def set_unsafe_eval(self, allow=False):
+        """Allow unsafe evaluation for this podpac environment
+        
+        Parameters
+        ----------
+        allow : bool, optional
+            Enable unsafe evaluation. Defaults to False.
+        """
         if allow:
-            f = open(self._allow_python_eval_exec_paths[-1], "w")
-            f.write("")
-            f.close()
-            self["ALLOW_PYTHON_EVAL_EXEC"] = True
+            os.environ["PODPAC_UNSAFE_EVAL"] = self["UNSAFE_EVAL_HASH"]
         else:
-            for p in self._allow_python_eval_exec_paths:
-                try:
-                    os.remove(p)
-                except FileNotFoundError as e:
-                    pass
-            self["ALLOW_PYTHON_EVAL_EXEC"] = False
+            if "PODPAC_UNSAFE_EVAL" in os.environ:
+                os.environ.pop("PODPAC_UNSAFE_EVAL")
 
 
 # load settings dict when module is loaded

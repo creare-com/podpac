@@ -16,9 +16,9 @@ from lazy_import import lazy_module
 ne = lazy_module("numexpr")
 
 # Internal dependencies
+from podpac import settings
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
-from podpac.core.settings import settings
 from podpac.core.algorithm.algorithm import Algorithm
 
 
@@ -52,14 +52,11 @@ class Arithmetic(GenericInputs):
     params = tl.Dict().tag(attr=True)
 
     def init(self):
-        if not settings["ALLOW_PYTHON_EVAL_EXEC"]:
+        if not settings.allow_unsafe_eval:
             warnings.warn(
                 "Insecure evaluation of Python code using Arithmetic node has not been allowed. If "
-                "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
-                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
-                    settings._allow_python_eval_exec_paths[-1]
-                )
-                + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
+                "this is an error, use: `podpac.settings.allow_unsafe_eval(True)`. "
+                "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
 
@@ -82,14 +79,11 @@ class Arithmetic(GenericInputs):
             Description
         """
 
-        if not settings["ALLOW_PYTHON_EVAL_EXEC"]:
+        if not settings.allow_unsafe_eval:
             raise PermissionError(
                 "Insecure evaluation of Python code using Arithmetic node has not been allowed. If "
-                "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
-                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
-                    settings._allow_python_eval_exec_paths[-1]
-                )
-                + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
+                "this is an error, use: `podpac.settings.allow_unsafe_eval(True)`. "
+                "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
 
@@ -133,27 +127,21 @@ class Generic(GenericInputs):
     code = tl.Unicode().tag(attr=True, readonly=True)
 
     def init(self):
-        if not settings["ALLOW_PYTHON_EVAL_EXEC"]:
+        if not settings.allow_unsafe_eval:
             warnings.warn(
                 "Insecure evaluation of Python code using Generic node has not been allowed. If this "
-                "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
-                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
-                    settings._allow_python_eval_exec_paths[-1]
-                )
-                + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
+                "this is an error, use: `podpac.settings.allow_unsafe_eval(True)`. "
+                "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
         super(Generic, self).init()
 
     def algorithm(self, inputs):
-        if not settings["ALLOW_PYTHON_EVAL_EXEC"]:
+        if not settings.allow_unsafe_eval:
             raise PermissionError(
                 "Insecure evaluation of Python code using Generic node has not been allowed. If this "
-                "this is an error, use: `podpac.settings.set_allow_python_eval_exec(True)`. "
-                "Alternatively create the file ALLOW_PYTHON_EVAL_EXEC in {}".format(
-                    settings._allow_python_eval_exec_paths[-1]
-                )
-                + "NOTE: making this setting True allows arbitrary execution of Python code through PODPAC "
+                "this is an error, use: `podpac.settings.allow_unsafe_eval(True)`. "
+                "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
         exec(self.code, inputs)
