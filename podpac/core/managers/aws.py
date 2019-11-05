@@ -1191,6 +1191,7 @@ Lambda Node {status}
         waiter.wait(Bucket=self.function_s3_bucket, Key=filename)
 
         # After waiting, load the pickle file like this:
+        _log.debug("Received response from lambda function")
         response = s3.get_object(Key=filename, Bucket=self.function_s3_bucket)
         body = response["Body"].read()
         self._output = cPickle.loads(body)
