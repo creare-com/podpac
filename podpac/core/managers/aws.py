@@ -302,8 +302,8 @@ class Lambda(Node):
     # s3 parameters
     function_s3_bucket = tl.Unicode().tag(attr=True, readonly=True)  # see default below
     function_s3_dependencies_key = tl.Unicode()  # see default below
-    function_s3_input = tl.Unicode(default_value="input")
-    function_s3_output = tl.Unicode(default_value="output")
+    function_s3_input = tl.Unicode()  # see default below
+    function_s3_output = tl.Unicode()  # see default below
     function_s3_tags = tl.Dict()  # see default below
     _bucket = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
 
@@ -312,6 +312,20 @@ class Lambda(Node):
         return settings["S3_BUCKET_NAME"] or "podpac-autogen-{}".format(
             np.datetime64("now").astype(int)
         )  # must be globally unique
+
+    @tl.default("function_s3_input")
+    def _function_s3_input_default(self):
+        if settings["FUNCTION_S3_INPUT"] is None:
+            settings["FUNCTION_S3_INPUT"] = "input"
+
+        return settings["FUNCTION_S3_INPUT"]
+
+    @tl.default("function_s3_output")
+    def _function_s3_output_default(self):
+        if settings["FUNCTION_S3_OUTPUT"] is None:
+            settings["FUNCTION_S3_OUTPUT"] = "output"
+
+        return settings["FUNCTION_S3_OUTPUT"]
 
     @tl.default("function_s3_tags")
     def _function_s3_tags_default(self):
@@ -1173,22 +1187,22 @@ Lambda Node {status}
 
         _log.debug("Evaluating pipeline via S3")
 
+        input_folder = "{}{}".format(self.function_s3_input, "/" if not self.function_s3_input.endswith("/") else "")
+        output_folder = "{}{}".format(self.function_s3_output, "/" if not self.function_s3_output.endswith("/") else "")
+
         # add coordinates to the pipeline
         pipeline = self.pipeline
         pipeline["coordinates"] = json.loads(coordinates.json)
-        settings_string = "{ " + '"S3_INPUT_FOLDER": "{input_folder}{input_slash}", "S3_OUTPUT_FOLDER": "{output_folder}{output_slash}", "FUNCTION_DEPENDENCIES_KEY": "{deps}" '.format(
-            input_folder=self.function_s3_input,
-            input_slash="/" if not self.function_s3_input.endswith("/") else "",
-            output_folder=self.function_s3_output,
-            output_slash="/" if not self.function_s3_output.endswith("/") else "",
-            deps=self.function_s3_dependencies_key
-        ) + "}"
-        pipeline["settings"] = json.loads(settings_string)
+        pipeline["settings"] = {
+            "FUNCTION_S3_INPUT": input_folder,
+            "FUNCTION_S3_OUTPUT": output_folder,
+            "FUNCTION_DEPENDENCIES_KEY": self.function_s3_dependencies_key,
+            "UNSAFE_EVAL_HASH": settings["UNSAFE_EVAL_HASH"],
+        }
 
         # filename
-        filename = "{folder}{slash}{output}_{source}_{coordinates}.{suffix}".format(
-            folder=self.function_s3_input,
-            slash="/" if not self.function_s3_input.endswith("/") else "",
+        filename = "{folder}{output}_{source}_{coordinates}.{suffix}".format(
+            folder=input_folder,
             output=self.source_output_name,
             source=self.source.hash,
             coordinates=coordinates.hash,
@@ -1212,9 +1226,8 @@ Lambda Node {status}
             return
 
         waiter = s3.get_waiter("object_exists")
-        filename = "{folder}{slash}{output}_{source}_{coordinates}.{suffix}".format(
-            folder=self.function_s3_output,
-            slash="/" if not self.function_s3_output.endswith("/") else "",
+        filename = "{folder}{output}_{source}_{coordinates}.{suffix}".format(
+            folder=output_folder,
             output=self.source_output_name,
             source=self.source.hash,
             coordinates=coordinates.hash,

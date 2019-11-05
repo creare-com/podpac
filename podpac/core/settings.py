@@ -51,6 +51,8 @@ DEFAULT_SETTINGS = {
     "FUNCTION_NAME": None,
     "FUNCTION_ROLE_NAME": None,
     "FUNCTION_DEPENDENCIES_KEY": None,
+    "FUNCTION_S3_INPUT": None,
+    "FUNCTION_S3_OUTPUT": None,
 }
 
 
@@ -128,9 +130,9 @@ class PodpacSettings(dict):
         Path to primary podpac working directory. Defaults to the ``.podpac`` directory in the users home directory.
     S3_BUCKET_NAME : str
         The AWS S3 Bucket to use for cloud based processing.
-    S3_INPUT_FOLDER : str
-        Folder within :attr:`S3_BUCKET_NAME` to use for cloud based processing.
-    S3_OUTPUT_FOLDER : str
+    FUNCTION_S3_INPUT : str
+        Folder within :attr:`S3_BUCKET_NAME` to use for triggering node evaluation.
+    FUNCTION_S3_OUTPUT : str
         Folder within :attr:`S3_BUCKET_NAME` to use for outputs.
     AUTOSAVE_SETTINGS: bool
         Save settings automatically as they are changed during runtime. Defaults to ``False``.

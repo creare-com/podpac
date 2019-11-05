@@ -77,7 +77,6 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         for key in updated_settings:
             settings[key] = updated_settings[key]
 
-
     def _check_for_cached_output(input_file_key, pipeline, settings_json, bucket):
         """
         Helper function to determine if the requested output is already computed (and force_compute is false.)
@@ -100,7 +99,9 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
             Returns true if the requested output is already computed
         """
         output_filename = input_file_key.replace(".json", "." + pipeline["output"]["format"])
-        output_filename = output_filename.replace(settings_json["S3_INPUT_FOLDER"], settings_json["S3_OUTPUT_FOLDER"])
+        output_filename = output_filename.replace(
+            settings_json["FUNCTION_S3_INPUT"], settings_json["FUNCTION_S3_OUTPUT"]
+        )
         try:
             s3.head_object(Bucket=bucket, Key=output_filename)
             # Object exists, so we don't have to recompute
