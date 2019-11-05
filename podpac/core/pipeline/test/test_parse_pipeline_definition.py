@@ -1,7 +1,9 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import json
+import warnings
 from collections import OrderedDict
+
 import numpy as np
 import traitlets as tl
 import pytest
@@ -312,56 +314,59 @@ class TestParsePipelineDefinition(object):
         np.testing.assert_array_equal(output.node.source, [0, 1, 2])
 
     def test_algorithm_inputs(self):
-        # basic
-        s = """
-        {
-            "nodes": {
-                "source1": {"node": "algorithm.Arange"},
-                "source2": {"node": "algorithm.CoordData"},
-                "result": {        
-                    "node": "algorithm.Arithmetic",
-                    "inputs": {
-                        "A": "source1",
-                        "B": "source2"
-                    },
-                    "attrs": {
-                        "eqn": "A + B"
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+
+            # basic
+            s = """
+            {
+                "nodes": {
+                    "source1": {"node": "algorithm.Arange"},
+                    "source2": {"node": "algorithm.CoordData"},
+                    "result": {        
+                        "node": "algorithm.Arithmetic",
+                        "inputs": {
+                            "A": "source1",
+                            "B": "source2"
+                        },
+                        "attrs": {
+                            "eqn": "A + B"
+                        }
                     }
                 }
             }
-        }
-        """
+            """
 
-        d = json.loads(s, object_pairs_hook=OrderedDict)
-        output = parse_pipeline_definition(d)
+            d = json.loads(s, object_pairs_hook=OrderedDict)
+            output = parse_pipeline_definition(d)
 
-        assert isinstance(output.node.inputs["A"], podpac.algorithm.Arange)
-        assert isinstance(output.node.inputs["B"], podpac.algorithm.CoordData)
+            assert isinstance(output.node.inputs["A"], podpac.algorithm.Arange)
+            assert isinstance(output.node.inputs["B"], podpac.algorithm.CoordData)
 
-        # sub-node
-        s = """
-        {
-            "nodes": {
-                "mysource": {"node": "algorithm.Arange"},
-                "mean": {
-                    "node": "algorithm.Mean",
-                    "inputs": {"source": "mysource"}
-                },
-                "double": {
-                    "node": "algorithm.Arithmetic",
-                    "inputs": { "A": "mean.source" },
-                    "attrs": { "eqn": "2 * A" }
+            # sub-node
+            s = """
+            {
+                "nodes": {
+                    "mysource": {"node": "algorithm.Arange"},
+                    "mean": {
+                        "node": "algorithm.Mean",
+                        "inputs": {"source": "mysource"}
+                    },
+                    "double": {
+                        "node": "algorithm.Arithmetic",
+                        "inputs": { "A": "mean.source" },
+                        "attrs": { "eqn": "2 * A" }
+                    }
                 }
             }
-        }
-        """
+            """
 
-        d = json.loads(s, object_pairs_hook=OrderedDict)
-        output = parse_pipeline_definition(d)
+            d = json.loads(s, object_pairs_hook=OrderedDict)
+            output = parse_pipeline_definition(d)
 
-        assert isinstance(output.node.inputs["A"], podpac.algorithm.Arange)
+            assert isinstance(output.node.inputs["A"], podpac.algorithm.Arange)
 
-        # nonexistent node/attribute references are tested in test_datasource_lookup_source
+            # nonexistent node/attribute references are tested in test_datasource_lookup_source
 
     def test_compositor_sources(self):
         # basic
@@ -717,30 +722,33 @@ class TestParsePipelineDefinition(object):
             parse_pipeline_definition(d)
 
     def test_parse_output_implicit_node(self):
-        s = """
-        {
-            "nodes": {
-                "source1": {"node": "algorithm.Arange"},
-                "source2": {"node": "algorithm.Arange"},
-                "result": {        
-                    "node": "algorithm.Arithmetic",
-                    "inputs": {
-                        "A": "source1",
-                        "B": "source2"
-                    },
-                    "attrs": {
-                        "eqn": "A + B"
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+
+            s = """
+            {
+                "nodes": {
+                    "source1": {"node": "algorithm.Arange"},
+                    "source2": {"node": "algorithm.Arange"},
+                    "result": {        
+                        "node": "algorithm.Arithmetic",
+                        "inputs": {
+                            "A": "source1",
+                            "B": "source2"
+                        },
+                        "attrs": {
+                            "eqn": "A + B"
+                        }
                     }
+                },
+                "output": {
+                    "mode": "none"
                 }
-            },
-            "output": {
-                "mode": "none"
             }
-        }
-        """
-        d = json.loads(s, object_pairs_hook=OrderedDict)
-        output = parse_pipeline_definition(d)
-        assert isinstance(output.node, podpac.algorithm.Arithmetic)
+            """
+            d = json.loads(s, object_pairs_hook=OrderedDict)
+            output = parse_pipeline_definition(d)
+            assert isinstance(output.node, podpac.algorithm.Arithmetic)
 
     def test_parse_output_implicit(self):
         s = """

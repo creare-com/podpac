@@ -20,13 +20,12 @@ def test_get_default_cache_ctrl():
     assert isinstance(ctrl, CacheCtrl)
     assert ctrl._cache_stores == []
 
-    podpac.settings["DEFAULT_CACHE"] = ["ram"]
-    ctrl = get_default_cache_ctrl()
-    assert isinstance(ctrl, CacheCtrl)
-    assert len(ctrl._cache_stores) == 1
-    assert isinstance(ctrl._cache_stores[0], RamCacheStore)
-
-    podpac.settings["DEFAULT_CACHE"] = []
+    with podpac.settings:
+        podpac.settings["DEFAULT_CACHE"] = ["ram"]
+        ctrl = get_default_cache_ctrl()
+        assert isinstance(ctrl, CacheCtrl)
+        assert len(ctrl._cache_stores) == 1
+        assert isinstance(ctrl._cache_stores[0], RamCacheStore)
 
 
 def test_make_cache_ctrl():
@@ -49,17 +48,15 @@ def test_make_cache_ctrl():
 
 
 def test_clear_cache():
-    # make a default cache
-    podpac.settings["DEFAULT_CACHE"] = ["ram"]
+    with podpac.settings:
+        # make a default cache
+        podpac.settings["DEFAULT_CACHE"] = ["ram"]
 
-    # fill the default cache
-    node = podpac.algorithm.Arange()
-    node.put_cache(0, "mykey")
-    assert node.has_cache("mykey")
+        # fill the default cache
+        node = podpac.algorithm.Arange()
+        node.put_cache(0, "mykey")
+        assert node.has_cache("mykey")
 
-    clear_cache()
+        clear_cache()
 
-    assert not node.has_cache("mykey")
-
-    # reset default cache
-    podpac.settings["DEFAULT_CACHE"] = []
+        assert not node.has_cache("mykey")

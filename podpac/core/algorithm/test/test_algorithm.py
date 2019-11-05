@@ -1,5 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import warnings
+
 import pytest
 from collections import OrderedDict
 
@@ -18,11 +20,11 @@ class TestAlgorithm(object):
 
     def test_base_definition(self):
         # note: any algorithm node with attrs and inputs would be fine here
-        setting = podpac.settings.allow_unsafe_eval
-        podpac.settings.set_unsafe_eval(True)
-        node = Arithmetic(A=Arange(), B=Arange(), eqn="A+B")
-        d = node.base_definition
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+            node = Arithmetic(A=Arange(), B=Arange(), eqn="A+B")
 
+        d = node.base_definition
         assert isinstance(d, OrderedDict)
         assert "node" in d
         assert "attrs" in d
@@ -38,4 +40,3 @@ class TestAlgorithm(object):
         assert "B" in d["inputs"]
 
         # TODO value of d['inputs']['A'], etc
-        podpac.settings.set_unsafe_eval(setting)
