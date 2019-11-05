@@ -37,9 +37,7 @@ class TestArithmetic(object):
 
         with podpac.settings:
             podpac.settings.set_allow_python_eval_exec(True)
-            with warnings.catch_warnings():
-                warnings.filterwarnings("error", "Insecure evaluation.*")
-                node = Arithmetic(A=sine_node, B=sine_node, eqn="2*abs(A) - B + {offset}", params={"offset": 1})
+            node = Arithmetic(A=sine_node, B=sine_node, eqn="2*abs(A) - B + {offset}", params={"offset": 1})
 
             podpac.settings.set_allow_python_eval_exec(False)
             with pytest.warns(UserWarning, match="Insecure evaluation"):
@@ -89,9 +87,7 @@ class TestGeneric(object):
 
         with podpac.settings:
             podpac.settings.set_allow_python_eval_exec(True)
-            with warnings.catch_warnings():
-                warnings.filterwarnings("error", "Insecure evaluation.*")
-                node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", a=a, b=b)
+            node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", a=a, b=b)
 
             podpac.settings.set_allow_python_eval_exec(False)
             with pytest.warns(UserWarning, match="Insecure evaluation"):
