@@ -33,32 +33,92 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 class Lambda(Node):
     """A `Node` wrapper to evaluate source on AWS Lambda function
     
+
     Attributes
     ----------
+    aws_access_key_id : str, optional
+        Access key id from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :dict:`podpac.settings`.
+    aws_region_name : str, optional
+        Name of the AWS region. If :attr:`session` is provided, this attribute will be ignored. Overrides :dict:`podpac.settings`.
+    aws_secret_access_key : str
+        Access key value from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :dict:`podpac.settings`.
+    function_name : str, optional
+        Name of the lambda function to use or create. Defaults to :dict:`podpac.settings["FUNCTION_NAME"]` or "podpac-lambda-autogen".
+    function_timeout : int, optional
+        Timeout of the lambda function, in seconds. Defaults to 600.
+    function_triggers : list of str, optional
+        Methods to trigger this function. May only include ["eval", "S3", "APIGateway"]. During the :meth:`self.build()` process, this list will determine which AWS resources are linked to Lambda function. Defaults to ["eval"].
+    function_role_name : str, optional
+        Name of the AWS role created for lambda function. Defaults to "podpac-lambda-autogen"
+    function_s3_bucket : str, optional
+        S3 bucket name to use with lambda function. Defaults to :dict:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
+
+    Other Attributes
+    ----------------
     attrs : dict
-        additional attributes passed on to the Lambda definition of the base node
-    aws_access_key_id : string
-        access key id from AWS credentials
-    aws_region_name : string
-        name of the AWS region
-    aws_secret_access_key : string
-        access key value from AWS credentials
+        Additional attributes passed on to the Lambda definition of the base node
     download_result : Bool
-        flag that indicated whether node should wait to download the data.
-    function_name : string
-        name of the lambda function to use or create
-    function_s3_bucket : string
-        s3 bucket name to use with lambda function
-    function_s3_input : TYPE
-        folder in `function_s3_bucket` to store pipelines
-    function_s3_output : TYPE
-        folder in `function_s3_bucket` to watch for output
+        Flag that indicated whether node should wait to download the data.
+    function_api_description : str, optional
+        Description for the AWS API Gateway resource
+    function_api_endpoint : str, optional
+        Endpoint path for API Gateway. Defaults to "eval".
+    function_api_name : str, optional
+        AWS resource name for the API Gateway. Defaults to :attr:`self.function_name` + "-api".
+    function_api_stage : str, optional
+        Stage name for the API gateway. Defaults to "prod".
+    function_api_tags : dict, optional
+        AWS Tags for API Gateway resource
+    function_api_version : str, optional
+        API Gateway version. Defaults to :meth:`podpac.verions.semver()`.
+    function_description : str, optional
+        Description for the AWS Lambda function resource
+    function_env_variables : dict, optional
+        Environment variables to use within the lambda function.
+    function_eval_trigger : str, optional
+        Function trigger to use during node eval process. Must be on of "eval" (default), "S3", or "APIGateway".
+    function_handler : str, optional
+        Handler method in Lambda function
+    function_memory : int, option
+        Memory allocated for each Lambda function. Defaults to 2048 MB.
+    function_role_assume_policy_document : dict, optional.
+        Assume policy document for role created. Defaults to allowing role to assume Lambda function.
+    function_role_description : str, optional
+        Description for the AWS role resource
+    function_role_policy_arns : list of str, optional
+        Managed role policy ARNs to attach to role.
+    function_role_policy_document : dict, optional
+        Inline role policies to put in role.
+    function_role_tags : dict, optional
+        AWS Tags for role resource
+    function_s3_dependencies_key : str, optional
+        S3 path to copy and reference podpac dependencies. Defaults to "podpac_deps_<semver>.zip".
+    function_s3_input : str, optional
+        Folder in :attr:`self.function_s3_bucket` to store input pipelines when "S3" is included in :attr:`self.function_triggers`. Defaults to "input".
+    function_s3_output : str, optional
+        Folder in :attr:`self.function_s3_bucket` to watch for output when "S3" is included in :attr:`self.function_triggers`. Defaults to "output".
+    function_s3_tags : dict, optional
+        AWS Tags for S3 bucket resource
+    function_source_bucket : str, optional
+        S3 Bucket to use for released podpac distribution during :meth:`self.build()` process. Defaults to "podpac-dist". This bucket is managed by the PODPAC distribution team.
+    function_source_dependencies_key : str, optional
+        S3 path within :attr:`self.function_source_bucket` to source podpac dependencies archive during :meth:`self.build()` process. Defaults to "<semver>/podpac_deps.zip".
+    function_source_dependencies_zip : str, optional
+        Override :attr:`self.function_source_dependencies_key` and upload custom source podpac dependencies archive to :attr:`self.function_s3_bucket` during :meth:`self.build()` process.
+    function_source_dist_key : str, optional
+        S3 path within :attr:`self.function_source_bucket` to source podpac dist archive during :meth:`self.build()` process. Defaults to "<semver>/podpac_dist.zip".
+    function_source_dist_zip : str, optional
+        Override :attr:`self.function_source_dist_key` and create lambda function using custom source podpac dist archive to :attr:`self.function_s3_bucket` during :meth:`self.build()` process.
+    function_tags : dict, optional
+        AWS Tags for Lambda function resource
+    session : :class:`podpac.managers.aws.Session`
+        AWS Session to use for this node.
     source : :class:`podpac.Node`
-        node to be evaluated
+        Node to be evaluated
     source_output_format : str
-        output format for the evaluated results of `source`
+        Output format for the evaluated results of `source`
     source_output_name : str
-        output name for the evaluated results of `source`
+        Output name for the evaluated results of `source`
     """
 
     # aws parameters - defaults are handled in Session

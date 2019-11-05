@@ -60,6 +60,8 @@ Coordinates
 Data Sources
 ------------
 
+Generic data source wrappers
+
 .. rubric:: Data Types
 
 .. autosummary::
@@ -91,6 +93,8 @@ Data Sources
 
 Interpolators
 -------------
+
+Classes to manage interpolation
 
 .. autosummary::
     :toctree: api/
@@ -129,6 +133,8 @@ Pipelines
 
 Algorithm Nodes
 ---------------
+
+Split/Apply/Combine nodes with algorithms
 
 .. autosummary::
     :toctree: api/
@@ -188,6 +194,8 @@ Algorithm Nodes
 Compositor Nodes
 ----------------
 
+Stitch multiple data sources together
+
 .. autosummary::
     :toctree: api/
     :template: class.rst
@@ -198,6 +206,8 @@ Compositor Nodes
 
 Datalib
 -------
+
+Interfaces to external data sources
 
 .. autosummary::
     :toctree: api/
@@ -211,6 +221,18 @@ Datalib
     podpac.datalib.SMAPProperties
     podpac.datalib.SMAPWilt
     podpac.datalib.SMAP_PRODUCT_MAP
+
+Managers
+--------
+
+Cloud computing managers
+
+.. autosummary::
+    :toctree: api/
+    :template: class.rst
+
+    podpac.managers.aws
+    podpac.managers.Lambda
 
 Utilities
 ---------
