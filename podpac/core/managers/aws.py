@@ -43,15 +43,15 @@ class Lambda(Node):
     aws_secret_access_key : str
         Access key value from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :dict:`podpac.settings`.
     function_name : str, optional
-        Name of the lambda function to use or create. Defaults to :dict:`podpac.settings["FUNCTION_NAME"]` or "podpac-lambda-autogen".
+        Name of the lambda function to use or create. Defaults to :str:`podpac.settings["FUNCTION_NAME"]` or "podpac-lambda-autogen".
     function_timeout : int, optional
         Timeout of the lambda function, in seconds. Defaults to 600.
     function_triggers : list of str, optional
         Methods to trigger this function. May only include ["eval", "S3", "APIGateway"]. During the :meth:`self.build()` process, this list will determine which AWS resources are linked to Lambda function. Defaults to ["eval"].
     function_role_name : str, optional
-        Name of the AWS role created for lambda function. Defaults to "podpac-lambda-autogen"
+        Name of the AWS role created for lambda function. Defaults to :str:`podpac.settings["FUNCTION_ROLE_NAME"]` or "podpac-lambda-autogen".
     function_s3_bucket : str, optional
-        S3 bucket name to use with lambda function. Defaults to :dict:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
+        S3 bucket name to use with lambda function. Defaults to :str:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
 
     Other Attributes
     ----------------
@@ -68,7 +68,7 @@ class Lambda(Node):
     function_api_stage : str, optional
         Stage name for the API gateway. Defaults to "prod".
     function_api_tags : dict, optional
-        AWS Tags for API Gateway resource
+        AWS Tags for API Gateway resource. Defaults to :attr:`self.function_tags`.
     function_api_version : str, optional
         API Gateway version. Defaults to :meth:`podpac.verions.semver()`.
     function_description : str, optional
@@ -78,7 +78,7 @@ class Lambda(Node):
     function_eval_trigger : str, optional
         Function trigger to use during node eval process. Must be on of "eval" (default), "S3", or "APIGateway".
     function_handler : str, optional
-        Handler method in Lambda function
+        Handler method in Lambda function. Defaults to "handler.handler".
     function_memory : int, option
         Memory allocated for each Lambda function. Defaults to 2048 MB.
     function_role_assume_policy_document : dict, optional.
@@ -90,7 +90,7 @@ class Lambda(Node):
     function_role_policy_document : dict, optional
         Inline role policies to put in role.
     function_role_tags : dict, optional
-        AWS Tags for role resource
+        AWS Tags for role resource. Defaults to :attr:`self.function_tags`.
     function_s3_dependencies_key : str, optional
         S3 path to copy and reference podpac dependencies. Defaults to "podpac_deps_<semver>.zip".
     function_s3_input : str, optional
@@ -98,7 +98,7 @@ class Lambda(Node):
     function_s3_output : str, optional
         Folder in :attr:`self.function_s3_bucket` to watch for output when "S3" is included in :attr:`self.function_triggers`. Defaults to "output".
     function_s3_tags : dict, optional
-        AWS Tags for S3 bucket resource
+        AWS Tags for S3 bucket resource. Defaults to :attr:`self.function_tags`.
     function_source_bucket : str, optional
         S3 Bucket to use for released podpac distribution during :meth:`self.build()` process. Defaults to "podpac-dist". This bucket is managed by the PODPAC distribution team.
     function_source_dependencies_key : str, optional
@@ -110,11 +110,11 @@ class Lambda(Node):
     function_source_dist_zip : str, optional
         Override :attr:`self.function_source_dist_key` and create lambda function using custom source podpac dist archive to :attr:`self.function_s3_bucket` during :meth:`self.build()` process.
     function_tags : dict, optional
-        AWS Tags for Lambda function resource
+        AWS Tags for Lambda function resource. Defaults to :dict:`podpac.settings["AWS_TAGS"]` or {}.
     session : :class:`podpac.managers.aws.Session`
         AWS Session to use for this node.
     source : :class:`podpac.Node`
-        Node to be evaluated
+        Node to be evaluated on the Lambda function.
     source_output_format : str
         Output format for the evaluated results of `source`
     source_output_name : str
@@ -142,12 +142,10 @@ class Lambda(Node):
     # lambda function parameters
     function_name = tl.Unicode().tag(attr=True, readonly=True)  # see default below
     function_triggers = tl.List(tl.Enum(["eval", "S3", "APIGateway"]), default_value=["eval"]).tag(readonly=True)
-    function_handler = tl.Unicode().tag(readonly=True)  # see default below
+    function_handler = tl.Unicode(default_value="handler.handler").tag(readonly=True)
     function_description = tl.Unicode(default_value="PODPAC Lambda Function (https://podpac.org)").tag(readonly=True)
     function_env_variables = tl.Dict(default_value={}).tag(readonly=True)  # environment vars in function
-    function_tags = tl.Dict(default_value={}).tag(
-        readonly=True
-    )  # key: value for tags on function (and any created roles)
+    function_tags = tl.Dict().tag(readonly=True)  # key: value for tags on function (and any created roles)
     function_timeout = tl.Int(default_value=600).tag(readonly=True)
     function_memory = tl.Int(default_value=2048).tag(readonly=True)
     function_source_dist_zip = tl.Unicode(default_value=None, allow_none=True).tag(
@@ -174,13 +172,6 @@ class Lambda(Node):
 
         return settings["FUNCTION_NAME"]
 
-    @tl.default("function_handler")
-    def _function_handler_default(self):
-        if settings["FUNCTION_HANDLER"] is None:
-            settings["FUNCTION_HANDLER"] = "handler.handler"
-
-        return settings["FUNCTION_HANDLER"]
-
     @tl.default("function_source_dist_key")
     def _function_source_dist_key_default(self):
         v = version.version()
@@ -197,8 +188,12 @@ class Lambda(Node):
 
         return "{}/podpac_deps.zip".format(v)
 
+    @tl.default("function_tags")
+    def _function_tags_default(self):
+        return settings["AWS_TAGS"] or {}
+
     # role parameters
-    function_role_name = tl.Unicode(default_value="podpac-lambda-autogen").tag(readonly=True)
+    function_role_name = tl.Unicode().tag(readonly=True)  # see default below
     function_role_description = tl.Unicode(default_value="PODPAC Lambda Role").tag(readonly=True)
     function_role_policy_document = tl.Dict(allow_none=True).tag(readonly=True)  # see default below - can be none
     function_role_policy_arns = tl.List(
@@ -210,6 +205,13 @@ class Lambda(Node):
     function_role_tags = tl.Dict().tag(readonly=True)  # see default below
     _function_role_arn = tl.Unicode(default_value=None, allow_none=True)
     _role = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
+
+    @tl.default("function_role_name")
+    def _function_role_name_default(self):
+        if settings["FUNCTION_ROLE_NAME"] is None:
+            settings["FUNCTION_ROLE_NAME"] = "podpac-lambda-autogen"
+
+        return settings["FUNCTION_ROLE_NAME"]
 
     @tl.default("function_role_policy_document")
     def _function_role_policy_document_default(self):
@@ -299,33 +301,16 @@ class Lambda(Node):
     # s3 parameters
     function_s3_bucket = tl.Unicode().tag(attr=True, readonly=True)  # see default below
     function_s3_dependencies_key = tl.Unicode()  # see default below
-    function_s3_input = tl.Unicode()  # see default below
-    function_s3_output = tl.Unicode()  # see default below
+    function_s3_input = tl.Unicode(default_value="input")
+    function_s3_output = tl.Unicode(default_value="output")
     function_s3_tags = tl.Dict()  # see default below
     _bucket = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
 
     @tl.default("function_s3_bucket")
     def _function_s3_bucket_default(self):
-        if settings["S3_BUCKET_NAME"] is None:
-            settings["S3_BUCKET_NAME"] = "podpac-autogen-{}".format(
-                np.datetime64("now").astype(int)
-            )  # must be globally unique
-
-        return settings["S3_BUCKET_NAME"]
-
-    @tl.default("function_s3_input")
-    def _function_s3_input_default(self):
-        if settings["S3_INPUT_FOLDER"] is None:
-            settings["S3_INPUT_FOLDER"] = "input"
-
-        return settings["S3_INPUT_FOLDER"]
-
-    @tl.default("function_s3_output")
-    def _function_s3_output_default(self):
-        if settings["S3_OUTPUT_FOLDER"] is None:
-            settings["S3_OUTPUT_FOLDER"] = "output"
-
-        return settings["S3_OUTPUT_FOLDER"]
+        return settings["S3_BUCKET_NAME"] or "podpac-autogen-{}".format(
+            np.datetime64("now").astype(int)
+        )  # must be globally unique
 
     @tl.default("function_s3_tags")
     def _function_s3_tags_default(self):
@@ -395,7 +380,7 @@ class Lambda(Node):
         if self.source is None:
             raise ValueError("'source' node must be defined to eval")
 
-        if self.function_eval_trigger == "S3":
+        if self.function_eval_trigger == "eval" or self.function_eval_trigger == "S3":
             return self._eval_s3(coordinates, output=None)
         else:
             raise NotImplementedError("APIGateway trigger not yet implemented through eval")

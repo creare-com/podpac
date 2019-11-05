@@ -45,12 +45,11 @@ DEFAULT_SETTINGS = {
     "AWS_ACCESS_KEY_ID": None,
     "AWS_SECRET_ACCESS_KEY": None,
     "AWS_REGION_NAME": None,
+    "AWS_TAGS": None,
     "S3_BUCKET_NAME": None,
-    "S3_INPUT_FOLDER": None,
-    "S3_OUTPUT_FOLDER": None,
-    "FUNCTION_NAME": None,  # name of lambda function to eval
-    "FUNCTION_HANDLER": None,
-    "FUNCTION_DEPENDENCIES_KEY": None,  # path on S3 bucket where function depedencies live
+    "FUNCTION_NAME": None,
+    "FUNCTION_ROLE_NAME": None,
+    "FUNCTION_DEPENDENCIES_KEY": None,
 }
 
 
