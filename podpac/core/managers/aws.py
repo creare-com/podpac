@@ -1171,6 +1171,14 @@ Lambda Node {status}
         # add coordinates to the pipeline
         pipeline = self.pipeline
         pipeline["coordinates"] = json.loads(coordinates.json)
+        settings_string = "{ " + '"S3_INPUT_FOLDER": "{input_folder}{input_slash}", "S3_OUTPUT_FOLDER": "{output_folder}{output_slash}", "FUNCTION_DEPENDENCIES_KEY": "{deps}" '.format(
+            input_folder=self.function_s3_input,
+            input_slash="/" if not self.function_s3_input.endswith("/") else "",
+            output_folder=self.function_s3_output,
+            output_slash="/" if not self.function_s3_output.endswith("/") else "",
+            deps=self.function_s3_dependencies_key
+        ) + "}"
+        pipeline["settings"] = json.loads(settings_string)
 
         # filename
         filename = "{folder}{slash}{output}_{source}_{coordinates}.{suffix}".format(

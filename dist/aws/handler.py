@@ -40,68 +40,6 @@ def is_s3_trigger(event):
     return "Records" in event and event["Records"][0]["eventSource"] == "aws:s3"
 
 
-"""
-Helper method to merge two local settings json/dict objects, then update the `PodpacSettings`.
-
-The settings variable here is podpac.settings.
-"""
-
-
-def update_podpac_settings(old_settings_json, new_settings_json):
-    """
-    Helper method to merge two local settings json/dict objects, then update the `PodpacSettings`.
-
-    The settings variable here is podpac.settings.
-
-    Parameters
-    ----------
-    old_settings_json : dict
-        old settings dict
-    new_settings_json : dict
-        new settings dict to merge in
-    """
-    updated_settings = {**old_settings_json, **new_settings_json}
-    for key in updated_settings:
-        settings[key] = updated_settings[key]
-
-
-def check_for_cached_output(input_file_key, pipeline, settings_json, bucket):
-    """
-    Helper function to determine if the requested output is already computed (and force_compute is false.)
-
-    
-    Parameters
-    ----------
-    input_file_key : str
-        Description
-    pipeline : dict
-        Description
-    settings_json : dict
-        Description
-    bucket : str
-        Description
-    
-    Returns
-    -------
-    Bool
-        Returns true if the requested output is already computed
-    """
-    output_filename = input_file_key.replace(".json", "." + pipeline["output"]["format"])
-    output_filename = output_filename.replace(settings_json["S3_INPUT_FOLDER"], settings_json["S3_OUTPUT_FOLDER"])
-    try:
-        s3.head_object(Bucket=bucket, Key=output_filename)
-        # Object exists, so we don't have to recompute
-        if not pipeline.get("force_compute", False):
-            return True, output_filename
-    except botocore.exceptions.ClientError as e:
-        if e.response["Error"]["Code"] == "404":
-            # It does not exist, so we should proceed
-            return False, output_filename
-        # Something else has gone wrong... not handling this case.
-        return False, output_filename
-    return False, output_filename
-
-
 def handler(event, context, get_deps=True, ret_pipeline=False):
     """Lambda function handler
     
@@ -121,6 +59,62 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     TYPE
         Description
     """
+
+    def _update_podpac_settings(old_settings_json, new_settings_json):
+        """
+        Helper method to merge two local settings json/dict objects, then update the `PodpacSettings`.
+
+        The settings variable here is podpac.settings.
+
+        Parameters
+        ----------
+        old_settings_json : dict
+            old settings dict
+        new_settings_json : dict
+            new settings dict to merge in
+        """
+        updated_settings = {**old_settings_json, **new_settings_json}
+        for key in updated_settings:
+            settings[key] = updated_settings[key]
+
+
+    def _check_for_cached_output(input_file_key, pipeline, settings_json, bucket):
+        """
+        Helper function to determine if the requested output is already computed (and force_compute is false.)
+
+
+        Parameters
+        ----------
+        input_file_key : str
+            Description
+        pipeline : dict
+            Description
+        settings_json : dict
+            Description
+        bucket : str
+            Description
+
+        Returns
+        -------
+        Bool
+            Returns true if the requested output is already computed
+        """
+        output_filename = input_file_key.replace(".json", "." + pipeline["output"]["format"])
+        output_filename = output_filename.replace(settings_json["S3_INPUT_FOLDER"], settings_json["S3_OUTPUT_FOLDER"])
+        try:
+            s3.head_object(Bucket=bucket, Key=output_filename)
+            # Object exists, so we don't have to recompute
+            if not pipeline.get("force_compute", False):
+                return True, output_filename
+        except botocore.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "404":
+                # It does not exist, so we should proceed
+                return False, output_filename
+            # Something else has gone wrong... not handling this case.
+            return False, output_filename
+        return False, output_filename
+
+    print(event)
 
     # Add /tmp/ path to handle python path for dependencies
     sys.path.append("/tmp/")
@@ -155,7 +149,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
 
         # We can return if there is a valid cached output to save compute time.
         settings_json = pipeline["settings"]
-        cached, output_filename = check_for_cached_output(file_key, pipeline, settings_json, bucket)
+        cached, output_filename = _check_for_cached_output(file_key, pipeline, settings_json, bucket)
         if cached:
             return
     else:
@@ -199,7 +193,7 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     import podpac.datalib
 
     try:
-        update_podpac_settings(settings, settings_json)
+        _update_podpac_settings(settings, settings_json)
     except Exception:
         print("The settings could not be updated.")
 
