@@ -482,11 +482,50 @@ class Lambda(Node):
         else:
             source_deps = "s3://{}/{}".format(self.function_s3_bucket, self.function_s3_dependencies_key)
 
+        # only show API if built or if its proposed in triggers
+        if self._api is not None or (not self._function_valid and "APIGatway" in self.function_triggers):
+            api_output = """
+    API
+        Name: {function_api_name}
+        Description: {function_api_description}
+        ID: {_function_api_id}
+        Resource ID: {_function_api_resource_id}
+        Version: {function_api_version}
+        Tags: {function_api_tags}
+        Stage: {function_api_stage}
+        Endpoint: {function_api_endpoint}
+        URL: {_function_api_url}
+            """.format(
+                function_api_name=self.function_api_name,
+                function_api_description=self.function_api_description,
+                _function_api_id=self._function_api_id,
+                _function_api_resource_id=self._function_api_resource_id,
+                function_api_version=self.function_api_version,
+                function_api_tags=self.function_api_tags,
+                function_api_stage=self.function_api_stage,
+                function_api_endpoint=self.function_api_endpoint,
+                _function_api_url=self._function_api_url,
+            )
+        else:
+            api_output = ""
+
+        s3_trigger_output = (
+            """
+        Input Folder: {function_s3_input}
+        Output Folder: {function_s3_output}
+        """.format(
+                function_s3_input=self.function_s3_input, function_s3_output=self.function_s3_output
+            )
+            if "S3" in self.function_triggers
+            else ""
+        )
+
         output = """
 Lambda Node {status}
     Function
         Name: {function_name}
         Description: {function_description}
+        ARN: {_function_arn}
         Triggers: {function_triggers}
         Handler: {function_handler}
         Environment Variables: {function_env_variables}
@@ -495,6 +534,24 @@ Lambda Node {status}
         Tags: {function_tags}
         Source Dist: {source_dist}
         Source Dependencies: {source_deps}
+        Last Modified: {_function_last_modified}
+        Version: {_function_version}
+
+    S3
+        Bucket: {function_s3_bucket}
+        Tags: {function_s3_tags}
+        {s3_trigger_output}
+
+    Role
+        Name: {function_role_name}
+        Description: {function_role_description}
+        ARN: {_function_role_arn}
+        Policy Document: {function_role_policy_document}
+        Policy ARNs: {function_role_policy_arns}
+        Assume Policy Document: {function_role_assume_policy_document}
+        Tags: {function_role_tags}
+
+        {api_output}
         """.format(
             status=status,
             function_name=self.function_name,
@@ -507,9 +564,23 @@ Lambda Node {status}
             function_tags=self.function_tags,
             source_dist=source_dist,
             source_deps=source_deps,
+            _function_arn=self._function_arn,
+            _function_last_modified=self._function_last_modified,
+            _function_version=self._function_version,
+            function_s3_bucket=self.function_s3_bucket,
+            function_s3_tags=self.function_s3_tags,
+            s3_trigger_output=s3_trigger_output,
+            function_role_name=self.function_role_name,
+            function_role_description=self.function_role_description,
+            function_role_policy_document=self.function_role_policy_document,
+            function_role_policy_arns=self.function_role_policy_arns,
+            function_role_assume_policy_document=self.function_role_assume_policy_document,
+            function_role_tags=self.function_role_tags,
+            _function_role_arn=self._function_role_arn,
+            api_output=api_output,
         )
 
-        print (output)
+        print(output)
 
     # Function
     def create_function(self):
@@ -729,6 +800,10 @@ Lambda Node {status}
             self.session, self.function_s3_bucket, bucket_policy=None, bucket_tags=self.function_s3_tags
         )
         self._set_bucket(bucket)
+
+        # after creating a bucket, you need to wait ~2 seconds before its active and can be uploaded to
+        # this is not cool
+        time.sleep(2)
 
         # add podpac deps to bucket for version
         # copy from user supplied dependencies
