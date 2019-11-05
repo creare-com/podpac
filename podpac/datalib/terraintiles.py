@@ -294,7 +294,7 @@ def _get_tile_tuples(zoom, coordinates=None):
     # if no coordinates are supplied, get all tiles for zoom level
     if coordinates is None:
         # get whole world
-        tiles = _get_tiles_grid([-20037508.34, 20037508.34], [-20037508.34, 20037508.34], zoom)
+        tiles = _get_tiles_grid([-90, 90], [-180, 180], zoom)
 
     # down select tiles based on coordinates
     else:

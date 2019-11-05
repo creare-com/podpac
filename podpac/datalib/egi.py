@@ -225,7 +225,7 @@ class EGI(DataSource):
             )
             raise e
         # Force update on native_coordinates (in case of multiple evals)
-        self.native_coordinates = self.get_native_coordinates()
+        self.set_trait('native_coordinates', self.get_native_coordinates())
 
         # run normal eval once self.data is prepared
         return super(EGI, self).eval(coordinates, output)
