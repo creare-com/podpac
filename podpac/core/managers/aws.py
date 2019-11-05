@@ -316,14 +316,14 @@ class Lambda(Node):
     @tl.default("function_s3_input")
     def _function_s3_input_default(self):
         if settings["FUNCTION_S3_INPUT"] is None:
-            settings["FUNCTION_S3_INPUT"] = "input"
+            settings["FUNCTION_S3_INPUT"] = "input/"
 
         return settings["FUNCTION_S3_INPUT"]
 
     @tl.default("function_s3_output")
     def _function_s3_output_default(self):
         if settings["FUNCTION_S3_OUTPUT"] is None:
-            settings["FUNCTION_S3_OUTPUT"] = "output"
+            settings["FUNCTION_S3_OUTPUT"] = "output/"
 
         return settings["FUNCTION_S3_OUTPUT"]
 
@@ -903,6 +903,7 @@ Lambda Node {status}
                             "Id": "{}".format(np.datetime64("now").astype(int)),
                             "LambdaFunctionArn": self._function_arn,
                             "Events": ["s3:ObjectCreated:*"],
+                            "Filter": {"Key": {"FilterRules": [{"Name": "prefix", "Value": self.function_s3_input}]}},
                         }
                     ]
                 },
