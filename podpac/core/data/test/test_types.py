@@ -30,7 +30,6 @@ from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.data.types import WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
 from podpac.core.data.types import Array, PyDAP, Rasterio, WCS, ReprojectedSource, CSV, H5PY, Zarr
-from podpac.core.settings import settings
 
 # Trying to fix test
 pydap.client.open_url

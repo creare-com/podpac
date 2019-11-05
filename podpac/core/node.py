@@ -9,6 +9,7 @@ import functools
 import json
 import inspect
 import importlib
+import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from hashlib import md5 as hash_alg
@@ -342,8 +343,9 @@ class Node(tl.HasTraits):
         definitions = []
 
         def add_node(node):
-            if node in nodes:
-                return refs[nodes.index(node)]
+            for ref, n in zip(refs, nodes):
+                if node.hash == n.hash:
+                    return ref
 
             # get base definition and then replace nodes with references, adding nodes depth first
             d = node.base_definition

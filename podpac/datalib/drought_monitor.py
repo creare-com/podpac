@@ -9,7 +9,6 @@ from podpac.core.coordinates import ArrayCoordinates1d
 def drought_style():
     return Style(
         clim=[0, 6],
-        is_enumerated=True,
         enumeration_colors=[
             [0.45098039, 0.0, 0.0, 1.0],
             [0.90196078, 0.0, 0.0, 1.0],
@@ -22,7 +21,7 @@ def drought_style():
 
 
 def sm_style():
-    return Style(clim=[0, 0.6], cmap="gist_earth_r")
+    return Style(clim=[0, 0.6], colormap="gist_earth_r")
 
 
 class DroughtMonitorCategory(Zarr):
