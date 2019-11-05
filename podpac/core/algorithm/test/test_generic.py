@@ -36,10 +36,10 @@ class TestArithmetic(object):
         sine_node = SinCoords()
 
         with podpac.settings:
-            podpac.settings.set_allow_python_eval_exec(True)
+            podpac.settings.set_unsafe_eval(True)
             node = Arithmetic(A=sine_node, B=sine_node, eqn="2*abs(A) - B + {offset}", params={"offset": 1})
 
-            podpac.settings.set_allow_python_eval_exec(False)
+            podpac.settings.set_unsafe_eval(False)
             with pytest.warns(UserWarning, match="Insecure evaluation"):
                 node = Arithmetic(A=sine_node, B=sine_node, eqn="2*abs(A) - B + {offset}", params={"offset": 1})
 
@@ -95,7 +95,7 @@ class TestGeneric(object):
 
     def test_evaluate(self):
         with podpac.settings:
-            podpac.settings.set_allow_python_eval_exec(True)
+            podpac.settings.set_unsafe_eval(True)
 
             coords = podpac.Coordinates(
                 [podpac.crange(-90, 90, 1.0), podpac.crange(-180, 180, 1.0)], dims=["lat", "lon"]
