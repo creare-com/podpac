@@ -16,25 +16,21 @@
 #
 # Example usage:
 # 
-# $ bash upload_lambda.sh podpac-s3
-# 
+# $ bash upload_lambda.sh
 
-BUCKET=$1
+BUCKET=podpac-dist
 TAG="$(git describe --always)"
 
-if [ -z "$BUCKET" ]
+if [ ! -z "$1" ]
   then
-    echo "S3 bucket name required as first cli argument"
-    exit 1
-  else
-    echo "Bucket: ${BUCKET}"
+    BUCKET=$1
 fi
 
+echo "Uploading podpac distribution to bucket: ${BUCKET}"
 
-# Upload zips to S3 with commit hash at the end
-aws s3 cp podpac_deps.zip s3://$BUCKET/podpac/podpac_deps_$TAG.zip
-aws s3 cp podpac_dist.zip s3://$BUCKET/podpac/podpac_dist_$TAG.zip
+# Upload zips to S3
+aws s3 cp podpac_deps.zip s3://$BUCKET/$TAG/podpac_deps.zip
+aws s3 cp podpac_dist.zip s3://$BUCKET/$TAG/podpac_dist.zip
 # rm podpac_deps.zip podpac_dist.zip
 
-echo "Navigate to your S3 bucket, select the dependencies zip archives you just uploaded and make it public"
-echo "In the future we will automate the access between the lambda function and s3 bucket"
+echo "Navigate to your bucket $BUCKET, select the zip archives you just uploaded and make them public"

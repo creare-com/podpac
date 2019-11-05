@@ -41,8 +41,8 @@ extras_require = {
         "zarr>=2.3"
     ],
     "aws": [
-        "awscli>=1.11",
-        "boto3>=1.4",
+        "awscli>=1.16",
+        "boto3>=1.9.200",
         "s3fs>=0.2"
     ],
     "algorithms": [
