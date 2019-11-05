@@ -160,13 +160,15 @@ class TestPipeline(object):
         }
         """
 
-        debug = podpac.core.settings.settings["DEBUG"]
-        podpac.core.settings.settings["DEBUG"] = False
-        with pytest.warns(DeprecationWarning):
-            pipeline = Pipeline(json=s)
-        assert pipeline.node.inputs["A"] is pipeline.node.inputs["B"].source
-        podpac.core.settings.settings["DEBUG"] = True
-        with pytest.warns(DeprecationWarning):
-            pipeline = Pipeline(json=s)
-        assert pipeline.node.inputs["A"] is not pipeline.node.inputs["B"].source
-        podpac.core.settings.settings["DEBUG"] = debug
+        with podpac.settings, warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Insecure evaluation.*")
+
+            podpac.core.settings.settings["DEBUG"] = False
+            with pytest.warns(DeprecationWarning):
+                pipeline = Pipeline(json=s)
+            assert pipeline.node.inputs["A"] is pipeline.node.inputs["B"].source
+
+            podpac.core.settings.settings["DEBUG"] = True
+            with pytest.warns(DeprecationWarning):
+                pipeline = Pipeline(json=s)
+            assert pipeline.node.inputs["A"] is not pipeline.node.inputs["B"].source
