@@ -95,14 +95,9 @@ class TestParsePipelineDefinition(object):
                     "node": "data.DataSource",
                     "source": "my_data_string"
                 },
-                "double": {
-                    "node": "algorithm.Arithmetic",
-                    "inputs": {"A": "mydata"},
-                    "attrs": { "eqn": "2 * A" }
-                },
                 "mydata2": {
                     "node": "data.DataSource",
-                    "lookup_source": "double.A.source"
+                    "lookup_source": "mydata.source"
                 }
             }
         }
@@ -119,11 +114,6 @@ class TestParsePipelineDefinition(object):
                 "mydata": {
                     "node": "data.DataSource",
                     "source": "my_data_string"
-                },
-                "double": {
-                    "node": "algorithm.Arithmetic",
-                    "inputs": {"A": "mydata"},
-                    "attrs": { "eqn": "2 * A" }
                 },
                 "mydata2": {
                     "node": "data.DataSource",
@@ -145,14 +135,9 @@ class TestParsePipelineDefinition(object):
                     "node": "data.DataSource",
                     "source": "my_data_string"
                 },
-                "double": {
-                    "node": "algorithm.Arithmetic",
-                    "inputs": {"A": "mydata"},
-                    "attrs": { "eqn": "2 * A" }
-                },
                 "mydata2": {
                     "node": "data.DataSource",
-                    "lookup_source": "double.nonexistent.source"
+                    "lookup_source": "mydata.nonexistent.source"
                 }
             }
         }
@@ -170,14 +155,9 @@ class TestParsePipelineDefinition(object):
                     "node": "data.DataSource",
                     "source": "my_data_string"
                 },
-                "double": {
-                    "node": "algorithm.Arithmetic",
-                    "inputs": {"A": "mydata"},
-                    "attrs": { "eqn": "2 * A" }
-                },
                 "mydata2": {
                     "node": "data.DataSource",
-                    "lookup_source": "double.A.nonexistent"
+                    "lookup_source": "double.source.nonexistent"
                 }
             }
         }
@@ -255,14 +235,13 @@ class TestParsePipelineDefinition(object):
                     "node": "data.DataSource",
                     "source": "my_data_string"
                 },
-                "double": {
-                    "node": "algorithm.Arithmetic",
-                    "inputs": {"A": "mysource"},
-                    "attrs": { "eqn": "2 * A" }
+                "mean": {
+                    "node": "algorithm.Mean",
+                    "inputs": {"source": "mysource"}
                 },
                 "reprojected": {
                     "node": "data.ReprojectedSource",
-                    "lookup_source": "double.A"
+                    "lookup_source": "mean.source"
                 }
             }
         }
@@ -356,22 +335,21 @@ class TestParsePipelineDefinition(object):
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
 
-        assert isinstance(output.node.A, podpac.algorithm.Arange)
-        assert isinstance(output.node.B, podpac.algorithm.CoordData)
+        assert isinstance(output.node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(output.node.inputs["B"], podpac.algorithm.CoordData)
 
         # sub-node
         s = """
         {
             "nodes": {
                 "mysource": {"node": "algorithm.Arange"},
-                "double": {        
-                    "node": "algorithm.Arithmetic",
-                    "inputs": { "A": "mysource" },
-                    "attrs": { "eqn": "2 * A" }
+                "mean": {
+                    "node": "algorithm.Mean",
+                    "inputs": {"source": "mysource"}
                 },
-                "quadruple": {
+                "double": {
                     "node": "algorithm.Arithmetic",
-                    "inputs": { "A": "double.A" },
+                    "inputs": { "A": "mean.source" },
                     "attrs": { "eqn": "2 * A" }
                 }
             }
@@ -381,7 +359,7 @@ class TestParsePipelineDefinition(object):
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
 
-        assert isinstance(output.node.A, podpac.algorithm.Arange)
+        assert isinstance(output.node.inputs["A"], podpac.algorithm.Arange)
 
         # nonexistent node/attribute references are tested in test_datasource_lookup_source
 
@@ -410,15 +388,13 @@ class TestParsePipelineDefinition(object):
         {
             "nodes": {
                 "source1": {"node": "algorithm.Arange"},
-                "source2": {"node": "algorithm.CoordData"},
-                "double": {
-                    "node": "algorithm.Arithmetic",
-                    "inputs": { "A": "source1" },
-                    "attrs": { "eqn": "2 * A" }
+                "mean1": {
+                    "node": "algorithm.Mean",
+                    "inputs": {"source": "source1"}
                 },
                 "c": {
                     "node": "compositor.OrderedCompositor",
-                    "sources": ["double.A", "source2"]
+                    "sources": ["mean1.source", "source1"]
                 }
             }
         }
@@ -426,8 +402,9 @@ class TestParsePipelineDefinition(object):
 
         d = json.loads(s, object_pairs_hook=OrderedDict)
         output = parse_pipeline_definition(d)
+        assert isinstance(output.node, podpac.compositor.OrderedCompositor)
         assert isinstance(output.node.sources[0], podpac.algorithm.Arange)
-        assert isinstance(output.node.sources[1], podpac.algorithm.CoordData)
+        assert isinstance(output.node.sources[1], podpac.algorithm.Arange)
 
         # nonexistent node/attribute references are tested in test_datasource_lookup_source
 

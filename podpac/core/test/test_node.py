@@ -496,9 +496,9 @@ class TestSerialization(object):
         assert node is not self.node
         assert node.hash == self.node.hash
         assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.A, podpac.algorithm.Arange)
-        assert isinstance(node.B, podpac.data.Array)
-        assert isinstance(node.C, podpac.compositor.OrderedCompositor)
+        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(node.inputs["B"], podpac.data.Array)
+        assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
 
     def test_definition_duplicate_base_ref(self):
         n1 = Node()
@@ -554,9 +554,9 @@ class TestSerialization(object):
         assert node is not self.node
         assert node.hash == self.node.hash
         assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.A, podpac.algorithm.Arange)
-        assert isinstance(node.B, podpac.data.Array)
-        assert isinstance(node.C, podpac.compositor.OrderedCompositor)
+        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(node.inputs["B"], podpac.data.Array)
+        assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
 
     def test_file(self):
         # save
@@ -568,9 +568,9 @@ class TestSerialization(object):
         assert node is not self.node
         assert node.hash == self.node.hash
         assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.A, podpac.algorithm.Arange)
-        assert isinstance(node.B, podpac.data.Array)
-        assert isinstance(node.C, podpac.compositor.OrderedCompositor)
+        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(node.inputs["B"], podpac.data.Array)
+        assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
 
     def test_json_pretty(self):
         n = Node()
@@ -713,18 +713,13 @@ class TestUserDefinition(object):
         # sub-node
         s = """
         {
-            "mydata": {
+            "a": {
                 "node": "data.DataSource",
                 "source": "my_data_string"
             },
-            "double": {
-                "node": "algorithm.Arithmetic",
-                "inputs": {"A": "mydata"},
-                "attrs": { "eqn": "2 * A" }
-            },
-            "mydata2": {
+            "b": {
                 "node": "data.DataSource",
-                "lookup_source": "double.A.source"
+                "lookup_source": "a.source"
             }
         }
         """
@@ -736,16 +731,11 @@ class TestUserDefinition(object):
         # nonexistent node
         s = """
         {
-            "mydata": {
+            "a": {
                 "node": "data.DataSource",
                 "source": "my_data_string"
             },
-            "double": {
-                "node": "algorithm.Arithmetic",
-                "inputs": {"A": "mydata"},
-                "attrs": { "eqn": "2 * A" }
-            },
-            "mydata2": {
+            "b": {
                 "node": "data.DataSource",
                 "lookup_source": "nonexistent.source"
             }
@@ -758,18 +748,13 @@ class TestUserDefinition(object):
         # nonexistent subattr
         s = """
         {
-            "mydata": {
+            "a": {
                 "node": "data.DataSource",
                 "source": "my_data_string"
             },
-            "double": {
-                "node": "algorithm.Arithmetic",
-                "inputs": {"A": "mydata"},
-                "attrs": { "eqn": "2 * A" }
-            },
-            "mydata2": {
+            "b": {
                 "node": "data.DataSource",
-                "lookup_source": "double.nonexistent.source"
+                "lookup_source": "a.nonexistent"
             }
         }
         """
@@ -780,18 +765,13 @@ class TestUserDefinition(object):
         # nonexistent subsubattr
         s = """
         {
-            "mydata": {
+            "a": {
                 "node": "data.DataSource",
                 "source": "my_data_string"
             },
-            "double": {
-                "node": "algorithm.Arithmetic",
-                "inputs": {"A": "mydata"},
-                "attrs": { "eqn": "2 * A" }
-            },
-            "mydata2": {
+            "b": {
                 "node": "data.DataSource",
-                "lookup_source": "double.A.nonexistent"
+                "lookup_source": "a.source.nonexistent"
             }
         }
         """
@@ -843,14 +823,13 @@ class TestUserDefinition(object):
                 "node": "data.DataSource",
                 "source": "my_data_string"
             },
-            "double": {
-                "node": "algorithm.Arithmetic",
-                "inputs": {"A": "mysource"},
-                "attrs": { "eqn": "2 * A" }
+            "mean": {
+                "node": "algorithm.Mean",
+                "inputs": {"source": "mysource"}
             },
             "reprojected": {
                 "node": "data.ReprojectedSource",
-                "lookup_source": "double.A"
+                "lookup_source": "mean.source"
             }
         }
         """
@@ -949,21 +928,20 @@ class TestUserDefinition(object):
 
         node = Node.from_json(s)
         assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.A, podpac.algorithm.Arange)
-        assert isinstance(node.B, podpac.algorithm.CoordData)
+        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
+        assert isinstance(node.inputs["B"], podpac.algorithm.CoordData)
 
         # sub-node
         s = """
         {
             "mysource": {"node": "algorithm.Arange"},
-            "double": {        
-                "node": "algorithm.Arithmetic",
-                "inputs": { "A": "mysource" },
-                "attrs": { "eqn": "2 * A" }
+            "mean": {        
+                "node": "algorithm.Mean",
+                "inputs": { "source": "mysource" }
             },
-            "quadruple": {
+            "double": {
                 "node": "algorithm.Arithmetic",
-                "inputs": { "A": "double.A" },
+                "inputs": { "A": "mean.source" },
                 "attrs": { "eqn": "2 * A" }
             }
         }
@@ -971,7 +949,7 @@ class TestUserDefinition(object):
 
         node = Node.from_json(s)
         assert isinstance(node, podpac.algorithm.Arithmetic)
-        assert isinstance(node.A, podpac.algorithm.Arange)
+        assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
 
         # in attrs (incorrect)
         s = """
@@ -1018,15 +996,13 @@ class TestUserDefinition(object):
         s = """
         {
             "source1": {"node": "algorithm.Arange"},
-            "source2": {"node": "algorithm.CoordData"},
-            "double": {
-                "node": "algorithm.Arithmetic",
-                "inputs": { "A": "source1" },
-                "attrs": { "eqn": "2 * A" }
+            "mean1": {
+                "node": "algorithm.Mean",
+                "inputs": {"source": "source1"}
             },
             "c": {
                 "node": "compositor.OrderedCompositor",
-                "sources": ["double.A", "source2"]
+                "sources": ["mean1.source", "source1"]
             }
         }
         """
@@ -1034,7 +1010,7 @@ class TestUserDefinition(object):
         node = Node.from_json(s)
         assert isinstance(node, podpac.compositor.OrderedCompositor)
         assert isinstance(node.sources[0], podpac.algorithm.Arange)
-        assert isinstance(node.sources[1], podpac.algorithm.CoordData)
+        assert isinstance(node.sources[1], podpac.algorithm.Arange)
 
     def test_datasource_interpolation(self):
         s = """
@@ -1261,6 +1237,37 @@ class TestUserDefinition(object):
 
         with pytest.raises(ValueError, match="no module found"):
             Node.from_json(s)
+
+    def test_debuggable(self):
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Arange"
+            },
+            "mean": {
+                "node": "algorithm.SpatialConvolution",
+                "inputs": {"source": "a"},
+                "attrs": {"kernel_type": "mean,3"}
+            },
+            "c": {
+                "node": "algorithm.Arithmetic",
+                "inputs": {"A": "a", "B": "mean"},
+                "attrs": {"eqn": "a-b"}
+            }
+        }
+        """
+
+        original_debug = podpac.core.settings.settings["DEBUG"]
+
+        podpac.core.settings.settings["DEBUG"] = False
+        node = Node.from_json(s)
+        assert node.inputs["A"] is node.inputs["B"].source
+
+        podpac.core.settings.settings["DEBUG"] = True
+        node = Node.from_json(s)
+        assert node.inputs["A"] is not node.inputs["B"].source
+
+        podpac.core.settings.settings["DEBUG"] = original_debug
 
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)
