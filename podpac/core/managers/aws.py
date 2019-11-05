@@ -157,6 +157,7 @@ class Lambda(Node):
     function_source_bucket = tl.Unicode(default_value="podpac-dist", allow_none=True).tag(readonly=True)
     function_source_dist_key = tl.Unicode().tag(readonly=True)  # see default below
     function_source_dependencies_key = tl.Unicode().tag(readonly=True)  # see default below
+    function_allow_unsafe_eval = tl.Bool(default_value=False).tag(readonly=True)
     _function_arn = tl.Unicode(default_value=None, allow_none=True)
     _function_last_modified = tl.Unicode(default_value=None, allow_none=True)
     _function_version = tl.Unicode(default_value=None, allow_none=True)
@@ -495,11 +496,11 @@ class Lambda(Node):
         _log.info("Removing all cloud resources associated with this Lamba node")
 
         if confirm:
+            self.remove_triggers()
             self.delete_function()
             self.delete_role()
             self.delete_api()
             self.delete_bucket(delete_objects=True)
-            self.remove_triggers()
 
     def describe(self):
         """Show a description of the Lambda Utilities
@@ -634,6 +635,10 @@ Lambda Node {status}
         if self.function_name is None:
             raise AttributeError("Function name is not defined")
 
+        if self.function_allow_unsafe_eval:
+            _log.info("Lambda function will allow unsafe evaluation of Nodes with the current settings")
+            self.function_env_variables["PODPAC_UNSAFE_EVAL"] = settings["UNSAFE_EVAL_HASH"]
+
         # if function already exists, this will return existing function
         function = create_function(
             self.session,
@@ -724,7 +729,7 @@ Lambda Node {status}
         source_arn : str
             Source ARN for trigger
         """
-        add_trigger(self.session, self.function_name, statement_id, principle, source_arn)
+        add_function_trigger(self.session, self.function_name, statement_id, principle, source_arn)
         self._function_triggers[statement_id] = source_arn
 
     def remove_trigger(self, statement_id):
@@ -1761,7 +1766,7 @@ def delete_function(session, function_name):
     _log.debug("Removed lambda function '{}'".format(function_name))
 
 
-def add_trigger(session, function_name, statement_id, principle, source_arn):
+def add_function_trigger(session, function_name, statement_id, principle, source_arn):
     """Add trigger (permission) to lambda function
     
     Parameters
