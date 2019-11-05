@@ -337,7 +337,7 @@ class PodpacSettings(dict):
 
     def __exit__(self, type, value, traceback):
         # restore eval/exec state (setting and file)
-        self.set_allow_python_eval_exec(self._original.get("ALLOW_PYTHON_EVAL_EXEC", False))
+        self.set_allow_python_eval_exec(self._original["ALLOW_PYTHON_EVAL_EXEC"])
 
         # restore original settings
         for k, v in self._original.items():
