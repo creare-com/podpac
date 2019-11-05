@@ -30,7 +30,6 @@ echo "${DOCKER_NAME}:${DOCKER_TAG}"
 
 # Navigate to root, build docker, and extract zips
 pushd ../../
-cp ~/.podpac/settings.json .
 docker build -f dist/aws/Dockerfile --no-cache --tag $DOCKER_NAME:$DOCKER_TAG --build-arg COMMIT_SHA="${COMMIT_SHA}" --build-arg TAG="${TAG}" .
 docker run --name "${DOCKER_NAME}" -itd $DOCKER_NAME:$DOCKER_TAG
 docker cp "${DOCKER_NAME}":/tmp/vendored/podpac_dist.zip ./dist/aws

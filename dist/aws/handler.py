@@ -60,69 +60,12 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         Description
     """
 
-    def _update_podpac_settings(old_settings_json, new_settings_json):
-        """
-        Helper method to merge two local settings json/dict objects, then update the `PodpacSettings`.
-
-        The settings variable here is podpac.settings.
-
-        Parameters
-        ----------
-        old_settings_json : dict
-            old settings dict
-        new_settings_json : dict
-            new settings dict to merge in
-        """
-        updated_settings = {**old_settings_json, **new_settings_json}
-        for key in updated_settings:
-            settings[key] = updated_settings[key]
-
-    def _check_for_cached_output(input_file_key, pipeline, settings_json, bucket):
-        """
-        Helper function to determine if the requested output is already computed (and force_compute is false.)
-
-
-        Parameters
-        ----------
-        input_file_key : str
-            Description
-        pipeline : dict
-            Description
-        settings_json : dict
-            Description
-        bucket : str
-            Description
-
-        Returns
-        -------
-        Bool
-            Returns true if the requested output is already computed
-        """
-        output_filename = input_file_key.replace(".json", "." + pipeline["output"]["format"])
-        output_filename = output_filename.replace(
-            settings_json["FUNCTION_S3_INPUT"], settings_json["FUNCTION_S3_OUTPUT"]
-        )
-        try:
-            s3.head_object(Bucket=bucket, Key=output_filename)
-            # Object exists, so we don't have to recompute
-            if not pipeline.get("force_compute", False):
-                return True, output_filename
-        except botocore.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "404":
-                # It does not exist, so we should proceed
-                return False, output_filename
-            # Something else has gone wrong... not handling this case.
-            return False, output_filename
-        return False, output_filename
-
     print(event)
 
     # Add /tmp/ path to handle python path for dependencies
     sys.path.append("/tmp/")
 
-    # TODO: move to s3fs for simpler access
-    # not sure if this is possible?
-    # continue to assume that lambda handler has access to all s3 resources
+    # get S3 client - note this will have the same access that the current "function role" does
     s3 = boto3.client("s3")
 
     args = []
@@ -137,51 +80,67 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         file_key = urllib.unquote_plus(event["Records"][0]["s3"]["object"]["key"])
         _json = ""
 
-        # get the object
-        obj = s3.get_object(Bucket=bucket, Key=file_key)
-
-        # get lines
-        lines = obj["Body"].read().split(b"\n")
-        for r in lines:
-            if len(_json) > 0:
-                _json += "\n"
-            _json += r.decode()
-        pipeline = json.loads(_json, object_pairs_hook=OrderedDict)
+        # get the pipeline object and read
+        pipeline_obj = s3.get_object(Bucket=bucket, Key=file_key)
+        pipeline = json.loads(pipeline_obj["Body"].read().decode("utf-8"))
 
         # We can return if there is a valid cached output to save compute time.
-        settings_json = pipeline["settings"]
-        cached, output_filename = _check_for_cached_output(file_key, pipeline, settings_json, bucket)
+        settings_trigger = pipeline["settings"]
+
+        # check for cached output
+        cached = False
+        output_filename = file_key.replace(".json", "." + pipeline["output"]["format"]).replace(
+            settings_trigger["FUNCTION_S3_INPUT"], settings_trigger["FUNCTION_S3_OUTPUT"]
+        )
+
+        try:
+            s3.head_object(Bucket=bucket, Key=output_filename)
+
+            # Object exists, so we don't have to recompute
+            # TODO: the "force_compute" parameter will never work as is written in aws.py
+            if not pipeline.get("force_compute", False):
+                cached = True
+
+        except botocore.exceptions.ClientError:
+            pass
+
         if cached:
             return
+
+    # TODO: handle "invoke" and "APIGateway" triggers explicitly
     else:
-        print("DSullivan: we have an API Gateway event. Will now get deps in order to proceed.")
+        print("Not triggered by S3")
+
         url = event["queryStringParameters"]
         if isinstance(url, string_types):
             url = urllib.parse_qs(urllib.urlparse(url).query)
 
         # Capitalize the keywords for consistency
-        settings_json = {}
+        settings_trigger = {}
         for k in url:
             if k.upper() == "SETTINGS":
-                settings_json = url[k]
-        bucket = settings_json["S3_BUCKET_NAME"]
+                settings_trigger = url[k]
+        bucket = settings_trigger["S3_BUCKET_NAME"]
 
     # get dependencies path
-    if "FUNCTION_DEPENDENCIES_KEY" in settings_json:
-        dependencies = settings_json["FUNCTION_DEPENDENCIES_KEY"]
+    if "FUNCTION_DEPENDENCIES_KEY" in settings_trigger:
+        dependencies = settings_trigger["FUNCTION_DEPENDENCIES_KEY"]
     else:
         # TODO: this could be a problem, since we can't import podpac settings yet
         # which means the input event might have to include the version or
         # "FUNCTION_DEPENDENCIES_KEY".
         dependencies = "podpac_deps_{}.zip".format(
-            settings_json["PODPAC_VERSION"]
+            settings_trigger["PODPAC_VERSION"]
         )  # this should be equivalent to version.semver()
+
     # Download dependencies from specific bucket/object
     if get_deps:
         s3.download_file(bucket, dependencies, "/tmp/" + dependencies)
         subprocess.call(["unzip", "/tmp/" + dependencies, "-d", "/tmp"])
         sys.path.append("/tmp/")
         subprocess.call(["rm", "/tmp/" + dependencies])
+
+    # Load PODPAC
 
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
     import matplotlib
@@ -193,10 +152,9 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     from podpac.core.utils import JSONEncoder, _get_query_params_from_url
     import podpac.datalib
 
-    try:
-        _update_podpac_settings(settings, settings_json)
-    except Exception:
-        print("The settings could not be updated.")
+    # update podpac settings with inputs from the trigger
+    for key in settings_trigger:
+        settings[key] = settings_trigger[key]
 
     if is_s3_trigger(event):
         node = Node.from_definition(pipeline["pipeline"])
@@ -204,6 +162,8 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
         fmt = pipeline["output"]["format"]
         kwargs = pipeline["output"].copy()
         kwargs.pop("format")
+
+    # TODO: handle "invoke" and "APIGateway" triggers explicitly
     else:
         coords = Coordinates.from_url(event["queryStringParameters"])
         node = Node.from_url(event["queryStringParameters"])
@@ -212,37 +172,23 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
             kwargs["return_base64"] = True
 
     output = node.eval(coords)
+
+    # FOR DEBUGGING
     if ret_pipeline:
         return node
 
     body = output.to_format(fmt, *args, **kwargs)
 
     # output_filename only exists if this was an S3 triggered event.
-    if output_filename is not None:
+    if is_s3_trigger(event):
         s3.put_object(Bucket=bucket, Key=output_filename, Body=body)
+
+    # TODO: handle "invoke" and "APIGateway" triggers explicitly
     else:
         try:
             json.dumps(body)
         except Exception as e:
-            print("AWS: body is not serializable, attempting to decode.")
+            print("Output body is not serializable, attempting to decode.")
             body = body.decode()
-    return {"statusCode": 200, "headers": {"Content-Type": "image/png"}, "isBase64Encoded": True, "body": body}
 
-
-#############
-# Test Script
-#############
-if __name__ == "__main__":
-    from podpac import settings
-
-    # Need to authorize our s3 client when running locally.
-    s3 = boto3.client(
-        "s3",
-        aws_access_key_id=settings["AWS_ACCESS_KEY_ID"],
-        aws_secret_access_key=settings["AWS_SECRET_ACCESS_KEY"],
-        region_name=settings["AWS_REGION_NAME"],
-    )
-    event = {"Records": [{"s3": {"object": {"key": "json/SinCoords.json"}, "bucket": {"name": "podpac-mls-test"}}}]}
-
-    example = handler(event, {}, get_deps=False)
-    print(example)
+        return {"statusCode": 200, "headers": {"Content-Type": "image/png"}, "isBase64Encoded": True, "body": body}

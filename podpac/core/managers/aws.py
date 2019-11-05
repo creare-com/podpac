@@ -223,64 +223,22 @@ class Lambda(Node):
                 {
                     "Effect": "Allow",
                     "Action": [
-                        "s3:PutAnalyticsConfiguration",
-                        "s3:GetObjectVersionTagging",
-                        "s3:CreateBucket",
-                        "s3:ReplicateObject",
-                        "s3:GetObjectAcl",
-                        "s3:DeleteBucketWebsite",
-                        "s3:PutLifecycleConfiguration",
-                        "s3:GetObjectVersionAcl",
-                        "s3:DeleteObject",
-                        "s3:GetBucketPolicyStatus",
-                        "s3:GetBucketWebsite",
-                        "s3:PutReplicationConfiguration",
-                        "s3:GetBucketNotification",
-                        "s3:PutBucketCORS",
-                        "s3:GetReplicationConfiguration",
-                        "s3:ListMultipartUploadParts",
                         "s3:PutObject",
                         "s3:GetObject",
-                        "s3:PutBucketNotification",
-                        "s3:PutBucketLogging",
-                        "s3:GetAnalyticsConfiguration",
-                        "s3:GetObjectVersionForReplication",
-                        "s3:GetLifecycleConfiguration",
-                        "s3:ListBucketByTags",
-                        "s3:GetInventoryConfiguration",
-                        "s3:GetBucketTagging",
-                        "s3:PutAccelerateConfiguration",
-                        "s3:DeleteObjectVersion",
-                        "s3:GetBucketLogging",
-                        "s3:ListBucketVersions",
-                        "s3:RestoreObject",
+                        "s3:DeleteObject",
+                        "s3:ReplicateObject",
                         "s3:ListBucket",
-                        "s3:GetAccelerateConfiguration",
-                        "s3:GetBucketPolicy",
-                        "s3:PutEncryptionConfiguration",
-                        "s3:GetEncryptionConfiguration",
-                        "s3:GetObjectVersionTorrent",
+                        "s3:ListMultipartUploadParts",
+                        "s3:ListBucketByTags",
+                        "s3:GetBucketTagging",
+                        "s3:ListBucketVersions",
                         "s3:AbortMultipartUpload",
-                        "s3:GetBucketRequestPayment",
                         "s3:GetObjectTagging",
-                        "s3:GetMetricsConfiguration",
-                        "s3:DeleteBucket",
-                        "s3:PutBucketVersioning",
-                        "s3:GetBucketPublicAccessBlock",
                         "s3:ListBucketMultipartUploads",
-                        "s3:PutMetricsConfiguration",
-                        "s3:GetBucketVersioning",
-                        "s3:GetBucketAcl",
-                        "s3:PutInventoryConfiguration",
-                        "s3:GetObjectTorrent",
-                        "s3:PutBucketWebsite",
-                        "s3:PutBucketRequestPayment",
-                        "s3:GetBucketCORS",
                         "s3:GetBucketLocation",
-                        "s3:ReplicateDelete",
                         "s3:GetObjectVersion",
                     ],
-                    "Resource": ["arn:aws:s3:::{}".format(self.function_s3_bucket)],
+                    "Resource": ["arn:aws:s3:::{}/*".format(self.function_s3_bucket)],
                 }
             ],
         }
@@ -515,6 +473,8 @@ class Lambda(Node):
             self.delete_role()
             self.delete_api()
             self.delete_bucket(delete_objects=True)
+        else:
+            raise ValueError("You must pass confirm=True to delete all AWS resources")
 
     def describe(self):
         """Show a description of the Lambda Utilities
@@ -569,17 +529,6 @@ class Lambda(Node):
         else:
             api_output = ""
 
-        s3_trigger_output = (
-            """
-        Input Folder: {function_s3_input}
-        Output Folder: {function_s3_output}
-        """.format(
-                function_s3_input=self.function_s3_input, function_s3_output=self.function_s3_output
-            )
-            if "S3" in self.function_triggers
-            else ""
-        )
-
         output = """
 Lambda Node {status}
     Function
@@ -600,7 +549,8 @@ Lambda Node {status}
     S3
         Bucket: {function_s3_bucket}
         Tags: {function_s3_tags}
-        {s3_trigger_output}
+        Input Folder: {function_s3_input}
+        Output Folder: {function_s3_output}
 
     Role
         Name: {function_role_name}
@@ -629,7 +579,8 @@ Lambda Node {status}
             _function_version=self._function_version,
             function_s3_bucket=self.function_s3_bucket,
             function_s3_tags=self.function_s3_tags,
-            s3_trigger_output=s3_trigger_output,
+            function_s3_input=self.function_s3_input,
+            function_s3_output=self.function_s3_output,
             function_role_name=self.function_role_name,
             function_role_description=self.function_role_description,
             function_role_policy_document=self.function_role_policy_document,
@@ -1226,6 +1177,7 @@ Lambda Node {status}
         if not self.download_result:
             return
 
+        # TODO: handle the "force_compute" parameter
         waiter = s3.get_waiter("object_exists")
         filename = "{folder}{output}_{source}_{coordinates}.{suffix}".format(
             folder=output_folder,
