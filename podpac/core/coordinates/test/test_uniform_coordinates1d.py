@@ -382,14 +382,10 @@ class TestUniformCoordinatesCreation(object):
         assert c.step == np.timedelta64(1, "D")
 
         # invalid
-        with pytest.raises(
-            ValueError, match="UniformCoordinates1d.from_tuple expects a tuple of \(start, stop, step/size\)"
-        ):
+        with pytest.raises(ValueError, match="UniformCoordinates1d.from_tuple expects a tuple"):
             UniformCoordinates1d.from_tuple((0, 10))
 
-        with pytest.raises(
-            ValueError, match="UniformCoordinates1d.from_tuple expects a tuple of \(start, stop, step/size\)"
-        ):
+        with pytest.raises(ValueError, match="UniformCoordinates1d.from_tuple expects a tuple"):
             UniformCoordinates1d.from_tuple(np.array([0, 10, 0.5]))
 
     def test_copy(self):

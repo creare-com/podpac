@@ -91,7 +91,7 @@ class Convolution(Algorithm):
             kernel = self._make_kernel(kernel_type, kernel_ndim)
 
         kwargs["kernel"] = kernel
-        return kwargs
+        return super(Convolution, self)._first_init(**kwargs)
 
     @common_doc(COMMON_DOC)
     @node_eval
@@ -138,7 +138,7 @@ class Convolution(Algorithm):
                     add_coord(coord.start, s_start * coord.step),
                     add_coord(coord.stop, s_end * coord.step + 1e-07 * coord.step),
                     coord.step,
-                    **coord.properties
+                    **coord.properties,
                 )
             )
             exp_slice.append(slice(-s_start, -s_end))

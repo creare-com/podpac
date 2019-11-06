@@ -1,18 +1,14 @@
 """
-Algorithm Summary
+Base class for Algorithm Nodes
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
 import inspect
+
 import numpy as np
 import xarray as xr
-import traitlets as tl
-from lazy_import import lazy_module
-
-# Optional dependencies
-ne = lazy_module("numexpr")
 
 # Internal dependencies
 from podpac.core.coordinates import Coordinates, union
@@ -22,7 +18,6 @@ from podpac.core.node import NodeException
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
 from podpac.core.utils import common_doc
-from podpac.core.utils import NodeTrait
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -142,161 +137,3 @@ class Algorithm(Node):
         inputs = self._inputs
         d["inputs"] = OrderedDict([(key, inputs[key]) for key in sorted(inputs.keys())])
         return d
-
-
-class Arange(Algorithm):
-    """A simple test node that gives each value in the output a number.
-    """
-
-    def algorithm(self, inputs):
-        """Uses np.arange to give each value in output a unique number
-        
-        Arguments
-        ---------
-        inputs : dict
-            Unused, should be empty for this algorithm.
-
-        Returns
-        -------
-        UnitsDataArray
-            A row-majored numbered array of the requested size. 
-        """
-        data = np.arange(self._requested_coordinates.size).reshape(self._requested_coordinates.shape)
-        return self.create_output_array(self._requested_coordinates, data=data)
-
-
-class CoordData(Algorithm):
-    """Extracts the coordinates from a request and makes it available as a data
-    
-    Attributes
-    ----------
-    coord_name : str
-        Name of coordinate to extract (one of lat, lon, time, alt)
-    """
-
-    coord_name = tl.Unicode("").tag(attr=True)
-
-    def algorithm(self, inputs):
-        """Extract coordinate from request and makes data available.
-        
-        Arguments
-        ----------
-        inputs : dict
-            Unused, should be empty for this algorithm.
-
-        Returns
-        -------
-        UnitsDataArray
-            The coordinates as data for the requested coordinate.
-        """
-
-        if self.coord_name not in self._requested_coordinates.udims:
-            raise ValueError("Coordinate name not in evaluated coordinates")
-
-        c = self._requested_coordinates[self.coord_name]
-        coords = Coordinates([c])
-        return self.create_output_array(coords, data=c.coordinates)
-
-
-class SinCoords(Algorithm):
-    """A simple test node that creates a data based on coordinates and trigonometric (sin) functions. 
-    """
-
-    def algorithm(self, inputs):
-        """Computes sinusoids of all the coordinates. 
-        
-        Arguments
-        ----------
-        inputs : dict
-            Unused, should be empty for this algorithm.
-
-        Returns
-        -------
-        UnitsDataArray
-            Sinusoids of a certain period for all of the requested coordinates
-        """
-        out = self.create_output_array(self._requested_coordinates, data=1.0)
-        crds = list(out.coords.values())
-        try:
-            i_time = list(out.coords.keys()).index("time")
-            crds[i_time] = crds[i_time].astype("datetime64[h]").astype(float)
-        except ValueError:
-            pass
-
-        crds = np.meshgrid(*crds, indexing="ij")
-        for crd in crds:
-            out *= np.sin(np.pi * crd / 90.0)
-        return out
-
-
-class Arithmetic(Algorithm):
-    """Create a simple point-by-point computation of up to 7 different input nodes.
-    
-    Attributes
-    ----------
-    A : podpac.Node
-        An input node that can be used in a computation. 
-    B : podpac.Node
-        An input node that can be used in a computation. 
-    C : podpac.Node
-        An input node that can be used in a computation. 
-    D : podpac.Node
-        An input node that can be used in a computation. 
-    E : podpac.Node
-        An input node that can be used in a computation. 
-    F : podpac.Node
-        An input node that can be used in a computation. 
-    G : podpac.Node
-        An input node that can be used in a computation. 
-    eqn : str
-        An equation stating how the datasources can be combined. 
-        Parameters may be specified in {}'s
-        
-    Examples
-    ----------
-    a = SinCoords()
-    b = Arange()
-    arith = Arithmetic(A=a, B=b, eqn = 'A * B + {offset}', params={'offset': 1})
-    """
-
-    A = NodeTrait()
-    B = NodeTrait(allow_none=True)
-    C = NodeTrait(allow_none=True)
-    D = NodeTrait(allow_none=True)
-    E = NodeTrait(allow_none=True)
-    F = NodeTrait(allow_none=True)
-    G = NodeTrait(allow_none=True)
-    eqn = tl.Unicode().tag(attr=True)
-    params = tl.Dict().tag(attr=True)
-
-    def init(self):
-        if self.eqn == "":
-            raise ValueError("Arithmetic eqn cannot be empty")
-
-    def algorithm(self, inputs):
-        """ Compute the algorithms equation
-
-        Attributes
-        ----------
-        inputs : dict
-            Evaluated outputs of the input nodes. The keys are the attribute names.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Description
-        """
-
-        eqn = self.eqn.format(**self.params)
-
-        fields = [f for f in "ABCDEFG" if getattr(self, f) is not None]
-        res = xr.broadcast(*[inputs[f] for f in fields])
-        f_locals = dict(zip(fields, res))
-
-        try:
-            result = ne.evaluate(eqn, f_locals)
-        except (NotImplementedError, ImportError):
-            result = eval(eqn, f_locals)
-        res = res[0].copy()  # Make an xarray object with correct dimensions
-        res[:] = result
-        return res

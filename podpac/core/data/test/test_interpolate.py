@@ -64,20 +64,16 @@ class TestInterpolation(object):
 
     def test_dict_definition(self):
 
-        # should handle a default definition without any dimensions specified as keys
+        # should handle a default definition without any dimensions
         interp = Interpolation({"method": "nearest", "params": {"spatial_tolerance": 1}})
         assert isinstance(interp.config[("default",)], dict)
         assert interp.config[("default",)]["method"] == "nearest"
         assert isinstance(interp.config[("default",)]["interpolators"][0], Interpolator)
         assert interp.config[("default",)]["params"] == {"spatial_tolerance": 1}
 
-        # should throw an error on _parse_interpolation_method(definition)
-        # if definition is not in INTERPOLATION_METHODS
-        with pytest.raises(InterpolationException):
-            Interpolation({("lat", "lon"): "test"})
-
         # handle string methods
-        interp = Interpolation({("lat", "lon"): "nearest"})
+        interp = Interpolation({"method": "nearest", "dims": ["lat", "lon"]})
+        print(interp.config)
         assert isinstance(interp.config[("lat", "lon")], dict)
         assert interp.config[("lat", "lon")]["method"] == "nearest"
         assert isinstance(interp.config[("default",)]["interpolators"][0], Interpolator)
@@ -87,34 +83,38 @@ class TestInterpolation(object):
 
         # should throw an error if method is not in dict
         with pytest.raises(InterpolationException):
-            Interpolation({("lat", "lon"): {"test": "test"}})
+            Interpolation([{"test": "test", "dims": ["lat", "lon"]}])
 
         # should throw an error if method is not a string
         with pytest.raises(InterpolationException):
-            Interpolation({("lat", "lon"): {"method": 5}})
+            Interpolation([{"method": 5, "dims": ["lat", "lon"]}])
 
         # should throw an error if method is not one of the INTERPOLATION_METHODS and no interpolators defined
         with pytest.raises(InterpolationException):
-            Interpolation({("lat", "lon"): {"method": "myinter"}})
+            Interpolation([{"method": "myinter", "dims": ["lat", "lon"]}])
 
         # should throw an error if params is not a dict
         with pytest.raises(TypeError):
-            Interpolation({("lat", "lon"): {"method": "nearest", "params": "test"}})
+            Interpolation([{"method": "nearest", "dims": ["lat", "lon"], "params": "test"}])
 
         # should throw an error if interpolators is not a list
         with pytest.raises(TypeError):
-            Interpolation({("lat", "lon"): {"method": "nearest", "interpolators": "test"}})
+            Interpolation([{"method": "nearest", "interpolators": "test", "dims": ["lat", "lon"]}])
 
         # should throw an error if interpolators are not Interpolator classes
         with pytest.raises(TypeError):
-            Interpolation({("lat", "lon"): {"method": "nearest", "interpolators": [NearestNeighbor, "test"]}})
+            Interpolation([{"method": "nearest", "interpolators": [NearestNeighbor, "test"], "dims": ["lat", "lon"]}])
 
         # should throw an error if dimension is defined twice
         with pytest.raises(InterpolationException):
-            Interpolation({("lat", "lon"): "nearest", "lat": "bilinear"})
+            Interpolation([{"method": "nearest", "dims": ["lat", "lon"]}, {"method": "bilinear", "dims": ["lat"]}])
+
+        # should throw an error if dimension is not a list
+        with pytest.raises(TypeError):
+            Interpolation([{"method": "nearest", "dims": "lat"}])
 
         # should handle standard INTEPROLATION_SHORTCUTS
-        interp = Interpolation({("lat", "lon"): {"method": "nearest"}})
+        interp = Interpolation([{"method": "nearest", "dims": ["lat", "lon"]}])
         assert isinstance(interp.config[("lat", "lon")], dict)
         assert interp.config[("lat", "lon")]["method"] == "nearest"
         assert isinstance(interp.config[("lat", "lon")]["interpolators"][0], Interpolator)
@@ -123,34 +123,46 @@ class TestInterpolation(object):
         # should not allow custom methods if interpolators can't support
         with pytest.raises(InterpolatorException):
             interp = Interpolation(
-                {("lat", "lon"): {"method": "myinter", "interpolators": [NearestNeighbor, NearestPreview]}}
+                [{"method": "myinter", "interpolators": [NearestNeighbor, NearestPreview], "dims": ["lat", "lon"]}]
             )
 
         # should allow custom methods if interpolators can support
         class MyInterp(Interpolator):
             methods_supported = ["myinter"]
 
-        interp = Interpolation({("lat", "lon"): {"method": "myinter", "interpolators": [MyInterp]}})
+        interp = Interpolation([{"method": "myinter", "interpolators": [MyInterp], "dims": ["lat", "lon"]}])
         assert interp.config[("lat", "lon")]["method"] == "myinter"
         assert isinstance(interp.config[("lat", "lon")]["interpolators"][0], MyInterp)
 
         # should allow params to be set
         interp = Interpolation(
-            {("lat", "lon"): {"method": "myinter", "interpolators": [MyInterp], "params": {"spatial_tolerance": 5}}}
+            [
+                {
+                    "method": "myinter",
+                    "interpolators": [MyInterp],
+                    "params": {"spatial_tolerance": 5},
+                    "dims": ["lat", "lon"],
+                }
+            ]
         )
+
         assert interp.config[("lat", "lon")]["params"] == {"spatial_tolerance": 5}
 
         # set default equal to empty tuple
-        interp = Interpolation({"lat": "bilinear"})
+        interp = Interpolation([{"method": "bilinear", "dims": ["lat"]}])
         assert interp.config[("default",)]["method"] == INTERPOLATION_DEFAULT
 
         # use default with override if not all dimensions are supplied
-        interp = Interpolation({"lat": "bilinear", "default": "nearest"})
+        interp = Interpolation([{"method": "bilinear", "dims": ["lat"]}, "nearest"])
         assert interp.config[("default",)]["method"] == "nearest"
 
         # make sure default is always the last key in the ordered config dict
-        interp = Interpolation({"default": "nearest", "lat": "bilinear"})
+        interp = Interpolation(["nearest", {"method": "bilinear", "dims": ["lat"]}])
         assert list(interp.config.keys())[-1] == ("default",)
+
+        # should sort the dims keys
+        interp = Interpolation(["nearest", {"method": "bilinear", "dims": ["lon", "lat"]}])
+        assert interp.config[("lat", "lon")]["method"] == "bilinear"
 
     def test_init_interpolators(self):
 
@@ -159,15 +171,16 @@ class TestInterpolation(object):
         assert interp.config[("default",)]["interpolators"][0].method == "nearest"
 
         # Interpolation init should init all interpolators in the list
-        interp = Interpolation({"default": {"method": "nearest", "params": {"spatial_tolerance": 1}}})
+        interp = Interpolation([{"method": "nearest", "params": {"spatial_tolerance": 1}}])
         assert interp.config[("default",)]["interpolators"][0].spatial_tolerance == 1
 
         # should throw TraitErrors defined by Interpolator
         with pytest.raises(tl.TraitError):
-            Interpolation({"default": {"method": "nearest", "params": {"spatial_tolerance": "tol"}}})
+            Interpolation([{"method": "nearest", "params": {"spatial_tolerance": "tol"}}])
 
         # should not allow undefined params
-        interp = Interpolation({"default": {"method": "nearest", "params": {"myarg": 1}}})
+        with pytest.warns(DeprecationWarning):  # eventually, Traitlets will raise an exception here
+            interp = Interpolation([{"method": "nearest", "params": {"myarg": 1}}])
         with pytest.raises(AttributeError):
             assert interp.config[("default",)]["interpolators"][0].myarg == "tol"
 
@@ -211,10 +224,10 @@ class TestInterpolation(object):
         # set up a strange interpolation definition
         # we want to interpolate (lat, lon) first, then after (time, alt)
         interp = Interpolation(
-            {
-                ("lat", "lon"): {"method": "myinterp", "interpolators": [LatLon, TimeLat]},
-                ("time", "alt"): {"method": "myinterp", "interpolators": [TimeLat, Lon]},
-            }
+            [
+                {"method": "myinterp", "interpolators": [LatLon, TimeLat], "dims": ["lat", "lon"]},
+                {"method": "myinterp", "interpolators": [TimeLat, Lon], "dims": ["time", "alt"]},
+            ]
         )
 
         # default = 'nearest', which will return NearestPreview for can_select
@@ -270,10 +283,10 @@ class TestInterpolation(object):
         # set up a strange interpolation definition
         # we want to interpolate (lat, lon) first, then after (time, alt)
         interp = Interpolation(
-            {
-                ("lat", "lon"): {"method": "myinterp", "interpolators": [LatLon, TimeLat]},
-                ("time", "alt"): {"method": "myinterp", "interpolators": [TimeLat, Lon]},
-            }
+            [
+                {"method": "myinterp", "interpolators": [LatLon, TimeLat], "dims": ["lat", "lon"]},
+                {"method": "myinterp", "interpolators": [TimeLat, Lon], "dims": ["time", "alt"]},
+            ]
         )
 
         coords, cidx = interp.select_coordinates(srccoords, [], reqcoords)
@@ -300,7 +313,7 @@ class TestInterpolation(object):
             np.zeros(srcdata.shape), coords=[reqcoords[c].coordinates for c in reqcoords], dims=reqcoords.dims
         )
 
-        interp = Interpolation({("lat", "lon"): {"method": "myinterp", "interpolators": [TestInterp]}})
+        interp = Interpolation({"method": "myinterp", "interpolators": [TestInterp], "dims": ["lat", "lon"]})
         outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
@@ -321,7 +334,7 @@ class TestInterpolation(object):
             np.zeros(srcdata.shape), coords=[reqcoords[c].coordinates for c in reqcoords], dims=reqcoords.dims
         )
 
-        interp = Interpolation({("lat", "lon"): {"method": "myinterp", "interpolators": [TestFakeInterp]}})
+        interp = Interpolation({"method": "myinterp", "interpolators": [TestFakeInterp], "dims": ["lat", "lon"]})
         outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
@@ -386,7 +399,9 @@ class TestInterpolators(object):
             reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
             srccoords = Coordinates([[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]], dims=["lat", "lon"])
 
-            interp = Interpolation({"lat": "nearest_preview", "lon": "nearest_preview"})
+            interp = Interpolation(
+                [{"method": "nearest_preview", "dims": ["lat"]}, {"method": "nearest_preview", "dims": ["lon"]}]
+            )
 
             srccoords, srccoords_index = srccoords.intersect(reqcoords, outer=True, return_indices=True)
             coords, cidx = interp.select_coordinates(srccoords, srccoords_index, reqcoords)
@@ -480,14 +495,14 @@ class TestInterpolators(object):
             node = MockArrayDataSource(
                 source=source,
                 native_coordinates=coords_src,
-                interpolation={"default": {"method": "nearest", "params": {"spatial_tolerance": 1.1}}},
+                interpolation={"method": "nearest", "params": {"spatial_tolerance": 1.1}},
             )
 
             coords_dst = Coordinates([[1, 1.2, 1.5, 5, 9]], dims=["lat"])
             output = node.eval(coords_dst)
 
-            print (output)
-            print (source)
+            print(output)
+            print(source)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
             assert output.values[0] == source[0] and np.isnan(output.values[1]) and output.values[2] == source[1]
@@ -503,10 +518,8 @@ class TestInterpolators(object):
                 source=source,
                 native_coordinates=coords_src,
                 interpolation={
-                    "default": {
-                        "method": "nearest",
-                        "params": {"spatial_tolerance": 1.1, "time_tolerance": np.timedelta64(1, "D")},
-                    }
+                    "method": "nearest",
+                    "params": {"spatial_tolerance": 1.1, "time_tolerance": np.timedelta64(1, "D")},
                 },
             )
 
@@ -600,7 +613,7 @@ class TestInterpolators(object):
 
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
-            print (output)
+            print(output)
             assert output.data[0, 0] == 0.0
             assert output.data[0, 3] == 3.0
             assert output.data[1, 3] == 8.0

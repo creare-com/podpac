@@ -52,6 +52,11 @@ confidence=
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
 disable=
+        C0330,
+        E0203,
+        E0266,
+        E0501,
+        W0503,
         C0103,      # snake case enforcement
         W0703,      # too broad except error
         R0201,      # no self-use

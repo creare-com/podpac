@@ -445,7 +445,7 @@ class SMAPProperties(SMAPSource):
 
     file_url_re = re.compile(r"SMAP.*_[0-9]{8}T[0-9]{6}_.*\.h5")
 
-    source = tl.Unicode()
+    source = tl.Unicode().tag(readonly=True)
 
     @tl.default("source")
     def _property_source_default(self):
@@ -1074,7 +1074,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
                 auth_session=self.auth_session,
                 entry_map=lambda x: x["producer_granule_id"],
                 short_name=self.product,
-                **kwargs
+                **kwargs,
             )
             if not filenames:
                 return Coordinates([]), [], []

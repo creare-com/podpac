@@ -36,17 +36,13 @@ You can find more information on contributing to PODPAC on the [Contributing pag
 
 ## Stability / Maturity
 
-This is in the early development phase. As such:
+PODPAC is in a *beta* phase of development. As such:
 
-* The code may be refactored drastically
-* Interfaces may change in a backwards-incompatible ways
-* Modules, Functions and classes may change names or disappear altogether
-* The above may happen without notice
-* Documentation and testing may be lacking
+* All development will adhere to a semantic versioning system
+* Major revisions may contain backwards incompatible changes, but these changes will be documented in the [CHANGELOG](CHANGELOG.md)
+* We are working to improve documentation, please contact us or create an issue if documentation is out of date or incorrect
+* We look forward to receive feedback on usability and compatibility
 
-We are working towards stability so that the above would no longer be true, and we have already made significant strides towards a stable, maintainable library. 
-
-As such use PODPAC at your own risk. 
 
 ## Acknowledgments
 

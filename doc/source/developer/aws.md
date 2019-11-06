@@ -1,5 +1,7 @@
 # AWS Lambda #
 
+TODO: This needs rewritten.
+
 Podpac includes a package to create an Amazon Web Services Lambda function to execute nodes in a server-less environment. This package can be altered to handle events according to the developer's use case.
 
 ## AWS Architecture ##

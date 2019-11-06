@@ -808,7 +808,7 @@ class Coordinates(tl.HasTraits):
             c = podapc.Coordinates(...)
             c2 = podpac.Coordinates.from_json(c.definition)
 
-        The serialized definition is used to define coordinates in pipelines and to transport coordinates, e.g.
+        The serialized definition is used to define coordinates in node definitions and to transport coordinates, e.g.
         over HTTP and in AWS lambda functions. It also provides a consistent hashable value.
 
         See Also
@@ -995,7 +995,7 @@ class Coordinates(tl.HasTraits):
         if not isinstance(other, Coordinates):
             raise TypeError("Coordinates cannot be intersected with type '%s'" % type(other))
 
-        if other.crs != self.crs:
+        if other.crs.lower() != self.crs.lower():
             other = other.transform(self.crs)
 
         bounds = other.bounds
@@ -1054,7 +1054,7 @@ class Coordinates(tl.HasTraits):
 
     def _make_selected_coordinates(self, selections, return_indices):
         if return_indices:
-            coords = Coordinates([c for c, I in selections])
+            coords = Coordinates([c for c, I in selections], **self.properties)
             # unbundle DepedentCoordinates indices
             I = [I if isinstance(c, DependentCoordinates) else [I] for c, I in selections]
             I = [e for l in I for e in l]

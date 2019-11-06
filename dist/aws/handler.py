@@ -1,10 +1,20 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+"""
+PODPAC AWS Handler
+
+Attributes
+----------
+s3 : TYPE
+    Description
+settings_json : dict
+    Description
+"""
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import subprocess
 import sys
 import urllib.parse as urllib
+from six import string_types
 from collections import OrderedDict
 
 import _pickle as cPickle
@@ -12,140 +22,173 @@ import _pickle as cPickle
 import boto3
 import botocore
 
-# sys.path.insert(0, '/tmp/podpac/')
-sys.path.append('/tmp/')
-# sys.path.append(os.getcwd() + '/podpac/')
 
-s3 = boto3.client('s3')
-deps = 'podpac_deps_ESIP3.zip'
+def is_s3_trigger(event):
+    """
+    Helper method to determine if the given event was triggered by an S3 event
+    
+    Parameters
+    ----------
+    event : dict
+        Event dict from AWS. See [TODO: add link reference]
+    
+    Returns
+    -------
+    Bool
+        True if the event is an S3 trigger
+    """
+    return "Records" in event and event["Records"][0]["eventSource"] == "aws:s3"
 
 
 def handler(event, context, get_deps=True, ret_pipeline=False):
-    print(event)
-    bucket_name = 'podpac-s3'
-    if get_deps:
-        s3.download_file(bucket_name, 'podpac/' + deps, '/tmp/' + deps)
-        subprocess.call(['unzip', '/tmp/' + deps, '-d', '/tmp'])
-        sys.path.append('/tmp/')
-        subprocess.call(['rm', '/tmp/' + deps])
+    """Lambda function handler
+    
+    Parameters
+    ----------
+    event : TYPE
+        Description
+    context : TYPE
+        Description
+    get_deps : bool, optional
+        Description
+    ret_pipeline : bool, optional
+        Description
+    
+    Returns
+    -------
+    TYPE
+        Description
+    """
 
-    if 'Records' in event and event['Records'][0]['eventSource'] == 'aws:s3':
-        # <start S3 trigger specific>
-        file_key = urllib.unquote_plus(
-            event['Records'][0]['s3']['object']['key'])
-        _json = ''
-        # get the object
-        obj = s3.get_object(Bucket=bucket_name, Key=file_key)
-        # get lines
-        lines = obj['Body'].read().split(b'\n')
-        for r in lines:
-            if len(_json) > 0:
-                _json += '\n'
-            _json += r.decode()
-        _json = json.loads(
-            _json, object_pairs_hook=OrderedDict)
-        pipeline_json = _json['pipeline']
+    print(event)
+
+    # Add /tmp/ path to handle python path for dependencies
+    sys.path.append("/tmp/")
+
+    # get S3 client - note this will have the same access that the current "function role" does
+    s3 = boto3.client("s3")
+
+    args = []
+    kwargs = {}
+
+    # This event was triggered by S3, so let's see if the requested output is already cached.
+    if is_s3_trigger(event):
+
+        # We always have to look to the bucket that triggered the event for the input
+        bucket = event["Records"][0]["s3"]["bucket"]["name"]
+
+        file_key = urllib.unquote_plus(event["Records"][0]["s3"]["object"]["key"])
+        _json = ""
+
+        # get the pipeline object and read
+        pipeline_obj = s3.get_object(Bucket=bucket, Key=file_key)
+        pipeline = json.loads(pipeline_obj["Body"].read().decode("utf-8"))
+
+        # We can return if there is a valid cached output to save compute time.
+        settings_trigger = pipeline["settings"]
+
+        # check for cached output
+        cached = False
+        output_filename = file_key.replace(".json", "." + pipeline["output"]["format"]).replace(
+            settings_trigger["FUNCTION_S3_INPUT"], settings_trigger["FUNCTION_S3_OUTPUT"]
+        )
+
+        try:
+            s3.head_object(Bucket=bucket, Key=output_filename)
+
+            # Object exists, so we don't have to recompute
+            # TODO: the "force_compute" parameter will never work as is written in aws.py
+            if not pipeline.get("force_compute", False):
+                cached = True
+
+        except botocore.exceptions.ClientError:
+            pass
+
+        if cached:
+            return
+
+    # TODO: handle "invoke" and "APIGateway" triggers explicitly
     else:
-    # elif ('pathParameters' in event and event['pathParameters'] is not None and 'proxy' in event['pathParameters']) or ('authorizationToken' in event and event['authorizationToken'] == "incoming-client-token"):
-        # TODO: Need to get the pipeline_json from the event...
-        print("DSullivan: we have an API Gateway event")
-        pipeline_json = None
+        print("Not triggered by S3")
+
+        url = event["queryStringParameters"]
+        if isinstance(url, string_types):
+            url = urllib.parse_qs(urllib.urlparse(url).query)
+
+        # Capitalize the keywords for consistency
+        settings_trigger = {}
+        for k in url:
+            if k.upper() == "SETTINGS":
+                settings_trigger = url[k]
+        bucket = settings_trigger["S3_BUCKET_NAME"]
+
+    # get dependencies path
+    if "FUNCTION_DEPENDENCIES_KEY" in settings_trigger:
+        dependencies = settings_trigger["FUNCTION_DEPENDENCIES_KEY"]
+    else:
+        # TODO: this could be a problem, since we can't import podpac settings yet
+        # which means the input event might have to include the version or
+        # "FUNCTION_DEPENDENCIES_KEY".
+        dependencies = "podpac_deps_{}.zip".format(
+            settings_trigger["PODPAC_VERSION"]
+        )  # this should be equivalent to version.semver()
+
+    # Download dependencies from specific bucket/object
+    if get_deps:
+        s3.download_file(bucket, dependencies, "/tmp/" + dependencies)
+        subprocess.call(["unzip", "/tmp/" + dependencies, "-d", "/tmp"])
+        sys.path.append("/tmp/")
+        subprocess.call(["rm", "/tmp/" + dependencies])
+
+    # Load PODPAC
 
     # Need to set matplotlib backend to 'Agg' before importing it elsewhere
     import matplotlib
-    matplotlib.use('agg')
+
+    matplotlib.use("agg")
     from podpac import settings
     from podpac.core.node import Node
-    from podpac.core.pipeline import Pipeline
     from podpac.core.coordinates import Coordinates
     from podpac.core.utils import JSONEncoder, _get_query_params_from_url
     import podpac.datalib
 
-    # check if file exists
-    if pipeline_json is not None:
-        pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
-        filename = file_key.replace('.json', '.' + pipeline.output.format)
-        filename = filename.replace(
-            settings['S3_JSON_FOLDER'], settings['S3_OUTPUT_FOLDER'])
-        try:
-            s3.head_object(Bucket=bucket_name, Key=filename)
-            # Object exists, so we don't have to recompute
-            if not _json.get('force_compute', False):
-                return
-        except botocore.exceptions.ClientError as e:
-            if e.response['Error']['Code'] == "404":
-                # It does not exist, so we should proceed
-                pass
-            else:
-                # Something else has gone wrong... not handling this case.
-                pass
+    # update podpac settings with inputs from the trigger
+    for key in settings_trigger:
+        settings[key] = settings_trigger[key]
 
-    args = []
-    kwargs = {}
-    # if from S3 trigger
-    if pipeline_json is not None:
-    # if 'Records' in event and event['Records'][0]['eventSource'] == 'aws:s3':
-        pipeline = Pipeline(definition=pipeline_json, do_write_output=False)
-        coords = Coordinates.from_json(
-            json.dumps(_json['coordinates'], indent=4, cls=JSONEncoder))
-        format = pipeline.output.format
+    if is_s3_trigger(event):
+        node = Node.from_definition(pipeline["pipeline"])
+        coords = Coordinates.from_json(json.dumps(pipeline["coordinates"], indent=4, cls=JSONEncoder))
+        fmt = pipeline["output"]["format"]
+        kwargs = pipeline["output"].copy()
+        kwargs.pop("format")
 
-    # else from api gateway and it's a WMS/WCS request
+    # TODO: handle "invoke" and "APIGateway" triggers explicitly
     else:
-    # elif ('pathParameters' in event and event['pathParameters'] is not None and 'proxy' in event['pathParameters']) or ('authorizationToken' in event and event['authorizationToken'] == "incoming-client-token"):
-        print(_get_query_params_from_url(event['queryStringParameters']))
-        coords = Coordinates.from_url(event['queryStringParameters'])
-        pipeline = Node.from_url(event['queryStringParameters'])
-        pipeline.do_write_output = False
-        format = _get_query_params_from_url(event['queryStringParameters'])[
-                                           'FORMAT'].split('/')[-1]
-        if format in ['png', 'jpg', 'jpeg']:
-            kwargs['return_base64'] = True
+        coords = Coordinates.from_url(event["queryStringParameters"])
+        node = Node.from_url(event["queryStringParameters"])
+        fmt = _get_query_params_from_url(event["queryStringParameters"])["FORMAT"].split("/")[-1]
+        if fmt in ["png", "jpg", "jpeg"]:
+            kwargs["return_base64"] = True
 
-    output = pipeline.eval(coords)
+    output = node.eval(coords)
+
+    # FOR DEBUGGING
     if ret_pipeline:
-        return pipeline
+        return node
 
-    body = output.to_format(format, *args, **kwargs)
-    if pipeline_json is not None:
-        s3.put_object(Bucket=bucket_name,
-                      Key=filename, Body=body)
+    body = output.to_format(fmt, *args, **kwargs)
+
+    # output_filename only exists if this was an S3 triggered event.
+    if is_s3_trigger(event):
+        s3.put_object(Bucket=bucket, Key=output_filename, Body=body)
+
+    # TODO: handle "invoke" and "APIGateway" triggers explicitly
     else:
         try:
             json.dumps(body)
         except Exception as e:
-            print("AWS: body is not serializable, attempting to decode.")
+            print("Output body is not serializable, attempting to decode.")
             body = body.decode()
-    return {
-        "statusCode": 200,
-        "headers": {
-            "Content-Type": "image/png"
-        },
-        "isBase64Encoded": True,
-        "body": body
-    }
 
-
-if __name__ == '__main__':
-    from podpac import settings
-    # Need to authorize our s3 client when running locally.
-    s3 = boto3.client('s3',
-                      aws_access_key_id=settings['AWS_ACCESS_KEY_ID'],
-                      aws_secret_access_key=settings['AWS_SECRET_ACCESS_KEY'],
-                      region_name=settings['AWS_REGION_NAME']
-                     )
-    event = {
-        "Records": [{
-            "s3": {
-                "object": {
-                    "key": "json/SinCoords.json"
-                },
-                "bucket": {
-                    "name": "podpac-s3",
-                }
-            }
-        }]
-    }
-
-    example = handler(event, {}, get_deps=False)
-    print(example)
+        return {"statusCode": 200, "headers": {"Content-Type": "image/png"}, "isBase64Encoded": True, "body": body}

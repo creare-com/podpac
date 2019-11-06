@@ -86,9 +86,8 @@ class UniformCoordinates1d(Coordinates1d):
         # validate and set start, stop, and step
         start = make_coord_value(start)
         stop = make_coord_value(stop)
-        if step == 0:
-            raise ValueError("step must be nonzero")
-        elif step is not None:
+
+        if step is not None:
             step = make_coord_delta(step)
         elif isinstance(size, (int, np.long, np.integer)) and not isinstance(size, np.timedelta64):
             step = divide_delta(stop - start, size - 1)
@@ -105,10 +104,10 @@ class UniformCoordinates1d(Coordinates1d):
                 % (type(start), type(stop), type(step))
             )
 
-        if fstep < 0 and start < stop:
+        if fstep <= 0 and start < stop:
             raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
 
-        if fstep > 0 and start > stop:
+        if fstep >= 0 and start > stop:
             raise ValueError("UniformCoordinates1d step must be less than zero if start > stop.")
 
         self.set_trait("start", start)
@@ -133,10 +132,9 @@ class UniformCoordinates1d(Coordinates1d):
         if not super(UniformCoordinates1d, self).__eq__(other):
             return False
 
-        # not necessary
-        # if isinstance(other, UniformCoordinates1d):
-        #     if self.start != other.start or self.stop != other.stop or self.step != other.step:
-        #         return False
+        if isinstance(other, UniformCoordinates1d):
+            if self.start != other.start or self.stop != other.stop or self.step != other.step:
+                return False
 
         if isinstance(other, ArrayCoordinates1d):
             if not np.array_equal(self.coordinates, other.coordinates):

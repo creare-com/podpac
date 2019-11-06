@@ -795,7 +795,7 @@ class Reduce2(Reduce):
 
         y = xr.full_like(output, np.nan)
         for x, xslices in xs:
-            yslc = [xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims]
+            yslc = tuple(xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims)
             y.data[yslc] = self.reduce(x)
         return y
 
@@ -962,12 +962,12 @@ class GroupReduce(Algorithm):
 
     def base_ref(self):
         """
-        Default pipeline node reference/name in pipeline node definitions
+        Default node reference/name in node definitions
         
         Returns
         -------
         str
-            Default pipeline node reference/name in pipeline node definitions
+            Default node reference/name in node definitions
         """
         return "%s.%s.%s" % (self.source.base_ref, self.groupby, self.reduce_fn)
 

@@ -2,11 +2,13 @@
 Podpac Settings
 """
 
-
 import os
 import json
 from copy import deepcopy
 import errno
+import uuid
+
+from podpac import version
 
 # Python 2/3 handling for JSONDecodeError
 try:
@@ -16,7 +18,20 @@ except ImportError:
 
 # Settings Defaults
 DEFAULT_SETTINGS = {
+    # podpac core settings
     "DEBUG": False,  # This flag currently sets self._output on nodes
+    "ROOT_PATH": os.path.join(os.path.expanduser("~"), ".podpac"),
+    "AUTOSAVE_SETTINGS": False,
+    "LOG_TO_FILE": False,
+    "LOG_FILE_PATH": os.path.join(os.path.expanduser("~"), ".podpac", "logs", "podpac.log"),
+    "MULTITHREADING": False,
+    "N_THREADS": 8,
+    "CHUNK_SIZE": None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
+    "ENABLE_UNITS": True,
+    "DEFAULT_CRS": "EPSG:4326",
+    "PODPAC_VERSION": version.semver(),
+    "UNSAFE_EVAL_HASH": uuid.uuid4().hex,  # unique id for running unsafe evaluations
+    # cache
     "DEFAULT_CACHE": ["ram"],
     "CACHE_OUTPUT_DEFAULT": True,
     "RAM_CACHE_MAX_BYTES": 1e9,  # ~1GB
@@ -27,21 +42,17 @@ DEFAULT_SETTINGS = {
     "RAM_CACHE_ENABLED": True,
     "DISK_CACHE_ENABLED": True,
     "S3_CACHE_ENABLED": True,
-    "ROOT_PATH": os.path.join(os.path.expanduser("~"), ".podpac"),
+    # AWS
     "AWS_ACCESS_KEY_ID": None,
     "AWS_SECRET_ACCESS_KEY": None,
     "AWS_REGION_NAME": None,
+    "AWS_TAGS": None,
     "S3_BUCKET_NAME": None,
-    "S3_JSON_FOLDER": None,
-    "S3_OUTPUT_FOLDER": None,
-    "AUTOSAVE_SETTINGS": False,
-    "LOG_TO_FILE": False,
-    "LOG_FILE_PATH": os.path.join(os.path.expanduser("~"), ".podpac", "logs", "podpac.log"),
-    "MULTITHREADING": False,
-    "N_THREADS": 8,
-    "CHUNK_SIZE": None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
-    "ENABLE_UNITS": True,
-    "DEFAULT_CRS": "EPSG:4326",
+    "FUNCTION_NAME": None,
+    "FUNCTION_ROLE_NAME": None,
+    "FUNCTION_DEPENDENCIES_KEY": None,
+    "FUNCTION_S3_INPUT": None,
+    "FUNCTION_S3_OUTPUT": None,
 }
 
 
@@ -64,7 +75,7 @@ class PodpacSettings(dict):
       * current working directory settings (``./settings.json``)
     
     :attr:`settings.settings_path` shows the path of the last loaded settings file (e.g. the active settings file).
-    To persistenyl update the active settings file as changes are made at runtime,
+    To persistently update the active settings file as changes are made at runtime,
     set the ``settings['AUTOSAVE_SETTINGS']`` field to ``True``. The active setting file can be persistently
     saved at any time using :meth:`settings.save`.
     
@@ -89,7 +100,7 @@ class PodpacSettings(dict):
     DEFAULT_CACHE : list
         Defines a default list of cache stores in priority order. Defaults to `['ram']`.
     CACHE_OUTPUT_DEFAULT : bool
-        Default value for node ``cache_output`` trait.
+        Default value for node ``cache_output`` trait. If True, the outputs of nodes (eval) will be automatically cached.
     RAM_CACHE_MAX_BYTES : int
         Maximum RAM cache size in bytes. 
         Note, for RAM cache only, the limit is applied to the total amount of RAM used by the python process; 
@@ -119,9 +130,9 @@ class PodpacSettings(dict):
         Path to primary podpac working directory. Defaults to the ``.podpac`` directory in the users home directory.
     S3_BUCKET_NAME : str
         The AWS S3 Bucket to use for cloud based processing.
-    S3_JSON_FOLDER : str
-        Folder within :attr:`S3_BUCKET_NAME` to use for cloud based processing.
-    S3_OUTPUT_FOLDER : str
+    FUNCTION_S3_INPUT : str
+        Folder within :attr:`S3_BUCKET_NAME` to use for triggering node evaluation.
+    FUNCTION_S3_OUTPUT : str
         Folder within :attr:`S3_BUCKET_NAME` to use for outputs.
     AUTOSAVE_SETTINGS: bool
         Save settings automatically as they are changed during runtime. Defaults to ``False``.
@@ -301,6 +312,33 @@ class PodpacSettings(dict):
 
         if self["S3_CACHE_DIR"] is None:
             self["S3_CACHE_DIR"] = DEFAULT_SETTINGS["S3_CACHE_DIR"]
+
+    @property
+    def allow_unsafe_eval(self):
+        return "PODPAC_UNSAFE_EVAL" in os.environ and os.environ["PODPAC_UNSAFE_EVAL"] == self["UNSAFE_EVAL_HASH"]
+
+    def set_unsafe_eval(self, allow=False):
+        """Allow unsafe evaluation for this podpac environment
+        
+        Parameters
+        ----------
+        allow : bool, optional
+            Enable unsafe evaluation. Defaults to False.
+        """
+        if allow:
+            os.environ["PODPAC_UNSAFE_EVAL"] = self["UNSAFE_EVAL_HASH"]
+        else:
+            if "PODPAC_UNSAFE_EVAL" in os.environ:
+                os.environ.pop("PODPAC_UNSAFE_EVAL")
+
+    def __enter__(self):
+        # save original settings
+        self._original = {k: v for k, v in self.items()}
+
+    def __exit__(self, type, value, traceback):
+        # restore original settings
+        for k, v in self._original.items():
+            self[k] = v
 
 
 # load settings dict when module is loaded

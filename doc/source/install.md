@@ -17,6 +17,9 @@ For older versions, substitute `latest` in the url with the version number:
 
 Once downloaded, extract the zip file in a folder on your machine.
 We recommend expanding it near the root of your drive (e.g. `C:\PODPAC`) due to long file paths that are part of the installation.
+
+We also recommend **unblocking** the file to speed up the unzipping process, as suggested by this [Microsoft Developer Entry](https://blogs.msdn.microsoft.com/delay/p/unblockingdownloadedfile/).
+
 Once the folder is unzipped:
 
 * To run an IPython session:
@@ -164,12 +167,11 @@ $ pip install -e .[devall]  # install podpac and all optional dependencies
 ```
 
 <small>
-\[[1](#a1)\] <span id="f1"></span>
+[1] <span id="f1"></span>
 We strongly suggest using Python 3 for all future development.
 Many of the libraries PODPAC utilizes will be dropping support for Python 2 starting in 2019.
 For more information see the following references:
-
-- [Python 3 Statement](http://www.python3statement.org/)
-- [Porting to Python 3](https://docs.python.org/3/howto/pyporting.html)
-
 </small>
+
+- <small>[Python 3 Statement](http://www.python3statement.org/)</small>
+- <small>[Porting to Python 3](https://docs.python.org/3/howto/pyporting.html)</small>

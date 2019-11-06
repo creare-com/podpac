@@ -205,7 +205,7 @@ class Compositor(Node):
         if self.interpolation is not None:
             for s in src_subset.ravel():
                 if trait_is_defined(self, "interpolation"):
-                    s.interpolation = self.interpolation
+                    s.set_trait("interpolation", self.interpolation)
 
         # Optimization: if coordinates complete and source coords is 1D,
         # set native_coordinates unless they are set already
@@ -219,7 +219,7 @@ class Compositor(Node):
                 nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
 
                 if trait_is_defined(s, "native_coordinates") is False:
-                    s.native_coordinates = nc
+                    s.set_trait('native_coordinates', nc)
 
         if settings["MULTITHREADING"]:
             # TODO pool of pre-allocated scratch space

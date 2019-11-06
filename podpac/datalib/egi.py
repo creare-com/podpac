@@ -218,14 +218,14 @@ class EGI(DataSource):
         try:
             self.data = self._read_zips(zip_files)  # reads each file in zip archive and creates single dataarray
         except KeyError as e:
-            print ("This following error may occur if data_key, lat_key, or lon_key is not correct.")
-            print (
+            print("This following error may occur if data_key, lat_key, or lon_key is not correct.")
+            print(
                 "This error may also occur if the specified area bounds are smaller than the dataset pixel size, in"
                 " which case EGI is returning no data."
             )
             raise e
         # Force update on native_coordinates (in case of multiple evals)
-        self.native_coordinates = self.get_native_coordinates()
+        self.set_trait('native_coordinates', self.get_native_coordinates())
 
         # run normal eval once self.data is prepared
         return super(EGI, self).eval(coordinates, output)
@@ -437,7 +437,7 @@ class EGI(DataSource):
                 try:
                     bio = BytesIO(zip_file.read(name))
                 except (zipfile.BadZipfile, EOFError) as e:
-                    _log.warn(str(e))
+                    _log.warning(str(e))
                     continue
 
                 # read file

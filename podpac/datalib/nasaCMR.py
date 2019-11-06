@@ -68,7 +68,7 @@ def get_collection_id(auth_session=None, short_name=None, keyword=None, **kwargs
 
     entries = pydict["feed"]["entry"]
     if len(entries) > 1:
-        _logger.warn("Found more than 1 entry for collection_id search")
+        _logger.warning("Found more than 1 entry for collection_id search")
 
     collection_id = [e["id"] for e in entries]
 

@@ -9,7 +9,7 @@ language: python
 sudo: required
 dist: xenial
 python:
-  - "2.7"
+#  - "2.7"
   - "3.5"
   - "3.6"
   - "3.7"
@@ -28,7 +28,11 @@ install:
 
   # install setup.py and dev extras
   - pip install .[devall]
-
+  
+  # Allow Python exec and eval functions for unit tests
+  - mkdir /home/travis/.podpac
+  - touch /home/travis/.podpac/ALLOW_PYTHON_EVAL_EXEC
+  
 # cache pip dependencies for faster builds
 cache: pip
 

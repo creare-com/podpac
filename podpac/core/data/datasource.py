@@ -99,26 +99,24 @@ DATA_DOC = {
         :attr:`podpac.data.INTERPOLATION_SHORTCUTS`. The interpolation method associated
         with this string will be applied to all dimensions at the same time.
 
-        If input is a dict, the dict must contain one of two definitions:
+        If input is a dict or list of dict, the dict or dict elements must adhere to the following format:
 
-        1. A dictionary which contains the key ``'method'`` defining the interpolation method name.
-           If the interpolation method is not one of :attr:`podpac.data.INTERPOLATION_SHORTCUTS`, a
-           second key ``'interpolators'`` must be defined with a list of
-           :class:`podpac.interpolators.Interpolator` classes to use in order of uages.
-           The dictionary may contain an option ``'params'`` key which contains a dict of parameters to pass along to
-           the :class:`podpac.interpolators.Interpolator` classes associated with the interpolation method.
-           This interpolation definition will be applied to all dimensions.
-        2. A dictionary containing an ordered set of keys defining dimensions and values
-           defining the interpolation method to use with the dimensions.
-           The key must be a string or tuple of dimension names (i.e. ``'time'`` or ``('lat', 'lon')`` ).
-           The value can either be a string matching one of the interpolation shortcuts defined in
-           :attr:`podpac.data.INTERPOLATION_SHORTCUTS` or a dictionary meeting the previous requirements
-           (1). If the dictionary does not contain a key for all unstacked dimensions of the source coordinates, the
-           :attr:`podpac.data.INTERPOLATION_DEFAULT` value will be used.
-           All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
-           Any extra dimensions included but not found in the source coordinates will be ignored.
+        The key ``'method'`` defining the interpolation method name.
+        If the interpolation method is not one of :attr:`podpac.data.INTERPOLATION_SHORTCUTS`, a
+        second key ``'interpolators'`` must be defined with a list of
+        :class:`podpac.interpolators.Interpolator` classes to use in order of uages.
+        The dictionary may contain an option ``'params'`` key which contains a dict of parameters to pass along to
+        the :class:`podpac.interpolators.Interpolator` classes associated with the interpolation method.
+        
+        The dict may contain the key ``'dims'`` which specifies dimension names (i.e. ``'time'`` or ``('lat', 'lon')`` ). 
+        If the dictionary does not contain a key for all unstacked dimensions of the source coordinates, the
+        :attr:`podpac.data.INTERPOLATION_DEFAULT` value will be used.
+        All dimension keys must be unstacked even if the underlying coordinate dimensions are stacked.
+        Any extra dimensions included but not found in the source coordinates will be ignored.
 
-        If input is a :class:`podpac.data.Interpolation` class, this interpolation
+        The dict may contain a key ``'params'`` that can be used to configure the :class:`podpac.interpolators.Interpolator` classes associated with the interpolation method.
+
+        If input is a :class:`podpac.data.Interpolation` class, this Interpolation
         class will be used without modification.
         """,
 }
@@ -152,8 +150,8 @@ class DataSource(Node):
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
 
-    source = tl.Any()
-    native_coordinates = tl.Instance(Coordinates)
+    source = tl.Any().tag(readonly=True)
+    native_coordinates = tl.Instance(Coordinates).tag(readonly=True)
     interpolation = interpolation_trait()
     coordinate_index_type = tl.Enum(["list", "numpy", "xarray", "pandas"], default_value="numpy")
     nan_vals = tl.List(allow_none=True)
@@ -170,8 +168,7 @@ class DataSource(Node):
     # when native_coordinates is not defined, default calls get_native_coordinates
     @tl.default("native_coordinates")
     def _default_native_coordinates(self):
-        self.native_coordinates = self.get_native_coordinates()
-        return self.native_coordinates
+        return self.get_native_coordinates()
 
     # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
     @tl.default("_interpolation")
@@ -344,15 +341,16 @@ class DataSource(Node):
         self._evaluated_coordinates = deepcopy(coordinates)
 
         # transform coordinates into native crs if different
-        if self.native_coordinates.crs != coordinates.crs:
+        if self.native_coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.native_coordinates.crs)
 
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
-        self._requested_source_coordinates, self._requested_source_coordinates_index = self.native_coordinates.intersect(
-            coordinates, outer=True, return_indices=True
-        )
+        (
+            self._requested_source_coordinates,
+            self._requested_source_coordinates_index,
+        ) = self.native_coordinates.intersect(coordinates, outer=True, return_indices=True)
 
         # if requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
         if self._requested_source_coordinates.size == 0:
@@ -366,7 +364,10 @@ class DataSource(Node):
         self._set_interpolation()
 
         # interpolate requested coordinates before getting data
-        self._requested_source_coordinates, self._requested_source_coordinates_index = self._interpolation.select_coordinates(
+        (
+            self._requested_source_coordinates,
+            self._requested_source_coordinates_index,
+        ) = self._interpolation.select_coordinates(
             self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
         )
 
