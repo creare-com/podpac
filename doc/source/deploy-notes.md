@@ -17,7 +17,7 @@ $ pip install --upgrade twine
 Now upload the package
 
 ```bash
-$ python -m twine upload
+$ python -m twine upload dist\*
 ```
 
 This will prompt you for your username and password. At the moment, only mpu and mls have privileges to upload to the PODPAC PYPI index. 
