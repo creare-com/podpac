@@ -138,7 +138,11 @@ class SMAP(EGI):
 
     @property
     def coverage(self):
-        return (self.data_key, self.quality_flag_key, self.lat_key, self.lon_key)
+        if self.quality_flag_key:
+            return (self.data_key, self.quality_flag_key, self.lat_key, self.lon_key)
+        else:
+            return (self.data_key, self.lat_key, self.lon_key)
+
 
     @tl.default("version")
     def _version_default(self):
@@ -165,7 +169,7 @@ class SMAP(EGI):
         # handle data
         data = ds[self.data_key][()]
 
-        if self.check_quality_flags:
+        if self.check_quality_flags and self.quality_flag_key:
             flag = ds[self.quality_flag_key][()]
             flag = flag > 0
             [flag] == np.nan
