@@ -219,7 +219,7 @@ class Compositor(Node):
                 nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
 
                 if trait_is_defined(s, "native_coordinates") is False:
-                    s.native_coordinates = nc
+                    s.set_trait('native_coordinates', nc)
 
         if settings["MULTITHREADING"]:
             # TODO pool of pre-allocated scratch space
