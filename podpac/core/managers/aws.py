@@ -14,6 +14,7 @@ import botocore
 import traitlets as tl
 import numpy as np
 
+from podpac.core.units import open_dataarray
 from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.utils import common_doc, JSONEncoder
@@ -326,6 +327,7 @@ class Lambda(Node):
     source_output_name = tl.Unicode()
     attrs = tl.Dict()  # TODO: are we still using this?
     download_result = tl.Bool(True).tag(attr=True)
+    force_compute = tl.Bool(default_value=False).tag(attr=True)
 
     @tl.default("source_output_name")
     def _source_output_name_default(self):
@@ -352,10 +354,14 @@ class Lambda(Node):
         if self.source is None:
             raise ValueError("'source' node must be defined to eval")
 
-        if self.function_eval_trigger == "eval" or self.function_eval_trigger == "S3":
-            return self._eval_s3(coordinates, output=None)
-        else:
+        if self.function_eval_trigger == "eval":
+            return self._eval_invoke(coordinates, output)
+        elif self.function_eval_trigger == "S3":
+            return self._eval_s3(coordinates, output)
+        elif self.function_eval_trigger == "APIGateway":
             raise NotImplementedError("APIGateway trigger not yet implemented through eval")
+        else:
+            raise ValueError("Function trigger is not one of 'eval', 'S3', or 'APIGateway'")
 
     def build(self):
         """Build Lambda function and associated resources on AWS
@@ -835,8 +841,7 @@ Lambda Node {status}
             copy_source = {"Bucket": self.function_source_bucket, "Key": self.function_source_dependencies_key}
             s3resource.meta.client.copy(copy_source, self.function_s3_bucket, self.function_s3_dependencies_key)
 
-        # TODO: remove eval from here once we implement "eval" through invoke
-        if "eval" in self.function_triggers or "S3" in self.function_triggers:
+        if "S3" in self.function_triggers:
             # add permission to invoke call lambda - this feels brittle due to source_arn
             statement_id = re.sub("[-_.]", "", self.function_s3_bucket)
             principle = "s3.amazonaws.com"
@@ -1133,17 +1138,25 @@ Lambda Node {status}
             # store a copy of the whole response from AWS
             self._api = api
 
+    def _create_eval_pipeline(self, coordinates):
+        """shorthand to create pipeline on eval"""
+
+        # add coordinates to the pipeline
+        pipeline = self.pipeline  # contains "pipeline" and "output" keys
+        pipeline["coordinates"] = json.loads(coordinates.json)
+        pipeline["settings"] = settings.copy()  # TODO: we should not wholesale copy settings here !!
+        pipeline["settings"][
+            "FUNCTION_DEPENDENCIES_KEY"
+        ] = self.function_s3_dependencies_key  # overwrite in case this is specified explicitly by class
+
+        return pipeline
+
     def _eval_invoke(self, coordinates, output=None):
         """eval node through invoke trigger"""
         _log.debug("Evaluating pipeline via invoke")
 
-        # add coordinates to the pipeline
-        pipeline = self.pipeline
-        pipeline["coordinates"] = json.loads(coordinates.json)
-        pipeline["settings"] = settings.copy()
-        pipeline["settings"][
-            "FUNCTION_DEPENDENCIES_KEY"
-        ] = self.function_s3_dependencies_key  # overwrite in case this is specified explicitly by class
+        # create eval pipeline
+        pipeline = self._create_eval_pipeline(coordinates)
 
         # create lambda client
         awslambda = self.session.client("lambda")
@@ -1160,7 +1173,7 @@ Lambda Node {status}
         # After waiting, load the pickle file like this:
         _log.debug("Received response from lambda function")
         payload = response["Payload"].read()
-        self._output = UnitsDataArray(payload)
+        self._output = open_dataarray(payload)
         return self._output
 
     def _eval_s3(self, coordinates, output=None):
@@ -1171,13 +1184,9 @@ Lambda Node {status}
         input_folder = "{}{}".format(self.function_s3_input, "/" if not self.function_s3_input.endswith("/") else "")
         output_folder = "{}{}".format(self.function_s3_output, "/" if not self.function_s3_output.endswith("/") else "")
 
-        # add coordinates and settings to the pipeline
-        pipeline = self.pipeline
-        pipeline["coordinates"] = json.loads(coordinates.json)
-        pipeline["settings"] = settings.copy()
-        pipeline["settings"][
-            "FUNCTION_DEPENDENCIES_KEY"
-        ] = self.function_s3_dependencies_key  # overwrite in case this is specified explicitly by class
+        # create eval pipeline
+        pipeline = self._create_eval_pipeline(coordinates)
+        pipeline["settings"]["force_compute"] = self.force_compute
         pipeline["settings"][
             "FUNCTION_S3_INPUT"
         ] = input_folder  # overwrite in case this is specified explicitly by class
@@ -1227,7 +1236,7 @@ Lambda Node {status}
         _log.debug("Received response from lambda function")
         response = s3.get_object(Key=filename, Bucket=self.function_s3_bucket)
         body = response["Body"].read()
-        self._output = cPickle.loads(body)
+        self._output = open_dataarray(body)
         return self._output
 
     def _eval_api(self, coordinates, output=None):
