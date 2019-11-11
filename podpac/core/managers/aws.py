@@ -321,9 +321,9 @@ class Lambda(Node):
         return self.function_tags
 
     # podpac node parameters
-    source = tl.Instance(Node, help="Node to evaluate in a Lambda function.", allow_none=True).tag(attr=True)
-    source_output_format = tl.Unicode(default_value="pkl", help="Output format.")
-    source_output_name = tl.Unicode(help="Image output name.")
+    source = tl.Instance(Node, allow_none=True).tag(attr=True)
+    source_output_format = tl.Unicode(default_value="netcdf")
+    source_output_name = tl.Unicode()
     attrs = tl.Dict()  # TODO: are we still using this?
     download_result = tl.Bool(True).tag(attr=True)
 
@@ -331,7 +331,6 @@ class Lambda(Node):
     def _source_output_name_default(self):
         return self.source.__class__.__name__
 
-    # TODO: are this still being used?
     @property
     def pipeline(self):
         """
@@ -1134,6 +1133,36 @@ Lambda Node {status}
             # store a copy of the whole response from AWS
             self._api = api
 
+    def _eval_invoke(self, coordinates, output=None):
+        """eval node through invoke trigger"""
+        _log.debug("Evaluating pipeline via invoke")
+
+        # add coordinates to the pipeline
+        pipeline = self.pipeline
+        pipeline["coordinates"] = json.loads(coordinates.json)
+        pipeline["settings"] = settings.copy()
+        pipeline["settings"][
+            "FUNCTION_DEPENDENCIES_KEY"
+        ] = self.function_s3_dependencies_key  # overwrite in case this is specified explicitly by class
+
+        # create lambda client
+        awslambda = self.session.client("lambda")
+
+        # invoke
+        payload = bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))
+        response = awslambda.invoke(
+            FunctionName=self.function_name,
+            LogType="Tail",  # include the execution log in the response.
+            Payload=payload,
+        )
+        print(response)
+
+        # After waiting, load the pickle file like this:
+        _log.debug("Received response from lambda function")
+        payload = response["Payload"].read()
+        self._output = UnitsDataArray(payload)
+        return self._output
+
     def _eval_s3(self, coordinates, output=None):
         """Evaluate node through s3 trigger"""
 
@@ -1142,15 +1171,19 @@ Lambda Node {status}
         input_folder = "{}{}".format(self.function_s3_input, "/" if not self.function_s3_input.endswith("/") else "")
         output_folder = "{}{}".format(self.function_s3_output, "/" if not self.function_s3_output.endswith("/") else "")
 
-        # add coordinates to the pipeline
+        # add coordinates and settings to the pipeline
         pipeline = self.pipeline
         pipeline["coordinates"] = json.loads(coordinates.json)
-        pipeline["settings"] = {
-            "FUNCTION_S3_INPUT": input_folder,
-            "FUNCTION_S3_OUTPUT": output_folder,
-            "FUNCTION_DEPENDENCIES_KEY": self.function_s3_dependencies_key,
-            "UNSAFE_EVAL_HASH": settings["UNSAFE_EVAL_HASH"],
-        }
+        pipeline["settings"] = settings.copy()
+        pipeline["settings"][
+            "FUNCTION_DEPENDENCIES_KEY"
+        ] = self.function_s3_dependencies_key  # overwrite in case this is specified explicitly by class
+        pipeline["settings"][
+            "FUNCTION_S3_INPUT"
+        ] = input_folder  # overwrite in case this is specified explicitly by class
+        pipeline["settings"][
+            "FUNCTION_S3_OUTPUT"
+        ] = output_folder  # overwrite in case this is specified explicitly by class
 
         # filename
         filename = "{folder}{output}_{source}_{coordinates}.{suffix}".format(
