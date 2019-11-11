@@ -44,7 +44,7 @@ from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
 import podpac.core.authentication as authentication
 from podpac.core.utils import NodeTrait
-from podpac.core.units import ureg as units
+from podpac.core.units import ureg as units, open_dataarray, UnitsDataArray
 
 # Organized submodules
 # These files are simply wrappers to create a curated namespace of podpac modules

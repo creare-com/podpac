@@ -12,8 +12,11 @@ from podpac.core.style import Style
 
 from podpac.core.units import ureg
 from podpac.core.units import UnitsDataArray
-from podpac.core.units import create_data_array
+from podpac.core.units import create_dataarray
+from podpac.core.units import open_dataarray
 from podpac.core.units import get_image
+
+from podpac.data import Array
 
 
 class TestUnitDataArray(object):
@@ -331,56 +334,56 @@ class TestCreateDataArray(object):
         cls.coords = Coordinates([[0, 1, 2], [0, 1, 2, 3]], dims=["lat", "lon"])
 
     def test_default(self):
-        a = create_data_array(self.coords)
+        a = create_dataarray(self.coords)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert np.all(np.isnan(a))
 
     def test_empty(self):
-        a = create_data_array(self.coords, data=None)
+        a = create_dataarray(self.coords, data=None)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == float
 
-        a = create_data_array(self.coords, data=None, dtype=bool)
+        a = create_dataarray(self.coords, data=None, dtype=bool)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == bool
 
     def test_zeros(self):
-        a = create_data_array(self.coords, data=0)
+        a = create_dataarray(self.coords, data=0)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == float
         assert np.all(a == 0.0)
 
-        a = create_data_array(self.coords, data=0, dtype=bool)
+        a = create_dataarray(self.coords, data=0, dtype=bool)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == bool
         assert np.all(~a)
 
     def test_ones(self):
-        a = create_data_array(self.coords, data=1)
+        a = create_dataarray(self.coords, data=1)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == float
         assert np.all(a == 1.0)
 
-        a = create_data_array(self.coords, data=1, dtype=bool)
+        a = create_dataarray(self.coords, data=1, dtype=bool)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == bool
         assert np.all(a)
 
     def test_full(self):
-        a = create_data_array(self.coords, data=10)
+        a = create_dataarray(self.coords, data=10)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == float
         assert np.all(a == 10)
 
-        a = create_data_array(self.coords, data=10, dtype=int)
+        a = create_dataarray(self.coords, data=10, dtype=int)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == int
@@ -388,20 +391,68 @@ class TestCreateDataArray(object):
 
     def test_array(self):
         data = np.random.random(self.coords.shape)
-        a = create_data_array(self.coords, data=data)
+        a = create_dataarray(self.coords, data=data)
         assert isinstance(a, UnitsDataArray)
         assert a.dtype == float
         np.testing.assert_equal(a.data, data)
 
         data = np.round(10 * np.random.random(self.coords.shape))
-        a = create_data_array(self.coords, data=data, dtype=int)
+        a = create_dataarray(self.coords, data=data, dtype=int)
         assert isinstance(a, UnitsDataArray)
         assert a.dtype == int
         np.testing.assert_equal(a.data, data.astype(int))
 
     def test_invalid_coords(self):
         with pytest.raises(TypeError):
-            create_data_array((3, 4))
+            create_dataarray((3, 4))
+
+
+class TestOpenDataArray(object):
+    def test_open_after_create(self):
+        coords = Coordinates([[0, 1, 2], [0, 1, 2, 3]], dims=["lat", "lon"])
+        uda_1 = create_dataarray(coords, data=np.random.rand(3, 4))
+        ncdf = uda_1.to_netcdf()
+        uda_2 = open_dataarray(ncdf)
+
+        assert isinstance(uda_2, UnitsDataArray)
+        assert np.all(uda_2.data == uda_1.data)
+
+    def test_open_after_create_with_attrs(self):
+        coords = Coordinates([[0, 1, 2], [0, 1, 2, 3]], dims=["lat", "lon"], crs="EPSG:4193")
+        uda_1 = create_dataarray(coords, data=np.random.rand(3, 4), attrs={"some_attr": 5})
+        ncdf = uda_1.to_netcdf()
+        uda_2 = open_dataarray(ncdf)
+
+        assert isinstance(uda_2, UnitsDataArray)
+        assert np.all(uda_2.data == uda_1.data)
+
+        assert "some_attr" in uda_2.attrs
+        assert uda_2.attrs.get("some_attr") == uda_1.attrs.get("some_attr")
+
+        assert "crs" in uda_2.attrs
+        assert uda_2.attrs.get("crs") == uda_1.attrs.get("crs")
+
+    def test_open_after_eval(self):
+
+        # mock node
+        data = np.random.rand(5, 5)
+        lat = np.linspace(-10, 10, 5)
+        lon = np.linspace(-10, 10, 5)
+        native_coords = Coordinates([lat, lon], ["lat", "lon"])
+        node = Array(source=data, native_coordinates=native_coords)
+        uda = node.eval(node.native_coordinates)
+
+        ncdf = uda.to_netcdf()
+        uda_2 = open_dataarray(ncdf)
+
+        assert isinstance(uda_2, UnitsDataArray)
+        assert np.all(uda_2.data == uda.data)
+
+        assert "layer_style" in uda_2.attrs
+        assert uda_2.attrs.get("layer_style").json == uda.attrs.get("layer_style").json
+
+        assert "crs" in uda_2.attrs
+        assert uda_2.attrs.get("crs") == uda.attrs.get("crs")
 
 
 class TestGetImage(object):

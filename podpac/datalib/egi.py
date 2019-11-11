@@ -29,7 +29,7 @@ from podpac.compositor import OrderedCompositor
 from podpac.data import DataSource
 from podpac import authentication
 from podpac import settings
-from podpac.core.units import UnitsDataArray, create_data_array
+from podpac.core.units import UnitsDataArray, create_dataarray
 from podpac.core.node import node_eval
 
 # Set up logging
@@ -225,7 +225,7 @@ class EGI(DataSource):
             )
             raise e
         # Force update on native_coordinates (in case of multiple evals)
-        self.set_trait('native_coordinates', self.get_native_coordinates())
+        self.set_trait("native_coordinates", self.get_native_coordinates())
 
         # run normal eval once self.data is prepared
         return super(EGI, self).eval(coordinates, output)

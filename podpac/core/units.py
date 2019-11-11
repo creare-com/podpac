@@ -29,6 +29,7 @@ from pint.unit import _Unit
 ureg = UnitRegistry()
 
 import podpac
+from podpac import Coordinates
 from podpac.core.settings import settings
 from podpac.core.utils import JSONEncoder
 from podpac.core.style import Style
@@ -351,9 +352,48 @@ del func
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-def create_data_array(coords, data=np.nan, dtype=float, **kwargs):
+def open_dataarray(*args, **kwargs):
+    """
+    Open an :class:`podpac.UnitsDataArray` from a file or file-like object containing a single data variable.
+
+    This is a wrapper around :func:`xarray.open_datarray`.
+    The inputs to this function are passed directly to :func:`xarray.open_datarray`.
+    See http://xarray.pydata.org/en/stable/generated/xarray.open_dataarray.html#xarray.open_dataarray.
+
+    The DataArray passed back from :func:`xarray.open_datarray` is used to create a units data array using :func:`creare_dataarray`.
+    
+    Returns
+    -------
+    :class:`podpac.UnitsDataArray`
+    """
+    da = xr.open_dataarray(*args, **kwargs)
+    coords = Coordinates.from_xarray(da.coords, crs=da.attrs.get("crs"))
+
+    # pass in kwargs to constructor
+    uda_kwargs = {"attrs": da.attrs}
+    return create_dataarray(coords, data=da.data, **uda_kwargs)
+
+
+def create_dataarray(coords, data=np.nan, dtype=float, **kwargs):
+    """Shortcut to create :class:`podpac.UnitsDataArray`
+    
+    Parameters
+    ----------
+    coords : :class:`podpac.Coordinates`
+        PODPAC Coordinates
+    data : np.ndarray, optional
+        Data to fill in. Defaults to np.nan.
+    dtype : type, optional
+        Data type. Defaults to float.
+    **kwargs
+        keyword arguments to pass to :class:`podpac.UnitsDataArray` constructor
+    
+    Returns
+    -------
+    :class:`podpac.UnitsDataArray`
+    """
     if not isinstance(coords, podpac.Coordinates):
-        raise TypeError("create_data_array expected Coordinates object, not '%s'" % type(coords))
+        raise TypeError("create_dataarray expected Coordinates object, not '%s'" % type(coords))
 
     if data is None:
         data = np.empty(coords.shape, dtype=dtype)
