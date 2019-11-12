@@ -8,6 +8,8 @@ import logging
 import time
 import re
 from copy import deepcopy
+import base64
+from datetime import datetime
 
 import boto3
 import botocore
@@ -23,12 +25,13 @@ from podpac import version
 # Set up logging
 _log = logging.getLogger(__name__)
 
-try:
-    import cPickle  # Python 2.7
-except:
-    import _pickle as cPickle
-
 COMMON_DOC = COMMON_NODE_DOC.copy()
+
+
+class LambdaException(Exception):
+    """ Exception during execution of a Lambda node"""
+
+    pass
 
 
 class Lambda(Node):
@@ -142,7 +145,7 @@ class Lambda(Node):
 
     # lambda function parameters
     function_name = tl.Unicode().tag(attr=True, readonly=True)  # see default below
-    function_triggers = tl.List(tl.Enum(["eval", "S3", "APIGateway"]), default_value=["eval"]).tag(readonly=True)
+    function_triggers = tl.List(tl.Enum(["eval", "S3", "APIGateway"])).tag(readonly=True)
     function_handler = tl.Unicode(default_value="handler.handler").tag(readonly=True)
     function_description = tl.Unicode(default_value="PODPAC Lambda Function (https://podpac.org)").tag(readonly=True)
     function_env_variables = tl.Dict(default_value={}).tag(readonly=True)  # environment vars in function
@@ -173,6 +176,13 @@ class Lambda(Node):
             settings["FUNCTION_NAME"] = "podpac-lambda-autogen"
 
         return settings["FUNCTION_NAME"]
+
+    @tl.default("function_triggers")
+    def _function_triggers_default(self):
+        if self.function_eval_trigger != "eval":
+            return ["eval", self.function_eval_trigger]
+        else:
+            return ["eval"]
 
     @tl.default("function_source_dist_key")
     def _function_source_dist_key_default(self):
@@ -325,13 +335,20 @@ class Lambda(Node):
     source = tl.Instance(Node, allow_none=True).tag(attr=True)
     source_output_format = tl.Unicode(default_value="netcdf")
     source_output_name = tl.Unicode()
-    attrs = tl.Dict()  # TODO: are we still using this?
+    attrs = tl.Dict()
     download_result = tl.Bool(True).tag(attr=True)
-    force_compute = tl.Bool(default_value=False).tag(attr=True)
+    force_compute = tl.Bool().tag(attr=True)
 
     @tl.default("source_output_name")
     def _source_output_name_default(self):
         return self.source.__class__.__name__
+
+    @tl.default("force_compute")
+    def _force_compute_default(self):
+        if settings["FUNCTION_FORCE_COMPUTE"] is None:
+            settings["FUNCTION_FORCE_COMPUTE"] = False
+
+        return settings["FUNCTION_FORCE_COMPUTE"]
 
     @property
     def pipeline(self):
@@ -368,6 +385,9 @@ class Lambda(Node):
         to run PODPAC pipelines
         """
 
+        # TODO: move towards an architecture where the "create_" functions repair on each build
+        # and skip when the resources already exist
+
         # see if current setup is valid, if so just return
         valid = self.validate()
         if valid:
@@ -402,9 +422,8 @@ class Lambda(Node):
 
         # TODO: check to make sure function and API work together
 
-        # create S3 bucket
-        if self._bucket is None:
-            self.create_bucket()
+        # create S3 bucket - this will skip pieces that already exist
+        self.create_bucket()
 
         # check to see if setup is valid after creation
         # TODO: remove this in favor of something more granular??
@@ -823,24 +842,34 @@ Lambda Node {status}
 
         # after creating a bucket, you need to wait ~2 seconds before its active and can be uploaded to
         # this is not cool
-        time.sleep(2)
+        time.sleep(5)
+
+        # get reference to s3 client for session
+        s3 = self.session.client("s3")
 
         # add podpac deps to bucket for version
-        # copy from user supplied dependencies
-        if self.function_source_dependencies_zip is not None:
-            put_object(
-                self.session,
-                self.function_s3_bucket,
-                self.function_s3_dependencies_key,
-                file=self.function_source_dependencies_zip,
-            )
+        # see if the function depedencies exist in bucket
+        try:
+            s3.head_object(Bucket=self.function_s3_bucket, Key=self.function_s3_dependencies_key)
+        except botocore.exceptions.ClientError:
 
-        # copy resources from podpac dist
-        else:
-            s3resource = self.session.resource("s3")
-            copy_source = {"Bucket": self.function_source_bucket, "Key": self.function_source_dependencies_key}
-            s3resource.meta.client.copy(copy_source, self.function_s3_bucket, self.function_s3_dependencies_key)
+            # copy from user supplied dependencies
+            if self.function_source_dependencies_zip is not None:
+                put_object(
+                    self.session,
+                    self.function_s3_bucket,
+                    self.function_s3_dependencies_key,
+                    file=self.function_source_dependencies_zip,
+                )
 
+            # copy resources from podpac dist
+            else:
+                s3resource = self.session.resource("s3")
+                copy_source = {"Bucket": self.function_source_bucket, "Key": self.function_source_dependencies_key}
+                s3resource.meta.client.copy(copy_source, self.function_s3_bucket, self.function_s3_dependencies_key)
+
+        # Add S3 Function triggers, if they don't exist already
+        # TODO: add validition to see if trigger already exists
         if "S3" in self.function_triggers:
             # add permission to invoke call lambda - this feels brittle due to source_arn
             statement_id = re.sub("[-_.]", "", self.function_s3_bucket)
@@ -849,7 +878,6 @@ Lambda Node {status}
             self.add_trigger(statement_id, principle, source_arn)
 
             # lambda integration on object creation events
-            s3 = self.session.client("s3")
             s3.put_bucket_notification_configuration(
                 Bucket=self.function_s3_bucket,
                 NotificationConfiguration={
@@ -863,6 +891,8 @@ Lambda Node {status}
                     ]
                 },
             )
+        else:
+            _log.debug("Skipping S3 trigger because 'S3' not in the function triggers")
 
         return bucket
 
@@ -885,9 +915,21 @@ Lambda Node {status}
 
         This should only be run after running `self.get_bucket()`
         """
-        # TODO: needs to be implemented
         if self._bucket is None:
             return False
+
+        s3 = self.session.client("s3")
+
+        # make sure dependencies are in there
+        try:
+            s3.head_object(Bucket=self.function_s3_bucket, Key=self.function_s3_dependencies_key)
+        except botocore.exceptions.ClientError:
+            _log.error("Failed to find PODPAC dependencies in bucket")
+            return False
+
+        # TODO: make sure trigger exists
+        if "S3" in self.function_triggers:
+            pass
 
         return True
 
@@ -1021,7 +1063,7 @@ Lambda Node {status}
         self._function_api_resource_id = None
 
     # Logs
-    def get_logs(self, limit=100, start=None, end=None):
+    def get_logs(self, limit=5, start=None, end=None):
         """Get Cloudwatch logs from lambda function execution
         
         See :func:`podpac.managers.aws.get_logs`
@@ -1144,6 +1186,8 @@ Lambda Node {status}
         # add coordinates to the pipeline
         pipeline = self.pipeline  # contains "pipeline" and "output" keys
         pipeline["coordinates"] = json.loads(coordinates.json)
+
+        # TODO: should we move this to `self.pipeline`?
         pipeline["settings"] = settings.copy()  # TODO: we should not wholesale copy settings here !!
         pipeline["settings"][
             "FUNCTION_DEPENDENCIES_KEY"
@@ -1168,10 +1212,20 @@ Lambda Node {status}
             LogType="Tail",  # include the execution log in the response.
             Payload=payload,
         )
-        print(response)
+
+        _log.debug("Received response from lambda function")
+
+        if "FunctionError" in response:
+            _log.error("Unhandled error from lambda function")
+            # logs = base64.b64decode(response["LogResult"]).decode("UTF-8").split('\n')
+            payload = json.loads(response["Payload"].read().decode("UTF-8"))
+            raise LambdaException(
+                "Error in lambda function evaluation:\n\nError Type: {}\nError Message: {}\nStack Trace: {}".format(
+                    payload["errorType"], payload["errorMessage"], "\n".join(payload["stackTrace"])
+                )
+            )
 
         # After waiting, load the pickle file like this:
-        _log.debug("Received response from lambda function")
         payload = response["Payload"].read()
         self._output = open_dataarray(payload)
         return self._output
@@ -1186,7 +1240,7 @@ Lambda Node {status}
 
         # create eval pipeline
         pipeline = self._create_eval_pipeline(coordinates)
-        pipeline["settings"]["force_compute"] = self.force_compute
+        pipeline["settings"]["FUNCTION_FORCE_COMPUTE"] = self.force_compute
         pipeline["settings"][
             "FUNCTION_S3_INPUT"
         ] = input_folder  # overwrite in case this is specified explicitly by class
@@ -1637,16 +1691,17 @@ def create_function(
         "Tags": function_tags,
     }
 
+    # read function from zip file
+    if function_source_dist_zip is not None:
+        raise NotImplementedError("Supplying a source dist zip from a local file is not yet supported")
+        # TODO: this fails when the file size is over a certain limit
+        # with open(function_source_dist_zip, "rb") as f:
+        #     lambda_config["Code"]["ZipFile"]: f.read()
+
     # read function from S3 (Default)
-    if function_source_bucket is not None and function_source_dist_key is not None:
+    elif function_source_bucket is not None and function_source_dist_key is not None:
         lambda_config["Code"]["S3Bucket"] = function_source_bucket
         lambda_config["Code"]["S3Key"] = function_source_dist_key
-
-    # read function from zip file
-    elif function_source_dist_zip is not None:
-        with open(function_source_dist_zip, "rb") as f:
-            lambda_config["Code"] = {}  # reset the code dict to make sure S3Bucket and S3Key are overridden
-            lambda_config["Code"]["ZipFile"]: f.read()
 
     else:
         raise ValueError("Function source is not defined")
@@ -2333,5 +2388,17 @@ def get_logs(session, log_group_name, limit=100, start=None, end=None):
             limit=limit,
         )
         logs += response["events"]
+
+    # sort logs
+    logs.sort(key=lambda k: k["timestamp"])
+
+    # take only the last "limit"
+    logs = logs[-limit:]
+
+    # add time easier to read
+    for log in logs:
+        log["time"] = "{}.{:03d}".format(
+            datetime.fromtimestamp(log["timestamp"] / 1000).strftime("%Y-%m-%d %H:%M:%S"), log["timestamp"] % 1000
+        )
 
     return logs

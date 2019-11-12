@@ -1,30 +1,53 @@
 """
 PODPAC AWS Handler
-
-Attributes
-----------
-s3 : TYPE
-    Description
-settings_json : dict
-    Description
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import json
 import subprocess
 import sys
 import urllib.parse as urllib
-from six import string_types
 from collections import OrderedDict
 
-import _pickle as cPickle
 
 import boto3
 import botocore
 
 
-def get_trigger(event):
+def default_pipeline(pipeline=None):
+    """Get default pipeline definiton, merging with input pipline if supplied
+    
+    Parameters
+    ----------
+    pipeline : dict, optional
+        Input pipline. Will fill in any missing defaults.
+    
+    Returns
+    -------
+    dict
+        pipeline dict
     """
+    defaults = {
+        "pipeline": {},
+        "settings": {},
+        "output": {"format": "netcdf", "filename": None, "format_kwargs": {}},
+        # API Gateway
+        "url": "",
+        "params": {},
+    }
+
+    # merge defaults with input pipelines, if supplied
+    if pipeline is not None:
+        pipeline = {**defaults, **pipeline}
+        pipeline["output"] = {**defaults["output"], **pipeline["output"]}
+        pipeline["settings"] = {**defaults["settings"], **pipeline["settings"]}
+    else:
+        pipeline = defaults
+
+    return pipeline
+
+
+def get_trigger(event):
+    """ 
     Helper method to determine the trigger for the lambda invocation
     
     Parameters
@@ -60,8 +83,11 @@ def parse_event(trigger, event):
     if trigger == "eval":
         print("Triggered by Invoke")
 
-        # TODO: implement
-        return None
+        # event is the pipeline, provide consistent pipeline defaults
+        pipeline = default_pipeline(event)
+
+        return pipeline
+
     elif trigger == "S3":
         print("Triggered from S3")
 
@@ -76,18 +102,22 @@ def parse_event(trigger, event):
         pipline_obj = s3.get_object(Bucket=triggered_bucket, Key=file_key)
         pipeline = json.loads(pipline_obj["Body"].read().decode("utf-8"))
 
+        # provide consistent pipeline defaults
+        pipeline = default_pipeline(pipeline)
+
         # create output filename
-        pipeline["output_filename"] = file_key.replace(".json", "." + pipeline["output"]["format"]).replace(
+        pipeline["output"]["filename"] = file_key.replace(".json", "." + pipeline["output"]["format"]).replace(
             pipeline["settings"]["FUNCTION_S3_INPUT"], pipeline["settings"]["FUNCTION_S3_OUTPUT"]
         )
 
-        if not pipeline["settings"]["force_compute"]:
+        if not pipeline["settings"]["FUNCTION_FORCE_COMPUTE"]:
+
             # get configured s3 bucket to check for cache
             bucket = pipeline["settings"]["S3_BUCKET_NAME"]
 
             # We can return if there is a valid cached output to save compute time.
             try:
-                s3.head_object(Bucket=bucket, Key=pipeline["output_filename"])
+                s3.head_object(Bucket=bucket, Key=pipeline["output"]["filename"])
                 return None
 
             # throws ClientError if no file is found
@@ -100,23 +130,28 @@ def parse_event(trigger, event):
     elif trigger == "APIGateway":
         print("Triggered from API Gateway")
 
-        url = event["queryStringParameters"]
-        if isinstance(url, string_types):
-            url = urllib.parse_qs(urllib.urlparse(url).query)
+        pipeline = default_pipeline()
+        pipeline["url"] = event["queryStringParameters"]
+        pipeline["params"] = urllib.parse_qs(urllib.urlparse(pipeline["url"]).query)
 
-        # Capitalize the keywords for consistency
-        pipeline = {}
-        for param in url:
+        # make all params lowercase
+        pipeline["params"] = [param.lower() for param in pipeline["params"]]
 
-            if param.upper() == "PIPELINE":
-                pipeline["pipeline"] = url[param]
+        # look for specific parameter definitions in query parameters
+        for param in pipeline["params"]:
+            if param == "settings":
+                pipeline["settings"] = pipeline["params"][param]
 
-            # TODO: do we still need this? will overwrite pipeline above
-            if param.upper() == "SETTINGS":
-                pipeline["settings"] = url[param]
+            if param == "output":
+                pipeline["output"] = pipeline["params"][param]
 
-            if param.upper() == "OUTPUT":
-                pipeline["output"] = url[param]
+        # handle FORMAT in query parameters
+        if "format" in pipeline["params"]:
+            pipeline["output"]["format"] = pipeline["params"]["format"].split("/")[-1]
+
+        # handle image returns
+        if pipeline["output"]["format"] in ["png", "jpg", "jpeg"]:
+            pipeline["output"]["format_kwargs"]["return_base64"] = True
 
         return pipeline
 
@@ -124,7 +159,7 @@ def parse_event(trigger, event):
         raise Exception("Unsupported trigger")
 
 
-def handler(event, context, get_deps=True, ret_pipeline=False):
+def handler(event, context):
     """Lambda function handler
     
     Parameters
@@ -187,44 +222,33 @@ def handler(event, context, get_deps=True, ret_pipeline=False):
     import podpac.datalib
 
     # update podpac settings with inputs from the trigger
-    for key in pipeline["settings"]:
-        settings[key] = pipeline["settings"][key]
+    settings = {**settings, **pipeline["settings"]}
 
-    # TODO: load this into pipeline["output"]
-    kwargs = {}
-    if trigger == "eval":
-        pass
-
-    elif trigger == "S3":
+    # build the Node and Coordinates
+    if trigger in ("eval", "S3"):
         node = Node.from_definition(pipeline["pipeline"])
         coords = Coordinates.from_json(json.dumps(pipeline["coordinates"], indent=4, cls=JSONEncoder))
-        fmt = pipeline["output"]["format"]
-        kwargs = pipeline["output"].copy()
-        kwargs.pop("format")  # get rid of format
 
     # TODO: handle API Gateway better - is this always going to be WCS?
     elif trigger == "APIGateway":
-        # TODO: handle this in the parser above - not sure what the spec should be here
-        node = Node.from_url(event["queryStringParameters"])
-        coords = Coordinates.from_url(event["queryStringParameters"])
-        fmt = _get_query_params_from_url(event["queryStringParameters"])["FORMAT"].split("/")[-1]
-        if fmt in ["png", "jpg", "jpeg"]:
-            kwargs["return_base64"] = True
+        node = Node.from_url(pipeline["url"])
+        coords = Coordinates.from_url(pipeline["url"])
 
-    # run analysis and covert to output format
+    # run analysis
     output = node.eval(coords)
-    body = output.to_format(fmt, **kwargs)
 
-    # ########
+    # convert to output format
+    body = output.to_format(pipeline["output"]["format"], **pipeline["output"]["format_kwargs"])
+
     # Response
-    # ########
     if trigger == "eval":
-        pass
-        # return {"statusCode": 200, "headers": {"Content-Type": "image/png"}, "isBase64Encoded": True, "body": body}
+        return body
+
     elif trigger == "S3":
-        s3.put_object(Bucket=settings["S3_BUCKET_NAME"], Key=pipeline["output_filename"], Body=body)
+        s3.put_object(Bucket=settings["S3_BUCKET_NAME"], Key=pipeline["output"]["filename"], Body=body)
 
     elif trigger == "APIGateway":
+
         # TODO: can we handle the deserialization better?
         try:
             json.dumps(body)
