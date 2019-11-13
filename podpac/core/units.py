@@ -168,7 +168,7 @@ class UnitsDataArray(xr.DataArray):
             if format == "json":
                 r = json.dumps(r, cls=JSONEncoder)
         elif format in ["png", "jpg", "jpeg"]:
-            r = get_image(self, format, *args, **kwargs)
+            r = self.to_image(format, *args, **kwargs)
         elif format.upper() in ["TIFF", "TIF", "GEOTIFF"]:
             raise NotImplementedError("Format {} is not implemented.".format(format))
         elif format in ["pickle", "pkl"]:
@@ -180,6 +180,28 @@ class UnitsDataArray(xr.DataArray):
                 raise NotImplementedError("Format {} is not implemented.".format(format))
         self.deserialize()
         return r
+
+    def to_image(self, format="png", vmin=None, vmax=None, return_base64=False):
+        """Return a base64-encoded image of the data.
+
+        Parameters
+        ----------
+        format : str, optional
+            Default is 'png'. Type of image. 
+        vmin : number, optional
+            Minimum value of colormap
+        vmax : vmax, optional
+            Maximum value of colormap
+        return_base64: bool, optional
+            Default is False. Normally this returns an io.BytesIO, but if True, will return a base64 encoded string.
+            
+
+        Returns
+        -------
+        BytesIO/str
+            Binary or Base64 encoded image. 
+        """
+        return to_image(self, format, vmin, vmax, return_base64)
 
     def serialize(self):
         if self.attrs.get("units"):
@@ -423,8 +445,8 @@ def create_dataarray(coords, data=np.nan, dtype=float, **kwargs):
     return UnitsDataArray.create(coords, data, dtype, **kwargs)
 
 
-def get_image(data, format="png", vmin=None, vmax=None, return_base64=False):
-    """Return a base64-encoded image of the data
+def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
+    """Return a base64-encoded image of data
 
     Parameters
     ----------
