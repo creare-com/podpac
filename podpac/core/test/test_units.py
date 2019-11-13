@@ -1,18 +1,18 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import io
+
 import pytest
 import numpy as np
 import xarray as xr
 from pint.errors import DimensionalityError
-import traitlets as tl
 
 from podpac.core.coordinates import Coordinates
-from podpac.core.node import Node
 from podpac.core.style import Style
 
 from podpac.core.units import ureg
 from podpac.core.units import UnitsDataArray
-from podpac.core.units import get_image
+from podpac.core.units import to_image
 from podpac.core.units import create_dataarray  # DEPRECATED
 
 from podpac.data import Array
@@ -310,6 +310,16 @@ class TestUnitDataArray(object):
         with pytest.raises(DimensionalityError):
             a10 = a1 % a2
 
+    def test_to_image(self):
+        uda = UnitsDataArray(np.ones((10, 10)))
+        assert isinstance(uda.to_image(return_base64=True), bytes)
+        assert isinstance(uda.to_image(), io.BytesIO)
+
+    def test_to_image_vmin_vmax(self):
+        uda = UnitsDataArray(np.ones((10, 10)))
+        assert isinstance(uda.to_image(vmin=0, vmax=2, return_base64=True), bytes)
+        assert isinstance(uda.to_image(vmin=0, vmax=2), io.BytesIO)
+
     @pytest.mark.skip(reason="Error in xarray layer")
     def test_ufuncs(self):
         a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter})
@@ -458,14 +468,14 @@ class TestOpenDataArray(object):
         assert uda_2.attrs.get("crs") == uda.attrs.get("crs")
 
 
-class TestGetImage(object):
-    def test_get_image(self):
+class TestToImage(object):
+    def test_to_image(self):
         data = np.ones((10, 10))
-        assert isinstance(get_image(UnitsDataArray(data), return_base64=True), bytes)  # UnitsDataArray input
-        assert isinstance(get_image(xr.DataArray(data), return_base64=True), bytes)  # xr.DataArray input
-        assert isinstance(get_image(data, return_base64=True), bytes)  # np.ndarray input
-        assert isinstance(get_image(np.array([data]), return_base64=True), bytes)  # squeeze
+        assert isinstance(to_image(UnitsDataArray(data), return_base64=True), bytes)  # UnitsDataArray input
+        assert isinstance(to_image(xr.DataArray(data), return_base64=True), bytes)  # xr.DataArray input
+        assert isinstance(to_image(data, return_base64=True), bytes)  # np.ndarray input
+        assert isinstance(to_image(np.array([data]), return_base64=True), bytes)  # squeeze
 
-    def test_get_image_vmin_vmax(self):
+    def test_to_image_vmin_vmax(self):
         data = np.ones((10, 10))
-        assert isinstance(get_image(data, vmin=0, vmax=2, return_base64=True), bytes)
+        assert isinstance(to_image(data, vmin=0, vmax=2, return_base64=True), bytes)

@@ -19,7 +19,6 @@ import numpy as np
 import traitlets as tl
 
 from podpac.core.node import Node
-from podpac.core.units import get_image
 
 
 class Output(tl.HasTraits):
@@ -210,4 +209,4 @@ class ImageOutput(Output):
 
     # TODO: docstring?
     def write(self, output, coordinates):
-        self.image = get_image(output, format=self.format, vmin=self.vmin, vmax=self.vmax, return_base64=True)
+        self.image = output.to_image(format=self.format, vmin=self.vmin, vmax=self.vmax, return_base64=True)
