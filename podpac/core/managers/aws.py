@@ -16,7 +16,7 @@ import botocore
 import traitlets as tl
 import numpy as np
 
-from podpac.core.units import open_dataarray
+from podpac.core.units import UnitsDataArray
 from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.utils import common_doc, JSONEncoder
@@ -1227,7 +1227,7 @@ Lambda Node {status}
 
         # After waiting, load the pickle file like this:
         payload = response["Payload"].read()
-        self._output = open_dataarray(payload)
+        self._output = UnitsDataArray.open(payload)
         return self._output
 
     def _eval_s3(self, coordinates, output=None):
@@ -1290,7 +1290,7 @@ Lambda Node {status}
         _log.debug("Received response from lambda function")
         response = s3.get_object(Key=filename, Bucket=self.function_s3_bucket)
         body = response["Body"].read()
-        self._output = open_dataarray(body)
+        self._output = UnitsDataArray.open(body)
         return self._output
 
     def _eval_api(self, coordinates, output=None):
