@@ -1604,7 +1604,7 @@ def create_function(
     elif function_source_dist_zip is not None:
         with open(function_source_dist_zip, "rb") as f:
             lambda_config["Code"] = {}  # reset the code dict to make sure S3Bucket and S3Key are overridden
-            lambda_config["Code"]["ZipFile"]: f.read()
+            lambda_config["Code"]["ZipFile"] = f.read()
 
     else:
         raise ValueError("Function source is not defined")

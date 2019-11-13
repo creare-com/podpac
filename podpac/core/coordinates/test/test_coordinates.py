@@ -1,13 +1,11 @@
 import sys
 import json
-import warnings
 from copy import deepcopy
 
 import pytest
 import numpy as np
-import xarray as xr
-import pandas as pd
 from numpy.testing import assert_equal
+import xarray as xr
 import pyproj
 
 import podpac
@@ -381,85 +379,80 @@ class TestCoordinateCreation(object):
             Coordinates.from_xarray([0, 10])
 
     def test_crs(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", r".*init=<authority>:<code>' syntax is deprecated", DeprecationWarning, "pyproj"
-            )
+        lat = ArrayCoordinates1d([0, 1, 2], "lat")
+        lon = ArrayCoordinates1d([0, 1, 2], "lon")
 
-            lat = ArrayCoordinates1d([0, 1, 2], "lat")
-            lon = ArrayCoordinates1d([0, 1, 2], "lon")
+        # default
+        c = Coordinates([lat, lon])
+        assert c.crs == podpac.settings["DEFAULT_CRS"]
+        assert c.alt_units is None
+        assert set(c.properties.keys()) == {"crs"}
 
-            # default
-            c = Coordinates([lat, lon])
-            assert c.crs == podpac.settings["DEFAULT_CRS"]
-            assert c.alt_units is None
-            assert set(c.properties.keys()) == {"crs"}
+        # crs
+        c = Coordinates([lat, lon], crs="EPSG:2193")
+        assert c.crs == "EPSG:2193"
+        assert c.alt_units is None
+        assert set(c.properties.keys()) == {"crs"}
 
-            # crs
-            c = Coordinates([lat, lon], crs="EPSG:2193")
-            assert c.crs == "EPSG:2193"
-            assert c.alt_units is None
-            assert set(c.properties.keys()) == {"crs"}
+        # proj4
+        c = Coordinates([lat, lon], crs="EPSG:2193")
+        assert c.crs == "EPSG:2193"
+        assert c.alt_units is None
+        assert set(c.properties.keys()) == {"crs"}
 
-            # proj4
-            c = Coordinates([lat, lon], crs="+init=epsg:2193")
-            assert c.crs == "+init=epsg:2193"
-            assert c.alt_units is None
-            assert set(c.properties.keys()) == {"crs"}
+        c = Coordinates([lat, lon], crs="+proj=merc +lat_ts=56.5 +ellps=GRS80")
+        assert c.crs == "+proj=merc +lat_ts=56.5 +ellps=GRS80"
+        assert c.alt_units is None
+        assert set(c.properties.keys()) == {"crs"}
 
-            c = Coordinates([lat, lon], crs="+proj=merc +lat_ts=56.5 +ellps=GRS80")
-            assert c.crs == "+proj=merc +lat_ts=56.5 +ellps=GRS80"
-            assert c.alt_units is None
-            assert set(c.properties.keys()) == {"crs"}
+        # with vunits
+        c = Coordinates([lat, lon], crs="+proj=merc +lat_ts=56.5 +ellps=GRS80 +vunits=ft")
+        assert c.crs == "+proj=merc +lat_ts=56.5 +ellps=GRS80 +vunits=ft"
+        assert c.alt_units == "ft"
+        assert set(c.properties.keys()) == {"crs"}  # no alt_units, it is in the crs
 
-            # with vunits
-            c = Coordinates([lat, lon], crs="+init=epsg:2193 +vunits=ft")
-            assert c.crs == "+init=epsg:2193 +vunits=ft"
-            assert c.alt_units == "ft"
-            assert set(c.properties.keys()) == {"crs"}  # no alt_units, it is in the crs
+        # invalid
+        with pytest.raises(pyproj.crs.CRSError):
+            Coordinates([lat, lon], crs="abcd")
 
-            # invalid
-            with pytest.raises(pyproj.crs.CRSError):
-                Coordinates([lat, lon], crs="abcd")
+        # DeprecationWarning for +init (#316)
+        with pytest.warns(DeprecationWarning):
+            Coordinates([lat], crs="+init=epsg:4326")
 
     def test_alt_units(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", r".*init=<authority>:<code>' syntax is deprecated", DeprecationWarning, "pyproj"
-            )
 
-            alt = ArrayCoordinates1d([0, 1, 2], name="alt")
+        alt = ArrayCoordinates1d([0, 1, 2], name="alt")
 
-            # None
-            c = Coordinates([alt])
-            assert c.alt_units is None
-            assert set(c.properties.keys()) == {"crs"}
+        # None
+        c = Coordinates([alt])
+        assert c.alt_units is None
+        assert set(c.properties.keys()) == {"crs"}
 
-            c.set_trait("alt_units", None)
+        c.set_trait("alt_units", None)
 
-            # proj4
-            c = Coordinates([alt], crs="EPSG:2193", alt_units="ft")
-            assert c.alt_units == "ft"
-            assert set(c.properties.keys()) == {"crs", "alt_units"}
+        # proj4
+        c = Coordinates([alt], crs="EPSG:2193", alt_units="ft")
+        assert c.alt_units == "ft"
+        assert set(c.properties.keys()) == {"crs", "alt_units"}
 
-            # with crs
-            c = Coordinates([alt], crs="EPSG:2193", alt_units="ft")
-            assert c.crs == "EPSG:2193"
-            assert c.alt_units == "ft"
-            assert set(c.properties.keys()) == {"crs", "alt_units"}
+        # with crs
+        c = Coordinates([alt], crs="EPSG:2193", alt_units="ft")
+        assert c.crs == "EPSG:2193"
+        assert c.alt_units == "ft"
+        assert set(c.properties.keys()) == {"crs", "alt_units"}
 
-            # invalid
-            with pytest.raises(ValueError, match="Invalid alt_units"):
-                Coordinates([alt], alt_units="feet")
+        # invalid
+        with pytest.raises(ValueError, match="Invalid alt_units"):
+            Coordinates([alt], alt_units="feet")
 
-            # crs mismatch
-            with pytest.raises(ValueError, match="crs and alt_units mismatch"):
-                Coordinates([alt], crs="+init=epsg:2193 +vunits=ft", alt_units="m")
+        # crs mismatch
+        with pytest.raises(ValueError, match="crs and alt_units mismatch"):
+            Coordinates([alt], crs="+proj=merc +vunits=ft", alt_units="m")
 
-            # ignore
-            with pytest.warns(UserWarning, match="alt_units ignored"):
-                c = Coordinates([alt], crs="EPSG:4326", alt_units="ft")
-            assert c.alt_units is None
+        # ignore
+        with pytest.warns(UserWarning, match="alt_units ignored"):
+            c = Coordinates([alt], crs="EPSG:4326", alt_units="ft")
+        assert c.alt_units is None
 
     def test_ctype(self):
         # assign
@@ -1547,21 +1540,16 @@ class TestCoordinatesSpecial(object):
         assert c3.hash == deepcopy(c3).hash
 
     def test_eq_ne_hash_crs_alt_units(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", r".*init=<authority>:<code>' syntax is deprecated", DeprecationWarning, "pyproj"
-            )
+        lat = [0, 1, 2]
+        lon = [10, 20, 30]
 
-            lat = [0, 1, 2]
-            lon = [10, 20, 30]
+        # special case, these should be the same
+        c1 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193", alt_units="ft")
+        c2 = Coordinates([lat, lon], dims=["lat", "lon"], crs="+proj=tmerc +vunits=ft")
 
-            # special case, these should be the same
-            c1 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193", alt_units="ft")
-            c2 = Coordinates([lat, lon], dims=["lat", "lon"], crs="+init=EPSG:2193 +vunits=ft")
-
-            assert c1 == c2
-            assert not c1 != c2
-            assert c1.hash == c2.hash
+        assert c1 == c2
+        assert not c1 != c2
+        assert c1.hash == c2.hash
 
 
 class TestCoordinatesFunctions(object):
