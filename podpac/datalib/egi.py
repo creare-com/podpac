@@ -29,7 +29,7 @@ from podpac.compositor import OrderedCompositor
 from podpac.data import DataSource
 from podpac import authentication
 from podpac import settings
-from podpac.core.units import UnitsDataArray, create_dataarray
+from podpac.core.units import UnitsDataArray
 from podpac.core.node import node_eval
 
 # Set up logging

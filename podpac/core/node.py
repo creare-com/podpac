@@ -18,7 +18,7 @@ import numpy as np
 import traitlets as tl
 
 from podpac.core.settings import settings
-from podpac.core.units import ureg, UnitsDataArray, create_dataarray
+from podpac.core.units import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
 from podpac.core.utils import JSONEncoder, is_json_serializable
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
@@ -252,7 +252,7 @@ class Node(tl.HasTraits):
         if self.units is not None:
             attrs["units"] = ureg.Unit(self.units)
 
-        return create_dataarray(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
+        return UnitsDataArray.create(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
