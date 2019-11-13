@@ -145,13 +145,13 @@ def parse_event(trigger, event):
             if param == "output":
                 pipeline["output"] = pipeline["params"][param]
 
-        # handle FORMAT in query parameters
-        if "format" in pipeline["params"]:
-            pipeline["output"]["format"] = pipeline["params"]["format"].split("/")[-1]
+            # handle FORMAT in query parameters
+            if param == "format":
+                pipeline["output"][param] = pipeline["params"][param].split("/")[-1]
+                # handle image returns
+                if pipeline["output"][param] in ["png", "jpg", "jpeg"]:
+                    pipeline["output"]["format_kwargs"]["return_base64"] = True
 
-        # handle image returns
-        if pipeline["output"]["format"] in ["png", "jpg", "jpeg"]:
-            pipeline["output"]["format_kwargs"]["return_base64"] = True
 
         return pipeline
 
