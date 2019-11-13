@@ -138,14 +138,18 @@ def parse_event(trigger, event):
 
         # look for specific parameter definitions in query parameters
         for param in pipeline["params"]:
+            
+            # handle SETTINGS in query parameters
+            # TODO: shouldn't this merge trigger-provided settings with default?
             if param == "settings":
                 pipeline["settings"] = pipeline["params"][param]
 
-            if param == "output":
+            # handle OUTPUT in query parameters
+            elif param == "output":
                 pipeline["output"] = pipeline["params"][param]
 
             # handle FORMAT in query parameters
-            if param == "format":
+            elif param == "format":
                 pipeline["output"][param] = pipeline["params"][param].split("/")[-1]
                 # handle image returns
                 if pipeline["output"][param] in ["png", "jpg", "jpeg"]:
