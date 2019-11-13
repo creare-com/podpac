@@ -1696,7 +1696,7 @@ def create_function(
         raise NotImplementedError("Supplying a source dist zip from a local file is not yet supported")
         # TODO: this fails when the file size is over a certain limit
         # with open(function_source_dist_zip, "rb") as f:
-        #     lambda_config["Code"]["ZipFile"]: f.read()
+        #     lambda_config["Code"]["ZipFile"] = f.read()
 
     # read function from S3 (Default)
     elif function_source_bucket is not None and function_source_dist_key is not None:
