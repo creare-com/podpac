@@ -37,7 +37,7 @@ import podpac
 import podpac.datalib
 from podpac.core.coordinates import Coordinates
 from podpac.datalib import EGI
-from podpac.core.units import create_dataarray
+from podpac.core.units import UnitsDataArray
 
 SMAP_PRODUCT_DICT = {
     #'shortname':    ['lat_key', 'lon_key', 'data_key', 'quality_flag', 'default_verison']
@@ -218,7 +218,7 @@ class SMAP(EGI):
             c = Coordinates([time, lon, lat], dims=["time", "lon", "lat"], crs="epsg:6933")
 
         # make units data array with coordinates and data
-        return create_dataarray(c, data=data)
+        return UnitsDataArray.create(c, data=data)
 
     def append_file(self, all_data, data):
         """Append data
