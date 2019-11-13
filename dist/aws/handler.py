@@ -6,8 +6,7 @@ import json
 import subprocess
 import sys
 import urllib.parse as urllib
-from collections import OrderedDict
-
+import os
 
 import boto3
 import botocore
@@ -152,7 +151,6 @@ def parse_event(trigger, event):
                 if pipeline["output"][param] in ["png", "jpg", "jpeg"]:
                     pipeline["output"]["format_kwargs"]["return_base64"] = True
 
-
         return pipeline
 
     else:
@@ -233,6 +231,12 @@ def handler(event, context):
     elif trigger == "APIGateway":
         node = Node.from_url(pipeline["url"])
         coords = Coordinates.from_url(pipeline["url"])
+
+    # make sure pipeline is allowed to be run
+    if "PODPAC_RESTRICT_PIPELINES" in os.environ:
+        whitelist = json.loads(os.environ["PODPAC_RESTRICT_PIPELINES"])
+        if node.hash not in whitelist:
+            raise ValueError("Node hash is not in the whitelist for this function")
 
     # run analysis
     output = node.eval(coords)

@@ -162,6 +162,7 @@ class Lambda(Node):
     function_source_dist_key = tl.Unicode().tag(readonly=True)  # see default below
     function_source_dependencies_key = tl.Unicode().tag(readonly=True)  # see default below
     function_allow_unsafe_eval = tl.Bool(default_value=False).tag(readonly=True)
+    function_restrict_pipelines = tl.List(tl.Unicode(), default_value=[]).tag(readonly=True)
     _function_arn = tl.Unicode(default_value=None, allow_none=True)
     _function_last_modified = tl.Unicode(default_value=None, allow_none=True)
     _function_version = tl.Unicode(default_value=None, allow_none=True)
@@ -627,6 +628,10 @@ Lambda Node {status}
         if self.function_allow_unsafe_eval:
             _log.info("Lambda function will allow unsafe evaluation of Nodes with the current settings")
             self.function_env_variables["PODPAC_UNSAFE_EVAL"] = settings["UNSAFE_EVAL_HASH"]
+
+        if self.function_restrict_pipelines:
+            _log.info("Lambda function will only run for pipelines: {}".format(self.function_restrict_pipelines))
+            self.function_env_variables["PODPAC_RESTRICT_PIPELINES"] = self.function_restrict_pipelines
 
         # if function already exists, this will return existing function
         function = create_function(
