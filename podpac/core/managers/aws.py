@@ -83,8 +83,11 @@ class Lambda(Node):
         Function trigger to use during node eval process. Must be on of "eval" (default), "S3", or "APIGateway".
     function_handler : str, optional
         Handler method in Lambda function. Defaults to "handler.handler".
-    function_memory : int, option
+    function_memory : int, optional
         Memory allocated for each Lambda function. Defaults to 2048 MB.
+    function_restrict_pipelines : list, optional
+        List of Node hashes (see :class:`podpac.Node.hash`). 
+        Restricts lambda function evaluation to specific Node definitions.
     function_role_assume_policy_document : dict, optional.
         Assume policy document for role created. Defaults to allowing role to assume Lambda function.
     function_role_description : str, optional
@@ -570,6 +573,7 @@ Lambda Node {status}
         Source Dependencies: {source_deps}
         Last Modified: {_function_last_modified}
         Version: {_function_version}
+        Restrict Evaluation: {function_restrict_pipelines}
 
     S3
         Bucket: {function_s3_bucket}
@@ -602,6 +606,7 @@ Lambda Node {status}
             _function_arn=self._function_arn,
             _function_last_modified=self._function_last_modified,
             _function_version=self._function_version,
+            function_restrict_pipelines=self.function_restrict_pipelines,
             function_s3_bucket=self.function_s3_bucket,
             function_s3_tags=self.function_s3_tags,
             function_s3_input=self.function_s3_input,
@@ -631,7 +636,7 @@ Lambda Node {status}
 
         if self.function_restrict_pipelines:
             _log.info("Lambda function will only run for pipelines: {}".format(self.function_restrict_pipelines))
-            self.function_env_variables["PODPAC_RESTRICT_PIPELINES"] = self.function_restrict_pipelines
+            self.function_env_variables["PODPAC_RESTRICT_PIPELINES"] = json.dumps(self.function_restrict_pipelines)
 
         # if function already exists, this will return existing function
         function = create_function(
