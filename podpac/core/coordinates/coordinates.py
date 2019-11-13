@@ -1213,7 +1213,7 @@ class Coordinates(tl.HasTraits):
 
             # include alt units in proj4 string
             c = Coordinates([[0, 1, 2], [0, 1, 2], [1, 2, 3]], dims=['lat', 'lon', 'alt'])
-            c.transform('+init=epsg:2193 +vunits=ft')
+            c.transform('+proj=tmerc +vunits=ft')
 
             >> Coordinates
                 lat: ArrayCoordinates1d(lat): Bounds[594971.8894642257, 819117.0608407748], N[3], ctype['midpoint']

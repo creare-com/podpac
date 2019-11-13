@@ -23,7 +23,7 @@ install_requires = [
     "traitlets>=4.3",
     "xarray>=0.10",
     "requests>=2.18",
-    "pyproj>=2.2",
+    "pyproj>=2.4",
     "lazy-import>=0.2.2",
     "psutil",
 ]
@@ -65,6 +65,7 @@ extras_require = {
         "pylint>=1.8.2",
         "pytest-cov>=2.5.1",
         "pytest-html>=1.7.0",
+        "pytest-remotedata>=0.3.1",
         "recommonmark>=0.4",
         "sphinx>=1.8",
         "sphinx-rtd-theme>=0.4",
