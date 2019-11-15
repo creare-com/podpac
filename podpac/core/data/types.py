@@ -75,6 +75,7 @@ class Array(DataSource):
     """
 
     source = ArrayTrait().tag(readonly=True)
+    native_coordinates = tl.Instance(Coordinates, allow_none=False).tag(attr=True)
 
     @tl.validate("source")
     def _validate_source(self, d):
