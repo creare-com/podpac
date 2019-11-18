@@ -11,6 +11,7 @@ import os
 import boto3
 import botocore
 
+from six import string_types
 
 def default_pipeline(pipeline=None):
     """Get default pipeline definiton, merging with input pipline if supplied
@@ -131,18 +132,16 @@ def parse_event(trigger, event):
 
         pipeline = default_pipeline()
         pipeline["url"] = event["queryStringParameters"]
-        pipeline["params"] = urllib.parse_qs(urllib.urlparse(pipeline["url"]).query)
-
-        # make all params lowercase
-        pipeline["params"] = [param.lower() for param in pipeline["params"]]
+        if isinstance(pipeline["url"], string_types):
+            pipeline["url"] = urllib.parse_qs(urllib.urlparse(pipeline["url"]).query)
+        pipeline["params"] = pipeline["url"]
 
         # look for specific parameter definitions in query parameters
         for param in pipeline["params"]:
             
             # handle SETTINGS in query parameters
-            # TODO: shouldn't this merge trigger-provided settings with default?
             if param == "settings":
-                pipeline["settings"] = pipeline["params"][param]
+                pipeline["settings"] = {**pipeline["settings"], **pipeline["params"][param]}
 
             # handle OUTPUT in query parameters
             elif param == "output":
