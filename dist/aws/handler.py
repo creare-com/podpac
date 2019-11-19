@@ -140,8 +140,16 @@ def parse_event(trigger, event):
         for param in pipeline["params"]:
             
             # handle SETTINGS in query parameters
-            if param == "settings":
-                pipeline["settings"] = {**pipeline["settings"], **pipeline["params"][param]}
+            if param == "settings":           
+                # Try loading this settings string into a dict to merge with default settings
+                try:
+                    api_settings = json.loads(pipeline["params"][param])
+                    # If we get here, the api settings were loaded
+                    pipeline["settings"] = {**pipeline["settings"], **api_settings}
+                except Exception as e:
+                    print("Got an exception when attempting to load api settings: ", e)
+                    print(pipeline)
+                    
 
             # handle OUTPUT in query parameters
             elif param == "output":
