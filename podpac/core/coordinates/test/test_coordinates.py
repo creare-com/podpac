@@ -1545,7 +1545,11 @@ class TestCoordinatesSpecial(object):
 
         # special case, these should be the same
         c1 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193", alt_units="ft")
-        c2 = Coordinates([lat, lon], dims=["lat", "lon"], crs="+proj=tmerc +vunits=ft")
+        c2 = Coordinates(
+            [lat, lon],
+            dims=["lat", "lon"],
+            crs=("+proj=tmerc +vunits=ft +ellps=GRS80 +lon_0=173 +k=0.9996" " +x_0=1600000 +y_0=10000000"),
+        )
 
         assert c1 == c2
         assert not c1 != c2
