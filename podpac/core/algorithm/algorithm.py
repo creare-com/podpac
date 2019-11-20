@@ -4,6 +4,7 @@ Base class for Algorithm Nodes
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+from multiprocessing.pool import ThreadPool
 from collections import OrderedDict
 import inspect
 
@@ -18,6 +19,7 @@ from podpac.core.node import NodeException
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
 from podpac.core.utils import common_doc
+from podpac.core.settings import settings
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -67,8 +69,30 @@ class Algorithm(Node):
         self._requested_coordinates = coordinates
 
         inputs = {}
-        for key, node in self._inputs.items():
-            inputs[key] = node.eval(coordinates)
+        if settings["MULTITHREADING"]:
+            # Create a function for each thread to execute asynchronously
+            def f(node):
+                return node.eval(coordinates)
+
+            # Create pool of size settings["N_THREADS"]
+            pool = ThreadPool(processes=settings.get("N_THREADS", 10))
+
+            # Evaluate nodes in parallel/asynchronously
+            results = [pool.apply_async(f, [node]) for node in self._inputs.values()]
+
+            # This prevents any more tasks from being submitted to the pool, and will close the workers one done
+            pool.close()
+
+            # This waits for worker processes to exist.
+            pool.join()
+
+            # Collect the results in dictionary
+            for key, res in zip(self._inputs.keys(), results):
+                inputs[key] = res.get()
+        else:
+            # Evaluate nodes in serial
+            for key, node in self._inputs.items():
+                inputs[key] = node.eval(coordinates)
 
         # accumulate output coordinates
         coords_list = [Coordinates.from_xarray(a.coords, crs=a.attrs.get("crs")) for a in inputs.values()]
