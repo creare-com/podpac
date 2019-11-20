@@ -86,6 +86,17 @@ class Array(DataSource):
             raise ValueError("Array source must be numerical")
         return a
 
+    def _first_init(self, **kwargs):
+        # If Array is being created from Node.from_definition or Node.from_json, then we have to handle the
+        # native coordinates specifically. This is special. No other DataSource node needs to deserialize
+        # native_coordinates in this way because it is implemented specifically in the node through get_coordinates
+        if isinstance(kwargs["native_coordinates"], OrderedDict):
+            kwargs["native_coordinates"] = Coordinates.from_definition(kwargs["native_coordinates"])
+        elif isinstance(kwargs["native_coordinates"], string_types):
+            kwargs["native_coordinates"] = Coordinates.from_json(kwargs["native_coordinates"])
+
+        return kwargs
+
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}

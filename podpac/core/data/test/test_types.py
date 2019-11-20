@@ -88,14 +88,20 @@ class TestArray(object):
         assert native_coordinates == get_native_coordinates
 
     def test_base_definition(self):
-        node = Array(source=self.data)
+        node = Array(source=self.data, native_coordinates=self.coordinates)
         d = node.base_definition
         source = np.array(d["source"])
         np.testing.assert_array_equal(source, self.data)
 
     def test_definition(self):
-        node = Array(source=self.data)
+        node = Array(source=self.data, native_coordinates=self.coordinates)
         node2 = Node.from_definition(node.definition)
+        assert isinstance(node2, Array)
+        np.testing.assert_array_equal(node2.source, self.data)
+
+    def test_json(self):
+        node = Array(source=self.data, native_coordinates=self.coordinates)
+        node2 = Node.from_json(node.json)
         assert isinstance(node2, Array)
         np.testing.assert_array_equal(node2.source, self.data)
 
