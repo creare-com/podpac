@@ -1698,7 +1698,7 @@ def update_function(
     # read function from zip file
     elif function_source_dist_zip is not None:
         with open(function_source_dist_zip, "rb") as f:
-            lambda_config["ZipFile"]: f.read()
+            lambda_config["ZipFile"] = f.read()
 
     else:
         raise ValueError("Function source is not defined")
