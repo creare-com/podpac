@@ -20,6 +20,7 @@ from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
 from podpac.core.utils import common_doc
 from podpac.core.settings import settings
+from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -69,26 +70,32 @@ class Algorithm(Node):
         self._requested_coordinates = coordinates
 
         inputs = {}
+
         if settings["MULTITHREADING"]:
+            n_threads = thread_manager.request_n_threads(len(self._inputs))
+        else:
+            n_threads = 0
+
+        if settings["MULTITHREADING"] and n_threads > 0:
             # Create a function for each thread to execute asynchronously
             def f(node):
                 return node.eval(coordinates)
 
-            # Create pool of size settings["N_THREADS"]
-            pool = ThreadPool(processes=settings.get("N_THREADS", 10))
+            # Create pool of size n_threads, note, this may be created from a sub-thread (i.e. not the main thread)
+            pool = ThreadPool(processes=n_threads)
 
             # Evaluate nodes in parallel/asynchronously
             results = [pool.apply_async(f, [node]) for node in self._inputs.values()]
 
-            # This prevents any more tasks from being submitted to the pool, and will close the workers one done
-            pool.close()
-
-            # This waits for worker processes to exist.
-            pool.join()
-
             # Collect the results in dictionary
             for key, res in zip(self._inputs.keys(), results):
                 inputs[key] = res.get()
+
+            # This prevents any more tasks from being submitted to the pool, and will close the workers one done
+            pool.close()
+
+            # Release these number of threads back to the thread pool
+            thread_manager.release_n_threads(n_threads)
         else:
             # Evaluate nodes in serial
             for key, node in self._inputs.items():

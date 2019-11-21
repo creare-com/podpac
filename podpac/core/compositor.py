@@ -20,6 +20,7 @@ from podpac.core.node import node_eval
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.interpolation import interpolation_trait
 from podpac.core.utils import trait_is_defined
+from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
 
@@ -219,20 +220,35 @@ class Compositor(Node):
                 nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
 
                 if trait_is_defined(s, "native_coordinates") is False:
-                    s.set_trait('native_coordinates', nc)
+                    s.set_trait("native_coordinates", nc)
 
         if settings["MULTITHREADING"]:
+            n_threads = thread_manager.request_n_threads(len(src_subset))
+        else:
+            n_threads = 0
+
+        if settings["MULTITHREADING"] and n_threads > 0:
             # TODO pool of pre-allocated scratch space
             # TODO: docstring?
             def f(src):
                 return src.eval(coordinates)
 
-            pool = ThreadPool(processes=settings.get("N_THREADS", 10))
+            # Create pool of size n_threads, note, this may be created from a sub-thread (i.e. not the main thread)
+            pool = ThreadPool(processes=n_threads)
+
+            # Evaluate nodes in parallel/asynchronously
             results = [pool.apply_async(f, [src]) for src in src_subset]
 
+            # Yield results as they are being requested, blocking when the thread is not finished
             for src, res in zip(src_subset, results):
                 yield res.get()
                 # src._output = None # free up memory
+
+            # This prevents any more tasks from being submitted to the pool, and will close the workers one done
+            pool.close()
+
+            # Release these number of threads back to the thread pool
+            thread_manager.release_n_threads(n_threads)
 
         else:
             output = None  # scratch space
