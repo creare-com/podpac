@@ -1804,8 +1804,10 @@ def update_function(
 
     # read function from zip file
     elif function_source_dist_zip is not None:
-        with open(function_source_dist_zip, "rb") as f:
-            lambda_config["ZipFile"]: f.read()
+        raise NotImplementedError("Supplying a source dist zip from a local file is not yet supported")
+        # TODO: this fails when the file size is over a certain limit
+        # with open(function_source_dist_zip, "rb") as f:
+        #     lambda_config["ZipFile"] = f.read()
 
     else:
         raise ValueError("Function source is not defined")
