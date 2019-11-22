@@ -68,7 +68,7 @@ SMAP_PRODUCT_DICT = {
     "SPL3SMP_PM": [
         "/Soil_Moisture_Retrieval_Data_PM/latitude",
         "/Soil_Moisture_Retrieval_Data_PM/longitude",
-        "/Soil_Moisture_Retrieval_Data_PM/soil_moisture",
+        "/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm",
         "/Soil_Moisture_Retrieval_Data_PM/retrieval_qual_flag_pm",
         5,
     ],
@@ -184,9 +184,8 @@ class SMAP(EGI):
             time = np.array([t_start + (t_end - t_start) / 2])
 
         elif "SPL4" in self.product:
-            t_offset = datetime(2000, 1, 1).timestamp()  # all time relative to 2000-01-01
-            t_obs = ds["time"][()][0]  # time give as seconds since 2000-01-01
-            time = np.datetime64(datetime.fromtimestamp(t_offset + t_obs))
+            time_unit = ds["time"].attrs["units"].decode()
+            time = xr.coding.times.decode_cf_datetime(ds["time"][()][0], units=time_unit)
 
         # handle spatial coordinates
         if "SPL3" in self.product:
@@ -208,14 +207,14 @@ class SMAP(EGI):
 
         elif "SPL4" in self.product:
             # lat/lon coordinates in EPSG:6933 (https://epsg.io/6933)
-            lon = ds["y"][()]
-            lat = ds["x"][()]
+            lon = ds["x"][()]
+            lat = ds["y"][()]
 
             # short-circuit if all lat/lon are nan
             if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):
                 return None
 
-            c = Coordinates([time, lon, lat], dims=["time", "lon", "lat"], crs="epsg:6933")
+            c = Coordinates([time, lat, lon], dims=["time", "lat", "lon"], crs="epsg:6933")
 
         # make units data array with coordinates and data
         return UnitsDataArray.create(c, data=data)
