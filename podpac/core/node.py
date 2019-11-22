@@ -25,6 +25,7 @@ from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_pa
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore, make_cache_ctrl
+from podpac.core.managers.multi_threading import thread_manager
 
 
 COMMON_NODE_DOC = {
@@ -478,11 +479,12 @@ class Node(tl.HasTraits):
         NodeException
             Cached data already exists (and overwrite is False)
         """
-
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
+        thread_manager.cache_lock.acquire()
         self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
+        thread_manager.cache_lock.release()
 
     def has_cache(self, key, coordinates=None):
         """
@@ -500,7 +502,10 @@ class Node(tl.HasTraits):
         bool
             True if there is cached data for this node, key, and coordinates.
         """
-        return self.cache_ctrl.has(self, key, coordinates=coordinates)
+        thread_manager.cache_lock.aquire()
+        has_cache = self.cache_ctrl.has(self, key, coordinates=coordinates)
+        thread_manager.cache_lock.release()
+        return has_cache
 
     def rem_cache(self, key, coordinates=None, mode=None):
         """
@@ -807,6 +812,7 @@ def node_eval(fn):
             self._requested_coordinates = coordinates
         key = cache_key
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
+
         if self.has_cache(key, cache_coordinates) and not self.cache_update:
             data = self.get_cache(key, cache_coordinates)
             if output is not None:

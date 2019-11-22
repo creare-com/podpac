@@ -44,6 +44,9 @@ class TestAlgorithm(object):
 
     def test_multi_threading(self):
         coords = podpac.Coordinates([[1, 2, 3]], ["lat"])
+        node1 = Arithmetic(A=Arange(), B=Arange(), eqn="A+B")
+        node2 = Arithmetic(A=node1, B=Arange(), eqn="A+B")
+
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 8
@@ -51,8 +54,6 @@ class TestAlgorithm(object):
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings["RAM_CACHE_ENABLED"] = False
             podpac.settings.set_unsafe_eval(True)
-            node1 = Arithmetic(A=Arange(), B=Arange(), eqn="A+B")
-            node2 = Arithmetic(A=node1, B=Arange(), eqn="A+B")
 
             omt = node2.eval(coords)
 
@@ -62,9 +63,31 @@ class TestAlgorithm(object):
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings["RAM_CACHE_ENABLED"] = False
             podpac.settings.set_unsafe_eval(True)
-            node1 = Arithmetic(A=Arange(), B=Arange(), eqn="A+B")
-            node2 = Arithmetic(A=node1, B=Arange(), eqn="A+B")
 
             ost = node2.eval(coords)
 
         np.testing.assert_array_equal(omt, ost)
+
+    def test_multi_threading_cache_race(self):
+        coords = podpac.Coordinates([np.linspace(0, 1, 1024)], ["lat"])
+        with podpac.settings:
+            podpac.settings["MULTITHREADING"] = True
+            podpac.settings["N_THREADS"] = 3
+            podpac.settings["CACHE_OUTPUT_DEFAULT"] = True
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+            podpac.settings["RAM_CACHE_ENABLED"] = True
+            podpac.settings.set_unsafe_eval(True)
+            A = Arithmetic(A=Arange(), eqn="A**2")
+            B = Arithmetic(A=Arange(), eqn="A**2")
+            C = Arithmetic(A=Arange(), eqn="A**2")
+            D = Arithmetic(A=Arange(), eqn="A**2")
+            E = Arithmetic(A=Arange(), eqn="A**2")
+            F = Arithmetic(A=Arange(), eqn="A**2")
+
+            node2 = Arithmetic(A=A, B=B, C=C, D=D, E=E, F=F, eqn="A+B+C+D+E+F")
+
+            om = node2.eval(coords)
+
+            from_cache = [n._from_cache for n in node2.inputs.values()]
+
+            assert sum(from_cache) > 0

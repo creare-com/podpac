@@ -19,6 +19,7 @@ class ThreadManager(object):
     """
 
     _lock = Lock()
+    cache_lock = Lock()
     _n_threads_used = 0
     __instance = None
 
