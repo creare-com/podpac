@@ -53,6 +53,7 @@ DEFAULT_SETTINGS = {
     "FUNCTION_DEPENDENCIES_KEY": None,
     "FUNCTION_S3_INPUT": None,
     "FUNCTION_S3_OUTPUT": None,
+    "FUNCTION_FORCE_COMPUTE": False,
 }
 
 
@@ -134,6 +135,8 @@ class PodpacSettings(dict):
         Folder within :attr:`S3_BUCKET_NAME` to use for triggering node evaluation.
     FUNCTION_S3_OUTPUT : str
         Folder within :attr:`S3_BUCKET_NAME` to use for outputs.
+    FUNCTION_FORCE_COMPUTE : bool
+        Force the lambda function to compute pipeline, even if result is already cached.
     AUTOSAVE_SETTINGS: bool
         Save settings automatically as they are changed during runtime. Defaults to ``False``.
     MULTITHREADING: bool
