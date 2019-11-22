@@ -8,6 +8,7 @@ This is used to ensure that the total number of threads specified in the setting
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from multiprocessing import Lock
+from multiprocessing.pool import ThreadPool
 
 from podpac.core.settings import settings
 
@@ -42,12 +43,11 @@ class ThreadManager(object):
         int 
             Number of threads a pool may use. Note, this may be less than or equal to n, and may be 0. 
         """
-        self._lock.acquire()
-        available = max(0, settings.get("N_THREADS", DEFAULT_N_THREADS) - self._n_threads_used)
-        claimed = min(available, n)
-        self._n_threads_used += claimed
-        self._lock.release()
-        return claimed
+        with self._lock:
+            available = max(0, settings.get("N_THREADS", DEFAULT_N_THREADS) - self._n_threads_used)
+            claimed = min(available, n)
+            self._n_threads_used += claimed
+            return claimed
 
     def release_n_threads(self, n):
         """ This releases the number of threads specified. 
@@ -62,11 +62,25 @@ class ThreadManager(object):
         int
             Number of threads available after releases 'n' threads
         """
-        self._lock.acquire()
-        self._n_threads_used = max(0, self._n_threads_used - n)
-        available = max(0, settings.get("N_THREADS", DEFAULT_N_THREADS) - self._n_threads_used)
-        self._lock.release()
-        return available
+        with self._lock:
+            self._n_threads_used = max(0, self._n_threads_used - n)
+            available = max(0, settings.get("N_THREADS", DEFAULT_N_THREADS) - self._n_threads_used)
+            return available
+
+    def get_thread_pool(self, processes):
+        """ Creates a threadpool that can be used to run jobs in parallel.
+        
+        Parameters
+        -----------
+        processes : int
+            The number of threads or workers that will be part of the pool
+            
+        Returns
+        --------
+        multiprocessing.ThreadPool
+            An instance of the ThreadPool class        
+        """
+        return ThreadPool(processes=processes)
 
 
 thread_manager = ThreadManager()

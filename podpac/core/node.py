@@ -137,6 +137,8 @@ class Node(tl.HasTraits):
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _output = tl.Instance(UnitsDataArray, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=None)
+    # Flag that is True if the Node was run multi-threaded, or None if the question doesn't apply
+    _multi_threaded = tl.Bool(allow_none=True, default_value=None)
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """
@@ -482,9 +484,8 @@ class Node(tl.HasTraits):
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
-        thread_manager.cache_lock.acquire()
-        self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
-        thread_manager.cache_lock.release()
+        with thread_manager.cache_lock:
+            self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
 
     def has_cache(self, key, coordinates=None):
         """
@@ -502,10 +503,8 @@ class Node(tl.HasTraits):
         bool
             True if there is cached data for this node, key, and coordinates.
         """
-        thread_manager.cache_lock.acquire()
-        has_cache = self.cache_ctrl.has(self, key, coordinates=coordinates)
-        thread_manager.cache_lock.release()
-        return has_cache
+        with thread_manager.cache_lock:
+            return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
     def rem_cache(self, key, coordinates=None, mode=None):
         """

@@ -5,7 +5,6 @@ Compositor Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from multiprocessing.pool import ThreadPool
 import numpy as np
 import traitlets as tl
 
@@ -224,17 +223,19 @@ class Compositor(Node):
 
         if settings["MULTITHREADING"]:
             n_threads = thread_manager.request_n_threads(len(src_subset))
+            if n_threads == 1:
+                thread_manager.release_n_threads(n_threads)
         else:
             n_threads = 0
 
-        if settings["MULTITHREADING"] and n_threads > 0:
+        if settings["MULTITHREADING"] and n_threads > 1:
             # TODO pool of pre-allocated scratch space
             # TODO: docstring?
             def f(src):
                 return src.eval(coordinates)
 
             # Create pool of size n_threads, note, this may be created from a sub-thread (i.e. not the main thread)
-            pool = ThreadPool(processes=n_threads)
+            pool = thread_manager.get_thread_pool(processes=n_threads)
 
             # Evaluate nodes in parallel/asynchronously
             results = [pool.apply_async(f, [src]) for src in src_subset]
@@ -249,13 +250,14 @@ class Compositor(Node):
 
             # Release these number of threads back to the thread pool
             thread_manager.release_n_threads(n_threads)
-
+            self._multi_threaded = True
         else:
             output = None  # scratch space
             for src in src_subset:
                 output = src.eval(coordinates, output)
                 yield output
                 # output[:] = np.nan
+            self._multi_threaded = False
 
     @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)

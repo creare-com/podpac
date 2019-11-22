@@ -4,7 +4,6 @@ Base class for Algorithm Nodes
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from multiprocessing.pool import ThreadPool
 from collections import OrderedDict
 import inspect
 
@@ -73,16 +72,18 @@ class Algorithm(Node):
 
         if settings["MULTITHREADING"]:
             n_threads = thread_manager.request_n_threads(len(self._inputs))
+            if n_threads == 1:
+                thread_manager.release_n_threads(n_threads)
         else:
             n_threads = 0
 
-        if settings["MULTITHREADING"] and n_threads > 0:
+        if settings["MULTITHREADING"] and n_threads > 1:
             # Create a function for each thread to execute asynchronously
             def f(node):
                 return node.eval(coordinates)
 
             # Create pool of size n_threads, note, this may be created from a sub-thread (i.e. not the main thread)
-            pool = ThreadPool(processes=n_threads)
+            pool = thread_manager.get_thread_pool(processes=n_threads)
 
             # Evaluate nodes in parallel/asynchronously
             results = [pool.apply_async(f, [node]) for node in self._inputs.values()]
@@ -96,10 +97,12 @@ class Algorithm(Node):
 
             # Release these number of threads back to the thread pool
             thread_manager.release_n_threads(n_threads)
+            self._multi_threaded = True
         else:
             # Evaluate nodes in serial
             for key, node in self._inputs.items():
                 inputs[key] = node.eval(coordinates)
+            self._multi_threaded = False
 
         # accumulate output coordinates
         coords_list = [Coordinates.from_xarray(a.coords, crs=a.attrs.get("crs")) for a in inputs.values()]

@@ -91,3 +91,42 @@ class TestAlgorithm(object):
             from_cache = [n._from_cache for n in node2.inputs.values()]
 
             assert sum(from_cache) > 0
+
+    def test_multi_threading_stress_nthreads(self):
+        coords = podpac.Coordinates([np.linspace(0, 1, 4)], ["lat"])
+
+        A = Arithmetic(A=Arange(), eqn="A**0")
+        B = Arithmetic(A=Arange(), eqn="A**1")
+        C = Arithmetic(A=Arange(), eqn="A**2")
+        D = Arithmetic(A=Arange(), eqn="A**3")
+        E = Arithmetic(A=Arange(), eqn="A**4")
+        F = Arithmetic(A=Arange(), eqn="A**5")
+
+        node2 = Arithmetic(A=A, B=B, C=C, D=D, E=E, F=F, eqn="A+B+C+D+E+F")
+        node3 = Arithmetic(A=A, B=B, C=C, D=D, E=E, F=F, G=node2, eqn="A+B+C+D+E+F+G")
+
+        with podpac.settings:
+            podpac.settings["MULTITHREADING"] = True
+            podpac.settings["N_THREADS"] = 8
+            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["DEFAULT_CACHE"] = []
+            podpac.settings["RAM_CACHE_ENABLED"] = False
+            podpac.settings.set_unsafe_eval(True)
+
+            omt = node3.eval(coords)
+
+        assert node3._multi_threaded
+        assert not node2._multi_threaded
+
+        with podpac.settings:
+            podpac.settings["MULTITHREADING"] = True
+            podpac.settings["N_THREADS"] = 9  # 2 threads available after first 7
+            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["DEFAULT_CACHE"] = []
+            podpac.settings["RAM_CACHE_ENABLED"] = False
+            podpac.settings.set_unsafe_eval(True)
+
+            omt = node3.eval(coords)
+
+        assert node3._multi_threaded
+        assert node2._multi_threaded
