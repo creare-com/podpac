@@ -502,7 +502,7 @@ class Node(tl.HasTraits):
         bool
             True if there is cached data for this node, key, and coordinates.
         """
-        thread_manager.cache_lock.aquire()
+        thread_manager.cache_lock.acquire()
         has_cache = self.cache_ctrl.has(self, key, coordinates=coordinates)
         thread_manager.cache_lock.release()
         return has_cache
