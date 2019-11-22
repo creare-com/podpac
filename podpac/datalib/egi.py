@@ -308,6 +308,8 @@ class EGI(DataSource):
         zipfile.ZipFile
             Returns zip file byte-str to downloaded data
         """
+        # Ensure Coordinates are in decimal lat-lon
+        coordinates = coordinates.transform("epsg:4326")
         self._authenticate()
 
         time_bounds = None
