@@ -25,6 +25,7 @@ from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_pa
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore, make_cache_ctrl
+from podpac.core.managers.multi_threading import thread_manager
 
 
 COMMON_NODE_DOC = {
@@ -136,6 +137,8 @@ class Node(tl.HasTraits):
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _output = tl.Instance(UnitsDataArray, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=None)
+    # Flag that is True if the Node was run multi-threaded, or None if the question doesn't apply
+    _multi_threaded = tl.Bool(allow_none=True, default_value=None)
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """
@@ -478,11 +481,11 @@ class Node(tl.HasTraits):
         NodeException
             Cached data already exists (and overwrite is False)
         """
-
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
-        self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
+        with thread_manager.cache_lock:
+            self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
 
     def has_cache(self, key, coordinates=None):
         """
@@ -500,7 +503,8 @@ class Node(tl.HasTraits):
         bool
             True if there is cached data for this node, key, and coordinates.
         """
-        return self.cache_ctrl.has(self, key, coordinates=coordinates)
+        with thread_manager.cache_lock:
+            return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
     def rem_cache(self, key, coordinates=None, mode=None):
         """
@@ -807,6 +811,7 @@ def node_eval(fn):
             self._requested_coordinates = coordinates
         key = cache_key
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
+
         if self.has_cache(key, cache_coordinates) and not self.cache_update:
             data = self.get_cache(key, cache_coordinates)
             if output is not None:

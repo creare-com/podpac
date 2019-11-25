@@ -18,6 +18,8 @@ from podpac.core.node import NodeException
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
 from podpac.core.utils import common_doc
+from podpac.core.settings import settings
+from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
@@ -67,8 +69,40 @@ class Algorithm(Node):
         self._requested_coordinates = coordinates
 
         inputs = {}
-        for key, node in self._inputs.items():
-            inputs[key] = node.eval(coordinates)
+
+        if settings["MULTITHREADING"]:
+            n_threads = thread_manager.request_n_threads(len(self._inputs))
+            if n_threads == 1:
+                thread_manager.release_n_threads(n_threads)
+        else:
+            n_threads = 0
+
+        if settings["MULTITHREADING"] and n_threads > 1:
+            # Create a function for each thread to execute asynchronously
+            def f(node):
+                return node.eval(coordinates)
+
+            # Create pool of size n_threads, note, this may be created from a sub-thread (i.e. not the main thread)
+            pool = thread_manager.get_thread_pool(processes=n_threads)
+
+            # Evaluate nodes in parallel/asynchronously
+            results = [pool.apply_async(f, [node]) for node in self._inputs.values()]
+
+            # Collect the results in dictionary
+            for key, res in zip(self._inputs.keys(), results):
+                inputs[key] = res.get()
+
+            # This prevents any more tasks from being submitted to the pool, and will close the workers one done
+            pool.close()
+
+            # Release these number of threads back to the thread pool
+            thread_manager.release_n_threads(n_threads)
+            self._multi_threaded = True
+        else:
+            # Evaluate nodes in serial
+            for key, node in self._inputs.items():
+                inputs[key] = node.eval(coordinates)
+            self._multi_threaded = False
 
         # accumulate output coordinates
         coords_list = [Coordinates.from_xarray(a.coords, crs=a.attrs.get("crs")) for a in inputs.values()]
