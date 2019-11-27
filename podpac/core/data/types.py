@@ -716,6 +716,7 @@ For example,
 class Zarr(DatasetCoordinatedMixin, DataSource):
     source = tl.Unicode(default_value=None, allow_none=True).tag(readonly=True)
     dataset = tl.Any().tag(readonly=True)
+    file_mode = tl.Unicode(default_value="r").tag(attr=True)
 
     # node attrs
     datakey = tl.Unicode().tag(attr=True)
@@ -784,7 +785,7 @@ class Zarr(DatasetCoordinatedMixin, DataSource):
             store = str(self.source)  # has to be a string in Python2.7 for local files
 
         try:
-            return zarr.open(store, mode="r")
+            return zarr.open(store, mode=self.file_mode)
         except ValueError:
             raise ValueError("No Zarr store found at path '%s'" % self.source)
 
