@@ -77,14 +77,14 @@ SMAP_PRODUCT_DICT = {
         "/Soil_Moisture_Retrieval_Data_AM/longitude",
         "/Soil_Moisture_Retrieval_Data_AM/soil_moisture",
         "/Soil_Moisture_Retrieval_Data_AM/retrieval_qual_flag",
-        2,
+        3,
     ],
     "SPL3SMP_E_PM": [
         "/Soil_Moisture_Retrieval_Data_PM/latitude_pm",
         "/Soil_Moisture_Retrieval_Data_PM/longitude_pm",
         "/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm",
         "/Soil_Moisture_Retrieval_Data_PM/retrieval_qual_flag_pm",
-        2,
+        3,
     ],
 }
 SMAP_PRODUCTS = list(SMAP_PRODUCT_DICT.keys())
@@ -233,7 +233,28 @@ class SMAP(EGI):
         ------
         NotImplementedError
         """
+        if all_data.shape[1:] == data.shape[1:]:
+            data.lat.data = all_data.lat.data
+            data.lon.data = all_data.lon.data
+        else:
+            # select only data with finite coordinates
+            data = data.isel(lon=np.isfinite(data.lon), lat=np.isfinite(data.lat))
 
-        all_data = all_data.combine_first(data.isel(lon=np.isfinite(data.lon), lat=np.isfinite(data.lat)))
+            # select lat based on the old data
+            lat = all_data.lat.sel(lat=data.lat, method="nearest")
 
-        return all_data
+            # When the difference between old and new coordintaes are large, it means there are new coordinates
+            Ilat = np.abs(lat.data - data.lat) > 1e-3
+            # Use the new data's coordinates for the new coordinates
+            lat.data[Ilat] = data.lat[Ilat]
+
+            # Repeat for lon
+            lon = all_data.lon.sel(lon=data.lon, method="nearest")
+            Ilon = np.abs(lon.data - data.lon) > 1e-3
+            lon.data[Ilon] = data.lon[Ilon]
+
+            # Assign to data
+            data.lon.data = lon.data
+            data.lat.data = lat.data
+
+        return all_data.combine_first(data)
