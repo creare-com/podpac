@@ -411,7 +411,11 @@ class Node(tl.HasTraits):
 
     @property
     def hash(self):
-        return hash_alg(self.json.encode("utf-8")).hexdigest()
+        # Style should not be part of the hash
+        defn = self.json
+        hashstr = re.sub(r'"style":\{.*?\},?', "", defn)
+
+        return hash_alg(hashstr.encode("utf-8")).hexdigest()
 
     def save(self, path):
         """
