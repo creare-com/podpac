@@ -108,7 +108,7 @@ class SMAP(EGI):
 
     product = tl.Enum(SMAP_PRODUCTS, default_value="SPL4SMAU").tag(attr=True)
     nan_vals = [-9999.0]
-    min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3}).tag(attr=True)
+    min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3, "time": "3,h"}).tag(attr=True)
     check_quality_flags = tl.Bool(True).tag(attr=True)
     quality_flag_key = tl.Unicode(allow_none=True).tag(attr=True)
 
@@ -182,10 +182,12 @@ class SMAP(EGI):
             t_start = np.datetime64(ds["Metadata/Extent"].attrs["rangeBeginningDateTime"].replace(b"Z", b""))
             t_end = np.datetime64(ds["Metadata/Extent"].attrs["rangeEndingDateTime"].replace(b"Z", b""))
             time = np.array([t_start + (t_end - t_start) / 2])
+            time = time.astype("datetime64[D]")
 
         elif "SPL4" in self.product:
             time_unit = ds["time"].attrs["units"].decode()
             time = xr.coding.times.decode_cf_datetime(ds["time"][()][0], units=time_unit)
+            time = time.astype("datetime64[h]")
 
         # handle spatial coordinates
         if "SPL3" in self.product:
