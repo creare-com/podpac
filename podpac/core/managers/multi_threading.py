@@ -7,12 +7,39 @@ This is used to ensure that the total number of threads specified in the setting
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import time
+
 from multiprocessing import Lock
 from multiprocessing.pool import ThreadPool
 
 from podpac.core.settings import settings
 
 DEFAULT_N_THREADS = 10
+
+
+class FakeLock(object):
+    _locked = False
+
+    def acquire(self):
+        while self._locked:
+            time.sleep(0.01)
+
+        self._locked = True
+
+    def release(self):
+        self._locked = False
+
+    def __enter__(self):
+        self.acquire()
+
+    def __exit__(self, type, value, traceback):
+        self.release()
+
+
+try:
+    l = Lock()
+except OSError:
+    Lock = FakeLock
 
 
 class ThreadManager(object):
