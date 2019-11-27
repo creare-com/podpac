@@ -413,6 +413,9 @@ class Node(tl.HasTraits):
     def hash(self):
         # Style should not be part of the hash
         defn = self.json
+
+        # Note: this ONLY works because the Style node has NO dictionaries as part
+        # of its attributes
         hashstr = re.sub(r'"style":\{.*?\},?', "", defn)
 
         return hash_alg(hashstr.encode("utf-8")).hexdigest()
