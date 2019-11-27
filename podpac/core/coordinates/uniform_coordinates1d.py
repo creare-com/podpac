@@ -384,12 +384,23 @@ class UniformCoordinates1d(Coordinates1d):
 
     def _select(self, bounds, return_indices, outer):
         # TODO is there an easier way to do this with the new outer flag?
+        my_bounds = self.bounds.copy()
 
-        lo = max(bounds[0], self.bounds[0])
-        hi = min(bounds[1], self.bounds[1])
+        # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
+        if self.name == "time" and isinstance(my_bounds[0], np.datetime64) and isinstance(bounds[0], np.datetime64):
+            mine = np.timedelta64(1, my_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
+            your = np.timedelta64(1, bounds[0].dtype.name.replace("datetime64", "")[1:-1])
 
-        fmin = (lo - self.bounds[0]) / np.abs(self.step)
-        fmax = (hi - self.bounds[0]) / np.abs(self.step)
+            if mine > your:
+                bounds = [b.astype(my_bounds[0].dtype) for b in bounds]
+            else:
+                my_bounds = [b.astype(bounds[0].dtype) for b in my_bounds]
+
+        lo = max(bounds[0], my_bounds[0])
+        hi = min(bounds[1], my_bounds[1])
+
+        fmin = (lo - my_bounds[0]) / np.abs(self.step)
+        fmax = (hi - my_bounds[0]) / np.abs(self.step)
         imin = int(np.ceil(fmin))
         imax = int(np.floor(fmax))
 

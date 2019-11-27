@@ -1039,6 +1039,14 @@ class TestArrayCoordinatesSelection(object):
         s = c.select({"time": [np.datetime64("2018-01-03"), "2018-02-06"]})
         assert_equal(s.coordinates, np.array(["2018-01-03", "2018-01-04"]).astype(np.datetime64))
 
+    def test_select_time_variable_precision(self):
+        c = ArrayCoordinates1d(["2012-05-19"], name="time")
+        c2 = ArrayCoordinates1d(["2012-05-19T12:00:00"], name="time")
+        s = c.select(c2.bounds)
+        s2 = c2.select(c.bounds)
+        assert s.size == 1
+        assert s2.size == 1
+
     def test_select_dtype(self):
         c = ArrayCoordinates1d([20.0, 40.0, 60.0, 10.0, 90.0, 50.0], name="lat")
         with pytest.raises(TypeError):

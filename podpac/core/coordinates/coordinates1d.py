@@ -356,13 +356,24 @@ class Coordinates1d(BaseCoordinates):
                 return self._select_full(return_indices)
 
         bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
+        my_bounds = self.area_bounds.copy()
+
+        # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
+        if self.name == "time" and isinstance(my_bounds[0], np.datetime64) and isinstance(bounds[0], np.datetime64):
+            mine = np.timedelta64(1, my_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
+            your = np.timedelta64(1, bounds[0].dtype.name.replace("datetime64", "")[1:-1])
+
+            if mine > your:
+                bounds = [b.astype(my_bounds[0].dtype) for b in bounds]
+            else:
+                my_bounds = [b.astype(bounds[0].dtype) for b in my_bounds]
 
         # full
-        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
+        if my_bounds[0] >= bounds[0] and my_bounds[1] <= bounds[1]:
             return self._select_full(return_indices)
 
         # none
-        if self.area_bounds[0] > bounds[1] or self.area_bounds[1] < bounds[0]:
+        if my_bounds[0] > bounds[1] or my_bounds[1] < bounds[0]:
             return self._select_empty(return_indices)
 
         # partial, implemented in child classes
