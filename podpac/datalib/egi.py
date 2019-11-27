@@ -326,11 +326,17 @@ class EGI(DataSource):
                 for bound in coordinates["time"].bounds
                 if isinstance(bound, np.datetime64)
             ]
-            if self.min_bounds_span != None and "time" in self.min_bounds_span:
-                raise NotImplementedError  # TODO
-
             if len(time_bounds) < 2:
                 raise ValueError("Time coordinates must be of type np.datetime64")
+
+            if self.min_bounds_span != None and "time" in self.min_bounds_span:
+                time_span, time_unit = self.min_bounds_span["time"].split(",")
+                time_delta = np.timedelta64(int(time_span), time_unit)
+                time_bounds_dt = [np.datetime64(tb) for tb in time_bounds]
+                timediff = np.diff(time_bounds_dt)
+                if timediff < time_delta:
+                    pad = (time_delta - timediff) / 2
+                    time_bounds = [str((time_bounds_dt[0] - pad)[0]), str((time_bounds_dt[1] + pad)[0])]
 
         if "lat" in coordinates.udims or "lon" in coordinates.udims:
             lat = coordinates["lat"].bounds
