@@ -56,6 +56,8 @@ class Lambda(Node):
         Name of the AWS role created for lambda function. Defaults to :str:`podpac.settings["FUNCTION_ROLE_NAME"]` or "podpac-lambda-autogen".
     function_s3_bucket : str, optional
         S3 bucket name to use with lambda function. Defaults to :str:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
+    eval_settings : dict, optional
+        Default is podpac.settings. PODPAC settings that will be used to evaluate the Lambda function.
 
     Other Attributes
     ----------------
@@ -342,6 +344,7 @@ class Lambda(Node):
     attrs = tl.Dict()
     download_result = tl.Bool(True).tag(attr=True)
     force_compute = tl.Bool().tag(attr=True)
+    eval_settings = tl.Dict().tag(attr=True)
 
     @tl.default("source_output_name")
     def _source_output_name_default(self):
@@ -354,6 +357,10 @@ class Lambda(Node):
 
         return settings["FUNCTION_FORCE_COMPUTE"]
 
+    @tl.default("eval_settings")
+    def _eval_settings_default(self):
+        return settings.copy()
+
     @property
     def pipeline(self):
         """
@@ -365,6 +372,7 @@ class Lambda(Node):
             out_node = next(reversed(d["pipeline"].keys()))
             d["pipeline"][out_node]["attrs"].update(self.attrs)
         d["output"] = {"format": self.source_output_format}
+        d["settings"] = self.eval_settings
         return d
 
     @common_doc(COMMON_DOC)
@@ -1198,7 +1206,7 @@ Lambda Node {status}
         pipeline["coordinates"] = json.loads(coordinates.json)
 
         # TODO: should we move this to `self.pipeline`?
-        pipeline["settings"] = settings.copy()  # TODO: we should not wholesale copy settings here !!
+        pipeline["settings"] = self.eval_settings
         pipeline["settings"][
             "FUNCTION_DEPENDENCIES_KEY"
         ] = self.function_s3_dependencies_key  # overwrite in case this is specified explicitly by class
