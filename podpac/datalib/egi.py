@@ -59,6 +59,11 @@ class EGI(DataSource):
         Key for latitude data in endpoint HDF-5 file. Required.
     lon_key : str
         Key for longitude data in endpoint HDF-5 file. Required.
+    min_bounds_span: dict, optional
+        Default is {}. When specified, gives the minimum bounds that will be used for a coordinate in the EGI query, so
+        it works properly. If a user specified a lat,lon point, the EGI query may fail since the min/max values for 
+        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example): 
+        [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     base_url : str, optional
         URL for EGI data endpoint.
         Defaults to :str:`BASE_URL`
@@ -382,49 +387,45 @@ class EGI(DataSource):
         ValueError
             Raises value error if no granules available from EGI
         """
+        good_result = True
+        while good_result:
+            # create the full url
+            page_url = "{}&page_num={}".format(url, page_num)
+            _log.debug("Querying EGI url: {}".format(page_url))
+            r = requests.get(page_url)
 
-        # create the full url
-        page_url = "{}&page_num={}".format(url, page_num)
-        _log.debug("Querying EGI url: {}".format(page_url))
-        r = requests.get(page_url)
+            if r.status_code != 200:
+                good_result = False
 
-        if r.status_code != 200:
+                # raise exception if the status is not 200 on the first page
+                if page_num == 1:
+                    raise ValueError("Failed to download data from EGI Interface. EGI Reponse: {}".format(r.text))
 
-            # raise exception if the status is not 200 on the first page
-            if page_num == 1:
-                raise ValueError("Failed to download data from EGI Interface. EGI Reponse: {}".format(r.text))
+                # end iteration
+                elif r.status_code == 501 and "No granules returned by CMR" in r.text:
+                    _log.debug("Last page returned from EGI Interface: {}".format(page_num - 1))
 
-            # end iteration
-            elif r.status_code == 501 and "No granules returned by CMR" in r.text:
-                _log.debug("Last page returned from EGI Interface: {}".format(page_num - 1))
+                # not sure of response, so end iteration
+                else:
+                    _log.warning("Page returned from EGI Interface with unknown response: {}".format(r.text))
 
-            # not sure of response, so end iteration
             else:
-                _log.warning("Page returned from EGI Interface with unknown response: {}".format(r.text))
+                good_result = True
+                # most of the time, EGI returns a zip file
+                if ".zip" in r.headers["Content-Disposition"]:
+                    # load content into file-like object and then read into zip file
+                    f = BytesIO(r.content)
+                    zip_file = zipfile.ZipFile(f)
 
-        else:
+                # if only one file exists, it will return the single file. This puts the single file in a zip archive
+                else:
+                    filename = r.headers["Content-Disposition"].split('filename="')[1].replace('"', "")
+                    zip_file = zipfile.ZipFile("{}.zip".format(filename), "w")
+                    zip_file.writestr(filename, r.content)
 
-            # most of the time, EGI returns a zip file
-            if ".zip" in r.headers["Content-Disposition"]:
-                # load content into file-like object and then read into zip file
-                f = BytesIO(r.content)
-                zip_file = zipfile.ZipFile(f)
-
-            # if only one file exists, it will return the single file. This puts the single file in a zip archive
-            else:
-                filename = r.headers["Content-Disposition"].split('filename="')[1].replace('"', "")
-                zip_file = zipfile.ZipFile("{}.zip".format(filename), "w")
-                zip_file.writestr(filename, r.content)
-
-            # yield the current zip file
-            yield zip_file
-
-            try:
-                while True:  # broken by StopIteration
-                    page_num += 1  # increase page_num
-                    yield next(self._query_egi(url, page_num=page_num))
-            except StopIteration:
-                pass
+                # yield the current zip file
+                yield zip_file
+            page_num += 1
 
     def _read_zips(self, zip_files):
 
