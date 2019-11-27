@@ -13,6 +13,7 @@ import botocore
 
 from six import string_types
 
+
 def default_pipeline(pipeline=None):
     """Get default pipeline definiton, merging with input pipline if supplied
     
@@ -138,9 +139,9 @@ def parse_event(trigger, event):
 
         # look for specific parameter definitions in query parameters
         for param in pipeline["params"]:
-            
+
             # handle SETTINGS in query parameters
-            if param == "settings":           
+            if param == "settings":
                 # Try loading this settings string into a dict to merge with default settings
                 try:
                     api_settings = json.loads(pipeline["params"][param])
@@ -149,7 +150,6 @@ def parse_event(trigger, event):
                 except Exception as e:
                     print("Got an exception when attempting to load api settings: ", e)
                     print(pipeline)
-                    
 
             # handle OUTPUT in query parameters
             elif param == "output":
@@ -231,7 +231,7 @@ def handler(event, context):
     import podpac.datalib
 
     # update podpac settings with inputs from the trigger
-    settings = {**settings, **pipeline["settings"]}
+    settings.update(pipeline["settings"])
 
     # build the Node and Coordinates
     if trigger in ("eval", "S3"):
