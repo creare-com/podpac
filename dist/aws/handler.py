@@ -150,7 +150,7 @@ def parse_event(trigger, event):
             if param == "settings":
                 # Try loading this settings string into a dict to merge with default settings
                 try:
-                    api_settings = json.loads(pipeline["params"][param])
+                    api_settings = pipeline["params"][param]
                     # If we get here, the api settings were loaded
                     pipeline["settings"] = {**pipeline["settings"], **api_settings}
                 except Exception as e:
@@ -213,14 +213,18 @@ def handler(event, context):
     # -----
     # TODO: remove when layers is configured
     # get configured bucket to download dependencies
-    bucket = pipeline["settings"]["S3_BUCKET_NAME"]
+    # If specified in the environmental variables, we cannot overwrite it. Otherwise it HAS to be
+    # specified in the settings.
+    bucket = os.environ.get("S3_BUCKET_NAME", pipeline["settings"].get("S3_BUCKET_NAME"))
 
     # get dependencies path
     if "FUNCTION_DEPENDENCIES_KEY" in pipeline["settings"]:
-        dependencies = pipeline["settings"]["FUNCTION_DEPENDENCIES_KEY"]
+        dependencies = os.environ.get(
+            "FUNCTION_DEPENDENCIES_KEY", pipeline["settings"].get("FUNCTION_DEPENDENCIES_KEY")
+        )
     else:
         dependencies = "podpac_deps_{}.zip".format(
-            pipeline["settings"]["PODPAC_VERSION"]
+            os.environ.get("PODPAC_VERSION", pipeline["settings"].get("PODPAC_VERSION"))
         )  # this should be equivalent to version.semver()
 
     # Download dependencies from specific bucket/object
