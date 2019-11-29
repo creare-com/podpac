@@ -135,11 +135,17 @@ def parse_event(trigger, event):
         pipeline["url"] = event["queryStringParameters"]
         if isinstance(pipeline["url"], string_types):
             pipeline["url"] = urllib.parse_qs(urllib.urlparse(pipeline["url"]).query)
-        pipeline["params"] = pipeline["url"]
 
-        # look for specific parameter definitions in query parameters
+        # These are parameters not part of the OGC spec, which are stored in the "PARAMS" variable (which is part of the spec)
+        pipeline["params"] = event["queryStringParameters"].get("params", "{}")
+        if isinstance(pipeline["params"], string_types):
+            pipeline["params"] = json.loads(pipeline["params"])
+
+        # make all params lowercase
+        pipeline["params"] = [param.lower() for param in pipeline["params"]]
+
+        # look for specific parameter definitions in query parameters, these are not part of the OGC spec
         for param in pipeline["params"]:
-
             # handle SETTINGS in query parameters
             if param == "settings":
                 # Try loading this settings string into a dict to merge with default settings
@@ -154,12 +160,19 @@ def parse_event(trigger, event):
             # handle OUTPUT in query parameters
             elif param == "output":
                 pipeline["output"] = pipeline["params"][param]
-
             # handle FORMAT in query parameters
             elif param == "format":
-                pipeline["output"][param] = pipeline["params"][param].split("/")[-1]
+                pipeline["output"]["format"] = pipeline["params"][param].split("/")[-1]
                 # handle image returns
-                if pipeline["output"][param] in ["png", "jpg", "jpeg"]:
+                if pipeline["output"]["format"] in ["png", "jpg", "jpeg"]:
+                    pipeline["output"]["format_kwargs"]["return_base64"] = True
+
+        # Check for the FORMAT QS parameter, as it might be part of the OGC spec
+        for param in pipeline["url"]:
+            if param.lower() == "format":
+                pipeline["output"][param] = pipeline["url"][param].split("/")[-1]
+                # handle image returns
+                if pipeline["output"]["format"] in ["png", "jpg", "jpeg"]:
                     pipeline["output"]["format_kwargs"]["return_base64"] = True
 
         return pipeline
@@ -271,4 +284,9 @@ def handler(event, context):
             print("Output body is not serializable, attempting to decode.")
             body = body.decode()
 
-        return {"statusCode": 200, "headers": {"Content-Type": "image/png"}, "isBase64Encoded": True, "body": body}
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": pipeline["output"]["format"]},
+            "isBase64Encoded": pipeline["output"]["format_kwargs"]["return_base64"],
+            "body": body,
+        }
