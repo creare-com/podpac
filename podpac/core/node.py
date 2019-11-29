@@ -841,6 +841,10 @@ def node_eval(fn):
         if settings["DEBUG"]:
             self._output = data
 
+        # Add style information
+        if "layer_style" not in data.attrs:
+            data.attrs["layer_style"] = self.style
+
         return data
 
     return wrapper
