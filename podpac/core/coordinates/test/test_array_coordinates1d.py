@@ -1042,9 +1042,11 @@ class TestArrayCoordinatesSelection(object):
     def test_select_time_variable_precision(self):
         c = ArrayCoordinates1d(["2012-05-19"], name="time")
         c2 = ArrayCoordinates1d(["2012-05-19T12:00:00"], name="time")
-        s = c.select(c2.bounds)
+        s = c.select(c2.bounds, outer=True)
+        s1 = c.select(c2.bounds, outer=False)
         s2 = c2.select(c.bounds)
         assert s.size == 1
+        assert s1.size == 0
         assert s2.size == 1
 
     def test_select_dtype(self):

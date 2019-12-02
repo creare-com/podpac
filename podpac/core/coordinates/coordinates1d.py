@@ -12,7 +12,7 @@ import traitlets as tl
 
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
-from podpac.core.coordinates.utils import add_coord, divide_delta
+from podpac.core.coordinates.utils import add_coord, divide_delta, lower_precision_time_bounds
 from podpac.core.coordinates.utils import Dimension, CoordinateType
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
@@ -359,14 +359,11 @@ class Coordinates1d(BaseCoordinates):
         my_bounds = self.area_bounds.copy()
 
         # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
-        if self.name == "time" and isinstance(my_bounds[0], np.datetime64) and isinstance(bounds[0], np.datetime64):
-            mine = np.timedelta64(1, my_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
-            your = np.timedelta64(1, bounds[0].dtype.name.replace("datetime64", "")[1:-1])
+        if self.dtype == np.datetime64:
+            if not isinstance(bounds[0], np.datetime64):
+                raise TypeError("Input bounds should be of type np.datetime64 when selecting data from:", str(self))
 
-            if mine > your:
-                bounds = [b.astype(my_bounds[0].dtype) for b in bounds]
-            else:
-                my_bounds = [b.astype(bounds[0].dtype) for b in my_bounds]
+            my_bounds, bounds = lower_precision_time_bounds(my_bounds, bounds, outer)
 
         # full
         if my_bounds[0] >= bounds[0] and my_bounds[1] <= bounds[1]:

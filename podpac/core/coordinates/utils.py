@@ -529,3 +529,41 @@ def rem_vunits(crs):
     if "+vunits" in crs:
         crs = re.sub(r"\+vunits=[a-z\-]+", "", crs)
     return crs
+
+
+def lower_precision_time_bounds(my_bounds, other_bounds, outer):
+    """
+    When given two bounds of np.datetime64, this function will convert both bounds to the lower-precision (in terms of 
+    time unit) numpy datetime4 object if outer==True, otherwise only my_bounds will be converted.
+    
+    Parameters
+    -----------
+    my_bounds : List(np.datetime64)
+        The bounds of the native coordinates of the dataset
+    other_bounds : List(np.datetime64)
+        The bounds used for the selection
+    outer : bool
+        When the other_bounds are higher precision than the input_bounds, only convert these IF outer=True
+        
+    Returns
+    --------
+    my_bounds : List(np.datetime64)
+        The bounds of the native coordinates of the dataset at the new precision
+    other_bounds : List(np.datetime64)
+        The bounds used for the selection at the new precision, if outer == True, otherwise return original coordinates    
+    """
+    if not isinstance(other_bounds[0], np.datetime64) or not isinstance(other_bounds[1], np.datetime64):
+        raise TypeError("Input bounds should be of type np.datetime64 when selecting data from:", str(my_bounds))
+
+    if not isinstance(my_bounds[0], np.datetime64) or not isinstance(my_bounds[1], np.datetime64):
+        raise TypeError("Native bounds should be of type np.datetime64 when selecting data using:", str(other_bounds))
+
+    mine = np.timedelta64(1, my_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
+    your = np.timedelta64(1, other_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
+
+    if mine > your and outer:
+        other_bounds = [b.astype(my_bounds[0].dtype) for b in other_bounds]
+    else:
+        my_bounds = [b.astype(other_bounds[0].dtype) for b in my_bounds]
+
+    return my_bounds, other_bounds

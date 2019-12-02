@@ -8,6 +8,7 @@ import traitlets as tl
 from collections import OrderedDict
 
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord, divide_delta
+from podpac.core.coordinates.utils import lower_precision_time_bounds
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
@@ -387,14 +388,11 @@ class UniformCoordinates1d(Coordinates1d):
         my_bounds = self.bounds.copy()
 
         # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
-        if self.name == "time" and isinstance(my_bounds[0], np.datetime64) and isinstance(bounds[0], np.datetime64):
-            mine = np.timedelta64(1, my_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
-            your = np.timedelta64(1, bounds[0].dtype.name.replace("datetime64", "")[1:-1])
+        if self.dtype == np.datetime64:
+            if not isinstance(bounds[0], np.datetime64):
+                raise TypeError("Input bounds should be of type np.datetime64 when selecting data from:", str(self))
 
-            if mine > your:
-                bounds = [b.astype(my_bounds[0].dtype) for b in bounds]
-            else:
-                my_bounds = [b.astype(bounds[0].dtype) for b in my_bounds]
+            my_bounds, bounds = lower_precision_time_bounds(my_bounds, bounds, outer)
 
         lo = max(bounds[0], my_bounds[0])
         hi = min(bounds[1], my_bounds[1])
