@@ -12,7 +12,7 @@ import traitlets as tl
 
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
-from podpac.core.coordinates.utils import add_coord, divide_delta
+from podpac.core.coordinates.utils import add_coord, divide_delta, lower_precision_time_bounds
 from podpac.core.coordinates.utils import Dimension, CoordinateType
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
@@ -350,6 +350,10 @@ class Coordinates1d(BaseCoordinates):
             index or slice for the selected coordinates (only if return_indices=True)
         """
 
+        # empty case
+        if self.dtype is None:
+            return self._select_empty(return_indices)
+
         if isinstance(bounds, dict):
             bounds = bounds.get(self.name)
             if bounds is None:
@@ -357,12 +361,28 @@ class Coordinates1d(BaseCoordinates):
 
         bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
 
+        # check type
+        if not isinstance(bounds[0], self.dtype):
+            raise TypeError(
+                "Input bounds do match the coordinates dtype (%s != %s)" % (type(self.bounds[0]), self.dtype)
+            )
+        if not isinstance(bounds[1], self.dtype):
+            raise TypeError(
+                "Input bounds do match the coordinates dtype (%s != %s)" % (type(self.bounds[1]), self.dtype)
+            )
+
+        my_bounds = self.area_bounds.copy()
+
+        # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
+        if self.dtype == np.datetime64:
+            my_bounds, bounds = lower_precision_time_bounds(my_bounds, bounds, outer)
+
         # full
-        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
+        if my_bounds[0] >= bounds[0] and my_bounds[1] <= bounds[1]:
             return self._select_full(return_indices)
 
         # none
-        if self.area_bounds[0] > bounds[1] or self.area_bounds[1] < bounds[0]:
+        if my_bounds[0] > bounds[1] or my_bounds[1] < bounds[0]:
             return self._select_empty(return_indices)
 
         # partial, implemented in child classes
