@@ -350,19 +350,31 @@ class Coordinates1d(BaseCoordinates):
             index or slice for the selected coordinates (only if return_indices=True)
         """
 
+        # empty case
+        if self.dtype is None:
+            return self._select_empty(return_indices)
+
         if isinstance(bounds, dict):
             bounds = bounds.get(self.name)
             if bounds is None:
                 return self._select_full(return_indices)
 
         bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
+
+        # check type
+        if not isinstance(bounds[0], self.dtype):
+            raise TypeError(
+                "Input bounds do match the coordinates dtype (%s != %s)" % (type(self.bounds[0]), self.dtype)
+            )
+        if not isinstance(bounds[1], self.dtype):
+            raise TypeError(
+                "Input bounds do match the coordinates dtype (%s != %s)" % (type(self.bounds[1]), self.dtype)
+            )
+
         my_bounds = self.area_bounds.copy()
 
         # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
         if self.dtype == np.datetime64:
-            if not isinstance(bounds[0], np.datetime64):
-                raise TypeError("Input bounds should be of type np.datetime64 when selecting data from:", str(self))
-
             my_bounds, bounds = lower_precision_time_bounds(my_bounds, bounds, outer)
 
         # full

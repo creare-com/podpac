@@ -389,9 +389,6 @@ class UniformCoordinates1d(Coordinates1d):
 
         # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
         if self.dtype == np.datetime64:
-            if not isinstance(bounds[0], np.datetime64):
-                raise TypeError("Input bounds should be of type np.datetime64 when selecting data from:", str(self))
-
             my_bounds, bounds = lower_precision_time_bounds(my_bounds, bounds, outer)
 
         lo = max(bounds[0], my_bounds[0])
