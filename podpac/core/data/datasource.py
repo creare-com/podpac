@@ -154,7 +154,7 @@ class DataSource(Node):
     native_coordinates = tl.Instance(Coordinates).tag(readonly=True)
     interpolation = interpolation_trait()
     coordinate_index_type = tl.Enum(["list", "numpy", "xarray", "pandas"], default_value="numpy")
-    nan_vals = tl.List(allow_none=True)
+    nan_vals = tl.List(allow_none=True).tag(attr=True)
 
     # privates
     _interpolation = tl.Instance(Interpolation)

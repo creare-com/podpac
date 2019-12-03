@@ -285,7 +285,7 @@ class UnitsDataArray(xr.DataArray):
         This function modifies the UnitsDataArray inplace
         """
 
-        if isinstance(mask, UnitsDataArray) and isinstance(value, Number):
+        if isinstance(mask, xr.DataArray) and isinstance(value, Number):
             orig_dims = deepcopy(self.dims)
 
             # find out status of all dims
