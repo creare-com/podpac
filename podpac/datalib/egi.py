@@ -426,7 +426,8 @@ class EGI(DataSource):
                 # if only one file exists, it will return the single file. This puts the single file in a zip archive
                 else:
                     filename = r.headers["Content-Disposition"].split('filename="')[1].replace('"', "")
-                    zip_file = zipfile.ZipFile("{}.zip".format(filename), "w")
+                    f = BytesIO()
+                    zip_file = zipfile.ZipFile(f, "w")
                     zip_file.writestr(filename, r.content)
 
                 # yield the current zip file
