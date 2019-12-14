@@ -434,10 +434,6 @@ class TestCoordinateCreation(object):
         with pytest.raises(pyproj.crs.CRSError):
             Coordinates([lat, lon], crs="abcd")
 
-        # DeprecationWarning for +init (#316)
-        with pytest.warns(DeprecationWarning):
-            Coordinates([lat], crs="+init=epsg:4326")
-
     def test_alt_units(self):
 
         alt = ArrayCoordinates1d([0, 1, 2], name="alt")

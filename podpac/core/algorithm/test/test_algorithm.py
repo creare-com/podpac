@@ -44,25 +44,24 @@ class TestAlgorithm(object):
 
     def test_multi_threading(self):
         coords = podpac.Coordinates([[1, 2, 3]], ["lat"])
-        node1 = Arithmetic(A=Arange(), B=Arange(), eqn="A+B")
-        node2 = Arithmetic(A=node1, B=Arange(), eqn="A+B")
 
         with podpac.settings:
-            podpac.settings["MULTITHREADING"] = True
-            podpac.settings["N_THREADS"] = 8
+            podpac.settings.set_unsafe_eval(True)
             podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings["RAM_CACHE_ENABLED"] = False
-            podpac.settings.set_unsafe_eval(True)
+
+            node1 = Arithmetic(A=Arange(), B=Arange(), eqn="A+B")
+            node2 = Arithmetic(A=node1, B=Arange(), eqn="A+B")
+
+            # multithreaded
+            podpac.settings["MULTITHREADING"] = True
+            podpac.settings["N_THREADS"] = 8
 
             omt = node2.eval(coords)
 
-        with podpac.settings:
+            # single threaded
             podpac.settings["MULTITHREADING"] = False
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
-            podpac.settings["DEFAULT_CACHE"] = []
-            podpac.settings["RAM_CACHE_ENABLED"] = False
-            podpac.settings.set_unsafe_eval(True)
 
             ost = node2.eval(coords)
 

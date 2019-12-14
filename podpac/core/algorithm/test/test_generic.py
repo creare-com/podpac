@@ -122,9 +122,6 @@ class TestGeneric(object):
             with pytest.warns(UserWarning, match="Insecure evaluation"):
                 node = Generic(code="import numpy as np\noutput = np.minimum(a,b)", a=a, b=b)
 
-            node = Generic(
-                code="import numpy as np\noutput = np.minimum(b,a)", a=b, b=a
-            )  # needs to be different to avoid cache
             with pytest.raises(PermissionError):
                 node.eval(coords)
 
