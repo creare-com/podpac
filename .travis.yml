@@ -35,7 +35,7 @@ install:
   - touch /home/travis/.podpac/ALLOW_PYTHON_EVAL_EXEC
   
 # cache pip dependencies for faster builds
-cache: pip
+# cache: pip
 
 # run unit tests
 script: 
