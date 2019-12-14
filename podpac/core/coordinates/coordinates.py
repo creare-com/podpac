@@ -117,6 +117,9 @@ class Coordinates(tl.HasTraits):
         # get/create coordinates
         dcoords = OrderedDict()
         for i, dim in enumerate(dims):
+            if isinstance(dim, (tuple, list)):
+                dim = "_".join(dim)
+
             if dim in dcoords:
                 raise ValueError("Duplicate dimension '%s' at position %d" % (dim, i))
 

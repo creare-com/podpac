@@ -145,6 +145,15 @@ class TestCoordinateCreation(object):
         assert c.ndim == 1
         assert c.size == 3
 
+        # nested dims version
+        c = Coordinates([[lat, lon]], dims=[["lat", "lon"]])
+        assert c.dims == ("lat_lon",)
+        assert c.udims == ("lat", "lon")
+        assert c.idims == ("lat_lon",)
+        assert c.shape == (3,)
+        assert c.ndim == 1
+        assert c.size == 3
+
     def test_dependent(self):
         lat = np.linspace(0, 1, 12).reshape((3, 4))
         lon = np.linspace(10, 20, 12).reshape((3, 4))
@@ -184,6 +193,16 @@ class TestCoordinateCreation(object):
         dates = ["2018-01-01", "2018-01-02"]
 
         c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"])
+        assert c.dims == ("lat_lon", "time")
+        assert c.udims == ("lat", "lon", "time")
+        assert c.idims == ("lat_lon", "time")
+        assert c.shape == (3, 2)
+        assert c.ndim == 2
+        assert c.size == 6
+        repr(c)
+
+        # stacked, nested dims version
+        c = Coordinates([[lat, lon], dates], dims=[["lat", "lon"], "time"])
         assert c.dims == ("lat_lon", "time")
         assert c.udims == ("lat", "lon", "time")
         assert c.idims == ("lat_lon", "time")
