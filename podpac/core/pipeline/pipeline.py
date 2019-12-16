@@ -39,7 +39,7 @@ class Pipeline(Node):
 
     definition = OrderedDictTrait(help="pipeline definition")
     json = tl.Unicode(help="JSON definition")
-    output = tl.Instance(Output, help="pipeline output")
+    pipeline_output = tl.Instance(Output, help="pipeline output")
     do_write_output = tl.Bool(True)
 
     def _first_init(self, path=None, **kwargs):
@@ -81,7 +81,7 @@ class Pipeline(Node):
     def _definition_from_json(self):
         return json.loads(self.json, object_pairs_hook=OrderedDict)
 
-    @tl.default("output")
+    @tl.default("pipeline_output")
     def _parse_definition(self):
         return parse_pipeline_definition(self.definition)
 
@@ -96,9 +96,9 @@ class Pipeline(Node):
 
         self._requested_coordinates = coordinates
 
-        output = self.output.node.eval(coordinates, output)
+        output = self.pipeline_output.node.eval(coordinates, output)
         if self.do_write_output:
-            self.output.write(output, coordinates)
+            self.pipeline_output.write(output, coordinates)
 
         self._output = output
         return output
@@ -109,7 +109,7 @@ class Pipeline(Node):
 
     @property
     def node(self):
-        return self.output.node
+        return self.pipeline_output.node
 
     @property
     def units(self):
@@ -146,7 +146,7 @@ def parse_pipeline_definition(definition):
         nodes[key] = _parse_node_definition(nodes, key, d)
 
     # parse output definition
-    output = _parse_output_definition(nodes, definition.get("output", {}))
+    output = _parse_output_definition(nodes, definition.get("pipeline_output", {}))
 
     return output
 

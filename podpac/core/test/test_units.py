@@ -411,6 +411,36 @@ class TestCreateDataArray(object):
         assert a.dtype == int
         np.testing.assert_equal(a.data, data.astype(int))
 
+    def test_outputs(self):
+        a = UnitsDataArray.create(self.coords, outputs=["a", "b", "c"])
+        assert a.dims == self.coords.dims + ("output",)
+        np.testing.assert_array_equal(a["output"], ["a", "b", "c"])
+
+        a = UnitsDataArray.create(self.coords, data=0, outputs=["a", "b", "c"])
+        assert a.dims == self.coords.dims + ("output",)
+        np.testing.assert_array_equal(a["output"], ["a", "b", "c"])
+
+        a = UnitsDataArray.create(self.coords, data=1, outputs=["a", "b", "c"])
+        assert a.dims == self.coords.dims + ("output",)
+        np.testing.assert_array_equal(a["output"], ["a", "b", "c"])
+
+        a = UnitsDataArray.create(self.coords, data=np.nan, outputs=["a", "b", "c"])
+        assert a.dims == self.coords.dims + ("output",)
+        np.testing.assert_array_equal(a["output"], ["a", "b", "c"])
+
+        data = np.random.random(self.coords.shape + (3,))
+        a = UnitsDataArray.create(self.coords, data=data, outputs=["a", "b", "c"])
+        assert a.dims == self.coords.dims + ("output",)
+        np.testing.assert_array_equal(a["output"], ["a", "b", "c"])
+
+        data = np.random.random(self.coords.shape + (2,))
+        with pytest.raises(ValueError, match="data with shape .* does not match"):
+            a = UnitsDataArray.create(self.coords, data=data, outputs=["a", "b", "c"])
+
+        data = np.random.random(self.coords.shape)
+        with pytest.raises(ValueError, match="data with shape .* does not match"):
+            a = UnitsDataArray.create(self.coords, data=data, outputs=["a", "b", "c"])
+
     def test_invalid_coords(self):
         with pytest.raises(TypeError):
             UnitsDataArray.create((3, 4))

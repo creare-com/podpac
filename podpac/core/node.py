@@ -9,7 +9,6 @@ import functools
 import json
 import inspect
 import importlib
-import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from hashlib import md5 as hash_alg
@@ -103,12 +102,26 @@ class Node(tl.HasTraits):
      * ``_output``: the output of the most recent call to eval
     """
 
+    outputs = tl.List(tl.Unicode, allow_none=True).tag(attr=True)
+    output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     dtype = tl.Any(default_value=float)
     cache_output = tl.Bool()
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     style = tl.Instance(Style)
+
+    @tl.default("outputs")
+    def _outputs_default(self):
+        return None
+
+    @tl.validate("output")
+    def _validate_output(self, d):
+        if self.outputs is None:
+            raise TypeError("Invalid output '%s' (output must be None for single-output nodes)." % self.output)
+        if d["value"] not in self.outputs:
+            raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
+        return d["value"]
 
     @tl.default("cache_output")
     def _cache_output_default(self):
@@ -152,11 +165,12 @@ class Node(tl.HasTraits):
         # make tagged "readonly" and "attr" traits read_only, and set them using set_trait
         # NOTE: The set_trait is required because this sets the traits read_only at the *class* level;
         #       on subsequent initializations, they will already be read_only.
-        for name, trait in self.traits().items():
-            if trait.metadata.get("readonly") or trait.metadata.get("attr"):
-                if name in tkwargs:
-                    self.set_trait(name, tkwargs.pop(name))
-                trait.read_only = True
+        with self.hold_trait_notifications():
+            for name, trait in self.traits().items():
+                if trait.metadata.get("readonly") or trait.metadata.get("attr"):
+                    if name in tkwargs:
+                        self.set_trait(name, tkwargs.pop(name))
+                    trait.read_only = True
 
         # Call traitlest constructor
         super(Node, self).__init__(**tkwargs)
@@ -255,7 +269,7 @@ class Node(tl.HasTraits):
         if self.units is not None:
             attrs["units"] = ureg.Unit(self.units)
 
-        return UnitsDataArray.create(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
+        return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
@@ -833,6 +847,11 @@ def node_eval(fn):
             if self.cache_output and not (self.has_cache(key, cache_coordinates) and not self.cache_update):
                 self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update)
             self._from_cache = False
+
+        # extract single output, if necessary
+        # subclasses should extract single outputs themselves if possible, but this provides a backup
+        if "output" in data.dims and self.output is not None:
+            data = data.sel(output=self.output)
 
         # transpose data to match the dims order of the requested coordinates
         order = [dim for dim in coordinates.idims if dim in data.dims]

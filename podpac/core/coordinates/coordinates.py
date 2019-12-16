@@ -368,6 +368,8 @@ class Coordinates(tl.HasTraits):
 
         coords = []
         for dim in xcoord.dims:
+            if dim == "outputs":
+                continue
             if isinstance(xcoord.indexes[dim], (pd.DatetimeIndex, pd.Float64Index, pd.Int64Index)):
                 c = ArrayCoordinates1d.from_xarray(xcoord[dim])
             elif isinstance(xcoord.indexes[dim], pd.MultiIndex):
@@ -760,10 +762,7 @@ class Coordinates(tl.HasTraits):
         coords = OrderedDict()
         for c in self._coords.values():
             coords.update(c.coords)
-        # TODO just return coords?
-        # return coords
-        x = xr.DataArray(np.empty(self.shape), dims=self.idims, coords=coords)
-        return x.coords
+        return coords
 
     @property
     def CRS(self):

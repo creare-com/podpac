@@ -26,8 +26,9 @@ from podpac.core import common_test_utils as ctu
 from podpac.core.utils import ArrayTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
-from podpac.core.node import Node, NodeException
 from podpac.core.cache import CacheCtrl, RamCacheStore
+from podpac.core.node import Node, NodeException
+from podpac.core.node import node_eval
 
 
 class TestNode(object):
@@ -74,6 +75,59 @@ class TestNode(object):
 
         with pytest.raises(UndefinedUnitError):
             Node(units="abc")
+
+    def test_outputs(self):
+        n = Node()
+        assert n.outputs is None
+
+        n = Node(outputs=["a", "b"])
+        assert n.outputs == ["a", "b"]
+
+    def test_outputs_and_output(self):
+        n = Node(outputs=["a", "b"])
+        assert n.output is None
+
+        n = Node(outputs=["a", "b"], output="b")
+        assert n.output == "b"
+
+        # must be one of the outputs
+        with pytest.raises(ValueError, match="Invalid output"):
+            n = Node(outputs=["a", "b"], output="other")
+
+        # only valid for multiple-output nodes
+        with pytest.raises(TypeError, match="Invalid output"):
+            n = Node(output="other")
+
+
+def TestNodeEval(self):
+    def test_extract_output(self):
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        class MyNode1(Node):
+            @node_eval
+            def eval(self, coordinates, output=None):
+                return self.create_output_array(coordinates)
+
+        class MyNode2(Node):
+            @node_eval
+            def eval(self, coordinates, output=None):
+                out = self.create_output_array(coordinates)
+                return out.sel(output=self.output)
+
+        # don't extract when no output field is requested
+        n = MyNode1()
+        out = n.eval(coords)
+        assert out.shape == (4, 2, 3)
+
+        # do extract when an output field is requested
+        n = MyNode1(output="b")
+        out = n.eval(coords)
+        assert out.shape == (4, 2)
+
+        # except not if the node has already extracted it
+        n = MyNode2(output="b")
+        out = n.eval(coords)
+        assert out.shape == (4, 2)
 
 
 class TestCreateOutputArray(object):
