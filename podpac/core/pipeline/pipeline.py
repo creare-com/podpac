@@ -19,7 +19,6 @@ from podpac.core.utils import OrderedDictTrait, JSONEncoder
 from podpac.core.node import Node, NodeException
 from podpac.core.style import Style
 from podpac.core.data.datasource import DataSource
-from podpac.core.data.types import ReprojectedSource, Array
 from podpac.core.algorithm.algorithm import Algorithm
 from podpac.core.compositor import Compositor
 

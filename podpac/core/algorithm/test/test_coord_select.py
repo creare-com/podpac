@@ -5,7 +5,7 @@ import pytest
 
 import podpac
 from podpac.core.data.datasource import DataSource
-from podpac.core.data.types import Array
+from podpac.core.data.array_source import Array
 from podpac.core.algorithm.utility import Arange
 from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates, YearSubstituteCoordinates
 

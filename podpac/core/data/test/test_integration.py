@@ -10,7 +10,9 @@ import boto3
 
 import podpac
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.data.types import Array, ReprojectedSource, WCS
+from podpac.core.data.array_source import Array
+from podpac.core.data.reprojection import ReprojectedSource
+from podpac.core.data.wcs import WCS
 
 # from podpac.datalib.smap import SMAPSentinelSource
 
@@ -22,8 +24,6 @@ class TestDataSourceIntegration:
 
     def test_array(self):
         """Test array data source"""
-
-        from podpac.core.data.types import Array
 
         arr = np.random.rand(16, 11)
         lat = np.random.rand(16)

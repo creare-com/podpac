@@ -14,7 +14,7 @@ import numpy as np
 
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.data.types import rasterio
+from podpac.core.data.file import rasterio
 from podpac.core.data import datasource
 from podpac.core.data.interpolation import (
     Interpolation,

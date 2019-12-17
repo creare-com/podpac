@@ -4,11 +4,11 @@ warnings.filterwarnings("ignore")
 
 import unittest
 import pytest
+import numpy as np
 
 import podpac
 from podpac.compositor import OrderedCompositor, Compositor
-import numpy as np
-from podpac.core.data.types import Array
+from podpac.core.data.array_source import Array
 
 
 class TestCompositor(object):

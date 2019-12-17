@@ -6,7 +6,7 @@ import xarray as xr
 import scipy.stats
 
 import podpac
-from podpac.core.data.types import Array
+from podpac.core.data.array_source import Array
 from podpac.core.algorithm.stats import Reduce
 from podpac.core.algorithm.stats import Min, Max, Sum, Count, Mean, Variance, Skew, Kurtosis, StandardDeviation
 from podpac.core.algorithm.stats import Median, Percentile
