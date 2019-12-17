@@ -12,7 +12,7 @@ import podpac
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data.array_source import Array
 from podpac.core.data.reprojection import ReprojectedSource
-from podpac.core.data.wcs import WCS
+from podpac.core.data.ogc import WCS
 
 # from podpac.datalib.smap import SMAPSentinelSource
 
