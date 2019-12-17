@@ -6,7 +6,7 @@ import requests
 from traitlets import TraitError
 
 from podpac.core.coordinates import Coordinates, clinspace
-from podpac.core.data.wcs import WCS, WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
+from podpac.core.data.ogc import WCS, WCS_DEFAULT_VERSION, WCS_DEFAULT_CRS
 
 
 class TestWCS(object):
