@@ -261,6 +261,11 @@ class DataSource(Node):
                 + "Must be one of numpy.ndarray, xarray.DataArray, or podpac.UnitsDataArray"
             )
 
+        # extract single output, if necessary
+        # subclasses should extract single outputs themselves if possible, but this provides a backup
+        if "output" in udata_array.dims and self.output is not None:
+            udata_array = udata_array.sel(output=self.output)
+
         # fill nan_vals in data array
         if self.nan_vals:
             for nan_val in self.nan_vals:
@@ -356,6 +361,8 @@ class DataSource(Node):
         if self._requested_source_coordinates.size == 0:
             if output is None:
                 output = self.create_output_array(self._evaluated_coordinates)
+                if "output" in output.dims and self.output is not None:
+                    output = output.sel(output=self.output)
             else:
                 output[:] = np.nan
             return output
@@ -381,6 +388,8 @@ class DataSource(Node):
             requested_dims = None
             output_dims = None
             output = self.create_output_array(coordinates)
+            if "output" in output.dims and self.output is not None:
+                output = output.sel(output=self.output)
         else:
             requested_dims = self._evaluated_coordinates.dims
             output_dims = output.dims

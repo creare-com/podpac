@@ -108,12 +108,6 @@ def TestNodeEval(self):
             def eval(self, coordinates, output=None):
                 return self.create_output_array(coordinates)
 
-        class MyNode2(Node):
-            @node_eval
-            def eval(self, coordinates, output=None):
-                out = self.create_output_array(coordinates)
-                return out.sel(output=self.output)
-
         # don't extract when no output field is requested
         n = MyNode1()
         out = n.eval(coords)
@@ -124,7 +118,13 @@ def TestNodeEval(self):
         out = n.eval(coords)
         assert out.shape == (4, 2)
 
-        # except not if the node has already extracted it
+        # should still work if the node has already extracted it
+        class MyNode2(Node):
+            @node_eval
+            def eval(self, coordinates, output=None):
+                out = self.create_output_array(coordinates)
+                return out.sel(output=self.output)
+
         n = MyNode2(output="b")
         out = n.eval(coords)
         assert out.shape == (4, 2)
