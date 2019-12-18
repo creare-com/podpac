@@ -1,11 +1,66 @@
 import os.path
 import numpy as np
 
+import pytest
+
 from podpac.core.data.file import Dataset
 
 
 class TestDataset(object):
-    """ test xarray Dataset source
+    """ test xarray dataset source
     """
 
-    pass
+    source = os.path.join(os.path.dirname(__file__), "assets/dataset.nc")
+    lat = [0, 1, 2]
+    lon = [10, 20, 30, 40]
+    time = np.array(["2018-01-01", "2018-01-02"], dtype=np.datetime64)
+    data = np.arange(24).reshape((3, 4, 2)).transpose((2, 0, 1))
+    other = 2 * data
+
+    def test_init_and_close(self):
+        node = Dataset(source=self.source, time_key="day")
+        node.close_dataset()
+
+    def test_dims(self):
+        node = Dataset(source=self.source, time_key="day")
+        assert node.dims == ["time", "lat", "lon"]
+
+        # un-mapped keys
+        with pytest.raises(ValueError, match="Unexpected dimension"):
+            node = Dataset(source=self.source)
+
+    def test_available_keys(self):
+        node = Dataset(source=self.source, time_key="day")
+        assert node.available_keys == ["data", "other"]
+
+    def test_native_coordinates(self):
+        # specify dimension keys
+        node = Dataset(source=self.source, time_key="day")
+        nc = node.native_coordinates
+        assert nc.dims == ("time", "lat", "lon")
+        np.testing.assert_array_equal(nc["lat"].coordinates, self.lat)
+        np.testing.assert_array_equal(nc["lon"].coordinates, self.lon)
+        np.testing.assert_array_equal(nc["time"].coordinates, self.time)
+        node.close_dataset()
+
+    def test_get_data(self):
+        # specify data key
+        node = Dataset(source=self.source, time_key="day", data_key="data")
+        out = node.eval(node.native_coordinates)
+        np.testing.assert_array_equal(out, self.data)
+        node.close_dataset()
+
+        node = Dataset(source=self.source, time_key="day", data_key="other")
+        out = node.eval(node.native_coordinates)
+        np.testing.assert_array_equal(out, self.other)
+        node.close_dataset()
+
+        # default data key
+        node = Dataset(source=self.source, time_key="day")
+        out = node.eval(node.native_coordinates)
+        np.testing.assert_array_equal(out, self.data)
+        node.close_dataset()
+
+    def test_extra_dim(self):
+        # TODO
+        pass

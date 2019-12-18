@@ -17,7 +17,7 @@ from podpac.core.settings import settings
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
-from podpac.core.coordinates.utils import Dimension
+from podpac.core.coordinates.utils import Dimension, VALID_DIMENSION_NAMES
 
 # Optional dependencies
 from lazy_import import lazy_module, lazy_class
@@ -48,8 +48,6 @@ class DatasetSource(DataSource):
         Dataset object.
     native_coordinates : Coordinates
         {native_coordinates}
-    dims : list
-        list of coordinate dimension names
     data_key : str
         data key, default 'data'
     lat_key : str
@@ -66,27 +64,29 @@ class DatasetSource(DataSource):
 
     source = tl.Unicode(default_value=None, allow_none=True).tag(readonly=True)
     dataset = tl.Any().tag(readonly=True)
-
     data_key = tl.Unicode(default_value="data").tag(attr=True)
     lat_key = tl.Unicode(allow_none=True, default_value="lat").tag(attr=True)
     lon_key = tl.Unicode(allow_none=True, default_value="lon").tag(attr=True)
     time_key = tl.Unicode(allow_none=True, default_value="time").tag(attr=True)
     alt_key = tl.Unicode(allow_none=True, default_value="alt").tag(attr=True)
-    dims = tl.List(trait=Dimension()).tag(attr=True)
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
 
     def init(self):
         super(DatasetSource, self).init()
 
-        # check that the dataset has been provided or can be loaded
+        # force check that the dataset has been provided or can be loaded
         self.dataset
+
+        # force check dims
+        self.dims
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{native_coordinates}
         """
         cs = []
-        for dim in self.dims:
+        dims = self.dims
+        for dim in dims:
             if dim == "lat":
                 cs.append(self.get_lat())
             elif dim == "lon":
@@ -95,7 +95,8 @@ class DatasetSource(DataSource):
                 cs.append(self.get_time())
             elif dim == "alt":
                 cs.append(self.get_alt())
-        return Coordinates(cs, dims=self.dims, crs=self.crs)
+
+        return Coordinates(cs, dims=dims, crs=self.crs)
 
     def get_lat(self):
         """Get the native latitude coordinates from the dataset."""
@@ -116,6 +117,14 @@ class DatasetSource(DataSource):
     def close_dataset(self):
         """ Close the dataset. Subclasses should implement as needed. """
         pass
+
+    @property
+    def dims(self):
+        raise NotImplementedError
+
+    @property
+    def available_keys(self):
+        raise NotImplementedError
 
 
 class DecodeCFMixin(object):
@@ -145,7 +154,7 @@ class DecodeCFMixin(object):
 
 
 @common_doc(COMMON_DATA_DOC)
-class Dataset(DataSource):
+class Dataset(DatasetSource):
     """Create a DataSource node using xarray.open_dataset.
     
     Attributes
@@ -156,13 +165,8 @@ class Dataset(DataSource):
         Dataset object.
     native_coordinates : Coordinates
         {native_coordinates}
-    dims : list
-        list of coordinate dimension names
     data_key : str
         data key, default 'data'
-    extra_dim : dict
-        In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected. 
-        For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
     lat_key : str
         latitude key, default 'lat'
     lon_key : str
@@ -173,28 +177,50 @@ class Dataset(DataSource):
         altitude key, default 'alt'
     crs : str
         Coordinate reference system of the coordinates
+    extra_dim : dict
+        In cases where the data contain dimensions other than ['lat', 'lon', 'time', 'alt'], these dimensions need to be selected. 
+        For example, if the data contains ['lat', 'lon', 'channel'], the second channel can be selected using `extra_dim=dict(channel=1)`
     """
 
     dataset = tl.Instance(xr.Dataset).tag(readonly=True)
 
     # node attrs
-    extra_dim = tl.Dict({}).tag(attr=True)
+    extra_dim = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
 
     @tl.default("dataset")
     def _open_dataset(self):
         return xr.open_dataset(self.source)
 
+    def close_dataset(self):
+        self.dataset.close()
+
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        return self.create_output_array(
-            coordinates, self.dataset[self.data_key][self.extra_dim].data[coordinates_index]
-        )
+        data = self.dataset[self.data_key]
+        if self.extra_dim is not None:
+            data = [self.extra_dim]
+        data = data.transpose(*self.dataset.dims)
+        return self.create_output_array(coordinates, data.data[coordinates_index])
 
     @property
-    def keys(self):
-        """The list of available keys from the xarray dataset. Any of these keys can be set as self.data_key."""
+    def dims(self):
+        """dataset coordinate dims"""
+        lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
+        for dim in self.dataset.dims:
+            if dim not in lookup:
+                raise ValueError(
+                    "Unexpected dimension '%s' in xarray dataset (source '%s'). "
+                    "Use 'lat_key', 'lon_key', 'time_key' and 'alt_key' to select dataset dimensions"
+                    % (dim, self.source)
+                )
+
+        return [lookup[dim] for dim in self.dataset.dims]
+
+    @property
+    def available_keys(self):
+        """available data keys"""
         return list(self.dataset.keys())
 
 
@@ -215,8 +241,6 @@ class CSV(DatasetSource):
         Raw Pandas DataFrame used to read the data
     native_coordinates : Coordinates
         {native_coordinates}
-    dims : list
-        list of coordinate dimension names
     data_key : str, int
         data column number or column title, default 'data'
     lat_key : str, int
@@ -232,8 +256,6 @@ class CSV(DatasetSource):
     """
 
     dataset = tl.Instance(pd.DataFrame).tag(readonly=True)
-
-    # node attrs
     data_key = tl.Union([tl.Unicode(), tl.Int()], default_value="data").tag(attr=True)
     lat_key = tl.Union([tl.Unicode(), tl.Int()], default_value="lat").tag(attr=True)
     lon_key = tl.Union([tl.Unicode(), tl.Int()], default_value="lon").tag(attr=True)
@@ -243,10 +265,6 @@ class CSV(DatasetSource):
     @tl.default("dataset")
     def _open_dataset(self):
         return pd.read_csv(self.source, parse_dates=True, infer_datetime_format=True)
-
-    @tl.default("dims")
-    def _read_dims(self):
-        return [key for key in self.dataset.columns if key in ["lat", "lon", "alt", "time"]]
 
     def _get_key(self, key):
         return self.dataset.columns[key] if isinstance(key, int) else key
@@ -287,6 +305,22 @@ class CSV(DatasetSource):
         """
         data = self.dataset.iloc[coordinates_index[0], self._get_col(self.data_key)]
         return self.create_output_array(coordinates, data=data)
+
+    @property
+    def dims(self):
+        """dataset coordinate dims"""
+        lookup = {
+            self._get_key(self.lat_key): "lat",
+            self._get_key(self.lon_key): "lon",
+            self._get_key(self.alt_key): "alt",
+            self._get_key(self.time_key): "time",
+        }
+        return [lookup[key] for key in self.dataset.columns if key in lookup]
+
+    @property
+    def available_keys(self):
+        """available data keys"""
+        return [key for key in self.dataset.columns]
 
 
 @common_doc(COMMON_DATA_DOC)
@@ -344,14 +378,20 @@ class H5PY(DecodeCFMixin, DatasetSource):
         data.data.ravel()[:] = a.ravel()
         return data
 
-    @property
-    def keys(self):
-        return H5PY._find_h5py_keys(self.dataset)
-
     def attrs(self, key="/"):
         """Dataset or group key for which attributes will be summarized.
         """
         return dict(self.dataset[key].attrs)
+
+    @property
+    def dims(self):
+        lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
+        return [lookup[key] for key in H5PY._find_h5py_keys(self.dataset) if key in lookup]
+
+    @property
+    def available_keys(self):
+        dims_keys = [self.lat_key, self.lon_key, self.alt_key, self.time_key]
+        return [key for key in H5PY._find_h5py_keys(self.dataset) if key not in dims_keys]
 
     @staticmethod
     def _find_h5py_keys(obj, keys=[]):
@@ -445,6 +485,18 @@ class Zarr(DecodeCFMixin, DatasetSource):
         a = self.dataset[self.data_key][coordinates_index]
         data.data.ravel()[:] = a.ravel()
         return data
+
+    @property
+    def dims(self):
+        """dataset coordinate dims"""
+        lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
+        return [lookup[key] for key in self.dataset if key in lookup]
+
+    @property
+    def available_keys(self):
+        """available data keys"""
+        dim_keys = [self.lat_key, self.lon_key, self.alt_key, self.time_key]
+        return [key for key in self.dataset if key not in dim_keys]
 
 
 # TODO
