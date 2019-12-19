@@ -55,10 +55,39 @@ class TestDataset(object):
         np.testing.assert_array_equal(out, self.other)
         node.close_dataset()
 
-        # default data key
+    def test_get_data_multilpe(self):
+        node = Dataset(source=self.source, time_key="day", output_keys=["data", "other"])
+        out = node.eval(node.native_coordinates)
+        assert out.dims == ("time", "lat", "lon", "output")
+        np.testing.assert_array_equal(out["output"], ["data", "other"])
+        np.testing.assert_array_equal(out.sel(output="data"), self.data)
+        np.testing.assert_array_equal(out.sel(output="other"), self.other)
+        node.close_dataset()
+
+        # single
+        node = Dataset(source=self.source, time_key="day", output_keys=["other"])
+        out = node.eval(node.native_coordinates)
+        assert out.dims == ("time", "lat", "lon", "output")
+        np.testing.assert_array_equal(out["output"], ["other"])
+        np.testing.assert_array_equal(out.sel(output="other"), self.other)
+        node.close_dataset()
+
+        # alternate output names
+        node = Dataset(source=self.source, time_key="day", output_keys=["data", "other"], outputs=["a", "b"])
+        out = node.eval(node.native_coordinates)
+        assert out.dims == ("time", "lat", "lon", "output")
+        np.testing.assert_array_equal(out["output"], ["a", "b"])
+        np.testing.assert_array_equal(out.sel(output="a"), self.data)
+        np.testing.assert_array_equal(out.sel(output="b"), self.other)
+        node.close_dataset()
+
+        # default
         node = Dataset(source=self.source, time_key="day")
         out = node.eval(node.native_coordinates)
-        np.testing.assert_array_equal(out, self.data)
+        assert out.dims == ("time", "lat", "lon", "output")
+        np.testing.assert_array_equal(out["output"], ["data", "other"])
+        np.testing.assert_array_equal(out.sel(output="data"), self.data)
+        np.testing.assert_array_equal(out.sel(output="other"), self.other)
         node.close_dataset()
 
     def test_extra_dim(self):

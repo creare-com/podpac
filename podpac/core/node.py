@@ -112,7 +112,7 @@ class Node(tl.HasTraits):
     style = tl.Instance(Style)
 
     @tl.default("outputs")
-    def _outputs_default(self):
+    def _default_outputs(self):
         return None
 
     @tl.validate("output")

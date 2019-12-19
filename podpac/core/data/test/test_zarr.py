@@ -2,6 +2,7 @@ import os.path
 
 import zarr
 import pytest
+import numpy as np
 from traitlets import TraitError
 
 from podpac.core.coordinates import Coordinates
@@ -39,6 +40,39 @@ class TestZarr(object):
 
         b = Zarr(source=self.path, data_key="b")
         assert b.eval(coords)[0, 0] == 1.0
+
+    def test_eval_multiple(self):
+        coords = Coordinates([0, 10], dims=["lat", "lon"])
+
+        z = Zarr(source=self.path, output_keys=["a", "b"])
+        out = z.eval(coords)
+        assert out.dims == ("lat", "lon", "output")
+        np.testing.assert_array_equal(out["output"], ["a", "b"])
+        assert out.sel(output="a")[0, 0] == 0.0
+        assert out.sel(output="b")[0, 0] == 1.0
+
+        # single output key
+        z = Zarr(source=self.path, output_keys=["a"])
+        out = z.eval(coords)
+        assert out.dims == ("lat", "lon", "output")
+        np.testing.assert_array_equal(out["output"], ["a"])
+        assert out.sel(output="a")[0, 0] == 0.0
+
+        # alternate output names
+        z = Zarr(source=self.path, output_keys=["a", "b"], outputs=["A", "B"])
+        out = z.eval(coords)
+        assert out.dims == ("lat", "lon", "output")
+        np.testing.assert_array_equal(out["output"], ["A", "B"])
+        assert out.sel(output="A")[0, 0] == 0.0
+        assert out.sel(output="B")[0, 0] == 1.0
+
+        # default
+        z = Zarr(source=self.path)
+        out = z.eval(coords)
+        assert out.dims == ("lat", "lon", "output")
+        np.testing.assert_array_equal(out["output"], ["a", "b"])
+        assert out.sel(output="a")[0, 0] == 0.0
+        assert out.sel(output="b")[0, 0] == 1.0
 
     @pytest.mark.aws
     def test_s3(self):

@@ -48,8 +48,6 @@ class DatasetSource(DataSource):
         Dataset object.
     native_coordinates : Coordinates
         {native_coordinates}
-    data_key : str
-        data key, default 'data'
     lat_key : str
         latitude key, default 'lat'
     lon_key : str
@@ -58,27 +56,70 @@ class DatasetSource(DataSource):
         time key, default 'time'
     alt_key : str
         altitude key, default 'alt'
+    data_key : str
+        data key
+    output_keys : list
+        list of data keys, for multiple-output nodes
     crs : str
         Coordinate reference system of the coordinates.
     """
 
     source = tl.Unicode(default_value=None, allow_none=True).tag(readonly=True)
-    dataset = tl.Any().tag(readonly=True)
-    data_key = tl.Unicode(default_value="data").tag(attr=True)
+    data_key = tl.Unicode(allow_none=True).tag(attr=True)
+    output_keys = tl.List(allow_none=True).tag(attr=True)
     lat_key = tl.Unicode(allow_none=True, default_value="lat").tag(attr=True)
     lon_key = tl.Unicode(allow_none=True, default_value="lon").tag(attr=True)
     time_key = tl.Unicode(allow_none=True, default_value="time").tag(attr=True)
     alt_key = tl.Unicode(allow_none=True, default_value="alt").tag(attr=True)
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
 
+    dataset = tl.Any().tag(readonly=True)
+
+    @tl.default("data_key")
+    def _default_data_key(self):
+        return None
+
+    @tl.default("output_keys")
+    def _default_output_keys(self):
+        return None
+
+    @tl.validate("output")
+    def _validate_output(self, d):
+        return d["value"]
+
     def init(self):
         super(DatasetSource, self).init()
 
-        # force check that the dataset has been provided or can be loaded
+        # check the dataset and dims
         self.dataset
-
-        # force check dims
         self.dims
+
+        # validation and defaults for data_key, output_keys, outputs, and output
+        if self.data_key is not None and self.output_keys is not None:
+            raise TypeError("%s cannot have both 'data_key' or 'output_keys' defined" % self.__class__.__name__)
+
+        if self.data_key is None and self.output_keys is None:
+            available_keys = self.available_keys
+            if len(available_keys) == 1:
+                self.set_trait("data_key", available_keys[0])
+            else:
+                self.set_trait("output_keys", available_keys)
+
+        if self.outputs is not None:
+            if self.data_key is not None:
+                raise TypeError("outputs must be None for single-output nodes")
+            if len(self.outputs) != len(self.output_keys):
+                raise ValueError(
+                    "outputs and output_keys size mismatch (%d != %d)" % (len(self.outputs), len(self.output_keys))
+                )
+        else:
+            self.set_trait("outputs", self.output_keys)
+
+        if self.output is not None:
+            if self.outputs is None:
+                raise TypeError("Invalid output '%s' (output must be None for single-output nodes)." % self.output)
+            if self.output not in self.outputs:
+                raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -198,10 +239,13 @@ class Dataset(DatasetSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.dataset[self.data_key]
-        if self.extra_dim is not None:
-            data = [self.extra_dim]
-        data = data.transpose(*self.dataset.dims)
+        if self.data_key is not None:
+            data = self.dataset[self.data_key]
+            data = data.transpose(*self.dataset.dims)
+        else:
+            data = self.dataset[self.output_keys].to_array(dim="output")
+            tdims = tuple(self.dataset.dims) + ("output",)
+            data = data.transpose(*tdims)
         return self.create_output_array(coordinates, data.data[coordinates_index])
 
     @property
@@ -237,6 +281,8 @@ class CSV(DatasetSource):
     ----------
     source : str
         Path to the csv file
+    header : int, None
+        Row number containing the column names, default 0. Use None for no header.
     dataset : pd.DataFrame
         Raw Pandas DataFrame used to read the data
     native_coordinates : Coordinates
@@ -255,16 +301,21 @@ class CSV(DatasetSource):
         Coordinate reference system of the coordinates
     """
 
-    dataset = tl.Instance(pd.DataFrame).tag(readonly=True)
-    data_key = tl.Union([tl.Unicode(), tl.Int()], default_value="data").tag(attr=True)
+    header = tl.Any(default_value=0).tag(attr=True)
     lat_key = tl.Union([tl.Unicode(), tl.Int()], default_value="lat").tag(attr=True)
     lon_key = tl.Union([tl.Unicode(), tl.Int()], default_value="lon").tag(attr=True)
     time_key = tl.Union([tl.Unicode(), tl.Int()], default_value="time").tag(attr=True)
     alt_key = tl.Union([tl.Unicode(), tl.Int()], default_value="alt").tag(attr=True)
+    data_key = tl.Union([tl.Unicode(), tl.Int()], allow_none=True, default_value=None).tag(attr=True)
+    output_keys = tl.Union([tl.List(tl.Unicode()), tl.List(tl.Int())], allow_none=True, default_value=None).tag(
+        attr=True
+    )
+
+    dataset = tl.Instance(pd.DataFrame).tag(readonly=True)
 
     @tl.default("dataset")
     def _open_dataset(self):
-        return pd.read_csv(self.source, parse_dates=True, infer_datetime_format=True)
+        return pd.read_csv(self.source, parse_dates=True, infer_datetime_format=True, header=self.header)
 
     def _get_key(self, key):
         return self.dataset.columns[key] if isinstance(key, int) else key
@@ -303,7 +354,11 @@ class CSV(DatasetSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.dataset.iloc[coordinates_index[0], self._get_col(self.data_key)]
+        if self.data_key is not None:
+            I = self._get_col(self.data_key)
+        else:
+            I = [self._get_col(key) for key in self.output_keys]
+        data = self.dataset.iloc[coordinates_index[0], I]
         return self.create_output_array(coordinates, data=data)
 
     @property
@@ -320,7 +375,8 @@ class CSV(DatasetSource):
     @property
     def available_keys(self):
         """available data keys"""
-        return [key for key in self.dataset.columns]
+        dims_keys = [self.lat_key, self.lon_key, self.alt_key, self.time_key]
+        return [key for key in self.dataset.columns if key not in dims_keys]
 
 
 @common_doc(COMMON_DATA_DOC)
@@ -374,8 +430,11 @@ class H5PY(DecodeCFMixin, DatasetSource):
         """{get_data}
         """
         data = self.create_output_array(coordinates)
-        a = self.dataset[self.data_key][coordinates_index]
-        data.data.ravel()[:] = a.ravel()
+        if self.data_key is not None:
+            data[:] = self.dataset[self.data_key][coordinates_index]
+        else:
+            for key, name in zip(self.output_keys, self.outputs):
+                data.sel(output=name)[:] = self.dataset[key][coordinates_index]
         return data
 
     def attrs(self, key="/"):
@@ -482,8 +541,11 @@ class Zarr(DecodeCFMixin, DatasetSource):
         """{get_data}
         """
         data = self.create_output_array(coordinates)
-        a = self.dataset[self.data_key][coordinates_index]
-        data.data.ravel()[:] = a.ravel()
+        if self.data_key is not None:
+            data[:] = self.dataset[self.data_key][coordinates_index]
+        else:
+            for key, name in zip(self.output_keys, self.outputs):
+                data.sel(output=name)[:] = self.dataset[key][coordinates_index]
         return data
 
     @property
