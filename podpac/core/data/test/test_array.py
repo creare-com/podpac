@@ -37,6 +37,22 @@ class TestArray(object):
         assert output.values[0, 0] == source[0, 0]
         assert output.values[4, 5] == source[4, 5]
 
+    def test_get_data_multiple(self):
+        data = np.random.rand(11, 11, 2)
+        node = Array(source=data, native_coordinates=self.coordinates, outputs=["a", "b"])
+        output = node.eval(self.coordinates)
+        assert isinstance(output, UnitsDataArray)
+        assert output.dims == ("lat", "lon", "output")
+        np.testing.assert_array_equal(output["output"], ["a", "b"])
+        np.testing.assert_array_equal(output.sel(output="a"), data[:, :, 0])
+        np.testing.assert_array_equal(output.sel(output="b"), data[:, :, 1])
+
+        node = Array(source=data, native_coordinates=self.coordinates, outputs=["a", "b"], output="b")
+        output = node.eval(self.coordinates)
+        assert isinstance(output, UnitsDataArray)
+        assert output.dims == ("lat", "lon")
+        np.testing.assert_array_equal(output, data[:, :, 1])
+
     def test_native_coordinates(self):
         """test that native coordinates get defined"""
 
