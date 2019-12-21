@@ -468,7 +468,7 @@ class DataSource(Node):
     @property
     @common_doc(COMMON_DATA_DOC)
     def base_definition(self):
-        """Base node defintion for DataSource nodes.
+        """Base node definition for DataSource nodes.
         
         Returns
         -------
@@ -477,13 +477,16 @@ class DataSource(Node):
 
         d = super(DataSource, self).base_definition
 
-        if "attrs" in d:
-            if "source" in d["attrs"]:
-                raise NodeException("The 'source' property cannot be tagged as an 'attr'")
+        # check attrs and remove unnecesary attrs
+        attrs = d.get("attrs", {})
+        if "source" in attrs:
+            raise NodeException("The 'source' property cannot be tagged as an 'attr'")
+        if "interpolation" in attrs:
+            raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
+        if not self.nan_vals and "nan_vals" in attrs:
+            del attrs["nan_vals"]
 
-            if "interpolation" in d["attrs"]:
-                raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
-
+        # set source or lookup_source
         if isinstance(self.source, Node):
             d["lookup_source"] = self.source
         elif isinstance(self.source, np.ndarray):

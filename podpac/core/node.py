@@ -334,6 +334,12 @@ class Node(tl.HasTraits):
                 attrs[key] = attr
 
         if attrs:
+            # remove unnecessary attrs
+            if self.outputs is None and "outputs" in attrs:
+                del attrs["outputs"]
+            if self.output is None and "output" in attrs:
+                del attrs["output"]
+
             d["attrs"] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
 
         if lookup_attrs:

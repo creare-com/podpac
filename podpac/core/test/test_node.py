@@ -505,6 +505,25 @@ class TestSerialization(object):
         assert "my_node_attr" in d["lookup_attrs"]
         assert d["lookup_attrs"]["my_node_attr"] is a
 
+    def test_base_definition_multiple_outputs(self):
+        n = Node()
+        d = n.base_definition
+        if "attrs" in d:
+            assert "outputs" not in d["attrs"]
+            assert "output" not in d["attrs"]
+
+        n = Node(outputs=["a", "b"])
+        d = n.base_definition
+        assert "attrs" in d
+        assert "outputs" in d["attrs"]
+        assert "output" not in d["attrs"]
+
+        n = Node(outputs=["a", "b"], output="b")
+        d = n.base_definition
+        assert "attrs" in d
+        assert "outputs" in d["attrs"]
+        assert "output" in d["attrs"]
+
     def test_base_definition_units(self):
         n = Node(units="meters")
 

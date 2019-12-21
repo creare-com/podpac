@@ -130,19 +130,61 @@ class TestDataSource(object):
 
         node = DataSource(source="test")
         d = node.base_definition
-
         assert d
         assert "node" in d
         assert "source" in d
+        assert "lookup_source" not in d
         assert "interpolation" in d
         assert d["source"] == node.source
+        if "attrs" in d:
+            assert "nan_vals" not in d["attrs"]
 
-        class MyDataSource(DataSource):
+        # keep nan_vals
+        node = DataSource(source="test", nan_vals=[-999])
+        d = node.base_definition
+        assert "attrs" in d
+        assert "nan_vals" in d["attrs"]
+
+        # array source
+        node2 = DataSource(source=np.array([1, 2, 3]))
+        d = node2.base_definition
+        assert "source" in d
+        assert isinstance(d["source"], list)
+        assert d["source"] == [1, 2, 3]
+
+        # lookup source
+        node3 = DataSource(source=node)
+        d = node3.base_definition
+        assert "source" not in d
+        assert "lookup_source" in d
+
+        # cannot tag source or interpolation as attr
+        class MyDataSource1(DataSource):
             source = tl.Unicode().tag(attr=True)
 
-        node = MyDataSource(source="test")
+        node = MyDataSource1(source="test")
         with pytest.raises(NodeException, match="The 'source' property cannot be tagged as an 'attr'"):
             node.base_definition
+
+        class MyDataSource2(DataSource):
+            interpolation = tl.Unicode().tag(attr=True)
+
+        node = MyDataSource2(source="test")
+        with pytest.raises(NodeException, match="The 'interpolation' property cannot be tagged as an 'attr'"):
+            node.base_definition
+
+    def test_repr(self):
+        node = DataSource(source="test", native_coordinates=Coordinates([0, 1], dims=["lat", "lon"]))
+        repr(node)
+
+        node = DataSource(source="test", native_coordinates=Coordinates([[0, 1]], dims=["lat_lon"]))
+        repr(node)
+
+        class MyDataSource(DataSource):
+            pass
+
+        node = MyDataSource(source="test")
+        repr(node)
 
     def test_interpolation_class(self):
         node = DataSource(source="test", interpolation="max")

@@ -62,6 +62,12 @@ class DatasetSource(DataSource):
         list of data keys, for multiple-output nodes
     crs : str
         Coordinate reference system of the coordinates.
+    cf_time : bool
+        decode CF datetimes
+    cf_units : str
+        units, when decoding CF datetimes
+    cf_calendar : str
+        calendar, when decoding CF datetimes
     """
 
     source = tl.Unicode(default_value=None, allow_none=True).tag(readonly=True)
@@ -72,6 +78,9 @@ class DatasetSource(DataSource):
     time_key = tl.Unicode(allow_none=True, default_value="time").tag(attr=True)
     alt_key = tl.Unicode(allow_none=True, default_value="alt").tag(attr=True)
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    cf_time = tl.Bool(False).tag(attr=True)
+    cf_units = tl.Unicode(allow_none=True).tag(attr=True)
+    cf_calendar = tl.Unicode(allow_none=True).tag(attr=True)
 
     dataset = tl.Any().tag(readonly=True)
 
@@ -148,8 +157,11 @@ class DatasetSource(DataSource):
         return self.dataset[self.lon_key]
 
     def get_time(self):
-        """Get the native time coordinates from the dataset."""
-        return self.dataset[self.time_key]
+        """Get the native time coordinates from the dataset, decoding datetimes if requested."""
+        values = self.dataset[self.time_key]
+        if self.cf_time:
+            values = xr.coding.times.decode_cf_datetime(values, self.cf_units, self.cf_calendar)
+        return values
 
     def get_alt(self):
         """Get the native altitude coordinates from the dataset."""
@@ -167,31 +179,45 @@ class DatasetSource(DataSource):
     def available_keys(self):
         raise NotImplementedError
 
+    @property
+    @common_doc(COMMON_DATA_DOC)
+    def base_definition(self):
+        """Base node definition for DatasetSource nodes.
+        
+        Returns
+        -------
+        {definition_return}
+        """
 
-class DecodeCFMixin(object):
-    """ Add optional CF datetime decoding.
+        d = super(DatasetSource, self).base_definition
 
-    Attributes
-    ----------
-    cf_time : bool
-        decode CF datetimes
-    cf_units : str
-        units, when decoding CF datetimes
-    cf_calendar : str
-        calendar, when decoding CF datetimes
+        # remove unnecessary attrs
+        attrs = d.get("attrs", {})
+        if self.data_key is None and "data_key" in attrs:
+            del attrs["data_key"]
+        if self.output_keys is None and "output_keys" in attrs:
+            del attrs["output_keys"]
+        if self.crs is None and "crs" in attrs:
+            del attrs["crs"]
+        if self.outputs == self.output_keys and "outputs" in attrs:
+            del attrs["outputs"]
+        if "lat" not in self.dims and "lat_key" in attrs:
+            del attrs["lat_key"]
+        if "lon" not in self.dims and "lon_key" in attrs:
+            del attrs["lon_key"]
+        if "alt" not in self.dims and "alt_key" in attrs:
+            del attrs["alt_key"]
+        if "time" not in self.dims and "time_key" in attrs:
+            del attrs["time_key"]
+        if self.cf_time is False:
+            if "cf_time" in attrs:
+                del attrs["cf_time"]
+            if "cf_units" in attrs:
+                del attrs["cf_units"]
+            if "cf_calendar" in attrs:
+                del attrs["cf_calendar"]
 
-    """
-
-    cf_time = tl.Bool(False).tag(attr=True)
-    cf_units = tl.Unicode(allow_none=True).tag(attr=True)
-    cf_calendar = tl.Unicode(allow_none=True).tag(attr=True)
-
-    def get_time(self):
-        """Get the native time coordinates from the dataset, decoding datetimes if requested."""
-        values = self.dataset[self.time_key]
-        if self.cf_time:
-            values = xr.coding.times.decode_cf_datetime(values, self.cf_units, self.cf_calendar)
-        return values
+        return d
 
 
 @common_doc(COMMON_DATA_DOC)
@@ -266,6 +292,25 @@ class Dataset(DatasetSource):
     def available_keys(self):
         """available data keys"""
         return list(self.dataset.keys())
+
+    @property
+    @common_doc(COMMON_DATA_DOC)
+    def base_definition(self):
+        """Base node definition for DatasetSource nodes.
+        
+        Returns
+        -------
+        {definition_return}
+        """
+
+        d = super(Dataset, self).base_definition
+
+        # remove unnecessary attrs
+        attrs = d.get("attrs", {})
+        if self.extra_dim is None and "extra_dim" in attrs:
+            del attrs["extra_dim"]
+
+        return d
 
 
 @common_doc(COMMON_DATA_DOC)
@@ -378,9 +423,28 @@ class CSV(DatasetSource):
         dims_keys = [self.lat_key, self.lon_key, self.alt_key, self.time_key]
         return [key for key in self.dataset.columns if key not in dims_keys]
 
+    @property
+    @common_doc(COMMON_DATA_DOC)
+    def base_definition(self):
+        """Base node definition for DatasetSource nodes.
+        
+        Returns
+        -------
+        {definition_return}
+        """
+
+        d = super(CSV, self).base_definition
+
+        # remove unnecessary attrs
+        attrs = d.get("attrs", {})
+        if self.header == 0 and "header" in attrs:
+            del attrs["header"]
+
+        return d
+
 
 @common_doc(COMMON_DATA_DOC)
-class H5PY(DecodeCFMixin, DatasetSource):
+class H5PY(DatasetSource):
     """Create a DataSource node using h5py.
     
     Attributes
@@ -465,7 +529,7 @@ class H5PY(DecodeCFMixin, DatasetSource):
         return keys
 
 
-class Zarr(DecodeCFMixin, DatasetSource):
+class Zarr(DatasetSource):
     """Create a DataSource node using zarr.
     
     Attributes

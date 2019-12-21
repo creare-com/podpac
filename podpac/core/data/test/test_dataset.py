@@ -93,3 +93,18 @@ class TestDataset(object):
     def test_extra_dim(self):
         # TODO
         pass
+
+    def test_base_definition(self):
+        node = Dataset(source=self.source, time_key="day")
+        d = node.base_definition
+        if "attrs" in d:
+            assert "extra_dim" not in d["attrs"]
+        node.close_dataset()
+
+        node = Dataset(
+            source=self.source, time_key="day", extra_dim={"channel": 1}
+        )  # TODO actually use source with extra_dim
+        d = node.base_definition
+        assert "attrs" in d
+        assert "extra_dim" in d["attrs"]
+        node.close_dataset()
