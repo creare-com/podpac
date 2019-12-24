@@ -404,70 +404,45 @@ class TestCoordinateCreation(object):
         # default
         c = Coordinates([lat, lon])
         assert c.crs == podpac.settings["DEFAULT_CRS"]
-        assert c.alt_units is None
         assert set(c.properties.keys()) == {"crs"}
 
         # crs
         c = Coordinates([lat, lon], crs="EPSG:2193")
         assert c.crs == "EPSG:2193"
-        assert c.alt_units is None
         assert set(c.properties.keys()) == {"crs"}
 
         # proj4
         c = Coordinates([lat, lon], crs="EPSG:2193")
         assert c.crs == "EPSG:2193"
-        assert c.alt_units is None
         assert set(c.properties.keys()) == {"crs"}
 
         c = Coordinates([lat, lon], crs="+proj=merc +lat_ts=56.5 +ellps=GRS80")
         assert c.crs == "+proj=merc +lat_ts=56.5 +ellps=GRS80"
-        assert c.alt_units is None
         assert set(c.properties.keys()) == {"crs"}
 
         # with vunits
         c = Coordinates([lat, lon], crs="+proj=merc +lat_ts=56.5 +ellps=GRS80 +vunits=ft")
         assert c.crs == "+proj=merc +lat_ts=56.5 +ellps=GRS80 +vunits=ft"
-        assert c.alt_units == "ft"
-        assert set(c.properties.keys()) == {"crs"}  # no alt_units, it is in the crs
+        assert set(c.properties.keys()) == {"crs"}
 
         # invalid
         with pytest.raises(pyproj.crs.CRSError):
             Coordinates([lat, lon], crs="abcd")
 
-    def test_alt_units(self):
+    def test_crs_with_vertical_units(self):
 
         alt = ArrayCoordinates1d([0, 1, 2], name="alt")
 
-        # None
-        c = Coordinates([alt])
-        assert c.alt_units is None
+        c = Coordinates([alt], crs="+proj=merc +vunits=m")
         assert set(c.properties.keys()) == {"crs"}
 
-        c.set_trait("alt_units", None)
-
-        # proj4
-        c = Coordinates([alt], crs="EPSG:2193", alt_units="ft")
-        assert c.alt_units == "ft"
-        assert set(c.properties.keys()) == {"crs", "alt_units"}
-
         # with crs
-        c = Coordinates([alt], crs="EPSG:2193", alt_units="ft")
-        assert c.crs == "EPSG:2193"
-        assert c.alt_units == "ft"
-        assert set(c.properties.keys()) == {"crs", "alt_units"}
+        ct = c.transform("+proj=merc +vunits=ft")
+        assert round(ct["alt"].coordinates[-1]) == 7.0  # transformed to feet
 
         # invalid
-        with pytest.raises(ValueError, match="Invalid alt_units"):
-            Coordinates([alt], alt_units="feet")
-
-        # crs mismatch
-        with pytest.raises(ValueError, match="crs and alt_units mismatch"):
-            Coordinates([alt], crs="+proj=merc +vunits=ft", alt_units="m")
-
-        # ignore
-        with pytest.warns(UserWarning, match="alt_units ignored"):
-            c = Coordinates([alt], crs="EPSG:4326", alt_units="ft")
-        assert c.alt_units is None
+        with pytest.raises(ValueError):
+            Coordinates([alt], crs="EPSG:2193")
 
     def test_ctype(self):
         # assign
@@ -521,13 +496,12 @@ class TestCoordinatesSerialization(object):
         lon = ArrayCoordinates1d([0, 1, 2], "lon")
 
         # default
-        c = Coordinates([lat, lon], crs="EPSG:2193", alt_units="ft")
+        c = Coordinates([lat, lon], crs="EPSG:2193")
         d = c.definition
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
         c2 = Coordinates.from_definition(d)
         assert c2 == c
         assert c2.crs == "EPSG:2193"
-        assert c2.alt_units == "ft"
 
     def test_from_definition(self):
         d = {
@@ -1214,28 +1188,8 @@ class TestCoordinatesMethods(object):
         assert round(c1_trans["alt"].coordinates[1]) == 656.0
         assert c1_trans.crs == proj
 
-        # make sure vunits can be overwritten appropriately
-        c2_trans = c1_trans.transform("EPSG:2193", alt_units="m")
-        assert round(c2_trans["alt"].coordinates[0]) == 100.0
-        assert c2_trans.alt_units == "m"
-
-        # alt_units parameter
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            c_trans = c.transform("EPSG:2193", alt_units="us-ft")
-        assert round(c_trans["alt"].coordinates[1]) == 3.0
-        assert round(c_trans["alt"].coordinates[2]) == 7.0
-        assert c_trans.crs == "EPSG:2193"
-        assert c_trans.alt_units == "us-ft"
-
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            c_trans = c.transform("EPSG:2193", alt_units="km")
-        assert c_trans["alt"].coordinates[1] == 0.001
-        assert c_trans["alt"].coordinates[2] == 0.002
-        assert c_trans.crs == "EPSG:2193"
-        assert c_trans.alt_units == "km"
-
         # no parameter
-        with pytest.raises(TypeError, match="transform requires crs and/or alt_units argument"):
+        with pytest.raises(TypeError, match="transform requires crs argument"):
             c.transform()
 
     def test_select_single(self):
@@ -1519,56 +1473,6 @@ class TestCoordinatesSpecial(object):
         # hash
         assert c1.hash != c2.hash
         assert c2.hash == deepcopy(c2).hash
-
-    def test_eq_ne_hash_alt_units(self):
-        lat = [0, 1, 2]
-        lon = [10, 20, 30]
-        c1 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193")
-        c2 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193", alt_units="ft")
-        c3 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193", alt_units="m")
-
-        # eq
-        assert not c1 == c2
-        assert not c1 == c3
-        assert not c2 == c3
-
-        assert c1 == deepcopy(c1)
-        assert c2 == deepcopy(c2)
-        assert c3 == deepcopy(c3)
-
-        # ne (this only matters in python 2)
-        assert c1 != c2
-        assert c1 != c3
-        assert c2 != c3
-
-        assert not c1 != deepcopy(c1)
-        assert not c2 != deepcopy(c2)
-        assert not c3 != deepcopy(c3)
-
-        # hash
-        assert c1.hash != c2.hash
-        assert c1.hash != c3.hash
-        assert c2.hash != c3.hash
-
-        assert c1.hash == deepcopy(c1).hash
-        assert c2.hash == deepcopy(c2).hash
-        assert c3.hash == deepcopy(c3).hash
-
-    def test_eq_ne_hash_crs_alt_units(self):
-        lat = [0, 1, 2]
-        lon = [10, 20, 30]
-
-        # special case, these should be the same
-        c1 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193", alt_units="ft")
-        c2 = Coordinates(
-            [lat, lon],
-            dims=["lat", "lon"],
-            crs=("+proj=tmerc +vunits=ft +ellps=GRS80 +lon_0=173 +k=0.9996" " +x_0=1600000 +y_0=10000000"),
-        )
-
-        assert c1 == c2
-        assert not c1 != c2
-        assert c1.hash == c2.hash
 
 
 class TestCoordinatesFunctions(object):
