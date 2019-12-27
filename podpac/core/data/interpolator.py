@@ -298,7 +298,7 @@ class Interpolator(tl.HasTraits):
 
                 # TODO: handle this using presecribed interpolation method instead of "nearest"
                 if not i.isin(source_data.coords[dim]):
-                    if self.method is not "nearest":
+                    if self.method != "nearest":
                         _log.warning(
                             "Interpolation method {} is not supported yet in this context. Using 'nearest' for {}".format(
                                 self.method, dim

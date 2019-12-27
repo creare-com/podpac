@@ -201,7 +201,7 @@ class Reduce(Algorithm):
             source_output = self.source.eval(coordinates)
             result = self.reduce(source_output)
 
-        if output.shape is ():
+        if output.shape == ():
             output.data = result
         else:
             output[:] = result
@@ -946,7 +946,7 @@ class GroupReduce(Algorithm):
         grouped = source_output.groupby("time.%s" % self.groupby)
 
         # reduce
-        if self.reduce_fn is "custom":
+        if self.reduce_fn == "custom":
             out = grouped.apply(self.custom_reduce_fn, "time")
         else:
             # standard, e.g. grouped.median('time')

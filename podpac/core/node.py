@@ -321,7 +321,7 @@ class Node(tl.HasTraits):
 
             attr = getattr(self, key)
 
-            if key is "units" and attr is None:
+            if key == "units" and attr is None:
                 continue
 
             # check serializable

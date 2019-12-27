@@ -400,7 +400,7 @@ class Coordinates1d(BaseCoordinates):
 
             # segment lengths
             properties = self.properties
-            if self.ctype is not "point" and "segment_lengths" in self.properties:
+            if self.ctype != "point" and "segment_lengths" in self.properties:
                 _ = np.zeros_like(self.segment_lengths)
                 _, _, tsl = transformer.transform(_, _, self.segment_lengths)
                 properties["segment_lengths"] = tsl
