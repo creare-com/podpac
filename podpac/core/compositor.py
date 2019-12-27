@@ -5,20 +5,18 @@ Compositor Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import copy
+
 import numpy as np
 import traitlets as tl
 
 # Internal imports
 from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, merge_dims
-from podpac.core.node import Node
-from podpac.core.utils import common_doc
-from podpac.core.utils import ArrayTrait
-from podpac.core.node import COMMON_NODE_DOC
-from podpac.core.node import node_eval
+from podpac.core.utils import common_doc, ArrayTrait, trait_is_defined
+from podpac.core.node import COMMON_NODE_DOC, node_eval, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.interpolation import interpolation_trait
-from podpac.core.utils import trait_is_defined
 from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
@@ -53,7 +51,10 @@ class Compositor(Node):
     source_coordinates : :class:`podpac.Coordinates`, optional
         Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the
         user-requested coordinates. It is an optimization.
-    
+    strict_source_outputs : bool
+        Default is False. When compositing multi-output sources, combine the outputs from all sources. If True, do not
+        allow sources with different outputs (an exception will be raised if the sources contain different outputs).
+
     Notes
     -----
     Developers of new Compositor nodes need to implement the `composite` method.
@@ -81,19 +82,50 @@ class Compositor(Node):
     source = tl.Unicode().tag(attr=True)
     sources = ArrayTrait(ndim=1)
     cache_native_coordinates = tl.Bool(True)
-
     interpolation = interpolation_trait(default_value=None)
+    strict_source_outputs = tl.Bool(False)
 
-    @tl.default("source")
+    tl.default("source")
+
     def _source_default(self):
-        source = []
-        for s in self.sources[:3]:
-            source.append(str(s))
-        return "_".join(source)
+        return "_".join(str(source) for source in self.sources[:3])
 
     @tl.default("source_coordinates")
     def _source_coordinates_default(self):
         return self.get_source_coordinates()
+
+    @tl.validate("sources")
+    def _validate_sources(self, d):
+        self.outputs  # check for consistent outputs
+        return [copy.deepcopy(source) for source in d["value"]]
+
+    @tl.default("outputs")
+    def _default_outputs(self):
+        if all(source.outputs is None for source in self.sources):
+            return None
+
+        elif all(source.outputs is not None and source.output is None for source in self.sources):
+            if self.strict_source_outputs:
+                outputs = self.sources[0].outputs
+                if any(source.outputs != outputs for source in self.sources):
+                    raise ValueError(
+                        "Source outputs mismatch, and strict_source_outputs is True. "
+                        "The sources must all contain the same outputs if strict_source_outputs is True. "
+                    )
+                return outputs
+            else:
+                outputs = []
+                for source in self.sources:
+                    for output in source.outputs:
+                        if output not in outputs:
+                            outputs.append(output)
+                return outputs
+
+        else:
+            raise ValueError(
+                "Cannot composite standard sources with multi-output sources. "
+                "The sources must all be stardard single-output nodes or all multi-output nodes."
+            )
 
     # default representation
     def __repr__(self):
@@ -229,35 +261,22 @@ class Compositor(Node):
             n_threads = 0
 
         if settings["MULTITHREADING"] and n_threads > 1:
-            # TODO pool of pre-allocated scratch space
-            # TODO: docstring?
-            def f(src):
-                return src.eval(coordinates)
-
-            # Create pool of size n_threads, note, this may be created from a sub-thread (i.e. not the main thread)
-            pool = thread_manager.get_thread_pool(processes=n_threads)
-
-            # Evaluate nodes in parallel/asynchronously
-            results = [pool.apply_async(f, [src]) for src in src_subset]
-
-            # Yield results as they are being requested, blocking when the thread is not finished
-            for src, res in zip(src_subset, results):
-                yield res.get()
-                # src._output = None # free up memory
-
-            # This prevents any more tasks from being submitted to the pool, and will close the workers one done
-            pool.close()
-
-            # Release these number of threads back to the thread pool
-            thread_manager.release_n_threads(n_threads)
+            # evaluate nodes in parallel using thread pool
             self._multi_threaded = True
+            pool = thread_manager.get_thread_pool(processes=n_threads)
+            outputs = pool.map(lambda src: src.eval(coordinates), src_subset)
+            pool.close()
+            thread_manager.release_n_threads(n_threads)
+            for output in outputs:
+                yield output
+
         else:
-            output = None  # scratch space
+            # evaluate nodes serially
+            self._multi_threaded = False
+            output = None
             for src in src_subset:
                 output = src.eval(coordinates, output)
                 yield output
-                # output[:] = np.nan
-            self._multi_threaded = False
 
     @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
