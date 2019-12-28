@@ -394,6 +394,8 @@ class DataSource(Node):
             requested_dims = self._evaluated_coordinates.dims
             output_dims = output.dims
             o = output
+            if 'output' in output.dims:
+                requested_dims = requested_dims + ('output',)
             output = output.transpose(*requested_dims)
 
             # check crs compatibility

@@ -20,8 +20,9 @@ ARRAY_TIME = Array(source=TIME.astype(float), native_coordinates=COORDS, interpo
 
 MULTI_0_XY = Array(source=np.full(COORDS.shape + (2,), 0), native_coordinates=COORDS, outputs=["x", "y"])
 MULTI_1_XY = Array(source=np.full(COORDS.shape + (2,), 1), native_coordinates=COORDS, outputs=["x", "y"])
-MULTI_2_X = Array(source=np.full(COORDS.shape, 2), native_coordinates=COORDS, outputs=["x"])
-MULTI_3_Z = Array(source=np.full(COORDS.shape, 3), native_coordinates=COORDS, outputs=["z"])
+MULTI_4_YX = Array(source=np.full(COORDS.shape + (2,), 4), native_coordinates=COORDS, outputs=["y", "x"])
+MULTI_2_X = Array(source=np.full(COORDS.shape + (1,), 2), native_coordinates=COORDS, outputs=["x"])
+MULTI_3_Z = Array(source=np.full(COORDS.shape + (1,), 3), native_coordinates=COORDS, outputs=["z"])
 
 
 class TestCompositor(object):
@@ -149,7 +150,7 @@ class TestCompositor(object):
     def test_composite(self):
         node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         with pytest.raises(NotImplementedError):
-            node.composite(None)
+            node.composite(COORDS, iter(()))
 
     def test_eval(self):
         node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
@@ -157,7 +158,7 @@ class TestCompositor(object):
             node.eval(COORDS)
 
         class MockComposite(Compositor):
-            def composite(self, outputs, result=None):
+            def composite(self, coordinates, outputs, result=None):
                 return next(outputs)
 
         node = MockComposite(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
@@ -192,6 +193,9 @@ class TestCompositor(object):
         node = Compositor(sources=[MULTI_3_Z, MULTI_0_XY])
         assert node.outputs == ["z", "x", "y"]
 
+        node = Compositor(sources=[MULTI_0_XY, MULTI_4_YX])
+        assert node.outputs == ["x", "y"]
+
         # multi-output, with strict source outputs checking
         node = Compositor(sources=[MULTI_0_XY, MULTI_1_XY], strict_source_outputs=True)
         assert node.outputs == ["x", "y"]
@@ -201,6 +205,9 @@ class TestCompositor(object):
 
         with pytest.raises(ValueError, match="Source outputs mismatch"):
             node = Compositor(sources=[MULTI_0_XY, MULTI_3_Z], strict_source_outputs=True)
+
+        with pytest.raises(ValueError, match="Source outputs mismatch"):
+            node = Compositor(sources=[MULTI_0_XY, MULTI_4_YX], strict_source_outputs=True)
 
         # mixed
         with pytest.raises(ValueError, match="Cannot composite standard sources with multi-output sources."):
@@ -271,24 +278,13 @@ class TestOrderedCompositor(object):
             podpac.settings["DEBUG"] = True
 
             coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
-
-            # first short-circuit
             a = Array(source=np.ones(coords.shape), native_coordinates=coords)
             b = Array(source=np.zeros(coords.shape), native_coordinates=coords)
             node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
-            np.testing.assert_allclose(node.eval(coords), a.source, equal_nan=True)
+            output = node.eval(coords)
+            np.testing.assert_array_equal(output, a.source)
             assert node.sources[0]._output is not None
             assert node.sources[1]._output is None
-
-            # second short-circuit
-            a = Array(source=np.ones(coords.shape), native_coordinates=coords)
-            b = Array(source=np.zeros(coords.shape), native_coordinates=coords)
-            c = Array(source=np.full(coords.shape, np.nan), native_coordinates=coords)
-            node = OrderedCompositor(sources=[c, a, b], interpolation="bilinear")
-            np.testing.assert_allclose(node.eval(coords), a.source, equal_nan=True)
-            assert node.sources[0]._output is not None
-            assert node.sources[1]._output is not None
-            assert node.sources[2]._output is None
 
     def test_composite_short_circuit_multithreaded(self):
         with podpac.settings:
@@ -297,100 +293,74 @@ class TestOrderedCompositor(object):
             podpac.settings["DEBUG"] = True
 
             coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
-
-            # first short-circuit
             n_threads_before = podpac.core.managers.multi_threading.thread_manager._n_threads_used
             a = Array(source=np.ones(coords.shape), native_coordinates=coords)
             b = Array(source=np.zeros(coords.shape), native_coordinates=coords)
             node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
             output = node.eval(coords)
-            np.testing.assert_allclose(output, a.source, equal_nan=True)
+            np.testing.assert_array_equal(output, a.source)
             assert node._multi_threaded == True
             assert podpac.core.managers.multi_threading.thread_manager._n_threads_used == n_threads_before
 
-            # second short-circuit
-            n_threads_before = podpac.core.managers.multi_threading.thread_manager._n_threads_used
-            a = Array(source=np.ones(coords.shape), native_coordinates=coords)
-            b = Array(source=np.zeros(coords.shape), native_coordinates=coords)
-            c = Array(source=np.full(coords.shape, np.nan), native_coordinates=coords)
-            node = OrderedCompositor(sources=[c, a, b], interpolation="bilinear")
-            output = node.eval(coords)
-            np.testing.assert_allclose(output, a.source, equal_nan=True)
-            assert node._multi_threaded == True
-            assert podpac.core.managers.multi_threading.thread_manager._n_threads_used == n_threads_before
+    def test_composite_into_result(self):
+        coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
+        a = Array(source=np.ones(coords.shape), native_coordinates=coords)
+        b = Array(source=np.zeros(coords.shape), native_coordinates=coords)
+        node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
+        result = node.create_output_array(coords, data=np.random.random(coords.shape))
+        output = node.eval(coords, output=result)
+        np.testing.assert_array_equal(output, a.source)
+        np.testing.assert_array_equal(result, a.source)
 
+    def test_composite_multiple_outputs(self):
+        node = OrderedCompositor(sources=[MULTI_0_XY, MULTI_1_XY])
+        output = node.eval(COORDS)
+        assert output.dims == ('lat', 'lon', 'time', 'output')
+        np.testing.assert_array_equal(output['output'], ['x', 'y'])
+        np.testing.assert_array_equal(output.sel(output='x'), np.full(COORDS.shape, 0))
+        np.testing.assert_array_equal(output.sel(output='y'), np.full(COORDS.shape, 0))
 
-@pytest.mark.skip
-class TestOrderedCompositorOld(object):
-    # TODO Test None (basic cases) just to call unstable methods.
-    # These functions are volatile, and may be difficult to test until their
-    # spec is complete.
+        node = OrderedCompositor(sources=[MULTI_1_XY, MULTI_0_XY], strict_source_outputs=True)
+        output = node.eval(COORDS)
+        assert output.dims == ('lat', 'lon', 'time', 'output')
+        np.testing.assert_array_equal(output['output'], ['x', 'y'])
+        np.testing.assert_array_equal(output.sel(output='x'), np.full(COORDS.shape, 1))
+        np.testing.assert_array_equal(output.sel(output='y'), np.full(COORDS.shape, 1))
 
-    def test_compositor_implemented_functions(self):
-        acoords = podpac.Coordinates([podpac.clinspace(0, 1, 11), podpac.clinspace(0, 1, 11)], dims=["lat", "lon"])
-        bcoords = podpac.Coordinates([podpac.clinspace(2, 3, 10), podpac.clinspace(2, 3, 10)], dims=["lat", "lon"])
-        scoords = podpac.Coordinates([[(0.5, 2.5), (0.5, 2.5)]], dims=["lat_lon"])
+    def test_composite_combine_multiple_outputs(self):
+        node = OrderedCompositor(sources=[MULTI_0_XY, MULTI_1_XY, MULTI_2_X, MULTI_3_Z])
+        output = node.eval(COORDS)
+        assert output.dims == ('lat', 'lon', 'time', 'output')
+        np.testing.assert_array_equal(output['output'], ['x', 'y', 'z'])
+        np.testing.assert_array_equal(output.sel(output='x'), np.full(COORDS.shape, 0))
+        np.testing.assert_array_equal(output.sel(output='y'), np.full(COORDS.shape, 0))
+        np.testing.assert_array_equal(output.sel(output='z'), np.full(COORDS.shape, 3))
 
-        a = Array(source=np.random.random(acoords.shape), native_coordinates=acoords)
-        b = Array(source=-np.random.random(bcoords.shape), native_coordinates=bcoords)
-        node = OrderedCompositor(
-            sources=np.array([a, b]), cache_native_coordinates=True, source_coordinates=scoords, interpolation="nearest"
-        )
-        c = podpac.Coordinates([0.5, 0.5], dims=["lat", "lon"])
-        o = node.eval(c)
-        np.testing.assert_array_equal(o.data, a.source[5, 5])
+        node = OrderedCompositor(sources=[MULTI_3_Z, MULTI_2_X, MULTI_0_XY, MULTI_1_XY])
+        output = node.eval(COORDS)
+        assert output.dims == ('lat', 'lon', 'time', 'output')
+        np.testing.assert_array_equal(output['output'], ['z', 'x', 'y'])
+        np.testing.assert_array_equal(output.sel(output='x'), np.full(COORDS.shape, 2))
+        np.testing.assert_array_equal(output.sel(output='y'), np.full(COORDS.shape, 0))
+        np.testing.assert_array_equal(output.sel(output='z'), np.full(COORDS.shape, 3))
 
-    def test_ordered_compositor(self):
-        with podpac.settings:
-            # single thread
-            podpac.settings["MULTITHREADING"] = False
-            node = OrderedCompositor(
-                sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
-            )
-            result = node.eval(coordinates=self.coord_src)
+        node = OrderedCompositor(sources=[MULTI_2_X, MULTI_4_YX])
+        output = node.eval(COORDS)
+        assert output.dims == ('lat', 'lon', 'time', 'output')
+        np.testing.assert_array_equal(output['output'], ['x', 'y'])
+        np.testing.assert_array_equal(output.sel(output='x'), np.full(COORDS.shape, 2))
+        np.testing.assert_array_equal(output.sel(output='y'), np.full(COORDS.shape, 4))
 
-            # multithreaded
-            podpac.settings["MULTITHREADING"] = True
-            node = OrderedCompositor(
-                sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
-            )
-            result = node.eval(coordinates=self.coord_src)
-            # assert self.node._native_coordinates_default().dims == self.coord_src.dims
-
-    def test_source_coordinates_ordered_compositor(self):
-        with podpac.settings:
-            # single thread
-            podpac.settings["MULTITHREADING"] = False
-            node = OrderedCompositor(
-                sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
-            )
-
-            # multithreaded
-            podpac.settings["MULTITHREADING"] = True
-            node = OrderedCompositor(
-                sources=self.sources, shared_coordinates=self.coord_src, cache_native_coordinates=False
-            )
-
-    def test_caching_ordered_compositor(self):
-        with podpac.settings:
-            # single thread
-            podpac.settings["MULTITHREADING"] = False
-            node = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src)
-
-            # multithreaded
-            podpac.settings["MULTITHREADING"] = True
-            node = OrderedCompositor(sources=self.sources, shared_coordinates=self.coord_src)
-
-    def test_heterogeous_sources_composited(self):
+    def test_composite_stacked_unstacked(self):
         anative = podpac.Coordinates([podpac.clinspace((0, 1), (1, 2), size=3)], dims=["lat_lon"])
         bnative = podpac.Coordinates([podpac.clinspace(-2, 3, 3), podpac.clinspace(-1, 4, 3)], dims=["lat", "lon"])
         a = Array(source=np.random.rand(3), native_coordinates=anative)
         b = Array(source=np.random.rand(3, 3) + 2, native_coordinates=bnative)
-        c = OrderedCompositor(sources=np.array([a, b]), interpolation="nearest")
+        
         coords = podpac.Coordinates([podpac.clinspace(-3, 4, 32), podpac.clinspace(-2, 5, 32)], dims=["lat", "lon"])
-        o = c.eval(coords)
+        
+        node = OrderedCompositor(sources=np.array([a, b]), interpolation="nearest")
+        o = node.eval(coords)
         # Check that both data sources are being used in the interpolation
-        mask = o.data >= 2
-        assert mask.sum() > 0
-        mask = o.data <= 1
-        assert mask.sum() > 0
+        assert np.any(o.data >= 2)
+        assert np.any(o.data <= 1)

@@ -14,6 +14,7 @@ import traitlets as tl
 from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, merge_dims
 from podpac.core.utils import common_doc, ArrayTrait, trait_is_defined
+from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, node_eval, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.interpolation import interpolation_trait
@@ -197,7 +198,7 @@ class Compositor(Node):
 
         return src_subset
 
-    def composite(self, outputs, result=None):
+    def composite(self, coordinates, outputs, result=None):
         """Implements the rules for compositing multiple sources together.
         
         Parameters
@@ -273,11 +274,9 @@ class Compositor(Node):
         else:
             # evaluate nodes serially
             self._multi_threaded = False
-            output = None
             for src in src_subset:
-                output = src.eval(coordinates, output)
-                yield output
-
+                yield src.eval(coordinates)
+                
     @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
     def eval(self, coordinates, output=None):
@@ -298,7 +297,7 @@ class Compositor(Node):
         self._requested_coordinates = coordinates
 
         outputs = self.iteroutputs(coordinates)
-        output = self.composite(outputs, output)
+        output = self.composite(coordinates, outputs, output)
         return output
 
     def find_coordinates(self):
@@ -334,40 +333,46 @@ class OrderedCompositor(Compositor):
     """
 
     @common_doc(COMMON_COMPOSITOR_DOC)
-    def composite(self, outputs, result=None):
-        """Composites outputs in order that they appear.
+    def composite(self, coordinates, data_arrays, result=None):
+        """Composites data_arrays in order that they appear.
         
         Parameters
         ----------
-        outputs : generator
+        coordinates : :class:`podpac.Coordinates`
+            {requested_coordinates}
+        data_arrays : generator
             Generator that gives UnitDataArray's with the source values.
-        result : None, optional
-            Description
+        result : podpac.UnitsDataArray, optional
+            {eval_output}
         
         Returns
         -------
         {eval_return} This composites the sources together until there are no nans or no more sources.
         """
+
         if result is None:
-            # consume the first source output
-            result = next(outputs).copy()
-
-        # initialize the mask
-        # if result is None, probably this is all false
-        mask = np.isfinite(result.data)
-        if np.all(mask):
-            return result
-
-        # loop through remaining outputs
-        for output in outputs:
-            output = output.transpose(*result.dims)
-            source_mask = np.isfinite(output.data)
-            b = ~mask & source_mask
-            result.data[b] = output.data[b]
-            mask |= source_mask
+            result = self.create_output_array(coordinates)
+        else:
+            result[:] = np.nan
+        
+        mask = UnitsDataArray.create(coordinates, outputs=self.outputs, data=0, dtype=bool)
+        for data in data_arrays:
+            if self.outputs is None:
+                data = data.transpose(*result.dims)
+                self._composite(result, data, mask)
+            else:
+                for name in data['output']:
+                    self._composite(result.sel(output=name), data.sel(output=name), mask.sel(output=name))
 
             # stop if the results are full
             if np.all(mask):
                 break
 
         return result
+
+    @staticmethod
+    def _composite(result, data, mask):
+        source_mask = np.isfinite(data.data)
+        b = ~mask & source_mask
+        result.data[b.data] = data.data[b.data]
+        mask |= source_mask
