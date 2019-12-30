@@ -17,18 +17,14 @@ from six import string_types
 import podpac
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
-from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.algorithm.algorithm import UnaryAlgorithm
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, node_eval
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
-# =============================================================================
-# Reduce Nodes
-# =============================================================================
 
-
-class Reduce(Algorithm):
+class Reduce(UnaryAlgorithm):
     """Base node for statistical algorithms
     
     Attributes
@@ -39,7 +35,6 @@ class Reduce(Algorithm):
         The source node that will be reduced. 
     """
 
-    source = NodeTrait()
     dims = tl.List().tag(attr=True)
 
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
@@ -245,6 +240,89 @@ class Reduce(Algorithm):
         """
 
         raise NotImplementedError
+
+
+class ReduceOrthogonal(Reduce):
+    """
+    Extended Reduce class that enables chunks that are smaller than the reduced
+    output array.
+    
+    The base Reduce node ensures that each chunk is at least as big as the
+    reduced output, which works for statistics that can be calculated in O(1)
+    space. For statistics that require O(n) space, the node must iterate
+    through the Coordinates orthogonally to the reduce dimension, using chunks
+    that only cover a portion of the output array.
+    """
+
+    def _get_chunk_shape(self, coords):
+        """Shape of chunks for parallel processing or large arrays that do not fit in memory.
+        
+        Returns
+        -------
+        list
+            List of integers giving the shape of each chunk.
+        """
+        if self.chunk_size is None:
+            return None
+
+        chunk_size = self.chunk_size
+
+        # here, the minimum size is the reduce-dimensions size
+        d = {k: coords[k].size for k in self._dims}
+        s = reduce(mul, d.values(), 1)
+        for dim in coords.dims[::-1]:
+            if dim in self._dims:
+                continue
+            n = chunk_size // s
+            if n == 0:
+                d[dim] = 1
+            elif n < coords[dim].size:
+                d[dim] = n
+            else:
+                d[dim] = coords[dim].size
+            s *= d[dim]
+
+        return [d[dim] for dim in coords.dims]
+
+    def iteroutputs(self, coordinates):
+        """Generator for the chunks of the output
+        
+        Yields
+        ------
+        UnitsDataArray
+            Output for this chunk
+        """
+
+        chunk_shape = self._get_chunk_shape(coordinates)
+        for chunk, slices in coordinates.iterchunks(chunk_shape, return_slices=True):
+            yield self.source.eval(chunk), slices
+
+    def reduce_chunked(self, xs, output):
+        """
+        Reduce a list of xs with a memory-effecient iterative algorithm.
+        
+        Optionally defined in each child.
+        
+        Parameters
+        ----------
+        xs : list, generator
+            List of UnitsDataArray's that need to be reduced together.
+        
+        Returns
+        -------
+        UnitsDataArray
+            Reduced output.
+        """
+        # special case for full reduce
+        if not self._reduced_coordinates.dims:
+            x, xslices = next(xs)
+            return self.reduce(x)
+
+        y = xr.full_like(output, np.nan)
+        for x, xslices in xs:
+            yslc = tuple(xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims)
+            y.data[yslc] = self.reduce(x)
+        return y
 
 
 class Min(Reduce):
@@ -710,97 +788,7 @@ class StandardDeviation(Variance):
         return np.sqrt(var)
 
 
-# =============================================================================
-# Orthogonally chunked reduce
-# =============================================================================
-
-
-class Reduce2(Reduce):
-    """
-    Extended Reduce class that enables chunks that are smaller than the reduced
-    output array.
-    
-    The base Reduce node ensures that each chunk is at least as big as the
-    reduced output, which works for statistics that can be calculated in O(1)
-    space. For statistics that require O(n) space, the node must iterate
-    through the Coordinates orthogonally to the reduce dimension, using chunks
-    that only cover a portion of the output array.
-    
-    Note that the above nodes *could* be implemented to allow small chunks.
-    """
-
-    def _get_chunk_shape(self, coords):
-        """Shape of chunks for parallel processing or large arrays that do not fit in memory.
-        
-        Returns
-        -------
-        list
-            List of integers giving the shape of each chunk.
-        """
-        if self.chunk_size is None:
-            return None
-
-        chunk_size = self.chunk_size
-
-        # here, the minimum size is the reduce-dimensions size
-        d = {k: coords[k].size for k in self._dims}
-        s = reduce(mul, d.values(), 1)
-        for dim in coords.dims[::-1]:
-            if dim in self._dims:
-                continue
-            n = chunk_size // s
-            if n == 0:
-                d[dim] = 1
-            elif n < coords[dim].size:
-                d[dim] = n
-            else:
-                d[dim] = coords[dim].size
-            s *= d[dim]
-
-        return [d[dim] for dim in coords.dims]
-
-    def iteroutputs(self, coordinates):
-        """Generator for the chunks of the output
-        
-        Yields
-        ------
-        UnitsDataArray
-            Output for this chunk
-        """
-
-        chunk_shape = self._get_chunk_shape(coordinates)
-        for chunk, slices in coordinates.iterchunks(chunk_shape, return_slices=True):
-            yield self.source.eval(chunk), slices
-
-    def reduce_chunked(self, xs, output):
-        """
-        Reduce a list of xs with a memory-effecient iterative algorithm.
-        
-        Optionally defined in each child.
-        
-        Parameters
-        ----------
-        xs : list, generator
-            List of UnitsDataArray's that need to be reduced together.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Reduced output.
-        """
-        # special case for full reduce
-        if not self._reduced_coordinates.dims:
-            x, xslices = next(xs)
-            return self.reduce(x)
-
-        y = xr.full_like(output, np.nan)
-        for x, xslices in xs:
-            yslc = tuple(xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims)
-            y.data[yslc] = self.reduce(x)
-        return y
-
-
-class Median(Reduce2):
+class Median(ReduceOrthogonal):
     """Computes the median across dimension(s)
     """
 
@@ -820,7 +808,7 @@ class Median(Reduce2):
         return x.median(dim=self._dims)
 
 
-class Percentile(Reduce2):
+class Percentile(ReduceOrthogonal):
     """Computes the percentile across dimension(s)
     
     Attributes
@@ -853,7 +841,7 @@ class Percentile(Reduce2):
 # =============================================================================
 
 
-class GroupReduce(Algorithm):
+class GroupReduce(UnaryAlgorithm):
     """
     Group a time-dependent source node and then compute a statistic for each result.
     
@@ -869,7 +857,6 @@ class GroupReduce(Algorithm):
         Source node
     """
 
-    source = NodeTrait()
     coordinates_source = NodeTrait(allow_none=True)
 
     # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61

@@ -581,7 +581,7 @@ class Node(tl.HasTraits):
         """
 
         from podpac.core.data.datasource import DataSource
-        from podpac.core.algorithm.algorithm import Algorithm
+        from podpac.core.algorithm.algorithm import BaseAlgorithm
         from podpac.core.compositor import Compositor
 
         if len(definition) == 0:
@@ -665,7 +665,7 @@ class Node(tl.HasTraits):
                     kwargs["interpolation"] = d["interpolation"]
                     whitelist.append("interpolation")
 
-            if Algorithm in parents:
+            if BaseAlgorithm in parents:
                 if "attrs" in d:
                     if "inputs" in d["attrs"]:
                         raise ValueError(

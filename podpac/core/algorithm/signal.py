@@ -20,9 +20,10 @@ from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d
 from podpac.core.coordinates import add_coord
 from podpac.core.node import Node
-from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.algorithm.algorithm import UnaryAlgorithm
 from podpac.core.utils import common_doc, ArrayTrait, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, node_eval
+
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 COMMON_DOC[
@@ -53,7 +54,7 @@ COMMON_DOC[
             If the kernel is not valid (i.e. incorrect dimensionality). """
 
 
-class Convolution(Algorithm):
+class Convolution(UnaryAlgorithm):
     """Compute a general convolution over a source node.
 
     This node automatically resizes the requested coordinates to avoid edge effects.
@@ -74,7 +75,6 @@ class Convolution(Algorithm):
         Note: These kernels are automatically normalized such that kernel.sum() == 1
     """
 
-    source = NodeTrait
     kernel = ArrayTrait(dtype=float).tag(attr=True)
 
     def _first_init(self, kernel=None, kernel_type=None, kernel_ndim=None, **kwargs):
@@ -156,11 +156,15 @@ class Convolution(Algorithm):
         else:
             method = "auto"
 
-        result = scipy.signal.convolve(source, full_kernel, mode="same", method=method)
+        if "output" not in source.dims:
+            result = scipy.signal.convolve(source, full_kernel, mode="same", method=method)
+        else:
+            # source with multiple outputs
+            result = np.array([scipy.signal.convolve(src, full_kernel, mode="same", method=method) for src in source])
         result = result[exp_slice]
 
         if output is None:
-            output = self.create_output_array(coordinates, data=result)
+            output = self.create_output_array(coordinates)
         else:
             output[:] = result
 

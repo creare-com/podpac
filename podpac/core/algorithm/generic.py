@@ -227,3 +227,19 @@ class Mask(Algorithm):
         source.set(self.masked_val, mask)
 
         return source
+
+
+class Combine(GenericInputs):
+    """ Combine multiple nodes into a single node with multiple outputs.
+
+    If not output names are specified, the keyword argument names will be used.
+    """
+
+    @tl.default("outputs")
+    def _default_outputs(self):
+        return list(self.inputs.keys())
+
+    def algorithm(self, inputs):
+        data = np.array([inputs[key].data for key in self.inputs])
+        data = np.moveaxis(data, 0, -1)
+        return data

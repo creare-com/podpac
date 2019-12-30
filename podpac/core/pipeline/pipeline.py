@@ -19,7 +19,7 @@ from podpac.core.utils import OrderedDictTrait, JSONEncoder
 from podpac.core.node import Node, NodeException
 from podpac.core.style import Style
 from podpac.core.data.datasource import DataSource
-from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.algorithm.algorithm import BaseAlgorithm
 from podpac.core.compositor import Compositor
 
 from podpac.core.pipeline.output import Output, NoOutput, FileOutput, S3Output, FTPOutput, ImageOutput
@@ -201,7 +201,7 @@ def _parse_node_definition(nodes, name, d):
             kwargs["interpolation"] = d["interpolation"]
             whitelist.append("interpolation")
 
-    if Algorithm in parents:
+    if BaseAlgorithm in parents:
         if "inputs" in d:
             inputs = {k: _get_subattr(nodes, name, v) for k, v in d["inputs"].items()}
             kwargs.update(inputs)
