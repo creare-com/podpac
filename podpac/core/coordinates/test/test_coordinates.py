@@ -629,7 +629,7 @@ class TestCoordinatesProperties(object):
         dcoords = c.coords
 
         assert isinstance(dcoords, dict)
-        assert tuple(dcoords.keys()) == ("lat", "lon", "time")
+        assert set(dcoords.keys()) == {"lat", "lon", "time"}
         np.testing.assert_equal(dcoords["lat"], np.array(lat, dtype=float))
         np.testing.assert_equal(dcoords["lon"], np.array(lon, dtype=float))
         np.testing.assert_equal(dcoords["time"], np.array(dates).astype(np.datetime64))
@@ -649,7 +649,7 @@ class TestCoordinatesProperties(object):
         dcoords = c.coords
 
         assert isinstance(dcoords, dict)
-        assert tuple(dcoords.keys()) == ("lat_lon", "time")
+        assert set(dcoords.keys()) == {"lat_lon", "time"}
         assert np.all(dcoords["lat_lon"] == c["lat_lon"].coordinates)
         np.testing.assert_equal(dcoords["time"], np.array(dates).astype(np.datetime64))
 
@@ -662,7 +662,7 @@ class TestCoordinatesProperties(object):
         dcoords = c.coords
 
         assert isinstance(dcoords, dict)
-        assert tuple(dcoords.keys()) == ("lat", "lon", "time")
+        assert set(dcoords.keys()) == {"lat", "lon", "time"}
         assert dcoords["lat"][0] == ("i", "j")
         assert dcoords["lon"][0] == ("i", "j")
         np.testing.assert_equal(dcoords["lat"][1], lat)
@@ -700,17 +700,23 @@ class TestCoordinatesDict(object):
     coords = Coordinates([[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"]], dims=["lat_lon", "time"])
 
     def test_keys(self):
-        assert [dim for dim in self.coords.keys()] == ["lat_lon", "time"]
+        assert set(self.coords.keys()) == {"lat_lon", "time"}
 
     def test_values(self):
-        assert [c for c in self.coords.values()] == [self.coords["lat_lon"], self.coords["time"]]
+        values = list(self.coords.values())
+        assert len(values) == 2
+        assert self.coords["lat_lon"] in values
+        assert self.coords["time"] in values
 
     def test_items(self):
-        assert [dim for dim, c in self.coords.items()] == ["lat_lon", "time"]
-        assert [c for dim, c in self.coords.items()] == [self.coords["lat_lon"], self.coords["time"]]
+        keys, values = zip(*self.coords.items())
+        assert set(keys) == {"lat_lon", "time"}
+        assert len(values) == 2
+        assert self.coords["lat_lon"] in values
+        assert self.coords["time"] in values
 
     def test_iter(self):
-        assert [dim for dim in self.coords] == ["lat_lon", "time"]
+        assert set(self.coords) == {"lat_lon", "time"}
 
     def test_getitem(self):
         lat = ArrayCoordinates1d([0, 1, 2], name="lat")
