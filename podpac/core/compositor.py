@@ -276,7 +276,7 @@ class Compositor(Node):
             self._multi_threaded = False
             for src in src_subset:
                 yield src.eval(coordinates)
-                
+
     @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
     def eval(self, coordinates, output=None):
@@ -354,14 +354,14 @@ class OrderedCompositor(Compositor):
             result = self.create_output_array(coordinates)
         else:
             result[:] = np.nan
-        
+
         mask = UnitsDataArray.create(coordinates, outputs=self.outputs, data=0, dtype=bool)
         for data in data_arrays:
             if self.outputs is None:
                 data = data.transpose(*result.dims)
                 self._composite(result, data, mask)
             else:
-                for name in data['output']:
+                for name in data["output"]:
                     self._composite(result.sel(output=name), data.sel(output=name), mask.sel(output=name))
 
             # stop if the results are full
