@@ -57,7 +57,9 @@ class TestBaseAlgorithm(object):
 
         l = node.find_coordinates()
         assert isinstance(l, list)
-        assert l == [node.x.native_coordinates, node.y.native_coordinates]
+        assert len(l) == 2
+        assert node.x.native_coordinates in l
+        assert node.y.native_coordinates in l
 
 
 class TestAlgorithm(object):

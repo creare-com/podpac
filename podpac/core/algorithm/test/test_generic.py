@@ -216,17 +216,17 @@ class TestMask(object):
 class TestCombine(object):
     def test_outputs(self):
         node = Combine(a=Arange(), b=Arange(), c=Arange())
-        assert node.outputs == ["a", "b", "c"]
+        assert set(node.outputs) == set(["a", "b", "c"])
 
         node = Combine(a=Arange(), b=Arange(), c=Arange(), outputs=["o1", "o2", "o3"])
-        assert node.outputs == ["o1", "o2", "o3"]
+        assert set(node.outputs) == set(["o1", "o2", "o3"])
 
     def test_eval(self):
         coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
         node = Combine(a=Arange(), b=Arange(), c=Arange())
         output = node.eval(coords)
         assert output.dims == ("lat", "lon", "output")
-        np.testing.assert_array_equal(output["output"], ["a", "b", "c"])
+        assert set(output["output"].data) == set(["a", "b", "c"])
         np.testing.assert_array_equal(output.sel(output="a"), Arange().eval(coords))
         np.testing.assert_array_equal(output.sel(output="a"), Arange().eval(coords))
         np.testing.assert_array_equal(output.sel(output="a"), Arange().eval(coords))
