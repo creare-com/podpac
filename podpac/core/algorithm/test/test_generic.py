@@ -228,5 +228,5 @@ class TestCombine(object):
         assert output.dims == ("lat", "lon", "output")
         assert set(output["output"].data) == set(["a", "b", "c"])
         np.testing.assert_array_equal(output.sel(output="a"), Arange().eval(coords))
-        np.testing.assert_array_equal(output.sel(output="a"), Arange().eval(coords))
-        np.testing.assert_array_equal(output.sel(output="a"), Arange().eval(coords))
+        np.testing.assert_array_equal(output.sel(output="b"), Arange().eval(coords))
+        np.testing.assert_array_equal(output.sel(output="c"), Arange().eval(coords))
