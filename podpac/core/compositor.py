@@ -45,7 +45,7 @@ class Compositor(Node):
     source : str
         The source is used for a unique name to cache composited products.
     source_coordinates : :class:`podpac.Coordinates`
-        Description
+        Coordinates that make each source unique. Much be single-dimensional the same size as ``sources``. Optional.
     sources : :class:`np.ndarray`
         An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to
         subselect the nodes that will be evaluated.
@@ -122,6 +122,18 @@ class Compositor(Node):
                 "The sources must all be stardard single-output nodes or all multi-output nodes."
             )
 
+    @tl.validate("source_coordinates")
+    def _validate_source_coordinates(self, d):
+        if d['value'] is not None:
+            if d['value'].ndim != 1:
+                raise ValueError("Invalid source_coordinates, invalid ndim (%d != 1)" % d['value'].ndim)
+
+            if d['value'].size != self.sources.size:
+                raise ValueError("Invalid source_coordinates, source and source_coordinates size mismatch (%d != %d)" % (
+                    d['value'].size, self.sources.size))
+
+        return d['value']
+
     # default representation
     def __repr__(self):
         source_name = str(self.__class__.__name__)
@@ -183,8 +195,8 @@ class Compositor(Node):
 
             except:  # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
-
-            src_subset = self.sources[I]
+            i = I[0]
+            src_subset = self.sources[i]
 
         # no downselection possible - get all sources compositor
         else:
