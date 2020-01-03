@@ -240,6 +240,4 @@ class Combine(GenericInputs):
         return list(self.inputs.keys())
 
     def algorithm(self, inputs):
-        data = np.array([inputs[key].data for key in self.inputs])
-        data = np.moveaxis(data, 0, -1)
-        return data
+        return np.stack([inputs[key] for key in self.inputs], axis=-1)

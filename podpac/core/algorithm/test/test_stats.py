@@ -27,7 +27,7 @@ def setup_module():
     source = Array(source=a, native_coordinates=coords)
     data = source.eval(coords)
 
-    ab = np.moveaxis([a, 2 * a], 0, -1)
+    ab = np.stack([a, 2 * a], -1)
     multisource = Array(source=ab, native_coordinates=coords, outputs=["a", "b"])
     bdata = 2 * data
 

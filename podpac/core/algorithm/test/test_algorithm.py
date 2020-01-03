@@ -225,7 +225,7 @@ class TestAlgorithm(object):
                 sum_ = inputs["x"] + inputs["y"]
                 prod = inputs["x"] * inputs["y"]
                 diff = inputs["x"] - inputs["y"]
-                return np.moveaxis([sum_, prod, diff], 0, -1)
+                return np.stack([sum_, prod, diff], -1)
 
         coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
         x = Arange()
