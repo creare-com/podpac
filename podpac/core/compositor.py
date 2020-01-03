@@ -45,7 +45,7 @@ class Compositor(Node):
     source : str
         The source is used for a unique name to cache composited products.
     source_coordinates : :class:`podpac.Coordinates`
-        Description
+        Coordinates that make each source unique. Much be single-dimensional the same size as ``sources``. Optional.
     sources : :class:`np.ndarray`
         An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to
         subselect the nodes that will be evaluated.
