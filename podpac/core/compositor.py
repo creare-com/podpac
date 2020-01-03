@@ -80,16 +80,10 @@ class Compositor(Node):
         ),
     )
 
-    source = tl.Unicode().tag(attr=True)
     sources = ArrayTrait(ndim=1)
     cache_native_coordinates = tl.Bool(True)
     interpolation = interpolation_trait(default_value=None)
     strict_source_outputs = tl.Bool(False)
-
-    tl.default("source")
-
-    def _source_default(self):
-        return "_".join(str(source) for source in self.sources[:3])
 
     @tl.default("source_coordinates")
     def _source_coordinates_default(self):
@@ -133,7 +127,7 @@ class Compositor(Node):
         source_name = str(self.__class__.__name__)
 
         rep = "{}".format(source_name)
-        rep += "\n\tsource: {}".format(self.source)
+        rep += "\n\tsource: {}".format("_".join(str(source) for source in self.sources[:3]))
         rep += "\n\tinterpolation: {}".format(self.interpolation)
 
         return rep

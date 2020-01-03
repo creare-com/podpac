@@ -26,13 +26,6 @@ MULTI_3_Z = Array(source=np.full(COORDS.shape + (1,), 3), native_coordinates=COO
 
 
 class TestCompositor(object):
-    def test_source(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON])
-        assert isinstance(node.source, str)
-
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON], source="MySource")
-        assert node.source == "MySource"
-
     def test_init(self):
         node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         repr(node)
