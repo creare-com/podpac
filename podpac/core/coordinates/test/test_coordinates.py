@@ -405,70 +405,45 @@ class TestCoordinateCreation(object):
         # default
         c = Coordinates([lat, lon])
         assert c.crs == podpac.settings["DEFAULT_CRS"]
-        assert c.alt_units is None
         assert set(c.properties.keys()) == {"crs"}
 
         # crs
         c = Coordinates([lat, lon], crs="EPSG:2193")
         assert c.crs == "EPSG:2193"
-        assert c.alt_units is None
         assert set(c.properties.keys()) == {"crs"}
 
         # proj4
         c = Coordinates([lat, lon], crs="EPSG:2193")
         assert c.crs == "EPSG:2193"
-        assert c.alt_units is None
         assert set(c.properties.keys()) == {"crs"}
 
         c = Coordinates([lat, lon], crs="+proj=merc +lat_ts=56.5 +ellps=GRS80")
         assert c.crs == "+proj=merc +lat_ts=56.5 +ellps=GRS80"
-        assert c.alt_units is None
         assert set(c.properties.keys()) == {"crs"}
 
         # with vunits
         c = Coordinates([lat, lon], crs="+proj=merc +lat_ts=56.5 +ellps=GRS80 +vunits=ft")
         assert c.crs == "+proj=merc +lat_ts=56.5 +ellps=GRS80 +vunits=ft"
-        assert c.alt_units == "ft"
-        assert set(c.properties.keys()) == {"crs"}  # no alt_units, it is in the crs
+        assert set(c.properties.keys()) == {"crs"}
 
         # invalid
         with pytest.raises(pyproj.crs.CRSError):
             Coordinates([lat, lon], crs="abcd")
 
-    def test_alt_units(self):
+    def test_crs_with_vertical_units(self):
 
         alt = ArrayCoordinates1d([0, 1, 2], name="alt")
 
-        # None
-        c = Coordinates([alt])
-        assert c.alt_units is None
+        c = Coordinates([alt], crs="+proj=merc +vunits=us-ft")
         assert set(c.properties.keys()) == {"crs"}
 
-        c.set_trait("alt_units", None)
-
-        # proj4
-        c = Coordinates([alt], crs="EPSG:2193", alt_units="ft")
-        assert c.alt_units == "ft"
-        assert set(c.properties.keys()) == {"crs", "alt_units"}
-
         # with crs
-        c = Coordinates([alt], crs="EPSG:2193", alt_units="ft")
-        assert c.crs == "EPSG:2193"
-        assert c.alt_units == "ft"
-        assert set(c.properties.keys()) == {"crs", "alt_units"}
+        ct = c.transform("+proj=merc +vunits=m")
+        np.testing.assert_array_almost_equal(ct["alt"].coordinates, 0.30480061 * c['alt'].coordinates)
 
         # invalid
-        with pytest.raises(ValueError, match="Invalid alt_units"):
-            Coordinates([alt], alt_units="feet")
-
-        # crs mismatch
-        with pytest.raises(ValueError, match="crs and alt_units mismatch"):
-            Coordinates([alt], crs="+proj=merc +vunits=ft", alt_units="m")
-
-        # ignore
-        with pytest.warns(UserWarning, match="alt_units ignored"):
-            c = Coordinates([alt], crs="EPSG:4326", alt_units="ft")
-        assert c.alt_units is None
+        with pytest.raises(ValueError):
+            Coordinates([alt], crs="EPSG:2193")
 
     def test_ctype(self):
         # assign
@@ -494,6 +469,7 @@ class TestCoordinatesSerialization(object):
         c = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], crange(0, 10, 0.5)],
             dims=["lat_lon", "time", "alt"],
+            crs="+proj=merc +vunits=us-ft"
         )
         d = c.definition
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
@@ -522,13 +498,12 @@ class TestCoordinatesSerialization(object):
         lon = ArrayCoordinates1d([0, 1, 2], "lon")
 
         # default
-        c = Coordinates([lat, lon], crs="EPSG:2193", alt_units="ft")
+        c = Coordinates([lat, lon], crs="EPSG:2193")
         d = c.definition
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
         c2 = Coordinates.from_definition(d)
         assert c2 == c
         assert c2.crs == "EPSG:2193"
-        assert c2.alt_units == "ft"
 
     def test_from_definition(self):
         d = {
@@ -559,6 +534,7 @@ class TestCoordinatesSerialization(object):
         c = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], crange(0, 10, 0.5)],
             dims=["lat_lon", "time", "alt"],
+            crs="+proj=merc +vunits=us-ft"
         )
 
         s = c.json
@@ -974,7 +950,10 @@ class TestCoordinatesIndexing(object):
 
 
 class TestCoordinatesMethods(object):
-    coords = Coordinates([[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], 10], dims=["lat_lon", "time", "alt"])
+    coords = Coordinates(
+        [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], 10],
+        dims=["lat_lon", "time", "alt"],
+        crs="+proj=merc +vunits=us-ft")
 
     def test_drop(self):
         # drop one existing dimension
@@ -1028,7 +1007,7 @@ class TestCoordinatesMethods(object):
         c2 = self.coords.udrop("lat")
         assert c2.dims == ("lon", "time", "alt")
 
-        coords = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"])
+        coords = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"], crs="+proj=merc +vunits=us-ft")
         c2 = coords.udrop("alt")
         assert c2.dims == ("lat_lon",)
 
@@ -1049,26 +1028,31 @@ class TestCoordinatesMethods(object):
         coords = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], 10],
             dims=["lat_lon", "time", "alt"],
-            crs="EPSG:2193",
-        )
+            crs="+proj=merc +vunits=us-ft")
 
         c1 = coords.drop("time")
         c2 = coords.udrop("time")
 
         # check properties
-        assert c1.crs == "EPSG:2193"
-        assert c2.crs == "EPSG:2193"
+        assert c1.crs == "+proj=merc +vunits=us-ft"
+        assert c2.crs == "+proj=merc +vunits=us-ft"
 
     def test_unique(self):
         # unstacked (numerical, datetime, and empty)
-        c = Coordinates([[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []], dims=["lat", "time", "alt"])
+        c = Coordinates(
+            [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []],
+            dims=["lat", "time", "alt"],
+            crs="+proj=merc +vunits=us-ft")
         c2 = c.unique()
         assert_equal(c2["lat"].coordinates, [0, 1, 2])
         assert_equal(c2["time"].coordinates, [np.datetime64("2018-01-01"), np.datetime64("2018-01-02")])
         assert_equal(c2["alt"].coordinates, [])
 
         # return indices
-        c = Coordinates([[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []], dims=["lat", "time", "alt"])
+        c = Coordinates(
+            [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []],
+            dims=["lat", "time", "alt"],
+            crs="+proj=merc +vunits=us-ft")
         c2, I = c.unique(return_indices=True)
         assert_equal(c2["lat"].coordinates, [0, 1, 2])
         assert_equal(c2["time"].coordinates, [np.datetime64("2018-01-01"), np.datetime64("2018-01-02")])
@@ -1085,15 +1069,16 @@ class TestCoordinatesMethods(object):
 
     def test_unique_properties(self):
         c = Coordinates(
-            [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []], dims=["lat", "time", "alt"], crs="EPSG:2193"
-        )
+            [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []],
+            dims=["lat", "time", "alt"],
+            crs="+proj=merc +vunits=us-ft")
         c2 = c.unique()
 
         # check properties
-        assert c2.crs == "EPSG:2193"
+        assert c2.crs == "+proj=merc +vunits=us-ft"
 
     def test_unstack(self):
-        c1 = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"])
+        c1 = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"], crs="+proj=merc +vunits=us-ft")
         c2 = c1.unstack()
         assert c1.dims == ("lat_lon_alt",)
         assert c2.dims == ("lat", "lon", "alt")
@@ -1102,7 +1087,7 @@ class TestCoordinatesMethods(object):
         assert c1["alt"] == c2["alt"]
 
         # mixed
-        c1 = Coordinates([[[0, 1], [10, 20]], [100, 200, 300]], dims=["lat_lon", "alt"])
+        c1 = Coordinates([[[0, 1], [10, 20]], [100, 200, 300]], dims=["lat_lon", "alt"], crs="+proj=merc +vunits=us-ft")
         c2 = c1.unstack()
         assert c1.dims == ("lat_lon", "alt")
         assert c2.dims == ("lat", "lon", "alt")
@@ -1111,11 +1096,11 @@ class TestCoordinatesMethods(object):
         assert c1["alt"] == c2["alt"]
 
     def test_unstack_properties(self):
-        c1 = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"], crs="EPSG:2193")
+        c1 = Coordinates([[[0, 1], [10, 20], [100, 300]]], dims=["lat_lon_alt"], crs="+proj=merc +vunits=us-ft")
         c2 = c1.unstack()
 
         # check properties
-        assert c2.crs == "EPSG:2193"
+        assert c2.crs == "+proj=merc +vunits=us-ft"
 
     def test_iterchunks(self):
         c = Coordinates(
@@ -1173,81 +1158,67 @@ class TestCoordinatesMethods(object):
 
     def test_transform(self):
         c = Coordinates(
-            [[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"], [0, 1, 2]],
-            dims=["lat", "lon", "time", "alt"],
-            crs="EPSG:4326",
+            [[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]],
+            dims=["lat", "lon", "time"]
         )
-        c1 = Coordinates([[[0, 1], [10, 20]], [100, 200, 300]], dims=["lat_lon", "alt"], crs="EPSG:4326")
-
-        # default crs
-        assert c.crs == "EPSG:4326"
 
         # transform
         with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            c_trans = c.transform("EPSG:2193")
+            t = c.transform("EPSG:2193")
         assert c.crs == "EPSG:4326"
-        assert c_trans.crs == "EPSG:2193"
-        assert round(c_trans["lat"].coordinates[0, 0]) == 29995930.0
+        assert t.crs == "EPSG:2193"
+        assert round(t["lat"].coordinates[0, 0]) == 29995930.0
 
         # no transform needed
-        c_trans = c.transform("EPSG:4326")
+        t = c.transform("EPSG:4326")
         assert c.crs == "EPSG:4326"
-        assert c_trans.crs == "EPSG:4326"
-        assert c_trans is not c
-        assert c_trans == c
+        assert t.crs == "EPSG:4326"
+        assert t is not c
+        assert t == c
 
         # support proj4 strings
         proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
         with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            c_trans = c.transform(proj)
+            t = c.transform(proj)
         assert c.crs == "EPSG:4326"
-        assert c_trans.crs == proj
-        assert round(c_trans["lat"].coordinates[0, 0]) == 0.0
-
-        # support stacked coordinates
-        proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
-        c1_trans = c1.transform(proj)
-        assert c1.crs == "EPSG:4326"
-        assert c_trans.crs == proj
-        assert round(c1_trans["lat"].coordinates[0]) == 0.0
-
-        # support altitude unit transformations
-        proj = "+proj=merc +vunits=us-ft"
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            c_trans = c.transform(proj)
-        assert round(c_trans["lat"].coordinates[0, 0]) == 0.0
-        assert round(c_trans["alt"].coordinates[1]) == 3.0
-        assert round(c_trans["alt"].coordinates[2]) == 7.0
-        assert c_trans.crs == proj
-        c1_trans = c1.transform(proj)
-        assert round(c1_trans["lat"].coordinates[0]) == 0.0
-        assert round(c1_trans["alt"].coordinates[0]) == 328.0
-        assert round(c1_trans["alt"].coordinates[1]) == 656.0
-        assert c1_trans.crs == proj
-
-        # make sure vunits can be overwritten appropriately
-        c2_trans = c1_trans.transform("EPSG:2193", alt_units="m")
-        assert round(c2_trans["alt"].coordinates[0]) == 100.0
-        assert c2_trans.alt_units == "m"
-
-        # alt_units parameter
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            c_trans = c.transform("EPSG:2193", alt_units="us-ft")
-        assert round(c_trans["alt"].coordinates[1]) == 3.0
-        assert round(c_trans["alt"].coordinates[2]) == 7.0
-        assert c_trans.crs == "EPSG:2193"
-        assert c_trans.alt_units == "us-ft"
-
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            c_trans = c.transform("EPSG:2193", alt_units="km")
-        assert c_trans["alt"].coordinates[1] == 0.001
-        assert c_trans["alt"].coordinates[2] == 0.002
-        assert c_trans.crs == "EPSG:2193"
-        assert c_trans.alt_units == "km"
+        assert t.crs == proj
+        assert round(t["lat"].coordinates[0, 0]) == 0.0
 
         # no parameter
-        with pytest.raises(TypeError, match="transform requires crs and/or alt_units argument"):
+        with pytest.raises(TypeError, match="transform requires crs argument"):
             c.transform()
+
+    def test_transform_stacked(self):
+        c = Coordinates(
+            [[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02", "2018-01-03"]],
+            dims=["lat_lon", "time"])
+
+        proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
+        t = c.transform(proj)
+        assert c.crs == "EPSG:4326"
+        assert t.crs == proj
+        assert round(t["lat"].coordinates[0]) == 0.0
+
+    def test_transform_alt(self):
+        c = Coordinates(
+            [[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"], [100, 200, 300]],
+            dims=["lat", "lon", "time", 'alt'],
+            crs="+proj=merc +vunits=us-ft"
+        )
+
+        proj = "+proj=merc +vunits=m"
+        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
+            t = c.transform(proj)
+        assert c.crs == "+proj=merc +vunits=us-ft"
+        assert t.crs == "+proj=merc +vunits=m"
+        np.testing.assert_array_almost_equal(t['lat'].coordinates[0], [0.0, 0.0, 0.0, 0.0])
+        np.testing.assert_array_almost_equal(t['lat'].coordinates[1], [1.0, 1.0, 1.0, 1.0])
+        np.testing.assert_array_almost_equal(t['lon'].coordinates[:, 0], [10.0, 10.0])
+        np.testing.assert_array_almost_equal(t['lon'].coordinates[:, 1], [20.0, 20.0])
+        np.testing.assert_array_almost_equal(t['lon'].coordinates[:, 2], [30.0, 30.0])
+        np.testing.assert_array_almost_equal(t['lon'].coordinates[:, 3], [40.0, 40.0])
+        assert t['time'] == c['time']
+        np.testing.assert_array_almost_equal(t['alt'].coordinates, 0.30480061 * c['alt'].coordinates)
 
     def test_select_single(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
@@ -1455,7 +1426,7 @@ class TestCoordinatesSpecial(object):
         repr(Coordinates([[0, 1], [10, 20], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"]))
         repr(Coordinates([[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02"]], dims=["lat_lon", "time"]))
         repr(Coordinates([0, 10, []], dims=["lat", "lon", "time"], ctype="point"))
-        repr(Coordinates([crange(0, 10, 0.5)], dims=["alt"]))
+        repr(Coordinates([crange(0, 10, 0.5)], dims=["alt"], crs="+proj=merc +vunits=us-ft"))
         repr(Coordinates([]))
         # TODO dependent coordinates
 
@@ -1530,56 +1501,6 @@ class TestCoordinatesSpecial(object):
         # hash
         assert c1.hash != c2.hash
         assert c2.hash == deepcopy(c2).hash
-
-    def test_eq_ne_hash_alt_units(self):
-        lat = [0, 1, 2]
-        lon = [10, 20, 30]
-        c1 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193")
-        c2 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193", alt_units="ft")
-        c3 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193", alt_units="m")
-
-        # eq
-        assert not c1 == c2
-        assert not c1 == c3
-        assert not c2 == c3
-
-        assert c1 == deepcopy(c1)
-        assert c2 == deepcopy(c2)
-        assert c3 == deepcopy(c3)
-
-        # ne (this only matters in python 2)
-        assert c1 != c2
-        assert c1 != c3
-        assert c2 != c3
-
-        assert not c1 != deepcopy(c1)
-        assert not c2 != deepcopy(c2)
-        assert not c3 != deepcopy(c3)
-
-        # hash
-        assert c1.hash != c2.hash
-        assert c1.hash != c3.hash
-        assert c2.hash != c3.hash
-
-        assert c1.hash == deepcopy(c1).hash
-        assert c2.hash == deepcopy(c2).hash
-        assert c3.hash == deepcopy(c3).hash
-
-    def test_eq_ne_hash_crs_alt_units(self):
-        lat = [0, 1, 2]
-        lon = [10, 20, 30]
-
-        # special case, these should be the same
-        c1 = Coordinates([lat, lon], dims=["lat", "lon"], crs="EPSG:2193", alt_units="ft")
-        c2 = Coordinates(
-            [lat, lon],
-            dims=["lat", "lon"],
-            crs=("+proj=tmerc +vunits=ft +ellps=GRS80 +lon_0=173 +k=0.9996" " +x_0=1600000 +y_0=10000000"),
-        )
-
-        assert c1 == c2
-        assert not c1 != c2
-        assert c1.hash == c2.hash
 
 
 class TestCoordinatesFunctions(object):
