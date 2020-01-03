@@ -439,7 +439,7 @@ class TestCoordinateCreation(object):
 
         # with crs
         ct = c.transform("+proj=merc +vunits=m")
-        np.testing.assert_array_almost_equal(ct["alt"].coordinates, 0.30480061 * c['alt'].coordinates)
+        np.testing.assert_array_almost_equal(ct["alt"].coordinates, 0.30480061 * c["alt"].coordinates)
 
         # invalid
         with pytest.raises(ValueError):
@@ -469,7 +469,7 @@ class TestCoordinatesSerialization(object):
         c = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], crange(0, 10, 0.5)],
             dims=["lat_lon", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft"
+            crs="+proj=merc +vunits=us-ft",
         )
         d = c.definition
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)
@@ -534,7 +534,7 @@ class TestCoordinatesSerialization(object):
         c = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], crange(0, 10, 0.5)],
             dims=["lat_lon", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft"
+            crs="+proj=merc +vunits=us-ft",
         )
 
         s = c.json
@@ -953,7 +953,8 @@ class TestCoordinatesMethods(object):
     coords = Coordinates(
         [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], 10],
         dims=["lat_lon", "time", "alt"],
-        crs="+proj=merc +vunits=us-ft")
+        crs="+proj=merc +vunits=us-ft",
+    )
 
     def test_drop(self):
         # drop one existing dimension
@@ -1028,7 +1029,8 @@ class TestCoordinatesMethods(object):
         coords = Coordinates(
             [[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"], 10],
             dims=["lat_lon", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft")
+            crs="+proj=merc +vunits=us-ft",
+        )
 
         c1 = coords.drop("time")
         c2 = coords.udrop("time")
@@ -1042,7 +1044,8 @@ class TestCoordinatesMethods(object):
         c = Coordinates(
             [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []],
             dims=["lat", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft")
+            crs="+proj=merc +vunits=us-ft",
+        )
         c2 = c.unique()
         assert_equal(c2["lat"].coordinates, [0, 1, 2])
         assert_equal(c2["time"].coordinates, [np.datetime64("2018-01-01"), np.datetime64("2018-01-02")])
@@ -1052,7 +1055,8 @@ class TestCoordinatesMethods(object):
         c = Coordinates(
             [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []],
             dims=["lat", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft")
+            crs="+proj=merc +vunits=us-ft",
+        )
         c2, I = c.unique(return_indices=True)
         assert_equal(c2["lat"].coordinates, [0, 1, 2])
         assert_equal(c2["time"].coordinates, [np.datetime64("2018-01-01"), np.datetime64("2018-01-02")])
@@ -1071,7 +1075,8 @@ class TestCoordinatesMethods(object):
         c = Coordinates(
             [[2, 1, 0, 1], ["2018-01-01", "2018-01-02", "2018-01-01"], []],
             dims=["lat", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft")
+            crs="+proj=merc +vunits=us-ft",
+        )
         c2 = c.unique()
 
         # check properties
@@ -1157,10 +1162,7 @@ class TestCoordinatesMethods(object):
             c.transpose("lon", "lat")
 
     def test_transform(self):
-        c = Coordinates(
-            [[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]],
-            dims=["lat", "lon", "time"]
-        )
+        c = Coordinates([[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
 
         # transform
         with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
@@ -1189,9 +1191,7 @@ class TestCoordinatesMethods(object):
             c.transform()
 
     def test_transform_stacked(self):
-        c = Coordinates(
-            [[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02", "2018-01-03"]],
-            dims=["lat_lon", "time"])
+        c = Coordinates([[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02", "2018-01-03"]], dims=["lat_lon", "time"])
 
         proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
         t = c.transform(proj)
@@ -1202,8 +1202,8 @@ class TestCoordinatesMethods(object):
     def test_transform_alt(self):
         c = Coordinates(
             [[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"], [100, 200, 300]],
-            dims=["lat", "lon", "time", 'alt'],
-            crs="+proj=merc +vunits=us-ft"
+            dims=["lat", "lon", "time", "alt"],
+            crs="+proj=merc +vunits=us-ft",
         )
 
         proj = "+proj=merc +vunits=m"
@@ -1211,14 +1211,14 @@ class TestCoordinatesMethods(object):
             t = c.transform(proj)
         assert c.crs == "+proj=merc +vunits=us-ft"
         assert t.crs == "+proj=merc +vunits=m"
-        np.testing.assert_array_almost_equal(t['lat'].coordinates[0], [0.0, 0.0, 0.0, 0.0])
-        np.testing.assert_array_almost_equal(t['lat'].coordinates[1], [1.0, 1.0, 1.0, 1.0])
-        np.testing.assert_array_almost_equal(t['lon'].coordinates[:, 0], [10.0, 10.0])
-        np.testing.assert_array_almost_equal(t['lon'].coordinates[:, 1], [20.0, 20.0])
-        np.testing.assert_array_almost_equal(t['lon'].coordinates[:, 2], [30.0, 30.0])
-        np.testing.assert_array_almost_equal(t['lon'].coordinates[:, 3], [40.0, 40.0])
-        assert t['time'] == c['time']
-        np.testing.assert_array_almost_equal(t['alt'].coordinates, 0.30480061 * c['alt'].coordinates)
+        np.testing.assert_array_almost_equal(t["lat"].coordinates[0], [0.0, 0.0, 0.0, 0.0])
+        np.testing.assert_array_almost_equal(t["lat"].coordinates[1], [1.0, 1.0, 1.0, 1.0])
+        np.testing.assert_array_almost_equal(t["lon"].coordinates[:, 0], [10.0, 10.0])
+        np.testing.assert_array_almost_equal(t["lon"].coordinates[:, 1], [20.0, 20.0])
+        np.testing.assert_array_almost_equal(t["lon"].coordinates[:, 2], [30.0, 30.0])
+        np.testing.assert_array_almost_equal(t["lon"].coordinates[:, 3], [40.0, 40.0])
+        assert t["time"] == c["time"]
+        np.testing.assert_array_almost_equal(t["alt"].coordinates, 0.30480061 * c["alt"].coordinates)
 
     def test_select_single(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")

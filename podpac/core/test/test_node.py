@@ -187,10 +187,10 @@ class TestCreateOutputArray(object):
 class TestCaching(object):
     @classmethod
     def setup_class(cls):
-        cls._ram_cache_enabled = podpac.settings['RAM_CACHE_ENABLED']
+        cls._ram_cache_enabled = podpac.settings["RAM_CACHE_ENABLED"]
 
-        podpac.settings['RAM_CACHE_ENABLED'] = True
-        
+        podpac.settings["RAM_CACHE_ENABLED"] = True
+
         class MyNode(Node):
             pass
 
@@ -204,7 +204,7 @@ class TestCaching(object):
     def teardown_class(cls):
         cls.node.rem_cache(key="*", coordinates="*")
 
-        podpac.settings['RAM_CACHE_ENABLED'] = cls._ram_cache_enabled
+        podpac.settings["RAM_CACHE_ENABLED"] = cls._ram_cache_enabled
 
     def setup_method(self, method):
         self.node.rem_cache(key="*", coordinates="*")

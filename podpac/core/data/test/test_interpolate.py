@@ -255,13 +255,11 @@ class TestInterpolation(object):
     def test_select_coordinates(self):
 
         reqcoords = Coordinates(
-            [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
-            dims=["lat", "lon", "time", "alt"],
-            crs="+proj=merc +vunits=m")
+            [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"], crs="+proj=merc +vunits=m"
+        )
         srccoords = Coordinates(
-            [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]],
-            dims=["lat", "lon", "time", "alt"],
-            crs="+proj=merc +vunits=m")
+            [[0, 1, 2], [0, 1, 2], [0, 1, 2], [0, 1, 2]], dims=["lat", "lon", "time", "alt"], crs="+proj=merc +vunits=m"
+        )
 
         # create a few dummy interpolators that handle certain dimensions
         # (can_select is defined by default to look at dims_supported)

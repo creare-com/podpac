@@ -123,7 +123,7 @@ class Node(tl.HasTraits):
 
     @tl.validate("output")
     def _validate_output(self, d):
-        if d['value'] is not None:
+        if d["value"] is not None:
             if self.outputs is None:
                 raise TypeError("Invalid output '%s' (output must be None for single-output nodes)." % self.output)
             if d["value"] not in self.outputs:

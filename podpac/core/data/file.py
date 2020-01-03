@@ -370,19 +370,19 @@ class CSV(DatasetSource):
 
     def get_lat(self):
         """Get latitude coordinates from the csv file."""
-        return self.dataset[self._get_key(self.lat_key)]
+        return self.dataset[self._get_key(self.lat_key)].values
 
     def get_lon(self):
         """Get longitude coordinates from the csv file."""
-        return self.dataset[self._get_key(self.lon_key)]
+        return self.dataset[self._get_key(self.lon_key)].values
 
     def get_time(self):
         """Get time coordinates from the csv file."""
-        return self.dataset[self._get_key(self.time_key)]
+        return self.dataset[self._get_key(self.time_key)].values
 
     def get_alt(self):
         """Get altitude coordinates from the csv file."""
-        return self.dataset[self._get_key(self.alt_key)]
+        return self.dataset[self._get_key(self.alt_key)].values
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
@@ -393,7 +393,7 @@ class CSV(DatasetSource):
 
         coords = super(CSV, self).get_native_coordinates()
         stacked = StackedCoordinates(list(coords.values()))
-        return Coordinates([stacked])
+        return Coordinates([stacked], **coords.properties)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
