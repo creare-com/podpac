@@ -26,8 +26,9 @@ from podpac.core import common_test_utils as ctu
 from podpac.core.utils import ArrayTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
-from podpac.core.node import Node, NodeException
 from podpac.core.cache import CacheCtrl, RamCacheStore
+from podpac.core.node import Node, NodeException
+from podpac.core.node import node_eval
 
 
 class TestNode(object):
@@ -74,6 +75,59 @@ class TestNode(object):
 
         with pytest.raises(UndefinedUnitError):
             Node(units="abc")
+
+    def test_outputs(self):
+        n = Node()
+        assert n.outputs is None
+
+        n = Node(outputs=["a", "b"])
+        assert n.outputs == ["a", "b"]
+
+    def test_outputs_and_output(self):
+        n = Node(outputs=["a", "b"])
+        assert n.output is None
+
+        n = Node(outputs=["a", "b"], output="b")
+        assert n.output == "b"
+
+        # must be one of the outputs
+        with pytest.raises(ValueError, match="Invalid output"):
+            n = Node(outputs=["a", "b"], output="other")
+
+        # only valid for multiple-output nodes
+        with pytest.raises(TypeError, match="Invalid output"):
+            n = Node(output="other")
+
+
+def TestNodeEval(self):
+    def test_extract_output(self):
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        class MyNode1(Node):
+            @node_eval
+            def eval(self, coordinates, output=None):
+                return self.create_output_array(coordinates)
+
+        # don't extract when no output field is requested
+        n = MyNode1()
+        out = n.eval(coords)
+        assert out.shape == (4, 2, 3)
+
+        # do extract when an output field is requested
+        n = MyNode1(output="b")
+        out = n.eval(coords)
+        assert out.shape == (4, 2)
+
+        # should still work if the node has already extracted it
+        class MyNode2(Node):
+            @node_eval
+            def eval(self, coordinates, output=None):
+                out = self.create_output_array(coordinates)
+                return out.sel(output=self.output)
+
+        n = MyNode2(output="b")
+        out = n.eval(coords)
+        assert out.shape == (4, 2)
 
 
 class TestCreateOutputArray(object):
@@ -133,6 +187,10 @@ class TestCreateOutputArray(object):
 class TestCaching(object):
     @classmethod
     def setup_class(cls):
+        cls._ram_cache_enabled = podpac.settings['RAM_CACHE_ENABLED']
+
+        podpac.settings['RAM_CACHE_ENABLED'] = True
+        
         class MyNode(Node):
             pass
 
@@ -145,6 +203,8 @@ class TestCaching(object):
     @classmethod
     def teardown_class(cls):
         cls.node.rem_cache(key="*", coordinates="*")
+
+        podpac.settings['RAM_CACHE_ENABLED'] = cls._ram_cache_enabled
 
     def setup_method(self, method):
         self.node.rem_cache(key="*", coordinates="*")
@@ -268,8 +328,6 @@ class TestCaching(object):
         assert self.node.has_cache("c", coordinates=self.coords2)
         assert self.node.has_cache("d", coordinates=self.coords)
 
-
-class TestCachePropertyDecorator(object):
     def test_cache_property_decorator(self):
         class Test(podpac.Node):
             a = tl.Int(1).tag(attr=True)
@@ -450,6 +508,25 @@ class TestSerialization(object):
         assert isinstance(d["lookup_attrs"], OrderedDict)
         assert "my_node_attr" in d["lookup_attrs"]
         assert d["lookup_attrs"]["my_node_attr"] is a
+
+    def test_base_definition_multiple_outputs(self):
+        n = Node()
+        d = n.base_definition
+        if "attrs" in d:
+            assert "outputs" not in d["attrs"]
+            assert "output" not in d["attrs"]
+
+        n = Node(outputs=["a", "b"])
+        d = n.base_definition
+        assert "attrs" in d
+        assert "outputs" in d["attrs"]
+        assert "output" not in d["attrs"]
+
+        n = Node(outputs=["a", "b"], output="b")
+        d = n.base_definition
+        assert "attrs" in d
+        assert "outputs" in d["attrs"]
+        assert "output" in d["attrs"]
 
     def test_base_definition_units(self):
         n = Node(units="meters")

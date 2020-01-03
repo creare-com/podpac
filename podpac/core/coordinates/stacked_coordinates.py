@@ -436,11 +436,11 @@ class StackedCoordinates(BaseCoordinates):
 
             # segment lengths
             # TODO can we use the proj4 '+units' here, at least sometimes?
-            if lat.ctype is not "point" and "segment_lengths" in lat.properties:
+            if lat.ctype != "point" and "segment_lengths" in lat.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if lon.ctype is not "point" and "segment_lengths" in lon.properties:
+            if lon.ctype != "point" and "segment_lengths" in lon.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if alt.ctype is not "point" and "segment_lengths" in lon.properties:
+            if alt.ctype != "point" and "segment_lengths" in lon.properties:
                 sl = alt.segment_lengths
                 _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
                 coords[ialt].set_trait("segment_lengths", tsl)
@@ -458,9 +458,9 @@ class StackedCoordinates(BaseCoordinates):
 
             # segment lengths
             # TODO can we use proj4 '+units' here, at least sometimes?
-            if lat.ctype is not "point" and "segment_lengths" in lat.properties:
+            if lat.ctype != "point" and "segment_lengths" in lat.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if lon.ctype is not "point" and "segment_lengths" in lon.properties:
+            if lon.ctype != "point" and "segment_lengths" in lon.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
 
         elif "alt" in self.dims:
@@ -472,7 +472,7 @@ class StackedCoordinates(BaseCoordinates):
             coords[ialt].set_trait("coordinates", talt)
 
             # segment lengths
-            if alt.ctype is not "point" and "segment_lengths" in lon.properties:
+            if alt.ctype != "point" and "segment_lengths" in lon.properties:
                 sl = alt.segment_lengths
                 _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
                 coords[ialt].set_trait("segment_lengths", tsl)

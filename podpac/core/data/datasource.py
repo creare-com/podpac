@@ -261,6 +261,11 @@ class DataSource(Node):
                 + "Must be one of numpy.ndarray, xarray.DataArray, or podpac.UnitsDataArray"
             )
 
+        # extract single output, if necessary
+        # subclasses should extract single outputs themselves if possible, but this provides a backup
+        if "output" in udata_array.dims and self.output is not None:
+            udata_array = udata_array.sel(output=self.output)
+
         # fill nan_vals in data array
         if self.nan_vals:
             for nan_val in self.nan_vals:
@@ -356,6 +361,8 @@ class DataSource(Node):
         if self._requested_source_coordinates.size == 0:
             if output is None:
                 output = self.create_output_array(self._evaluated_coordinates)
+                if "output" in output.dims and self.output is not None:
+                    output = output.sel(output=self.output)
             else:
                 output[:] = np.nan
             return output
@@ -381,10 +388,14 @@ class DataSource(Node):
             requested_dims = None
             output_dims = None
             output = self.create_output_array(coordinates)
+            if "output" in output.dims and self.output is not None:
+                output = output.sel(output=self.output)
         else:
             requested_dims = self._evaluated_coordinates.dims
             output_dims = output.dims
             o = output
+            if "output" in output.dims:
+                requested_dims = requested_dims + ("output",)
             output = output.transpose(*requested_dims)
 
             # check crs compatibility
@@ -459,7 +470,7 @@ class DataSource(Node):
     @property
     @common_doc(COMMON_DATA_DOC)
     def base_definition(self):
-        """Base node defintion for DataSource nodes.
+        """Base node definition for DataSource nodes.
         
         Returns
         -------
@@ -468,13 +479,16 @@ class DataSource(Node):
 
         d = super(DataSource, self).base_definition
 
-        if "attrs" in d:
-            if "source" in d["attrs"]:
-                raise NodeException("The 'source' property cannot be tagged as an 'attr'")
+        # check attrs and remove unnecesary attrs
+        attrs = d.get("attrs", {})
+        if "source" in attrs:
+            raise NodeException("The 'source' property cannot be tagged as an 'attr'")
+        if "interpolation" in attrs:
+            raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
+        if not self.nan_vals and "nan_vals" in attrs:
+            del attrs["nan_vals"]
 
-            if "interpolation" in d["attrs"]:
-                raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
-
+        # set source or lookup_source
         if isinstance(self.source, Node):
             d["lookup_source"] = self.source
         elif isinstance(self.source, np.ndarray):

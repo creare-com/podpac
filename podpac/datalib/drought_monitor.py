@@ -2,7 +2,7 @@ from podpac.core.node import Node
 from podpac.core.style import Style
 from podpac.core.utils import NodeTrait
 from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.data.types import Zarr
+from podpac.core.data.file import Zarr
 from podpac.core.coordinates import ArrayCoordinates1d
 
 

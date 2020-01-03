@@ -47,7 +47,7 @@ if not hasattr(np, "isnat"):
 # Internal dependencies
 import podpac
 from podpac.core.coordinates import Coordinates, union, merge_dims, concat
-from podpac.core.data import types as datatype
+from podpac.core.data import pydap_source
 from podpac.core import authentication
 from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
@@ -254,7 +254,7 @@ def SMAP_BASE_URL():
 
 
 @common_doc(COMMON_DOC)
-class SMAPSource(datatype.PyDAP):
+class SMAPSource(pydap_source.PyDAP):
     """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how
     to extract the correct coordinates and data keys for the soil moisture data.
 

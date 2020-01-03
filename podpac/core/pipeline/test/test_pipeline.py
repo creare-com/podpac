@@ -26,7 +26,7 @@ class TestPipeline(object):
 
         assert pipeline.json
         assert pipeline.definition
-        assert pipeline.output
+        assert pipeline.pipeline_output
 
     def test_init_json(self):
         s = """
@@ -43,7 +43,7 @@ class TestPipeline(object):
             pipeline = Pipeline(json=s)
         assert pipeline.json
         assert pipeline.definition
-        assert pipeline.output
+        assert pipeline.pipeline_output
 
     def test_init_definition(self):
         s = """
@@ -62,7 +62,7 @@ class TestPipeline(object):
             pipeline = Pipeline(definition=d)
         assert pipeline.json
         assert pipeline.definition
-        assert pipeline.output
+        assert pipeline.pipeline_output
 
     def test_init_error(self):
         pass
@@ -97,7 +97,7 @@ class TestPipeline(object):
                     "node": "algorithm.Arange"
                 }
             },
-            "output": {
+            "pipeline_output": {
                 "node": "a",
                 "mode": "file",
                 "format": "pickle",
@@ -109,9 +109,9 @@ class TestPipeline(object):
         with pytest.warns(DeprecationWarning):
             pipeline = Pipeline(json=s)
         pipeline.eval(coords)
-        assert pipeline.output.path is not None
-        assert os.path.isfile(pipeline.output.path)
-        os.remove(pipeline.output.path)
+        assert pipeline.pipeline_output.path is not None
+        assert os.path.isfile(pipeline.pipeline_output.path)
+        os.remove(pipeline.pipeline_output.path)
 
     def test_eval_no_output(self):
         path = os.path.join(os.path.abspath(podpac.__path__[0]), "core", "pipeline", "test")
@@ -123,7 +123,7 @@ class TestPipeline(object):
                     "node": "algorithm.Arange"
                 }
             },
-            "output": {
+            "pipeline_output": {
                 "node": "a",
                 "mode": "file",
                 "format": "pickle",
@@ -135,9 +135,9 @@ class TestPipeline(object):
         with pytest.warns(DeprecationWarning):
             pipeline = Pipeline(json=s, do_write_output=False)
         pipeline.eval(coords)
-        if pipeline.output.path is not None and os.path.isfile(pipeline.output.path):
-            os.remove(pipeline.output.path)
-        assert pipeline.output.path is None
+        if pipeline.pipeline_output.path is not None and os.path.isfile(pipeline.pipeline_output.path):
+            os.remove(pipeline.pipeline_output.path)
+        assert pipeline.pipeline_output.path is None
 
     def test_debuggable(self):
         s = """

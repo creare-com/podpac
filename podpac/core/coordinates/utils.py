@@ -452,10 +452,12 @@ _TIMEDELTA_ZOOM = {
     "<m8[us]": "<m8[ns]",
 }
 
+VALID_DIMENSION_NAMES = ["lat", "lon", "alt", "time"]
+
 
 class Dimension(tl.Enum):
     def __init__(self, *args, **kwargs):
-        super(Dimension, self).__init__(["lat", "lon", "alt", "time"], *args, **kwargs)
+        super(Dimension, self).__init__(VALID_DIMENSION_NAMES, *args, **kwargs)
 
 
 class CoordinateType(tl.Enum):

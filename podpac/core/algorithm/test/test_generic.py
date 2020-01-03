@@ -8,7 +8,7 @@ import xarray as xr
 
 import podpac
 from podpac.core.algorithm.utility import Arange, SinCoords
-from podpac.core.algorithm.generic import GenericInputs, Arithmetic, Generic, Mask
+from podpac.core.algorithm.generic import GenericInputs, Arithmetic, Generic, Mask, Combine
 
 
 class TestGenericInputs(object):
@@ -211,3 +211,22 @@ class TestMask(object):
         a = sine_node.eval(coords)
 
         assert not np.all(a == output)
+
+
+class TestCombine(object):
+    def test_outputs(self):
+        node = Combine(a=Arange(), b=Arange(), c=Arange())
+        assert set(node.outputs) == set(["a", "b", "c"])
+
+        node = Combine(a=Arange(), b=Arange(), c=Arange(), outputs=["o1", "o2", "o3"])
+        assert set(node.outputs) == set(["o1", "o2", "o3"])
+
+    def test_eval(self):
+        coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
+        node = Combine(a=Arange(), b=Arange(), c=Arange())
+        output = node.eval(coords)
+        assert output.dims == ("lat", "lon", "output")
+        assert set(output["output"].data) == set(["a", "b", "c"])
+        np.testing.assert_array_equal(output.sel(output="a"), Arange().eval(coords))
+        np.testing.assert_array_equal(output.sel(output="b"), Arange().eval(coords))
+        np.testing.assert_array_equal(output.sel(output="c"), Arange().eval(coords))

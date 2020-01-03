@@ -330,12 +330,12 @@ class UnitsDataArray(xr.DataArray):
         return cls.create(coords, data=da.data, **uda_kwargs)
 
     @classmethod
-    def create(cls, coords, data=np.nan, dtype=float, **kwargs):
+    def create(cls, c, data=np.nan, outputs=None, dtype=float, **kwargs):
         """Shortcut to create :class:`podpac.UnitsDataArray`
         
         Parameters
         ----------
-        coords : :class:`podpac.Coordinates`
+        c : :class:`podpac.Coordinates`
             PODPAC Coordinates
         data : np.ndarray, optional
             Data to fill in. Defaults to np.nan.
@@ -348,29 +348,47 @@ class UnitsDataArray(xr.DataArray):
         -------
         :class:`podpac.UnitsDataArray`
         """
-        if not isinstance(coords, podpac.Coordinates):
-            raise TypeError("`UnitsDataArray.create` expected Coordinates object, not '%s'" % type(coords))
+        if not isinstance(c, podpac.Coordinates):
+            raise TypeError("`UnitsDataArray.create` expected Coordinates object, not '%s'" % type(c))
 
-        if data is None:
-            data = np.empty(coords.shape, dtype=dtype)
-        elif np.shape(data) == ():
-            if data == 0:
-                data = np.zeros(coords.shape, dtype=dtype)
+        # data array
+        if np.shape(data) == ():
+            shape = c.shape
+            if outputs is not None:
+                shape = shape + (len(outputs),)
+
+            if data is None:
+                data = np.empty(shape, dtype=dtype)
+            elif data == 0:
+                data = np.zeros(shape, dtype=dtype)
             elif data == 1:
-                data = np.ones(coords.shape, dtype=dtype)
+                data = np.ones(shape, dtype=dtype)
             else:
-                data = np.full(coords.shape, data, dtype=dtype)
+                data = np.full(shape, data, dtype=dtype)
         else:
+            if outputs is not None and len(outputs) != data.shape[-1]:
+                raise ValueError(
+                    "data with shape %s does not match provided outputs %s (%d != %d)"
+                    % (data.shape, outputs, data.shape[-1], len(outputs))
+                )
             data = data.astype(dtype)
 
-        # add crs attr
+        # coords and dims
+        coords = c.coords
+        dims = c.idims
+
+        if outputs is not None:
+            dims = dims + ("output",)
+            coords["output"] = outputs
+
+        # crs attr
         if "attrs" in kwargs:
             if "crs" not in kwargs["attrs"]:
-                kwargs["attrs"]["crs"] = coords.crs
+                kwargs["attrs"]["crs"] = c.crs
         else:
-            kwargs["attrs"] = {"crs": coords.crs}
+            kwargs["attrs"] = {"crs": c.crs}
 
-        return cls(data, coords=coords.coords, dims=coords.idims, **kwargs)
+        return cls(data, coords=coords, dims=dims, **kwargs)
 
 
 for tp in ("mul", "matmul", "truediv", "div"):
@@ -435,14 +453,14 @@ for tp in ("mean", "min", "max", "sum", "cumsum"):
 del func
 
 
-def create_dataarray(coords, data=np.nan, dtype=float, **kwargs):
+def create_dataarray(coords, data=np.nan, dtype=float, outputs=None, **kwargs):
     """Deprecated. Use `UnitsDataArray.create()` in place.
     """
     warnings.warn(
         "The `create_dataarray` function is deprecated and will be removed in podpac 2.0. Use the classmethod `UnitsDataArray.create()` instead.",
         DeprecationWarning,
     )
-    return UnitsDataArray.create(coords, data, dtype, **kwargs)
+    return UnitsDataArray.create(coords, data=data, outputs=outputs, dtype=dtype, **kwargs)
 
 
 def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):

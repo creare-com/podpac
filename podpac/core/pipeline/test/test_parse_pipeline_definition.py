@@ -594,7 +594,7 @@ class TestParsePipelineDefinition(object):
         s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {"node": "a", "mode": "none"}
+            "pipeline_output": {"node": "a", "mode": "none"}
         }
         """
         d = json.loads(s, object_pairs_hook=OrderedDict)
@@ -607,7 +607,7 @@ class TestParsePipelineDefinition(object):
         s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "node": "a",
                 "mode": "file",
                 "format": "pickle",
@@ -627,7 +627,7 @@ class TestParsePipelineDefinition(object):
         s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "node": "a",
                 "mode": "s3",
                 "user": "my_user",
@@ -647,7 +647,7 @@ class TestParsePipelineDefinition(object):
         s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "node": "a",
                 "mode": "ftp",
                 "url": "my_url",
@@ -668,7 +668,7 @@ class TestParsePipelineDefinition(object):
         s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "node": "a",
                 "mode": "image"
             }
@@ -685,7 +685,7 @@ class TestParsePipelineDefinition(object):
         s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {"mode": "nonexistent_mode"}
+            "pipeline_output": {"mode": "nonexistent_mode"}
         }
         """
         d = json.loads(s, object_pairs_hook=OrderedDict)
@@ -696,7 +696,7 @@ class TestParsePipelineDefinition(object):
         s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {"node": "a"}
+            "pipeline_output": {"node": "a"}
         }
         """
         d = json.loads(s, object_pairs_hook=OrderedDict)
@@ -709,7 +709,7 @@ class TestParsePipelineDefinition(object):
         s = """
         {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "node": "b",
                 "mode": "file",
                 "format": "pickle",
@@ -741,7 +741,7 @@ class TestParsePipelineDefinition(object):
                         }
                     }
                 },
-                "output": {
+                "pipeline_output": {
                     "mode": "none"
                 }
             }
@@ -765,7 +765,7 @@ class TestParsePipelineDefinition(object):
     def test_parse_custom_output(self):
         s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "plugin": "podpac.core.pipeline.output",
                 "output": "ImageOutput"
             }
@@ -778,7 +778,7 @@ class TestParsePipelineDefinition(object):
 
         s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "plugin": "podpac",
                 "output": "core.pipeline.output.ImageOutput"
             }
@@ -793,7 +793,7 @@ class TestParsePipelineDefinition(object):
         # no module
         s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "plugin": "nonexistent_module",
                 "output": "arbitrary"
             }
@@ -807,7 +807,7 @@ class TestParsePipelineDefinition(object):
         # module okay, but no such class
         s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "plugin": "podpac.core.pipeline.output",
                 "output": "Nonexistent"
             }
@@ -821,7 +821,7 @@ class TestParsePipelineDefinition(object):
         # module okay, class found, could not create
         s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "plugin": "numpy",
                 "output": "ndarray"
             }
@@ -835,7 +835,7 @@ class TestParsePipelineDefinition(object):
         # module okay, class found, incorrect type
         s = """ {
             "nodes": {"a": {"node": "algorithm.Arange"} },
-            "output": {
+            "pipeline_output": {
                 "plugin": "numpy",
                 "output": "array"
             }

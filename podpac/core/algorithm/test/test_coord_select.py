@@ -1,10 +1,12 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import xarray as xr
 import pytest
+import numpy as np
 
 import podpac
 from podpac.core.data.datasource import DataSource
-from podpac.core.data.types import Array
+from podpac.core.data.array_source import Array
 from podpac.core.algorithm.utility import Arange
 from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates, YearSubstituteCoordinates
 
@@ -40,7 +42,7 @@ class TestExpandCoordinates(object):
         node = ExpandCoordinates(source=Arange(), time=("-5,D", "0,D", "1,D"))
         o = node.eval(coords)
 
-    def test_spatial_exponsion(self):
+    def test_spatial_expansion(self):
         node = ExpandCoordinates(source=Arange(), lat=(-1, 1, 0.1))
         o = node.eval(coords)
 
@@ -64,6 +66,11 @@ class TestExpandCoordinates(object):
         node = ExpandCoordinates(source=MyDataSource(), time=("-144,M", "0,D", "13,M"))
         o = node.eval(coords)
 
+    def test_spatial_expansion_ultiple_outputs(self):
+        multi = Array(source=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
+        node = ExpandCoordinates(source=multi, lat=(-1, 1, 0.1))
+        o = node.eval(coords)
+
 
 class TestSelectCoordinates(object):
     def test_no_expansion(self):
@@ -85,19 +92,24 @@ class TestSelectCoordinates(object):
         node = SelectCoordinates(source=MyDataSource(), time=("2011-01-01", "2017-01-01", "1,Y"))
         o = node.eval(coords)
 
+    def test_spatial_selection_multiple_outputs(self):
+        multi = Array(source=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
+        node = SelectCoordinates(source=multi, lat=(46, 56, 1))
+        o = node.eval(coords)
+
 
 class TestYearSubstituteCoordinates(object):
     def test_year_substitution(self):
         node = YearSubstituteCoordinates(source=Arange(), year="2018")
         o = node.eval(coords)
         assert o.time.dt.year.data[0] == 2018
-        assert o["time"].data != coords.coords["time"].data
+        assert o["time"].data != xr.DataArray(coords.coords["time"]).data
 
     def test_year_substitution_orig_coords(self):
         node = YearSubstituteCoordinates(source=Arange(), year="2018", substitute_eval_coords=True)
         o = node.eval(coords)
-        assert o.time.dt.year.data[0] == coords.coords["time"].dt.year.data[0]
-        assert o["time"].data == coords.coords["time"].data
+        assert o.time.dt.year.data[0] == xr.DataArray(coords.coords["time"]).dt.year.data[0]
+        assert o["time"].data == xr.DataArray(coords.coords["time"]).data
 
     def test_year_substitution_missing_coords(self):
         source = Array(
@@ -109,7 +121,7 @@ class TestYearSubstituteCoordinates(object):
         node = YearSubstituteCoordinates(source=source, year="2018")
         o = node.eval(coords)
         assert o.time.dt.year.data[0] == 2018
-        assert o["time"].data != coords.coords["time"].data
+        assert o["time"].data != xr.DataArray(coords.coords["time"]).data
 
     def test_year_substitution_missing_coords_orig_coords(self):
         source = Array(
@@ -121,4 +133,11 @@ class TestYearSubstituteCoordinates(object):
         node = YearSubstituteCoordinates(source=source, year="2018", substitute_eval_coords=True)
         o = node.eval(coords)
         assert o.time.dt.year.data[0] == 2017
-        assert o["time"].data == coords.coords["time"].data
+        assert o["time"].data == xr.DataArray(coords.coords["time"]).data
+
+    def test_year_substitution_multiple_outputs(self):
+        multi = Array(source=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
+        node = YearSubstituteCoordinates(source=multi, year="2018")
+        o = node.eval(coords)
+        assert o.time.dt.year.data[0] == 2018
+        assert o["time"].data != xr.DataArray(coords.coords["time"]).data

@@ -471,11 +471,11 @@ class DependentCoordinates(BaseCoordinates):
 
             # segment lengths
             # TODO can we use '+units' here, at least sometimes?
-            if self.ctypes[ilat] is not "point":
+            if self.ctypes[ilat] != "point":
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if self.ctypes[ilon] is not "point":
+            if self.ctypes[ilon] != "point":
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if self.ctypes[ialt] is not "point":
+            if self.ctypes[ialt] != "point":
                 _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
                 properties["segment_lengths"][ialt] = tsl
 
@@ -492,9 +492,9 @@ class DependentCoordinates(BaseCoordinates):
 
             # segment lengths
             # TODO can we use '+units' here, at least sometimes?
-            if self.ctypes[ilat] is not "point":
+            if self.ctypes[ilat] != "point":
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if self.ctypes[ilon] is not "point":
+            if self.ctypes[ilon] != "point":
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
 
         elif "alt" in self.dims:
@@ -506,7 +506,7 @@ class DependentCoordinates(BaseCoordinates):
             coords[ialt] = talt.reshape(self.shape)
 
             # segment lengths
-            if self.ctypes[ialt] is not "point":
+            if self.ctypes[ialt] != "point":
                 _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
                 properties["segment_lengths"][ialt] = tsl
 

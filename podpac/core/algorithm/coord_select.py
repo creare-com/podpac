@@ -12,13 +12,13 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.coordinates import UniformCoordinates1d, ArrayCoordinates1d
 from podpac.core.coordinates import make_coord_value, make_coord_delta, add_coord
 from podpac.core.node import Node, COMMON_NODE_DOC
-from podpac.core.algorithm.algorithm import Algorithm
+from podpac.core.algorithm.algorithm import UnaryAlgorithm
 from podpac.core.utils import common_doc, NodeTrait
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
 
-class ModifyCoordinates(Algorithm):
+class ModifyCoordinates(UnaryAlgorithm):
     """
     Base class for nodes that modify the requested coordinates before evaluation.
     
@@ -32,7 +32,6 @@ class ModifyCoordinates(Algorithm):
         Modification parameters for given dimension. Varies by node.
     """
 
-    source = NodeTrait()
     coordinates_source = NodeTrait()
     lat = tl.List().tag(attr=True)
     lon = tl.List().tag(attr=True)
@@ -67,7 +66,6 @@ class ModifyCoordinates(Algorithm):
         """
 
         self._requested_coordinates = coordinates
-        self.outputs = {}
         self._modified_coordinates = Coordinates(
             [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims], crs=coordinates.crs
         )
@@ -76,20 +74,21 @@ class ModifyCoordinates(Algorithm):
             if self._modified_coordinates[dim].size == 0:
                 raise ValueError("Modified coordinates do not intersect with source data (dim '%s')" % dim)
 
-        self.outputs["source"] = self.source.eval(self._modified_coordinates, output=output)
+        outputs = {}
+        outputs["source"] = self.source.eval(self._modified_coordinates, output=output)
 
         if self.substitute_eval_coords:
-            dims = self.outputs["source"].dims
+            dims = outputs["source"].dims
             coords = self._requested_coordinates
             extra_dims = [d for d in coords.dims if d not in dims]
             coords = coords.drop(extra_dims).coords
 
-            self.outputs["source"] = self.outputs["source"].assign_coords(**coords)
+            outputs["source"] = outputs["source"].assign_coords(**coords)
 
         if output is None:
-            output = self.outputs["source"]
+            output = outputs["source"]
         else:
-            output[:] = self.outputs["source"]
+            output[:] = outputs["source"]
 
         if settings["DEBUG"]:
             self._output = output

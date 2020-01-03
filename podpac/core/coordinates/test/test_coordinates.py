@@ -384,14 +384,15 @@ class TestCoordinateCreation(object):
         )
 
         # from xarray
-        c2 = Coordinates.from_xarray(c.coords)
+        x = xr.DataArray(np.empty(c.shape), coords=c.coords, dims=c.idims)
+        c2 = Coordinates.from_xarray(x.coords)
         assert c2.dims == c.dims
         assert c2.shape == c.shape
         assert isinstance(c2["lat_lon"], StackedCoordinates)
         assert isinstance(c2["time"], Coordinates1d)
-        np.testing.assert_equal(c2.coords["lat"].data, np.array(lat, dtype=float))
-        np.testing.assert_equal(c2.coords["lon"].data, np.array(lon, dtype=float))
-        np.testing.assert_equal(c2.coords["time"].data, np.array(dates).astype(np.datetime64))
+        np.testing.assert_equal(c2["lat"].coordinates, np.array(lat, dtype=float))
+        np.testing.assert_equal(c2["lon"].coordinates, np.array(lon, dtype=float))
+        np.testing.assert_equal(c2["time"].coordinates, np.array(dates).astype(np.datetime64))
 
         # invalid
         with pytest.raises(TypeError, match="Coordinates.from_xarray expects xarray DataArrayCoordinates"):
@@ -625,11 +626,13 @@ class TestCoordinatesProperties(object):
             ]
         )
 
-        assert isinstance(c.coords, xr.core.coordinates.DataArrayCoordinates)
-        assert c.coords.dims == ("lat", "lon", "time")
-        np.testing.assert_equal(c.coords["lat"].data, np.array(lat, dtype=float))
-        np.testing.assert_equal(c.coords["lon"].data, np.array(lon, dtype=float))
-        np.testing.assert_equal(c.coords["time"].data, np.array(dates).astype(np.datetime64))
+        dcoords = c.coords
+
+        assert isinstance(dcoords, dict)
+        assert set(dcoords.keys()) == {"lat", "lon", "time"}
+        np.testing.assert_equal(dcoords["lat"], np.array(lat, dtype=float))
+        np.testing.assert_equal(dcoords["lon"], np.array(lon, dtype=float))
+        np.testing.assert_equal(dcoords["time"], np.array(dates).astype(np.datetime64))
 
     def test_xarray_coords_stacked(self):
         lat = [0, 1, 2]
@@ -643,11 +646,12 @@ class TestCoordinatesProperties(object):
             ]
         )
 
-        assert isinstance(c.coords, xr.core.coordinates.DataArrayCoordinates)
-        assert c.coords.dims == ("lat_lon", "time")
-        np.testing.assert_equal(c.coords["lat"].data, np.array(lat, dtype=float))
-        np.testing.assert_equal(c.coords["lon"].data, np.array(lon, dtype=float))
-        np.testing.assert_equal(c.coords["time"].data, np.array(dates).astype(np.datetime64))
+        dcoords = c.coords
+
+        assert isinstance(dcoords, dict)
+        assert set(dcoords.keys()) == {"lat_lon", "time"}
+        assert np.all(dcoords["lat_lon"] == c["lat_lon"].coordinates)
+        np.testing.assert_equal(dcoords["time"], np.array(dates).astype(np.datetime64))
 
     def test_xarray_coords_dependent(self):
         lat = np.linspace(0, 1, 12).reshape((3, 4))
@@ -655,14 +659,15 @@ class TestCoordinatesProperties(object):
         dates = ["2018-01-01", "2018-01-02"]
 
         c = Coordinates([DependentCoordinates([lat, lon], dims=["lat", "lon"]), ArrayCoordinates1d(dates, name="time")])
+        dcoords = c.coords
 
-        assert isinstance(c.coords, xr.core.coordinates.DataArrayCoordinates)
-        assert c.coords.dims == ("i", "j", "time")
-        np.testing.assert_equal(c.coords["i"].data, np.arange(3))
-        np.testing.assert_equal(c.coords["j"].data, np.arange(4))
-        np.testing.assert_equal(c.coords["lat"].data, lat)
-        np.testing.assert_equal(c.coords["lon"].data, lon)
-        np.testing.assert_equal(c.coords["time"].data, np.array(dates).astype(np.datetime64))
+        assert isinstance(dcoords, dict)
+        assert set(dcoords.keys()) == {"lat", "lon", "time"}
+        assert dcoords["lat"][0] == ("i", "j")
+        assert dcoords["lon"][0] == ("i", "j")
+        np.testing.assert_equal(dcoords["lat"][1], lat)
+        np.testing.assert_equal(dcoords["lon"][1], lon)
+        np.testing.assert_equal(dcoords["time"], np.array(dates).astype(np.datetime64))
 
     def test_bounds(self):
         lat = [0, 1, 2]
@@ -695,17 +700,23 @@ class TestCoordinatesDict(object):
     coords = Coordinates([[[0, 1, 2], [10, 20, 30]], ["2018-01-01", "2018-01-02"]], dims=["lat_lon", "time"])
 
     def test_keys(self):
-        assert [dim for dim in self.coords.keys()] == ["lat_lon", "time"]
+        assert set(self.coords.keys()) == {"lat_lon", "time"}
 
     def test_values(self):
-        assert [c for c in self.coords.values()] == [self.coords["lat_lon"], self.coords["time"]]
+        values = list(self.coords.values())
+        assert len(values) == 2
+        assert self.coords["lat_lon"] in values
+        assert self.coords["time"] in values
 
     def test_items(self):
-        assert [dim for dim, c in self.coords.items()] == ["lat_lon", "time"]
-        assert [c for dim, c in self.coords.items()] == [self.coords["lat_lon"], self.coords["time"]]
+        keys, values = zip(*self.coords.items())
+        assert set(keys) == {"lat_lon", "time"}
+        assert len(values) == 2
+        assert self.coords["lat_lon"] in values
+        assert self.coords["time"] in values
 
     def test_iter(self):
-        assert [dim for dim in self.coords] == ["lat_lon", "time"]
+        assert set(self.coords) == {"lat_lon", "time"}
 
     def test_getitem(self):
         lat = ArrayCoordinates1d([0, 1, 2], name="lat")
