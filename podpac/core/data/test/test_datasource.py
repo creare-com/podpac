@@ -404,8 +404,8 @@ class TestInterpolateData(object):
         """ for now alt uses nearest neighbor """
 
         source = np.random.rand(5)
-        coords_src = Coordinates([clinspace(0, 10, 5)], dims=["alt"])
-        coords_dst = Coordinates([clinspace(1, 11, 5)], dims=["alt"])
+        coords_src = Coordinates([clinspace(0, 10, 5)], dims=["alt"], crs="+proj=merc +vunits=m")
+        coords_dst = Coordinates([clinspace(1, 11, 5)], dims=["alt"], crs="+proj=merc +vunits=m")
 
         node = MockArrayDataSource(source=source, native_coordinates=coords_src)
         output = node.eval(coords_dst)
