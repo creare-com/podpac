@@ -94,12 +94,18 @@ class Node(tl.HasTraits):
         future.
     units : str
         The units of the output data. Must be pint compatible.
+    outputs : list
+        For multiple-output nodes, the names of the outputs. Default is ``None`` for standard nodes.
+    output : str
+        For multiple-output nodes only, specifies a particular output to evaluate, if desired. Must be one of ``outputs``.
 
     Notes
     -----
     Additional attributes are available for debugging after evaluation, including:
      * ``_requested_coordinates``: the requested coordinates of the most recent call to eval
      * ``_output``: the output of the most recent call to eval
+     * ``_from_cache``: whether the most recent call to eval used the cache
+     * ``_multi_threaded``: whether the most recent call to eval was executed using multiple threads
     """
 
     outputs = tl.List(tl.Unicode, allow_none=True).tag(attr=True)
@@ -117,10 +123,11 @@ class Node(tl.HasTraits):
 
     @tl.validate("output")
     def _validate_output(self, d):
-        if self.outputs is None:
-            raise TypeError("Invalid output '%s' (output must be None for single-output nodes)." % self.output)
-        if d["value"] not in self.outputs:
-            raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
+        if d['value'] is not None:
+            if self.outputs is None:
+                raise TypeError("Invalid output '%s' (output must be None for single-output nodes)." % self.output)
+            if d["value"] not in self.outputs:
+                raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
         return d["value"]
 
     @tl.default("cache_output")

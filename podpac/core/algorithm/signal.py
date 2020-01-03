@@ -164,7 +164,7 @@ class Convolution(UnaryAlgorithm):
         result = result[exp_slice]
 
         if output is None:
-            output = self.create_output_array(coordinates)
+            output = self.create_output_array(coordinates, data=result)
         else:
             output[:] = result
 
