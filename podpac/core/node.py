@@ -846,7 +846,7 @@ def node_eval(fn):
         key = cache_key
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
 
-        if self.has_cache(key, cache_coordinates) and not self.cache_update:
+        if not self.cache_update and self.has_cache(key, cache_coordinates):
             data = self.get_cache(key, cache_coordinates)
             if output is not None:
                 order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
