@@ -392,6 +392,8 @@ class CSV(DatasetSource):
         """
 
         coords = super(CSV, self).get_native_coordinates()
+        if len(coords) == 1:
+            return coords
         stacked = StackedCoordinates(list(coords.values()))
         return Coordinates([stacked], **coords.properties)
 
