@@ -570,6 +570,20 @@ class Zarr(DatasetSource):
     access_key_id = tl.Unicode()
     secret_access_key = tl.Unicode()
     region_name = tl.Unicode()
+    dims = tl.List(allow_none=False)
+
+    @tl.default("dims")
+    def _dims_default(self):
+        """dataset coordinate dims"""
+        key = self.data_key
+        if key is None:
+            key = self.available_keys[0]
+        try:
+            dims = self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
+        except:
+            lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
+            dims = [lookup[key] for key in self.dataset if key in lookup]
+        return dims
 
     @tl.default("access_key_id")
     def _get_access_key_id(self):
@@ -613,12 +627,6 @@ class Zarr(DatasetSource):
             for key, name in zip(self.output_keys, self.outputs):
                 data.sel(output=name)[:] = self.dataset[key][coordinates_index]
         return data
-
-    @property
-    def dims(self):
-        """dataset coordinate dims"""
-        lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
-        return [lookup[key] for key in self.dataset if key in lookup]
 
     @property
     def available_keys(self):
