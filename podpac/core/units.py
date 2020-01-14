@@ -39,7 +39,8 @@ from podpac.core.style import Style
 class UnitsDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
     """
-
+    __slots__ = ()
+    
     def __init__(self, *args, **kwargs):
         super(UnitsDataArray, self).__init__(*args, **kwargs)
         self.deserialize()
@@ -170,9 +171,65 @@ class UnitsDataArray(xr.DataArray):
         elif format in ["png", "jpg", "jpeg"]:
             r = self.to_image(format, *args, **kwargs)
         elif format.upper() in ["TIFF", "TIF", "GEOTIFF"]:
-            raise NotImplementedError("Format {} is not implemented.".format(format))
+            # This only works for data that essentially has lat/lon only
+            dims = self.coords.dims
+            if "lat" not in dims or "lon" not in dims:
+                raise NotImplementedError("Cannot export GeoTIFF for dataset with lat/lon coordinates.")
+            if "time" in dims and len(self.coords["time"] > 1):
+                raise NotImplemented("Cannot export GeoTIFF for dataset with multiple times,")
+            if "alt" in dims and len(self.coords["alt"] > 1):
+                raise NotImplemented("Cannot export GeoTIFF for dataset with multiple altitudes.")
+
+            # Get the crs and geotransform that describes the coordinates
+            crs = self.attrs.get("crs", "EPSG:4326")
+            coords = podpac.Coordinates.from_xarray(self, crs=crs)
+
+            # TODO: add proper checks, etc. to make sure we handle edge cases and throw errors when we cannot support
+            #       i.e. do work to remove this warning.
+            _logger.warning("GeoTIFF export assumes data is in a uniform, non-rotated coordinate system.")
+
+            # Build the transform from a translation and scaling
+            transform = rasterio.transform.Affine.translate(
+                min(self.coords.area_bounds["lon"]), max(self.coords.area_bounds["lat"])
+            ) * rasterio.transform.Affine.scale(
+                (max(self.coords.bounds["lon"]) - min(self.coords.bounds["lon"])) / coords["lon"].size,
+                (max(self.coords.bounds["lat"]) - min(self.coords.bounds["lat"])) / coords["lat"].size,
+            )
+
+            # Update the kwargs that rasterio will use. Anything added by the user will take priority.
+            kwargs2 = dict(
+                drive="GTiff",
+                height=self.coords["lat"].size,
+                width=self.coords["lon"].size,
+                count=1,
+                dtype=data.dtype,
+                crs=crs,
+                transform=transform,
+            )
+            kwargs2.update(kwargs)
+
+            # Get the data
+            dtype = kwargs.get('dtype', np.float32)
+            data = self.data.astype(dtype).squeeze()
+            if dims.index("lat") > dims.index("lon"):
+                data = data.T
+
+            # Write the file
+            with rasterio.open(*args, **kwargs2) as dst:
+                r = dst.write(data, 1)
+
         elif format in ["pickle", "pkl"]:
             r = cPickle.dumps(self)
+
+        elif format == 'zarr_part':
+            if part in kwargs:
+                part = [slice(*sss) for sss in kwargs.pop('part')]
+            else: 
+                part = slice(None)
+            
+            zf = zarr.open(*args, **kwargs)
+            zf[part] = self.data
+
         else:
             try:
                 getattr(self, "to_" + format)(*args, **kwargs)
