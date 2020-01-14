@@ -493,7 +493,7 @@ class H5PY(DatasetSource):
             dims = self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
         except:
             lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
-            dims =  [lookup[key] for key in H5PY._find_h5py_keys(self.dataset) if key in lookup]
+            dims = [lookup[key] for key in H5PY._find_h5py_keys(self.dataset) if key in lookup]
         return dims
 
     @tl.default("dataset")

@@ -1138,12 +1138,12 @@ class Coordinates(tl.HasTraits):
         for dim in dims:
             if dim in self._coords:
                 coords.append(self._coords[dim])
-            elif ',' in dim and dim.split(',')[0] in self.udims:
-                target_dims = dim.split(',')
+            elif "," in dim and dim.split(",")[0] in self.udims:
+                target_dims = dim.split(",")
                 source_dim = [_dim for _dim in self.dims if target_dims[0] in _dim][0]
                 coords.append(self._coords[source_dim].transpose(*target_dims, in_place=in_place))
-            elif '_' in dim and dim.split('_')[0] in self.udims:
-                target_dims = dim.split('_')
+            elif "_" in dim and dim.split("_")[0] in self.udims:
+                target_dims = dim.split("_")
                 source_dim = [_dim for _dim in self.dims if target_dims[0] in _dim][0]
                 coords.append(self._coords[source_dim].transpose(*target_dims, in_place=in_place))
             else:

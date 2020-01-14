@@ -39,8 +39,9 @@ from podpac.core.style import Style
 class UnitsDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units
     """
+
     __slots__ = ()
-    
+
     def __init__(self, *args, **kwargs):
         super(UnitsDataArray, self).__init__(*args, **kwargs)
         self.deserialize()
@@ -209,7 +210,7 @@ class UnitsDataArray(xr.DataArray):
             kwargs2.update(kwargs)
 
             # Get the data
-            dtype = kwargs.get('dtype', np.float32)
+            dtype = kwargs.get("dtype", np.float32)
             data = self.data.astype(dtype).squeeze()
             if dims.index("lat") > dims.index("lon"):
                 data = data.T
@@ -221,12 +222,12 @@ class UnitsDataArray(xr.DataArray):
         elif format in ["pickle", "pkl"]:
             r = cPickle.dumps(self)
 
-        elif format == 'zarr_part':
+        elif format == "zarr_part":
             if part in kwargs:
-                part = [slice(*sss) for sss in kwargs.pop('part')]
-            else: 
+                part = [slice(*sss) for sss in kwargs.pop("part")]
+            else:
                 part = slice(None)
-            
+
             zf = zarr.open(*args, **kwargs)
             zf[part] = self.data
 

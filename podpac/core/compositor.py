@@ -124,15 +124,17 @@ class Compositor(Node):
 
     @tl.validate("source_coordinates")
     def _validate_source_coordinates(self, d):
-        if d['value'] is not None:
-            if d['value'].ndim != 1:
-                raise ValueError("Invalid source_coordinates, invalid ndim (%d != 1)" % d['value'].ndim)
+        if d["value"] is not None:
+            if d["value"].ndim != 1:
+                raise ValueError("Invalid source_coordinates, invalid ndim (%d != 1)" % d["value"].ndim)
 
-            if d['value'].size != self.sources.size:
-                raise ValueError("Invalid source_coordinates, source and source_coordinates size mismatch (%d != %d)" % (
-                    d['value'].size, self.sources.size))
+            if d["value"].size != self.sources.size:
+                raise ValueError(
+                    "Invalid source_coordinates, source and source_coordinates size mismatch (%d != %d)"
+                    % (d["value"].size, self.sources.size)
+                )
 
-        return d['value']
+        return d["value"]
 
     # default representation
     def __repr__(self):

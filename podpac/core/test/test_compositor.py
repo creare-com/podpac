@@ -38,7 +38,7 @@ class TestCompositor(object):
 
         with pytest.raises(NotImplementedError):
             node.shared_coordinates()
-    
+
     def test_source_coordinates(self):
         # none (default)
         node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
@@ -48,52 +48,61 @@ class TestCompositor(object):
         # unstacked
         node = podpac.compositor.Compositor(
             sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
-            source_coordinates=podpac.Coordinates([[0, 1]], dims=['time']))
+            source_coordinates=podpac.Coordinates([[0, 1]], dims=["time"]),
+        )
 
         # stacked
         node = podpac.compositor.Compositor(
             sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
-            source_coordinates=podpac.Coordinates([[[0, 1], [10, 20]]], dims=['time_alt']))
+            source_coordinates=podpac.Coordinates([[[0, 1], [10, 20]]], dims=["time_alt"]),
+        )
 
         # invalid size
         with pytest.raises(ValueError, match="Invalid source_coordinates, source and source_coordinates size mismatch"):
             node = podpac.compositor.Compositor(
                 sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
-                source_coordinates=podpac.Coordinates([[0, 1, 2]], dims=['time']))
+                source_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["time"]),
+            )
 
         with pytest.raises(ValueError, match="Invalid source_coordinates, source and source_coordinates size mismatch"):
             node = podpac.compositor.Compositor(
                 sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
-                source_coordinates=podpac.Coordinates([[0, 1, 2]], dims=['time']))
+                source_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["time"]),
+            )
 
         # invalid ndims
         with pytest.raises(ValueError, match="Invalid source_coordinates"):
             node = podpac.compositor.Compositor(
                 sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
-                source_coordinates=podpac.Coordinates([[0, 1], [10, 20]], dims=['time', 'alt']))
+                source_coordinates=podpac.Coordinates([[0, 1], [10, 20]], dims=["time", "alt"]),
+            )
 
     def test_select_sources(self):
-        source_coords = podpac.Coordinates([[0, 10]], ['time'])
+        source_coords = podpac.Coordinates([[0, 10]], ["time"])
         node = podpac.compositor.Compositor(
-            sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
-            source_coordinates=source_coords)
-        
+            sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()], source_coordinates=source_coords
+        )
+
         selected = node.select_sources(source_coords)
         assert len(selected) == 2
         assert selected[0] is node.sources[0]
         assert selected[1] is node.sources[1]
-        
-        coords = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 0], ['lat', 'lon', 'time'])
+
+        coords = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 0], ["lat", "lon", "time"])
         selected = node.select_sources(coords)
         assert len(selected) == 1
         assert selected[0] is node.sources[0]
 
-        coords = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 10], ['lat', 'lon', 'time'])
+        coords = podpac.Coordinates(
+            [podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 10], ["lat", "lon", "time"]
+        )
         selected = node.select_sources(coords)
         assert len(selected) == 1
         assert selected[0] is node.sources[1]
 
-        coords = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 100], ['lat', 'lon', 'time'])
+        coords = podpac.Coordinates(
+            [podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 100], ["lat", "lon", "time"]
+        )
         selected = node.select_sources(coords)
         assert len(selected) == 0
 

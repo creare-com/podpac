@@ -1170,11 +1170,11 @@ class TestCoordinatesMethods(object):
         dates = ["2018-01-01", "2018-01-02"]
         c = Coordinates([[lat, lon], dates], dims=["lat,lon", "time"])
 
-        t = c.transpose('time', 'lon,lat', in_place=False)
-        assert c.dims == ("lat,lon", 'time')
+        t = c.transpose("time", "lon,lat", in_place=False)
+        assert c.dims == ("lat,lon", "time")
         assert t.dims == ("time", "lon,lat")
 
-        c.transpose('time', 'lon,lat', in_place=True)
+        c.transpose("time", "lon,lat", in_place=True)
         assert c.dims == ("time", "lon,lat")
 
     def test_transpose_stacked(self):
@@ -1183,11 +1183,11 @@ class TestCoordinatesMethods(object):
         dates = ["2018-01-01", "2018-01-02"]
         c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"])
 
-        t = c.transpose('time', 'lon_lat', in_place=False)
-        assert c.dims == ("lat_lon", 'time')
+        t = c.transpose("time", "lon_lat", in_place=False)
+        assert c.dims == ("lat_lon", "time")
         assert t.dims == ("time", "lon_lat")
 
-        c.transpose('time', 'lon_lat', in_place=True)
+        c.transpose("time", "lon_lat", in_place=True)
         assert c.dims == ("time", "lon_lat")
 
     def test_transform(self):

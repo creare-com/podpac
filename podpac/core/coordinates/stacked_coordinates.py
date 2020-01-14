@@ -506,9 +506,9 @@ class StackedCoordinates(BaseCoordinates):
             raise ValueError("Invalid transpose dimensions, input %s does match any dims in %s" % (dims, self.dims))
 
         coordinates = [self._coords[self.dims.index(dim)] for dim in dims]
-        
+
         if in_place:
-            self.set_trait('_coords', coordinates)
+            self.set_trait("_coords", coordinates)
             return self
         else:
             return StackedCoordinates(coordinates)

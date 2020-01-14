@@ -541,12 +541,12 @@ class DependentCoordinates(BaseCoordinates):
         coordinates = [self.coordinates[self.dims.index(dim)] for dim in dims]
 
         if in_place:
-            self.set_trait('coordinates', coordinates)
-            self.set_trait('dims', dims)
+            self.set_trait("coordinates", coordinates)
+            self.set_trait("dims", dims)
             return self
         else:
             properties = self.properties
-            properties['dims'] = dims
+            properties["dims"] = dims
             return DependentCoordinates(coordinates, **properties)
 
     # ------------------------------------------------------------------------------------------------------------------
