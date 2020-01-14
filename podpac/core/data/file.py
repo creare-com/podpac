@@ -481,6 +481,21 @@ class H5PY(DatasetSource):
 
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
 
+    dims = tl.List(allow_none=False)
+
+    @tl.default("dims")
+    def _dims_default(self):
+        """dataset coordinate dims"""
+        key = self.data_key
+        if key is None:
+            key = self.available_keys[0]
+        try:
+            dims = self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
+        except:
+            lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
+            dims =  [lookup[key] for key in H5PY._find_h5py_keys(self.dataset) if key in lookup]
+        return dims
+
     @tl.default("dataset")
     def _open_dataset(self):
         # TODO: dataset should not open by default
@@ -507,11 +522,6 @@ class H5PY(DatasetSource):
         """Dataset or group key for which attributes will be summarized.
         """
         return dict(self.dataset[key].attrs)
-
-    @property
-    def dims(self):
-        lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
-        return [lookup[key] for key in H5PY._find_h5py_keys(self.dataset) if key in lookup]
 
     @property
     def available_keys(self):
