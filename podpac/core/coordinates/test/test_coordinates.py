@@ -1161,6 +1161,35 @@ class TestCoordinatesMethods(object):
         with pytest.raises(ValueError, match="Invalid transpose dimensions"):
             c.transpose("lon", "lat")
 
+        with pytest.raises(ValueError, match="Invalid transpose dimensions"):
+            c.transpose("lat", "lon", "alt")
+
+    def test_transpose_dependent(self):
+        lat = np.linspace(0, 1, 12).reshape((3, 4))
+        lon = np.linspace(10, 20, 12).reshape((3, 4))
+        dates = ["2018-01-01", "2018-01-02"]
+        c = Coordinates([[lat, lon], dates], dims=["lat,lon", "time"])
+
+        t = c.transpose('time', 'lon,lat', in_place=False)
+        assert c.dims == ("lat,lon", 'time')
+        assert t.dims == ("time", "lon,lat")
+
+        c.transpose('time', 'lon,lat', in_place=True)
+        assert c.dims == ("time", "lon,lat")
+
+    def test_transpose_stacked(self):
+        lat = np.linspace(0, 1, 12)
+        lon = np.linspace(10, 20, 12)
+        dates = ["2018-01-01", "2018-01-02"]
+        c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"])
+
+        t = c.transpose('time', 'lon_lat', in_place=False)
+        assert c.dims == ("lat_lon", 'time')
+        assert t.dims == ("time", "lon_lat")
+
+        c.transpose('time', 'lon_lat', in_place=True)
+        assert c.dims == ("time", "lon_lat")
+
     def test_transform(self):
         c = Coordinates([[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
 

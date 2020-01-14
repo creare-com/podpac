@@ -403,6 +403,41 @@ class TestDependentCoordinatesSelection(object):
         assert_equal(I[0], E0)
         assert_equal(I[1], E1)
 
+class TestDependentCoordinatesTranspose(object):
+    def test_transpose(self):
+        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
+
+        t = c.transpose("lon", "lat")
+        assert t.dims == ('lon', 'lat')
+        assert_equal(t.coordinates[0], LON)
+        assert_equal(t.coordinates[1], LAT)
+        
+        assert c.dims == ('lat', 'lon')
+        assert_equal(c.coordinates[0], LAT)
+        assert_equal(c.coordinates[1], LON)
+
+        # default transpose
+        t = c.transpose()
+        assert c.dims == ('lat', 'lon')
+        assert t.dims == ('lon', 'lat')
+
+    def test_transpose_invalid(self):
+        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
+
+        with pytest.raises(ValueError, match="Invalid transpose dimensions"):
+            c.transpose('lat', 'lon', 'time')
+
+    def test_transpose_in_place(self):
+        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
+    
+        t = c.transpose("lon", "lat", in_place=False)
+        assert c.dims == ('lat', 'lon')
+        assert t.dims == ('lon', 'lat')
+
+        c.transpose("lon", "lat", in_place=True)
+        assert c.dims == ('lon', 'lat')
+        assert_equal(c.coordinates[0], LON)
+        assert_equal(c.coordinates[1], LAT)
 
 class TestArrayCoordinatesNd(object):
     def test_unavailable(self):

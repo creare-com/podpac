@@ -512,6 +512,43 @@ class DependentCoordinates(BaseCoordinates):
 
         return DependentCoordinates(coords, **properties)
 
+    def transpose(self, *dims, **kwargs):
+        """
+        Transpose (re-order) the dimensions of the DependentCoordinates.
+
+        Parameters
+        ----------
+        dim_1, dim_2, ... : str, optional
+            Reorder dims to this order. By default, reverse the dims.
+        in_place : boolean, optional
+            If True, transpose the dimensions in-place.
+            Otherwise (default), return a new, transposed Coordinates object.
+        
+        Returns
+        -------
+        transposed : :class:`DependentCoordinates`
+            The transposed DependentCoordinates object.
+        """
+
+        in_place = kwargs.get("in_place", False)
+
+        if len(dims) == 0:
+            dims = list(self.dims[::-1])
+
+        if set(dims) != set(self.dims):
+            raise ValueError("Invalid transpose dimensions, input %s does match dims %s" % (dims, self.dims))
+
+        coordinates = [self.coordinates[self.dims.index(dim)] for dim in dims]
+
+        if in_place:
+            self.set_trait('coordinates', coordinates)
+            self.set_trait('dims', dims)
+            return self
+        else:
+            properties = self.properties
+            properties['dims'] = dims
+            return DependentCoordinates(coordinates, **properties)
+
     # ------------------------------------------------------------------------------------------------------------------
     # Debug
     # ------------------------------------------------------------------------------------------------------------------

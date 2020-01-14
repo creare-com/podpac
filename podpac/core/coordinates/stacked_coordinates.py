@@ -63,7 +63,7 @@ class StackedCoordinates(BaseCoordinates):
 
     def __init__(self, coords, name=None, dims=None, ctype=None):
         """
-        Initialize a multidimensional coords object.
+        Initialize a multidimensional coords bject.
 
         Parameters
         ----------
@@ -478,3 +478,37 @@ class StackedCoordinates(BaseCoordinates):
                 coords[ialt].set_trait("segment_lengths", tsl)
 
         return StackedCoordinates(coords)
+
+    def transpose(self, *dims, **kwargs):
+        """
+        Transpose (re-order) the dimensions of the StackedCoordinates.
+
+        Parameters
+        ----------
+        dim_1, dim_2, ... : str, optional
+            Reorder dims to this order. By default, reverse the dims.
+        in_place : boolean, optional
+            If True, transpose the dimensions in-place.
+            Otherwise (default), return a new, transposed Coordinates object.
+        
+        Returns
+        -------
+        transposed : :class:`StackedCoordinates`
+            The transposed StackedCoordinates object.
+        """
+
+        in_place = kwargs.get("in_place", False)
+
+        if len(dims) == 0:
+            dims = list(self.dims[::-1])
+
+        if set(dims) != set(self.dims):
+            raise ValueError("Invalid transpose dimensions, input %s does match any dims in %s" % (dims, self.dims))
+
+        coordinates = [self._coords[self.dims.index(dim)] for dim in dims]
+        
+        if in_place:
+            self.set_trait('_coords', coordinates)
+            return self
+        else:
+            return StackedCoordinates(coordinates)
