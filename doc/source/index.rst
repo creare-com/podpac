@@ -17,18 +17,19 @@ PODPAC
 
     import podpac
 
-    # elevation data
-    terrain = podpac.data.Rasterio(source="terrain.tif")
+    # elevation DataArray
+    elevation = podpac.data.Rasterio(source="elevation.tif")
 
-    # soil moisture data
-    soil_moisture = podpac.data.H5PY(source="smap.h5")
+    # soil moisture DataArray
+    soil_moisture = podpac.data.H5PY(source="smap.h5", interpolation="bilinear")
 
-    # retrieve soil moisture data at elevation coordinates
-    soil_moisture.eval(terrain.native_coordinates)
+    # evaluate soil moisture at the coordinates of the elevation data
+    data = soil_moisture.eval(elevation.native_coordinates)
 
 
 .. figure:: /_static/img/demo-figure.png
     :width: 100%
+    :align: center
 
     Elevation (left), Soil Moisture (center), Soil Moisture at Elevation coordinates (right).
 
