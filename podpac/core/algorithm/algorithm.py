@@ -115,7 +115,7 @@ class Algorithm(BaseAlgorithm):
             for key, res in zip(self.inputs.keys(), results):
                 inputs[key] = res.get()
 
-            # This prevents any more tasks from being submitted to the pool, and will close the workers one done
+            # This prevents any more tasks from being submitted to the pool, and will close the workers once done
             pool.close()
 
             # Release these number of threads back to the thread pool

@@ -198,8 +198,8 @@ class Lambda(Node):
     _function_valid = tl.Bool(default_value=False, allow_none=True)
     _function = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
 
-    output_format = tl.Dict(allow_none=True)
-
+    output_format = tl.Dict(None, allow_none=True).tag(attr=True)
+    
     @tl.default("function_name")
     def _function_name_default(self):
         if settings["FUNCTION_NAME"] is None:

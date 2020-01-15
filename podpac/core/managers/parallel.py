@@ -4,10 +4,13 @@ Module to help farm out computation to multiple workers and save the results in 
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-
+import logging
 import traitlets as tl
 
-from podpoc.core.node import Node
+from multiprocessing.pool import ThreadPool
+
+from podpac.core.managers.multi_threading import Lock
+from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 
 # Set up logging
@@ -18,13 +21,17 @@ class Parallel(Node):
     """
     For this class to work properly, the source node should return immediately after an eval. 
     """
-
-    source = NodeTrait()
+    source = NodeTrait().tag(attr=True)
     chunks = tl.Dict().tag(attr=True)
-    fill_output = tl.Bool(True)
-    number_of_workers = tl.Int(1000)
-
+    fill_output = tl.Bool(True).tag(attr=True)
+    number_of_workers = tl.Int(1000).tag(attr=True)
+    _lock = Lock()
+        
+==== BASE ====
     def eval(self, coordinates, output=None):
+        # Make a thread pool to manage queue
+        pool = ThreadPool(processes=self.number_of_workers)
+        
         if output is None and self.fill_output:
             output = self.create_output_array(coordinates)
         shape = [self.chunks[d] for d in coordinates.dims]
@@ -32,8 +39,14 @@ class Parallel(Node):
             out = None
             if self.fill_output:
                 out = output[slc]
-            self.eval_source(coords, slc, out)
-
+            with self._lock:
+                results = pool.apply_async(self.eval_source, [coords, out])
+                o = results.get()
+    
+        pool.close()
+        
+        return output
+    
     def eval_source(self, coordinates, coordinates_index, out):
         self.source.eval(coordinates, output=out)
 
@@ -44,8 +57,7 @@ class ParallelOutputZarr(Parallel):
     (currently the Lambda Node, and the MultiProcess Node)
     
     """
-
-    zarr_file = tl.Unicode().tag(readonly=True)
+    zarr_file = tl.Unicode().tag(attr=True)
     fill_output = tl.Bool(False)
     init_file_mode = tl.Unicode("w")
     chunks = tl.Dict()
@@ -76,8 +88,8 @@ class ParallelOutputZarr(Parallel):
     def eval_source(self, coordinates, coordinates_index, out):
         output = dict(
             format="zarr_part",
-            format_kwargs=dict(part=[[s.start, s.stop, s.step] for s in coordinates_index]),
-            store=self.zarr_file,
+                      format_kwargs=dict(part=[[s.start, s.stop, s.step] for s in coordinates_index]),
+                      store=self.zarr_file,
             mode="a",
-        )
+                     )
         self.source.output_format = output
