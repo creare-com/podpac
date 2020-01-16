@@ -136,7 +136,7 @@ class Algorithm(BaseAlgorithm):
             if output is None:
                 output = result
             else:
-                output[:] = result
+                output[:] = result.data[:]
         elif isinstance(result, xr.DataArray):
             if output is None:
                 output = self.create_output_array(

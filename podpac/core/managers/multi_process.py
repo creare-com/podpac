@@ -2,13 +2,18 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import time
 
-from multiprocessing import Process, Queue
+from multiprocessing import Process as mpProcess
+from multiprocessing import Queue
 import traitlets as tl
+import logging
 
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 from podpac.core.coordinates import Coordinates
 from podpac.core.settings import settings
+
+# Set up logging
+_log = logging.getLogger(__name__)
 
 DEFAULT_N_PROC = 16
 
@@ -17,14 +22,15 @@ def _f(definition, coords, q, outputkw):
         n = Node.from_json(definition)
         c = Coordinates.from_json(coords)
         o = n.eval(c)
-        if outputkw:
-            o.to_format(outputkw['format'], **outputkw['kwargs'])
         o.serialize()
+        _log.debug('o.shape: {}, output_format: {}'.format(o.shape, outputkw))
+        if outputkw:
+            o.to_format(outputkw['format'], **outputkw['format_kwargs'])
         q.put(o)
-    except:
-        pass
+    except Exception as e:
+        q.put(str(e))
 
-class NewProcess(Node):
+class Process(Node):
     """
     Source node will be evaluated in another process, and it is blocking!
     """
@@ -36,12 +42,21 @@ class NewProcess(Node):
         coords = coordinates.json
             
         q = Queue()
-        process = Process(target=_f, args=(definition, coords, q, self.output_format))
+        process = mpProcess(target=_f, args=(definition, coords, q, self.output_format))
         process.daemon = True
+        _log.debug('Starting process.')
         process.start()
-        o = q.get()  # This is blocking!
+        _log.debug("Retrieving data from queue.")
+        o = q.get(timeout=30)  # This is blocking! 
+        _log.debug("Joining.")
         process.join()
+        _log.debug("Closing.")
         process.close()
         o.deserialize()
-        return o
+        if output is not None:
+            output[:] = o.data[:]
+        else:
+            output = o
+        
+        return output
         

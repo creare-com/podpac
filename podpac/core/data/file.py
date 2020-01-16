@@ -586,13 +586,12 @@ class Zarr(DatasetSource):
     def _dims_default(self):
         """dataset coordinate dims"""
         key = self.data_key
-        if key is None:
-            key = self.available_keys[0]
         try:
+            key = self.available_keys[0]
             dims = self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
         except:
             lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
-            dims = [lookup[key] for key in self.dataset if key in lookup]
+            dims = [lookup[key] for key in self.dataset.keys() if key in lookup]
         return dims
 
     @tl.default("access_key_id")
