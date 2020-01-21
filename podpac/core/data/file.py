@@ -12,6 +12,7 @@ import numpy as np
 import traitlets as tl
 import pandas as pd
 import xarray as xr
+import pyproj
 
 from podpac.core.settings import settings
 from podpac.core.utils import common_doc, trait_is_defined
@@ -722,10 +723,15 @@ class Rasterio(DataSource):
         if affine[1] != 0.0 or affine[3] != 0.0:
             raise NotImplementedError("Rotated coordinates are not yet supported")
 
-        try:
+        if isinstance(self.dataset.crs, rasterio.crs.CRS):
+            crs = self.dataset.crs.wkt
+        elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
-        except:
-            crs = None
+        else:
+            try:
+                crs = pyproj.CRS(self.dataset.crs).to_wkt()
+            except:
+                raise RuntimeError("Unexpected rasterio crs '%s'" % self.dataset.crs)
 
         # get bounds
         left, bottom, right, top = self.dataset.bounds
