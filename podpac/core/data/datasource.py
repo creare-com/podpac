@@ -485,7 +485,7 @@ class DataSource(Node):
             raise NodeException("The 'source' property cannot be tagged as an 'attr'")
         if "interpolation" in attrs:
             raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
-        if not self.nan_vals and "nan_vals" in attrs:
+        if "nan_vals" in attrs and not self.nan_vals:
             del attrs["nan_vals"]
 
         # set source or lookup_source
