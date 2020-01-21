@@ -677,6 +677,10 @@ class Rasterio(DataSource):
     source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)]).tag(readonly=True)
     dataset = tl.Any().tag(readonly=True)
 
+    @property
+    def nan_vals(self):
+        return list(self.dataset.nodatavals)
+
     # node attrs
     band = tl.CInt(1).tag(attr=True)
 
