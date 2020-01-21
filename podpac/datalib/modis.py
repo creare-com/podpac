@@ -9,6 +9,7 @@ import rasterio
 import s3fs
 
 from podpac.data import Rasterio
+from podpac.core import cache
 
 BUCKET = "modis-pds"
 PRODUCTS = ["MCD43A4.006", "MOD09GA.006", "MYD09GA.006", "MOD09GQ.006", "MYD09GQ.006"]
@@ -45,7 +46,17 @@ class MODISSource(Rasterio):
     @tl.default("s3")
     def _default_fs(self):
         # TODO use AWS credentials when available
+        self._logger.info("Connecting to s3fs")
         return s3fs.S3FileSystem(anon=True)
+
+    @tl.default("cache_ctrl")
+    def _cache_ctrl_default(self):
+        # append disk store to default cache_ctrl if not present
+        default_ctrl = cache.get_default_cache_ctrl()
+        stores = default_ctrl._cache_stores
+        if not any(isinstance(store, cache.DiskCacheStore) for store in default_ctrl._cache_stores):
+            stores.append(cache.DiskCacheStore())
+        return cache.CacheCtrl(stores)
 
     def init(self):
         self._logger = logging.getLogger(__name__)
@@ -67,12 +78,15 @@ class MODISSource(Rasterio):
 
         cache_key = "fileobj"
         if self.cache_ctrl and self.has_cache(key=cache_key):
+            self._logger.info("Getting cached s3 file '%s'" % self.source)
             data = self.get_cache(key=cache_key)
+            data = bytes.fromhex(data)
+
         else:
-            self._logger.info("Downloading S3 object '%s'" % self.source)
-            with self.s3.open(self.source) as f:
+            self._logger.info("Downloading S3 file '%s'" % self.source)
+            with self.s3.open(self.source, "rb") as f:
                 data = f.read()
-                self.cache_ctrl and self.put_cache(data, key=cache_key)
+                self.cache_ctrl and self.put_cache(data.hex(), key=cache_key)
 
         with rasterio.MemoryFile() as mf:
             mf.write(data)
