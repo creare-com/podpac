@@ -646,6 +646,10 @@ Lambda Node {status}
             _log.info("Lambda function will only run for pipelines: {}".format(self.function_restrict_pipelines))
             self.function_env_variables["PODPAC_RESTRICT_PIPELINES"] = json.dumps(self.function_restrict_pipelines)
 
+        # add special tag - value is hash, for lack of better value at this point
+        self.function_tags["_podpac_resource"] = "valid"
+        self.function_tags["_podpac_resource_hash"] = self.hash
+
         # if function already exists, this will return existing function
         function = create_function(
             self.session,
@@ -765,6 +769,11 @@ Lambda Node {status}
     def create_role(self):
         """Create IAM role to execute podpac lambda function
         """
+
+        # add special tag - value is hash
+        self.function_role_tags["_podpac_resource"] = "valid"
+        self.function_role_tags["_podpac_resource_hash"] = self.hash
+
         role = create_role(
             self.session,
             self.function_role_name,
@@ -851,6 +860,10 @@ Lambda Node {status}
 
         if self._function_role_arn is None:
             raise ValueError("Function role must be created before creating a bucket")
+
+        # add special tags - value is hash
+        self.function_s3_tags["_podpac_resource"] = "valid"
+        self.function_s3_tags["_podpac_resource_hash"] = self.hash
 
         # create bucket
         bucket = create_bucket(
@@ -983,6 +996,10 @@ Lambda Node {status}
         if self._function_arn is None:
             raise ValueError("Lambda function must be created before creating an API bucket")
 
+        # add special tag - value is hash
+        self.function_api_tags["_podpac_resource"] = "valid"
+        self.function_api_tags["_podpac_resource_hash"] = self.hash
+
         # create api and resource
         api = create_api(
             self.session,
@@ -1107,6 +1124,15 @@ Lambda Node {status}
 
         log_group_name = "/aws/lambda/{}".format(self.function_name)
         return get_logs(self.session, log_group_name, limit=limit, start=start, end=end)
+
+    # Budget
+    def create_budget(self):
+        # self.session.get_account_id()
+        pass
+
+    def get_budget(self):
+        # self.session.get_account_id()
+        pass
 
     # -----------------------------------------------------------------------------------------------------------------
     # Internals
