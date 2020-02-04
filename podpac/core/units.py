@@ -35,6 +35,11 @@ from podpac.core.settings import settings
 from podpac.core.utils import JSONEncoder
 from podpac.core.style import Style
 
+# Optional dependencies
+from lazy_import import lazy_module, lazy_class
+
+rasterio = lazy_module("rasterio")
+
 
 class UnitsDataArray(xr.DataArray):
     """Like xarray.DataArray, but transfers units

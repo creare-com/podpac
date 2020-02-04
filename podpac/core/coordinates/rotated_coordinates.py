@@ -238,7 +238,10 @@ class RotatedCoordinates(DependentCoordinates):
     @property
     def geotransform(self):
         """ :tuple: GDAL geotransform. """
-        return self.affine.to_gdal()
+        t = rasterio.Affine.translation(self.origin[0] - self.step[0] / 2, self.origin[1] - self.step[1] / 2)
+        r = rasterio.Affine.rotation(self.deg)
+        s = rasterio.Affine.scale(*self.step)
+        return (t * r * s).to_gdal()
 
     @property
     def coordinates(self):

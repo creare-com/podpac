@@ -1618,3 +1618,114 @@ class TestCoordinatesFunctions(object):
 
         with pytest.raises(ValueError, match="Cannot concat Coordinates"):
             concat([c1, c2])
+
+
+class TestCoordinatesGeoTransform(object):
+    def uniform_working(self):
+        # order: -lat, lon
+        c = Coordinates([clinspace(1.5, 0.5, 5, "lat"), clinspace(1, 2, 9, "lon")])
+        tf = np.array(c.geotransform).reshape(2, 3)
+        np.testing.assert_almost_equal(
+            tf, np.array([[c["lat"].area_bounds[1], c["lat"].step, 0], [c["lon"].area_bounds[0], 0, c["lon"].step]])
+        )
+        # order: lon, lat
+        c = Coordinates([clinspace(0.5, 1.5, 5, "lon"), clinspace(1, 2, 9, "lat")])
+        tf = np.array(c.geotransform).reshape(2, 3)
+        np.testing.assert_almost_equal(
+            tf, np.array([[c["lon"].area_bounds[0], c["lon"].step, 0], [c["lat"].area_bounds[0], 0, c["lat"].step]])
+        )
+
+        # order: lon, -lat, time, alt
+        c = Coordinates([clinspace(0.5, 1.5, 5, "lon"), clinspace(2, 1, 9, "lat"), crange(10, 11, 2, "time")])
+        tf = np.array(c.geotransform).reshape(2, 3)
+        np.testing.assert_almost_equal(
+            tf, np.array([[c["lon"].area_bounds[0], c["lon"].step, 0], [c["lat"].area_bounds[1], 0, c["lat"].step]])
+        )
+        # order: -lon, -lat, time, alt
+        c = Coordinates(
+            [
+                clinspace(1.5, 0.5, 5, "lon"),
+                clinspace(2, 1, 9, "lat"),
+                crange(10, 11, 2, "time"),
+                crange(10, 11, 2, "alt"),
+            ]
+        )
+        tf = np.array(c.geotransform).reshape(2, 3)
+        np.testing.assert_almost_equal(
+            tf, np.array([[c["lon"].area_bounds[1], c["lon"].step, 0], [c["lat"].area_bounds[1], 0, c["lat"].step]])
+        )
+
+    def error_time_alt_too_big(self):
+        # time
+        c = Coordinates(
+            [
+                clinspace(1.5, 0.5, 5, "lon"),
+                clinspace(2, 1, 9, "lat"),
+                crange(1, 11, 2, "time"),
+                crange(1, 11, 2, "alt"),
+            ]
+        )
+        with pytest.raises(
+            TypeError, match='Only 2-D coordinates have a GDAL transform. This array has a "time" dimension of'
+        ):
+            c.geotransform
+        # alt
+        c = Coordinates([clinspace(1.5, 0.5, 5, "lon"), clinspace(2, 1, 9, "lat"), crange(1, 11, 2, "alt")])
+        with pytest.raises(
+            TypeError, match='Only 2-D coordinates have a GDAL transform. This array has a "alt" dimension of'
+        ):
+            c.geotransform
+
+    def rot_coords_working(self):
+        # order lon, lat
+        rc = RotatedCoordinates(shape=(4, 3), theta=np.pi / 8, origin=[10, 20], step=[2.0, 1.0], dims=["lon", "lat"])
+        c = Coordinates([rc], dims=["lon,lat"])
+        tf = np.array(c.geotransform).reshape(2, 3)
+        np.testing.assert_almost_equal(
+            tf,
+            np.array(
+                [
+                    [rc.origin[0] - rc.step[0] / 2, rc.step[0] * np.cos(rc.theta), -rc.step[1] * np.sin(rc.theta)],
+                    [rc.origin[1] - rc.step[1] / 2, rc.step[0] * np.sin(rc.theta), rc.step[1] * np.cos(rc.theta)],
+                ]
+            ),
+        )
+        # order lat, lon
+        rc = RotatedCoordinates(shape=(4, 3), theta=np.pi / 8, origin=[10, 20], step=[-2.0, 1.0], dims=["lat", "lon"])
+        c = Coordinates([rc], dims=["lat,lon"])
+        tf = np.array(c.geotransform).reshape(2, 3)
+        np.testing.assert_almost_equal(
+            tf,
+            np.array(
+                [
+                    [rc.origin[0] - rc.step[0] / 2, rc.step[0] * np.cos(rc.theta), -rc.step[1] * np.sin(rc.theta)],
+                    [rc.origin[1] - rc.step[1] / 2, rc.step[0] * np.sin(rc.theta), rc.step[1] * np.cos(rc.theta)],
+                ]
+            ),
+        )
+        # order -lon, lat
+        rc = RotatedCoordinates(shape=(4, 3), theta=np.pi / 8, origin=[10, 20], step=[-2.0, 1.0], dims=["lon", "lat"])
+        c = Coordinates([rc], dims=["lon,lat"])
+        tf = np.array(c.geotransform).reshape(2, 3)
+        np.testing.assert_almost_equal(
+            tf,
+            np.array(
+                [
+                    [rc.origin[0] - rc.step[0] / 2, rc.step[0] * np.cos(rc.theta), -rc.step[1] * np.sin(rc.theta)],
+                    [rc.origin[1] - rc.step[1] / 2, rc.step[0] * np.sin(rc.theta), rc.step[1] * np.cos(rc.theta)],
+                ]
+            ),
+        )
+        # order -lat, -lon
+        rc = RotatedCoordinates(shape=(4, 3), theta=np.pi / 8, origin=[10, 20], step=[-2.0, -1.0], dims=["lat", "lon"])
+        c = Coordinates([rc], dims=["lat,lon"])
+        tf = np.array(c.geotransform).reshape(2, 3)
+        np.testing.assert_almost_equal(
+            tf,
+            np.array(
+                [
+                    [rc.origin[0] - rc.step[0] / 2, rc.step[0] * np.cos(rc.theta), -rc.step[1] * np.sin(rc.theta)],
+                    [rc.origin[1] - rc.step[1] / 2, rc.step[0] * np.sin(rc.theta), rc.step[1] * np.cos(rc.theta)],
+                ]
+            ),
+        )
