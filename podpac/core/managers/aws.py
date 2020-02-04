@@ -2639,8 +2639,8 @@ def delete_budget(session, budget_name):
     budgets = session.client("budgets")
 
     try:
-        response = client.delete_budget(AccountId=session.get_account_id(), BudgetName=budget_name)
-    except apigateway.exceptions.NotFoundException as e:
+        budgets.delete_budget(AccountId=session.get_account_id(), BudgetName=budget_name)
+    except budgets.exceptions.NotFoundException as e:
         pass
 
     _log.debug("Successfully removed budget with name '{}'".format(budget_name))
