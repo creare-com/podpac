@@ -734,6 +734,19 @@ class Coordinates(tl.HasTraits):
         return tuple(size for c in self._coords.values() for size in c.shape)
 
     @property
+    def ushape(self):
+        if len(self.dims) == len(self.udims):  # shortcut in case no stacking
+            return self.shape
+
+        ushape = []
+        for ud in self.udims:
+            for i, d in enumerate(self.dims):
+                if ud in d:
+                    ushape.append(self.shape[i])
+                    break
+        return tuple(ushape)
+
+    @property
     def ndim(self):
         """:int: Number of dimensions. """
 
@@ -846,16 +859,16 @@ class Coordinates(tl.HasTraits):
     def geotransform(self):
         """ :tuple: GDAL geotransform. """
         # Make sure we only have 1 time and alt dimension
-        if "time" in self.udims and self.shape[self.udims.index("time")] > 1:
+        if "time" in self.udims and self.ushape[self.udims.index("time")] > 1:
             raise TypeError(
                 'Only 2-D coordinates have a GDAL transform. This array has a "time" dimension of {} > 1'.format(
-                    self.shape[self.udims.index("time")]
+                    self.ushape[self.udims.index("time")]
                 )
             )
-        if "alt" in self.udims and self.shape[self.udims.index("alt")] > 1:
+        if "alt" in self.udims and self.ushape[self.udims.index("alt")] > 1:
             raise TypeError(
                 'Only 2-D coordinates have a GDAL transform. This array has a "alt" dimension of {} > 1'.format(
-                    self.shape[self.udims.index("alt")]
+                    self.suhape[self.udims.index("alt")]
                 )
             )
 
