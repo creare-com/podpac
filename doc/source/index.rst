@@ -31,13 +31,15 @@ PODPAC
     :width: 100%
     :align: center
 
-    Elevation (left), Soil Moisture (center), Soil Moisture at Elevation coordinates (right).
+    Elevation (left),    Soil Moisture (center),     Soil Moisture at Elevation coordinates (right).
 
 Purpose
 -------
 
 Data wrangling and processing of geospatial data should be seamless
-so that earth scientists can focus on science.
+so that earth scientists can focus on science. PODPAC is a python library that builds 
+on the `scientific python ecosystem <https://www.scipy.org/about.html#the-scipy-ecosystem>`_
+to enable simple, reproducible geospatial analyses that run locally or in the cloud.
 
 The purpose of PODPAC is to facilitate
 
@@ -51,44 +53,41 @@ The purpose of PODPAC is to facilitate
 
 ----------
 
+.. Tutorials for installing and using podpac
 .. toctree::
     :maxdepth: 1
     :caption: Getting Started
 
-    .. Tutorials for installing and using podpac
-
+    overview
     install
     settings
-    coordinates
-    nodes
-    pipelines
-    cache
+    examples
     earthdata
     aws
 
+.. Deeper explorations of topics that need to get defined
 .. toctree::
     :maxdepth: 1
     :caption: Topics
 
-    .. Deeper explorations of topics that need to get defined
-
     why-podpac
-    examples
+    nodes
+    coordinates  
+    pipelines
+    cache
     datasets
 
+.. Technical references that define the API and contain a deep information
 .. toctree::
     :maxdepth: 1
     :caption: References
 
-    .. Technical references that define the API and contain a deep information
+    api
 
-    .. api
-
+.. Anything else clerical
 .. toctree::
     :maxdepth: 1
     :caption: Support
-
-    .. Anything else clerical
 
     references
     design
