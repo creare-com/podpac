@@ -275,6 +275,10 @@ class Node(tl.HasTraits):
         attrs["crs"] = coords.crs
         if self.units is not None:
             attrs["units"] = ureg.Unit(self.units)
+        try:
+            attrs["geotransform"] = coords.geotransform
+        except TypeError:
+            pass
 
         return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 

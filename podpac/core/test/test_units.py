@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 from pint.errors import DimensionalityError
 
-from podpac.core.coordinates import Coordinates
+from podpac.core.coordinates import Coordinates, clinspace, RotatedCoordinates
 from podpac.core.style import Style
 
 from podpac.core.units import ureg
@@ -15,7 +15,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.units import to_image
 from podpac.core.units import create_dataarray  # DEPRECATED
 
-from podpac.data import Array
+from podpac.data import Array, Rasterio
 
 
 class TestUnitDataArray(object):
@@ -509,3 +509,23 @@ class TestToImage(object):
     def test_to_image_vmin_vmax(self):
         data = np.ones((10, 10))
         assert isinstance(to_image(data, vmin=0, vmax=2, return_base64=True), bytes)
+
+
+class TestToGeoTiff(object):
+    def make_square_array(self, order=1, bands=1):
+        order = 1
+        bands = 1
+        node = Array(
+            source=np.random.rand(3, 4, bands),
+            native_coordinates=Coordinates([clinspace(0, 2, 3, "lat"), clinspace(1, 4, 4, "lon")][::order]),
+            outputs=[str(s) for s in list(range(bands))],
+        )
+        return node
+
+    def test_to_geotiff_rountrip_1band(self):
+        node = self.make_square_array()
+        out = node.eval(node.native_coordinates)
+        fp = io.BytesIO()
+        out.to_geotiff(fp)
+        fp.seek(0)
+        rnode = Rasterio(source=fp)

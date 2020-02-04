@@ -13,11 +13,13 @@ import traitlets as tl
 import pandas as pd
 import xarray as xr
 import pyproj
+import logging
 
 from podpac.core.settings import settings
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
+from podpac.core.coordinates import RotatedCoordinates
 from podpac.core.coordinates.utils import Dimension, VALID_DIMENSION_NAMES
 
 # Optional dependencies
@@ -30,6 +32,9 @@ requests = lazy_module("requests")
 zarr = lazy_module("zarr")
 zarrGroup = lazy_class("zarr.Group")
 s3fs = lazy_module("s3fs")
+
+# Set up logging
+_logger = logging.getLogger(__name__)
 
 
 @common_doc(COMMON_DATA_DOC)
@@ -724,8 +729,6 @@ class Rasterio(DataSource):
 
         # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
-        if affine[1] != 0.0 or affine[3] != 0.0:
-            raise NotImplementedError("Rotated coordinates are not yet supported")
 
         if isinstance(self.dataset.crs, rasterio.crs.CRS):
             crs = self.dataset.crs.wkt
@@ -736,6 +739,13 @@ class Rasterio(DataSource):
                 crs = pyproj.CRS(self.dataset.crs).to_wkt()
             except:
                 raise RuntimeError("Unexpected rasterio crs '%s'" % self.dataset.crs)
+
+        try:
+            rcoords = RotatedCoordinates.from_geotransform(affine.to_gdal())
+            coords = Coordinates([rcoords], dims=["lat,lon"], crs=crs)
+            return coords
+        except:
+            _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
 
         # get bounds
         left, bottom, right, top = self.dataset.bounds

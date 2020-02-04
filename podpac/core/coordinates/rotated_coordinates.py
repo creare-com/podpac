@@ -116,10 +116,11 @@ class RotatedCoordinates(DependentCoordinates):
     @classmethod
     def from_geotransform(cls, geotransform, shape, dims=None, ctypes=None, segment_lengths=None):
         affine = rasterio.Affine.from_gdal(*geotransform)
-        origin = affine.c, affine.f
+        origin = affine.f, affine.c
         deg = affine.rotation_angle
         scale = ~affine.rotation(deg) * ~affine.translation(*origin) * affine
-        step = np.array([scale.a, scale.e])
+        step = np.array([scale.e, scale.a])
+        origin = affine.f + step[0] / 2, affine.c + step[1] / 2
         return cls(shape, np.deg2rad(deg), origin, step, dims=dims, ctypes=ctypes, segment_lengths=segment_lengths)
 
     @classmethod
@@ -237,10 +238,13 @@ class RotatedCoordinates(DependentCoordinates):
 
     @property
     def geotransform(self):
-        """ :tuple: GDAL geotransform. """
-        t = rasterio.Affine.translation(self.origin[0] - self.step[0] / 2, self.origin[1] - self.step[1] / 2)
+        """ :tuple: GDAL geotransform. 
+        Note: This property may not provide the correct order of lat/lon in the geotransform as this class does not
+        always have knowledge of the dimension order of the specified dataset. 
+        """
+        t = rasterio.Affine.translation(self.origin[1] - self.step[1] / 2, self.origin[0] - self.step[0] / 2)
         r = rasterio.Affine.rotation(self.deg)
-        s = rasterio.Affine.scale(*self.step)
+        s = rasterio.Affine.scale(*self.step[::-1])
         return (t * r * s).to_gdal()
 
     @property

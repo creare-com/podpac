@@ -448,6 +448,18 @@ class Coordinates(tl.HasTraits):
         return cls.from_definition(coords)
 
     @classmethod
+    def from_geotransform(cls, geotransform, crs=None):
+        """ Creates Coordinates from GDAL Geotransform. 
+        
+        """
+        try:
+            rcoords = RotatedCoordinates.from_geotransform(geotransform)
+            coords = Coordinates([rcoords], dims=["lat,lon"], crs=crs)
+            return coords
+        except:
+            _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
+
+    @classmethod
     def from_definition(cls, d):
         """
         Create podpac Coordinates from a coordinates definition.
@@ -831,9 +843,9 @@ class Coordinates(tl.HasTraits):
             and isinstance(self._coords["lon"], UniformCoordinates1d)
         ):
             if self.dims.index("lon") < self.dims.index("lat"):
-                first, second = "lon", "lat"
-            else:
                 first, second = "lat", "lon"
+            else:
+                first, second = "lon", "lat"  # This case will have the exact correct geotransform
             transform = rasterio.transform.Affine.translation(
                 self[first].start - self[first].step / 2, self[second].start - self[second].step / 2
             ) * rasterio.transform.Affine.scale(self[first].step, self[second].step)
@@ -849,6 +861,9 @@ class Coordinates(tl.HasTraits):
                 "Only 2-D coordinates that are uniform or rotated have a GDAL transform. These coordinates "
                 "{} do not.".format(self)
             )
+        if self.udims.index("lon") < self.udims.index("lat"):
+            # transform = (transform[3], transform[5], transform[4], transform[0], transform[2], transform[1])
+            transform = transform[3:] + transform[:3]
 
         return transform
 

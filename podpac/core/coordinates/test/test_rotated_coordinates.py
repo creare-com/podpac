@@ -129,9 +129,15 @@ class TestRotatedCoordinatesCreation(object):
 class TestRotatedCoordinatesGeotransform(object):
     def test_geotransform(self):
         c = RotatedCoordinates(shape=(3, 4), theta=np.pi / 4, origin=[10, 20], step=[1.0, 2.0], dims=["lat", "lon"])
-        assert_allclose(c.geotransform, (10.0, 0.7071068, -1.4142136, 20.0, 0.7071068, 1.4142136))
+        assert_allclose(c.geotransform, (19.0, 1.4142136, -0.7071068, 9.5, 1.4142136, 0.7071068))
 
         c2 = RotatedCoordinates.from_geotransform(c.geotransform, c.shape, dims=["lat", "lon"])
+        assert c == c2
+
+        c = RotatedCoordinates(shape=(3, 4), theta=np.pi / 4, origin=[10, 20], step=[1.0, 2.0], dims=["lon", "lat"])
+        assert_allclose(c.geotransform, (19.0, 1.4142136, -0.7071068, 9.5, 1.4142136, 0.7071068))
+
+        c2 = RotatedCoordinates.from_geotransform(c.geotransform, c.shape, dims=["lon", "lat"])
         assert c == c2
 
 
