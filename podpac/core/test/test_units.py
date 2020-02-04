@@ -612,7 +612,7 @@ class TestToGeoTiff(object):
         rout = rnode.eval(rnode.native_coordinates)
         np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
-    @pytest.xfail("We can remove this xfail after solving #363")
+    @pytest.mark.skip("TODO: We can remove this skipped test after solving #363")
     def test_to_geotiff_rountrip_rotcoords(self):
         # lat/lon order, usual
         node = self.make_rot_array()
