@@ -20,6 +20,7 @@ import xarray as xr
 import xarray.core.coordinates
 from six import string_types
 import pyproj
+import logging
 
 import podpac
 from podpac.core.settings import settings
@@ -36,6 +37,9 @@ from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 from lazy_import import lazy_module, lazy_class
 
 rasterio = lazy_module("rasterio")
+
+# Set up logging
+_logger = logging.getLogger(__name__)
 
 
 class Coordinates(tl.HasTraits):
@@ -448,16 +452,36 @@ class Coordinates(tl.HasTraits):
         return cls.from_definition(coords)
 
     @classmethod
-    def from_geotransform(cls, geotransform, crs=None):
+    def from_geotransform(cls, geotransform, shape, crs=None):
         """ Creates Coordinates from GDAL Geotransform. 
         
         """
         try:
             rcoords = RotatedCoordinates.from_geotransform(geotransform)
+            if rcoords.theta == 0:
+                raise Exception  # More appropriate to use uniform coordinates
             coords = Coordinates([rcoords], dims=["lat,lon"], crs=crs)
             return coords
         except:
             _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
+
+            affine = rasterio.Affine.from_gdal(*geotransform)
+            if affine.e == affine.a == 0:
+                order = -1
+                step = np.array([affine.d, affine.b])
+            else:
+                order = 1
+                step = np.array([affine.e, affine.a])
+
+            origin = affine.f + step[0] / 2, affine.c + step[1] / 2
+            end = origin[0] + step[0] * (shape[::order][0] - 1), origin[1] + step[1] * (shape[::order][1] - 1)
+            coords = Coordinates(
+                [
+                    podpac.clinspace(origin[0], end[0], shape[::order][0], "lat"),
+                    podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
+                ][::order]
+            )
+            return coords
 
     @classmethod
     def from_definition(cls, d):

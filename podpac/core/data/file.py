@@ -687,7 +687,17 @@ class Rasterio(DataSource):
         return list(self.dataset.nodatavals)
 
     # node attrs
-    band = tl.CInt(1).tag(attr=True)
+    band = tl.CInt(allow_none=True).tag(attr=True)
+
+    @tl.default("band")
+    def _band_default(self):
+        if (self.outputs is not None) and (self.output is not None):
+            band = self.outputs.index(self.output)
+        elif self.outputs is None:
+            band = 1
+        else:
+            band = None  # All bands
+        return band
 
     @tl.default("dataset")
     def _open_dataset(self):
@@ -740,20 +750,7 @@ class Rasterio(DataSource):
             except:
                 raise RuntimeError("Unexpected rasterio crs '%s'" % self.dataset.crs)
 
-        try:
-            rcoords = RotatedCoordinates.from_geotransform(affine.to_gdal())
-            coords = Coordinates([rcoords], dims=["lat,lon"], crs=crs)
-            return coords
-        except:
-            _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
-
-        # get bounds
-        left, bottom, right, top = self.dataset.bounds
-
-        # rasterio reads data upside-down from coordinate conventions, so lat goes from top to bottom
-        lat = UniformCoordinates1d(top, bottom, size=self.dataset.height, name="lat")
-        lon = UniformCoordinates1d(left, right, size=self.dataset.width, name="lon")
-        return Coordinates([lat, lon], dims=["lat", "lon"], crs=crs)
+        return Coordinates.from_geotransform(affine.to_gdal(), self.dataset.shape, crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -764,7 +761,12 @@ class Rasterio(DataSource):
 
         # read data within coordinates_index window
         window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
-        raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
+
+        if self.outputs is not None:  # read all the bands
+            raster_data = self.dataset.read(out_shape=(len(self.outputs),) + tuple(coordinates.shape), window=window)
+            raster_data = np.moveaxis(raster_data, 0, 2)
+        else:  # read the requested band
+            raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
 
         # set raster data to output array
         data.data.ravel()[:] = raster_data.ravel()

@@ -644,6 +644,8 @@ def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
     if len(data.shape) == 2:
         data = data[:, :, None]
 
+    geotransform = rasterio.Affine.from_gdal(*geotransform)
+
     # Update the kwargs that rasterio will use. Anything added by the user will take priority.
     kwargs2 = dict(
         driver="GTiff",

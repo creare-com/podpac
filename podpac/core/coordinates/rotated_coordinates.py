@@ -240,7 +240,8 @@ class RotatedCoordinates(DependentCoordinates):
     def geotransform(self):
         """ :tuple: GDAL geotransform. 
         Note: This property may not provide the correct order of lat/lon in the geotransform as this class does not
-        always have knowledge of the dimension order of the specified dataset. 
+        always have knowledge of the dimension order of the specified dataset. As such it always supplies
+        geotransforms assuming that dims = ['lat', 'lon']
         """
         t = rasterio.Affine.translation(self.origin[1] - self.step[1] / 2, self.origin[0] - self.step[0] / 2)
         r = rasterio.Affine.rotation(self.deg)
