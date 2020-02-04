@@ -55,33 +55,48 @@ The purpose of PODPAC is to facilitate
     :maxdepth: 1
     :caption: Getting Started
 
-    why-podpac
+    .. Tutorials for installing and using podpac
+
     install
+    settings
+    coordinates
+    nodes
+    pipelines
+    cache
+    earthdata
+    aws
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Topics
+
+    .. Deeper explorations of topics that need to get defined
+
+    why-podpac
     examples
     datasets
+
+.. toctree::
+    :maxdepth: 1
+    :caption: References
+
+    .. Technical references that define the API and contain a deep information
+
+    .. api
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Support
+
+    .. Anything else clerical
+
+    references
+    design
+    contributing
+    docs
     roadmap
+    changelog
 
-.. toctree::
-    :maxdepth: 1
-    :caption: User Guide
-
-    user/settings
-    user/coordinates
-    user/nodes
-    user/pipelines
-    user/cache
-    user/earthdata
-    user/references
-    user/api
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Developer Guide
-
-    developer/design
-    developer/contributing
-    developer/aws
-    developer/docs
 
 Acknowledgments
 -----------------
