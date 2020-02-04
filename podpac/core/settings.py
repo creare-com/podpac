@@ -47,6 +47,8 @@ DEFAULT_SETTINGS = {
     "AWS_SECRET_ACCESS_KEY": None,
     "AWS_REGION_NAME": None,
     "AWS_TAGS": None,
+    "AWS_BUDGET_AMOUNT": None,
+    "AWS_BUDGET_EMAIL": None,
     "S3_BUCKET_NAME": None,
     "FUNCTION_NAME": None,
     "FUNCTION_ROLE_NAME": None,
@@ -98,6 +100,10 @@ class PodpacSettings(dict):
         for more details.
     AWS_REGION_NAME : str
         Name of the AWS region, e.g. us-west-1, us-west-2, etc.
+    AWS_BUDGET_AMOUNT : float
+        Budget amount for AWS resources
+    AWS_BUDGET_EMAIL : str
+        Notification email for when AWS usage reaches 80% of the `AWS_BUDGET_AMOUNT`
     DEFAULT_CACHE : list
         Defines a default list of cache stores in priority order. Defaults to `['ram']`.
     CACHE_OUTPUT_DEFAULT : bool
