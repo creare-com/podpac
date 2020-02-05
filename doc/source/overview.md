@@ -1,15 +1,17 @@
 # Overview
 
-The goal of PODPAC is make analysis of heterogenous geospatial datasets simpler, reproducible and cloud-compatible.
-See [example Jupyter Notebooks](https://github.com/creare-com/podpac-examples/tree/master/notebooks) for interactive examples.
+PODPAC is an [open-source](https://github.com/creare-com/podpac) Python library built to make analysis of heterogenous geospatial datasets simple, reproducible and cloud-compatible.
+This document provides a high level overview of the key features of the library.
 
 ![](/_static/img/overview.png)
 
+The goal of PODPAC is to enable the development of portable geospatial data pipelines that can be processed locally or in the cloud. PODPAC provides tools to make geospatial analysis intuitive and automatic from concept to application.
+
+The [podpac-examples](https://github.com/creare-com/podpac-examples/tree/master/notebooks) repository provides interactive Jupyter Notebooks demonstrating these key features for a deeper dive.
 
 ## Data Access
 
 Load data from common data formats.
-
 
 ```python
 import podpac
@@ -59,7 +61,7 @@ node = podpac.datalib.TerrainTiles(tile_format='geotiff', zoom=8)
 
 ## Coordinates
 
-Define geospatial and temporal dataset coordinates using an simple, efficient interface.
+Define geospatial and temporal dataset coordinates.
 
 ```python
 import podpac
@@ -74,30 +76,9 @@ stacked_coords = podpac.Coordinates([([0, 1, 2], [0, 1, 2])], dims=[('lat', 'lon
 hybrid_coords = podpac.Coordinates([([0, 1, 2], [0, 1, 2]), ['2020-02-01', '2020-02-03']], dims=[('lat', 'lon'), 'time'])
 ```
 
-## Interpolation and Regridding
-
-Automatically handle interpolation, regridding, and coordinate reference system transformations between datasets during evaluation.
-
-```python
-# by default, data source nodes use nearest-neighbor (`nearest`) interpolation
-node = podpac.data.Rasterio(source="elevation.tif")
-
-# configure interpolation method as `bilinear` for a node
-node = podpac.data.Rasterio(source="elevation.tif", interpolation="bilinear")  
-
-# configure interpolation parameters for a node
-interpolation_definition = {
-    'method': 'nearest',
-    'params': {
-        'spatial_tolerance': 1.1
-    }
-}
-node = podpac.data.Rasterio(source="elevation.tif", interpolation=interpolation_definition)
-```
-
 ## Analysis Pipelines
 
-Create analysis pipelines built from data source, compositor, and algorithms nodes and evaluate pipelines at arbitrary PODPAC coordinates.
+Build analysis pipelines from data sources and algorithms.
 
 ```python
 import podpac
@@ -108,10 +89,33 @@ nodeB = podpac.datalib.TerrainTiles(tile_format='geotiff', zoom=8)
 
 # take the mean of the two elevation nodes
 alg_node = podpac.algorithm.Arithmetic(A=nodeA, B=nodeB, eqn = '(A * B) / 2')
+```
 
-# run analysis pipeline at Coordinates
+Evaluate pipelines at arbitrary PODPAC coordinates.
+
+```python
+# arbitrary Coordinates
 coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1, 2, 3]], dims=['lat', 'lon'])
+
+# run analysis pipeline at coordinates
 output = alg_node.eval(coords)
+```
+
+## Interpolation and Regridding
+
+Interpolation, regridding, and coordinate reference system transformations are handled automatically during evaluation.
+
+```python
+import podpac
+
+# define coordinates with an alternate coordinate reference system
+coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1, 2, 3]], dims=['lat', 'lon'], crs="EPSG:3857")
+
+# configure interpolation method as `bilinear` for a node
+node = podpac.data.Rasterio(source="elevation.tif", interpolation="bilinear")  
+
+# evaluate node at coordinates with specified interpolation
+output = node.eval(coords)
 ```
 
 
