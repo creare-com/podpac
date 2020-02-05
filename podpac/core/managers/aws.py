@@ -120,6 +120,24 @@ class Lambda(Node):
         Override :attr:`self.function_source_dist_key` and create lambda function using custom source podpac dist archive to :attr:`self.function_s3_bucket` during :meth:`self.build()` process.
     function_tags : dict, optional
         AWS Tags for Lambda function resource. Defaults to :dict:`podpac.settings["AWS_TAGS"]` or {}.
+    function_budget_amount : float, optional
+        EXPERIMENTAL FEATURE
+        Monthly budget for function and associated AWS resources. 
+        When usage reaches 80% of this amount, AWS will notify :attr:`function_budget_email`.
+        Defaults to :str:`podpac.settings["AWS_BUDGET_AMOUNT"]`.
+    function_budget_email : str, optional
+        EXPERIMENTAL FEATURE
+        Email to notify when usage reaches 80% of :attr:`function_budget_amount`.
+        Defaults to :str:`podpac.settings["AWS_BUDGET_EMAIL"]`.
+    function_budget_name : str, optional
+        EXPERIMENTAL FEATURE
+        Name for AWS budget
+    function_budget_currency : str, optional
+        EXPERIMENTAL FEATURE
+        Currency type for the :attr:`function_budget_amount`.
+        Defaults to "USD".
+        See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.create_budget
+        for currency (or Unit) options.
     session : :class:`podpac.managers.aws.Session`
         AWS Session to use for this node.
     source : :class:`podpac.Node`
@@ -337,6 +355,25 @@ class Lambda(Node):
     def _function_api_tags_default(self):
         return self.function_tags
 
+    # budget parameters
+    function_budget_amount = tl.Float(allow_none=True).tag(readonly=True)  # see default below
+    function_budget_email = tl.Unicode(allow_none=True).tag(readonly=True)  # see default below
+    function_budget_name = tl.Unicode().tag(readonly=True)  # see default below
+    function_budget_currency = tl.Unicode(default_value="USD").tag(readonly=True)
+    _budget = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
+
+    @tl.default("function_budget_amount")
+    def _function_budget_amount_default(self):
+        return settings["AWS_BUDGET_AMOUNT"] or None
+
+    @tl.default("function_budget_email")
+    def _function_budget_email_default(self):
+        return settings["AWS_BUDGET_EMAIL"] or None
+
+    @tl.default("function_budget_name")
+    def _function_budget_name_default(self):
+        return "{}-budget".format(self.function_name)
+
     # podpac node parameters
     source = tl.Instance(Node, allow_none=True).tag(attr=True)
     source_output_format = tl.Unicode(default_value="netcdf")
@@ -437,6 +474,10 @@ class Lambda(Node):
         # create S3 bucket - this will skip pieces that already exist
         self.create_bucket()
 
+        # create budget, if defined
+        if self.function_budget_amount is not None:
+            self.create_budget()
+
         # check to see if setup is valid after creation
         # TODO: remove this in favor of something more granular??
         self.validate(raise_exceptions=True)
@@ -469,6 +510,7 @@ class Lambda(Node):
         self.get_function()
         self.get_api()
         self.get_bucket()
+        self.get_budget()
 
         # check that each resource has a valid configuration
         if not self.validate_role():
@@ -482,6 +524,9 @@ class Lambda(Node):
 
         if not self.validate_api():
             return _raise("Failed to validate API")
+
+        if not self.validate_budget():
+            return _raise("Failed to validate budget")
 
         # check that the integration of resources is correct
 
@@ -509,6 +554,7 @@ class Lambda(Node):
             self.delete_role()
             self.delete_api()
             self.delete_bucket(delete_objects=True)
+            self.delete_budget()
         else:
             raise ValueError("You must pass confirm=True to delete all AWS resources")
 
@@ -565,6 +611,30 @@ class Lambda(Node):
         else:
             api_output = ""
 
+        # only show budget if its defined
+        if self.function_budget_amount is not None:
+            budget_output = """
+    Budget
+        Name: {function_budget_name}
+        Amount: {function_budget_amount}
+        Currency: {function_budget_currency}
+        E-mail: {function_budget_email}
+        Spent: {function_budget_usage} {function_budget_usage_currency}
+            """.format(
+                function_budget_name=self.function_budget_name,
+                function_budget_amount=self.function_budget_amount,
+                function_budget_currency=self.function_budget_currency,
+                function_budget_email=self.function_budget_email,
+                function_budget_usage=self._budget["CalculatedSpend"]["ActualSpend"]["Amount"]
+                if self._budget
+                else None,
+                function_budget_usage_currency=self._budget["CalculatedSpend"]["ActualSpend"]["Unit"]
+                if self._budget
+                else None,
+            )
+        else:
+            budget_output = ""
+
         output = """
 Lambda Node {status}
     Function
@@ -599,6 +669,8 @@ Lambda Node {status}
         Tags: {function_role_tags}
 
         {api_output}
+
+        {budget_output}
         """.format(
             status=status,
             function_name=self.function_name,
@@ -627,6 +699,7 @@ Lambda Node {status}
             function_role_tags=self.function_role_tags,
             _function_role_arn=self._function_role_arn,
             api_output=api_output,
+            budget_output=budget_output,
         )
 
         print(output)
@@ -645,6 +718,9 @@ Lambda Node {status}
         if self.function_restrict_pipelines:
             _log.info("Lambda function will only run for pipelines: {}".format(self.function_restrict_pipelines))
             self.function_env_variables["PODPAC_RESTRICT_PIPELINES"] = json.dumps(self.function_restrict_pipelines)
+
+        # add special tag - value is hash, for lack of better value at this point
+        self.function_tags["_podpac_resource_hash"] = self.hash
 
         # if function already exists, this will return existing function
         function = create_function(
@@ -765,6 +841,10 @@ Lambda Node {status}
     def create_role(self):
         """Create IAM role to execute podpac lambda function
         """
+
+        # add special tag - value is hash
+        self.function_role_tags["_podpac_resource_hash"] = self.hash
+
         role = create_role(
             self.session,
             self.function_role_name,
@@ -851,6 +931,9 @@ Lambda Node {status}
 
         if self._function_role_arn is None:
             raise ValueError("Function role must be created before creating a bucket")
+
+        # add special tags - value is hash
+        self.function_s3_tags["_podpac_resource_hash"] = self.hash
 
         # create bucket
         bucket = create_bucket(
@@ -983,6 +1066,9 @@ Lambda Node {status}
         if self._function_arn is None:
             raise ValueError("Lambda function must be created before creating an API bucket")
 
+        # add special tag - value is hash
+        self.function_api_tags["_podpac_resource_hash"] = self.hash
+
         # create api and resource
         api = create_api(
             self.session,
@@ -1079,6 +1165,67 @@ Lambda Node {status}
         self._function_api_id = None
         self._function_api_url = None
         self._function_api_resource_id = None
+
+    # Function budget
+    def create_budget(self):
+        """
+        EXPERIMENTAL FEATURE
+        Create budget for lambda function based on node hash.
+        """
+        _log.warning(
+            "Creating an AWS Budget with PODPAC is an experimental feature. Please continue to monitor AWS usage costs seperately."
+        )
+
+        budget = create_budget(
+            self.session,
+            self.function_budget_amount,
+            self.function_budget_email,
+            budget_name=self.function_budget_name,
+            budget_currency=self.function_budget_currency,
+            budget_filter_tags={"_podpac_resource_hash": self.hash},
+        )
+
+        self._set_budget(budget)
+
+    def get_budget(self):
+        """
+        EXPERIMENTAL FEATURE
+        Get budget definition for function
+        
+        Returns
+        -------
+        dict
+            See :func:`podpac.managers.aws.get_budget`
+        """
+        budget = get_budget(self.session, self.function_budget_name)
+        self._set_budget(budget)
+
+        return budget
+
+    def validate_budget(self):
+        """Validate budget definition for function
+        
+        Returns
+        -------
+        dict
+            See :func:`podpac.managers.aws.get_budget`
+        """
+
+        if self._budget is None:
+            return False
+
+        return True
+
+    def delete_budget(self):
+        """Delete budget associated with function
+        """
+        self.get_budget()
+
+        # delete budget
+        delete_budget(self.session, self.function_budget_name)
+
+        # reset class attributes
+        self._budget = None
 
     # Logs
     def get_logs(self, limit=5, start=None, end=None):
@@ -1197,6 +1344,26 @@ Lambda Node {status}
 
             # store a copy of the whole response from AWS
             self._api = api
+
+    def _set_budget(self, budget):
+        """Set budget class members
+
+        Parameters
+        ----------
+        budget : dict
+        """
+        if budget is not None:
+            budget_filter_tags = {"_podpac_resource_hash": self.hash}
+
+            self.set_trait("function_budget_amount", float(budget["BudgetLimit"]["Amount"]))
+            self.set_trait("function_budget_name", budget["BudgetName"])
+            self.set_trait("function_budget_currency", budget["BudgetLimit"]["Unit"])
+
+            # TODO
+            # self.set_trait("function_budget_email", budget["BudgetLimit"]["Amount"]))
+
+            # store a copy of the whole response from AWS
+            self._budget = budget
 
     def _create_eval_pipeline(self, coordinates):
         """shorthand to create pipeline on eval"""
@@ -1407,7 +1574,7 @@ def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, 
     bucket_policy : dict, optional
         Bucket policy document as dict. For parameters, see https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketPolicy.html#API_PutBucketPolicy_RequestSyntax 
     bucket_tags : dict, optional
-        Description
+        Bucket tags
     
     Returns
     -------
@@ -1429,6 +1596,9 @@ def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, 
 
     if bucket_name is None:
         raise ValueError("`bucket_name` is None in create_bucket")
+
+    # add special podpac tags for billing id
+    bucket_tags["_podpac_resource"] = "true"
 
     # bucket configuration
     bucket_config = {"ACL": "private", "Bucket": bucket_name}
@@ -1692,6 +1862,9 @@ def create_function(
     if function_name is None:
         raise ValueError("`function_name` is None in create_function")
 
+    # add special podpac tags for billing id
+    function_tags["_podpac_resource"] = "true"
+
     _log.debug("Creating lambda function {}".format(function_name))
     awslambda = session.client("lambda")
 
@@ -1924,7 +2097,7 @@ def create_role(
     role_policy_document=None,
     role_policy_arns=[],
     role_assume_policy_document=None,
-    role_tags=None,
+    role_tags={},
 ):
     """Create IAM role
     
@@ -1974,6 +2147,9 @@ def create_role(
             ],
         }
 
+    # add special podpac tags for billing id
+    role_tags["_podpac_resource"] = "true"
+
     _log.debug("Creating IAM role {}".format(role_name))
     iam = session.client("iam")
 
@@ -1984,11 +2160,10 @@ def create_role(
     }
 
     # for some reason the tags API is different here
-    if role_tags is not None:
-        tags = []
-        for key in role_tags.keys():
-            tags.append({"Key": key, "Value": role_tags[key]})
-        iam_config["Tags"] = tags
+    tags = []
+    for key in role_tags.keys():
+        tags.append({"Key": key, "Value": role_tags[key]})
+    iam_config["Tags"] = tags
 
     # create role
     iam.create_role(**iam_config)
@@ -2180,6 +2355,9 @@ def create_api(
         )
         return api
 
+    # add special podpac tags for billing id
+    api_tags["_podpac_resource"] = "true"
+
     apigateway = session.client("apigateway")
 
     if api is None:
@@ -2339,6 +2517,184 @@ def delete_api(session, api_name):
     apigateway.delete_rest_api(restApiId=api["id"])
 
     _log.debug("Successfully removed API Gateway with ID {}".format(api["id"]))
+
+
+# -----------------------------------------------------------------------------------------------------------------
+# Budget
+# -----------------------------------------------------------------------------------------------------------------
+
+# Budget
+def create_budget(
+    session,
+    budget_amount,
+    budget_email=None,
+    budget_name="podpac-resource-budget",
+    budget_currency="USD",
+    budget_threshold=80.0,
+    budget_filter_tags={"_podpac_resource": "true"},
+):
+    """
+    EXPERIMENTAL FEATURE
+    Create a budget for podpac AWS resources based on tags.
+    By default, this creates a budget for all podpac created resources with the tag: {"_podpac_resource": "true"}
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    budget_amount : int
+        Budget amount
+    budget_email : str, optional
+        Notification e-mail for budget alerts.
+        If no e-mail is provided, the budget must be monitored through the AWS interface.
+    budget_name : str, optional
+        Budget name
+    budget_currency : str, optional
+        Currency unit for budget. Defaults to "USD".
+        See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.describe_budget
+        for Unit types.
+    budget_threshold : float, optional
+        Percent of the budget at which an e-mail notification is sent.
+    budget_filter_tags : dict, optional
+        Create budget for specific set of resource tags.
+        By default, the budget is created for all podpac created resources.
+    
+    Returns
+    -------
+    dict
+        Returns Boto3 budget description
+        Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.describe_budget
+    """
+
+    # see if budget already exists
+    budget = get_budget(session, budget_name)
+
+    if budget is not None:
+        _log.debug("Budget '{}' already exists. Using existing budget".format(budget_name))
+        return budget
+
+    # format tags - this is a strange syntax discovered through inspection of boto3
+    filter_tags = ["user:{}${}".format(k, v) for (k, v) in budget_filter_tags.items()]
+
+    budgets = session.client("budgets")
+
+    # budget definition
+    budget_definition = {
+        "AccountId": session.get_account_id(),
+        "Budget": {
+            "BudgetName": budget_name,
+            "BudgetLimit": {"Amount": str(budget_amount), "Unit": budget_currency},
+            "CostFilters": {"TagKeyValue": filter_tags},
+            "CostTypes": {
+                "IncludeTax": True,
+                "IncludeSubscription": True,
+                "UseBlended": False,
+                "IncludeRefund": False,
+                "IncludeCredit": False,
+                "IncludeUpfront": True,
+                "IncludeRecurring": True,
+                "IncludeOtherSubscription": True,
+                "IncludeSupport": True,
+                "IncludeDiscount": True,
+                "UseAmortized": False,
+            },
+            "TimeUnit": "MONTHLY",  # only support monthly for now
+            "BudgetType": "COST",
+        },
+    }
+
+    # handle e-mail and notifications
+    if budget_email is None:
+        _log.warning(
+            "No notification e-mail provided for AWS Budget. This budget must be monitored through the AWS interface."
+        )
+    else:
+        budget_definition["NotificationsWithSubscribers"] = [
+            {
+                "Notification": {
+                    "NotificationType": "ACTUAL",
+                    "ComparisonOperator": "GREATER_THAN",
+                    "Threshold": budget_threshold,
+                    "ThresholdType": "PERCENTAGE",
+                    "NotificationState": "ALARM",
+                },
+                "Subscribers": [{"SubscriptionType": "EMAIL", "Address": budget_email}],
+            }
+        ]
+
+    # create budget
+    budgets.create_budget(**budget_definition)
+
+    # alert the user that they must activate tags
+    print(
+        "To finalize budget creation, you must visit https://console.aws.amazon.com/billing/home#/preferences/tags and 'Activate' the following User Defined Cost Allocation tags: {}.\nBudget tracking will not work if these User Defined Cost Allocation tags are not active.\nBudget creation and usage updates may take 24 hours to take effect.".format(
+            list(budget_filter_tags.keys())
+        )
+    )
+
+    # get finalized budget
+    budget = get_budget(session, budget_name)
+    _log.debug("Successfully created budget '{}'".format(budget_name))
+
+    return budget
+
+
+def get_budget(session, budget_name):
+    """
+    EXPERIMENTAL FEATURE
+    Get a budget by name
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    budget_name : str
+        Budget name
+    
+    Returns
+    -------
+    dict
+        Returns Boto3 budget description
+        Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.describe_budget
+        Returns None if budget is not found.
+    """
+
+    _log.debug("Getting budget with name {}".format(budget_name))
+    budgets = session.client("budgets")
+
+    try:
+        response = budgets.describe_budget(AccountId=session.get_account_id(), BudgetName=budget_name)
+        budget = response["Budget"]
+    except (botocore.exceptions.ParamValidationError, budgets.exceptions.NotFoundException) as e:
+        _log.error("Failed to get budget with name {} with exception: {}".format(budget_name, e))
+        return None
+
+    return budget
+
+
+def delete_budget(session, budget_name):
+    """Delete a budget by name
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    budget_name : str
+        Budget name
+    
+    Returns
+    -------
+    None
+    """
+
+    budgets = session.client("budgets")
+
+    try:
+        budgets.delete_budget(AccountId=session.get_account_id(), BudgetName=budget_name)
+    except budgets.exceptions.NotFoundException as e:
+        pass
+
+    _log.debug("Successfully removed budget with name '{}'".format(budget_name))
 
 
 # -----------------------------------------------------------------------------------------------------------------
