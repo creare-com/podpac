@@ -120,6 +120,24 @@ class Lambda(Node):
         Override :attr:`self.function_source_dist_key` and create lambda function using custom source podpac dist archive to :attr:`self.function_s3_bucket` during :meth:`self.build()` process.
     function_tags : dict, optional
         AWS Tags for Lambda function resource. Defaults to :dict:`podpac.settings["AWS_TAGS"]` or {}.
+    function_budget_amount : float, optional
+        EXPERIMENTAL FEATURE
+        Monthly budget for function and associated AWS resources. 
+        When usage reaches 80% of this amount, AWS will notify :attr:`function_budget_email`.
+        Defaults to :str:`podpac.settings["AWS_BUDGET_AMOUNT"]`.
+    function_budget_email : str, optional
+        EXPERIMENTAL FEATURE
+        Email to notify when usage reaches 80% of :attr:`function_budget_amount`.
+        Defaults to :str:`podpac.settings["AWS_BUDGET_EMAIL"]`.
+    function_budget_name : str, optional
+        EXPERIMENTAL FEATURE
+        Name for AWS budget
+    function_budget_currency : str, optional
+        EXPERIMENTAL FEATURE
+        Currency type for the :attr:`function_budget_amount`.
+        Defaults to "USD".
+        See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.create_budget
+        for currency (or Unit) options.
     session : :class:`podpac.managers.aws.Session`
         AWS Session to use for this node.
     source : :class:`podpac.Node`
@@ -339,7 +357,7 @@ class Lambda(Node):
 
     # budget parameters
     function_budget_amount = tl.Float(allow_none=True).tag(readonly=True)  # see default below
-    function_budget_email = tl.Unicode().tag(readonly=True)  # see default below
+    function_budget_email = tl.Unicode(allow_none=True).tag(readonly=True)  # see default below
     function_budget_name = tl.Unicode().tag(readonly=True)  # see default below
     function_budget_currency = tl.Unicode(default_value="USD").tag(readonly=True)
     _budget = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
@@ -350,11 +368,7 @@ class Lambda(Node):
 
     @tl.default("function_budget_email")
     def _function_budget_email_default(self):
-        # raise error if e-mail is not provided in settings
-        if settings["AWS_BUDGET_EMAIL"] is None:
-            raise AttributeError("Budget notification e-mail is required when setting up a budget")
-
-        return settings["AWS_BUDGET_EMAIL"]
+        return settings["AWS_BUDGET_EMAIL"] or None
 
     @tl.default("function_budget_name")
     def _function_budget_name_default(self):
@@ -605,11 +619,18 @@ class Lambda(Node):
         Amount: {function_budget_amount}
         Currency: {function_budget_currency}
         E-mail: {function_budget_email}
+        Spent: {function_budget_usage} {function_budget_usage_currency}
             """.format(
                 function_budget_name=self.function_budget_name,
                 function_budget_amount=self.function_budget_amount,
                 function_budget_currency=self.function_budget_currency,
                 function_budget_email=self.function_budget_email,
+                function_budget_usage=self._budget["CalculatedSpend"]["ActualSpend"]["Amount"]
+                if self._budget
+                else None,
+                function_budget_usage_currency=self._budget["CalculatedSpend"]["ActualSpend"]["Unit"]
+                if self._budget
+                else None,
             )
         else:
             budget_output = ""
@@ -1147,8 +1168,14 @@ Lambda Node {status}
 
     # Function budget
     def create_budget(self):
-        """Create budget for lambda function based on node hash
         """
+        EXPERIMENTAL FEATURE
+        Create budget for lambda function based on node hash.
+        """
+        _log.warning(
+            "Creating an AWS Budget with PODPAC is an experimental feature. Please continue to monitor AWS usage costs seperately."
+        )
+
         budget = create_budget(
             self.session,
             self.function_budget_amount,
@@ -1161,7 +1188,9 @@ Lambda Node {status}
         self._set_budget(budget)
 
     def get_budget(self):
-        """Get budget definition for function
+        """
+        EXPERIMENTAL FEATURE
+        Get budget definition for function
         
         Returns
         -------
@@ -2498,13 +2527,15 @@ def delete_api(session, api_name):
 def create_budget(
     session,
     budget_amount,
-    budget_email,
+    budget_email=None,
     budget_name="podpac-resource-budget",
     budget_currency="USD",
     budget_threshold=80.0,
     budget_filter_tags={"_podpac_resource": "true"},
 ):
-    """Create a budget for podpac AWS resources based on tags.
+    """
+    EXPERIMENTAL FEATURE
+    Create a budget for podpac AWS resources based on tags.
     By default, this creates a budget for all podpac created resources with the tag: {"_podpac_resource": "true"}
     
     Parameters
@@ -2513,8 +2544,9 @@ def create_budget(
         AWS Boto3 Session. See :class:`Session` for creation.
     budget_amount : int
         Budget amount
-    budget_email : str
-        Notification e-mail for budget alerts
+    budget_email : str, optional
+        Notification e-mail for budget alerts.
+        If no e-mail is provided, the budget must be monitored through the AWS interface.
     budget_name : str, optional
         Budget name
     budget_currency : str, optional
@@ -2546,10 +2578,10 @@ def create_budget(
 
     budgets = session.client("budgets")
 
-    # create budget
-    budgets.create_budget(
-        AccountId=session.get_account_id(),
-        Budget={
+    # budget definition
+    budget_definition = {
+        "AccountId": session.get_account_id(),
+        "Budget": {
             "BudgetName": budget_name,
             "BudgetLimit": {"Amount": str(budget_amount), "Unit": budget_currency},
             "CostFilters": {"TagKeyValue": filter_tags},
@@ -2569,7 +2601,15 @@ def create_budget(
             "TimeUnit": "MONTHLY",  # only support monthly for now
             "BudgetType": "COST",
         },
-        NotificationsWithSubscribers=[
+    }
+
+    # handle e-mail and notifications
+    if budget_email is None:
+        _log.warning(
+            "No notification e-mail provided for AWS Budget. This budget must be monitored through the AWS interface."
+        )
+    else:
+        budget_definition["NotificationsWithSubscribers"] = [
             {
                 "Notification": {
                     "NotificationType": "ACTUAL",
@@ -2580,7 +2620,16 @@ def create_budget(
                 },
                 "Subscribers": [{"SubscriptionType": "EMAIL", "Address": budget_email}],
             }
-        ],
+        ]
+
+    # create budget
+    budgets.create_budget(**budget_definition)
+
+    # alert the user that they must activate tags
+    print(
+        "To finalize budget creation, you must visit https://console.aws.amazon.com/billing/home#/preferences/tags and 'Activate' the following User Defined Cost Allocation tags: {}.\nBudget tracking will not work if these User Defined Cost Allocation tags are not active.".format(
+            list(budget_filter_tags.keys())
+        )
     )
 
     # get finalized budget
@@ -2591,7 +2640,9 @@ def create_budget(
 
 
 def get_budget(session, budget_name):
-    """Get a budget by name
+    """
+    EXPERIMENTAL FEATURE
+    Get a budget by name
     
     Parameters
     ----------
