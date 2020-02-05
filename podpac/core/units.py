@@ -15,6 +15,7 @@ import warnings
 
 from io import BytesIO
 import base64
+import logging
 
 try:
     import cPickle  # Python 2.7
@@ -34,6 +35,14 @@ from podpac import Coordinates
 from podpac.core.settings import settings
 from podpac.core.utils import JSONEncoder
 from podpac.core.style import Style
+
+# Optional dependencies
+from lazy_import import lazy_module, lazy_class
+
+rasterio = lazy_module("rasterio")
+
+# Set up logging
+_logger = logging.getLogger(__name__)
 
 
 class UnitsDataArray(xr.DataArray):
@@ -172,56 +181,9 @@ class UnitsDataArray(xr.DataArray):
         elif format in ["png", "jpg", "jpeg"]:
             r = self.to_image(format, *args, **kwargs)
         elif format.upper() in ["TIFF", "TIF", "GEOTIFF"]:
-            # This only works for data that essentially has lat/lon only
-            dims = self.coords.dims
-            if "lat" not in dims or "lon" not in dims:
-                raise NotImplementedError("Cannot export GeoTIFF for dataset with lat/lon coordinates.")
-            if "time" in dims and len(self.coords["time"] > 1):
-                raise NotImplemented("Cannot export GeoTIFF for dataset with multiple times,")
-            if "alt" in dims and len(self.coords["alt"] > 1):
-                raise NotImplemented("Cannot export GeoTIFF for dataset with multiple altitudes.")
-
-            # Get the crs and geotransform that describes the coordinates
-            crs = self.attrs.get("crs", "EPSG:4326")
-            coords = podpac.Coordinates.from_xarray(self, crs=crs)
-
-            # TODO: add proper checks, etc. to make sure we handle edge cases and throw errors when we cannot support
-            #       i.e. do work to remove this warning.
-            _logger.warning("GeoTIFF export assumes data is in a uniform, non-rotated coordinate system.")
-
-            # Build the transform from a translation and scaling
-            transform = rasterio.transform.Affine.translate(
-                min(self.coords.area_bounds["lon"]), max(self.coords.area_bounds["lat"])
-            ) * rasterio.transform.Affine.scale(
-                (max(self.coords.bounds["lon"]) - min(self.coords.bounds["lon"])) / coords["lon"].size,
-                (max(self.coords.bounds["lat"]) - min(self.coords.bounds["lat"])) / coords["lat"].size,
-            )
-
-            # Update the kwargs that rasterio will use. Anything added by the user will take priority.
-            kwargs2 = dict(
-                drive="GTiff",
-                height=self.coords["lat"].size,
-                width=self.coords["lon"].size,
-                count=1,
-                dtype=data.dtype,
-                crs=crs,
-                transform=transform,
-            )
-            kwargs2.update(kwargs)
-
-            # Get the data
-            dtype = kwargs.get("dtype", np.float32)
-            data = self.data.astype(dtype).squeeze()
-            if dims.index("lat") > dims.index("lon"):
-                data = data.T
-
-            # Write the file
-            with rasterio.open(*args, **kwargs2) as dst:
-                r = dst.write(data, 1)
-
+            r = self.to_geotiff(*args, **kwargs)
         elif format in ["pickle", "pkl"]:
             r = cPickle.dumps(self)
-
         elif format == "zarr_part":
             if part in kwargs:
                 part = [slice(*sss) for sss in kwargs.pop("part")]
@@ -260,6 +222,12 @@ class UnitsDataArray(xr.DataArray):
             Binary or Base64 encoded image. 
         """
         return to_image(self, format, vmin, vmax, return_base64)
+
+    def to_geotiff(self, fp, geotransform=None, crs=None, **kwargs):
+        """
+        For documentation, see `core.units.to_geotiff`
+        """
+        to_geotiff(fp, self, geotransform=geotransform, crs=crs, **kwargs)
 
     def serialize(self):
         if self.attrs.get("units"):
@@ -602,3 +570,99 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
         return base64.b64encode(im_data.getvalue())
     else:
         return im_data
+
+
+def to_geotiff(fp, data, geotransform=None, crs=None, **kwargs):
+    """ Export a UnitsDataArray to a Geotiff
+    
+    Params
+    -------
+    fp:  str, file object or pathlib.Path object
+        A filename or URL, a file object opened in binary ('rb') mode, or a Path object.
+    data: UnitsDataArray, xr.DataArray, np.ndarray
+        The data to be saved. If there is more than 1 band, this should be the last dimension of the array. 
+        If given a np.ndarray, ensure that the 'lat' dimension is aligned with the rows of the data, with an appropriate
+        geotransform. 
+    geotransform: tuple, optional
+        The geotransform that describes the input data. If not given, will look for data.attrs['geotransform']
+    crs: str, optional
+        The coordinate reference system for the data
+    kwargs: **dict
+        Additional key-word arguments that overwrite defaults used in the `rasterio.open` function. This function
+        populates the following defaults: 
+                drive="GTiff"
+                height=data.shape[0]
+                width=data.shape[1]
+                count=data.shape[2]
+                dtype=data.dtype
+                mode="w"
+                
+    """
+
+    # This only works for data that essentially has lat/lon only
+    dims = data.coords.dims
+    if "lat" not in dims or "lon" not in dims:
+        raise NotImplementedError("Cannot export GeoTIFF for dataset with lat/lon coordinates.")
+    if "time" in dims and len(data.coords["time"] > 1):
+        raise NotImplemented("Cannot export GeoTIFF for dataset with multiple times,")
+    if "alt" in dims and len(data.coords["alt"] > 1):
+        raise NotImplemented("Cannot export GeoTIFF for dataset with multiple altitudes.")
+
+    # TODO: add proper checks, etc. to make sure we handle edge cases and throw errors when we cannot support
+    #       i.e. do work to remove this warning.
+    _logger.warning("GeoTIFF export assumes data is in a uniform, non-rotated coordinate system.")
+
+    # Get the crs and geotransform that describes the coordinates
+    if crs is None:
+        crs = data.attrs.get("crs")
+    if crs is None:
+        raise ValueError(
+            "The `crs` of the data needs to be provided to save as GeoTIFF. If supplying a UnitsDataArray, created "
+            " through a PODPAC Node, the crs should be automatically populated. If not, please file an issue."
+        )
+    if geotransform is None:
+        geotransform = data.attrs.get("geotransform")
+        # Geotransform should ALWAYS be defined as (lon_origin, lon_dj, lon_di, lat_origin, lat_dj, lat_di)
+        # if isinstance(data, xr.DataArray) and data.dims.index('lat') > data.dims.index('lon'):
+        # geotransform = geotransform[3:] + geotransform[:3]
+    if geotransform is None:
+        raise ValueError(
+            "The `geotransform` of the data needs to be provided to save as GeoTIFF. If the geotransform attribute "
+            "wasn't automatically populated as part of the dataset, it means that the data is in a non-uniform "
+            "coordinate system. This can sometimes happen when the data is transformed to a different CRS than the "
+            "native CRS, which can cause the coordinates to seems non-uniform due to floating point precision. "
+        )
+
+    # Make all types into a numpy array
+    if isinstance(data, xr.DataArray):
+        data = data.data
+
+    # Get the data
+    dtype = kwargs.get("dtype", np.float32)
+    data = data.astype(dtype).squeeze()
+
+    if len(data.shape) == 2:
+        data = data[:, :, None]
+
+    geotransform = rasterio.Affine.from_gdal(*geotransform)
+
+    # Update the kwargs that rasterio will use. Anything added by the user will take priority.
+    kwargs2 = dict(
+        driver="GTiff",
+        height=data.shape[0],
+        width=data.shape[1],
+        count=data.shape[2],
+        dtype=data.dtype,
+        crs=crs,
+        transform=geotransform,
+        mode="w",
+    )
+    kwargs2.update(kwargs)
+
+    # Write the file
+    r = []
+    with rasterio.open(fp, **kwargs2) as dst:
+        for i in range(data.shape[2]):
+            r.append(dst.write(data[..., i], i + 1))
+
+    return r

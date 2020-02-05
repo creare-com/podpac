@@ -12,11 +12,14 @@ import numpy as np
 import traitlets as tl
 import pandas as pd
 import xarray as xr
+import pyproj
+import logging
 
 from podpac.core.settings import settings
 from podpac.core.utils import common_doc, trait_is_defined
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d, StackedCoordinates
+from podpac.core.coordinates import RotatedCoordinates
 from podpac.core.coordinates.utils import Dimension, VALID_DIMENSION_NAMES
 
 # Optional dependencies
@@ -29,6 +32,9 @@ requests = lazy_module("requests")
 zarr = lazy_module("zarr")
 zarrGroup = lazy_class("zarr.Group")
 s3fs = lazy_module("s3fs")
+
+# Set up logging
+_logger = logging.getLogger(__name__)
 
 
 @common_doc(COMMON_DATA_DOC)
@@ -676,8 +682,22 @@ class Rasterio(DataSource):
     source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)]).tag(readonly=True)
     dataset = tl.Any().tag(readonly=True)
 
+    @property
+    def nan_vals(self):
+        return list(self.dataset.nodatavals)
+
     # node attrs
-    band = tl.CInt(1).tag(attr=True)
+    band = tl.CInt(allow_none=True).tag(attr=True)
+
+    @tl.default("band")
+    def _band_default(self):
+        if (self.outputs is not None) and (self.output is not None):
+            band = self.outputs.index(self.output)
+        elif self.outputs is None:
+            band = 1
+        else:
+            band = None  # All bands
+        return band
 
     @tl.default("dataset")
     def _open_dataset(self):
@@ -719,21 +739,18 @@ class Rasterio(DataSource):
 
         # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
-        if affine[1] != 0.0 or affine[3] != 0.0:
-            raise NotImplementedError("Rotated coordinates are not yet supported")
 
-        try:
+        if isinstance(self.dataset.crs, rasterio.crs.CRS):
+            crs = self.dataset.crs.wkt
+        elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
-        except:
-            crs = None
+        else:
+            try:
+                crs = pyproj.CRS(self.dataset.crs).to_wkt()
+            except:
+                raise RuntimeError("Unexpected rasterio crs '%s'" % self.dataset.crs)
 
-        # get bounds
-        left, bottom, right, top = self.dataset.bounds
-
-        # rasterio reads data upside-down from coordinate conventions, so lat goes from top to bottom
-        lat = UniformCoordinates1d(top, bottom, size=self.dataset.height, name="lat")
-        lon = UniformCoordinates1d(left, right, size=self.dataset.width, name="lon")
-        return Coordinates([lat, lon], dims=["lat", "lon"], crs=crs)
+        return Coordinates.from_geotransform(affine.to_gdal(), self.dataset.shape, crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -744,7 +761,12 @@ class Rasterio(DataSource):
 
         # read data within coordinates_index window
         window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
-        raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
+
+        if self.outputs is not None:  # read all the bands
+            raster_data = self.dataset.read(out_shape=(len(self.outputs),) + tuple(coordinates.shape), window=window)
+            raster_data = np.moveaxis(raster_data, 0, 2)
+        else:  # read the requested band
+            raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
 
         # set raster data to output array
         data.data.ravel()[:] = raster_data.ravel()

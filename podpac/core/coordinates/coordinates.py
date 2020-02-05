@@ -20,6 +20,7 @@ import xarray as xr
 import xarray.core.coordinates
 from six import string_types
 import pyproj
+import logging
 
 import podpac
 from podpac.core.settings import settings
@@ -31,6 +32,16 @@ from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
+
+# Optional dependencies
+from lazy_import import lazy_module, lazy_class
+
+rasterio = lazy_module("rasterio")
+affine = lazy_module("affine")
+
+
+# Set up logging
+_logger = logging.getLogger(__name__)
 
 
 class Coordinates(tl.HasTraits):
@@ -443,6 +454,43 @@ class Coordinates(tl.HasTraits):
         return cls.from_definition(coords)
 
     @classmethod
+    def from_geotransform(cls, geotransform, shape, crs=None):
+        """ Creates Coordinates from GDAL Geotransform. 
+        
+        """
+        tol = 1e-15  # tolerance for deciding when a number is zero
+        # Handle the case of rotated coordinates
+        try:
+            rcoords = RotatedCoordinates.from_geotransform(geotransform, shape, dims=["lat", "lon"])
+        except affine.UndefinedRotationError:
+            rcoords = None
+            _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
+
+        if rcoords is not None and np.abs(rcoords.theta % (np.pi / 2)) > tol:
+            # These are Rotated coordinates and we can return
+            coords = Coordinates([rcoords], dims=["lat,lon"], crs=crs)
+            return coords
+
+        # Handle the case of uniform coordinates (not rotated, but N-S E-W aligned)
+        affine = rasterio.Affine.from_gdal(*geotransform)
+        if affine.e <= tol and affine.a <= tol:
+            order = -1
+            step = np.array([affine.d, affine.b])
+        else:
+            order = 1
+            step = np.array([affine.e, affine.a])
+
+        origin = affine.f + step[0] / 2, affine.c + step[1] / 2
+        end = origin[0] + step[0] * (shape[::order][0] - 1), origin[1] + step[1] * (shape[::order][1] - 1)
+        coords = Coordinates(
+            [
+                podpac.clinspace(origin[0], end[0], shape[::order][0], "lat"),
+                podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
+            ][::order]
+        )
+        return coords
+
+    @classmethod
     def from_definition(cls, d):
         """
         Create podpac Coordinates from a coordinates definition.
@@ -693,6 +741,10 @@ class Coordinates(tl.HasTraits):
         return tuple(size for c in self._coords.values() for size in c.shape)
 
     @property
+    def ushape(self):
+        return tuple(self[dim].size for dim in self.udims)
+
+    @property
     def ndim(self):
         """:int: Number of dimensions. """
 
@@ -800,6 +852,54 @@ class Coordinates(tl.HasTraits):
         # As such, we json.dumps the full definition.
         json_d = json.dumps(self.full_definition, separators=(",", ":"), cls=podpac.core.utils.JSONEncoder)
         return hash_alg(json_d.encode("utf-8")).hexdigest()
+
+    @property
+    def geotransform(self):
+        """ :tuple: GDAL geotransform. """
+        # Make sure we only have 1 time and alt dimension
+        if "time" in self.udims and self["time"].size > 1:
+            raise TypeError(
+                'Only 2-D coordinates have a GDAL transform. This array has a "time" dimension of {} > 1'.format(
+                    self["time"].size
+                )
+            )
+        if "alt" in self.udims and self["alt"].size > 1:
+            raise TypeError(
+                'Only 2-D coordinates have a GDAL transform. This array has a "alt" dimension of {} > 1'.format(
+                    self["alt"].size
+                )
+            )
+
+        # Do the uniform coordinates case
+        if (
+            "lat" in self.dims
+            and isinstance(self._coords["lat"], UniformCoordinates1d)
+            and "lon" in self.dims
+            and isinstance(self._coords["lon"], UniformCoordinates1d)
+        ):
+            if self.dims.index("lon") < self.dims.index("lat"):
+                first, second = "lat", "lon"
+            else:
+                first, second = "lon", "lat"  # This case will have the exact correct geotransform
+            transform = rasterio.transform.Affine.translation(
+                self[first].start - self[first].step / 2, self[second].start - self[second].step / 2
+            ) * rasterio.transform.Affine.scale(self[first].step, self[second].step)
+            transform = transform.to_gdal()
+        # Do the rotated coordinates cases
+        elif "lat,lon" in self.dims and isinstance(self._coords["lat,lon"], RotatedCoordinates):
+            transform = self._coords["lat,lon"].geotransform
+        elif "lon,lat" in self.dims and isinstance(self._coords["lon,lat"], RotatedCoordinates):
+            transform = self._coords["lon,lat"].geotransform
+        else:
+            raise TypeError(
+                "Only 2-D coordinates that are uniform or rotated have a GDAL transform. These coordinates "
+                "{} do not.".format(self)
+            )
+        if self.udims.index("lon") < self.udims.index("lat"):
+            # transform = (transform[3], transform[5], transform[4], transform[0], transform[2], transform[1])
+            transform = transform[3:] + transform[:3]
+
+        return transform
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
