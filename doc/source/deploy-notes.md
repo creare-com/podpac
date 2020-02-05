@@ -83,7 +83,7 @@ $ jupyter labextension install jupyter-leaflet
 $ jupyter labextension install jupyter-matplotlib
 $ jupyter nbextension enable --py widgetsnbextension
 $ jupyter lab build
-$ python -m ipykernel install --user
+$ ~~python -m ipykernel install --user~~
 
 # clean conda environment
 $ conda clean -a -y
