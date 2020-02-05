@@ -37,7 +37,7 @@ from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 from lazy_import import lazy_module, lazy_class
 
 rasterio = lazy_module("rasterio")
-affine = lazy_module("affine")
+affine_module = lazy_module("affine")
 
 
 # Set up logging
@@ -462,7 +462,7 @@ class Coordinates(tl.HasTraits):
         # Handle the case of rotated coordinates
         try:
             rcoords = RotatedCoordinates.from_geotransform(geotransform, shape, dims=["lat", "lon"])
-        except affine.UndefinedRotationError:
+        except affine_module.UndefinedRotationError:
             rcoords = None
             _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
 
