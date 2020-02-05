@@ -868,7 +868,7 @@ class Coordinates(tl.HasTraits):
         if "alt" in self.udims and self.ushape[self.udims.index("alt")] > 1:
             raise TypeError(
                 'Only 2-D coordinates have a GDAL transform. This array has a "alt" dimension of {} > 1'.format(
-                    self.suhape[self.udims.index("alt")]
+                    self.ushape[self.udims.index("alt")]
                 )
             )
 
