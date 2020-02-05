@@ -37,6 +37,8 @@ from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 from lazy_import import lazy_module, lazy_class
 
 rasterio = lazy_module("rasterio")
+affine = lazy_module("affine")
+
 
 # Set up logging
 _logger = logging.getLogger(__name__)
@@ -456,21 +458,22 @@ class Coordinates(tl.HasTraits):
         """ Creates Coordinates from GDAL Geotransform. 
         
         """
+        tol = 1e-15  # tolerance for deciding when a number is zero
         # Handle the case of rotated coordinates
         try:
-            rcoords = RotatedCoordinates.from_geotransform(geotransform)
-            coords = Coordinates([rcoords], dims=["lat,lon"], crs=crs)
-        except:
+            rcoords = RotatedCoordinates.from_geotransform(geotransform, shape, dims=["lat", "lon"])
+        except affine.UndefinedRotationError:
             rcoords = None
             _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
 
-        if rcoords is not None and rcoords.theta != 0:
+        if rcoords is not None and np.abs(rcoords.theta % (np.pi / 2)) > tol:
             # These are Rotated coordinates and we can return
+            coords = Coordinates([rcoords], dims=["lat,lon"], crs=crs)
             return coords
 
         # Handle the case of uniform coordinates (not rotated, but N-S E-W aligned)
         affine = rasterio.Affine.from_gdal(*geotransform)
-        if affine.e == affine.a == 0:
+        if affine.e <= tol and affine.a <= tol:
             order = -1
             step = np.array([affine.d, affine.b])
         else:
@@ -882,6 +885,7 @@ class Coordinates(tl.HasTraits):
                 self[first].start - self[first].step / 2, self[second].start - self[second].step / 2
             ) * rasterio.transform.Affine.scale(self[first].step, self[second].step)
             transform = transform.to_gdal()
+        # Do the rotated coordinates cases
         elif "lat,lon" in self.dims and isinstance(self._coords["lat,lon"], RotatedCoordinates):
             transform = self._coords["lat,lon"].geotransform
         elif "lon,lat" in self.dims and isinstance(self._coords["lon,lat"], RotatedCoordinates):
