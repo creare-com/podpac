@@ -277,7 +277,7 @@ class Node(tl.HasTraits):
             attrs["units"] = ureg.Unit(self.units)
         try:
             attrs["geotransform"] = coords.geotransform
-        except TypeError:
+        except (TypeError, AttributeError):
             pass
 
         return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
