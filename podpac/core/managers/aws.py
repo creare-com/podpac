@@ -2627,7 +2627,7 @@ def create_budget(
 
     # alert the user that they must activate tags
     print(
-        "To finalize budget creation, you must visit https://console.aws.amazon.com/billing/home#/preferences/tags and 'Activate' the following User Defined Cost Allocation tags: {}.\nBudget tracking will not work if these User Defined Cost Allocation tags are not active.".format(
+        "To finalize budget creation, you must visit https://console.aws.amazon.com/billing/home#/preferences/tags and 'Activate' the following User Defined Cost Allocation tags: {}.\nBudget tracking will not work if these User Defined Cost Allocation tags are not active.\nBudget creation and usage updates may take 24 hours to take effect.".format(
             list(budget_filter_tags.keys())
         )
     )
