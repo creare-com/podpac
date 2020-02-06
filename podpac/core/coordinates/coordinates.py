@@ -486,7 +486,8 @@ class Coordinates(tl.HasTraits):
             [
                 podpac.clinspace(origin[0], end[0], shape[::order][0], "lat"),
                 podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
-            ][::order]
+            ][::order],
+            crs=crs,
         )
         return coords
 

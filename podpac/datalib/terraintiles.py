@@ -83,6 +83,15 @@ class TerrainTilesSource(Rasterio):
         default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
     ).tag(readonly=True)
 
+    @tl.default("crs")
+    def _default_crs(self):
+        if "geotiff" in self.source:
+            return "EPSG:3857"
+        if "terrarium" in self.source:
+            return "EPSG:3857"
+        if "normal" in self.source:
+            return "EPSG:3857"
+
     @tl.default("dataset")
     def open_dataset(self):
         """Opens the data source"""

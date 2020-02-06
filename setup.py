@@ -38,7 +38,8 @@ extras_require = {
         "lxml>=4.2",
         "pydap>=3.2",
         "rasterio>=1.0",
-        "zarr>=2.3"
+        "zarr>=2.3",
+        "intake>=0.5"
     ],
     "aws": [
         "awscli>=1.16",

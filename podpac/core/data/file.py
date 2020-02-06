@@ -669,7 +669,9 @@ class Rasterio(DataSource):
         A reference to the datasource opened by rasterio
     native_coordinates : :class:`podpac.Coordinates`
         {native_coordinates}
-
+    crs : str, optional
+        The coordinate reference system. Normally this will come directly from the file, but this allows users to
+        specify the crs in case this information is missing from the file.
 
     Notes
     ------
@@ -681,6 +683,7 @@ class Rasterio(DataSource):
 
     source = tl.Union([tl.Unicode(), tl.Instance(BytesIO)]).tag(readonly=True)
     dataset = tl.Any().tag(readonly=True)
+    crs = tl.Unicode(allow_none=True)
 
     @property
     def nan_vals(self):
@@ -747,8 +750,11 @@ class Rasterio(DataSource):
         else:
             try:
                 crs = pyproj.CRS(self.dataset.crs).to_wkt()
-            except:
-                raise RuntimeError("Unexpected rasterio crs '%s'" % self.dataset.crs)
+            except pyproj.exceptions.CRSError:
+                if self.crs is None:
+                    raise RuntimeError("Unexpected rasterio crs '%s'" % self.dataset.crs)
+                else:
+                    crs = self.crs
 
         return Coordinates.from_geotransform(affine.to_gdal(), self.dataset.shape, crs)
 
