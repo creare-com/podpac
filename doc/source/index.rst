@@ -12,6 +12,9 @@ PODPAC
     <a href="https://github.com/creare-com/podpac-examples/tree/develop/notebooks" class="fa fa-github"> Explore Jupyter Notebooks</a>
     <br><br>
 
+PODPAC is a python library that builds 
+on the `scientific python ecosystem <https://www.scipy.org/about.html#the-scipy-ecosystem>`_
+to enable simple, reproducible geospatial analyses that run locally or in the cloud.
 
 .. code-block:: python
 
@@ -26,22 +29,24 @@ PODPAC
     # evaluate soil moisture at the coordinates of the elevation data
     output = soil_moisture.eval(elevation.native_coordinates)
 
+    # run evaluation in the cloud
+    aws_node = podpac.managers.aws.Lambda(source=soil_moisture)
+    output = aws_node.eval(elevation.native_coordinates)
+
+
 
 .. figure:: /_static/img/demo-figure.png
     :width: 100%
     :align: center
 
-    Elevation (left),    Soil Moisture (center),     Soil Moisture at Elevation coordinates (right).
+    Elevation (left), Soil Moisture (center), Soil Moisture at Elevation coordinates (right).
 
 Purpose
 -------
 
 Data wrangling and processing of geospatial data should be seamless
-so that earth scientists can focus on science. PODPAC is a python library that builds 
-on the `scientific python ecosystem <https://www.scipy.org/about.html#the-scipy-ecosystem>`_
-to enable simple, reproducible geospatial analyses that run locally or in the cloud.
-
-The purpose of PODPAC is to facilitate
+so that earth scientists can focus on science. 
+The purpose of PODPAC is to facilitate:
 
 * Access of data products
 * Subsetting of data products
@@ -71,6 +76,7 @@ The purpose of PODPAC is to facilitate
     :caption: Topics
 
     why-podpac
+    dependencies
     nodes
     coordinates  
     pipelines

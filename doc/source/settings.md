@@ -1,182 +1,185 @@
 # Settings
 
-PODPAC settings are accessed through the `podpac.settings` module.
-The settings are stored in a dictionary format:
+This tutorial describes methods for viewing and editing PODPAC settings used to configure the features of the library.
 
-```python
-from podpac import settings
+To follow along, open a Python interpreter or Jupyter notebook in the Python environment where PODPAC is installed.
 
-print(settings)
+```
+# activate the PODPAC environment, using anaconda
+$ conda activate podpac
 
->>> {
-        'DEBUG': False,
-        'CACHE_DIR': None,
-        'CACHE_TO_S3': False,
-        'ROOT_PATH': '/Users/user/.podpac',
-        'AWS_ACCESS_KEY_ID': None,
-        'AWS_SECRET_ACCESS_KEY': None,
-        'AWS_REGION_NAME': None,
-        'S3_BUCKET_NAME': None,
-        'S3_JSON_FOLDER': None,
-        'S3_OUTPUT_FOLDER': None,
-        'AUTOSAVE_SETTINGS': False
-    }
+# start a ipython interpreter
+$ ipython
 ```
 
-These settings can be pre-configured by creating a custom `settings.json` in the current working directory,
-the podpac root directory, or a directory specified by the user at runtime.
+## View Settings
 
-## Load Settings from Default Paths
+PODPAC settings are accessed through the `podpac.settings` module.
+Import the settings module:
 
-You can override default podpac settings by creating a `settings.json` file in one of two places:
+```ipython
+In [1]: from podpac import settings
+```
 
-* the podpac `ROOT_PATH`. By default this is a `.podpac` directory in the users home directory (i.e. `~/.podpac/settings.json`).
-* the current working directory (i.e. `./settings.json`)
+The settings are stored in a dictionary format, accessible in the interpreter:
 
-If `settings.json` files exist in multiple places, podpac will load settings in the following order,
+```ipython
+In [2]: settings
+Out[2]:
+{'DEBUG': False,
+ 'ROOT_PATH': 'C:\\Users\\user\\.podpac',
+ 'AUTOSAVE_SETTINGS': False,
+ ...
+}
+```
+
+To view the default settings, view `settings.defaults`:
+
+```ipython
+In [3]: settings.defaults
+Out[3]:
+{'DEBUG': False,
+ 'ROOT_PATH': 'C:\\Users\\user\\.podpac',
+ 'AUTOSAVE_SETTINGS': False,
+ ...
+}
+```
+
+For documentation on individual PODPAC settings, view the `podpac.settings` module docstring:
+
+```ipython
+In [1]: from podpac import settings
+In [2]:print(settings.__doc__)
+
+    Persistently stored podpac settings
+
+    Podpac settings are persistently stored in...
+
+```
+
+## Edit Settings
+
+PODPAC settings can be edited multiple ways:
+
+- [As a dictionary](#as-a-dictionary): For interactive and dynamic changes 
+- [As a JSON file](#as-a-json-file): For consistent configurations across installations
+
+### As a Dictionary
+
+Since the `podpac.settings` module is a dictionary, the simplest way to edit settings is to directly set values:
+ 
+```ipython
+In [1]: from podpac import settings
+
+In [2]: settings["DEBUG"] = True
+In [3]: settings["CACHE_OUTPUT_DEFAULT"] = False
+```
+
+These changed settings will only be active for current interpreter session (or script).
+Close and reopen a new interpreter session and you will see the settings values are back to default:
+
+```ipython
+In [1]: from podpac import settings
+
+In [2]: settings["DEBUG"]
+Out[2]: False
+```
+
+To persistently save changes to `settings` values, run `settings.save()` after making changes:
+
+```ipython
+In [1]: from podpac import settings
+
+In [2]: settings["DEBUG"] = True
+In [3]: settings.save()
+```
+
+To auto-save settings on *any* changes, set the `settings["AUTOSAVE_SETTINGS"]` value to `True`:
+
+```ipython
+In [1]: from podpac import settings
+
+In [2]: settings["AUTOSAVE_SETTINGS"] = True
+```
+
+To reset settings to defaults, call the `settings.reset()` method.
+To persistently reset defaults, call the `settings.save()` method after calling `settings.reset()`:
+
+```ipython
+In [1]: from podpac import settings
+
+In [2]: settings.reset()
+
+In [3]: settings.save()   # to persistently reset defaults
+```
+
+### As a JSON file
+
+PODPAC settings can be pre-configured by creating a custom `settings.json` file.
+
+Create a `settings.json` file in the current working directory:
+
+```json
+{
+    "DEBUG": true,
+    "S3_BUCKET_NAME": "podpac-bucket"
+}
+```
+
+Open a new interpreter and load the `podpac.settings` module to see the overwritten values:
+
+```ipython
+In [1]: from podpac import settings
+
+In [2]: settings["DEBUG"]
+Out[2]: True
+```
+
+This file can also be placed in the the PODPAC root directory.
+To see the PODPAC root directory, view `settings["ROOT_PATH"]`:
+
+```ipython
+In [1]: from podpac import settings
+
+In [2]: settings["ROOT_PATH"]
+Out[5]: 'C:\\Users\\user\\.podpac'
+```
+
+Edit the `settings.json` file in the `"ROOT_PATH"` location, then open a new interpreter and load the `podpac.settings` module to see the overwritten values:
+
+```json
+{
+    "DISK_CACHE_MAX_BYTES ": 1e9,
+}
+```
+
+```ipython
+In [1]: from podpac import settings
+
+In [2]: settings["DISK_CACHE_MAX_BYTES"]
+Out[2]:  1000000000.0
+```
+
+If a `settings.json` files exist in multiple places, PODPAC will load settings in the following order,
 overwriting previously loaded settings in the process:
 
 * podpac default settings
 * home directory settings (`~/.podpac/settings.json`)
 * current working directory settings (`./settings.json`)
 
-## Load Settings from a Custom Path
-
-You can also load a `settings.json` file from outside of the podpac `ROOT_PATH` or current working directory using the `settings.load()` method:
-
-```python
-from podpac import settings
-
-settings.load(path='custom/path/', filename='settings.json')
-```
-
-## Active Settings File
-
 The attribute `settings.settings_path` shows the path of the last loaded settings file (e.g. the active settings file).
 
 ```python
-from podpac import settings
+In [1]: from podpac import settings
 
-print(settings.settings_path)
+In [2]: settings.settings_path
+Out[2]: 'C:\\Users\\user\\.podpac'
 ```
 
-## Save Settings
-
-The active settings file (`settings.settings_path`) can be saved by using the `settings.save()` method:
+A `settings.json` file can be loaded from outside the search path using the `settings.load()` method:
 
 ```python
-from podpac import settings
+In [1]: from podpac import settings
 
-# writes out current settings dictionary to json file at settings.settings_path
-settings.save()
-```
-
-To keep the active settings file updated as changes are made to the settings dictionary at runtime,
-set the property `settings['AUTOSAVE_SETTINGS']` field to `True`.
-
-## Default Settings
-
-The default settings can be accessed on the `settings.defaults` attribute.
-
-```python
-from podpac import settings
-
-print(settings.defaults)
-```
-
-## Details on Specific Settings 
-
-For information on specific settings for your version of podpac see the settings module doc.
-
-```python
->>> from podpac import settings
->>> print(settings.__doc__)
-"""
-    Persistently stored podpac settings
-
-    Podpac settings are persistently stored in a ``settings.json`` file created at runtime.
-    By default, podpac will create a settings json file in the users
-    home directory (``~/.podpac/settings.json``) when first run.
-
-    Default settings can be overridden or extended by:
-      * editing the ``settings.json`` file in the home directory (i.e. ``~/.podpac/settings.json``)
-      * creating a ``settings.json`` in the current working directory (i.e. ``./settings.json``)
-
-    If ``settings.json`` files exist in multiple places, podpac will load settings in the following order,
-    overwriting previously loaded settings in the process:
-      * podpac settings defaults
-      * home directory settings (``~/.podpac/settings.json``)
-      * current working directory settings (``./settings.json``)
-
-    :attr:`settings.settings_path` shows the path of the last loaded settings file (e.g. the active settings file).
-    To persistenyl update the active settings file as changes are made at runtime,
-    set the ``settings['AUTOSAVE_SETTINGS']`` field to ``True``. The active setting file can be persistently
-    saved at any time using :meth:`settings.save`.
-
-    The default settings are shown below:
-
-    Attributes
-    ----------
-    DEFAULT_CRS : str
-        Default coordinate reference system for spatial coordinates. Defaults to 'EPSG:4326'.
-    AWS_ACCESS_KEY_ID : str
-        The access key for your AWS account.
-        See the `boto3 documentation
-        <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#environment-variable-configuration>`_
-        for more details.
-    AWS_SECRET_ACCESS_KEY : str
-        The secret key for your AWS account.
-        See the `boto3 documentation
-        <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#environment-variable-configuration>`_
-        for more details.
-    AWS_REGION_NAME : str
-        Name of the AWS region, e.g. us-west-1, us-west-2, etc.
-    DEFAULT_CACHE : list
-        Defines a default list of cache stores in priority order. Defaults to `['ram']`.
-    CACHE_OUTPUT_DEFAULT : bool
-        Default value for node ``cache_output`` trait.
-    RAM_CACHE_MAX_BYTES : int
-        Maximum RAM cache size in bytes.
-        Note, for RAM cache only, the limit is applied to the total amount of RAM used by the python process;
-        not just the contents of the RAM cache. The python process will not be restrited by this limit,
-        but once the limit is reached, additions to the cache will be subject to it.
-        Defaults to ``1e9`` (~1G).
-        Set to `None` explicitly for no limit.
-    DISK_CACHE_MAX_BYTES : int
-        Maximum disk space for use by the disk cache in bytes.
-        Defaults to ``10e9`` (~10G).
-        Set to `None` explicitly for no limit.
-    S3_CACHE_MAX_BYTES : int
-        Maximum storage space for use by the s3 cache in bytes.
-        Defaults to ``10e9`` (~10G).
-        Set to `None` explicitly for no limit.
-    DISK_CACHE_DIR : str
-        Subdirectory to use for the disk cache. Defaults to ``'cache'`` in the podpac root directory.
-    S3_CACHE_DIR : str
-        Subdirectory to use for S3 cache (within the specified S3 bucket). Defaults to ``'cache'``.
-    RAM_CACHE_ENABLED: bool
-        Enable caching to RAM. Note that if disabled, some nodes may fail. Defaults to ``True``.
-    DISK_CACHE_ENABLED: bool
-        Enable caching to disk. Note that if disabled, some nodes may fail. Defaults to ``True``.
-    S3_CACHE_ENABLED: bool
-        Enable caching to RAM. Note that if disabled, some nodes may fail. Defaults to ``True``.
-    ROOT_PATH : str
-        Path to primary podpac working directory. Defaults to the ``.podpac`` directory in the users home directory.
-    S3_BUCKET_NAME : str
-        The AWS S3 Bucket to use for cloud based processing.
-    S3_JSON_FOLDER : str
-        Folder within :attr:`S3_BUCKET_NAME` to use for cloud based processing.
-    S3_OUTPUT_FOLDER : str
-        Folder within :attr:`S3_BUCKET_NAME` to use for outputs.
-    AUTOSAVE_SETTINGS: bool
-        Save settings automatically as they are changed during runtime. Defaults to ``False``.
-    MULTITHREADING: bool
-        Uses multithreaded evaluation, when applicable. Defaults to ``False``.
-    N_THREADS: int
-        Number of threads to use (only if MULTITHREADING is True). Defaults to ``10``.
-    CHUNK_SIZE: int, 'auto', None
-        Chunk size for iterative evaluation, when applicable (e.g. Reduce Nodes). Use None for no iterative evaluation,
-        and 'auto' to automatically calculate a chunk size based on the system. Defaults to ``None``.
-"""
->>>
+In [2]: settings.load(path='custom/path/', filename='settings.json')
 ```

@@ -5,7 +5,7 @@ This document provides a high level overview of the key features of the library.
 
 ![](/_static/img/overview.png)
 
-The goal of PODPAC is to enable the development of portable geospatial data pipelines that can be processed locally or in the cloud. PODPAC provides tools to make geospatial analysis intuitive and automatic from concept to application.
+The goal of PODPAC is to enable the development of portable geospatial data pipelines that can be processed locally or in the cloud. PODPAC provides tools to make generation and distribution of pipeliens intuitive and automatic from concept to application.
 
 The [podpac-examples](https://github.com/creare-com/podpac-examples/tree/master/notebooks) repository provides interactive Jupyter Notebooks demonstrating these key features for a deeper dive.
 
@@ -42,7 +42,7 @@ import podpac
 import podpac.datalib
 
 # access data from SMAP (https://nsidc.org/data/smap/smap-data.html)
-sm = podpac.datalib.SMAP(product='SPL4SMAU', username=username, password=password)
+node = podpac.datalib.SMAP(product='SPL4SMAU', username=username, password=password)
 
 # access data from GFS (https://registry.opendata.aws/noaa-gfs-pds/)
 node = podpac.datalib.GFS(parameter='SOIM', level='0-10 m DPTH', date="20200203", hour="1200")
@@ -88,7 +88,7 @@ nodeA = podpac.data.Rasterio(source="elevation.tif", interpolation="cubic")
 nodeB = podpac.datalib.TerrainTiles(tile_format='geotiff', zoom=8) 
 
 # take the mean of the two elevation nodes
-alg_node = podpac.algorithm.Arithmetic(A=nodeA, B=nodeB, eqn = '(A * B) / 2')
+alg_node = podpac.algorithm.Arithmetic(A=nodeA, B=nodeB, eqn='(A * B) / 2')
 ```
 
 Evaluate pipelines at arbitrary PODPAC coordinates.
@@ -135,7 +135,7 @@ settings["AWS_SECRET_ACCESS_KEY"] = "secrect access key"
 node = podpac.algorithm.SinCoords()
 aws_node = podpac.managers.aws.Lambda(source=node)
 
-# build AWS cloud resources to run cloud based analysis
+# build AWS cloud resources to run analysis
 aws_node.build()
 
 # run analysis on the cloud, results returned to `output`
