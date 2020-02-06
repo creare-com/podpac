@@ -93,7 +93,7 @@ class Compositor(Node):
     def _validate_sources(self, d):
         # The following line sets up a infinite recursion in the TerrainTiles node.
         # self.outputs  # check for consistent outputs
-        return [copy.deepcopy(source) for source in d["value"]]
+        return np.array([copy.deepcopy(source) for source in d["value"]])
 
     @tl.default("outputs")
     def _default_outputs(self):
