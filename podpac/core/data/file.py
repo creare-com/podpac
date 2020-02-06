@@ -744,7 +744,7 @@ class Rasterio(DataSource):
         affine = self.dataset.transform
 
         if isinstance(self.dataset.crs, rasterio.crs.CRS):
-            crs = self.dataset.crs.wkt
+            crs = self.dataset.crs["init"].upper()
         elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
         else:
