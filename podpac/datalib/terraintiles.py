@@ -447,7 +447,7 @@ def _mercator(lat, lon):
     x1, y1 = lon * np.pi / 180, lat * np.pi / 180
 
     # project to mercator
-    x, y = x1, np.log(np.tan(0.25 * np.pi + 0.5 * y1))
+    x, y = x1, np.log(np.tan(0.25 * np.pi + 0.5 * y1) + 1e-32)
 
     return x, y
 
