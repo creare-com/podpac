@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.3.0
+# Introduction
+The purpose of this release was to make the software more robust and to improve the Drought Monitor Application.
+
+# Features
+* Algorithm arrays can now be multi-threaded. This allows an algorithm with multiple S3 data sources to fetch the data 
+  in parallel before doing the computation, speeding up the process. See #343
+* Improvements to AWS interface. See #336
+* Added budgeting / billing capability to manage AWS resources. See #361
+* Added GeoTIFF export / import capability. Lots of work with geotransforms in the Coordinates object. See #364.
+* Nodes can now have multiple output channels. This support multispectral or multichannel data. See #348.
+
+# Bug
+* When intersecting time coordinate of different precision, no intersection would result. See #344
+* Fixed `Array` datasource serialization 55fcf30
+
+# Backwards-Incompatible changes
+* The H5PY, CSV, and Zarr nodes interfaces were unified as such, the following attributes have changed:
+    * datakey --> data_key
+    * latkey --> lat_key
+    * lonkey --> lon_key
+    * altkey --> alt_key
+    * timekey --> time_key
+    * keys --> available_keys
+    * CSV.lat_col --> lat_key
+    * CSV.lon_col --> lon_key
+    * CSV.time_col --> time_key
+    * CSV.alt_col --> alt_key
+    
+
 ## 1.2.0
 # Introduction
 The purpose of this release was to develop a short course for AMS2020. A major feature of this release is automated
