@@ -67,8 +67,9 @@ The purpose of PODPAC is to facilitate:
     install
     settings
     examples
-    earthdata
     aws
+
+.. earthdata-tutorial
 
 .. Deeper explorations of topics that need to get defined
 .. toctree::
@@ -76,12 +77,15 @@ The purpose of PODPAC is to facilitate:
     :caption: Topics
 
     why-podpac
+    design
     dependencies
     nodes
     coordinates  
     pipelines
     cache
     datasets
+    earthdata
+    aws-development
 
 .. Technical references that define the API and contain a deep information
 .. toctree::
@@ -96,7 +100,6 @@ The purpose of PODPAC is to facilitate:
     :caption: Support
 
     references
-    design
     contributing
     docs
     roadmap

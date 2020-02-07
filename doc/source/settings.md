@@ -8,7 +8,10 @@ To follow along, open a Python interpreter or Jupyter notebook in the Python env
 # activate the PODPAC environment, using anaconda
 $ conda activate podpac
 
-# start a ipython interpreter
+# open jupyter lab
+$ jupyter lab
+
+# or start a ipython interpreter
 $ ipython
 ```
 
