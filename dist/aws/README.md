@@ -17,7 +17,7 @@ The bucket itself is private, but each directory is made public individually.
 The following process is used to create new PODPAC distribution in the `podpac-dist` bucket
 when a new version of PODPAC is released.
 
-- Run `build_lambda.sh`. Note this currently requires `settings.json` to copied to the root of the podpac directory.
+- Run `build_lambda.sh`
 - Run `upload_lambda.sh`
 - Navigate to `podpac-dist` (or input bucket) and make the archives public
 

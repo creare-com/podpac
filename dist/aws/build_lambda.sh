@@ -1,36 +1,29 @@
 #!/bin/sh
 #
-# Build podpac lambda distribution and dependencies
-# 
-# Currently, this builds the function using the local 
-# podpac repository, including any outstanding changes.
+# Build podpac lambda distribution and dependencies.
+# Change $REF to specify a specific branch, tag, or commit in podpac to build from.
 # 
 # Usage:
 # 
-# $ bash build_lambda.sh [s3-bucket] [function-name] 
+# $ bash build_lambda.sh
 # 
 # Requires:
 # - Docker
-# - `settings.json` to be copied to the root directory of the podpac repository
-#   This will not be required in the future
-#   
-# Example usage:
-# 
-# $ bash build_lambda.sh
-
 
 # variables
-COMMIT_SHA="$(git rev-parse HEAD)"
-TAG="$(git describe --always)"
-DOCKER_NAME="podpac"
-DOCKER_TAG=$TAG
+REF="master"
+# REF="tags/1.1.0"  # Change $REF to the branch, tag, or commit in podpac you want to use
+# REF="develop"
 
-echo "Creating docker image from podpac version ${TAG}"
+DOCKER_NAME="podpac"
+DOCKER_TAG=$REF
+
+echo "Creating docker image from podpac version ${REF}"
 echo "${DOCKER_NAME}:${DOCKER_TAG}"
 
 # Navigate to root, build docker, and extract zips
 pushd ../../
-docker build -f dist/aws/Dockerfile --no-cache --tag $DOCKER_NAME:$DOCKER_TAG --build-arg COMMIT_SHA="${COMMIT_SHA}" --build-arg TAG="${TAG}" .
+docker build -f dist/aws/Dockerfile --no-cache --tag $DOCKER_NAME:$DOCKER_TAG --build-arg REF="${REF}" .
 docker run --name "${DOCKER_NAME}" -itd $DOCKER_NAME:$DOCKER_TAG
 docker cp "${DOCKER_NAME}":/tmp/vendored/podpac_dist.zip ./dist/aws
 docker cp "${DOCKER_NAME}":/tmp/vendored/podpac_deps.zip ./dist/aws

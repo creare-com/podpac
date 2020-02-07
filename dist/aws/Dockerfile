@@ -1,40 +1,52 @@
 FROM amazonlinux:latest
 
-ARG COMMIT_SHA=""
-ARG TAG=""
-RUN echo $COMMIT_SHA
+ARG REF="master"
 
-RUN yum update -y
-
-# Install apt dependencies
-RUN yum install -y gcc gcc-c++ freetype-devel yum-utils findutils openssl-devel
-
-RUN yum -y groupinstall development
+# development tools
+RUN yum update -y && yum -y install \ 
+    groupinstall \
+    development \
+    gcc \
+    gcc-c++ \
+    git \
+    zip \
+    freetype-devel \
+    yum-utils \
+    findutils \
+    openssl-devel \
+    && yum clean all
 
 # Mock current AWS Lambda docker image
-# Find complete list of package https://gist.github.com/vincentsarago/acb33eb9f0502fcd38e0feadfe098eb7
-RUN  yum install -y libjpeg-devel libpng-devel libcurl-devel ImageMagick-devel.x86_64 python3-devel.x86_64 which
+# NOTE: this is still Py3.7, need to be careful about version management
+RUN yum -y install \
+    python3 \
+    python3-pip \
+    python3-devel \
+    && yum clean all
 
-ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+# clone the podpac repository and checkout the requested tag
+RUN git clone https://github.com/creare-com/podpac.git /podpac/ &&\
+    pushd /podpac/ && \
+    git fetch --all && \
+    git checkout $REF && \
+    popd
 
-ADD . /podpac/
-
+# make a set of files
 RUN mkdir /tmp/vendored/ && \
-    cp /podpac/settings.json /tmp/vendored/settings.json && \
     cd /podpac/ && rm -rf .git/ doc/ .github/ && \
-    pip3 install -r dist/aws/aws_requirements.txt -t /tmp/vendored/ --upgrade
+    pip3 install . -t /tmp/vendored/ --upgrade && \
+    pip3 install .[datatype] -t /tmp/vendored/ --upgrade && \
+    pip3 install .[aws] -t /tmp/vendored/ --upgrade
 
+# need to add some __init__ files
 RUN cd /tmp/vendored/ && touch pydap/__init__.py && \
     touch pydap/responses/__init__.py && \
     touch pydap/handlers/__init__.py && \
     touch pydap/parsers/__init__.py
 
-RUN cp -r /podpac/ /tmp/vendored/ && \
-    mv /tmp/vendored/podpac/dist/aws/handler.py /tmp/vendored/handler.py && \
-    cp tmp/vendored/podpac/dist/aws/_mk_dist.py /tmp/vendored/_mk_dist.py && \
-    rm -rf /tmp/vendored/podpac/dist/ && \
-    cp -r /tmp/vendored/podpac/podpac/* /tmp/vendored/podpac/ && \
-    rm -rf /tmp/vendored/podpac/podpac/*
+# copy handler and _mk_dist:
+RUN cp -r /podpac/dist/aws/handler.py /tmp/vendored/handler.py && \
+    cp /podpac/dist/aws/_mk_dist.py /tmp/vendored/_mk_dist.py
 
 RUN cd /tmp/vendored && \
     find * -maxdepth 0 -type f | grep ".zip" -v | grep -v ".pyc" | xargs zip -9 -rqy podpac_dist.zip
