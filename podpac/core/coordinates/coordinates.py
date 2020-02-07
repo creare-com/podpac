@@ -342,7 +342,7 @@ class Coordinates(tl.HasTraits):
 
         coords = []
         for dim in xcoord.dims:
-            if dim == "outputs":
+            if dim == "output":
                 continue
             if isinstance(xcoord.indexes[dim], (pd.DatetimeIndex, pd.Float64Index, pd.Int64Index)):
                 c = ArrayCoordinates1d.from_xarray(xcoord[dim])
