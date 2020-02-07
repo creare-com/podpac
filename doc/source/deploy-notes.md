@@ -17,7 +17,7 @@ $ pip install --upgrade twine
 Now upload the package
 
 ```bash
-$ python -m twine upload
+$ python -m twine upload dist\*
 ```
 
 This will prompt you for your username and password. At the moment, only mpu and mls have privileges to upload to the PODPAC PYPI index. 
@@ -58,11 +58,11 @@ $ bin\activate_podpac_conda_env.bat
 
 # Install core dependencies
 $ conda install matplotlib>=2.1 numpy>=1.14 scipy>=1.0 traitlets>=4.3 xarray>=0.10 ipython psutil requests>=2.18
-$ conda install -c conda-forge pyproj>=2.2
+$ conda install pyproj>=2.2 rasterio>=1.0
 $ pip install pint>=0.8 lazy-import>=0.2.2
 
 # Install dependencies for handling various file datatype
-$ conda install rasterio>=1.0 -c conda-forge
+$ # conda install rasterio>=1.0  # Installed above alongside pyproj
 $ conda install beautifulsoup4>=4.6 h5py>=2.9 lxml>=4.2 zarr>=2.3
 $ pip install pydap>=3.2
 
@@ -74,7 +74,8 @@ $ pip install awscli>=1.11
 $ conda install numexpr>=2.6
 
 # Install dependencies for JupyterLab and Jupyter Notebooks
-$ conda install jupyterlab ipyleaflet ipywidgets ipympl nodejs -c conda-forge
+$ conda install jupyterlab ipywidgets nodejs
+$ conda install ipympl ipyleaflet -c conda-forge
 
 # Set up jupyter lab extensions
 $ jupyter labextension install @jupyter-widgets/jupyterlab-manager
@@ -82,7 +83,7 @@ $ jupyter labextension install jupyter-leaflet
 $ jupyter labextension install jupyter-matplotlib
 $ jupyter nbextension enable --py widgetsnbextension
 $ jupyter lab build
-$ python -m ipykernel install --user
+$ ~~python -m ipykernel install --user~~
 
 # clean conda environment
 $ conda clean -a -y

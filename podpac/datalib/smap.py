@@ -47,7 +47,7 @@ if not hasattr(np, "isnat"):
 # Internal dependencies
 import podpac
 from podpac.core.coordinates import Coordinates, union, merge_dims, concat
-from podpac.core.data import types as datatype
+from podpac.core.data import pydap_source
 from podpac.core import authentication
 from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
@@ -254,7 +254,7 @@ def SMAP_BASE_URL():
 
 
 @common_doc(COMMON_DOC)
-class SMAPSource(datatype.PyDAP):
+class SMAPSource(pydap_source.PyDAP):
     """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how
     to extract the correct coordinates and data keys for the soil moisture data.
 
@@ -276,6 +276,8 @@ class SMAPSource(datatype.PyDAP):
 
     auth_session = tl.Instance(authentication.EarthDataSession)
     auth_class = tl.Type(authentication.EarthDataSession)
+    # Need to overwrite parent because of recursive definition
+    outputs = None
 
     @tl.default("auth_session")
     def _auth_session_default(self):
@@ -579,6 +581,13 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
     auth_class = tl.Type(authentication.EarthDataSession)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
+    # Need to overwrite parent because of recursive definition
+    outputs = None
+
+    @tl.validate("source_coordinates")
+    def _validate_source_coordinates(self, d):
+        # Need to overwrite parent because of recursive definition
+        return d["value"]
 
     @tl.default("cache_ctrl")
     def _cache_ctrl_default(self):
@@ -839,7 +848,14 @@ class SMAP(podpac.compositor.OrderedCompositor):
     username : {username}
     """
 
+    # Need to overwrite parent because of recursive definition
+    outputs = None
     base_url = tl.Unicode().tag(attr=True)
+
+    @tl.validate("source_coordinates")
+    def _validate_source_coordinates(self, d):
+        # Need to overwrite parent because of recursive definition
+        return d["value"]
 
     @tl.default("base_url")
     def _base_url_default(self):

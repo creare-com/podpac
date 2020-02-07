@@ -8,12 +8,15 @@ import logging
 import time
 import re
 from copy import deepcopy
+import base64
+from datetime import datetime
 
 import boto3
 import botocore
 import traitlets as tl
 import numpy as np
 
+from podpac.core.units import UnitsDataArray
 from podpac.core.settings import settings
 from podpac.core.node import COMMON_NODE_DOC, Node
 from podpac.core.utils import common_doc, JSONEncoder
@@ -22,12 +25,13 @@ from podpac import version
 # Set up logging
 _log = logging.getLogger(__name__)
 
-try:
-    import cPickle  # Python 2.7
-except:
-    import _pickle as cPickle
-
 COMMON_DOC = COMMON_NODE_DOC.copy()
+
+
+class LambdaException(Exception):
+    """ Exception during execution of a Lambda node"""
+
+    pass
 
 
 class Lambda(Node):
@@ -52,6 +56,8 @@ class Lambda(Node):
         Name of the AWS role created for lambda function. Defaults to :str:`podpac.settings["FUNCTION_ROLE_NAME"]` or "podpac-lambda-autogen".
     function_s3_bucket : str, optional
         S3 bucket name to use with lambda function. Defaults to :str:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
+    eval_settings : dict, optional
+        Default is podpac.settings. PODPAC settings that will be used to evaluate the Lambda function.
 
     Other Attributes
     ----------------
@@ -79,8 +85,11 @@ class Lambda(Node):
         Function trigger to use during node eval process. Must be on of "eval" (default), "S3", or "APIGateway".
     function_handler : str, optional
         Handler method in Lambda function. Defaults to "handler.handler".
-    function_memory : int, option
+    function_memory : int, optional
         Memory allocated for each Lambda function. Defaults to 2048 MB.
+    function_restrict_pipelines : list, optional
+        List of Node hashes (see :class:`podpac.Node.hash`). 
+        Restricts lambda function evaluation to specific Node definitions.
     function_role_assume_policy_document : dict, optional.
         Assume policy document for role created. Defaults to allowing role to assume Lambda function.
     function_role_description : str, optional
@@ -111,6 +120,24 @@ class Lambda(Node):
         Override :attr:`self.function_source_dist_key` and create lambda function using custom source podpac dist archive to :attr:`self.function_s3_bucket` during :meth:`self.build()` process.
     function_tags : dict, optional
         AWS Tags for Lambda function resource. Defaults to :dict:`podpac.settings["AWS_TAGS"]` or {}.
+    function_budget_amount : float, optional
+        EXPERIMENTAL FEATURE
+        Monthly budget for function and associated AWS resources. 
+        When usage reaches 80% of this amount, AWS will notify :attr:`function_budget_email`.
+        Defaults to :str:`podpac.settings["AWS_BUDGET_AMOUNT"]`.
+    function_budget_email : str, optional
+        EXPERIMENTAL FEATURE
+        Email to notify when usage reaches 80% of :attr:`function_budget_amount`.
+        Defaults to :str:`podpac.settings["AWS_BUDGET_EMAIL"]`.
+    function_budget_name : str, optional
+        EXPERIMENTAL FEATURE
+        Name for AWS budget
+    function_budget_currency : str, optional
+        EXPERIMENTAL FEATURE
+        Currency type for the :attr:`function_budget_amount`.
+        Defaults to "USD".
+        See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.create_budget
+        for currency (or Unit) options.
     session : :class:`podpac.managers.aws.Session`
         AWS Session to use for this node.
     source : :class:`podpac.Node`
@@ -141,7 +168,7 @@ class Lambda(Node):
 
     # lambda function parameters
     function_name = tl.Unicode().tag(attr=True, readonly=True)  # see default below
-    function_triggers = tl.List(tl.Enum(["eval", "S3", "APIGateway"]), default_value=["eval"]).tag(readonly=True)
+    function_triggers = tl.List(tl.Enum(["eval", "S3", "APIGateway"])).tag(readonly=True)
     function_handler = tl.Unicode(default_value="handler.handler").tag(readonly=True)
     function_description = tl.Unicode(default_value="PODPAC Lambda Function (https://podpac.org)").tag(readonly=True)
     function_env_variables = tl.Dict(default_value={}).tag(readonly=True)  # environment vars in function
@@ -158,6 +185,7 @@ class Lambda(Node):
     function_source_dist_key = tl.Unicode().tag(readonly=True)  # see default below
     function_source_dependencies_key = tl.Unicode().tag(readonly=True)  # see default below
     function_allow_unsafe_eval = tl.Bool(default_value=False).tag(readonly=True)
+    function_restrict_pipelines = tl.List(tl.Unicode(), default_value=[]).tag(readonly=True)
     _function_arn = tl.Unicode(default_value=None, allow_none=True)
     _function_last_modified = tl.Unicode(default_value=None, allow_none=True)
     _function_version = tl.Unicode(default_value=None, allow_none=True)
@@ -172,6 +200,13 @@ class Lambda(Node):
             settings["FUNCTION_NAME"] = "podpac-lambda-autogen"
 
         return settings["FUNCTION_NAME"]
+
+    @tl.default("function_triggers")
+    def _function_triggers_default(self):
+        if self.function_eval_trigger != "eval":
+            return ["eval", self.function_eval_trigger]
+        else:
+            return ["eval"]
 
     @tl.default("function_source_dist_key")
     def _function_source_dist_key_default(self):
@@ -320,18 +355,49 @@ class Lambda(Node):
     def _function_api_tags_default(self):
         return self.function_tags
 
+    # budget parameters
+    function_budget_amount = tl.Float(allow_none=True).tag(readonly=True)  # see default below
+    function_budget_email = tl.Unicode(allow_none=True).tag(readonly=True)  # see default below
+    function_budget_name = tl.Unicode().tag(readonly=True)  # see default below
+    function_budget_currency = tl.Unicode(default_value="USD").tag(readonly=True)
+    _budget = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
+
+    @tl.default("function_budget_amount")
+    def _function_budget_amount_default(self):
+        return settings["AWS_BUDGET_AMOUNT"] or None
+
+    @tl.default("function_budget_email")
+    def _function_budget_email_default(self):
+        return settings["AWS_BUDGET_EMAIL"] or None
+
+    @tl.default("function_budget_name")
+    def _function_budget_name_default(self):
+        return "{}-budget".format(self.function_name)
+
     # podpac node parameters
-    source = tl.Instance(Node, help="Node to evaluate in a Lambda function.", allow_none=True).tag(attr=True)
-    source_output_format = tl.Unicode(default_value="pkl", help="Output format.")
-    source_output_name = tl.Unicode(help="Image output name.")
-    attrs = tl.Dict()  # TODO: are we still using this?
+    source = tl.Instance(Node, allow_none=True).tag(attr=True)
+    source_output_format = tl.Unicode(default_value="netcdf")
+    source_output_name = tl.Unicode()
+    attrs = tl.Dict()
     download_result = tl.Bool(True).tag(attr=True)
+    force_compute = tl.Bool().tag(attr=True)
+    eval_settings = tl.Dict().tag(attr=True)
 
     @tl.default("source_output_name")
     def _source_output_name_default(self):
         return self.source.__class__.__name__
 
-    # TODO: are this still being used?
+    @tl.default("force_compute")
+    def _force_compute_default(self):
+        if settings["FUNCTION_FORCE_COMPUTE"] is None:
+            settings["FUNCTION_FORCE_COMPUTE"] = False
+
+        return settings["FUNCTION_FORCE_COMPUTE"]
+
+    @tl.default("eval_settings")
+    def _eval_settings_default(self):
+        return settings.copy()
+
     @property
     def pipeline(self):
         """
@@ -343,6 +409,7 @@ class Lambda(Node):
             out_node = next(reversed(d["pipeline"].keys()))
             d["pipeline"][out_node]["attrs"].update(self.attrs)
         d["output"] = {"format": self.source_output_format}
+        d["settings"] = self.eval_settings
         return d
 
     @common_doc(COMMON_DOC)
@@ -353,15 +420,22 @@ class Lambda(Node):
         if self.source is None:
             raise ValueError("'source' node must be defined to eval")
 
-        if self.function_eval_trigger == "eval" or self.function_eval_trigger == "S3":
-            return self._eval_s3(coordinates, output=None)
-        else:
+        if self.function_eval_trigger == "eval":
+            return self._eval_invoke(coordinates, output)
+        elif self.function_eval_trigger == "S3":
+            return self._eval_s3(coordinates, output)
+        elif self.function_eval_trigger == "APIGateway":
             raise NotImplementedError("APIGateway trigger not yet implemented through eval")
+        else:
+            raise ValueError("Function trigger is not one of 'eval', 'S3', or 'APIGateway'")
 
     def build(self):
         """Build Lambda function and associated resources on AWS
         to run PODPAC pipelines
         """
+
+        # TODO: move towards an architecture where the "create_" functions repair on each build
+        # and skip when the resources already exist
 
         # see if current setup is valid, if so just return
         valid = self.validate()
@@ -397,9 +471,12 @@ class Lambda(Node):
 
         # TODO: check to make sure function and API work together
 
-        # create S3 bucket
-        if self._bucket is None:
-            self.create_bucket()
+        # create S3 bucket - this will skip pieces that already exist
+        self.create_bucket()
+
+        # create budget, if defined
+        if self.function_budget_amount is not None:
+            self.create_budget()
 
         # check to see if setup is valid after creation
         # TODO: remove this in favor of something more granular??
@@ -422,7 +499,7 @@ class Lambda(Node):
         # perhaps we just want to improve the "create_" methods to be self-healing
 
         def _raise(msg):
-            _log.error(msg)
+            _log.debug(msg)
             if raise_exceptions:
                 raise Exception(msg)
             else:
@@ -433,6 +510,7 @@ class Lambda(Node):
         self.get_function()
         self.get_api()
         self.get_bucket()
+        self.get_budget()
 
         # check that each resource has a valid configuration
         if not self.validate_role():
@@ -446,6 +524,9 @@ class Lambda(Node):
 
         if not self.validate_api():
             return _raise("Failed to validate API")
+
+        if not self.validate_budget():
+            return _raise("Failed to validate budget")
 
         # check that the integration of resources is correct
 
@@ -473,6 +554,7 @@ class Lambda(Node):
             self.delete_role()
             self.delete_api()
             self.delete_bucket(delete_objects=True)
+            self.delete_budget()
         else:
             raise ValueError("You must pass confirm=True to delete all AWS resources")
 
@@ -529,6 +611,30 @@ class Lambda(Node):
         else:
             api_output = ""
 
+        # only show budget if its defined
+        if self.function_budget_amount is not None:
+            budget_output = """
+    Budget
+        Name: {function_budget_name}
+        Amount: {function_budget_amount}
+        Currency: {function_budget_currency}
+        E-mail: {function_budget_email}
+        Spent: {function_budget_usage} {function_budget_usage_currency}
+            """.format(
+                function_budget_name=self.function_budget_name,
+                function_budget_amount=self.function_budget_amount,
+                function_budget_currency=self.function_budget_currency,
+                function_budget_email=self.function_budget_email,
+                function_budget_usage=self._budget["CalculatedSpend"]["ActualSpend"]["Amount"]
+                if self._budget
+                else None,
+                function_budget_usage_currency=self._budget["CalculatedSpend"]["ActualSpend"]["Unit"]
+                if self._budget
+                else None,
+            )
+        else:
+            budget_output = ""
+
         output = """
 Lambda Node {status}
     Function
@@ -545,6 +651,7 @@ Lambda Node {status}
         Source Dependencies: {source_deps}
         Last Modified: {_function_last_modified}
         Version: {_function_version}
+        Restrict Evaluation: {function_restrict_pipelines}
 
     S3
         Bucket: {function_s3_bucket}
@@ -562,6 +669,8 @@ Lambda Node {status}
         Tags: {function_role_tags}
 
         {api_output}
+
+        {budget_output}
         """.format(
             status=status,
             function_name=self.function_name,
@@ -577,6 +686,7 @@ Lambda Node {status}
             _function_arn=self._function_arn,
             _function_last_modified=self._function_last_modified,
             _function_version=self._function_version,
+            function_restrict_pipelines=self.function_restrict_pipelines,
             function_s3_bucket=self.function_s3_bucket,
             function_s3_tags=self.function_s3_tags,
             function_s3_input=self.function_s3_input,
@@ -589,6 +699,7 @@ Lambda Node {status}
             function_role_tags=self.function_role_tags,
             _function_role_arn=self._function_role_arn,
             api_output=api_output,
+            budget_output=budget_output,
         )
 
         print(output)
@@ -603,6 +714,13 @@ Lambda Node {status}
         if self.function_allow_unsafe_eval:
             _log.info("Lambda function will allow unsafe evaluation of Nodes with the current settings")
             self.function_env_variables["PODPAC_UNSAFE_EVAL"] = settings["UNSAFE_EVAL_HASH"]
+
+        if self.function_restrict_pipelines:
+            _log.info("Lambda function will only run for pipelines: {}".format(self.function_restrict_pipelines))
+            self.function_env_variables["PODPAC_RESTRICT_PIPELINES"] = json.dumps(self.function_restrict_pipelines)
+
+        # add special tag - value is hash, for lack of better value at this point
+        self.function_tags["_podpac_resource_hash"] = self.hash
 
         # if function already exists, this will return existing function
         function = create_function(
@@ -723,6 +841,10 @@ Lambda Node {status}
     def create_role(self):
         """Create IAM role to execute podpac lambda function
         """
+
+        # add special tag - value is hash
+        self.function_role_tags["_podpac_resource_hash"] = self.hash
+
         role = create_role(
             self.session,
             self.function_role_name,
@@ -810,6 +932,9 @@ Lambda Node {status}
         if self._function_role_arn is None:
             raise ValueError("Function role must be created before creating a bucket")
 
+        # add special tags - value is hash
+        self.function_s3_tags["_podpac_resource_hash"] = self.hash
+
         # create bucket
         bucket = create_bucket(
             self.session, self.function_s3_bucket, bucket_policy=None, bucket_tags=self.function_s3_tags
@@ -818,26 +943,35 @@ Lambda Node {status}
 
         # after creating a bucket, you need to wait ~2 seconds before its active and can be uploaded to
         # this is not cool
-        time.sleep(2)
+        time.sleep(5)
+
+        # get reference to s3 client for session
+        s3 = self.session.client("s3")
 
         # add podpac deps to bucket for version
-        # copy from user supplied dependencies
-        if self.function_source_dependencies_zip is not None:
-            put_object(
-                self.session,
-                self.function_s3_bucket,
-                self.function_s3_dependencies_key,
-                file=self.function_source_dependencies_zip,
-            )
+        # see if the function depedencies exist in bucket
+        try:
+            s3.head_object(Bucket=self.function_s3_bucket, Key=self.function_s3_dependencies_key)
+        except botocore.exceptions.ClientError:
 
-        # copy resources from podpac dist
-        else:
-            s3resource = self.session.resource("s3")
-            copy_source = {"Bucket": self.function_source_bucket, "Key": self.function_source_dependencies_key}
-            s3resource.meta.client.copy(copy_source, self.function_s3_bucket, self.function_s3_dependencies_key)
+            # copy from user supplied dependencies
+            if self.function_source_dependencies_zip is not None:
+                put_object(
+                    self.session,
+                    self.function_s3_bucket,
+                    self.function_s3_dependencies_key,
+                    file=self.function_source_dependencies_zip,
+                )
 
-        # TODO: remove eval from here once we implement "eval" through invoke
-        if "eval" in self.function_triggers or "S3" in self.function_triggers:
+            # copy resources from podpac dist
+            else:
+                s3resource = self.session.resource("s3")
+                copy_source = {"Bucket": self.function_source_bucket, "Key": self.function_source_dependencies_key}
+                s3resource.meta.client.copy(copy_source, self.function_s3_bucket, self.function_s3_dependencies_key)
+
+        # Add S3 Function triggers, if they don't exist already
+        # TODO: add validition to see if trigger already exists
+        if "S3" in self.function_triggers:
             # add permission to invoke call lambda - this feels brittle due to source_arn
             statement_id = re.sub("[-_.]", "", self.function_s3_bucket)
             principle = "s3.amazonaws.com"
@@ -845,7 +979,6 @@ Lambda Node {status}
             self.add_trigger(statement_id, principle, source_arn)
 
             # lambda integration on object creation events
-            s3 = self.session.client("s3")
             s3.put_bucket_notification_configuration(
                 Bucket=self.function_s3_bucket,
                 NotificationConfiguration={
@@ -859,6 +992,8 @@ Lambda Node {status}
                     ]
                 },
             )
+        else:
+            _log.debug("Skipping S3 trigger because 'S3' not in the function triggers")
 
         return bucket
 
@@ -881,9 +1016,21 @@ Lambda Node {status}
 
         This should only be run after running `self.get_bucket()`
         """
-        # TODO: needs to be implemented
         if self._bucket is None:
             return False
+
+        s3 = self.session.client("s3")
+
+        # make sure dependencies are in there
+        try:
+            s3.head_object(Bucket=self.function_s3_bucket, Key=self.function_s3_dependencies_key)
+        except botocore.exceptions.ClientError:
+            _log.error("Failed to find PODPAC dependencies in bucket")
+            return False
+
+        # TODO: make sure trigger exists
+        if "S3" in self.function_triggers:
+            pass
 
         return True
 
@@ -918,6 +1065,9 @@ Lambda Node {status}
 
         if self._function_arn is None:
             raise ValueError("Lambda function must be created before creating an API bucket")
+
+        # add special tag - value is hash
+        self.function_api_tags["_podpac_resource_hash"] = self.hash
 
         # create api and resource
         api = create_api(
@@ -1016,8 +1166,85 @@ Lambda Node {status}
         self._function_api_url = None
         self._function_api_resource_id = None
 
+    # Function budget
+    def create_budget(self):
+        """
+        EXPERIMENTAL FEATURE
+        Create budget for lambda function based on node hash.
+        """
+        # skip if no budget provided
+        if self.function_budget_amount is None:
+            _log.debug("Skipping Budget creation because function budget is not defined")
+            return
+
+        _log.warning(
+            "Creating an AWS Budget with PODPAC is an experimental feature. Please continue to monitor AWS usage costs seperately."
+        )
+
+        budget = create_budget(
+            self.session,
+            self.function_budget_amount,
+            self.function_budget_email,
+            budget_name=self.function_budget_name,
+            budget_currency=self.function_budget_currency,
+            budget_filter_tags={"_podpac_resource_hash": self.hash},
+        )
+
+        self._set_budget(budget)
+
+    def get_budget(self):
+        """
+        EXPERIMENTAL FEATURE
+        Get budget definition for function
+        
+        Returns
+        -------
+        dict
+            See :func:`podpac.managers.aws.get_budget`
+        """
+
+        # skip if no budget provided
+        if self.function_budget_amount is None:
+            _log.debug("Skipping Budget request because function budget is not defined")
+            return None
+
+        budget = get_budget(self.session, self.function_budget_name)
+        self._set_budget(budget)
+
+        return budget
+
+    def validate_budget(self):
+        """Validate budget definition for function
+        
+        Returns
+        -------
+        dict
+            See :func:`podpac.managers.aws.get_budget`
+        """
+
+        # skip if no budget provided
+        if self.function_budget_amount is None:
+            _log.debug("Skipping Budget validation because function budget is not defined")
+            return True
+
+        if self._budget is None:
+            return False
+
+        return True
+
+    def delete_budget(self):
+        """Delete budget associated with function
+        """
+        self.get_budget()
+
+        # delete budget
+        delete_budget(self.session, self.function_budget_name)
+
+        # reset class attributes
+        self._budget = None
+
     # Logs
-    def get_logs(self, limit=100, start=None, end=None):
+    def get_logs(self, limit=5, start=None, end=None):
         """Get Cloudwatch logs from lambda function execution
         
         See :func:`podpac.managers.aws.get_logs`
@@ -1134,6 +1361,76 @@ Lambda Node {status}
             # store a copy of the whole response from AWS
             self._api = api
 
+    def _set_budget(self, budget):
+        """Set budget class members
+
+        Parameters
+        ----------
+        budget : dict
+        """
+        if budget is not None:
+            budget_filter_tags = {"_podpac_resource_hash": self.hash}
+
+            self.set_trait("function_budget_amount", float(budget["BudgetLimit"]["Amount"]))
+            self.set_trait("function_budget_name", budget["BudgetName"])
+            self.set_trait("function_budget_currency", budget["BudgetLimit"]["Unit"])
+
+            # TODO
+            # self.set_trait("function_budget_email", budget["BudgetLimit"]["Amount"]))
+
+            # store a copy of the whole response from AWS
+            self._budget = budget
+
+    def _create_eval_pipeline(self, coordinates):
+        """shorthand to create pipeline on eval"""
+
+        # add coordinates to the pipeline
+        pipeline = self.pipeline  # contains "pipeline" and "output" keys
+        pipeline["coordinates"] = json.loads(coordinates.json)
+
+        # TODO: should we move this to `self.pipeline`?
+        pipeline["settings"] = self.eval_settings
+        pipeline["settings"][
+            "FUNCTION_DEPENDENCIES_KEY"
+        ] = self.function_s3_dependencies_key  # overwrite in case this is specified explicitly by class
+
+        return pipeline
+
+    def _eval_invoke(self, coordinates, output=None):
+        """eval node through invoke trigger"""
+        _log.debug("Evaluating pipeline via invoke")
+
+        # create eval pipeline
+        pipeline = self._create_eval_pipeline(coordinates)
+
+        # create lambda client
+        awslambda = self.session.client("lambda")
+
+        # invoke
+        payload = bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))
+        response = awslambda.invoke(
+            FunctionName=self.function_name,
+            LogType="Tail",  # include the execution log in the response.
+            Payload=payload,
+        )
+
+        _log.debug("Received response from lambda function")
+
+        if "FunctionError" in response:
+            _log.error("Unhandled error from lambda function")
+            # logs = base64.b64decode(response["LogResult"]).decode("UTF-8").split('\n')
+            payload = json.loads(response["Payload"].read().decode("UTF-8"))
+            raise LambdaException(
+                "Error in lambda function evaluation:\n\nError Type: {}\nError Message: {}\nStack Trace: {}".format(
+                    payload["errorType"], payload["errorMessage"], "\n".join(payload["stackTrace"])
+                )
+            )
+
+        # After waiting, load the pickle file like this:
+        payload = response["Payload"].read()
+        self._output = UnitsDataArray.open(payload)
+        return self._output
+
     def _eval_s3(self, coordinates, output=None):
         """Evaluate node through s3 trigger"""
 
@@ -1142,15 +1439,15 @@ Lambda Node {status}
         input_folder = "{}{}".format(self.function_s3_input, "/" if not self.function_s3_input.endswith("/") else "")
         output_folder = "{}{}".format(self.function_s3_output, "/" if not self.function_s3_output.endswith("/") else "")
 
-        # add coordinates to the pipeline
-        pipeline = self.pipeline
-        pipeline["coordinates"] = json.loads(coordinates.json)
-        pipeline["settings"] = {
-            "FUNCTION_S3_INPUT": input_folder,
-            "FUNCTION_S3_OUTPUT": output_folder,
-            "FUNCTION_DEPENDENCIES_KEY": self.function_s3_dependencies_key,
-            "UNSAFE_EVAL_HASH": settings["UNSAFE_EVAL_HASH"],
-        }
+        # create eval pipeline
+        pipeline = self._create_eval_pipeline(coordinates)
+        pipeline["settings"]["FUNCTION_FORCE_COMPUTE"] = self.force_compute
+        pipeline["settings"][
+            "FUNCTION_S3_INPUT"
+        ] = input_folder  # overwrite in case this is specified explicitly by class
+        pipeline["settings"][
+            "FUNCTION_S3_OUTPUT"
+        ] = output_folder  # overwrite in case this is specified explicitly by class
 
         # filename
         filename = "{folder}{output}_{source}_{coordinates}.{suffix}".format(
@@ -1194,7 +1491,7 @@ Lambda Node {status}
         _log.debug("Received response from lambda function")
         response = s3.get_object(Key=filename, Bucket=self.function_s3_bucket)
         body = response["Body"].read()
-        self._output = cPickle.loads(body)
+        self._output = UnitsDataArray.open(body)
         return self._output
 
     def _eval_api(self, coordinates, output=None):
@@ -1293,7 +1590,7 @@ def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, 
     bucket_policy : dict, optional
         Bucket policy document as dict. For parameters, see https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketPolicy.html#API_PutBucketPolicy_RequestSyntax 
     bucket_tags : dict, optional
-        Description
+        Bucket tags
     
     Returns
     -------
@@ -1315,6 +1612,9 @@ def create_bucket(session, bucket_name, bucket_region=None, bucket_policy=None, 
 
     if bucket_name is None:
         raise ValueError("`bucket_name` is None in create_bucket")
+
+    # add special podpac tags for billing id
+    bucket_tags["_podpac_resource"] = "true"
 
     # bucket configuration
     bucket_config = {"ACL": "private", "Bucket": bucket_name}
@@ -1578,6 +1878,9 @@ def create_function(
     if function_name is None:
         raise ValueError("`function_name` is None in create_function")
 
+    # add special podpac tags for billing id
+    function_tags["_podpac_resource"] = "true"
+
     _log.debug("Creating lambda function {}".format(function_name))
     awslambda = session.client("lambda")
 
@@ -1595,16 +1898,17 @@ def create_function(
         "Tags": function_tags,
     }
 
+    # read function from zip file
+    if function_source_dist_zip is not None:
+        raise NotImplementedError("Supplying a source dist zip from a local file is not yet supported")
+        # TODO: this fails when the file size is over a certain limit
+        # with open(function_source_dist_zip, "rb") as f:
+        #     lambda_config["Code"]["ZipFile"] = f.read()
+
     # read function from S3 (Default)
-    if function_source_bucket is not None and function_source_dist_key is not None:
+    elif function_source_bucket is not None and function_source_dist_key is not None:
         lambda_config["Code"]["S3Bucket"] = function_source_bucket
         lambda_config["Code"]["S3Key"] = function_source_dist_key
-
-    # read function from zip file
-    elif function_source_dist_zip is not None:
-        with open(function_source_dist_zip, "rb") as f:
-            lambda_config["Code"] = {}  # reset the code dict to make sure S3Bucket and S3Key are overridden
-            lambda_config["Code"]["ZipFile"]: f.read()
 
     else:
         raise ValueError("Function source is not defined")
@@ -1697,8 +2001,10 @@ def update_function(
 
     # read function from zip file
     elif function_source_dist_zip is not None:
-        with open(function_source_dist_zip, "rb") as f:
-            lambda_config["ZipFile"]: f.read()
+        raise NotImplementedError("Supplying a source dist zip from a local file is not yet supported")
+        # TODO: this fails when the file size is over a certain limit
+        # with open(function_source_dist_zip, "rb") as f:
+        #     lambda_config["ZipFile"] = f.read()
 
     else:
         raise ValueError("Function source is not defined")
@@ -1807,7 +2113,7 @@ def create_role(
     role_policy_document=None,
     role_policy_arns=[],
     role_assume_policy_document=None,
-    role_tags=None,
+    role_tags={},
 ):
     """Create IAM role
     
@@ -1857,6 +2163,9 @@ def create_role(
             ],
         }
 
+    # add special podpac tags for billing id
+    role_tags["_podpac_resource"] = "true"
+
     _log.debug("Creating IAM role {}".format(role_name))
     iam = session.client("iam")
 
@@ -1867,11 +2176,10 @@ def create_role(
     }
 
     # for some reason the tags API is different here
-    if role_tags is not None:
-        tags = []
-        for key in role_tags.keys():
-            tags.append({"Key": key, "Value": role_tags[key]})
-        iam_config["Tags"] = tags
+    tags = []
+    for key in role_tags.keys():
+        tags.append({"Key": key, "Value": role_tags[key]})
+    iam_config["Tags"] = tags
 
     # create role
     iam.create_role(**iam_config)
@@ -2063,6 +2371,9 @@ def create_api(
         )
         return api
 
+    # add special podpac tags for billing id
+    api_tags["_podpac_resource"] = "true"
+
     apigateway = session.client("apigateway")
 
     if api is None:
@@ -2225,6 +2536,184 @@ def delete_api(session, api_name):
 
 
 # -----------------------------------------------------------------------------------------------------------------
+# Budget
+# -----------------------------------------------------------------------------------------------------------------
+
+# Budget
+def create_budget(
+    session,
+    budget_amount,
+    budget_email=None,
+    budget_name="podpac-resource-budget",
+    budget_currency="USD",
+    budget_threshold=80.0,
+    budget_filter_tags={"_podpac_resource": "true"},
+):
+    """
+    EXPERIMENTAL FEATURE
+    Create a budget for podpac AWS resources based on tags.
+    By default, this creates a budget for all podpac created resources with the tag: {"_podpac_resource": "true"}
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    budget_amount : int
+        Budget amount
+    budget_email : str, optional
+        Notification e-mail for budget alerts.
+        If no e-mail is provided, the budget must be monitored through the AWS interface.
+    budget_name : str, optional
+        Budget name
+    budget_currency : str, optional
+        Currency unit for budget. Defaults to "USD".
+        See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.describe_budget
+        for Unit types.
+    budget_threshold : float, optional
+        Percent of the budget at which an e-mail notification is sent.
+    budget_filter_tags : dict, optional
+        Create budget for specific set of resource tags.
+        By default, the budget is created for all podpac created resources.
+    
+    Returns
+    -------
+    dict
+        Returns Boto3 budget description
+        Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.describe_budget
+    """
+
+    # see if budget already exists
+    budget = get_budget(session, budget_name)
+
+    if budget is not None:
+        _log.debug("Budget '{}' already exists. Using existing budget".format(budget_name))
+        return budget
+
+    # format tags - this is a strange syntax discovered through inspection of boto3
+    filter_tags = ["user:{}${}".format(k, v) for (k, v) in budget_filter_tags.items()]
+
+    budgets = session.client("budgets")
+
+    # budget definition
+    budget_definition = {
+        "AccountId": session.get_account_id(),
+        "Budget": {
+            "BudgetName": budget_name,
+            "BudgetLimit": {"Amount": str(budget_amount), "Unit": budget_currency},
+            "CostFilters": {"TagKeyValue": filter_tags},
+            "CostTypes": {
+                "IncludeTax": True,
+                "IncludeSubscription": True,
+                "UseBlended": False,
+                "IncludeRefund": False,
+                "IncludeCredit": False,
+                "IncludeUpfront": True,
+                "IncludeRecurring": True,
+                "IncludeOtherSubscription": True,
+                "IncludeSupport": True,
+                "IncludeDiscount": True,
+                "UseAmortized": False,
+            },
+            "TimeUnit": "MONTHLY",  # only support monthly for now
+            "BudgetType": "COST",
+        },
+    }
+
+    # handle e-mail and notifications
+    if budget_email is None:
+        _log.warning(
+            "No notification e-mail provided for AWS Budget. This budget must be monitored through the AWS interface."
+        )
+    else:
+        budget_definition["NotificationsWithSubscribers"] = [
+            {
+                "Notification": {
+                    "NotificationType": "ACTUAL",
+                    "ComparisonOperator": "GREATER_THAN",
+                    "Threshold": budget_threshold,
+                    "ThresholdType": "PERCENTAGE",
+                    "NotificationState": "ALARM",
+                },
+                "Subscribers": [{"SubscriptionType": "EMAIL", "Address": budget_email}],
+            }
+        ]
+
+    # create budget
+    budgets.create_budget(**budget_definition)
+
+    # alert the user that they must activate tags
+    print(
+        "To finalize budget creation, you must visit https://console.aws.amazon.com/billing/home#/preferences/tags and 'Activate' the following User Defined Cost Allocation tags: {}.\nBudget tracking will not work if these User Defined Cost Allocation tags are not active.\nBudget creation and usage updates may take 24 hours to take effect.".format(
+            list(budget_filter_tags.keys())
+        )
+    )
+
+    # get finalized budget
+    budget = get_budget(session, budget_name)
+    _log.debug("Successfully created budget '{}'".format(budget_name))
+
+    return budget
+
+
+def get_budget(session, budget_name):
+    """
+    EXPERIMENTAL FEATURE
+    Get a budget by name
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    budget_name : str
+        Budget name
+    
+    Returns
+    -------
+    dict
+        Returns Boto3 budget description
+        Equivalent to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.describe_budget
+        Returns None if budget is not found.
+    """
+
+    _log.debug("Getting budget with name {}".format(budget_name))
+    budgets = session.client("budgets")
+
+    try:
+        response = budgets.describe_budget(AccountId=session.get_account_id(), BudgetName=budget_name)
+        budget = response["Budget"]
+    except (botocore.exceptions.ParamValidationError, budgets.exceptions.NotFoundException) as e:
+        _log.error("Failed to get budget with name {} with exception: {}".format(budget_name, e))
+        return None
+
+    return budget
+
+
+def delete_budget(session, budget_name):
+    """Delete a budget by name
+    
+    Parameters
+    ----------
+    session : :class:`Session`
+        AWS Boto3 Session. See :class:`Session` for creation.
+    budget_name : str
+        Budget name
+    
+    Returns
+    -------
+    None
+    """
+
+    budgets = session.client("budgets")
+
+    try:
+        budgets.delete_budget(AccountId=session.get_account_id(), BudgetName=budget_name)
+    except budgets.exceptions.NotFoundException as e:
+        pass
+
+    _log.debug("Successfully removed budget with name '{}'".format(budget_name))
+
+
+# -----------------------------------------------------------------------------------------------------------------
 # Cloudwatch Logs
 # -----------------------------------------------------------------------------------------------------------------
 def get_logs(session, log_group_name, limit=100, start=None, end=None):
@@ -2291,5 +2780,17 @@ def get_logs(session, log_group_name, limit=100, start=None, end=None):
             limit=limit,
         )
         logs += response["events"]
+
+    # sort logs
+    logs.sort(key=lambda k: k["timestamp"])
+
+    # take only the last "limit"
+    logs = logs[-limit:]
+
+    # add time easier to read
+    for log in logs:
+        log["time"] = "{}.{:03d}".format(
+            datetime.fromtimestamp(log["timestamp"] / 1000).strftime("%Y-%m-%d %H:%M:%S"), log["timestamp"] % 1000
+        )
 
     return logs

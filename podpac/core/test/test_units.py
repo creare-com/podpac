@@ -1,19 +1,21 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import io
+
 import pytest
 import numpy as np
 import xarray as xr
 from pint.errors import DimensionalityError
-import traitlets as tl
 
-from podpac.core.coordinates import Coordinates
-from podpac.core.node import Node
+from podpac.core.coordinates import Coordinates, clinspace, RotatedCoordinates
 from podpac.core.style import Style
 
 from podpac.core.units import ureg
 from podpac.core.units import UnitsDataArray
-from podpac.core.units import create_data_array
-from podpac.core.units import get_image
+from podpac.core.units import to_image
+from podpac.core.units import create_dataarray  # DEPRECATED
+
+from podpac.data import Array, Rasterio
 
 
 class TestUnitDataArray(object):
@@ -308,6 +310,16 @@ class TestUnitDataArray(object):
         with pytest.raises(DimensionalityError):
             a10 = a1 % a2
 
+    def test_to_image(self):
+        uda = UnitsDataArray(np.ones((10, 10)))
+        assert isinstance(uda.to_image(return_base64=True), bytes)
+        assert isinstance(uda.to_image(), io.BytesIO)
+
+    def test_to_image_vmin_vmax(self):
+        uda = UnitsDataArray(np.ones((10, 10)))
+        assert isinstance(uda.to_image(vmin=0, vmax=2, return_base64=True), bytes)
+        assert isinstance(uda.to_image(vmin=0, vmax=2), io.BytesIO)
+
     @pytest.mark.skip(reason="Error in xarray layer")
     def test_ufuncs(self):
         a1 = UnitsDataArray(np.ones((4, 3)), dims=["lat", "lon"], attrs={"units": ureg.meter})
@@ -331,56 +343,56 @@ class TestCreateDataArray(object):
         cls.coords = Coordinates([[0, 1, 2], [0, 1, 2, 3]], dims=["lat", "lon"])
 
     def test_default(self):
-        a = create_data_array(self.coords)
+        a = UnitsDataArray.create(self.coords)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert np.all(np.isnan(a))
 
     def test_empty(self):
-        a = create_data_array(self.coords, data=None)
+        a = UnitsDataArray.create(self.coords, data=None)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == float
 
-        a = create_data_array(self.coords, data=None, dtype=bool)
+        a = UnitsDataArray.create(self.coords, data=None, dtype=bool)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == bool
 
     def test_zeros(self):
-        a = create_data_array(self.coords, data=0)
+        a = UnitsDataArray.create(self.coords, data=0)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == float
         assert np.all(a == 0.0)
 
-        a = create_data_array(self.coords, data=0, dtype=bool)
+        a = UnitsDataArray.create(self.coords, data=0, dtype=bool)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == bool
         assert np.all(~a)
 
     def test_ones(self):
-        a = create_data_array(self.coords, data=1)
+        a = UnitsDataArray.create(self.coords, data=1)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == float
         assert np.all(a == 1.0)
 
-        a = create_data_array(self.coords, data=1, dtype=bool)
+        a = UnitsDataArray.create(self.coords, data=1, dtype=bool)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == bool
         assert np.all(a)
 
     def test_full(self):
-        a = create_data_array(self.coords, data=10)
+        a = UnitsDataArray.create(self.coords, data=10)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == float
         assert np.all(a == 10)
 
-        a = create_data_array(self.coords, data=10, dtype=int)
+        a = UnitsDataArray.create(self.coords, data=10, dtype=int)
         assert isinstance(a, UnitsDataArray)
         assert a.shape == self.coords.shape
         assert a.dtype == int
@@ -388,30 +400,244 @@ class TestCreateDataArray(object):
 
     def test_array(self):
         data = np.random.random(self.coords.shape)
-        a = create_data_array(self.coords, data=data)
+        a = UnitsDataArray.create(self.coords, data=data)
         assert isinstance(a, UnitsDataArray)
         assert a.dtype == float
         np.testing.assert_equal(a.data, data)
 
         data = np.round(10 * np.random.random(self.coords.shape))
-        a = create_data_array(self.coords, data=data, dtype=int)
+        a = UnitsDataArray.create(self.coords, data=data, dtype=int)
         assert isinstance(a, UnitsDataArray)
         assert a.dtype == int
         np.testing.assert_equal(a.data, data.astype(int))
 
+    def test_outputs(self):
+        a = UnitsDataArray.create(self.coords, outputs=["a", "b", "c"])
+        assert a.dims == self.coords.dims + ("output",)
+        np.testing.assert_array_equal(a["output"], ["a", "b", "c"])
+
+        a = UnitsDataArray.create(self.coords, data=0, outputs=["a", "b", "c"])
+        assert a.dims == self.coords.dims + ("output",)
+        np.testing.assert_array_equal(a["output"], ["a", "b", "c"])
+
+        a = UnitsDataArray.create(self.coords, data=1, outputs=["a", "b", "c"])
+        assert a.dims == self.coords.dims + ("output",)
+        np.testing.assert_array_equal(a["output"], ["a", "b", "c"])
+
+        a = UnitsDataArray.create(self.coords, data=np.nan, outputs=["a", "b", "c"])
+        assert a.dims == self.coords.dims + ("output",)
+        np.testing.assert_array_equal(a["output"], ["a", "b", "c"])
+
+        data = np.random.random(self.coords.shape + (3,))
+        a = UnitsDataArray.create(self.coords, data=data, outputs=["a", "b", "c"])
+        assert a.dims == self.coords.dims + ("output",)
+        np.testing.assert_array_equal(a["output"], ["a", "b", "c"])
+
+        data = np.random.random(self.coords.shape + (2,))
+        with pytest.raises(ValueError, match="data with shape .* does not match"):
+            a = UnitsDataArray.create(self.coords, data=data, outputs=["a", "b", "c"])
+
+        data = np.random.random(self.coords.shape)
+        with pytest.raises(ValueError, match="data with shape .* does not match"):
+            a = UnitsDataArray.create(self.coords, data=data, outputs=["a", "b", "c"])
+
     def test_invalid_coords(self):
         with pytest.raises(TypeError):
-            create_data_array((3, 4))
+            UnitsDataArray.create((3, 4))
+
+    def test_deprecate_create_dataarray(self):
+        with pytest.deprecated_call():
+            create_dataarray(self.coords, data=10)
 
 
-class TestGetImage(object):
-    def test_get_image(self):
+class TestOpenDataArray(object):
+    def test_open_after_create(self):
+        coords = Coordinates([[0, 1, 2], [0, 1, 2, 3]], dims=["lat", "lon"])
+        uda_1 = UnitsDataArray.create(coords, data=np.random.rand(3, 4))
+        ncdf = uda_1.to_netcdf()
+        uda_2 = UnitsDataArray.open(ncdf)
+
+        assert isinstance(uda_2, UnitsDataArray)
+        assert np.all(uda_2.data == uda_1.data)
+
+    def test_open_after_create_with_attrs(self):
+        coords = Coordinates([[0, 1, 2], [0, 1, 2, 3]], dims=["lat", "lon"], crs="EPSG:4193")
+        uda_1 = UnitsDataArray.create(coords, data=np.random.rand(3, 4), attrs={"some_attr": 5})
+        ncdf = uda_1.to_netcdf()
+        uda_2 = UnitsDataArray.open(ncdf)
+
+        assert isinstance(uda_2, UnitsDataArray)
+        assert np.all(uda_2.data == uda_1.data)
+
+        assert "some_attr" in uda_2.attrs
+        assert uda_2.attrs.get("some_attr") == uda_1.attrs.get("some_attr")
+
+        assert "crs" in uda_2.attrs
+        assert uda_2.attrs.get("crs") == uda_1.attrs.get("crs")
+
+    def test_open_after_eval(self):
+
+        # mock node
+        data = np.random.rand(5, 5)
+        lat = np.linspace(-10, 10, 5)
+        lon = np.linspace(-10, 10, 5)
+        native_coords = Coordinates([lat, lon], ["lat", "lon"])
+        node = Array(source=data, native_coordinates=native_coords)
+        uda = node.eval(node.native_coordinates)
+
+        ncdf = uda.to_netcdf()
+        uda_2 = UnitsDataArray.open(ncdf)
+
+        assert isinstance(uda_2, UnitsDataArray)
+        assert np.all(uda_2.data == uda.data)
+
+        assert "layer_style" in uda_2.attrs
+        assert uda_2.attrs.get("layer_style").json == uda.attrs.get("layer_style").json
+
+        assert "crs" in uda_2.attrs
+        assert uda_2.attrs.get("crs") == uda.attrs.get("crs")
+
+
+class TestToImage(object):
+    def test_to_image(self):
         data = np.ones((10, 10))
-        assert isinstance(get_image(UnitsDataArray(data), return_base64=True), bytes)  # UnitsDataArray input
-        assert isinstance(get_image(xr.DataArray(data), return_base64=True), bytes)  # xr.DataArray input
-        assert isinstance(get_image(data, return_base64=True), bytes)  # np.ndarray input
-        assert isinstance(get_image(np.array([data]), return_base64=True), bytes)  # squeeze
+        assert isinstance(to_image(UnitsDataArray(data), return_base64=True), bytes)  # UnitsDataArray input
+        assert isinstance(to_image(xr.DataArray(data), return_base64=True), bytes)  # xr.DataArray input
+        assert isinstance(to_image(data, return_base64=True), bytes)  # np.ndarray input
+        assert isinstance(to_image(np.array([data]), return_base64=True), bytes)  # squeeze
 
-    def test_get_image_vmin_vmax(self):
+    def test_to_image_vmin_vmax(self):
         data = np.ones((10, 10))
-        assert isinstance(get_image(data, vmin=0, vmax=2, return_base64=True), bytes)
+        assert isinstance(to_image(data, vmin=0, vmax=2, return_base64=True), bytes)
+
+
+class TestToGeoTiff(object):
+    def make_square_array(self, order=1, bands=1):
+        # order = -1
+        # bands = 3
+        node = Array(
+            source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
+            native_coordinates=Coordinates([clinspace(4, 0, 2, "lat"), clinspace(1, 4, 4, "lon")][::order]),
+            outputs=[str(s) for s in list(range(bands))],
+        )
+        return node
+
+    def make_rot_array(self, order=1, bands=1):
+        # order = -1
+        # bands = 3
+        rc = RotatedCoordinates(
+            shape=(2, 4), theta=np.pi / 8, origin=[10, 20], step=[-2.0, 1.0], dims=["lat", "lon"][::order]
+        )
+        c = Coordinates([rc])
+        node = Array(
+            source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
+            native_coordinates=c,
+            outputs=[str(s) for s in list(range(bands))],
+        )
+        return node
+
+    def test_to_geotiff_rountrip_1band(self):
+        # lat/lon order, usual
+        node = self.make_square_array()
+        out = node.eval(node.native_coordinates)
+        fp = io.BytesIO()
+        out.to_geotiff(fp)
+        fp.write(b"a")  # for some reason needed to get good comparison
+        fp.seek(0)
+        rnode = Rasterio(source=fp, outputs=node.outputs, mode="r")
+
+        assert node.native_coordinates == rnode.native_coordinates
+
+        rout = rnode.eval(rnode.native_coordinates)
+        np.testing.assert_almost_equal(out.data, rout.data)
+
+        # lon/lat order, unsual
+        node = self.make_square_array(order=-1)
+        out = node.eval(node.native_coordinates)
+        fp = io.BytesIO()
+        out.to_geotiff(fp)
+        fp.write(b"a")  # for some reason needed to get good comparison
+        fp.seek(0)
+        rnode = Rasterio(source=fp, outputs=node.outputs)
+
+        assert node.native_coordinates == rnode.native_coordinates
+
+        rout = rnode.eval(rnode.native_coordinates)
+        np.testing.assert_almost_equal(out.data, rout.data)
+
+    def test_to_geotiff_rountrip_2band(self):
+        # lat/lon order, usual
+        node = self.make_square_array(bands=2)
+        out = node.eval(node.native_coordinates)
+        fp = io.BytesIO()
+        out.to_geotiff(fp)
+        fp.write(b"a")  # for some reason needed to get good comparison
+        fp.seek(0)
+        rnode = Rasterio(source=fp, outputs=node.outputs, mode="r")
+
+        assert node.native_coordinates == rnode.native_coordinates
+
+        rout = rnode.eval(rnode.native_coordinates)
+        np.testing.assert_almost_equal(out.data, rout.data)
+
+        # lon/lat order, unsual
+        node = self.make_square_array(order=-1, bands=2)
+        out = node.eval(node.native_coordinates)
+        fp = io.BytesIO()
+        out.to_geotiff(fp)
+        fp.write(b"a")  # for some reason needed to get good comparison
+        fp.seek(0)
+        rnode = Rasterio(source=fp, outputs=node.outputs)
+
+        assert node.native_coordinates == rnode.native_coordinates
+
+        rout = rnode.eval(rnode.native_coordinates)
+        np.testing.assert_almost_equal(out.data, rout.data)
+
+        # Check single output
+        fp.seek(0)
+        rnode = Rasterio(source=fp, outputs=node.outputs, output=node.outputs[1])
+        rout = rnode.eval(rnode.native_coordinates)
+        np.testing.assert_almost_equal(out.data[..., 1], rout.data)
+
+        # Check single band 1
+        fp.seek(0)
+        rnode = Rasterio(source=fp, band=1)
+        rout = rnode.eval(rnode.native_coordinates)
+        np.testing.assert_almost_equal(out.data[..., 0], rout.data)
+
+        # Check single band 2
+        fp.seek(0)
+        rnode = Rasterio(source=fp, band=2)
+        rout = rnode.eval(rnode.native_coordinates)
+        np.testing.assert_almost_equal(out.data[..., 1], rout.data)
+
+    @pytest.mark.skip("TODO: We can remove this skipped test after solving #363")
+    def test_to_geotiff_rountrip_rotcoords(self):
+        # lat/lon order, usual
+        node = self.make_rot_array()
+        out = node.eval(node.native_coordinates)
+        fp = io.BytesIO()
+        out.to_geotiff(fp)
+        fp.write(b"a")  # for some reason needed to get good comparison
+        fp.seek(0)
+        rnode = Rasterio(source=fp, outputs=node.outputs, mode="r")
+
+        assert node.native_coordinates == rnode.native_coordinates
+
+        rout = rnode.eval(rnode.native_coordinates)
+        np.testing.assert_almost_equal(out.data, rout.data)
+
+        # lon/lat order, unsual
+        node = self.make_square_array(order=-1)
+        out = node.eval(node.native_coordinates)
+        fp = io.BytesIO()
+        out.to_geotiff(fp)
+        fp.write(b"a")  # for some reason needed to get good comparison
+        fp.seek(0)
+        rnode = Rasterio(source=fp, outputs=node.outputs)
+
+        assert node.native_coordinates == rnode.native_coordinates
+
+        rout = rnode.eval(rnode.native_coordinates)
+        np.testing.assert_almost_equal(out.data, rout.data)

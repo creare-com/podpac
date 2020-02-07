@@ -61,6 +61,16 @@ class TestConvolution(object):
         with pytest.raises(ValueError, match="Cannot evaluate coordinates, kernel and coordinates ndims mismatch"):
             node2d.eval(Coordinates([lat, lon, time]))
 
+    def test_eval_multiple_outputs(self):
+
+        lat = clinspace(45, 66, 30, name="lat")
+        lon = clinspace(-80, 70, 40, name="lon")
+        kernel = [[1, 2, 1]]
+        coords = Coordinates([lat, lon])
+        multi = Array(source=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
+        node = Convolution(source=multi, kernel=kernel)
+        o = node.eval(Coordinates([lat, lon]))
+
     def test_eval_nan(self):
         lat = clinspace(45, 66, 30, name="lat")
         lon = clinspace(-80, 70, 40, name="lon")

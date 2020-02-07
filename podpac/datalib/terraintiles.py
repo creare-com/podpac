@@ -75,6 +75,8 @@ class TerrainTilesSource(Rasterio):
         rasterio dataset
     """
 
+    outputs = None
+
     # parameters
     source = tl.Unicode().tag(readonly=True)
 
@@ -82,6 +84,15 @@ class TerrainTilesSource(Rasterio):
     interpolation = interpolation_trait(
         default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
     ).tag(readonly=True)
+
+    @tl.default("crs")
+    def _default_crs(self):
+        if "geotiff" in self.source:
+            return "EPSG:3857"
+        if "terrarium" in self.source:
+            return "EPSG:3857"
+        if "normal" in self.source:
+            return "EPSG:3857"
 
     @tl.default("dataset")
     def open_dataset(self):
@@ -183,6 +194,8 @@ class TerrainTiles(OrderedCompositor):
         Bucket of the terrain tiles.
         Defaults to 'elevation-tiles-prod'
     """
+
+    outputs = None
 
     # parameters
     zoom = tl.Int(default_value=6).tag(attr=True)
@@ -438,7 +451,7 @@ def _mercator(lat, lon):
     x1, y1 = lon * np.pi / 180, lat * np.pi / 180
 
     # project to mercator
-    x, y = x1, np.log(np.tan(0.25 * np.pi + 0.5 * y1))
+    x, y = x1, np.log(np.tan(0.25 * np.pi + 0.5 * y1) + 1e-32)
 
     return x, y
 

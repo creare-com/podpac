@@ -430,3 +430,48 @@ class TestStackedCoordinatesSelection(object):
         s, I = c.select({"lat": [0.5, 3.5], "lon": [25, 55]}, return_indices=True)
         assert s == c[2:4]
         assert s == c[I]
+
+
+class TestDependentCoordinatesTranspose(object):
+    def test_transpose(self):
+        lat = ArrayCoordinates1d([0, 1, 2], name="lat")
+        lon = ArrayCoordinates1d([10, 20, 30], name="lon")
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03"], name="time")
+        c = StackedCoordinates([lat, lon, time])
+
+        t = c.transpose("lon", "lat", "time")
+        assert c.dims == ("lat", "lon", "time")
+        assert t.dims == ("lon", "lat", "time")
+        assert t["lat"] == lat
+        assert t["lon"] == lon
+        assert t["time"] == time
+
+        # default transpose
+        t = c.transpose()
+        assert c.dims == ("lat", "lon", "time")
+        assert t.dims == ("time", "lon", "lat")
+
+    def test_transpose_invalid(self):
+        lat = ArrayCoordinates1d([0, 1, 2], name="lat")
+        lon = ArrayCoordinates1d([10, 20, 30], name="lon")
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03"], name="time")
+        c = StackedCoordinates([lat, lon, time])
+
+        with pytest.raises(ValueError, match="Invalid transpose dimensions"):
+            c.transpose("lon", "lat")
+
+    def test_transpose_in_place(self):
+        lat = ArrayCoordinates1d([0, 1, 2], name="lat")
+        lon = ArrayCoordinates1d([10, 20, 30], name="lon")
+        time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03"], name="time")
+        c = StackedCoordinates([lat, lon, time])
+
+        t = c.transpose("lon", "lat", "time", in_place=False)
+        assert c.dims == ("lat", "lon", "time")
+        assert t.dims == ("lon", "lat", "time")
+
+        c.transpose("lon", "lat", "time", in_place=True)
+        assert c.dims == ("lon", "lat", "time")
+        assert t["lat"] == lat
+        assert t["lon"] == lon
+        assert t["time"] == time

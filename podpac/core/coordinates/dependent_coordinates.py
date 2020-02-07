@@ -471,11 +471,11 @@ class DependentCoordinates(BaseCoordinates):
 
             # segment lengths
             # TODO can we use '+units' here, at least sometimes?
-            if self.ctypes[ilat] is not "point":
+            if self.ctypes[ilat] != "point":
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if self.ctypes[ilon] is not "point":
+            if self.ctypes[ilon] != "point":
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if self.ctypes[ialt] is not "point":
+            if self.ctypes[ialt] != "point":
                 _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
                 properties["segment_lengths"][ialt] = tsl
 
@@ -492,9 +492,9 @@ class DependentCoordinates(BaseCoordinates):
 
             # segment lengths
             # TODO can we use '+units' here, at least sometimes?
-            if self.ctypes[ilat] is not "point":
+            if self.ctypes[ilat] != "point":
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if self.ctypes[ilon] is not "point":
+            if self.ctypes[ilon] != "point":
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
 
         elif "alt" in self.dims:
@@ -506,11 +506,48 @@ class DependentCoordinates(BaseCoordinates):
             coords[ialt] = talt.reshape(self.shape)
 
             # segment lengths
-            if self.ctypes[ialt] is not "point":
+            if self.ctypes[ialt] != "point":
                 _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
                 properties["segment_lengths"][ialt] = tsl
 
         return DependentCoordinates(coords, **properties)
+
+    def transpose(self, *dims, **kwargs):
+        """
+        Transpose (re-order) the dimensions of the DependentCoordinates.
+
+        Parameters
+        ----------
+        dim_1, dim_2, ... : str, optional
+            Reorder dims to this order. By default, reverse the dims.
+        in_place : boolean, optional
+            If True, transpose the dimensions in-place.
+            Otherwise (default), return a new, transposed Coordinates object.
+        
+        Returns
+        -------
+        transposed : :class:`DependentCoordinates`
+            The transposed DependentCoordinates object.
+        """
+
+        in_place = kwargs.get("in_place", False)
+
+        if len(dims) == 0:
+            dims = list(self.dims[::-1])
+
+        if set(dims) != set(self.dims):
+            raise ValueError("Invalid transpose dimensions, input %s does match dims %s" % (dims, self.dims))
+
+        coordinates = [self.coordinates[self.dims.index(dim)] for dim in dims]
+
+        if in_place:
+            self.set_trait("coordinates", coordinates)
+            self.set_trait("dims", dims)
+            return self
+        else:
+            properties = self.properties
+            properties["dims"] = dims
+            return DependentCoordinates(coordinates, **properties)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug

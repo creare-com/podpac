@@ -2,7 +2,7 @@ from podpac.core.node import Node
 from podpac.core.style import Style
 from podpac.core.utils import NodeTrait
 from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.data.types import Zarr
+from podpac.core.data.file import Zarr
 from podpac.core.coordinates import ArrayCoordinates1d
 
 
@@ -25,7 +25,7 @@ def sm_style():
 
 
 class DroughtMonitorCategory(Zarr):
-    dims = ["lat", "lon", "time"]
+    # dims = ["lat", "lon", "time"]
     cf_time = True
     cf_units = "days since 2018-01-01 00:00:00"
     cf_calendar = "proleptic_gregorian"

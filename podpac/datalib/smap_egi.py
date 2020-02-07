@@ -37,7 +37,7 @@ import podpac
 import podpac.datalib
 from podpac.core.coordinates import Coordinates
 from podpac.datalib import EGI
-from podpac.core.units import create_data_array
+from podpac.core.units import UnitsDataArray
 
 SMAP_PRODUCT_DICT = {
     #'shortname':    ['lat_key', 'lon_key', 'data_key', 'quality_flag', 'default_verison']
@@ -68,7 +68,7 @@ SMAP_PRODUCT_DICT = {
     "SPL3SMP_PM": [
         "/Soil_Moisture_Retrieval_Data_PM/latitude",
         "/Soil_Moisture_Retrieval_Data_PM/longitude",
-        "/Soil_Moisture_Retrieval_Data_PM/soil_moisture",
+        "/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm",
         "/Soil_Moisture_Retrieval_Data_PM/retrieval_qual_flag_pm",
         5,
     ],
@@ -77,14 +77,14 @@ SMAP_PRODUCT_DICT = {
         "/Soil_Moisture_Retrieval_Data_AM/longitude",
         "/Soil_Moisture_Retrieval_Data_AM/soil_moisture",
         "/Soil_Moisture_Retrieval_Data_AM/retrieval_qual_flag",
-        2,
+        3,
     ],
     "SPL3SMP_E_PM": [
         "/Soil_Moisture_Retrieval_Data_PM/latitude_pm",
         "/Soil_Moisture_Retrieval_Data_PM/longitude_pm",
         "/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm",
         "/Soil_Moisture_Retrieval_Data_PM/retrieval_qual_flag_pm",
-        2,
+        3,
     ],
 }
 SMAP_PRODUCTS = list(SMAP_PRODUCT_DICT.keys())
@@ -108,7 +108,7 @@ class SMAP(EGI):
 
     product = tl.Enum(SMAP_PRODUCTS, default_value="SPL4SMAU").tag(attr=True)
     nan_vals = [-9999.0]
-    min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3}).tag(attr=True)
+    min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3, "time": "3,h"}).tag(attr=True)
     check_quality_flags = tl.Bool(True).tag(attr=True)
     quality_flag_key = tl.Unicode(allow_none=True).tag(attr=True)
 
@@ -142,7 +142,6 @@ class SMAP(EGI):
             return (self.data_key, self.quality_flag_key, self.lat_key, self.lon_key)
         else:
             return (self.data_key, self.lat_key, self.lon_key)
-
 
     @tl.default("version")
     def _version_default(self):
@@ -183,11 +182,12 @@ class SMAP(EGI):
             t_start = np.datetime64(ds["Metadata/Extent"].attrs["rangeBeginningDateTime"].replace(b"Z", b""))
             t_end = np.datetime64(ds["Metadata/Extent"].attrs["rangeEndingDateTime"].replace(b"Z", b""))
             time = np.array([t_start + (t_end - t_start) / 2])
+            time = time.astype("datetime64[D]")
 
         elif "SPL4" in self.product:
-            t_offset = datetime(2000, 1, 1).timestamp()  # all time relative to 2000-01-01
-            t_obs = ds["time"][()][0]  # time give as seconds since 2000-01-01
-            time = np.datetime64(datetime.fromtimestamp(t_offset + t_obs))
+            time_unit = ds["time"].attrs["units"].decode()
+            time = xr.coding.times.decode_cf_datetime(ds["time"][()][0], units=time_unit)
+            time = time.astype("datetime64[h]")
 
         # handle spatial coordinates
         if "SPL3" in self.product:
@@ -209,17 +209,17 @@ class SMAP(EGI):
 
         elif "SPL4" in self.product:
             # lat/lon coordinates in EPSG:6933 (https://epsg.io/6933)
-            lon = ds["y"][()]
-            lat = ds["x"][()]
+            lon = ds["x"][()]
+            lat = ds["y"][()]
 
             # short-circuit if all lat/lon are nan
             if np.all(np.isnan(lat)) and np.all(np.isnan(lon)):
                 return None
 
-            c = Coordinates([time, lon, lat], dims=["time", "lon", "lat"], crs="epsg:6933")
+            c = Coordinates([time, lat, lon], dims=["time", "lat", "lon"], crs="epsg:6933")
 
         # make units data array with coordinates and data
-        return create_data_array(c, data=data)
+        return UnitsDataArray.create(c, data=data)
 
     def append_file(self, all_data, data):
         """Append data
@@ -235,7 +235,28 @@ class SMAP(EGI):
         ------
         NotImplementedError
         """
+        if all_data.shape[1:] == data.shape[1:]:
+            data.lat.data = all_data.lat.data
+            data.lon.data = all_data.lon.data
+        else:
+            # select only data with finite coordinates
+            data = data.isel(lon=np.isfinite(data.lon), lat=np.isfinite(data.lat))
 
-        all_data = all_data.combine_first(data.isel(lon=np.isfinite(data.lon), lat=np.isfinite(data.lat)))
+            # select lat based on the old data
+            lat = all_data.lat.sel(lat=data.lat, method="nearest")
 
-        return all_data
+            # When the difference between old and new coordintaes are large, it means there are new coordinates
+            Ilat = np.abs(lat.data - data.lat) > 1e-3
+            # Use the new data's coordinates for the new coordinates
+            lat.data[Ilat] = data.lat[Ilat]
+
+            # Repeat for lon
+            lon = all_data.lon.sel(lon=data.lon, method="nearest")
+            Ilon = np.abs(lon.data - data.lon) > 1e-3
+            lon.data[Ilon] = data.lon[Ilon]
+
+            # Assign to data
+            data.lon.data = lon.data
+            data.lat.data = lat.data
+
+        return all_data.combine_first(data)

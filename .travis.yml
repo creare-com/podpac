@@ -13,6 +13,7 @@ python:
   - "3.5"
   - "3.6"
   - "3.7"
+  - "3.8"
 
 # addons:
 #   # https://docs.travis-ci.com/user/uploading-artifacts/
@@ -27,6 +28,7 @@ install:
   - sudo apt-get install -y gdal-bin libgdal-dev
 
   # install setup.py and dev extras
+  - pip install coverage==4.5.4
   - pip install .[devall]
   
   # Allow Python exec and eval functions for unit tests
@@ -48,12 +50,13 @@ script:
   - coveralls
 
 
-# deploy docs to `podpac-docs` repository. This script only pushes the docs on pushes to develop and master.
 jobs:
   include:
+    # check formatting
     - stage: formatting
       python: "3.7"
       script: black --check podpac
+    # deploy docs to `podpac-docs` repository. This script only pushes the docs on pushes to develop and master.
     - stage: docs deploy
       python: "3.7"
       script: cd doc && ./ci-deploy.sh && cd ..

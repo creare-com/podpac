@@ -1180,3 +1180,13 @@ class TestUniformCoordinatesSelection(object):
         assert isinstance(s, ArrayCoordinates1d)
         assert_equal(s.coordinates, [])
         assert_equal(c.coordinates[I], [])
+
+    def test_select_time_variable_precision(self):
+        c = UniformCoordinates1d("2012-05-19", "2012-05-20", "1,D", name="time")
+        c2 = UniformCoordinates1d("2012-05-20T12:00:00", "2012-05-21T12:00:00", "1,D", name="time")
+        s = c.select(c2.bounds, outer=True)
+        s1 = c.select(c2.bounds, outer=False)
+        s2 = c2.select(c.bounds)
+        assert s.size == 1
+        assert s1.size == 0
+        assert s2.size == 1

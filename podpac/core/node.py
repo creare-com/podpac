@@ -9,7 +9,6 @@ import functools
 import json
 import inspect
 import importlib
-import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from hashlib import md5 as hash_alg
@@ -18,13 +17,14 @@ import numpy as np
 import traitlets as tl
 
 from podpac.core.settings import settings
-from podpac.core.units import ureg, UnitsDataArray, create_data_array
+from podpac.core.units import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
 from podpac.core.utils import JSONEncoder, is_json_serializable
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore, make_cache_ctrl
+from podpac.core.managers.multi_threading import thread_manager
 
 
 COMMON_NODE_DOC = {
@@ -94,20 +94,41 @@ class Node(tl.HasTraits):
         future.
     units : str
         The units of the output data. Must be pint compatible.
+    outputs : list
+        For multiple-output nodes, the names of the outputs. Default is ``None`` for standard nodes.
+    output : str
+        For multiple-output nodes only, specifies a particular output to evaluate, if desired. Must be one of ``outputs``.
 
     Notes
     -----
     Additional attributes are available for debugging after evaluation, including:
      * ``_requested_coordinates``: the requested coordinates of the most recent call to eval
      * ``_output``: the output of the most recent call to eval
+     * ``_from_cache``: whether the most recent call to eval used the cache
+     * ``_multi_threaded``: whether the most recent call to eval was executed using multiple threads
     """
 
+    outputs = tl.List(tl.Unicode, allow_none=True).tag(attr=True)
+    output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     dtype = tl.Any(default_value=float)
     cache_output = tl.Bool()
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
     style = tl.Instance(Style)
+
+    @tl.default("outputs")
+    def _default_outputs(self):
+        return None
+
+    @tl.validate("output")
+    def _validate_output(self, d):
+        if d["value"] is not None:
+            if self.outputs is None:
+                raise TypeError("Invalid output '%s' (output must be None for single-output nodes)." % self.output)
+            if d["value"] not in self.outputs:
+                raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
+        return d["value"]
 
     @tl.default("cache_output")
     def _cache_output_default(self):
@@ -136,6 +157,8 @@ class Node(tl.HasTraits):
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _output = tl.Instance(UnitsDataArray, allow_none=True)
     _from_cache = tl.Bool(allow_none=True, default_value=None)
+    # Flag that is True if the Node was run multi-threaded, or None if the question doesn't apply
+    _multi_threaded = tl.Bool(allow_none=True, default_value=None)
 
     def __init__(self, **kwargs):
         """ Do not overwrite me """
@@ -149,11 +172,12 @@ class Node(tl.HasTraits):
         # make tagged "readonly" and "attr" traits read_only, and set them using set_trait
         # NOTE: The set_trait is required because this sets the traits read_only at the *class* level;
         #       on subsequent initializations, they will already be read_only.
-        for name, trait in self.traits().items():
-            if trait.metadata.get("readonly") or trait.metadata.get("attr"):
-                if name in tkwargs:
-                    self.set_trait(name, tkwargs.pop(name))
-                trait.read_only = True
+        with self.hold_trait_notifications():
+            for name, trait in self.traits().items():
+                if trait.metadata.get("readonly") or trait.metadata.get("attr"):
+                    if name in tkwargs:
+                        self.set_trait(name, tkwargs.pop(name))
+                    trait.read_only = True
 
         # Call traitlest constructor
         super(Node, self).__init__(**tkwargs)
@@ -251,8 +275,12 @@ class Node(tl.HasTraits):
         attrs["crs"] = coords.crs
         if self.units is not None:
             attrs["units"] = ureg.Unit(self.units)
+        try:
+            attrs["geotransform"] = coords.geotransform
+        except (TypeError, AttributeError):
+            pass
 
-        return create_data_array(coords, data=data, dtype=self.dtype, attrs=attrs, **kwargs)
+        return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
@@ -304,7 +332,7 @@ class Node(tl.HasTraits):
 
             attr = getattr(self, key)
 
-            if key is "units" and attr is None:
+            if key == "units" and attr is None:
                 continue
 
             # check serializable
@@ -317,6 +345,12 @@ class Node(tl.HasTraits):
                 attrs[key] = attr
 
         if attrs:
+            # remove unnecessary attrs
+            if self.outputs is None and "outputs" in attrs:
+                del attrs["outputs"]
+            if self.output is None and "output" in attrs:
+                del attrs["output"]
+
             d["attrs"] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
 
         if lookup_attrs:
@@ -408,7 +442,14 @@ class Node(tl.HasTraits):
 
     @property
     def hash(self):
-        return hash_alg(self.json.encode("utf-8")).hexdigest()
+        # Style should not be part of the hash
+        defn = self.json
+
+        # Note: this ONLY works because the Style node has NO dictionaries as part
+        # of its attributes
+        hashstr = re.sub(r'"style":\{.*?\},?', "", defn)
+
+        return hash_alg(hashstr.encode("utf-8")).hexdigest()
 
     def save(self, path):
         """
@@ -478,11 +519,11 @@ class Node(tl.HasTraits):
         NodeException
             Cached data already exists (and overwrite is False)
         """
-
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
-        self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
+        with thread_manager.cache_lock:
+            self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
 
     def has_cache(self, key, coordinates=None):
         """
@@ -500,7 +541,8 @@ class Node(tl.HasTraits):
         bool
             True if there is cached data for this node, key, and coordinates.
         """
-        return self.cache_ctrl.has(self, key, coordinates=coordinates)
+        with thread_manager.cache_lock:
+            return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
     def rem_cache(self, key, coordinates=None, mode=None):
         """
@@ -550,7 +592,7 @@ class Node(tl.HasTraits):
         """
 
         from podpac.core.data.datasource import DataSource
-        from podpac.core.algorithm.algorithm import Algorithm
+        from podpac.core.algorithm.algorithm import BaseAlgorithm
         from podpac.core.compositor import Compositor
 
         if len(definition) == 0:
@@ -634,7 +676,7 @@ class Node(tl.HasTraits):
                     kwargs["interpolation"] = d["interpolation"]
                     whitelist.append("interpolation")
 
-            if Algorithm in parents:
+            if BaseAlgorithm in parents:
                 if "attrs" in d:
                     if "inputs" in d["attrs"]:
                         raise ValueError(
@@ -807,7 +849,8 @@ def node_eval(fn):
             self._requested_coordinates = coordinates
         key = cache_key
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
-        if self.has_cache(key, cache_coordinates) and not self.cache_update:
+
+        if not self.cache_update and self.has_cache(key, cache_coordinates):
             data = self.get_cache(key, cache_coordinates)
             if output is not None:
                 order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
@@ -822,12 +865,22 @@ def node_eval(fn):
                 self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update)
             self._from_cache = False
 
+        # extract single output, if necessary
+        # subclasses should extract single outputs themselves if possible, but this provides a backup
+        if "output" in data.dims and self.output is not None:
+            data = data.sel(output=self.output)
+
         # transpose data to match the dims order of the requested coordinates
         order = [dim for dim in coordinates.idims if dim in data.dims]
+        if "output" in data.dims:
+            order.append("output")
         data = data.transpose(*order)
 
         if settings["DEBUG"]:
             self._output = data
+
+        # Add style information
+        data.attrs["layer_style"] = self.style
 
         return data
 

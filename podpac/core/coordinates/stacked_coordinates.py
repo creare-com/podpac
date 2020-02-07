@@ -63,7 +63,7 @@ class StackedCoordinates(BaseCoordinates):
 
     def __init__(self, coords, name=None, dims=None, ctype=None):
         """
-        Initialize a multidimensional coords object.
+        Initialize a multidimensional coords bject.
 
         Parameters
         ----------
@@ -436,11 +436,11 @@ class StackedCoordinates(BaseCoordinates):
 
             # segment lengths
             # TODO can we use the proj4 '+units' here, at least sometimes?
-            if lat.ctype is not "point" and "segment_lengths" in lat.properties:
+            if lat.ctype != "point" and "segment_lengths" in lat.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if lon.ctype is not "point" and "segment_lengths" in lon.properties:
+            if lon.ctype != "point" and "segment_lengths" in lon.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if alt.ctype is not "point" and "segment_lengths" in lon.properties:
+            if alt.ctype != "point" and "segment_lengths" in lon.properties:
                 sl = alt.segment_lengths
                 _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
                 coords[ialt].set_trait("segment_lengths", tsl)
@@ -458,9 +458,9 @@ class StackedCoordinates(BaseCoordinates):
 
             # segment lengths
             # TODO can we use proj4 '+units' here, at least sometimes?
-            if lat.ctype is not "point" and "segment_lengths" in lat.properties:
+            if lat.ctype != "point" and "segment_lengths" in lat.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if lon.ctype is not "point" and "segment_lengths" in lon.properties:
+            if lon.ctype != "point" and "segment_lengths" in lon.properties:
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
 
         elif "alt" in self.dims:
@@ -472,9 +472,43 @@ class StackedCoordinates(BaseCoordinates):
             coords[ialt].set_trait("coordinates", talt)
 
             # segment lengths
-            if alt.ctype is not "point" and "segment_lengths" in lon.properties:
+            if alt.ctype != "point" and "segment_lengths" in lon.properties:
                 sl = alt.segment_lengths
                 _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
                 coords[ialt].set_trait("segment_lengths", tsl)
 
         return StackedCoordinates(coords)
+
+    def transpose(self, *dims, **kwargs):
+        """
+        Transpose (re-order) the dimensions of the StackedCoordinates.
+
+        Parameters
+        ----------
+        dim_1, dim_2, ... : str, optional
+            Reorder dims to this order. By default, reverse the dims.
+        in_place : boolean, optional
+            If True, transpose the dimensions in-place.
+            Otherwise (default), return a new, transposed Coordinates object.
+        
+        Returns
+        -------
+        transposed : :class:`StackedCoordinates`
+            The transposed StackedCoordinates object.
+        """
+
+        in_place = kwargs.get("in_place", False)
+
+        if len(dims) == 0:
+            dims = list(self.dims[::-1])
+
+        if set(dims) != set(self.dims):
+            raise ValueError("Invalid transpose dimensions, input %s does match any dims in %s" % (dims, self.dims))
+
+        coordinates = [self._coords[self.dims.index(dim)] for dim in dims]
+
+        if in_place:
+            self.set_trait("_coords", coordinates)
+            return self
+        else:
+            return StackedCoordinates(coordinates)

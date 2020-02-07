@@ -97,6 +97,8 @@ class Arithmetic(GenericInputs):
         f_locals = dict(zip(fields, res))
 
         try:
+            from numexpr import evaluate  # Needed for some systems to get around lazy_module issues
+
             result = ne.evaluate(eqn, f_locals)
         except (NotImplementedError, ImportError):
             result = eval(eqn, f_locals)
@@ -225,3 +227,17 @@ class Mask(Algorithm):
         source.set(self.masked_val, mask)
 
         return source
+
+
+class Combine(GenericInputs):
+    """ Combine multiple nodes into a single node with multiple outputs.
+
+    If not output names are specified, the keyword argument names will be used.
+    """
+
+    @tl.default("outputs")
+    def _default_outputs(self):
+        return list(self.inputs.keys())
+
+    def algorithm(self, inputs):
+        return np.stack([inputs[key] for key in self.inputs], axis=-1)

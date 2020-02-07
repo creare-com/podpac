@@ -153,8 +153,8 @@ class DataSource(Node):
     source = tl.Any().tag(readonly=True)
     native_coordinates = tl.Instance(Coordinates).tag(readonly=True)
     interpolation = interpolation_trait()
-    coordinate_index_type = tl.Enum(["list", "numpy", "xarray", "pandas"], default_value="numpy")
-    nan_vals = tl.List(allow_none=True)
+    coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
+    nan_vals = tl.List(allow_none=True).tag(attr=True)
 
     # privates
     _interpolation = tl.Instance(Interpolation)
@@ -261,6 +261,11 @@ class DataSource(Node):
                 + "Must be one of numpy.ndarray, xarray.DataArray, or podpac.UnitsDataArray"
             )
 
+        # extract single output, if necessary
+        # subclasses should extract single outputs themselves if possible, but this provides a backup
+        if "output" in udata_array.dims and self.output is not None:
+            udata_array = udata_array.sel(output=self.output)
+
         # fill nan_vals in data array
         if self.nan_vals:
             for nan_val in self.nan_vals:
@@ -306,7 +311,7 @@ class DataSource(Node):
 
         log.debug("Evaluating {} data source".format(self.__class__.__name__))
 
-        if self.coordinate_index_type != "numpy":
+        if self.coordinate_index_type not in ["slice", "numpy"]:
             warnings.warn(
                 "Coordinates index type {} is not yet supported.".format(self.coordinate_index_type)
                 + "`coordinate_index_type` is set to `numpy`",
@@ -356,6 +361,8 @@ class DataSource(Node):
         if self._requested_source_coordinates.size == 0:
             if output is None:
                 output = self.create_output_array(self._evaluated_coordinates)
+                if "output" in output.dims and self.output is not None:
+                    output = output.sel(output=self.output)
             else:
                 output[:] = np.nan
             return output
@@ -371,6 +378,27 @@ class DataSource(Node):
             self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
         )
 
+        # Check the coordinate_index_type
+        if self.coordinate_index_type == "slice":  # Most restrictive
+            new_rsci = []
+            for rsci in self._requested_source_coordinates_index:
+                if isinstance(rsci, slice):
+                    new_rsci.append(rsci)
+                    continue
+
+                if len(rsci) > 1:
+                    mx, mn = np.max(rsci), np.min(rsci)
+                    df = np.diff(rsci)
+                    if np.all(df == df[0]):
+                        step = df[0]
+                    else:
+                        step = 1
+                    new_rsci.append(slice(mn, mx + 1, step))
+                else:
+                    new_rsci.append(slice(np.max(rsci), np.max(rsci) + 1))
+
+            self._requested_source_coordinates_index = tuple(new_rsci)
+
         # get data from data source
         self._requested_source_data = self._get_data()
 
@@ -381,10 +409,14 @@ class DataSource(Node):
             requested_dims = None
             output_dims = None
             output = self.create_output_array(coordinates)
+            if "output" in output.dims and self.output is not None:
+                output = output.sel(output=self.output)
         else:
             requested_dims = self._evaluated_coordinates.dims
             output_dims = output.dims
             o = output
+            if "output" in output.dims:
+                requested_dims = requested_dims + ("output",)
             output = output.transpose(*requested_dims)
 
             # check crs compatibility
@@ -459,7 +491,7 @@ class DataSource(Node):
     @property
     @common_doc(COMMON_DATA_DOC)
     def base_definition(self):
-        """Base node defintion for DataSource nodes.
+        """Base node definition for DataSource nodes.
         
         Returns
         -------
@@ -468,13 +500,16 @@ class DataSource(Node):
 
         d = super(DataSource, self).base_definition
 
-        if "attrs" in d:
-            if "source" in d["attrs"]:
-                raise NodeException("The 'source' property cannot be tagged as an 'attr'")
+        # check attrs and remove unnecesary attrs
+        attrs = d.get("attrs", {})
+        if "source" in attrs:
+            raise NodeException("The 'source' property cannot be tagged as an 'attr'")
+        if "interpolation" in attrs:
+            raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
+        if "nan_vals" in attrs and not self.nan_vals:
+            del attrs["nan_vals"]
 
-            if "interpolation" in d["attrs"]:
-                raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
-
+        # set source or lookup_source
         if isinstance(self.source, Node):
             d["lookup_source"] = self.source
         elif isinstance(self.source, np.ndarray):

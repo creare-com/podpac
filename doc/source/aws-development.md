@@ -1,16 +1,14 @@
-# AWS Lambda #
+# AWS Development
 
-TODO: This needs rewritten.
+This document describes more details on using the AWS functionality of PODPAC.
 
-Podpac includes a package to create an Amazon Web Services Lambda function to execute nodes in a server-less environment. This package can be altered to handle events according to the developer's use case.
-
-## AWS Architecture ##
+## AWS Architecture
 
 All files related to creating a Lambda function are in `dist/aws`. The `DockerFile` is based on Amazon's EC2 DockerHub distribution, and creates a Podpac-friendly python 3.6 environment. A `.zip` file is extracted from this environment, which can be used to create a Lambda function. Conveniently, developers can also use this to create an EC2 instance, or work directly in the Docker container.
 
 Our `handler.py` expects the Lambda event to include a pipeline definition in the form of (URI encoded) JSON. The handler then executes that pipeline accordingly. However, developers are encouraged to write their own handlers as needed.
 
-## Creating Your Own Podpac Lambda Function ##
+## Creating Your Own Podpac Lambda Function
 
 We're now set up to create an AWS Lambda function "out of the box". Assuming you've installed Docker, here are the steps to create a Lambda function:
 

@@ -4,7 +4,7 @@
             "node": "algorithm.Arange"
         }
     },
-    "output": {
+    "pipeline_output": {
         "node": "a",
         "mode": "file",
         "format": "pickle",

@@ -6,7 +6,7 @@ import xarray as xr
 import scipy.stats
 
 import podpac
-from podpac.core.data.types import Array
+from podpac.core.data.array_source import Array
 from podpac.core.algorithm.stats import Reduce
 from podpac.core.algorithm.stats import Min, Max, Sum, Count, Mean, Variance, Skew, Kurtosis, StandardDeviation
 from podpac.core.algorithm.stats import Median, Percentile
@@ -14,7 +14,7 @@ from podpac.core.algorithm.stats import GroupReduce, DayOfYear
 
 
 def setup_module():
-    global coords, source, data
+    global coords, source, data, multisource, bdata
     coords = podpac.Coordinates(
         [podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 10), podpac.crange("2018-01-01", "2018-01-10", "1,D")],
         dims=["lat", "lon", "time"],
@@ -27,6 +27,10 @@ def setup_module():
     source = Array(source=a, native_coordinates=coords)
     data = source.eval(coords)
 
+    ab = np.stack([a, 2 * a], -1)
+    multisource = Array(source=ab, native_coordinates=coords, outputs=["a", "b"])
+    bdata = 2 * data
+
 
 class TestReduce(object):
     """ Tests the Reduce class """
@@ -38,11 +42,6 @@ class TestReduce(object):
         with podpac.settings:
             podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
             podpac.settings["CHUNK_SIZE"] = "auto"
-            node.eval(coords)
-
-    def test_not_implemented(self):
-        node = Reduce(source=source)
-        with pytest.raises(NotImplementedError):
             node.eval(coords)
 
     def test_chunked_fallback(self):
@@ -131,6 +130,17 @@ class BaseTests(object):
             # xr.testing.assert_allclose(output, self.expected_time)
             np.testing.assert_allclose(output.data, self.expected_time.data)
 
+    def test_multiple_outputs(self):
+        with podpac.settings:
+            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CHUNK_SIZE"] = None
+            node = self.NodeClass(source=multisource, dims=["lat", "lon"])
+            output = node.eval(coords)
+            assert output.dims == ("time", "output")
+            np.testing.assert_array_equal(output["output"], ["a", "b"])
+            np.testing.assert_allclose(output.sel(output="a"), self.expected_latlon)
+            np.testing.assert_allclose(output.sel(output="b"), self.expected_latlon_b)
+
 
 class TestMin(BaseTests):
     @classmethod
@@ -138,6 +148,7 @@ class TestMin(BaseTests):
         cls.NodeClass = Min
         cls.expected_full = data.min()
         cls.expected_latlon = data.min(dim=["lat", "lon"])
+        cls.expected_latlon_b = bdata.min(dim=["lat", "lon"])
         cls.expected_time = data.min(dim="time")
 
 
@@ -147,6 +158,7 @@ class TestMax(BaseTests):
         cls.NodeClass = Max
         cls.expected_full = data.max()
         cls.expected_latlon = data.max(dim=["lat", "lon"])
+        cls.expected_latlon_b = bdata.max(dim=["lat", "lon"])
         cls.expected_time = data.max(dim="time")
 
 
@@ -156,6 +168,7 @@ class TestSum(BaseTests):
         cls.NodeClass = Sum
         cls.expected_full = data.sum()
         cls.expected_latlon = data.sum(dim=["lat", "lon"])
+        cls.expected_latlon_b = bdata.sum(dim=["lat", "lon"])
         cls.expected_time = data.sum(dim="time")
 
 
@@ -165,6 +178,7 @@ class TestCount(BaseTests):
         cls.NodeClass = Count
         cls.expected_full = np.isfinite(data).sum()
         cls.expected_latlon = np.isfinite(data).sum(dim=["lat", "lon"])
+        cls.expected_latlon_b = np.isfinite(bdata).sum(dim=["lat", "lon"])
         cls.expected_time = np.isfinite(data).sum(dim="time")
 
 
@@ -174,6 +188,7 @@ class TestMean(BaseTests):
         cls.NodeClass = Mean
         cls.expected_full = data.mean()
         cls.expected_latlon = data.mean(dim=["lat", "lon"])
+        cls.expected_latlon_b = bdata.mean(dim=["lat", "lon"])
         cls.expected_time = data.mean(dim="time")
 
     def test_chunk_sizes(self):
@@ -191,6 +206,7 @@ class TestVariance(BaseTests):
         cls.NodeClass = Variance
         cls.expected_full = data.var()
         cls.expected_latlon = data.var(dim=["lat", "lon"])
+        cls.expected_latlon_b = bdata.var(dim=["lat", "lon"])
         cls.expected_time = data.var(dim="time")
 
 
@@ -200,7 +216,9 @@ class TestStandardDeviation(BaseTests):
         cls.NodeClass = StandardDeviation
         cls.expected_full = data.std()
         cls.expected_latlon = data.std(dim=["lat", "lon"])
+        cls.expected_latlon_b = bdata.std(dim=["lat", "lon"])
         cls.expected_time = data.std(dim="time")
+        cls.expected_latlon_b = 2 * cls.expected_latlon
 
 
 class TestSkew(BaseTests):
@@ -210,6 +228,7 @@ class TestSkew(BaseTests):
         n, m, l = data.shape
         cls.expected_full = xr.DataArray(scipy.stats.skew(data.data.reshape(n * m * l), nan_policy="omit"))
         cls.expected_latlon = scipy.stats.skew(data.data.reshape((n * m, l)), axis=0, nan_policy="omit")
+        cls.expected_latlon_b = scipy.stats.skew(bdata.data.reshape((n * m, l)), axis=0, nan_policy="omit")
         cls.expected_time = scipy.stats.skew(data, axis=2, nan_policy="omit")
 
 
@@ -220,6 +239,7 @@ class TestKurtosis(BaseTests):
         n, m, l = data.shape
         cls.expected_full = xr.DataArray(scipy.stats.kurtosis(data.data.reshape(n * m * l), nan_policy="omit"))
         cls.expected_latlon = scipy.stats.kurtosis(data.data.reshape((n * m, l)), axis=0, nan_policy="omit")
+        cls.expected_latlon_b = scipy.stats.kurtosis(bdata.data.reshape((n * m, l)), axis=0, nan_policy="omit")
         cls.expected_time = scipy.stats.kurtosis(data, axis=2, nan_policy="omit")
 
 
@@ -229,6 +249,7 @@ class TestMedian(BaseTests):
         cls.NodeClass = Median
         cls.expected_full = data.median()
         cls.expected_latlon = data.median(dim=["lat", "lon"])
+        cls.expected_latlon_b = bdata.median(dim=["lat", "lon"])
         cls.expected_time = data.median(dim="time")
 
 

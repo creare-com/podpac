@@ -5,21 +5,20 @@ Compositor Summary
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from multiprocessing.pool import ThreadPool
+import copy
+
 import numpy as np
 import traitlets as tl
 
 # Internal imports
 from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, merge_dims
-from podpac.core.node import Node
-from podpac.core.utils import common_doc
-from podpac.core.utils import ArrayTrait
-from podpac.core.node import COMMON_NODE_DOC
-from podpac.core.node import node_eval
+from podpac.core.utils import common_doc, ArrayTrait, trait_is_defined
+from podpac.core.units import UnitsDataArray
+from podpac.core.node import COMMON_NODE_DOC, node_eval, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.data.interpolation import interpolation_trait
-from podpac.core.utils import trait_is_defined
+from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
 
@@ -46,14 +45,17 @@ class Compositor(Node):
     source : str
         The source is used for a unique name to cache composited products.
     source_coordinates : :class:`podpac.Coordinates`
-        Description
+        Coordinates that make each source unique. Much be single-dimensional the same size as ``sources``. Optional.
     sources : :class:`np.ndarray`
         An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to
         subselect the nodes that will be evaluated.
     source_coordinates : :class:`podpac.Coordinates`, optional
         Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the
         user-requested coordinates. It is an optimization.
-    
+    strict_source_outputs : bool
+        Default is False. When compositing multi-output sources, combine the outputs from all sources. If True, do not
+        allow sources with different outputs (an exception will be raised if the sources contain different outputs).
+
     Notes
     -----
     Developers of new Compositor nodes need to implement the `composite` method.
@@ -78,29 +80,70 @@ class Compositor(Node):
         ),
     )
 
-    source = tl.Unicode().tag(attr=True)
     sources = ArrayTrait(ndim=1)
     cache_native_coordinates = tl.Bool(True)
-
     interpolation = interpolation_trait(default_value=None)
-
-    @tl.default("source")
-    def _source_default(self):
-        source = []
-        for s in self.sources[:3]:
-            source.append(str(s))
-        return "_".join(source)
+    strict_source_outputs = tl.Bool(False)
 
     @tl.default("source_coordinates")
     def _source_coordinates_default(self):
         return self.get_source_coordinates()
+
+    @tl.validate("sources")
+    def _validate_sources(self, d):
+        self.outputs  # check for consistent outputs
+        return np.array([copy.deepcopy(source) for source in d["value"]])
+
+    @tl.default("outputs")
+    def _default_outputs(self):
+        if all(source.outputs is None for source in self.sources):
+            return None
+
+        elif all(source.outputs is not None and source.output is None for source in self.sources):
+            if self.strict_source_outputs:
+                outputs = self.sources[0].outputs
+                if any(source.outputs != outputs for source in self.sources):
+                    raise ValueError(
+                        "Source outputs mismatch, and strict_source_outputs is True. "
+                        "The sources must all contain the same outputs if strict_source_outputs is True. "
+                    )
+                return outputs
+            else:
+                outputs = []
+                for source in self.sources:
+                    for output in source.outputs:
+                        if output not in outputs:
+                            outputs.append(output)
+                if len(outputs) == 0:
+                    outputs = None
+                return outputs
+
+        else:
+            raise ValueError(
+                "Cannot composite standard sources with multi-output sources. "
+                "The sources must all be stardard single-output nodes or all multi-output nodes."
+            )
+
+    @tl.validate("source_coordinates")
+    def _validate_source_coordinates(self, d):
+        if d["value"] is not None:
+            if d["value"].ndim != 1:
+                raise ValueError("Invalid source_coordinates, invalid ndim (%d != 1)" % d["value"].ndim)
+
+            if d["value"].size != self.sources.size:
+                raise ValueError(
+                    "Invalid source_coordinates, source and source_coordinates size mismatch (%d != %d)"
+                    % (d["value"].size, self.sources.size)
+                )
+
+        return d["value"]
 
     # default representation
     def __repr__(self):
         source_name = str(self.__class__.__name__)
 
         rep = "{}".format(source_name)
-        rep += "\n\tsource: {}".format(self.source)
+        rep += "\n\tsource: {}".format("_".join(str(source) for source in self.sources[:3]))
         rep += "\n\tinterpolation: {}".format(self.interpolation)
 
         return rep
@@ -156,8 +199,8 @@ class Compositor(Node):
 
             except:  # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
-
-            src_subset = self.sources[I]
+            i = I[0]
+            src_subset = self.sources[i]
 
         # no downselection possible - get all sources compositor
         else:
@@ -165,7 +208,7 @@ class Compositor(Node):
 
         return src_subset
 
-    def composite(self, outputs, result=None):
+    def composite(self, coordinates, outputs, result=None):
         """Implements the rules for compositing multiple sources together.
         
         Parameters
@@ -219,27 +262,30 @@ class Compositor(Node):
                 nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
 
                 if trait_is_defined(s, "native_coordinates") is False:
-                    s.set_trait('native_coordinates', nc)
+                    s.set_trait("native_coordinates", nc)
 
         if settings["MULTITHREADING"]:
-            # TODO pool of pre-allocated scratch space
-            # TODO: docstring?
-            def f(src):
-                return src.eval(coordinates)
+            n_threads = thread_manager.request_n_threads(len(src_subset))
+            if n_threads == 1:
+                thread_manager.release_n_threads(n_threads)
+        else:
+            n_threads = 0
 
-            pool = ThreadPool(processes=settings.get("N_THREADS", 10))
-            results = [pool.apply_async(f, [src]) for src in src_subset]
-
-            for src, res in zip(src_subset, results):
-                yield res.get()
-                # src._output = None # free up memory
+        if settings["MULTITHREADING"] and n_threads > 1:
+            # evaluate nodes in parallel using thread pool
+            self._multi_threaded = True
+            pool = thread_manager.get_thread_pool(processes=n_threads)
+            outputs = pool.map(lambda src: src.eval(coordinates), src_subset)
+            pool.close()
+            thread_manager.release_n_threads(n_threads)
+            for output in outputs:
+                yield output
 
         else:
-            output = None  # scratch space
+            # evaluate nodes serially
+            self._multi_threaded = False
             for src in src_subset:
-                output = src.eval(coordinates, output)
-                yield output
-                # output[:] = np.nan
+                yield src.eval(coordinates)
 
     @node_eval
     @common_doc(COMMON_COMPOSITOR_DOC)
@@ -261,7 +307,7 @@ class Compositor(Node):
         self._requested_coordinates = coordinates
 
         outputs = self.iteroutputs(coordinates)
-        output = self.composite(outputs, output)
+        output = self.composite(coordinates, outputs, output)
         return output
 
     def find_coordinates(self):
@@ -297,40 +343,46 @@ class OrderedCompositor(Compositor):
     """
 
     @common_doc(COMMON_COMPOSITOR_DOC)
-    def composite(self, outputs, result=None):
-        """Composites outputs in order that they appear.
+    def composite(self, coordinates, data_arrays, result=None):
+        """Composites data_arrays in order that they appear.
         
         Parameters
         ----------
-        outputs : generator
+        coordinates : :class:`podpac.Coordinates`
+            {requested_coordinates}
+        data_arrays : generator
             Generator that gives UnitDataArray's with the source values.
-        result : None, optional
-            Description
+        result : podpac.UnitsDataArray, optional
+            {eval_output}
         
         Returns
         -------
         {eval_return} This composites the sources together until there are no nans or no more sources.
         """
+
         if result is None:
-            # consume the first source output
-            result = next(outputs).copy()
+            result = self.create_output_array(coordinates)
+        else:
+            result[:] = np.nan
 
-        # initialize the mask
-        # if result is None, probably this is all false
-        mask = np.isfinite(result.data)
-        if np.all(mask):
-            return result
-
-        # loop through remaining outputs
-        for output in outputs:
-            output = output.transpose(*result.dims)
-            source_mask = np.isfinite(output.data)
-            b = ~mask & source_mask
-            result.data[b] = output.data[b]
-            mask |= source_mask
+        mask = UnitsDataArray.create(coordinates, outputs=self.outputs, data=0, dtype=bool)
+        for data in data_arrays:
+            if self.outputs is None:
+                data = data.transpose(*result.dims)
+                self._composite(result, data, mask)
+            else:
+                for name in data["output"]:
+                    self._composite(result.sel(output=name), data.sel(output=name), mask.sel(output=name))
 
             # stop if the results are full
             if np.all(mask):
                 break
 
         return result
+
+    @staticmethod
+    def _composite(result, data, mask):
+        source_mask = np.isfinite(data.data)
+        b = ~mask & source_mask
+        result.data[b.data] = data.data[b.data]
+        mask |= source_mask

@@ -16,7 +16,7 @@ from collections import OrderedDict
 ## UPDATE VERSION HERE
 ##############
 MAJOR = 1
-MINOR = 2
+MINOR = 3
 HOTFIX = 0
 ##############
 
@@ -64,7 +64,7 @@ def version():
             except Exception as e:
                 return version_full
 
-        version_full = subprocess.check_output([git, "describe", "--always"], cwd=CWD).strip().decode("ascii")[:-1]
+        version_full = subprocess.check_output([git, "describe", "--always"], cwd=CWD).strip().decode("ascii")
         version_full = version_full.replace("-", "+", 1).replace("-", ".")  # Make this consistent with PEP440
 
     except Exception as e:

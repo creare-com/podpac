@@ -20,11 +20,11 @@ import xarray as xr
 import xarray.core.coordinates
 from six import string_types
 import pyproj
+import logging
 
 import podpac
 from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param
-from podpac.core.coordinates.utils import get_vunits, set_vunits, rem_vunits
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
@@ -32,6 +32,16 @@ from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
+
+# Optional dependencies
+from lazy_import import lazy_module, lazy_class
+
+rasterio = lazy_module("rasterio")
+affine_module = lazy_module("affine")
+
+
+# Set up logging
+_logger = logging.getLogger(__name__)
 
 
 class Coordinates(tl.HasTraits):
@@ -64,11 +74,10 @@ class Coordinates(tl.HasTraits):
     """
 
     crs = tl.Unicode(read_only=True, allow_none=True)
-    alt_units = tl.Unicode(read_only=True, allow_none=True, default_value=None)
 
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
 
-    def __init__(self, coords, dims=None, crs=None, alt_units=None, ctype=None):
+    def __init__(self, coords, dims=None, crs=None, ctype=None):
         """
         Create multidimensional coordinates.
 
@@ -87,10 +96,7 @@ class Coordinates(tl.HasTraits):
              * 'lat', 'lon', 'alt', or 'time' for unstacked coordinates
              * dimension names joined by an underscore for stacked coordinates
         crs : str, optional
-            Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
-        alt_units : str, optional
-            Altitude units. Supports any `PROJ4 Distance Units
-            <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`. Must not contradict the crs.
+            Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org).
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
         """
@@ -117,6 +123,9 @@ class Coordinates(tl.HasTraits):
         # get/create coordinates
         dcoords = OrderedDict()
         for i, dim in enumerate(dims):
+            if isinstance(dim, (tuple, list)):
+                dim = "_".join(dim)
+
             if dim in dcoords:
                 raise ValueError("Duplicate dimension '%s' at position %d" % (dim, i))
 
@@ -141,8 +150,6 @@ class Coordinates(tl.HasTraits):
         self.set_trait("_coords", dcoords)
         if crs is not None:
             self.set_trait("crs", crs)
-        if alt_units is not None:
-            self.set_trait("alt_units", alt_units)
         super(Coordinates, self).__init__()
 
     @tl.validate("_coords")
@@ -170,38 +177,17 @@ class Coordinates(tl.HasTraits):
     @tl.validate("crs")
     def _validate_crs(self, d):
         val = d["value"]
-        pyproj.CRS(val)  # raises pyproj.CRSError if invalid
+        CRS = pyproj.CRS(val)  # raises pyproj.CRSError if invalid
+
+        # make sure CRS defines vertical units
+        if "alt" in self.udims and not CRS.is_vertical:
+            raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
+
         return val
 
     @tl.observe("crs")
     def _observe_crs(self, d):
         crs = d["new"]
-        self.set_trait("alt_units", get_vunits(crs))
-
-    @tl.validate("alt_units")
-    def _validate_alt_units(self, d):
-        val = d["value"]
-        if val is None:
-            return None
-
-        # check if the alt_units are valid by trying to set the vunits
-        try:
-            set_vunits(self.crs, val)
-        except pyproj.crs.CRSError:
-            raise ValueError("Invalid alt_units '%s', alt_units must be PROJ4 compliant distance units." % val)
-
-        # check if the alt_units contradict the crs
-        # this will only matter if a full proj4 string has been supplied
-        vunits = get_vunits(self.crs)
-        if vunits is not None and val != vunits:
-            raise ValueError("crs and alt_units mismatch, '%s' conflicts with crs '%s'" % (val, self.crs))
-
-        vunits = get_vunits(set_vunits(self.crs, val))
-        if vunits is None:
-            warnings.warn("alt_units ignored (crs '%s' does not support separate vunits)" % self.crs)
-            return None
-
-        return val
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors
@@ -232,7 +218,7 @@ class Coordinates(tl.HasTraits):
         return coords
 
     @classmethod
-    def grid(cls, dims=None, crs=None, alt_units=None, ctype=None, **kwargs):
+    def grid(cls, dims=None, crs=None, ctype=None, **kwargs):
         """
         Create a grid of coordinates.
 
@@ -262,10 +248,7 @@ class Coordinates(tl.HasTraits):
             List of dimension names, must match the provided keyword arguments. In Python 3.6 and above, the ``dims``
             argument is optional, and the dims will match the order of the provided keyword arguments.
         crs : str, optional
-            Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
-        alt_units : str, optional
-            Altitude units. Supports any `PROJ4 Distance Units
-            <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`. Must not contradict the crs.
+            Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org).
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
 
@@ -280,10 +263,10 @@ class Coordinates(tl.HasTraits):
         """
 
         coords = cls._coords_from_dict(kwargs, order=dims)
-        return cls(coords, crs=crs, ctype=ctype, alt_units=alt_units)
+        return cls(coords, crs=crs, ctype=ctype)
 
     @classmethod
-    def points(cls, crs=None, alt_units=None, ctype=None, dims=None, **kwargs):
+    def points(cls, crs=None, ctype=None, dims=None, **kwargs):
         """
         Create a list of multidimensional coordinates.
 
@@ -316,10 +299,7 @@ class Coordinates(tl.HasTraits):
             List of dimension names, must match the provided keyword arguments. In Python 3.6 and above, the ``dims``
             argument is optional, and the dims will match the order of the provided keyword arguments.
         crs : str, optional
-            Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
-        alt_units : str, optional
-            Altitude units. Supports any `PROJ4 Distance Units
-            <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`. Must not contradict the crs.
+            Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org/).
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
 
@@ -335,10 +315,10 @@ class Coordinates(tl.HasTraits):
 
         coords = cls._coords_from_dict(kwargs, order=dims)
         stacked = StackedCoordinates(coords)
-        return cls([stacked], crs=crs, ctype=ctype, alt_units=alt_units)
+        return cls([stacked], crs=crs, ctype=ctype)
 
     @classmethod
-    def from_xarray(cls, xcoord, crs=None, alt_units=None, ctype=None):
+    def from_xarray(cls, xcoord, crs=None, ctype=None):
         """
         Create podpac Coordinates from xarray coords.
 
@@ -347,10 +327,7 @@ class Coordinates(tl.HasTraits):
         xcoord : xarray.core.coordinates.DataArrayCoordinates
             xarray coords
         crs : str, optional
-            Coordinate reference system. Supports any PROJ4 compliant string (https://proj4.org/index.html).
-        alt_units : str, optional
-            Altitude units. Supports any `PROJ4 Distance Units
-            <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`. Must not contradict the crs.
+            Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org/).
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
 
@@ -365,13 +342,17 @@ class Coordinates(tl.HasTraits):
 
         coords = []
         for dim in xcoord.dims:
+            if dim == "output":
+                continue
             if isinstance(xcoord.indexes[dim], (pd.DatetimeIndex, pd.Float64Index, pd.Int64Index)):
                 c = ArrayCoordinates1d.from_xarray(xcoord[dim])
             elif isinstance(xcoord.indexes[dim], pd.MultiIndex):
                 c = StackedCoordinates.from_xarray(xcoord[dim])
+            else:
+                raise NotImplementedError
             coords.append(c)
 
-        return cls(coords, crs=crs, alt_units=alt_units, ctype=ctype)
+        return cls(coords, crs=crs, ctype=ctype)
 
     @classmethod
     def from_json(cls, s):
@@ -473,6 +454,44 @@ class Coordinates(tl.HasTraits):
             coords["coords"].append({"name": "time", "values": [_get_param(params, "TIME")]})
 
         return cls.from_definition(coords)
+
+    @classmethod
+    def from_geotransform(cls, geotransform, shape, crs=None):
+        """ Creates Coordinates from GDAL Geotransform. 
+        
+        """
+        tol = 1e-15  # tolerance for deciding when a number is zero
+        # Handle the case of rotated coordinates
+        try:
+            rcoords = RotatedCoordinates.from_geotransform(geotransform, shape, dims=["lat", "lon"])
+        except affine_module.UndefinedRotationError:
+            rcoords = None
+            _logger.debug("Rasterio source dataset does not have Rotated Coordinates")
+
+        if rcoords is not None and np.abs(rcoords.theta % (np.pi / 2)) > tol:
+            # These are Rotated coordinates and we can return
+            coords = Coordinates([rcoords], dims=["lat,lon"], crs=crs)
+            return coords
+
+        # Handle the case of uniform coordinates (not rotated, but N-S E-W aligned)
+        affine = rasterio.Affine.from_gdal(*geotransform)
+        if affine.e <= tol and affine.a <= tol:
+            order = -1
+            step = np.array([affine.d, affine.b])
+        else:
+            order = 1
+            step = np.array([affine.e, affine.a])
+
+        origin = affine.f + step[0] / 2, affine.c + step[1] / 2
+        end = origin[0] + step[0] * (shape[::order][0] - 1), origin[1] + step[1] * (shape[::order][1] - 1)
+        coords = Coordinates(
+            [
+                podpac.clinspace(origin[0], end[0], shape[::order][0], "lat"),
+                podpac.clinspace(origin[1], end[1], shape[::order][1], "lon"),
+            ][::order],
+            crs=crs,
+        )
+        return coords
 
     @classmethod
     def from_definition(cls, d):
@@ -725,6 +744,10 @@ class Coordinates(tl.HasTraits):
         return tuple(size for c in self._coords.values() for size in c.shape)
 
     @property
+    def ushape(self):
+        return tuple(self[dim].size for dim in self.udims)
+
+    @property
     def ndim(self):
         """:int: Number of dimensions. """
 
@@ -757,19 +780,24 @@ class Coordinates(tl.HasTraits):
         coords = OrderedDict()
         for c in self._coords.values():
             coords.update(c.coords)
-        # TODO just return coords?
-        # return coords
-        x = xr.DataArray(np.empty(self.shape), dims=self.idims, coords=coords)
-        return x.coords
+        return coords
 
     @property
     def CRS(self):
-        if self.alt_units is not None and self.alt_units != get_vunits(self.crs):
-            crs = set_vunits(self.crs, self.alt_units)
-        else:
-            crs = self.crs
-
+        crs = self.crs
         return pyproj.CRS(crs)
+
+    # TODO: add a convience property for displaying altitude units for the CRS
+    # @property
+    # def alt_units(self):
+    #     CRS = self.CRS
+
+    #     if CRS.is_vertical:
+    #         alt_units = <unsure how to get this from CRS>
+    #     else:
+    #         raise ValueError("CRS does not contain vertical component")
+
+    #     return alt_units
 
     @property
     def properties(self):
@@ -777,8 +805,6 @@ class Coordinates(tl.HasTraits):
 
         d = OrderedDict()
         d["crs"] = self.crs
-        if self.alt_units is not None and self.alt_units != get_vunits(self.crs):
-            d["alt_units"] = self.alt_units
         return d
 
     @property
@@ -796,7 +822,11 @@ class Coordinates(tl.HasTraits):
 
         d = OrderedDict()
         d["coords"] = [c.full_definition for c in self._coords.values()]
-        d["crs"] = self.CRS.to_proj4()
+        d[
+            "crs"
+        ] = (
+            self.CRS.to_wkt()
+        )  # use "wkt" which is suggested as best format: https://proj.org/faq.html#what-is-the-best-format-for-describing-coordinate-reference-systems
         return d
 
     @property
@@ -825,6 +855,54 @@ class Coordinates(tl.HasTraits):
         # As such, we json.dumps the full definition.
         json_d = json.dumps(self.full_definition, separators=(",", ":"), cls=podpac.core.utils.JSONEncoder)
         return hash_alg(json_d.encode("utf-8")).hexdigest()
+
+    @property
+    def geotransform(self):
+        """ :tuple: GDAL geotransform. """
+        # Make sure we only have 1 time and alt dimension
+        if "time" in self.udims and self["time"].size > 1:
+            raise TypeError(
+                'Only 2-D coordinates have a GDAL transform. This array has a "time" dimension of {} > 1'.format(
+                    self["time"].size
+                )
+            )
+        if "alt" in self.udims and self["alt"].size > 1:
+            raise TypeError(
+                'Only 2-D coordinates have a GDAL transform. This array has a "alt" dimension of {} > 1'.format(
+                    self["alt"].size
+                )
+            )
+
+        # Do the uniform coordinates case
+        if (
+            "lat" in self.dims
+            and isinstance(self._coords["lat"], UniformCoordinates1d)
+            and "lon" in self.dims
+            and isinstance(self._coords["lon"], UniformCoordinates1d)
+        ):
+            if self.dims.index("lon") < self.dims.index("lat"):
+                first, second = "lat", "lon"
+            else:
+                first, second = "lon", "lat"  # This case will have the exact correct geotransform
+            transform = rasterio.transform.Affine.translation(
+                self[first].start - self[first].step / 2, self[second].start - self[second].step / 2
+            ) * rasterio.transform.Affine.scale(self[first].step, self[second].step)
+            transform = transform.to_gdal()
+        # Do the rotated coordinates cases
+        elif "lat,lon" in self.dims and isinstance(self._coords["lat,lon"], RotatedCoordinates):
+            transform = self._coords["lat,lon"].geotransform
+        elif "lon,lat" in self.dims and isinstance(self._coords["lon,lat"], RotatedCoordinates):
+            transform = self._coords["lon,lat"].geotransform
+        else:
+            raise TypeError(
+                "Only 2-D coordinates that are uniform or rotated have a GDAL transform. These coordinates "
+                "{} do not.".format(self)
+            )
+        if self.udims.index("lon") < self.udims.index("lat"):
+            # transform = (transform[3], transform[5], transform[4], transform[0], transform[2], transform[1])
+            transform = transform[3:] + transform[:3]
+
+        return transform
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -1159,19 +1237,33 @@ class Coordinates(tl.HasTraits):
         if len(dims) != len(self.dims):
             raise ValueError("Invalid transpose dimensions, input %s does not match dims %s" % (dims, self.dims))
 
+        coords = []
+        for dim in dims:
+            if dim in self._coords:
+                coords.append(self._coords[dim])
+            elif "," in dim and dim.split(",")[0] in self.udims:
+                target_dims = dim.split(",")
+                source_dim = [_dim for _dim in self.dims if target_dims[0] in _dim][0]
+                coords.append(self._coords[source_dim].transpose(*target_dims, in_place=in_place))
+            elif "_" in dim and dim.split("_")[0] in self.udims:
+                target_dims = dim.split("_")
+                source_dim = [_dim for _dim in self.dims if target_dims[0] in _dim][0]
+                coords.append(self._coords[source_dim].transpose(*target_dims, in_place=in_place))
+            else:
+                raise ValueError("Invalid transpose dimensions, input %s does match any dims in %s" % (dim, self.dims))
+
         if in_place:
-            self._coords = OrderedDict([(dim, self._coords[dim]) for dim in dims])
+            self._coords = OrderedDict(zip(dims, coords))
             return self
-
         else:
-            return Coordinates([self._coords[dim] for dim in dims], **self.properties)
+            return Coordinates(coords, **self.properties)
 
-    def transform(self, crs=None, alt_units=None):
+    def transform(self, crs=None):
         """
         Transform coordinate dimensions (`lat`, `lon`, `alt`) into a different coordinate reference system.
-        Uses PROJ4 syntax for coordinate reference systems and units.
+        Uses PROJ syntax for coordinate reference systems and units.
 
-        See `PROJ4 Documentation <https://proj4.org/usage/projections.html#cartographic-projection>`_ for
+        See `PROJ Documentation <https://proj.org/usage/projections.html#cartographic-projection>`_ for
         more information about creating PROJ4 strings. See `PROJ4 Distance Units
         <https://proj4.org/operations/conversions/unitconvert.html#distance-units>`_ for unit string
         references.
@@ -1209,41 +1301,11 @@ class Coordinates(tl.HasTraits):
                 lat: ArrayCoordinates1d(lat): Bounds[-1847545.541169525, -615848.513723175], N[21], ctype['midpoint']
                 lon: ArrayCoordinates1d(lon): Bounds[-614897.0725896168, 614897.0725896184], N[21], ctype['midpoint']
 
-        Transform coordinates with altitude::
-
-            # include alt units in proj4 string
-            c = Coordinates([[0, 1, 2], [0, 1, 2], [1, 2, 3]], dims=['lat', 'lon', 'alt'])
-            c.transform('+init=epsg:2193 +vunits=ft')
-
-            >> Coordinates
-                lat: ArrayCoordinates1d(lat): Bounds[594971.8894642257, 819117.0608407748], N[3], ctype['midpoint']
-                lon: ArrayCoordinates1d(lon): Bounds[29772096.71234478, 29995929.885877542], N[3], ctype['midpoint']
-                alt: ArrayCoordinates1d(alt): Bounds[3.280839895013123, 9.842519685039369], N[3], ctype['midpoint']
-
-
-            # specify alt units seperately
-            c.transform('EPSG:2193', alt_units='ft')
-
-            >> Coordinates
-                lat: ArrayCoordinates1d(lat): Bounds[594971.8894642257, 819117.0608407748], N[3], ctype['midpoint']
-                lon: ArrayCoordinates1d(lon): Bounds[29772096.71234478, 29995929.885877542], N[3], ctype['midpoint']
-                alt: ArrayCoordinates1d(alt): Bounds[3.280839895013123, 9.842519685039369], N[3], ctype['midpoint']
-
-            # using alt_units will save the property `crs` as a proj4 string:
-            ct = c.transform('EPSG:2193', alt_units='ft')
-            ct.crs
-
-            >> '+proj=tmerc +lat_0=0 +lon_0=173 +k=0.9996 +x_0=1600000 +y_0=10000000 +ellps=GRS80 +units=m +no_defs +type=crs +vunits=ft'
-
         Parameters
         ----------
         crs : str, optional
             PROJ4 compatible coordinate reference system string.
             Defaults to the current `crs`
-        alt_units : str, optional
-            Override the alt units defined in `crs` string.
-            This is implemented to provide a shorthand for transforming alt units
-            without specifying the whole proj4 string.
 
         Returns
         -------
@@ -1256,22 +1318,21 @@ class Coordinates(tl.HasTraits):
             Coordinates must have both lat and lon dimensions if either is defined
         """
 
-        if crs is None and alt_units is None:
-            raise TypeError("transform requires crs and/or alt_units argument")
+        if crs is None:
+            raise TypeError("transform requires crs argument")
 
         input_crs = crs
-        input_alt_units = alt_units
 
         # use self.crs by default
         if crs is None:
             crs = self.crs
 
-        # combine crs and alt_units
-        if alt_units is not None:
-            crs = set_vunits(crs, alt_units)
-
         from_crs = self.CRS
         to_crs = pyproj.CRS(crs)
+
+        # make sure to CRS defines vertical units
+        if "alt" in self.udims and not to_crs.is_vertical:
+            raise ValueError("Altitude dimension is defined, but CRS to transform does not contain vertical unit")
 
         # no transform needed
         if from_crs == to_crs:
@@ -1280,8 +1341,8 @@ class Coordinates(tl.HasTraits):
         cs = [c for c in self.values()]
 
         # if lat-lon transform is required, check dims and convert unstacked lat-lon coordinates if necessary
-        from_spatial = pyproj.CRS(rem_vunits(self.crs))
-        to_spatial = pyproj.CRS(rem_vunits(crs))
+        from_spatial = pyproj.CRS(self.crs)
+        to_spatial = pyproj.CRS(crs)
         if from_spatial != to_spatial:
             if "lat" in self.dims and "lon" in self.dims:
                 ilat = self.dims.index("lat")
@@ -1315,7 +1376,7 @@ class Coordinates(tl.HasTraits):
         # transform
         transformer = pyproj.Transformer.from_proj(from_crs, to_crs, always_xy=True)
         ts = [c._transform(transformer) for c in cs]
-        return Coordinates(ts, crs=input_crs, alt_units=input_alt_units)
+        return Coordinates(ts, crs=input_crs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods

@@ -23,7 +23,7 @@ install_requires = [
     "traitlets>=4.3",
     "xarray>=0.10",
     "requests>=2.18",
-    "pyproj>=2.2",
+    "pyproj>=2.4",
     "lazy-import>=0.2.2",
     "psutil",
 ]
@@ -38,7 +38,8 @@ extras_require = {
         "lxml>=4.2",
         "pydap>=3.2",
         "rasterio>=1.0",
-        "zarr>=2.3"
+        "zarr>=2.3",
+        #"intake>=0.5"  Not supported in Python 3.5
     ],
     "aws": [
         "awscli>=1.16",
@@ -65,8 +66,9 @@ extras_require = {
         "pylint>=1.8.2",
         "pytest-cov>=2.5.1",
         "pytest-html>=1.7.0",
-        "recommonmark>=0.4",
-        "sphinx>=1.8",
+        "pytest-remotedata>=0.3.1",
+        "recommonmark>=0.6",
+        "sphinx>=2.3",
         "sphinx-rtd-theme>=0.4",
         "sphinx-autobuild>=0.7",
         "coveralls>=1.3",

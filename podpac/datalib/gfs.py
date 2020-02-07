@@ -109,7 +109,7 @@ class GFS(DataSource):
         base_time = datetime.datetime.strptime("%s %s" % (self.date, self.hour), "%Y%m%d %H%M")
         forecast_times = [base_time + datetime.timedelta(hours=int(h)) for h in self.forecasts]
         tc = Coordinates([[dt.strftime("%Y-%m-%d %H:%M") for dt in forecast_times]], dims=["time"])
-        self.set_trait('native_coordinates', merge_dims([nc, tc]))
+        self.set_trait("native_coordinates", merge_dims([nc, tc]))
 
     def get_data(self, coordinates, coordinates_index):
         data = self.create_output_array(coordinates)
@@ -125,13 +125,13 @@ class GFSLatest(GFS):
         now = datetime.datetime.now()
 
         # date
-        self.set_trait('date', now.strftime("%Y%m%d"))
+        self.set_trait("date", now.strftime("%Y%m%d"))
 
         # hour
         prefix = "%s/%s/%s/" % (self.parameter, self.level, self.date)
         objs = bucket.objects.filter(Prefix=prefix)
         hours = set(obj.key.split("/")[3] for obj in objs)
         if hours:
-            self.set_trait('hour', max(hours))
+            self.set_trait("hour", max(hours))
 
         super(GFSLatest, self).init()
