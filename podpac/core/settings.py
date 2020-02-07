@@ -293,6 +293,23 @@ class PodpacSettings(dict):
         with open(self._settings_filepath, "w") as f:
             json.dump(self, f, indent=4)
 
+    def reset(self):
+        """
+        Reset settings to defaults.
+
+        This method will ignore the value in :attr:`AUTOSAVE_SETTINGS`.
+        To persistenly reset settings to defaults, call :meth:`settings.save()` after this method.
+        """
+
+        # ignore autosave
+        self["AUTOSAVE_SETTINGS"] = False
+
+        # clear all values
+        self.clear()
+
+        # load default settings
+        self._load_defaults()
+
     def load(self, path=None, filename="settings.json"):
         """
         Load a new settings file to be active

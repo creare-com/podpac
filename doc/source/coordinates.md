@@ -3,7 +3,8 @@
 
 ## Overview
 
-Coordinates are used to: 
+Coordinates are used to:
+
 1. Evaluate [nodes](nodes.md) which retrieve and process data
 2. Define the coordinates of [data sources](nodes.md#datasource)
 
