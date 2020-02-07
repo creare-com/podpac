@@ -348,6 +348,8 @@ class Coordinates(tl.HasTraits):
                 c = ArrayCoordinates1d.from_xarray(xcoord[dim])
             elif isinstance(xcoord.indexes[dim], pd.MultiIndex):
                 c = StackedCoordinates.from_xarray(xcoord[dim])
+            else:
+                raise NotImplementedError
             coords.append(c)
 
         return cls(coords, crs=crs, ctype=ctype)
