@@ -499,7 +499,7 @@ class Lambda(Node):
         # perhaps we just want to improve the "create_" methods to be self-healing
 
         def _raise(msg):
-            _log.error(msg)
+            _log.debug(msg)
             if raise_exceptions:
                 raise Exception(msg)
             else:
