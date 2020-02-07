@@ -1,7 +1,7 @@
 Examples
 ========
 
-The documents provides examples for the core functionality of PODPAC as `Simple Tutorials <#simple>`_ and `interactive Jupyter Notebooks <#notebooks>`_.
+This document provides examples for the core functionality of PODPAC as `Simple Tutorials <#simple>`_ and `interactive Jupyter Notebooks <#notebooks>`_.
 
 See `Supported Datasets <datasets.html>`_ for links to specific dataset examples in the repository.
 
@@ -26,7 +26,7 @@ To follow along, open a Python interpreter or Jupyter notebook in the Python env
 Array of Data
 ~~~~~~~~~~~~~
 
-This example builds a ``DataSource`` Node for data values located on a 11 x 21 *lat* x *lon* grid.
+This example builds a ``DataSource`` Node for data located on a 11 x 21 *lat* x *lon* grid and evaluates this ``DataSource`` at arbitrary geospatial coordinates.
 
 In the Python interpreter of Jupyter notebook, import ``podpac`` and ``numpy`` as ``np``:
 
