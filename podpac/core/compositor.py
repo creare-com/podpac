@@ -115,6 +115,8 @@ class Compositor(Node):
                     for output in source.outputs:
                         if output not in outputs:
                             outputs.append(output)
+                if len(outputs) == 0:
+                    outputs = None
                 return outputs
 
         else:
