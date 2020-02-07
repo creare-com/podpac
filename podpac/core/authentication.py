@@ -159,13 +159,9 @@ class EarthDataSession(Session):
         print("Updating login information for: ", self.hostname)
 
         if username is None:
-            username = input("Username: ")
-
-        settings["username@" + self.hostname] = username
+            self.username = input("Username: ")
 
         if password is None:
-            password = getpass.getpass()
+            self.password = getpass.getpass()
 
-        settings["password@" + self.hostname] = password
-
-        self.auth = (username, password)
+        self.auth = (self.username, self.password)
