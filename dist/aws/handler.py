@@ -44,6 +44,10 @@ def default_pipeline(pipeline=None):
     else:
         pipeline = defaults
 
+    # overwrite certain settings so that the function doesn't fail
+    pipeline["settings"]["ROOT_PATH"] = "/tmp"
+    pipeline["settings"]["LOG_FILE_PATH"] = "/tmp"
+
     return pipeline
 
 
