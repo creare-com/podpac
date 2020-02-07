@@ -39,7 +39,7 @@ extras_require = {
         "pydap>=3.2",
         "rasterio>=1.0",
         "zarr>=2.3",
-        "intake>=0.5"
+        #"intake>=0.5"  Not supported in Python 3.5
     ],
     "aws": [
         "awscli>=1.16",
