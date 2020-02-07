@@ -499,7 +499,7 @@ class Lambda(Node):
         # perhaps we just want to improve the "create_" methods to be self-healing
 
         def _raise(msg):
-            _log.error(msg)
+            _log.debug(msg)
             if raise_exceptions:
                 raise Exception(msg)
             else:
@@ -1172,6 +1172,11 @@ Lambda Node {status}
         EXPERIMENTAL FEATURE
         Create budget for lambda function based on node hash.
         """
+        # skip if no budget provided
+        if self.function_budget_amount is None:
+            _log.debug("Skipping Budget creation because function budget is not defined")
+            return
+
         _log.warning(
             "Creating an AWS Budget with PODPAC is an experimental feature. Please continue to monitor AWS usage costs seperately."
         )
@@ -1197,6 +1202,12 @@ Lambda Node {status}
         dict
             See :func:`podpac.managers.aws.get_budget`
         """
+
+        # skip if no budget provided
+        if self.function_budget_amount is None:
+            _log.debug("Skipping Budget request because function budget is not defined")
+            return None
+
         budget = get_budget(self.session, self.function_budget_name)
         self._set_budget(budget)
 
@@ -1210,6 +1221,11 @@ Lambda Node {status}
         dict
             See :func:`podpac.managers.aws.get_budget`
         """
+
+        # skip if no budget provided
+        if self.function_budget_amount is None:
+            _log.debug("Skipping Budget validation because function budget is not defined")
+            return True
 
         if self._budget is None:
             return False

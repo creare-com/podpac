@@ -18,6 +18,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+from shutil import copyfile
 
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
@@ -93,7 +94,7 @@ language = None
 exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "sphinx"
+pygments_style = "default"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
@@ -258,7 +259,25 @@ def generate_example_links():
     with open(write_path, "w") as f:
         f.write(string)
 
+def copy_changelog():
+    """copy the changelog from the root of the repository"""
+
+    path_to_changelog = "../../CHANGELOG.md"
+    filepath = os.path.join(
+        os.path.join(
+            os.path.dirname(__file__), os.path.normpath(path_to_changelog)
+        )
+    )
+    destpath = os.path.join(
+        os.path.join(
+            os.path.dirname(__file__), "changelog.md"
+        )
+    )
+    # copy file to current directory
+    copyfile(filepath, destpath)
+
 
 def setup(app):
     app.add_stylesheet("style.css")  # may also be an URL
     generate_example_links()
+    copy_changelog()

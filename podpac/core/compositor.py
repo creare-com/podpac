@@ -92,7 +92,7 @@ class Compositor(Node):
     @tl.validate("sources")
     def _validate_sources(self, d):
         self.outputs  # check for consistent outputs
-        return [copy.deepcopy(source) for source in d["value"]]
+        return np.array([copy.deepcopy(source) for source in d["value"]])
 
     @tl.default("outputs")
     def _default_outputs(self):
@@ -114,6 +114,8 @@ class Compositor(Node):
                     for output in source.outputs:
                         if output not in outputs:
                             outputs.append(output)
+                if len(outputs) == 0:
+                    outputs = None
                 return outputs
 
         else:

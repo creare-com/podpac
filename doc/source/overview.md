@@ -5,7 +5,7 @@ This document provides a high level overview of the key features of the library.
 
 ![](/_static/img/overview.png)
 
-The goal of PODPAC is to enable the development of portable geospatial data pipelines that can be processed locally or in the cloud. PODPAC provides tools to make generation and distribution of pipeliens intuitive and automatic from concept to application.
+The goal of PODPAC is to enable the development of portable geospatial data pipelines that can be processed locally or in the cloud. PODPAC makes generation and distribution of processing pipelines intuitive and automatic from concept to application.
 
 The [podpac-examples](https://github.com/creare-com/podpac-examples/tree/master/notebooks) repository provides interactive Jupyter Notebooks demonstrating these key features for a deeper dive.
 
@@ -35,7 +35,7 @@ node = podpac.data.CSV(source="data.csv", data_key="column1", lat_key="lat", lon
 node = podpac.data.WCS(source="https://server.org/wcs", layer_name="layer1")
 ```
 
-Load data through external data catalogues and wrapped data sets.
+Load data through external data catalogues or wrapped data sets.
 
 ```python
 import podpac
@@ -87,7 +87,7 @@ import podpac
 nodeA = podpac.data.Rasterio(source="elevation.tif", interpolation="cubic")  
 nodeB = podpac.datalib.TerrainTiles(tile_format='geotiff', zoom=8) 
 
-# take the mean of the two elevation nodes
+# take the mean of the two data sources
 alg_node = podpac.algorithm.Arithmetic(A=nodeA, B=nodeB, eqn='(A * B) / 2')
 ```
 
