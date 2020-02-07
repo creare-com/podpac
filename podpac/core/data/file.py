@@ -587,6 +587,7 @@ class Zarr(DatasetSource):
     secret_access_key = tl.Unicode()
     region_name = tl.Unicode()
     dims = tl.List(allow_none=False)
+    coordinate_index_type = "slice"
 
     @tl.default("dims")
     def _dims_default(self):
