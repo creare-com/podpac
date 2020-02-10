@@ -31,7 +31,7 @@ RUN git clone https://github.com/creare-com/podpac.git /podpac/ &&\
     git checkout $REF && \
     popd
 
-# make a set of files
+# Install core, datatype and aws optional dependencies
 RUN mkdir /tmp/vendored/ && \
     cd /podpac/ && rm -rf .git/ doc/ .github/ && \
     pip3 install . -t /tmp/vendored/ --upgrade && \
@@ -45,7 +45,7 @@ RUN cd /tmp/vendored/ && touch pydap/__init__.py && \
     touch pydap/parsers/__init__.py
 
 # copy handler and _mk_dist:
-RUN cp -r /podpac/dist/aws/handler.py /tmp/vendored/handler.py && \
+RUN cp /podpac/dist/aws/handler.py /tmp/vendored/handler.py && \
     cp /podpac/dist/aws/_mk_dist.py /tmp/vendored/_mk_dist.py
 
 RUN cd /tmp/vendored && \
