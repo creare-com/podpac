@@ -25,11 +25,18 @@ RUN yum -y install \
     && yum clean all
 
 # clone the podpac repository and checkout the requested tag
+# for developers looking to create a custom deployment package or dependencies,
+# comment this block and un-comment the next block
 RUN git clone https://github.com/creare-com/podpac.git /podpac/ &&\
     pushd /podpac/ && \
     git fetch --all && \
     git checkout $REF && \
     popd
+
+# # uncomment this block to create a custom deployment package or dependencies archive
+# # based on your local copy of the PODPAC repository
+# # this command assumes you are building the Dockerfile using `build_lambda.sh` (which runs from the root of the PODPAC repository )
+# ADD . /podpac/
 
 # Install core, datatype and aws optional dependencies
 RUN mkdir /tmp/vendored/ && \

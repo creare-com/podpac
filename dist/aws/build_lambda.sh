@@ -30,3 +30,6 @@ docker cp "${DOCKER_NAME}":/tmp/vendored/podpac_deps.zip ./dist/aws
 docker stop "${DOCKER_NAME}"
 docker rm "${DOCKER_NAME}"
 popd
+
+echo "Built podpac deployment package: podpac_dist.zip"
+echo "Built podpac dependencies: podpac_deps.zip"
