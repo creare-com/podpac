@@ -11,6 +11,8 @@ from copy import deepcopy
 import base64
 from datetime import datetime
 
+from six import string_types
+
 import boto3
 import botocore
 import traitlets as tl
@@ -184,7 +186,7 @@ class Lambda(Node):
     function_source_bucket = tl.Unicode(default_value="podpac-dist", allow_none=True).tag(readonly=True)
     function_source_dist_key = tl.Unicode().tag(readonly=True)  # see default below
     function_source_dependencies_key = tl.Unicode().tag(readonly=True)  # see default below
-    function_allow_unsafe_eval = tl.Bool(default_value=False).tag(readonly=True)
+    function_allow_unsafe_eval = tl.Bool().tag(readonly=True)  # see default below
     function_restrict_pipelines = tl.List(tl.Unicode(), default_value=[]).tag(readonly=True)
     _function_arn = tl.Unicode(default_value=None, allow_none=True)
     _function_last_modified = tl.Unicode(default_value=None, allow_none=True)
@@ -227,6 +229,10 @@ class Lambda(Node):
     @tl.default("function_tags")
     def _function_tags_default(self):
         return settings["AWS_TAGS"] or {}
+
+    @tl.default("function_allow_unsafe_eval")
+    def _function_allow_unsafe_eval_default(self):
+        return isinstance(settings["UNSAFE_EVAL_HASH"], string_types)
 
     # role parameters
     function_role_name = tl.Unicode().tag(readonly=True)  # see default below
