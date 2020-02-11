@@ -565,16 +565,16 @@ class TestToGeoTiff(object):
         # lat/lon order, usual
         node = self.make_square_array(bands=2)
         out = node.eval(node.native_coordinates)
-        with tempfile.NamedTemporaryFile("wb", delete=False) as fp:
+        with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
 
-            # fp.seek(0)
-        rnode = Rasterio(source=fp.name, outputs=node.outputs)
-        assert rnode.native_coordinates == node.native_coordinates
+            fp.seek(0)
+            rnode = Rasterio(source=fp.name, outputs=node.outputs)
+            assert rnode.native_coordinates == node.native_coordinates
 
-        rout = rnode.eval(rnode.native_coordinates)
-        np.testing.assert_almost_equal(rout.data, out.data)
+            rout = rnode.eval(rnode.native_coordinates)
+            np.testing.assert_almost_equal(rout.data, out.data)
 
         # lon/lat order, unsual
         node = self.make_square_array(order=-1, bands=2)
