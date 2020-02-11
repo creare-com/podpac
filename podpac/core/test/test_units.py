@@ -13,7 +13,6 @@ from podpac.core.style import Style
 from podpac.core.units import ureg
 from podpac.core.units import UnitsDataArray
 from podpac.core.units import to_image
-from podpac.core.units import create_dataarray  # DEPRECATED
 
 from podpac.data import Array, Rasterio
 
@@ -444,10 +443,6 @@ class TestCreateDataArray(object):
     def test_invalid_coords(self):
         with pytest.raises(TypeError):
             UnitsDataArray.create((3, 4))
-
-    def test_deprecate_create_dataarray(self):
-        with pytest.deprecated_call():
-            create_dataarray(self.coords, data=10)
 
 
 class TestOpenDataArray(object):
