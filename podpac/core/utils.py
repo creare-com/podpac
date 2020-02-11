@@ -23,6 +23,7 @@ except:  # Python 2.7
 
 import traitlets as tl
 import numpy as np
+import xarray as xr
 import pandas as pd  # Core dependency of xarray
 
 # Optional Imports
@@ -54,7 +55,7 @@ def common_doc(doc_dict):
     return _decorator
 
 
-def trait_is_defined(obj, trait):
+def trait_is_defined(obj, trait_name):
     """Utility method to determine if trait is defined on object without
     call to default (@tl.default)
 
@@ -62,7 +63,7 @@ def trait_is_defined(obj, trait):
     ----------
     object : object
         Class with traits
-    trait : str
+    trait_name : str
         Class property to investigate
 
     Returns
@@ -71,7 +72,16 @@ def trait_is_defined(obj, trait):
         True if the trait exists on the object and is defined
         False if the trait does not exist on the object or the trait is not defined
     """
-    return obj.has_trait(trait) and trait in obj._trait_values
+    return obj.has_trait(trait_name) and trait_name in obj._trait_values
+
+
+def trait_is_default(obj, trait_name):
+    trait = obj.traits()[trait_name]
+    value = getattr(obj, trait_name)
+    if isinstance(trait.default_value, (np.ndarray, xr.DataArray)) or isinstance(value, (np.ndarray, xr.DataArray)):
+        return np.array_equal(value, trait.default_value)
+    else:
+        return value == trait.default_value
 
 
 def create_logfile(

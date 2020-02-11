@@ -22,6 +22,8 @@ from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
 
+# TODO AutoOutputsMixin
+
 
 @common_doc(COMMON_COMPOSITOR_DOC)
 class Compositor(Node):
@@ -29,10 +31,6 @@ class Compositor(Node):
     
     Attributes
     ----------
-    cache_native_coordinates : Bool
-        Default is True. If native_coordinates are requested by the user, it may take a long time to calculate if the
-        Compositor points to many sources. The result is relatively small and is cached by default. Caching may not be
-        desired if the datasource change or is updated.
     interpolation : str, dict, optional
         {interpolation}
     is_source_coordinates_complete : Bool
@@ -81,7 +79,7 @@ class Compositor(Node):
     )
 
     sources = ArrayTrait(ndim=1)
-    cache_native_coordinates = tl.Bool(True)
+    auto_sources = tl.Bool(default_value=False, read_only=True)
     interpolation = interpolation_trait(default_value=None)
     strict_source_outputs = tl.Bool(False)
 
@@ -92,6 +90,7 @@ class Compositor(Node):
     @tl.validate("sources")
     def _validate_sources(self, d):
         self.outputs  # check for consistent outputs
+        # TODO is this copy necessary? Can it be a less deep copy (e.g. that only copies defined traits)
         return [copy.deepcopy(source) for source in d["value"]]
 
     @tl.default("outputs")
@@ -245,7 +244,7 @@ class Compositor(Node):
         # Set the interpolation properties for sources
         if self.interpolation is not None:
             for s in src_subset.ravel():
-                if trait_is_defined(self, "interpolation"):
+                if self.trait_is_defined("interpolation"):
                     s.set_trait("interpolation", self.interpolation)
 
         # Optimization: if coordinates complete and source coords is 1D,
@@ -256,8 +255,9 @@ class Compositor(Node):
         if self.is_source_coordinates_complete and self.source_coordinates.ndim == 1:
             coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
             coords_dim = list(self.source_coordinates.dims)[0]
+            crs = self.source_coordinates.crs
             for s, c in zip(src_subset, coords_subset):
-                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim]), self.shared_coordinates])
+                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim], crs=crs), self.shared_coordinates])
 
                 if trait_is_defined(s, "native_coordinates") is False:
                     s.set_trait("native_coordinates", nc)
@@ -330,7 +330,8 @@ class Compositor(Node):
         {definition_return}
         """
         d = super(Compositor, self).base_definition
-        d["sources"] = self.sources
+        if not self.auto_sources:
+            d["sources"] = self.sources
         d["interpolation"] = self.interpolation
         return d
 

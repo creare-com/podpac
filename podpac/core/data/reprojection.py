@@ -1,6 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from six import string_types
+import logging
 
 import traitlets as tl
 
@@ -9,6 +10,8 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.data.interpolation import interpolation_trait
+
+_logger = logging.getLogger(__name__)
 
 
 class ReprojectedSource(DataSource):
@@ -25,9 +28,7 @@ class ReprojectedSource(DataSource):
         Coordinates where the source node should be evaluated. 
     """
 
-    source = NodeTrait().tag(readonly=True)
-
-    # node attrs
+    source = NodeTrait().tag(attr=True)
     source_interpolation = interpolation_trait().tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
@@ -41,16 +42,23 @@ class ReprojectedSource(DataSource):
         return super(ReprojectedSource, self)._first_init(**kwargs)
 
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
+    @property
+    def native_coordinates(self):
         """{get_native_coordinates}
         """
-        if isinstance(self.source, DataSource):
-            sc = self.source.native_coordinates
-        else:  # Otherwise we cannot guarantee that native_coordinates exist
-            sc = self.reprojected_coordinates
+
+        # cannot guarantee that native_coordinates exist
+        if not isinstance(self.source, DataSource):
+            return self.reprojected_coordinates
+
+        sc = self.source.native_coordinates
         rc = self.reprojected_coordinates
-        coords = [rc[dim] if dim in rc.dims else sc[dim] for dim in sc.dims]
-        return Coordinates(coords)
+        return Coordinates(
+            [
+                rc[dim] if dim in rc.dims else self.source.native_coordinates[dim]
+                for dim in self.source.native_coordinates.dims
+            ]
+        )
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -63,7 +71,7 @@ class ReprojectedSource(DataSource):
             _logger.warning(
                 "ReprojectedSource cannot set the 'source_interpolation'"
                 " since self.source does not have an 'interpolation' "
-                " attribute. \n type(self.source): %s\nself.source: " % (str(type(self.source)), str(self.source))
+                " attribute. \n type(self.source): %s\nself.source: %s" % (str(type(self.source)), str(self.source))
             )
         data = self.source.eval(coordinates)
         if hasattr(self.source, "interpolation") and self.source_interpolation is not None:
@@ -79,11 +87,4 @@ class ReprojectedSource(DataSource):
 
     @property
     def base_ref(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
         return "{}_reprojected".format(self.source.base_ref)

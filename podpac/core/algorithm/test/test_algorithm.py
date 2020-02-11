@@ -229,7 +229,7 @@ class TestAlgorithm(object):
 
         coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
         x = Arange()
-        y = Array(source=np.full(coords.shape, 2), native_coordinates=coords)
+        y = Array(data=np.full(coords.shape, 2), native_coordinates=coords)
         xout = np.arange(6).reshape(3, 2)
 
         # all outputs

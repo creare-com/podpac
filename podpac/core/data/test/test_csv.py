@@ -3,7 +3,7 @@ import os.path
 import pytest
 import numpy as np
 
-from podpac.core.data.file import CSV
+from podpac.core.data.csv_source import CSV
 
 
 class TestCSV(object):
@@ -13,6 +13,7 @@ class TestCSV(object):
     source_single = os.path.join(os.path.dirname(__file__), "assets/points-single.csv")
     source_multiple = os.path.join(os.path.dirname(__file__), "assets/points-multiple.csv")
     source_no_header = os.path.join(os.path.dirname(__file__), "assets/points-no-header.csv")
+    source_one_dim = os.path.join(os.path.dirname(__file__), "assets/points-one-dim.csv")
 
     lat = [0, 1, 1, 1, 1]
     lon = [0, 0, 2, 2, 2]
@@ -30,35 +31,39 @@ class TestCSV(object):
     data = [0, 1, 2, 3, 4]
     other = [10.5, 20.5, 30.5, 40.5, 50.5]
 
-    # def test_init(self):
-    #     node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+    def test_init(self):
+        node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
 
-    # def test_close(self):
-    #     node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
-    #     node.close_dataset()
+    def test_close(self):
+        node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
 
-    # def test_get_dims(self):
-    #     node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
-    #     assert node.dims == ["lat", "lon", "time", "alt"]
+    def test_get_dims(self):
+        node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.dims == ["lat", "lon", "time", "alt"]
 
-    #     node = CSV(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
-    #     assert node.dims == ["lat", "lon", "time", "alt"]
+        node = CSV(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.dims == ["lat", "lon", "time", "alt"]
 
-    # def test_available_keys(self):
-    #     node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
-    #     assert node.available_keys == ["data"]
+    def test_available_data_keys(self):
+        node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.available_data_keys == ["data"]
 
-    #     node = CSV(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
-    #     assert node.available_keys == ["data", "other"]
+        node = CSV(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.available_data_keys == ["data", "other"]
 
-    # def test_native_coordinates(self):
-    #     node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
-    #     nc = node.native_coordinates
-    #     assert nc.dims == ("lat_lon_time_alt",)
-    #     np.testing.assert_array_equal(nc["lat"].coordinates, self.lat)
-    #     np.testing.assert_array_equal(nc["lon"].coordinates, self.lon)
-    #     np.testing.assert_array_equal(nc["time"].coordinates, self.time)
-    #     np.testing.assert_array_equal(nc["alt"].coordinates, self.alt)
+    def test_native_coordinates(self):
+        node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        nc = node.native_coordinates
+        assert nc.dims == ("lat_lon_time_alt",)
+        np.testing.assert_array_equal(nc["lat"].coordinates, self.lat)
+        np.testing.assert_array_equal(nc["lon"].coordinates, self.lon)
+        np.testing.assert_array_equal(nc["time"].coordinates, self.time)
+        np.testing.assert_array_equal(nc["alt"].coordinates, self.alt)
+
+        # one dim (unstacked)
+        node = CSV(source=self.source_one_dim)
+        nc = node.native_coordinates
+        assert nc.dims == ("time",)
 
     def test_get_data(self):
         node = CSV(source=self.source_single, alt_key="altitude", data_key="data", crs="+proj=merc +vunits=m")

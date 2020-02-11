@@ -4,6 +4,7 @@ Array Datasource
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import warnings
 from collections import OrderedDict
 from six import string_types
 
@@ -22,7 +23,7 @@ class Array(DataSource):
     
     Attributes
     ----------
-    source : np.ndarray
+    data : np.ndarray
         Numpy array containing the source data
     native_coordinates : podpac.Coordinates
         The coordinates of the source data
@@ -43,30 +44,27 @@ class Array(DataSource):
     >>> coords = podpac.Coordinates([podpac.clinspace(1, 10, 10, 'time'), 
                                      podpac.clinspace(1, 32, 32, 'lat'),
                                      podpac.clinspace(1, 34, 34, 'lon')])
-    >>> node = podpac.data.Array(source=data, native_coordinates=coords, outputs=['R', 'G', 'B'])
+    >>> node = podpac.data.Array(data=data, native_coordinates=coords, outputs=['R', 'G', 'B'])
     >>> output = node.eval(coords)
     """
 
-    source = ArrayTrait().tag(readonly=True)
-    native_coordinates = tl.Instance(Coordinates, allow_none=False).tag(attr=True)
+    data = ArrayTrait().tag(attr=True)
+    native_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     @tl.default("cache_ctrl")
     def _cache_ctrl_default(self):
         return CacheCtrl([])
 
-    @tl.validate("source")
-    def _validate_source(self, d):
-        a = d["value"]
+    @tl.validate("data")
+    def _validate_data(self, d):
         try:
-            a.astype(float)
+            d["value"].astype(float)
         except:
-            raise ValueError("Array source must be numerical")
-        return a
+            raise ValueError("Array data must be numerical")
+        return d["value"]
 
     def _first_init(self, **kwargs):
-        # If Array is being created from Node.from_definition or Node.from_json, then we have to handle the
-        # native coordinates specifically. This is special. No other DataSource node needs to deserialize
-        # native_coordinates in this way because it is implemented specifically in the node through get_coordinates
+        # If the native_coordinates were supplied explicitly, they may need to be deserialized.
         if isinstance(kwargs.get("native_coordinates"), OrderedDict):
             kwargs["native_coordinates"] = Coordinates.from_definition(kwargs["native_coordinates"])
         elif isinstance(kwargs.get("native_coordinates"), string_types):
@@ -78,6 +76,5 @@ class Array(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        s = coordinates_index
-        d = self.create_output_array(coordinates, data=self.source[s])
+        d = self.create_output_array(coordinates, data=self.data[coordinates_index])
         return d

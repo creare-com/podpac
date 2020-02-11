@@ -469,7 +469,7 @@ class TestSerialization(object):
     @classmethod
     def setup_class(cls):
         a = podpac.algorithm.Arange()
-        b = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
+        b = podpac.data.Array(data=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         c = podpac.compositor.OrderedCompositor(sources=np.array([a, b]))
 
         with warnings.catch_warnings():
@@ -610,23 +610,6 @@ class TestSerialization(object):
         assert isinstance(node2, MyNodeWithNodeAttr)
         assert isinstance(node2.my_node_attr, podpac.algorithm.Arange)
 
-    def test_definition_lookup_source(self):
-        global MyNodeWithNodeSource
-
-        class MyNodeWithNodeSource(podpac.data.DataSource):
-            source = tl.Instance(Node)
-
-        node = MyNodeWithNodeSource(source=podpac.algorithm.Arange())
-        d = node.definition
-        assert isinstance(d, OrderedDict)
-        assert len(d) == 2
-
-        node2 = Node.from_definition(d)
-        assert node2 is not node
-        assert node2.hash == node.hash
-        assert isinstance(node2, MyNodeWithNodeSource)
-        assert isinstance(node2.source, podpac.algorithm.Arange)
-
     def test_json(self):
         # json
         s = self.node.json
@@ -712,7 +695,7 @@ class TestSerialization(object):
 
     def test_style(self):
         node = podpac.data.Array(
-            source=[10, 20, 30],
+            data=[10, 20, 30],
             native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]),
             style=Style(name="test", units="m"),
         )
@@ -729,7 +712,7 @@ class TestSerialization(object):
         assert node2.style.units == "m"
 
         # default style
-        node = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
+        node = podpac.data.Array(data=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         d = node.definition
         assert "style" not in d[node.base_ref]
 
@@ -754,244 +737,6 @@ class TestUserDefinition(object):
         # node does not exist in module
         s = '{"a": {"node": "core.Nonexistent"} }'
         with pytest.raises(ValueError, match="class 'Nonexistent' not found in module"):
-            Node.from_json(s)
-
-    def test_datasource_source(self):
-        # basic
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.DataSource)
-        assert node.source == "my_data_string"
-
-        # not required
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.DataSource)
-
-        # incorrect
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource",
-                "attrs": {
-                    "source": "my_data_string"
-                }
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="DataSource 'attrs' cannot have a 'source' property"):
-            node = Node.from_json(s)
-
-    def test_datasource_lookup_source(self):
-        # sub-node
-        s = """
-        {
-            "a": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "b": {
-                "node": "data.DataSource",
-                "lookup_source": "a.source"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.DataSource)
-        assert node.source == "my_data_string"
-
-        # nonexistent node
-        s = """
-        {
-            "a": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "b": {
-                "node": "data.DataSource",
-                "lookup_source": "nonexistent.source"
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="reference to nonexistent node/attribute"):
-            Node.from_json(s)
-
-        # nonexistent subattr
-        s = """
-        {
-            "a": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "b": {
-                "node": "data.DataSource",
-                "lookup_source": "a.nonexistent"
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="reference to nonexistent node/attribute"):
-            Node.from_json(s)
-
-        # nonexistent subsubattr
-        s = """
-        {
-            "a": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "b": {
-                "node": "data.DataSource",
-                "lookup_source": "a.source.nonexistent"
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="reference to nonexistent node/attribute"):
-            Node.from_json(s)
-
-        # in attrs (incorrect)
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource",
-                "attrs": {
-                    "lookup_source": "my_data_string"
-                }
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="DataSource 'attrs' cannot have a 'lookup_source' property"):
-            Node.from_json(s)
-
-    def test_reprojected_source_lookup_source(self):
-        # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
-
-        # lookup_source
-        s = """
-        {
-            "mysource": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "reprojected": {
-                "node": "data.ReprojectedSource",
-                "lookup_source": "mysource"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.ReprojectedSource)
-        assert isinstance(node.source, podpac.data.DataSource)
-        assert node.source.source == "my_data_string"
-
-        # lookup_source subattr
-        s = """
-        {
-            "mysource": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "mean": {
-                "node": "algorithm.Mean",
-                "inputs": {"source": "mysource"}
-            },
-            "reprojected": {
-                "node": "data.ReprojectedSource",
-                "lookup_source": "mean.source"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.ReprojectedSource)
-        assert isinstance(node.source, podpac.data.DataSource)
-        assert node.source.source == "my_data_string"
-
-        # 'source' should fail
-        s = """
-        {
-            "mysource": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "reprojected": {
-                "node": "data.ReprojectedSource",
-                "source": "mysource"
-            }
-        }
-        """
-
-        with pytest.raises(tl.TraitError):
-            Node.from_json(s)
-
-    def test_array_source(self):
-        s = """
-        {
-            "mysource": {
-                "node": "data.Array",
-                "source": [0, 1, 2]
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.Array)
-        np.testing.assert_array_equal(node.source, [0, 1, 2])
-
-    def test_array_lookup_source(self):
-        s = """
-        {
-            "a": {
-                "node": "data.Array",
-                "source": [0, 1, 2]
-            },
-            "b": {
-                "node": "data.Array",
-                "lookup_source": "a.source"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.Array)
-        np.testing.assert_array_equal(node.source, [0, 1, 2])
-
-        # 'source' should fail
-        s = """
-        {
-            "a": {
-                "node": "data.Array",
-                "source": [0, 1, 2]
-            },
-            "b": {
-                "node": "data.Array",
-                "source": "a.source"
-            }
-        }
-        """
-
-        with pytest.raises(ValueError):
             Node.from_json(s)
 
     def test_algorithm_inputs(self):
@@ -1108,7 +853,6 @@ class TestUserDefinition(object):
         {
             "mydata": {
                 "node": "data.DataSource",
-                "source": "my_data_string",
                 "interpolation": "nearest"
             }
         }

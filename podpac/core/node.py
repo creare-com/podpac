@@ -20,6 +20,7 @@ from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
 from podpac.core.utils import JSONEncoder, is_json_serializable
+from podpac.core.utils import trait_is_defined, trait_is_default
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
@@ -111,15 +112,19 @@ class Node(tl.HasTraits):
     outputs = tl.List(tl.Unicode, allow_none=True).tag(attr=True)
     output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    style = tl.Instance(Style)
+
     dtype = tl.Any(default_value=float)
     cache_output = tl.Bool()
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-    style = tl.Instance(Style)
+
+    # tl.List does not honor default_value
+    outputs.default_value = None
 
     @tl.default("outputs")
     def _default_outputs(self):
-        return None
+        return self.traits()["outputs"].default_value
 
     @tl.validate("output")
     def _validate_output(self, d):
@@ -128,6 +133,15 @@ class Node(tl.HasTraits):
                 raise TypeError("Invalid output '%s' (output must be None for single-output nodes)." % self.output)
             if d["value"] not in self.outputs:
                 raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
+        return d["value"]
+
+    @tl.default("style")
+    def _default_style(self):
+        return Style()
+
+    @tl.validate("units")
+    def _validate_units(self, d):
+        ureg.Unit(d["value"])  # will throw an exception if this is not a valid pint Unit
         return d["value"]
 
     @tl.default("cache_output")
@@ -142,15 +156,6 @@ class Node(tl.HasTraits):
     def _validate_cache_ctrl(self, d):
         if d["value"] is None:
             d["value"] = CacheCtrl([])  # no cache_stores
-        return d["value"]
-
-    @tl.default("style")
-    def _style_default(self):
-        return Style()
-
-    @tl.validate("units")
-    def _validate_units(self, d):
-        ureg.Unit(d["value"])  # will throw an exception if this is not a valid pint Unit
         return d["value"]
 
     # debugging
@@ -174,7 +179,9 @@ class Node(tl.HasTraits):
         #       on subsequent initializations, they will already be read_only.
         with self.hold_trait_notifications():
             for name, trait in self.traits().items():
-                if trait.metadata.get("readonly") or trait.metadata.get("attr"):
+                if settings["DEBUG"]:
+                    trait.read_only = False
+                elif trait.metadata.get("readonly") or trait.metadata.get("attr"):
                     if name in tkwargs:
                         self.set_trait(name, tkwargs.pop(name))
                     trait.read_only = True
@@ -278,6 +285,12 @@ class Node(tl.HasTraits):
 
         return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 
+    def trait_is_defined(self, name):
+        return trait_is_defined(self, name)
+
+    def trait_is_default(self, name):
+        return trait_is_default(self, name)
+
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------
@@ -322,37 +335,31 @@ class Node(tl.HasTraits):
         attrs = {}
         lookup_attrs = {}
 
-        for key, value in self.traits().items():
-            if not value.metadata.get("attr", False):
+        for name, trait in self.traits().items():
+            if not trait.metadata.get("attr", False):
                 continue
 
-            attr = getattr(self, key)
-
-            if key == "units" and attr is None:
+            # default_values are not included in the definition
+            if self.trait_is_default(name):
                 continue
 
-            # check serializable
-            if not is_json_serializable(attr, cls=JSONEncoder):
-                raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
+            value = getattr(self, name)
 
-            if isinstance(attr, Node):
-                lookup_attrs[key] = attr
+            if not is_json_serializable(value, cls=JSONEncoder):
+                raise NodeException("Cannot serialize attr '%s' with type '%s'" % (name, type(value)))
+
+            if isinstance(value, Node):
+                lookup_attrs[name] = value
             else:
-                attrs[key] = attr
+                attrs[name] = value
 
         if attrs:
-            # remove unnecessary attrs
-            if self.outputs is None and "outputs" in attrs:
-                del attrs["outputs"]
-            if self.output is None and "output" in attrs:
-                del attrs["output"]
-
             d["attrs"] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
 
         if lookup_attrs:
             d["lookup_attrs"] = OrderedDict([(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())])
 
-        if self.style.definition:
+        if self.style != Style() and self.style.definition:
             d["style"] = self.style.definition
 
         return d
@@ -379,8 +386,6 @@ class Node(tl.HasTraits):
 
             # get base definition and then replace nodes with references, adding nodes depth first
             d = node.base_definition
-            if "lookup_source" in d:
-                d["lookup_source"] = add_node(d["lookup_source"])
             if "lookup_attrs" in d:
                 for key, attr_node in d["lookup_attrs"].items():
                     d["lookup_attrs"][key] = add_node(attr_node)
@@ -490,7 +495,7 @@ class Node(tl.HasTraits):
             Cached data not found.
         """
 
-        if not self.has_cache(key, coordinates=coordinates):
+        if self.cache_ctrl is None or not self.has_cache(key, coordinates=coordinates):
             raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
@@ -515,6 +520,10 @@ class Node(tl.HasTraits):
         NodeException
             Cached data already exists (and overwrite is False)
         """
+
+        if self.cache_ctrl is None:
+            return
+
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
@@ -537,6 +546,10 @@ class Node(tl.HasTraits):
         bool
             True if there is cached data for this node, key, and coordinates.
         """
+
+        if self.cache_ctrl is None:
+            return False
+
         with thread_manager.cache_lock:
             return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
@@ -559,6 +572,8 @@ class Node(tl.HasTraits):
         ---------
         `podpac.core.cache.cache.CacheCtrl.clear` to remove ALL cache for ALL nodes.
         """
+        if self.cache_ctrl is None:
+            return
         self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
 
     # --------------------------------------------------------#
@@ -625,31 +640,11 @@ class Node(tl.HasTraits):
 
             if DataSource in parents:
                 if "attrs" in d:
-                    if "source" in d["attrs"]:
-                        raise ValueError(
-                            "Invalid definition for node '%s': DataSource 'attrs' cannot have a 'source' property."
-                            % name
-                        )
-
-                    if "lookup_source" in d["attrs"]:
-                        raise ValueError(
-                            "Invalid definition for node '%s': DataSource 'attrs' cannot have a 'lookup_source' property"
-                            % name
-                        )
-
                     if "interpolation" in d["attrs"]:
                         raise ValueError(
                             "Invalid definition for node '%s': DataSource 'attrs' cannot have an 'interpolation' property"
                             % name
                         )
-
-                if "source" in d:
-                    kwargs["source"] = d["source"]
-                    whitelist.append("source")
-
-                elif "lookup_source" in d:
-                    kwargs["source"] = _get_subattr(nodes, name, d["lookup_source"])
-                    whitelist.append("lookup_source")
 
                 if "interpolation" in d:
                     kwargs["interpolation"] = d["interpolation"]

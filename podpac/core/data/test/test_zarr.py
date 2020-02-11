@@ -6,7 +6,7 @@ import numpy as np
 from traitlets import TraitError
 
 from podpac.core.coordinates import Coordinates
-from podpac.core.data.file import Zarr
+from podpac.core.data.zarr_source import Zarr
 
 
 class TestZarr(object):
@@ -17,16 +17,17 @@ class TestZarr(object):
         node.close_dataset()
 
     def test_local_invalid_path(self):
+        node = Zarr(source="/does/not/exist", data_key="a")
         with pytest.raises(ValueError, match="No Zarr store found"):
-            node = Zarr(source="/does/not/exist", data_key="a")
+            node.dataset
 
     def test_dims(self):
         node = Zarr(source=self.path)
         assert node.dims == ["lat", "lon"]
 
-    def test_available_keys(self):
+    def test_available_data_keys(self):
         node = Zarr(source=self.path)
-        assert node.available_keys == ["a", "b"]
+        assert node.available_data_keys == ["a", "b"]
 
     def test_native_coordinates(self):
         node = Zarr(source=self.path, data_key="a")
@@ -79,7 +80,3 @@ class TestZarr(object):
         path = "s3://podpac-internal-test/drought_parameters.zarr"
         node = Zarr(source=path, data_key="d0")
         node.close_dataset()
-
-    def test_used_dataset_directly(self):
-        dataset = zarr.open(self.path, "r")
-        node = Zarr(dataset=dataset, data_key="a")

@@ -1,9 +1,9 @@
-from podpac.core.node import Node
+from podpac import Node
+from podpac.algorithm import Algorithm
+from podpac.data import Zarr
+from podpac.coordinates import ArrayCoordinates1d
 from podpac.core.style import Style
 from podpac.core.utils import NodeTrait
-from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.data.file import Zarr
-from podpac.core.coordinates import ArrayCoordinates1d
 
 
 def drought_style():

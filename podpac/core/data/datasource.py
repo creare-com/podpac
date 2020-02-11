@@ -21,7 +21,7 @@ from podpac.core.settings import settings
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
 from podpac.core.node import Node, NodeException
-from podpac.core.utils import common_doc, trait_is_defined
+from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
 from podpac.core.data.interpolation import Interpolation, interpolation_trait
@@ -150,11 +150,10 @@ class DataSource(Node):
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
 
-    source = tl.Any().tag(readonly=True)
-    native_coordinates = tl.Instance(Coordinates).tag(readonly=True)
     interpolation = interpolation_trait()
-    coordinate_index_type = tl.Enum(["list", "numpy", "xarray", "pandas"], default_value="numpy")
-    nan_vals = tl.List(allow_none=True).tag(attr=True)
+    nan_vals = tl.List().tag(attr=True)
+    nan_vals.default_value = []
+    coordinate_index_type = tl.Enum(["list", "numpy", "xarray", "pandas"], default_value="numpy").tag(readonly=True)
 
     # privates
     _interpolation = tl.Instance(Interpolation)
@@ -165,11 +164,6 @@ class DataSource(Node):
     _requested_source_data = tl.Instance(UnitsDataArray)
     _evaluated_coordinates = tl.Instance(Coordinates)
 
-    # when native_coordinates is not defined, default calls get_native_coordinates
-    @tl.default("native_coordinates")
-    def _default_native_coordinates(self):
-        return self.get_native_coordinates()
-
     # this adds a more helpful error message if user happens to try an inspect _interpolation before evaluate
     @tl.default("_interpolation")
     def _default_interpolation(self):
@@ -179,6 +173,10 @@ class DataSource(Node):
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
+
+    @property
+    def native_coordinates(self):
+        raise NotImplementedError()
 
     @property
     def interpolation_class(self):
@@ -267,9 +265,8 @@ class DataSource(Node):
             udata_array = udata_array.sel(output=self.output)
 
         # fill nan_vals in data array
-        if self.nan_vals:
-            for nan_val in self.nan_vals:
-                udata_array.data[udata_array.data == nan_val] = np.nan
+        for nan_val in self.nan_vals:
+            udata_array.data[udata_array.data == nan_val] = np.nan
 
         return udata_array
 
@@ -449,24 +446,6 @@ class DataSource(Node):
         """
         raise NotImplementedError
 
-    @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
-
-        Raises
-        --------
-        NotImplementedError
-            Raised if get_native_coordinates is not implemented by data source subclass.
-        """
-
-        if trait_is_defined(self, "native_coordinates"):
-            return self.native_coordinates
-        else:
-            raise NotImplementedError(
-                "{0}.native_coordinates is not defined and "
-                "{0}.get_native_coordinates() is not implemented".format(self.__class__.__name__)
-            )
-
     @property
     @common_doc(COMMON_DATA_DOC)
     def base_definition(self):
@@ -481,20 +460,8 @@ class DataSource(Node):
 
         # check attrs and remove unnecesary attrs
         attrs = d.get("attrs", {})
-        if "source" in attrs:
-            raise NodeException("The 'source' property cannot be tagged as an 'attr'")
         if "interpolation" in attrs:
             raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
-        if "nan_vals" in attrs and not self.nan_vals:
-            del attrs["nan_vals"]
-
-        # set source or lookup_source
-        if isinstance(self.source, Node):
-            d["lookup_source"] = self.source
-        elif isinstance(self.source, np.ndarray):
-            d["source"] = self.source.tolist()
-        else:
-            d["source"] = self.source
 
         # assign the interpolation definition
         d["interpolation"] = self.interpolation
@@ -504,25 +471,20 @@ class DataSource(Node):
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
     # ------------------------------------------------------------------------------------------------------------------
+
     def __repr__(self):
-        source_name = str(self.__class__.__name__)
+        rep = []
 
-        rep = "{}".format(source_name)
-        if source_name != "DataSource":
-            rep += " DataSource"
+        if self.__class__.__name__ == "DataSource":
+            rep.append("DataSource")
+        else:
+            rep.append("{} DataSource".format(self.__class__.__name__))
 
-        source_disp = self.source if isinstance(self.source, string_types) else "\n{}".format(self.source)
-        rep += "\n\tsource: {}".format(source_disp)
-        if trait_is_defined(self, "native_coordinates"):
-            rep += "\n\tnative_coordinates: "
-            for c in self.native_coordinates.values():
-                if isinstance(c, Coordinates1d):
-                    rep += "\n\t\t%s: %s" % (c.name, c)
-                elif isinstance(c, StackedCoordinates):
-                    for _c in c:
-                        rep += "\n\t\t%s[%s]: %s" % (c.name, _c.name, _c)
+        # TODO - maybe if cls.native_coordinates is not a proprty or self._native_coordinates is defined
+        # if self.trait_is_defined("native_coordinates"):
+        #     ncrep = 'native_coordinates: %s' % repr(self.native_coordinates)
+        #     rep += ['\t{}'.format(elem) for elem in ncrep.split('\n')]
 
-                # rep += '{}: {}'.format(c.name, c)
-        rep += "\n\tinterpolation: {}".format(self.interpolation)
+        rep.append("\tinterpolation: {}".format(self.interpolation))
 
-        return rep
+        return "\n".join(rep)

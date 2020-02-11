@@ -4,6 +4,8 @@ PyDap DataSource
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import logging
+
 import numpy as np
 import traitlets as tl
 
@@ -21,6 +23,9 @@ lazy_module("pydap.client")
 lazy_module("pydap.model")
 
 
+_logger = logging.getLogger(__name__)
+
+
 @common_doc(COMMON_DATA_DOC)
 class PyDAP(DataSource):
     """Create a DataSource from an OpenDAP server feed.
@@ -33,7 +38,7 @@ class PyDAP(DataSource):
     auth_session : :class:`podpac.authentication.Session`
         Instance of the auth_class. This is created if username and password is supplied, but this object can also be
         supplied directly
-    datakey : str
+    data_key : str
         Pydap 'key' for the data to be retrieved from the server. Datasource may have multiple keys, so this key
         determines which variable is returned from the source.
     dataset : pydap.model.DatasetType
@@ -50,14 +55,13 @@ class PyDAP(DataSource):
         auth_session instead if you have security concerns.
     """
 
-    source = tl.Unicode().tag(readonly=True)
+    source = tl.Unicode().tag(attr=True)
+    data_key = tl.Unicode().tag(attr=True)
+
     dataset = tl.Instance("pydap.model.DatasetType").tag(readonly=True)
 
-    # node attrs
-    datakey = tl.Unicode().tag(attr=True)
-
     # optional inputs
-    auth_class = tl.Type(authentication.Session)
+    auth_class = tl.Type(default_value=authentication.Session)
     auth_session = tl.Instance(authentication.Session, allow_none=True)
     username = tl.Unicode(default_value=None, allow_none=True)
     password = tl.Unicode(default_value=None, allow_none=True)
@@ -69,12 +73,7 @@ class PyDAP(DataSource):
         if not self.username or not self.password:
             return None
 
-        # requires auth_class
-        # TODO: default auth_class?
-        if not self.auth_class:
-            return None
-
-        # instantiate and check utl
+        # instantiate and check url
         try:
             session = self.auth_class(username=self.username, password=self.password)
             session.get(self.source + ".dds")
@@ -84,43 +83,34 @@ class PyDAP(DataSource):
 
         return session
 
-    @tl.default("dataset")
-    def _open_dataset(self):
-        """Summary
-        
-        Parameters
-        ----------
-        source : str, optional
-            Description
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
-
-        # auth session
-        # if self.auth_session:
-        try:
-            dataset = self._open_url()
-        except Exception:
-            # TODO handle a 403 error
-            # TODO: Check Url (probably inefficient...)
+    @property
+    def dataset(self):
+        if not hasattr(self, "_dataset"):
+            # auth session
+            # if self.auth_session:
             try:
-                self.auth_session.get(self.source + ".dds")
                 dataset = self._open_url()
             except Exception:
-                # TODO: handle 403 error
-                print("Warning, dataset could not be opened. Check login credentials.")
-                dataset = None
+                # TODO handle a 403 error
+                # TODO: Check Url (probably inefficient...)
+                try:
+                    self.auth_session.get(self.source + ".dds")
+                    dataset = self._open_url()
+                except Exception:
+                    # TODO: handle 403 error
+                    _logger.exception("Error opening PyDap url '%s'" % self.source)
+                    raise RuntimeError("Could not open PyDap url '%s'.\nCheck login credentials." % self.source)
 
-        return dataset
+            self._dataset = dataset
+
+        return self._dataset
 
     def _open_url(self):
         return pydap.client.open_url(self.source, session=self.auth_session)
 
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
+    @property
+    def native_coordinates(self):
         """{get_native_coordinates}
         
         Raises
@@ -138,7 +128,7 @@ class PyDAP(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.dataset[self.datakey][tuple(coordinates_index)]
+        data = self.dataset[self.data_key][tuple(coordinates_index)]
         # PyDAP 3.2.1 gives a numpy array for the above, whereas 3.2.2 needs the .data attribute to get a numpy array
         if not isinstance(data, np.ndarray) and hasattr(data, "data"):
             data = data.data
@@ -152,6 +142,6 @@ class PyDAP(DataSource):
         Returns
         -------
         List
-            The list of available keys from the OpenDAP dataset. Any of these keys can be set as self.datakey
+            The list of available keys from the OpenDAP dataset. Any of these keys can be set as self.data_key
         """
         return self.dataset.keys()

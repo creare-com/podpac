@@ -14,15 +14,15 @@ COORDS = podpac.Coordinates(
 )
 LON, LAT, TIME = np.meshgrid(COORDS["lon"].coordinates, COORDS["lat"].coordinates, COORDS["time"].coordinates)
 
-ARRAY_LAT = Array(source=LAT.astype(float), native_coordinates=COORDS, interpolation="bilinear")
-ARRAY_LON = Array(source=LON.astype(float), native_coordinates=COORDS, interpolation="bilinear")
-ARRAY_TIME = Array(source=TIME.astype(float), native_coordinates=COORDS, interpolation="bilinear")
+ARRAY_LAT = Array(data=LAT.astype(float), native_coordinates=COORDS, interpolation="bilinear")
+ARRAY_LON = Array(data=LON.astype(float), native_coordinates=COORDS, interpolation="bilinear")
+ARRAY_TIME = Array(data=TIME.astype(float), native_coordinates=COORDS, interpolation="bilinear")
 
-MULTI_0_XY = Array(source=np.full(COORDS.shape + (2,), 0), native_coordinates=COORDS, outputs=["x", "y"])
-MULTI_1_XY = Array(source=np.full(COORDS.shape + (2,), 1), native_coordinates=COORDS, outputs=["x", "y"])
-MULTI_4_YX = Array(source=np.full(COORDS.shape + (2,), 4), native_coordinates=COORDS, outputs=["y", "x"])
-MULTI_2_X = Array(source=np.full(COORDS.shape + (1,), 2), native_coordinates=COORDS, outputs=["x"])
-MULTI_3_Z = Array(source=np.full(COORDS.shape + (1,), 3), native_coordinates=COORDS, outputs=["z"])
+MULTI_0_XY = Array(data=np.full(COORDS.shape + (2,), 0), native_coordinates=COORDS, outputs=["x", "y"])
+MULTI_1_XY = Array(data=np.full(COORDS.shape + (2,), 1), native_coordinates=COORDS, outputs=["x", "y"])
+MULTI_4_YX = Array(data=np.full(COORDS.shape + (2,), 4), native_coordinates=COORDS, outputs=["y", "x"])
+MULTI_2_X = Array(data=np.full(COORDS.shape + (1,), 2), native_coordinates=COORDS, outputs=["x"])
+MULTI_3_Z = Array(data=np.full(COORDS.shape + (1,), 3), native_coordinates=COORDS, outputs=["z"])
 
 
 class TestCompositor(object):
@@ -256,12 +256,12 @@ class TestOrderedCompositor(object):
             acoords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
             asource = np.ones(acoords.shape)
             asource[0, :] = np.nan
-            a = Array(source=asource, native_coordinates=acoords)
+            a = Array(data=asource, native_coordinates=acoords)
 
             bcoords = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=["lat", "lon"])
             bsource = np.zeros(bcoords.shape)
             bsource[:, 0] = np.nan
-            b = Array(source=bsource, native_coordinates=bcoords)
+            b = Array(data=bsource, native_coordinates=bcoords)
 
             coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40, 50]], dims=["lat", "lon"])
 
@@ -285,12 +285,12 @@ class TestOrderedCompositor(object):
             acoords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
             asource = np.ones(acoords.shape)
             asource[0, :] = np.nan
-            a = Array(source=asource, native_coordinates=acoords)
+            a = Array(data=asource, native_coordinates=acoords)
 
             bcoords = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=["lat", "lon"])
             bsource = np.zeros(bcoords.shape)
             bsource[:, 0] = np.nan
-            b = Array(source=bsource, native_coordinates=bcoords)
+            b = Array(data=bsource, native_coordinates=bcoords)
 
             coords = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40, 50]], dims=["lat", "lon"])
 
@@ -312,11 +312,11 @@ class TestOrderedCompositor(object):
             podpac.settings["DEBUG"] = True
 
             coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
-            a = Array(source=np.ones(coords.shape), native_coordinates=coords)
-            b = Array(source=np.zeros(coords.shape), native_coordinates=coords)
+            a = Array(data=np.ones(coords.shape), native_coordinates=coords)
+            b = Array(data=np.zeros(coords.shape), native_coordinates=coords)
             node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
             output = node.eval(coords)
-            np.testing.assert_array_equal(output, a.source)
+            np.testing.assert_array_equal(output, a.data)
             assert node.sources[0]._output is not None
             assert node.sources[1]._output is None
 
@@ -328,23 +328,23 @@ class TestOrderedCompositor(object):
 
             coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
             n_threads_before = podpac.core.managers.multi_threading.thread_manager._n_threads_used
-            a = Array(source=np.ones(coords.shape), native_coordinates=coords)
-            b = Array(source=np.zeros(coords.shape), native_coordinates=coords)
+            a = Array(data=np.ones(coords.shape), native_coordinates=coords)
+            b = Array(data=np.zeros(coords.shape), native_coordinates=coords)
             node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
             output = node.eval(coords)
-            np.testing.assert_array_equal(output, a.source)
+            np.testing.assert_array_equal(output, a.data)
             assert node._multi_threaded == True
             assert podpac.core.managers.multi_threading.thread_manager._n_threads_used == n_threads_before
 
     def test_composite_into_result(self):
         coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
-        a = Array(source=np.ones(coords.shape), native_coordinates=coords)
-        b = Array(source=np.zeros(coords.shape), native_coordinates=coords)
+        a = Array(data=np.ones(coords.shape), native_coordinates=coords)
+        b = Array(data=np.zeros(coords.shape), native_coordinates=coords)
         node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
         result = node.create_output_array(coords, data=np.random.random(coords.shape))
         output = node.eval(coords, output=result)
-        np.testing.assert_array_equal(output, a.source)
-        np.testing.assert_array_equal(result, a.source)
+        np.testing.assert_array_equal(output, a.data)
+        np.testing.assert_array_equal(result, a.data)
 
     def test_composite_multiple_outputs(self):
         node = OrderedCompositor(sources=[MULTI_0_XY, MULTI_1_XY])
@@ -388,8 +388,8 @@ class TestOrderedCompositor(object):
     def test_composite_stacked_unstacked(self):
         anative = podpac.Coordinates([podpac.clinspace((0, 1), (1, 2), size=3)], dims=["lat_lon"])
         bnative = podpac.Coordinates([podpac.clinspace(-2, 3, 3), podpac.clinspace(-1, 4, 3)], dims=["lat", "lon"])
-        a = Array(source=np.random.rand(3), native_coordinates=anative)
-        b = Array(source=np.random.rand(3, 3) + 2, native_coordinates=bnative)
+        a = Array(data=np.random.rand(3), native_coordinates=anative)
+        b = Array(data=np.random.rand(3, 3) + 2, native_coordinates=bnative)
 
         coords = podpac.Coordinates([podpac.clinspace(-3, 4, 32), podpac.clinspace(-2, 5, 32)], dims=["lat", "lon"])
 

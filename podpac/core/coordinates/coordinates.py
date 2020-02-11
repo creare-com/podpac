@@ -63,10 +63,11 @@ class Coordinates(tl.HasTraits):
     """
 
     crs = tl.Unicode(read_only=True, allow_none=True)
+    crs_desc = tl.Unicode(allow_none=True)
 
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
 
-    def __init__(self, coords, dims=None, crs=None, ctype=None):
+    def __init__(self, coords, dims=None, crs=None, crs_desc=None, ctype=None):
         """
         Create multidimensional coordinates.
 
@@ -85,7 +86,9 @@ class Coordinates(tl.HasTraits):
              * 'lat', 'lon', 'alt', or 'time' for unstacked coordinates
              * dimension names joined by an underscore for stacked coordinates
         crs : str, optional
-            Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org).
+            Coordinate reference system. Supports PROJ4 and WKT.
+        crs_desc : str, optional
+            Abbreviated display description for the crs.
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
         """
@@ -139,7 +142,7 @@ class Coordinates(tl.HasTraits):
         self.set_trait("_coords", dcoords)
         if crs is not None:
             self.set_trait("crs", crs)
-        super(Coordinates, self).__init__()
+        super(Coordinates, self).__init__(crs_desc=crs_desc)
 
     @tl.validate("_coords")
     def _validate_coords(self, d):
@@ -173,10 +176,6 @@ class Coordinates(tl.HasTraits):
             raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
 
         return val
-
-    @tl.observe("crs")
-    def _observe_crs(self, d):
-        crs = d["new"]
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors
@@ -1281,7 +1280,9 @@ class Coordinates(tl.HasTraits):
 
     def __repr__(self):
         rep = str(self.__class__.__name__)
-        if self.crs:
+        if self.crs_desc:
+            rep += " ({})".format(self.crs_desc)
+        elif self.crs:
             rep += " ({})".format(self.crs)
         for c in self._coords.values():
             if isinstance(c, Coordinates1d):

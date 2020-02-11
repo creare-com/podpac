@@ -482,7 +482,7 @@ class TestOpenDataArray(object):
         lat = np.linspace(-10, 10, 5)
         lon = np.linspace(-10, 10, 5)
         native_coords = Coordinates([lat, lon], ["lat", "lon"])
-        node = Array(source=data, native_coordinates=native_coords)
+        node = Array(data=data, native_coordinates=native_coords)
         uda = node.eval(node.native_coordinates)
 
         ncdf = uda.to_netcdf()
