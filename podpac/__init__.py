@@ -53,7 +53,6 @@ from podpac import data
 from podpac import interpolators
 from podpac import coordinates
 from podpac import compositor
-from podpac import pipeline
 from podpac import managers
 from podpac import utils
 

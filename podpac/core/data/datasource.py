@@ -151,9 +151,9 @@ class DataSource(Node):
     """
 
     interpolation = interpolation_trait()
+    coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
     nan_vals = tl.List().tag(attr=True)
     nan_vals.default_value = []
-    coordinate_index_type = tl.Enum(["list", "numpy", "xarray", "pandas"], default_value="numpy").tag(readonly=True)
 
     # privates
     _interpolation = tl.Instance(Interpolation)
@@ -308,7 +308,7 @@ class DataSource(Node):
 
         log.debug("Evaluating {} data source".format(self.__class__.__name__))
 
-        if self.coordinate_index_type != "numpy":
+        if self.coordinate_index_type not in ["slice", "numpy"]:
             warnings.warn(
                 "Coordinates index type {} is not yet supported.".format(self.coordinate_index_type)
                 + "`coordinate_index_type` is set to `numpy`",
@@ -374,6 +374,27 @@ class DataSource(Node):
         ) = self._interpolation.select_coordinates(
             self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
         )
+
+        # Check the coordinate_index_type
+        if self.coordinate_index_type == "slice":  # Most restrictive
+            new_rsci = []
+            for rsci in self._requested_source_coordinates_index:
+                if isinstance(rsci, slice):
+                    new_rsci.append(rsci)
+                    continue
+
+                if len(rsci) > 1:
+                    mx, mn = np.max(rsci), np.min(rsci)
+                    df = np.diff(rsci)
+                    if np.all(df == df[0]):
+                        step = df[0]
+                    else:
+                        step = 1
+                    new_rsci.append(slice(mn, mx + 1, step))
+                else:
+                    new_rsci.append(slice(np.max(rsci), np.max(rsci) + 1))
+
+            self._requested_source_coordinates_index = tuple(new_rsci)
 
         # get data from data source
         self._requested_source_data = self._get_data()

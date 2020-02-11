@@ -45,6 +45,7 @@ class Zarr(FileKeysMixin, BaseFileSource):
     """
 
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
+    coordinate_index_type = "slice"
 
     # s3 credentials
     # TODO factor out

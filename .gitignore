@@ -22,7 +22,8 @@ settings.json
 
 # docs
 doc/build
-doc/source/user/api
+doc/source/api
 doc/source/example-links.inc
+doc/source/changelog.md
 .pytest_cache/
 build/

@@ -282,6 +282,10 @@ class Node(tl.HasTraits):
         attrs["crs"] = coords.crs
         if self.units is not None:
             attrs["units"] = ureg.Unit(self.units)
+        try:
+            attrs["geotransform"] = coords.geotransform
+        except (TypeError, AttributeError):
+            pass
 
         return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 
@@ -418,13 +422,6 @@ class Node(tl.HasTraits):
         add_node(self)
 
         return OrderedDict(zip(refs, definitions))
-
-    @property
-    def pipeline(self):
-        """Deprecated. See Node.definition and Node.from_definition."""
-        from podpac.core.pipeline import Pipeline
-
-        return Pipeline(definition=OrderedDict({"nodes": self.definition}))
 
     @property
     def json(self):

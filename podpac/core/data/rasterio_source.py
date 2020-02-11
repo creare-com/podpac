@@ -2,9 +2,10 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 from collections import OrderedDict
 
+from six import string_types
 import traitlets as tl
 import numpy as np
-from six import string_types
+import pyproj
 
 from lazy_import import lazy_module, lazy_class
 
@@ -29,11 +30,25 @@ class Rasterio(LoadFileMixin, BaseFileSource):
     native_coordinates : :class:`podpac.Coordinates`
         {native_coordinates}
     band : int
-        The 'band' or index for the variable being accessed in files such as GeoTIFFs
+        The 'band' or index for the variable being accessed in files such as GeoTIFFs. Use None for all bounds.
+     crs : str, optional
+        The coordinate reference system. Normally this will come directly from the file, but this allows users to
+        specify the crs in case this information is missing from the file.
     """
 
     # dataset = tl.Instance(rasterio.DatasetReader).tag(readonly=True)
-    band = tl.CInt(default_value=1).tag(attr=True)
+    band = tl.CInt(allow_none=True).tag(attr=True)
+    crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+
+    @tl.default("band")
+    def _band_default(self):
+        if (self.outputs is not None) and (self.output is not None):
+            band = self.outputs.index(self.output)
+        elif self.outputs is None:
+            band = 1
+        else:
+            band = None  # All bands
+        return band
 
     # -------------------------------------------------------------------------
     # public api methods
@@ -64,25 +79,21 @@ class Rasterio(LoadFileMixin, BaseFileSource):
 
         # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
-        if affine[1] != 0.0 or affine[3] != 0.0:
-            raise NotImplementedError("Rotated coordinates are not yet supported")
 
-        if isinstance(self.dataset.crs, rasterio.crs.CRS):
-            crs = self.dataset.crs.wkt
+        if self.crs is not None:
+            crs = self.crs
+        elif isinstance(self.dataset.crs, rasterio.crs.CRS):
+            # crs = self.dataset.crs.wkt
+            crs = self.dataset.crs["init"].upper()
         elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
         else:
             try:
                 crs = pyproj.CRS(self.dataset.crs).to_wkt()
-            except:
+            except pyproj.exceptions.CRSError:
                 raise RuntimeError("Unexpected rasterio crs '%s'" % self.dataset.crs)
 
-        # get ul and lr pixel centers
-        left, top = self.dataset.xy(0, 0)
-        right, bottom = self.dataset.xy(self.dataset.width - 1, self.dataset.height - 1)
-        lat = UniformCoordinates1d(bottom, top, size=self.dataset.height, name="lat")
-        lon = UniformCoordinates1d(left, right, size=self.dataset.width, name="lon")
-        return Coordinates([lat, lon], dims=["lat", "lon"], crs=crs)
+        return Coordinates.from_geotransform(affine.to_gdal(), self.dataset.shape, crs)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -93,7 +104,12 @@ class Rasterio(LoadFileMixin, BaseFileSource):
 
         # read data within coordinates_index window
         window = ((slc[0].start, slc[0].stop), (slc[1].start, slc[1].stop))
-        raster_data = self.dataset.read(self.band, out_shape=coordinates.shape, window=window)
+
+        if self.outputs is not None:  # read all the bands
+            raster_data = self.dataset.read(out_shape=(len(self.outputs),) + tuple(coordinates.shape), window=window)
+            raster_data = np.moveaxis(raster_data, 0, 2)
+        else:  # read the requested band
+            raster_data = self.dataset.read(self.band, out_shape=tuple(coordinates.shape), window=window)
 
         # set raster data to output array
         data.data.ravel()[:] = raster_data.ravel()
