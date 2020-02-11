@@ -59,8 +59,9 @@ class Rasterio(LoadFileMixin, BaseFileSource):
         return list(self.dataset.nodatavals)
 
     def open_dataset(self, fp):
-        with rasterio.MemoryFile(fp.read()) as mf:
-            return mf.open()
+        with rasterio.MemoryFile() as mf:
+            mf.write(fp.read())
+            return mf.open(driver="GTiff")
 
     def close_dataset(self):
         """Closes the file for the datasource
