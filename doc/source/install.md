@@ -15,8 +15,7 @@ Select the installation method the best suits your development environment:
 
 Confirm you have the required dependencies installed on your computer:
 
-- [Python](https://www.python.org/) (3.6 or later)
-    - We recommend the [Anaconda Python Distribution](https://www.anaconda.com/distribution/#download-section)
+- [Python](https://www.python.org/) (3.6 or later) &mdash; [Anaconda Python Distribution](https://www.anaconda.com/distribution/#download-section) recommended
 - See [operating system requirements](dependencies.html#os-specific-requirements)
 
 ### Environment
