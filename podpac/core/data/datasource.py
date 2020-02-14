@@ -24,7 +24,7 @@ from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
 from podpac.core.node import node_eval
-from podpac.core.data.interpolation import Interpolation, interpolation_trait
+from podpac.core.interpolation.interpolation import Interpolation, InterpolationTrait
 
 log = logging.getLogger(__name__)
 
@@ -150,10 +150,11 @@ class DataSource(Node):
     Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
     """
 
-    interpolation = interpolation_trait()
-    coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
+    interpolation = InterpolationTrait().tag(attr=True)
     nan_vals = tl.List().tag(attr=True)
     nan_vals.default_value = []
+
+    coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
 
     # privates
     _interpolation = tl.Instance(Interpolation)
@@ -466,28 +467,6 @@ class DataSource(Node):
             This needs to be implemented by derived classes
         """
         raise NotImplementedError
-
-    @property
-    @common_doc(COMMON_DATA_DOC)
-    def base_definition(self):
-        """Base node definition for DataSource nodes.
-        
-        Returns
-        -------
-        {definition_return}
-        """
-
-        d = super(DataSource, self).base_definition
-
-        # check attrs and remove unnecesary attrs
-        attrs = d.get("attrs", {})
-        if "interpolation" in attrs:
-            raise NodeException("The 'interpolation' property cannot be tagged as an 'attr'")
-
-        # assign the interpolation definition
-        d["interpolation"] = self.interpolation
-
-        return d
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods

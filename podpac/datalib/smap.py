@@ -656,15 +656,11 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         """
         return "/".join([self.base_url, "%s.%03d" % (self.product, self.version), self.folder_date])
 
-    @tl.default("sources")
-    def sources_default(self):
-        """SMAPSource objects pointing to URLs of specific SMAP files in the folder
+    # TODO caching
+    @property
+    def sources(self):
+        """SMAPSource objects pointing to URLs of specific SMAP files in the folder"""
 
-        Returns
-        -------
-        np.ndarray(dtype=object(SMAPSource))
-            Array of SMAPSource instances tied to specific SMAP files
-        """
         # Swapped the try and except blocks. SMAP filenames may change version numbers, which causes cached source to
         # break. Hence, try to get the new source everytime, unless data is offline, in which case rely on the cache.
         try:
@@ -820,14 +816,6 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
         """
         return self.sources[0].keys
 
-    @property
-    def base_definition(self):
-        """ Definition for SMAP node. Sources not required as these are computed.
-        """
-        d = super(podpac.compositor.Compositor, self).base_definition
-        d["interpolation"] = self.interpolation
-        return d
-
 
 @common_doc(COMMON_DOC)
 class SMAP(podpac.compositor.OrderedCompositor):
@@ -909,15 +897,11 @@ class SMAP(podpac.compositor.OrderedCompositor):
         """
         return "%s.%03d" % (self.product, self.version)
 
-    @tl.default("sources")
-    def sources_default(self):
-        """SMAPDateFolder objects pointing to specific SMAP folders
+    # TODO caching
+    @property
+    def sources(self):
+        """SMAPDateFolder objects pointing to specific SMAP folders"""
 
-        Returns
-        -------
-        np.ndarray(dtype=object(SMAPDateFolder))
-            Array of SMAPDateFolder instances tied to specific SMAP folders
-        """
         dates = self.get_available_times_dates()[1]
         src_objs = np.array(
             [
@@ -1177,14 +1161,6 @@ class SMAP(podpac.compositor.OrderedCompositor):
         return "{0}_{1}".format(self.__class__.__name__, self.product)
 
     @property
-    def base_definition(self):
-        """ Definition for SMAP node. Sources not required as these are computed.
-        """
-        d = super(podpac.compositor.Compositor, self).base_definition
-        d["interpolation"] = self.interpolation
-        return d
-
-    @property
     @common_doc(COMMON_DOC)
     def keys(self):
         """{keys}
@@ -1196,15 +1172,11 @@ class SMAPBestAvailable(podpac.compositor.OrderedCompositor):
     """Compositor of SMAP-Sentinel and the Level 4 SMAP Analysis Update soil moisture
     """
 
-    @tl.default("sources")
-    def sources_default(self):
-        """Orders the compositor of SPL2SMAP_S in front of SPL4SMAU
+    # TODO property
+    @property
+    def sources(self):
+        """Orders the compositor of SPL2SMAP_S in front of SPL4SMAU. """
 
-        Returns
-        -------
-        np.ndarray(dtype=object(SMAP))
-            Array of SMAP product sources
-        """
         src_objs = np.array(
             [
                 SMAP(interpolation=self.interpolation, product="SPL2SMAP_S"),

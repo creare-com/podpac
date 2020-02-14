@@ -17,7 +17,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.data.rasterio_source import rasterio
 from podpac.core.data.datasource import DataSource
-from podpac.core.data.interpolation import (
+from podpac.core.interpolation.interpolation import (
     Interpolation,
     InterpolationException,
     INTERPOLATORS,
@@ -27,8 +27,8 @@ from podpac.core.data.interpolation import (
     INTERPOLATION_METHODS_DICT,
 )
 
-from podpac.core.data.interpolator import Interpolator, InterpolatorException
-from podpac.core.data.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyGrid, ScipyPoint
+from podpac.core.interpolation.interpolator import Interpolator, InterpolatorException
+from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyGrid, ScipyPoint
 
 
 class MockArrayDataSource(DataSource):
@@ -468,8 +468,11 @@ class TestInterpolators(object):
                 # TODO: implement stacked handling
                 source = np.random.rand(5)
                 coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
-                node = MockArrayDataSource(data=source, native_coordinates=coords_src)
-                node.interpolation = {"method": "nearest", "interpolators": [NearestNeighbor]}
+                node = MockArrayDataSource(
+                    data=source,
+                    native_coordinates=coords_src,
+                    interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+                )
                 coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
                 with pytest.raises(InterpolationException):
@@ -479,8 +482,11 @@ class TestInterpolators(object):
                 # source = stacked, dest = unstacked
                 source = np.random.rand(5)
                 coords_src = Coordinates([(np.linspace(0, 10, 5), np.linspace(0, 10, 5))], dims=["lat_lon"])
-                node = MockArrayDataSource(data=source, native_coordinates=coords_src)
-                node.interpolation = {"method": "nearest", "interpolators": [NearestNeighbor]}
+                node = MockArrayDataSource(
+                    data=source,
+                    native_coordinates=coords_src,
+                    interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+                )
                 coords_dst = Coordinates([np.linspace(1, 9, 3), np.linspace(1, 9, 3)], dims=["lat", "lon"])
 
                 with pytest.raises(InterpolationException):
@@ -490,8 +496,11 @@ class TestInterpolators(object):
                 # source = unstacked, dest = stacked
                 source = np.random.rand(5, 5)
                 coords_src = Coordinates([np.linspace(0, 10, 5), np.linspace(0, 10, 5)], dims=["lat", "lon"])
-                node = MockArrayDataSource(data=source, native_coordinates=coords_src)
-                node.interpolation = {"method": "nearest", "interpolators": [NearestNeighbor]}
+                node = MockArrayDataSource(
+                    data=source,
+                    native_coordinates=coords_src,
+                    interpolation={"method": "nearest", "interpolators": [NearestNeighbor]},
+                )
                 coords_dst = Coordinates([(np.linspace(1, 9, 3), np.linspace(1, 9, 3))], dims=["lat_lon"])
 
                 with pytest.raises(InterpolationException):
@@ -564,8 +573,9 @@ class TestInterpolators(object):
             coords_dst = Coordinates([clinspace(1, 11, 3), clinspace(1, 11, 5)], dims=["lat", "lon"])
 
             # try one specific rasterio case to measure output
-            node = MockArrayDataSource(data=source, native_coordinates=coords_src)
-            node.interpolation = {"method": "min", "interpolators": [Rasterio]}
+            node = MockArrayDataSource(
+                data=source, native_coordinates=coords_src, interpolation={"method": "min", "interpolators": [Rasterio]}
+            )
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
@@ -573,14 +583,20 @@ class TestInterpolators(object):
             assert output.data[0, 3] == 3.0
             assert output.data[0, 4] == 4.0
 
-            node.interpolation = {"method": "max", "interpolators": [Rasterio]}
+            node = MockArrayDataSource(
+                data=source, native_coordinates=coords_src, interpolation={"method": "max", "interpolators": [Rasterio]}
+            )
             output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
             assert output.data[0, 3] == 9.0
             assert output.data[0, 4] == 9.0
 
-            node.interpolation = {"method": "bilinear", "interpolators": [Rasterio]}
+            node = MockArrayDataSource(
+                data=source,
+                native_coordinates=coords_src,
+                interpolation={"method": "bilinear", "interpolators": [Rasterio]},
+            )
             output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
@@ -617,8 +633,11 @@ class TestInterpolators(object):
             coords_dst = Coordinates([clinspace(1, 11, 5), clinspace(1, 11, 5)], dims=["lat", "lon"])
 
             # try one specific rasterio case to measure output
-            node = MockArrayDataSource(data=source, native_coordinates=coords_src)
-            node.interpolation = {"method": "nearest", "interpolators": [ScipyGrid]}
+            node = MockArrayDataSource(
+                data=source,
+                native_coordinates=coords_src,
+                interpolation={"method": "nearest", "interpolators": [ScipyGrid]},
+            )
             output = node.eval(coords_dst)
 
             assert isinstance(output, UnitsDataArray)
@@ -629,14 +648,22 @@ class TestInterpolators(object):
             assert output.data[1, 3] == 8.0
             assert np.isnan(output.data[0, 4])  # TODO: how to handle outside bounds
 
-            node.interpolation = {"method": "cubic_spline", "interpolators": [ScipyGrid]}
+            node = MockArrayDataSource(
+                data=source,
+                native_coordinates=coords_src,
+                interpolation={"method": "cubic_spline", "interpolators": [ScipyGrid]},
+            )
             output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
             assert int(output.data[0, 0]) == 2
             assert int(output.data[2, 4]) == 16
 
-            node.interpolation = {"method": "bilinear", "interpolators": [ScipyGrid]}
+            node = MockArrayDataSource(
+                data=source,
+                native_coordinates=coords_src,
+                interpolation={"method": "bilinear", "interpolators": [ScipyGrid]},
+            )
             output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])

@@ -30,15 +30,7 @@ class BaseAlgorithm(Node):
 
     @property
     def _inputs(self):
-        # this first version is nicer, but the gettattr(self, ref) can take a
-        # a long time if it is has a default value or is a property
-
-        # return = {
-        #     ref:getattr(self, ref)
-        #     for ref in self.trait_names()
-        #     if isinstance(getattr(self, ref, None), Node)
-        # }
-
+        # gettattr(self, ref) can take a long time, so we inspect trait.klass instead
         return {
             ref: getattr(self, ref)
             for ref, trait in self.traits().items()

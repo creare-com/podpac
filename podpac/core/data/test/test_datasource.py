@@ -15,9 +15,9 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, NodeException
 from podpac.core.style import Style
 from podpac.core.coordinates import Coordinates, clinspace, crange
+from podpac.core.interpolation.interpolation import Interpolation
+from podpac.core.interpolation.interpolator import Interpolator
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
-from podpac.core.data.interpolation import Interpolation
-from podpac.core.data.interpolator import Interpolator
 
 
 class MockDataSource(DataSource):
@@ -86,13 +86,17 @@ class TestDataSource(object):
     def test_base_definition(self):
         """Test definition property method"""
 
-        # TODO: add interpolation definition testing
-
         node = DataSource()
         d = node.base_definition
         assert d
         assert "node" in d
-        assert "interpolation" in d
+
+        # interpolation attribute
+        node = DataSource(interpolation="bilinear")
+        d = node.base_definition
+        assert d
+        assert "attrs" in d
+        assert "interpolation" in d["attrs"]
 
     def test_repr(self):
         node = DataSource()

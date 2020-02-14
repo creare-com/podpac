@@ -44,7 +44,7 @@ import numpy as np
 from podpac.data import Rasterio
 from podpac.compositor import OrderedCompositor
 from podpac.interpolators import Rasterio as RasterioInterpolator, ScipyGrid, ScipyPoint
-from podpac.data import interpolation_trait
+from podpac.data import InterpolationTrait
 
 from lazy_import import lazy_module
 
@@ -81,9 +81,9 @@ class TerrainTilesSource(Rasterio):
     source = tl.Unicode().tag(readonly=True)
 
     # attributes
-    interpolation = interpolation_trait(
+    interpolation = InterpolationTrait(
         default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
-    ).tag(readonly=True)
+    ).tag(attr=True)
 
     @tl.default("crs")
     def _default_crs(self):

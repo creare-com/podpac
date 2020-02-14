@@ -19,7 +19,7 @@ import traitlets as tl
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
-from podpac.core.utils import JSONEncoder, is_json_serializable
+from podpac.core.utils import JSONEncoder
 from podpac.core.utils import trait_is_defined, trait_is_default
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
@@ -313,18 +313,6 @@ class Node(tl.HasTraits):
 
     @property
     def base_definition(self):
-        """
-        Base node definition.
-
-        This property is implemented in the primary base nodes (DataSource, Algorithm, and Compositor). Node
-        subclasses with additional attrs will need to extend this property.
-
-        Returns
-        -------
-        {definition_return}
-
-        """
-
         d = OrderedDict()
 
         if self.__module__ == "podpac":
@@ -349,11 +337,13 @@ class Node(tl.HasTraits):
 
             value = getattr(self, name)
 
-            if not is_json_serializable(value, cls=JSONEncoder):
-                raise NodeException("Cannot serialize attr '%s' with type '%s'" % (name, type(value)))
+            # check serializable
+            json.dumps(value, cls=JSONEncoder)
 
             if isinstance(value, Node):
                 lookup_attrs[name] = value
+            elif isinstance(value, np.ndarray) and all(isinstance(elem, Node) for elem in value):
+                lookup_attrs[name] = value.tolist()
             else:
                 attrs[name] = value
 
@@ -391,17 +381,17 @@ class Node(tl.HasTraits):
             # get base definition and then replace nodes with references, adding nodes depth first
             d = node.base_definition
             if "lookup_attrs" in d:
-                for key, attr_node in d["lookup_attrs"].items():
-                    d["lookup_attrs"][key] = add_node(attr_node)
+                for key, value in d["lookup_attrs"].items():
+                    if isinstance(value, Node):
+                        d["lookup_attrs"][key] = add_node(value)
+                    elif isinstance(value, list):
+                        d["lookup_attrs"][key] = [add_node(item) for item in value]
+                    else:
+                        raise ValueError("TODO")
             if "inputs" in d:
                 for key, input_node in d["inputs"].items():
                     if input_node is not None:
                         d["inputs"][key] = add_node(input_node)
-            if "sources" in d:
-                sources = []  # we need this list so that we don't overwrite the actual sources array
-                for i, source_node in enumerate(d["sources"]):
-                    sources.append(add_node(source_node))
-                d["sources"] = sources
 
             # get base ref and then ensure it is unique
             ref = node.base_ref
@@ -599,10 +589,6 @@ class Node(tl.HasTraits):
         load : create a node from file
         """
 
-        from podpac.core.data.datasource import DataSource
-        from podpac.core.algorithm.algorithm import BaseAlgorithm
-        from podpac.core.compositor import Compositor
-
         if len(definition) == 0:
             raise ValueError("Invalid definition: definition cannot be empty.")
 
@@ -632,46 +618,10 @@ class Node(tl.HasTraits):
             kwargs = {}
             whitelist = ["node", "attrs", "lookup_attrs", "plugin", "style"]
 
-            # DataSource, Compositor, and Algorithm specific properties
             parents = inspect.getmro(node_class)
-
-            if DataSource in parents:
-                if "attrs" in d:
-                    if "interpolation" in d["attrs"]:
-                        raise ValueError(
-                            "Invalid definition for node '%s': DataSource 'attrs' cannot have an 'interpolation' property"
-                            % name
-                        )
-
-                if "interpolation" in d:
-                    kwargs["interpolation"] = d["interpolation"]
-                    whitelist.append("interpolation")
-
-            if Compositor in parents:
-                if "attrs" in d:
-                    if "interpolation" in d["attrs"]:
-                        raise ValueError(
-                            "Invalid definition for node '%s': Compositor 'attrs' cannot have an 'interpolation' property"
-                            % name
-                        )
-
-                if "sources" in d:
-                    sources = [_get_subattr(nodes, name, source) for source in d["sources"]]
-                    kwargs["sources"] = np.array(sources)
-                    whitelist.append("sources")
-
-                if "interpolation" in d:
-                    kwargs["interpolation"] = d["interpolation"]
-                    whitelist.append("interpolation")
+            from podpac.core.algorithm.algorithm import BaseAlgorithm
 
             if BaseAlgorithm in parents:
-                if "attrs" in d:
-                    if "inputs" in d["attrs"]:
-                        raise ValueError(
-                            "Invalid definition for node '%s': Algorithm 'attrs' cannot have an 'inputs' property"
-                            % name
-                        )
-
                 if "inputs" in d:
                     inputs = {k: _get_subattr(nodes, name, v) for k, v in d["inputs"].items()}
                     kwargs.update(inputs)
@@ -681,7 +631,12 @@ class Node(tl.HasTraits):
                 kwargs[k] = v
 
             for k, v in d.get("lookup_attrs", {}).items():
-                kwargs[k] = _get_subattr(nodes, name, v)
+                if isinstance(v, str):
+                    kwargs[k] = _get_subattr(nodes, name, v)
+                elif isinstance(v, list):
+                    kwargs[k] = [_get_subattr(nodes, name, e) for e in v]
+                else:
+                    raise ValueError("TODO")
 
             if "style" in d:
                 kwargs["style"] = Style.from_definition(d["style"])

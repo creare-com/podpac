@@ -206,11 +206,18 @@ class TestCompositor(object):
             node.find_coordinates()
 
     def test_base_definition(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME], interpolation="nearest")
         d = node.base_definition
         assert isinstance(d, dict)
-        assert "sources" in d
-        assert "interpolation" in d
+        assert "attrs" in d
+        assert "interpolation" in d["attrs"]
+        assert "lookup_attrs" in d
+        assert "sources" in d["lookup_attrs"]
+
+    def test_definition(self):
+        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME], interpolation="nearest")
+        d = node.definition
+        node2 = Compositor.from_definition(d)
 
     def test_outputs(self):
         # standard single-output
@@ -231,17 +238,8 @@ class TestCompositor(object):
         assert node.outputs == ["x", "y"]
 
         # multi-output, with strict source outputs checking
-        node = Compositor(sources=[MULTI_0_XY, MULTI_1_XY], strict_source_outputs=True)
+        node = Compositor(sources=[MULTI_0_XY, MULTI_1_XY])
         assert node.outputs == ["x", "y"]
-
-        with pytest.raises(ValueError, match="Source outputs mismatch"):
-            node = Compositor(sources=[MULTI_0_XY, MULTI_2_X], strict_source_outputs=True)
-
-        with pytest.raises(ValueError, match="Source outputs mismatch"):
-            node = Compositor(sources=[MULTI_0_XY, MULTI_3_Z], strict_source_outputs=True)
-
-        with pytest.raises(ValueError, match="Source outputs mismatch"):
-            node = Compositor(sources=[MULTI_0_XY, MULTI_4_YX], strict_source_outputs=True)
 
         # mixed
         with pytest.raises(ValueError, match="Cannot composite standard sources with multi-output sources."):
@@ -354,7 +352,7 @@ class TestOrderedCompositor(object):
         np.testing.assert_array_equal(output.sel(output="x"), np.full(COORDS.shape, 0))
         np.testing.assert_array_equal(output.sel(output="y"), np.full(COORDS.shape, 0))
 
-        node = OrderedCompositor(sources=[MULTI_1_XY, MULTI_0_XY], strict_source_outputs=True)
+        node = OrderedCompositor(sources=[MULTI_1_XY, MULTI_0_XY])
         output = node.eval(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["x", "y"])

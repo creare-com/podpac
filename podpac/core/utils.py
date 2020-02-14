@@ -78,7 +78,7 @@ def trait_is_defined(obj, trait_name):
 def trait_is_default(obj, trait_name):
     trait = obj.traits()[trait_name]
     value = getattr(obj, trait_name)
-    if isinstance(trait.default_value, (np.ndarray, xr.DataArray)) or isinstance(value, (np.ndarray, xr.DataArray)):
+    if isinstance(value, (np.ndarray, xr.DataArray)) or isinstance(trait.default_value, (np.ndarray, xr.DataArray)):
         return np.array_equal(value, trait.default_value)
     else:
         return value == trait.default_value
@@ -175,13 +175,7 @@ class ArrayTrait(tl.TraitType):
     def validate(self, obj, value):
         # coerce type
         if not isinstance(value, np.ndarray):
-            try:
-                value = np.array(value)
-            except:
-                raise tl.TraitError(
-                    "The '%s' trait of an %s instance must be an np.ndarray, but a value of %s %s was specified"
-                    % (self.name, obj.__class__.__name__, value, type(value))
-                )
+            value = np.array(value)
 
         # ndim
         if self.ndim is not None and self.ndim != value.ndim:
@@ -218,9 +212,11 @@ class TupleTrait(tl.List):
         return tuple(value)
 
 
-class NodeTrait(tl.ForwardDeclaredInstance):
+class NodeTrait(tl.Instance):
     def __init__(self, *args, **kwargs):
-        super(NodeTrait, self).__init__("Node", *args, **kwargs)
+        from podpac import Node as _Node
+
+        super(NodeTrait, self).__init__(_Node, *args, **kwargs)
 
     def validate(self, obj, value):
         super(NodeTrait, self).validate(obj, value)
@@ -231,61 +227,50 @@ class NodeTrait(tl.ForwardDeclaredInstance):
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
-        # podpac Coordinates objects
-        if isinstance(obj, podpac.Coordinates):
+        # podpac objects with definitions
+        if isinstance(obj, (podpac.Coordinates, podpac.Node, podpac.data.Interpolation, podpac.core.style.Style)):
             return obj.definition
 
-        # podpac Node objects
-        elif isinstance(obj, podpac.Node):
-            return obj.definition
-
-        # podpac Style objects
-        elif isinstance(obj, podpac.core.style.Style):
-            return obj.definition
-
-        elif isinstance(obj, podpac.data.Interpolation):
-            return obj.definition
+        # podpac Interpolator type
+        if isinstance(obj, type) and obj in podpac.data.INTERPOLATORS:
+            return obj().definition
 
         # pint Units
-        elif isinstance(obj, podpac.core.units.ureg.Unit):
+        if isinstance(obj, podpac.core.units.ureg.Unit):
             return str(obj)
 
-        # numpy arrays
-        elif isinstance(obj, np.ndarray):
-            if np.issubdtype(obj.dtype, np.datetime64):
-                return obj.astype(str).tolist()
-            elif np.issubdtype(obj.dtype, np.timedelta64):
-                f = np.vectorize(podpac.core.coordinates.utils.make_timedelta_string)
-                return f(obj).tolist()
-            elif np.issubdtype(obj.dtype, np.number):
-                return obj.tolist()
-
         # datetime64
-        elif isinstance(obj, np.datetime64):
+        if isinstance(obj, np.datetime64):
             return obj.astype(str)
 
         # timedelta64
-        elif isinstance(obj, np.timedelta64):
+        if isinstance(obj, np.timedelta64):
             return podpac.core.coordinates.utils.make_timedelta_string(obj)
 
         # datetime
-        elif isinstance(obj, datetime.datetime):
+        if isinstance(obj, (datetime.datetime, datetime.date)):
             return obj.isoformat()
 
         # dataframe
-        elif isinstance(obj, pd.DataFrame):
+        if isinstance(obj, pd.DataFrame):
             return obj.to_json()
 
-        # Interpolator
-        try:
-            if obj in podpac.core.data.interpolation.INTERPOLATORS:
-                interpolater_class = deepcopy(obj)
-                interpolator = interpolater_class()
-                return interpolator.definition
-        except Exception as e:
-            pass
+        # numpy array
+        if isinstance(obj, np.ndarray):
+            if np.issubdtype(obj.dtype, np.datetime64):
+                return obj.astype(str).tolist()
+            if np.issubdtype(obj.dtype, np.timedelta64):
+                return [podpac.core.coordinates.utils.make_timedelta_string(e) for e in obj]
+            if np.issubdtype(obj.dtype, np.number):
+                return obj.tolist()
+            else:
+                try:
+                    # completely serialize the individual elements using the custom encoder
+                    return json.loads(json.dumps([e for e in obj], cls=JSONEncoder))
+                except TypeError as e:
+                    raise TypeError("Cannot serialize numpy array\n%s" % e)
 
-        # default
+        # raise the TypeError
         return json.JSONEncoder.default(self, obj)
 
 

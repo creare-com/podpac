@@ -1,13 +1,13 @@
-import numpy as np
 import os
 import shutil
 import copy
+import tempfile
 
 import pytest
 import xarray as xr
+import numpy as np
 
 import podpac
-
 from podpac.core.cache.utils import CacheException
 from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
@@ -314,23 +314,22 @@ class TestDiskCacheStore(FileCacheStoreTests):
     Store = DiskCacheStore
     enabled_setting = "DISK_CACHE_ENABLED"
     limit_setting = "DISK_CACHE_MAX_BYTES"
-    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "tmp_cache"))
 
     def setup_method(self):
         super(TestDiskCacheStore, self).setup_method()
 
-        podpac.settings["DISK_CACHE_DIR"] = self.cache_dir
-        assert not os.path.exists(self.cache_dir)
+        self.test_cache_dir = tempfile.mkdtemp(prefix="podpac-test-")
+        podpac.settings["DISK_CACHE_DIR"] = self.test_cache_dir
 
     def teardown_method(self):
         super(TestDiskCacheStore, self).teardown_method()
 
-        shutil.rmtree(self.cache_dir, ignore_errors=True)
+        shutil.rmtree(self.test_cache_dir, ignore_errors=True)
 
     def test_cache_dir(self):
         # absolute path
-        podpac.settings["DISK_CACHE_DIR"] = self.cache_dir
-        expected = self.cache_dir
+        podpac.settings["DISK_CACHE_DIR"] = self.test_cache_dir
+        expected = self.test_cache_dir
         store = DiskCacheStore()
         store.put(NODE1, 10, "mykey1")
         assert store.find(NODE1, "mykey1").startswith(expected)
@@ -363,17 +362,17 @@ class TestS3CacheStore(FileCacheStoreTests):
     Store = S3CacheStore
     enabled_setting = "S3_CACHE_ENABLED"
     limit_setting = "S3_CACHE_MAX_BYTES"
-    cache_dir = "tmp_cache"
+    test_cache_dir = "tmp_cache"
 
     def setup_method(self):
         super(TestS3CacheStore, self).setup_method()
 
-        podpac.settings["S3_CACHE_DIR"] = self.cache_dir
+        podpac.settings["S3_CACHE_DIR"] = self.test_cache_dir
 
     def teardown_method(self):
         try:
             store = S3CacheStore()
-            store._rmtree(self.cache_dir)
+            store._rmtree(self.test_cache_dir)
         except:
             pass
 

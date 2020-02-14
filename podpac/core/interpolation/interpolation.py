@@ -7,8 +7,8 @@ import traitlets as tl
 import numpy as np
 
 # podpac imports
-from podpac.core.data.interpolator import Interpolator
-from podpac.core.data.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGrid
+from podpac.core.interpolation.interpolator import Interpolator
+from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGrid
 
 INTERPOLATION_DEFAULT = "nearest"
 """str : Default interpolation method used when creating a new :class:`Interpolation` class """
@@ -65,6 +65,8 @@ def load_interpolators():
 
 
 # load interpolators when module is first loaded
+# TODO does this really only load once?
+# TODO maybe move this whole section?
 load_interpolators()
 
 
@@ -74,22 +76,6 @@ class InterpolationException(Exception):
     """
 
     pass
-
-
-def interpolation_trait(default_value=INTERPOLATION_DEFAULT, allow_none=True, **kwargs):
-    """Create a new interpolation trait
-    
-    Returns
-    -------
-    tl.Union
-        Union trait for an interpolation definition
-    """
-    return tl.Union(
-        [tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(Interpolation)],
-        allow_none=allow_none,
-        default_value=default_value,
-        **kwargs,
-    )
 
 
 class Interpolation(object):
@@ -514,3 +500,15 @@ class Interpolation(object):
             )
 
         return output_data
+
+
+class InterpolationTrait(tl.Union):
+    default_value = INTERPOLATION_DEFAULT
+
+    def __init__(
+        self,
+        trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(Interpolation)],
+        *args,
+        **kwargs,
+    ):
+        super(InterpolationTrait, self).__init__(trait_types=trait_types, *args, **kwargs)

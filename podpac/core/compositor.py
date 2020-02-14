@@ -17,7 +17,7 @@ from podpac.core.utils import common_doc, ArrayTrait, trait_is_defined
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, node_eval, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
-from podpac.core.data.interpolation import interpolation_trait
+from podpac.core.interpolation.interpolation import InterpolationTrait
 from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
@@ -50,10 +50,7 @@ class Compositor(Node):
     source_coordinates : :class:`podpac.Coordinates`, optional
         Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the
         user-requested coordinates. It is an optimization.
-    strict_source_outputs : bool
-        Default is False. When compositing multi-output sources, combine the outputs from all sources. If True, do not
-        allow sources with different outputs (an exception will be raised if the sources contain different outputs).
-
+    
     Notes
     -----
     Developers of new Compositor nodes need to implement the `composite` method.
@@ -67,6 +64,9 @@ class Compositor(Node):
         for most use-cases.
     """
 
+    sources = ArrayTrait(ndim=1).tag(attr=True)
+    interpolation = InterpolationTrait(allow_none=True, default_value=None).tag(attr=True)
+
     shared_coordinates = tl.Instance(Coordinates, allow_none=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True)
     is_source_coordinates_complete = tl.Bool(
@@ -77,11 +77,6 @@ class Compositor(Node):
             "IN THAT ORDER"
         ),
     )
-
-    sources = ArrayTrait(ndim=1)
-    auto_sources = tl.Bool(default_value=False, read_only=True)
-    interpolation = interpolation_trait(default_value=None)
-    strict_source_outputs = tl.Bool(False)
 
     @tl.default("source_coordinates")
     def _source_coordinates_default(self):
@@ -99,23 +94,14 @@ class Compositor(Node):
             return None
 
         elif all(source.outputs is not None and source.output is None for source in self.sources):
-            if self.strict_source_outputs:
-                outputs = self.sources[0].outputs
-                if any(source.outputs != outputs for source in self.sources):
-                    raise ValueError(
-                        "Source outputs mismatch, and strict_source_outputs is True. "
-                        "The sources must all contain the same outputs if strict_source_outputs is True. "
-                    )
-                return outputs
-            else:
-                outputs = []
-                for source in self.sources:
-                    for output in source.outputs:
-                        if output not in outputs:
-                            outputs.append(output)
-                if len(outputs) == 0:
-                    outputs = None
-                return outputs
+            outputs = []
+            for source in self.sources:
+                for output in source.outputs:
+                    if output not in outputs:
+                        outputs.append(output)
+            if len(outputs) == 0:
+                outputs = None
+            return outputs
 
         else:
             raise ValueError(
@@ -142,7 +128,7 @@ class Compositor(Node):
         source_name = str(self.__class__.__name__)
 
         rep = "{}".format(source_name)
-        rep += "\n\tsource: {}".format("_".join(str(source) for source in self.sources[:3]))
+        # rep += "\n\tsource: {}".format("_".join(str(source) for source in self.sources[:3]))
         rep += "\n\tinterpolation: {}".format(self.interpolation)
 
         return rep
@@ -321,21 +307,6 @@ class Compositor(Node):
         """
 
         raise NotImplementedError("TODO")
-
-    @property
-    @common_doc(COMMON_COMPOSITOR_DOC)
-    def base_definition(self):
-        """Base node defintion for Compositor nodes. 
-        
-        Returns
-        -------
-        {definition_return}
-        """
-        d = super(Compositor, self).base_definition
-        if not self.auto_sources:
-            d["sources"] = self.sources
-        d["interpolation"] = self.interpolation
-        return d
 
 
 class OrderedCompositor(Compositor):

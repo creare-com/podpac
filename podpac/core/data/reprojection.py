@@ -1,15 +1,16 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-from six import string_types
 import logging
+import copy
 
+from six import string_types
 import traitlets as tl
 
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
+from podpac.core.interpolation.interpolation import InterpolationTrait
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
-from podpac.core.data.interpolation import interpolation_trait
 
 _logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class ReprojectedSource(DataSource):
     """
 
     source = NodeTrait().tag(attr=True)
-    source_interpolation = interpolation_trait().tag(attr=True)
+    source_interpolation = InterpolationTrait().tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     def _first_init(self, **kwargs):
@@ -40,6 +41,29 @@ class ReprojectedSource(DataSource):
                 kwargs["reprojected_coordinates"] = Coordinates.from_json(kwargs["reprojected_coordinates"])
 
         return super(ReprojectedSource, self)._first_init(**kwargs)
+
+    @property
+    def eval_source(self):
+        if not hasattr(self, "_eval_source"):
+            if self.source_interpolation is not None and not self.source.has_trait("interpolation"):
+                _logger.warning(
+                    "ReprojectedSource cannot set the 'source_interpolation'"
+                    " since 'source' does not have an 'interpolation' "
+                    " trait. \n type(source): %s\nsource: %s" % (str(type(self.source)), str(self.source))
+                )
+
+            source = self.source
+            if (
+                self.source_interpolation is not None
+                and self.source.has_trait("interpolation")
+                and self.source_interpolation != self.source.interpolation
+            ):
+                source = copy.deepcopy(source)
+                source.set_trait("interpolation", self.source_interpolation)
+
+            self._eval_source = source
+
+        return self._eval_source
 
     @common_doc(COMMON_DATA_DOC)
     @property
@@ -64,18 +88,9 @@ class ReprojectedSource(DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        if hasattr(self.source, "interpolation") and self.source_interpolation is not None:
-            si = self.source.interpolation
-            self.source.interpolation = self.source_interpolation
-        elif self.source_interpolation is not None:
-            _logger.warning(
-                "ReprojectedSource cannot set the 'source_interpolation'"
-                " since self.source does not have an 'interpolation' "
-                " attribute. \n type(self.source): %s\nself.source: %s" % (str(type(self.source)), str(self.source))
-            )
-        data = self.source.eval(coordinates)
-        if hasattr(self.source, "interpolation") and self.source_interpolation is not None:
-            self.source.interpolation = si
+
+        data = self.eval_source.eval(coordinates)
+
         # The following is needed in case the source is an algorithm
         # or compositor node that doesn't have all the dimensions of
         # the reprojected coordinates
