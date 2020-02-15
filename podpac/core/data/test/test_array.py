@@ -54,24 +54,3 @@ class TestArray(object):
         node = Array(data=self.data)
         with pytest.raises(tl.TraitError):
             node.native_coordinates
-
-    def test_base_definition(self):
-        node = Array(data=self.data, native_coordinates=self.coordinates)
-        d = node.base_definition
-        assert "attrs" in d
-        assert "data" in d["attrs"]
-        assert "native_coordinates" in d["attrs"]
-
-    def test_definition(self):
-        node = Array(data=self.data, native_coordinates=self.coordinates)
-        node2 = Node.from_definition(node.definition)
-        assert isinstance(node2, Array)
-        np.testing.assert_array_equal(node2.data, self.data)
-        assert node2.native_coordinates == self.coordinates
-
-    def test_json(self):
-        node = Array(data=self.data, native_coordinates=self.coordinates)
-        node2 = Node.from_json(node.json)
-        assert isinstance(node2, Array)
-        np.testing.assert_array_equal(node2.data, self.data)
-        assert node2.native_coordinates == self.coordinates

@@ -83,21 +83,6 @@ class TestDataSource(object):
         with pytest.raises(tl.TraitError):
             DataSource(nan_vals=10)
 
-    def test_base_definition(self):
-        """Test definition property method"""
-
-        node = DataSource()
-        d = node.base_definition
-        assert d
-        assert "node" in d
-
-        # interpolation attribute
-        node = DataSource(interpolation="bilinear")
-        d = node.base_definition
-        assert d
-        assert "attrs" in d
-        assert "interpolation" in d["attrs"]
-
     def test_repr(self):
         node = DataSource()
         repr(node)

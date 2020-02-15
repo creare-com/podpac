@@ -196,23 +196,3 @@ class TestCSV(object):
         # eval
         out = node.eval(nc)
         np.testing.assert_array_equal(out, self.data)
-
-    def test_base_definition(self):
-        node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
-        d = node.base_definition
-        if "attrs" in d:
-            assert "header" not in d["attrs"]
-
-        node = CSV(
-            source=self.source_no_header,
-            lat_key=0,
-            lon_key=1,
-            time_key=2,
-            alt_key=3,
-            data_key=4,
-            header=None,
-            crs="+proj=merc +vunits=m",
-        )
-        d = node.base_definition
-        assert "attrs" in d
-        assert "header" in d["attrs"]

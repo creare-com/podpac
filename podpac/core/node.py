@@ -152,12 +152,6 @@ class Node(tl.HasTraits):
     def _cache_ctrl_default(self):
         return get_default_cache_ctrl()
 
-    @tl.validate("cache_ctrl")
-    def _validate_cache_ctrl(self, d):
-        if d["value"] is None:
-            d["value"] = CacheCtrl([])  # no cache_stores
-        return d["value"]
-
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _output = tl.Instance(UnitsDataArray, allow_none=True)

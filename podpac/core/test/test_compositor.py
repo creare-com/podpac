@@ -205,20 +205,6 @@ class TestCompositor(object):
         with pytest.raises(NotImplementedError):
             node.find_coordinates()
 
-    def test_base_definition(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME], interpolation="nearest")
-        d = node.base_definition
-        assert isinstance(d, dict)
-        assert "attrs" in d
-        assert "interpolation" in d["attrs"]
-        assert "lookup_attrs" in d
-        assert "sources" in d["lookup_attrs"]
-
-    def test_definition(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME], interpolation="nearest")
-        d = node.definition
-        node2 = Compositor.from_definition(d)
-
     def test_outputs(self):
         # standard single-output
         node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])

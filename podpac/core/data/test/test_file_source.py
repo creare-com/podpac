@@ -28,11 +28,6 @@ class TestBaseFileSource(object):
         with pytest.raises(NotImplementedError):
             node.dataset
 
-    def test_base_definition(self):
-        node = BaseFileSource(source="mysource")
-        assert "source" in node.base_definition["attrs"]
-        assert node.base_definition["attrs"]["source"] == "mysource"
-
     def test_close(self):
         node = BaseFileSource(source="mysource")
         node.close_dataset()

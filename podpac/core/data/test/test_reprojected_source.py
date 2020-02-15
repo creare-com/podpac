@@ -80,13 +80,11 @@ class TestReprojectedSource(object):
         assert node.eval_source.native_coordinates == source.native_coordinates
         np.testing.assert_array_equal(node.eval_source.data, source.data)
 
-        # no source.interpolation to set (logger warning)
+        # no source.interpolation to set (trigger logger warning)
         source = Node()
         node = ReprojectedSource(
             source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="bilinear"
         )
-        assert node.source == source
-        assert node.eval_source == source
 
     def test_interpolation_warning(self):
         node = ReprojectedSource(source=Arange(), reprojected_coordinates=self.native_coordinates)
@@ -97,18 +95,6 @@ class TestReprojectedSource(object):
 
         node = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
         assert "_reprojected" in node.base_ref
-
-    def test_base_definition(self):
-        """test definition"""
-
-        node = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
-        d = node.base_definition
-        assert "attrs" in d
-        assert "reprojected_coordinates" in d["attrs"]
-        assert d["attrs"]["reprojected_coordinates"] == self.reprojected_coordinates
-
-        assert "lookup_attrs" in d
-        assert "source" in d["lookup_attrs"]
 
     def test_deserialize_reprojected_coordinates(self):
         node1 = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
