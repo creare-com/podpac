@@ -840,6 +840,8 @@ class Percentile(ReduceOrthogonal):
 # Time-Grouped Reduce
 # =============================================================================
 
+_REDUCE_FUNCTIONS = ["all", "any", "count", "max", "mean", "median", "min", "prod", "std", "sum", "var", "custom"]
+
 
 class GroupReduce(UnaryAlgorithm):
     """
@@ -857,20 +859,18 @@ class GroupReduce(UnaryAlgorithm):
         Source node
     """
 
-    coordinates_source = NodeTrait(allow_none=True)
+    coordinates_source = NodeTrait(allow_none=True).tag(attr=True)
 
     # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
-    groupby = tl.CaselessStrEnum(["dayofyear"])  # could add season, month, etc
-
-    reduce_fn = tl.CaselessStrEnum(
-        ["all", "any", "count", "max", "mean", "median", "min", "prod", "std", "sum", "var", "custom"]
-    )
-    custom_reduce_fn = tl.Any()
+    groupby = tl.CaselessStrEnum(["dayofyear"]).tag(attr=True)  # could add season, month, etc
+    reduce_fn = tl.CaselessStrEnum(_REDUCE_FUNCTIONS).tag(attr=True)
+    custom_reduce_fn = tl.Any(allow_none=True, default_value=None).tag(attr=True)
 
     _source_coordinates = tl.Instance(Coordinates)
 
     @tl.default("coordinates_source")
     def _default_coordinates_source(self):
+        self.traits()["coordinates_source"].default_value = self.source
         return self.source
 
     def _get_source_coordinates(self, requested_coordinates):

@@ -13,22 +13,13 @@ from podpac.core.algorithm.generic import GenericInputs, Arithmetic, Generic, Ma
 
 class TestGenericInputs(object):
     def test_init(self):
-        node = GenericInputs(a=Arange(), b=SinCoords())
-        assert "a" in node.inputs
-        assert "b" in node.inputs
+        node1 = GenericInputs(inputs={"a": Arange(), "b": SinCoords()})
+        node2 = GenericInputs(a=Arange(), b=SinCoords())
+        assert node1 == node2
 
     def test_reserved_name(self):
         with pytest.raises(RuntimeError, match="Trait .* is reserved"):
             GenericInputs(style=SinCoords())
-
-    def test_serialization(self):
-        node = GenericInputs(a=Arange(), b=SinCoords())
-        d = node.definition
-        assert d[node.base_ref]["inputs"]["a"] in d
-        assert d[node.base_ref]["inputs"]["b"] in d
-
-        node2 = node.from_definition(d)
-        assert node2.hash == node.hash
 
 
 class TestArithmetic(object):

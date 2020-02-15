@@ -29,28 +29,13 @@ class BaseAlgorithm(Node):
     """
 
     @property
-    def _inputs(self):
+    def inputs(self):
         # gettattr(self, ref) can take a long time, so we inspect trait.klass instead
         return {
             ref: getattr(self, ref)
             for ref, trait in self.traits().items()
             if hasattr(trait, "klass") and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
         }
-
-    @property
-    def base_definition(self):
-        """Base node definition. 
-
-        Returns
-        -------
-        OrderedDict
-            Extends base description by adding 'inputs'
-        """
-
-        d = super(BaseAlgorithm, self).base_definition
-        inputs = self._inputs
-        d["inputs"] = OrderedDict([(key, inputs[key]) for key in sorted(inputs.keys())])
-        return d
 
     def find_coordinates(self):
         """
@@ -62,7 +47,7 @@ class BaseAlgorithm(Node):
             list of available coordinates (Coordinate objects)
         """
 
-        return [c for node in self._inputs.values() for c in node.find_coordinates()]
+        return [c for node in self.inputs.values() for c in node.find_coordinates()]
 
 
 class Algorithm(BaseAlgorithm):
@@ -109,7 +94,7 @@ class Algorithm(BaseAlgorithm):
         inputs = {}
 
         if settings["MULTITHREADING"]:
-            n_threads = thread_manager.request_n_threads(len(self._inputs))
+            n_threads = thread_manager.request_n_threads(len(self.inputs))
             if n_threads == 1:
                 thread_manager.release_n_threads(n_threads)
         else:
@@ -124,10 +109,10 @@ class Algorithm(BaseAlgorithm):
             pool = thread_manager.get_thread_pool(processes=n_threads)
 
             # Evaluate nodes in parallel/asynchronously
-            results = [pool.apply_async(f, [node]) for node in self._inputs.values()]
+            results = [pool.apply_async(f, [node]) for node in self.inputs.values()]
 
             # Collect the results in dictionary
-            for key, res in zip(self._inputs.keys(), results):
+            for key, res in zip(self.inputs.keys(), results):
                 inputs[key] = res.get()
 
             # This prevents any more tasks from being submitted to the pool, and will close the workers one done
@@ -138,7 +123,7 @@ class Algorithm(BaseAlgorithm):
             self._multi_threaded = True
         else:
             # Evaluate nodes in serial
-            for key, node in self._inputs.items():
+            for key, node in self.inputs.items():
                 inputs[key] = node.eval(coordinates)
             self._multi_threaded = False
 
@@ -187,7 +172,7 @@ class UnaryAlgorithm(BaseAlgorithm):
     Developers of new Algorithm nodes need to implement the `eval` method.
     """
 
-    source = NodeTrait()
+    source = NodeTrait().tag(attr=True)
 
     @tl.default("outputs")
     def _default_outputs(self):

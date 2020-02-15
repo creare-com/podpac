@@ -322,11 +322,7 @@ class Node(tl.HasTraits):
         lookup_attrs = {}
 
         for name, trait in self.traits().items():
-            if not trait.metadata.get("attr", False):
-                continue
-
-            # default_values are not included in the definition
-            if self.trait_is_default(name):
+            if not trait.metadata.get("attr", False) or self.trait_is_default(name):
                 continue
 
             value = getattr(self, name)
@@ -334,10 +330,15 @@ class Node(tl.HasTraits):
             # check serializable
             json.dumps(value, cls=JSONEncoder)
 
-            if isinstance(value, Node):
+            # use lookup_attrs for nodes
+            if (
+                isinstance(value, Node)
+                or isinstance(value, (list, tuple, np.ndarray))
+                and all(isinstance(elem, Node) for elem in value)
+                or isinstance(value, dict)
+                and all(isinstance(elem, Node) for elem in value.values())
+            ):
                 lookup_attrs[name] = value
-            elif isinstance(value, np.ndarray) and all(isinstance(elem, Node) for elem in value):
-                lookup_attrs[name] = value.tolist()
             else:
                 attrs[name] = value
 
@@ -378,14 +379,12 @@ class Node(tl.HasTraits):
                 for key, value in d["lookup_attrs"].items():
                     if isinstance(value, Node):
                         d["lookup_attrs"][key] = add_node(value)
-                    elif isinstance(value, list):
+                    elif isinstance(value, (list, tuple, np.ndarray)):
                         d["lookup_attrs"][key] = [add_node(item) for item in value]
+                    elif isinstance(value, dict):
+                        d["lookup_attrs"][key] = {k: add_node(v) for k, v in value.items()}
                     else:
                         raise ValueError("TODO")
-            if "inputs" in d:
-                for key, input_node in d["inputs"].items():
-                    if input_node is not None:
-                        d["inputs"][key] = add_node(input_node)
 
             # get base ref and then ensure it is unique
             ref = node.base_ref
@@ -449,6 +448,16 @@ class Node(tl.HasTraits):
 
         with open(path, "w") as f:
             json.dump(self.definition, f, separators=(",", ":"), cls=JSONEncoder)
+
+    def __eq__(self, other):
+        if not isinstance(other, Node):
+            return False
+        return self.hash == other.hash
+
+    def __ne__(self, other):
+        if not isinstance(other, Node):
+            return True
+        return self.hash != other.hash
 
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface
@@ -610,17 +619,6 @@ class Node(tl.HasTraits):
 
             # parse and configure kwargs
             kwargs = {}
-            whitelist = ["node", "attrs", "lookup_attrs", "plugin", "style"]
-
-            parents = inspect.getmro(node_class)
-            from podpac.core.algorithm.algorithm import BaseAlgorithm
-
-            if BaseAlgorithm in parents:
-                if "inputs" in d:
-                    inputs = {k: _get_subattr(nodes, name, v) for k, v in d["inputs"].items()}
-                    kwargs.update(inputs)
-                    whitelist.append("inputs")
-
             for k, v in d.get("attrs", {}).items():
                 kwargs[k] = v
 
@@ -629,6 +627,8 @@ class Node(tl.HasTraits):
                     kwargs[k] = _get_subattr(nodes, name, v)
                 elif isinstance(v, list):
                     kwargs[k] = [_get_subattr(nodes, name, e) for e in v]
+                elif isinstance(v, dict):
+                    kwargs[k] = {_k: _get_subattr(nodes, name, _v) for _k, _v in v.items()}
                 else:
                     raise ValueError("TODO")
 
@@ -636,7 +636,7 @@ class Node(tl.HasTraits):
                 kwargs["style"] = Style.from_definition(d["style"])
 
             for k in d:
-                if k not in whitelist:
+                if k not in ["node", "attrs", "lookup_attrs", "plugin", "style"]:
                     raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
             nodes[name] = node_class(**kwargs)

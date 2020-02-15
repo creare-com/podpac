@@ -596,7 +596,7 @@ class TestSerialization(object):
         d = node.base_definition
         assert "lookup_attrs" in d
         assert isinstance(d["lookup_attrs"], OrderedDict)
-        assert isinstance(d["lookup_attrs"]["my_attr"], list)
+        assert isinstance(d["lookup_attrs"]["my_attr"], np.ndarray)
         assert len(d["lookup_attrs"]["my_attr"]) == 2
         assert d["lookup_attrs"]["my_attr"][0] is a
         assert d["lookup_attrs"]["my_attr"][1] is b
@@ -898,12 +898,12 @@ class TestUserDefinition(object):
             },
             "mean": {
                 "node": "algorithm.SpatialConvolution",
-                "inputs": {"source": "a"},
+                "lookup_attrs": {"source": "a"},
                 "attrs": {"kernel_type": "mean,3"}
             },
             "c": {
                 "node": "algorithm.Arithmetic",
-                "inputs": {"A": "a", "B": "mean"},
+                "lookup_attrs": {"A": "a", "B": "mean"},
                 "attrs": {"eqn": "a-b"}
             }
         }

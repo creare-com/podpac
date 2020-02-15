@@ -9,6 +9,7 @@ import numpy as np
 import xarray as xr
 
 import podpac
+from podpac.core.utils import NodeTrait
 from podpac.core.node import Node, NodeException
 from podpac.core.data.array_source import Array
 from podpac.core.algorithm.utility import Arange
@@ -23,32 +24,10 @@ class TestBaseAlgorithm(object):
         with pytest.raises(NotImplementedError):
             node.eval(c)
 
-    def test_base_definition(self):
-        class MyAlgorithm(BaseAlgorithm):
-            x = tl.Instance(Node)
-            y = tl.Instance(Node)
-            z = tl.Unicode().tag(attr=True)
-
-        node = MyAlgorithm(x=Arange(), y=Arange(), z="abcd")
-
-        d = node.base_definition
-        assert isinstance(d, OrderedDict)
-        assert "node" in d
-        assert "attrs" in d
-
-        # base (node, params)
-        assert d["node"] == "MyAlgorithm"
-        assert d["attrs"]["z"] == "abcd"
-
-        # inputs
-        assert "inputs" in d
-        assert isinstance(d["inputs"], dict)
-        assert set(d["inputs"].keys()) == set(["x", "y"])
-
     def test_find_coordinates(self):
         class MyAlgorithm(BaseAlgorithm):
-            x = tl.Instance(Node)
-            y = tl.Instance(Node)
+            x = NodeTrait().tag(attr=True)
+            y = NodeTrait().tag(attr=True)
 
         node = MyAlgorithm(
             x=Array(native_coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])),
@@ -217,8 +196,8 @@ class TestAlgorithm(object):
 
     def test_multiple_outputs(self):
         class MyAlgorithm(Algorithm):
-            x = tl.Instance(Node)
-            y = tl.Instance(Node)
+            x = NodeTrait().tag(attr=True)
+            y = NodeTrait().tag(attr=True)
             outputs = ["sum", "prod", "diff"]
 
             def algorithm(self, inputs):

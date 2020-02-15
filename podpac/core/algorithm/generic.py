@@ -25,19 +25,18 @@ from podpac.core.algorithm.algorithm import Algorithm
 class GenericInputs(Algorithm):
     """Base class for Algorithms that accept generic named inputs."""
 
-    inputs = tl.Dict()
-
-    @property
-    def _inputs(self):
-        return self.inputs
+    inputs = tl.Dict().tag(attr=True)
 
     def _first_init(self, **kwargs):
-        trait_names = self.trait_names()
-        for key in kwargs:
-            if key in trait_names and isinstance(kwargs[key], Node):
-                raise RuntimeError("Trait '%s' is reserved and cannot be used as an Generic Algorithm input" % key)
-        input_keys = [key for key in kwargs if key not in trait_names and isinstance(kwargs[key], Node)]
-        inputs = {key: kwargs.pop(key) for key in input_keys}
+        if "inputs" in kwargs:
+            inputs = kwargs.pop("inputs")
+        else:
+            trait_names = self.trait_names()
+            for key in kwargs:
+                if key in trait_names and isinstance(kwargs[key], Node):
+                    raise RuntimeError("Trait '%s' is reserved and cannot be used as an Generic Algorithm input" % key)
+            input_keys = [key for key in kwargs if key not in trait_names and isinstance(kwargs[key], Node)]
+            inputs = {key: kwargs.pop(key) for key in input_keys}
         return super(GenericInputs, self)._first_init(inputs=inputs, **kwargs)
 
 
@@ -53,6 +52,7 @@ class Arithmetic(GenericInputs):
 
     eqn = tl.Unicode().tag(attr=True)
     params = tl.Dict().tag(attr=True)
+    params.default_value = {}
 
     def init(self):
         if not settings.allow_unsafe_eval:
@@ -191,8 +191,8 @@ class Mask(Algorithm):
     
     """
 
-    source = NodeTrait()
-    mask = NodeTrait()
+    source = NodeTrait().tag(attr=True)
+    mask = NodeTrait().tag(attr=True)
     masked_val = tl.Float(np.nan).tag(attr=True)
     bool_val = tl.Float(1).tag(attr=True)
     bool_op = tl.Enum(["==", "<", "<=", ">", ">="], default_value="==").tag(attr=True)
@@ -237,7 +237,9 @@ class Combine(GenericInputs):
 
     @tl.default("outputs")
     def _default_outputs(self):
-        return list(self.inputs.keys())
+        input_keys = list(self.inputs.keys())
+        self.traits()["outputs"].default = input_keys
+        return input_keys
 
     def algorithm(self, inputs):
         return np.stack([inputs[key] for key in self.inputs], axis=-1)
