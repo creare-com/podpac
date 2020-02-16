@@ -304,7 +304,7 @@ class Node(tl.HasTraits):
         return self.__class__.__name__
 
     @property
-    def base_definition(self):
+    def _base_definition(self):
         d = OrderedDict()
 
         if self.__module__ == "podpac":
@@ -316,35 +316,32 @@ class Node(tl.HasTraits):
             d["plugin"] = self.__module__
             d["node"] = self.__class__.__name__
 
-        attrs = {}
-        lookup_attrs = {}
+        inputs = {}  # for node attrs
+        attrs = {}  # for other attrs
 
         for name, trait in self.traits().items():
-            if not trait.metadata.get("attr", False) or self.trait_is_default(name):
+            if not trait.metadata.get("attr", False):
+                continue
+
+            if self.trait_is_default(name):
                 continue
 
             value = getattr(self, name)
 
-            # check serializable
-            json.dumps(value, cls=JSONEncoder)
-
-            # use lookup_attrs for nodes
             if (
                 isinstance(value, Node)
-                or isinstance(value, (list, tuple, np.ndarray))
-                and all(isinstance(elem, Node) for elem in value)
-                or isinstance(value, dict)
-                and all(isinstance(elem, Node) for elem in value.values())
+                or (isinstance(value, (list, tuple, np.ndarray)) and all(isinstance(elem, Node) for elem in value))
+                or (isinstance(value, dict) and all(isinstance(elem, Node) for elem in value.values()))
             ):
-                lookup_attrs[name] = value
+                inputs[name] = value
             else:
                 attrs[name] = value
 
-        if attrs:
-            d["attrs"] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
+        if inputs:
+            d["inputs"] = inputs
 
-        if lookup_attrs:
-            d["lookup_attrs"] = OrderedDict([(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())])
+        if attrs:
+            d["attrs"] = attrs
 
         if self.style != Style() and self.style.definition:
             d["style"] = self.style.definition
@@ -371,18 +368,27 @@ class Node(tl.HasTraits):
                 if node == n:
                     return ref
 
-            # get base definition and then replace nodes with references, adding nodes depth first
-            d = node.base_definition
-            if "lookup_attrs" in d:
-                for key, value in d["lookup_attrs"].items():
+            # get base definition
+            d = node._base_definition
+
+            if "inputs" in d:
+                # sort and shallow copy
+                d["inputs"] = OrderedDict([(key, d["inputs"][key]) for key in sorted(d["inputs"].keys())])
+
+                # replace nodes with references, adding nodes depth first
+                for key, value in d["inputs"].items():
                     if isinstance(value, Node):
-                        d["lookup_attrs"][key] = add_node(value)
+                        d["inputs"][key] = add_node(value)
                     elif isinstance(value, (list, tuple, np.ndarray)):
-                        d["lookup_attrs"][key] = [add_node(item) for item in value]
+                        d["inputs"][key] = [add_node(item) for item in value]
                     elif isinstance(value, dict):
-                        d["lookup_attrs"][key] = {k: add_node(v) for k, v in value.items()}
+                        d["inputs"][key] = {k: add_node(v) for k, v in value.items()}
                     else:
-                        raise ValueError("TODO")
+                        raise TypeError("Invalid input '%s' of type '%s': %s" % (key, type(value)))
+
+            if "attrs" in d:
+                # sort and shallow copy
+                d["attrs"] = OrderedDict([(key, d["attrs"][key]) for key in sorted(d["attrs"].keys())])
 
             # get base ref and then ensure it is unique
             ref = node.base_ref
@@ -400,9 +406,13 @@ class Node(tl.HasTraits):
 
             return ref
 
+        # add top level node
         add_node(self)
 
-        return OrderedDict(zip(refs, definitions))
+        # finalize, verify serializable, and return
+        definition = OrderedDict(zip(refs, definitions))
+        json.dumps(definition, cls=JSONEncoder)
+        return definition
 
     @property
     def json(self):
@@ -620,21 +630,17 @@ class Node(tl.HasTraits):
             for k, v in d.get("attrs", {}).items():
                 kwargs[k] = v
 
+            for k, v in d.get("inputs", {}).items():
+                kwargs[k] = _lookup_input(nodes, name, v)
+
             for k, v in d.get("lookup_attrs", {}).items():
-                if isinstance(v, str):
-                    kwargs[k] = _get_subattr(nodes, name, v)
-                elif isinstance(v, list):
-                    kwargs[k] = [_get_subattr(nodes, name, e) for e in v]
-                elif isinstance(v, dict):
-                    kwargs[k] = {_k: _get_subattr(nodes, name, _v) for _k, _v in v.items()}
-                else:
-                    raise ValueError("TODO")
+                kwargs[k] = _lookup_attr(nodes, name, v)
 
             if "style" in d:
                 kwargs["style"] = Style.from_definition(d["style"])
 
             for k in d:
-                if k not in ["node", "attrs", "lookup_attrs", "plugin", "style"]:
+                if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style"]:
                     raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
             nodes[name] = node_class(**kwargs)
@@ -745,16 +751,70 @@ class Node(tl.HasTraits):
         return cls.from_definition(d)
 
 
-def _get_subattr(nodes, name, ref):
-    refs = ref.split(".")
-    try:
-        attr = nodes[refs[0]]
-        for _name in refs[1:]:
-            attr = getattr(attr, _name)
-    except (KeyError, AttributeError):
-        raise ValueError("Invalid definition for node '%s': reference to nonexistent node/attribute '%s'" % (name, ref))
+def _lookup_input(nodes, name, value):
+    # containers
+    if isinstance(value, list):
+        return [_lookup_input(nodes, name, elem) for elem in value]
+
+    if isinstance(value, dict):
+        return {k: _lookup_input(nodes, name, v) for k, v in value.items()}
+
+    # node reference
+    if not isinstance(value, str):
+        raise ValueError(
+            "Invalid definition for node '%s': invalid reference '%s' of type '%s' in inputs"
+            % (name, value, type(value))
+        )
+
+    if not value in nodes:
+        raise ValueError(
+            "Invalid definition for node '%s': reference to nonexistent node '%s' in inputs" % (name, value)
+        )
+
+    node = nodes[value]
+
+    # copy in debug mode
+    if settings["DEBUG"]:
+        node = deepcopy(node)
+
+    return node
+
+
+def _lookup_attr(nodes, name, value):
+    # containers
+    if isinstance(value, list):
+        return [_lookup_attr(nodes, name, elem) for elem in value]
+
+    if isinstance(value, dict):
+        return {_k: _lookup_attr(nodes, name, v) for k, v in value.items()}
+
+    if not isinstance(value, str):
+        raise ValueError(
+            "Invalid definition for node '%s': invalid reference '%s' of type '%s' in lookup_attrs"
+            % (name, value, type(value))
+        )
+
+    # node
+    elems = value.split(".")
+    if elems[0] not in nodes:
+        raise ValueError(
+            "Invalid definition for node '%s': reference to nonexistent node '%s' in lookup_attrs" % (name, elems[0])
+        )
+
+    # subattrs
+    attr = nodes[elems[0]]
+    for n in elems[1:]:
+        if not hasattr(attr, n):
+            raise ValueError(
+                "Invalid definition for node '%s': reference to nonexistent attribute '%s' in lookup_attrs value '%s"
+                % (name, n, value)
+            )
+        attr = getattr(attr, n)
+
+    # copy in debug mode
     if settings["DEBUG"]:
         attr = deepcopy(attr)
+
     return attr
 
 

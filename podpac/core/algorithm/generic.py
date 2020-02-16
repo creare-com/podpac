@@ -25,26 +25,22 @@ from podpac.core.algorithm.algorithm import Algorithm
 class GenericInputs(Algorithm):
     """Base class for Algorithms that accept generic named inputs."""
 
-    inputs = tl.Dict().tag(attr=True)
-    inputs.default_value = {}
+    inputs = tl.Dict(read_only=True)
 
     def _first_init(self, **kwargs):
-        if "inputs" in kwargs:
-            inputs = kwargs.pop("inputs")
-        else:
-            trait_names = self.trait_names()
-            for key in kwargs:
-                if key in trait_names and isinstance(kwargs[key], Node):
-                    raise RuntimeError("Trait '%s' is reserved and cannot be used as an Generic Algorithm input" % key)
-            input_keys = [key for key in kwargs if key not in trait_names and isinstance(kwargs[key], Node)]
-            inputs = {key: kwargs.pop(key) for key in input_keys}
-        return super(GenericInputs, self)._first_init(inputs=inputs, **kwargs)
+        trait_names = self.trait_names()
+        for key in kwargs:
+            if key in trait_names and isinstance(kwargs[key], Node):
+                raise RuntimeError("Trait '%s' is reserved and cannot be used as an Generic Algorithm input" % key)
+        input_keys = [key for key in kwargs if key not in trait_names and isinstance(kwargs[key], Node)]
+        inputs = {key: kwargs.pop(key) for key in input_keys}
+        self.set_trait("inputs", inputs)
+        return super(GenericInputs, self)._first_init(**kwargs)
 
     @property
-    def base_definition(self):
-        d = super(GenericInputs, self).base_definition
-        if "lookup_attrs" in d and "inputs" in d["lookup_attrs"]:
-            d["lookup_attrs"].update(d["lookup_attrs"].pop("inputs"))
+    def _base_definition(self):
+        d = super(GenericInputs, self)._base_definition
+        d["inputs"] = self.inputs
         return d
 
 

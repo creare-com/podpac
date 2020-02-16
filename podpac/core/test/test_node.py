@@ -556,7 +556,7 @@ class TestSerialization(object):
 
     def test_base_definition(self):
         node = Node()
-        d = node.base_definition
+        d = node._base_definition
         assert "node" in d
         assert isinstance(d["node"], str)
 
@@ -566,26 +566,20 @@ class TestSerialization(object):
 
         node = MyNode(my_attr=7)
 
-        d = node.base_definition
-        assert "attrs" in d
-        assert isinstance(d["attrs"], OrderedDict)
+        d = node._base_definition
         assert d["attrs"]["my_attr"] == 7
 
-    def test_base_definition_lookup_attrs(self):
+    def test_base_definition_inputs(self):
         class MyNode(Node):
             my_attr = NodeTrait().tag(attr=True)
 
-        with podpac.settings:
-            podpac.settings["DEBUG"] = False
-            a = Node()
-            node = MyNode(my_attr=a)
+        a = Node()
+        node = MyNode(my_attr=a)
 
-            d = node.base_definition
-            assert "lookup_attrs" in d
-            assert isinstance(d["lookup_attrs"], OrderedDict)
-            assert d["lookup_attrs"]["my_attr"] is a
+        d = node._base_definition
+        assert d["inputs"]["my_attr"] == a
 
-    def test_base_definition_lookup_attrs_array(self):
+    def test_base_definition_inputs_array(self):
         class MyNode(Node):
             my_attr = ArrayTrait().tag(attr=True)
 
@@ -593,37 +587,44 @@ class TestSerialization(object):
         b = Node()
         node = MyNode(my_attr=[a, b])
 
-        d = node.base_definition
-        assert "lookup_attrs" in d
-        assert isinstance(d["lookup_attrs"], OrderedDict)
-        assert isinstance(d["lookup_attrs"]["my_attr"], np.ndarray)
-        assert len(d["lookup_attrs"]["my_attr"]) == 2
-        assert d["lookup_attrs"]["my_attr"][0] is a
-        assert d["lookup_attrs"]["my_attr"][1] is b
+        d = node._base_definition
+        assert d["inputs"]["my_attr"][0] == a
+        assert d["inputs"]["my_attr"][1] == b
+
+    def test_base_definition_inputs_dict(self):
+        class MyNode(Node):
+            my_attr = tl.Dict().tag(attr=True)
+
+        a = Node()
+        b = Node()
+        node = MyNode(my_attr={"a": a, "b": b})
+
+        d = node._base_definition
+        assert d["inputs"]["my_attr"]["a"] == a
+        assert d["inputs"]["my_attr"]["b"] == b
 
     def test_base_definition_style(self):
         node = Node(style=Style(name="test"))
-        d = node.base_definition
-        assert "style" in node.base_definition
+        d = node._base_definition
+        assert "style" in node._base_definition
 
     def test_base_definition_no_default_attrs(self):
         class MyNode(Node):
             my_attr = tl.Int(default_value=1).tag(attr=True)
 
         node = MyNode()
-        d = node.base_definition
+        d = node._base_definition
         if "attrs" in d:
             assert "my_attr" not in d["attrs"]
 
         node = MyNode(my_attr=1)
-        d = node.base_definition
+        d = node._base_definition
         if "attrs" in d:
             assert "my_attr" not in d["attrs"]
 
         node = MyNode(my_attr=2)
-        d = node.base_definition
-        assert "attrs" in d
-        assert "my_attr" in d["attrs"]
+        d = node._base_definition
+        assert "attrs" in d and "my_attr" in d["attrs"]
 
     def test_definition(self):
         # definition
@@ -652,22 +653,25 @@ class TestSerialization(object):
         assert n1.base_ref == n2.base_ref == n3.base_ref
         assert len(d) == 4
 
-    def test_definition_lookup_attrs(self):
-        global MyNodeWithNodeAttr
+    def test_definition_inputs_array(self):
+        global MyNodeWithArrayInput
 
-        class MyNodeWithNodeAttr(Node):
-            my_node_attr = tl.Instance(Node).tag(attr=True)
+        class MyNodeWithArrayInput(Node):
+            my_array = ArrayTrait().tag(attr=True)
 
-        node = MyNodeWithNodeAttr(my_node_attr=podpac.algorithm.Arange())
-        d = node.definition
-        assert isinstance(d, OrderedDict)
-        assert len(d) == 2
+        node1 = MyNodeWithArrayInput(my_array=[podpac.algorithm.Arange()])
+        node2 = Node.from_definition(node1.definition)
+        assert node2 is not node1 and node2 == node1
 
-        node2 = Node.from_definition(d)
-        assert node2 is not node
-        assert node2 == node
-        assert isinstance(node2, MyNodeWithNodeAttr)
-        assert isinstance(node2.my_node_attr, podpac.algorithm.Arange)
+    def test_definition_inputs_dict(self):
+        global MyNodeWithDictInput
+
+        class MyNodeWithDictInput(Node):
+            my_dict = tl.Dict().tag(attr=True)
+
+        node1 = MyNodeWithDictInput(my_dict={"a": podpac.algorithm.Arange()})
+        node2 = Node.from_definition(node1.definition)
+        assert node2 is not node1 and node2 == node1
 
     def test_json(self):
         # json
@@ -743,11 +747,13 @@ class TestSerialization(object):
         assert n1 == n2
         assert not n1 == n3
         assert not n1 == m1
+        assert not n1 == "other"
 
         # ne
         assert not n1 != n2
         assert n1 != n3
         assert n1 != m1
+        assert n1 != "other"
 
     def test_from_url(self):
         url = (
@@ -816,7 +822,34 @@ class TestUserDefinition(object):
         with pytest.raises(ValueError, match="class 'Nonexistent' not found in module"):
             Node.from_json(s)
 
-    def test_lookup_attrs_subattr(self):
+    def test_inputs(self):
+        # invalid type
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Min",
+                "inputs": { "source": 10 }
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="Invalid definition for node"):
+            Node.from_json(s)
+
+        # nonexistent node
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Min",
+                "inputs": { "source": "nonexistent" }
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="Invalid definition for node"):
+            Node.from_json(s)
+
+    def test_lookup_attrs(self):
         s = """
         {
             "a": {
@@ -833,6 +866,23 @@ class TestUserDefinition(object):
         node = Node.from_json(s)
         assert isinstance(node, podpac.algorithm.CoordData)
         assert node.coord_name == "lat"
+
+        # invalid type
+        s = """
+        {
+            "a": {
+                "node": "algorithm.CoordData",
+                "attrs": { "coord_name": "lat" }
+            },
+            "b": {
+                "node": "algorithm.CoordData",
+                "lookup_attrs": { "coord_name": 10 }
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="Invalid definition for node"):
+            Node.from_json(s)
 
         # nonexistent node
         s = """
