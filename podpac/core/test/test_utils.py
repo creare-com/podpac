@@ -94,6 +94,13 @@ class TestTraitletsHelpers(object):
             x = MyClass(a=0)
             assert not trait_is_default(x, "a")
 
+    def test_trait_is_default_no_default_value(self):
+        class MyClass(tl.HasTraits):
+            a = tl.List()
+
+        x = MyClass()
+        assert trait_is_default(x, "a") is None
+
 
 class TestLoggingHelpers(object):
     def test_create_logfile(self):

@@ -34,7 +34,7 @@ class ModifyCoordinates(UnaryAlgorithm):
 
     coordinates_source = NodeTrait()
     lat = tl.List().tag(attr=True)
-    lat.defalut_value = []
+    lat.default_value = []
     lon = tl.List().tag(attr=True)
     lon.default_value = []
     time = tl.List().tag(attr=True)

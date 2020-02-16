@@ -43,14 +43,11 @@ class Rasterio(LoadFileMixin, BaseFileSource):
     @tl.default("band")
     def _band_default(self):
         if (self.outputs is not None) and (self.output is not None):
-            band = self.outputs.index(self.output)
+            return self.outputs.index(self.output)
         elif self.outputs is None:
-            band = 1
+            return 1
         else:
-            band = None  # All bands
-
-        self.traits()["band"].default_value = band
-        return band
+            return None  # All bands
 
     # -------------------------------------------------------------------------
     # public api methods

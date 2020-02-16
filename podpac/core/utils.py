@@ -78,7 +78,10 @@ def trait_is_defined(obj, trait_name):
 def trait_is_default(obj, trait_name):
     trait = obj.traits()[trait_name]
     value = getattr(obj, trait_name)
-    if isinstance(value, (np.ndarray, xr.DataArray)) or isinstance(trait.default_value, (np.ndarray, xr.DataArray)):
+
+    if not isinstance(trait.default_value, (np.ndarray, xr.DataArray)) and trait.default_value == tl.Undefined:
+        return None
+    elif isinstance(value, (np.ndarray, xr.DataArray)) or isinstance(trait.default_value, (np.ndarray, xr.DataArray)):
         return np.array_equal(value, trait.default_value)
     else:
         return value == trait.default_value

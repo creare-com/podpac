@@ -52,8 +52,6 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
     def _default_data_key(self):
         return super(CSV, self)._default_data_key()
 
-    output_keys.default_value = None
-
     @tl.default("output_keys")
     def _default_output_keys(self):
         return super(CSV, self)._default_output_keys()

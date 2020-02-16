@@ -856,7 +856,6 @@ class GroupReduce(UnaryAlgorithm):
 
     @tl.default("coordinates_source")
     def _default_coordinates_source(self):
-        self.traits()["coordinates_source"].default_value = self.source
         return self.source
 
     def _get_source_coordinates(self, requested_coordinates):
