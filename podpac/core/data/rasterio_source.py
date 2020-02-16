@@ -48,6 +48,8 @@ class Rasterio(LoadFileMixin, BaseFileSource):
             band = 1
         else:
             band = None  # All bands
+
+        self.traits()["band"].default_value = band
         return band
 
     # -------------------------------------------------------------------------

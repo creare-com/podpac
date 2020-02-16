@@ -58,8 +58,6 @@ class PyDAP(DataSource):
     source = tl.Unicode().tag(attr=True)
     data_key = tl.Unicode().tag(attr=True)
 
-    dataset = tl.Instance("pydap.model.DatasetType").tag(readonly=True)
-
     # optional inputs
     auth_class = tl.Type(default_value=authentication.Session)
     auth_session = tl.Instance(authentication.Session, allow_none=True)

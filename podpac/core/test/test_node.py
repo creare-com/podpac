@@ -637,7 +637,7 @@ class TestSerialization(object):
             node = Node.from_definition(d)
 
         assert node is not self.node
-        assert node.hash == self.node.hash
+        assert node == self.node
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
@@ -665,7 +665,7 @@ class TestSerialization(object):
 
         node2 = Node.from_definition(d)
         assert node2 is not node
-        assert node2.hash == node.hash
+        assert node2 == node
         assert isinstance(node2, MyNodeWithNodeAttr)
         assert isinstance(node2.my_node_attr, podpac.algorithm.Arange)
 
@@ -680,7 +680,7 @@ class TestSerialization(object):
             warnings.filterwarnings("ignore", "Insecure evaluation.*")
             node = Node.from_json(s)
         assert node is not self.node
-        assert node.hash == self.node.hash
+        assert node == self.node
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
@@ -699,7 +699,7 @@ class TestSerialization(object):
             node = Node.load(filename)
 
         assert node is not self.node
-        assert node.hash == self.node.hash
+        assert node == self.node
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
@@ -726,6 +726,28 @@ class TestSerialization(object):
         assert n1.hash == n2.hash
         assert n1.hash != n3.hash
         assert n1.hash != m1.hash
+
+    def test_eq(self):
+        class N(Node):
+            my_attr = tl.Int().tag(attr=True)
+
+        class M(Node):
+            my_attr = tl.Int().tag(attr=True)
+
+        n1 = N(my_attr=1)
+        n2 = N(my_attr=1)
+        n3 = N(my_attr=2)
+        m1 = M(my_attr=1)
+
+        # eq
+        assert n1 == n2
+        assert not n1 == n3
+        assert not n1 == m1
+
+        # ne
+        assert not n1 != n2
+        assert n1 != n3
+        assert n1 != m1
 
     def test_from_url(self):
         url = (

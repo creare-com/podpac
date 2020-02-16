@@ -153,22 +153,26 @@ class FileKeysMixin(tl.HasTraits):
     @tl.default("data_key")
     def _default_data_key(self):
         if self.trait_is_defined("output_keys") and self.output_keys is not None:
-            return None
+            data_key = None
         elif len(self.available_data_keys) == 1:
-            return self.available_data_keys[0]
+            data_key = self.available_data_keys[0]
         else:
-            return None
+            data_key = None
 
-    output_keys.default_value = None
+        self.traits()["data_key"].default_value = data_key
+        return data_key
 
     @tl.default("output_keys")
     def _default_output_keys(self):
         if self.trait_is_defined("data_key") and self.data_key is not None:
-            return None
+            output_keys = None
         elif len(self.available_data_keys) == 1:
-            return None
+            output_keys = None
         else:
-            return self.available_data_keys
+            output_keys = self.available_data_keys
+
+        self.traits()["output_keys"].default_value = output_keys
+        return output_keys
 
     @tl.validate("data_key", "output_keys")
     def _validate_data_data_key_output_keys(self, d):
@@ -180,6 +184,7 @@ class FileKeysMixin(tl.HasTraits):
 
     @tl.default("outputs")
     def _default_outputs(self):
+        self.traits()["outputs"].default_value = self.output_keys
         return self.output_keys
 
     @tl.validate("outputs")

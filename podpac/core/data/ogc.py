@@ -51,13 +51,10 @@ class WCS(DataSource):
         The coordinates of the WCS source
     """
 
-    source = tl.Unicode().tag(readonly=True)
-    wcs_coordinates = tl.Instance(Coordinates).tag(readonly=True)  # default below
-
-    # node attrs
+    source = tl.Unicode().tag(attr=True)
     layer_name = tl.Unicode().tag(attr=True)
-    version = tl.Unicode(WCS_DEFAULT_VERSION).tag(attr=True)
-    crs = tl.Unicode(WCS_DEFAULT_CRS).tag(attr=True)
+    version = tl.Unicode(default_value=WCS_DEFAULT_VERSION).tag(attr=True)
+    crs = tl.Unicode(default_value=WCS_DEFAULT_CRS).tag(attr=True)
 
     _get_capabilities_qs = tl.Unicode("SERVICE=WCS&REQUEST=DescribeCoverage&" "VERSION={version}&COVERAGE={layer}")
     _get_data_qs = tl.Unicode(
@@ -67,9 +64,8 @@ class WCS(DataSource):
         "WIDTH={width}&HEIGHT={height}&TIME={time}"
     )
 
-    # TODO: This should be capabilities_url, not get_
     @property
-    def get_capabilities_url(self):
+    def capabilities_url(self):
         """Constructs the url that requests the WCS capabilities
         
         Returns
@@ -79,14 +75,19 @@ class WCS(DataSource):
         """
         return self.source + "?" + self._get_capabilities_qs.format(version=self.version, layer=self.layer_name)
 
-    @tl.default("wcs_coordinates")
+    @property
+    def wcs_coordinates(self):
+        """ Coordinates reported by the WCS service."""
+        if not hasattr(self, "_wcs_coordinates"):
+            self._wcs_coordinates = self.get_wcs_coordinates()
+        return self._wcs_coordinates
+
     def get_wcs_coordinates(self):
         """Retrieves the native coordinates reported by the WCS service.
         
         Returns
         -------
         Coordinates
-            The native coordinates reported by the WCS service.
         
         Notes
         -------
@@ -98,7 +99,7 @@ class WCS(DataSource):
             Raises this if the required dependencies are not installed.
         """
         if requests is not None:
-            capabilities = requests.get(self.get_capabilities_url)
+            capabilities = requests.get(self.capabilities_url)
             if capabilities.status_code != 200:
                 raise Exception("Could not get capabilities from WCS server")
             capabilities = capabilities.text
@@ -110,10 +111,10 @@ class WCS(DataSource):
             else:
                 http = urllib3.PoolManager()
 
-            r = http.request("GET", self.get_capabilities_url)
+            r = http.request("GET", self.capabilities_url)
             capabilities = r.data
             if r.status != 200:
-                raise Exception("Could not get capabilities from WCS server:" + self.get_capabilities_url)
+                raise Exception("Could not get capabilities from WCS server:" + self.capabilities_url)
         else:
             raise Exception("Do not have a URL request library to get WCS data.")
 
@@ -365,11 +366,5 @@ class WCS(DataSource):
 
     @property
     def base_ref(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
+        """ definition base_ref """
         return self.layer_name.rsplit(".", 1)[1]

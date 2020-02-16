@@ -14,10 +14,10 @@ import traitlets as tl
 
 # Internal dependencies
 import podpac
-from podpac.core.data import types as datatype
+from podpac.data import PyDAP
 
 
-class AirMOSS_Source(datatype.PyDAP):
+class AirMOSS_Source(PyDAP):
     """Summary
 
     Attributes
@@ -32,19 +32,13 @@ class AirMOSS_Source(datatype.PyDAP):
         Description
     """
 
-    product = tl.Enum(["L4RZSM"], default_value="L4RZSM")
-    date_url_re = re.compile("[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}")
-    datakey = tl.Unicode("sm1")
+    product = tl.Enum(["L4RZSM"], default_value="L4RZSM").tag(attr=True)
+    date_url_re = re.compile("[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}").tag(attr=True)
+    datakey = tl.Unicode("sm1").tag(attr=True)
     nan_vals = [-9999.0]
 
-    def get_native_coordinates(self):
-        """Summary
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
+    @property
+    def native_coordinates(self):
         try:
             return self.load_cached_obj("native.coordinates")
         except:
@@ -63,20 +57,6 @@ class AirMOSS_Source(datatype.PyDAP):
         return coords
 
     def get_data(self, coordinates, coordinates_index):
-        """Summary
-
-        Parameters
-        ----------
-        coordinates : TYPE
-            Description
-        coordinates_index : TYPE
-            Description
-
-        Returns
-        -------
-        TYPE
-            Description
-        """
         data = self.dataset[self.datakey].array[tuple(coordinates_index)]
         d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
         return d
@@ -99,20 +79,14 @@ class AirMOSS_Site(podpac.OrderedCompositor):
         Description
     """
 
-    product = tl.Enum(["L4RZSM"], default_value="L4RZSM")
-    base_url = tl.Unicode("https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1421")
-    base_dir_url = tl.Unicode("https://thredds.daac.ornl.gov/thredds/catalog/ornldaac/1421/catalog.html")
-    site = tl.Unicode("")
-    date_url_re = re.compile("[0-9]{8}")
+    product = tl.Enum(["L4RZSM"], default_value="L4RZSM").tag(attr=True)
+    base_url = tl.Unicode("https://thredds.daac.ornl.gov/thredds/dodsC/ornldaac/1421").tag(attr=True)
+    base_dir_url = tl.Unicode("https://thredds.daac.ornl.gov/thredds/catalog/ornldaac/1421/catalog.html").tag(attr=True)
+    site = tl.Unicode("").tag(attr=True)
+    date_url_re = re.compile("[0-9]{8}").tag(attr=True)
 
-    def get_native_coordinates(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
+    @property
+    def native_coordinates(self):
         try:
             return self.load_cached_obj("native.coordinates")
         except:
@@ -162,8 +136,8 @@ class AirMOSS(podpac.OrderedCompositor):
         Description
     """
 
-    product = tl.Enum(["L4RZSM"], default_value="L4RZSM")
-    site_url_re = tl.Any()
+    product = tl.Enum(["L4RZSM"], default_value="L4RZSM").tag(attr=True)
+    site_url_re = tl.Any().tag(attr=True)
 
     @tl.default("site_url_re")
     def get_site_url_re(self):

@@ -17,6 +17,14 @@ class TestGenericInputs(object):
         node2 = GenericInputs(a=Arange(), b=SinCoords())
         assert node1 == node2
 
+    def test_base_definition(self):
+        node = GenericInputs(a=Arange(), b=SinCoords())
+        d = node.base_definition
+        assert "lookup_attrs" in d
+        assert "a" in d["lookup_attrs"]
+        assert "b" in d["lookup_attrs"]
+        assert "inputs" not in d["lookup_attrs"]
+
     def test_reserved_name(self):
         with pytest.raises(RuntimeError, match="Trait .* is reserved"):
             GenericInputs(style=SinCoords())

@@ -57,7 +57,7 @@ class IntakeCatalog(podpac.data.DataSource):
     """
 
     # input parameters
-    source = tl.Unicode().tag(readonly=True)
+    source = tl.Unicode().tag(attr=True)
     uri = tl.Unicode()
 
     # optional input parameters
@@ -121,7 +121,8 @@ class IntakeCatalog(podpac.data.DataSource):
 
         return dims
 
-    def get_native_coordinates(self):
+    @property
+    def native_coordinates(self):
         """Get native coordinates from catalog definition or input dims
         """
 

@@ -360,7 +360,8 @@ class SMAPSource(pydap_source.PyDAP):
 
     @common_doc(COMMON_DOC)
     @cache_func("native.coordinates")
-    def get_native_coordinates(self):
+    @property
+    def native_coordinates(self):
         """{get_native_coordinates}
         """
         times = self.get_available_times()
@@ -447,7 +448,7 @@ class SMAPProperties(SMAPSource):
 
     file_url_re = re.compile(r"SMAP.*_[0-9]{8}T[0-9]{6}_.*\.h5")
 
-    source = tl.Unicode().tag(readonly=True)
+    source = tl.Unicode().tag(attr=True)  # TODO should this be a property
 
     @tl.default("source")
     def _property_source_default(self):
@@ -504,7 +505,8 @@ class SMAPProperties(SMAPSource):
 
     @common_doc(COMMON_DOC)
     @cache_func("native.coordinates")
-    def get_native_coordinates(self):
+    @property
+    def native_coordinates(self):
         """{get_native_coordinates}
         """
         ds = self.dataset

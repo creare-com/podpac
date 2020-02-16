@@ -34,15 +34,20 @@ class ModifyCoordinates(UnaryAlgorithm):
 
     coordinates_source = NodeTrait()
     lat = tl.List().tag(attr=True)
+    lat.defalut_value = []
     lon = tl.List().tag(attr=True)
+    lon.default_value = []
     time = tl.List().tag(attr=True)
+    time.default_value = []
     alt = tl.List().tag(attr=True)
+    alt.default_value = []
     substitute_eval_coords = tl.Bool(False).tag(attr=True)
 
     _modified_coordinates = tl.Instance(Coordinates, allow_none=True)
 
     @tl.default("coordinates_source")
     def _default_coordinates_source(self):
+        self.traits()["coordinates_source"] = self.source
         return self.source
 
     @common_doc(COMMON_DOC)

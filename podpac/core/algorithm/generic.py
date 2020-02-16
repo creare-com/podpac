@@ -26,6 +26,7 @@ class GenericInputs(Algorithm):
     """Base class for Algorithms that accept generic named inputs."""
 
     inputs = tl.Dict().tag(attr=True)
+    inputs.default_value = {}
 
     def _first_init(self, **kwargs):
         if "inputs" in kwargs:
@@ -38,6 +39,13 @@ class GenericInputs(Algorithm):
             input_keys = [key for key in kwargs if key not in trait_names and isinstance(kwargs[key], Node)]
             inputs = {key: kwargs.pop(key) for key in input_keys}
         return super(GenericInputs, self)._first_init(inputs=inputs, **kwargs)
+
+    @property
+    def base_definition(self):
+        d = super(GenericInputs, self).base_definition
+        if "lookup_attrs" in d and "inputs" in d["lookup_attrs"]:
+            d["lookup_attrs"].update(d["lookup_attrs"].pop("inputs"))
+        return d
 
 
 class Arithmetic(GenericInputs):

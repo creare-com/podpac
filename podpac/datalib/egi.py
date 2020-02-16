@@ -96,11 +96,7 @@ class EGI(DataSource):
         The data array compiled from downloaded EGI data
     """
 
-    base_url = tl.Unicode().tag(attr=True)
-
-    @tl.default("base_url")
-    def _base_url_default(self):
-        return BASE_URL
+    base_url = tl.Unicode(default_value=BASE_URL).tag(attr=True)
 
     # required
     short_name = tl.Unicode().tag(attr=True)
@@ -201,7 +197,8 @@ class EGI(DataSource):
         # other parameters are included at eval time
         return url
 
-    def get_native_coordinates(self):
+    @property
+    def native_coordinates(self):
         if self.data is not None:
             return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs["crs"])
         else:

@@ -110,6 +110,7 @@ class Node(tl.HasTraits):
     """
 
     outputs = tl.List(tl.Unicode, allow_none=True).tag(attr=True)
+    outputs.default_value = None
     output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     style = tl.Instance(Style)
@@ -119,12 +120,9 @@ class Node(tl.HasTraits):
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 
-    # tl.List does not honor default_value
-    outputs.default_value = None
-
     @tl.default("outputs")
     def _default_outputs(self):
-        return self.traits()["outputs"].default_value
+        return None
 
     @tl.validate("output")
     def _validate_output(self, d):
@@ -370,7 +368,7 @@ class Node(tl.HasTraits):
 
         def add_node(node):
             for ref, n in zip(refs, nodes):
-                if node.hash == n.hash:
+                if node == n:
                     return ref
 
             # get base definition and then replace nodes with references, adding nodes depth first

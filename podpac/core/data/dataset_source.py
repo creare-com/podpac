@@ -38,8 +38,6 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     # dataset = tl.Instance(xr.Dataset).tag(readonly=True)
     extra_dim = tl.Dict(allow_none=True).tag(attr=True)
-
-    # tl.Dict does not set default_value
     extra_dim.default_value = None
 
     @tl.default("extra_dim")

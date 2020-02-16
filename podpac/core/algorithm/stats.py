@@ -36,6 +36,7 @@ class Reduce(UnaryAlgorithm):
     """
 
     dims = tl.List().tag(attr=True)
+    dims.default_value = []
 
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
     _dims = tl.List(trait_type=str)
@@ -44,21 +45,6 @@ class Reduce(UnaryAlgorithm):
         if "dims" in kwargs and isinstance(kwargs["dims"], string_types):
             kwargs["dims"] = [kwargs["dims"]]
         return super(Reduce, self)._first_init(**kwargs)
-
-    def _get_dims(self, out):
-        """
-        Translates requested reduction dimensions.
-        
-        Parameters
-        ----------
-        out : UnitsDataArray
-            The output array
-        
-        Returns
-        -------
-        list
-            List of dimensions after reduction
-        """
 
     def dims_axes(self, output):
         """Finds the indices for the dimensions that will be reduced. This is passed to numpy. 

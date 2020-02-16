@@ -91,7 +91,7 @@ class Compositor(Node):
     @tl.default("outputs")
     def _default_outputs(self):
         if all(source.outputs is None for source in self.sources):
-            return None
+            outputs = None
 
         elif all(source.outputs is not None and source.output is None for source in self.sources):
             outputs = []
@@ -99,15 +99,18 @@ class Compositor(Node):
                 for output in source.outputs:
                     if output not in outputs:
                         outputs.append(output)
+
             if len(outputs) == 0:
                 outputs = None
-            return outputs
 
         else:
             raise ValueError(
                 "Cannot composite standard sources with multi-output sources. "
                 "The sources must all be stardard single-output nodes or all multi-output nodes."
             )
+
+        self.traits()["outputs"] = None
+        return outputs
 
     @tl.validate("source_coordinates")
     def _validate_source_coordinates(self, d):

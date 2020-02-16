@@ -33,12 +33,12 @@ class DroughtMonitorCategory(Zarr):
 
 
 class DroughtCategory(Algorithm):
-    soil_moisture = NodeTrait()
-    d0 = NodeTrait()
-    d1 = NodeTrait()
-    d2 = NodeTrait()
-    d3 = NodeTrait()
-    d4 = NodeTrait()
+    soil_moisture = NodeTrait().tag(attr=True)
+    d0 = NodeTrait().tag(attr=True)
+    d1 = NodeTrait().tag(attr=True)
+    d2 = NodeTrait().tag(attr=True)
+    d3 = NodeTrait().tag(attr=True)
+    d4 = NodeTrait().tag(attr=True)
     style = drought_style()
 
     def algorithm(self, inputs):

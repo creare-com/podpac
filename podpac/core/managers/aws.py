@@ -166,7 +166,7 @@ class Lambda(Node):
         )
 
     # general function parameters
-    function_eval_trigger = tl.Enum(["eval", "S3", "APIGateway"], default_value="eval").tag(attr=True, readonly=True)
+    function_eval_trigger = tl.Enum(["eval", "S3", "APIGateway"], default_value="eval").tag(attr=True)
 
     # lambda function parameters
     function_name = tl.Unicode().tag(attr=True, readonly=True)  # see default below
