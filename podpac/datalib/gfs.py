@@ -71,6 +71,7 @@ class GFSSource(Rasterio):
                 s3.Object(BUCKET, self._key).download_fileobj(f)
                 f.seek(0)
                 self.cache_ctrl and self.put_cache(f.read(), key=cache_key)
+                f.seek(0)
 
             dataset = f.open()
 
@@ -108,7 +109,7 @@ class GFS(DataSource):
         nc = self._sources[0].native_coordinates
         base_time = datetime.datetime.strptime("%s %s" % (self.date, self.hour), "%Y%m%d %H%M")
         forecast_times = [base_time + datetime.timedelta(hours=int(h)) for h in self.forecasts]
-        tc = Coordinates([[dt.strftime("%Y-%m-%d %H:%M") for dt in forecast_times]], dims=["time"])
+        tc = Coordinates([[dt.strftime("%Y-%m-%d %H:%M") for dt in forecast_times]], dims=["time"], crs=nc.crs)
         self.set_trait("native_coordinates", merge_dims([nc, tc]))
 
     def get_data(self, coordinates, coordinates_index):
