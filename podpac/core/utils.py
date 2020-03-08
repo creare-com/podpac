@@ -329,3 +329,41 @@ def _get_from_url(url):
     except RuntimeError as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
     return r.text
+
+
+def cached_property(fn):
+    """Decorator that creates a property that is cached as a private attribute."""
+
+    key = "_podpac_cached_property_%s" % fn.__name__
+
+    @property
+    def wrapper(self):
+        if hasattr(self, key):
+            value = getattr(self, key)
+        else:
+            value = fn(self)
+            setattr(self, key, value)
+        return value
+
+    return wrapper
+
+
+def cached_node_property(fn):
+    """Decorator that creates a property that is cached as a private attribute and in the Node cache_ctrl."""
+
+    key = "_podpac_cached_property_%s" % fn.__name__
+
+    @property
+    def wrapper(self):
+        if hasattr(self, key):
+            value = getattr(self, key)
+        elif self.has_cache(key):
+            value = self.get_cache(key)
+            setattr(self, key, value)
+        else:
+            value = fn(self)
+            setattr(self, key, value)
+            self.put_cache(value, key)
+        return value
+
+    return wrapper

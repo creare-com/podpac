@@ -12,7 +12,7 @@ import numpy as np
 import traitlets as tl
 
 from podpac.core.settings import settings
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 
@@ -73,17 +73,12 @@ class WCS(DataSource):
         str
             The url that requests the WCS capabilities
         """
+
         return self.source + "?" + self._get_capabilities_qs.format(version=self.version, layer=self.layer_name)
 
-    @property
+    @cached_property
     def wcs_coordinates(self):
-        """ Coordinates reported by the WCS service."""
-        if not hasattr(self, "_wcs_coordinates"):
-            self._wcs_coordinates = self.get_wcs_coordinates()
-        return self._wcs_coordinates
-
-    def get_wcs_coordinates(self):
-        """Retrieves the native coordinates reported by the WCS service.
+        """ Coordinates reported by the WCS service.
         
         Returns
         -------
@@ -98,6 +93,7 @@ class WCS(DataSource):
         Exception
             Raises this if the required dependencies are not installed.
         """
+
         if requests is not None:
             capabilities = requests.get(self.capabilities_url)
             if capabilities.status_code != 200:
@@ -167,7 +163,7 @@ class WCS(DataSource):
             ]
         )
 
-    @property
+    @cached_property
     @common_doc(COMMON_DATA_DOC)
     def native_coordinates(self):
         """{native_coordinates}

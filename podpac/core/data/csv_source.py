@@ -1,7 +1,7 @@
 import pandas as pd
 import traitlets as tl
 
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, cached_property
 from podpac.core.coordinates import Coordinates, StackedCoordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin, LoadFileMixin
@@ -63,27 +63,24 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
     def open_dataset(self, f):
         return pd.read_csv(f, parse_dates=True, infer_datetime_format=True, header=self.header)
 
-    @property
+    @cached_property
     def dims(self):
         """ list of dataset coordinate dimensions """
-        if not hasattr(self, "_dims"):
-            lookup = {
-                self._get_key(self.lat_key): "lat",
-                self._get_key(self.lon_key): "lon",
-                self._get_key(self.alt_key): "alt",
-                self._get_key(self.time_key): "time",
-            }
-            self._dims = [lookup[key] for key in self.dataset.columns if key in lookup]
+        lookup = {
+            self._get_key(self.lat_key): "lat",
+            self._get_key(self.lon_key): "lon",
+            self._get_key(self.alt_key): "alt",
+            self._get_key(self.time_key): "time",
+        }
+        return [lookup[key] for key in self.dataset.columns if key in lookup]
 
-        return self._dims
-
-    @property
+    @cached_property
     def keys(self):
         """available data keys"""
         return self.dataset.columns.tolist()
 
     @common_doc(COMMON_DATA_DOC)
-    @property
+    @cached_property
     def native_coordinates(self):
         """{get_native_coordinates}
         

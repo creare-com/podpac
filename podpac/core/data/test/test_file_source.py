@@ -84,10 +84,6 @@ class TestLoadFile(object):
             node = MockLoadFile(source="file:///%s" % path)
             node.dataset
 
-            # node stores dataset object
-            assert hasattr(node, "_dataset")
-            node.dataset
-
             # node caches dataset object
             assert node.has_cache("dataset")
 

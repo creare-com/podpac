@@ -14,7 +14,7 @@ from lazy_import import lazy_module, lazy_class
 
 # Internal dependencies
 from podpac.core import authentication
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
 # Optional dependencies
@@ -81,27 +81,22 @@ class PyDAP(DataSource):
 
         return session
 
-    @property
+    @cached_property
     def dataset(self):
-        if not hasattr(self, "_dataset"):
-            # auth session
-            # if self.auth_session:
+        # auth session
+        # if self.auth_session:
+        try:
+            return self._open_url()
+        except Exception:
+            # TODO handle a 403 error
+            # TODO: Check Url (probably inefficient...)
             try:
-                dataset = self._open_url()
+                self.auth_session.get(self.source + ".dds")
+                return self._open_url()
             except Exception:
-                # TODO handle a 403 error
-                # TODO: Check Url (probably inefficient...)
-                try:
-                    self.auth_session.get(self.source + ".dds")
-                    dataset = self._open_url()
-                except Exception:
-                    # TODO: handle 403 error
-                    _logger.exception("Error opening PyDap url '%s'" % self.source)
-                    raise RuntimeError("Could not open PyDap url '%s'.\nCheck login credentials." % self.source)
-
-            self._dataset = dataset
-
-        return self._dataset
+                # TODO: handle 403 error
+                _logger.exception("Error opening PyDap url '%s'" % self.source)
+                raise RuntimeError("Could not open PyDap url '%s'.\nCheck login credentials." % self.source)
 
     def _open_url(self):
         return pydap.client.open_url(self.source, session=self.auth_session)
@@ -133,7 +128,7 @@ class PyDAP(DataSource):
         d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
         return d
 
-    @property
+    @cached_property
     def keys(self):
         """The list of available keys from the OpenDAP dataset.
         

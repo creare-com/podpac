@@ -1,7 +1,7 @@
 import xarray as xr
 import traitlets as tl
 
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin, LoadFileMixin
 
@@ -54,16 +54,13 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
     def close_dataset(self):
         self.dataset.close()
 
-    @property
+    @cached_property
     def dims(self):
         """dataset coordinate dims"""
-        if not hasattr(self, "_dims"):
-            lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
-            self._dims = [lookup[dim] for dim in self.dataset.dims]
+        lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
+        return [lookup[dim] for dim in self.dataset.dims]
 
-        return self._dims
-
-    @property
+    @cached_property
     def keys(self):
         return list(self.dataset.keys())
 

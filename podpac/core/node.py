@@ -20,6 +20,7 @@ from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
 from podpac.core.utils import JSONEncoder
+from podpac.core.utils import cached_property
 from podpac.core.utils import trait_is_defined, trait_is_default
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
@@ -349,7 +350,7 @@ class Node(tl.HasTraits):
 
         return d
 
-    @property
+    @cached_property
     def definition(self):
         """
         Full node definition.
@@ -415,7 +416,7 @@ class Node(tl.HasTraits):
         json.dumps(definition, cls=JSONEncoder)
         return definition
 
-    @property
+    @cached_property
     def json(self):
         """definition for this node in json format
 
@@ -426,11 +427,11 @@ class Node(tl.HasTraits):
         """
         return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
-    @property
+    @cached_property
     def json_pretty(self):
         return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
-    @property
+    @cached_property
     def hash(self):
         # Style should not be part of the hash
         defn = self.json

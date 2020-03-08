@@ -19,6 +19,7 @@ from podpac.core.utils import trait_is_defined, trait_is_default
 from podpac.core.utils import create_logfile
 from podpac.core.utils import OrderedDictTrait, ArrayTrait, TupleTrait, NodeTrait
 from podpac.core.utils import JSONEncoder, is_json_serializable
+from podpac.core.utils import cached_property, cached_node_property
 
 
 class TestCommonDocs(object):
@@ -322,3 +323,37 @@ class TestJSONEncoder(object):
     def test_is_json_serializable(self):
         assert is_json_serializable("test")
         assert not is_json_serializable(xr.DataArray([]))
+
+
+def test_cached_property():
+    class MyClass(object):
+        my_property_called = 0
+        my_cached_property_called = 0
+
+        @property
+        def my_property(self):
+            self.my_property_called += 1
+            return 10
+
+        @cached_property
+        def my_cached_property(self):
+            self.my_cached_property_called += 1
+            return 10
+
+    a = MyClass()
+
+    # normal property should be called every time it is accessed
+    assert a.my_property_called == 0
+    assert a.my_property == 10
+    assert a.my_property_called == 1
+    assert a.my_property == 10
+    assert a.my_property == 10
+    assert a.my_property_called == 3
+
+    # normal property should only called the first time it is accessed
+    assert a.my_cached_property_called == 0
+    assert a.my_cached_property == 10
+    assert a.my_cached_property_called == 1
+    assert a.my_cached_property == 10
+    assert a.my_cached_property == 10
+    assert a.my_cached_property_called == 1

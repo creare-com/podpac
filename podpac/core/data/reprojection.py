@@ -6,7 +6,7 @@ import copy
 from six import string_types
 import traitlets as tl
 
-from podpac.core.utils import common_doc, NodeTrait
+from podpac.core.utils import common_doc, NodeTrait, cached_property
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
 from podpac.core.interpolation.interpolation import InterpolationTrait
@@ -42,31 +42,28 @@ class ReprojectedSource(DataSource):
 
         return super(ReprojectedSource, self)._first_init(**kwargs)
 
-    @property
+    @cached_property
     def eval_source(self):
-        if not hasattr(self, "_eval_source"):
-            if self.source_interpolation is not None and not self.source.has_trait("interpolation"):
-                _logger.warning(
-                    "ReprojectedSource cannot set the 'source_interpolation'"
-                    " since 'source' does not have an 'interpolation' "
-                    " trait. \n type(source): %s\nsource: %s" % (str(type(self.source)), str(self.source))
-                )
+        if self.source_interpolation is not None and not self.source.has_trait("interpolation"):
+            _logger.warning(
+                "ReprojectedSource cannot set the 'source_interpolation'"
+                " since 'source' does not have an 'interpolation' "
+                " trait. \n type(source): %s\nsource: %s" % (str(type(self.source)), str(self.source))
+            )
 
-            source = self.source
-            if (
-                self.source_interpolation is not None
-                and self.source.has_trait("interpolation")
-                and self.source_interpolation != self.source.interpolation
-            ):
-                source = copy.deepcopy(source)
-                source.set_trait("interpolation", self.source_interpolation)
+        source = self.source
+        if (
+            self.source_interpolation is not None
+            and self.source.has_trait("interpolation")
+            and self.source_interpolation != self.source.interpolation
+        ):
+            source = copy.deepcopy(source)
+            source.set_trait("interpolation", self.source_interpolation)
 
-            self._eval_source = source
-
-        return self._eval_source
+        return source
 
     @common_doc(COMMON_DATA_DOC)
-    @property
+    @cached_property
     def native_coordinates(self):
         """{get_native_coordinates}
         """

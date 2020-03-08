@@ -16,7 +16,7 @@ boto3 = lazy_module("boto3")
 s3fs = lazy_module("s3fs")
 requests = lazy_module("requests")
 
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates
 
@@ -68,35 +68,30 @@ class LoadFileMixin(tl.HasTraits):
 
     cache_dataset = tl.Bool(True)
 
-    @property
+    @cached_property
     def dataset(self):
-        if hasattr(self, "_dataset"):
-            return self._dataset
-
         if self.has_cache(key="dataset"):
             data = self.get_cache(key="dataset")
             with BytesIO(data) as f:
-                self._dataset = self._open(BytesIO(data), cache=False)
+                return self._open(BytesIO(data), cache=False)
         elif self.source.startswith("s3://"):
             s3 = s3fs.S3FileSystem(anon=True)  # TODO
             with s3.open(self.source, "rb") as f:
-                self._dataset = self._open(f)
+                return self._open(f)
         elif self.source.startswith("http://") or self.source.startswith("https://"):
             response = requests.get(self.source)
             with BytesIO(response.content) as f:
-                self._dataset = self._open(f)
+                return self._open(f)
         elif self.source.startswith("ftp://"):
             addinfourl = urllib.request.urlopen(self.source)
             with BytesIO(addinfourl.read()) as f:
-                self._dataset = self._open(f)
+                return self._open(f)
         elif self.source.startswith("file://"):
             with urllib.request.urlopen(self.source) as f:
-                self._dataset = self._open(f)
+                return self._open(f)
         else:
             with open(self.source, "rb") as f:
-                self._dataset = self._open(f)
-
-        return self._dataset
+                return self._open(f)
 
     def _open(self, f, cache=True):
         if self.cache_dataset and cache:
@@ -211,23 +206,21 @@ class FileKeysMixin(tl.HasTraits):
     def dims(self):
         raise NotImplementedError
 
-    @property
+    @cached_property
     def available_data_keys(self):
         """available data keys"""
-        if not hasattr(self, "_available_data_keys"):
-            dim_keys = [self.lat_key, self.lon_key, self.alt_key, self.time_key]
-            keys = [key for key in self.keys if key not in dim_keys]
-            if len(keys) == 0:
-                raise ValueError("No data keys found in '%s'" % self.source)
-            self._available_data_keys = keys
-        return self._available_data_keys
+        dim_keys = [self.lat_key, self.lon_key, self.alt_key, self.time_key]
+        keys = [key for key in self.keys if key not in dim_keys]
+        if len(keys) == 0:
+            raise ValueError("No data keys found in '%s'" % self.source)
+        return keys
 
     def _lookup_key(self, dim):
         lookup = {"lat": self.lat_key, "lon": self.lon_key, "alt": self.alt_key, "time": self.time_key}
         return lookup[dim]
 
     @common_doc(COMMON_DATA_DOC)
-    @property
+    @cached_property
     def native_coordinates(self):
         """{native_coordinates}
         """

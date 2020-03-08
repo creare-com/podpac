@@ -4,7 +4,7 @@ from lazy_import import lazy_module, lazy_class
 
 h5py = lazy_module("h5py")
 
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
 
@@ -45,11 +45,9 @@ class H5PY(FileKeysMixin, BaseFileSource):
 
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
 
-    @property
+    @cached_property
     def dataset(self):
-        if not hasattr(self, "_dataset"):
-            self._dataset = h5py.File(self.source, self.file_mode)
-        return self._dataset
+        return h5py.File(self.source, self.file_mode)
 
     def close_dataset(self):
         """Closes the file. """
@@ -59,20 +57,17 @@ class H5PY(FileKeysMixin, BaseFileSource):
     # public api methods
     # -------------------------------------------------------------------------
 
-    @property
+    @cached_property
     def dims(self):
         """ dataset coordinate dims """
-        if not hasattr(self, "_dims"):
-            try:
-                key = self.data_key or self.output_keys[0]
-                self._dims = self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
-            except:
-                lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
-                self._dims = [lookup[key] for key in self.keys if key in lookup]
+        try:
+            key = self.data_key or self.output_keys[0]
+            return self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
+        except:
+            lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
+            return [lookup[key] for key in self.keys if key in lookup]
 
-        return self._dims
-
-    @property
+    @cached_property
     def keys(self):
         return H5PY._find_h5py_keys(self.dataset)
 

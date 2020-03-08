@@ -11,7 +11,7 @@ from lazy_import import lazy_module, lazy_class
 
 rasterio = lazy_module("rasterio")
 
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, cached_property
 from podpac.core.coordinates import UniformCoordinates1d, Coordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, LoadFileMixin
@@ -53,7 +53,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
     # public api methods
     # -------------------------------------------------------------------------
 
-    @property
+    @cached_property
     def nan_vals(self):
         return list(self.dataset.nodatavals)
 
@@ -68,7 +68,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
         self.dataset.close()
 
     @common_doc(COMMON_DATA_DOC)
-    @property
+    @cached_property
     def native_coordinates(self):
         """{get_native_coordinates}
         
@@ -125,7 +125,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
 
         return self.dataset.count
 
-    @property
+    @cached_property
     def band_descriptions(self):
         """ A description of each band contained in dataset.tags
         
@@ -136,12 +136,9 @@ class Rasterio(LoadFileMixin, BaseFileSource):
             containing a number of keys -- depending on the metadata
         """
 
-        if not hasattr(self, "_band_descriptions"):
-            self._band_descriptions = OrderedDict((i, self.dataset.tags(i + 1)) for i in range(self.band_count))
+        return OrderedDict((i, self.dataset.tags(i + 1)) for i in range(self.band_count))
 
-        return self._band_descriptions
-
-    @property
+    @cached_property
     def band_keys(self):
         """An alternative view of band_descriptions based on the keys present in the metadata
         
@@ -152,11 +149,8 @@ class Rasterio(LoadFileMixin, BaseFileSource):
             For example, band_keys['TIME'] = ['2015', '2016', '2017'] for a dataset with three bands.
         """
 
-        if not hasattr(self, "_band_keys"):
-            keys = {k for i in range(self.band_count) for k in self.band_descriptions[i]}  # set
-            self._band_keys = {k: [self.band_descriptions[i].get(k) for i in range(self.band_count)] for k in keys}
-
-        return self._band_keys
+        keys = {k for i in range(self.band_count) for k in self.band_descriptions[i]}  # set
+        return {k: [self.band_descriptions[i].get(k) for i in range(self.band_count)] for k in keys}
 
     def get_band_numbers(self, key, value):
         """Return the bands that have a key equal to a specified value.

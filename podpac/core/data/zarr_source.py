@@ -6,7 +6,7 @@ from lazy_import import lazy_module, lazy_class
 zarr = lazy_module("zarr")
 zarrGroup = lazy_class("zarr.Group")
 
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
 
@@ -65,43 +65,37 @@ class Zarr(FileKeysMixin, BaseFileSource):
     def _get_region_name(self):
         return settings["AWS_REGION_NAME"]
 
-    @property
+    @cached_property
     def dataset(self):
-        if not hasattr(self, "_dataset"):
-            if self.source.startswith("s3://"):
-                root = self.source.strip("s3://")
-                kwargs = {"region_name": self.region_name}
-                s3 = s3fs.S3FileSystem(key=self.access_key_id, secret=self.secret_access_key, client_kwargs=kwargs)
-                s3map = s3fs.S3Map(root=root, s3=s3, check=False)
-                store = s3map
-            else:
-                store = str(self.source)  # has to be a string in Python2.7 for local files
+        if self.source.startswith("s3://"):
+            root = self.source.strip("s3://")
+            kwargs = {"region_name": self.region_name}
+            s3 = s3fs.S3FileSystem(key=self.access_key_id, secret=self.secret_access_key, client_kwargs=kwargs)
+            s3map = s3fs.S3Map(root=root, s3=s3, check=False)
+            store = s3map
+        else:
+            store = str(self.source)  # has to be a string in Python2.7 for local files
 
-            try:
-                return zarr.open(store, mode=self.file_mode)
-            except ValueError:
-                raise ValueError("No Zarr store found at path '%s'" % self.source)
-
-        return self._dataset
+        try:
+            return zarr.open(store, mode=self.file_mode)
+        except ValueError:
+            raise ValueError("No Zarr store found at path '%s'" % self.source)
 
     # -------------------------------------------------------------------------
     # public api methods
     # -------------------------------------------------------------------------
 
-    @property
+    @cached_property
     def dims(self):
-        if not hasattr(self, "_dims"):
-            key = self.data_key or self.output_keys[0]
+        key = self.data_key or self.output_keys[0]
 
-            try:
-                self._dims = self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
-            except:
-                lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
-                self._dims = [lookup[key] for key in self.dataset if key in lookup]
+        try:
+            return self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
+        except:
+            lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
+            return [lookup[key] for key in self.dataset if key in lookup]
 
-        return self._dims
-
-    @property
+    @cached_property
     def keys(self):
         return list(self.dataset.keys())
 
