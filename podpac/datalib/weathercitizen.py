@@ -20,6 +20,7 @@ import json
 from datetime import datetime
 from datetime import timedelta
 import logging
+from copy import deepcopy
 
 import traitlets as tl
 import pandas as pd
@@ -45,10 +46,10 @@ class WeatherCitizen(DataSource):
     Attributes
     ----------
     source : str
-        URL of the WeatherCitizen server.
-        Defaults to "https://api.WeatherCitizen.org"
+        Collection (database) to pull data from.
+        Defaults to "geosensors" which is the primary data collection
     data_key : str, int
-        data key of interest, default `pressure`
+        Data key of interest, default "properties.pressure"
     uuid : str, list(str), options
         String or list of strings to filter data by uuid
     device : str, list(str), ObjectId, list(ObjectId), optional
@@ -62,8 +63,8 @@ class WeatherCitizen(DataSource):
         Don't display log messages or progress
     """
 
-    source = tl.Unicode(allow_none=True, default_value=URL).tag(attr=True)
-    data_key = tl.Unicode(allow_none=True, default_value="pressure").tag(attr=True)
+    source = tl.Unicode(allow_none=True, default_value="geosensors").tag(attr=True)
+    data_key = tl.Unicode(allow_none=True, default_value="properties.pressure").tag(attr=True)
     uuid = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     device = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     version = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
@@ -74,9 +75,34 @@ class WeatherCitizen(DataSource):
     def get_native_coordinates(self):
         """{get_native_coordinates}
         """
+        # query parameters
+        start_time = datetime(2016, 1, 1, 1, 0, 0)  # before WeatherCitizen existed
+        projection = {"properties.time": 1, "geometry.coordinates": 1}
 
-        # return Coordinates([stacked], **coords.properties)
-        pass
+        # make sure data_key exists in dataset
+        query = {self.data_key: {"$exists": True}}
+
+        # handle if the user specifies and query and the data_key is already in that query
+        if self.query is not None and self.data_key in self.query:
+            query = deepcopy(self.query)
+            query[self.data_key]["$exists"] = True
+
+        items = get(
+            collection=self.source,
+            start_time=start_time,
+            uuid=self.uuid,
+            device=self.device,
+            version=self.version,
+            query=query,
+            projection=projection,
+            quiet=self.quiet,
+        )
+
+        lat = [item["geometry"]["coordinates"][1] for item in items]
+        lon = [item["geometry"]["coordinates"][0] for item in items]
+        time = [item["properties"]["time"] for item in items]
+        # time = [pd.to_datetime(item["properties"]["time"], utc=True, infer_datetime_format=True) for item in items]
+        return Coordinates([[lat, lon, time]], dims=["lat,lon,time"])
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -100,6 +126,7 @@ def get(
     device=None,
     version=None,
     query=None,
+    projection=None,
     quiet=False,
     dry_run=False,
 ):
@@ -136,6 +163,10 @@ def get(
     query : dict, optional
         Arbitrary pymongo query to apply to data.
         Note that certain fields in this query may be overriden if other keyword arguments are specified
+    projection: dict, optional
+        Specify what fields should or should not be returned.
+        Dict keys are field names.
+        Dict values should be set to 1 to include field (and exclude all others) or set to 0 to exclude field and include all others
     quiet : bool, optional
         Don't display log messages or progress
     dry_run : bool, optional
@@ -166,6 +197,7 @@ def get(
             device=device,
             version=version,
             query=query,
+            projection=projection,
         )
         for coll in collection
     ]
@@ -371,6 +403,7 @@ def _build_query(
     device=None,
     version=None,
     query=None,
+    projection=None,
 ):
     """Build a query string for a single collection.
     See :func:`get` for type definitions of each input
@@ -433,8 +466,11 @@ def _build_query(
         elif isinstance(version, list):
             query["version"] = {"$in": version}
 
-    # add collection to query string
-    query_str = "{}?where={}".format(collection, json.dumps(query))
+    # add collection to query string and handle projection
+    if projection is not None:
+        query_str = "{}?where={}&projection={}".format(collection, json.dumps(query), json.dumps(projection))
+    else:
+        query_str = "{}?where={}".format(collection, json.dumps(query))
 
     return query_str
 
