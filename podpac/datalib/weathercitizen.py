@@ -75,6 +75,10 @@ class WeatherCitizen(DataSource):
     def get_native_coordinates(self):
         """{get_native_coordinates}
         """
+
+        # TODO: if no query or uuid is provided, just sent back all coordinates.
+        # the server already support querying by location, so we really only need the bounding box
+
         # query parameters
         start_time = datetime(2016, 1, 1, 1, 0, 0)  # before WeatherCitizen existed
         projection = {"properties.time": 1, "geometry.coordinates": 1}
