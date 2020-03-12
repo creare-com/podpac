@@ -30,6 +30,7 @@ from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
 from podpac.core.node import Node, NodeException
 from podpac.core.node import node_eval
+from podpac.core.node import NoCacheMixin, DiskCacheMixin, S3Mixin
 
 
 class TestNode(object):
@@ -406,137 +407,6 @@ class TestCaching(object):
         assert self.node.has_cache("c", coordinates=self.coords)
         assert self.node.has_cache("c", coordinates=self.coords2)
         assert self.node.has_cache("d", coordinates=self.coords)
-
-    def test_cache_property_decorator(self):
-        class Test(podpac.Node):
-            a = tl.Int(1).tag(attr=True)
-            b = tl.Int(1).tag(attr=True)
-            c = tl.Int(1)
-            d = tl.Int(1)
-
-            @podpac.core.node.cache_func("a2", "a")
-            def a2(self):
-                """a2 docstring"""
-                return self.a * 2
-
-            @podpac.core.node.cache_func("b2")
-            def b2(self):
-                """ b2 docstring """
-                return self.b * 2
-
-            @podpac.core.node.cache_func("c2", "c")
-            def c2(self):
-                """ c2 docstring """
-                return self.c * 2
-
-            @podpac.core.node.cache_func("d2")
-            def d2(self):
-                """ d2 docstring """
-                return self.d * 2
-
-        t = Test(cache_ctrl=CacheCtrl([RamCacheStore()]))
-        t2 = Test(cache_ctrl=CacheCtrl([RamCacheStore()]))
-        t.rem_cache(key="*", coordinates="*")
-        t2.rem_cache(key="*", coordinates="*")
-
-        with pytest.raises(podpac.NodeException):
-            t.get_cache("a2")
-
-        assert t.a2() == 2
-        assert t.b2() == 2
-        assert t.c2() == 2
-        assert t.d2() == 2
-        assert t2.a2() == 2
-        assert t2.b2() == 2
-        assert t2.c2() == 2
-        assert t2.d2() == 2
-
-        t.set_trait("a", 2)
-        assert t.a2() == 4
-        t.set_trait("b", 2)
-        assert t.b2() == 4  # This happens because the node definition changed
-        t.rem_cache(key="*", coordinates="*")
-        assert t.c2() == 2  # This forces the cache to update based on the new node definition
-        assert t.d2() == 2  # This forces the cache to update based on the new node definition
-        t.c = 2
-        assert t.c2() == 4  # This happens because of depends
-        t.d = 2
-        assert t.d2() == 2  # No depends, and doesn't have a tag
-
-        # These should not change
-        assert t2.a2() == 2
-        assert t2.b2() == 2
-        assert t2.c2() == 2
-        assert t2.d2() == 2
-
-        t2.set_trait("a", 2)
-        assert t2.get_cache("a2") == 4  # This was cached by t
-        t2.set_trait("b", 2)
-        assert t2.get_cache("c2") == 4  # This was cached by t
-        assert t2.get_cache("d2") == 2  # This was cached by t
-
-    def test_cache_func_decorator_with_no_cache(self):
-        class Test(podpac.Node):
-            a = tl.Int(1).tag(attr=True)
-            b = tl.Int(1).tag(attr=True)
-            c = tl.Int(1)
-            d = tl.Int(1)
-
-            @podpac.core.node.cache_func("a2", "a")
-            def a2(self):
-                """a2 docstring"""
-                return self.a * 2
-
-            @podpac.core.node.cache_func("b2")
-            def b2(self):
-                """ b2 docstring """
-                return self.b * 2
-
-            @podpac.core.node.cache_func("c2", "c")
-            def c2(self):
-                """ c2 docstring """
-                return self.c * 2
-
-            @podpac.core.node.cache_func("d2")
-            def d2(self):
-                """ d2 docstring """
-                return self.d * 2
-
-        t = Test(cache_ctrl=None)
-        t2 = Test(cache_ctrl=None)
-        t.rem_cache(key="*", coordinates="*")
-        t2.rem_cache(key="*", coordinates="*")
-
-        with pytest.raises(podpac.NodeException):
-            t.get_cache("a2")
-            raise Exception("Cache should be cleared")
-
-        assert t.a2() == 2
-        assert t.b2() == 2
-        assert t.c2() == 2
-        assert t.d2() == 2
-        assert t2.a2() == 2
-        assert t2.b2() == 2
-        assert t2.c2() == 2
-        assert t2.d2() == 2
-
-        t.set_trait("a", 2)
-        assert t.a2() == 4
-        t.set_trait("b", 2)
-        assert t.b2() == 4  # This happens because the node definition changed
-        t.rem_cache(key="*", coordinates="*")
-        assert t.c2() == 2  # This forces the cache to update based on the new node definition
-        assert t.d2() == 2  # This forces the cache to update based on the new node definition
-        t.c = 2
-        assert t.c2() == 4  # This happens because of depends
-        t.d = 2
-        assert t.d2() == 4  # No caching here, so it SHOULD update
-
-        # These should not change
-        assert t2.a2() == 2
-        assert t2.b2() == 2
-        assert t2.c2() == 2
-        assert t2.d2() == 2
 
 
 class TestSerialization(object):
@@ -993,6 +863,55 @@ class TestUserDefinition(object):
             podpac.settings["DEBUG"] = True
             node = Node.from_json(s)
             assert node.inputs["A"] is not node.inputs["B"].source
+
+
+def test_no_cache_mixin():
+    class MyNode(NoCacheMixin, Node):
+        pass
+
+    with podpac.settings:
+        podpac.settings["DEFAULT_CACHE"] = ["ram"]
+
+        # normal node should use the setting default
+        node = Node()
+        assert len(node.cache_ctrl._cache_stores) == 1
+
+        # node with NoCacheMixin should have no cache by default
+        node = MyNode()
+        assert len(node.cache_ctrl._cache_stores) == 0
+
+        # but node with NoCacheMixin should still be customizable
+        node = MyNode(cache_ctrl=["ram"])
+        assert len(node.cache_ctrl._cache_stores) == 1
+
+
+def test_disk_cache_mixin():
+    class MyNode(DiskCacheMixin, Node):
+        pass
+
+    with podpac.settings:
+        # normal node should use the setting default
+        podpac.settings["DEFAULT_CACHE"] = ["ram"]
+        node = Node()
+        assert len(node.cache_ctrl._cache_stores) == 1
+
+        # node with DiskCacheMixin should add a disk cache
+        podpac.settings["DEFAULT_CACHE"] = ["ram"]
+        node = MyNode()
+        assert len(node.cache_ctrl._cache_stores) == 2
+
+        # but only if necessary
+        podpac.settings["DEFAULT_CACHE"] = ["ram", "disk"]
+        node = MyNode()
+        assert len(node.cache_ctrl._cache_stores) == 2
+
+        # node with DiskCacheMixin should still be customizable
+        node = MyNode(cache_ctrl=["ram"])
+        assert len(node.cache_ctrl._cache_stores) == 1
+
+
+def test_s3_mixin():
+    pass
 
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)

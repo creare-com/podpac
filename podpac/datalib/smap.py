@@ -51,8 +51,8 @@ from podpac.core.data import pydap_source
 from podpac.core import authentication
 from podpac.core.utils import common_doc
 from podpac.core.data.datasource import COMMON_DATA_DOC
-from podpac.core.node import cache_func
-from podpac.core.node import NodeException
+from podpac.core.utils import cache_func
+from podpac.core.node import NodeException, DiskCacheMixin
 from podpac.core import cache
 
 from . import nasaCMR
@@ -545,7 +545,7 @@ class SMAPWilt(SMAPProperties):
 
 
 @common_doc(COMMON_DOC)
-class SMAPDateFolder(podpac.compositor.OrderedCompositor):
+class SMAPDateFolder(podpac.compositor.OrderedCompositor, DiskCacheMixin):
     """Compositor of all the SMAP source urls present in a particular folder which is defined for a particular date
 
     Attributes
@@ -590,15 +590,6 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
     def _validate_source_coordinates(self, d):
         # Need to overwrite parent because of recursive definition
         return d["value"]
-
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
-        # append disk store to default cache_ctrl if not present
-        default_ctrl = cache.get_default_cache_ctrl()
-        stores = default_ctrl._cache_stores
-        if not any(isinstance(store, cache.DiskCacheStore) for store in default_ctrl._cache_stores):
-            stores.append(cache.DiskCacheStore())
-        return cache.CacheCtrl(stores)
 
     @tl.default("auth_session")
     def _auth_session_default(self):

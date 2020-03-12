@@ -19,7 +19,7 @@ from podpac.core.utils import trait_is_defined, trait_is_default
 from podpac.core.utils import create_logfile
 from podpac.core.utils import OrderedDictTrait, ArrayTrait, TupleTrait, NodeTrait
 from podpac.core.utils import JSONEncoder, is_json_serializable
-from podpac.core.utils import cached_property, cached_node_property
+from podpac.core.utils import cache_func, cached_property
 
 
 class TestCommonDocs(object):
@@ -325,10 +325,144 @@ class TestJSONEncoder(object):
         assert not is_json_serializable(xr.DataArray([]))
 
 
+def test_cache_func():
+    class Test(podpac.Node):
+        a = tl.Int(1).tag(attr=True)
+        b = tl.Int(1).tag(attr=True)
+        c = tl.Int(1)
+        d = tl.Int(1)
+
+        @cache_func("a2", "a")
+        def a2(self):
+            """a2 docstring"""
+            return self.a * 2
+
+        @cache_func("b2")
+        def b2(self):
+            """ b2 docstring """
+            return self.b * 2
+
+        @cache_func("c2", "c")
+        def c2(self):
+            """ c2 docstring """
+            return self.c * 2
+
+        @cache_func("d2")
+        def d2(self):
+            """ d2 docstring """
+            return self.d * 2
+
+    t = Test(cache_ctrl=podpac.core.cache.CacheCtrl([podpac.core.cache.RamCacheStore()]))
+    t2 = Test(cache_ctrl=podpac.core.cache.CacheCtrl([podpac.core.cache.RamCacheStore()]))
+    t.rem_cache(key="*", coordinates="*")
+    t2.rem_cache(key="*", coordinates="*")
+
+    with pytest.raises(podpac.NodeException):
+        t.get_cache("a2")
+
+    assert t.a2() == 2
+    assert t.b2() == 2
+    assert t.c2() == 2
+    assert t.d2() == 2
+    assert t2.a2() == 2
+    assert t2.b2() == 2
+    assert t2.c2() == 2
+    assert t2.d2() == 2
+
+    t.set_trait("a", 2)
+    assert t.a2() == 4
+    t.set_trait("b", 2)
+    assert t.b2() == 4  # This happens because the node definition changed
+    t.rem_cache(key="*", coordinates="*")
+    assert t.c2() == 2  # This forces the cache to update based on the new node definition
+    assert t.d2() == 2  # This forces the cache to update based on the new node definition
+    t.c = 2
+    assert t.c2() == 4  # This happens because of depends
+    t.d = 2
+    assert t.d2() == 2  # No depends, and doesn't have a tag
+
+    # These should not change
+    assert t2.a2() == 2
+    assert t2.b2() == 2
+    assert t2.c2() == 2
+    assert t2.d2() == 2
+
+    t2.set_trait("a", 2)
+    assert t2.get_cache("a2") == 4  # This was cached by t
+    t2.set_trait("b", 2)
+    assert t2.get_cache("c2") == 4  # This was cached by t
+    assert t2.get_cache("d2") == 2  # This was cached by t
+
+
+def test_cache_func_with_no_cache():
+    class Test(podpac.Node):
+        a = tl.Int(1).tag(attr=True)
+        b = tl.Int(1).tag(attr=True)
+        c = tl.Int(1)
+        d = tl.Int(1)
+
+        @cache_func("a2", "a")
+        def a2(self):
+            """a2 docstring"""
+            return self.a * 2
+
+        @cache_func("b2")
+        def b2(self):
+            """ b2 docstring """
+            return self.b * 2
+
+        @cache_func("c2", "c")
+        def c2(self):
+            """ c2 docstring """
+            return self.c * 2
+
+        @cache_func("d2")
+        def d2(self):
+            """ d2 docstring """
+            return self.d * 2
+
+    t = Test(cache_ctrl=None)
+    t2 = Test(cache_ctrl=None)
+    t.rem_cache(key="*", coordinates="*")
+    t2.rem_cache(key="*", coordinates="*")
+
+    with pytest.raises(podpac.NodeException):
+        t.get_cache("a2")
+        raise Exception("Cache should be cleared")
+
+    assert t.a2() == 2
+    assert t.b2() == 2
+    assert t.c2() == 2
+    assert t.d2() == 2
+    assert t2.a2() == 2
+    assert t2.b2() == 2
+    assert t2.c2() == 2
+    assert t2.d2() == 2
+
+    t.set_trait("a", 2)
+    assert t.a2() == 4
+    t.set_trait("b", 2)
+    assert t.b2() == 4  # This happens because the node definition changed
+    t.rem_cache(key="*", coordinates="*")
+    assert t.c2() == 2  # This forces the cache to update based on the new node definition
+    assert t.d2() == 2  # This forces the cache to update based on the new node definition
+    t.c = 2
+    assert t.c2() == 4  # This happens because of depends
+    t.d = 2
+    assert t.d2() == 4  # No caching here, so it SHOULD update
+
+    # These should not change
+    assert t2.a2() == 2
+    assert t2.b2() == 2
+    assert t2.c2() == 2
+    assert t2.d2() == 2
+
+
 def test_cached_property():
-    class MyClass(object):
+    class MyNode(podpac.Node):
         my_property_called = 0
         my_cached_property_called = 0
+        my_ram_cached_property_called = 0
 
         @property
         def my_property(self):
@@ -338,22 +472,95 @@ def test_cached_property():
         @cached_property
         def my_cached_property(self):
             self.my_cached_property_called += 1
-            return 10
+            return 20
 
-    a = MyClass()
+        @cached_property(use_cache_ctrl=True)
+        def my_ram_cached_property(self):
+            self.my_ram_cached_property_called += 1
+            return 30
 
-    # normal property should be called every time it is accessed
-    assert a.my_property_called == 0
-    assert a.my_property == 10
-    assert a.my_property_called == 1
-    assert a.my_property == 10
-    assert a.my_property == 10
-    assert a.my_property_called == 3
+    with podpac.settings:
+        podpac.utils.clear_cache()
 
-    # normal property should only called the first time it is accessed
-    assert a.my_cached_property_called == 0
-    assert a.my_cached_property == 10
-    assert a.my_cached_property_called == 1
-    assert a.my_cached_property == 10
-    assert a.my_cached_property == 10
-    assert a.my_cached_property_called == 1
+        a = MyNode(cache_ctrl=["ram"])
+        b = MyNode(cache_ctrl=["ram"])
+        c = MyNode(cache_ctrl=[])
+
+        # normal property should be called every time
+        assert a.my_property_called == 0
+        assert a.my_property == 10
+        assert a.my_property_called == 1
+        assert a.my_property == 10
+        assert a.my_property == 10
+        assert a.my_property_called == 3
+
+        assert b.my_property_called == 0
+        assert b.my_property == 10
+        assert b.my_property_called == 1
+        assert b.my_property == 10
+        assert b.my_property == 10
+        assert b.my_property_called == 3
+
+        assert c.my_property_called == 0
+        assert c.my_property == 10
+        assert c.my_property_called == 1
+        assert c.my_property == 10
+        assert c.my_property == 10
+        assert c.my_property_called == 3
+
+        # cached property should only be called when it is accessed
+        assert a.my_cached_property_called == 0
+        assert a.my_cached_property == 20
+        assert a.my_cached_property_called == 1
+        assert a.my_cached_property == 20
+        assert a.my_cached_property == 20
+        assert a.my_cached_property_called == 1
+
+        assert b.my_cached_property_called == 0
+        assert b.my_cached_property == 20
+        assert b.my_cached_property_called == 1
+        assert b.my_cached_property == 20
+        assert b.my_cached_property == 20
+        assert b.my_cached_property_called == 1
+
+        assert c.my_cached_property_called == 0
+        assert c.my_cached_property == 20
+        assert c.my_cached_property_called == 1
+        assert c.my_cached_property == 20
+        assert c.my_cached_property == 20
+        assert c.my_cached_property_called == 1
+
+        # cache_ctrl cached property should only be called in the first node that accessses it
+        assert a.my_ram_cached_property_called == 0
+        assert a.my_ram_cached_property == 30
+        assert a.my_ram_cached_property_called == 1
+        assert a.my_ram_cached_property == 30
+        assert a.my_ram_cached_property == 30
+        assert a.my_ram_cached_property_called == 1
+
+        assert b.my_ram_cached_property_called == 0
+        assert b.my_ram_cached_property == 30
+        assert b.my_ram_cached_property_called == 0
+        assert b.my_ram_cached_property == 30
+        assert b.my_ram_cached_property == 30
+        assert b.my_ram_cached_property_called == 0
+
+        # but only if a cache_ctrl exists for the Node
+        assert c.my_ram_cached_property_called == 0
+        assert c.my_ram_cached_property == 30
+        assert c.my_ram_cached_property_called == 1
+        assert c.my_ram_cached_property == 30
+        assert c.my_ram_cached_property == 30
+        assert c.my_ram_cached_property_called == 1
+
+
+def test_cached_property_invalid_argument():
+    with pytest.raises(TypeError, match="cached_property decorator does not accept keyword argument"):
+        cached_property(other=True)
+
+    with pytest.raises(TypeError, matche="cached_property decorator does not accept any positional arguments"):
+
+        class MyNode(podpac.Node):
+            @cached_property(True)
+            def my_property(self):
+                return 10

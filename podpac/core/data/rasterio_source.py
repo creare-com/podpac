@@ -7,7 +7,7 @@ import traitlets as tl
 import numpy as np
 import pyproj
 
-from lazy_import import lazy_module, lazy_class
+from lazy_import import lazy_module
 
 rasterio = lazy_module("rasterio")
 

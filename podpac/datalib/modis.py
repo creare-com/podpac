@@ -6,18 +6,16 @@ import logging
 
 import traitlets as tl
 import rasterio
-import s3fs
 
 from podpac.data import Rasterio
 from podpac.core import cache
+from podpac.node import DiskCacheMixin, S3Mixin
 
 BUCKET = "modis-pds"
 PRODUCTS = ["MCD43A4.006", "MOD09GA.006", "MYD09GA.006", "MOD09GQ.006", "MYD09GQ.006"]
 
-# TODO s3fs mixin
 
-
-class MODISSource(Rasterio):
+class MODISSource(Rasterio, DiskCacheMixin, S3Mixin):
     """
     Individual MODIS data tile using AWS OpenData, with caching.
 
@@ -40,23 +38,6 @@ class MODISSource(Rasterio):
     vertical_grid = tl.Unicode(help="vertical grid in the MODIS Sinusoidal Tiling System, e.g. '07'")
     date = tl.Unicode(help="year and three-digit day of year, e.g. '2011460'")
     data = tl.Unicode(help="individual object (varies by product)")
-
-    s3 = tl.Instance(s3fs.S3FileSystem)
-
-    @tl.default("s3")
-    def _default_fs(self):
-        # TODO use AWS credentials when available
-        self._logger.info("Connecting to s3fs")
-        return s3fs.S3FileSystem(anon=True)
-
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
-        # append disk store to default cache_ctrl if not present
-        default_ctrl = cache.get_default_cache_ctrl()
-        stores = default_ctrl._cache_stores
-        if not any(isinstance(store, cache.DiskCacheStore) for store in default_ctrl._cache_stores):
-            stores.append(cache.DiskCacheStore())
-        return cache.CacheCtrl(stores)
 
     def init(self):
         self._logger = logging.getLogger(__name__)

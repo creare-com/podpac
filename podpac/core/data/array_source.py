@@ -13,12 +13,13 @@ import traitlets as tl
 import pandas as pd  # Core dependency of xarray
 
 from podpac.core.utils import common_doc, ArrayTrait
-from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.cache import CacheCtrl
+from podpac.core.node import NoCacheMixin
 from podpac.core.coordinates import Coordinates
+from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
 
-class Array(DataSource):
+class Array(DataSource, NoCacheMixin):
     """Create a DataSource from an array -- this node is mostly meant for small experiments
     
     Attributes
@@ -50,10 +51,6 @@ class Array(DataSource):
 
     data = ArrayTrait().tag(attr=True)
     native_coordinates = tl.Instance(Coordinates).tag(attr=True)
-
-    @tl.default("cache_ctrl")
-    def _cache_ctrl_default(self):
-        return CacheCtrl([])
 
     @tl.validate("data")
     def _validate_data(self, d):

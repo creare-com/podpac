@@ -108,29 +108,6 @@ Classes to manage interpolation
     podpac.interpolators.ScipyPoint
 
 
-Pipelines
----------
-
-.. autosummary::
-    :toctree: api/
-    :template: class.rst
-
-    podpac.pipeline.Pipeline
-    podpac.pipeline.PipelineError
-
-.. rubric:: Pipeline Outputs
-
-.. autosummary::
-    :toctree: api/
-    :template: class.rst
-    
-    podpac.pipeline.Output
-    podpac.pipeline.NoOutput
-    podpac.pipeline.FileOutput
-    podpac.pipeline.FTPOutput
-    podpac.pipeline.S3Output
-    podpac.pipeline.ImageOutput
-
 Algorithm Nodes
 ---------------
 
@@ -264,6 +241,11 @@ Utilities
 
     podpac.utils.create_logfile
     podpac.utils.clear_cache
+    podpac.utils.cache_func
+    podpac.utils.cached_property
+    podpac.utils.NoCacheMixin
+    podpac.utils.DiskCacheMixin
+    podpac.utils.S3Mixin
 
 
 .. rubric:: Version

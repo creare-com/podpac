@@ -16,6 +16,10 @@ from hashlib import md5 as hash_alg
 import numpy as np
 import traitlets as tl
 
+from lazy_import import lazy_module
+
+s3fs = lazy_module("s3fs")
+
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
@@ -25,7 +29,7 @@ from podpac.core.utils import trait_is_defined, trait_is_default
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore, make_cache_ctrl
+from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
 from podpac.core.managers.multi_threading import thread_manager
 
 
@@ -821,6 +825,48 @@ def _lookup_attr(nodes, name, value):
 
 
 # --------------------------------------------------------#
+#  Mixins
+# --------------------------------------------------------#
+
+
+class NoCacheMixin(tl.HasTraits):
+    """ Mixin to use no cache by default. """
+
+    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+
+    @tl.default("cache_ctrl")
+    def _cache_ctrl_default(self):
+        return CacheCtrl([])
+
+
+class DiskCacheMixin(tl.HasTraits):
+    """ Mixin to add disk caching to the Node by default. """
+
+    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+
+    @tl.default("cache_ctrl")
+    def _cache_ctrl_default(self):
+        # get the default cache_ctrl and addd a disk cache store if necessary
+        default_ctrl = get_default_cache_ctrl()
+        stores = default_ctrl._cache_stores
+        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
+            stores.append(DiskCacheStore())
+        return CacheCtrl(stores)
+
+
+class S3Mixin(tl.HasTraits):
+    """ Mixin to add S3 credentials and access to a Node. """
+
+    s3 = tl.Instance(s3fs.S3FileSystem)
+
+    @tl.default("s3")
+    def _default_fs(self):
+        # TODO use AWS credentials when available
+        self._logger.info("Connecting to s3fs")
+        return s3fs.S3FileSystem(anon=True)
+
+
+# --------------------------------------------------------#
 #  Decorators
 # --------------------------------------------------------#
 
@@ -882,99 +928,3 @@ def node_eval(fn):
         return data
 
     return wrapper
-
-
-def cache_func(key, depends=None):
-    """
-    Decorating for caching a function's output based on a key.
-
-    Parameters
-    -----------
-    key: str
-        Key used for caching.
-    depends: str, list, traitlets.All (optional)
-        Default is None. Any traits that the cached property depends on. The cached function may NOT
-        change the value of any of these dependencies (this will result in a RecursionError)
-
-
-    Notes
-    -----
-    This decorator cannot handle function input parameters.
-
-    If the function uses any tagged attributes, these will essentially operate like dependencies
-    because the cache key changes based on the node definition, which is affected by tagged attributes.
-
-    Examples
-    ----------
-    >>> from podpac import Node
-    >>> from podpac.core.node import cache_func
-    >>> import traitlets as tl
-    >>> class MyClass(Node):
-           value = tl.Int(0)
-           @cache_func('add')
-           def add_value(self):
-               self.value += 1
-               return self.value
-           @cache_func('square', depends='value')
-           def square_value_depends(self):
-               return self.value
-
-    >>> n = MyClass(cache_ctrl=None)
-    >>> n.add_value()  # The function as defined is called
-    1
-    >>> n.add_value()  # The function as defined is called again, since we have specified no caching
-    2
-    >>> n.cache_ctrl = CacheCtrl([RamCacheStore()])
-    >>> n.add_value()  # The function as defined is called again, and the value is stored in memory
-    3
-    >>> n.add_value()  # The value is retrieved from disk, note the change in n.value is not captured
-    3
-    >>> n.square_value_depends()  # The function as defined is called, and the value is stored in memory
-    16
-    >>> n.square_value_depends()  # The value is retrieved from memory
-    16
-    >>> n.value += 1
-    >>> n.square_value_depends()  # The function as defined is called, and the value is stored in memory. Note the change in n.value is captured.
-    25
-    """
-    # This is the actual decorator which will be evaluated and returns the wrapped function
-    def cache_decorator(func):
-        # This is the initial wrapper that sets up the observations
-        @functools.wraps(func)
-        def cache_wrapper(self):
-            # This is the function that updates the cached based on observed traits
-            def cache_updator(change):
-                # print("Updating value on self:", id(self))
-                out = func(self)
-                self.put_cache(out, key, overwrite=True)
-
-            if depends:
-                # This sets up the observer on the dependent traits
-                # print ("setting up observer on self: ", id(self))
-                self.observe(cache_updator, depends)
-                # Since attributes could change on instantiation, anything we previously
-                # stored is likely out of date. So, force and update to the cache.
-                cache_updator(None)
-
-            # This is the final wrapper the continues to fetch data from cache
-            # after the observer has been set up.
-            @functools.wraps(func)
-            def cached_function():
-                try:
-                    out = self.get_cache(key)
-                except NodeException:
-                    out = func(self)
-                    self.put_cache(out, key)
-                return out
-
-            # Since this is the first time the function is run, set the new wrapper
-            # on the class instance so that the current function won't be called again
-            # (which would set up an additional observer)
-            setattr(self, func.__name__, cached_function)
-
-            # Return the value on the first run
-            return cached_function()
-
-        return cache_wrapper
-
-    return cache_decorator
