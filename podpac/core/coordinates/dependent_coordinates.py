@@ -600,7 +600,7 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
         Coordinates1d.__init__(self, name=name, ctype=ctype, segment_lengths=segment_lengths)
 
     def __repr__(self):
-        return "%s(%s): Bounds[%f, %f], shape%s, ctype['%s']" % (
+        return "%s(%s): Bounds[%s, %s], shape%s, ctype['%s']" % (
             self.__class__.__name__,
             self.name or "?",
             self.bounds[0],
