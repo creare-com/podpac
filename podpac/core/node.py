@@ -857,13 +857,35 @@ class DiskCacheMixin(tl.HasTraits):
 class S3Mixin(tl.HasTraits):
     """ Mixin to add S3 credentials and access to a Node. """
 
-    # TODO use AWS credentials when available
+    anon = tl.Bool(False)
+    access_key_id = tl.Unicode(allow_none=True)
+    secret_access_key = tl.Unicode(allow_none=True)
+    region_name = tl.Unicode(allow_none=True)
+    s3fs_kwargs = tl.Dict()
 
-    s3 = tl.Instance(s3fs.S3FileSystem)
+    @tl.default("access_key_id")
+    def _get_access_key_id(self):
+        return settings["AWS_ACCESS_KEY_ID"]
 
-    @tl.default("s3")
-    def _default_fs(self):
-        return s3fs.S3FileSystem(anon=True)
+    @tl.default("secret_access_key")
+    def _get_secret_access_key(self):
+        return settings["AWS_SECRET_ACCESS_KEY"]
+
+    @tl.default("region_name")
+    def _get_region_name(self):
+        return settings["AWS_REGION_NAME"]
+
+    @cached_property
+    def s3(self):
+        if self.anon:
+            return s3fs.S3FileSystem(anon=True)
+        else:
+            return s3fs.S3FileSystem(
+                key=self.access_key_id,
+                secret=self.secret_access_key,
+                region_name=self.region_name,
+                client_kwargs=self.s3fs_kwargs,
+            )
 
 
 # --------------------------------------------------------#

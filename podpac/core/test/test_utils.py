@@ -558,7 +558,7 @@ def test_cached_property_invalid_argument():
     with pytest.raises(TypeError, match="cached_property decorator does not accept keyword argument"):
         cached_property(other=True)
 
-    with pytest.raises(TypeError, matche="cached_property decorator does not accept any positional arguments"):
+    with pytest.raises(TypeError, match="cached_property decorator does not accept any positional arguments"):
 
         class MyNode(podpac.Node):
             @cached_property(True)

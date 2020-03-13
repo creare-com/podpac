@@ -17,6 +17,7 @@ botocore = lazy_module("botocore")
 # Internal imports
 from podpac.data import DataSource, Rasterio
 from podpac.coordinates import Coordinates, merge_dims
+from podpac.utils import cached_property
 
 BUCKET = "noaa-gfs-pds"
 
@@ -32,7 +33,7 @@ class GFSSource(Rasterio):
     hour = tl.Unicode().tag(attr=True)
     forecast = tl.Unicode().tag(attr=True)
 
-    @property
+    @cached_property
     def source(self):
         return "%s/%s/%s/%s/%s" % (self.parameter, self.level, self.date, self.hour, self.forecast)
 
@@ -43,7 +44,7 @@ class GFS(DataSource):
     date = tl.Unicode().tag(attr=True)
     hour = tl.Unicode().tag(attr=True)
 
-    @property
+    @cached_property(use_cache_ctrl=True)
     def sources(self):
         params = {
             "parameter": self.parameter,
@@ -52,7 +53,7 @@ class GFS(DataSource):
             "hour": self.hour,
             "cache_ctrl": self.cache_ctrl,
         }
-        self._sources = np.array([GFSSource(forecast=h, **params) for h in self.forecasts])  # can we load this lazily?
+        return np.array([GFSSource(forecast=h, **params) for h in self.forecasts])  # can we load this lazily?
 
     # def init(self):
     #     # TODO check prefix and the options at the next level
@@ -62,7 +63,7 @@ class GFS(DataSource):
     #     if not forecasts:
     #         raise ValueError("Not found: '%s/*'" % prefix)
 
-    @property
+    @cached_property(use_cache_ctrl=True)
     def native_coordinates(self):
         nc = self._sources[0].native_coordinates
         base_time = datetime.datetime.strptime("%s %s" % (self.date, self.hour), "%Y%m%d %H%M")

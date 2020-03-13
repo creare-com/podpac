@@ -17,8 +17,9 @@ s3fs = lazy_module("s3fs")
 requests = lazy_module("requests")
 
 from podpac.core.utils import common_doc, cached_property
-from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates
+from podpac.core.node import S3Mixin
+from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
 # TODO common doc
 
@@ -56,7 +57,7 @@ class BaseFileSource(DataSource):
         pass
 
 
-class LoadFileMixin(tl.HasTraits):
+class LoadFileMixin(S3Mixin):
     """
     Mixin to load and cache files using various transport protocols.
 
@@ -75,8 +76,7 @@ class LoadFileMixin(tl.HasTraits):
             with BytesIO(data) as f:
                 return self._open(BytesIO(data), cache=False)
         elif self.source.startswith("s3://"):
-            s3 = s3fs.S3FileSystem(anon=True)  # TODO
-            with s3.open(self.source, "rb") as f:
+            with self.s3.open(self.source, "rb") as f:
                 return self._open(f)
         elif self.source.startswith("http://") or self.source.startswith("https://"):
             response = requests.get(self.source)

@@ -29,6 +29,7 @@ from podpac.compositor import OrderedCompositor
 from podpac.data import DataSource
 from podpac import authentication
 from podpac import settings
+from podpac import cached_property
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import node_eval
 
@@ -165,7 +166,7 @@ class EGI(DataSource):
     data = tl.Any(allow_none=True)
     _url = tl.Unicode(allow_none=True)
 
-    @property
+    @cached_property
     def source(self):
         """
         URL Endpoint built from input parameters
@@ -197,7 +198,7 @@ class EGI(DataSource):
         # other parameters are included at eval time
         return url
 
-    @property
+    @cached_property
     def native_coordinates(self):
         if self.data is not None:
             return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs["crs"])

@@ -90,7 +90,7 @@ COMMON_DOC.update(
         Returns
         -------
         List
-            The list of available keys from the OpenDAP dataset. Any of these keys can be set as self.datakey.
+            The list of available keys from the OpenDAP dataset. Any of these keys can be set as self.data_key.
 
         Notes
         -----
@@ -332,8 +332,8 @@ class SMAPSource(pydap_source.PyDAP):
         src = self.source.split("/")
         return int(src[src.index("SMAP") + 1].split(".")[1])
 
-    @tl.default("datakey")
-    def _datakey_default(self):
+    @tl.default("data_key")
+    def _data_key_default(self):
         return self.layerkey.format(rdk=self.rootdatakey)
 
     @property
@@ -359,8 +359,7 @@ class SMAPSource(pydap_source.PyDAP):
         return SMAP_PRODUCT_MAP.sel(product=self.product, attr="lonkey").item().format(rdk=self.rootdatakey)
 
     @common_doc(COMMON_DOC)
-    @cache_func("native.coordinates")
-    @property
+    @cached_property(use_cache_ctrl=True)
     def native_coordinates(self):
         """{get_native_coordinates}
         """
@@ -417,7 +416,7 @@ class SMAPSource(pydap_source.PyDAP):
                 pass
 
         else:
-            data = np.array(self.dataset[self.datakey][s])
+            data = np.array(self.dataset[self.data_key][s])
             d = self.create_output_array(coordinates, data=data.reshape(coordinates.shape))
 
         return d
@@ -504,8 +503,7 @@ class SMAPProperties(SMAPSource):
         return "{rdk}" + self.property
 
     @common_doc(COMMON_DOC)
-    @cache_func("native.coordinates")
-    @property
+    @cached_property(use_cache_ctrl=True)
     def native_coordinates(self):
         """{get_native_coordinates}
         """

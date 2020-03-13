@@ -37,13 +37,8 @@ class AirMOSS_Source(PyDAP):
     datakey = tl.Unicode("sm1").tag(attr=True)
     nan_vals = [-9999.0]
 
-    @property
+    @podpac.cached_property(use_cache_ctrl=True)
     def native_coordinates(self):
-        try:
-            return self.load_cached_obj("native.coordinates")
-        except:
-            pass
-
         ds = self.dataset
         base_date = ds["time"].attributes["units"]
         base_date = self.date_url_re.search(base_date).group()
@@ -51,10 +46,7 @@ class AirMOSS_Source(PyDAP):
 
         lons = podpac.crange(ds["lon"][0], ds["lon"][-1], ds["lon"][1] - ds["lon"][0])
         lats = podpac.crange(ds["lat"][0], ds["lat"][-1], ds["lat"][1] - ds["lat"][0])
-        coords = podpac.Coordinates([times, lats, lons], dims=["time", "lat", "lon"])
-        self.cache_obj(coords, "native.coordinates")
-
-        return coords
+        return podpac.Coordinates([times, lats, lons], dims=["time", "lat", "lon"])
 
     def get_data(self, coordinates, coordinates_index):
         data = self.dataset[self.datakey].array[tuple(coordinates_index)]
@@ -85,19 +77,13 @@ class AirMOSS_Site(podpac.OrderedCompositor):
     site = tl.Unicode("").tag(attr=True)
     date_url_re = re.compile("[0-9]{8}").tag(attr=True)
 
-    @property
+    @podpac.cached_property(use_cache_ctrl=True)
     def native_coordinates(self):
-        try:
-            return self.load_cached_obj("native.coordinates")
-        except:
-            pass
-
         ds = self.dataset
         times = self.get_available_dates()
         lons = podpac.crange(ds["lon"][0], ds["lon"][-1], ds["lon"][1] - ds["lon"][0])
         lats = podpac.crange(ds["lat"][0], ds["lat"][-1], ds["lat"][1] - ds["lat"][0])
         coords = podpac.Coordinates([times, lats, lons], dims=["time", "lat", "lon"])
-        self.cache_obj(coords, "native.coordinates")
 
         return coords
 
@@ -132,15 +118,12 @@ class AirMOSS(podpac.OrderedCompositor):
     ----------
     product : TYPE
         Description
-    site_url_re : TYPE
-        Description
     """
 
     product = tl.Enum(["L4RZSM"], default_value="L4RZSM").tag(attr=True)
-    site_url_re = tl.Any().tag(attr=True)
 
-    @tl.default("site_url_re")
-    def get_site_url_re(self):
+    @podpac.cached_property
+    def site_url_re(self):
         """Summary
 
         Returns

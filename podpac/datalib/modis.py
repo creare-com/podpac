@@ -15,7 +15,7 @@ BUCKET = "modis-pds"
 PRODUCTS = ["MCD43A4.006", "MOD09GA.006", "MYD09GA.006", "MOD09GQ.006", "MYD09GQ.006"]
 
 
-class MODISSource(DiskCacheMixin, S3Mixin, Rasterio):
+class MODISSource(DiskCacheMixin, Rasterio):
     """
     Individual MODIS data tile using AWS OpenData, with caching.
 
@@ -53,40 +53,11 @@ class MODISSource(DiskCacheMixin, S3Mixin, Rasterio):
     def source(self):
         return "s3://%s/%s" % (BUCKET, self._key)
 
-    @tl.default("dataset")
-    def open_dataset(self):
-        """Opens the data source"""
-
-        cache_key = "fileobj"
-        if self.cache_ctrl and self.has_cache(key=cache_key):
-            self._logger.info("Getting cached s3 file '%s'" % self.source)
-            data = self.get_cache(key=cache_key)
-            data = bytes.fromhex(data)
-
-        else:
-            self._logger.info("Downloading S3 file '%s'" % self.source)
-            with self.s3.open(self.source, "rb") as f:
-                data = f.read()
-                self.cache_ctrl and self.put_cache(data.hex(), key=cache_key)
-
-        with rasterio.MemoryFile() as mf:
-            mf.write(data)
-            dataset = mf.open()
-
-        return dataset
-
 
 class MODIS(object):
     """ Future MODIS node. """
 
     product = tl.Enum(values=PRODUCTS, help="MODIS product ID")
-
-    s3 = tl.Instance(s3fs.S3FileSystem)
-
-    @tl.default("s3")
-    def _default_fs(self):
-        # TODO use AWS credentials when available
-        return s3fs.S3FileSystem(anon=True)
 
     @staticmethod
     def available(product=None, horizontal_grid=None, vertical_grid=None, date=None, data=None):

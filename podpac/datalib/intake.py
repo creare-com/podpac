@@ -12,6 +12,7 @@ from lazy_import import lazy_module
 # Internal imports
 import podpac
 from podpac import Coordinates
+from podpac.utils import cached_property
 
 intake = lazy_module("intake")
 # lazy_module('intake.catalog.local.LocalCatalogEntry')
@@ -65,18 +66,12 @@ class IntakeCatalog(podpac.data.DataSource):
     dims = tl.Dict(default_value=None, allow_none=True)
     crs = tl.Unicode(default_value=None, allow_none=True)
 
-    # attributes
-    catalog = tl.Any()  # This should be lazy-loaded, but haven't problems with that currently
-    # tl.Instance(intake.catalog.Catalog)
-    datasource = tl.Any()  # Same as above
-    # datasource = tl.Instance(intake.catalog.local.LocalCatalogEntry)
-
-    @tl.default("catalog")
-    def _default_catalog(self):
+    @cached_property
+    def catalog(self):
         return intake.open_catalog(self.uri)
 
-    @tl.default("datasource")
-    def _default_datasource(self):
+    @cached_property
+    def datasource(self):
         return getattr(self.catalog, self.source)
 
     # TODO: validators may not be necessary
@@ -121,7 +116,7 @@ class IntakeCatalog(podpac.data.DataSource):
 
         return dims
 
-    @property
+    @cached_property
     def native_coordinates(self):
         """Get native coordinates from catalog definition or input dims
         """

@@ -5,13 +5,15 @@ from lazy_import import lazy_module, lazy_class
 
 zarr = lazy_module("zarr")
 zarrGroup = lazy_class("zarr.Group")
+s3fs = lazy_module("s3fs")
 
+from podpac.core.node import S3Mixin
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DATA_DOC
 from podpac.core.data.file_source import BaseFileSource, FileKeysMixin
 
 
-class Zarr(FileKeysMixin, BaseFileSource):
+class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
     """Create a DataSource node using zarr.
     
     Attributes
@@ -47,31 +49,12 @@ class Zarr(FileKeysMixin, BaseFileSource):
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
     coordinate_index_type = "slice"
 
-    # s3 credentials
-    # TODO factor out
-    access_key_id = tl.Unicode()
-    secret_access_key = tl.Unicode()
-    region_name = tl.Unicode()
-
-    @tl.default("access_key_id")
-    def _get_access_key_id(self):
-        return settings["AWS_ACCESS_KEY_ID"]
-
-    @tl.default("secret_access_key")
-    def _get_secret_access_key(self):
-        return settings["AWS_SECRET_ACCESS_KEY"]
-
-    @tl.default("region_name")
-    def _get_region_name(self):
-        return settings["AWS_REGION_NAME"]
-
     @cached_property
     def dataset(self):
         if self.source.startswith("s3://"):
             root = self.source.strip("s3://")
             kwargs = {"region_name": self.region_name}
-            s3 = s3fs.S3FileSystem(key=self.access_key_id, secret=self.secret_access_key, client_kwargs=kwargs)
-            s3map = s3fs.S3Map(root=root, s3=s3, check=False)
+            s3map = s3fs.S3Map(root=root, s3=self.s3, check=False)
             store = s3map
         else:
             store = str(self.source)  # has to be a string in Python2.7 for local files

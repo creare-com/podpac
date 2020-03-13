@@ -58,7 +58,6 @@ rasterio = lazy_module("rasterio")
 
 # create log for module
 _logger = logging.getLogger(__name__)
-_s3 = s3fs.S3FileSystem(anon=True)
 
 
 class TerrainTilesSource(Rasterio):
@@ -94,45 +93,6 @@ class TerrainTilesSource(Rasterio):
         if "normal" in self.source:
             return "EPSG:3857"
 
-    @tl.default("dataset")
-    def open_dataset(self):
-        """Opens the data source"""
-
-        cache_key = "fileobj"
-        with rasterio.MemoryFile() as f:
-
-            # load data from cache
-            if self.cache_ctrl and self.has_cache(key=cache_key):
-                _logger.debug("Retrieving terrain tile {} from cache'".format(self.source))
-                data = self.get_cache(key=cache_key)
-                f.write(data)
-
-            else:
-
-                # try finding local file first
-                try:
-                    with open(self.source, "rb") as localfile:
-                        data = localfile.read()
-
-                # download and put in cache
-                except FileNotFoundError:
-                    _logger.info("Downloading S3 fileobj: {}".format(self.source))
-                    with _s3.open(self.source, "rb") as s3file:
-                        data = s3file.read()
-
-                # write to memory file
-                f.write(data)
-
-                # put data in the cache
-                _logger.debug("Caching terrain tile {} in key 'fileobj'".format(self.source))
-                self.cache_ctrl  # confirm this is initialized
-                self.put_cache(data, key=cache_key)
-
-            f.seek(0)
-            dataset = f.open()
-
-        return dataset
-
     def get_data(self, coordinates, coordinates_index):
         data = super(TerrainTilesSource, self).get_data(coordinates, coordinates_index)
         data.data[data.data < 0] = np.nan
@@ -161,7 +121,7 @@ class TerrainTilesSource(Rasterio):
 
         # download the file
         _logger.debug("Downloading terrain tile {} to filepath: {}".format(self.source, filepath))
-        _s3.get(self.source, filepath)
+        self.s3.get(self.source, filepath)
 
 
 class TerrainTiles(OrderedCompositor):
@@ -205,17 +165,6 @@ class TerrainTiles(OrderedCompositor):
     @tl.default("sources")
     def _default_sources(self):
         return np.array([])
-
-    @property
-    def source(self):
-        """
-        S3 Bucket source of TerrainTiles
-
-        Returns
-        -------
-        str
-        """
-        return self.bucket
 
     def select_sources(self, coordinates):
         # get all the tile sources for the requested zoom level and coordinates
