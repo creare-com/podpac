@@ -47,6 +47,7 @@ class ModifyCoordinates(UnaryAlgorithm):
 
     @tl.default("coordinates_source")
     def _default_coordinates_source(self):
+        self.traits()["coordinates_source"].default = self.source
         return self.source
 
     @common_doc(COMMON_DOC)

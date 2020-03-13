@@ -41,7 +41,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
     extra_dim.default_value = None
 
     @tl.default("extra_dim")
-    def _default_outputs(self):
+    def _default_extra_dim(self):
         return None
 
     # -------------------------------------------------------------------------

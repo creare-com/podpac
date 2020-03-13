@@ -74,8 +74,6 @@ class TerrainTilesSource(Rasterio):
         rasterio dataset
     """
 
-    outputs = None
-
     # parameters
     source = tl.Unicode().tag(readonly=True)
 
@@ -154,8 +152,6 @@ class TerrainTiles(OrderedCompositor):
         Bucket of the terrain tiles.
         Defaults to 'elevation-tiles-prod'
     """
-
-    outputs = None
 
     # parameters
     zoom = tl.Int(default_value=6).tag(attr=True)

@@ -42,7 +42,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
 
     @tl.default("band")
     def _band_default(self):
-        if (self.outputs is not None) and (self.output is not None):
+        if self.outputs is not None and self.output is not None:
             return self.outputs.index(self.output)
         elif self.outputs is None:
             return 1

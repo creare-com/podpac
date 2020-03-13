@@ -106,10 +106,10 @@ class Compositor(Node):
         else:
             raise ValueError(
                 "Cannot composite standard sources with multi-output sources. "
-                "The sources must all be stardard single-output nodes or all multi-output nodes."
+                "The sources must all be standard single-output nodes or all multi-output nodes."
             )
 
-        self.traits()["outputs"] = None
+        self.traits()["outputs"].default = outputs
         return outputs
 
     @tl.validate("source_coordinates")

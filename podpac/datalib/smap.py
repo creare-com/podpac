@@ -276,8 +276,6 @@ class SMAPSource(pydap_source.PyDAP):
 
     auth_session = tl.Instance(authentication.EarthDataSession)
     auth_class = tl.Type(authentication.EarthDataSession)
-    # Need to overwrite parent because of recursive definition
-    outputs = None
 
     @tl.default("auth_session")
     def _auth_session_default(self):
@@ -581,8 +579,6 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
     auth_class = tl.Type(authentication.EarthDataSession)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
-    # Need to overwrite parent because of recursive definition
-    outputs = None
 
     @tl.validate("source_coordinates")
     def _validate_source_coordinates(self, d):
@@ -827,8 +823,6 @@ class SMAP(podpac.compositor.OrderedCompositor):
     username : {username}
     """
 
-    # Need to overwrite parent because of recursive definition
-    outputs = None
     base_url = tl.Unicode().tag(attr=True)
 
     @tl.validate("source_coordinates")

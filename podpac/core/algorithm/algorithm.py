@@ -176,4 +176,5 @@ class UnaryAlgorithm(BaseAlgorithm):
 
     @tl.default("outputs")
     def _default_outputs(self):
+        self.traits()["outputs"].default = self.source.outputs
         return self.source.outputs
