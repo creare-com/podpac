@@ -232,7 +232,9 @@ class Lambda(Node):
 
     @tl.default("function_allow_unsafe_eval")
     def _function_allow_unsafe_eval_default(self):
-        return isinstance(settings["UNSAFE_EVAL_HASH"], string_types)
+        return "UNSAFE_EVAL_HASH" in self.eval_settings and isinstance(
+            self.eval_settings["UNSAFE_EVAL_HASH"], string_types
+        )
 
     # role parameters
     function_role_name = tl.Unicode().tag(readonly=True)  # see default below

@@ -226,7 +226,7 @@ class DependentCoordinates(BaseCoordinates):
         c = self.coordinates[index]
         ctype = self.ctypes[index]
         bounds = np.min(c), np.max(c)
-        return "%s(%s->%s): Bounds[%f, %f], shape%s, ctype[%s]" % (
+        return "%s(%s->%s): Bounds[%s, %s], shape%s, ctype[%s]" % (
             self.__class__.__name__,
             ",".join(self.idims),
             dim,

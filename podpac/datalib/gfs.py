@@ -67,8 +67,8 @@ class GFS(DataSource):
         nc = self._sources[0].native_coordinates
         base_time = datetime.datetime.strptime("%s %s" % (self.date, self.hour), "%Y%m%d %H%M")
         forecast_times = [base_time + datetime.timedelta(hours=int(h)) for h in self.forecasts]
-        tc = Coordinates([[dt.strftime("%Y-%m-%d %H:%M") for dt in forecast_times]], dims=["time"])
-        return merge_dims([nc, tc])
+        tc = Coordinates([[dt.strftime("%Y-%m-%d %H:%M") for dt in forecast_times]], dims=["time"], crs=nc.crs)
+        self.set_trait("native_coordinates", merge_dims([nc, tc]))
 
     def get_data(self, coordinates, coordinates_index):
         data = self.create_output_array(coordinates)

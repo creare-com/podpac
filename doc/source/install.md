@@ -15,8 +15,7 @@ Select the installation method the best suits your development environment:
 
 Confirm you have the required dependencies installed on your computer:
 
-- [Python](https://www.python.org/) (3.6 or later)
-    - We recommend the [Anaconda Python Distribution](https://www.anaconda.com/distribution/#download-section)
+- [Python](https://www.python.org/) (3.6 or later) &mdash; [Anaconda Python Distribution](https://www.anaconda.com/distribution/#download-section) recommended
 - See [operating system requirements](dependencies.html#os-specific-requirements)
 
 ### Environment
@@ -94,7 +93,6 @@ The Window 10 standalone distribution requires no pre-installed operating system
         - For older versions, substitute `latest` in the url with the version number, i.e. `PODPAC_1.2.0_install_windows10.zip`
 - Once downloaded, extract the zip file into a folder on your machine.
     - We recommend expanding it near the root of your drive (e.g. `C:\PODPAC`) due to long file paths that are part of the installation.
-    - We also recommend *unblocking* the file to speed up the unzipping process. See this [Microsoft Developer Entry](https://blogs.msdn.microsoft.com/delay/p/unblockingdownloadedfile/).
 
 Once the folder is unzipped:
 

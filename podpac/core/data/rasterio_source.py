@@ -82,8 +82,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
 
         if self.crs is not None:
             crs = self.crs
-        elif isinstance(self.dataset.crs, rasterio.crs.CRS):
-            # crs = self.dataset.crs.wkt
+        elif isinstance(self.dataset.crs, rasterio.crs.CRS) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
         elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
