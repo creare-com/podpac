@@ -279,9 +279,21 @@ class SMAPSource(pydap_source.PyDAP):
     # Need to overwrite parent because of recursive definition
     outputs = None
 
+    @tl.observe("username")
+    def _username_change(self, change):
+        if change["old"] != change["new"]:
+            self.auth_session = self._auth_session_default()
+
+    @tl.observe("password")
+    def _password_change(self, change):
+        if change["old"] != change["new"]:
+            self.auth_session = self._auth_session_default()
+
     @tl.default("auth_session")
     def _auth_session_default(self):
-        session = self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
+        session = self.auth_class(
+            username=self.username, password=self.password, product_url=SMAP_BASE_URL(), store_credentials=True
+        )
 
         # check url
         try:
@@ -598,9 +610,21 @@ class SMAPDateFolder(podpac.compositor.OrderedCompositor):
             stores.append(cache.DiskCacheStore())
         return cache.CacheCtrl(stores)
 
+    @tl.observe("username")
+    def _username_change(self, change):
+        if change["old"] != change["new"]:
+            self.auth_session = self._auth_session_default()
+
+    @tl.observe("password")
+    def _password_change(self, change):
+        if change["old"] != change["new"]:
+            self.auth_session = self._auth_session_default()
+
     @tl.default("auth_session")
     def _auth_session_default(self):
-        return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
+        return self.auth_class(
+            username=self.username, password=self.password, product_url=SMAP_BASE_URL(), store_credentials=True
+        )
 
     base_url = tl.Unicode().tag(attr=True)
 
@@ -875,9 +899,21 @@ class SMAP(podpac.compositor.OrderedCompositor):
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
 
+    @tl.observe("username")
+    def _username_change(self, change):
+        if change["old"] != change["new"]:
+            self.auth_session = self._auth_session_default()
+
+    @tl.observe("password")
+    def _password_change(self, change):
+        if change["old"] != change["new"]:
+            self.auth_session = self._auth_session_default()
+
     @tl.default("auth_session")
     def _auth_session_default(self):
-        return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
+        return self.auth_class(
+            username=self.username, password=self.password, product_url=SMAP_BASE_URL(), store_credentials=True
+        )
 
     layerkey = tl.Unicode()
 

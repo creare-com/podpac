@@ -47,9 +47,12 @@ class Session(requests.Session):
     username : str
         Username used for authentication.
         Loaded from podpac settings file using username@:attr:`hostname` as the key.
+    store_credentials : str
+        Store credentials in podpac settings
+        Credentials are stored using username@:attr:`hostname` as the key.
     """
 
-    def __init__(self, hostname="", username=None, password=None):
+    def __init__(self, hostname=None, username=None, password=None, store_credentials=False):
 
         # requests __init__
         super(Session, self).__init__()
@@ -57,14 +60,33 @@ class Session(requests.Session):
         self.hostname = hostname
         self.username = username
         self.password = password
+        self.store_credentials = store_credentials
 
-        # load username/password from settings
+        # throw error if hostname is not defined
+        if self.hostname is None:
+            raise ValueError("hostname must be defined for authentication session")
+
+        # load username/password from settings and raise error if not defined
+        # store in settings if requested
         if self.username is None:
-            self.username = settings["username@" + self.hostname]
+            self.username = settings["username@" + self.hostname]  # returns None if not defined
+
+            if self.username is None:
+                raise ValueError("username must be defined for authentication session")
+
+        elif self.store_credentials:
+            settings["username@" + self.hostname] = username
 
         if self.password is None:
             self.password = settings["password@" + self.hostname]
 
+            if self.password is None:
+                raise ValueError("password must be defined for authentication session")
+
+        elif self.store_credentials:
+            settings["password@" + self.hostname] = password
+
+        # complete
         self.auth = (self.username, self.password)
 
 
@@ -145,23 +167,3 @@ class EarthDataSession(Session):
                     del headers["Authorization"]
 
         return
-
-    def update_login(self, username=None, password=None):
-        """Summary
-        
-        Parameters
-        ----------
-        username : str, optional
-            Username input
-        password : str, optional
-            Password input
-        """
-        print("Updating login information for: ", self.hostname)
-
-        if username is None:
-            self.username = input("Username: ")
-
-        if password is None:
-            self.password = getpass.getpass()
-
-        self.auth = (self.username, self.password)
