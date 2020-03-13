@@ -19,7 +19,7 @@ from podpac.core.coordinates import Coordinates
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
 
-class Array(DataSource, NoCacheMixin):
+class Array(NoCacheMixin, DataSource):
     """Create a DataSource from an array -- this node is mostly meant for small experiments
     
     Attributes

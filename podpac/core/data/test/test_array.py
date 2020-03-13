@@ -54,3 +54,7 @@ class TestArray(object):
         node = Array(data=self.data)
         with pytest.raises(tl.TraitError):
             node.native_coordinates
+
+    def test_no_cache(self):
+        node = Array()
+        assert len(node.cache_ctrl._cache_stores) == 0

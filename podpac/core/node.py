@@ -857,12 +857,12 @@ class DiskCacheMixin(tl.HasTraits):
 class S3Mixin(tl.HasTraits):
     """ Mixin to add S3 credentials and access to a Node. """
 
+    # TODO use AWS credentials when available
+
     s3 = tl.Instance(s3fs.S3FileSystem)
 
     @tl.default("s3")
     def _default_fs(self):
-        # TODO use AWS credentials when available
-        self._logger.info("Connecting to s3fs")
         return s3fs.S3FileSystem(anon=True)
 
 

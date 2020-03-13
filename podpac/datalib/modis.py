@@ -15,7 +15,7 @@ BUCKET = "modis-pds"
 PRODUCTS = ["MCD43A4.006", "MOD09GA.006", "MYD09GA.006", "MOD09GQ.006", "MYD09GQ.006"]
 
 
-class MODISSource(Rasterio, DiskCacheMixin, S3Mixin):
+class MODISSource(DiskCacheMixin, S3Mixin, Rasterio):
     """
     Individual MODIS data tile using AWS OpenData, with caching.
 

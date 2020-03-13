@@ -545,7 +545,7 @@ class SMAPWilt(SMAPProperties):
 
 
 @common_doc(COMMON_DOC)
-class SMAPDateFolder(podpac.compositor.OrderedCompositor, DiskCacheMixin):
+class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
     """Compositor of all the SMAP source urls present in a particular folder which is defined for a particular date
 
     Attributes

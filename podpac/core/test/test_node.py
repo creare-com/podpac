@@ -16,6 +16,7 @@ import six
 import pytest
 import numpy as np
 import xarray as xr
+import s3fs
 from pint.errors import DimensionalityError, UndefinedUnitError
 from pint import UnitRegistry
 
@@ -865,53 +866,50 @@ class TestUserDefinition(object):
             assert node.inputs["A"] is not node.inputs["B"].source
 
 
-def test_no_cache_mixin():
-    class MyNode(NoCacheMixin, Node):
+class TestNoCacheMixin(object):
+    class NoCacheNode(NoCacheMixin, Node):
         pass
 
-    with podpac.settings:
+    def test_default_no_cache(self):
+        with podpac.settings:
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+            node = self.NoCacheNode()
+            assert len(node.cache_ctrl._cache_stores) == 0
+
+    def test_customizable(self):
         podpac.settings["DEFAULT_CACHE"] = ["ram"]
-
-        # normal node should use the setting default
-        node = Node()
-        assert len(node.cache_ctrl._cache_stores) == 1
-
-        # node with NoCacheMixin should have no cache by default
-        node = MyNode()
-        assert len(node.cache_ctrl._cache_stores) == 0
-
-        # but node with NoCacheMixin should still be customizable
-        node = MyNode(cache_ctrl=["ram"])
+        node = self.NoCacheNode(cache_ctrl=["ram"])
         assert len(node.cache_ctrl._cache_stores) == 1
 
 
-def test_disk_cache_mixin():
-    class MyNode(DiskCacheMixin, Node):
+class TestDiskCacheMixin(object):
+    class DiskCacheNode(DiskCacheMixin, Node):
         pass
 
-    with podpac.settings:
-        # normal node should use the setting default
-        podpac.settings["DEFAULT_CACHE"] = ["ram"]
-        node = Node()
-        assert len(node.cache_ctrl._cache_stores) == 1
+    def test_default_disk_cache(self):
+        with podpac.settings:
+            # add disk cache
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+            node = self.DiskCacheNode()
+            assert len(node.cache_ctrl._cache_stores) == 2
 
-        # node with DiskCacheMixin should add a disk cache
-        podpac.settings["DEFAULT_CACHE"] = ["ram"]
-        node = MyNode()
-        assert len(node.cache_ctrl._cache_stores) == 2
+            # don't add if it is already there
+            podpac.settings["DEFAULT_CACHE"] = ["ram", "disk"]
+            node = self.DiskCacheNode()
+            assert len(node.cache_ctrl._cache_stores) == 2
 
-        # but only if necessary
-        podpac.settings["DEFAULT_CACHE"] = ["ram", "disk"]
-        node = MyNode()
-        assert len(node.cache_ctrl._cache_stores) == 2
-
-        # node with DiskCacheMixin should still be customizable
-        node = MyNode(cache_ctrl=["ram"])
+    def test_customizable(self):
+        node = self.DiskCacheNode(cache_ctrl=["ram"])
         assert len(node.cache_ctrl._cache_stores) == 1
 
 
-def test_s3_mixin():
-    pass
+class TestS3Mixin(object):
+    class S3Node(S3Mixin, Node):
+        pass
+
+    def test_s3fs_attribute(self):
+        node = self.S3Node()
+        assert isinstance(node.s3, s3fs.S3FileSystem)
 
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)
