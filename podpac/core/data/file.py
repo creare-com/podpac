@@ -744,7 +744,7 @@ class Rasterio(DataSource):
         # check to see if the coordinates are rotated used affine
         affine = self.dataset.transform
 
-        if isinstance(self.dataset.crs, rasterio.crs.CRS):
+        if isinstance(self.dataset.crs, rasterio.crs.CRS) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()
         elif isinstance(self.dataset.crs, dict) and "init" in self.dataset.crs:
             crs = self.dataset.crs["init"].upper()

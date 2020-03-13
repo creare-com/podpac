@@ -25,13 +25,20 @@ RUN yum -y install \
     && yum clean all
 
 # clone the podpac repository and checkout the requested tag
+# for developers looking to create a custom deployment package or dependencies,
+# comment this block and un-comment the next block
 RUN git clone https://github.com/creare-com/podpac.git /podpac/ &&\
     pushd /podpac/ && \
     git fetch --all && \
     git checkout $REF && \
     popd
 
-# make a set of files
+# # uncomment this block to create a custom deployment package or dependencies archive
+# # based on your local copy of the PODPAC repository
+# # this command assumes you are building the Dockerfile using `build_lambda.sh` (which runs from the root of the PODPAC repository )
+# ADD . /podpac/
+
+# Install core, datatype and aws optional dependencies
 RUN mkdir /tmp/vendored/ && \
     cd /podpac/ && rm -rf .git/ doc/ .github/ && \
     pip3 install . -t /tmp/vendored/ --upgrade && \
@@ -45,7 +52,7 @@ RUN cd /tmp/vendored/ && touch pydap/__init__.py && \
     touch pydap/parsers/__init__.py
 
 # copy handler and _mk_dist:
-RUN cp -r /podpac/dist/aws/handler.py /tmp/vendored/handler.py && \
+RUN cp /podpac/dist/aws/handler.py /tmp/vendored/handler.py && \
     cp /podpac/dist/aws/_mk_dist.py /tmp/vendored/_mk_dist.py
 
 RUN cd /tmp/vendored && \

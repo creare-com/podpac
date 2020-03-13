@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Upload podpac lambda distribution and dependencies
-# Change $BUCKET or $PATH to control the S3 Bucket and Bucket path
+# Change $BUCKET or $DIR to control the S3 Bucket and Bucket path
 # where zip archives are uploaded.
 # 
 # Usage:
@@ -15,8 +15,8 @@
 
 
 BUCKET="podpac-dist"
-# DIR="dev"
-DIR="1.3.0"  # for releases, upload to release path by semantic version
+DIR="dev"
+# DIR="1.3.0"  # for releases, upload to release path by semantic version
 
 AWSPATH="s3://$BUCKET/$DIR"
 echo "Uploading podpac distribution to S3 path: ${AWSPATH}"

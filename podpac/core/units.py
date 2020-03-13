@@ -479,16 +479,6 @@ for tp in ("mean", "min", "max", "sum", "cumsum"):
 del func
 
 
-def create_dataarray(coords, data=np.nan, dtype=float, outputs=None, **kwargs):
-    """Deprecated. Use `UnitsDataArray.create()` in place.
-    """
-    warnings.warn(
-        "The `create_dataarray` function is deprecated and will be removed in podpac 2.0. Use the classmethod `UnitsDataArray.create()` instead.",
-        DeprecationWarning,
-    )
-    return UnitsDataArray.create(coords, data=data, outputs=outputs, dtype=dtype, **kwargs)
-
-
 def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
     """Return a base64-encoded image of data
 

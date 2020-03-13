@@ -4,7 +4,7 @@ This tutorial describes methods for viewing and editing PODPAC settings used to 
 
 To follow along, open a Python interpreter or Jupyter notebook in the Python environment where PODPAC is installed.
 
-```
+```bash
 # activate the PODPAC environment, using anaconda
 $ conda activate podpac
 

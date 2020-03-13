@@ -7,8 +7,8 @@ The following sections outlines how to develop and build the `podpac` documentat
 - Install **Sphinx** and the **Read the Docs** theme
 
 ```bash
-$ conda install sphinx              # or `pip install sphinx`
-$ conda install sphinx_rtd_theme    # or `pip install sphinx-rtd-theme`
+$ pip install sphinx
+$ pip install sphinx_rtd_theme
 ```
 
 - Install `recommonmark` to support markdown input files
@@ -21,9 +21,11 @@ $ pip install recommonmark
 
 To run the doctests in the documentation, run from the `/doc` directory:
 
-```
-$ ./test-docs.sh        # convience script
-or
+```bash
+$ ./test-docs.sh        # convienence script
+
+# or
+
 $ sphinx-build -b doctest source build  # run tests manually
 ```
 
@@ -34,8 +36,10 @@ $ sphinx-build -b doctest source build  # run tests manually
 To build the documentation into a website in the `doc/build` directory, run from the `/doc` directory:
 
 ```bash
-$ make html
-or
+$ ./release-docs.sh     # convienence script
+
+# or
+
 $ sphinx-build source build       # run manually
 $ sphinx-build -aE source build   # rebuild all files (no cache)
 ```
@@ -48,14 +52,16 @@ To build a pdf from the documentation, you need to install a latex distribution 
 
 ```bash
 $ make latex                           # build the docs into a tex format in a latex directory
-or
-$ sphinx-build -b latex source latex   # run sphinx manually to build lated b
+
+# or
+
+$ sphinx-build -b latex source latex   # run sphinx manually to build latex
 ```
 
 Enter the build directory and convert tex file to pdf:
 
 ```bash
-$ cd build                             # go into the latex directory
+$ cd build                     # go into the latex directory
 $ pdflatex podpac.tex          # build the pdf from podpac.tex entry file
 ```
 
@@ -63,15 +69,17 @@ $ pdflatex podpac.tex          # build the pdf from podpac.tex entry file
 
 To live-serve the documentation as a website during development, you will need to add one more python package [`sphinx-autobuild`](https://github.com/GaretJax/sphinx-autobuild):
 
-```
+```bash
 $ pip install sphinx-autobuild
 ```
 
 Then run from the `doc` directory:
 
-```
-$ ./serve-docs.sh                   # convience script
-or
+```bash
+$ ./serve-docs.sh                   # convienence script
+
+# or
+
 $ sphinx-autobuild source build     # run manually
 $ sphinx-autobuild -aE source build # rebuild all files (no cache)
 ```
@@ -86,10 +94,8 @@ To stop the server simply press `^C`.
     + `/source/_templates` - templates to use for styling pages
     + `/source/_static` - static files that need to be copied over to distributed documentation (i.e. images, source code, etc)
     + `/source/conf.py` - sphinx configuration file
-    + `/source/index.rst` - root documentation file. Includes TOC
-    + `/source/user/api/` - auto generated API documentation using `sphinx-autogen`
-    + `/source/user/api-min/` - auto generated minimal API documentation using `sphinx-autogen`
-    + ... add others as generated ...
+    + `/source/index.rst` - root documentation file
+    + `/source/api/` - auto generated API documentation using `sphinx-autogen`
 - `/build` - generated documentation files
 
 ## References 
