@@ -59,25 +59,25 @@ class WeatherCitizen(DataSource):
     query : dict, optional
         Arbitrary pymongo query to apply to data.
         Note that certain fields in this query may be overriden if other keyword arguments are specified
-    quiet : bool, optional
-        Don't display log messages or progress
+    verbose : bool, optional
+        Display log messages or progress
     """
 
-    source = tl.Unicode(allow_none=True, default_value="geosensors").tag(attr=True)
+    source = tl.Unicode(allow_none=True, default_value="geosensors")
     data_key = tl.Unicode(allow_none=True, default_value="properties.pressure").tag(attr=True)
     uuid = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     device = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     version = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     query = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
-    quiet = tl.Bool(allow_none=True, default_value=False).tag(attr=True)
+    verbose = tl.Bool(allow_none=True, default_value=True).tag(attr=True)
+    override_limit = tl.Bool(allow_none=True, default_value=False).tag(attr=True)
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):
         """{get_native_coordinates}
         """
 
-        # TODO: if no query or uuid is provided, just sent back all coordinates.
-        # the server already support querying by location, so we really only need the bounding box
+        # TODO: how to limit data retrieval for large queries?
 
         # query parameters
         start_time = datetime(2016, 1, 1, 1, 0, 0)  # before WeatherCitizen existed
@@ -91,6 +91,27 @@ class WeatherCitizen(DataSource):
             query = deepcopy(self.query)
             query[self.data_key]["$exists"] = True
 
+        # check the length of the matched items
+        length = get(
+            collection=self.source,
+            start_time=start_time,
+            uuid=self.uuid,
+            device=self.device,
+            version=self.version,
+            query=query,
+            projection=projection,
+            verbose=self.verbose,
+            return_length=True,
+        )
+
+        # add some kind of stop on querying above a certain length?
+        if length > 10000 and not self.override_limit:
+            raise ValueError(
+                "More than {} data points match this WeatherCitizen query. Please reduce the scope of your query.".format(
+                    length
+                )
+            )
+
         items = get(
             collection=self.source,
             start_time=start_time,
@@ -99,13 +120,13 @@ class WeatherCitizen(DataSource):
             version=self.version,
             query=query,
             projection=projection,
-            quiet=self.quiet,
+            verbose=self.verbose,
         )
 
         lat = [item["geometry"]["coordinates"][1] for item in items]
         lon = [item["geometry"]["coordinates"][0] for item in items]
         time = [item["properties"]["time"] for item in items]
-        # time = [pd.to_datetime(item["properties"]["time"], utc=True, infer_datetime_format=True) for item in items]
+
         return Coordinates([[lat, lon, time]], dims=["lat,lon,time"])
 
     @common_doc(COMMON_DATA_DOC)
@@ -113,8 +134,73 @@ class WeatherCitizen(DataSource):
         """{get_data}
         """
 
-        # return self.create_output_array(coordinates, data=data)
-        pass
+        # TODO: how to limit data retrieval for large queries?
+
+        # default coordinate bounds for queries
+        time_bounds = [datetime(2016, 1, 1, 1, 0, 0), None]  # before WeatherCitizen existed
+        lat_bounds = [-90, 90]
+        lon_bounds = [-180, 180]
+
+        # override bounds
+        if "time" in coordinates.udims:
+            time_bounds = coordinates["time"].bounds
+        if "lat" in coordinates.udims:
+            lat_bounds = coordinates["lat"].bounds
+        if "lon" in coordinates.udims:
+            lon_bounds = coordinates["lon"].bounds
+
+        box = [[lon_bounds[0], lat_bounds[0]], [lon_bounds[1], lat_bounds[1]]]
+
+        # make sure data_key exists in dataset
+        query = {self.data_key: {"$exists": True}}
+
+        # handle if the user specifies and query and the data_key is already in that query
+        if self.query is not None and self.data_key in self.query:
+            query = deepcopy(self.query)
+            query[self.data_key]["$exists"] = True
+
+        # only project data key
+        projection = {self.data_key: 1}
+
+        # check the length of the matched items
+        length = get(
+            collection=self.source,
+            start_time=time_bounds[0],
+            end_time=time_bounds[1],
+            box=box,
+            uuid=self.uuid,
+            device=self.device,
+            version=self.version,
+            query=query,
+            projection=projection,
+            verbose=self.verbose,
+            return_length=True,
+        )
+
+        # add some kind of stop on querying above a certain length?
+        if length > 10000 and not self.override_limit:
+            raise ValueError(
+                "More than {} data points match this WeatherCitizen query. Please reduce the scope of your query.".format(
+                    length
+                )
+            )
+
+        items = get(
+            collection=self.source,
+            start_time=time_bounds[0],
+            end_time=time_bounds[1],
+            box=box,
+            uuid=self.uuid,
+            device=self.device,
+            version=self.version,
+            query=query,
+            projection=projection,
+            verbose=self.verbose,
+        )
+
+        data = np.array([item[self.data_key] for item in items])
+
+        return self.create_output_array(coordinates, data=data)
 
 
 ##############
@@ -131,8 +217,9 @@ def get(
     version=None,
     query=None,
     projection=None,
-    quiet=False,
+    verbose=False,
     dry_run=False,
+    return_length=False,
 ):
     """Get documents from the server for devices in a timerange
     
@@ -151,7 +238,7 @@ def get(
     box : list(list(float)), optional
         Geo bounding box described as 2-d array of bottom-left and top-right corners.
         If specified, `near` will be ignored.
-        Contents: [[ <bottom left coordinates> ], [ <upper right coordinates> ]]
+        Contents: [[ <lon>, <lat> (bottom left coordinates) ], [  <lon>, <lat> (upper right coordinates) ]]
         For example: [[-83, 36], [-81, 34]]
     near : tuple([float, float], int), optional
         Geo bounding box described as 2-d near with a center point and a radius (km) from center point.
@@ -171,12 +258,14 @@ def get(
         Specify what fields should or should not be returned.
         Dict keys are field names.
         Dict values should be set to 1 to include field (and exclude all others) or set to 0 to exclude field and include all others
-    quiet : bool, optional
-        Don't display log messages or progress
+    verbose : bool, optional
+        Display log messages or progress
     dry_run : bool, optional
         Return urls of queries instead of the actual query.
         Returns a list of str with urls for each collections.
         Defaults to False.
+    return_length : bool, optional
+        Return length of the documents that match the query
     
     Returns
     -------
@@ -210,16 +299,27 @@ def get(
     if dry_run:
         return query_strs
 
-    if not quiet:
+    if verbose:
         print("Querying WeatherCitizen API")
+
+    # only return the length of the matched documents
+    if return_length:
+        length = 0
+        for query_str in query_strs:
+            length += _get(query_str, verbose=verbose, return_length=return_length)
+
+        if verbose:
+            print("Returned {} records".format(length))
+
+        return length
 
     # start query at page 0 with no items
     # iterate through collections aggregating items
     items = []
     for query_str in query_strs:
-        items += _get(query_str, quiet=quiet)
+        items += _get(query_str, verbose=verbose)
 
-    if not quiet:
+    if verbose:
         print("\r")
         print("Downloaded {} records".format(len(items)))
 
@@ -250,7 +350,7 @@ def get_record(collection, obj_id, url=URL):
     return r.json()
 
 
-def get_file(media, save=False, output_path=None, quiet=False):
+def get_file(media, save=False, output_path=None):
     """Get media file
     
     Parameters
@@ -261,8 +361,6 @@ def get_file(media, save=False, output_path=None, quiet=False):
         Save to file
     output_path : None, optional
         If save is True, output the file to different file path
-    quiet : bool, optional
-        Don't display log messages or progress
     
     Returns
     -------
@@ -326,8 +424,23 @@ def read_sensorburst(media):
         Returns pandas dataframe of records
     """
 
-    from read_protobuf import read_protobuf
-    import sensorburst_pb2
+    try:
+        from read_protobuf import read_protobuf
+    except ImportError:
+        raise ImportError(
+            "Reading sensorburst requires `read_protobuf` module. Install using `pip install read-protobuf`."
+        )
+
+    # import sensorburst definition
+    try:
+        from podpac.datalib import weathercitizen_sensorburst_pb2 as sensorburst_pb2
+    except ImportError:
+        try:
+            import sensorburst_pb2
+        except ImportError:
+            raise ImportError(
+                "Processing WeatherCitizen protobuf requires `sensorburst_pb2.py` in the current working directory. Download from https://api.weathercitizen.org/static/sensorburst_pb2.py."
+            )
 
     if isinstance(media, (str, dict)):
         media = [media]
@@ -502,7 +615,7 @@ def _build_query(
     return query_str
 
 
-def _get(query, items=None, url=URL, quiet=False):
+def _get(query, items=None, url=URL, verbose=False, return_length=False):
     """Internal method to query API.
     See `get` for interface.
     
@@ -515,8 +628,10 @@ def _get(query, items=None, url=URL, quiet=False):
         aggregated items as this method is recursively called. Defaults to [].
     url : str, optional
         API url. Defaults to module URL.
-    quiet : bool, optional
-        Don't display log messages or progress
+    verbose : bool, optional
+        Display log messages or progress
+    return_length : bool, optional
+        Return length of the documents that match the query
     
     Returns
     -------
@@ -544,10 +659,16 @@ def _get(query, items=None, url=URL, quiet=False):
 
     # get json out of response
     resp = r.json()
+
+    # return length only if requested
+    if return_length:
+        return resp["_meta"]["total"]
+
+    # return documents
     if len(resp["_items"]):
 
         # show progress
-        if not quiet:
+        if verbose:
             current_page = resp["_meta"]["page"]
             total_pages = round(resp["_meta"]["total"] / resp["_meta"]["max_results"])
             update_progress(current_page, total_pages)
