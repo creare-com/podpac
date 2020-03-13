@@ -872,8 +872,8 @@ class SMAP(podpac.compositor.OrderedCompositor):
 
     auth_session = tl.Instance(authentication.EarthDataSession)
     auth_class = tl.Type(authentication.EarthDataSession)
-    username = tl.Unicode(None, allow_none=True).tag(attr=True)
-    password = tl.Unicode(None, allow_none=True).tag(attr=True)
+    username = tl.Unicode(None, allow_none=True)
+    password = tl.Unicode(None, allow_none=True)
 
     @tl.default("auth_session")
     def _auth_session_default(self):
