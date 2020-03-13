@@ -359,6 +359,29 @@ def to_dataframe(items):
     """
     df = json_normalize(items)
 
+    # Convert geometry.coordinates to lat and lon
+    df["lat"] = df["geometry.coordinates"].apply(lambda coord: coord[1] if coord and coord is not pd.np.nan else None)
+    df["lon"] = df["geometry.coordinates"].apply(lambda coord: coord[0] if coord and coord is not pd.np.nan else None)
+    df = df.drop(["geometry.coordinates"], axis=1)
+
+    # break up all the arrays so the data is easier to use
+    arrays = [
+        "properties.accelerometer",
+        "properties.gravity",
+        "properties.gyroscope",
+        "properties.linear_acceleration",
+        "properties.magnetic_field",
+        "properties.orientation",
+        "properties.rotation_vector",
+    ]
+
+    for col in arrays:
+        df[col + "_0"] = df[col].apply(lambda val: val[0] if val and val is not pd.np.nan else None)
+        df[col + "_1"] = df[col].apply(lambda val: val[1] if val and val is not pd.np.nan else None)
+        df[col + "_2"] = df[col].apply(lambda val: val[2] if val and val is not pd.np.nan else None)
+
+        df = df.drop([col], axis=1)
+
     return df
 
 
