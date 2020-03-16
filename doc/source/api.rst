@@ -241,7 +241,6 @@ Utilities
 
     podpac.utils.create_logfile
     podpac.utils.clear_cache
-    podpac.utils.cache_func
     podpac.utils.cached_property
     podpac.utils.NoCacheMixin
     podpac.utils.DiskCacheMixin

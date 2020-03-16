@@ -911,7 +911,7 @@ class TestS3Mixin(object):
         node = self.S3Node(anon=True)
         assert isinstance(node.s3, s3fs.S3FileSystem)
 
-    @pytest.mark.s3
+    @pytest.mark.aws
     def test_auth(self):
         node = self.S3Node()
         assert isinstance(node.s3, s3fs.S3FileSystem)

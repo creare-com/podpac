@@ -331,102 +331,6 @@ def _get_from_url(url):
     return r.text
 
 
-def cache_func(key, depends=None):
-    """
-    Decorating for caching a function's output based on a key.
-
-    Parameters
-    -----------
-    key: str
-        Key used for caching.
-    depends: str, list, traitlets.All (optional)
-        Default is None. Any traits that the cached property depends on. The cached function may NOT
-        change the value of any of these dependencies (this will result in a RecursionError)
-
-
-    Notes
-    -----
-    This decorator cannot handle function input parameters.
-
-    If the function uses any tagged attributes, these will essentially operate like dependencies
-    because the cache key changes based on the node definition, which is affected by tagged attributes.
-
-    Examples
-    ----------
-    >>> from podpac import Node
-    >>> from podpac.core.node import cache_func
-    >>> import traitlets as tl
-    >>> class MyClass(Node):
-           value = tl.Int(0)
-           @cache_func('add')
-           def add_value(self):
-               self.value += 1
-               return self.value
-           @cache_func('square', depends='value')
-           def square_value_depends(self):
-               return self.value
-
-    >>> n = MyClass(cache_ctrl=None)
-    >>> n.add_value()  # The function as defined is called
-    1
-    >>> n.add_value()  # The function as defined is called again, since we have specified no caching
-    2
-    >>> n.cache_ctrl = CacheCtrl([RamCacheStore()])
-    >>> n.add_value()  # The function as defined is called again, and the value is stored in memory
-    3
-    >>> n.add_value()  # The value is retrieved from disk, note the change in n.value is not captured
-    3
-    >>> n.square_value_depends()  # The function as defined is called, and the value is stored in memory
-    16
-    >>> n.square_value_depends()  # The value is retrieved from memory
-    16
-    >>> n.value += 1
-    >>> n.square_value_depends()  # The function as defined is called, and the value is stored in memory. Note the change in n.value is captured.
-    25
-    """
-    # This is the actual decorator which will be evaluated and returns the wrapped function
-    def cache_decorator(func):
-        # This is the initial wrapper that sets up the observations
-        @functools.wraps(func)
-        def cache_wrapper(self):
-            # This is the function that updates the cached based on observed traits
-            def cache_updator(change):
-                # print("Updating value on self:", id(self))
-                out = func(self)
-                self.put_cache(out, key, overwrite=True)
-
-            if depends:
-                # This sets up the observer on the dependent traits
-                # print ("setting up observer on self: ", id(self))
-                self.observe(cache_updator, depends)
-                # Since attributes could change on instantiation, anything we previously
-                # stored is likely out of date. So, force and update to the cache.
-                cache_updator(None)
-
-            # This is the final wrapper the continues to fetch data from cache
-            # after the observer has been set up.
-            @functools.wraps(func)
-            def cached_function():
-                try:
-                    out = self.get_cache(key)
-                except podpac.NodeException:
-                    out = func(self)
-                    self.put_cache(out, key)
-                return out
-
-            # Since this is the first time the function is run, set the new wrapper
-            # on the class instance so that the current function won't be called again
-            # (which would set up an additional observer)
-            setattr(self, func.__name__, cached_function)
-
-            # Return the value on the first run
-            return cached_function()
-
-        return cache_wrapper
-
-    return cache_decorator
-
-
 def cached_property(*args, **kwargs):
     """
     Decorator that creates a property that is cached.
@@ -436,6 +340,10 @@ def cached_property(*args, **kwargs):
     use_cache_ctrl : bool
         If True, the property is cached using the Node cache_ctrl. If False, the property is only cached as a private
         attribute. Default False.
+
+    Notes
+    -----
+    The property should not depend on any other attributes that are not tagged with ``attr=True``.
 
     Examples
     --------
