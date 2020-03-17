@@ -1,6 +1,7 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 from collections import OrderedDict
+import io
 
 from six import string_types
 import traitlets as tl
@@ -39,6 +40,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
     # dataset = tl.Instance(rasterio.DatasetReader).tag(readonly=True)
     band = tl.CInt(allow_none=True).tag(attr=True)
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    driver = tl.Unicode(allow_none=True, default_value=None)
 
     @tl.default("band")
     def _band_default(self):
@@ -57,10 +59,10 @@ class Rasterio(LoadFileMixin, BaseFileSource):
     def nan_vals(self):
         return list(self.dataset.nodatavals)
 
-    def open_dataset(self, fp):
+    def open_dataset(self, fp, **kwargs):
         with rasterio.MemoryFile() as mf:
             mf.write(fp.read())
-            return mf.open(driver="GTiff")
+            return mf.open(driver=self.driver)
 
     def close_dataset(self):
         """Closes the file for the datasource

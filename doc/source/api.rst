@@ -245,6 +245,16 @@ Utilities
     podpac.utils.NoCacheMixin
     podpac.utils.DiskCacheMixin
     podpac.utils.S3Mixin
+    podpac.utils.NodeTrait
+
+
+.. rubric:: Style
+
+.. autosummary::
+    :toctree: api/
+    :template: module.rst
+
+    podpac.style.Style
 
 
 .. rubric:: Version

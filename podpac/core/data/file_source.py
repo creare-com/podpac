@@ -6,6 +6,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import urllib
 from io import BytesIO
+import logging
 
 import traitlets as tl
 import xarray as xr
@@ -22,6 +23,7 @@ from podpac.core.node import S3Mixin
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
 # TODO common doc
+_logger = logging.getLogger(__name__)
 
 
 class BaseFileSource(DataSource):
@@ -76,13 +78,16 @@ class LoadFileMixin(S3Mixin):
             with BytesIO(data) as f:
                 return self._open(BytesIO(data), cache=False)
         elif self.source.startswith("s3://"):
+            _logger.info("Loading AWS resource: %s" % self.source)
             with self.s3.open(self.source, "rb") as f:
                 return self._open(f)
         elif self.source.startswith("http://") or self.source.startswith("https://"):
+            _logger.info("Downloading: %s" % self.source)
             response = requests.get(self.source)
             with BytesIO(response.content) as f:
                 return self._open(f)
         elif self.source.startswith("ftp://"):
+            _logger.info("Downloading: %s" % self.source)
             addinfourl = urllib.request.urlopen(self.source)
             with BytesIO(addinfourl.read()) as f:
                 return self._open(f)
@@ -227,6 +232,6 @@ class FileKeysMixin(tl.HasTraits):
 
         cs = [self.dataset[self._lookup_key(dim)] for dim in self.dims]
         if self.cf_time and "time" in self.dims:
-            time_key = self._lookup_key("time")
-            cs[time_key] = xr.coding.times.decode_cf_datetime(cs[time_key], self.cf_units, self.cf_calendar)
+            time_ind = self.dims.index("time")
+            cs[time_ind] = xr.coding.times.decode_cf_datetime(cs[time_ind], self.cf_units, self.cf_calendar)
         return Coordinates(cs, dims=self.dims, crs=self.crs)
