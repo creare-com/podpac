@@ -53,7 +53,6 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
     def dataset(self):
         if self.source.startswith("s3://"):
             root = self.source.strip("s3://")
-            kwargs = {"region_name": self.region_name}
             s3map = s3fs.S3Map(root=root, s3=self.s3, check=False)
             store = s3map
         else:

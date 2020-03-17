@@ -858,33 +858,33 @@ class S3Mixin(tl.HasTraits):
     """ Mixin to add S3 credentials and access to a Node. """
 
     anon = tl.Bool(False)
-    access_key_id = tl.Unicode(allow_none=True)
-    secret_access_key = tl.Unicode(allow_none=True)
-    region_name = tl.Unicode(allow_none=True)
-    s3fs_kwargs = tl.Dict()
+    aws_access_key_id = tl.Unicode(allow_none=True)
+    aws_secret_access_key = tl.Unicode(allow_none=True)
+    aws_region_name = tl.Unicode(allow_none=True)
+    aws_client_kwargs = tl.Dict()
 
-    @tl.default("access_key_id")
+    @tl.default("aws_access_key_id")
     def _get_access_key_id(self):
         return settings["AWS_ACCESS_KEY_ID"]
 
-    @tl.default("secret_access_key")
+    @tl.default("aws_secret_access_key")
     def _get_secret_access_key(self):
         return settings["AWS_SECRET_ACCESS_KEY"]
 
-    @tl.default("region_name")
+    @tl.default("aws_region_name")
     def _get_region_name(self):
         return settings["AWS_REGION_NAME"]
 
     @cached_property
     def s3(self):
         if self.anon:
-            return s3fs.S3FileSystem(anon=True)
+            return s3fs.S3FileSystem(anon=True, client_kwargs=self.aws_client_kwargs)
         else:
             return s3fs.S3FileSystem(
-                key=self.access_key_id,
-                secret=self.secret_access_key,
-                region_name=self.region_name,
-                client_kwargs=self.s3fs_kwargs,
+                key=self.aws_access_key_id,
+                secret=self.aws_secret_access_key,
+                region_name=self.aws_region_name,
+                client_kwargs=self.aws_client_kwargs,
             )
 
 
