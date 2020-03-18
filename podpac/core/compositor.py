@@ -84,9 +84,18 @@ class Compositor(Node):
 
     @tl.validate("sources")
     def _validate_sources(self, d):
-        self.outputs  # check for consistent outputs
+        sources = d["value"]
+
+        n = np.sum([source.outputs is None for source in sources])
+        if not (n == 0 or n == len(sources)):
+            raise ValueError(
+                "Cannot composite standard sources with multi-output sources. "
+                "The sources must all be standard single-output nodes or all multi-output nodes."
+            )
+
+        # self.outputs  # check for consistent outputs
         # TODO is this copy necessary? Can it be a less deep copy (e.g. that only copies defined traits)
-        return np.array([copy.deepcopy(source) for source in d["value"]])
+        return np.array([copy.deepcopy(source) for source in sources])
 
     @tl.default("outputs")
     def _default_outputs(self):
@@ -104,9 +113,9 @@ class Compositor(Node):
                 outputs = None
 
         else:
-            raise ValueError(
-                "Cannot composite standard sources with multi-output sources. "
-                "The sources must all be standard single-output nodes or all multi-output nodes."
+            raise RuntimeError(
+                "Compositor sources were not validated correctly. "
+                "Cannot composite standard sources with multi-output sources."
             )
 
         self.traits()["outputs"].default = outputs

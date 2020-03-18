@@ -178,8 +178,6 @@ class IntakeCatalog(podpac.data.DataSource):
 
 
 if __name__ == "__main__":
-    from podpac.datalib import IntakeCatalog
-
     node = IntakeCatalog(
         uri="../podpac-examples/notebooks/demos/intake/precip/catalog.yml",  # path to catalog
         source="southern_rockies",  # name of the source within catalog

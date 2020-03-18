@@ -15,10 +15,7 @@ from hashlib import md5 as hash_alg
 
 import numpy as np
 import traitlets as tl
-
 from lazy_import import lazy_module
-
-s3fs = lazy_module("s3fs")
 
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray
@@ -877,6 +874,8 @@ class S3Mixin(tl.HasTraits):
 
     @cached_property
     def s3(self):
+        s3fs = lazy_module("s3fs")
+
         if self.anon:
             return s3fs.S3FileSystem(anon=True, client_kwargs=self.aws_client_kwargs)
         else:

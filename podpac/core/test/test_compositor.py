@@ -223,13 +223,21 @@ class TestCompositor(object):
         node = Compositor(sources=[MULTI_0_XY, MULTI_4_YX])
         assert node.outputs == ["x", "y"]
 
-        # multi-output, with strict source outputs checking
-        node = Compositor(sources=[MULTI_0_XY, MULTI_1_XY])
-        assert node.outputs == ["x", "y"]
-
         # mixed
         with pytest.raises(ValueError, match="Cannot composite standard sources with multi-output sources."):
             node = Compositor(sources=[MULTI_2_X, ARRAY_LAT])
+
+        # no sources
+        node = Compositor(sources=[])
+        assert node.outputs is None
+
+    def test_forced_invalid_sources(self):
+        class MyCompositor(Compositor):
+            sources = [MULTI_2_X, ARRAY_LAT]
+
+        node = MyCompositor()
+        with pytest.raises(RuntimeError, match="Compositor sources were not validated correctly"):
+            node.outputs
 
 
 class TestOrderedCompositor(object):

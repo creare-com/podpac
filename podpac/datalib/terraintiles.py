@@ -46,12 +46,6 @@ from podpac.compositor import OrderedCompositor
 from podpac.interpolators import Rasterio as RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.data import InterpolationTrait
 
-from lazy_import import lazy_module
-
-# optional imports
-s3fs = lazy_module("s3fs")
-rasterio = lazy_module("rasterio")
-
 ####
 # private module attributes
 ####
@@ -189,7 +183,7 @@ class TerrainTiles(OrderedCompositor):
             raise ValueError("No terrain tile sources selected. Evaluate node at coordinates to select sources.")
 
     def _create_source(self, source):
-        return TerrainTilesSource(source="{}/{}".format(self.bucket, source))
+        return TerrainTilesSource(source="s3://{}/{}".format(self.bucket, source), cache_ctrl=self.cache_ctrl)
 
 
 ############
@@ -425,3 +419,26 @@ def _mercator_to_tilespace(xm, ym, zoom):
     y = int(tiles * (np.pi - ym) / diameter)
 
     return x, y
+
+
+if __name__ == "__main__":
+    from podpac import Coordinates, clinspace
+
+    c = Coordinates([clinspace(40, 43, 1000), clinspace(-76, -72, 1000)], dims=["lat", "lon"])
+
+    print("TerrainTiles")
+    node = TerrainTiles(tile_format="geotiff", zoom=8)
+    output = node.eval(c)
+    print(output)
+
+    print("TerrainTiles cached")
+    node = TerrainTiles(tile_format="geotiff", zoom=8, cache_ctrl=["ram", "disk"])
+    output = node.eval(c)
+    print(output)
+
+    # tile urls
+    print("get tile urls")
+    print(np.array(get_tile_urls("geotiff", 1)))
+    print(np.array(get_tile_urls("geotiff", 9, coordinates=c)))
+
+    print("done")
