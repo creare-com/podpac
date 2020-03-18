@@ -175,3 +175,28 @@ class IntakeCatalog(podpac.data.DataSource):
         # create UnitDataArray with subselected data (idx)
         uda = self.create_output_array(coordinates, data=data[coordinates_index])
         return uda
+
+
+if __name__ == "__main__":
+    from podpac.datalib import IntakeCatalog
+
+    node = IntakeCatalog(
+        uri="../podpac-examples/notebooks/demos/intake/precip/catalog.yml",  # path to catalog
+        source="southern_rockies",  # name of the source within catalog
+        field="precip",  # this can be defined in catalog source metadata
+        dims={"time": "time"},  # this can be defined in catalog source metadata
+    )
+
+    print("catalog")
+    print(node.catalog)
+
+    print("datasource")
+    print(node.datasource)
+
+    print("native_coordinates")
+    print(node.native_coordinates)
+
+    print("eval")
+    print(node.eval(node.native_coordinates))
+
+    print("done")
