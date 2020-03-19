@@ -33,11 +33,8 @@ if not hasattr(np, "isnat"):
     np.isnat = isnat
 
 # Internal dependencies
-import podpac
-import podpac.datalib
-from podpac.core.coordinates import Coordinates
+from podpac import Coordinates, UnitsDataArray, cached_property
 from podpac.datalib import EGI
-from podpac.core.units import UnitsDataArray
 
 SMAP_PRODUCT_DICT = {
     #'shortname':    ['lat_key', 'lon_key', 'data_key', 'quality_flag', 'default_verison']
@@ -49,44 +46,45 @@ SMAP_PRODUCT_DICT = {
         "/Soil_Moisture_Retrieval_Data/longitude",
         "/Soil_Moisture_Retrieval_Data/soil_moisture",
         "/Soil_Moisture_Retrieval_Data/retrieval_qual_flag",
-        3,
+        "003",
     ],
     "SPL3SMA": [
         "/Soil_Moisture_Retrieval_Data/latitude",
         "/Soil_Moisture_Retrieval_Data/longitude",
         "/Soil_Moisture_Retrieval_Data/soil_moisture",
         "/Soil_Moisture_Retrieval_Data/retrieval_qual_flag",
-        3,
+        "003",
     ],
     "SPL3SMP_AM": [
         "/Soil_Moisture_Retrieval_Data_AM/latitude",
         "/Soil_Moisture_Retrieval_Data_AM/longitude",
         "/Soil_Moisture_Retrieval_Data_AM/soil_moisture",
         "/Soil_Moisture_Retrieval_Data_AM/retrieval_qual_flag",
-        5,
+        "005",
     ],
     "SPL3SMP_PM": [
         "/Soil_Moisture_Retrieval_Data_PM/latitude",
         "/Soil_Moisture_Retrieval_Data_PM/longitude",
         "/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm",
         "/Soil_Moisture_Retrieval_Data_PM/retrieval_qual_flag_pm",
-        5,
+        "005",
     ],
     "SPL3SMP_E_AM": [
         "/Soil_Moisture_Retrieval_Data_AM/latitude",
         "/Soil_Moisture_Retrieval_Data_AM/longitude",
         "/Soil_Moisture_Retrieval_Data_AM/soil_moisture",
         "/Soil_Moisture_Retrieval_Data_AM/retrieval_qual_flag",
-        3,
+        "003",
     ],
     "SPL3SMP_E_PM": [
         "/Soil_Moisture_Retrieval_Data_PM/latitude_pm",
         "/Soil_Moisture_Retrieval_Data_PM/longitude_pm",
         "/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm",
         "/Soil_Moisture_Retrieval_Data_PM/retrieval_qual_flag_pm",
-        3,
+        "003",
     ],
 }
+
 SMAP_PRODUCTS = list(SMAP_PRODUCT_DICT.keys())
 
 
@@ -112,29 +110,37 @@ class SMAP(EGI):
     check_quality_flags = tl.Bool(True).tag(attr=True)
     quality_flag_key = tl.Unicode(allow_none=True).tag(attr=True)
 
-    # set default short_name, data_key, lat_key, lon_key, version
-    @tl.default("short_name")
-    def _short_name_default(self):
+    @property
+    def short_name(self):
         if "SPL3SMP" in self.product:
             return self.product.replace("_AM", "").replace("_PM", "")
         else:
             return self.product
 
-    @tl.default("lat_key")
-    def _lat_key_default(self):
-        return SMAP_PRODUCT_DICT[self.product][0]
+    # pull data_key, lat_key, lon_key, and version from product dict
+    @cached_property
+    def _product_data(self):
+        return SMAP_PRODUCT_DICT[self.product]
 
-    @tl.default("lon_key")
-    def _lon_key_default(self):
-        return SMAP_PRODUCT_DICT[self.product][1]
+    @property
+    def lat_key(self):
+        return self._product_data[0]
 
-    @tl.default("quality_flag_key")
-    def _quality_flag_key_default(self):
-        return SMAP_PRODUCT_DICT[self.product][3]
+    @property
+    def lon_key(self):
+        return self._product_data[1]
 
-    @tl.default("data_key")
-    def _data_key_default(self):
-        return SMAP_PRODUCT_DICT[self.product][2]
+    @property
+    def data_key(self):
+        return self._product_data[2]
+
+    @property
+    def quality_flag_key(self):
+        return self._product_data[3]
+
+    @property
+    def version(self):
+        return self._product_data[4]
 
     @property
     def coverage(self):
@@ -142,10 +148,6 @@ class SMAP(EGI):
             return (self.data_key, self.quality_flag_key, self.lat_key, self.lon_key)
         else:
             return (self.data_key, self.lat_key, self.lon_key)
-
-    @tl.default("version")
-    def _version_default(self):
-        return SMAP_PRODUCT_DICT[self.product][4]
 
     def read_file(self, filelike):
         """Interpret individual SMAP file from  EGI zip archive.
