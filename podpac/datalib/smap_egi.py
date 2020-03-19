@@ -260,3 +260,25 @@ class SMAP(EGI):
             data.lat.data = lat.data
 
         return all_data.combine_first(data)
+
+
+if __name__ == "__main__":
+    import logging
+    import getpass
+    from podpac import Coordinates, clinspace
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    username = input("Username:")
+    password = getpass.getpass("Password:")
+
+    # level 3 access
+    c = Coordinates(
+        [clinspace(-82, -81, 10), clinspace(38, 39, 10), clinspace("2015-07-06", "2015-07-08", 10)],
+        dims=["lon", "lat", "time"],
+    )
+
+    node = SMAP(product="SPL3SMP_AM", username=username, password=password)
+    output = node.eval(c)
+    print(output)

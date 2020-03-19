@@ -198,7 +198,7 @@ class EGI(DataSource):
         # other parameters are included at eval time
         return url
 
-    @cached_property
+    @property
     def native_coordinates(self):
         if self.data is not None:
             return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs["crs"])
@@ -227,8 +227,6 @@ class EGI(DataSource):
                 " which case EGI is returning no data."
             )
             raise e
-        # Force update on native_coordinates (in case of multiple evals)
-        self.set_trait("native_coordinates", self.get_native_coordinates())
 
         # run normal eval once self.data is prepared
         return super(EGI, self).eval(coordinates, output)
@@ -311,6 +309,7 @@ class EGI(DataSource):
         zipfile.ZipFile
             Returns zip file byte-str to downloaded data
         """
+
         # Ensure Coordinates are in decimal lat-lon
         coordinates = coordinates.transform("epsg:4326")
         self._authenticate()
