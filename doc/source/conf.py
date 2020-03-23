@@ -227,7 +227,7 @@ def generate_example_links():
     prestring = "- "
     string = "\n".join(
         [
-            prestring + " `{} <{}>`__".format(f, base_link + "/" + f)
+            prestring + " `{} <{}>`_".format(f.split('.ipynb')[0].replace('-', ' ').capitalize(), base_link + "/" + f)
             for f in files
             if f.endswith("ipynb")
         ]
@@ -237,7 +237,7 @@ def generate_example_links():
         f
         for f in files
         if os.path.isdir(os.path.join(nbpath, f))
-        and f not in [".ipynb_checkpoints", "Images", "old_examples", "presentations"]
+        and f not in [".ipynb_checkpoints", "developer", "__pycache__"]
     ]
     subdirs.sort()
     for sd in subdirs:
@@ -245,11 +245,11 @@ def generate_example_links():
         link = base_link + "/" + sd
         fs = os.listdir(path)
         fs.sort()
-        string += "\n- {}\n".format(sd)
+        string += "\n- {}\n".format(sd.replace('-', ' ').title())
         prestring = "   -"
         string += "\n".join(
             [
-                prestring + " `{} <{}>`__".format(f, link + "/" + f)
+                prestring + " `{} <{}>`_".format(f.split('.ipynb')[0].replace('-', ' ').capitalize(), link + "/" + f)
                 for f in fs
                 if f.endswith("ipynb")
             ]
