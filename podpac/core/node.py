@@ -179,7 +179,7 @@ class Node(tl.HasTraits):
                         self.set_trait(name, tkwargs.pop(name))
                     trait.read_only = True
 
-        # Call traitlest constructor
+        # Call traitlets constructor
         super(Node, self).__init__(**tkwargs)
         self.init()
 
