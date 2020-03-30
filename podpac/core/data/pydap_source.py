@@ -6,6 +6,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import numpy as np
 import traitlets as tl
+import requests
 
 # Helper utility for optional imports
 from lazy_import import lazy_module, lazy_class
@@ -22,17 +23,11 @@ lazy_module("pydap.model")
 
 
 @common_doc(COMMON_DATA_DOC)
-class PyDAP(DataSource):
+class PyDAP(authentication.RequestsSessionMixin, DataSource):
     """Create a DataSource from an OpenDAP server feed.
     
     Attributes
     ----------
-    auth_class : :class:`podpac.authentication.Session`
-        :class:`requests.Session` derived class providing authentication credentials.
-        When username and password are provided, an auth_session is created using this class.
-    auth_session : :class:`podpac.authentication.Session`
-        Instance of the auth_class. This is created if username and password is supplied, but this object can also be
-        supplied directly
     datakey : str
         Pydap 'key' for the data to be retrieved from the server. Datasource may have multiple keys, so this key
         determines which variable is returned from the source.
@@ -40,14 +35,8 @@ class PyDAP(DataSource):
         The open pydap dataset. This is provided for troubleshooting.
     native_coordinates : Coordinates
         {native_coordinates}
-    password : str, optional
-        Password used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
-        auth_session instead if you have security concerns.
     source : str
         URL of the OpenDAP server.
-    username : str, optional
-        Username used for authenticating against OpenDAP server. WARNING: this is stored as plain-text, provide
-        auth_session instead if you have security concerns.
     """
 
     source = tl.Unicode().tag(readonly=True)
@@ -56,33 +45,13 @@ class PyDAP(DataSource):
     # node attrs
     datakey = tl.Unicode().tag(attr=True)
 
-    # optional inputs
-    auth_class = tl.Type(authentication.Session)
-    auth_session = tl.Instance(authentication.Session, allow_none=True)
-    username = tl.Unicode(default_value=None, allow_none=True)
-    password = tl.Unicode(default_value=None, allow_none=True)
-
-    @tl.default("auth_session")
-    def _auth_session_default(self):
-
-        # requires username and password
-        if not self.username or not self.password:
-            return None
-
-        # requires auth_class
-        # TODO: default auth_class?
-        if not self.auth_class:
-            return None
-
-        # instantiate and check utl
+    # hostname for RequestsSession is source. Try parsing off netloc
+    @tl.default("hostname")
+    def _hostname(self):
         try:
-            session = self.auth_class(username=self.username, password=self.password)
-            session.get(self.source + ".dds")
+            return requests.utils.urlparse(self.source).netloc
         except:
-            # TODO: catch a 403 error
-            return None
-
-        return session
+            return self.source
 
     @tl.default("dataset")
     def _open_dataset(self):
@@ -100,14 +69,13 @@ class PyDAP(DataSource):
         """
 
         # auth session
-        # if self.auth_session:
         try:
             dataset = self._open_url()
         except Exception:
             # TODO handle a 403 error
             # TODO: Check Url (probably inefficient...)
             try:
-                self.auth_session.get(self.source + ".dds")
+                self.session.get(self.source + ".dds")
                 dataset = self._open_url()
             except Exception:
                 # TODO: handle 403 error
@@ -117,7 +85,7 @@ class PyDAP(DataSource):
         return dataset
 
     def _open_url(self):
-        return pydap.client.open_url(self.source, session=self.auth_session)
+        return pydap.client.open_url(self.source, session=self.session)
 
     @common_doc(COMMON_DATA_DOC)
     def get_native_coordinates(self):

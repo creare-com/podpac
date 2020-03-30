@@ -2,10 +2,12 @@ import pydap
 import numpy as np
 import pytest
 from traitlets import TraitError
+import requests
 
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.units import UnitsDataArray
 from podpac.core.data.pydap_source import PyDAP
+from podpac import settings
 
 # Trying to fix test
 pydap.client.open_url
@@ -27,8 +29,6 @@ class TestPyDAP(object):
     """test pydap datasource"""
 
     source = "http://demo.opendap.org"
-    username = "username"
-    password = "password"
     datakey = "key"
 
     # mock parameters and data
@@ -47,7 +47,7 @@ class TestPyDAP(object):
     def test_init(self):
         """test basic init of class"""
 
-        node = PyDAP(source=self.source, datakey=self.datakey, username=self.username, password=self.password)
+        node = PyDAP(source=self.source, datakey=self.datakey)
         assert isinstance(node, PyDAP)
 
         node = MockPyDAP()
@@ -64,34 +64,38 @@ class TestPyDAP(object):
 
         nodes = [PyDAP(source=self.source, datakey=self.datakey), MockPyDAP()]
 
-        # TODO: in traitlets, if you already define variable, it won't enforce case on
-        # redefinition
-        with pytest.raises(TraitError):
-            nodes[0].username = 5
-
-        with pytest.raises(TraitError):
-            nodes[0].password = 5
-
         for node in nodes:
-            with pytest.raises(TraitError):
-                node.auth_class = "auth_class"
-
-            with pytest.raises(TraitError):
-                node.auth_session = "auth_class"
-
             with pytest.raises(TraitError):
                 node.dataset = [1, 2, 3]
 
-    def test_auth_session(self):
-        """test auth_session attribute and traitlet default """
+    def test_session(self):
+        """test session attribute and traitlet default """
 
-        # default to none if no username and password
+        # hostname should be the same as the source, parsed by request
         node = PyDAP(source=self.source, datakey=self.datakey)
-        assert node.auth_session is None
+        assert node.hostname == "demo.opendap.org"
 
-        # default to none if no auth_class
-        node = PyDAP(source=self.source, datakey=self.datakey, username=self.username, password=self.password)
-        assert node.auth_session is None
+        # defaults to no auth required
+        assert node.auth_required == False
+
+        # session should be available
+        assert node.session
+        assert isinstance(node.session, requests.Session)
+
+        # auth required
+        del settings["username@test.org"]
+        del settings["password@test.org"]
+
+        node = PyDAP(source=self.source, datakey=self.datakey, hostname="test.org", auth_required=True)
+        assert node.hostname == "test.org"
+
+        # throw auth error
+        with pytest.raises(ValueError):
+            s = node.session
+
+        node.set_credentials(username="user", password="pass")
+        assert node.session
+        assert isinstance(node.session, requests.Session)
 
     def test_dataset(self):
         """test dataset trait """

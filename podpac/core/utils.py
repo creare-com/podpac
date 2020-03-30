@@ -306,18 +306,28 @@ def _get_query_params_from_url(url):
     return params
 
 
-def _get_from_url(url):
+def _get_from_url(url, session=None):
     """Helper function to get data from an url with error checking.
-
+    
     Parameters
-    -----------
-    auth_session: podpac.core.authentication.EarthDataSession
-        Authenticated EDS session
-    url: str
+    ----------
+    url : str
         URL to website
+    session : :class:`requests.Session`, optional
+        Requests session to use when making the GET request to `url`
+    
+    Returns
+    -------
+    str
+        Text response from request.
+        See https://2.python-requests.org/en/master/api/#requests.Response.text
     """
     try:
-        r = requests.get(url)
+        if session is None:
+            r = requests.get(url)
+        else:
+            r = session.get(url)
+
         if r.status_code != 200:
             _log.warning(
                 "Could not connect to {}, status code {}. \n *** Return Text *** \n {} \n *** End Return Text ***".format(
@@ -330,4 +340,5 @@ def _get_from_url(url):
         r = None
     except RuntimeError as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
+
     return r.text
