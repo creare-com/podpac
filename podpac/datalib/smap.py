@@ -49,9 +49,8 @@ import podpac
 from podpac.core.coordinates import Coordinates, union, merge_dims, concat
 from podpac.core.data import pydap_source
 from podpac.core import authentication
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC
-from podpac.core.utils import cache_func
 from podpac.core.node import NodeException, DiskCacheMixin
 from podpac.core import cache
 
@@ -713,7 +712,7 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
         self.put_cache(crds, "source.coordinates", overwrite=True)
         return crds
 
-    @cache_func("shared.coordinates")
+    @cached_property(use_cache_ctrl=True)
     def get_shared_coordinates(self):
         """Coordinates that are shared by all files in the folder.
 
@@ -962,7 +961,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
         dates.sort()
         return np.array(times), dates
 
-    @cache_func("shared.coordinates")
+    @cached_property(use_cache_ctrl=True)
     def get_shared_coordinates(self):
         """Coordinates that are shared by all files in the SMAP product family. 
 
