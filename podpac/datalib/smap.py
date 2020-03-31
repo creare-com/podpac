@@ -46,16 +46,15 @@ if not hasattr(np, "isnat"):
 
 # Internal dependencies
 import podpac
-from podpac.core.coordinates import Coordinates, union, merge_dims, concat
-from podpac.core.data import pydap_source
-from podpac.core import authentication
-from podpac.core.utils import common_doc
-from podpac.core.data.datasource import COMMON_DATA_DOC
-from podpac.core.utils import cache_func
-from podpac.core.node import NodeException, DiskCacheMixin
-from podpac.core import cache
+from podpac import NodeException
+from podpac import authentication
+from podpac.coordinates import Coordinates
+from podpac.data import PyDAP
+from podpac.compositor import OrderedCompositor
+from podpac.utils import cached_property, cached_default, DiskCacheMixin
+from podpac.core.data.datasource import common_doc, COMMON_DATA_DOC
 
-from . import nasaCMR
+import nasaCMR
 
 COMMON_DOC = COMMON_DATA_DOC.copy()
 COMMON_DOC.update(
@@ -71,7 +70,7 @@ COMMON_DOC.update(
             "NASA Earth Data Login credentials"
         ),
         "base_url": "str\n        Url to nsidc openDAP server",
-        "layerkey": (
+        "layer_key": (
             "str\n        Key used to retrieve data from OpenDAP dataset. This specifies the key used to retrieve "
             "the data"
         ),
@@ -79,12 +78,7 @@ COMMON_DOC.update(
         "username": "User's EarthData username",
         "product": "SMAP product name",
         "version": "Version number for the SMAP product",
-        "source_coordinates": """Returns the coordinates that uniquely describe each source
-
-        Returns
-        -------
-        :class:`podpac.Coordinates`
-            Coordinates that uniquely describe each source""",
+        "source_coordinates": "Coordinates that uniquely describe each source",
         "keys": """Available layers that are in the OpenDAP dataset
 
         Returns
@@ -187,9 +181,9 @@ def _infer_SMAP_product_version(product, base_url, auth_session):
     return int(SMAP_PRODUCT_MAP.sel(product=product, attr="default_version").item())
 
 
-# NOTE: {rdk} will be substituted for the entry's 'rootdatakey'
+# NOTE: {rdk} will be substituted for the entry's 'root_data_key'
 SMAP_PRODUCT_DICT = {
-    #'<Product>.ver': ['latkey',               'lonkey',                     'rootdatakey',                       'layerkey'              'default_verison'
+    #'<Product>.ver': ['lat_key',               'lon_key',                     'root_data_key',                       'layer_key'              'default_verison'
     "SPL4SMAU": ["cell_lat", "cell_lon", "Analysis_Data_", "{rdk}sm_surface_analysis", 4],
     "SPL4SMGP": ["cell_lat", "cell_lon", "Geophysical_Data_", "{rdk}sm_surface", 4],
     "SPL3SMA": ["{rdk}latitude", "{rdk}longitude", "Soil_Moisture_Retrieval_Data_", "{rdk}soil_moisture", 3],
@@ -211,7 +205,7 @@ SMAP_PRODUCT_MAP = xr.DataArray(
     dims=["product", "attr"],
     coords={
         "product": list(SMAP_PRODUCT_DICT.keys()),
-        "attr": ["latkey", "lonkey", "rootdatakey", "layerkey", "default_version"],
+        "attr": ["lat_key", "lon_key", "root_data_key", "layer_key", "default_version"],
     },
 )
 
@@ -254,7 +248,7 @@ def SMAP_BASE_URL():
 
 
 @common_doc(COMMON_DOC)
-class SMAPSource(pydap_source.PyDAP):
+class SMAPSource(PyDAP):
     """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how
     to extract the correct coordinates and data keys for the soil moisture data.
 
@@ -266,14 +260,15 @@ class SMAPSource(pydap_source.PyDAP):
         Regular expression used to retrieve date from self.source (OpenDAP Url)
     date_time_file_url_re : SRE_Pattern
         Regular expression used to retrieve date and time from self.source (OpenDAP Url)
-    layerkey : str
+    layer_key : str
         Key used to retrieve data from OpenDAP dataset. This specifies the key used to retrieve the data
     nan_vals : list
         List of values that should be treated as no-data (these are replaced by np.nan)
-    rootdatakey : str
+    root_data_key : str
         String the prepends every or most keys for data in the OpenDAP dataset
     """
 
+    # auth, to be replaced with mixin
     auth_session = tl.Instance(authentication.EarthDataSession)
     auth_class = tl.Type(authentication.EarthDataSession)
 
@@ -288,99 +283,66 @@ class SMAPSource(pydap_source.PyDAP):
             _logger.warning("Unknown exception: ", e)
         return session
 
+    layer_key = tl.Unicode().tag(attr=True)
+    root_data_key = tl.Unicode().tag(attr=True)
+    nan_vals = [-9999.0]
+
     # date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
     date_time_file_url_re = re.compile("[0-9]{8}T[0-9]{6}")
     date_file_url_re = re.compile("[0-9]{8}")
 
-    rootdatakey = tl.Unicode()
-
-    @tl.default("rootdatakey")
+    @tl.default("root_data_key")
     def _rootdatakey_default(self):
-        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="rootdatakey").item()
+        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="root_data_key").item()
 
-    layerkey = tl.Unicode()
-
-    @tl.default("layerkey")
+    @tl.default("layer_key")
     def _layerkey_default(self):
-        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="layerkey").item()
-
-    nan_vals = [-9999.0]
+        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="layer_key").item()
 
     @property
     def product(self):
-        """Returns the SMAP product from the OpenDAP Url
+        """SMAP product from the OpenDAP URL"""
 
-        Returns
-        -------
-        str
-            {product}
-        """
         src = self.source.split("/")
         return src[src.index("SMAP") + 1].split(".")[0]
 
     @property
     def version(self):
-        """Returns the SMAP product version from the OpenDAP Url
-
-        Returns
-        -------
-        int
-            {version}
+        """SMAP product version from the OpenDAP URL
         """
         src = self.source.split("/")
         return int(src[src.index("SMAP") + 1].split(".")[1])
 
-    @tl.default("data_key")
-    def _data_key_default(self):
-        return self.layerkey.format(rdk=self.rootdatakey)
+    @property
+    def data_key(self):
+        """PyDAP data_key, constructed from the layer_key and root_data_key"""
+
+        return self.layer_key.format(rdk=self.root_data_key)
 
     @property
-    def latkey(self):
-        """The key used to retrieve the latitude
+    def lat_key(self):
+        """OpenDap dataset key for latitude. """
 
-        Returns
-        -------
-        str
-            OpenDap dataset key for latitude
-        """
-        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="latkey").item().format(rdk=self.rootdatakey)
+        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="lat_key").item().format(rdk=self.root_data_key)
 
     @property
-    def lonkey(self):
-        """The key used to retrieve the latitude
+    def lon_key(self):
+        """OpenDap dataset key for longitude. """
 
-        Returns
-        -------
-        str
-            OpenDap dataset key for longitude
-        """
-        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="lonkey").item().format(rdk=self.rootdatakey)
+        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="lon_key").item().format(rdk=self.root_data_key)
 
-    @common_doc(COMMON_DOC)
-    @cached_property(use_cache_ctrl=True)
-    def native_coordinates(self):
-        """{get_native_coordinates}
-        """
-        times = self.get_available_times()
-        ds = self.dataset
-        lons = np.array(ds[self.lonkey][:, :])
-        lats = np.array(ds[self.latkey][:, :])
-        lons[lons == self.nan_vals[0]] = np.nan
-        lats[lats == self.nan_vals[0]] = np.nan
-        lons = np.nanmean(lons, axis=0)
-        lats = np.nanmean(lats, axis=1)
-        coords = podpac.Coordinates([times, lats, lons], dims=["time", "lat", "lon"])
-        return coords
+    @cached_property
+    def available_times(self):
+        """Retrieve the available times from the SMAP file.
 
-    def get_available_times(self):
-        """Retrieve the available times from the SMAP file. This is primarily based on the filename, but some products 
-        have multiple times stored in a single file.
+        This is primarily based on the filename, but some products have multiple times stored in a single file.
 
         Returns
         -------
         np.ndarray(dtype=np.datetime64)
             Available times in the SMAP source
         """
+
         m = self.date_time_file_url_re.search(self.source)
         if not m:
             m = self.date_file_url_re.search(self.source)
@@ -391,6 +353,20 @@ class SMAPSource(pydap_source.PyDAP):
         return times
 
     @common_doc(COMMON_DOC)
+    @cached_default("native_coordinates")
+    def _default_native_coordinates(self):
+        """{get_native_coordinates}
+        """
+        lons = np.array(self.dataset[self.lon_key][:, :])
+        lats = np.array(self.dataset[self.lat_key][:, :])
+        lons[lons == self.nan_vals[0]] = np.nan
+        lats[lats == self.nan_vals[0]] = np.nan
+        lons = np.nanmean(lons, axis=0)
+        lats = np.nanmean(lats, axis=1)
+        coords = Coordinates([self.available_times, lats, lons], dims=["time", "lat", "lon"])
+        return coords
+
+    @common_doc(COMMON_DOC)
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
@@ -398,8 +374,8 @@ class SMAPSource(pydap_source.PyDAP):
         s = tuple([slc for d, slc in zip(coordinates.dims, coordinates_index) if "time" not in d])
         if "SM_P_" in self.source:
             d = self.create_output_array(coordinates)
-            am_key = self.layerkey.format(rdk=self.rootdatakey + "AM")
-            pm_key = self.layerkey.format(rdk=self.rootdatakey + "PM") + "_pm"
+            am_key = self.layer_key.format(rdk=self.root_data_key + "AM")
+            pm_key = self.layer_key.format(rdk=self.root_data_key + "PM") + "_pm"
 
             try:
                 t = self.native_coordinates.coords["time"][0]
@@ -445,7 +421,7 @@ class SMAPProperties(SMAPSource):
 
     file_url_re = re.compile(r"SMAP.*_[0-9]{8}T[0-9]{6}_.*\.h5")
 
-    source = tl.Unicode().tag(attr=True)  # TODO should this be a property
+    source = tl.Unicode().tag(attr=True)
 
     @tl.default("source")
     def _property_source_default(self):
@@ -496,23 +472,22 @@ class SMAPProperties(SMAPSource):
         ]
     ).tag(attr=True)
 
-    @tl.default("layerkey")
+    @tl.default("layer_key")
     def _layerkey_default(self):
         return "{rdk}" + self.property
 
     @common_doc(COMMON_DOC)
-    @cached_property(use_cache_ctrl=True)
-    def native_coordinates(self):
+    @cached_default("native_coordinates")
+    def _default_native_coordinates(self):
         """{get_native_coordinates}
         """
-        ds = self.dataset
-        lons = np.array(ds[self.lonkey][:, :])
-        lats = np.array(ds[self.latkey][:, :])
+        lons = np.array(self.dataset[self.lon_key][:, :])
+        lats = np.array(self.dataset[self.lat_key][:, :])
         lons[lons == self.nan_vals[0]] = np.nan
         lats[lats == self.nan_vals[0]] = np.nan
         lons = np.nanmean(lons, axis=0)
         lats = np.nanmean(lats, axis=1)
-        coords = podpac.Coordinates([lats, lons], dims=["lat", "lon"])
+        coords = Coordinates([lats, lons], dims=["lat", "lon"])
         return coords
 
 
@@ -541,7 +516,7 @@ class SMAPWilt(SMAPProperties):
 
 
 @common_doc(COMMON_DOC)
-class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
+class SMAPDateFolder(DiskCacheMixin, OrderedCompositor):
     """Compositor of all the SMAP source urls present in a particular folder which is defined for a particular date
 
     Attributes
@@ -549,8 +524,6 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
     auth_class : {auth_class}
     auth_session : {auth_session}
     base_url : {base_url}
-    cache_native_coordinates : bool, optional
-        Default is False. If True, the native_coordinates will be cached to disk after being computed the first time
     date_time_url_re : SRE_Pattern
         Regular expression used to retrieve the date and time from the filename if file_url_re matches
     date_url_re : SRE_Pattern
@@ -566,7 +539,7 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
         tile cover?
     latlon_url_re : SRE_Pattern
         Regular expression used to find the lat-lon coordinates associated with the file from the file name
-    layerkey : {layerkey}
+    layer_key : {layer_key}
     password : {password}
     product : str
         {product}
@@ -575,34 +548,23 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
     username : {username}
     """
 
+    # auth, to be replaced
     auth_session = tl.Instance(authentication.EarthDataSession)
     auth_class = tl.Type(authentication.EarthDataSession)
     username = tl.Unicode(None, allow_none=True)
     password = tl.Unicode(None, allow_none=True)
-
-    @tl.validate("source_coordinates")
-    def _validate_source_coordinates(self, d):
-        # Need to overwrite parent because of recursive definition
-        return d["value"]
 
     @tl.default("auth_session")
     def _auth_session_default(self):
         return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
 
     base_url = tl.Unicode().tag(attr=True)
-
-    @tl.default("base_url")
-    def _base_url_default(self):
-        return SMAP_BASE_URL()
-
     product = tl.Enum(SMAP_PRODUCT_MAP.coords["product"].data.tolist()).tag(attr=True)
     version = tl.Int(allow_none=True).tag(attr=True)
-
-    @tl.default("version")
-    def _detect_product_version(self):
-        return _infer_SMAP_product_version(self.product, self.base_url, self.auth_session)
-
     folder_date = tl.Unicode("").tag(attr=True)
+    layer_key = tl.Unicode().tag(attr=True)
+    latlon_delta = tl.Float(default_value=1.5).tag(attr=True)
+    outputs = None  # this is necessary because of the source caching backup
 
     file_url_re = re.compile(r".*_[0-9]{8}T[0-9]{6}_.*\.h5")
     file_url_re2 = re.compile(r".*_[0-9]{8}_.*\.h5")
@@ -610,30 +572,22 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
     date_url_re = re.compile(r"[0-9]{8}")
     latlon_url_re = re.compile(r"[0-9]{3}[E,W][0-9]{2}[N,S]")
 
-    latlon_delta = tl.Float(default_value=1.5).tag(attr=True)
+    _repr_keys = ["product", "folder_date"]
 
-    cache_native_coordinates = tl.Bool(False)
+    @tl.default("base_url")
+    def _base_url_default(self):
+        return SMAP_BASE_URL()
 
-    layerkey = tl.Unicode()
+    @tl.default("version")
+    def _detect_product_version(self):
+        return _infer_SMAP_product_version(self.product, self.base_url, self.auth_session)
 
-    @tl.default("layerkey")
+    @tl.default("layer_key")
     def _layerkey_default(self):
-        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="layerkey").item()
+        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="layer_key").item()
 
-    @tl.observe("layerkey")
-    def _layerkey_change(self, change):
-        if change["old"] != change["new"] and change["old"] != "":
-            for s in self.sources:
-                s.layerkey = change["new"]
-
-    def __repr__(self):
-        rep = "{}".format("SMAP")
-        rep += "\n\tproduct: {}".format(self.product)
-
-        return rep
-
-    @property
-    def source(self):
+    @cached_property
+    def folder_url(self):
         """URL to OpenDAP dataset folder
 
         Returns
@@ -643,16 +597,14 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
         """
         return "/".join([self.base_url, "%s.%03d" % (self.product, self.version), self.folder_date])
 
-    # TODO caching
-    @property
+    @cached_property
     def sources(self):
         """SMAPSource objects pointing to URLs of specific SMAP files in the folder"""
 
         # Swapped the try and except blocks. SMAP filenames may change version numbers, which causes cached source to
         # break. Hence, try to get the new source everytime, unless data is offline, in which case rely on the cache.
         try:
-            _, _, sources = self.get_available_coords_sources()
-            self.put_cache(sources, "sources", overwrite=True)
+            _, _, sources = self.available_coords_sources
         except:  # No internet or authentication error
             try:
                 sources = self.get_cache("sources")
@@ -661,28 +613,30 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
                     "Connection or Authentication error, and no disk cache to fall back on for determining sources."
                 )
 
-        b = self.source + "/"
-        time_crds = self.source_coordinates["time"]
-        if time_crds.is_monotonic and time_crds.is_uniform and time_crds.size > 1:
-            tol = time_crds.coordinates[1] - time_crds.coordinates[0]
         else:
-            tol = self.source_coordinates["time"].coordinates[0]
-            tol = tol - tol
-            tol = np.timedelta64(1, dtype=(tol.dtype))
+            self.put_cache(sources, "sources", overwrite=True)
 
-        src_objs = [
-            SMAPSource(
-                source=b + s,
-                auth_session=self.auth_session,
-                layerkey=self.layerkey,
-                interpolation={"method": "nearest", "time_tolerance": tol},
-            )
-            for s in sources
-        ]
-        return np.array(src_objs)
+            time_crds = self.source_coordinates["time"]
+            if time_crds.is_monotonic and time_crds.is_uniform and time_crds.size > 1:
+                tol = time_crds.coordinates[1] - time_crds.coordinates[0]
+            else:
+                tol = self.source_coordinates["time"].coordinates[0]
+                tol = tol - tol
+                tol = np.timedelta64(1, dtype=(tol.dtype))
 
-    @tl.default("is_source_coordinates_complete")
-    def src_crds_complete_default(self):
+            src_objs = [
+                SMAPSource(
+                    source="%s/%s" % (self.folder_url, s),
+                    auth_session=self.auth_session,
+                    layer_key=self.layer_key,
+                    interpolation={"method": "nearest", "time_tolerance": tol},
+                )
+                for s in sources
+            ]
+            return np.array(src_objs)
+
+    @property
+    def is_source_coordinates_complete(self):
         """Flag use to optimize creation of native_coordinates. If the source_coordinates are complete,
         native_coordinates can easily be reconstructed, and same with shared coordinates. 
 
@@ -693,11 +647,12 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
         """
         return self.product not in SMAP_INCOMPLETE_SOURCE_COORDINATES
 
-    def get_source_coordinates(self):
-        """{source_coordinates}
-        """
+    @cached_property
+    def source_coordinates(self):
+        """{source_coordinates}"""
+
         try:
-            times, latlon, _ = self.get_available_coords_sources()
+            times, latlon, _ = self.available_coords_sources
         except:
             try:
                 return self.get_cache("source.coordinates")
@@ -705,30 +660,27 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
                 raise NodeException(
                     "Connection or Authentication error, and no disk cache to fall back on for determining sources."
                 )
-
-        if latlon is not None and latlon.size > 0:
-            crds = podpac.Coordinates([[times, latlon[:, 0], latlon[:, 1]]], dims=["time_lat_lon"])
         else:
-            crds = podpac.Coordinates([times], dims=["time"])
-        self.put_cache(crds, "source.coordinates", overwrite=True)
-        return crds
+            if latlon is not None and latlon.size > 0:
+                crds = Coordinates([[times, latlon[:, 0], latlon[:, 1]]], dims=["time_lat_lon"])
+            else:
+                crds = Coordinates([times], dims=["time"])
+            self.put_cache(crds, "source.coordinates", overwrite=True)
+            return crds
 
-    @cache_func("shared.coordinates")
-    def get_shared_coordinates(self):
-        """Coordinates that are shared by all files in the folder.
+    @cached_property(use_cache_ctrl=True)
+    def shared_coordinates(self):
+        """Coordinates that are shared by all files in the folder."""
 
-        Returns
-        -------
-        podpac.Coordinates
-            Coordinates shared by all files in the folder
-        """
         if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
             return None
 
         coords = copy.deepcopy(self.sources[0].native_coordinates)
         return coords.drop("time")
 
-    def get_available_coords_sources(self):
+    # TODO just return the elements, then return each actual thing separately
+    @cached_property
+    def available_coords_sources(self):
         """Read NSIDC site for available coordinate sources
 
         Returns
@@ -745,10 +697,9 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
         RuntimeError
             If the NSIDC website cannot be accessed 
         """
-        url = self.source
-        r = _get_from_url(url, self.auth_session)
+        r = _get_from_url(self.folder_url, self.auth_session)
         if r is None:
-            _logger.warning("Could not contact {} to retrieve source coordinates".format(url))
+            _logger.warning("Could not contact {} to retrieve source coordinates".format(self.folder_url))
             return np.array([]), None, np.array([])
         soup = bs4.BeautifulSoup(r.text, "lxml")
         a = soup.find_all("a")
@@ -805,7 +756,7 @@ class SMAPDateFolder(DiskCacheMixin, podpac.compositor.OrderedCompositor):
 
 
 @common_doc(COMMON_DOC)
-class SMAP(podpac.compositor.OrderedCompositor):
+class SMAP(OrderedCompositor):
     """Compositor of all the SMAPDateFolder's for every available SMAP date. Essentially a compositor of all SMAP data
     for a particular product.
 
@@ -816,33 +767,14 @@ class SMAP(podpac.compositor.OrderedCompositor):
     base_url : {base_url}
     date_url_re : SRE_Pattern
         Regular expression used to extract all folder dates (or folder names) for the particular SMAP product.
-    layerkey : {layerkey}
+    layer_key : {layer_key}
     password : {password}
     product : str
         {product}
     username : {username}
     """
 
-    base_url = tl.Unicode().tag(attr=True)
-
-    @tl.validate("source_coordinates")
-    def _validate_source_coordinates(self, d):
-        # Need to overwrite parent because of recursive definition
-        return d["value"]
-
-    @tl.default("base_url")
-    def _base_url_default(self):
-        return SMAP_BASE_URL()
-
-    product = tl.Enum(SMAP_PRODUCT_MAP.coords["product"].data.tolist(), default_value="SPL4SMAU").tag(attr=True)
-    version = tl.Int(allow_none=True).tag(attr=True)
-
-    @tl.default("version")
-    def _detect_product_version(self):
-        return _infer_SMAP_product_version(self.product, self.base_url, self.auth_session)
-
-    date_url_re = re.compile(r"[0-9]{4}\.[0-9]{2}\.[0-9]{2}")
-
+    # auth, to be replaced
     auth_session = tl.Instance(authentication.EarthDataSession)
     auth_class = tl.Type(authentication.EarthDataSession)
     username = tl.Unicode(None, allow_none=True)
@@ -852,56 +784,103 @@ class SMAP(podpac.compositor.OrderedCompositor):
     def _auth_session_default(self):
         return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
 
-    layerkey = tl.Unicode()
+    base_url = tl.Unicode().tag(attr=True)
+    product = tl.Enum(SMAP_PRODUCT_MAP.coords["product"].data.tolist(), default_value="SPL4SMAU").tag(attr=True)
+    version = tl.Int(allow_none=True).tag(attr=True)
+    layer_key = tl.Unicode().tag(attr=True)
+    outputs = None  # this is necessary because of the source caching backup
+    output = None  # might as well
 
-    @tl.default("layerkey")
+    date_url_re = re.compile(r"[0-9]{4}\.[0-9]{2}\.[0-9]{2}")
+
+    _repr_keys = ["product"]
+
+    @tl.default("base_url")
+    def _base_url_default(self):
+        return SMAP_BASE_URL()
+
+    @tl.default("version")
+    def _detect_product_version(self):
+        return _infer_SMAP_product_version(self.product, self.base_url, self.auth_session)
+
+    @tl.default("layer_key")
     def _layerkey_default(self):
-        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="layerkey").item()
+        return SMAP_PRODUCT_MAP.sel(product=self.product, attr="layer_key").item()
 
-    @tl.observe("layerkey")
-    def _layerkey_change(self, change):
-        if change["old"] != change["new"] and change["old"] != "":
-            for s in self.sources:
-                s.layerkey = change["new"]
+    @cached_property
+    def available_dates(self):
+        """ Available dates in SMAP date format, sorted."""
 
-    def __repr__(self):
-        rep = "{}".format("SMAP")
-        rep += "\n\tproduct: {}".format(self.product)
-        rep += "\n\tinterpolation: {}".format(self.interpolation)
+        url = "/".join([self.base_url, "%s.%03d" % (self.product, self.version)])
+        r = _get_from_url(url, self.auth_session)
+        if r is None:
+            _logger.warning("Could not contact {} to retrieve source coordinates".format(url))
+            return []
+        soup = bs4.BeautifulSoup(r.text, "lxml")
+        matches = [self.date_url_re.match(a.get_text()) for a in soup.find_all("a")]
+        dates = [m.group() for m in matches if m]
+        return dates
 
-        return rep
+    @cached_property
+    def sources(self):
+        """Array of SMAPDateFolder objects pointing to specific SMAP folders"""
+
+        kwargs = {
+            "product": self.product,
+            "version": self.version,
+            "shared_coordinates": self.shared_coordinates,
+            "auth_session": self.auth_session,
+            "layer_key": self.layer_key,
+        }
+        return [SMAPDateFolder(folder_date=date, **kwargs) for date in self.available_dates]
+
+    @common_doc(COMMON_DOC)
+    @cached_property
+    def source_coordinates(self):
+        """{source_coordinates}
+        """
+        available_times = [np.datetime64(date.replace(".", "-")) for date in self.available_dates]
+        return Coordinates([available_times], dims=["time"])
+
+    @cached_property  # (use_cache_ctrl=True)
+    def shared_coordinates(self):
+        """Coordinates that are shared by all files in the SMAP product family. 
+
+        Notes
+        ------
+        For example, the gridded SMAP data have the same lat-lon coordinates in every file (global at some resolution), 
+        and the only difference between files is the time coordinate. 
+        This is not true for the SMAP-Sentinel product, in which case this function returns None
+        """
+        if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
+            return None
+
+        sample_source = SMAPDateFolder(
+            product=self.product,
+            version=self.version,
+            folder_date=self.available_dates[0],
+            auth_session=self.auth_session,
+        )
+
+        return sample_source.shared_coordinates
 
     @property
-    def source(self):
-        """The source is used for a unique name to cache SMAP products. 
+    def base_ref(self):
+        """Summary
 
         Returns
         -------
-        str
-            The SMAP product name.
+        TYPE
+            Description
         """
-        return "%s.%03d" % (self.product, self.version)
+        return "{0}_{1}".format(self.__class__.__name__, self.product)
 
-    # TODO caching
     @property
-    def sources(self):
-        """SMAPDateFolder objects pointing to specific SMAP folders"""
-
-        dates = self.get_available_times_dates()[1]
-        src_objs = np.array(
-            [
-                SMAPDateFolder(
-                    product=self.product,
-                    version=self.version,
-                    folder_date=date,
-                    shared_coordinates=self.shared_coordinates,
-                    auth_session=self.auth_session,
-                    layerkey=self.layerkey,
-                )
-                for date in dates
-            ]
-        )
-        return src_objs
+    @common_doc(COMMON_DOC)
+    def keys(self):
+        """{keys}
+        """
+        return self.sources[0].keys
 
     @common_doc(COMMON_DOC)
     def find_coordinates(self):
@@ -915,78 +894,11 @@ class SMAP(podpac.compositor.OrderedCompositor):
         if self.product in SMAP_IRREGULAR_COORDINATES:
             raise Exception("Native coordinates too large. Try using get_filename_coordinates_sources().")
 
-        shared = self.get_shared_coordinates()
-        partial_sources = self.get_source_coordinates()["time"].coordinates
-        complete_source_0 = self.sources[0].get_source_coordinates()["time"].coordinates
+        partial_sources = self.source_coordinates["time"].coordinates
+        complete_source_0 = self.sources[0].source_coordinates["time"].coordinates
         offset = complete_source_0 - partial_sources[0]
         full_times = (partial_sources[:, None] + offset[None, :]).ravel()
-        return [merge_dims([podpac.Coordinates([full_times], ["time"]), shared])]
-
-    @common_doc(COMMON_DOC)
-    def get_source_coordinates(self):
-        """{source_coordinates}
-        """
-        return podpac.Coordinates([self.get_available_times_dates()[0]], dims=["time"])
-
-    def get_available_times_dates(self):
-        """Returns the available folder dates in the SMAP product
-
-        Returns
-        -------
-        np.ndarray
-            Array of dates in numpy datetime64 format
-        list
-            list of dates in SMAP date format
-
-        Raises
-        ------
-        RuntimeError
-            If the http resource could not be accessed (check Earthdata login credentials)
-        """
-        url = "/".join([self.base_url, "%s.%03d" % (self.product, self.version)])
-        r = _get_from_url(url, self.auth_session)
-        if r is None:
-            _logger.warning("Could not contact {} to retrieve source coordinates".format(url))
-            return np.array([]), []
-        soup = bs4.BeautifulSoup(r.text, "lxml")
-        a = soup.find_all("a")
-        regex = self.date_url_re
-        times = []
-        dates = []
-        for aa in a:
-            m = regex.match(aa.get_text())
-            if m:
-                times.append(np.datetime64(m.group().replace(".", "-")))
-                dates.append(m.group())
-        times.sort()
-        dates.sort()
-        return np.array(times), dates
-
-    @cache_func("shared.coordinates")
-    def get_shared_coordinates(self):
-        """Coordinates that are shared by all files in the SMAP product family. 
-
-        Returns
-        -------
-        podpac.Coordinates
-            Coordinates shared by all files in the SMAP product. 
-
-        Notes
-        ------
-        For example, the gridded SMAP data have the same lat-lon coordinates in every file (global at some resolution), 
-        and the only difference between files is the time coordinate. 
-        This is not true for the SMAP-Sentinel product, in which case this function returns None
-        """
-        if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
-            return None
-
-        coords = SMAPDateFolder(
-            product=self.product,
-            version=self.version,
-            folder_date=self.get_available_times_dates()[1][0],
-            auth_session=self.auth_session,
-        ).shared_coordinates
-        return coords
+        return [podpac.coordinates.merge_dims([Coordinates([full_times], ["time"]), self.shared_coordinates])]
 
     def get_filename_coordinates_sources(self, bounds=None, update_cache=False):
         """Returns coordinates solely based on the filenames of the sources. This function was motivated by the 
@@ -994,7 +906,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
 
         Parameters
         -----------
-        bounds: podpac.Coordinates, Optional
+        bounds: Coordinates, Optional
             Default is None. Return the coordinates based on filenames of the source only within the specified bounds. 
             When not None, the result is not cached.
             
@@ -1005,7 +917,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
 
         Returns
         -------
-        podpac.Coordinates
+        Coordinates
             Coordinates of all the sources in the product family
         Container
             Container that will generate an array of the SMAPSources pointing to unique OpenDAP urls corresponding to
@@ -1081,7 +993,7 @@ class SMAP(podpac.compositor.OrderedCompositor):
             return crds, filenames, dates
 
         # Create kwargs for making a SMAP source
-        create_kwargs = {"auth_session": self.auth_session, "layer_key": self.layerkey}
+        create_kwargs = {"auth_session": self.auth_session, "layer_key": self.layer_key}
         if self.interpolation:
             create_kwargs["interpolation"] = self.interpolation
 
@@ -1134,48 +1046,21 @@ class SMAP(podpac.compositor.OrderedCompositor):
         sources.create_kwargs = create_kwargs
         return crds, sources
 
-    @property
-    def base_ref(self):
-        """Summary
 
-        Returns
-        -------
-        TYPE
-            Description
-        """
-        return "{0}_{1}".format(self.__class__.__name__, self.product)
-
-    @property
-    @common_doc(COMMON_DOC)
-    def keys(self):
-        """{keys}
-        """
-        return self.sources[0].keys
-
-
-class SMAPBestAvailable(podpac.compositor.OrderedCompositor):
+class SMAPBestAvailable(OrderedCompositor):
     """Compositor of SMAP-Sentinel and the Level 4 SMAP Analysis Update soil moisture
     """
 
-    # TODO property
-    @property
+    shared_coordinates = None
+
+    @cached_property
     def sources(self):
         """Orders the compositor of SPL2SMAP_S in front of SPL4SMAU. """
 
-        src_objs = np.array(
-            [
-                SMAP(interpolation=self.interpolation, product="SPL2SMAP_S"),
-                SMAP(interpolation=self.interpolation, product="SPL4SMAU"),
-            ]
-        )
-        return src_objs
-
-    def __repr__(self):
-        rep = "{}".format("SMAP (Best Available)")
-        return rep
-
-    def get_shared_coordinates(self):
-        return None  # NO shared coordiantes
+        return [
+            SMAP(interpolation=self.interpolation, product="SPL2SMAP_S"),
+            SMAP(interpolation=self.interpolation, product="SPL4SMAU"),
+        ]
 
 
 class GetSMAPSources(object):
@@ -1216,3 +1101,67 @@ class GetSMAPSources(object):
             dates=[self.dates[i] for i in I],
             create_kwargs=self.create_kwargs,
         )
+
+
+if __name__ == "__main__":
+    import getpass
+    from matplotlib import pyplot
+    import podpac
+
+    logging.basicConfig()
+
+    # username = input("Username:")
+    # password = getpass.getpass("Password:")
+    username = "jmilloy"
+    password = "sp87AZoo"
+
+    product = "SPL4SMAU"
+    interpolation = {"method": "nearest", "params": {"time_tolerance": np.timedelta64(2, "h")}}
+
+    sm = SMAP(product=product, username=username, password=password, interpolation=interpolation)
+
+    # SMAP info
+    print(sm)
+    print("SMAP Definition:", sm.json_pretty)
+    print(
+        "SMAP available_dates:",
+        "%s - %s (%d)" % (sm.available_dates[0], sm.available_dates[1], len(sm.available_dates)),
+    )
+    print("SMAP source_coordinates:", sm.source_coordinates)
+    print("SMAP shared_coordinates:", sm.shared_coordinates)
+    print("Sources:", sm.sources)
+
+    # sample SMAPDateFolder info
+    sm_datefolder = sm.sources[0]
+    print("Sample DateFolder:", sm_datefolder)
+    print("Sample DateFolder Definition:", sm_datefolder.json_pretty)
+    print("Sample DateFolder source_coordinates:", sm_datefolder.source_coordinates)
+    print("Sample DateFolder shared_coordinates:", sm_datefolder.shared_coordinates)
+    print("Sample DateFolder Sources:", sm_datefolder.sources)
+
+    # sample SMAPSource info
+    sm_source = sm_datefolder.sources[0]
+    print("Sample DAP Source:", sm_source)
+    print("Sample DAP Source Definition:", sm_source.json_pretty)
+    print("Sample DAP Native Coordinates:", sm_source.native_coordinates)
+
+    # eval whole world
+    c_world = Coordinates(
+        [podpac.crange(90, -90, -2.0), podpac.crange(-180, 180, 2.0), "2018-05-19T12:00:00"],
+        dims=["lat", "lon", "time"],
+    )
+    o = sm.eval(c_world)
+    o.plot(cmap="gist_earth_r")
+    pyplot.axis("scaled")
+
+    # eval points over time
+    lat = [45.0, 45.0, 0.0, 45.0]
+    lon = [-100.0, 20.0, 20.0, 100.0]
+    c_pts = Coordinates([[lat, lon], podpac.crange("2018-05-15T00", "2018-05-19T00", "3,h")], dims=["lat_lon", "time"])
+
+    o = sm.eval(c_pts)
+    # sm.threaded = False
+    pyplot.plot(ot.time, ot.data.T)
+
+    pyplot.show()
+    print("Done")

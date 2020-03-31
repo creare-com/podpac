@@ -21,6 +21,10 @@ class TestArray(object):
         # list is coercable to array
         node = Array(data=[0, 1, 1], native_coordinates=self.coordinates)
 
+    def test_invalid_data(self):
+        with pytest.raises(ValueError, match="Array data must be numerical"):
+            node = Array(data=["a", "b"], native_coordinates=self.coordinates)
+
     def test_get_data(self):
         """ defined get_data function"""
 

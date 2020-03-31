@@ -121,10 +121,9 @@ class TestNode(object):
             node = MyNode()
             assert not node.traits()["my_attr"].read_only
 
-    def test_trait_helpers(self):
+    def test_trait_is_defined(self):
         node = Node()
         assert node.trait_is_defined("units")
-        assert node.trait_is_default("units")
 
     def test_init(self):
         class MyNode(Node):
@@ -136,6 +135,43 @@ class TestNode(object):
 
         node = MyNode()
         assert node.init_run
+
+    def test_attrs(self):
+        class MyNode(Node):
+            my_attr = tl.Any().tag(attr=True)
+            my_trait = tl.Any()
+
+        n = MyNode()
+        assert "my_attr" in n.attrs()
+        assert "my_trait" not in n.attrs()
+
+    def test_repr(self):
+        n = Node()
+        repr(n)
+
+        n = Node(outputs=["a", "b"])
+        repr(n)
+        assert "outputs=" in repr(n)
+        assert "output=" not in repr(n)
+
+        n = Node(outputs=["a", "b"], output="a")
+        repr(n)
+        assert "outputs=" not in repr(n)
+        assert "output=" in repr(n)
+
+    def test_str(self):
+        n = Node()
+        str(n)
+
+        n = Node(outputs=["a", "b"])
+        str(n)
+        assert "outputs=" in str(n)
+        assert "output=" not in str(n)
+
+        n = Node(outputs=["a", "b"], output="a")
+        str(n)
+        assert "outputs=" not in str(n)
+        assert "output=" in str(n)
 
     def test_eval_group(self):
         class MyNode(Node):
@@ -415,7 +451,7 @@ class TestSerialization(object):
     def setup_class(cls):
         a = podpac.algorithm.Arange()
         b = podpac.data.Array(data=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
-        c = podpac.compositor.OrderedCompositor(sources=np.array([a, b]))
+        c = podpac.compositor.OrderedCompositor(sources=[a, b])
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", "Insecure evaluation.*")
@@ -479,23 +515,19 @@ class TestSerialization(object):
         d = node._base_definition
         assert "style" in node._base_definition
 
-    def test_base_definition_no_default_attrs(self):
-        class MyNode(Node):
-            my_attr = tl.Int(default_value=1).tag(attr=True)
+    def test_base_definition_remove_unnecessary_attrs(self):
+        node = Node(outputs=["a", "b"], output="a", units="m")
+        d = node._base_definition
+        assert "outputs" in d["attrs"]
+        assert "output" in d["attrs"]
+        assert "units" in d["attrs"]
 
-        node = MyNode()
+        node = Node()
         d = node._base_definition
         if "attrs" in d:
-            assert "my_attr" not in d["attrs"]
-
-        node = MyNode(my_attr=1)
-        d = node._base_definition
-        if "attrs" in d:
-            assert "my_attr" not in d["attrs"]
-
-        node = MyNode(my_attr=2)
-        d = node._base_definition
-        assert "attrs" in d and "my_attr" in d["attrs"]
+            assert "outputs" not in d["attrs"]
+            assert "output" not in d["attrs"]
+            assert "units" not in d["attrs"]
 
     def test_definition(self):
         # definition

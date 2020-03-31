@@ -38,7 +38,6 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
     # dataset = tl.Instance(xr.Dataset).tag(readonly=True)
     extra_dim = tl.Dict(allow_none=True).tag(attr=True)
-    extra_dim.default_value = None
 
     @tl.default("extra_dim")
     def _default_extra_dim(self):
@@ -69,11 +68,11 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
         """{get_data}
         """
 
-        if self.data_key is not None:
+        if not isinstance(self.data_key, list):
             data = self.dataset[self.data_key]
             data = data.transpose(*self.dataset.dims)
         else:
-            data = self.dataset[self.output_keys].to_array(dim="output")
+            data = self.dataset[self.data_key].to_array(dim="output")
             tdims = tuple(self.dataset.dims) + ("output",)
             data = data.transpose(*tdims)
 

@@ -32,7 +32,8 @@ class AirMOSS_Source(PyDAP):
     nan_vals = [-9999.0]
 
     @podpac.cached_property(use_cache_ctrl=True)
-    def native_coordinates(self):
+    @tl.default("native_coordinates")
+    def _default_native_coordinates(self):
         lon = self.dataset["lon"]
         lat = self.dataset["lat"]
         t = self.dataset["time"]
@@ -68,7 +69,8 @@ class AirMOSS_Site(OrderedCompositor):
     base_dir_url = "https://thredds.daac.ornl.gov/thredds/catalog/ornldaac/1421/catalog.html"
 
     @podpac.cached_property
-    def native_coordinates(self):
+    @tl.default("native_coordinates")
+    def _default_native_coordinates(self):
         lon = self.dataset["lon"]
         lat = self.dataset["lat"]
         times = self.available_dates

@@ -198,13 +198,13 @@ class EGI(DataSource):
         # other parameters are included at eval time
         return url
 
-    @property
-    def native_coordinates(self):
-        if self.data is not None:
-            return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs["crs"])
-        else:
+    @tl.default("native_coordinates")
+    def _default_native_coordinates(self):
+        if self.data is None:
             _log.warning("No coordinates found in EGI source")
             return Coordinates([], dims=[])
+
+        return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs["crs"])
 
     def get_data(self, coordinates, coordinates_index):
         if self.data is not None:

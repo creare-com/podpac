@@ -14,6 +14,7 @@ class TestCSV(object):
     source_multiple = os.path.join(os.path.dirname(__file__), "assets/points-multiple.csv")
     source_no_header = os.path.join(os.path.dirname(__file__), "assets/points-no-header.csv")
     source_one_dim = os.path.join(os.path.dirname(__file__), "assets/points-one-dim.csv")
+    source_no_data = os.path.join(os.path.dirname(__file__), "assets/points-no-data.csv")
 
     lat = [0, 1, 1, 1, 1]
     lon = [0, 0, 2, 2, 2]
@@ -51,6 +52,77 @@ class TestCSV(object):
         node = CSV(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
         assert node.available_data_keys == ["data", "other"]
 
+        node = CSV(source=self.source_no_data, alt_key="altitude", crs="+proj=merc +vunits=m")
+        with pytest.raises(ValueError, match="No data keys found"):
+            node.available_data_keys
+
+    def test_data_key(self):
+        # default
+        node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.data_key == "data"
+
+        # specify
+        node = CSV(source=self.source_single, data_key="data", alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.data_key == "data"
+
+        # invalid
+        with pytest.raises(ValueError, match="Invalid data_key"):
+            node = CSV(source=self.source_single, data_key="misc", alt_key="altitude", crs="+proj=merc +vunits=m")
+
+    def test_data_key_col(self):
+        # specify column
+        node = CSV(source=self.source_single, data_key=4, alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.data_key == 4
+
+        # invalid (out of range)
+        with pytest.raises(ValueError, match="Invalid data_key"):
+            node = CSV(source=self.source_single, data_key=5, alt_key="altitude", crs="+proj=merc +vunits=m")
+
+        # invalid (dimension key)
+        with pytest.raises(ValueError, match="Invalid data_key"):
+            node = CSV(source=self.source_single, data_key=0, alt_key="altitude", crs="+proj=merc +vunits=m")
+
+    def test_data_key_multiple_outputs(self):
+        # default
+        node = CSV(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.data_key == ["data", "other"]
+
+        # specify multiple
+        node = CSV(
+            source=self.source_multiple, data_key=["other", "data"], alt_key="altitude", crs="+proj=merc +vunits=m"
+        )
+        assert node.data_key == ["other", "data"]
+
+        # specify one
+        node = CSV(source=self.source_multiple, data_key="other", alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.data_key == "other"
+
+        # specify multiple: invalid item
+        with pytest.raises(ValueError, match="Invalid data_key"):
+            node = CSV(
+                source=self.source_multiple, data_key=["data", "misc"], alt_key="altitude", crs="+proj=merc +vunits=m"
+            )
+
+        # specify one: invalid
+        with pytest.raises(ValueError, match="Invalid data_key"):
+            node = CSV(source=self.source_multiple, data_key="misc", alt_key="altitude", crs="+proj=merc +vunits=m")
+
+    def test_data_key_col_multiple_outputs(self):
+        # specify multiple
+        node = CSV(source=self.source_multiple, data_key=[4, 5], alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.data_key == [4, 5]
+
+        # specify one
+        node = CSV(source=self.source_multiple, data_key=4, alt_key="altitude", crs="+proj=merc +vunits=m")
+        assert node.data_key == 4
+
+        # specify multiple: invalid item
+        with pytest.raises(ValueError, match="Invalid data_key"):
+            node = CSV(source=self.source_multiple, data_key=[4, 6], alt_key="altitude", crs="+proj=merc +vunits=m")
+
+            # specify one: invalid with pytest.raises(ValueError, match="Invalid data_key"):
+            node = CSV(source=self.source_multiple, data_key=6, alt_key="altitude", crs="+proj=merc +vunits=m")
+
     def test_native_coordinates(self):
         node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
         nc = node.native_coordinates
@@ -86,7 +158,7 @@ class TestCSV(object):
     def test_get_data_multiple(self):
         # multiple data keys
         node = CSV(
-            source=self.source_multiple, alt_key="altitude", output_keys=["data", "other"], crs="+proj=merc +vunits=m"
+            source=self.source_multiple, alt_key="altitude", data_key=["data", "other"], crs="+proj=merc +vunits=m"
         )
         out = node.eval(node.native_coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
@@ -95,7 +167,7 @@ class TestCSV(object):
         np.testing.assert_array_equal(out.sel(output="other"), self.other)
 
         # single data key
-        node = CSV(source=self.source_multiple, alt_key="altitude", output_keys=["data"], crs="+proj=merc +vunits=m")
+        node = CSV(source=self.source_multiple, alt_key="altitude", data_key=["data"], crs="+proj=merc +vunits=m")
         out = node.eval(node.native_coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
         np.testing.assert_array_equal(out["output"], ["data"])
@@ -105,7 +177,7 @@ class TestCSV(object):
         node = CSV(
             source=self.source_multiple,
             alt_key="altitude",
-            output_keys=["data", "other"],
+            data_key=["data", "other"],
             outputs=["a", "b"],
             crs="+proj=merc +vunits=m",
         )
@@ -153,7 +225,7 @@ class TestCSV(object):
             lon_key=1,
             time_key=2,
             alt_key=3,
-            output_keys=[4, 5],
+            data_key=[4, 5],
             outputs=["a", "b"],
             crs="+proj=merc +vunits=m",
         )

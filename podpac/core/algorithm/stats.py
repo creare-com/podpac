@@ -36,7 +36,6 @@ class Reduce(UnaryAlgorithm):
     """
 
     dims = tl.List().tag(attr=True)
-    dims.default_value = []
 
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
     _dims = tl.List(trait_type=str)

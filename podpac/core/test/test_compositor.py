@@ -32,18 +32,12 @@ class TestCompositor(object):
 
     def test_shared_coordinates(self):
         node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
-
-        with pytest.raises(NotImplementedError):
-            node.get_shared_coordinates()
-
-        with pytest.raises(NotImplementedError):
-            node.shared_coordinates()
+        assert node.shared_coordinates is None
 
     def test_source_coordinates(self):
         # none (default)
         node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         assert node.source_coordinates is None
-        assert node.get_source_coordinates() is None
 
         # unstacked
         node = podpac.compositor.Compositor(
@@ -385,7 +379,7 @@ class TestOrderedCompositor(object):
 
         coords = podpac.Coordinates([podpac.clinspace(-3, 4, 32), podpac.clinspace(-2, 5, 32)], dims=["lat", "lon"])
 
-        node = OrderedCompositor(sources=np.array([a, b]), interpolation="nearest")
+        node = OrderedCompositor(sources=[a, b], interpolation="nearest")
         o = node.eval(coords)
         # Check that both data sources are being used in the interpolation
         assert np.any(o.data >= 2)

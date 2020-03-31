@@ -22,7 +22,7 @@ from podpac.core.units import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
 from podpac.core.utils import JSONEncoder
 from podpac.core.utils import cached_property
-from podpac.core.utils import trait_is_defined, trait_is_default
+from podpac.core.utils import trait_is_defined
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
@@ -121,7 +121,7 @@ class Node(tl.HasTraits):
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 
-    outputs.default_value = None
+    _repr_keys = []
 
     @tl.default("outputs")
     def _default_outputs(self):
@@ -205,6 +205,26 @@ class Node(tl.HasTraits):
         """
         pass
 
+    def attrs(self):
+        return {name: getattr(self, name) for name in self.traits() if self.trait_metadata(name, "attr")}
+
+    @property
+    def _repr_info(self):
+        keys = self._repr_keys.copy()
+        if self.trait_is_defined("output") and self.output is not None:
+            if "output" not in keys:
+                keys.append("output")
+        elif self.trait_is_defined("outputs") and self.outputs is not None:
+            if "outputs" not in keys:
+                keys.append("outputs")
+        return ", ".join("%s=%s" % (key, repr(getattr(self, key))) for key in keys)
+
+    def __repr__(self):
+        return "<%s(%s)>" % (self.__class__.__name__, self._repr_info)
+
+    def __str__(self):
+        return "<%s(%s) attrs: %s>" % (self.__class__.__name__, self._repr_info, ", ".join(self.attrs()))
+
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None):
         """
@@ -287,9 +307,6 @@ class Node(tl.HasTraits):
     def trait_is_defined(self, name):
         return trait_is_defined(self, name)
 
-    def trait_is_default(self, name):
-        return trait_is_default(self, name)
-
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------
@@ -310,6 +327,7 @@ class Node(tl.HasTraits):
     def _base_definition(self):
         d = OrderedDict()
 
+        # node and plugin
         if self.__module__ == "podpac":
             d["node"] = self.__class__.__name__
         elif self.__module__.startswith("podpac."):
@@ -319,18 +337,10 @@ class Node(tl.HasTraits):
             d["plugin"] = self.__module__
             d["node"] = self.__class__.__name__
 
-        inputs = {}  # for node attrs
-        attrs = {}  # for other attrs
-
-        for name, trait in self.traits().items():
-            if not trait.metadata.get("attr", False):
-                continue
-
-            if self.trait_is_default(name):
-                continue
-
-            value = getattr(self, name)
-
+        # attrs/inputs
+        attrs = {}
+        inputs = {}
+        for name, value in self.attrs().items():
             if (
                 isinstance(value, Node)
                 or (isinstance(value, (list, tuple, np.ndarray)) and all(isinstance(elem, Node) for elem in value))
@@ -340,12 +350,22 @@ class Node(tl.HasTraits):
             else:
                 attrs[name] = value
 
-        if inputs:
-            d["inputs"] = inputs
+        if "units" in attrs and attrs["units"] is None:
+            del attrs["units"]
+
+        if "outputs" in attrs and attrs["outputs"] is None:
+            del attrs["outputs"]
+
+        if "output" in attrs and attrs["output"] is None:
+            del attrs["output"]
 
         if attrs:
             d["attrs"] = attrs
 
+        if inputs:
+            d["inputs"] = inputs
+
+        # style
         if self.style != Style() and self.style.definition:
             d["style"] = self.style.definition
 

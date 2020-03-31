@@ -41,6 +41,7 @@ class BaseFileSource(DataSource):
     """
 
     source = tl.Unicode().tag(attr=True)
+    _repr_keys = ["source"]
 
     @tl.default("source")
     def _default_source(self):
@@ -124,10 +125,8 @@ class FileKeysMixin(tl.HasTraits):
         time key, default 'time'
     alt_key : str
         altitude key, default 'alt'
-    data_key : str
-        data key
-    output_keys : list
-        list of data keys, for multiple-output nodes
+    data_key : str, list
+        data key, or list of data keys for multiple-output nodes
     crs : str
         Coordinate reference system of the coordinates.
     cf_time : bool
@@ -138,9 +137,7 @@ class FileKeysMixin(tl.HasTraits):
         calendar, when decoding CF datetimes
     """
 
-    # TODO merge data_key and output_keys
-    data_key = tl.Unicode(allow_none=True).tag(attr=True)
-    output_keys = tl.List(value=tl.Unicode(), allow_none=True).tag(attr=True)
+    data_key = tl.Union([tl.Unicode(), tl.List(trait=tl.Unicode())]).tag(attr=True)
     lat_key = tl.Unicode(default_value="lat").tag(attr=True)
     lon_key = tl.Unicode(default_value="lon").tag(attr=True)
     time_key = tl.Unicode(default_value="time").tag(attr=True)
@@ -150,54 +147,49 @@ class FileKeysMixin(tl.HasTraits):
     cf_units = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     cf_calendar = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
 
+    @property
+    def _repr_keys(self):
+        keys = ["source"]
+        if len(self.available_data_keys) > 1 and not isinstance(self.data_key, list):
+            keys.append("data_key")
+        return keys
+
     @tl.default("data_key")
     def _default_data_key(self):
-        if self.trait_is_defined("output_keys") and self.output_keys is not None:
-            data_key = None
-        elif len(self.available_data_keys) == 1:
-            data_key = self.available_data_keys[0]
+        if len(self.available_data_keys) == 1:
+            return self.available_data_keys[0]
         else:
-            data_key = None
+            return self.available_data_keys
 
-        self.traits()["data_key"].default_value = data_key
-        return data_key
-
-    @tl.default("output_keys")
-    def _default_output_keys(self):
-        if self.trait_is_defined("data_key") and self.data_key is not None:
-            output_keys = None
-        elif len(self.available_data_keys) == 1:
-            output_keys = None
-        else:
-            output_keys = self.available_data_keys
-
-        self.traits()["output_keys"].default_value = output_keys
-        return output_keys
-
-    @tl.validate("data_key", "output_keys")
-    def _validate_data_data_key_output_keys(self, d):
-        if (d["trait"].name == "data_key" and d["value"] is not None and self.output_keys is not None) or (
-            d["trait"].name == "output_keys" and d["value"] is not None and self.data_key is not None
-        ):
-            raise TypeError("%s cannot have both data_key and 'output_keys' defined" % (self.__class__.__name__))
+    @tl.validate("data_key")
+    def _validate_data_key(self, d):
+        keys = d["value"]
+        if not isinstance(keys, list):
+            keys = [d["value"]]
+        for key in keys:
+            if key not in self.available_data_keys:
+                raise ValueError("Invalid data_key '%s', available keys are %s" % (key, self.available_data_keys))
         return d["value"]
 
     @tl.default("outputs")
     def _default_outputs(self):
-        self.traits()["outputs"].default_value = self.output_keys
-        return self.output_keys
+        if not isinstance(self.data_key, list):
+            return None
+        else:
+            return self.data_key
 
     @tl.validate("outputs")
     def _validate_outputs(self, d):
-        if self.data_key is not None:
-            raise TypeError("outputs must be None for single-output nodes")
-
-        if len(d["value"]) != len(self.output_keys):
-            raise ValueError(
-                "outputs and output_keys size mismatch (%d != %d)" % (len(d["value"]), len(self.output_keys))
-            )
-
-        return d["value"]
+        value = d["value"]
+        if not isinstance(self.data_key, list):
+            if value is not None:
+                raise TypeError("outputs must be None for single-output nodes")
+        else:
+            if value is None:
+                raise TypeError("outputs and data_key mismatch (outputs=None, data_key=%s)" % self.data_key)
+            if len(value) != len(self.data_key):
+                raise ValueError("outputs and data_key size mismatch (%d != %d)" % (len(value), len(self.data_key)))
+        return value
 
     # -------------------------------------------------------------------------
     # public api properties and methods
@@ -225,8 +217,8 @@ class FileKeysMixin(tl.HasTraits):
         return lookup[dim]
 
     @common_doc(COMMON_DATA_DOC)
-    @cached_property
-    def native_coordinates(self):
+    @tl.default("native_coordinates")
+    def _default_native_coordinates(self):
         """{native_coordinates}
         """
 

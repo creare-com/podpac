@@ -10,7 +10,6 @@ from collections import OrderedDict
 from copy import deepcopy
 import warnings
 import logging
-from six import string_types
 
 import numpy as np
 import xarray as xr
@@ -152,8 +151,8 @@ class DataSource(Node):
 
     interpolation = InterpolationTrait().tag(attr=True)
     nan_vals = tl.List().tag(attr=True)
-    nan_vals.default_value = []
 
+    native_coordinates = tl.Instance(Coordinates, read_only=True)
     coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
 
     # privates
@@ -171,13 +170,17 @@ class DataSource(Node):
         self._set_interpolation()
         return self._interpolation
 
+    @tl.default("native_coordinates")
+    def _default_native_coordinates(self):
+        raise NotImplementedError(
+            "DataSource native_coordinates must be defined by child classes. "
+            "To provide native_coordinates for a child class at runtime, redefine the native_coordinates trait with "
+            "`native_coordinates = tl.Instance(Coordinates).tag(attr=True)`"
+        )
+
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------
-
-    @property
-    def native_coordinates(self):
-        raise NotImplementedError()
 
     @property
     def interpolation_class(self):
@@ -467,24 +470,3 @@ class DataSource(Node):
             This needs to be implemented by derived classes
         """
         raise NotImplementedError
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Operators/Magic Methods
-    # ------------------------------------------------------------------------------------------------------------------
-
-    def __repr__(self):
-        rep = []
-
-        if self.__class__.__name__ == "DataSource":
-            rep.append("DataSource")
-        else:
-            rep.append("{} DataSource".format(self.__class__.__name__))
-
-        # TODO - maybe if cls.native_coordinates is not a proprty or self._native_coordinates is defined
-        # if self.trait_is_defined("native_coordinates"):
-        #     ncrep = 'native_coordinates: %s' % repr(self.native_coordinates)
-        #     rep += ['\t{}'.format(elem) for elem in ncrep.split('\n')]
-
-        rep.append("\tinterpolation: {}".format(self.interpolation))
-
-        return "\n".join(rep)

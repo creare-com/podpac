@@ -173,8 +173,8 @@ class UnaryAlgorithm(BaseAlgorithm):
     """
 
     source = NodeTrait().tag(attr=True)
+    _repr_keys = ["source"]
 
     @tl.default("outputs")
     def _default_outputs(self):
-        self.traits()["outputs"].default = self.source.outputs
         return self.source.outputs

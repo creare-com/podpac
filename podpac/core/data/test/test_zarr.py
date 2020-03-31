@@ -17,9 +17,8 @@ class TestZarr(object):
         node.close_dataset()
 
     def test_local_invalid_path(self):
-        node = Zarr(source="/does/not/exist", data_key="a")
         with pytest.raises(ValueError, match="No Zarr store found"):
-            node.dataset
+            node = Zarr(source="/does/not/exist", data_key="a")
 
     def test_dims(self):
         node = Zarr(source=self.path)
@@ -45,7 +44,7 @@ class TestZarr(object):
     def test_eval_multiple(self):
         coords = Coordinates([0, 10], dims=["lat", "lon"])
 
-        z = Zarr(source=self.path, output_keys=["a", "b"])
+        z = Zarr(source=self.path, data_key=["a", "b"])
         out = z.eval(coords)
         assert out.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["a", "b"])
@@ -53,14 +52,14 @@ class TestZarr(object):
         assert out.sel(output="b")[0, 0] == 1.0
 
         # single output key
-        z = Zarr(source=self.path, output_keys=["a"])
+        z = Zarr(source=self.path, data_key=["a"])
         out = z.eval(coords)
         assert out.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["a"])
         assert out.sel(output="a")[0, 0] == 0.0
 
         # alternate output names
-        z = Zarr(source=self.path, output_keys=["a", "b"], outputs=["A", "B"])
+        z = Zarr(source=self.path, data_key=["a", "b"], outputs=["A", "B"])
         out = z.eval(coords)
         assert out.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["A", "B"])

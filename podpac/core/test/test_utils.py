@@ -15,11 +15,11 @@ import traitlets as tl
 
 import podpac
 from podpac.core.utils import common_doc
-from podpac.core.utils import trait_is_defined, trait_is_default
+from podpac.core.utils import trait_is_defined
 from podpac.core.utils import create_logfile
 from podpac.core.utils import OrderedDictTrait, ArrayTrait, TupleTrait, NodeTrait
 from podpac.core.utils import JSONEncoder, is_json_serializable
-from podpac.core.utils import cached_property
+from podpac.core.utils import cached_property, cached_default
 
 
 class TestCommonDocs(object):
@@ -54,53 +54,6 @@ class TestTraitletsHelpers(object):
 
         x.c
         assert trait_is_defined(x, "c")
-
-    def test_trait_is_default(self):
-        class MyClass(tl.HasTraits):
-            a = tl.Any(default_value=0)
-
-        x = MyClass()
-        assert trait_is_default(x, "a")
-
-        x = MyClass(a=0)
-        assert trait_is_default(x, "a")
-
-        x = MyClass(a=1)
-        assert not trait_is_default(x, "a")
-
-    def test_trait_is_default_array(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", module="traitlets", category=DeprecationWarning, message="elementwise comparison failed"
-            )
-
-            class MyClass(tl.HasTraits):
-                a = tl.Any(default_value=0)
-
-            x = MyClass(a=np.array([0, 1]))
-            assert not trait_is_default(x, "a")
-
-            class MyClass(tl.HasTraits):
-                a = tl.Any(default_value=np.array([0, 1]))
-
-            x = MyClass()
-            assert trait_is_default(x, "a")
-
-            x = MyClass(a=np.array([0, 1]))
-            assert trait_is_default(x, "a")
-
-            x = MyClass(a=np.array([0, 1, 2]))
-            assert not trait_is_default(x, "a")
-
-            x = MyClass(a=0)
-            assert not trait_is_default(x, "a")
-
-    def test_trait_is_default_no_default_value(self):
-        class MyClass(tl.HasTraits):
-            a = tl.List()
-
-        x = MyClass()
-        assert trait_is_default(x, "a") is None
 
 
 class TestLoggingHelpers(object):
@@ -339,7 +292,7 @@ class TestCachedPropertyDecorator(object):
         class MyNode(podpac.Node):
             my_property_called = 0
             my_cached_property_called = 0
-            my_ram_cached_property_called = 0
+            my_cache_ctrl_property_called = 0
 
             @property
             def my_property(self):
@@ -352,8 +305,8 @@ class TestCachedPropertyDecorator(object):
                 return 20
 
             @cached_property(use_cache_ctrl=True)
-            def my_ram_cached_property(self):
-                self.my_ram_cached_property_called += 1
+            def my_cache_ctrl_property(self):
+                self.my_cache_ctrl_property_called += 1
                 return 30
 
         a = MyNode(cache_ctrl=["ram"])
@@ -409,27 +362,27 @@ class TestCachedPropertyDecorator(object):
         assert c.my_cached_property_called == 1
 
         # cache_ctrl cached property should only be called in the first node that accessses it
-        assert a.my_ram_cached_property_called == 0
-        assert a.my_ram_cached_property == 30
-        assert a.my_ram_cached_property_called == 1
-        assert a.my_ram_cached_property == 30
-        assert a.my_ram_cached_property == 30
-        assert a.my_ram_cached_property_called == 1
+        assert a.my_cache_ctrl_property_called == 0
+        assert a.my_cache_ctrl_property == 30
+        assert a.my_cache_ctrl_property_called == 1
+        assert a.my_cache_ctrl_property == 30
+        assert a.my_cache_ctrl_property == 30
+        assert a.my_cache_ctrl_property_called == 1
 
-        assert b.my_ram_cached_property_called == 0
-        assert b.my_ram_cached_property == 30
-        assert b.my_ram_cached_property_called == 0
-        assert b.my_ram_cached_property == 30
-        assert b.my_ram_cached_property == 30
-        assert b.my_ram_cached_property_called == 0
+        assert b.my_cache_ctrl_property_called == 0
+        assert b.my_cache_ctrl_property == 30
+        assert b.my_cache_ctrl_property_called == 0
+        assert b.my_cache_ctrl_property == 30
+        assert b.my_cache_ctrl_property == 30
+        assert b.my_cache_ctrl_property_called == 0
 
         # but only if a cache_ctrl exists for the Node
-        assert c.my_ram_cached_property_called == 0
-        assert c.my_ram_cached_property == 30
-        assert c.my_ram_cached_property_called == 1
-        assert c.my_ram_cached_property == 30
-        assert c.my_ram_cached_property == 30
-        assert c.my_ram_cached_property_called == 1
+        assert c.my_cache_ctrl_property_called == 0
+        assert c.my_cache_ctrl_property == 30
+        assert c.my_cache_ctrl_property_called == 1
+        assert c.my_cache_ctrl_property == 30
+        assert c.my_cache_ctrl_property == 30
+        assert c.my_cache_ctrl_property_called == 1
 
     def test_invalid_argument(self):
         with pytest.raises(TypeError, match="cached_property decorator does not accept keyword argument"):
@@ -437,3 +390,85 @@ class TestCachedPropertyDecorator(object):
 
         with pytest.raises(TypeError, match="cached_property decorator does not accept any positional arguments"):
             cached_property(True)
+
+
+class TestCachedDefaultDecorator(object):
+    def test_cached_default(self):
+        class MyNode(podpac.Node):
+            my_trait_default_called = 0
+            my_cache_ctrl_trait_default_called = 0
+
+            my_trait = tl.Any()
+            my_cache_ctrl_trait = tl.Any()
+
+            @tl.default("my_trait")
+            def _my_trait_default(self):
+                self.my_trait_default_called += 1
+                return 10
+
+            @cached_default("my_cache_ctrl_trait")
+            def _my_cache_ctl_trait_default(self):
+                self.my_cache_ctrl_trait_default_called += 1
+                return 30
+
+        a = MyNode(cache_ctrl=["ram"])
+        b = MyNode(cache_ctrl=["ram"])
+        c = MyNode(cache_ctrl=[])
+
+        a.rem_cache(key="*")
+        b.rem_cache(key="*")
+        c.rem_cache(key="*")
+
+        # normal trait default should be called once
+        assert a.my_trait_default_called == 0
+        assert a.my_trait == 10
+        assert a.my_trait_default_called == 1
+        assert a.my_trait == 10
+        assert a.my_trait == 10
+        assert a.my_trait_default_called == 1
+
+        assert b.my_trait_default_called == 0
+        assert b.my_trait == 10
+        assert b.my_trait_default_called == 1
+        assert b.my_trait == 10
+        assert b.my_trait == 10
+        assert b.my_trait_default_called == 1
+
+        assert c.my_trait_default_called == 0
+        assert c.my_trait == 10
+        assert c.my_trait_default_called == 1
+        assert c.my_trait == 10
+        assert c.my_trait == 10
+        assert c.my_trait_default_called == 1
+
+        # cached trait should only be called in the first node that accesses it
+        assert a.my_cache_ctrl_trait_default_called == 0
+        assert a.my_cache_ctrl_trait == 30
+        assert a.my_cache_ctrl_trait_default_called == 1
+        assert a.my_cache_ctrl_trait == 30
+        assert a.my_cache_ctrl_trait == 30
+        assert a.my_cache_ctrl_trait_default_called == 1
+
+        assert b.my_cache_ctrl_trait_default_called == 0
+        assert b.my_cache_ctrl_trait == 30
+        assert b.my_cache_ctrl_trait_default_called == 0
+        assert b.my_cache_ctrl_trait == 30
+        assert b.my_cache_ctrl_trait == 30
+        assert b.my_cache_ctrl_trait_default_called == 0
+
+        # but only if a cache_ctrl exists for the Node
+        assert c.my_cache_ctrl_trait_default_called == 0
+        assert c.my_cache_ctrl_trait == 30
+        assert c.my_cache_ctrl_trait_default_called == 1
+        assert c.my_cache_ctrl_trait == 30
+        assert c.my_cache_ctrl_trait == 30
+        assert c.my_cache_ctrl_trait_default_called == 1
+
+        # don't call at all if provided at instantation
+        n = MyNode(my_trait=100, my_cache_ctrl_trait=300)
+
+        assert n.my_trait == 100
+        assert n.my_trait_default_called == 0
+
+        assert n.my_cache_ctrl_trait == 300
+        assert n.my_cache_ctrl_trait_default_called == 0

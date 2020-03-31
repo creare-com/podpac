@@ -69,8 +69,10 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
 
     @cached_property
     def dims(self):
-        key = self.data_key or self.output_keys[0]
-
+        if not isinstance(self.data_key, list):
+            key = self.data_key
+        else:
+            key = self.data_key[0]
         try:
             return self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
         except:
@@ -86,9 +88,9 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
         """{get_data}
         """
         data = self.create_output_array(coordinates)
-        if self.data_key is not None:
+        if not isinstance(self.data_key, list):
             data[:] = self.dataset[self.data_key][coordinates_index]
         else:
-            for key, name in zip(self.output_keys, self.outputs):
+            for key, name in zip(self.data_key, self.outputs):
                 data.sel(output=name)[:] = self.dataset[key][coordinates_index]
         return data

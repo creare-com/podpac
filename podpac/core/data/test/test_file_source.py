@@ -32,6 +32,11 @@ class TestBaseFileSource(object):
         node = BaseFileSource(source="mysource")
         node.close_dataset()
 
+    def test_repr_str(self):
+        node = BaseFileSource(source="mysource")
+        assert "source=" in repr(node)
+        assert "source=" in str(node)
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 # LoadFileMixin
@@ -146,16 +151,28 @@ class TestFileKeys(object):
     def test_data_key(self):
         node = MockFileKeys()
         assert node.data_key == "data"
-        assert node.output_keys is None
 
-    def test_output_keys(self):
+        node = MockFileKeys(data_key="data")
+        assert node.data_key == "data"
+
+        with pytest.raises(ValueError, match="Invalid data_key"):
+            node = MockFileKeys(data_key="misc")
+
+    def test_data_key_multiple_outputs(self):
         node = MockFileKeysMultipleAvailable()
-        assert node.data_key is None
-        assert node.output_keys == ["data", "other"]
+        assert node.data_key == ["data", "other"]
 
-    def test_data_key_and_output_keys_mutually_exclusive(self):
-        with pytest.raises(TypeError, match=".* cannot have both"):
-            node = MockFileKeys(data_key="data", output_keys=["data"])
+        node = MockFileKeysMultipleAvailable(data_key=["other", "data"])
+        assert node.data_key == ["other", "data"]
+
+        node = MockFileKeysMultipleAvailable(data_key="other")
+        assert node.data_key == "other"
+
+        with pytest.raises(ValueError, match="Invalid data_key"):
+            node = MockFileKeysMultipleAvailable(data_key=["data", "misc"])
+
+        with pytest.raises(ValueError, match="Invalid data_key"):
+            node = MockFileKeysMultipleAvailable(data_key="misc")
 
     def test_no_outputs(self):
         node = MockFileKeys(data_key="data")
@@ -174,35 +191,38 @@ class TestFileKeys(object):
             node = MockFileKeys(outputs=["a"])
 
     def test_outputs(self):
-        # for multi-output nodes, use the dataset's keys (output_keys) by default
-        node = MockFileKeys(output_keys=["data"])
+        # for multi-output nodes, use the dataset's keys by default
+        node = MockFileKeys(data_key=["data"])
         assert node.outputs == ["data"]
 
-        node = MockFileKeysMultipleAvailable(output_keys=["data", "other"])
+        node = MockFileKeysMultipleAvailable(data_key=["data", "other"])
         assert node.outputs == ["data", "other"]
 
-        node = MockFileKeysMultipleAvailable(output_keys=["data"])
+        node = MockFileKeysMultipleAvailable(data_key=["data"])
         assert node.outputs == ["data"]
 
         # alternate outputs names can be specified
-        node = MockFileKeys(output_keys=["data"], outputs=["a"])
+        node = MockFileKeys(data_key=["data"], outputs=["a"])
         assert node.outputs == ["a"]
 
-        node = MockFileKeysMultipleAvailable(output_keys=["data", "other"], outputs=["a", "b"])
+        node = MockFileKeysMultipleAvailable(data_key=["data", "other"], outputs=["a", "b"])
         assert node.outputs == ["a", "b"]
 
-        node = MockFileKeysMultipleAvailable(output_keys=["data"], outputs=["a"])
+        node = MockFileKeysMultipleAvailable(data_key=["data"], outputs=["a"])
         assert node.outputs == ["a"]
 
         node = MockFileKeysMultipleAvailable(outputs=["a", "b"])
         assert node.outputs == ["a", "b"]
 
-        # but the outputs and output_keys must match
-        with pytest.raises(ValueError, match="outputs and output_keys size mismatch"):
-            node = MockFileKeysMultipleAvailable(output_keys=["data"], outputs=["a", "b"])
+        # but the outputs and data_key must match
+        with pytest.raises(TypeError, match="outputs and data_key mismatch"):
+            node = MockFileKeysMultipleAvailable(data_key=["data"], outputs=None)
 
-        with pytest.raises(ValueError, match="outputs and output_keys size mismatch"):
-            node = MockFileKeysMultipleAvailable(output_keys=["data", "other"], outputs=["a"])
+        with pytest.raises(ValueError, match="outputs and data_key size mismatch"):
+            node = MockFileKeysMultipleAvailable(data_key=["data"], outputs=["a", "b"])
+
+        with pytest.raises(ValueError, match="outputs and data_key size mismatch"):
+            node = MockFileKeysMultipleAvailable(data_key=["data", "other"], outputs=["a"])
 
     def test_native_coordinates(self):
         node = MockFileKeys()
@@ -212,3 +232,29 @@ class TestFileKeys(object):
         np.testing.assert_array_equal(nc["lon"].coordinates, LON)
         np.testing.assert_array_equal(nc["time"].coordinates, TIME)
         np.testing.assert_array_equal(nc["alt"].coordinates, ALT)
+
+    def test_repr_str(self):
+        node = MockFileKeys()
+
+        assert "source=" in repr(node)
+        assert "data_key=" not in repr(node)
+
+        assert "source=" in str(node)
+        assert "data_key=" not in str(node)
+
+    def test_repr_str_multiple_outputs(self):
+        node = MockFileKeysMultipleAvailable()
+
+        assert "source=" in repr(node)
+        assert "data_key=" not in repr(node)
+
+        assert "source=" in str(node)
+        assert "data_key=" not in str(node)
+
+        node = MockFileKeysMultipleAvailable(data_key="data")
+
+        assert "source=" in repr(node)
+        assert "data_key=" in repr(node)
+
+        assert "source=" in str(node)
+        assert "data_key=" in str(node)

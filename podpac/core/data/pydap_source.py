@@ -58,7 +58,9 @@ class PyDAP(DataSource):
     source = tl.Unicode().tag(attr=True)
     data_key = tl.Unicode().tag(attr=True)
 
-    # optional inputs
+    _repr_keys = ["source"]
+
+    # auth, to be replaced
     auth_class = tl.Type(default_value=authentication.Session)
     auth_session = tl.Instance(authentication.Session, allow_none=True)
     username = tl.Unicode(default_value=None, allow_none=True)
@@ -81,6 +83,18 @@ class PyDAP(DataSource):
 
         return session
 
+    @common_doc(COMMON_DATA_DOC)
+    @tl.default("native_coordinates")
+    def _default_native_coordinates(self):
+        """{get_native_coordinates}
+        
+        Raises
+        ------
+        NotImplementedError
+            PyDAP cannot create coordinates. A child class must implement this method.
+        """
+        raise NotImplementedError("PyDAP cannot create coordinates. A child class must implement this method.")
+
     @cached_property
     def dataset(self):
         # auth session
@@ -100,22 +114,6 @@ class PyDAP(DataSource):
 
     def _open_url(self):
         return pydap.client.open_url(self.source, session=self.auth_session)
-
-    @common_doc(COMMON_DATA_DOC)
-    @property
-    def native_coordinates(self):
-        """{get_native_coordinates}
-        
-        Raises
-        ------
-        NotImplementedError
-            DAP has no mechanism for creating coordinates automatically, so this is left up to child classes.
-        """
-        raise NotImplementedError(
-            "DAP has no mechanism for creating coordinates"
-            + ", so this is left up to child class "
-            + "implementations."
-        )
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):

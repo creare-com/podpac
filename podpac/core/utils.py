@@ -75,18 +75,6 @@ def trait_is_defined(obj, trait_name):
     return obj.has_trait(trait_name) and trait_name in obj._trait_values
 
 
-def trait_is_default(obj, trait_name):
-    trait = obj.traits()[trait_name]
-    value = getattr(obj, trait_name)
-
-    if not isinstance(trait.default_value, (np.ndarray, xr.DataArray)) and trait.default_value == tl.Undefined:
-        return None
-    elif isinstance(value, (np.ndarray, xr.DataArray)) or isinstance(trait.default_value, (np.ndarray, xr.DataArray)):
-        return np.array_equal(value, trait.default_value)
-    else:
-        return value == trait.default_value
-
-
 def create_logfile(
     filename=settings.settings["LOG_FILE_PATH"],
     level=logging.INFO,
@@ -396,3 +384,52 @@ def cached_property(*args, **kwargs):
         return d(args[0])
     else:
         return d
+
+
+def cached_default(name):
+    """
+    Decorator that creates a traitlets default method that is also cached.
+
+    Arguments
+    -----------------
+    name : str
+        Trait name.
+
+    Notes
+    -----
+    The property should not depend on any other attributes that are not tagged with ``attr=True``.
+
+    Examples
+    --------
+
+    >>> class MyNode(Node):
+            a = tl.Int()
+            b = tl.Int()
+
+            # normal trait default
+            @tl.default('a')
+            def _default_a(self):
+                return 0
+
+            # cached trait default (can be reused by other Nodes or sessions, depending on the cache_ctrl)
+            @cached_default('b')
+            def _default_b(self):
+                return 1
+    """
+
+    key = "_podpac_cached_trait_%s" % name
+
+    def d(fn):
+        @tl.default(name)
+        def wrapper(self):
+            if self.has_cache(key):
+                value = self.get_cache(key)
+                setattr(self, key, value)
+            else:
+                value = fn(self)
+                self.put_cache(value, key)
+            return value
+
+        return wrapper
+
+    return d

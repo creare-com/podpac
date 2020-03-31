@@ -56,7 +56,6 @@ class Arithmetic(GenericInputs):
 
     eqn = tl.Unicode().tag(attr=True)
     params = tl.Dict().tag(attr=True)
-    params.default_value = {}
 
     def init(self):
         if not settings.allow_unsafe_eval:
@@ -242,7 +241,6 @@ class Combine(GenericInputs):
     @tl.default("outputs")
     def _default_outputs(self):
         input_keys = list(self.inputs.keys())
-        self.traits()["outputs"].default = input_keys
         return input_keys
 
     def algorithm(self, inputs):

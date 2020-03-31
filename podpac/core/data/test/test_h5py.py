@@ -45,7 +45,7 @@ class TestH5PY(object):
     def test_data_multiple(self):
         node = H5PY(
             source=self.source,
-            output_keys=["/data/init", "/data/init"],
+            data_key=["/data/init", "/data/init"],
             outputs=["a", "b"],
             lat_key="/coords/lat",
             lon_key="/coords/lon",
