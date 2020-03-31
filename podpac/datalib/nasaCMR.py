@@ -98,7 +98,20 @@ def search_granule_json(auth_session=None, entry_map=None, **kwargs):
     """
     base_url = CMR_URL + "granules.json?"
 
-    if "collection_id" not in kwargs and "short_name" not in kwargs:
+    if not np.any(
+        [
+            m not in kwargs
+            for m in [
+                "provider",
+                "provider_id",
+                "concept_id",
+                "collection_concept_id",
+                "short_name",
+                "version",
+                "entry_title",
+            ]
+        ]
+    ):
         raise ValueError(
             "Need to provide either"
             " provider, provider_id, concept_id, collection_concept_id, short_name, version or entry_title"
