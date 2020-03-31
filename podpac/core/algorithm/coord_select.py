@@ -114,6 +114,7 @@ class ExpandCoordinates(ModifyCoordinates):
     """
 
     substitute_eval_coords = tl.Bool(False, read_only=True)
+    bounds_only = tl.Bool(False).tag(attr=True)
 
     def get_modified_coordinates1d(self, coords, dim):
         """Returns the expanded coordinates for the requested dimension, depending on the expansion parameter for the
@@ -146,14 +147,30 @@ class ExpandCoordinates(ModifyCoordinates):
             if len(available_coordinates) != 1:
                 raise ValueError("Cannot implicity expand coordinates; too many available coordinates")
             acoords = available_coordinates[0][dim]
-            cs = [acoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in coords1d.coordinates]
+            if self.bounds_only:
+                cs = [
+                    acoords.select(
+                        add_coord(coords1d.coordinates[0], dstart), add_coord(coords1d.coordinates[-1], dstop)
+                    )
+                ]
+            else:
+                cs = [acoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in coords1d.coordinates]
 
         elif len(expansion) == 3:
             # use a explicit step size
             dstart = make_coord_delta(expansion[0])
             dstop = make_coord_delta(expansion[1])
             step = make_coord_delta(expansion[2])
-            cs = [UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step) for x in coords1d.coordinates]
+            if self.bounds_only:
+                cs = [
+                    UniformCoordinates1d(
+                        add_coord(coords1d.coordinates[0], dstart), add_coord(coords1d.coordinates[-1], dstop), step
+                    )
+                ]
+            else:
+                cs = [
+                    UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step) for x in coords1d.coordinates
+                ]
 
         else:
             raise ValueError("Invalid expansion attrs for '%s'" % dim)

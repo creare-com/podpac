@@ -38,7 +38,7 @@ class LambdaException(Exception):
 
 class Lambda(Node):
     """A `Node` wrapper to evaluate source on AWS Lambda function
-    
+
 
     Attributes
     ----------
@@ -140,6 +140,8 @@ class Lambda(Node):
         Defaults to "USD".
         See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.create_budget
         for currency (or Unit) options.
+    output_format : dict, optional
+        Definition for how output is saved after results are computed.
     session : :class:`podpac.managers.aws.Session`
         AWS Session to use for this node.
     source : :class:`podpac.Node`
@@ -195,6 +197,8 @@ class Lambda(Node):
     _function_triggers = tl.Dict(default_value={}, allow_none=True)
     _function_valid = tl.Bool(default_value=False, allow_none=True)
     _function = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
+
+    output_format = tl.Dict(allow_none=True)
 
     @tl.default("function_name")
     def _function_name_default(self):
@@ -1401,6 +1405,8 @@ Lambda Node {status}
         pipeline["settings"][
             "FUNCTION_DEPENDENCIES_KEY"
         ] = self.function_s3_dependencies_key  # overwrite in case this is specified explicitly by class
+        if self.output_format:
+            pipeline["output"] = self.output_format
 
         return pipeline
 
