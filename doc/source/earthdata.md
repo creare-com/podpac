@@ -3,6 +3,7 @@
 This document describes using an Earth Data Account with PODPAC.
 
 ## Motivation
+
 * An Earth Data Login account is needed to access the wealth of data provided by 
 NASA. 
 * PODPAC automatically retrieves this data using OpenDAP. 
@@ -12,6 +13,7 @@ NASA.
     * provide their username and password to the child class of a PyDAP node at runtime
    
 ## Creating an EarthData Login Account
+
 * Go to the [EarthData Registration Page](https://urs.earthdata.nasa.gov/users/new)
   page and follow the instructions to register an account
 * Go to the [EarthData Login Page](https://urs.earthdata.nasa.gov/) to log into
@@ -27,6 +29,7 @@ NASA.
   accessing data through OpenDAP
     
 ## Saving EarthData Credentials in PODPAC Settings
+
 For convenience, PODPAC can store your EarthData login details so that you do
 not have to provide your username and password at run time or in every script. 
 
@@ -36,29 +39,33 @@ a security issue for you, do not use this method.
 To store your credentials use the following code in an interactive Python session: 
 ```python
 from podpac.core.authentication import EarthDataSession
-eds = EarthDataSession()
-eds.update_login()
+
+EarthDataSession(username="<earthdata-username>", password="<earthdata-password>", store_credentials=True)
 ```
-Then follow the on-screen prompts to enter our username and password. 
 
 Your credentials will be saved in `$HOME\.podpac\settings.json`
 where `$HOME` is usually `C:\users\<USERNAME>` on Windows and `/home/<USERNAME>`
-on Linux systems. 
+on Linux systems.
+
 
 ## Setting credentials at Runtime
+
 To set credentials at runtime, you can either provide an authenticated session
-or the username and password to the PyDAP node or child node. For example
+or the username and password to the PyDAP node or child node. For example:
 
 ```python
 from podpac.authentication import EarthDataSession
-eds = EarthDataSession(username=<username>, password=<password>)
+
+eds = EarthDataSession(username="<earthdata-username>", password="<earthdata-password>")
+
 from podpac.data import PyDAP
-pydap_node = PyDAP(source=<opendap_url>, auth_session=eds)
+
+pydap_node = PyDAP(source="<opendap_url>", auth_session=eds)
 ```
 
 Or 
 
 ```python
 from podpac.data import PyDAP
-pydap_node = PyDAP(source=<opendap_url>, username=<username>, password=<password>)
+pydap_node = PyDAP(source="<opendap_url>", username="<earthdata-username>", password="<earthdata-password>")
 ```

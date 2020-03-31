@@ -19,7 +19,7 @@ requests = lazy_module("requests")
 
 from podpac.core.utils import common_doc, cached_property
 from podpac.core.coordinates import Coordinates
-from podpac.core.node import S3Mixin
+from podpac.core.authentication import S3Mixin
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 
 # TODO common doc

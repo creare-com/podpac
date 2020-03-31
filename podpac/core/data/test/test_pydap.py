@@ -2,18 +2,20 @@ import pydap
 import pytest
 import numpy as np
 import traitlets as tl
+import requests
 
 from podpac.core.coordinates import Coordinates, clinspace
 from podpac.core.units import UnitsDataArray
 from podpac.core import authentication
 from podpac.core.data.pydap_source import PyDAP
+from podpac import settings
 
 
 class MockPyDAP(PyDAP):
     """mock pydap data source """
 
-    source = tl.Unicode("http://demo.opendap.org")
-    data_key = tl.Unicode("key")
+    source = "http://demo.opendap.org"
+    data_key = "key"
     data = np.random.rand(11, 11)
 
     @tl.default("native_coordinates")
@@ -27,27 +29,11 @@ class MockPyDAP(PyDAP):
         return dataset
 
 
-class MockAuthSession(authentication.Session):
-    session = None
-
-    def get(self, s):
-        if s == "403.dds":
-            raise Exception
-
-        self.session = s
-
-
-class MockPyDAPAuth(MockPyDAP):
-    """mock pydap data source """
-
-    def _open_url(self):
-        if "%s.dds" % self.source != self.auth_session.session:
-            raise Exception
-        return super(MockPyDAPAuth, self)._open_url()
-
-
 class TestPyDAP(object):
     """test pydap datasource"""
+
+    source = "http://demo.opendap.org"
+    data_key = "key"
 
     def test_init(self):
         node = PyDAP(source="mysource", data_key="key")
@@ -57,19 +43,6 @@ class TestPyDAP(object):
         with pytest.raises(NotImplementedError):
             node.native_coordinates
 
-    def test_auth_session(self):
-        # default to none if no username and password
-        node = PyDAP(source="mysource", data_key="key")
-        assert node.auth_session is None
-
-        # mocked
-        node = MockPyDAPAuth(username="username", password="password", auth_class=MockAuthSession)
-        assert node.auth_session is not None
-
-        # error
-        node = MockPyDAPAuth(source="403", username="username", password="password", auth_class=MockAuthSession)
-        assert node.auth_session is None
-
     def test_keys(self):
         """test return of dataset keys"""
 
@@ -77,12 +50,41 @@ class TestPyDAP(object):
         keys = node.keys
         assert "key" in keys
 
+    def test_session(self):
+        """test session attribute and traitlet default """
+
+        # hostname should be the same as the source, parsed by request
+        node = PyDAP(source=self.source, data_key=self.data_key)
+        assert node.hostname == "demo.opendap.org"
+
+        # defaults to no auth required
+        assert node.auth_required == False
+
+        # session should be available
+        assert node.session
+        assert isinstance(node.session, requests.Session)
+
+        # auth required
+        with settings:
+            if "username@test.org" in settings:
+                del settings["username@test.org"]
+
+            if "password@test.org" in settings:
+                del settings["password@test.org"]
+
+            node = PyDAP(source=self.source, data_key=self.data_key, hostname="test.org", auth_required=True)
+            assert node.hostname == "test.org"
+
+            # throw auth error
+            with pytest.raises(ValueError):
+                s = node.session
+
+            node.set_credentials(username="user", password="pass")
+            assert node.session
+            assert isinstance(node.session, requests.Session)
+
     def test_dataset(self):
         node = MockPyDAP()
-        assert isinstance(node.dataset, pydap.model.DatasetType)
-
-        # using a manual auth_session here to cover dataset auth session case
-        node = MockPyDAPAuth(username="username", password="password", auth_session=MockAuthSession())
         assert isinstance(node.dataset, pydap.model.DatasetType)
 
     def test_url_error(self):

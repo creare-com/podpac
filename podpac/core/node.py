@@ -15,7 +15,6 @@ from hashlib import md5 as hash_alg
 
 import numpy as np
 import traitlets as tl
-from lazy_import import lazy_module
 
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray
@@ -181,7 +180,7 @@ class Node(tl.HasTraits):
                         self.set_trait(name, tkwargs.pop(name))
                     trait.read_only = True
 
-        # Call traitlest constructor
+        # Call traitlets constructor
         super(Node, self).__init__(**tkwargs)
         self.init()
 
@@ -869,42 +868,6 @@ class DiskCacheMixin(tl.HasTraits):
         if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
             stores.append(DiskCacheStore())
         return CacheCtrl(stores)
-
-
-class S3Mixin(tl.HasTraits):
-    """ Mixin to add S3 credentials and access to a Node. """
-
-    anon = tl.Bool(False)
-    aws_access_key_id = tl.Unicode(allow_none=True)
-    aws_secret_access_key = tl.Unicode(allow_none=True)
-    aws_region_name = tl.Unicode(allow_none=True)
-    aws_client_kwargs = tl.Dict()
-
-    @tl.default("aws_access_key_id")
-    def _get_access_key_id(self):
-        return settings["AWS_ACCESS_KEY_ID"]
-
-    @tl.default("aws_secret_access_key")
-    def _get_secret_access_key(self):
-        return settings["AWS_SECRET_ACCESS_KEY"]
-
-    @tl.default("aws_region_name")
-    def _get_region_name(self):
-        return settings["AWS_REGION_NAME"]
-
-    @cached_property
-    def s3(self):
-        s3fs = lazy_module("s3fs")
-
-        if self.anon:
-            return s3fs.S3FileSystem(anon=True, client_kwargs=self.aws_client_kwargs)
-        else:
-            return s3fs.S3FileSystem(
-                key=self.aws_access_key_id,
-                secret=self.aws_secret_access_key,
-                region_name=self.aws_region_name,
-                client_kwargs=self.aws_client_kwargs,
-            )
 
 
 # --------------------------------------------------------#

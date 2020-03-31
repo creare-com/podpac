@@ -16,7 +16,6 @@ import six
 import pytest
 import numpy as np
 import xarray as xr
-import s3fs
 from pint.errors import DimensionalityError, UndefinedUnitError
 from pint import UnitRegistry
 
@@ -31,7 +30,7 @@ from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
 from podpac.core.node import Node, NodeException
 from podpac.core.node import node_eval
-from podpac.core.node import NoCacheMixin, DiskCacheMixin, S3Mixin
+from podpac.core.node import NoCacheMixin, DiskCacheMixin
 
 
 class TestNode(object):
@@ -933,20 +932,6 @@ class TestDiskCacheMixin(object):
     def test_customizable(self):
         node = self.DiskCacheNode(cache_ctrl=["ram"])
         assert len(node.cache_ctrl._cache_stores) == 1
-
-
-class TestS3Mixin(object):
-    class S3Node(S3Mixin, Node):
-        pass
-
-    def test_anon(self):
-        node = self.S3Node(anon=True)
-        assert isinstance(node.s3, s3fs.S3FileSystem)
-
-    @pytest.mark.aws
-    def test_auth(self):
-        node = self.S3Node()
-        assert isinstance(node.s3, s3fs.S3FileSystem)
 
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)

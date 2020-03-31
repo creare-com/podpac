@@ -222,6 +222,7 @@ Utilities
 
     podpac.authentication.SessionWithHeaderRedirection
     podpac.authentication.EarthDataSession
+    podpac.authentication.S3Mixin
 
 
 .. rubric:: Settings
@@ -245,7 +246,6 @@ Utilities
     podpac.utils.cached_default
     podpac.utils.NoCacheMixin
     podpac.utils.DiskCacheMixin
-    podpac.utils.S3Mixin
     podpac.utils.NodeTrait
 
 

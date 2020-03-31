@@ -52,30 +52,21 @@ from podpac.coordinates import Coordinates
 from podpac.data import PyDAP
 from podpac.compositor import OrderedCompositor
 from podpac.utils import cached_property, cached_default, DiskCacheMixin
-from podpac.core.data.datasource import common_doc, COMMON_DATA_DOC
+from podpac.core.data.datasource import COMMON_DATA_DOC
+from podpac.core.utils import common_doc, _get_from_url
 
-import nasaCMR
+from podpac.datalib import nasaCMR
 
 COMMON_DOC = COMMON_DATA_DOC.copy()
 COMMON_DOC.update(
     {
         "smap_date": "str\n        SMAP date string",
         "np_date": "np.datetime64\n        Numpy date object",
-        "auth_class": (
-            "EarthDataSession (Class object)\n        Class used to make an authenticated session from a"
-            " username and password (both are defined in base class)"
-        ),
-        "auth_session": (
-            "Instance(EarthDataSession)\n        Authenticated session used to make http requests using"
-            "NASA Earth Data Login credentials"
-        ),
         "base_url": "str\n        Url to nsidc openDAP server",
         "layer_key": (
             "str\n        Key used to retrieve data from OpenDAP dataset. This specifies the key used to retrieve "
             "the data"
         ),
-        "password": "User's EarthData password",
-        "username": "User's EarthData username",
         "product": "SMAP product name",
         "version": "Version number for the SMAP product",
         "source_coordinates": "Coordinates that uniquely describe each source",
@@ -133,34 +124,7 @@ def np2smap_date(date):
     return date
 
 
-def _get_from_url(url, auth_session):
-    """Helper function to get data from an NSIDC url with error checking. 
-    
-    Parameters
-    -----------
-    url: str
-        URL to website
-    auth_session: podpac.core.authentication.EarthDataSession
-        Authenticated EDS session
-    """
-    try:
-        r = auth_session.get(url)
-        if r.status_code != 200:
-            _logger.warning("Could not connect to {}, status code {}".format(url, r.status_code))
-            _logger.info("Trying to connect to {}".format(url.replace("opendap/", "")))
-            r = auth_session.get(url.replace("opendap/", ""))
-            if r.status_code != 200:
-                _logger.error("Could not connect to {} to retrieve data, status code {}".format(url, r.status_code))
-                raise RuntimeError("HTTP error: <%d>\n" % (r.status_code) + r.text[:4096])
-    except requests.ConnectionError as e:
-        _logger.warning("Cannot connect to {}:".format(url) + str(e))
-        r = None
-    except RuntimeError as e:
-        _logger.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
-    return r
-
-
-def _infer_SMAP_product_version(product, base_url, auth_session):
+def _infer_SMAP_product_version(product, base_url, session):
     """Helper function to automatically infer the version number of SMAP 
     products in case user did not specify a version, or the version changed
     
@@ -170,11 +134,11 @@ def _infer_SMAP_product_version(product, base_url, auth_session):
         Name of the SMAP product (e.g. one of SMAP_PRODUCT_DICT.keys())
     base_url: str
         URL to base SMAP product page
-    auth_session: podpac.core.authentication.EarthDataSession
-        Authenticated EDS session
+    session: :class:`requests.Session`
+        Authenticated EDS session. Generally returned from :class:`SMAPSessionMixin`.
     """
 
-    r = _get_from_url(base_url, auth_session)
+    r = _get_from_url(base_url, session=session)
     if r:
         m = re.search(product, r.text)
         return int(r.text[m.end() + 1 : m.end() + 4])
@@ -247,15 +211,92 @@ def SMAP_BASE_URL():
     return BASE_URL
 
 
+class SMAPSessionMixin(authentication.RequestsSessionMixin):
+    """SMAP requests authentication session.
+    Implements :class:`authentication.RequestsSessionMixin` with hostname specific to SMAP authentication.
+    Overrides the :meth:`requests.Session.rebuild_auth` method to handle authorization redirect from the EarthData portal
+    """
+
+    hostname = "urs.earthdata.nasa.gov"
+    auth_required = True
+    product_url = SMAP_BASE_URL()
+
+    @cached_property
+    def session(self):
+        """Requests Session object for making calls to remote `self.hostname`
+        See https://2.python-requests.org/en/master/api/#sessionapi
+        
+        Returns
+        -------
+        :class:requests.Session
+            Requests Session class with `auth` attribute defined
+        """
+
+        s = self._create_session()
+
+        # override `rebuild_auth` method
+        s.rebuild_auth = self._rebuild_auth
+
+        return s
+
+    def _rebuild_auth(self, prepared_request, response):
+        """
+        Overrides from the library to keep headers when redirected to or from
+        the NASA auth host.
+        See https://2.python-requests.org/en/master/api/#requests.Session.rebuild_auth
+        
+        Parameters
+        ----------
+        prepared_request : :class:`requests.Request`
+            See https://2.python-requests.org/en/master/api/#requests.Session.rebuild_auth
+        response : :class:`requests.Response`
+            See https://2.python-requests.org/en/master/api/#requests.Session.rebuild_auth
+        
+        Returns
+        -------
+        None
+        """
+        headers = prepared_request.headers
+        url = prepared_request.url
+
+        if "Authorization" in headers:
+            original_parsed = requests.utils.urlparse(response.request.url)
+            redirect_parsed = requests.utils.urlparse(url)
+
+            # delete Authorization headers if original and redirect do not match
+            # is not in product_url_regex
+            if (
+                (original_parsed.hostname != redirect_parsed.hostname)
+                and redirect_parsed.hostname != self.hostname
+                and original_parsed.hostname != self.hostname
+            ):
+
+                # parse product_url for hostname
+                product_url_hostname = requests.utils.urlparse(self.product_url).hostname
+
+                # make all numbers in product_url_hostname wildcards
+                product_url_regex = (
+                    re.compile(re.sub(r"\d", r"\\d", product_url_hostname))
+                    if product_url_hostname is not None
+                    else None
+                )
+
+                # if redirect matches product_url_regex, then allow the headers to stay
+                if product_url_regex is not None and product_url_regex.match(redirect_parsed.hostname):
+                    pass
+                else:
+                    del headers["Authorization"]
+
+        return
+
+
 @common_doc(COMMON_DOC)
-class SMAPSource(PyDAP):
+class SMAPSource(SMAPSessionMixin, PyDAP):
     """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how
     to extract the correct coordinates and data keys for the soil moisture data.
 
     Attributes
     ----------
-    auth_class : {auth_class}
-    auth_session : {auth_session}
     date_file_url_re : SRE_Pattern
         Regular expression used to retrieve date from self.source (OpenDAP Url)
     date_time_file_url_re : SRE_Pattern
@@ -267,21 +308,6 @@ class SMAPSource(PyDAP):
     root_data_key : str
         String the prepends every or most keys for data in the OpenDAP dataset
     """
-
-    # auth, to be replaced with mixin
-    auth_session = tl.Instance(authentication.EarthDataSession)
-    auth_class = tl.Type(authentication.EarthDataSession)
-
-    @tl.default("auth_session")
-    def _auth_session_default(self):
-        session = self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
-
-        # check url
-        try:
-            session.get(SMAP_BASE_URL())
-        except Exception as e:
-            _logger.warning("Unknown exception: ", e)
-        return session
 
     layer_key = tl.Unicode().tag(attr=True)
     root_data_key = tl.Unicode().tag(attr=True)
@@ -425,9 +451,9 @@ class SMAPProperties(SMAPSource):
 
     @tl.default("source")
     def _property_source_default(self):
-        v = _infer_SMAP_product_version("SPL4SMLM", SMAP_BASE_URL(), self.auth_session)
+        v = _infer_SMAP_product_version("SPL4SMLM", SMAP_BASE_URL(), self.session)
         url = SMAP_BASE_URL() + "/SPL4SMLM.%03d/2015.03.31/" % (v)
-        r = _get_from_url(url, self.auth_session)
+        r = _get_from_url(url, session=self.session)
         if not r:
             return "None"
         n = self.file_url_re.search(r.text).group()
@@ -516,13 +542,11 @@ class SMAPWilt(SMAPProperties):
 
 
 @common_doc(COMMON_DOC)
-class SMAPDateFolder(DiskCacheMixin, OrderedCompositor):
+class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, OrderedCompositor):
     """Compositor of all the SMAP source urls present in a particular folder which is defined for a particular date
 
     Attributes
     ----------
-    auth_class : {auth_class}
-    auth_session : {auth_session}
     base_url : {base_url}
     date_time_url_re : SRE_Pattern
         Regular expression used to retrieve the date and time from the filename if file_url_re matches
@@ -540,23 +564,11 @@ class SMAPDateFolder(DiskCacheMixin, OrderedCompositor):
     latlon_url_re : SRE_Pattern
         Regular expression used to find the lat-lon coordinates associated with the file from the file name
     layer_key : {layer_key}
-    password : {password}
     product : str
         {product}
     version : int
         {version}
-    username : {username}
     """
-
-    # auth, to be replaced
-    auth_session = tl.Instance(authentication.EarthDataSession)
-    auth_class = tl.Type(authentication.EarthDataSession)
-    username = tl.Unicode(None, allow_none=True)
-    password = tl.Unicode(None, allow_none=True)
-
-    @tl.default("auth_session")
-    def _auth_session_default(self):
-        return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
 
     base_url = tl.Unicode().tag(attr=True)
     product = tl.Enum(SMAP_PRODUCT_MAP.coords["product"].data.tolist()).tag(attr=True)
@@ -580,7 +592,7 @@ class SMAPDateFolder(DiskCacheMixin, OrderedCompositor):
 
     @tl.default("version")
     def _detect_product_version(self):
-        return _infer_SMAP_product_version(self.product, self.base_url, self.auth_session)
+        return _infer_SMAP_product_version(self.product, self.base_url, self.session)
 
     @tl.default("layer_key")
     def _layerkey_default(self):
@@ -624,16 +636,9 @@ class SMAPDateFolder(DiskCacheMixin, OrderedCompositor):
                 tol = tol - tol
                 tol = np.timedelta64(1, dtype=(tol.dtype))
 
-            src_objs = [
-                SMAPSource(
-                    source="%s/%s" % (self.folder_url, s),
-                    auth_session=self.auth_session,
-                    layer_key=self.layer_key,
-                    interpolation={"method": "nearest", "time_tolerance": tol},
-                )
-                for s in sources
-            ]
-            return np.array(src_objs)
+            kwargs = {"layer_key": self.laye_key, "interpolation": {"method": "nearest", "time_tolerance": tol}}
+
+            return [SMAPSource(source="%s/%s" % (self.folder_url, s), **kwargs) for s in sources]
 
     @property
     def is_source_coordinates_complete(self):
@@ -697,7 +702,7 @@ class SMAPDateFolder(DiskCacheMixin, OrderedCompositor):
         RuntimeError
             If the NSIDC website cannot be accessed 
         """
-        r = _get_from_url(self.folder_url, self.auth_session)
+        r = _get_from_url(self.folder_url, self.session)
         if r is None:
             _logger.warning("Could not contact {} to retrieve source coordinates".format(self.folder_url))
             return np.array([]), None, np.array([])
@@ -756,33 +761,19 @@ class SMAPDateFolder(DiskCacheMixin, OrderedCompositor):
 
 
 @common_doc(COMMON_DOC)
-class SMAP(OrderedCompositor):
+class SMAP(SMAPSessionMixin, OrderedCompositor):
     """Compositor of all the SMAPDateFolder's for every available SMAP date. Essentially a compositor of all SMAP data
     for a particular product.
 
     Attributes
     ----------
-    auth_class : {auth_class}
-    auth_session : {auth_session}
     base_url : {base_url}
     date_url_re : SRE_Pattern
         Regular expression used to extract all folder dates (or folder names) for the particular SMAP product.
     layer_key : {layer_key}
-    password : {password}
     product : str
         {product}
-    username : {username}
     """
-
-    # auth, to be replaced
-    auth_session = tl.Instance(authentication.EarthDataSession)
-    auth_class = tl.Type(authentication.EarthDataSession)
-    username = tl.Unicode(None, allow_none=True)
-    password = tl.Unicode(None, allow_none=True)
-
-    @tl.default("auth_session")
-    def _auth_session_default(self):
-        return self.auth_class(username=self.username, password=self.password, product_url=SMAP_BASE_URL())
 
     base_url = tl.Unicode().tag(attr=True)
     product = tl.Enum(SMAP_PRODUCT_MAP.coords["product"].data.tolist(), default_value="SPL4SMAU").tag(attr=True)
@@ -801,7 +792,7 @@ class SMAP(OrderedCompositor):
 
     @tl.default("version")
     def _detect_product_version(self):
-        return _infer_SMAP_product_version(self.product, self.base_url, self.auth_session)
+        return _infer_SMAP_product_version(self.product, self.base_url, self.session)
 
     @tl.default("layer_key")
     def _layerkey_default(self):
@@ -812,7 +803,7 @@ class SMAP(OrderedCompositor):
         """ Available dates in SMAP date format, sorted."""
 
         url = "/".join([self.base_url, "%s.%03d" % (self.product, self.version)])
-        r = _get_from_url(url, self.auth_session)
+        r = _get_from_url(url, self.session)
         if r is None:
             _logger.warning("Could not contact {} to retrieve source coordinates".format(url))
             return []
@@ -829,7 +820,6 @@ class SMAP(OrderedCompositor):
             "product": self.product,
             "version": self.version,
             "shared_coordinates": self.shared_coordinates,
-            "auth_session": self.auth_session,
             "layer_key": self.layer_key,
         }
         return [SMAPDateFolder(folder_date=date, **kwargs) for date in self.available_dates]
@@ -855,12 +845,7 @@ class SMAP(OrderedCompositor):
         if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
             return None
 
-        sample_source = SMAPDateFolder(
-            product=self.product,
-            version=self.version,
-            folder_date=self.available_dates[0],
-            auth_session=self.auth_session,
-        )
+        sample_source = SMAPDateFolder(product=self.product, version=self.version, folder_date=self.available_dates[0])
 
         return sample_source.shared_coordinates
 
@@ -912,7 +897,7 @@ class SMAP(OrderedCompositor):
             
         update_cache: bool, optional
             Default is False. The results of this call are automatically cached to disk. This function will try to 
-            update the cache if new data arrives. Only set this flag to True to rebuild the entire index locally (which
+            update the cache if new data arrives. Only set this flag to True to rebuild_auth the entire index locally (which
             may be needed when version numbers in the filenames change).
 
         Returns
@@ -968,10 +953,7 @@ class SMAP(OrderedCompositor):
 
             # Get CMR data
             filenames = nasaCMR.search_granule_json(
-                auth_session=self.auth_session,
-                entry_map=lambda x: x["producer_granule_id"],
-                short_name=self.product,
-                **kwargs,
+                session=self.session, entry_map=lambda x: x["producer_granule_id"], short_name=self.product, **kwargs
             )
             if not filenames:
                 return Coordinates([]), [], []
@@ -993,7 +975,7 @@ class SMAP(OrderedCompositor):
             return crds, filenames, dates
 
         # Create kwargs for making a SMAP source
-        create_kwargs = {"auth_session": self.auth_session, "layer_key": self.layer_key}
+        create_kwargs = {"layer_key": self.layer_key}
         if self.interpolation:
             create_kwargs["interpolation"] = self.interpolation
 
@@ -1042,7 +1024,7 @@ class SMAP(OrderedCompositor):
                 self.put_cache(crds, "filename.coordinates", overwrite=update_cache)
                 self.put_cache(sources, "filename.sources", overwrite=update_cache)
 
-        # Update the auth_session and/or interpolation and/or other keyword arguments in the sources class
+        # Updates interpolation and/or other keyword arguments in the sources class
         sources.create_kwargs = create_kwargs
         return crds, sources
 
@@ -1083,13 +1065,9 @@ class GetSMAPSources(object):
         source_urls = [base_url + np2smap_date(d)[:10] + "/" + f for d, f in zip(self.dates[slc], self.filenames[slc])]
         return np.array([SMAPSource(source=s, **self.create_kwargs) for s in source_urls], object)[return_slice]
 
-    @property
+    @cached_property
     def base_url(self):
-        if not self._base_url:
-            self._base_url = SMAPDateFolder(
-                product=self.product, folder_date="00001122", auth_session=self.create_kwargs["auth_session"]
-            ).source[:-8]
-        return self._base_url
+        return SMAPDateFolder(product=self.product, folder_date="00001122").source[:-8]
 
     def __len__(self):
         return len(self.filenames)
