@@ -198,8 +198,7 @@ class EGI(DataSource):
         # other parameters are included at eval time
         return url
 
-    @tl.default("native_coordinates")
-    def _default_native_coordinates(self):
+    def get_native_coordinates(self):
         if self.data is None:
             _log.warning("No coordinates found in EGI source")
             return Coordinates([], dims=[])

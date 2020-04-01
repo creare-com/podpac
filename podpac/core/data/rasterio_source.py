@@ -70,8 +70,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
         self.dataset.close()
 
     @common_doc(COMMON_DATA_DOC)
-    @tl.default("native_coordinates")
-    def _default_native_coordinates(self):
+    def get_native_coordinates(self):
         """{get_native_coordinates}
         
         The default implementation tries to find the lat/lon coordinates based on dataset.affine.

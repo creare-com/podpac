@@ -116,8 +116,7 @@ class IntakeCatalog(podpac.data.DataSource):
 
         return dims
 
-    @tl.default("native_coordinates")
-    def _default_native_coordinates(self):
+    def get_native_coordinates(self):
         """Get native coordinates from catalog definition or input dims
         """
 

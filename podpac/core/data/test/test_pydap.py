@@ -18,8 +18,7 @@ class MockPyDAP(PyDAP):
     data_key = "key"
     data = np.random.rand(11, 11)
 
-    @tl.default("native_coordinates")
-    def _default_native_coordinates(self):
+    def get_native_coordinates(self):
         return Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
 
     def _open_url(self):

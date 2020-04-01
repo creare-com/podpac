@@ -166,14 +166,8 @@ class WCS(DataSource):
         )
 
     @common_doc(COMMON_DATA_DOC)
-    @tl.default("native_coordinates")
-    def _default_native_coordinates(self):
-        """{native_coordinates}
-        
-        Returns
-        -------
-        Coordinates
-            {native_coordinates}
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
             
         Notes
         ------

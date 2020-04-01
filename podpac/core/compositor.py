@@ -209,9 +209,7 @@ class Compositor(Node):
             crs = self.source_coordinates.crs
             for s, c in zip(src_subset, coords_subset):
                 nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim], crs=crs), self.shared_coordinates])
-
-                if not trait_is_defined(s, "native_coordinates"):
-                    s.set_trait("native_coordinates", nc)
+                s.set_native_coordinates(nc)
 
         if settings["MULTITHREADING"]:
             n_threads = thread_manager.request_n_threads(len(src_subset))

@@ -106,14 +106,13 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return [self._get_col(key) for key in self.available_data_keys]
 
     @common_doc(COMMON_DATA_DOC)
-    @tl.default("native_coordinates")
-    def _default_native_coordinates(self):
+    def get_native_coordinates(self):
         """{get_native_coordinates}
         
         Note: CSV files have StackedCoordinates.
         """
 
-        coords = super(CSV, self)._default_native_coordinates()
+        coords = super(CSV, self).get_native_coordinates()
         if len(coords) == 1:
             return coords
         stacked = StackedCoordinates(list(coords.values()))

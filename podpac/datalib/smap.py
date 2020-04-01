@@ -51,7 +51,7 @@ from podpac import authentication
 from podpac.coordinates import Coordinates
 from podpac.data import PyDAP
 from podpac.compositor import OrderedCompositor
-from podpac.utils import cached_property, cached_default, DiskCacheMixin
+from podpac.utils import cached_property, DiskCacheMixin
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.utils import common_doc, _get_from_url
 
@@ -312,6 +312,7 @@ class SMAPSource(SMAPSessionMixin, PyDAP):
     layer_key = tl.Unicode().tag(attr=True)
     root_data_key = tl.Unicode().tag(attr=True)
     nan_vals = [-9999.0]
+    cache_native_coordinates = tl.Bool(True)
 
     # date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
     date_time_file_url_re = re.compile("[0-9]{8}T[0-9]{6}")
@@ -379,8 +380,7 @@ class SMAPSource(SMAPSessionMixin, PyDAP):
         return times
 
     @common_doc(COMMON_DOC)
-    @cached_default("native_coordinates")
-    def _default_native_coordinates(self):
+    def get_native_coordinates(self):
         """{get_native_coordinates}
         """
         lons = np.array(self.dataset[self.lon_key][:, :])
@@ -445,9 +445,8 @@ class SMAPProperties(SMAPSource):
                                                              'SMAP_L4_SM_lmc_00000000T000000_Vv{latest_version}.h5')
     """
 
-    file_url_re = re.compile(r"SMAP.*_[0-9]{8}T[0-9]{6}_.*\.h5")
-
     source = tl.Unicode().tag(attr=True)
+    file_url_re = re.compile(r"SMAP.*_[0-9]{8}T[0-9]{6}_.*\.h5")
 
     @tl.default("source")
     def _property_source_default(self):
@@ -503,8 +502,7 @@ class SMAPProperties(SMAPSource):
         return "{rdk}" + self.property
 
     @common_doc(COMMON_DOC)
-    @cached_default("native_coordinates")
-    def _default_native_coordinates(self):
+    def get_native_coordinates(self):
         """{get_native_coordinates}
         """
         lons = np.array(self.dataset[self.lon_key][:, :])

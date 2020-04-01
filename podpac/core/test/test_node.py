@@ -141,8 +141,8 @@ class TestNode(object):
             my_trait = tl.Any()
 
         n = MyNode()
-        assert "my_attr" in n.attrs()
-        assert "my_trait" not in n.attrs()
+        assert "my_attr" in n.attrs
+        assert "my_trait" not in n.attrs
 
     def test_repr(self):
         n = Node()

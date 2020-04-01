@@ -204,8 +204,10 @@ class Node(tl.HasTraits):
         """
         pass
 
+    @property
     def attrs(self):
-        return {name: getattr(self, name) for name in self.traits() if self.trait_metadata(name, "attr")}
+        """List of node attributes"""
+        return [name for name in self.traits() if self.trait_metadata(name, "attr")]
 
     @property
     def _repr_info(self):
@@ -222,7 +224,7 @@ class Node(tl.HasTraits):
         return "<%s(%s)>" % (self.__class__.__name__, self._repr_info)
 
     def __str__(self):
-        return "<%s(%s) attrs: %s>" % (self.__class__.__name__, self._repr_info, ", ".join(self.attrs()))
+        return "<%s(%s) attrs: %s>" % (self.__class__.__name__, self._repr_info, ", ".join(self.attrs))
 
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None):
@@ -339,7 +341,9 @@ class Node(tl.HasTraits):
         # attrs/inputs
         attrs = {}
         inputs = {}
-        for name, value in self.attrs().items():
+        for name in self.attrs:
+            value = getattr(self, name)
+
             if (
                 isinstance(value, Node)
                 or (isinstance(value, (list, tuple, np.ndarray)) and all(isinstance(elem, Node) for elem in value))

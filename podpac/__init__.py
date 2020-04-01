@@ -43,7 +43,7 @@ from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
 import podpac.core.authentication as authentication
-from podpac.core.utils import cached_property, cached_default
+from podpac.core.utils import cached_property
 from podpac.core.units import ureg as units, UnitsDataArray
 
 # Organized submodules

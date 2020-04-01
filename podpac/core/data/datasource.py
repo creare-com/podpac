@@ -142,6 +142,8 @@ class DataSource(Node):
     coordinate_index_type : str, optional
         Type of index to use for data source. Possible values are ``['list', 'numpy', 'xarray', 'pandas']``
         Default is 'numpy'
+    cache_native_coordinates : bool
+        Whether to cache native coordinates using the podpac ``cache_ctrl``. Default False.
 
     
     Notes
@@ -152,11 +154,12 @@ class DataSource(Node):
     interpolation = InterpolationTrait().tag(attr=True)
     nan_vals = tl.List().tag(attr=True)
 
-    native_coordinates = tl.Instance(Coordinates, read_only=True)
     coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
+    cache_native_coordinates = tl.Bool(False)
 
     # privates
     _interpolation = tl.Instance(Interpolation)
+    _native_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
 
     _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _requested_source_coordinates = tl.Instance(Coordinates)
@@ -169,14 +172,6 @@ class DataSource(Node):
     def _default_interpolation(self):
         self._set_interpolation()
         return self._interpolation
-
-    @tl.default("native_coordinates")
-    def _default_native_coordinates(self):
-        raise NotImplementedError(
-            "DataSource native_coordinates must be defined by child classes. "
-            "To provide native_coordinates for a child class at runtime, redefine the native_coordinates trait with "
-            "`native_coordinates = tl.Instance(Coordinates).tag(attr=True)`"
-        )
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -213,6 +208,22 @@ class DataSource(Node):
             return self._interpolation._last_interpolator_queue
         else:
             return OrderedDict()
+
+    @property
+    def native_coordinates(self):
+        """{native_coordinates}"""
+
+        if self._native_coordinates is not None:
+            nc = self._native_coordinates
+        elif self.cache_native_coordinates and self.has_cache("native_coordinates"):
+            nc = self.get_cache("native_coordinates")
+            self.set_trait("_native_coordinates", nc)
+        else:
+            nc = self.get_native_coordinates()
+            self.set_trait("_native_coordinates", nc)
+            if self.cache_native_coordinates:
+                self.put_cache(nc, "native_coordinates")
+        return nc
 
     # ------------------------------------------------------------------------------------------------------------------
     # Private Methods
@@ -470,3 +481,26 @@ class DataSource(Node):
             This needs to be implemented by derived classes
         """
         raise NotImplementedError
+
+    @common_doc(COMMON_DATA_DOC)
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
+
+        Raises
+        ------
+        NotImplementedError
+            This needs to be implemented by derived classes
+        """
+        raise NotImplementedError
+
+    def set_native_coordinates(self, coordinates, force=False):
+        """ Set the native_coordinates. Used by Compositors as an optimization.
+
+        Arguments
+        ---------
+        coordinates : :class:`podpac.Coordinates`
+            Coordinates to set. Usually these are coordinates that are shared across compositor sources.
+        """
+
+        if not self.trait_is_defined("_native_coordinates"):
+            self.set_trait("_native_coordinates", coordinates)

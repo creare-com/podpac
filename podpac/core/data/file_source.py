@@ -217,9 +217,8 @@ class FileKeysMixin(tl.HasTraits):
         return lookup[dim]
 
     @common_doc(COMMON_DATA_DOC)
-    @tl.default("native_coordinates")
-    def _default_native_coordinates(self):
-        """{native_coordinates}
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
         """
 
         cs = [self.dataset[self._lookup_key(dim)] for dim in self.dims]
