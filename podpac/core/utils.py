@@ -327,7 +327,7 @@ def _get_from_url(url, session=None):
     except RuntimeError as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
 
-    return r.text
+    return r
 
 
 def cached_property(*args, **kwargs):

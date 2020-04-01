@@ -634,7 +634,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, OrderedCompositor):
                 tol = tol - tol
                 tol = np.timedelta64(1, dtype=(tol.dtype))
 
-            kwargs = {"layer_key": self.laye_key, "interpolation": {"method": "nearest", "time_tolerance": tol}}
+            kwargs = {"layer_key": self.layer_key, "interpolation": {"method": "nearest", "time_tolerance": tol}}
 
             return [SMAPSource(source="%s/%s" % (self.folder_url, s), **kwargs) for s in sources]
 
@@ -1086,15 +1086,14 @@ if __name__ == "__main__":
 
     logging.basicConfig()
 
-    # username = input("Username:")
-    # password = getpass.getpass("Password:")
-    username = "jmilloy"
-    password = "sp87AZoo"
+    username = input("Username:")
+    password = getpass.getpass("Password:")
 
     product = "SPL4SMAU"
     interpolation = {"method": "nearest", "params": {"time_tolerance": np.timedelta64(2, "h")}}
 
-    sm = SMAP(product=product, username=username, password=password, interpolation=interpolation)
+    sm = SMAP(product=product, interpolation=interpolation)
+    sm.set_credentials(username=username, password=password)
 
     # SMAP info
     print(sm)
