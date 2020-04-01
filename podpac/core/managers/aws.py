@@ -199,7 +199,7 @@ class Lambda(Node):
     _function = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
 
     output_format = tl.Dict(None, allow_none=True).tag(attr=True)
-    
+
     @tl.default("function_name")
     def _function_name_default(self):
         if settings["FUNCTION_NAME"] is None:
@@ -1412,7 +1412,6 @@ Lambda Node {status}
 
     def _eval_invoke(self, coordinates, output=None):
         """eval node through invoke trigger"""
-        _log.debug("Evaluating pipeline via invoke")
 
         # create eval pipeline
         pipeline = self._create_eval_pipeline(coordinates)
@@ -1420,13 +1419,27 @@ Lambda Node {status}
         # create lambda client
         awslambda = self.session.client("lambda")
 
-        # invoke
+        # pipeline payload
         payload = bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))
-        response = awslambda.invoke(
-            FunctionName=self.function_name,
-            LogType="Tail",  # include the execution log in the response.
-            Payload=payload,
-        )
+
+        if self.download_result:
+            _log.debug("Evaluating pipeline via invoke synchronously")
+            response = awslambda.invoke(
+                FunctionName=self.function_name,
+                LogType="Tail",  # include the execution log in the response.
+                Payload=payload,
+            )
+        else:
+            # async invocation
+            _log.debug("Evaluating pipeline via invoke asynchronously")
+            awslambda.invoke(
+                FunctionName=self.function_name,
+                InvocationType="Event",
+                LogType="Tail",  # include the execution log in the response.
+                Payload=payload,
+            )
+
+            return
 
         _log.debug("Received response from lambda function")
 
