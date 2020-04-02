@@ -138,7 +138,7 @@ class Convolution(UnaryAlgorithm):
                     add_coord(coord.start, s_start * coord.step),
                     add_coord(coord.stop, s_end * coord.step + 1e-07 * coord.step),
                     coord.step,
-                    **coord.properties,
+                    **coord.properties
                 )
             )
             exp_slice.append(slice(-s_start, -s_end))

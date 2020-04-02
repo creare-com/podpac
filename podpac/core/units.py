@@ -507,6 +507,7 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
     from matplotlib.image import imsave
 
     with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
         matplotlib.use("agg")
 
     if format != "png":

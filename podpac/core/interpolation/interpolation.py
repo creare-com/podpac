@@ -509,6 +509,6 @@ class InterpolationTrait(tl.Union):
         self,
         trait_types=[tl.Dict(), tl.List(), tl.Enum(INTERPOLATION_METHODS), tl.Instance(Interpolation)],
         *args,
-        **kwargs,
+        **kwargs
     ):
         super(InterpolationTrait, self).__init__(trait_types=trait_types, *args, **kwargs)
