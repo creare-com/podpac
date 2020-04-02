@@ -200,6 +200,10 @@ class Lambda(Node):
 
     output_format = tl.Dict(None, allow_none=True).tag(attr=True)
 
+    @property
+    def outputs(self):
+        return self.source.outputs
+
     @tl.default("function_name")
     def _function_name_default(self):
         if settings["FUNCTION_NAME"] is None:
