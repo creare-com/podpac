@@ -506,7 +506,8 @@ def to_image(data, format="png", vmin=None, vmax=None, return_base64=False):
     import matplotlib.cm
     from matplotlib.image import imsave
 
-    matplotlib.use("agg")
+    with warnings.catch_warnings():
+        matplotlib.use("agg")
 
     if format != "png":
         raise ValueError("Invalid image format '%s', must be 'png'" % format)

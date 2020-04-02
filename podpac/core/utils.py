@@ -342,7 +342,8 @@ def cached_property(*args, **kwargs):
 
     Notes
     -----
-    The property should not depend on any other attributes that are not tagged with ``attr=True``.
+    Podpac caching using the cache_ctrl will be unreliable if the property depends on any non-tagged traits.
+    The property should only use node attrs (traits tagged with ``attr=True``).
 
     Examples
     --------

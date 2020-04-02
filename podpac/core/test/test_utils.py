@@ -279,7 +279,7 @@ class TestJSONEncoder(object):
 
     def test_unserializable(self):
         value = xr.DataArray([])
-        with pytest.raises(TypeError, match="Object of type DataArray is not JSON serializable"):
+        with pytest.raises(TypeError, match="not JSON serializable"):
             json.dumps(value, cls=JSONEncoder)
 
     def test_is_json_serializable(self):

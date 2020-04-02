@@ -15,6 +15,7 @@ from hashlib import md5 as hash_alg
 
 import numpy as np
 import traitlets as tl
+import six
 
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray
@@ -213,7 +214,7 @@ class Node(tl.HasTraits):
 
     @property
     def _repr_info(self):
-        keys = self._repr_keys.copy()
+        keys = self._repr_keys[:]
         if self.trait_is_defined("output") and self.output is not None:
             if "output" not in keys:
                 keys.append("output")
@@ -788,7 +789,7 @@ def _lookup_input(nodes, name, value):
         return {k: _lookup_input(nodes, name, v) for k, v in value.items()}
 
     # node reference
-    if not isinstance(value, str):
+    if not isinstance(value, six.string_types):
         raise ValueError(
             "Invalid definition for node '%s': invalid reference '%s' of type '%s' in inputs"
             % (name, value, type(value))
@@ -816,7 +817,7 @@ def _lookup_attr(nodes, name, value):
     if isinstance(value, dict):
         return {_k: _lookup_attr(nodes, name, v) for k, v in value.items()}
 
-    if not isinstance(value, str):
+    if not isinstance(value, six.string_types):
         raise ValueError(
             "Invalid definition for node '%s': invalid reference '%s' of type '%s' in lookup_attrs"
             % (name, value, type(value))

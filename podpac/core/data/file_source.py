@@ -4,7 +4,13 @@ Datasources from files
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import urllib
+import sys
+
+if sys.version_info.major == 2:
+    from urllib2 import urlopen
+else:
+    from urllib.request import urlopen
+
 from io import BytesIO
 import logging
 
@@ -91,11 +97,12 @@ class LoadFileMixin(S3Mixin):
                 return self._open(f)
         elif self.source.startswith("ftp://"):
             _logger.info("Downloading: %s" % self.source)
-            addinfourl = urllib.request.urlopen(self.source)
+            addinfourl = urlopen(self.source)
             with BytesIO(addinfourl.read()) as f:
                 return self._open(f)
         elif self.source.startswith("file://"):
-            with urllib.request.urlopen(self.source) as f:
+            addinfourl = urlopen(self.source)
+            with BytesIO(addinfourl.read()) as f:
                 return self._open(f)
         else:
             with open(self.source, "rb") as f:

@@ -15,7 +15,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, NodeException
 from podpac.core.style import Style
 from podpac.core.coordinates import Coordinates, clinspace, crange
-from podpac.core.interpolation.interpolation import Interpolation
+from podpac.core.interpolation.interpolation import Interpolation, Interpolator
 from podpac.core.interpolation.interpolator import Interpolator
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
 

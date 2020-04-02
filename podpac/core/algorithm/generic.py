@@ -4,6 +4,7 @@ General-purpose Algorithm Nodes.
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import sys
 import warnings
 
 import numpy as np
@@ -20,6 +21,11 @@ from podpac import settings
 from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 from podpac.core.algorithm.algorithm import Algorithm
+
+if sys.version_info.major == 2:
+
+    class PermissionError(OSError):
+        pass
 
 
 class GenericInputs(Algorithm):

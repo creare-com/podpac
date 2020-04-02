@@ -458,13 +458,13 @@ class TestSerialization(object):
 
     def test_base_ref(self):
         node = Node()
-        assert isinstance(node.base_ref, str)
+        assert isinstance(node.base_ref, six.string_types)
 
     def test_base_definition(self):
         node = Node()
         d = node._base_definition
         assert "node" in d
-        assert isinstance(d["node"], str)
+        assert isinstance(d["node"], six.string_types)
 
     def test_base_definition_attrs(self):
         class MyNode(Node):
@@ -578,7 +578,7 @@ class TestSerialization(object):
     def test_json(self):
         # json
         s = self.node.json
-        assert isinstance(s, str)
+        assert isinstance(s, six.string_types)
         assert json.loads(s)
 
         # test from_json
@@ -614,7 +614,7 @@ class TestSerialization(object):
     def test_json_pretty(self):
         node = Node()
         s = node.json_pretty
-        assert isinstance(s, str)
+        assert isinstance(s, six.string_types)
         json.loads(s)
 
     def test_hash(self):

@@ -13,6 +13,7 @@ import logging
 
 import numpy as np
 import traitlets as tl
+import six
 
 # Set up logging
 _log = logging.getLogger(__name__)
@@ -249,7 +250,7 @@ class Interpolator(tl.HasTraits):
 
         unstacked = kwargs.pop("unstacked", False)
 
-        if isinstance(dim, str):
+        if isinstance(dim, six.string_types):
             dim = [dim]
         elif not isinstance(dim, (list, tuple)):
             raise ValueError("`dim` input must be a str, list of str, or tuple of str")
