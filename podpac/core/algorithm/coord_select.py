@@ -111,6 +111,12 @@ class ExpandCoordinates(ModifyCoordinates):
         Expansion parameters for the given dimension: The options are::
          * [start_offset, end_offset, step] to expand uniformly around each input coordinate.
          * [start_offset, end_offset] to expand using the available source coordinates around each input coordinate.
+         
+    bounds_only: bool
+        Default is False. If True, will only expand the bounds of the overall coordinates request. Otherwise, it will 
+        expand around EACH coordinate in the request. For example, with bounds_only == True, and an expansion of 3
+        you may expand [5, 6, 8] to [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], whereas with bounds_only == False, it becomes
+        [[2, 5, 8], [3, 6, 9], [5, 8, 11]] (brackets added for clarity, they will be concatenated).
     """
 
     substitute_eval_coords = tl.Bool(False, read_only=True)
