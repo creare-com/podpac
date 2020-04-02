@@ -478,7 +478,7 @@ class TestOpenDataArray(object):
         lat = np.linspace(-10, 10, 5)
         lon = np.linspace(-10, 10, 5)
         native_coords = Coordinates([lat, lon], ["lat", "lon"])
-        node = Array(data=data, native_coordinates=native_coords)
+        node = Array(source=data, native_coordinates=native_coords)
         uda = node.eval(node.native_coordinates)
 
         ncdf = uda.to_netcdf()
@@ -512,7 +512,7 @@ class TestToGeoTiff(object):
         # order = -1
         # bands = 3
         node = Array(
-            data=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
+            source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
             native_coordinates=Coordinates([clinspace(4, 0, 2, "lat"), clinspace(1, 4, 4, "lon")][::order]),
             outputs=[str(s) for s in list(range(bands))],
         )
@@ -526,7 +526,7 @@ class TestToGeoTiff(object):
         )
         c = Coordinates([rc])
         node = Array(
-            data=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
+            source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
             native_coordinates=c,
             outputs=[str(s) for s in list(range(bands))],
         )

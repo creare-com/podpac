@@ -61,7 +61,10 @@ class H5PY(FileKeysMixin, BaseFileSource):
     def dims(self):
         """ dataset coordinate dims """
         try:
-            key = self.data_key or self.output_keys[0]
+            if not isinstance(self.data_key, list):
+                key = self.data_key
+            else:
+                key = self.data_key[0]
             return self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
         except:
             lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
@@ -76,10 +79,10 @@ class H5PY(FileKeysMixin, BaseFileSource):
         """{get_data}
         """
         data = self.create_output_array(coordinates)
-        if self.data_key is not None:
+        if not isinstance(self.data_key, list):
             data[:] = self.dataset[self.data_key][coordinates_index]
         else:
-            for key, name in zip(self.output_keys, self.outputs):
+            for key, name in zip(self.data_key, self.outputs):
                 data.sel(output=name)[:] = self.dataset[key][coordinates_index]
         return data
 

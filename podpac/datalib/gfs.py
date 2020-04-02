@@ -12,7 +12,8 @@ s3fs = lazy_module("s3fs")
 # Internal imports
 from podpac.data import DataSource, Rasterio
 from podpac.coordinates import Coordinates, merge_dims
-from podpac.utils import cached_property, S3Mixin, DiskCacheMixin
+from podpac.utils import cached_property, DiskCacheMixin
+from podpac.core.authentication import S3Mixin
 
 BUCKET = "noaa-gfs-pds"
 
@@ -36,6 +37,8 @@ class GFS(S3Mixin, DiskCacheMixin, DataSource):
     date = tl.Unicode().tag(attr=True)
     hour = tl.Unicode().tag(attr=True)
 
+    cache_native_coordinates = tl.Bool(True)
+
     @property
     def prefix(self):
         return "%s/%s/%s/%s/%s/" % (BUCKET, self.parameter, self.level, self.date, self.hour)
@@ -56,8 +59,7 @@ class GFS(S3Mixin, DiskCacheMixin, DataSource):
         }
         return np.array([GFSSource(forecast=forecast, **params) for forecast in self.forecasts])
 
-    @cached_property(use_cache_ctrl=True)
-    def native_coordinates(self):
+    def get_native_coordinates(self):
         nc = self.sources[0].native_coordinates
         base_time = datetime.datetime.strptime("%s %s" % (self.date, self.hour), "%Y%m%d %H%M")
         forecast_times = [base_time + datetime.timedelta(hours=int(h)) for h in self.forecasts]

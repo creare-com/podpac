@@ -24,7 +24,7 @@ class Array(NoCacheMixin, DataSource):
     
     Attributes
     ----------
-    data : np.ndarray
+    source : np.ndarray
         Numpy array containing the source data
     native_coordinates : podpac.Coordinates
         The coordinates of the source data
@@ -45,19 +45,19 @@ class Array(NoCacheMixin, DataSource):
     >>> coords = podpac.Coordinates([podpac.clinspace(1, 10, 10, 'time'), 
                                      podpac.clinspace(1, 32, 32, 'lat'),
                                      podpac.clinspace(1, 34, 34, 'lon')])
-    >>> node = podpac.data.Array(data=data, native_coordinates=coords, outputs=['R', 'G', 'B'])
+    >>> node = podpac.data.Array(source=data, native_coordinates=coords, outputs=['R', 'G', 'B'])
     >>> output = node.eval(coords)
     """
 
-    data = ArrayTrait().tag(attr=True)
+    source = ArrayTrait().tag(attr=True)
     native_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
-    @tl.validate("data")
-    def _validate_data(self, d):
+    @tl.validate("source")
+    def _validate_source(self, d):
         try:
             d["value"].astype(float)
         except:
-            raise ValueError("Array data must be numerical")
+            raise ValueError("Array 'source' data must be numerical")
         return d["value"]
 
     def _first_init(self, **kwargs):
@@ -73,5 +73,9 @@ class Array(NoCacheMixin, DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        d = self.create_output_array(coordinates, data=self.data[coordinates_index])
+        d = self.create_output_array(coordinates, data=self.source[coordinates_index])
         return d
+
+    def set_native_coordinates(self, value):
+        """ Not needed. """
+        pass

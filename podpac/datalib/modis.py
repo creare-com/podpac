@@ -9,7 +9,8 @@ import rasterio
 
 from podpac.data import Rasterio
 from podpac.core import cache
-from podpac.node import DiskCacheMixin, S3Mixin
+from podpac.utils import DiskCacheMixin
+from podpac.authentication import S3Mixin
 
 BUCKET = "modis-pds"
 PRODUCTS = ["MCD43A4.006", "MOD09GA.006", "MYD09GA.006", "MOD09GQ.006", "MYD09GQ.006"]

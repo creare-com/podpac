@@ -15,7 +15,7 @@ from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, NodeException
 from podpac.core.style import Style
 from podpac.core.coordinates import Coordinates, clinspace, crange
-from podpac.core.interpolation.interpolation import Interpolation
+from podpac.core.interpolation.interpolation import Interpolation, Interpolator
 from podpac.core.interpolation.interpolator import Interpolator
 from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC, DATA_DOC
 
@@ -26,7 +26,9 @@ class MockDataSource(DataSource):
     data[0, 1] = 1
     data[1, 0] = 5
     data[1, 1] = None
-    native_coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
+
+    def get_native_coordinates(self):
+        return Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
 
     def get_data(self, coordinates, coordinates_index):
         return self.create_output_array(coordinates, data=self.data[coordinates_index])
@@ -34,7 +36,9 @@ class MockDataSource(DataSource):
 
 class MockDataSourceStacked(DataSource):
     data = np.arange(11)
-    native_coordinates = Coordinates([clinspace((-25, -25), (25, 25), 11)], dims=["lat_lon"])
+
+    def get_native_coordinates(self):
+        return Coordinates([clinspace((-25, -25), (25, 25), 11)], dims=["lat_lon"])
 
     def get_data(self, coordinates, coordinates_index):
         return self.create_output_array(coordinates, data=self.data[coordinates_index])
@@ -67,10 +71,95 @@ class TestDataSource(object):
         with pytest.raises(NotImplementedError):
             node.get_data(None, None)
 
-    def test_native_coordinates_not_implemented(self):
+    def test_get_native_coordinates_not_implemented(self):
+        node = DataSource()
+        with pytest.raises(NotImplementedError):
+            node.get_native_coordinates()
+
+    def test_native_coordinates(self):
+        # not implemented
         node = DataSource()
         with pytest.raises(NotImplementedError):
             node.native_coordinates
+
+        # use get_native_coordinates (once)
+        class MyDataSource(DataSource):
+            get_native_coordinates_called = 0
+
+            def get_native_coordinates(self):
+                self.get_native_coordinates_called += 1
+                return Coordinates([])
+
+        node = MyDataSource()
+        assert node.get_native_coordinates_called == 0
+        assert isinstance(node.native_coordinates, Coordinates)
+        assert node.get_native_coordinates_called == 1
+        assert isinstance(node.native_coordinates, Coordinates)
+        assert node.get_native_coordinates_called == 1
+
+        # can't set
+        with pytest.raises(AttributeError, match="can't set attribute"):
+            node.native_coordinates = Coordinates([])
+
+    def test_cache_native_coordinates(self):
+        class MyDataSource(DataSource):
+            get_native_coordinates_called = 0
+
+            def get_native_coordinates(self):
+                self.get_native_coordinates_called += 1
+                return Coordinates([])
+
+        a = MyDataSource(cache_native_coordinates=True, cache_ctrl=["ram"])
+        b = MyDataSource(cache_native_coordinates=True, cache_ctrl=["ram"])
+        c = MyDataSource(cache_native_coordinates=False, cache_ctrl=["ram"])
+        d = MyDataSource(cache_native_coordinates=True, cache_ctrl=[])
+
+        a.rem_cache("*")
+        b.rem_cache("*")
+        c.rem_cache("*")
+        d.rem_cache("*")
+
+        # get_native_coordinates called once
+        assert not a.has_cache("native_coordinates")
+        assert a.get_native_coordinates_called == 0
+        assert isinstance(a.native_coordinates, Coordinates)
+        assert a.get_native_coordinates_called == 1
+        assert isinstance(a.native_coordinates, Coordinates)
+        assert a.get_native_coordinates_called == 1
+
+        # native_coordinates is cached to a, b, and c
+        assert a.has_cache("native_coordinates")
+        assert b.has_cache("native_coordinates")
+        assert c.has_cache("native_coordinates")
+        assert not d.has_cache("native_coordinates")
+
+        # b: use cache, get_native_coordinates not called
+        assert b.get_native_coordinates_called == 0
+        assert isinstance(b.native_coordinates, Coordinates)
+        assert b.get_native_coordinates_called == 0
+
+        # c: don't use cache, get_native_coordinates called
+        assert c.get_native_coordinates_called == 0
+        assert isinstance(c.native_coordinates, Coordinates)
+        assert c.get_native_coordinates_called == 1
+
+        # d: use cache but there is no ram cache for this node, get_native_coordinates is called
+        assert d.get_native_coordinates_called == 0
+        assert isinstance(d.native_coordinates, Coordinates)
+        assert d.get_native_coordinates_called == 1
+
+    def test_set_native_coordinates(self):
+        node = MockDataSource()
+        node.set_native_coordinates(Coordinates([]))
+        assert node.native_coordinates == Coordinates([])
+        assert node.native_coordinates != node.get_native_coordinates()
+
+        # don't overwrite
+        node = MockDataSource()
+        node.native_coordinates
+        node.set_native_coordinates(Coordinates([]))
+        assert node.native_coordinates != Coordinates([])
+        assert node.native_coordinates == node.get_native_coordinates()
 
     def test_invalid_interpolation(self):
         with pytest.raises(tl.TraitError):

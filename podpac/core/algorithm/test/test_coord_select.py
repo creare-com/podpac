@@ -66,7 +66,7 @@ class TestExpandCoordinates(object):
         o = node.eval(coords)
 
     def test_spatial_expansion_ultiple_outputs(self):
-        multi = Array(data=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
+        multi = Array(source=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
         node = ExpandCoordinates(source=multi, lat=(-1, 1, 0.1))
         o = node.eval(coords)
 
@@ -92,7 +92,7 @@ class TestSelectCoordinates(object):
         o = node.eval(coords)
 
     def test_spatial_selection_multiple_outputs(self):
-        multi = Array(data=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
+        multi = Array(source=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
         node = SelectCoordinates(source=multi, lat=(46, 56, 1))
         o = node.eval(coords)
 
@@ -135,7 +135,7 @@ class TestYearSubstituteCoordinates(object):
         assert o["time"].data == xr.DataArray(coords.coords["time"]).data
 
     def test_year_substitution_multiple_outputs(self):
-        multi = Array(data=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
+        multi = Array(source=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
         node = YearSubstituteCoordinates(source=multi, year="2018")
         o = node.eval(coords)
         assert o.time.dt.year.data[0] == 2018

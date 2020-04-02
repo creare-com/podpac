@@ -13,7 +13,7 @@ import traitlets as tl
 # Internal imports
 from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, merge_dims
-from podpac.core.utils import common_doc, ArrayTrait, trait_is_defined
+from podpac.core.utils import common_doc, NodeTrait, trait_is_defined
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, node_eval, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
@@ -22,8 +22,6 @@ from podpac.core.managers.multi_threading import thread_manager
 
 COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
 
-# TODO AutoOutputsMixin
-
 
 @common_doc(COMMON_COMPOSITOR_DOC)
 class Compositor(Node):
@@ -31,6 +29,13 @@ class Compositor(Node):
     
     Attributes
     ----------
+    sources : :class:`np.ndarray`
+        An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to
+        subselect the nodes that will be evaluated.
+    shared_coordinates : :class:`podpac.Coordinates`.
+        Coordinates that are shared amongst all of the composited sources. Optional.
+    source_coordinates : :class:`podpac.Coordinates`
+        Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
     interpolation : str, dict, optional
         {interpolation}
     is_source_coordinates_complete : Bool
@@ -38,18 +43,6 @@ class Compositor(Node):
         coordinates could include the year-month-day of the source, but the actual source also has hour-minute-second
         information. In that case, source_coordinates is incomplete. This flag is used to automatically construct
         native_coordinates.
-    shared_coordinates : :class:`podpac.Coordinates`, optional
-        Coordinates that are shared amongst all of the composited sources
-    source : str
-        The source is used for a unique name to cache composited products.
-    source_coordinates : :class:`podpac.Coordinates`
-        Coordinates that make each source unique. Much be single-dimensional the same size as ``sources``. Optional.
-    sources : :class:`np.ndarray`
-        An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to
-        subselect the nodes that will be evaluated.
-    source_coordinates : :class:`podpac.Coordinates`, optional
-        Coordinates that make each source unique. This is used for subsetting which sources to evaluate based on the
-        user-requested coordinates. It is an optimization.
     
     Notes
     -----
@@ -64,23 +57,19 @@ class Compositor(Node):
         for most use-cases.
     """
 
-    sources = ArrayTrait(ndim=1).tag(attr=True)
+    sources = tl.List(trait=NodeTrait()).tag(attr=True)
     interpolation = InterpolationTrait(allow_none=True, default_value=None).tag(attr=True)
+    shared_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
+    source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
 
-    shared_coordinates = tl.Instance(Coordinates, allow_none=True)
-    source_coordinates = tl.Instance(Coordinates, allow_none=True)
     is_source_coordinates_complete = tl.Bool(
         False,
         help=(
-            "This allows some optimizations but assumes that a node's "
+            "This allows some optimizations but assumes that the sources have "
             "native_coordinates=source_coordinate + shared_coordinate "
             "IN THAT ORDER"
         ),
     )
-
-    @tl.default("source_coordinates")
-    def _source_coordinates_default(self):
-        return self.get_source_coordinates()
 
     @tl.validate("sources")
     def _validate_sources(self, d):
@@ -93,9 +82,22 @@ class Compositor(Node):
                 "The sources must all be standard single-output nodes or all multi-output nodes."
             )
 
-        # self.outputs  # check for consistent outputs
         # TODO is this copy necessary? Can it be a less deep copy (e.g. that only copies defined traits)
-        return np.array([copy.deepcopy(source) for source in sources])
+        return [copy.deepcopy(source) for source in sources]
+
+    @tl.validate("source_coordinates")
+    def _validate_source_coordinates(self, d):
+        if d["value"] is not None:
+            if d["value"].ndim != 1:
+                raise ValueError("Invalid source_coordinates, invalid ndim (%d != 1)" % d["value"].ndim)
+
+            if d["value"].size != len(self.sources):
+                raise ValueError(
+                    "Invalid source_coordinates, source and source_coordinates size mismatch (%d != %d)"
+                    % (d["value"].size, len(self.sources))
+                )
+
+        return d["value"]
 
     @tl.default("outputs")
     def _default_outputs(self):
@@ -118,58 +120,7 @@ class Compositor(Node):
                 "Cannot composite standard sources with multi-output sources."
             )
 
-        self.traits()["outputs"].default = outputs
         return outputs
-
-    @tl.validate("source_coordinates")
-    def _validate_source_coordinates(self, d):
-        if d["value"] is not None:
-            if d["value"].ndim != 1:
-                raise ValueError("Invalid source_coordinates, invalid ndim (%d != 1)" % d["value"].ndim)
-
-            if d["value"].size != self.sources.size:
-                raise ValueError(
-                    "Invalid source_coordinates, source and source_coordinates size mismatch (%d != %d)"
-                    % (d["value"].size, self.sources.size)
-                )
-
-        return d["value"]
-
-    # default representation
-    def __repr__(self):
-        source_name = str(self.__class__.__name__)
-
-        rep = "{}".format(source_name)
-        # rep += "\n\tsource: {}".format("_".join(str(source) for source in self.sources[:3]))
-        rep += "\n\tinterpolation: {}".format(self.interpolation)
-
-        return rep
-
-    def get_source_coordinates(self):
-        """
-        Returns the coordinates describing each source.
-        This may be implemented by derived classes, and is an optimization that allows evaluation subsets of source.
-        
-        Returns
-        -------
-        :class:`podpac.Coordinates`
-            Coordinates describing each source.
-        """
-        return None
-
-    @tl.default("shared_coordinates")
-    def _shared_coordinates_default(self):
-        return self.get_shared_coordinates()
-
-    def get_shared_coordinates(self):
-        """Coordinates shared by each source.
-        
-        Raises
-        ------
-        NotImplementedError
-            Description
-        """
-        raise NotImplementedError()
 
     def select_sources(self, coordinates):
         """Downselect compositor sources based on requested coordinates.
@@ -197,11 +148,11 @@ class Compositor(Node):
             except:  # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
             i = I[0]
-            src_subset = self.sources[i]
+            src_subset = np.array(self.sources)[i]
 
         # no downselection possible - get all sources compositor
         else:
-            src_subset = self.sources
+            src_subset = np.array(self.sources)
 
         return src_subset
 
@@ -258,9 +209,7 @@ class Compositor(Node):
             crs = self.source_coordinates.crs
             for s, c in zip(src_subset, coords_subset):
                 nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim], crs=crs), self.shared_coordinates])
-
-                if trait_is_defined(s, "native_coordinates") is False:
-                    s.set_trait("native_coordinates", nc)
+                s.set_native_coordinates(nc)
 
         if settings["MULTITHREADING"]:
             n_threads = thread_manager.request_n_threads(len(src_subset))
@@ -319,6 +268,14 @@ class Compositor(Node):
         """
 
         raise NotImplementedError("TODO")
+
+    @property
+    def _repr_keys(self):
+        """list of attribute names, used by __repr__ and __str__ to display minimal info about the node"""
+        keys = []
+        if self.trait_is_defined("sources"):
+            keys.append("sources")
+        return keys
 
 
 class OrderedCompositor(Compositor):

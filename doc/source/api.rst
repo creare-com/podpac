@@ -220,8 +220,8 @@ Utilities
     :toctree: api/
     :template: class.rst
 
-    podpac.authentication.SessionWithHeaderRedirection
-    podpac.authentication.EarthDataSession
+    podpac.authentication.RequestsSessionMixin
+    podpac.authentication.S3Mixin
 
 
 .. rubric:: Settings
@@ -244,7 +244,6 @@ Utilities
     podpac.utils.cached_property
     podpac.utils.NoCacheMixin
     podpac.utils.DiskCacheMixin
-    podpac.utils.S3Mixin
     podpac.utils.NodeTrait
 
 

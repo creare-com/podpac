@@ -75,18 +75,6 @@ def trait_is_defined(obj, trait_name):
     return obj.has_trait(trait_name) and trait_name in obj._trait_values
 
 
-def trait_is_default(obj, trait_name):
-    trait = obj.traits()[trait_name]
-    value = getattr(obj, trait_name)
-
-    if not isinstance(trait.default_value, (np.ndarray, xr.DataArray)) and trait.default_value == tl.Undefined:
-        return None
-    elif isinstance(value, (np.ndarray, xr.DataArray)) or isinstance(trait.default_value, (np.ndarray, xr.DataArray)):
-        return np.array_equal(value, trait.default_value)
-    else:
-        return value == trait.default_value
-
-
 def create_logfile(
     filename=settings.settings["LOG_FILE_PATH"],
     level=logging.INFO,
@@ -304,18 +292,28 @@ def _get_query_params_from_url(url):
     return params
 
 
-def _get_from_url(url):
+def _get_from_url(url, session=None):
     """Helper function to get data from an url with error checking.
-
+    
     Parameters
-    -----------
-    auth_session: podpac.core.authentication.EarthDataSession
-        Authenticated EDS session
-    url: str
+    ----------
+    url : str
         URL to website
+    session : :class:`requests.Session`, optional
+        Requests session to use when making the GET request to `url`
+    
+    Returns
+    -------
+    str
+        Text response from request.
+        See https://2.python-requests.org/en/master/api/#requests.Response.text
     """
     try:
-        r = requests.get(url)
+        if session is None:
+            r = requests.get(url)
+        else:
+            r = session.get(url)
+
         if r.status_code != 200:
             _log.warning(
                 "Could not connect to {}, status code {}. \n *** Return Text *** \n {} \n *** End Return Text ***".format(
@@ -328,7 +326,8 @@ def _get_from_url(url):
         r = None
     except RuntimeError as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
-    return r.text
+
+    return r
 
 
 def cached_property(*args, **kwargs):
@@ -343,7 +342,8 @@ def cached_property(*args, **kwargs):
 
     Notes
     -----
-    The property should not depend on any other attributes that are not tagged with ``attr=True``.
+    Podpac caching using the cache_ctrl will be unreliable if the property depends on any non-tagged traits.
+    The property should only use node attrs (traits tagged with ``attr=True``).
 
     Examples
     --------

@@ -45,16 +45,28 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
     lon_key = tl.Union([tl.Unicode(), tl.Int()], default_value="lon").tag(attr=True)
     time_key = tl.Union([tl.Unicode(), tl.Int()], default_value="time").tag(attr=True)
     alt_key = tl.Union([tl.Unicode(), tl.Int()], default_value="alt").tag(attr=True)
-    data_key = tl.Union([tl.Unicode(), tl.Int()], allow_none=True, default_value=None).tag(attr=True)
-    output_keys = tl.Union([tl.List(tl.Unicode()), tl.List(tl.Int())], allow_none=True).tag(attr=True)
+    data_key = tl.Union([tl.Unicode(), tl.Int(), tl.List(trait=tl.Unicode()), tl.List(trait=tl.Int())]).tag(attr=True)
 
     @tl.default("data_key")
     def _default_data_key(self):
         return super(CSV, self)._default_data_key()
 
-    @tl.default("output_keys")
-    def _default_output_keys(self):
-        return super(CSV, self)._default_output_keys()
+    @tl.validate("data_key")
+    def _validate_data_key(self, d):
+        keys = d["value"]
+        if not isinstance(keys, list):
+            keys = [d["value"]]
+
+        if isinstance(keys[0], int):
+            for col in keys:
+                if col not in self.available_data_cols:
+                    raise ValueError("Invalid data_key %d, available columns are %s" % (col, self.available_data_cols))
+        else:
+            for key in keys:
+                if key not in self.available_data_keys:
+                    raise ValueError("Invalid data_key '%s', available keys are %s" % (key, self.available_data_keys))
+
+        return d["value"]
 
     # -------------------------------------------------------------------------
     # public api methods
@@ -79,15 +91,28 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
         """available data keys"""
         return self.dataset.columns.tolist()
 
-    @common_doc(COMMON_DATA_DOC)
     @cached_property
-    def native_coordinates(self):
+    def available_data_keys(self):
+        """available data keys"""
+
+        dim_keys = [self._get_key(key) for key in [self.lat_key, self.lon_key, self.alt_key, self.time_key]]
+        keys = [key for key in self.keys if key not in dim_keys]
+        if len(keys) == 0:
+            raise ValueError("No data keys found in '%s'" % self.source)
+        return keys
+
+    @cached_property
+    def available_data_cols(self):
+        return [self._get_col(key) for key in self.available_data_keys]
+
+    @common_doc(COMMON_DATA_DOC)
+    def get_native_coordinates(self):
         """{get_native_coordinates}
         
         Note: CSV files have StackedCoordinates.
         """
 
-        coords = super(CSV, self).native_coordinates
+        coords = super(CSV, self).get_native_coordinates()
         if len(coords) == 1:
             return coords
         stacked = StackedCoordinates(list(coords.values()))
@@ -98,10 +123,10 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
         """{get_data}
         """
 
-        if self.data_key is not None:
+        if not isinstance(self.data_key, list):
             I = self._get_col(self.data_key)
         else:
-            I = [self._get_col(key) for key in self.output_keys]
+            I = [self._get_col(key) for key in self.data_key]
         data = self.dataset.iloc[coordinates_index[0], I]
         return self.create_output_array(coordinates, data=data)
 

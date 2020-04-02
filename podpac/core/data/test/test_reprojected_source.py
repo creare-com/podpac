@@ -42,7 +42,7 @@ class TestReprojectedSource(object):
 
     def test_get_data(self):
         """test get data from reprojected source"""
-        source = Array(data=self.data, native_coordinates=self.native_coordinates)
+        source = Array(source=self.data, native_coordinates=self.native_coordinates)
         node = ReprojectedSource(source=source, reprojected_coordinates=source.native_coordinates)
         output = node.eval(node.native_coordinates)
 
@@ -50,16 +50,16 @@ class TestReprojectedSource(object):
         """test get data from reprojected source"""
 
         # no source_interpolation
-        source = Array(data=self.data, native_coordinates=self.native_coordinates, interpolation="nearest")
+        source = Array(source=self.data, native_coordinates=self.native_coordinates, interpolation="nearest")
         node = ReprojectedSource(source=source, reprojected_coordinates=self.reprojected_coordinates)
         assert source.interpolation == "nearest"
         assert node.source.interpolation == "nearest"
         assert node.eval_source.interpolation == "nearest"
         assert node.eval_source.native_coordinates == source.native_coordinates
-        np.testing.assert_array_equal(node.eval_source.data, source.data)
+        np.testing.assert_array_equal(node.eval_source.source, source.source)
 
         # matching source_interpolation
-        source = Array(data=self.data, native_coordinates=self.native_coordinates, interpolation="nearest")
+        source = Array(source=self.data, native_coordinates=self.native_coordinates, interpolation="nearest")
         node = ReprojectedSource(
             source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="nearest"
         )
@@ -67,10 +67,10 @@ class TestReprojectedSource(object):
         assert node.source.interpolation == "nearest"
         assert node.eval_source.interpolation == "nearest"
         assert node.eval_source.native_coordinates == source.native_coordinates
-        np.testing.assert_array_equal(node.eval_source.data, source.data)
+        np.testing.assert_array_equal(node.eval_source.source, source.source)
 
         # non-matching source_interpolation
-        source = Array(data=self.data, native_coordinates=self.native_coordinates, interpolation="nearest")
+        source = Array(source=self.data, native_coordinates=self.native_coordinates, interpolation="nearest")
         node = ReprojectedSource(
             source=source, reprojected_coordinates=self.reprojected_coordinates, source_interpolation="bilinear"
         )
@@ -78,7 +78,7 @@ class TestReprojectedSource(object):
         assert node.source.interpolation == "nearest"
         assert node.eval_source.interpolation == "bilinear"
         assert node.eval_source.native_coordinates == source.native_coordinates
-        np.testing.assert_array_equal(node.eval_source.data, source.data)
+        np.testing.assert_array_equal(node.eval_source.source, source.source)
 
         # no source.interpolation to set (trigger logger warning)
         source = Node()

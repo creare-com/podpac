@@ -85,10 +85,10 @@ class EGI(DataSource):
         If this setting is not defined, the node will attempt to generate a token using
         :attr:`self.username` and :attr:`self.password`
     username : str, optional
-        EarthData username (https://urs.earthdata.nasa.gov/)
+        Earthdata username (https://urs.earthdata.nasa.gov/)
         If undefined, node will look for a username under setting key "username@urs.earthdata.nasa.gov"
     password : str, optional
-        EarthData password (https://urs.earthdata.nasa.gov/)
+        Earthdata password (https://urs.earthdata.nasa.gov/)
         If undefined, node will look for a password under setting key "password@urs.earthdata.nasa.gov"
 
     Attributes
@@ -198,13 +198,12 @@ class EGI(DataSource):
         # other parameters are included at eval time
         return url
 
-    @property
-    def native_coordinates(self):
-        if self.data is not None:
-            return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs["crs"])
-        else:
+    def get_native_coordinates(self):
+        if self.data is None:
             _log.warning("No coordinates found in EGI source")
             return Coordinates([], dims=[])
+
+        return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs["crs"])
 
     def get_data(self, coordinates, coordinates_index):
         if self.data is not None:
@@ -496,7 +495,7 @@ class EGI(DataSource):
 
     def get_token(self):
         """
-        Get token for EGI interface using EarthData credentials
+        Get token for EGI interface using Earthdata credentials
         
         Returns
         -------
@@ -506,7 +505,7 @@ class EGI(DataSource):
         Raises
         ------
         ValueError
-            Raised if EarthData username or password is unavailable
+            Raised if Earthdata username or password is unavailable
         """
         # token access URL
         url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/tokens"
@@ -514,12 +513,12 @@ class EGI(DataSource):
         if self.username is not None:
             settings["username@EGI"] = self.username
         else:
-            raise ValueError("No EarthData username available to request EGI token")
+            raise ValueError("No Earthdata username available to request EGI token")
 
         if self.password is not None:
             settings["password@EGI"] = self.password
         else:
-            raise ValueError("No EarthData password available to request EGI token")
+            raise ValueError("No Earthdata password available to request EGI token")
 
         _ip = self._get_ip()
         request = """

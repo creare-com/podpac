@@ -56,8 +56,8 @@ class TestDataset(object):
         np.testing.assert_array_equal(out, self.other)
         node.close_dataset()
 
-    def test_get_data_multilpe(self):
-        node = Dataset(source=self.source, time_key="day", output_keys=["data", "other"])
+    def test_get_data_multiple(self):
+        node = Dataset(source=self.source, time_key="day", data_key=["data", "other"])
         out = node.eval(node.native_coordinates)
         assert out.dims == ("time", "lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["data", "other"])
@@ -66,7 +66,7 @@ class TestDataset(object):
         node.close_dataset()
 
         # single
-        node = Dataset(source=self.source, time_key="day", output_keys=["other"])
+        node = Dataset(source=self.source, time_key="day", data_key=["other"])
         out = node.eval(node.native_coordinates)
         assert out.dims == ("time", "lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["other"])
@@ -74,7 +74,7 @@ class TestDataset(object):
         node.close_dataset()
 
         # alternate output names
-        node = Dataset(source=self.source, time_key="day", output_keys=["data", "other"], outputs=["a", "b"])
+        node = Dataset(source=self.source, time_key="day", data_key=["data", "other"], outputs=["a", "b"])
         out = node.eval(node.native_coordinates)
         assert out.dims == ("time", "lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["a", "b"])
@@ -92,5 +92,8 @@ class TestDataset(object):
         node.close_dataset()
 
     def test_extra_dim(self):
+        # default
+        node = Dataset(source=self.source)
+        assert node.extra_dim is None
+
         # TODO
-        pass

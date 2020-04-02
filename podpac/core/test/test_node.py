@@ -16,7 +16,6 @@ import six
 import pytest
 import numpy as np
 import xarray as xr
-import s3fs
 from pint.errors import DimensionalityError, UndefinedUnitError
 from pint import UnitRegistry
 
@@ -31,7 +30,7 @@ from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
 from podpac.core.node import Node, NodeException
 from podpac.core.node import node_eval
-from podpac.core.node import NoCacheMixin, DiskCacheMixin, S3Mixin
+from podpac.core.node import NoCacheMixin, DiskCacheMixin
 
 
 class TestNode(object):
@@ -121,10 +120,9 @@ class TestNode(object):
             node = MyNode()
             assert not node.traits()["my_attr"].read_only
 
-    def test_trait_helpers(self):
+    def test_trait_is_defined(self):
         node = Node()
         assert node.trait_is_defined("units")
-        assert node.trait_is_default("units")
 
     def test_init(self):
         class MyNode(Node):
@@ -136,6 +134,43 @@ class TestNode(object):
 
         node = MyNode()
         assert node.init_run
+
+    def test_attrs(self):
+        class MyNode(Node):
+            my_attr = tl.Any().tag(attr=True)
+            my_trait = tl.Any()
+
+        n = MyNode()
+        assert "my_attr" in n.attrs
+        assert "my_trait" not in n.attrs
+
+    def test_repr(self):
+        n = Node()
+        repr(n)
+
+        n = Node(outputs=["a", "b"])
+        repr(n)
+        assert "outputs=" in repr(n)
+        assert "output=" not in repr(n)
+
+        n = Node(outputs=["a", "b"], output="a")
+        repr(n)
+        assert "outputs=" not in repr(n)
+        assert "output=" in repr(n)
+
+    def test_str(self):
+        n = Node()
+        str(n)
+
+        n = Node(outputs=["a", "b"])
+        str(n)
+        assert "outputs=" in str(n)
+        assert "output=" not in str(n)
+
+        n = Node(outputs=["a", "b"], output="a")
+        str(n)
+        assert "outputs=" not in str(n)
+        assert "output=" in str(n)
 
     def test_eval_group(self):
         class MyNode(Node):
@@ -414,8 +449,8 @@ class TestSerialization(object):
     @classmethod
     def setup_class(cls):
         a = podpac.algorithm.Arange()
-        b = podpac.data.Array(data=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
-        c = podpac.compositor.OrderedCompositor(sources=np.array([a, b]))
+        b = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
+        c = podpac.compositor.OrderedCompositor(sources=[a, b])
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", "Insecure evaluation.*")
@@ -423,13 +458,13 @@ class TestSerialization(object):
 
     def test_base_ref(self):
         node = Node()
-        assert isinstance(node.base_ref, str)
+        assert isinstance(node.base_ref, six.string_types)
 
     def test_base_definition(self):
         node = Node()
         d = node._base_definition
         assert "node" in d
-        assert isinstance(d["node"], str)
+        assert isinstance(d["node"], six.string_types)
 
     def test_base_definition_attrs(self):
         class MyNode(Node):
@@ -479,23 +514,19 @@ class TestSerialization(object):
         d = node._base_definition
         assert "style" in node._base_definition
 
-    def test_base_definition_no_default_attrs(self):
-        class MyNode(Node):
-            my_attr = tl.Int(default_value=1).tag(attr=True)
+    def test_base_definition_remove_unnecessary_attrs(self):
+        node = Node(outputs=["a", "b"], output="a", units="m")
+        d = node._base_definition
+        assert "outputs" in d["attrs"]
+        assert "output" in d["attrs"]
+        assert "units" in d["attrs"]
 
-        node = MyNode()
+        node = Node()
         d = node._base_definition
         if "attrs" in d:
-            assert "my_attr" not in d["attrs"]
-
-        node = MyNode(my_attr=1)
-        d = node._base_definition
-        if "attrs" in d:
-            assert "my_attr" not in d["attrs"]
-
-        node = MyNode(my_attr=2)
-        d = node._base_definition
-        assert "attrs" in d and "my_attr" in d["attrs"]
+            assert "outputs" not in d["attrs"]
+            assert "output" not in d["attrs"]
+            assert "units" not in d["attrs"]
 
     def test_definition(self):
         # definition
@@ -547,7 +578,7 @@ class TestSerialization(object):
     def test_json(self):
         # json
         s = self.node.json
-        assert isinstance(s, str)
+        assert isinstance(s, six.string_types)
         assert json.loads(s)
 
         # test from_json
@@ -583,7 +614,7 @@ class TestSerialization(object):
     def test_json_pretty(self):
         node = Node()
         s = node.json_pretty
-        assert isinstance(s, str)
+        assert isinstance(s, six.string_types)
         json.loads(s)
 
     def test_hash(self):
@@ -649,7 +680,7 @@ class TestSerialization(object):
 
     def test_style(self):
         node = podpac.data.Array(
-            data=[10, 20, 30],
+            source=[10, 20, 30],
             native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]),
             style=Style(name="test", units="m"),
         )
@@ -666,7 +697,7 @@ class TestSerialization(object):
         assert node2.style.units == "m"
 
         # default style
-        node = podpac.data.Array(data=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
+        node = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         d = node.definition
         assert "style" not in d[node.base_ref]
 
@@ -901,20 +932,6 @@ class TestDiskCacheMixin(object):
     def test_customizable(self):
         node = self.DiskCacheNode(cache_ctrl=["ram"])
         assert len(node.cache_ctrl._cache_stores) == 1
-
-
-class TestS3Mixin(object):
-    class S3Node(S3Mixin, Node):
-        pass
-
-    def test_anon(self):
-        node = self.S3Node(anon=True)
-        assert isinstance(node.s3, s3fs.S3FileSystem)
-
-    @pytest.mark.aws
-    def test_auth(self):
-        node = self.S3Node()
-        assert isinstance(node.s3, s3fs.S3FileSystem)
 
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)

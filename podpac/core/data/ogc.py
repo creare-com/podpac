@@ -56,6 +56,9 @@ class WCS(DataSource):
     version = tl.Unicode(default_value=WCS_DEFAULT_VERSION).tag(attr=True)
     crs = tl.Unicode(default_value=WCS_DEFAULT_CRS).tag(attr=True)
 
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
+    _repr_keys = ["source"]
+
     _get_capabilities_qs = tl.Unicode("SERVICE=WCS&REQUEST=DescribeCoverage&" "VERSION={version}&COVERAGE={layer}")
     _get_data_qs = tl.Unicode(
         "SERVICE=WCS&VERSION={version}&REQUEST=GetCoverage&"
@@ -163,15 +166,9 @@ class WCS(DataSource):
             ]
         )
 
-    @cached_property
     @common_doc(COMMON_DATA_DOC)
-    def native_coordinates(self):
-        """{native_coordinates}
-        
-        Returns
-        -------
-        Coordinates
-            {native_coordinates}
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
             
         Notes
         ------

@@ -42,7 +42,7 @@ def make_cache_ctrl(stores):
         CachCtrl using the specified cache stores
     """
 
-    if isinstance(stores, str):
+    if isinstance(stores, six.string_types):
         stores = [stores]
 
     cache_stores = []

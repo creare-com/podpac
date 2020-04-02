@@ -33,6 +33,9 @@ class ReprojectedSource(DataSource):
     source_interpolation = InterpolationTrait().tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
+    _repr_keys = ["source"]
+
     def _first_init(self, **kwargs):
         if "reprojected_coordinates" in kwargs:
             if isinstance(kwargs["reprojected_coordinates"], dict):
@@ -63,8 +66,7 @@ class ReprojectedSource(DataSource):
         return source
 
     @common_doc(COMMON_DATA_DOC)
-    @cached_property
-    def native_coordinates(self):
+    def get_native_coordinates(self):
         """{get_native_coordinates}
         """
 

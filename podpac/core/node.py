@@ -15,14 +15,14 @@ from hashlib import md5 as hash_alg
 
 import numpy as np
 import traitlets as tl
-from lazy_import import lazy_module
+import six
 
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
 from podpac.core.utils import JSONEncoder
 from podpac.core.utils import cached_property
-from podpac.core.utils import trait_is_defined, trait_is_default
+from podpac.core.utils import trait_is_defined
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
@@ -121,7 +121,9 @@ class Node(tl.HasTraits):
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 
-    outputs.default_value = None
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
+    # e.g. data sources use ['source']
+    _repr_keys = []
 
     @tl.default("outputs")
     def _default_outputs(self):
@@ -181,7 +183,7 @@ class Node(tl.HasTraits):
                         self.set_trait(name, tkwargs.pop(name))
                     trait.read_only = True
 
-        # Call traitlest constructor
+        # Call traitlets constructor
         super(Node, self).__init__(**tkwargs)
         self.init()
 
@@ -204,6 +206,28 @@ class Node(tl.HasTraits):
         """Overwrite this method if a node needs to do any additional initialization after the standard initialization.
         """
         pass
+
+    @property
+    def attrs(self):
+        """List of node attributes"""
+        return [name for name in self.traits() if self.trait_metadata(name, "attr")]
+
+    @property
+    def _repr_info(self):
+        keys = self._repr_keys[:]
+        if self.trait_is_defined("output") and self.output is not None:
+            if "output" not in keys:
+                keys.append("output")
+        elif self.trait_is_defined("outputs") and self.outputs is not None:
+            if "outputs" not in keys:
+                keys.append("outputs")
+        return ", ".join("%s=%s" % (key, repr(getattr(self, key))) for key in keys)
+
+    def __repr__(self):
+        return "<%s(%s)>" % (self.__class__.__name__, self._repr_info)
+
+    def __str__(self):
+        return "<%s(%s) attrs: %s>" % (self.__class__.__name__, self._repr_info, ", ".join(self.attrs))
 
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None):
@@ -287,9 +311,6 @@ class Node(tl.HasTraits):
     def trait_is_defined(self, name):
         return trait_is_defined(self, name)
 
-    def trait_is_default(self, name):
-        return trait_is_default(self, name)
-
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------
@@ -310,6 +331,7 @@ class Node(tl.HasTraits):
     def _base_definition(self):
         d = OrderedDict()
 
+        # node and plugin
         if self.__module__ == "podpac":
             d["node"] = self.__class__.__name__
         elif self.__module__.startswith("podpac."):
@@ -319,16 +341,10 @@ class Node(tl.HasTraits):
             d["plugin"] = self.__module__
             d["node"] = self.__class__.__name__
 
-        inputs = {}  # for node attrs
-        attrs = {}  # for other attrs
-
-        for name, trait in self.traits().items():
-            if not trait.metadata.get("attr", False):
-                continue
-
-            if self.trait_is_default(name):
-                continue
-
+        # attrs/inputs
+        attrs = {}
+        inputs = {}
+        for name in self.attrs:
             value = getattr(self, name)
 
             if (
@@ -340,12 +356,22 @@ class Node(tl.HasTraits):
             else:
                 attrs[name] = value
 
-        if inputs:
-            d["inputs"] = inputs
+        if "units" in attrs and attrs["units"] is None:
+            del attrs["units"]
+
+        if "outputs" in attrs and attrs["outputs"] is None:
+            del attrs["outputs"]
+
+        if "output" in attrs and attrs["output"] is None:
+            del attrs["output"]
 
         if attrs:
             d["attrs"] = attrs
 
+        if inputs:
+            d["inputs"] = inputs
+
+        # style
         if self.style != Style() and self.style.definition:
             d["style"] = self.style.definition
 
@@ -763,7 +789,7 @@ def _lookup_input(nodes, name, value):
         return {k: _lookup_input(nodes, name, v) for k, v in value.items()}
 
     # node reference
-    if not isinstance(value, str):
+    if not isinstance(value, six.string_types):
         raise ValueError(
             "Invalid definition for node '%s': invalid reference '%s' of type '%s' in inputs"
             % (name, value, type(value))
@@ -791,7 +817,7 @@ def _lookup_attr(nodes, name, value):
     if isinstance(value, dict):
         return {_k: _lookup_attr(nodes, name, v) for k, v in value.items()}
 
-    if not isinstance(value, str):
+    if not isinstance(value, six.string_types):
         raise ValueError(
             "Invalid definition for node '%s': invalid reference '%s' of type '%s' in lookup_attrs"
             % (name, value, type(value))
@@ -849,42 +875,6 @@ class DiskCacheMixin(tl.HasTraits):
         if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
             stores.append(DiskCacheStore())
         return CacheCtrl(stores)
-
-
-class S3Mixin(tl.HasTraits):
-    """ Mixin to add S3 credentials and access to a Node. """
-
-    anon = tl.Bool(False)
-    aws_access_key_id = tl.Unicode(allow_none=True)
-    aws_secret_access_key = tl.Unicode(allow_none=True)
-    aws_region_name = tl.Unicode(allow_none=True)
-    aws_client_kwargs = tl.Dict()
-
-    @tl.default("aws_access_key_id")
-    def _get_access_key_id(self):
-        return settings["AWS_ACCESS_KEY_ID"]
-
-    @tl.default("aws_secret_access_key")
-    def _get_secret_access_key(self):
-        return settings["AWS_SECRET_ACCESS_KEY"]
-
-    @tl.default("aws_region_name")
-    def _get_region_name(self):
-        return settings["AWS_REGION_NAME"]
-
-    @cached_property
-    def s3(self):
-        s3fs = lazy_module("s3fs")
-
-        if self.anon:
-            return s3fs.S3FileSystem(anon=True, client_kwargs=self.aws_client_kwargs)
-        else:
-            return s3fs.S3FileSystem(
-                key=self.aws_access_key_id,
-                secret=self.aws_secret_access_key,
-                region_name=self.aws_region_name,
-                client_kwargs=self.aws_client_kwargs,
-            )
 
 
 # --------------------------------------------------------#

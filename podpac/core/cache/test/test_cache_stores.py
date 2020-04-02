@@ -15,7 +15,7 @@ from podpac.core.cache.s3_cache_store import S3CacheStore
 
 COORDS1 = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
 COORDS2 = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"])
-NODE1 = podpac.data.Array(data=np.ones(COORDS1.shape), native_coordinates=COORDS1)
+NODE1 = podpac.data.Array(source=np.ones(COORDS1.shape), native_coordinates=COORDS1)
 NODE2 = podpac.algorithm.Arange()
 
 

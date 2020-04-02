@@ -1739,7 +1739,7 @@ def put_object(session, bucket_name, bucket_path, file=None, object_acl="private
     object_config = {"ACL": object_acl, "Bucket": bucket_name, "Key": bucket_path}
 
     object_body = None
-    if isinstance(file, str):
+    if isinstance(file, string_types):
         with open(file, "rb") as f:
             object_body = f.read()
     else:
