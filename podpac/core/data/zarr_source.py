@@ -49,14 +49,20 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
     coordinate_index_type = "slice"
 
-    @cached_property
-    def dataset(self):
+    def _get_store(self):
         if self.source.startswith("s3://"):
-            root = self.source.strip("s3://")
-            s3map = s3fs.S3Map(root=root, s3=self.s3, check=False)
+            root = source.strip("s3://")
+            kwargs = {"region_name": self.region_name}
+            s3 = s3fs.S3FileSystem(key=self.access_key_id, secret=self.secret_access_key, client_kwargs=kwargs)
+            s3map = s3fs.S3Map(root=root, s3=s3, check=False)
             store = s3map
         else:
             store = str(self.source)  # has to be a string in Python2.7 for local files
+        return store
+
+    @cached_property
+    def dataset(self):
+        store = self._get_store()
 
         try:
             return zarr.open(store, mode=self.file_mode)
