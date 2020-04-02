@@ -67,7 +67,7 @@ class TestConvolution(object):
         lon = clinspace(-80, 70, 40, name="lon")
         kernel = [[1, 2, 1]]
         coords = Coordinates([lat, lon])
-        multi = Array(data=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
+        multi = Array(source=np.random.random(coords.shape + (2,)), native_coordinates=coords, outputs=["a", "b"])
         node = Convolution(source=multi, kernel=kernel)
         o = node.eval(Coordinates([lat, lon]))
 
@@ -78,7 +78,7 @@ class TestConvolution(object):
 
         data = np.ones(coords.shape)
         data[10, 10] = np.nan
-        source = Array(data=data, native_coordinates=coords)
+        source = Array(source=data, native_coordinates=coords)
         node = Convolution(source=source, kernel=[[1, 2, 1]])
 
         o = node.eval(coords[8:12, 7:13])

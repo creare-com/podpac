@@ -449,7 +449,7 @@ class TestSerialization(object):
     @classmethod
     def setup_class(cls):
         a = podpac.algorithm.Arange()
-        b = podpac.data.Array(data=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
+        b = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         c = podpac.compositor.OrderedCompositor(sources=[a, b])
 
         with warnings.catch_warnings():
@@ -680,7 +680,7 @@ class TestSerialization(object):
 
     def test_style(self):
         node = podpac.data.Array(
-            data=[10, 20, 30],
+            source=[10, 20, 30],
             native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]),
             style=Style(name="test", units="m"),
         )
@@ -697,7 +697,7 @@ class TestSerialization(object):
         assert node2.style.units == "m"
 
         # default style
-        node = podpac.data.Array(data=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
+        node = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         d = node.definition
         assert "style" not in d[node.base_ref]
 

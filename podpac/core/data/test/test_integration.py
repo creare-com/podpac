@@ -29,7 +29,7 @@ class TestDataSourceIntegration:
         lat = np.random.rand(16)
         lon = np.random.rand(16)
         coord = Coordinate(lat_lon=(lat, lon), time=(0, 10, 11), order=["lat_lon", "time"])
-        node = Array(data=arr, native_coordinates=coord)
+        node = Array(source=arr, native_coordinates=coord)
 
         coordg = Coordinate(lat=(0, 1, 8), lon=(0, 1, 8), order=("lat", "lon"))
         coordt = Coordinate(time=(3, 5, 2))
@@ -85,11 +85,11 @@ class TestDataSourceIntegration:
             self.lonSource = LON
             self.timeSource = TIME
 
-            self.nasLat = Array(data=LAT.astype(float), native_coordinates=self.coord_src, interpolation="bilinear")
+            self.nasLat = Array(source=LAT.astype(float), native_coordinates=self.coord_src, interpolation="bilinear")
 
-            self.nasLon = Array(data=LON.astype(float), native_coordinates=self.coord_src, interpolation="bilinear")
+            self.nasLon = Array(source=LON.astype(float), native_coordinates=self.coord_src, interpolation="bilinear")
 
-            self.nasTime = Array(data=TIME.astype(float), native_coordinates=self.coord_src, interpolation="bilinear")
+            self.nasTime = Array(source=TIME.astype(float), native_coordinates=self.coord_src, interpolation="bilinear")
 
         def test_raster_to_raster(self):
             coord_dst = Coordinates([clinspace(5.0, 40.0, 50), clinspace(-68.0, -66.0, 100)], dims=["lat", "lon"])
