@@ -25,17 +25,8 @@ install_requires = [
     "requests>=2.18",
     "lazy-import>=0.2.2",
     "psutil",
+    "pyproj>=2.4"
 ]
-
-if sys.version_info.major == 2:
-    install_requires += [
-        "future>=0.16",
-        "pyproj>=2.2"
-    ]
-else:
-    install_requires += [
-        "pyproj>=2.4"
-    ]
 
 extras_require = {
     "datatype": [
