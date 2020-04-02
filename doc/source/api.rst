@@ -220,8 +220,7 @@ Utilities
     :toctree: api/
     :template: class.rst
 
-    podpac.authentication.SessionWithHeaderRedirection
-    podpac.authentication.EarthDataSession
+    podpac.authentication.RequestsSessionMixin
     podpac.authentication.S3Mixin
 
 

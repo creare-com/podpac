@@ -173,6 +173,8 @@ class UnaryAlgorithm(BaseAlgorithm):
     """
 
     source = NodeTrait().tag(attr=True)
+
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     _repr_keys = ["source"]
 
     @tl.default("outputs")

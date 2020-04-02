@@ -120,6 +120,8 @@ class Node(tl.HasTraits):
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
+    # e.g. data sources use ['source']
     _repr_keys = []
 
     @tl.default("outputs")

@@ -8,7 +8,7 @@ from podpac.datalib import smap
 
 from podpac import settings
 
-# dummy class mixing in EarthDataSession
+# dummy class mixing in custom Earthdata requests Session
 class SomeSmapNode(smap.SMAPSessionMixin):
     pass
 

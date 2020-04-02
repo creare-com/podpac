@@ -33,6 +33,7 @@ class ReprojectedSource(DataSource):
     source_interpolation = InterpolationTrait().tag(attr=True)
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     _repr_keys = ["source"]
 
     def _first_init(self, **kwargs):

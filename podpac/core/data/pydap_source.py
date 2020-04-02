@@ -47,6 +47,7 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
     source = tl.Unicode().tag(attr=True)
     data_key = tl.Unicode().tag(attr=True)
 
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     _repr_keys = ["source"]
 
     # hostname for RequestsSession is source. Try parsing off netloc

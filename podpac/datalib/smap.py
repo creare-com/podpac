@@ -214,7 +214,7 @@ def SMAP_BASE_URL():
 class SMAPSessionMixin(authentication.RequestsSessionMixin):
     """SMAP requests authentication session.
     Implements :class:`authentication.RequestsSessionMixin` with hostname specific to SMAP authentication.
-    Overrides the :meth:`requests.Session.rebuild_auth` method to handle authorization redirect from the EarthData portal
+    Overrides the :meth:`requests.Session.rebuild_auth` method to handle authorization redirect from the Earthdata portal
     """
 
     hostname = "urs.earthdata.nasa.gov"
@@ -582,6 +582,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, OrderedCompositor):
     date_url_re = re.compile(r"[0-9]{8}")
     latlon_url_re = re.compile(r"[0-9]{3}[E,W][0-9]{2}[N,S]")
 
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     _repr_keys = ["product", "folder_date"]
 
     @tl.default("base_url")

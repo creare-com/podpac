@@ -12,11 +12,11 @@ NASA.
     * save their credentials as part of a PODPAC settings files
     * provide their username and password to the child class of a PyDAP node at runtime
    
-## Creating an EarthData Login Account
+## Creating an Earthdata Login Account
 
-* Go to the [EarthData Registration Page](https://urs.earthdata.nasa.gov/users/new)
+* Go to the [Earthdata Registration Page](https://urs.earthdata.nasa.gov/users/new)
   page and follow the instructions to register an account
-* Go to the [EarthData Login Page](https://urs.earthdata.nasa.gov/) to log into
+* Go to the [Earthdata Login Page](https://urs.earthdata.nasa.gov/) to log into
   your account
 * To enable OpenDAP access: 
     * Go to your [Profile](https://urs.earthdata.nasa.gov/profile) once logged in.
@@ -25,13 +25,13 @@ NASA.
     * Find the `NASA GESDICS DATA ARCHIVE`, `NSIDC V0 OPeNDAP`, and `NSIDC_DATAPOOL_OPS` applications
         * Additional applications may be required to access datasets of interest
     * For each, click the `APPROVE` button
-* At this stage, your EarthData account should be set up and ready to use for
+* At this stage, your Earthdata account should be set up and ready to use for
   accessing data through OpenDAP
     
-## Using EarthData Credentials in PODPAC
+## Using Earthdata Credentials in PODPAC
 
 
-PODPAC uses EarthData credentials to access the SMAP data source nodes.
+PODPAC uses Earthdata credentials to access the SMAP data source nodes.
 You can store the credentials for SMAP nodes using the `Node` method `set_credentials`.
 
 To store credentials for SMAP nodes, use the following code in an interactive Python session: 

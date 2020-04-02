@@ -271,6 +271,7 @@ class Compositor(Node):
 
     @property
     def _repr_keys(self):
+        """list of attribute names, used by __repr__ and __str__ to display minimal info about the node"""
         keys = []
         if self.trait_is_defined("sources"):
             keys.append("sources")

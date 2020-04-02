@@ -9,7 +9,7 @@ import rasterio
 
 from podpac.data import Rasterio
 from podpac.core import cache
-from podpac.node import DiskCacheMixin
+from podpac.utils import DiskCacheMixin
 from podpac.authentication import S3Mixin
 
 BUCKET = "modis-pds"
