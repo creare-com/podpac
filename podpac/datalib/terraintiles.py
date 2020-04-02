@@ -44,13 +44,7 @@ import numpy as np
 from podpac.data import Rasterio
 from podpac.compositor import OrderedCompositor
 from podpac.interpolators import Rasterio as RasterioInterpolator, ScipyGrid, ScipyPoint
-from podpac.data import interpolation_trait
-
-from lazy_import import lazy_module
-
-# optional imports
-s3fs = lazy_module("s3fs")
-rasterio = lazy_module("rasterio")
+from podpac.data import InterpolationTrait
 
 ####
 # private module attributes
@@ -58,7 +52,6 @@ rasterio = lazy_module("rasterio")
 
 # create log for module
 _logger = logging.getLogger(__name__)
-_s3 = s3fs.S3FileSystem(anon=True)
 
 
 class TerrainTilesSource(Rasterio):
@@ -75,15 +68,13 @@ class TerrainTilesSource(Rasterio):
         rasterio dataset
     """
 
-    outputs = None
-
     # parameters
     source = tl.Unicode().tag(readonly=True)
 
     # attributes
-    interpolation = interpolation_trait(
+    interpolation = InterpolationTrait(
         default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
-    ).tag(readonly=True)
+    ).tag(attr=True)
 
     @tl.default("crs")
     def _default_crs(self):
@@ -93,45 +84,6 @@ class TerrainTilesSource(Rasterio):
             return "EPSG:3857"
         if "normal" in self.source:
             return "EPSG:3857"
-
-    @tl.default("dataset")
-    def open_dataset(self):
-        """Opens the data source"""
-
-        cache_key = "fileobj"
-        with rasterio.MemoryFile() as f:
-
-            # load data from cache
-            if self.cache_ctrl and self.has_cache(key=cache_key):
-                _logger.debug("Retrieving terrain tile {} from cache'".format(self.source))
-                data = self.get_cache(key=cache_key)
-                f.write(data)
-
-            else:
-
-                # try finding local file first
-                try:
-                    with open(self.source, "rb") as localfile:
-                        data = localfile.read()
-
-                # download and put in cache
-                except FileNotFoundError:
-                    _logger.info("Downloading S3 fileobj: {}".format(self.source))
-                    with _s3.open(self.source, "rb") as s3file:
-                        data = s3file.read()
-
-                # write to memory file
-                f.write(data)
-
-                # put data in the cache
-                _logger.debug("Caching terrain tile {} in key 'fileobj'".format(self.source))
-                self.cache_ctrl  # confirm this is initialized
-                self.put_cache(data, key=cache_key)
-
-            f.seek(0)
-            dataset = f.open()
-
-        return dataset
 
     def get_data(self, coordinates, coordinates_index):
         data = super(TerrainTilesSource, self).get_data(coordinates, coordinates_index)
@@ -161,7 +113,7 @@ class TerrainTilesSource(Rasterio):
 
         # download the file
         _logger.debug("Downloading terrain tile {} to filepath: {}".format(self.source, filepath))
-        _s3.get(self.source, filepath)
+        self.s3.get(self.source, filepath)
 
 
 class TerrainTiles(OrderedCompositor):
@@ -195,8 +147,6 @@ class TerrainTiles(OrderedCompositor):
         Defaults to 'elevation-tiles-prod'
     """
 
-    outputs = None
-
     # parameters
     zoom = tl.Int(default_value=6).tag(attr=True)
     tile_format = tl.Enum(["geotiff", "terrarium", "normal"], default_value="geotiff").tag(attr=True)
@@ -205,17 +155,6 @@ class TerrainTiles(OrderedCompositor):
     @tl.default("sources")
     def _default_sources(self):
         return np.array([])
-
-    @property
-    def source(self):
-        """
-        S3 Bucket source of TerrainTiles
-
-        Returns
-        -------
-        str
-        """
-        return self.bucket
 
     def select_sources(self, coordinates):
         # get all the tile sources for the requested zoom level and coordinates
@@ -244,7 +183,7 @@ class TerrainTiles(OrderedCompositor):
             raise ValueError("No terrain tile sources selected. Evaluate node at coordinates to select sources.")
 
     def _create_source(self, source):
-        return TerrainTilesSource(source="{}/{}".format(self.bucket, source))
+        return TerrainTilesSource(source="s3://{}/{}".format(self.bucket, source), cache_ctrl=self.cache_ctrl)
 
 
 ############
@@ -480,3 +419,26 @@ def _mercator_to_tilespace(xm, ym, zoom):
     y = int(tiles * (np.pi - ym) / diameter)
 
     return x, y
+
+
+if __name__ == "__main__":
+    from podpac import Coordinates, clinspace
+
+    c = Coordinates([clinspace(40, 43, 1000), clinspace(-76, -72, 1000)], dims=["lat", "lon"])
+
+    print("TerrainTiles")
+    node = TerrainTiles(tile_format="geotiff", zoom=8)
+    output = node.eval(c)
+    print(output)
+
+    print("TerrainTiles cached")
+    node = TerrainTiles(tile_format="geotiff", zoom=8, cache_ctrl=["ram", "disk"])
+    output = node.eval(c)
+    print(output)
+
+    # tile urls
+    print("get tile urls")
+    print(np.array(get_tile_urls("geotiff", 1)))
+    print(np.array(get_tile_urls("geotiff", 9, coordinates=c)))
+
+    print("done")

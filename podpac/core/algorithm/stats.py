@@ -45,21 +45,6 @@ class Reduce(UnaryAlgorithm):
             kwargs["dims"] = [kwargs["dims"]]
         return super(Reduce, self)._first_init(**kwargs)
 
-    def _get_dims(self, out):
-        """
-        Translates requested reduction dimensions.
-        
-        Parameters
-        ----------
-        out : UnitsDataArray
-            The output array
-        
-        Returns
-        -------
-        list
-            List of dimensions after reduction
-        """
-
     def dims_axes(self, output):
         """Finds the indices for the dimensions that will be reduced. This is passed to numpy. 
         
@@ -840,6 +825,8 @@ class Percentile(ReduceOrthogonal):
 # Time-Grouped Reduce
 # =============================================================================
 
+_REDUCE_FUNCTIONS = ["all", "any", "count", "max", "mean", "median", "min", "prod", "std", "sum", "var", "custom"]
+
 
 class GroupReduce(UnaryAlgorithm):
     """
@@ -857,15 +844,12 @@ class GroupReduce(UnaryAlgorithm):
         Source node
     """
 
-    coordinates_source = NodeTrait(allow_none=True)
+    coordinates_source = NodeTrait(allow_none=True).tag(attr=True)
 
     # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
-    groupby = tl.CaselessStrEnum(["dayofyear"])  # could add season, month, etc
-
-    reduce_fn = tl.CaselessStrEnum(
-        ["all", "any", "count", "max", "mean", "median", "min", "prod", "std", "sum", "var", "custom"]
-    )
-    custom_reduce_fn = tl.Any()
+    groupby = tl.CaselessStrEnum(["dayofyear"]).tag(attr=True)  # could add season, month, etc
+    reduce_fn = tl.CaselessStrEnum(_REDUCE_FUNCTIONS).tag(attr=True)
+    custom_reduce_fn = tl.Any(allow_none=True, default_value=None).tag(attr=True)
 
     _source_coordinates = tl.Instance(Coordinates)
 

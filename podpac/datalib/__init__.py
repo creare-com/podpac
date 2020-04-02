@@ -25,4 +25,4 @@ from podpac.datalib import drought_monitor
 
 # intake requires python >= 3.6
 if sys.version >= "3.6":
-    from podpac.datalib.intake import IntakeCatalog
+    from podpac.datalib.intake_catalog import IntakeCatalog

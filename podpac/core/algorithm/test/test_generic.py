@@ -1,5 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import sys
 import warnings
 
 import pytest
@@ -10,25 +11,26 @@ import podpac
 from podpac.core.algorithm.utility import Arange, SinCoords
 from podpac.core.algorithm.generic import GenericInputs, Arithmetic, Generic, Mask, Combine
 
+if sys.version_info.major == 2:
+    from podpac.core.algorithm.generic import PermissionError
+
 
 class TestGenericInputs(object):
     def test_init(self):
         node = GenericInputs(a=Arange(), b=SinCoords())
-        assert "a" in node.inputs
-        assert "b" in node.inputs
+        assert node.inputs["a"] == Arange()
+        assert node.inputs["b"] == SinCoords()
+
+    def test_base_definition(self):
+        node = GenericInputs(a=Arange(), b=SinCoords())
+        d = node._base_definition
+        assert "inputs" in d
+        assert "a" in d["inputs"]
+        assert "b" in d["inputs"]
 
     def test_reserved_name(self):
         with pytest.raises(RuntimeError, match="Trait .* is reserved"):
             GenericInputs(style=SinCoords())
-
-    def test_serialization(self):
-        node = GenericInputs(a=Arange(), b=SinCoords())
-        d = node.definition
-        assert d[node.base_ref]["inputs"]["a"] in d
-        assert d[node.base_ref]["inputs"]["b"] in d
-
-        node2 = node.from_definition(d)
-        assert node2.hash == node.hash
 
 
 class TestArithmetic(object):

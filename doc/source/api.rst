@@ -108,29 +108,6 @@ Classes to manage interpolation
     podpac.interpolators.ScipyPoint
 
 
-Pipelines
----------
-
-.. autosummary::
-    :toctree: api/
-    :template: class.rst
-
-    podpac.pipeline.Pipeline
-    podpac.pipeline.PipelineError
-
-.. rubric:: Pipeline Outputs
-
-.. autosummary::
-    :toctree: api/
-    :template: class.rst
-    
-    podpac.pipeline.Output
-    podpac.pipeline.NoOutput
-    podpac.pipeline.FileOutput
-    podpac.pipeline.FTPOutput
-    podpac.pipeline.S3Output
-    podpac.pipeline.ImageOutput
-
 Algorithm Nodes
 ---------------
 
@@ -243,8 +220,8 @@ Utilities
     :toctree: api/
     :template: class.rst
 
-    podpac.authentication.SessionWithHeaderRedirection
-    podpac.authentication.EarthDataSession
+    podpac.authentication.RequestsSessionMixin
+    podpac.authentication.S3Mixin
 
 
 .. rubric:: Settings
@@ -264,6 +241,19 @@ Utilities
 
     podpac.utils.create_logfile
     podpac.utils.clear_cache
+    podpac.utils.cached_property
+    podpac.utils.NoCacheMixin
+    podpac.utils.DiskCacheMixin
+    podpac.utils.NodeTrait
+
+
+.. rubric:: Style
+
+.. autosummary::
+    :toctree: api/
+    :template: module.rst
+
+    podpac.style.Style
 
 
 .. rubric:: Version
