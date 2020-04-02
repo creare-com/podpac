@@ -21,8 +21,12 @@ class TestSMAPSessionMixin(object):
         assert node.hostname == self.url
 
     def test_auth_required(self):
-        del settings["username@urs.earthdata.nasa.gov"]
-        del settings["password@urs.earthdata.nasa.gov"]
+        # make sure auth is deleted from setttings, if it was already there
+        try:
+            del settings["username@urs.earthdata.nasa.gov"]
+            del settings["password@urs.earthdata.nasa.gov"]
+        except KeyError:
+            pass
 
         node = SomeSmapNode()
 
