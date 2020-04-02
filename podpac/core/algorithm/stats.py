@@ -7,6 +7,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 import warnings
 from operator import mul
 from functools import reduce
+import logging
 
 import xarray as xr
 import numpy as np
@@ -14,14 +15,18 @@ import scipy.stats
 import traitlets as tl
 from six import string_types
 
+# Internal dependencies
 import podpac
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
-from podpac.core.algorithm.algorithm import UnaryAlgorithm
+from podpac.core.algorithm.algorithm import UnaryAlgorithm, Algorithm
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, node_eval
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
+
+# Set up logging
+_log = logging.getLogger(__name__)
 
 
 class Reduce(UnaryAlgorithm):
@@ -959,3 +964,137 @@ class DayOfYear(GroupReduce):
     """
 
     groupby = "dayofyear"
+
+
+class DayOfYearWindow(Algorithm):
+    """
+    This applies a function over a moving window around day-of-year in the requested coordinates. 
+    It includes the ability to rescale the input/outputs. Note if, the input coordinates include multiple years, the
+    moving window will include all of the data inside the day-of-year window. 
+    
+    Users need to implement the 'function' method. 
+    
+    Attributes
+    -----------
+    source: podpac.Node
+        The source node from which the statistics will be computed
+    window: int, optional
+        Default is 0. The size of the window over which to compute the distrubtion. This is always centered about the   
+        day-of-year. The total number of days is always an odd number. For example, window=2 and window=3 will compute  
+        the beta distribution for [x-1, x, x + 1] and report it as the result for x, where x is a day of the year.
+    scale_max: podpac.Node, optional
+        Default is None. A source dataset that can be used to scale the maximum value of the source function so that it 
+        will fall between [0, 1]. If None, uses self.scale_float[0].
+    scale_min: podpac.Node, optional
+        Default is None. A source dataset that can be used to scale the minimum value of the source function so that it 
+        will fall between [0, 1]. If None, uses self.scale_float[1].
+    scale_float: list, optional
+        Default is None. Floating point numbers used to scale the max [0] and min [1] of the source so that it falls 
+        between [0, 1]. If scale_max or scale_min are defined, this property is ignored. If None and scale_max/scale_min 
+        are not defined, the max and min of the source data is used instead. 
+    """
+
+    source = tl.Instance(podpac.Node).tag(attr=True)
+    window = tl.Int(0).tag(attr=True)
+    scale_max = tl.Instance(podpac.Node, default_value=None, allow_none=True).tag(attr=True)
+    scale_min = tl.Instance(podpac.Node, default_value=None, allow_none=True).tag(attr=True)
+    scale_float = tl.List(None, allow_none=True).tag(attr=True)
+
+    def algorithm(self, inputs):
+        win = self.window // 2
+        source = inputs["source"]
+
+        # Scale the source to range [0, 1], required for the beta distribution
+        if "scale_max" in inputs:
+            scale_max = inputs["scale_max"]
+        elif self.scale_float is not None and self.scale_float[1] is not None:
+            scale_max = self.scale_float[1]
+        else:
+            scale_max = source.max()
+
+        if "scale_min" in inputs:
+            scale_min = inputs["scale_min"]
+        elif self.scale_float is not None and self.scale_float[0] is not None:
+            scale_min = self.scale_float[0]
+        else:
+            scale_min = source.min()
+        _log.debug("scale_min: {}\nscale_max: {}".format(scale_min, scale_max))
+        source = (source.copy() - scale_min) / (scale_max - scale_min)
+        source.data[(source.data <= 0) | (source.data >= 1)] = np.nan
+
+        # Make the output coordinates with day-of-year as time
+        coords = xr.Dataset({"time": self._requested_coordinates["time"].coordinates})
+        dsdoy = np.sort(np.unique(coords.time.dt.dayofyear))
+        latlon_coords = self._requested_coordinates.drop("time")
+        time_coords = podpac.Coordinates([dsdoy], ["time"])
+        coords = podpac.coordinates.merge_dims([latlon_coords, time_coords])
+        coords = coords.transpose(*self._requested_coordinates.dims)
+        output = self.create_output_array(coords)
+
+        # if all-nan input, no need to calculate
+        if np.all(np.isnan(source)):
+            return output
+
+        # convert source time coords to day-of-year as well
+        sdoy = source.time.dt.dayofyear
+
+        # loop over each day of year and compute window
+        for i, doy in enumerate(dsdoy):
+            _log.debug(f"Working on doy {doy} ({i+1}/{len(dsdoy)})")
+
+            # If either the start or end runs over the year, we need to do an OR on the bool index
+            # ----->s....<=e------   .in -out
+            # ..<=e----------->s..
+            do_or = False
+
+            start = doy - win
+            if start < 0:
+                start += 365
+                do_or = True
+
+            end = doy + win
+            if end > 365:
+                end -= 365
+                do_or = True
+
+            if do_or:
+                I = (sdoy >= start) | (sdoy <= end)
+            else:
+                I = (sdoy >= start) & (sdoy <= end)
+
+            # Scipy's beta function doesn's support multi-dimensional arrays, so we have to loop over lat/lon/alt
+            lat_f = lon_f = alt_f = [None]
+            dims = ["lat", "lon", "alt"]
+            if "lat" in source.dims:
+                lat_f = source["lat"].data
+            if "lon" in source.dims:
+                lon_f = source["lon"].data
+            if "alt" in source.dims:
+                alt_f = source["alt"].data
+
+            for alt in alt_f:
+                for lat in lat_f:
+                    for lon in lon_f:
+                        # _log.debug(f'lat, lon, alt = {lat}, {lon}, {alt})
+                        loc_dict = {k: v for k, v in zip(dims, [lat, lon, alt]) if v is not None}
+
+                        data = source.sel(time=I, **loc_dict).dropna("time").data
+                        if np.all(np.isnan(data)):
+                            continue
+
+                        # Fit function to the particular point
+                        output.loc[loc_dict][{"time": i}] = self.function(data, output.loc[loc_dict][{"time": i}])
+
+        # Rescale the outputs
+        output = self.rescale_outputs(output, scale_max, scale_min)
+        return output
+
+    def function(self, data, output):
+        raise NotImplementedError(
+            "Child classes need to implement this function. It is applied over the data and needs"
+            " to populate the output."
+        )
+
+    def rescale_outputs(self, output, scale_max, scale_min):
+        output = (output * (scale_max - scale_min)) + scale_min
+        return output
