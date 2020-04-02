@@ -21,7 +21,7 @@ install_requires = [
     "pint>=0.8",
     "scipy>=1.0",
     "traitlets>=4.3",
-    "xarray>=0.10",
+    "xarray>=0.15",
     "requests>=2.18",
     "lazy-import>=0.2.2",
     "psutil",
@@ -45,7 +45,7 @@ extras_require = {
         "pydap>=3.2",
         "rasterio>=1.0",
         "zarr>=2.3",
-        #"intake>=0.5"  Not supported in Python 3.5
+        "intake>=0.5"
     ],
     "aws": [
         "awscli>=1.16",
@@ -69,6 +69,11 @@ extras_require = {
         "urllib3>=1.22",
     ],
     "dev": [
+        "sphinx>=2.3",
+        "sphinx-rtd-theme>=0.4",
+        "sphinx-autobuild>=0.7",
+        "pytest>=5.0",
+        "black",
         "pylint>=1.8.2",
         "pytest-cov>=2.5.1",
         "pytest-html>=1.7.0",
@@ -80,26 +85,6 @@ extras_require = {
         "pre_commit>=1"
     ],
 }
-
-if sys.version_info.major == 2:
-    extras_require["dev"] += [
-        "pytest>=3.3.2"
-    ]
-else:
-    extras_require["dev"] += [
-        "sphinx>=2.3",
-        "sphinx-rtd-theme>=0.4",
-        "sphinx-autobuild>=0.7",
-        "pytest>=5.0"
-    ]
-
-if sys.version >= '3.6':
-    extras_require["dev"] += [
-        "black",
-    ]
-    extras_require["intake"] = [
-    	"intake>=0.5.1"
-    ]
 
 # set long description to readme
 with open("README.MD") as f:
@@ -137,11 +122,14 @@ setup(
         # 4 - Beta
         # 5 - Production/Stable
         "Development Status :: 4 - Beta",
+        
         # Indicate who your project is intended for
         "Intended Audience :: Developers",
         "Topic :: Scientific/Engineering :: GIS",
+        
         # Pick your license as you wish (should match "license" above)
         "License :: OSI Approved :: Apache Software License",
+
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
         "Programming Language :: Python",
@@ -152,7 +140,4 @@ setup(
     cmdclass={"develop": PostDevelopCommand},
     long_description=long_description,
     long_description_content_type="text/markdown"
-    # entry_points = {
-    #     'console_scripts' : []
-    # }
 )
