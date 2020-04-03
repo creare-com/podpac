@@ -6,7 +6,7 @@ import numpy as np
 import podpac
 from podpac.core.data.datasource import DataSource
 from podpac.core.data.array_source import Array
-from podpac.compositor import Compositor, OrderedCompositor
+from podpac.core.compositor import BaseCompositor, OrderedCompositor
 
 COORDS = podpac.Coordinates(
     [podpac.clinspace(45, 0, 16), podpac.clinspace(-70, -65, 16), podpac.clinspace(0, 1, 2)],
@@ -25,104 +25,104 @@ MULTI_2_X = Array(source=np.full(COORDS.shape + (1,), 2), native_coordinates=COO
 MULTI_3_Z = Array(source=np.full(COORDS.shape + (1,), 3), native_coordinates=COORDS, outputs=["z"])
 
 
-class TestCompositor(object):
+class TestBaseCompositor(object):
     def test_init(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         repr(node)
-
-    def test_shared_coordinates(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
-        assert node.shared_coordinates is None
 
     def test_source_coordinates(self):
         # none (default)
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         assert node.source_coordinates is None
 
         # unstacked
-        node = podpac.compositor.Compositor(
+        node = BaseCompositor(
             sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
             source_coordinates=podpac.Coordinates([[0, 1]], dims=["time"]),
         )
 
         # stacked
-        node = podpac.compositor.Compositor(
+        node = BaseCompositor(
             sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
             source_coordinates=podpac.Coordinates([[[0, 1], [10, 20]]], dims=["time_alt"]),
         )
 
         # invalid size
         with pytest.raises(ValueError, match="Invalid source_coordinates, source and source_coordinates size mismatch"):
-            node = podpac.compositor.Compositor(
+            node = BaseCompositor(
                 sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
                 source_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["time"]),
             )
 
         with pytest.raises(ValueError, match="Invalid source_coordinates, source and source_coordinates size mismatch"):
-            node = podpac.compositor.Compositor(
+            node = BaseCompositor(
                 sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
                 source_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["time"]),
             )
 
         # invalid ndims
         with pytest.raises(ValueError, match="Invalid source_coordinates"):
-            node = podpac.compositor.Compositor(
+            node = BaseCompositor(
                 sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()],
                 source_coordinates=podpac.Coordinates([[0, 1], [10, 20]], dims=["time", "alt"]),
             )
 
-    def test_select_sources(self):
-        source_coords = podpac.Coordinates([[0, 10]], ["time"])
-        node = podpac.compositor.Compositor(
-            sources=[podpac.algorithm.Arange(), podpac.algorithm.SinCoords()], source_coordinates=source_coords
+    def test_select_sources_default(self):
+        node = BaseCompositor(
+            sources=[DataSource(), DataSource(interpolation="nearest_preview"), podpac.algorithm.Arange()],
+            interpolation="bilinear",
         )
+        sources = node.select_sources(podpac.Coordinates([[0, 10]], ["time"]))
 
+        assert isinstance(sources, np.ndarray)
+        assert sources.size == 3
+
+    def test_select_sources_intersection(self):
+        source_coords = podpac.Coordinates([[0, 10]], ["time"])
+        node = BaseCompositor(sources=[DataSource(), DataSource()], source_coordinates=source_coords)
+
+        # select all
         selected = node.select_sources(source_coords)
         assert len(selected) == 2
         assert selected[0] is node.sources[0]
         assert selected[1] is node.sources[1]
 
-        coords = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 0], ["lat", "lon", "time"])
-        selected = node.select_sources(coords)
+        # select first
+        c = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 0], ["lat", "lon", "time"])
+        selected = node.select_sources(c)
         assert len(selected) == 1
         assert selected[0] is node.sources[0]
 
-        coords = podpac.Coordinates(
-            [podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 10], ["lat", "lon", "time"]
-        )
-        selected = node.select_sources(coords)
+        # select second
+        c = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 10], ["lat", "lon", "time"])
+        selected = node.select_sources(c)
         assert len(selected) == 1
         assert selected[0] is node.sources[1]
 
-        coords = podpac.Coordinates(
-            [podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 100], ["lat", "lon", "time"]
-        )
-        selected = node.select_sources(coords)
+        # select none
+        c = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 100], ["lat", "lon", "time"])
+        selected = node.select_sources(c)
         assert len(selected) == 0
 
-    def test_iteroutputs_interpolation(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME], interpolation="nearest")
-        outputs = node.iteroutputs(COORDS)
-        for output in outputs:
-            pass
-        assert node.sources[0].interpolation == "nearest"
-        assert node.sources[1].interpolation == "nearest"
-        assert node.sources[2].interpolation == "nearest"
+    def test_select_sources_set_interpolation(self):
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME], interpolation="nearest")
+        sources = node.select_sources(COORDS)
+        assert sources[0].interpolation == "nearest"
+        assert sources[1].interpolation == "nearest"
+        assert sources[2].interpolation == "nearest"
         assert ARRAY_LAT.interpolation == "bilinear"
         assert ARRAY_LON.interpolation == "bilinear"
         assert ARRAY_TIME.interpolation == "bilinear"
 
         # if no interpolation is provided, keep the source interpolation values
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
-        outputs = node.iteroutputs(COORDS)
-        for output in outputs:
-            pass
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+        sources = node.select_sources(COORDS)
         assert node.sources[0].interpolation == "bilinear"
         assert node.sources[1].interpolation == "bilinear"
         assert node.sources[2].interpolation == "bilinear"
 
     def test_iteroutputs_empty(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         outputs = node.iteroutputs(podpac.Coordinates([-1, -1, -1], dims=["lat", "lon", "time"]))
         np.testing.assert_array_equal(next(outputs), [[[np.nan]]])
         np.testing.assert_array_equal(next(outputs), [[[np.nan]]])
@@ -134,7 +134,7 @@ class TestCompositor(object):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = False
 
-            node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+            node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
             outputs = node.iteroutputs(COORDS)
             np.testing.assert_array_equal(next(outputs), LAT)
             np.testing.assert_array_equal(next(outputs), LON)
@@ -149,7 +149,7 @@ class TestCompositor(object):
             podpac.settings["N_THREADS"] = 8
 
             n_threads_before = podpac.core.managers.multi_threading.thread_manager._n_threads_used
-            node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+            node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
             outputs = node.iteroutputs(COORDS)
             np.testing.assert_array_equal(next(outputs), LAT)
             np.testing.assert_array_equal(next(outputs), LON)
@@ -165,7 +165,7 @@ class TestCompositor(object):
             podpac.settings["N_THREADS"] = 1
 
             n_threads_before = podpac.core.managers.multi_threading.thread_manager._n_threads_used
-            node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+            node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
             outputs = node.iteroutputs(COORDS)
             np.testing.assert_array_equal(next(outputs), LAT)
             np.testing.assert_array_equal(next(outputs), LON)
@@ -176,16 +176,16 @@ class TestCompositor(object):
             assert podpac.core.managers.multi_threading.thread_manager._n_threads_used == n_threads_before
 
     def test_composite(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         with pytest.raises(NotImplementedError):
             node.composite(COORDS, iter(()))
 
     def test_eval(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         with pytest.raises(NotImplementedError):
             node.eval(COORDS)
 
-        class MockComposite(Compositor):
+        class MockComposite(BaseCompositor):
             def composite(self, coordinates, outputs, result=None):
                 return next(outputs)
 
@@ -194,39 +194,40 @@ class TestCompositor(object):
         np.testing.assert_array_equal(output, LAT)
 
     def test_find_coordinates(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
 
-        with pytest.raises(NotImplementedError):
-            node.find_coordinates()
+        coord_list = node.find_coordinates()
+        assert isinstance(coord_list, list)
+        assert len(coord_list) == 3
 
     def test_outputs(self):
         # standard single-output
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         assert node.outputs is None
 
         # multi-output
-        node = Compositor(sources=[MULTI_0_XY, MULTI_1_XY])
+        node = BaseCompositor(sources=[MULTI_0_XY, MULTI_1_XY])
         assert node.outputs == ["x", "y"]
 
-        node = Compositor(sources=[MULTI_0_XY, MULTI_3_Z])
+        node = BaseCompositor(sources=[MULTI_0_XY, MULTI_3_Z])
         assert node.outputs == ["x", "y", "z"]
 
-        node = Compositor(sources=[MULTI_3_Z, MULTI_0_XY])
+        node = BaseCompositor(sources=[MULTI_3_Z, MULTI_0_XY])
         assert node.outputs == ["z", "x", "y"]
 
-        node = Compositor(sources=[MULTI_0_XY, MULTI_4_YX])
+        node = BaseCompositor(sources=[MULTI_0_XY, MULTI_4_YX])
         assert node.outputs == ["x", "y"]
 
         # mixed
         with pytest.raises(ValueError, match="Cannot composite standard sources with multi-output sources."):
-            node = Compositor(sources=[MULTI_2_X, ARRAY_LAT])
+            node = BaseCompositor(sources=[MULTI_2_X, ARRAY_LAT])
 
         # no sources
-        node = Compositor(sources=[])
+        node = BaseCompositor(sources=[])
         assert node.outputs is None
 
     def test_forced_invalid_sources(self):
-        class MyCompositor(Compositor):
+        class MyCompositor(BaseCompositor):
             sources = [MULTI_2_X, ARRAY_LAT]
 
         node = MyCompositor()
