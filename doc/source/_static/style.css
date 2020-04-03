@@ -17,3 +17,9 @@
 .wy-nav-top {
   background-color: #EEE;
 }
+
+
+blockquote {
+    color: gray;
+    font-style: italic;
+}

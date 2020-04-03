@@ -10,15 +10,14 @@ Utilities functions for handling podpac coordinates.
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import datetime
+import re
 import calendar
 import numbers
 import numpy as np
+import traitlets as tl
 from six import string_types
+import pyproj
 
-GDAL_CRS = {
-    'WGS84': 'EPSG:4326',
-    'SPHER_MERC': 'EPSG:3857'
-}
 
 def get_timedelta(s):
     """
@@ -50,8 +49,9 @@ def get_timedelta(s):
     
     """
 
-    a, b = s.split(',')
+    a, b = s.split(",")
     return np.timedelta64(int(a), b)
+
 
 def get_timedelta_unit(delta):
     """
@@ -86,9 +86,10 @@ def get_timedelta_unit(delta):
         dname = delta.dtype.name
     except AttributeError:
         raise TypeError("Cannot get timedelta unit from type '%s'" % type(delta))
-    if not dname.startswith('timedelta'):
+    if not dname.startswith("timedelta"):
         raise TypeError("Cannot get timedelta unit from dtype '%s'" % dname)
     return dname[12:-1]
+
 
 def make_timedelta_string(delta):
     """
@@ -124,7 +125,8 @@ def make_timedelta_string(delta):
 
     mag = delta.astype(int)
     unit = get_timedelta_unit(delta)
-    return '%d,%s' % (mag, unit)
+    return "%d,%s" % (mag, unit)
+
 
 def make_coord_value(val):
     """
@@ -159,7 +161,7 @@ def make_coord_value(val):
         try:
             val = val.item()
         except ValueError:
-            raise ValueError("Invalid coordinate value, unsupported type '%s'" % type(val))
+            raise TypeError("Invalid coordinate value, unsupported type '%s'" % type(val))
 
     # type checking and conversion
     if isinstance(val, (string_types, datetime.date)):
@@ -169,9 +171,10 @@ def make_coord_value(val):
     elif isinstance(val, numbers.Number):
         val = float(val)
     else:
-        raise ValueError("Invalid coordinate value, unsupported type '%s'" % type(val))
+        raise TypeError("Invalid coordinate value, unsupported type '%s'" % type(val))
 
     return val
+
 
 def make_coord_delta(val):
     """
@@ -222,6 +225,7 @@ def make_coord_delta(val):
 
     return val
 
+
 def make_coord_array(values):
     """
     Make an array of podpac coordinate values by casting to the correct type.
@@ -239,32 +243,70 @@ def make_coord_array(values):
     Notes
     -----
      * all of the values must be of the same type
-     * strings and datetimes are converted to numpy datetimes
+     * strings and datetimes are converted to numpy datetime64
      * numbers are converted to floats
-    
-    Raises
-    ------
-    ValueError
-        Description
     """
 
-    a = np.atleast_1d(np.squeeze(values))
-
-    if not (a.dtype == float or np.issubdtype(a.dtype, np.datetime64)):
-        try:
-            a = a.astype(float)
-        except (TypeError, ValueError):
-            try:
-                a.astype(np.datetime64)
-            except ValueError:
-                raise TypeError("Invalid coordinate values (must be all numbers or all datetimes)")
-            else:
-                a = np.array([np.datetime64(e) for e in a])
+    a = np.atleast_1d(values)
 
     if a.ndim != 1:
         raise ValueError("Invalid coordinate values (ndim=%d, must be ndim=1)" % a.ndim)
 
+    if a.dtype == float or np.issubdtype(a.dtype, np.datetime64):
+        pass
+
+    elif np.issubdtype(a.dtype, np.number):
+        a = a.astype(float)
+
+    else:
+        a = np.array([make_coord_value(e) for e in np.atleast_1d(np.array(values, dtype=object))])
+
+        if not np.issubdtype(a.dtype, np.datetime64):
+            raise ValueError("Invalid coordinate values (must be all numbers or all datetimes)")
+
     return a
+
+
+def make_coord_delta_array(values):
+    """
+    Make an array of podpac coordinate deltas by casting to the correct type.
+
+    Parameters
+    ----------
+    values : array-like
+        Input coordinate deltas.
+    
+    Returns
+    -------
+    a : np.ndarray
+        Cast coordinate deltas.
+    
+    Notes
+    -----
+     * all of the deltas must be of the same type
+     * strings and timedeltas are converted to numpy timdelta64
+     * numbers are converted to floats
+    """
+
+    a = np.atleast_1d(values)
+
+    if a.ndim != 1:
+        raise ValueError("Invalid coordinate deltas (ndim=%d, must be ndim=1)" % a.ndim)
+
+    if a.dtype == float or np.issubdtype(a.dtype, np.timedelta64):
+        pass
+
+    elif np.issubdtype(a.dtype, np.number):
+        a = a.astype(float)
+
+    else:
+        a = np.array([make_coord_delta(e) for e in np.atleast_1d(np.array(values, dtype=object))])
+
+        if not np.issubdtype(a.dtype, np.timedelta64):
+            raise ValueError("Invalid coordinate deltas (must be all numbers or all compatible timedeltas)")
+
+    return a
+
 
 def add_coord(base, delta):
     """
@@ -280,7 +322,7 @@ def add_coord(base, delta):
     Returns
     -------
     result : float, np.datetime64
-        The sum, with month and year timedeltas handled. If dalta is an array,
+        The sum, with month and year timedeltas handled. If delta is an array,
         the result will be an array.
     
     Notes
@@ -311,38 +353,36 @@ def add_coord(base, delta):
         
         >>> add_coord(np.datetime64('2018-01-01'), np.timedelta64(1, 'M'))
         numpy.datetime64('2018-02-01')
-    
-    Raises
-    ------
-    e
-        Description
-    
     """
 
     try:
         return base + delta
     except TypeError as e:
-        if (isinstance(base, np.datetime64) and
-            np.issubdtype(delta.dtype, np.timedelta64)):
+        if isinstance(base, np.datetime64) and np.issubdtype(delta.dtype, np.timedelta64):
             return _add_nominal_timedelta(base, delta)
         else:
             raise e
 
+
 def _add_nominal_timedelta(base, delta):
     dunit = get_timedelta_unit(delta)
-    if dunit not in ['Y', 'M']:
+    if dunit not in ["Y", "M"]:
         return base + delta
 
     shape = delta.shape
+    # The following is needed when the time resolution is smaller than a ms -- cannot create datetime in those cases
+
+    if not isinstance(base.item(), datetime.datetime):
+        base = base.astype("datetime64[ms]")
     base = base.item()
     tds = np.array(delta).astype(int).flatten()
 
     dates = []
     for td in tds:
-        if dunit == 'Y':
-            date = _replace_safe(base, year=base.year+td)
-        elif dunit == 'M':
-            date = _replace_safe(base, month=base.month+td)
+        if dunit == "Y":
+            date = _replace_safe(base, year=base.year + td)
+        elif dunit == "M":
+            date = _replace_safe(base, month=base.month + td)
         dates.append(date)
 
     dates = np.array([np.datetime64(date) for date in dates]).reshape(shape)
@@ -350,13 +390,114 @@ def _add_nominal_timedelta(base, delta):
         dates = dates[()]
     return dates
 
+
 def _replace_safe(dt, year=None, month=None):
     if year is None:
         year = dt.year
     if month is None:
         month = dt.month
 
-    year = year + (month-1) // 12
-    month = (month-1) % 12 + 1
+    year = year + (month - 1) // 12
+    month = (month - 1) % 12 + 1
     day = min(dt.day, calendar.monthrange(year, month)[1])
     return dt.replace(year=year, month=month, day=day)
+
+
+def divide_delta(delta, divisor):
+    """
+    Divide a coordinate delta by a numerical divisor.
+    
+    Parameters
+    ----------
+    delta : float, np.timedelta64
+        The base delta.
+    divisor : number
+        The divisor
+    
+    Returns
+    -------
+    result : float, np.timedelta64
+        The result, with timedeltas converted to higher resolution if necessary.
+
+    """
+
+    if isinstance(delta, np.timedelta64):
+        try:
+            return divide_timedelta(delta, divisor)
+        except ValueError:
+            raise ValueError("Cannot divide timedelta '%s' evenly by %d" % (make_timedelta_string(delta), divisor))
+    else:
+        return delta / divisor
+
+
+def divide_timedelta(delta, divisor):
+    result = delta / divisor
+    if divisor * result.astype(int) == delta.astype(int):
+        return result
+
+    if delta.dtype.str in _TIMEDELTA_ZOOM:
+        return divide_timedelta(delta.astype(_TIMEDELTA_ZOOM[delta.dtype.str]), divisor)
+
+    # months, for example
+    raise ValueError("Cannot divide timedelta '%s' evenly by %d" % (make_timedelta_string(delta), divisor))
+
+
+_TIMEDELTA_ZOOM = {
+    "<m8[Y]": "<m8[D]",
+    "<m8[D]": "<m8[h]",
+    "<m8[h]": "<m8[m]",
+    "<m8[m]": "<m8[s]",
+    "<m8[s]": "<m8[ms]",  # already probably farther then necessary...
+    "<m8[ms]": "<m8[us]",
+    "<m8[us]": "<m8[ns]",
+}
+
+VALID_DIMENSION_NAMES = ["lat", "lon", "alt", "time"]
+
+
+class Dimension(tl.Enum):
+    def __init__(self, *args, **kwargs):
+        super(Dimension, self).__init__(VALID_DIMENSION_NAMES, *args, **kwargs)
+
+
+class CoordinateType(tl.Enum):
+    def __init__(self, *args, **kwargs):
+        super(CoordinateType, self).__init__(["point", "left", "right", "midpoint"], *args, **kwargs)
+
+
+def lower_precision_time_bounds(my_bounds, other_bounds, outer):
+    """
+    When given two bounds of np.datetime64, this function will convert both bounds to the lower-precision (in terms of 
+    time unit) numpy datetime4 object if outer==True, otherwise only my_bounds will be converted.
+    
+    Parameters
+    -----------
+    my_bounds : List(np.datetime64)
+        The bounds of the native coordinates of the dataset
+    other_bounds : List(np.datetime64)
+        The bounds used for the selection
+    outer : bool
+        When the other_bounds are higher precision than the input_bounds, only convert these IF outer=True
+        
+    Returns
+    --------
+    my_bounds : List(np.datetime64)
+        The bounds of the native coordinates of the dataset at the new precision
+    other_bounds : List(np.datetime64)
+        The bounds used for the selection at the new precision, if outer == True, otherwise return original coordinates    
+    """
+    if not isinstance(other_bounds[0], np.datetime64) or not isinstance(other_bounds[1], np.datetime64):
+        raise TypeError("Input bounds should be of type np.datetime64 when selecting data from:", str(my_bounds))
+
+    if not isinstance(my_bounds[0], np.datetime64) or not isinstance(my_bounds[1], np.datetime64):
+        raise TypeError("Native bounds should be of type np.datetime64 when selecting data using:", str(other_bounds))
+
+    mine = np.timedelta64(1, my_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
+    your = np.timedelta64(1, other_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
+
+    if mine > your and outer:
+        other_bounds = [b.astype(my_bounds[0].dtype) for b in other_bounds]
+    else:
+        my_bounds = [b.astype(other_bounds[0].dtype) for b in my_bounds]
+
+    return my_bounds, other_bounds

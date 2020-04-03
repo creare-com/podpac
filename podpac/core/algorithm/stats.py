@@ -14,19 +14,17 @@ import scipy.stats
 import traitlets as tl
 from six import string_types
 
+import podpac
 from podpac.core.coordinates import Coordinates
 from podpac.core.node import Node
-from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.utils import common_doc
+from podpac.core.algorithm.algorithm import UnaryAlgorithm
+from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, node_eval
 
 COMMON_DOC = COMMON_NODE_DOC.copy()
 
-# =============================================================================
-# Reduce Nodes
-# =============================================================================
 
-class Reduce(Algorithm):
+class Reduce(UnaryAlgorithm):
     """Base node for statistical algorithms
     
     Attributes
@@ -36,35 +34,17 @@ class Reduce(Algorithm):
     source : podpac.Node
         The source node that will be reduced. 
     """
-    
-    source = tl.Instance(Node)
 
     dims = tl.List().tag(attr=True)
-    iter_chunk_size = tl.Union([tl.Int(), tl.Unicode()], allow_none=True, default_value=None)
 
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
     _dims = tl.List(trait_type=str)
 
     def _first_init(self, **kwargs):
-        if 'dims' in kwargs and isinstance(kwargs['dims'], string_types):
-            kwargs['dims'] = [kwargs['dims']]
+        if "dims" in kwargs and isinstance(kwargs["dims"], string_types):
+            kwargs["dims"] = [kwargs["dims"]]
         return super(Reduce, self)._first_init(**kwargs)
 
-    def _get_dims(self, out):
-        """
-        Translates requested reduction dimensions.
-        
-        Parameters
-        ----------
-        out : UnitsDataArray
-            The output array
-        
-        Returns
-        -------
-        list
-            List of dimensions after reduction
-        """
-    
     def dims_axes(self, output):
         """Finds the indices for the dimensions that will be reduced. This is passed to numpy. 
         
@@ -91,10 +71,11 @@ class Reduce(Algorithm):
             Size of chunks
         """
 
-        if self.iter_chunk_size == 'auto':
-            return 1024**2 # TODO
-
-        return self.iter_chunk_size
+        chunk_size = podpac.settings["CHUNK_SIZE"]
+        if chunk_size == "auto":
+            return 1024 ** 2  # TODO
+        else:
+            return chunk_size
 
     def _get_chunk_shape(self, coords):
         """Shape of chunks for parallel processing or large arrays that do not fit in memory.
@@ -108,8 +89,8 @@ class Reduce(Algorithm):
             return None
 
         chunk_size = self.chunk_size
-        
-        d = {k:coords[k].size for k in coords.dims if k not in self._dims}
+
+        d = {k: coords[k].size for k in coords.dims if k not in self._dims}
         s = reduce(mul, d.values(), 1)
         for dim in self._dims:
             n = chunk_size // s
@@ -179,7 +160,7 @@ class Reduce(Algorithm):
         """
 
         self._requested_coordinates = coordinates
-        
+
         if self.dims:
             self._dims = [dim for dim in self.dims if dim in coordinates.dims]
         else:
@@ -200,7 +181,7 @@ class Reduce(Algorithm):
             source_output = self.source.eval(coordinates)
             result = self.reduce(source_output)
 
-        if output.shape is ():
+        if output.shape == ():
             output.data = result
         else:
             output[:] = result
@@ -245,474 +226,8 @@ class Reduce(Algorithm):
 
         raise NotImplementedError
 
-class Min(Reduce):
-    """Computes the minimum across dimension(s)
-    """
-    
-    def reduce(self, x):
-        """Computes the minimum across dimension(s)
-        
-        Parameters
-        ----------
-        x : UnitsDataArray
-            Source data.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Minimum of the source data over dims
-        """
-        return x.min(dim=self._dims)
-    
-    def reduce_chunked(self, xs, output):
-        """Computes the minimum across a chunk
-        
-        Parameters
-        ----------
-        xs : iterable
-            Iterable of sources
-        
-        Returns
-        -------
-        UnitsDataArray
-            Minimum of the source data over dims
-        """
-        # note: np.fmin ignores NaNs, np.minimum propagates NaNs
-        y = xr.full_like(output, np.nan)
-        for x in xs:
-            y = np.fmin(y, x.min(dim=self._dims))
-        return y
 
-
-class Max(Reduce):
-    """Computes the maximum across dimension(s)
-    """
-    
-    def reduce(self, x):
-        """Computes the maximum across dimension(s)
-        
-        Parameters
-        ----------
-        x : UnitsDataArray
-            Source data.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Maximum of the source data over dims
-        """
-        return x.max(dim=self._dims)
-
-    def reduce_chunked(self, xs, output):
-        """Computes the maximum across a chunk
-        
-        Parameters
-        ----------
-        xs : iterable
-            Iterable of sources
-        
-        Returns
-        -------
-        UnitsDataArray
-            Maximum of the source data over dims
-        """
-        # note: np.fmax ignores NaNs, np.maximum propagates NaNs
-        y = xr.full_like(output, np.nan)
-        for x in xs:
-            y = np.fmax(y, x.max(dim=self._dims))
-        return y
-
-
-class Sum(Reduce):
-    """Computes the sum across dimension(s)
-    """
-    
-    def reduce(self, x):
-        """Computes the sum across dimension(s)
-        
-        Parameters
-        ----------
-        x : UnitsDataArray
-            Source data.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Sum of the source data over dims
-        """
-        return x.sum(dim=self._dims)
-
-    def reduce_chunked(self, xs, output):
-        """Computes the sum across a chunk
-        
-        Parameters
-        ----------
-        xs : iterable
-            Iterable of sources
-        
-        Returns
-        -------
-        UnitsDataArray
-            Sum of the source data over dims
-        """
-        s = xr.zeros_like(output)
-        for x in xs:
-            s += x.sum(dim=self._dims)
-        return s
-
-
-class Count(Reduce):
-    """Counts the finite values across dimension(s)
-    """
-    
-    def reduce(self, x):
-        """Counts the finite values across dimension(s)
-        
-        Parameters
-        ----------
-        x : UnitsDataArray
-            Source data.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Number of finite values of the source data over dims
-        """
-        return np.isfinite(x).sum(dim=self._dims)
-
-    def reduce_chunked(self, xs, output):
-        """Counts the finite values across a chunk
-        
-        Parameters
-        ----------
-        xs : iterable
-            Iterable of sources
-        
-        Returns
-        -------
-        UnitsDataArray
-            Number of finite values of the source data over dims
-        """
-        n = xr.zeros_like(output)
-        for x in xs:
-            n += np.isfinite(x).sum(dim=self._dims)
-        return n
-
-
-class Mean(Reduce):
-    """Computes the mean across dimension(s)
-    """
-    
-    def reduce(self, x):
-        """Computes the mean across dimension(s)
-        
-        Parameters
-        ----------
-        x : UnitsDataArray
-            Source data.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Mean of the source data over dims
-        """
-        return x.mean(dim=self._dims)
-
-    def reduce_chunked(self, xs, output):
-        """Computes the mean across a chunk
-        
-        Parameters
-        ----------
-        xs : iterable
-            Iterable of sources
-        
-        Returns
-        -------
-        UnitsDataArray
-            Mean of the source data over dims
-        """
-        s = xr.zeros_like(output)
-        n = xr.zeros_like(output)
-        for x in xs:
-            # TODO efficency
-            s += x.sum(dim=self._dims)
-            n += np.isfinite(x).sum(dim=self._dims)
-        output = s / n
-        return output
-
-
-class Variance(Reduce):
-    """Computes the variance across dimension(s)
-    """
-    
-    def reduce(self, x):
-        """Computes the variance across dimension(s)
-        
-        Parameters
-        ----------
-        x : UnitsDataArray
-            Source data.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Variance of the source data over dims
-        """
-        return x.var(dim=self._dims)
-
-    def reduce_chunked(self, xs, output):
-        """Computes the variance across a chunk
-        
-        Parameters
-        ----------
-        xs : iterable
-            Iterable of sources
-        
-        Returns
-        -------
-        UnitsDataArray
-            Variance of the source data over dims
-        """
-        n = xr.zeros_like(output)
-        m = xr.zeros_like(output)
-        m2 = xr.zeros_like(output)
-
-        # Welford, adapted to handle multiple data points in each iteration
-        for x in xs:
-            n += np.isfinite(x).sum(dim=self._dims)
-            d = x - m
-            m += (d/n).sum(dim=self._dims)
-            d2 = x - m
-            m2 += (d*d2).sum(dim=self._dims)
-
-        return m2 / n
-
-
-class Skew(Reduce):
-    """
-    Computes the skew across dimension(s)
-
-    TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
-    """
-
-    def reduce(self, x):
-        """Computes the skew across dimension(s)
-        
-        Parameters
-        ----------
-        x : UnitsDataArray
-            Source data.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Skew of the source data over dims
-        """
-        # N = np.isfinite(x).sum(dim=self._dims)
-        # M1 = x.mean(dim=self._dims)
-        # E = x - M1
-        # E2 = E**2
-        # E3 = E2*E
-        # M2 = (E2).sum(dim=self._dims)
-        # M3 = (E3).sum(dim=self._dims)
-        # skew = self.skew(M3, M2, N)
-
-        a = self._reshape(x)
-        skew = scipy.stats.skew(a, nan_policy='omit')
-        return skew
-        
-    def reduce_chunked(self, xs, output):
-        """Computes the skew across a chunk
-        
-        Parameters
-        ----------
-        xs : iterable
-            Iterable of sources
-        
-        Returns
-        -------
-        UnitsDataArray
-            Skew of the source data over dims
-        """
-        N = xr.zeros_like(output)
-        M1 = xr.zeros_like(output)
-        M2 = xr.zeros_like(output)
-        M3 = xr.zeros_like(output)
-        check_empty = True
-
-        for x in xs:
-            Nx = np.isfinite(x).sum(dim=self._dims)
-            M1x = x.mean(dim=self._dims)
-            Ex = x - M1x
-            Ex2 = Ex**2
-            Ex3 = Ex2*Ex
-            M2x = (Ex2).sum(dim=self._dims)
-            M3x = (Ex3).sum(dim=self._dims)
-
-            # premask to omit NaNs
-            b = Nx.data > 0
-            Nx = Nx.data[b]
-            M1x = M1x.data[b]
-            M2x = M2x.data[b]
-            M3x = M3x.data[b]
-            
-            Nb = N.data[b]
-            M1b = M1.data[b]
-            M2b = M2.data[b]
-
-            # merge
-            d = M1x - M1b
-            n = Nb + Nx
-            NNx = Nb * Nx
-
-            M3.data[b] += (M3x +
-                           d**3 * NNx * (Nb-Nx) / n**2 +
-                           3 * d * (Nb*M2x - Nx*M2b) / n)
-            M2.data[b] += M2x + d**2 * NNx / n
-            M1.data[b] += d * Nx / n
-            N.data[b] = n
-
-        # calculate skew
-        skew = np.sqrt(N) * M3 / np.sqrt(M2**3)
-        return skew
-
-class Kurtosis(Reduce):
-    """Computes the kurtosis across dimension(s)
-
-    TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
-    """
-
-    def reduce(self, x):
-        """Computes the kurtosis across dimension(s)
-        
-        Parameters
-        ----------
-        x : UnitsDataArray
-            Source data.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Kurtosis of the source data over dims
-        """
-        # N = np.isfinite(x).sum(dim=self._dims)
-        # M1 = x.mean(dim=self._dims)        
-        # E = x - M1
-        # E2 = E**2
-        # E4 = E2**2
-        # M2 = (E2).sum(dim=self._dims)
-        # M4 = (E4).sum(dim=self._dims)
-        # kurtosis = N * M4 / M2**2 - 3
-
-        a = self._reshape(x)
-        kurtosis = scipy.stats.kurtosis(a, nan_policy='omit')
-        return kurtosis
-
-    def reduce_chunked(self, xs, output):
-        """Computes the kurtosis across a chunk
-        
-        Parameters
-        ----------
-        xs : iterable
-            Iterable of sources
-        
-        Returns
-        -------
-        UnitsDataArray
-            Kurtosis of the source data over dims
-        """
-        N = xr.zeros_like(output)
-        M1 = xr.zeros_like(output)
-        M2 = xr.zeros_like(output)
-        M3 = xr.zeros_like(output)
-        M4 = xr.zeros_like(output)
-
-        for x in xs:
-            Nx = np.isfinite(x).sum(dim=self._dims)
-            M1x = x.mean(dim=self._dims)
-            Ex = x - M1x
-            Ex2 = Ex**2
-            Ex3 = Ex2*Ex
-            Ex4 = Ex2**2
-            M2x = (Ex2).sum(dim=self._dims)
-            M3x = (Ex3).sum(dim=self._dims)
-            M4x = (Ex4).sum(dim=self._dims)
-            
-            # premask to omit NaNs
-            b = Nx.data > 0
-            Nx = Nx.data[b]
-            M1x = M1x.data[b]
-            M2x = M2x.data[b]
-            M3x = M3x.data[b]
-            M4x = M4x.data[b]
-            
-            Nb = N.data[b]
-            M1b = M1.data[b]
-            M2b = M2.data[b]
-            M3b = M3.data[b]
-
-            # merge
-            d = M1x - M1b
-            n = Nb + Nx
-            NNx = Nb * Nx
-
-            M4.data[b] += (M4x +
-                           d**4 * NNx * (Nb**2 - NNx + Nx**2) / n**3 +
-                           6 * d**2 * (Nb**2*M2x + Nx**2*M2b) / n**2 +
-                           4 * d * (Nb*M3x - Nx*M3b) / n)
-
-            M3.data[b] += (M3x +
-                           d**3 * NNx * (Nb-Nx) / n**2 +
-                           3 * d * (Nb*M2x - Nx*M2b) / n)
-            M2.data[b] += M2x + d**2 * NNx / n
-            M1.data[b] += d * Nx / n
-            N.data[b] = n
-
-        # calculate kurtosis
-        kurtosis = N * M4 / M2**2 - 3
-        return kurtosis
-
-
-class StandardDeviation(Variance):
-    """Computes the standard deviation across dimension(s)
-    """
-    
-    def reduce(self, x):
-        """Computes the standard deviation across dimension(s)
-        
-        Parameters
-        ----------
-        x : UnitsDataArray
-            Source data.
-        
-        Returns
-        -------
-        UnitsDataArray
-            Standard deviation of the source data over dims
-        """
-        return x.std(dim=self._dims)
-
-    def reduce_chunked(self, xs, output):
-        """Computes the standard deviation across a chunk
-        
-        Parameters
-        ----------
-        xs : iterable
-            Iterable of sources
-        
-        Returns
-        -------
-        UnitsDataArray
-            Standard deviation of the source data over dims
-        """
-        var = super(StandardDeviation, self).reduce_chunked(xs, output)
-        return np.sqrt(var)
-
-# =============================================================================
-# Orthogonally chunked reduce
-# =============================================================================
-
-class Reduce2(Reduce):
+class ReduceOrthogonal(Reduce):
     """
     Extended Reduce class that enables chunks that are smaller than the reduced
     output array.
@@ -722,8 +237,6 @@ class Reduce2(Reduce):
     space. For statistics that require O(n) space, the node must iterate
     through the Coordinates orthogonally to the reduce dimension, using chunks
     that only cover a portion of the output array.
-    
-    Note that the above nodes *could* be implemented to allow small chunks.
     """
 
     def _get_chunk_shape(self, coords):
@@ -738,9 +251,9 @@ class Reduce2(Reduce):
             return None
 
         chunk_size = self.chunk_size
-        
+
         # here, the minimum size is the reduce-dimensions size
-        d = {k:coords[k].size for k in self._dims}
+        d = {k: coords[k].size for k in self._dims}
         s = reduce(mul, d.values(), 1)
         for dim in coords.dims[::-1]:
             if dim in self._dims:
@@ -792,15 +305,478 @@ class Reduce2(Reduce):
 
         y = xr.full_like(output, np.nan)
         for x, xslices in xs:
-            yslc = [xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims]
+            yslc = tuple(xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims)
             y.data[yslc] = self.reduce(x)
         return y
 
 
-class Median(Reduce2):
+class Min(Reduce):
+    """Computes the minimum across dimension(s)
+    """
+
+    def reduce(self, x):
+        """Computes the minimum across dimension(s)
+        
+        Parameters
+        ----------
+        x : UnitsDataArray
+            Source data.
+        
+        Returns
+        -------
+        UnitsDataArray
+            Minimum of the source data over dims
+        """
+        return x.min(dim=self._dims)
+
+    def reduce_chunked(self, xs, output):
+        """Computes the minimum across a chunk
+        
+        Parameters
+        ----------
+        xs : iterable
+            Iterable of sources
+        
+        Returns
+        -------
+        UnitsDataArray
+            Minimum of the source data over dims
+        """
+        # note: np.fmin ignores NaNs, np.minimum propagates NaNs
+        y = xr.full_like(output, np.nan)
+        for x in xs:
+            y = np.fmin(y, x.min(dim=self._dims))
+        return y
+
+
+class Max(Reduce):
+    """Computes the maximum across dimension(s)
+    """
+
+    def reduce(self, x):
+        """Computes the maximum across dimension(s)
+        
+        Parameters
+        ----------
+        x : UnitsDataArray
+            Source data.
+        
+        Returns
+        -------
+        UnitsDataArray
+            Maximum of the source data over dims
+        """
+        return x.max(dim=self._dims)
+
+    def reduce_chunked(self, xs, output):
+        """Computes the maximum across a chunk
+        
+        Parameters
+        ----------
+        xs : iterable
+            Iterable of sources
+        
+        Returns
+        -------
+        UnitsDataArray
+            Maximum of the source data over dims
+        """
+        # note: np.fmax ignores NaNs, np.maximum propagates NaNs
+        y = xr.full_like(output, np.nan)
+        for x in xs:
+            y = np.fmax(y, x.max(dim=self._dims))
+        return y
+
+
+class Sum(Reduce):
+    """Computes the sum across dimension(s)
+    """
+
+    def reduce(self, x):
+        """Computes the sum across dimension(s)
+        
+        Parameters
+        ----------
+        x : UnitsDataArray
+            Source data.
+        
+        Returns
+        -------
+        UnitsDataArray
+            Sum of the source data over dims
+        """
+        return x.sum(dim=self._dims)
+
+    def reduce_chunked(self, xs, output):
+        """Computes the sum across a chunk
+        
+        Parameters
+        ----------
+        xs : iterable
+            Iterable of sources
+        
+        Returns
+        -------
+        UnitsDataArray
+            Sum of the source data over dims
+        """
+        s = xr.zeros_like(output)
+        for x in xs:
+            s += x.sum(dim=self._dims)
+        return s
+
+
+class Count(Reduce):
+    """Counts the finite values across dimension(s)
+    """
+
+    def reduce(self, x):
+        """Counts the finite values across dimension(s)
+        
+        Parameters
+        ----------
+        x : UnitsDataArray
+            Source data.
+        
+        Returns
+        -------
+        UnitsDataArray
+            Number of finite values of the source data over dims
+        """
+        return np.isfinite(x).sum(dim=self._dims)
+
+    def reduce_chunked(self, xs, output):
+        """Counts the finite values across a chunk
+        
+        Parameters
+        ----------
+        xs : iterable
+            Iterable of sources
+        
+        Returns
+        -------
+        UnitsDataArray
+            Number of finite values of the source data over dims
+        """
+        n = xr.zeros_like(output)
+        for x in xs:
+            n += np.isfinite(x).sum(dim=self._dims)
+        return n
+
+
+class Mean(Reduce):
+    """Computes the mean across dimension(s)
+    """
+
+    def reduce(self, x):
+        """Computes the mean across dimension(s)
+        
+        Parameters
+        ----------
+        x : UnitsDataArray
+            Source data.
+        
+        Returns
+        -------
+        UnitsDataArray
+            Mean of the source data over dims
+        """
+        return x.mean(dim=self._dims)
+
+    def reduce_chunked(self, xs, output):
+        """Computes the mean across a chunk
+        
+        Parameters
+        ----------
+        xs : iterable
+            Iterable of sources
+        
+        Returns
+        -------
+        UnitsDataArray
+            Mean of the source data over dims
+        """
+        s = xr.zeros_like(output)
+        n = xr.zeros_like(output)
+        for x in xs:
+            # TODO efficency
+            s += x.sum(dim=self._dims)
+            n += np.isfinite(x).sum(dim=self._dims)
+        output = s / n
+        return output
+
+
+class Variance(Reduce):
+    """Computes the variance across dimension(s)
+    """
+
+    def reduce(self, x):
+        """Computes the variance across dimension(s)
+        
+        Parameters
+        ----------
+        x : UnitsDataArray
+            Source data.
+        
+        Returns
+        -------
+        UnitsDataArray
+            Variance of the source data over dims
+        """
+        return x.var(dim=self._dims)
+
+    def reduce_chunked(self, xs, output):
+        """Computes the variance across a chunk
+        
+        Parameters
+        ----------
+        xs : iterable
+            Iterable of sources
+        
+        Returns
+        -------
+        UnitsDataArray
+            Variance of the source data over dims
+        """
+        n = xr.zeros_like(output)
+        m = xr.zeros_like(output)
+        m2 = xr.zeros_like(output)
+
+        # Welford, adapted to handle multiple data points in each iteration
+        for x in xs:
+            n += np.isfinite(x).sum(dim=self._dims)
+            d = x - m
+            m += (d / n).sum(dim=self._dims)
+            d2 = x - m
+            m2 += (d * d2).sum(dim=self._dims)
+
+        return m2 / n
+
+
+class Skew(Reduce):
+    """
+    Computes the skew across dimension(s)
+
+    TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
+    """
+
+    def reduce(self, x):
+        """Computes the skew across dimension(s)
+        
+        Parameters
+        ----------
+        x : UnitsDataArray
+            Source data.
+        
+        Returns
+        -------
+        UnitsDataArray
+            Skew of the source data over dims
+        """
+        # N = np.isfinite(x).sum(dim=self._dims)
+        # M1 = x.mean(dim=self._dims)
+        # E = x - M1
+        # E2 = E**2
+        # E3 = E2*E
+        # M2 = (E2).sum(dim=self._dims)
+        # M3 = (E3).sum(dim=self._dims)
+        # skew = self.skew(M3, M2, N)
+
+        a = self._reshape(x)
+        skew = scipy.stats.skew(a, nan_policy="omit")
+        return skew
+
+    def reduce_chunked(self, xs, output):
+        """Computes the skew across a chunk
+        
+        Parameters
+        ----------
+        xs : iterable
+            Iterable of sources
+        
+        Returns
+        -------
+        UnitsDataArray
+            Skew of the source data over dims
+        """
+        N = xr.zeros_like(output)
+        M1 = xr.zeros_like(output)
+        M2 = xr.zeros_like(output)
+        M3 = xr.zeros_like(output)
+        check_empty = True
+
+        for x in xs:
+            Nx = np.isfinite(x).sum(dim=self._dims)
+            M1x = x.mean(dim=self._dims)
+            Ex = x - M1x
+            Ex2 = Ex ** 2
+            Ex3 = Ex2 * Ex
+            M2x = (Ex2).sum(dim=self._dims)
+            M3x = (Ex3).sum(dim=self._dims)
+
+            # premask to omit NaNs
+            b = Nx.data > 0
+            Nx = Nx.data[b]
+            M1x = M1x.data[b]
+            M2x = M2x.data[b]
+            M3x = M3x.data[b]
+
+            Nb = N.data[b]
+            M1b = M1.data[b]
+            M2b = M2.data[b]
+
+            # merge
+            d = M1x - M1b
+            n = Nb + Nx
+            NNx = Nb * Nx
+
+            M3.data[b] += M3x + d ** 3 * NNx * (Nb - Nx) / n ** 2 + 3 * d * (Nb * M2x - Nx * M2b) / n
+            M2.data[b] += M2x + d ** 2 * NNx / n
+            M1.data[b] += d * Nx / n
+            N.data[b] = n
+
+        # calculate skew
+        skew = np.sqrt(N) * M3 / np.sqrt(M2 ** 3)
+        return skew
+
+
+class Kurtosis(Reduce):
+    """Computes the kurtosis across dimension(s)
+
+    TODO NaN behavior when there is NO data (currently different in reduce and reduce_chunked)
+    """
+
+    def reduce(self, x):
+        """Computes the kurtosis across dimension(s)
+        
+        Parameters
+        ----------
+        x : UnitsDataArray
+            Source data.
+        
+        Returns
+        -------
+        UnitsDataArray
+            Kurtosis of the source data over dims
+        """
+        # N = np.isfinite(x).sum(dim=self._dims)
+        # M1 = x.mean(dim=self._dims)
+        # E = x - M1
+        # E2 = E**2
+        # E4 = E2**2
+        # M2 = (E2).sum(dim=self._dims)
+        # M4 = (E4).sum(dim=self._dims)
+        # kurtosis = N * M4 / M2**2 - 3
+
+        a = self._reshape(x)
+        kurtosis = scipy.stats.kurtosis(a, nan_policy="omit")
+        return kurtosis
+
+    def reduce_chunked(self, xs, output):
+        """Computes the kurtosis across a chunk
+        
+        Parameters
+        ----------
+        xs : iterable
+            Iterable of sources
+        
+        Returns
+        -------
+        UnitsDataArray
+            Kurtosis of the source data over dims
+        """
+        N = xr.zeros_like(output)
+        M1 = xr.zeros_like(output)
+        M2 = xr.zeros_like(output)
+        M3 = xr.zeros_like(output)
+        M4 = xr.zeros_like(output)
+
+        for x in xs:
+            Nx = np.isfinite(x).sum(dim=self._dims)
+            M1x = x.mean(dim=self._dims)
+            Ex = x - M1x
+            Ex2 = Ex ** 2
+            Ex3 = Ex2 * Ex
+            Ex4 = Ex2 ** 2
+            M2x = (Ex2).sum(dim=self._dims)
+            M3x = (Ex3).sum(dim=self._dims)
+            M4x = (Ex4).sum(dim=self._dims)
+
+            # premask to omit NaNs
+            b = Nx.data > 0
+            Nx = Nx.data[b]
+            M1x = M1x.data[b]
+            M2x = M2x.data[b]
+            M3x = M3x.data[b]
+            M4x = M4x.data[b]
+
+            Nb = N.data[b]
+            M1b = M1.data[b]
+            M2b = M2.data[b]
+            M3b = M3.data[b]
+
+            # merge
+            d = M1x - M1b
+            n = Nb + Nx
+            NNx = Nb * Nx
+
+            M4.data[b] += (
+                M4x
+                + d ** 4 * NNx * (Nb ** 2 - NNx + Nx ** 2) / n ** 3
+                + 6 * d ** 2 * (Nb ** 2 * M2x + Nx ** 2 * M2b) / n ** 2
+                + 4 * d * (Nb * M3x - Nx * M3b) / n
+            )
+
+            M3.data[b] += M3x + d ** 3 * NNx * (Nb - Nx) / n ** 2 + 3 * d * (Nb * M2x - Nx * M2b) / n
+            M2.data[b] += M2x + d ** 2 * NNx / n
+            M1.data[b] += d * Nx / n
+            N.data[b] = n
+
+        # calculate kurtosis
+        kurtosis = N * M4 / M2 ** 2 - 3
+        return kurtosis
+
+
+class StandardDeviation(Variance):
+    """Computes the standard deviation across dimension(s)
+    """
+
+    def reduce(self, x):
+        """Computes the standard deviation across dimension(s)
+        
+        Parameters
+        ----------
+        x : UnitsDataArray
+            Source data.
+        
+        Returns
+        -------
+        UnitsDataArray
+            Standard deviation of the source data over dims
+        """
+        return x.std(dim=self._dims)
+
+    def reduce_chunked(self, xs, output):
+        """Computes the standard deviation across a chunk
+        
+        Parameters
+        ----------
+        xs : iterable
+            Iterable of sources
+        
+        Returns
+        -------
+        UnitsDataArray
+            Standard deviation of the source data over dims
+        """
+        var = super(StandardDeviation, self).reduce_chunked(xs, output)
+        return np.sqrt(var)
+
+
+class Median(ReduceOrthogonal):
     """Computes the median across dimension(s)
     """
-    
+
     def reduce(self, x):
         """Computes the median across dimension(s)
         
@@ -817,7 +793,7 @@ class Median(Reduce2):
         return x.median(dim=self._dims)
 
 
-class Percentile(Reduce2):
+class Percentile(ReduceOrthogonal):
     """Computes the percentile across dimension(s)
     
     Attributes
@@ -825,7 +801,7 @@ class Percentile(Reduce2):
     percentile : TYPE
         Description
     """
-    
+
     percentile = tl.Float(default=50.0).tag(attr=True)
 
     def reduce(self, x):
@@ -844,11 +820,15 @@ class Percentile(Reduce2):
 
         return np.nanpercentile(x, self.percentile, self.dims_axes(x))
 
+
 # =============================================================================
 # Time-Grouped Reduce
 # =============================================================================
 
-class GroupReduce(Algorithm):
+_REDUCE_FUNCTIONS = ["all", "any", "count", "max", "mean", "median", "min", "prod", "std", "sum", "var", "custom"]
+
+
+class GroupReduce(UnaryAlgorithm):
     """
     Group a time-dependent source node and then compute a statistic for each result.
     
@@ -864,19 +844,16 @@ class GroupReduce(Algorithm):
         Source node
     """
 
-    source = tl.Instance(Node)
-    coordinates_source = tl.Instance(Node, allow_none=True)
-    
-    # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
-    groupby = tl.CaselessStrEnum(['dayofyear']) # could add season, month, etc
+    coordinates_source = NodeTrait(allow_none=True).tag(attr=True)
 
-    reduce_fn = tl.CaselessStrEnum(
-        ['all', 'any', 'count', 'max', 'mean', 'median', 'min', 'prod', 'std', 'sum', 'var', 'custom'])
-    custom_reduce_fn = tl.Any()
-    
+    # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
+    groupby = tl.CaselessStrEnum(["dayofyear"]).tag(attr=True)  # could add season, month, etc
+    reduce_fn = tl.CaselessStrEnum(_REDUCE_FUNCTIONS).tag(attr=True)
+    custom_reduce_fn = tl.Any(allow_none=True, default_value=None).tag(attr=True)
+
     _source_coordinates = tl.Instance(Coordinates)
 
-    @tl.default('coordinates_source')
+    @tl.default("coordinates_source")
     def _default_coordinates_source(self):
         return self.source
 
@@ -887,12 +864,12 @@ class GroupReduce(Algorithm):
         if len(available_coordinates) != 1:
             raise ValueError("Cannot evaluate this node; too many available coordinates")
         avail_coords = available_coordinates[0]
-        if 'time' not in avail_coords.udims:
+        if "time" not in avail_coords.udims:
             raise ValueError("GroupReduce coordinates source node must be time-dependent")
 
         # intersect grouped time coordinates using groupby DatetimeAccessor
-        avail_time = xr.DataArray(avail_coords.coords['time'])
-        eval_time = xr.DataArray(requested_coordinates.coords['time'])
+        avail_time = xr.DataArray(avail_coords.coords["time"])
+        eval_time = xr.DataArray(requested_coordinates.coords["time"])
         N = getattr(avail_time.dt, self.groupby)
         E = getattr(eval_time.dt, self.groupby)
         native_time_mask = np.in1d(N, E)
@@ -900,9 +877,10 @@ class GroupReduce(Algorithm):
         # use requested spatial coordinates and filtered available times
         coords = Coordinates(
             time=avail_time.data[native_time_mask],
-            lat=requested_coordinates['lat'],
-            lon=requested_coordinates['lon'],
-            order=('time', 'lat', 'lon'))
+            lat=requested_coordinates["lat"],
+            lon=requested_coordinates["lon"],
+            order=("time", "lat", "lon"),
+        )
 
         return coords
 
@@ -927,42 +905,43 @@ class GroupReduce(Algorithm):
         ValueError
             If source it not time-depended (required by this node).
         """
-        
+
         self._source_coordinates = self._get_source_coordinates(coordinates)
-        
+
         if output is None:
             output = self.create_output_array(coordinates)
-        
+
         source_output = self.source.eval(self._source_coordinates)
 
         # group
-        grouped = source_output.groupby('time.%s' % self.groupby)
-        
+        grouped = source_output.groupby("time.%s" % self.groupby)
+
         # reduce
-        if self.reduce_fn is 'custom':
-            out = grouped.apply(self.custom_reduce_fn, 'time')
+        if self.reduce_fn == "custom":
+            out = grouped.apply(self.custom_reduce_fn, "time")
         else:
             # standard, e.g. grouped.median('time')
-            out = getattr(grouped, self.reduce_fn)('time')
+            out = getattr(grouped, self.reduce_fn)("time")
 
         # map
-        eval_time = xr.DataArray(coordinates.coords['time'])
+        eval_time = xr.DataArray(coordinates.coords["time"])
         E = getattr(eval_time.dt, self.groupby)
-        out = out.sel(**{self.groupby:E}).rename({self.groupby: 'time'})
+        out = out.sel(**{self.groupby: E}).rename({self.groupby: "time"})
         output[:] = out.transpose(*output.dims).data
 
         return output
 
     def base_ref(self):
         """
-        Default pipeline node reference/name in pipeline node definitions
+        Default node reference/name in node definitions
         
         Returns
         -------
         str
-            Default pipeline node reference/name in pipeline node definitions
+            Default node reference/name in node definitions
         """
-        return '%s.%s.%s' % (self.source.base_ref,self.groupby,self.reduce_fn)
+        return "%s.%s.%s" % (self.source.base_ref, self.groupby, self.reduce_fn)
+
 
 class DayOfYear(GroupReduce):
     """
@@ -978,4 +957,4 @@ class DayOfYear(GroupReduce):
         Source node
     """
 
-    groupby = 'dayofyear'
+    groupby = "dayofyear"

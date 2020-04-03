@@ -11,14 +11,19 @@ __pycache__
 *.rdb
 *.egg-info
 podpac/cache/
-
+dist/aws/podpac_dist.zip
+dist/aws/podpac_deps.zip
 
 # test
 .cache
 .coverage
 artifacts
+settings.json
 
 # docs
 doc/build
-doc/source/user/api
+doc/source/api
+doc/source/example-links.inc
+doc/source/changelog.md
 .pytest_cache/
+build/

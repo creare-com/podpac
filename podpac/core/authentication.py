@@ -1,168 +1,192 @@
 """
-PODPAC Authentication
+PODPAC Authentication 
 """
 
 
-from __future__ import division, unicode_literals, print_function, absolute_import
-
-
-import sys
 import getpass
-import re
+import logging
 
-# python 2/3 compatibility
-if sys.version_info.major < 3:
-    input = raw_input
-else:
-    from builtins import input
+import requests
+import traitlets as tl
+from lazy_import import lazy_module
 
-# Optional PODPAC dependency
-try:
-    import requests
-except:
-    class Dum(object):
-        def __init__(self, *args, **kwargs):
-            pass
-    requests = Dum()
-    requests.Session = Dum
-
-from podpac.core import utils
 from podpac.core.settings import settings
+from podpac.core.utils import cached_property
+
+_log = logging.getLogger(__name__)
 
 
-class Session(requests.Session):
-    """Base Class for authentication in PODPAC
+def set_credentials(hostname, username=None, password=None):
+    """Set authentication credentials for a remote URL in the :class:`podpac.settings`.
     
-    Attributes
+    Parameters
     ----------
-    auth : tuple
-        (username, password) string in plain text
     hostname : str
-        Host address (eg. http://example.com) that gets authenticated.
-        By default, this is set to 'urs.earthdata.nasa.gov'
-    password : str
-        Password used for authentication.
-        Loaded from podpac settings file using password@:attr:`hostname` as the key.
-    username : str
-        Username used for authentication.
-        Loaded from podpac settings file using username@:attr:`hostname` as the key.
+        Hostname for `username` and `password`.
+    username : str, optional
+        Username to store in settings for `hostname`.
+        If no username is provided and the username does not already exist in the settings,
+        the user will be prompted to enter one.
+    password : str, optional
+        Password to store in settings for `hostname`
+        If no password is provided and the password does not already exist in the settings,
+        the user will be prompted to enter one.
     """
 
-    def __init__(self, hostname='', username=None, password=None):
+    if hostname is None or hostname == "":
+        raise ValueError("`hostname` must be defined")
 
-        # requests __init__
-        super(Session, self).__init__()
+    # see whats stored in settings already
+    u_settings = settings.get("username@{}".format(hostname))
+    p_settings = settings.get("password@{}".format(hostname))
 
-        self.hostname = hostname
-        self.username = username
-        self.password = password
+    # get username from 1. function input 2. settings 3. python input()
+    u = username or u_settings or input("Username: ")
+    p = password or p_settings or getpass.getpass()
 
-        # load username/password from settings
-        if self.username is None:
-            self.username = settings['username@' + self.hostname]
-        
-        if self.password is None:
-            self.password = settings['password@' + self.hostname]
-        
-        self.auth = (self.username, self.password)
+    # set values in settings
+    settings["username@{}".format(hostname)] = u
+    settings["password@{}".format(hostname)] = p
 
-
-class EarthDataSession(Session):
-    """
-    Modified from: https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+Python
-    overriding requests.Session.rebuild_auth to maintain headers when redirected
-    
-    Attributes
-    ----------
-    product_url : str
-        Url to NSIDC product OpenDAP server
-    product_url_regex : str
-        Regex used to match redirected hostname if different from :attr:`self.hostname`
-    """
-
-    # make sure attributes are persistent across all EarthDataSession classes
-    hostname = None
-    username = None
-    password = None
-    auth = tuple()
-
-    def __init__(self, product_url='', **kwargs):
-
-        # override hostname with earthdata url
-        kwargs['hostname'] = 'urs.earthdata.nasa.gov'
-
-        # Session init
-        super(EarthDataSession, self).__init__(**kwargs)
-        
-        # store product_url
-        self.product_url = product_url
-        
-        # parse product_url for hostname
-        product_url_hostname = requests.utils.urlparse(self.product_url).hostname
-
-        # make all numbers in product_url_hostname wildcards
-        self.product_url_regex = re.compile(re.sub(r'\d', r'\\d', product_url_hostname)) \
-                              if product_url_hostname is not None else None
+    _log.debug("Set credentials for hostname {}".format(hostname))
 
 
-    def rebuild_auth(self, prepared_request, response):
-        """
-        Overrides from the library to keep headers when redirected to or from
-        the NASA auth host.
-        
-        Parameters
-        ----------
-        prepared_request : requests.Request
-            Description
-        response : requests.Response
-            Description
+class RequestsSessionMixin(tl.HasTraits):
+    hostname = tl.Unicode(allow_none=False)
+    auth_required = tl.Bool(default_value=False)
+
+    @property
+    def username(self):
+        """Returns username stored in settings for accessing `self.hostname`.
+        The username is stored under key `username@<hostname>`
         
         Returns
         -------
-        None
-
+        str
+            username stored in settings for accessing `self.hostname`
+        
+        Raises
+        ------
+        ValueError
+            Raises a ValueError if not username is stored in settings for `self.hostname`
         """
-        headers = prepared_request.headers
-        url = prepared_request.url
+        key = "username@{}".format(self.hostname)
+        username = settings.get(key)
+        if not username:
+            raise ValueError(
+                "No username found for hostname '{0}'. Use `{1}.set_credentials(username='<username>', password='<password>') to store credentials for this host".format(
+                    self.hostname, self.__class__.__name__
+                )
+            )
 
-        if 'Authorization' in headers:
-            original_parsed = requests.utils.urlparse(response.request.url)
-            redirect_parsed = requests.utils.urlparse(url)
+        return username
 
-            # delete Authorization headers if original and redirect do not match
-            # is not in product_url_regex
-            if (original_parsed.hostname != redirect_parsed.hostname) \
-                    and redirect_parsed.hostname != self.hostname and \
-                    original_parsed.hostname != self.hostname:
+    @property
+    def password(self):
+        """Returns password stored in settings for accessing `self.hostname`.
+        The password is stored under key `password@<hostname>`
+        
+        Returns
+        -------
+        str
+            password stored in settings for accessing `self.hostname`
+        
+        Raises
+        ------
+        ValueError
+            Raises a ValueError if not password is stored in settings for `self.hostname`
+        """
+        key = "password@{}".format(self.hostname)
+        password = settings.get(key)
+        if not password:
+            raise ValueError(
+                "No password found for hostname {0}. Use `{1}.set_credentials(username='<username>', password='<password>') to store credentials for this host".format(
+                    self.hostname, self.__class__.__name__
+                )
+            )
 
-                # if redirect matches product_url_regex, then allow the headers to stay
-                if self.product_url_regex is not None and self.product_url_regex.match(redirect_parsed.hostname):
-                    pass
-                else:
-                    del headers['Authorization']
+        return password
 
-        return
-    
-    def update_login(self, username=None, password=None):
-        """Summary
+    @cached_property
+    def session(self):
+        """Requests Session object for making calls to remote `self.hostname`
+        See https://2.python-requests.org/en/master/api/#sessionapi
+        
+        Returns
+        -------
+        :class:requests.Session
+            Requests Session class with `auth` attribute defined
+        """
+        return self._create_session()
+
+    def set_credentials(self, username=None, password=None):
+        """Shortcut to :func:`podpac.authentication.set_crendentials` using class member :attr:`self.hostname` for the hostname
         
         Parameters
         ----------
         username : str, optional
-            Username input
+            Username to store in settings for `self.hostname`.
+            If no username is provided and the username does not already exist in the settings,
+            the user will be prompted to enter one.
         password : str, optional
-            Password input
+            Password to store in settings for `self.hostname`
+            If no password is provided and the password does not already exist in the settings,
+            the user will be prompted to enter one.
         """
-        print("Updating login information for: ", self.hostname)
+        return set_credentials(self.hostname, username=username, password=password)
+
+    def _create_session(self):
+        """Creates a :class:`requests.Session` with username and password defined
         
-        if username is None:
-            username = input("Username: ")
-        
-        settings['username@' + self.hostname] = username
-        
-        if password is None:
-            password = getpass.getpass()
-        
-        settings['password@' + self.hostname] = password
-        
-        self.auth = (username, password)
+        Returns
+        -------
+        :class:`requests.Session`
+        """
+        s = requests.Session()
+
+        try:
+            s.auth = (self.username, self.password)
+        except ValueError as e:
+            if self.auth_required:
+                raise e
+            else:
+                _log.warning("No auth provided for session")
+
+        return s
+
+
+class S3Mixin(tl.HasTraits):
+    """ Mixin to add S3 credentials and access to a Node. """
+
+    anon = tl.Bool(False)
+    aws_access_key_id = tl.Unicode(allow_none=True)
+    aws_secret_access_key = tl.Unicode(allow_none=True)
+    aws_region_name = tl.Unicode(allow_none=True)
+    aws_client_kwargs = tl.Dict()
+
+    @tl.default("aws_access_key_id")
+    def _get_access_key_id(self):
+        return settings["AWS_ACCESS_KEY_ID"]
+
+    @tl.default("aws_secret_access_key")
+    def _get_secret_access_key(self):
+        return settings["AWS_SECRET_ACCESS_KEY"]
+
+    @tl.default("aws_region_name")
+    def _get_region_name(self):
+        return settings["AWS_REGION_NAME"]
+
+    @cached_property
+    def s3(self):
+        # this has to be done here for multithreading to work
+        s3fs = lazy_module("s3fs")
+
+        if self.anon:
+            return s3fs.S3FileSystem(anon=True, client_kwargs=self.aws_client_kwargs)
+        else:
+            return s3fs.S3FileSystem(
+                key=self.aws_access_key_id,
+                secret=self.aws_secret_access_key,
+                region_name=self.aws_region_name,
+                client_kwargs=self.aws_client_kwargs,
+            )

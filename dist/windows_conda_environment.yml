@@ -1,0 +1,29 @@
+name: podpac
+channels:
+  - defaults
+dependencies:
+  - python=3.7
+  - numpy
+  - ipython
+  - matplotlib
+  - scipy
+  - requests
+  - xarray
+  - psutil
+  - traitlets
+  - rasterio
+  - pyproj
+  - lxml
+  - zarr
+  - h5py
+  - beautifulsoup4
+  - s3fs
+  - boto3
+  - numexpr
+  - nodejs
+  - ipywidgets
+  - jupyterlab
+  - ipyleaflet
+  - ipympl
+prefix: D:\podpac-1.3.0\miniconda\envs\podpac
+

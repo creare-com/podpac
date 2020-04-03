@@ -1,4 +1,3 @@
-
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import copy
@@ -8,11 +7,11 @@ import numpy as np
 import traitlets as tl
 from collections import OrderedDict
 
-# from podpac.core.utils import cached_property, clear_cache
-from podpac.core.units import Units
-from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_timedelta_string, add_coord
+from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord, divide_delta
+from podpac.core.coordinates.utils import lower_precision_time_bounds
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
+
 
 class UniformCoordinates1d(Coordinates1d):
     """
@@ -38,37 +37,26 @@ class UniformCoordinates1d(Coordinates1d):
         Dimension name, one of 'lat', 'lon', 'time', 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    units : podpac.Units
-        Coordinate units.
-    coord_ref_sys : str
-        Coordinate reference system.
     ctype : str
         Coordinates type, one of'point', 'left', 'right', or 'midpoint'.
-    extents : ndarray
-        When ctype != 'point', defines custom area bounds for the coordinates.
-        *Note: To be replaced with segment_lengths.*
+    segment_lengths : array, float, timedelta
+        When ctype is a segment type, the segment lengths for the coordinates.
 
     See Also
     --------
     :class:`Coordinates1d`, :class:`ArrayCoordinates1d`, :class:`crange`, :class:`clinspace`
     """
 
-    start = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
+    start = tl.Union([tl.Float(), tl.Instance(np.datetime64)], read_only=True)
     start.__doc__ = ":float, datetime64: Start coordinate."
-    
-    stop = tl.Union([tl.Float(), tl.Instance(np.datetime64)])
+
+    stop = tl.Union([tl.Float(), tl.Instance(np.datetime64)], read_only=True)
     stop.__doc__ = ":float, datetime64: Stop coordinate."
 
-    step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)])
+    step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
-    is_monotonic = tl.CBool(True, readonly=True)
-    is_monotonic.__doc__ = ":bool: Are the coordinate values unique and sorted (always True)."
-    
-    is_uniform = tl.CBool(True, readonly=True)
-    is_uniform.__doc__ = ":bool: Are the coordinate values uniformly-spaced (always True)."
-
-    def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, units=None, coord_ref_sys=None, extents=None):
+    def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, segment_lengths=None):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -82,6 +70,13 @@ class UniformCoordinates1d(Coordinates1d):
             Signed, nonzero step between coordinates (either step or size required).
         size : int
             Number of coordinates (either step or size required).
+        name : str, optional
+            Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
+        ctype : str, optional
+            Coordinates type: 'point', 'left', 'right', or 'midpoint'.
+        segment_lengths: array, float, timedelta, optional
+            When ctype is a segment type, the segment lengths for the coordinates. By defaul, the segment_lengths are
+            equal the step.
         """
 
         if step is not None and size is not None:
@@ -89,81 +84,64 @@ class UniformCoordinates1d(Coordinates1d):
         elif step is None and size is None:
             raise TypeError("'step' or 'size' is required")
 
+        # validate and set start, stop, and step
         start = make_coord_value(start)
         stop = make_coord_value(stop)
-        if step is None:
-            if not isinstance(size, (int, np.long, np.integer) or isinstance(size, np.timedelta64)):
-                raise TypeError("size must be an integer, not '%s'" % type(size))
-            step = (stop - start) / (size - 1)
-        else:
+
+        if step is not None:
             step = make_coord_delta(step)
+        elif isinstance(size, (int, np.long, np.integer)) and not isinstance(size, np.timedelta64):
+            step = divide_delta(stop - start, size - 1)
+        else:
+            raise TypeError("size must be an integer, not '%s'" % type(size))
 
-        kwargs = {}
-        if name is not None:
-            kwargs['name'] = name
-        if ctype is not None:
-            kwargs['ctype'] = ctype
-        if units is not None:
-            kwargs['units'] = units
-        if coord_ref_sys is not None:
-            kwargs['coord_ref_sys'] = coord_ref_sys
-        if extents is not None:
-            kwargs['extents'] = extents
-
-        super(UniformCoordinates1d, self).__init__(start=start, stop=stop, step=step, **kwargs)
-
-    @tl.validate('start')
-    def _validate_start(self, d):
-        self._validate_start_stop_step(d['value'], self.stop, self.step)
-        return d['value']
-
-    @tl.validate('stop')
-    def _validate_stop(self, d):
-        self._validate_start_stop_step(self.start, d['value'], self.step)
-        return d['value']
-
-    @tl.validate('step')
-    def _validate_step(self, d):
-        self._validate_start_stop_step(self.start, self.stop, d['value'])
-        if d['value'] == 0 * d['value']:
-            raise ValueError("UniformCoordinates1d step must be nonzero")
-        return d['value']
-
-    def _validate_start_stop_step(self, start, stop, step):
         if isinstance(start, float) and isinstance(stop, float) and isinstance(step, float):
             fstep = step
         elif isinstance(start, np.datetime64) and isinstance(stop, np.datetime64) and isinstance(step, np.timedelta64):
             fstep = step.astype(float)
         else:
-            raise TypeError("UniformCoordinates1d mismatching types (start '%s', stop '%s', step '%s')." % (
-                type(start), type(stop), type(step)))
+            raise TypeError(
+                "UniformCoordinates1d mismatching types (start '%s', stop '%s', step '%s')."
+                % (type(start), type(stop), type(step))
+            )
 
-        if fstep < 0 and start < stop:
-            raise ValueError("UniformCoordinates1d step must be less than zero if start > stop.")
-
-        if fstep > 0 and start > stop:
+        if fstep <= 0 and start < stop:
             raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
 
-    @tl.observe('start', 'stop', 'step')
-    def _observe_coords(self, change):
-        # clear_cache(self, change, ['coordinates', 'bounds'])
+        if fstep >= 0 and start > stop:
+            raise ValueError("UniformCoordinates1d step must be less than zero if start > stop.")
 
-        if self.start == self.stop:
-            self.set_trait('is_descending', None)
-        else:
-            self.set_trait('is_descending', bool(self.stop < self.start))
+        self.set_trait("start", start)
+        self.set_trait("stop", stop)
+        self.set_trait("step", step)
 
-    @tl.validate('extents')
-    def _validate_extents(self, d):
-        return super(UniformCoordinates1d, self)._validate_extents(d)
+        # set common properties
+        super(UniformCoordinates1d, self).__init__(name=name, ctype=ctype, segment_lengths=segment_lengths)
 
-    @tl.default('coord_ref_sys')
-    def _default_coord_ref_sys(self):
-        return super(UniformCoordinates1d, self)._default_coord_ref_sys()
-    
-    @tl.default('ctype')
+    @tl.default("ctype")
     def _default_ctype(self):
-        return super(UniformCoordinates1d, self)._default_ctype()
+        return "midpoint"
+
+    @tl.default("segment_lengths")
+    def _default_segment_lengths(self):
+        if self.ctype == "point":
+            return None
+
+        return np.abs(self.step)
+
+    def __eq__(self, other):
+        if not super(UniformCoordinates1d, self).__eq__(other):
+            return False
+
+        if isinstance(other, UniformCoordinates1d):
+            if self.start != other.start or self.stop != other.stop or self.step != other.step:
+                return False
+
+        if isinstance(other, ArrayCoordinates1d):
+            if not np.array_equal(self.coordinates, other.coordinates):
+                return False
+
+        return True
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate Constructors
@@ -173,7 +151,8 @@ class UniformCoordinates1d(Coordinates1d):
     def from_tuple(cls, items, **kwargs):
         if not isinstance(items, tuple) or len(items) != 3:
             raise ValueError(
-                "UniformCoordinates1d.from_tuple expects a tuple of (start, stop, step/size), got %s" % (items,))
+                "UniformCoordinates1d.from_tuple expects a tuple of (start, stop, step/size), got %s" % (items,)
+            )
         elif isinstance(items[2], int):
             return cls(items[0], items[1], size=items[2], **kwargs)
         else:
@@ -224,41 +203,15 @@ class UniformCoordinates1d(Coordinates1d):
         definition
         """
 
-        if 'start' not in d:
+        if "start" not in d:
             raise ValueError('UniformCoordinates1d definition requires "start" property')
-        if 'stop' not in d:
+        if "stop" not in d:
             raise ValueError('UniformCoordinates1d definition requires "stop" property')
 
-        start = d.pop('start')
-        stop = d.pop('stop')
-        return cls(start, stop, **d)
-
-    def copy(self, **kwargs):
-        """
-        Make a deep copy of the uniform 1d Coordinates.
-
-        The coordinates properties will be copied. Any provided keyword arguments will override these properties.
-
-        Arguments
-        ---------
-        name : str, optional
-            Dimension name. One of 'lat', 'lon', 'alt', and 'time'.
-        units : str, optional
-            Coordinates units.
-        coord_ref_sys : str, optional
-            Coordinates reference system.
-        ctype : str, optional
-            Coordinates type. One of 'point', 'midpoint', 'left', 'right'.
-
-        Returns
-        -------
-        :class:`UniformCoordinates1d`
-            Copy of the coordinates, with provided properties.
-        """
-
-        properties = self.properties
-        properties.update(kwargs)
-        return UniformCoordinates1d(self.start, self.stop, self.step, **properties)
+        start = d["start"]
+        stop = d["stop"]
+        kwargs = {k: v for k, v in d.items() if k not in ["start", "stop"]}
+        return cls(start, stop, **kwargs)
 
     # -----------------------------------------------------------------------------------------------------------------
     # Standard methods, array-like
@@ -268,30 +221,21 @@ class UniformCoordinates1d(Coordinates1d):
         return self.size
 
     def __getitem__(self, index):
-        if isinstance(index, int):
-            if index >= self.size or index < -self.size:
-                raise IndexError('index %d is out of bounds for coordinates with size %d' % (index, self.size))
-            if index > 0:
-                value = add_coord(self.start, self.step * index)
-            else:
-                value = add_coord(self.start, self.step * (self.size+index))
-
-            return UniformCoordinates1d(value, value, self.step, **self.properties)
-
-        elif isinstance(index, slice):
+        if isinstance(index, slice):
+            # start, stop, step
             if index.start is None:
                 start = self.start
             elif index.start >= 0:
-                start = add_coord(self.start, self.step * min(index.start, self.size-1))
+                start = add_coord(self.start, self.step * min(index.start, self.size - 1))
             else:
-                start = add_coord(self.start, self.step * max(0, self.size+index.start))
+                start = add_coord(self.start, self.step * max(0, self.size + index.start))
 
             if index.stop is None:
                 stop = self.stop
             elif index.stop >= 0:
-                stop = add_coord(self.start, self.step * (min(index.stop, self.size)-1))
+                stop = add_coord(self.start, self.step * (min(index.stop, self.size) - 1))
             else:
-                stop = add_coord(self.start, self.step * max(0, self.size+index.stop-1))
+                stop = add_coord(self.start, self.step * max(0, self.size + index.stop - 1))
 
             if index.step is None:
                 step = self.step
@@ -300,10 +244,37 @@ class UniformCoordinates1d(Coordinates1d):
                 if index.step < 0:
                     start, stop = stop, start
 
-            return UniformCoordinates1d(start, stop, step, **self.properties)
+            # properties and segment_lengths
+            kwargs = self.properties
+
+            if self.ctype != "point":
+                if isinstance(self.segment_lengths, np.ndarray):
+                    kwargs["segment_lengths"] = self.segment_lengths[index]
+                elif self.segment_lengths != step:
+                    kwargs["segment_lengths"] = self.segment_lengths
+
+            # reroute empty slices to the else clause
+            if start > stop and step > 0:
+                return self[[]]
+
+            return UniformCoordinates1d(start, stop, step, **kwargs)
 
         else:
-            return ArrayCoordinates1d(self.coordinates[index], **self.properties)
+            # coordinates
+            coordinates = self.coordinates[index]
+
+            # properties and segment_lengths
+            kwargs = self.properties
+
+            if self.ctype != "point":
+                if isinstance(self.segment_lengths, np.ndarray):
+                    kwargs["segment_lengths"] = self.segment_lengths[index]
+                else:
+                    kwargs["segment_lengths"] = self.segment_lengths
+
+            kwargs["ctype"] = self.ctype
+
+            return ArrayCoordinates1d(coordinates, **kwargs)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -314,7 +285,7 @@ class UniformCoordinates1d(Coordinates1d):
         """:array, read-only: Coordinate values. """
 
         coordinates = add_coord(self.start, np.arange(0, self.size) * self.step)
-        coordinates.setflags(write=False)
+        # coordinates.setflags(write=False)  # This breaks the 002-open-point-file example
         return coordinates
 
     @property
@@ -323,24 +294,24 @@ class UniformCoordinates1d(Coordinates1d):
 
         dname = np.array(self.step).dtype.name
 
-        if dname == 'timedelta64[Y]':
+        if dname == "timedelta64[Y]":
             dyear = self.stop.item().year - self.start.item().year
             if dyear > 0 and self.stop.item().month < self.start.item().month:
                 dyear -= 1
             range_ = dyear
             step = self.step.item()
 
-        elif dname == 'timedelta64[M]':
+        elif dname == "timedelta64[M]":
             dyear = self.stop.item().year - self.start.item().year
             dmonth = self.stop.item().month - self.start.item().month
-            range_ = 12*dyear + dmonth
+            range_ = 12 * dyear + dmonth
             step = self.step.item()
 
         else:
             range_ = self.stop - self.start
             step = self.step
 
-        return max(0, int(np.floor(range_/step + 1e-12) + 1))
+        return max(0, int(np.floor(range_ / step + 1e-12) + 1))
 
     @property
     def dtype(self):
@@ -350,6 +321,21 @@ class UniformCoordinates1d(Coordinates1d):
         """
 
         return type(self.start)
+
+    @property
+    def is_monotonic(self):
+        return True
+
+    @property
+    def is_descending(self):
+        if self.start == self.stop:
+            return None
+
+        return self.stop < self.start
+
+    @property
+    def is_uniform(self):
+        return True
 
     @property
     def bounds(self):
@@ -366,132 +352,60 @@ class UniformCoordinates1d(Coordinates1d):
         return bounds
 
     @property
-    def area_bounds(self):
-        """
-        Low and high coordinate area bounds.
-
-        When ctype != 'point', this includes the portions of the segments beyond the coordinate bounds.
-        """
-
-        # point ctypes, just use bounds
-        if self.ctype == 'point':
-            return self.bounds
-
-        # segment ctypes, with explicit extents
-        if self.extents is not None:
-            return self.extents
-
-        # segment ctypes, calculated
-        lo, hi = self.bounds
-        if self.ctype == 'left':
-            hi = add_coord(hi, np.abs(self.step))
-        elif self.ctype == 'right':
-            lo = add_coord(lo, -np.abs(self.step))
-        elif self.ctype == 'midpoint':
-            # TODO datetimes, need a dived_coord method
-            lo = add_coord(lo, -np.abs(self.step)/2.0)
-            hi = add_coord(hi,  np.abs(self.step)/2.0)
-
-        # read-only array with the correct dtype
-        area_bounds = np.array([lo, hi], dtype=self.dtype)
-        area_bounds.setflags(write=False)
-        return area_bounds
-
-    @property
-    def definition(self):
-        """:dict: Serializable uniform 1d coordinates definition.
-
-        The ``definition`` can be used to create new UniformCoordinates1d::
-
-            c = podpac.UniformCoordinates1d(0, 10, step=1)
-            c2 = podpac.UniformCoordinates1d.from_definition(c.definition)
-
-        See Also
-        --------
-        from_definition
-        """
-
-        d = OrderedDict()
-        if self.dtype == float:
-            d['start'] = self.start
-            d['stop'] = self.stop
-            d['step'] = self.step
+    def argbounds(self):
+        if self.is_descending:
+            return -1, 0
         else:
-            d['start'] = str(self.start)
-            d['stop'] = str(self.stop)
-            d['step'] = make_timedelta_string(self.step)
-        d.update(self.properties)
+            return 0, -1
+
+    def _get_definition(self, full=True):
+        d = OrderedDict()
+        d["start"] = self.start
+        d["stop"] = self.stop
+        d["step"] = self.step
+        d.update(self._full_properties if full else self.properties)
         return d
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
-    def select(self, bounds, outer=False, return_indices=False):
+    def copy(self):
         """
-        Get the coordinate values that are within the given bounds.
-
-        The default selection returns coordinates that are within the other coordinates bounds::
-
-            In [1]: c = UniformCoordinates1d(0, 3, step=1, name='lat')
-
-            In [2]: c.select([1.5, 2.5]).coordinates
-            Out[2]: array([2.])
-
-        The *outer* selection returns the minimal set of coordinates that contain the other coordinates::
-        
-            In [3]: c.intersect([1.5, 2.5], outer=True).coordinates
-            Out[3]: array([1., 2., 3.])
-
-        The *outer* selection also returns a boundary coordinate if the other coordinates are outside this
-        coordinates bounds but *inside* its area bounds::
-        
-            In [4]: c.intersect([3.25, 3.35], outer=True).coordinates
-            Out[4]: array([3.0], dtype=float64)
-
-            In [5]: c.intersect([10.0, 11.0], outer=True).coordinates
-            Out[5]: array([], dtype=float64)
-        
-        Arguments
-        ---------
-        bounds : low, high
-            selection bounds
-        outer : bool, optional
-            If True, do an *outer* selection. Default False.
-        return_indices : bool, optional
-            If True, return slice or indices for the selection in addition to coordinates. Default False.
+        Make a deep copy of the uniform 1d Coordinates.
 
         Returns
         -------
-        selection : :class:`UniformCoordinates`
-            UniformCoordinates1d object with coordinates within the other coordinates bounds.
-        I : slice or list
-            index or slice for the intersected coordinates (only if return_indices=True)
+        :class:`UniformCoordinates1d`
+            Copy of the coordinates.
         """
 
-        bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
+        kwargs = self.properties
+        return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
-        # full
-        if self.bounds[0] >= bounds[0] and self.bounds[1] <= bounds[1]:
-            return self._select_full(return_indices)
-
-        # none
-        if self.area_bounds[0] > bounds[1] or self.area_bounds[1] < bounds[0]:
-            return self._select_empty(return_indices)
-
+    def _select(self, bounds, return_indices, outer):
         # TODO is there an easier way to do this with the new outer flag?
+        my_bounds = self.bounds.copy()
 
-        lo = max(bounds[0], self.bounds[0])
-        hi = min(bounds[1], self.bounds[1])
+        # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
+        if self.dtype == np.datetime64:
+            my_bounds, bounds = lower_precision_time_bounds(my_bounds, bounds, outer)
 
-        imin = int(np.ceil((lo - self.bounds[0]) / np.abs(self.step)))
-        imax = int(np.floor((hi - self.bounds[0]) / np.abs(self.step)))
+        lo = max(bounds[0], my_bounds[0])
+        hi = min(bounds[1], my_bounds[1])
+
+        fmin = (lo - my_bounds[0]) / np.abs(self.step)
+        fmax = (hi - my_bounds[0]) / np.abs(self.step)
+        imin = int(np.ceil(fmin))
+        imax = int(np.floor(fmax))
 
         if outer:
-            imin -= 1
-            imax += 1
+            if imin != fmin:
+                imin -= 1
+            if imax != fmax:
+                imax += 1
 
-        imax = np.clip(imax+1, 0, self.size)
+        imax = np.clip(imax + 1, 0, self.size)
         imin = np.clip(imin, 0, self.size)
 
         # empty case
@@ -501,11 +415,8 @@ class UniformCoordinates1d(Coordinates1d):
         if self.is_descending:
             imax, imin = self.size - imin, self.size - imax
 
-        start = self.start + imin*self.step
-        stop = self.start + (imax-1)*self.step
-        c = UniformCoordinates1d(start, stop, self.step, **self.properties)
-
+        I = slice(imin, imax)
         if return_indices:
-            return c, slice(imin, imax)
+            return self[I], I
         else:
-            return c
+            return self[I]
