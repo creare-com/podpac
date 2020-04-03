@@ -53,6 +53,9 @@ class BaseCompositor(Node):
     interpolation = InterpolationTrait(allow_none=True, default_value=None).tag(attr=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
 
+    # debug traits
+    _eval_sources = tl.Any()
+
     @tl.validate("sources")
     def _validate_sources(self, d):
         sources = d["value"]
@@ -64,7 +67,7 @@ class BaseCompositor(Node):
                 "The sources must all be standard single-output nodes or all multi-output nodes."
             )
 
-        # TODO is this copy necessary? Can it be a less deep copy (e.g. that only copies defined traits)
+        # copy so that interpolation trait of the input source is not overwritten
         return [copy.deepcopy(source) for source in sources]
 
     @tl.validate("source_coordinates")
@@ -127,7 +130,7 @@ class BaseCompositor(Node):
 
         # select intersecting sources, if possible
         if self.source_coordinates is None:
-            sources = np.array(self.sources)
+            sources = self.sources
         else:
             try:
                 _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
@@ -135,12 +138,12 @@ class BaseCompositor(Node):
                 # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
             i = I[0]
-            sources = np.array(self.sources)[i]
+            sources = np.array(self.sources)[i].tolist()
 
         # set the interpolation properties for sources
-        if self.interpolation is not None:
+        if self.trait_is_defined("interpolation") and self.interpolation is not None:
             for s in sources:
-                if s.trait_is_defined("interpolation"):
+                if s.has_trait("interpolation"):
                     s.set_trait("interpolation", self.interpolation)
 
         return sources
@@ -180,6 +183,9 @@ class BaseCompositor(Node):
 
         # get sources, potentially downselected
         sources = self.select_sources(coordinates)
+
+        if settings["DEBUG"]:
+            self._eval_sources = sources
 
         if len(sources) == 0:
             yield self.create_output_array(coordinates)

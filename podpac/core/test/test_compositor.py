@@ -74,8 +74,8 @@ class TestBaseCompositor(object):
         )
         sources = node.select_sources(podpac.Coordinates([[0, 10]], ["time"]))
 
-        assert isinstance(sources, np.ndarray)
-        assert sources.size == 3
+        assert isinstance(sources, list)
+        assert len(sources) == 3
 
     def test_select_sources_intersection(self):
         source_coords = podpac.Coordinates([[0, 10]], ["time"])
@@ -84,20 +84,20 @@ class TestBaseCompositor(object):
         # select all
         selected = node.select_sources(source_coords)
         assert len(selected) == 2
-        assert selected[0] is node.sources[0]
-        assert selected[1] is node.sources[1]
+        assert selected[0] == node.sources[0]
+        assert selected[1] == node.sources[1]
 
         # select first
         c = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 0], ["lat", "lon", "time"])
         selected = node.select_sources(c)
         assert len(selected) == 1
-        assert selected[0] is node.sources[0]
+        assert selected[0] == node.sources[0]
 
         # select second
         c = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 10], ["lat", "lon", "time"])
         selected = node.select_sources(c)
         assert len(selected) == 1
-        assert selected[0] is node.sources[1]
+        assert selected[0] == node.sources[1]
 
         # select none
         c = podpac.Coordinates([podpac.clinspace(0, 1, 10), podpac.clinspace(0, 1, 11), 100], ["lat", "lon", "time"])
@@ -304,8 +304,8 @@ class TestOrderedCompositor(object):
             node = OrderedCompositor(sources=[a, b], interpolation="bilinear")
             output = node.eval(coords)
             np.testing.assert_array_equal(output, a.source)
-            assert node.sources[0]._output is not None
-            assert node.sources[1]._output is None
+            assert node._eval_sources[0]._output is not None
+            assert node._eval_sources[1]._output is None
 
     def test_composite_short_circuit_multithreaded(self):
         with podpac.settings:

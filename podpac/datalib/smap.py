@@ -48,7 +48,7 @@ if not hasattr(np, "isnat"):
 import podpac
 from podpac import NodeException
 from podpac import authentication
-from podpac.coordinates import Coordinates
+from podpac.coordinates import Coordinates, merge_dims
 from podpac.data import PyDAP
 from podpac.utils import cached_property, DiskCacheMixin
 from podpac.compositor import OrderedCompositor
@@ -308,7 +308,7 @@ class SMAPCompositor(OrderedCompositor):
     """
 
     is_source_coordinates_complete = tl.Bool(False)
-    shared_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
+    shared_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None)
 
     def select_sources(self, coordinates):
         """Select sources based on requested coordinates, including setting native_coordinates, if possible.
@@ -332,7 +332,7 @@ class SMAPCompositor(OrderedCompositor):
 
         """ Optimization: . """
 
-        src_subset = super(self, SMAPCompositor).select_sources(coordinates)
+        src_subset = super(SMAPCompositor, self).select_sources(coordinates)
 
         if self.is_source_coordinates_complete:
             coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
@@ -346,7 +346,7 @@ class SMAPCompositor(OrderedCompositor):
 
 
 @common_doc(COMMON_DOC)
-class SMAPSource(SMAPSessionMixin, PyDAP):
+class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
     """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how
     to extract the correct coordinates and data keys for the soil moisture data.
 
@@ -653,7 +653,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
         return SMAP_PRODUCT_MAP.sel(product=self.product, attr="layer_key").item()
 
     @tl.default("shared_coordinates")
-    def shared_coordinates(self):
+    def _default_shared_coordinates(self):
         """Coordinates that are shared by all files in the folder."""
 
         if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
@@ -691,17 +691,16 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
         else:
             self.put_cache(sources, "sources", overwrite=True)
 
-            time_crds = self.source_coordinates["time"]
-            if time_crds.is_monotonic and time_crds.is_uniform and time_crds.size > 1:
-                tol = time_crds.coordinates[1] - time_crds.coordinates[0]
-            else:
-                tol = self.source_coordinates["time"].coordinates[0]
-                tol = tol - tol
-                tol = np.timedelta64(1, dtype=(tol.dtype))
+        time_crds = self.source_coordinates["time"]
+        if time_crds.is_monotonic and time_crds.is_uniform and time_crds.size > 1:
+            tol = time_crds.coordinates[1] - time_crds.coordinates[0]
+        else:
+            tol = self.source_coordinates["time"].coordinates[0]
+            tol = tol - tol
+            tol = np.timedelta64(1, dtype=(tol.dtype))
 
-            kwargs = {"layer_key": self.layer_key, "interpolation": {"method": "nearest", "time_tolerance": tol}}
-
-            return [SMAPSource(source="%s/%s" % (self.folder_url, s), **kwargs) for s in sources]
+        kwargs = {"layer_key": self.layer_key, "interpolation": {"method": "nearest", "time_tolerance": tol}}
+        return [SMAPSource(source="%s/%s" % (self.folder_url, s), **kwargs) for s in sources]
 
     @property
     def is_source_coordinates_complete(self):
@@ -814,7 +813,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
 
 @common_doc(COMMON_DOC)
-class SMAP(SMAPSessionMixin, SMAPCompositor):
+class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     """Compositor of all the SMAPDateFolder's for every available SMAP date. Essentially a compositor of all SMAP data
     for a particular product.
 
@@ -852,7 +851,7 @@ class SMAP(SMAPSessionMixin, SMAPCompositor):
         return SMAP_PRODUCT_MAP.sel(product=self.product, attr="layer_key").item()
 
     @tl.default("shared_coordinates")
-    def shared_coordinates(self):
+    def _default_shared_coordinates(self):
         """Coordinates that are shared by all files in the SMAP product family. 
 
         Notes
@@ -870,7 +869,6 @@ class SMAP(SMAPSessionMixin, SMAPCompositor):
     @cached_property
     def available_dates(self):
         """ Available dates in SMAP date format, sorted."""
-
         url = "/".join([self.base_url, "%s.%03d" % (self.product, self.version)])
         r = _get_from_url(url, self.session)
         if r is None:
@@ -1138,14 +1136,14 @@ if __name__ == "__main__":
 
     logging.basicConfig()
 
-    username = input("Username:")
-    password = getpass.getpass("Password:")
-
     product = "SPL4SMAU"
     interpolation = {"method": "nearest", "params": {"time_tolerance": np.timedelta64(2, "h")}}
 
     sm = SMAP(product=product, interpolation=interpolation)
-    sm.set_credentials(username=username, password=password)
+
+    # username = input("Username: ")
+    # password = getpass.getpass("Password: ")
+    # sm.set_credentials(username=username, password=password)
 
     # SMAP info
     print (sm)
@@ -1156,20 +1154,22 @@ if __name__ == "__main__":
     )
     print ("SMAP source_coordinates:", sm.source_coordinates)
     print ("SMAP shared_coordinates:", sm.shared_coordinates)
-    print ("Sources:", sm.sources)
+    print ("Sources:", sm.sources[:3], "... (%d)" % len(sm.sources))
 
     # sample SMAPDateFolder info
     sm_datefolder = sm.sources[0]
     print ("Sample DateFolder:", sm_datefolder)
     print ("Sample DateFolder Definition:", sm_datefolder.json_pretty)
     print ("Sample DateFolder source_coordinates:", sm_datefolder.source_coordinates)
-    print ("Sample DateFolder Sources:", sm_datefolder.sources)
+    print ("Sample DateFolder Sources:", sm_datefolder.sources[:3], "... (%d)" % len(sm_datefolder.sources))
 
     # sample SMAPSource info
     sm_source = sm_datefolder.sources[0]
     print ("Sample DAP Source:", sm_source)
     print ("Sample DAP Source Definition:", sm_source.json_pretty)
     print ("Sample DAP Native Coordinates:", sm_source.native_coordinates)
+
+    print ("Another Sample DAP Native Coordinates:", sm_datefolder.sources[1].native_coordinates)
 
     # eval whole world
     c_world = Coordinates(
