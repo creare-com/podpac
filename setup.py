@@ -23,13 +23,19 @@ install_requires = [
     "traitlets>=4.3",
     "xarray>=0.10",
     "requests>=2.18",
-    "pyproj>=2.4",
     "lazy-import>=0.2.2",
     "psutil",
 ]
 
 if sys.version_info.major == 2:
-    install_requires += ["future>=0.16"]
+    install_requires += [
+        "future>=0.16",
+        "pyproj>=2.2"
+    ]
+else:
+    install_requires += [
+        "pyproj>=2.4"
+    ]
 
 extras_require = {
     "datatype": [
@@ -68,9 +74,6 @@ extras_require = {
         "pytest-html>=1.7.0",
         "pytest-remotedata>=0.3.1",
         "recommonmark>=0.6",
-        "sphinx>=2.3",
-        "sphinx-rtd-theme>=0.4",
-        "sphinx-autobuild>=0.7",
         "coveralls>=1.3",
         "six>=1.0",
         "attrs>=17.4.0",
@@ -79,9 +82,16 @@ extras_require = {
 }
 
 if sys.version_info.major == 2:
-    extras_require["dev"] += ["pytest>=3.3.2"]
+    extras_require["dev"] += [
+        "pytest>=3.3.2"
+    ]
 else:
-    extras_require["dev"] += ["pytest>=5.0"]
+    extras_require["dev"] += [
+        "sphinx>=2.3",
+        "sphinx-rtd-theme>=0.4",
+        "sphinx-autobuild>=0.7",
+        "pytest>=5.0"
+    ]
 
 if sys.version >= '3.6':
     extras_require["dev"] += [

@@ -15,15 +15,18 @@ from hashlib import md5 as hash_alg
 
 import numpy as np
 import traitlets as tl
+import six
 
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
-from podpac.core.utils import JSONEncoder, is_json_serializable
+from podpac.core.utils import JSONEncoder
+from podpac.core.utils import cached_property
+from podpac.core.utils import trait_is_defined
 from podpac.core.utils import _get_query_params_from_url, _get_from_url, _get_param
 from podpac.core.coordinates import Coordinates
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, S3CacheStore, make_cache_ctrl
+from podpac.core.cache import CacheCtrl, get_default_cache_ctrl, make_cache_ctrl, S3CacheStore, DiskCacheStore
 from podpac.core.managers.multi_threading import thread_manager
 
 
@@ -111,11 +114,16 @@ class Node(tl.HasTraits):
     outputs = tl.List(tl.Unicode, allow_none=True).tag(attr=True)
     output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    style = tl.Instance(Style)
+
     dtype = tl.Any(default_value=float)
     cache_output = tl.Bool()
     cache_update = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
-    style = tl.Instance(Style)
+
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
+    # e.g. data sources use ['source']
+    _repr_keys = []
 
     @tl.default("outputs")
     def _default_outputs(self):
@@ -130,6 +138,15 @@ class Node(tl.HasTraits):
                 raise ValueError("Invalid output '%s' (available outputs are %s)" % (self.output, self.outputs))
         return d["value"]
 
+    @tl.default("style")
+    def _default_style(self):
+        return Style()
+
+    @tl.validate("units")
+    def _validate_units(self, d):
+        ureg.Unit(d["value"])  # will throw an exception if this is not a valid pint Unit
+        return d["value"]
+
     @tl.default("cache_output")
     def _cache_output_default(self):
         return settings["CACHE_OUTPUT_DEFAULT"]
@@ -137,21 +154,6 @@ class Node(tl.HasTraits):
     @tl.default("cache_ctrl")
     def _cache_ctrl_default(self):
         return get_default_cache_ctrl()
-
-    @tl.validate("cache_ctrl")
-    def _validate_cache_ctrl(self, d):
-        if d["value"] is None:
-            d["value"] = CacheCtrl([])  # no cache_stores
-        return d["value"]
-
-    @tl.default("style")
-    def _style_default(self):
-        return Style()
-
-    @tl.validate("units")
-    def _validate_units(self, d):
-        ureg.Unit(d["value"])  # will throw an exception if this is not a valid pint Unit
-        return d["value"]
 
     # debugging
     _requested_coordinates = tl.Instance(Coordinates, allow_none=True)
@@ -174,12 +176,14 @@ class Node(tl.HasTraits):
         #       on subsequent initializations, they will already be read_only.
         with self.hold_trait_notifications():
             for name, trait in self.traits().items():
-                if trait.metadata.get("readonly") or trait.metadata.get("attr"):
+                if settings["DEBUG"]:
+                    trait.read_only = False
+                elif trait.metadata.get("readonly") or trait.metadata.get("attr"):
                     if name in tkwargs:
                         self.set_trait(name, tkwargs.pop(name))
                     trait.read_only = True
 
-        # Call traitlest constructor
+        # Call traitlets constructor
         super(Node, self).__init__(**tkwargs)
         self.init()
 
@@ -202,6 +206,28 @@ class Node(tl.HasTraits):
         """Overwrite this method if a node needs to do any additional initialization after the standard initialization.
         """
         pass
+
+    @property
+    def attrs(self):
+        """List of node attributes"""
+        return [name for name in self.traits() if self.trait_metadata(name, "attr")]
+
+    @property
+    def _repr_info(self):
+        keys = self._repr_keys[:]
+        if self.trait_is_defined("output") and self.output is not None:
+            if "output" not in keys:
+                keys.append("output")
+        elif self.trait_is_defined("outputs") and self.outputs is not None:
+            if "outputs" not in keys:
+                keys.append("outputs")
+        return ", ".join("%s=%s" % (key, repr(getattr(self, key))) for key in keys)
+
+    def __repr__(self):
+        return "<%s(%s)>" % (self.__class__.__name__, self._repr_info)
+
+    def __str__(self):
+        return "<%s(%s) attrs: %s>" % (self.__class__.__name__, self._repr_info, ", ".join(self.attrs))
 
     @common_doc(COMMON_DOC)
     def eval(self, coordinates, output=None):
@@ -282,6 +308,9 @@ class Node(tl.HasTraits):
 
         return UnitsDataArray.create(coords, data=data, outputs=self.outputs, dtype=self.dtype, attrs=attrs, **kwargs)
 
+    def trait_is_defined(self, name):
+        return trait_is_defined(self, name)
+
     # -----------------------------------------------------------------------------------------------------------------
     # Serialization
     # -----------------------------------------------------------------------------------------------------------------
@@ -299,21 +328,10 @@ class Node(tl.HasTraits):
         return self.__class__.__name__
 
     @property
-    def base_definition(self):
-        """
-        Base node definition.
-
-        This property is implemented in the primary base nodes (DataSource, Algorithm, and Compositor). Node
-        subclasses with additional attrs will need to extend this property.
-
-        Returns
-        -------
-        {definition_return}
-
-        """
-
+    def _base_definition(self):
         d = OrderedDict()
 
+        # node and plugin
         if self.__module__ == "podpac":
             d["node"] = self.__class__.__name__
         elif self.__module__.startswith("podpac."):
@@ -323,45 +341,43 @@ class Node(tl.HasTraits):
             d["plugin"] = self.__module__
             d["node"] = self.__class__.__name__
 
+        # attrs/inputs
         attrs = {}
-        lookup_attrs = {}
+        inputs = {}
+        for name in self.attrs:
+            value = getattr(self, name)
 
-        for key, value in self.traits().items():
-            if not value.metadata.get("attr", False):
-                continue
-
-            attr = getattr(self, key)
-
-            if key == "units" and attr is None:
-                continue
-
-            # check serializable
-            if not is_json_serializable(attr, cls=JSONEncoder):
-                raise NodeException("Cannot serialize attr '%s' with type '%s'" % (key, type(attr)))
-
-            if isinstance(attr, Node):
-                lookup_attrs[key] = attr
+            if (
+                isinstance(value, Node)
+                or (isinstance(value, (list, tuple, np.ndarray)) and all(isinstance(elem, Node) for elem in value))
+                or (isinstance(value, dict) and all(isinstance(elem, Node) for elem in value.values()))
+            ):
+                inputs[name] = value
             else:
-                attrs[key] = attr
+                attrs[name] = value
+
+        if "units" in attrs and attrs["units"] is None:
+            del attrs["units"]
+
+        if "outputs" in attrs and attrs["outputs"] is None:
+            del attrs["outputs"]
+
+        if "output" in attrs and attrs["output"] is None:
+            del attrs["output"]
 
         if attrs:
-            # remove unnecessary attrs
-            if self.outputs is None and "outputs" in attrs:
-                del attrs["outputs"]
-            if self.output is None and "output" in attrs:
-                del attrs["output"]
+            d["attrs"] = attrs
 
-            d["attrs"] = OrderedDict([(key, attrs[key]) for key in sorted(attrs.keys())])
+        if inputs:
+            d["inputs"] = inputs
 
-        if lookup_attrs:
-            d["lookup_attrs"] = OrderedDict([(key, lookup_attrs[key]) for key in sorted(lookup_attrs.keys())])
-
-        if self.style.definition:
+        # style
+        if self.style != Style() and self.style.definition:
             d["style"] = self.style.definition
 
         return d
 
-    @property
+    @cached_property
     def definition(self):
         """
         Full node definition.
@@ -378,25 +394,30 @@ class Node(tl.HasTraits):
 
         def add_node(node):
             for ref, n in zip(refs, nodes):
-                if node.hash == n.hash:
+                if node == n:
                     return ref
 
-            # get base definition and then replace nodes with references, adding nodes depth first
-            d = node.base_definition
-            if "lookup_source" in d:
-                d["lookup_source"] = add_node(d["lookup_source"])
-            if "lookup_attrs" in d:
-                for key, attr_node in d["lookup_attrs"].items():
-                    d["lookup_attrs"][key] = add_node(attr_node)
+            # get base definition
+            d = node._base_definition
+
             if "inputs" in d:
-                for key, input_node in d["inputs"].items():
-                    if input_node is not None:
-                        d["inputs"][key] = add_node(input_node)
-            if "sources" in d:
-                sources = []  # we need this list so that we don't overwrite the actual sources array
-                for i, source_node in enumerate(d["sources"]):
-                    sources.append(add_node(source_node))
-                d["sources"] = sources
+                # sort and shallow copy
+                d["inputs"] = OrderedDict([(key, d["inputs"][key]) for key in sorted(d["inputs"].keys())])
+
+                # replace nodes with references, adding nodes depth first
+                for key, value in d["inputs"].items():
+                    if isinstance(value, Node):
+                        d["inputs"][key] = add_node(value)
+                    elif isinstance(value, (list, tuple, np.ndarray)):
+                        d["inputs"][key] = [add_node(item) for item in value]
+                    elif isinstance(value, dict):
+                        d["inputs"][key] = {k: add_node(v) for k, v in value.items()}
+                    else:
+                        raise TypeError("Invalid input '%s' of type '%s': %s" % (key, type(value)))
+
+            if "attrs" in d:
+                # sort and shallow copy
+                d["attrs"] = OrderedDict([(key, d["attrs"][key]) for key in sorted(d["attrs"].keys())])
 
             # get base ref and then ensure it is unique
             ref = node.base_ref
@@ -414,11 +435,15 @@ class Node(tl.HasTraits):
 
             return ref
 
+        # add top level node
         add_node(self)
 
-        return OrderedDict(zip(refs, definitions))
+        # finalize, verify serializable, and return
+        definition = OrderedDict(zip(refs, definitions))
+        json.dumps(definition, cls=JSONEncoder)
+        return definition
 
-    @property
+    @cached_property
     def json(self):
         """definition for this node in json format
 
@@ -429,11 +454,11 @@ class Node(tl.HasTraits):
         """
         return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
-    @property
+    @cached_property
     def json_pretty(self):
         return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
-    @property
+    @cached_property
     def hash(self):
         # Style should not be part of the hash
         defn = self.json
@@ -461,6 +486,16 @@ class Node(tl.HasTraits):
         with open(path, "w") as f:
             json.dump(self.definition, f, separators=(",", ":"), cls=JSONEncoder)
 
+    def __eq__(self, other):
+        if not isinstance(other, Node):
+            return False
+        return self.hash == other.hash
+
+    def __ne__(self, other):
+        if not isinstance(other, Node):
+            return True
+        return self.hash != other.hash
+
     # -----------------------------------------------------------------------------------------------------------------
     # Caching Interface
     # -----------------------------------------------------------------------------------------------------------------
@@ -487,7 +522,7 @@ class Node(tl.HasTraits):
             Cached data not found.
         """
 
-        if not self.has_cache(key, coordinates=coordinates):
+        if self.cache_ctrl is None or not self.has_cache(key, coordinates=coordinates):
             raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
@@ -512,6 +547,10 @@ class Node(tl.HasTraits):
         NodeException
             Cached data already exists (and overwrite is False)
         """
+
+        if self.cache_ctrl is None:
+            return
+
         if not overwrite and self.has_cache(key, coordinates=coordinates):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
@@ -534,6 +573,10 @@ class Node(tl.HasTraits):
         bool
             True if there is cached data for this node, key, and coordinates.
         """
+
+        if self.cache_ctrl is None:
+            return False
+
         with thread_manager.cache_lock:
             return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
@@ -556,6 +599,8 @@ class Node(tl.HasTraits):
         ---------
         `podpac.core.cache.cache.CacheCtrl.clear` to remove ALL cache for ALL nodes.
         """
+        if self.cache_ctrl is None:
+            return
         self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
 
     # --------------------------------------------------------#
@@ -584,10 +629,6 @@ class Node(tl.HasTraits):
         load : create a node from file
         """
 
-        from podpac.core.data.datasource import DataSource
-        from podpac.core.algorithm.algorithm import BaseAlgorithm
-        from podpac.core.compositor import Compositor
-
         if len(definition) == 0:
             raise ValueError("Invalid definition: definition cannot be empty.")
 
@@ -615,84 +656,20 @@ class Node(tl.HasTraits):
 
             # parse and configure kwargs
             kwargs = {}
-            whitelist = ["node", "attrs", "lookup_attrs", "plugin", "style"]
-
-            # DataSource, Compositor, and Algorithm specific properties
-            parents = inspect.getmro(node_class)
-
-            if DataSource in parents:
-                if "attrs" in d:
-                    if "source" in d["attrs"]:
-                        raise ValueError(
-                            "Invalid definition for node '%s': DataSource 'attrs' cannot have a 'source' property."
-                            % name
-                        )
-
-                    if "lookup_source" in d["attrs"]:
-                        raise ValueError(
-                            "Invalid definition for node '%s': DataSource 'attrs' cannot have a 'lookup_source' property"
-                            % name
-                        )
-
-                    if "interpolation" in d["attrs"]:
-                        raise ValueError(
-                            "Invalid definition for node '%s': DataSource 'attrs' cannot have an 'interpolation' property"
-                            % name
-                        )
-
-                if "source" in d:
-                    kwargs["source"] = d["source"]
-                    whitelist.append("source")
-
-                elif "lookup_source" in d:
-                    kwargs["source"] = _get_subattr(nodes, name, d["lookup_source"])
-                    whitelist.append("lookup_source")
-
-                if "interpolation" in d:
-                    kwargs["interpolation"] = d["interpolation"]
-                    whitelist.append("interpolation")
-
-            if Compositor in parents:
-                if "attrs" in d:
-                    if "interpolation" in d["attrs"]:
-                        raise ValueError(
-                            "Invalid definition for node '%s': Compositor 'attrs' cannot have an 'interpolation' property"
-                            % name
-                        )
-
-                if "sources" in d:
-                    sources = [_get_subattr(nodes, name, source) for source in d["sources"]]
-                    kwargs["sources"] = np.array(sources)
-                    whitelist.append("sources")
-
-                if "interpolation" in d:
-                    kwargs["interpolation"] = d["interpolation"]
-                    whitelist.append("interpolation")
-
-            if BaseAlgorithm in parents:
-                if "attrs" in d:
-                    if "inputs" in d["attrs"]:
-                        raise ValueError(
-                            "Invalid definition for node '%s': Algorithm 'attrs' cannot have an 'inputs' property"
-                            % name
-                        )
-
-                if "inputs" in d:
-                    inputs = {k: _get_subattr(nodes, name, v) for k, v in d["inputs"].items()}
-                    kwargs.update(inputs)
-                    whitelist.append("inputs")
-
             for k, v in d.get("attrs", {}).items():
                 kwargs[k] = v
 
+            for k, v in d.get("inputs", {}).items():
+                kwargs[k] = _lookup_input(nodes, name, v)
+
             for k, v in d.get("lookup_attrs", {}).items():
-                kwargs[k] = _get_subattr(nodes, name, v)
+                kwargs[k] = _lookup_attr(nodes, name, v)
 
             if "style" in d:
                 kwargs["style"] = Style.from_definition(d["style"])
 
             for k in d:
-                if k not in whitelist:
+                if k not in ["node", "inputs", "attrs", "lookup_attrs", "plugin", "style"]:
                     raise ValueError("Invalid definition for node '%s': unexpected property '%s'" % (name, k))
 
             nodes[name] = node_class(**kwargs)
@@ -803,17 +780,101 @@ class Node(tl.HasTraits):
         return cls.from_definition(d)
 
 
-def _get_subattr(nodes, name, ref):
-    refs = ref.split(".")
-    try:
-        attr = nodes[refs[0]]
-        for _name in refs[1:]:
-            attr = getattr(attr, _name)
-    except (KeyError, AttributeError):
-        raise ValueError("Invalid definition for node '%s': reference to nonexistent node/attribute '%s'" % (name, ref))
+def _lookup_input(nodes, name, value):
+    # containers
+    if isinstance(value, list):
+        return [_lookup_input(nodes, name, elem) for elem in value]
+
+    if isinstance(value, dict):
+        return {k: _lookup_input(nodes, name, v) for k, v in value.items()}
+
+    # node reference
+    if not isinstance(value, six.string_types):
+        raise ValueError(
+            "Invalid definition for node '%s': invalid reference '%s' of type '%s' in inputs"
+            % (name, value, type(value))
+        )
+
+    if not value in nodes:
+        raise ValueError(
+            "Invalid definition for node '%s': reference to nonexistent node '%s' in inputs" % (name, value)
+        )
+
+    node = nodes[value]
+
+    # copy in debug mode
+    if settings["DEBUG"]:
+        node = deepcopy(node)
+
+    return node
+
+
+def _lookup_attr(nodes, name, value):
+    # containers
+    if isinstance(value, list):
+        return [_lookup_attr(nodes, name, elem) for elem in value]
+
+    if isinstance(value, dict):
+        return {_k: _lookup_attr(nodes, name, v) for k, v in value.items()}
+
+    if not isinstance(value, six.string_types):
+        raise ValueError(
+            "Invalid definition for node '%s': invalid reference '%s' of type '%s' in lookup_attrs"
+            % (name, value, type(value))
+        )
+
+    # node
+    elems = value.split(".")
+    if elems[0] not in nodes:
+        raise ValueError(
+            "Invalid definition for node '%s': reference to nonexistent node '%s' in lookup_attrs" % (name, elems[0])
+        )
+
+    # subattrs
+    attr = nodes[elems[0]]
+    for n in elems[1:]:
+        if not hasattr(attr, n):
+            raise ValueError(
+                "Invalid definition for node '%s': reference to nonexistent attribute '%s' in lookup_attrs value '%s"
+                % (name, n, value)
+            )
+        attr = getattr(attr, n)
+
+    # copy in debug mode
     if settings["DEBUG"]:
         attr = deepcopy(attr)
+
     return attr
+
+
+# --------------------------------------------------------#
+#  Mixins
+# --------------------------------------------------------#
+
+
+class NoCacheMixin(tl.HasTraits):
+    """ Mixin to use no cache by default. """
+
+    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+
+    @tl.default("cache_ctrl")
+    def _cache_ctrl_default(self):
+        return CacheCtrl([])
+
+
+class DiskCacheMixin(tl.HasTraits):
+    """ Mixin to add disk caching to the Node by default. """
+
+    cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
+
+    @tl.default("cache_ctrl")
+    def _cache_ctrl_default(self):
+        # get the default cache_ctrl and addd a disk cache store if necessary
+        default_ctrl = get_default_cache_ctrl()
+        stores = default_ctrl._cache_stores
+        if not any(isinstance(store, DiskCacheStore) for store in default_ctrl._cache_stores):
+            stores.append(DiskCacheStore())
+        return CacheCtrl(stores)
 
 
 # --------------------------------------------------------#
@@ -878,99 +939,3 @@ def node_eval(fn):
         return data
 
     return wrapper
-
-
-def cache_func(key, depends=None):
-    """
-    Decorating for caching a function's output based on a key.
-
-    Parameters
-    -----------
-    key: str
-        Key used for caching.
-    depends: str, list, traitlets.All (optional)
-        Default is None. Any traits that the cached property depends on. The cached function may NOT
-        change the value of any of these dependencies (this will result in a RecursionError)
-
-
-    Notes
-    -----
-    This decorator cannot handle function input parameters.
-
-    If the function uses any tagged attributes, these will essentially operate like dependencies
-    because the cache key changes based on the node definition, which is affected by tagged attributes.
-
-    Examples
-    ----------
-    >>> from podpac import Node
-    >>> from podpac.core.node import cache_func
-    >>> import traitlets as tl
-    >>> class MyClass(Node):
-           value = tl.Int(0)
-           @cache_func('add')
-           def add_value(self):
-               self.value += 1
-               return self.value
-           @cache_func('square', depends='value')
-           def square_value_depends(self):
-               return self.value
-
-    >>> n = MyClass(cache_ctrl=None)
-    >>> n.add_value()  # The function as defined is called
-    1
-    >>> n.add_value()  # The function as defined is called again, since we have specified no caching
-    2
-    >>> n.cache_ctrl = CacheCtrl([RamCacheStore()])
-    >>> n.add_value()  # The function as defined is called again, and the value is stored in memory
-    3
-    >>> n.add_value()  # The value is retrieved from disk, note the change in n.value is not captured
-    3
-    >>> n.square_value_depends()  # The function as defined is called, and the value is stored in memory
-    16
-    >>> n.square_value_depends()  # The value is retrieved from memory
-    16
-    >>> n.value += 1
-    >>> n.square_value_depends()  # The function as defined is called, and the value is stored in memory. Note the change in n.value is captured.
-    25
-    """
-    # This is the actual decorator which will be evaluated and returns the wrapped function
-    def cache_decorator(func):
-        # This is the initial wrapper that sets up the observations
-        @functools.wraps(func)
-        def cache_wrapper(self):
-            # This is the function that updates the cached based on observed traits
-            def cache_updator(change):
-                # print("Updating value on self:", id(self))
-                out = func(self)
-                self.put_cache(out, key, overwrite=True)
-
-            if depends:
-                # This sets up the observer on the dependent traits
-                # print ("setting up observer on self: ", id(self))
-                self.observe(cache_updator, depends)
-                # Since attributes could change on instantiation, anything we previously
-                # stored is likely out of date. So, force and update to the cache.
-                cache_updator(None)
-
-            # This is the final wrapper the continues to fetch data from cache
-            # after the observer has been set up.
-            @functools.wraps(func)
-            def cached_function():
-                try:
-                    out = self.get_cache(key)
-                except NodeException:
-                    out = func(self)
-                    self.put_cache(out, key)
-                return out
-
-            # Since this is the first time the function is run, set the new wrapper
-            # on the class instance so that the current function won't be called again
-            # (which would set up an additional observer)
-            setattr(self, func.__name__, cached_function)
-
-            # Return the value on the first run
-            return cached_function()
-
-        return cache_wrapper
-
-    return cache_decorator

@@ -88,7 +88,7 @@ class FileCacheStore(CacheStore):
         else:
             warnings.warn(
                 "Object of type '%s' is not json serializable; caching object to file using pickle, which "
-                "may not be compatible with other Python versions or podpac versions."
+                "may not be compatible with other Python versions or podpac versions." % type(data)
             )
             path = path_root + ".pkl"
             s = pickle.dumps(data)

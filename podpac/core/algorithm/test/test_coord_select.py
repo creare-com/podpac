@@ -17,15 +17,14 @@ coords = podpac.Coordinates(
 
 
 class MyDataSource(DataSource):
-    def get_native_coordinates(self):
-        return podpac.Coordinates(
-            [
-                podpac.crange("2010-01-01", "2018-01-01", "4,h"),
-                podpac.clinspace(-180, 180, 6),
-                podpac.clinspace(-80, -70, 6),
-            ],
-            dims=["time", "lat", "lon"],
-        )
+    native_coordinates = podpac.Coordinates(
+        [
+            podpac.crange("2010-01-01", "2018-01-01", "4,h"),
+            podpac.clinspace(-180, 180, 6),
+            podpac.clinspace(-80, -70, 6),
+        ],
+        dims=["time", "lat", "lon"],
+    )
 
     def get_data(self, coordinates, slc):
         node = Arange()
@@ -113,7 +112,7 @@ class TestYearSubstituteCoordinates(object):
 
     def test_year_substitution_missing_coords(self):
         source = Array(
-            source=[[1, 2, 3], [4, 5, 6]],
+            data=[[1, 2, 3], [4, 5, 6]],
             native_coordinates=podpac.Coordinates(
                 [podpac.crange("2018-01-01", "2018-01-02", "1,D"), podpac.clinspace(45, 66, 3)], dims=["time", "lat"]
             ),
@@ -125,7 +124,7 @@ class TestYearSubstituteCoordinates(object):
 
     def test_year_substitution_missing_coords_orig_coords(self):
         source = Array(
-            source=[[1, 2, 3], [4, 5, 6]],
+            data=[[1, 2, 3], [4, 5, 6]],
             native_coordinates=podpac.Coordinates(
                 [podpac.crange("2018-01-01", "2018-01-02", "1,D"), podpac.clinspace(45, 66, 3)], dims=["time", "lat"]
             ),

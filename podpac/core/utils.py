@@ -23,6 +23,7 @@ except:  # Python 2.7
 
 import traitlets as tl
 import numpy as np
+import xarray as xr
 import pandas as pd  # Core dependency of xarray
 
 # Optional Imports
@@ -54,7 +55,7 @@ def common_doc(doc_dict):
     return _decorator
 
 
-def trait_is_defined(obj, trait):
+def trait_is_defined(obj, trait_name):
     """Utility method to determine if trait is defined on object without
     call to default (@tl.default)
 
@@ -62,7 +63,7 @@ def trait_is_defined(obj, trait):
     ----------
     object : object
         Class with traits
-    trait : str
+    trait_name : str
         Class property to investigate
 
     Returns
@@ -71,7 +72,7 @@ def trait_is_defined(obj, trait):
         True if the trait exists on the object and is defined
         False if the trait does not exist on the object or the trait is not defined
     """
-    return obj.has_trait(trait) and trait in obj._trait_values
+    return obj.has_trait(trait_name) and trait_name in obj._trait_values
 
 
 def create_logfile(
@@ -165,13 +166,7 @@ class ArrayTrait(tl.TraitType):
     def validate(self, obj, value):
         # coerce type
         if not isinstance(value, np.ndarray):
-            try:
-                value = np.array(value)
-            except:
-                raise tl.TraitError(
-                    "The '%s' trait of an %s instance must be an np.ndarray, but a value of %s %s was specified"
-                    % (self.name, obj.__class__.__name__, value, type(value))
-                )
+            value = np.array(value)
 
         # ndim
         if self.ndim is not None and self.ndim != value.ndim:
@@ -208,9 +203,11 @@ class TupleTrait(tl.List):
         return tuple(value)
 
 
-class NodeTrait(tl.ForwardDeclaredInstance):
+class NodeTrait(tl.Instance):
     def __init__(self, *args, **kwargs):
-        super(NodeTrait, self).__init__("Node", *args, **kwargs)
+        from podpac import Node as _Node
+
+        super(NodeTrait, self).__init__(_Node, *args, **kwargs)
 
     def validate(self, obj, value):
         super(NodeTrait, self).validate(obj, value)
@@ -221,61 +218,50 @@ class NodeTrait(tl.ForwardDeclaredInstance):
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
-        # podpac Coordinates objects
-        if isinstance(obj, podpac.Coordinates):
+        # podpac objects with definitions
+        if isinstance(obj, (podpac.Coordinates, podpac.Node, podpac.data.Interpolation, podpac.core.style.Style)):
             return obj.definition
 
-        # podpac Node objects
-        elif isinstance(obj, podpac.Node):
-            return obj.definition
-
-        # podpac Style objects
-        elif isinstance(obj, podpac.core.style.Style):
-            return obj.definition
-
-        elif isinstance(obj, podpac.data.Interpolation):
-            return obj.definition
+        # podpac Interpolator type
+        if isinstance(obj, type) and obj in podpac.data.INTERPOLATORS:
+            return obj().definition
 
         # pint Units
-        elif isinstance(obj, podpac.core.units.ureg.Unit):
+        if isinstance(obj, podpac.core.units.ureg.Unit):
             return str(obj)
 
-        # numpy arrays
-        elif isinstance(obj, np.ndarray):
-            if np.issubdtype(obj.dtype, np.datetime64):
-                return obj.astype(str).tolist()
-            elif np.issubdtype(obj.dtype, np.timedelta64):
-                f = np.vectorize(podpac.core.coordinates.utils.make_timedelta_string)
-                return f(obj).tolist()
-            elif np.issubdtype(obj.dtype, np.number):
-                return obj.tolist()
-
         # datetime64
-        elif isinstance(obj, np.datetime64):
+        if isinstance(obj, np.datetime64):
             return obj.astype(str)
 
         # timedelta64
-        elif isinstance(obj, np.timedelta64):
+        if isinstance(obj, np.timedelta64):
             return podpac.core.coordinates.utils.make_timedelta_string(obj)
 
         # datetime
-        elif isinstance(obj, datetime.datetime):
+        if isinstance(obj, (datetime.datetime, datetime.date)):
             return obj.isoformat()
 
         # dataframe
-        elif isinstance(obj, pd.DataFrame):
+        if isinstance(obj, pd.DataFrame):
             return obj.to_json()
 
-        # Interpolator
-        try:
-            if obj in podpac.core.data.interpolation.INTERPOLATORS:
-                interpolater_class = deepcopy(obj)
-                interpolator = interpolater_class()
-                return interpolator.definition
-        except Exception as e:
-            pass
+        # numpy array
+        if isinstance(obj, np.ndarray):
+            if np.issubdtype(obj.dtype, np.datetime64):
+                return obj.astype(str).tolist()
+            if np.issubdtype(obj.dtype, np.timedelta64):
+                return [podpac.core.coordinates.utils.make_timedelta_string(e) for e in obj]
+            if np.issubdtype(obj.dtype, np.number):
+                return obj.tolist()
+            else:
+                try:
+                    # completely serialize the individual elements using the custom encoder
+                    return json.loads(json.dumps([e for e in obj], cls=JSONEncoder))
+                except TypeError as e:
+                    raise TypeError("Cannot serialize numpy array\n%s" % e)
 
-        # default
+        # raise the TypeError
         return json.JSONEncoder.default(self, obj)
 
 
@@ -306,18 +292,28 @@ def _get_query_params_from_url(url):
     return params
 
 
-def _get_from_url(url):
+def _get_from_url(url, session=None):
     """Helper function to get data from an url with error checking.
-
+    
     Parameters
-    -----------
-    auth_session: podpac.core.authentication.EarthDataSession
-        Authenticated EDS session
-    url: str
+    ----------
+    url : str
         URL to website
+    session : :class:`requests.Session`, optional
+        Requests session to use when making the GET request to `url`
+    
+    Returns
+    -------
+    str
+        Text response from request.
+        See https://2.python-requests.org/en/master/api/#requests.Response.text
     """
     try:
-        r = requests.get(url)
+        if session is None:
+            r = requests.get(url)
+        else:
+            r = session.get(url)
+
         if r.status_code != 200:
             _log.warning(
                 "Could not connect to {}, status code {}. \n *** Return Text *** \n {} \n *** End Return Text ***".format(
@@ -330,4 +326,73 @@ def _get_from_url(url):
         r = None
     except RuntimeError as e:
         _log.warning("Cannot authenticate to {}. Check credentials. Error was as follows:".format(url) + str(e))
-    return r.text
+
+    return r
+
+
+def cached_property(*args, **kwargs):
+    """
+    Decorator that creates a property that is cached.
+
+    Keyword Arguments
+    -----------------
+    use_cache_ctrl : bool
+        If True, the property is cached using the Node cache_ctrl. If False, the property is only cached as a private
+        attribute. Default False.
+
+    Notes
+    -----
+    Podpac caching using the cache_ctrl will be unreliable if the property depends on any non-tagged traits.
+    The property should only use node attrs (traits tagged with ``attr=True``).
+
+    Examples
+    --------
+
+    >>> class MyNode(Node):
+            # property that is recomputed every time
+            @property
+            def my_property(self):
+                return 0
+
+            # property is computed once for each object
+            @cached_property
+            def my_cached_property(self):
+                return 1
+
+            # property that is computed once and can be reused by other Nodes or sessions, depending on the cache_ctrl
+            @cached_property(use_cache_ctrl=True)
+            def my_persistent_cached_property(self):
+                return 2
+    """
+
+    use_cache_ctrl = kwargs.pop("use_cache_ctrl", False)
+
+    if args and (len(args) != 1 or not callable(args[0])):
+        raise TypeError("cached_property decorator does not accept any positional arguments")
+
+    if kwargs:
+        raise TypeError("cached_property decorator does not accept keyword argument '%s'" % list(kwargs.keys())[0])
+
+    def d(fn):
+        key = "_podpac_cached_property_%s" % fn.__name__
+
+        @property
+        def wrapper(self):
+            if hasattr(self, key):
+                value = getattr(self, key)
+            elif use_cache_ctrl and self.has_cache(key):
+                value = self.get_cache(key)
+                setattr(self, key, value)
+            else:
+                value = fn(self)
+                setattr(self, key, value)
+                if use_cache_ctrl:
+                    self.put_cache(value, key)
+            return value
+
+        return wrapper
+
+    if args:
+        return d(args[0])
+    else:
+        return d
