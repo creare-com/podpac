@@ -24,7 +24,7 @@ from copy import deepcopy
 
 import traitlets as tl
 import pandas as pd
-from pandas.io.json import json_normalize
+import numpy as np
 import requests
 
 from podpac.data import DataSource
@@ -470,11 +470,11 @@ def to_dataframe(items):
     items : list of dict
         Record items returned from `get()`
     """
-    df = json_normalize(items)
+    df = pd.json_normalize(items)
 
     # Convert geometry.coordinates to lat and lon
-    df["lat"] = df["geometry.coordinates"].apply(lambda coord: coord[1] if coord and coord is not pd.np.nan else None)
-    df["lon"] = df["geometry.coordinates"].apply(lambda coord: coord[0] if coord and coord is not pd.np.nan else None)
+    df["lat"] = df["geometry.coordinates"].apply(lambda coord: coord[1] if coord and coord is not np.nan else None)
+    df["lon"] = df["geometry.coordinates"].apply(lambda coord: coord[0] if coord and coord is not np.nan else None)
     df = df.drop(["geometry.coordinates"], axis=1)
 
     # break up all the arrays so the data is easier to use
@@ -489,9 +489,9 @@ def to_dataframe(items):
     ]
 
     for col in arrays:
-        df[col + "_0"] = df[col].apply(lambda val: val[0] if val and val is not pd.np.nan else None)
-        df[col + "_1"] = df[col].apply(lambda val: val[1] if val and val is not pd.np.nan else None)
-        df[col + "_2"] = df[col].apply(lambda val: val[2] if val and val is not pd.np.nan else None)
+        df[col + "_0"] = df[col].apply(lambda val: val[0] if val and val is not np.nan else None)
+        df[col + "_1"] = df[col].apply(lambda val: val[1] if val and val is not np.nan else None)
+        df[col + "_2"] = df[col].apply(lambda val: val[2] if val and val is not np.nan else None)
 
         df = df.drop([col], axis=1)
 
