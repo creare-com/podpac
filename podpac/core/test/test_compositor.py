@@ -32,18 +32,12 @@ class TestCompositor(object):
 
     def test_shared_coordinates(self):
         node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
-
-        with pytest.raises(NotImplementedError):
-            node.get_shared_coordinates()
-
-        with pytest.raises(NotImplementedError):
-            node.shared_coordinates()
+        assert node.shared_coordinates is None
 
     def test_source_coordinates(self):
         # none (default)
         node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         assert node.source_coordinates is None
-        assert node.get_source_coordinates() is None
 
         # unstacked
         node = podpac.compositor.Compositor(
@@ -205,13 +199,6 @@ class TestCompositor(object):
         with pytest.raises(NotImplementedError):
             node.find_coordinates()
 
-    def test_base_definition(self):
-        node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
-        d = node.base_definition
-        assert isinstance(d, dict)
-        assert "sources" in d
-        assert "interpolation" in d
-
     def test_outputs(self):
         # standard single-output
         node = Compositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
@@ -230,22 +217,21 @@ class TestCompositor(object):
         node = Compositor(sources=[MULTI_0_XY, MULTI_4_YX])
         assert node.outputs == ["x", "y"]
 
-        # multi-output, with strict source outputs checking
-        node = Compositor(sources=[MULTI_0_XY, MULTI_1_XY], strict_source_outputs=True)
-        assert node.outputs == ["x", "y"]
-
-        with pytest.raises(ValueError, match="Source outputs mismatch"):
-            node = Compositor(sources=[MULTI_0_XY, MULTI_2_X], strict_source_outputs=True)
-
-        with pytest.raises(ValueError, match="Source outputs mismatch"):
-            node = Compositor(sources=[MULTI_0_XY, MULTI_3_Z], strict_source_outputs=True)
-
-        with pytest.raises(ValueError, match="Source outputs mismatch"):
-            node = Compositor(sources=[MULTI_0_XY, MULTI_4_YX], strict_source_outputs=True)
-
         # mixed
         with pytest.raises(ValueError, match="Cannot composite standard sources with multi-output sources."):
             node = Compositor(sources=[MULTI_2_X, ARRAY_LAT])
+
+        # no sources
+        node = Compositor(sources=[])
+        assert node.outputs is None
+
+    def test_forced_invalid_sources(self):
+        class MyCompositor(Compositor):
+            sources = [MULTI_2_X, ARRAY_LAT]
+
+        node = MyCompositor()
+        with pytest.raises(RuntimeError, match="Compositor sources were not validated correctly"):
+            node.outputs
 
 
 class TestOrderedCompositor(object):
@@ -354,7 +340,7 @@ class TestOrderedCompositor(object):
         np.testing.assert_array_equal(output.sel(output="x"), np.full(COORDS.shape, 0))
         np.testing.assert_array_equal(output.sel(output="y"), np.full(COORDS.shape, 0))
 
-        node = OrderedCompositor(sources=[MULTI_1_XY, MULTI_0_XY], strict_source_outputs=True)
+        node = OrderedCompositor(sources=[MULTI_1_XY, MULTI_0_XY])
         output = node.eval(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["x", "y"])
@@ -393,7 +379,7 @@ class TestOrderedCompositor(object):
 
         coords = podpac.Coordinates([podpac.clinspace(-3, 4, 32), podpac.clinspace(-2, 5, 32)], dims=["lat", "lon"])
 
-        node = OrderedCompositor(sources=np.array([a, b]), interpolation="nearest")
+        node = OrderedCompositor(sources=[a, b], interpolation="nearest")
         o = node.eval(coords)
         # Check that both data sources are being used in the interpolation
         assert np.any(o.data >= 2)

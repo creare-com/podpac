@@ -1,10 +1,11 @@
-import pytest
 import os
-
+import sys
 import time
+from threading import Thread
+
+import pytest
 
 from podpac.core.managers.multi_threading import FakeLock
-from threading import Thread
 
 
 class TestFakeLock(object):
@@ -27,8 +28,14 @@ class TestFakeLock(object):
             print("Unlocked", s)
             assert lock._locked == False
 
-        t1 = Thread(target=lambda: f("thread"), daemon=True)
-        t2 = Thread(target=lambda: f("thread"), daemon=True)
+        if sys.version_info.major == 2:
+            t1 = Thread(target=lambda: f("thread"))
+            t2 = Thread(target=lambda: f("thread"))
+            t1.daemon = True
+            t2.daemon = True
+        else:
+            t1 = Thread(target=lambda: f("thread"), daemon=True)
+            t2 = Thread(target=lambda: f("thread"), daemon=True)
         print("In Main Thread")
         f("main1")
         print("Starting Thread")

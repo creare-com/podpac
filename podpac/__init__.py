@@ -42,19 +42,20 @@ del makedirs
 from podpac.core.settings import settings
 from podpac.core.coordinates import Coordinates, crange, clinspace
 from podpac.core.node import Node, NodeException
-import podpac.core.authentication as authentication
-from podpac.core.utils import NodeTrait
+from podpac.core.utils import cached_property
 from podpac.core.units import ureg as units, UnitsDataArray
 
 # Organized submodules
 # These files are simply wrappers to create a curated namespace of podpac modules
 from podpac import algorithm
+from podpac import authentication
 from podpac import data
 from podpac import interpolators
 from podpac import coordinates
 from podpac import compositor
 from podpac import managers
 from podpac import utils
+from podpac import style
 
 ## Developer API
 from podpac import core

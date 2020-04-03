@@ -81,11 +81,11 @@ class TestWCS(object):
         """test the capabilities url generation"""
 
         node = WCS(source=self.source)
-        url = node.get_capabilities_url
+        url = node.capabilities_url
         assert isinstance(url, string_types)
         assert node.source in url
 
-    def test_get_wcs_coordinates(self):
+    def test_wcs_coordinates(self):
         """get wcs coordinates"""
 
         import podpac.core.data.ogc
@@ -128,14 +128,14 @@ class TestWCS(object):
 
         node = WCS(source=self.source)
         with pytest.raises(Exception):
-            node.get_wcs_coordinates()
+            node.wcs_coordinates
 
         # put all dependencies back
         podpac.core.data.ogc.requests = requests
         podpac.core.data.ogc.urllib3 = urllib3
         podpac.core.data.ogc.lxml = lxml
 
-    def test_get_native_coordinates(self):
+    def test_native_coordinates(self):
         """get native coordinates"""
 
         self.mock_requests()

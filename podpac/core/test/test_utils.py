@@ -1,33 +1,70 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import os
+import sys
+import json
+import datetime
+import warnings
 from collections import OrderedDict
 
 import pytest
 import numpy as np
+import pandas as pd
+import xarray as xr
 import traitlets as tl
-import sys
-import podpac.core.utils as ut
+
+import podpac
+from podpac.core.utils import common_doc
+from podpac.core.utils import trait_is_defined
+from podpac.core.utils import create_logfile
+from podpac.core.utils import OrderedDictTrait, ArrayTrait, TupleTrait, NodeTrait
+from podpac.core.utils import JSONEncoder, is_json_serializable
+from podpac.core.utils import cached_property
 
 
 class TestCommonDocs(object):
     def test_common_docs_does_not_affect_anonymous_functions(self):
         f = lambda x: x
-        f2 = ut.common_doc({"key": "value"})(f)
+        f2 = common_doc({"key": "value"})(f)
         assert f(42) == f2(42)
         assert f.__doc__ is None
 
 
-# TODO: add log testing
-class TestLog(object):
-    def test_create_log(self):
-        pass
+class TestTraitletsHelpers(object):
+    def test_trait_is_defined(self):
+        class MyClass(tl.HasTraits):
+            a = tl.Any()
+            b = tl.Any(default_value=0)
+            c = tl.Any()
+
+            @tl.default("c")
+            def _default_b(self):
+                return "test"
+
+        x = MyClass(a=1, b=1, c=1)
+        assert trait_is_defined(x, "a")
+        assert trait_is_defined(x, "b")
+        assert trait_is_defined(x, "c")
+        assert not trait_is_defined(x, "other")
+
+        x = MyClass()
+        assert trait_is_defined(x, "a")
+        assert trait_is_defined(x, "b")
+        assert not trait_is_defined(x, "c")
+
+        x.c
+        assert trait_is_defined(x, "c")
+
+
+class TestLoggingHelpers(object):
+    def test_create_logfile(self):
+        create_logfile()
 
 
 class TestOrderedDictTrait(object):
     def test(self):
         class MyClass(tl.HasTraits):
-            d = ut.OrderedDictTrait()
+            d = OrderedDictTrait()
 
         m = MyClass(d=OrderedDict([("a", 1)]))
 
@@ -37,14 +74,14 @@ class TestOrderedDictTrait(object):
     @pytest.mark.skipif(sys.version < "3.6", reason="python < 3.6")
     def test_dict_python36(self):
         class MyClass(tl.HasTraits):
-            d = ut.OrderedDictTrait()
+            d = OrderedDictTrait()
 
         m = MyClass(d={"a": 1})
 
     @pytest.mark.skipif(sys.version >= "3.6", reason="python >= 3.6")
     def test_dict_python2(self):
         class MyClass(tl.HasTraits):
-            d = ut.OrderedDictTrait()
+            d = OrderedDictTrait()
 
         with pytest.raises(tl.TraitError):
             m = MyClass(d={"a": 1})
@@ -56,7 +93,7 @@ class TestOrderedDictTrait(object):
 class TestArrayTrait(object):
     def test(self):
         class MyClass(tl.HasTraits):
-            a = ut.ArrayTrait()
+            a = ArrayTrait()
 
         # basic usage
         o = MyClass(a=np.array([0, 4]))
@@ -68,14 +105,9 @@ class TestArrayTrait(object):
         assert isinstance(o.a, np.ndarray)
         np.testing.assert_equal(o.a, [0, 4])
 
-        # invalid
-        # As of numpy 0.16, no longer raises an error
-        # with pytest.raises(tl.TraitError):
-        # MyClass(a=[0, [4, 5]])
-
     def test_ndim(self):
         class MyClass(tl.HasTraits):
-            a = ut.ArrayTrait(ndim=2)
+            a = ArrayTrait(ndim=2)
 
         MyClass(a=np.array([[0, 4]]))
         MyClass(a=[[0, 4]])
@@ -86,7 +118,7 @@ class TestArrayTrait(object):
 
     def test_shape(self):
         class MyClass(tl.HasTraits):
-            a = ut.ArrayTrait(shape=(2, 2))
+            a = ArrayTrait(shape=(2, 2))
 
         MyClass(a=np.array([[0, 1], [2, 3]]))
         MyClass(a=[[0, 1], [2, 3]])
@@ -97,7 +129,7 @@ class TestArrayTrait(object):
 
     def test_dtype(self):
         class MyClass(tl.HasTraits):
-            a = ut.ArrayTrait(dtype=float)
+            a = ArrayTrait(dtype=float)
 
         m = MyClass(a=np.array([0.0, 1.0]))
         assert m.a.dtype == float
@@ -115,15 +147,246 @@ class TestArrayTrait(object):
 
     def test_args(self):
         # shape and ndim must match
-        t = ut.ArrayTrait(ndim=2, shape=(2, 2))
+        t = ArrayTrait(ndim=2, shape=(2, 2))
 
         with pytest.raises(ValueError):
-            ut.ArrayTrait(ndim=1, shape=(2, 2))
+            ArrayTrait(ndim=1, shape=(2, 2))
 
         # dtype lookup
-        t = ut.ArrayTrait(dtype="datetime64")
+        t = ArrayTrait(dtype="datetime64")
         assert t.dtype == np.datetime64
 
         # invalid dtype
         with pytest.raises(ValueError):
-            ut.ArrayTrait(dtype="notatype")
+            ArrayTrait(dtype="notatype")
+
+
+class TestNodeTrait(object):
+    def test(self):
+        class MyClass(tl.HasTraits):
+            node = NodeTrait()
+
+        t = MyClass(node=podpac.Node())
+
+        with pytest.raises(tl.TraitError):
+            MyClass(node=0)
+
+    def test_debug(self):
+        class MyClass(tl.HasTraits):
+            node = NodeTrait()
+
+        node = podpac.Node()
+
+        with podpac.settings:
+            podpac.settings["DEBUG"] = False
+            t = MyClass(node=node)
+            assert t.node is node
+
+            podpac.settings["DEBUG"] = True
+            t = MyClass(node=node)
+            assert t.node is not node
+
+
+class TestTupleTrait(object):
+    def test_trait(self):
+        class MyClass(tl.HasTraits):
+            t = TupleTrait(trait=tl.Int())
+
+        MyClass(t=(1, 2, 3))
+
+        with pytest.raises(tl.TraitError):
+            MyClass(t=("a", "b", "c"))
+
+    def test_tuple(self):
+        class MyClass(tl.HasTraits):
+            t = TupleTrait(trait=tl.Int())
+
+        a = MyClass(t=(1, 2, 3))
+        assert isinstance(a.t, tuple)
+
+        a = MyClass(t=[1, 2, 3])
+        assert isinstance(a.t, tuple)
+
+
+class TestJSONEncoder(object):
+    def test_coordinates(self):
+        coordinates = podpac.coordinates.Coordinates([0], dims=["time"])
+        json.dumps(coordinates, cls=JSONEncoder)
+
+    def test_node(self):
+        node = podpac.Node()
+        json.dumps(node, cls=JSONEncoder)
+
+    def test_style(self):
+        style = podpac.core.style.Style()
+        json.dumps(style, cls=JSONEncoder)
+
+    def test_interpolation(self):
+        interpolation = podpac.data.Interpolation()
+        json.dumps(interpolation, cls=JSONEncoder)
+
+    def test_interpolator(self):
+        kls = podpac.data.INTERPOLATORS[0]
+        json.dumps(kls, cls=JSONEncoder)
+
+    def test_units(self):
+        units = podpac.core.units.ureg.Unit("meters")
+        json.dumps(units, cls=JSONEncoder)
+
+    def test_datetime64(self):
+        dt = np.datetime64()
+        json.dumps(dt, cls=JSONEncoder)
+
+    def test_timedelta64(self):
+        td = np.timedelta64()
+        json.dumps(td, cls=JSONEncoder)
+
+    def test_datetime(self):
+        now = datetime.datetime.now()
+        json.dumps(now, cls=JSONEncoder)
+
+    def test_date(self):
+        today = datetime.date.today()
+        json.dumps(today, cls=JSONEncoder)
+
+    def test_dataframe(self):
+        df = pd.DataFrame()
+        json.dumps(df, cls=JSONEncoder)
+
+    def test_array_datetime64(self):
+        a = np.array(["2018-01-01", "2018-01-02"]).astype(np.datetime64)
+        json.dumps(a, cls=JSONEncoder)
+
+    def test_array_timedelta64(self):
+        a = np.array([np.timedelta64(1, "D"), np.timedelta64(1, "D")])
+        json.dumps(a, cls=JSONEncoder)
+
+    def test_array_numerical(self):
+        a = np.array([0.0, 1.0, 2.0])
+        json.dumps(a, cls=JSONEncoder)
+
+    def test_array_node(self):
+        a = np.array([podpac.Node(), podpac.Node()])
+        json.dumps(a, cls=JSONEncoder)
+
+    def test_array_unserializable(self):
+        class MyClass(object):
+            pass
+
+        a = np.array([MyClass()])
+        with pytest.raises(TypeError, match="Cannot serialize numpy array"):
+            json.dumps(a, cls=JSONEncoder)
+
+    def test_unserializable(self):
+        value = xr.DataArray([])
+        with pytest.raises(TypeError, match="not JSON serializable"):
+            json.dumps(value, cls=JSONEncoder)
+
+    def test_is_json_serializable(self):
+        assert is_json_serializable("test")
+        assert not is_json_serializable(xr.DataArray([]))
+
+
+class TestCachedPropertyDecorator(object):
+    def test_cached_property(self):
+        class MyNode(podpac.Node):
+            my_property_called = 0
+            my_cached_property_called = 0
+            my_cache_ctrl_property_called = 0
+
+            @property
+            def my_property(self):
+                self.my_property_called += 1
+                return 10
+
+            @cached_property
+            def my_cached_property(self):
+                self.my_cached_property_called += 1
+                return 20
+
+            @cached_property(use_cache_ctrl=True)
+            def my_cache_ctrl_property(self):
+                self.my_cache_ctrl_property_called += 1
+                return 30
+
+        a = MyNode(cache_ctrl=["ram"])
+        b = MyNode(cache_ctrl=["ram"])
+        c = MyNode(cache_ctrl=[])
+
+        a.rem_cache(key="*")
+        b.rem_cache(key="*")
+        c.rem_cache(key="*")
+
+        # normal property should be called every time
+        assert a.my_property_called == 0
+        assert a.my_property == 10
+        assert a.my_property_called == 1
+        assert a.my_property == 10
+        assert a.my_property == 10
+        assert a.my_property_called == 3
+
+        assert b.my_property_called == 0
+        assert b.my_property == 10
+        assert b.my_property_called == 1
+        assert b.my_property == 10
+        assert b.my_property == 10
+        assert b.my_property_called == 3
+
+        assert c.my_property_called == 0
+        assert c.my_property == 10
+        assert c.my_property_called == 1
+        assert c.my_property == 10
+        assert c.my_property == 10
+        assert c.my_property_called == 3
+
+        # cached property should only be called when it is accessed
+        assert a.my_cached_property_called == 0
+        assert a.my_cached_property == 20
+        assert a.my_cached_property_called == 1
+        assert a.my_cached_property == 20
+        assert a.my_cached_property == 20
+        assert a.my_cached_property_called == 1
+
+        assert b.my_cached_property_called == 0
+        assert b.my_cached_property == 20
+        assert b.my_cached_property_called == 1
+        assert b.my_cached_property == 20
+        assert b.my_cached_property == 20
+        assert b.my_cached_property_called == 1
+
+        assert c.my_cached_property_called == 0
+        assert c.my_cached_property == 20
+        assert c.my_cached_property_called == 1
+        assert c.my_cached_property == 20
+        assert c.my_cached_property == 20
+        assert c.my_cached_property_called == 1
+
+        # cache_ctrl cached property should only be called in the first node that accessses it
+        assert a.my_cache_ctrl_property_called == 0
+        assert a.my_cache_ctrl_property == 30
+        assert a.my_cache_ctrl_property_called == 1
+        assert a.my_cache_ctrl_property == 30
+        assert a.my_cache_ctrl_property == 30
+        assert a.my_cache_ctrl_property_called == 1
+
+        assert b.my_cache_ctrl_property_called == 0
+        assert b.my_cache_ctrl_property == 30
+        assert b.my_cache_ctrl_property_called == 0
+        assert b.my_cache_ctrl_property == 30
+        assert b.my_cache_ctrl_property == 30
+        assert b.my_cache_ctrl_property_called == 0
+
+        # but only if a cache_ctrl exists for the Node
+        assert c.my_cache_ctrl_property_called == 0
+        assert c.my_cache_ctrl_property == 30
+        assert c.my_cache_ctrl_property_called == 1
+        assert c.my_cache_ctrl_property == 30
+        assert c.my_cache_ctrl_property == 30
+        assert c.my_cache_ctrl_property_called == 1
+
+    def test_invalid_argument(self):
+        with pytest.raises(TypeError, match="cached_property decorator does not accept keyword argument"):
+            cached_property(other=True)
+
+        with pytest.raises(TypeError, match="cached_property decorator does not accept any positional arguments"):
+            cached_property(True)

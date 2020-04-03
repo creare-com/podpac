@@ -32,7 +32,7 @@ class ModifyCoordinates(UnaryAlgorithm):
         Modification parameters for given dimension. Varies by node.
     """
 
-    coordinates_source = NodeTrait()
+    coordinates_source = NodeTrait().tag(attr=True)
     lat = tl.List().tag(attr=True)
     lon = tl.List().tag(attr=True)
     time = tl.List().tag(attr=True)

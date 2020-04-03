@@ -2,7 +2,7 @@ import os.path
 
 import numpy as np
 
-from podpac.core.data.file import H5PY
+from podpac.core.data.h5py_source import H5PY
 
 
 class TestH5PY(object):
@@ -17,9 +17,9 @@ class TestH5PY(object):
         assert node.dims == ["lat", "lon"]
         node.close_dataset()
 
-    def test_available_keys(self):
+    def test_available_data_keys(self):
         node = H5PY(source=self.source, data_key="/data/init", lat_key="/coords/lat", lon_key="/coords/lon")
-        assert node.available_keys == ["/data/init"]
+        assert node.available_data_keys == ["/data/init"]
         node.close_dataset()
 
     def test_native_coordinates(self):
@@ -45,7 +45,7 @@ class TestH5PY(object):
     def test_data_multiple(self):
         node = H5PY(
             source=self.source,
-            output_keys=["/data/init", "/data/init"],
+            data_key=["/data/init", "/data/init"],
             outputs=["a", "b"],
             lat_key="/coords/lat",
             lon_key="/coords/lon",

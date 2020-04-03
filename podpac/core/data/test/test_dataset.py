@@ -3,7 +3,7 @@ import numpy as np
 
 import pytest
 
-from podpac.core.data.file import Dataset
+from podpac.core.data.dataset_source import Dataset
 
 
 class TestDataset(object):
@@ -26,12 +26,13 @@ class TestDataset(object):
         assert node.dims == ["time", "lat", "lon"]
 
         # un-mapped keys
-        with pytest.raises(ValueError, match="Unexpected dimension"):
-            node = Dataset(source=self.source)
+        # node = Dataset(source=self.source)
+        # with pytest.raises(ValueError, match="Unexpected dimension"):
+        #     node.dims
 
-    def test_available_keys(self):
+    def test_available_data_keys(self):
         node = Dataset(source=self.source, time_key="day")
-        assert node.available_keys == ["data", "other"]
+        assert node.available_data_keys == ["data", "other"]
 
     def test_native_coordinates(self):
         # specify dimension keys
@@ -55,8 +56,8 @@ class TestDataset(object):
         np.testing.assert_array_equal(out, self.other)
         node.close_dataset()
 
-    def test_get_data_multilpe(self):
-        node = Dataset(source=self.source, time_key="day", output_keys=["data", "other"])
+    def test_get_data_multiple(self):
+        node = Dataset(source=self.source, time_key="day", data_key=["data", "other"])
         out = node.eval(node.native_coordinates)
         assert out.dims == ("time", "lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["data", "other"])
@@ -65,7 +66,7 @@ class TestDataset(object):
         node.close_dataset()
 
         # single
-        node = Dataset(source=self.source, time_key="day", output_keys=["other"])
+        node = Dataset(source=self.source, time_key="day", data_key=["other"])
         out = node.eval(node.native_coordinates)
         assert out.dims == ("time", "lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["other"])
@@ -73,7 +74,7 @@ class TestDataset(object):
         node.close_dataset()
 
         # alternate output names
-        node = Dataset(source=self.source, time_key="day", output_keys=["data", "other"], outputs=["a", "b"])
+        node = Dataset(source=self.source, time_key="day", data_key=["data", "other"], outputs=["a", "b"])
         out = node.eval(node.native_coordinates)
         assert out.dims == ("time", "lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["a", "b"])
@@ -91,20 +92,8 @@ class TestDataset(object):
         node.close_dataset()
 
     def test_extra_dim(self):
+        # default
+        node = Dataset(source=self.source)
+        assert node.extra_dim is None
+
         # TODO
-        pass
-
-    def test_base_definition(self):
-        node = Dataset(source=self.source, time_key="day")
-        d = node.base_definition
-        if "attrs" in d:
-            assert "extra_dim" not in d["attrs"]
-        node.close_dataset()
-
-        node = Dataset(
-            source=self.source, time_key="day", extra_dim={"channel": 1}
-        )  # TODO actually use source with extra_dim
-        d = node.base_definition
-        assert "attrs" in d
-        assert "extra_dim" in d["attrs"]
-        node.close_dataset()
