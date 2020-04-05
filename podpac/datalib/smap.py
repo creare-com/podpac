@@ -48,10 +48,10 @@ if not hasattr(np, "isnat"):
 import podpac
 from podpac import NodeException
 from podpac import authentication
-from podpac.coordinates import Coordinates
+from podpac.coordinates import Coordinates, merge_dims
 from podpac.data import PyDAP
-from podpac.compositor import OrderedCompositor
 from podpac.utils import cached_property, DiskCacheMixin
+from podpac.compositor import OrderedCompositor
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.utils import common_doc, _get_from_url
 
@@ -290,8 +290,63 @@ class SMAPSessionMixin(authentication.RequestsSessionMixin):
         return
 
 
+class SMAPCompositor(OrderedCompositor):
+    """
+
+    Attributes
+    ----------
+    sources : list
+        Source nodes, in order of preference. Later sources are only used where earlier sources do not provide data.
+    source_coordinates : :class:`podpac.Coordinates`
+        Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional.
+    shared_coordinates : :class:`podpac.Coordinates`.
+        Coordinates that are shared amongst all of the composited sources.
+    is_source_coordinates_complete : Bool
+        This flag is used to automatically construct native_coordinates as on optimization. Default is False.
+        For example, if the source coordinates could include the year-month-day of the source, but the actual source
+        also has hour-minute-second information, the source_coordinates is incomplete.
+    """
+
+    is_source_coordinates_complete = tl.Bool(False)
+    shared_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None)
+
+    def select_sources(self, coordinates):
+        """Select sources based on requested coordinates, including setting native_coordinates, if possible.
+        
+        Parameters
+        ----------
+        coordinates : :class:`podpac.Coordinates`
+            Coordinates to evaluate at compositor sources
+        
+        Returns
+        -------
+        sources : :class:`np.ndarray`
+            Array of sources
+
+        Notes
+        -----
+         * If :attr:`source_coordinates` is defined, only sources that intersect the requested coordinates are selected.
+         * Sets sources :attr:`interpolation`.
+         * If source coordinates complete, sets sources :attr:`native_coordinates` as an optimization.
+        """
+
+        """ Optimization: . """
+
+        src_subset = super(SMAPCompositor, self).select_sources(coordinates)
+
+        if self.is_source_coordinates_complete:
+            coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
+            coords_dim = list(self.source_coordinates.dims)[0]
+            crs = self.source_coordinates.crs
+            for s, c in zip(src_subset, coords_subset):
+                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim], crs=crs), self.shared_coordinates])
+                s.set_native_coordinates(nc)
+
+        return src_subset
+
+
 @common_doc(COMMON_DOC)
-class SMAPSource(SMAPSessionMixin, PyDAP):
+class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
     """Accesses SMAP data given a specific openDAP URL. This is the base class giving access to SMAP data, and knows how
     to extract the correct coordinates and data keys for the soil moisture data.
 
@@ -540,7 +595,7 @@ class SMAPWilt(SMAPProperties):
 
 
 @common_doc(COMMON_DOC)
-class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, OrderedCompositor):
+class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     """Compositor of all the SMAP source urls present in a particular folder which is defined for a particular date
 
     Attributes
@@ -597,6 +652,15 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, OrderedCompositor):
     def _layerkey_default(self):
         return SMAP_PRODUCT_MAP.sel(product=self.product, attr="layer_key").item()
 
+    @tl.default("shared_coordinates")
+    def _default_shared_coordinates(self):
+        """Coordinates that are shared by all files in the folder."""
+
+        if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
+            return None
+        coords = copy.deepcopy(self.sources[0].native_coordinates)
+        return coords.drop("time")
+
     @cached_property
     def folder_url(self):
         """URL to OpenDAP dataset folder
@@ -627,17 +691,16 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, OrderedCompositor):
         else:
             self.put_cache(sources, "sources", overwrite=True)
 
-            time_crds = self.source_coordinates["time"]
-            if time_crds.is_monotonic and time_crds.is_uniform and time_crds.size > 1:
-                tol = time_crds.coordinates[1] - time_crds.coordinates[0]
-            else:
-                tol = self.source_coordinates["time"].coordinates[0]
-                tol = tol - tol
-                tol = np.timedelta64(1, dtype=(tol.dtype))
+        time_crds = self.source_coordinates["time"]
+        if time_crds.is_monotonic and time_crds.is_uniform and time_crds.size > 1:
+            tol = time_crds.coordinates[1] - time_crds.coordinates[0]
+        else:
+            tol = self.source_coordinates["time"].coordinates[0]
+            tol = tol - tol
+            tol = np.timedelta64(1, dtype=(tol.dtype))
 
-            kwargs = {"layer_key": self.layer_key, "interpolation": {"method": "nearest", "time_tolerance": tol}}
-
-            return [SMAPSource(source="%s/%s" % (self.folder_url, s), **kwargs) for s in sources]
+        kwargs = {"layer_key": self.layer_key, "interpolation": {"method": "nearest", "time_tolerance": tol}}
+        return [SMAPSource(source="%s/%s" % (self.folder_url, s), **kwargs) for s in sources]
 
     @property
     def is_source_coordinates_complete(self):
@@ -671,16 +734,6 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, OrderedCompositor):
                 crds = Coordinates([times], dims=["time"])
             self.put_cache(crds, "source.coordinates", overwrite=True)
             return crds
-
-    @cached_property(use_cache_ctrl=True)
-    def shared_coordinates(self):
-        """Coordinates that are shared by all files in the folder."""
-
-        if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
-            return None
-
-        coords = copy.deepcopy(self.sources[0].native_coordinates)
-        return coords.drop("time")
 
     # TODO just return the elements, then return each actual thing separately
     @cached_property
@@ -760,7 +813,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, OrderedCompositor):
 
 
 @common_doc(COMMON_DOC)
-class SMAP(SMAPSessionMixin, OrderedCompositor):
+class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     """Compositor of all the SMAPDateFolder's for every available SMAP date. Essentially a compositor of all SMAP data
     for a particular product.
 
@@ -797,10 +850,25 @@ class SMAP(SMAPSessionMixin, OrderedCompositor):
     def _layerkey_default(self):
         return SMAP_PRODUCT_MAP.sel(product=self.product, attr="layer_key").item()
 
+    @tl.default("shared_coordinates")
+    def _default_shared_coordinates(self):
+        """Coordinates that are shared by all files in the SMAP product family. 
+
+        Notes
+        ------
+        For example, the gridded SMAP data have the same lat-lon coordinates in every file (global at some resolution), 
+        and the only difference between files is the time coordinate. 
+        This is not true for the SMAP-Sentinel product, in which case this function returns None
+        """
+        if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
+            return None
+
+        sample_source = SMAPDateFolder(product=self.product, version=self.version, folder_date=self.available_dates[0])
+        return sample_source.shared_coordinates
+
     @cached_property
     def available_dates(self):
         """ Available dates in SMAP date format, sorted."""
-
         url = "/".join([self.base_url, "%s.%03d" % (self.product, self.version)])
         r = _get_from_url(url, self.session)
         if r is None:
@@ -818,8 +886,8 @@ class SMAP(SMAPSessionMixin, OrderedCompositor):
         kwargs = {
             "product": self.product,
             "version": self.version,
-            "shared_coordinates": self.shared_coordinates,
             "layer_key": self.layer_key,
+            "shared_coordinates": self.shared_coordinates,  # this is an optimization
         }
         return [SMAPDateFolder(folder_date=date, **kwargs) for date in self.available_dates]
 
@@ -830,23 +898,6 @@ class SMAP(SMAPSessionMixin, OrderedCompositor):
         """
         available_times = [np.datetime64(date.replace(".", "-")) for date in self.available_dates]
         return Coordinates([available_times], dims=["time"])
-
-    @cached_property  # (use_cache_ctrl=True)
-    def shared_coordinates(self):
-        """Coordinates that are shared by all files in the SMAP product family. 
-
-        Notes
-        ------
-        For example, the gridded SMAP data have the same lat-lon coordinates in every file (global at some resolution), 
-        and the only difference between files is the time coordinate. 
-        This is not true for the SMAP-Sentinel product, in which case this function returns None
-        """
-        if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
-            return None
-
-        sample_source = SMAPDateFolder(product=self.product, version=self.version, folder_date=self.available_dates[0])
-
-        return sample_source.shared_coordinates
 
     @property
     def base_ref(self):
@@ -1032,8 +1083,6 @@ class SMAPBestAvailable(OrderedCompositor):
     """Compositor of SMAP-Sentinel and the Level 4 SMAP Analysis Update soil moisture
     """
 
-    shared_coordinates = None
-
     @cached_property
     def sources(self):
         """Orders the compositor of SPL2SMAP_S in front of SPL4SMAU. """
@@ -1087,39 +1136,40 @@ if __name__ == "__main__":
 
     logging.basicConfig()
 
-    username = input("Username:")
-    password = getpass.getpass("Password:")
-
     product = "SPL4SMAU"
     interpolation = {"method": "nearest", "params": {"time_tolerance": np.timedelta64(2, "h")}}
 
     sm = SMAP(product=product, interpolation=interpolation)
-    sm.set_credentials(username=username, password=password)
+
+    # username = input("Username: ")
+    # password = getpass.getpass("Password: ")
+    # sm.set_credentials(username=username, password=password)
 
     # SMAP info
-    print(sm)
-    print("SMAP Definition:", sm.json_pretty)
-    print(
+    print (sm)
+    print ("SMAP Definition:", sm.json_pretty)
+    print (
         "SMAP available_dates:",
         "%s - %s (%d)" % (sm.available_dates[0], sm.available_dates[1], len(sm.available_dates)),
     )
-    print("SMAP source_coordinates:", sm.source_coordinates)
-    print("SMAP shared_coordinates:", sm.shared_coordinates)
-    print("Sources:", sm.sources)
+    print ("SMAP source_coordinates:", sm.source_coordinates)
+    print ("SMAP shared_coordinates:", sm.shared_coordinates)
+    print ("Sources:", sm.sources[:3], "... (%d)" % len(sm.sources))
 
     # sample SMAPDateFolder info
     sm_datefolder = sm.sources[0]
-    print("Sample DateFolder:", sm_datefolder)
-    print("Sample DateFolder Definition:", sm_datefolder.json_pretty)
-    print("Sample DateFolder source_coordinates:", sm_datefolder.source_coordinates)
-    print("Sample DateFolder shared_coordinates:", sm_datefolder.shared_coordinates)
-    print("Sample DateFolder Sources:", sm_datefolder.sources)
+    print ("Sample DateFolder:", sm_datefolder)
+    print ("Sample DateFolder Definition:", sm_datefolder.json_pretty)
+    print ("Sample DateFolder source_coordinates:", sm_datefolder.source_coordinates)
+    print ("Sample DateFolder Sources:", sm_datefolder.sources[:3], "... (%d)" % len(sm_datefolder.sources))
 
     # sample SMAPSource info
     sm_source = sm_datefolder.sources[0]
-    print("Sample DAP Source:", sm_source)
-    print("Sample DAP Source Definition:", sm_source.json_pretty)
-    print("Sample DAP Native Coordinates:", sm_source.native_coordinates)
+    print ("Sample DAP Source:", sm_source)
+    print ("Sample DAP Source Definition:", sm_source.json_pretty)
+    print ("Sample DAP Native Coordinates:", sm_source.native_coordinates)
+
+    print ("Another Sample DAP Native Coordinates:", sm_datefolder.sources[1].native_coordinates)
 
     # eval whole world
     c_world = Coordinates(
@@ -1140,4 +1190,4 @@ if __name__ == "__main__":
     pyplot.plot(ot.time, ot.data.T)
 
     pyplot.show()
-    print("Done")
+    print ("Done")

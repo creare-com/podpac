@@ -12,7 +12,7 @@ import traitlets as tl
 
 # Internal imports
 from podpac.core.settings import settings
-from podpac.core.coordinates import Coordinates, merge_dims
+from podpac.core.coordinates import Coordinates, merge_dims, union
 from podpac.core.utils import common_doc, NodeTrait, trait_is_defined
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import COMMON_NODE_DOC, node_eval, Node
@@ -24,29 +24,21 @@ COMMON_COMPOSITOR_DOC = COMMON_DATA_DOC.copy()  # superset of COMMON_NODE_DOC
 
 
 @common_doc(COMMON_COMPOSITOR_DOC)
-class Compositor(Node):
-    """Compositor
+class BaseCompositor(Node):
+    """A base class for compositor nodes.
     
     Attributes
     ----------
-    sources : :class:`np.ndarray`
-        An array of sources. This is a numpy array as opposed to a list so that boolean indexing may be used to
-        subselect the nodes that will be evaluated.
-    shared_coordinates : :class:`podpac.Coordinates`.
-        Coordinates that are shared amongst all of the composited sources. Optional.
+    sources : list
+        Source nodes.
     source_coordinates : :class:`podpac.Coordinates`
         Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
     interpolation : str, dict, optional
         {interpolation}
-    is_source_coordinates_complete : Bool
-        Default is False. The source_coordinates do not have to completely describe the source. For example, the source
-        coordinates could include the year-month-day of the source, but the actual source also has hour-minute-second
-        information. In that case, source_coordinates is incomplete. This flag is used to automatically construct
-        native_coordinates.
     
     Notes
     -----
-    Developers of new Compositor nodes need to implement the `composite` method.
+    Developers of compositor subclasses nodes need to implement the `composite` method.
 
     Multitheading::
       * When MULTITHREADING is False, the compositor stops evaluated sources once the output is completely filled.
@@ -59,17 +51,10 @@ class Compositor(Node):
 
     sources = tl.List(trait=NodeTrait()).tag(attr=True)
     interpolation = InterpolationTrait(allow_none=True, default_value=None).tag(attr=True)
-    shared_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
 
-    is_source_coordinates_complete = tl.Bool(
-        False,
-        help=(
-            "This allows some optimizations but assumes that the sources have "
-            "native_coordinates=source_coordinate + shared_coordinate "
-            "IN THAT ORDER"
-        ),
-    )
+    # debug traits
+    _eval_sources = tl.Any()
 
     @tl.validate("sources")
     def _validate_sources(self, d):
@@ -82,20 +67,22 @@ class Compositor(Node):
                 "The sources must all be standard single-output nodes or all multi-output nodes."
             )
 
-        # TODO is this copy necessary? Can it be a less deep copy (e.g. that only copies defined traits)
+        # copy so that interpolation trait of the input source is not overwritten
         return [copy.deepcopy(source) for source in sources]
 
     @tl.validate("source_coordinates")
     def _validate_source_coordinates(self, d):
-        if d["value"] is not None:
-            if d["value"].ndim != 1:
-                raise ValueError("Invalid source_coordinates, invalid ndim (%d != 1)" % d["value"].ndim)
+        if d["value"] is None:
+            return None
 
-            if d["value"].size != len(self.sources):
-                raise ValueError(
-                    "Invalid source_coordinates, source and source_coordinates size mismatch (%d != %d)"
-                    % (d["value"].size, len(self.sources))
-                )
+        if d["value"].ndim != 1:
+            raise ValueError("Invalid source_coordinates, invalid ndim (%d != 1)" % d["value"].ndim)
+
+        if d["value"].size != len(self.sources):
+            raise ValueError(
+                "Invalid source_coordinates, source and source_coordinates size mismatch (%d != %d)"
+                % (d["value"].size, len(self.sources))
+            )
 
         return d["value"]
 
@@ -123,10 +110,7 @@ class Compositor(Node):
         return outputs
 
     def select_sources(self, coordinates):
-        """Downselect compositor sources based on requested coordinates.
-        
-        This is used during the :meth:`eval` process as an optimization
-        when :attr:`source_coordinates` are not pre-defined.
+        """Select and prepare sources based on requested coordinates.
         
         Parameters
         ----------
@@ -135,41 +119,52 @@ class Compositor(Node):
         
         Returns
         -------
-        :class:`np.ndarray`
-            Array of downselected sources
+        sources : :class:`np.ndarray`
+            Array of sources
+
+        Notes
+        -----
+         * If :attr:`source_coordinates` is defined, only sources that intersect the requested coordinates are selected.
+         * Sets sources :attr:`interpolation`.
         """
 
-        # if source coordinates are defined, use intersect
-        if self.source_coordinates is not None:
-            # intersecting sources only
+        # select intersecting sources, if possible
+        if self.source_coordinates is None:
+            sources = self.sources
+        else:
             try:
                 _, I = self.source_coordinates.intersect(coordinates, outer=True, return_indices=True)
-
-            except:  # Likely non-monotonic coordinates
+            except:
+                # Likely non-monotonic coordinates
                 _, I = self.source_coordinates.intersect(coordinates, outer=False, return_indices=True)
             i = I[0]
-            src_subset = np.array(self.sources)[i]
+            sources = np.array(self.sources)[i].tolist()
 
-        # no downselection possible - get all sources compositor
-        else:
-            src_subset = np.array(self.sources)
+        # set the interpolation properties for sources
+        if self.trait_is_defined("interpolation") and self.interpolation is not None:
+            for s in sources:
+                if s.has_trait("interpolation"):
+                    s.set_trait("interpolation", self.interpolation)
 
-        return src_subset
+        return sources
 
-    def composite(self, coordinates, outputs, result=None):
-        """Implements the rules for compositing multiple sources together.
+    def composite(self, coordinates, data_arrays, result=None):
+        """Implements the rules for compositing multiple sources together. Must be implemented by child classes.
         
         Parameters
         ----------
-        outputs : list
-            A list of outputs that need to be composited together
+        coordinates : :class:`podpac.Coordinates`
+            {requested_coordinates}
+        data_arrays : list
+            Evaluated data from the sources.
         result : UnitDataArray, optional
             An optional pre-filled array may be supplied, otherwise the output will be allocated.
-        
-        Raises
-        ------
-        NotImplementedError
+
+        Returns
+        -------
+        {eval_return} 
         """
+
         raise NotImplementedError()
 
     def iteroutputs(self, coordinates):
@@ -185,34 +180,19 @@ class Compositor(Node):
         :class:`podpac.core.units.UnitsDataArray`
             Output from source node eval method
         """
-        # downselect sources based on coordinates
-        src_subset = self.select_sources(coordinates)
 
-        if len(src_subset) == 0:
+        # get sources, potentially downselected
+        sources = self.select_sources(coordinates)
+
+        if settings["DEBUG"]:
+            self._eval_sources = sources
+
+        if len(sources) == 0:
             yield self.create_output_array(coordinates)
             return
 
-        # Set the interpolation properties for sources
-        if self.interpolation is not None:
-            for s in src_subset.ravel():
-                if self.trait_is_defined("interpolation"):
-                    s.set_trait("interpolation", self.interpolation)
-
-        # Optimization: if coordinates complete and source coords is 1D,
-        # set native_coordinates unless they are set already
-        # WARNING: this assumes
-        #              native_coords = source_coords + shared_coordinates
-        #         NOT  native_coords = shared_coords + source_coords
-        if self.is_source_coordinates_complete and self.source_coordinates.ndim == 1:
-            coords_subset = list(self.source_coordinates.intersect(coordinates, outer=True).coords.values())[0]
-            coords_dim = list(self.source_coordinates.dims)[0]
-            crs = self.source_coordinates.crs
-            for s, c in zip(src_subset, coords_subset):
-                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim], crs=crs), self.shared_coordinates])
-                s.set_native_coordinates(nc)
-
         if settings["MULTITHREADING"]:
-            n_threads = thread_manager.request_n_threads(len(src_subset))
+            n_threads = thread_manager.request_n_threads(len(sources))
             if n_threads == 1:
                 thread_manager.release_n_threads(n_threads)
         else:
@@ -222,7 +202,7 @@ class Compositor(Node):
             # evaluate nodes in parallel using thread pool
             self._multi_threaded = True
             pool = thread_manager.get_thread_pool(processes=n_threads)
-            outputs = pool.map(lambda src: src.eval(coordinates), src_subset)
+            outputs = pool.map(lambda src: src.eval(coordinates), sources)
             pool.close()
             thread_manager.release_n_threads(n_threads)
             for output in outputs:
@@ -231,7 +211,7 @@ class Compositor(Node):
         else:
             # evaluate nodes serially
             self._multi_threaded = False
-            for src in src_subset:
+            for src in sources:
                 yield src.eval(coordinates)
 
     @node_eval
@@ -252,7 +232,6 @@ class Compositor(Node):
         """
 
         self._requested_coordinates = coordinates
-
         outputs = self.iteroutputs(coordinates)
         output = self.composite(coordinates, outputs, output)
         return output
@@ -264,10 +243,10 @@ class Compositor(Node):
         Returns
         -------
         coords_list : list
-            list of available coordinates (Coordinate objects)
+            available coordinates from all of the sources.
         """
 
-        raise NotImplementedError("TODO")
+        return [coords for source in self.sources for coords in source.find_coordinates()]
 
     @property
     def _repr_keys(self):
@@ -278,21 +257,31 @@ class Compositor(Node):
         return keys
 
 
-class OrderedCompositor(Compositor):
-    """Compositor that combines sources based on their order in self.sources. Once a request contains no
-    nans, the result is returned. 
+class OrderedCompositor(BaseCompositor):
+    """Compositor that combines sources based on their order in self.sources.
+    
+    The requested data is interpolated by the sources before being composited.
+
+    Attributes
+    ----------
+    sources : list
+        Source nodes, in order of preference. Later sources are only used where earlier sources do not provide data.
+    source_coordinates : :class:`podpac.Coordinates`
+        Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
+    interpolation : str, dict, optional
+        {interpolation}
     """
 
     @common_doc(COMMON_COMPOSITOR_DOC)
     def composite(self, coordinates, data_arrays, result=None):
-        """Composites data_arrays in order that they appear.
+        """Composites data_arrays in order that they appear. Once a request contains no nans, the result is returned.
         
         Parameters
         ----------
         coordinates : :class:`podpac.Coordinates`
             {requested_coordinates}
         data_arrays : generator
-            Generator that gives UnitDataArray's with the source values.
+            Evaluated source data, in the same order as the sources.
         result : podpac.UnitsDataArray, optional
             {eval_output}
         

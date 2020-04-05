@@ -500,6 +500,8 @@ class DataSource(Node):
         ---------
         coordinates : :class:`podpac.Coordinates`
             Coordinates to set. Usually these are coordinates that are shared across compositor sources.
+
+        NOTE: This is only currently used by SMAPCompositor. It should potentially be moved to the SMAPSource.
         """
 
         if not self.trait_is_defined("_native_coordinates"):
