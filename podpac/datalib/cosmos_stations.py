@@ -13,7 +13,7 @@ except:
     import _pickle as cPickle
 from io import StringIO
 
-from podpac.core.utils import optional_import
+from podpac.core.utils import _get_from_url
 
 # Optional dependencies
 from lazy_import import lazy_module, lazy_class
@@ -25,27 +25,25 @@ from podpac.core.utils import cached_property
 
 
 class COSMOSStation(podpac.data.DataSource):
+    _repr_keys = ["_repr"]
+
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/StationDat/")
     station_data = tl.Dict().tag(attr=True)
 
-    raw_data = tl.Unicode()
-
     @tl.default("interpolation")
     def _interpolation_default(self):
-        return {"method": "nearest", "params": {"spatial_tolerance": 1.1}}
+        return {"method": "nearest", "params": {"spatial_tolerance": 1.1, "time_tolerance": np.timedelta64(1, "D")}}
 
-    @tl.default("raw_data")
-    def get_raw_data(self):
+    @cached_property(use_cache_ctrl=True)
+    def raw_data(self):
         r = requests.get(self.station_data_url)
         return r.text
 
-    data_columns = tl.List()
-
-    @tl.default("data_columns")
-    def _default_data_colums(self):
+    @cached_property
+    def data_columns(self):
         return self.raw_data.split("\n", 1)[0].split(" ")
 
-    @property
+    @cached_property
     def station_data_url(self):
         sitenumber = self.station_data["sitenumber"]
         return self.url + str(sitenumber) + "/smcounts.txt"
@@ -57,7 +55,7 @@ class COSMOSStation(podpac.data.DataSource):
         data[data > 100] = np.nan
         data[data < 0] = np.nan
         data /= 100.0  # Make it fractional
-        return self.create_output_array(coordinates, data=data[:, None])
+        return self.create_output_array(coordinates, data=data[:, None, None])
 
     def get_native_coordinates(self):
         lat_lon = [float(v) for v in self.station_data["location"].split(",")]
@@ -68,28 +66,24 @@ class COSMOSStation(podpac.data.DataSource):
             dtype=str,
         )
         time = np.array([t[0] + "T" + t[1] for t in time], np.datetime64)
-        c = podpac.Coordinates([time, lat_lon], ["time", "lat_lon"], ctype="point")
-        c["lat"].ctype = "point"
-        c["lon"].ctype = "point"
+        c = podpac.Coordinates([time, lat_lon[0], lat_lon[1]], ["time", "lat", "lon"])
         return c
 
-    def __repr__(self):
+    @property
+    def _repr(self):
         return "%s, %s (%s)" % (self.station_data["label"], self.station_data["network"], self.station_data["location"])
 
 
 class COSMOSStations(podpac.compositor.OrderedCompositor):
-    url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/")
-    stations_url = tl.Unicode("sitesNoLegend.js")
+    url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/").tag(attr=True)
+    stations_url = tl.Unicode("sitesNoLegend.js").tag(attr=True)
 
     @cached_property
     def stations_data(self):
-        return self._stations_data()
-
-    @cache_func("stations_data")
-    def _stations_data(self):
         url = self.url + self.stations_url
-        r = requests.get(url)
+        r = _get_from_url(url)
         t = r.text
+
         # Fix the JSON
         t_f = re.sub(':\s?",', ': "",', t)  # Missing closing parenthesis
         if t_f[-5:] == ",\n]}\n":  # errant comma
@@ -97,21 +91,14 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         stations = json.loads(t_f)
         return stations
 
-        if t[-55:-52] == ' ",':  # missing close quote
-            t = t[:-55] + t[-55:].replace(' ",', '"",')
-        stations = json.loads(t)
-        return stations
-
-    @tl.default("sources")
-    def _sources_default(self):
+    @cached_property
+    def sources(self):
         return np.array([COSMOSStation(station_data=item) for item in self.stations_data["items"]])
 
-    @tl.default("source_coordinates")
-    def _source_coordinates_default(self):
+    @cached_property
+    def source_coordinates(self):
         lat_lon = np.array([s["location"].split(",") for s in self.stations_data["items"]], dtype=float)
-        c = podpac.Coordinates([lat_lon.T], ["lat_lon"], ctype="point")
-        c["lat"].ctype = "point"
-        c["lon"].ctype = "point"
+        c = podpac.Coordinates([[lat_lon[:, 0], lat_lon[:, 1]]], ["lat_lon"])
         return c
 
     def label_from_latlon(self, lat_lon):
@@ -121,21 +108,38 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
 
 
 if __name__ == "__main__":
-    coords = podpac.Coordinates([podpac.clinspace(40, 46, 3, "lat"), podpac.clinspace(-78, -68, 3, "lon")])
+    bounds = {"lat": [40, 46], "lon": [-78, -68]}
     cs = COSMOSStations()
-    ci = cs.source_coordinates.intersect(coords)
+    ci = cs.source_coordinates.select(bounds)
     ce = podpac.coordinates.merge_dims(
         [podpac.Coordinates([podpac.crange("2018-05-01", "2018-06-01", "1,D", "time")]), ci]
     )
     o = cs.eval(ce)
 
-    from matplotlib.pyplot import plot, show, legend, ylim, ylabel, xlabel
+    from matplotlib import rcParams
 
-    plot(o.time, o.data, "-")
-    ylim(0, 1)
-    legend(cs.label_from_latlon(o.lat_lon))
-    ylabel("Soil Moisture ($m^3/m^3$)")
-    xlabel("Date")
-    show()
+    rcParams["axes.labelsize"] = 12
+    rcParams["xtick.labelsize"] = 10
+    rcParams["ytick.labelsize"] = 10
+    rcParams["legend.fontsize"] = 8
+    rcParams["lines.linewidth"] = 2
+    rcParams["title.fontsize"] = 12
+
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    fig = plt.figure(figsize=(6.5, 3), dpi=300)
+    plt.plot(o.time, o.data, "o-")
+    ax = plt.gca()
+    plt.ylim(0, 1)
+    plt.legend(cs.label_from_latlon(o.lat_lon))
+    plt.ylabel("Soil Moisture ($m^3/m^3$)")
+    plt.xlabel("Date")
+    # plt.xticks(rotation=90)
+    fig.autofmt_xdate()
+    ax.fmt_xdata = mdates.DateFormatter("%m-%d")
+    plt.title("COSMOS Data for 2018 over lat (40, 46) by lon (-78,-68)")
+    plt.tight_layout()
+    plt.show()
 
     print ("Done")
