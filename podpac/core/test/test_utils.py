@@ -20,6 +20,7 @@ from podpac.core.utils import create_logfile
 from podpac.core.utils import OrderedDictTrait, ArrayTrait, TupleTrait, NodeTrait
 from podpac.core.utils import JSONEncoder, is_json_serializable
 from podpac.core.utils import cached_property
+from podpac.core.utils import ind2slice
 
 
 class TestCommonDocs(object):
@@ -390,3 +391,32 @@ class TestCachedPropertyDecorator(object):
 
         with pytest.raises(TypeError, match="cached_property decorator does not accept any positional arguments"):
             cached_property(True)
+
+
+class TestInd2Slice(object):
+    def test_slice(self):
+        assert ind2slice((slice(1, 4),)) == (slice(1, 4),)
+
+    def test_integer(self):
+        assert ind2slice((1,)) == (1,)
+
+    def test_integer_array(self):
+        assert ind2slice(([1, 2, 4],)) == (slice(1, 5),)
+
+    def test_boolean_array(self):
+        assert ind2slice(([False, True, True, False, True, False],)) == (slice(1, 5),)
+
+    def test_stepped(self):
+        assert ind2slice(([1, 3, 5],)) == (slice(1, 7, 2),)
+        assert ind2slice(([False, True, False, True, False, True],)) == (slice(1, 7, 2),)
+
+    def test_multiindex(self):
+        I = (slice(1, 4), 1, [1, 2, 4], [False, True, False], [1, 3, 5])
+        assert ind2slice(I) == (slice(1, 4), 1, slice(1, 5), 1, slice(1, 7, 2))
+
+    def test_nontuple(self):
+        assert ind2slice(slice(1, 4)) == slice(1, 4)
+        assert ind2slice(1) == 1
+        assert ind2slice([1, 2, 4]) == slice(1, 5)
+        assert ind2slice([False, True, True, False, True, False]) == slice(1, 5)
+        assert ind2slice([1, 3, 5]) == slice(1, 7, 2)
