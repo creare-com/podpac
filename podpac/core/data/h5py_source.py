@@ -90,7 +90,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
     # additional methods and properties
     # -------------------------------------------------------------------------
 
-    def attrs(self, key="/"):
+    def dataset_attrs(self, key="/"):
         """Dataset or group key for which attributes will be summarized.
         """
         return dict(self.dataset[key].attrs)
