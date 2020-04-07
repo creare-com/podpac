@@ -875,6 +875,11 @@ class GroupReduce(UnaryAlgorithm):
         native_time_mask = np.in1d(N, E)
 
         # use requested spatial coordinates and filtered available times
+        import pdb
+
+        pdb.set_trace()  # breakpoint e7271746 //
+
+        # WHAT?
         coords = Coordinates(
             time=avail_time.data[native_time_mask],
             lat=requested_coordinates["lat"],

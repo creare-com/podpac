@@ -67,7 +67,9 @@ class ModifyCoordinates(UnaryAlgorithm):
 
         self._requested_coordinates = coordinates
         self._modified_coordinates = Coordinates(
-            [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims], crs=coordinates.crs
+            [self.get_modified_coordinates1d(coordinates, dim) for dim in coordinates.dims],
+            crs=coordinates.crs,
+            validate_crs=False,
         )
 
         for dim in self._modified_coordinates.udims:

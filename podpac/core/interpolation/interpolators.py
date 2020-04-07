@@ -196,7 +196,7 @@ class NearestPreview(NearestNeighbor):
             new_coords.append(c)
             new_coords_idx.append(idx)
 
-        return Coordinates(new_coords), tuple(new_coords_idx)
+        return Coordinates(new_coords, validate_crs=False), tuple(new_coords_idx)
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
