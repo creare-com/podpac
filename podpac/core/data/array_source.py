@@ -52,6 +52,8 @@ class Array(NoCacheMixin, DataSource):
     source = ArrayTrait().tag(attr=True)
     native_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
+    _repr_keys = ["shape", "interpolation"]
+
     @tl.validate("source")
     def _validate_source(self, d):
         try:
@@ -68,6 +70,17 @@ class Array(NoCacheMixin, DataSource):
             kwargs["native_coordinates"] = Coordinates.from_json(kwargs["native_coordinates"])
 
         return kwargs
+
+    @property
+    def shape(self):
+        """Returns the shape of :attr:`self.source`
+        
+        Returns
+        -------
+        tuple
+            Shape of :attr:`self.source`
+        """
+        return self.source.shape
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
