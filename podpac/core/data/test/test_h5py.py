@@ -57,11 +57,11 @@ class TestH5PY(object):
         np.testing.assert_array_equal(o.sel(output="b").data.ravel(), np.arange(12))
         node.close_dataset()
 
-    def test_attrs(self):
+    def test_dataset_attrs(self):
         node = H5PY(source=self.source, data_key="/data/init", lat_key="/coords/lat", lon_key="/coords/lon")
-        assert node.attrs() == {}
-        assert node.attrs("data") == {"test": "test"}
-        assert node.attrs("coords/lat") == {"unit": "degrees"}
-        assert node.attrs("coords/lon") == {"unit": "degrees"}
-        assert node.attrs("coords") == {"crs": "EPSG:4326s"}
+        assert node.dataset_attrs() == {}
+        assert node.dataset_attrs("data") == {"test": "test"}
+        assert node.dataset_attrs("coords/lat") == {"unit": "degrees"}
+        assert node.dataset_attrs("coords/lon") == {"unit": "degrees"}
+        assert node.dataset_attrs("coords") == {"crs": "EPSG:4326s"}
         node.close_dataset()

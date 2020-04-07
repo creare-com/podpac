@@ -63,7 +63,9 @@ class GFS(S3Mixin, DiskCacheMixin, DataSource):
         nc = self.sources[0].native_coordinates
         base_time = datetime.datetime.strptime("%s %s" % (self.date, self.hour), "%Y%m%d %H%M")
         forecast_times = [base_time + datetime.timedelta(hours=int(h)) for h in self.forecasts]
-        tc = Coordinates([[dt.strftime("%Y-%m-%d %H:%M") for dt in forecast_times]], dims=["time"], crs=nc.crs)
+        tc = Coordinates(
+            [[dt.strftime("%Y-%m-%d %H:%M") for dt in forecast_times]], dims=["time"], crs=nc.crs, validate_crs=False
+        )
         return merge_dims([nc, tc])
 
     def get_data(self, coordinates, coordinates_index):
@@ -105,7 +107,7 @@ if __name__ == "__main__":
     tomorrow = now + datetime.timedelta(1)
 
     # GFSSource (specify source date/time and forecast)
-    print("GFSSource node (parameter, level, date, hour)")
+    print ("GFSSource node (parameter, level, date, hour)")
     gfs_soim = GFSSource(
         parameter=parameter,
         level=level,
@@ -117,10 +119,10 @@ if __name__ == "__main__":
     )
 
     o = gfs_soim.eval(gfs_soim.native_coordinates)
-    print(o)
+    print (o)
 
     # GFS (specify source date/time, select forecast at evaluation)
-    print("GFS node (parameter, level, date, hour)")
+    print ("GFS node (parameter, level, date, hour)")
     gfs_soim = GFS(
         parameter=parameter,
         level=level,
@@ -135,20 +137,20 @@ if __name__ == "__main__":
         [gfs_soim.native_coordinates["lat"], gfs_soim.native_coordinates["lon"], tomorrow], dims=["lat", "lon", "time"]
     )
     o = gfs_soim.eval(c)
-    print(o)
+    print (o)
 
     # time series: get the forecast at lat=42, lon=275 every hour for the next 6 hours
     start = now
     stop = now + datetime.timedelta(hours=6)
     c = Coordinates([42, 282, podpac.crange(start, stop, "1,h")], dims=["lat", "lon", "time"])
     o = gfs_soim.eval(c)
-    print(o)
+    print (o)
 
     # latest (get latest source, select forecast at evaluation)
-    print("GFSLatest node (parameter, level)")
+    print ("GFSLatest node (parameter, level)")
     gfs_soim = GFSLatest(parameter=parameter, level=level, cache_ctrl=cache_ctrl, anon=True)
     c = Coordinates(
         [gfs_soim.native_coordinates["lat"], gfs_soim.native_coordinates["lon"], tomorrow], dims=["lat", "lon", "time"]
     )
     o = gfs_soim.eval(c)
-    print(o)
+    print (o)

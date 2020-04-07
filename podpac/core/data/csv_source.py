@@ -116,7 +116,7 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
         if len(coords) == 1:
             return coords
         stacked = StackedCoordinates(list(coords.values()))
-        return Coordinates([stacked], **coords.properties)
+        return Coordinates([stacked], validate_crs=False, **coords.properties)
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):

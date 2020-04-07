@@ -875,14 +875,7 @@ class GroupReduce(UnaryAlgorithm):
         native_time_mask = np.in1d(N, E)
 
         # use requested spatial coordinates and filtered available times
-        coords = Coordinates(
-            time=avail_time.data[native_time_mask],
-            lat=requested_coordinates["lat"],
-            lon=requested_coordinates["lon"],
-            order=("time", "lat", "lon"),
-        )
-
-        return coords
+        return coords[native_time_mask, :, :]
 
     @common_doc(COMMON_DOC)
     @node_eval

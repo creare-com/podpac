@@ -339,7 +339,12 @@ class SMAPCompositor(OrderedCompositor):
             coords_dim = list(self.source_coordinates.dims)[0]
             crs = self.source_coordinates.crs
             for s, c in zip(src_subset, coords_subset):
-                nc = merge_dims([Coordinates(np.atleast_1d(c), dims=[coords_dim], crs=crs), self.shared_coordinates])
+                nc = merge_dims(
+                    [
+                        Coordinates(np.atleast_1d(c), dims=[coords_dim], crs=crs, validate_crs=False),
+                        self.shared_coordinates,
+                    ]
+                )
                 s.set_native_coordinates(nc)
 
         return src_subset

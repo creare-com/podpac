@@ -143,7 +143,7 @@ class Convolution(UnaryAlgorithm):
             )
             exp_slice.append(slice(-s_start, -s_end))
         exp_slice = tuple(exp_slice)
-        expanded_coordinates = Coordinates(exp_coords)
+        expanded_coordinates = Coordinates(exp_coords, crs=coordinates.crs, validate_crs=False)
 
         if settings["DEBUG"]:
             self._expanded_coordinates = expanded_coordinates

@@ -80,7 +80,8 @@ class ReprojectedSource(DataSource):
             [
                 rc[dim] if dim in rc.dims else self.source.native_coordinates[dim]
                 for dim in self.source.native_coordinates.dims
-            ]
+            ],
+            validate_crs=False,
         )
 
     @common_doc(COMMON_DATA_DOC)
