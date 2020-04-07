@@ -7,10 +7,10 @@ import traitlets as tl
 import podpac
 from podpac.utils import cached_property
 from podpac.data import DataSource
-from podpac.core.compositor.tile_compositor import TileMixin, TileCompositor
+from podpac.core.compositor.tile_compositor import TileMixin, UniformTileMixin, TileCompositor, UniformTileCompositor
 
 
-class MockTile(TileMixin, podpac.data.DataSource):
+class MockTile(UniformTileMixin, podpac.data.DataSource):
     x = tl.Int()  # used as a modifier to distinguish between tiles in the tests
     data = np.arange(16).reshape(1, 4, 4)
 
@@ -18,11 +18,13 @@ class MockTile(TileMixin, podpac.data.DataSource):
         return self.create_output_array(coordinates, data=self.data[coordinates_index] + self.x)
 
 
-class MockTileCompositor(TileCompositor):
+class MockTileCompositor(UniformTileCompositor):
+    shape = (3, 3, 3)
+
     @cached_property
     def sources(self):
         return [
-            MockTile(tile=(i, j, k), ntiles=(3, 3, 3), global_coordinates=self.native_coordinates, x=20 * n)
+            MockTile(tile=(i, j, k), grid=self, x=20 * n)
             for n, (i, j, k) in enumerate(itertools.product(range(3), range(3), range(3)))
         ]
 
@@ -34,11 +36,34 @@ class MockTileCompositor(TileCompositor):
 
 
 class TestTileMixin(object):
-    pass
+    def test_native_coordinates(self):
+        class MyTile(TileMixin, DataSource):
+            pass
+
+        grid = MockTileCompositor()
+        tile = MyTile(grid=grid, tile_coordinates_index=(1, slice(4, 8), slice(0, 4)))
+
+        assert tile.native_coordinates == podpac.Coordinates(
+            ["2018-01-03", podpac.clinspace(4, 7, 4), podpac.clinspace(0, 3, 4)], dims=["time", "lat", "lon"]
+        )
+
+
+class TestUniformTileMixin(object):
+    def test_tile_coordinates_index(self):
+        class MyTile(UniformTileMixin, DataSource):
+            pass
+
+        grid = MockTileCompositor()
+        tile = MyTile(grid=grid, tile=(1, 1, 0))
+
+        assert tile.width == grid.tile_width
+        assert tile.native_coordinates == podpac.Coordinates(
+            ["2018-01-03", podpac.clinspace(4, 7, 4), podpac.clinspace(0, 3, 4)], dims=["time", "lat", "lon"]
+        )
 
 
 class TestTileCompositor(object):
-    def test_sources_not_implemented(self):
+    def test_sources(self):
         node = TileCompositor()
         with pytest.raises(NotImplementedError):
             node.sources
@@ -57,6 +82,12 @@ class TestTileCompositor(object):
             [["2018-01-01", "2018-01-03", "2018-01-05"], podpac.clinspace(0, 11, 12), podpac.clinspace(0, 11, 12)],
             dims=["time", "lat", "lon"],
         )
+
+
+class TestUniformTileCompositor(object):
+    def test_tile_width(self):
+        node = MockTileCompositor()
+        assert node.tile_width == (1, 4, 4)
 
     def test_get_data_native_coordinates(self):
         node = MockTileCompositor()

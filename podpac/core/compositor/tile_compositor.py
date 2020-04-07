@@ -11,54 +11,6 @@ from podpac.core.data.datasource import DataSource, COMMON_DATA_DOC
 
 
 @common_doc(COMMON_DATA_DOC)
-class TileMixin(tl.HasTraits):
-    """DataSource mixin for tiles. Defines the tile native_coordinates from global coordinates.
-
-    Attributes
-    ----------
-    tile : tuple
-        indices for this tile in the grid
-    ntiles : tuple
-        shape of the grid
-    global_coordinates : Coordinates
-        coordinates for the entire grid
-    """
-
-    tile = tl.Tuple().tag(readonly=True)
-    ntiles = tl.Tuple().tag(readonly=True)
-    global_coordinates = tl.Instance(Coordinates).tag(readonly=True)
-
-    @tl.validate("tile")
-    def _validate_tile(self, d):
-        # TODO check that len(tile) == self.global_coordinates.ndim
-        return d["value"]
-
-    @tl.validate("ntiles")
-    def _validate_shape(self, d):
-        # TODO check that it divides the global_coordinates evenly
-        return d["value"]
-
-    @property
-    def _repr_keys(self):
-        return super(self, TileMixin)._repr_keys + ["tile"]
-
-    @property
-    def width(self):
-        """Tuple of the number of coordinates that the tile covers in each dimension."""
-        return tuple(int(n / m) for n, m in zip(self.global_coordinates.shape, self.ntiles))
-
-    @property
-    def tile_coordinates_index(self):
-        """Tuple with indices for the coordinates of this tile"""
-        return tuple(slice(w * i, w * (i + 1)) for i, w in zip(self.tile, self.width))
-
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
-        """
-        return self.global_coordinates[self.tile_coordinates_index]
-
-
-@common_doc(COMMON_DATA_DOC)
 class TileCompositor(DataSource):
     """Composite tiled datasources.
 
@@ -76,18 +28,11 @@ class TileCompositor(DataSource):
 
     @property
     def sources(self):
-        """ Tiled data sources.
+        """ Tiled data sources (using the TileMixin).
 
-        Child classes should define these sources, including
-         * global_coordinates (the compositor native_coordinates)
-         * tile_coordinates_index
+        Child classes should define these sources including a reference to itself and the tile_coordinates_index.
         """
 
-        raise NotImplementedError()
-
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
-        """
         raise NotImplementedError()
 
     def get_data(self, coordinates, coordinates_index):
@@ -107,3 +52,105 @@ class TileCompositor(DataSource):
             source_data = source.get_data(source.native_coordinates[Js], Js)
             output.data[I] = source_data.data
         return output
+
+
+@common_doc(COMMON_DATA_DOC)
+class UniformTileCompositor(TileCompositor):
+    """Composite a grid of uniformly tiled datasources.
+
+    Attributes
+    ----------
+    sources : list
+        The tiled data sources.
+    native_coordinates : Coordinates
+        Coordinates encompassing all of the tiled sources.
+    shape : tuple
+        shape of the tile grid
+    tile_width : tuple
+        shape of the coordinates for each tile
+
+    Notes
+    -----
+    This compositor aggregates source data first and then interpolates the requested coordinates.
+    """
+
+    shape = tl.Tuple()
+    _repr_keys = ["shape"]
+
+    @property
+    def sources(self):
+        """ Tiled data sources (using the UniformTileMixin).
+
+        Child classes should define these sources including a reference to itself and the tile index in the grid.
+        """
+
+        raise NotImplementedError()
+
+    @cached_property
+    def tile_width(self):
+        """Tuple of the number of coordinates that the tile covers in each dimension."""
+        return tuple(int(n / m) for n, m in zip(self.native_coordinates.shape, self.shape))
+
+
+@common_doc(COMMON_DATA_DOC)
+class TileMixin(tl.HasTraits):
+    """DataSource mixin for tiles in a grid.
+
+    Defines the tile coordinates from the grid coordinates.
+
+    Attributes
+    ----------
+    grid : TileCompositor
+        tiling compositor containing the grid coordinates and tiles
+    tile_coordinates_index : tuple
+        index for the coordinates of this tile within the grid_coordinates
+    """
+
+    grid = tl.Instance(TileCompositor)
+    tile_coordinates_index = tl.Tuple().tag(readonly=True)
+
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
+        """
+        return self.grid.native_coordinates[self.tile_coordinates_index]
+
+
+@common_doc(COMMON_DATA_DOC)
+class UniformTileMixin(TileMixin):
+    """DataSource mixin for uniform tiles in a grid.
+
+    Defines the tile coordinates from the grid coordinates using the tile position in the grid.
+
+    Attributes
+    ----------
+    grid : TileCompositor
+        tiling compositor containing the grid coordinates, grid shape, and tile sources
+    tile : tuple
+        index for this tile in the grid
+    width : tuple
+        width
+    """
+
+    tile = tl.Tuple().tag(readonly=True)
+
+    @tl.validate("tile")
+    def _validate_tile(self, d):
+        tile = d["value"]
+        if len(tile) != len(self.grid.shape):
+            raise ValueError("tile index does not match grid shape (%d != %d)" % (len(tile), len(self.grid.shape)))
+        if not all(0 <= i < n for (i, n) in zip(tile, self.grid.shape)):
+            raise ValueError("tile index %s out of range for grid shape %s)" % (len(tile), len(self.grid.shape)))
+        return tile
+
+    @property
+    def width(self):
+        return self.grid.tile_width
+
+    @property
+    def tile_coordinates_index(self):
+        """Index for the coordinates of this tile"""
+        return tuple(slice(w * i, w * (i + 1)) for i, w in zip(self.tile, self.width))
+
+    @property
+    def _repr_keys(self):
+        return super(self, TileMixin)._repr_keys + ["tile"]
