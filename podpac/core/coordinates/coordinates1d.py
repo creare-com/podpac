@@ -76,7 +76,7 @@ class Coordinates1d(BaseCoordinates):
 
             self.set_trait("segment_lengths", segment_lengths)
 
-        # super(Coordinates1d, self).__init__()
+        super(Coordinates1d, self).__init__()
 
     @tl.observe("name", "ctype", "segment_lengths")
     def _set_property(self, d):
