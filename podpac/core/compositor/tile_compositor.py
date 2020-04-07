@@ -49,8 +49,8 @@ class TileCompositor(DataSource):
 
             cs, Is = source.native_coordinates.intersect(coordinates, return_indices=True)
             source_data = source.get_data(cs, Is)
-
             output.data[I] = source_data.data
+
         return output
 
 
@@ -93,30 +93,7 @@ class UniformTileCompositor(TileCompositor):
 
 
 @common_doc(COMMON_DATA_DOC)
-class TileMixin(tl.HasTraits):
-    """DataSource mixin for tiles in a grid.
-
-    Defines the tile coordinates from the grid coordinates.
-
-    Attributes
-    ----------
-    grid : TileCompositor
-        tiling compositor containing the grid coordinates and tiles
-    tile_coordinates_index : tuple
-        index for the coordinates of this tile within the grid_coordinates
-    """
-
-    grid = tl.Instance(TileCompositor)
-    tile_coordinates_index = tl.Tuple().tag(readonly=True)
-
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
-        """
-        return self.grid.native_coordinates[self.tile_coordinates_index]
-
-
-@common_doc(COMMON_DATA_DOC)
-class UniformTileMixin(TileMixin):
+class UniformTileMixin(tl.HasTraits):
     """DataSource mixin for uniform tiles in a grid.
 
     Defines the tile coordinates from the grid coordinates using the tile position in the grid.
@@ -131,6 +108,7 @@ class UniformTileMixin(TileMixin):
         width
     """
 
+    grid = tl.Instance(TileCompositor)
     tile = tl.Tuple().tag(readonly=True)
 
     @tl.validate("tile")
@@ -146,10 +124,11 @@ class UniformTileMixin(TileMixin):
     def width(self):
         return self.grid.tile_width
 
-    @property
-    def tile_coordinates_index(self):
-        """Index for the coordinates of this tile"""
-        return tuple(slice(w * i, w * (i + 1)) for i, w in zip(self.tile, self.width))
+    def get_native_coordinates(self):
+        """{get_native_coordinates}
+        """
+        Is = tuple(slice(w * i, w * (i + 1)) for i, w in zip(self.tile, self.width))
+        return self.grid.native_coordinates[Is]
 
     @property
     def _repr_keys(self):

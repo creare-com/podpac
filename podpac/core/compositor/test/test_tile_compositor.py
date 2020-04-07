@@ -7,7 +7,7 @@ import traitlets as tl
 import podpac
 from podpac.utils import cached_property
 from podpac.data import DataSource
-from podpac.core.compositor.tile_compositor import TileMixin, UniformTileMixin, TileCompositor, UniformTileCompositor
+from podpac.core.compositor.tile_compositor import TileCompositor, UniformTileCompositor, UniformTileMixin
 
 
 class MockTile(UniformTileMixin, podpac.data.DataSource):
@@ -32,19 +32,6 @@ class MockTileCompositor(UniformTileCompositor):
         return podpac.Coordinates(
             [["2018-01-01", "2018-01-03", "2018-01-05"], podpac.clinspace(0, 11, 12), podpac.clinspace(0, 11, 12)],
             dims=["time", "lat", "lon"],
-        )
-
-
-class TestTileMixin(object):
-    def test_native_coordinates(self):
-        class MyTile(TileMixin, DataSource):
-            pass
-
-        grid = MockTileCompositor()
-        tile = MyTile(grid=grid, tile_coordinates_index=(1, slice(4, 8), slice(0, 4)))
-
-        assert tile.native_coordinates == podpac.Coordinates(
-            ["2018-01-03", podpac.clinspace(4, 7, 4), podpac.clinspace(0, 3, 4)], dims=["time", "lat", "lon"]
         )
 
 
