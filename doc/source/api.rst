@@ -178,6 +178,8 @@ Stitch multiple data sources together
     :template: class.rst
 
     podpac.compositor.OrderedCompositor
+    podpac.compositor.UniformTileCompositor
+    podpac.compositor.UniformTileMixin
 
 
 Datalib

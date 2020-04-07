@@ -12,9 +12,8 @@ import traitlets as tl
 
 # Internal imports
 from podpac.core.settings import settings
-from podpac.core.coordinates import Coordinates, merge_dims, union
-from podpac.core.utils import common_doc, NodeTrait, trait_is_defined
-from podpac.core.units import UnitsDataArray
+from podpac.core.coordinates import Coordinates
+from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, node_eval, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
 from podpac.core.interpolation.interpolation import InterpolationTrait
@@ -255,64 +254,3 @@ class BaseCompositor(Node):
         if self.trait_is_defined("sources"):
             keys.append("sources")
         return keys
-
-
-class OrderedCompositor(BaseCompositor):
-    """Compositor that combines sources based on their order in self.sources.
-    
-    The requested data is interpolated by the sources before being composited.
-
-    Attributes
-    ----------
-    sources : list
-        Source nodes, in order of preference. Later sources are only used where earlier sources do not provide data.
-    source_coordinates : :class:`podpac.Coordinates`
-        Coordinates that make each source unique. Must the same size as ``sources`` and single-dimensional. Optional.
-    interpolation : str, dict, optional
-        {interpolation}
-    """
-
-    @common_doc(COMMON_COMPOSITOR_DOC)
-    def composite(self, coordinates, data_arrays, result=None):
-        """Composites data_arrays in order that they appear. Once a request contains no nans, the result is returned.
-        
-        Parameters
-        ----------
-        coordinates : :class:`podpac.Coordinates`
-            {requested_coordinates}
-        data_arrays : generator
-            Evaluated source data, in the same order as the sources.
-        result : podpac.UnitsDataArray, optional
-            {eval_output}
-        
-        Returns
-        -------
-        {eval_return} This composites the sources together until there are no nans or no more sources.
-        """
-
-        if result is None:
-            result = self.create_output_array(coordinates)
-        else:
-            result[:] = np.nan
-
-        mask = UnitsDataArray.create(coordinates, outputs=self.outputs, data=0, dtype=bool)
-        for data in data_arrays:
-            if self.outputs is None:
-                data = data.transpose(*result.dims)
-                self._composite(result, data, mask)
-            else:
-                for name in data["output"]:
-                    self._composite(result.sel(output=name), data.sel(output=name), mask.sel(output=name))
-
-            # stop if the results are full
-            if np.all(mask):
-                break
-
-        return result
-
-    @staticmethod
-    def _composite(result, data, mask):
-        source_mask = np.isfinite(data.data)
-        b = ~mask & source_mask
-        result.data[b.data] = data.data[b.data]
-        mask |= source_mask
