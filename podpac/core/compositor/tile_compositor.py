@@ -37,10 +37,6 @@ class TileCompositor(DataSource):
 
     def get_data(self, coordinates, coordinates_index):
         """ """
-        # TODO probably needs to be UnitsDataArray for multiple outputs handling
-        b = np.zeros(self.native_coordinates.shape, dtype=bool)
-        b[coordinates_index] = True
-
         output = self.create_output_array(coordinates)
         for source in self.sources:
             c, I = coordinates.intersect(source.native_coordinates, return_indices=True)
