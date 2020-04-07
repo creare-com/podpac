@@ -36,16 +36,16 @@ class TileCompositor(DataSource):
         raise NotImplementedError()
 
     def get_data(self, coordinates, coordinates_index):
-        """ """
+        """{get_data}
+        """
+
         output = self.create_output_array(coordinates)
         for source in self.sources:
-            c, I = coordinates.intersect(source.native_coordinates, return_indices=True)
+            c, I = source.native_coordinates.intersect(coordinates, return_indices=True)
             if c.size == 0:
                 continue
-
-            cs, Is = source.native_coordinates.intersect(coordinates, return_indices=True)
-            source_data = source.get_data(cs, Is)
-            output.data[I] = source_data.data
+            source_data = source.get_data(c, I)
+            output.loc[source_data.coords] = source_data
 
         return output
 
