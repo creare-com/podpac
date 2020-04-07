@@ -47,9 +47,9 @@ class TileCompositor(DataSource):
             if c.size == 0:
                 continue
 
-            bb = b[source.tile_coordinates_index]
-            Js = ind2slice(np.where(bb))
-            source_data = source.get_data(source.native_coordinates[Js], Js)
+            cs, Is = source.native_coordinates.intersect(coordinates, return_indices=True)
+            source_data = source.get_data(cs, Is)
+
             output.data[I] = source_data.data
         return output
 
