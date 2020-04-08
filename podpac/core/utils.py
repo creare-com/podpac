@@ -396,3 +396,55 @@ def cached_property(*args, **kwargs):
         return d(args[0])
     else:
         return d
+
+
+def ind2slice(Is):
+    """ Convert boolean and integer index arrays to slices.
+
+    Integer and boolean arrays are converted to slices that span the selected elements, but may include additional
+    elements. If possible, the slices are stepped.
+
+    Arguments
+    ---------
+    Is : tuple
+        tuple of indices (slice, integer array, boolean array, or single integer)
+
+    Returns
+    -------
+    Js : tuple
+        tuple of slices
+    """
+
+    if isinstance(Is, tuple):
+        return tuple(_ind2slice(I) for I in Is)
+    else:
+        return _ind2slice(Is)
+
+
+def _ind2slice(I):
+    # already a slice
+    if isinstance(I, slice):
+        return I
+
+    # convert to numpy array
+    I = np.atleast_1d(I)
+
+    # convert boolean array to index array
+    if I.dtype == bool:
+        I, = np.where(I)
+
+    # empty slice
+    if I.size == 0:
+        return slice(0, 0)
+
+    # singleton
+    if I.size == 1:
+        return I[0]
+
+    # stepped slice
+    diff = np.diff(I)
+    if diff.size and np.all(diff == diff[0]) and diff[0] != 0:
+        return slice(I.min(), I.max() + diff[0], diff[0])
+
+    # non-stepped slice
+    return slice(I.min(), I.max() + 1)

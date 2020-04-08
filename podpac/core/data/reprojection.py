@@ -34,7 +34,7 @@ class ReprojectedSource(DataSource):
     reprojected_coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
-    _repr_keys = ["source"]
+    _repr_keys = ["source", "interpolation"]
 
     def _first_init(self, **kwargs):
         if "reprojected_coordinates" in kwargs:
@@ -80,7 +80,8 @@ class ReprojectedSource(DataSource):
             [
                 rc[dim] if dim in rc.dims else self.source.native_coordinates[dim]
                 for dim in self.source.native_coordinates.dims
-            ]
+            ],
+            validate_crs=False,
         )
 
     @common_doc(COMMON_DATA_DOC)

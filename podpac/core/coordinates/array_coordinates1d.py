@@ -43,7 +43,8 @@ class ArrayCoordinates1d(Coordinates1d):
     """
 
     coordinates = ArrayTrait(ndim=1, read_only=True)
-    coordinates.__doc__ = ":array: User-defined coordinate values"
+    # coordinates.__doc__ = ":array: User-defined coordinate values"
+    # coordinates = None
 
     def __init__(self, coordinates, name=None, ctype=None, segment_lengths=None):
         """
@@ -63,7 +64,9 @@ class ArrayCoordinates1d(Coordinates1d):
         """
 
         # validate and set coordinates
-        self.set_trait("coordinates", make_coord_array(coordinates))
+        coordinates = make_coord_array(coordinates)
+        self.set_trait("coordinates", coordinates)
+        self.not_a_trait = coordinates
 
         # precalculate once
         if self.coordinates.size == 0:

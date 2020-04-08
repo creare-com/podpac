@@ -22,51 +22,59 @@ class TestSMAPSessionMixin(object):
 
     def test_auth_required(self):
         # make sure auth is deleted from setttings, if it was already there
-        try:
-            del settings["username@urs.earthdata.nasa.gov"]
-            del settings["password@urs.earthdata.nasa.gov"]
-        except KeyError:
-            pass
 
-        node = SomeSmapNode()
+        # auth required
+        with settings:
+            if "username@urs.earthdata.nasa.gov" in settings:
+                del settings["username@urs.earthdata.nasa.gov"]
 
-        with pytest.raises(ValueError, match="username"):
-            s = node.session
+            if "password@urs.earthdata.nasa.gov" in settings:
+                del settings["password@urs.earthdata.nasa.gov"]
 
-        node.set_credentials(username="testuser", password="testpass")
+            node = SomeSmapNode()
 
-        assert node.session
-        assert node.session.auth == ("testuser", "testpass")
-        assert isinstance(node.session, requests.Session)
+            # throw auth error
+            with pytest.raises(ValueError, match="username"):
+                node.session
+
+            node.set_credentials(username="testuser", password="testpass")
+
+            assert node.session
+            assert node.session.auth == ("testuser", "testpass")
+            assert isinstance(node.session, requests.Session)
 
     def test_set_credentials(self):
-        node = SomeSmapNode()
-        node.set_credentials(username="testuser", password="testpass")
+        with settings:
+            node = SomeSmapNode()
+            node.set_credentials(username="testuser", password="testpass")
 
-        assert settings["username@{}".format(self.url)] == "testuser"
-        assert settings["password@{}".format(self.url)] == "testpass"
+            assert settings["username@{}".format(self.url)] == "testuser"
+            assert settings["password@{}".format(self.url)] == "testpass"
 
     def test_session(self):
-        node = SomeSmapNode()
-        node.set_credentials(username="testuser", password="testpass")
+        with settings:
 
-        assert node.session
-        assert node.session.auth == ("testuser", "testpass")
-        assert isinstance(node.session, requests.Session)
+            node = SomeSmapNode()
+            node.set_credentials(username="testuser", password="testpass")
+
+            assert node.session
+            assert node.session.auth == ("testuser", "testpass")
+            assert isinstance(node.session, requests.Session)
 
     def test_earth_data_session_rebuild_auth(self):
-        node = SomeSmapNode()
-        node.set_credentials(username="testuser", password="testpass")
-
         class Dum(object):
             pass
 
-        prepared_request = Dum()
-        prepared_request.headers = {"Authorization": 0}
-        prepared_request.url = "https://example.com"
+        with settings:
+            node = SomeSmapNode()
+            node.set_credentials(username="testuser", password="testpass")
 
-        response = Dum()
-        response.request = Dum()
-        response.request.url = "https://example2.com"
+            prepared_request = Dum()
+            prepared_request.headers = {"Authorization": 0}
+            prepared_request.url = "https://example.com"
 
-        node.session.rebuild_auth(prepared_request, response)
+            response = Dum()
+            response.request = Dum()
+            response.request.url = "https://example2.com"
+
+            node.session.rebuild_auth(prepared_request, response)
