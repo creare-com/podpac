@@ -88,7 +88,7 @@ class COSMOSStation(podpac.data.DataSource):
         return self.create_output_array(coordinates, data=data[:, None, None])
 
     def get_native_coordinates(self):
-        lat_lon = [float(v) for v in self.station_data["location"].split(",")]
+        lat_lon = self.station_data["location"]
         time = np.loadtxt(
             StringIO(self.raw_data),
             skiprows=1,
