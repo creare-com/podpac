@@ -78,7 +78,7 @@ class Coordinates(tl.HasTraits):
 
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
 
-    def __init__(self, coords, dims=None, crs=None, crs_desc=None, ctype=None):
+    def __init__(self, coords, dims=None, crs=None, crs_desc=None, ctype=None, validate_crs=True):
         """
         Create multidimensional coordinates.
 
@@ -102,6 +102,8 @@ class Coordinates(tl.HasTraits):
             Abbreviated display description for the crs.
         ctype : str, optional
             Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
+        validate_crs : bool, optional
+            Use False to skip crs validation. Default True.
         """
 
         if not isinstance(coords, (list, tuple, np.ndarray, xr.DataArray)):
@@ -151,8 +153,19 @@ class Coordinates(tl.HasTraits):
             dcoords[dim] = c
 
         self.set_trait("_coords", dcoords)
+
         if crs is not None:
-            self.set_trait("crs", crs)
+            # validate
+            if validate_crs:
+                # raises pyproj.CRSError if invalid
+                CRS = pyproj.CRS(crs)
+
+                # make sure CRS defines vertical units
+                if "alt" in self.udims and not CRS.is_vertical:
+                    raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
+
+            crs = self.set_trait("crs", crs)
+
         super(Coordinates, self).__init__(crs_desc=crs_desc)
 
     @tl.validate("_coords")
@@ -176,17 +189,6 @@ class Coordinates(tl.HasTraits):
     @tl.default("crs")
     def _default_crs(self):
         return settings["DEFAULT_CRS"]
-
-    @tl.validate("crs")
-    def _validate_crs(self, d):
-        val = d["value"]
-        CRS = pyproj.CRS(val)  # raises pyproj.CRSError if invalid
-
-        # make sure CRS defines vertical units
-        if "alt" in self.udims and not CRS.is_vertical:
-            raise ValueError("Altitude dimension is defined, but CRS does not contain vertical unit")
-
-        return val
 
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors
@@ -600,7 +602,9 @@ class Coordinates(tl.HasTraits):
                     indices.append(index[i])
                     i += 1
 
-            return Coordinates([c[I] for c, I in zip(self._coords.values(), indices)], **self.properties)
+            return Coordinates(
+                [c[I] for c, I in zip(self._coords.values(), indices)], validate_crs=False, **self.properties
+            )
 
     def __setitem__(self, dim, c):
 
@@ -942,7 +946,9 @@ class Coordinates(tl.HasTraits):
             if dim not in self.dims and not ignore_missing:
                 raise KeyError("Dimension '%s' not found in Coordinates with dims %s" % (dim, self.dims))
 
-        return Coordinates([c for c in self._coords.values() if c.name not in dims], **self.properties)
+        return Coordinates(
+            [c for c in self._coords.values() if c.name not in dims], validate_crs=False, **self.properties
+        )
 
     # do we ever need this?
     def udrop(self, dims, ignore_missing=False):
@@ -1009,7 +1015,7 @@ class Coordinates(tl.HasTraits):
                 elif len(stacked) == 1:
                     cs.append(stacked[0])
 
-        return Coordinates(cs, **self.properties)
+        return Coordinates(cs, validate_crs=False, **self.properties)
 
     def intersect(self, other, dims=None, outer=False, return_indices=False):
         """
@@ -1131,13 +1137,13 @@ class Coordinates(tl.HasTraits):
 
     def _make_selected_coordinates(self, selections, return_indices):
         if return_indices:
-            coords = Coordinates([c for c, I in selections], **self.properties)
+            coords = Coordinates([c for c, I in selections], validate_crs=False, **self.properties)
             # unbundle DepedentCoordinates indices
             I = [I if isinstance(c, DependentCoordinates) else [I] for c, I in selections]
             I = [e for l in I for e in l]
             return coords, tuple(I)
         else:
-            return Coordinates(selections, **self.properties)
+            return Coordinates(selections, validate_crs=False, **self.properties)
 
     def unique(self, return_indices=False):
         """
@@ -1176,7 +1182,7 @@ class Coordinates(tl.HasTraits):
         xr.DataArray.unstack
         """
 
-        return Coordinates([self[dim] for dim in self.udims], **self.properties)
+        return Coordinates([self[dim] for dim in self.udims], validate_crs=False, **self.properties)
 
     def iterchunks(self, shape, return_slices=False):
         """
@@ -1199,7 +1205,9 @@ class Coordinates(tl.HasTraits):
 
         l = [[slice(i, i + n) for i in range(0, m, n)] for m, n in zip(self.shape, shape)]
         for slices in itertools.product(*l):
-            coords = Coordinates([self._coords[dim][slc] for dim, slc in zip(self.dims, slices)], **self.properties)
+            coords = Coordinates(
+                [self._coords[dim][slc] for dim, slc in zip(self.dims, slices)], validate_crs=False, **self.properties
+            )
             if return_slices:
                 yield coords, slices
             else:
@@ -1255,7 +1263,7 @@ class Coordinates(tl.HasTraits):
             self._coords = OrderedDict(zip(dims, coords))
             return self
         else:
-            return Coordinates(coords, **self.properties)
+            return Coordinates(coords, validate_crs=False, **self.properties)
 
     def transform(self, crs=None):
         """
@@ -1375,7 +1383,7 @@ class Coordinates(tl.HasTraits):
         # transform
         transformer = pyproj.Transformer.from_proj(from_crs, to_crs, always_xy=True)
         ts = [c._transform(transformer) for c in cs]
-        return Coordinates(ts, crs=input_crs)
+        return Coordinates(ts, crs=input_crs, validate_crs=False)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
@@ -1425,7 +1433,7 @@ def merge_dims(coords_list):
             raise TypeError("Cannot merge '%s' with Coordinates" % type(coords))
 
     if len(coords_list) == 0:
-        return Coordinates([])
+        return Coordinates([], crs=None)
 
     # check crs
     crs = coords_list[0].crs
@@ -1434,7 +1442,7 @@ def merge_dims(coords_list):
 
     # merge
     coords = sum([list(coords.values()) for coords in coords_list], [])
-    return Coordinates(coords, crs=crs)
+    return Coordinates(coords, crs=crs, validate_crs=False)
 
 
 def concat(coords_list):
@@ -1462,7 +1470,7 @@ def concat(coords_list):
             raise TypeError("Cannot concat '%s' with Coordinates" % type(coords))
 
     if not coords_list:
-        return Coordinates([])
+        return Coordinates([], crs=None)
 
     # check crs
     crs = coords_list[0].crs
@@ -1484,7 +1492,7 @@ def concat(coords_list):
                 else:
                     d[dim] = [np.concatenate([d[dim][i], s.coordinates]) for i, s in enumerate(c)]
 
-    return Coordinates(list(d.values()), dims=list(d.keys()), crs=crs)
+    return Coordinates(list(d.values()), dims=list(d.keys()), crs=crs, validate_crs=False)
 
 
 def union(coords_list):

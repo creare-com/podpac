@@ -32,7 +32,9 @@ class H5PY(FileKeysMixin, BaseFileSource):
     time_key : str, int
         time coordinates key, default 'time'
     alt_key : str, int
-        altitude coordinates key, default 'alt'
+        altitude coordinates key, default 'alt',
+    array_dims : list of str
+        dataset dims, default ['lat', 'lon', 'alt', time'], for each <dim>_key defined
     crs : str
         Coordinate reference system of the coordinates
     cf_time : bool
@@ -44,6 +46,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
     """
 
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
+    array_dims = tl.List(trait=tl.Unicode()).tag(readonly=True)
 
     @cached_property
     def dataset(self):
@@ -68,7 +71,13 @@ class H5PY(FileKeysMixin, BaseFileSource):
             return self.dataset[key].attrs["_ARRAY_DIMENSIONS"]
         except:
             lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
-            return [lookup[key] for key in self.keys if key in lookup]
+
+            # make sure array_dim key is in self.keys
+            if self.array_dims:
+                inv_lookup = {v: k for k, v in lookup.items()}
+                return [key for key in self.array_dims if inv_lookup[key] in self.keys]
+            else:
+                return [lookup[key] for key in self.keys if key in lookup]
 
     @cached_property
     def keys(self):
@@ -90,7 +99,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
     # additional methods and properties
     # -------------------------------------------------------------------------
 
-    def attrs(self, key="/"):
+    def dataset_attrs(self, key="/"):
         """Dataset or group key for which attributes will be summarized.
         """
         return dict(self.dataset[key].attrs)

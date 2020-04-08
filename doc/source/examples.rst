@@ -140,7 +140,7 @@ configured.
     output = node.eval(coords) 
 
 
-`Notebooks <https://github.com/creare-com/podpac_examples/tree/master/notebooks>`__
+Notebooks
 ---------
 
 Interactive PODPAC examples are distributed as `example Jupyter

@@ -63,7 +63,7 @@ class CoordData(Algorithm):
             raise ValueError("Coordinate name not in evaluated coordinates")
 
         c = self._requested_coordinates[self.coord_name]
-        coords = Coordinates([c])
+        coords = Coordinates([c], validate_crs=False)
         return self.create_output_array(coords, data=c.coordinates)
 
 
