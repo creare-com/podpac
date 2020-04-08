@@ -51,9 +51,9 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
 
     def _get_store(self):
         if self.source.startswith("s3://"):
-            root = source.strip("s3://")
-            kwargs = {"region_name": self.region_name}
-            s3 = s3fs.S3FileSystem(key=self.access_key_id, secret=self.secret_access_key, client_kwargs=kwargs)
+            root = self.source.strip("s3://")
+            kwargs = {"region_name": self.aws_region_name}
+            s3 = s3fs.S3FileSystem(key=self.aws_access_key_id, secret=self.aws_secret_access_key, client_kwargs=kwargs)
             s3map = s3fs.S3Map(root=root, s3=s3, check=False)
             store = s3map
         else:
@@ -85,9 +85,28 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             lookup = {self.lat_key: "lat", self.lon_key: "lon", self.alt_key: "alt", self.time_key: "time"}
             return [lookup[key] for key in self.dataset if key in lookup]
 
+    def _add_keys(self, base_keys):
+        keys = base_keys.copy()
+        for bk in base_keys:
+            try:
+                new_keys = [bk + "/" + k for k in self.dataset[bk].keys()]
+                keys.extend(new_keys)
+
+                # Remove the group key
+                keys.pop(keys.index(bk))
+            except AttributeError:
+                pass
+        return keys
+
     @cached_property
     def keys(self):
-        return list(self.dataset.keys())
+        keys = list(self.dataset.keys())
+        full_keys = self._add_keys(keys)
+        while keys != full_keys:
+            keys = full_keys.copy()
+            full_keys = self._add_keys(keys)
+
+        return full_keys
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
