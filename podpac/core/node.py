@@ -577,8 +577,8 @@ class Node(tl.HasTraits):
         if self.cache_ctrl is None:
             return False
 
-        with thread_manager.cache_lock:
-            return self.cache_ctrl.has(self, key, coordinates=coordinates)
+        # with thread_manager.cache_lock:
+        return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
     def rem_cache(self, key, coordinates=None, mode=None):
         """
