@@ -1421,7 +1421,8 @@ Lambda Node {status}
         pipeline = self._create_eval_pipeline(coordinates)
 
         # create lambda client
-        awslambda = self.session.client("lambda")
+        config = botocore.config.Config(read_timeout=self.function_timeout)
+        awslambda = self.session.client("lambda", config=config)
 
         # pipeline payload
         payload = bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))
