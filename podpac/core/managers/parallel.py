@@ -4,6 +4,7 @@ Module to help farm out computation to multiple workers and save the results in 
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import time
 import logging
 import traitlets as tl
 import numpy as np
@@ -82,11 +83,12 @@ class Parallel(Node):
                 _log.debug("Node eval with coords: {}, {}".format(slc, coords))
                 results.append(pool.apply_async(self.eval_source, [coords, slc, out]))
 
+        start_time = time.time()
         for i, res in enumerate(results):
             #             _log.debug('Waiting for results: {} {}'.format(i, inputs[i]))
-            _log.info("Waiting for results: {} / {}".format(i + 1, len(results)))
+            _log.info("{}(s): Waiting for results: {} / {}".format(time.time() - start_time, i + 1, len(results)))
             o, slc = res.get()
-            _log.info("Finished result: {} / {}".format(i + 1, len(results)))
+            _log.info("{}(s) Finished result: {} / {}".format(time.time() - start_time, i + 1, len(results)))
             if self.fill_output:
                 if output is None:
                     missing_dims = [d for d in coordinates.dims if d not in self.chunks.keys()]
