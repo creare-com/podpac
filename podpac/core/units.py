@@ -366,6 +366,8 @@ class UnitsDataArray(xr.DataArray):
 
         # pass in kwargs to constructor
         uda_kwargs = {"attrs": da.attrs}
+        if "output" in da.dims:
+            uda_kwargs.update({"outputs": da.coords["output"]})
         return cls.create(coords, data=da.data, **uda_kwargs)
 
     @classmethod

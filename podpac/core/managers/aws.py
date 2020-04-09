@@ -63,7 +63,7 @@ class Lambda(Node):
 
     Other Attributes
     ----------------
-    attrs : dict
+    node_attrs : dict
         Additional attributes passed on to the Lambda definition of the base node
     download_result : Bool
         Flag that indicated whether node should wait to download the data.
@@ -394,7 +394,7 @@ class Lambda(Node):
     source = tl.Instance(Node, allow_none=True).tag(attr=True)
     source_output_format = tl.Unicode(default_value="netcdf")
     source_output_name = tl.Unicode()
-    attrs = tl.Dict()
+    node_attrs = tl.Dict()
     download_result = tl.Bool(True).tag(attr=True)
     force_compute = tl.Bool().tag(attr=True)
     eval_settings = tl.Dict().tag(attr=True)
@@ -421,9 +421,9 @@ class Lambda(Node):
         """
         d = OrderedDict()
         d["pipeline"] = self.source.definition
-        if self.attrs:
+        if self.node_attrs:
             out_node = next(reversed(d["pipeline"].keys()))
-            d["pipeline"][out_node]["attrs"].update(self.attrs)
+            d["pipeline"][out_node]["attrs"].update(self.node_attrs)
         d["output"] = {"format": self.source_output_format}
         d["settings"] = self.eval_settings
         return d
@@ -718,7 +718,7 @@ Lambda Node {status}
             budget_output=budget_output,
         )
 
-        print(output)
+        print (output)
 
     # Function
     def create_function(self):
@@ -1459,7 +1459,11 @@ Lambda Node {status}
 
         # After waiting, load the pickle file like this:
         payload = response["Payload"].read()
-        self._output = UnitsDataArray.open(payload)
+        try:
+            self._output = UnitsDataArray.open(payload)
+        except ValueError:
+            # Not actually a data-array, returning a string instead
+            return payload.decode("utf-8")
         return self._output
 
     def _eval_s3(self, coordinates, output=None):
@@ -2673,7 +2677,7 @@ def create_budget(
     budgets.create_budget(**budget_definition)
 
     # alert the user that they must activate tags
-    print(
+    print (
         "To finalize budget creation, you must visit https://console.aws.amazon.com/billing/home#/preferences/tags and 'Activate' the following User Defined Cost Allocation tags: {}.\nBudget tracking will not work if these User Defined Cost Allocation tags are not active.\nBudget creation and usage updates may take 24 hours to take effect.".format(
             list(budget_filter_tags.keys())
         )

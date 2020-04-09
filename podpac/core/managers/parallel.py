@@ -84,8 +84,9 @@ class Parallel(Node):
 
         for i, res in enumerate(results):
             #             _log.debug('Waiting for results: {} {}'.format(i, inputs[i]))
-            _log.debug("Waiting for results: {}".format(i))
+            _log.info("Waiting for results: {} / {}".format(i + 1, len(results)))
             o, slc = res.get()
+            _log.info("Finished result: {} / {}".format(i + 1, len(results)))
             if self.fill_output:
                 if output is None:
                     missing_dims = [d for d in coordinates.dims if d not in self.chunks.keys()]
@@ -96,7 +97,7 @@ class Parallel(Node):
                     output = self.create_output_array(coords)
                 output[slc] = o
 
-        _log.debug("Completed parallel execution.")
+        _log.info("Completed parallel execution.")
         pool.close()
 
         return output
