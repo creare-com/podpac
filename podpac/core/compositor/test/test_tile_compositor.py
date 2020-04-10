@@ -48,6 +48,15 @@ class TestUniformTileMixin(object):
             ["2018-01-03", podpac.clinspace(4, 7, 4), podpac.clinspace(0, 3, 4)], dims=["time", "lat", "lon"]
         )
 
+    def test_repr(self):
+        class MyTile(UniformTileMixin, DataSource):
+            pass
+
+        grid = MockTileCompositor()
+        tile = MyTile(grid=grid, tile=(1, 1, 0))
+        assert "MyTile" in repr(tile)
+        assert "tile=(1, 1, 0)" in repr(tile)
+
 
 class TestTileCompositor(object):
     def test_sources(self):
