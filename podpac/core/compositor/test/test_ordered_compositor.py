@@ -115,14 +115,14 @@ class TestOrderedCompositor(object):
         np.testing.assert_array_equal(result, a.source)
 
     def test_composite_multiple_outputs(self):
-        node = OrderedCompositor(sources=[MULTI_0_XY, MULTI_1_XY])
+        node = OrderedCompositor(sources=[MULTI_0_XY, MULTI_1_XY], auto_outputs=True)
         output = node.eval(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["x", "y"])
         np.testing.assert_array_equal(output.sel(output="x"), np.full(COORDS.shape, 0))
         np.testing.assert_array_equal(output.sel(output="y"), np.full(COORDS.shape, 0))
 
-        node = OrderedCompositor(sources=[MULTI_1_XY, MULTI_0_XY])
+        node = OrderedCompositor(sources=[MULTI_1_XY, MULTI_0_XY], auto_outputs=True)
         output = node.eval(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["x", "y"])
@@ -130,7 +130,7 @@ class TestOrderedCompositor(object):
         np.testing.assert_array_equal(output.sel(output="y"), np.full(COORDS.shape, 1))
 
     def test_composite_combine_multiple_outputs(self):
-        node = OrderedCompositor(sources=[MULTI_0_XY, MULTI_1_XY, MULTI_2_X, MULTI_3_Z])
+        node = OrderedCompositor(sources=[MULTI_0_XY, MULTI_1_XY, MULTI_2_X, MULTI_3_Z], auto_outputs=True)
         output = node.eval(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["x", "y", "z"])
@@ -138,7 +138,7 @@ class TestOrderedCompositor(object):
         np.testing.assert_array_equal(output.sel(output="y"), np.full(COORDS.shape, 0))
         np.testing.assert_array_equal(output.sel(output="z"), np.full(COORDS.shape, 3))
 
-        node = OrderedCompositor(sources=[MULTI_3_Z, MULTI_2_X, MULTI_0_XY, MULTI_1_XY])
+        node = OrderedCompositor(sources=[MULTI_3_Z, MULTI_2_X, MULTI_0_XY, MULTI_1_XY], auto_outputs=True)
         output = node.eval(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["z", "x", "y"])
@@ -146,7 +146,7 @@ class TestOrderedCompositor(object):
         np.testing.assert_array_equal(output.sel(output="y"), np.full(COORDS.shape, 0))
         np.testing.assert_array_equal(output.sel(output="z"), np.full(COORDS.shape, 3))
 
-        node = OrderedCompositor(sources=[MULTI_2_X, MULTI_4_YX])
+        node = OrderedCompositor(sources=[MULTI_2_X, MULTI_4_YX], auto_outputs=True)
         output = node.eval(COORDS)
         assert output.dims == ("lat", "lon", "time", "output")
         np.testing.assert_array_equal(output["output"], ["x", "y"])
