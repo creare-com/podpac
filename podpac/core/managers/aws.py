@@ -1421,7 +1421,7 @@ Lambda Node {status}
         pipeline = self._create_eval_pipeline(coordinates)
 
         # create lambda client
-        config = botocore.config.Config(read_timeout=self.function_timeout)
+        config = botocore.config.Config(read_timeout=self.function_timeout, max_pool_connections=1001)
         awslambda = self.session.client("lambda", config=config)
 
         # pipeline payload
