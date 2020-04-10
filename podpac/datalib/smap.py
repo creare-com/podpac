@@ -634,7 +634,6 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     folder_date = tl.Unicode("").tag(attr=True)
     layer_key = tl.Unicode().tag(attr=True)
     latlon_delta = tl.Float(default_value=1.5).tag(attr=True)
-    outputs = None  # this is necessary because of the source caching backup
 
     file_url_re = re.compile(r".*_[0-9]{8}T[0-9]{6}_.*\.h5")
     file_url_re2 = re.compile(r".*_[0-9]{8}_.*\.h5")
@@ -836,8 +835,6 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     product = tl.Enum(SMAP_PRODUCT_MAP.coords["product"].data.tolist(), default_value="SPL4SMAU").tag(attr=True)
     version = tl.Int(allow_none=True).tag(attr=True)
     layer_key = tl.Unicode().tag(attr=True)
-    outputs = None  # this is necessary because of the source caching backup
-    output = None  # might as well
 
     date_url_re = re.compile(r"[0-9]{4}\.[0-9]{2}\.[0-9]{2}")
 
