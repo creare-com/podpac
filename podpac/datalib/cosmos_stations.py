@@ -139,7 +139,7 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
 
     ## PROPERTIES
     @cached_property(use_cache_ctrl=True)
-    def stations_data(self):
+    def _stations_data_raw(self):
         url = self.url + self.stations_url
         r = _get_from_url(url)
         t = r.text
@@ -148,7 +148,12 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         t_f = re.sub(':\s?",', ': "",', t)  # Missing closing parenthesis
         if t_f[-5:] == ",\n]}\n":  # errant comma
             t_f = t_f[:-5] + "\n]}\n"
-        stations = json.loads(t_f)
+
+        return t_f
+
+    @cached_property
+    def stations_data(self):
+        stations = json.loads(self._stations_data_raw)
         stations["items"] = [_convert_str_to_vals(i) for i in stations["items"]]
         return stations
 
@@ -377,6 +382,9 @@ if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
+    from pandas.plotting import register_matplotlib_converters
+
+    register_matplotlib_converters()
 
     fig = plt.figure(figsize=(6.5, 3), dpi=300)
     plt.plot(o.time, o.data, "o-")
