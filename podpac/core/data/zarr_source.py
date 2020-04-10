@@ -1,3 +1,4 @@
+import os
 import traitlets as tl
 import numpy as np
 
@@ -52,18 +53,51 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
     def _get_store(self):
         if self.source.startswith("s3://"):
             root = self.source.strip("s3://")
-            kwargs = {"region_name": self.aws_region_name}
-            s3 = s3fs.S3FileSystem(key=self.aws_access_key_id, secret=self.aws_secret_access_key, client_kwargs=kwargs)
-            s3map = s3fs.S3Map(root=root, s3=s3, check=False)
+            s3map = s3fs.S3Map(root=root, s3=self.s3, check=False)
             store = s3map
         else:
             store = str(self.source)  # has to be a string in Python2.7 for local files
         return store
 
+    def chunk_exists(self, index=None, chunk_str=None, data_key=None):
+        """
+        Test to see if a chunk exists for a particular slice. 
+        Note: Only the start of the index is used. 
+        
+        Parameters
+        -----------
+        index: tuple(slice), optional
+            Default is None. A tuple of slices indicating the data that the users wants to access
+        chunk_str: str, optional
+            Default is None. A string equivalent to the filename of the chunk (.e.g. "1.0.5")
+        data_key: str, optional
+            Default is None. The data_key for the zarr array that will be queried. 
+            
+        """
+        za = self.dataset
+        if data_key:
+            za = za[data_key]
+        else:
+            data_key = ""
+
+        if index:
+            chunk_str = ".".join([str(int(s.start // za.chunks[i])) for i, s in enumerate(index)])
+
+        if not index and not chunk_str:
+            raise ValueError("Either the index or chunk_str needs to be specified")
+
+        path = os.path.join(self.source, data_key, chunk_str)
+        if self.source.startswith("s3:"):
+            fs = self.s3
+            path = path.replace("\\", "/")
+        else:
+            fs = os.path
+
+        return fs.exists(path)
+
     @cached_property
     def dataset(self):
         store = self._get_store()
-
         try:
             return zarr.open(store, mode=self.file_mode)
         except ValueError:

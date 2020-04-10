@@ -29,7 +29,9 @@ _log = logging.getLogger(__name__)
 
 class Parallel(Node):
     """
-    For this class to work properly, the source node should return immediately after an eval. 
+    This class launches the parallel node evaluations in separate threads. As such, the node does not need to return 
+    immediately (i.e. does NOT have to be asynchronous). For asynchronous nodes 
+    (i.e. aws.Lambda with download_result=False) use ParrallelAsync
     
     Attributes
     -----------
@@ -74,21 +76,26 @@ class Parallel(Node):
 
         results = []
         #         inputs = []
+        i = 0
         for coords, slc in coordinates.iterchunks(shape, True):
             #             inputs.append(coords)
             out = None
             if self.fill_output and output is not None:
                 out = output[slc]
             with self._lock:
+                _log.debug("Added {} to worker pool".format(i))
                 _log.debug("Node eval with coords: {}, {}".format(slc, coords))
-                results.append(pool.apply_async(self.eval_source, [coords, slc, out]))
+                results.append(pool.apply_async(self.eval_source, [coords, slc, out, i]))
+            i += 1
 
         start_time = time.time()
         for i, res in enumerate(results):
             #             _log.debug('Waiting for results: {} {}'.format(i, inputs[i]))
-            _log.info("{}(s): Waiting for results: {} / {}".format(time.time() - start_time, i + 1, len(results)))
+            dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
+            _log.info("({}): Waiting for results: {} / {}".format(dt, i + 1, len(results)))
             o, slc = res.get()
-            _log.info("{}(s) Finished result: {} / {}".format(time.time() - start_time, i + 1, len(results)))
+            dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
+            _log.info("({}) Finished result: {} / {}".format(time.time() - start_time, i + 1, len(results)))
             if self.fill_output:
                 if output is None:
                     missing_dims = [d for d in coordinates.dims if d not in self.chunks.keys()]
@@ -104,11 +111,97 @@ class Parallel(Node):
 
         return output
 
-    def eval_source(self, coordinates, coordinates_index, out):
+    def eval_source(self, coordinates, coordinates_index, out, i):
+        _log.info("Submitting source {}".format(i))
         return (self.source.eval(coordinates, output=out), coordinates_index)
 
 
-class ParallelOutputZarr(Parallel):
+class ParallelAsync(Node):
+    """
+    This class launches the parallel node evaluations in the main process, and requires the node.eval to return 
+    immediately for parallel execution. This Node was written with aws.Lambda(download_result=False) Nodes in mind. 
+    
+    Users can implement the `check_worker_available` method or specify `worker_full_exception` attribute, which is an 
+    exception thrown if workers are not available.
+    
+    Attributes
+    -----------
+    chunks: dict
+        Dictionary of dimensions and sizes that will be iterated over. If a dimension is not in this dictionary, the
+        size of the eval coordinates will be used for the chunk. In this case, it may not be possible to automatically
+        set the coordinates of missing dimensions in the final file.
+    fill_output: bool
+        Default is True. When True, the final results will be assembled and returned to the user. If False, the final
+        results should be written to a file by specifying the output_format in a Process or Lambda node. 
+        See note below.
+    source: podpac.Node
+        The source dataset for the computation
+    sleep_time: float
+        Default is 1 second. Number of seconds to sleep between trying to submit new workers
+    no_worker_exception: Exception
+        Exception class used to identify when a submission failed due to no available workers
+        
+    Notes
+    ------
+    In some cases where the input and output coordinates of the source node is not the same (such as reduce nodes)
+    and fill_output is True, the user may need to specify 'output' as part of the eval call.
+    """
+
+    source = NodeTrait().tag(attr=True)
+    chunks = tl.Dict().tag(attr=True)
+    fill_output = tl.Bool(True).tag(attr=True)
+    sleep_time = tl.Float(1).tag(attr=True)
+    no_worker_exception = tl.Type(Exception).tag(attr=True)
+
+    def eval(self, coordinates, output=None):
+        if output is None and self.fill_output:
+            output = self.create_output_array(coordinates)
+
+        shape = []
+        for d in coordinates.dims:
+            if d in self.chunks:
+                shape.append(self.chunks[d])
+            else:
+                shape.append(coordinates[d].size)
+
+        i = 0
+        start_time = time.time()
+        for coords, slc in coordinates.iterchunks(shape, True):
+            out = None
+            if self.fill_output and output is not None:
+                out = output[slc]
+            dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
+            _log.debug("{}: Node eval with coords: {}, {}".format(dt, slc, coords))
+            success = False
+            while not success:
+                if self.check_worker_available():
+                    try:
+                        dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
+                        _log.info("({}) Added {} to worker pool".format(dt, i))
+                        o = self.eval_source(coords, slc, out, i)
+                        success = True
+                    except self.no_worker_exception as e:
+                        dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
+                        _log.debug("({}) Worker {} exception {}".format(dt, i, e))
+                        success = False
+                        time.sleep(self.sleep_time)
+                else:
+                    dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
+                    _log.debug("({}) Worker unavailable for {}".format(dt, i, e))
+                    time.sleep(self.sleep_time)
+            i += 1
+
+        return output
+
+    def check_worker_available(self):
+        return True
+
+    def eval_source(self, coordinates, coordinates_index, out, i):
+        _log.info("Submitting source {}".format(i))
+        return (self.source.eval(coordinates, output=out), coordinates_index)
+
+
+class ZarrOutputMixin(tl.HasTraits):
     """
     This class assumes that the node has a 'output_format' attribute
     (currently the "Lambda" Node, and the "Process" Node)
@@ -132,15 +225,21 @@ class ParallelOutputZarr(Parallel):
     zarr_coordinates: podpac.Coordinates, optional
         Default is None. If the node modifies the shape of the input coordinates, this allows users to set the
         coordinates in the output zarr file. This can be incorrect and requires care by the user.
+    skip_existing: bool
+        Default is False. If true, this will check to see if the results already exist. And if so, it will not
+        submit a job for that particular coordinate evaluation. This assumes self.chunks == self.zar_chunks
     """
 
     zarr_file = tl.Unicode().tag(attr=True)
     dataset = tl.Any()
+    zarr_node = NodeTrait()
+    zarr_data_key = tl.Union([tl.Unicode(), tl.List()])
     fill_output = tl.Bool(False)
     init_file_mode = tl.Unicode("w").tag(attr=True)
     zarr_chunks = tl.Dict().tag(attr=True)
     zarr_shape = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
     zarr_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
+    skip_existing = tl.Bool(True).tag(attr=True)
     _shape = tl.Tuple()
 
     def eval(self, coordinates, output=None):
@@ -151,8 +250,10 @@ class ParallelOutputZarr(Parallel):
 
         # initialize zarr file
         chunks = [self.zarr_chunks[d] for d in coordinates]
-        zf, data_key = self.initialize_zarr_array(self._shape, chunks)
+        zf, data_key, zn = self.initialize_zarr_array(self._shape, chunks)
         self.dataset = zf
+        self.zarr_data_key = data_key
+        self.zarr_node = zn
 
         # eval
         _log.debug("Starting parallel eval.")
@@ -166,11 +267,13 @@ class ParallelOutputZarr(Parallel):
 
         self.set_zarr_coordinates(set_coords, data_key)
 
-        output = super(ParallelOutputZarr, self).eval(coordinates, output)
+        output = super(ZarrOutputMixin, self).eval(coordinates, output)
 
         # fill in the coordinates, this is guaranteed to be correct even if the user messed up.
         if output is not None:
             self.set_zarr_coordinates(Coordinates.from_xarray(output), data_key)
+        else:
+            return zf
 
         return output
 
@@ -200,12 +303,26 @@ class ParallelOutputZarr(Parallel):
 
         # Intialize the output zarr arrays
         for dk in data_key:
-            arr = zf.create_dataset(dk, shape=shape, chunks=chunks, fill_value=np.nan, overwrite=True)
+            try:
+                arr = zf.create_dataset(
+                    dk, shape=shape, chunks=chunks, fill_value=np.nan, overwrite=not self.skip_existing
+                )
+            except ValueError:
+                pass  # Dataset already exists
 
-        return zf, data_key
+        return zf, data_key, zn
 
-    def eval_source(self, coordinates, coordinates_index, out):
+    def eval_source(self, coordinates, coordinates_index, out, i):
+        if self.skip_existing:
+            dk = self.zarr_data_key
+            if isinstance(dk, list):
+                dk = dk[0]
+            if self.zarr_node.chunk_exists(coordinates_index, data_key=dk):
+                _log.info("Skipping {} (already exists)".format(i))
+                return out, coordinates_index
+
         source = Node.from_definition(self.source.definition)
+        _log.info("Submitting source {}".format(i))
         _log.debug("Creating output format.")
         output = dict(
             format="zarr_part",
@@ -217,7 +334,15 @@ class ParallelOutputZarr(Parallel):
         )
         _log.debug("Finished creating output format.")
         source.set_trait("output_format", output)
-        _log.debug("Evaluating node.")
         _log.debug("output: {}, coordinates.shape: {}".format(output, coordinates.shape))
+        _log.debug("Evaluating node.")
 
         return source.eval(coordinates, out), coordinates_index
+
+
+class ParallelOutputZarr(ZarrOutputMixin, Parallel):
+    pass
+
+
+class ParallelAsyncOutputZarr(ZarrOutputMixin, ParallelAsync):
+    pass
