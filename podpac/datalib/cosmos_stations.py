@@ -135,7 +135,6 @@ class COSMOSStation(podpac.data.DataSource):
 class COSMOSStations(podpac.compositor.OrderedCompositor):
     url = tl.Unicode("http://cosmos.hwr.arizona.edu/Probes/")
     stations_url = tl.Unicode("sitesNoLegend.js")
-    outputs = None
 
     ## PROPERTIES
     @cached_property(use_cache_ctrl=True)

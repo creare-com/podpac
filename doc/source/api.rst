@@ -180,6 +180,7 @@ Stitch multiple data sources together
     podpac.compositor.OrderedCompositor
     podpac.compositor.UniformTileCompositor
     podpac.compositor.UniformTileMixin
+    podpac.compositor.AutoOutputsMixin
 
 
 Datalib

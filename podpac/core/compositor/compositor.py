@@ -85,29 +85,6 @@ class BaseCompositor(Node):
 
         return d["value"]
 
-    @tl.default("outputs")
-    def _default_outputs(self):
-        if all(source.outputs is None for source in self.sources):
-            outputs = None
-
-        elif all(source.outputs is not None and source.output is None for source in self.sources):
-            outputs = []
-            for source in self.sources:
-                for output in source.outputs:
-                    if output not in outputs:
-                        outputs.append(output)
-
-            if len(outputs) == 0:
-                outputs = None
-
-        else:
-            raise RuntimeError(
-                "Compositor sources were not validated correctly. "
-                "Cannot composite standard sources with multi-output sources."
-            )
-
-        return outputs
-
     def select_sources(self, coordinates):
         """Select and prepare sources based on requested coordinates.
         
@@ -254,3 +231,30 @@ class BaseCompositor(Node):
         if self.trait_is_defined("sources"):
             keys.append("sources")
         return keys
+
+
+class AutoOutputsMixin(tl.HasTraits):
+    """ Automatically compute multiple outputs from Compositor sources. """
+
+    @tl.default("outputs")
+    def _default_outputs(self):
+        if all(source.outputs is None for source in self.sources):
+            outputs = None
+
+        elif all(source.outputs is not None and source.output is None for source in self.sources):
+            outputs = []
+            for source in self.sources:
+                for output in source.outputs:
+                    if output not in outputs:
+                        outputs.append(output)
+
+            if len(outputs) == 0:
+                outputs = None
+
+        else:
+            raise RuntimeError(
+                "Compositor sources were not validated correctly. "
+                "Cannot composite standard sources with multi-output sources."
+            )
+
+        return outputs
