@@ -22,6 +22,7 @@ from lazy_import import lazy_module, lazy_class
 
 zarr = lazy_module("zarr")
 zarrGroup = lazy_class("zarr.Group")
+botocore = lazy_module("botocore")
 
 # Set up logging
 _log = logging.getLogger(__name__)
@@ -54,11 +55,13 @@ class Parallel(Node):
     and fill_output is True, the user may need to specify 'output' as part of the eval call.
     """
 
+    _repr_keys = ["source", "number_of_workers", "chunks"]
     source = NodeTrait().tag(attr=True)
     chunks = tl.Dict().tag(attr=True)
     fill_output = tl.Bool(True).tag(attr=True)
     number_of_workers = tl.Int(1).tag(attr=True)
     _lock = Lock()
+    errors = tl.List()
 
     def eval(self, coordinates, output=None):
         # Make a thread pool to manage queue
@@ -88,14 +91,27 @@ class Parallel(Node):
                 results.append(pool.apply_async(self.eval_source, [coords, slc, out, i]))
             i += 1
 
+        _log.info("Added all chunks to worker pool. Now waiting for results.")
         start_time = time.time()
         for i, res in enumerate(results):
             #             _log.debug('Waiting for results: {} {}'.format(i, inputs[i]))
             dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
             _log.info("({}): Waiting for results: {} / {}".format(dt, i + 1, len(results)))
-            o, slc = res.get()
+
+            # Try to get the results / wait for the results
+            try:
+                o, slc = res.get()
+            except Exception as e:
+                o = None
+                slc = None
+                self.errors.append((i, res, e))
+                dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
+                _log.warn("({}) {} failed with exception {}".format(dt, i, e))
+
             dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
             _log.info("({}) Finished result: {} / {}".format(time.time() - start_time, i + 1, len(results)))
+
+            # Fill output
             if self.fill_output:
                 if output is None:
                     missing_dims = [d for d in coordinates.dims if d not in self.chunks.keys()]
@@ -116,12 +132,12 @@ class Parallel(Node):
         return (self.source.eval(coordinates, output=out), coordinates_index)
 
 
-class ParallelAsync(Node):
+class ParallelAsync(Parallel):
     """
-    This class launches the parallel node evaluations in the main process, and requires the node.eval to return 
-    immediately for parallel execution. This Node was written with aws.Lambda(download_result=False) Nodes in mind. 
+    This class launches the parallel node evaluations in threads up to n_workers, and expects the node.eval to return 
+    quickly for parallel execution. This Node was written with aws.Lambda(eval_timeout=1.25<small>) Nodes in mind. 
     
-    Users can implement the `check_worker_available` method or specify `worker_full_exception` attribute, which is an 
+    Users can implement the `check_worker_available` method or specify the `no_worker_exception` attribute, which is an 
     exception thrown if workers are not available.
     
     Attributes
@@ -138,9 +154,13 @@ class ParallelAsync(Node):
         The source dataset for the computation
     sleep_time: float
         Default is 1 second. Number of seconds to sleep between trying to submit new workers
-    no_worker_exception: Exception
-        Exception class used to identify when a submission failed due to no available workers
-        
+    no_worker_exception: Exception, optional
+        Default is .Exception class used to identify when a submission failed due to no available workers. The default 
+        is chosen to work with the podpac.managers.Lambda node. 
+    async_exception: Exception
+        Default is botocore.exceptions.ReadTimeoutException. This is an exception thrown by the async function in case
+        it time out waiting for a return. In our case, this is a success. The default is chosen to work with the
+        podpac.managers.Lambda node. 
     Notes
     ------
     In some cases where the input and output coordinates of the source node is not the same (such as reduce nodes)
@@ -151,54 +171,36 @@ class ParallelAsync(Node):
     chunks = tl.Dict().tag(attr=True)
     fill_output = tl.Bool(True).tag(attr=True)
     sleep_time = tl.Float(1).tag(attr=True)
-    no_worker_exception = tl.Type(Exception).tag(attr=True)
-
-    def eval(self, coordinates, output=None):
-        if output is None and self.fill_output:
-            output = self.create_output_array(coordinates)
-
-        shape = []
-        for d in coordinates.dims:
-            if d in self.chunks:
-                shape.append(self.chunks[d])
-            else:
-                shape.append(coordinates[d].size)
-
-        i = 0
-        start_time = time.time()
-        for coords, slc in coordinates.iterchunks(shape, True):
-            out = None
-            if self.fill_output and output is not None:
-                out = output[slc]
-            dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
-            _log.debug("{}: Node eval with coords: {}, {}".format(dt, slc, coords))
-            success = False
-            while not success:
-                if self.check_worker_available():
-                    try:
-                        dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
-                        _log.info("({}) Added {} to worker pool".format(dt, i))
-                        o = self.eval_source(coords, slc, out, i)
-                        success = True
-                    except self.no_worker_exception as e:
-                        dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
-                        _log.debug("({}) Worker {} exception {}".format(dt, i, e))
-                        success = False
-                        time.sleep(self.sleep_time)
-                else:
-                    dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
-                    _log.debug("({}) Worker unavailable for {}".format(dt, i, e))
-                    time.sleep(self.sleep_time)
-            i += 1
-
-        return output
+    no_worker_exception = tl.Type(botocore.exceptions.ClientError).tag(attr=True)
+    async_exception = tl.Type(botocore.exceptions.ReadTimeoutError).tag(attr=True)
 
     def check_worker_available(self):
         return True
 
     def eval_source(self, coordinates, coordinates_index, out, i):
+        success = False
+        o = None
+        while not success:
+            if self.check_worker_available():
+                try:
+                    o = self.source.eval(coordinates, out)
+                    success = True
+                except self.async_exception:
+                    # This exception is fine and constitutes a success
+                    o = None
+                    success = True
+                except self.no_worker_exception as e:
+                    response = e.response
+                    if not (response and response.get("Error", {}).get("Code") == "TooManyRequestsException"):
+                        raise e  # Raise error again, not the right error
+                    _log.debug("Worker {} exception {}".format(i, e))
+                    success = False
+                    time.sleep(self.sleep_time)
+            else:
+                _log.debug("Worker unavailable for {}".format(i, e))
+                time.sleep(self.sleep_time)
         _log.info("Submitting source {}".format(i))
-        return (self.source.eval(coordinates, output=out), coordinates_index)
+        return (o, coordinates_index)
 
 
 class ZarrOutputMixin(tl.HasTraits):
@@ -241,6 +243,8 @@ class ZarrOutputMixin(tl.HasTraits):
     zarr_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
     skip_existing = tl.Bool(True).tag(attr=True)
     _shape = tl.Tuple()
+    aws_client_kwargs = tl.Dict()
+    aws_config_kwargs = tl.Dict()
 
     def eval(self, coordinates, output=None):
         if self.zarr_shape is None:
@@ -288,7 +292,7 @@ class ZarrOutputMixin(tl.HasTraits):
 
     def initialize_zarr_array(self, shape, chunks):
         _log.debug("Creating Zarr file.")
-        zn = Zarr(source=self.zarr_file, file_mode=self.init_file_mode)
+        zn = Zarr(source=self.zarr_file, file_mode=self.init_file_mode, aws_client_kwargs=self.aws_client_kwargs)
         if self.source.output or getattr(self.source, "data_key", None):
             data_key = self.source.output
             if data_key is None:
@@ -322,7 +326,6 @@ class ZarrOutputMixin(tl.HasTraits):
                 return out, coordinates_index
 
         source = Node.from_definition(self.source.definition)
-        _log.info("Submitting source {}".format(i))
         _log.debug("Creating output format.")
         output = dict(
             format="zarr_part",
@@ -337,7 +340,7 @@ class ZarrOutputMixin(tl.HasTraits):
         _log.debug("output: {}, coordinates.shape: {}".format(output, coordinates.shape))
         _log.debug("Evaluating node.")
 
-        return source.eval(coordinates, out), coordinates_index
+        return super(ZarrOutputMixin, self).eval_source(coordinates, coordinates_index, out, i)
 
 
 class ParallelOutputZarr(ZarrOutputMixin, Parallel):
