@@ -6,7 +6,6 @@ from lazy_import import lazy_module, lazy_class
 
 zarr = lazy_module("zarr")
 zarrGroup = lazy_class("zarr.Group")
-s3fs = lazy_module("s3fs")
 
 from podpac.core.authentication import S3Mixin
 from podpac.core.utils import common_doc, cached_property
@@ -52,6 +51,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
 
     def _get_store(self):
         if self.source.startswith("s3://"):
+            s3fs = lazy_module("s3fs")
             root = self.source.strip("s3://")
             s3map = s3fs.S3Map(root=root, s3=self.s3, check=False)
             store = s3map

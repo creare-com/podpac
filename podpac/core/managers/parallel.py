@@ -48,6 +48,9 @@ class Parallel(Node):
         The source dataset for the computation
     number_of_workers: int
         Default is 1. Number of parallel process workers at one time.
+    start_i: int, optional
+        Default is 0. Starting chunk. This allow you to restart a run without having to check/submit 1000's of workers
+        before getting back to where you were. Empty chunks make the submission slower.
         
     Notes
     ------
@@ -62,6 +65,7 @@ class Parallel(Node):
     number_of_workers = tl.Int(1).tag(attr=True)
     _lock = Lock()
     errors = tl.List()
+    start_i = tl.Int(0)
 
     def eval(self, coordinates, output=None):
         # Make a thread pool to manage queue
@@ -82,6 +86,11 @@ class Parallel(Node):
         i = 0
         for coords, slc in coordinates.iterchunks(shape, True):
             #             inputs.append(coords)
+            if i < self.start_i:
+                _log.debug("Skipping {} since it is less than self.start_i ({})".format(i, self.start_i))
+                i += 1
+                continue
+
             out = None
             if self.fill_output and output is not None:
                 out = output[slc]
@@ -238,7 +247,7 @@ class ZarrOutputMixin(tl.HasTraits):
     zarr_data_key = tl.Union([tl.Unicode(), tl.List()])
     fill_output = tl.Bool(False)
     init_file_mode = tl.Unicode("w").tag(attr=True)
-    zarr_chunks = tl.Dict().tag(attr=True)
+    zarr_chunks = tl.Dict(default_value=None, allow_none=True).tag(attr=True)
     zarr_shape = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
     zarr_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
     skip_existing = tl.Bool(True).tag(attr=True)
@@ -253,7 +262,10 @@ class ZarrOutputMixin(tl.HasTraits):
             self._shape = tuple(self.zarr_shape.values())
 
         # initialize zarr file
-        chunks = [self.zarr_chunks[d] for d in coordinates]
+        if self.zarr_chunks is None:
+            chunks = [self.chunks[d] for d in coordinates]
+        else:
+            chunks = [self.zarr_chunks[d] for d in coordinates]
         zf, data_key, zn = self.initialize_zarr_array(self._shape, chunks)
         self.dataset = zf
         self.zarr_data_key = data_key
