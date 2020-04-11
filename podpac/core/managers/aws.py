@@ -60,6 +60,8 @@ class Lambda(Node):
         S3 bucket name to use with lambda function. Defaults to :str:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
     eval_settings : dict, optional
         Default is podpac.settings. PODPAC settings that will be used to evaluate the Lambda function.
+    eval_timeout : float, optional
+        Default is None. The amount of time to wait for an eval to return. To get near asynchronous response, set this to a small number. 
 
     Other Attributes
     ----------------
@@ -398,6 +400,7 @@ class Lambda(Node):
     download_result = tl.Bool(True).tag(attr=True)
     force_compute = tl.Bool().tag(attr=True)
     eval_settings = tl.Dict().tag(attr=True)
+    eval_timeout = tl.Float(610).tag(attr=True)
 
     @tl.default("source_output_name")
     def _source_output_name_default(self):
@@ -1421,7 +1424,9 @@ Lambda Node {status}
         pipeline = self._create_eval_pipeline(coordinates)
 
         # create lambda client
-        config = botocore.config.Config(read_timeout=self.function_timeout, max_pool_connections=1001)
+        config = botocore.config.Config(
+            read_timeout=self.eval_timeout, max_pool_connections=1001, retries={"max_attempts": 0}
+        )
         awslambda = self.session.client("lambda", config=config)
 
         # pipeline payload
