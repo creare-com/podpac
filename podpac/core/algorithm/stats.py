@@ -976,21 +976,25 @@ class DayOfYearWindow(Algorithm):
         the beta distribution for [x-1, x, x + 1] and report it as the result for x, where x is a day of the year.
     scale_max: podpac.Node, optional
         Default is None. A source dataset that can be used to scale the maximum value of the source function so that it 
-        will fall between [0, 1]. If None, uses self.scale_float[0].
+        will fall between [0, 1]. If None, uses self.scale_float[0]. 
     scale_min: podpac.Node, optional
         Default is None. A source dataset that can be used to scale the minimum value of the source function so that it 
         will fall between [0, 1]. If None, uses self.scale_float[1].
     scale_float: list, optional
-        Default is None. Floating point numbers used to scale the max [0] and min [1] of the source so that it falls 
-        between [0, 1]. If scale_max or scale_min are defined, this property is ignored. If None and scale_max/scale_min 
-        are not defined, the max and min of the source data is used instead. 
+        Default is []. Floating point numbers used to scale the max [0] and min [1] of the source so that it falls 
+        between [0, 1]. If scale_max or scale_min are defined, this property is ignored. If these are defined, the data 
+        will be rescaled only if rescale=True below. 
+        If None and scale_max/scale_min are not defined, the data is not scaled in any way.
+    rescale: bool, optional
+        Rescales the output data after being scaled from scale_float or scale_min/max
     """
 
     source = tl.Instance(podpac.Node).tag(attr=True)
     window = tl.Int(0).tag(attr=True)
     scale_max = tl.Instance(podpac.Node, default_value=None, allow_none=True).tag(attr=True)
     scale_min = tl.Instance(podpac.Node, default_value=None, allow_none=True).tag(attr=True)
-    scale_float = tl.List(None, allow_none=True).tag(attr=True)
+    scale_float = tl.List(default_value=None, allow_none=True).tag(attr=True)
+    rescale = tl.Bool(False).tag(attr=True)
 
     def algorithm(self, inputs):
         win = self.window // 2
@@ -999,20 +1003,22 @@ class DayOfYearWindow(Algorithm):
         # Scale the source to range [0, 1], required for the beta distribution
         if "scale_max" in inputs:
             scale_max = inputs["scale_max"]
-        elif self.scale_float is not None and self.scale_float[1] is not None:
+        elif self.scale_float and self.scale_float[1] is not None:
             scale_max = self.scale_float[1]
         else:
-            scale_max = source.max()
+            scale_max = None
 
         if "scale_min" in inputs:
             scale_min = inputs["scale_min"]
-        elif self.scale_float is not None and self.scale_float[0] is not None:
+        elif self.scale_float and self.scale_float[0] is not None:
             scale_min = self.scale_float[0]
         else:
-            scale_min = source.min()
+            scale_min = None
+
         _log.debug("scale_min: {}\nscale_max: {}".format(scale_min, scale_max))
-        source = (source.copy() - scale_min) / (scale_max - scale_min)
-        source.data[(source.data <= 0) | (source.data >= 1)] = np.nan
+        if scale_min is not None and scale_max is not None:
+            source = (source.copy() - scale_min) / (scale_max - scale_min)
+            source.data[(source.data < 0) | (source.data > 1)] = np.nan
 
         # Make the output coordinates with day-of-year as time
         coords = xr.Dataset({"time": self._requested_coordinates["time"].coordinates})
@@ -1032,7 +1038,7 @@ class DayOfYearWindow(Algorithm):
 
         # loop over each day of year and compute window
         for i, doy in enumerate(dsdoy):
-            _log.debug(f"Working on doy {doy} ({i+1}/{len(dsdoy)})")
+            _log.debug("Working on doy {doy} ({i}/{ld})".format(doy=doy, i=i + 1, ld=len(dsdoy)))
 
             # If either the start or end runs over the year, we need to do an OR on the bool index
             # ----->s....<=e------   .in -out
@@ -1040,7 +1046,7 @@ class DayOfYearWindow(Algorithm):
             do_or = False
 
             start = doy - win
-            if start < 0:
+            if start < 1:
                 start += 365
                 do_or = True
 
@@ -1078,7 +1084,8 @@ class DayOfYearWindow(Algorithm):
                         output.loc[loc_dict][{"time": i}] = self.function(data, output.loc[loc_dict][{"time": i}])
 
         # Rescale the outputs
-        output = self.rescale_outputs(output, scale_max, scale_min)
+        if self.rescale:
+            output = self.rescale_outputs(output, scale_max, scale_min)
         return output
 
     def function(self, data, output):

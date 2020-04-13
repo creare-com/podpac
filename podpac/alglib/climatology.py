@@ -35,6 +35,7 @@ class BetaFitDayOfYear(DayOfYearWindow):
     """
 
     percentiles = tl.List().tag(attr=True)
+    rescale = tl.Bool(True).tag(attr=True)
 
     @property
     def outputs(self):
@@ -45,7 +46,7 @@ class BetaFitDayOfYear(DayOfYearWindow):
         try:
             a, b, loc, scale = beta.fit(data, floc=0, fscale=1)
         except FitSolverError as e:
-            print(e)
+            print (e)
             return output
 
         # populate outputs for this point

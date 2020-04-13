@@ -26,6 +26,7 @@ are `'lat'`, `'lon'`, `'time'`, and `'alt'`.
 Unstacked multidimensional coordinates form a grid of points. For example, the following Coordinates contain three dimensions and a total of 24 points.
 
 ```
+>>> from podpac import Coordinates
 >>> lat = [0, 1, 2]
 >>> lon = [10, 20, 30, 40]
 >>> time = ['2018-01-01', '2018-01-02']
