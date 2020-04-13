@@ -95,6 +95,22 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
 
         return fs.exists(path)
 
+    def list_dir(self, data_key=None):
+        za = self.dataset
+        if data_key:
+            za = za[data_key]
+        else:
+            data_key = ""
+
+        path = os.path.join(self.source, data_key)
+        if self.source.startswith("s3:"):
+            path = path.replace("\\", "/")
+            ld = self.s3.ls(path)
+        else:
+            ld = os.listdir(path)
+
+        return ld
+
     @cached_property
     def dataset(self):
         store = self._get_store()

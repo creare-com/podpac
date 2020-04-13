@@ -239,6 +239,10 @@ class ZarrOutputMixin(tl.HasTraits):
     skip_existing: bool
         Default is False. If true, this will check to see if the results already exist. And if so, it will not
         submit a job for that particular coordinate evaluation. This assumes self.chunks == self.zar_chunks
+    list_dir: bool, optional
+        Default is False. If skip_existing is True, by default existing files are checked by asking for an 'exists' call. 
+        If list_dir is True, then at the first opportunity a "list_dir" is performed on the directory and the results
+        are cached. 
     """
 
     zarr_file = tl.Unicode().tag(attr=True)
@@ -251,6 +255,8 @@ class ZarrOutputMixin(tl.HasTraits):
     zarr_shape = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
     zarr_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
     skip_existing = tl.Bool(True).tag(attr=True)
+    list_dir = tl.Bool(False)
+    _list_dir = tl.List(allow_none=True, default_value=None)
     _shape = tl.Tuple()
     aws_client_kwargs = tl.Dict()
     aws_config_kwargs = tl.Dict()
@@ -282,6 +288,11 @@ class ZarrOutputMixin(tl.HasTraits):
         set_coords.transpose(*coordinates.dims)
 
         self.set_zarr_coordinates(set_coords, data_key)
+        if self.list_dir:
+            dk = data_key
+            if isinstance(dk, list):
+                dk = dk[0]
+            self._list_dir = self.zarr_node.list_dir(dk)
 
         output = super(ZarrOutputMixin, self).eval(coordinates, output)
 
@@ -329,11 +340,18 @@ class ZarrOutputMixin(tl.HasTraits):
         return zf, data_key, zn
 
     def eval_source(self, coordinates, coordinates_index, out, i):
-        if self.skip_existing:
+        if self.skip_existing:  # This section allows previously computed chunks to be skipped
             dk = self.zarr_data_key
             if isinstance(dk, list):
                 dk = dk[0]
-            if self.zarr_node.chunk_exists(coordinates_index, data_key=dk):
+            try:
+                if self._list_dir:  # This option was needed because of read errors on a poor internet connection
+                    exists = dk in self._list_dir
+                else:
+                    exists = self.zarr_node.chunk_exists(coordinates_index, data_key=dk)
+            except ValueError as e:  # This was needed in cases where a poor internet connection caused read errors
+                exists = False
+            if exists:
                 _log.info("Skipping {} (already exists)".format(i))
                 return out, coordinates_index
 
