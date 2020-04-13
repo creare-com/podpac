@@ -358,4 +358,4 @@ class TestDayOfYearWindow(object):
         )
         o_s = nodedoywindow_s.eval(coords)
 
-        np.testing.assert_array_equal([0.5] * o_s.size, o_s)
+        np.testing.assert_array_almost_equal([0.5] * o_s.size, o_s)
