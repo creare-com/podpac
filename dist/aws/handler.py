@@ -86,7 +86,7 @@ def parse_event(trigger, event):
     """
 
     if trigger == "eval":
-        print("Triggered by Invoke")
+        print ("Triggered by Invoke")
 
         # event is the pipeline, provide consistent pipeline defaults
         pipeline = default_pipeline(event)
@@ -94,7 +94,7 @@ def parse_event(trigger, event):
         return pipeline
 
     elif trigger == "S3":
-        print("Triggered from S3")
+        print ("Triggered from S3")
 
         # get boto s3 client
         s3 = boto3.client("s3")
@@ -133,7 +133,7 @@ def parse_event(trigger, event):
         return pipeline
 
     elif trigger == "APIGateway":
-        print("Triggered from API Gateway")
+        print ("Triggered from API Gateway")
 
         pipeline = default_pipeline()
         pipeline["url"] = event["queryStringParameters"]
@@ -158,8 +158,8 @@ def parse_event(trigger, event):
                     # If we get here, the api settings were loaded
                     pipeline["settings"] = {**pipeline["settings"], **api_settings}
                 except Exception as e:
-                    print("Got an exception when attempting to load api settings: ", e)
-                    print(pipeline)
+                    print ("Got an exception when attempting to load api settings: ", e)
+                    print (pipeline)
 
             # handle OUTPUT in query parameters
             elif param == "output":
@@ -199,7 +199,7 @@ def handler(event, context):
     ret_pipeline : bool, optional
         Description
     """
-    print(event)
+    print (event)
 
     # Add /tmp/ path to handle python path for dependencies
     sys.path.append("/tmp/")
@@ -231,13 +231,22 @@ def handler(event, context):
             os.environ.get("PODPAC_VERSION", pipeline["settings"].get("PODPAC_VERSION"))
         )  # this should be equivalent to version.semver()
 
-    # Download dependencies from specific bucket/object
-    s3 = boto3.client("s3")
-    s3.download_file(bucket, dependencies, "/tmp/" + dependencies)
-    subprocess.call(["unzip", "/tmp/" + dependencies, "-d", "/tmp"])
-    sys.path.append("/tmp/")
-    subprocess.call(["rm", "/tmp/" + dependencies])
-    # -----
+    # Check to see if this function is "hot", in which case the dependencies have already been downloaded and are
+    # available for use right away.
+    if os.path.exists("/tmp/scipy"):
+        print (
+            "Scipy has been detected in the /tmp/ directory. Assuming this function is hot, dependencies will"
+            " not be downloaded."
+        )
+    else:
+        # Download dependencies from specific bucket/object
+        print ("Downloading and extracting dependencies")
+        s3 = boto3.client("s3")
+        s3.download_file(bucket, dependencies, "/tmp/" + dependencies)
+        subprocess.call(["unzip", "/tmp/" + dependencies, "-d", "/tmp"])
+        sys.path.append("/tmp/")
+        subprocess.call(["rm", "/tmp/" + dependencies])
+        # -----
 
     # Load PODPAC
 
@@ -289,7 +298,7 @@ def handler(event, context):
         try:
             json.dumps(body)
         except Exception as e:
-            print("Output body is not serializable, attempting to decode.")
+            print ("Output body is not serializable, attempting to decode.")
             body = body.decode()
 
         return {
