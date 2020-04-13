@@ -136,9 +136,14 @@ class Parallel(Node):
 
         return output
 
-    def eval_source(self, coordinates, coordinates_index, out, i):
+    def eval_source(self, coordinates, coordinates_index, out, i, source=None):
+        if source is None:
+            source = self.source
+            # Make a copy to prevent any possibility of memory corruption
+            source = Node.from_definition(source.definition)
+
         _log.info("Submitting source {}".format(i))
-        return (self.source.eval(coordinates, output=out), coordinates_index)
+        return (source.eval(coordinates, output=out), coordinates_index)
 
 
 class ParallelAsync(Parallel):
@@ -186,13 +191,18 @@ class ParallelAsync(Parallel):
     def check_worker_available(self):
         return True
 
-    def eval_source(self, coordinates, coordinates_index, out, i):
+    def eval_source(self, coordinates, coordinates_index, out, i, source=None):
+        if source is None:
+            source = self.source
+            # Make a copy to prevent any possibility of memory corruption
+            source = Node.from_definition(source.definition)
+
         success = False
         o = None
         while not success:
             if self.check_worker_available():
                 try:
-                    o = self.source.eval(coordinates, out)
+                    o = source.eval(coordinates, out)
                     success = True
                 except self.async_exception:
                     # This exception is fine and constitutes a success
@@ -250,7 +260,7 @@ class ZarrOutputMixin(tl.HasTraits):
     zarr_node = NodeTrait()
     zarr_data_key = tl.Union([tl.Unicode(), tl.List()])
     fill_output = tl.Bool(False)
-    init_file_mode = tl.Unicode("w").tag(attr=True)
+    init_file_mode = tl.Unicode("a").tag(attr=True)
     zarr_chunks = tl.Dict(default_value=None, allow_none=True).tag(attr=True)
     zarr_shape = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
     zarr_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
@@ -263,7 +273,7 @@ class ZarrOutputMixin(tl.HasTraits):
 
     def eval(self, coordinates, output=None):
         if self.zarr_shape is None:
-            self._shape = {d: v for d, v in coordinates.shape}
+            self._shape = coordinates.shape
         else:
             self._shape = tuple(self.zarr_shape.values())
 
@@ -276,6 +286,7 @@ class ZarrOutputMixin(tl.HasTraits):
         self.dataset = zf
         self.zarr_data_key = data_key
         self.zarr_node = zn
+        zn.keys
 
         # eval
         _log.debug("Starting parallel eval.")
@@ -298,7 +309,7 @@ class ZarrOutputMixin(tl.HasTraits):
 
         # fill in the coordinates, this is guaranteed to be correct even if the user messed up.
         if output is not None:
-            self.set_zarr_coordinates(Coordinates.from_xarray(output), data_key)
+            self.set_zarr_coordinates(Coordinates.from_xarray(output.coords), data_key)
         else:
             return zf
 
@@ -337,9 +348,14 @@ class ZarrOutputMixin(tl.HasTraits):
             except ValueError:
                 pass  # Dataset already exists
 
+        # Recompute any cached properties
+        zn = Zarr(source=self.zarr_file, file_mode=self.init_file_mode, aws_client_kwargs=self.aws_client_kwargs)
         return zf, data_key, zn
 
-    def eval_source(self, coordinates, coordinates_index, out, i):
+    def eval_source(self, coordinates, coordinates_index, out, i, source=None):
+        if source is None:
+            source = self.source
+
         if self.skip_existing:  # This section allows previously computed chunks to be skipped
             dk = self.zarr_data_key
             if isinstance(dk, list):
@@ -355,7 +371,8 @@ class ZarrOutputMixin(tl.HasTraits):
                 _log.info("Skipping {} (already exists)".format(i))
                 return out, coordinates_index
 
-        source = Node.from_definition(self.source.definition)
+        # Make a copy to prevent any possibility of memory corruption
+        source = Node.from_definition(source.definition)
         _log.debug("Creating output format.")
         output = dict(
             format="zarr_part",
@@ -370,7 +387,7 @@ class ZarrOutputMixin(tl.HasTraits):
         _log.debug("output: {}, coordinates.shape: {}".format(output, coordinates.shape))
         _log.debug("Evaluating node.")
 
-        return super(ZarrOutputMixin, self).eval_source(coordinates, coordinates_index, out, i)
+        return super(ZarrOutputMixin, self).eval_source(coordinates, coordinates_index, out, i, source)
 
 
 class ParallelOutputZarr(ZarrOutputMixin, Parallel):

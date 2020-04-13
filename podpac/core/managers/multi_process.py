@@ -24,6 +24,7 @@ def _f(definition, coords, q, outputkw):
         o.serialize()
         _log.debug("o.shape: {}, output_format: {}".format(o.shape, outputkw))
         if outputkw:
+            _log.debug("Saving output results to output format {}".format(outputkw))
             o.to_format(outputkw["format"], **outputkw["format_kwargs"])
         q.put(o)
     except Exception as e:
@@ -38,6 +39,7 @@ class Process(Node):
     source = NodeTrait().tag(attr=True)
     output_format = tl.Dict(None, allow_none=True).tag(attr=True)
     timeout = tl.Int(None, allow_none=True)
+    block = tl.Bool(True)
 
     @property
     def outputs(self):
@@ -53,9 +55,9 @@ class Process(Node):
         _log.debug("Starting process.")
         process.start()
         _log.debug("Retrieving data from queue.")
-        o = q.get(timeout=self.timeout)  # This is blocking!
+        o = q.get(timeout=self.timeout, block=self.block)
         _log.debug("Joining.")
-        process.join()
+        process.join()  # This is blocking!
         _log.debug("Closing.")
         process.close()
         if isinstance(o, str):
