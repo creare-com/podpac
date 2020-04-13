@@ -89,7 +89,7 @@ class UniformTileCompositor(TileCompositor):
 
 
 @common_doc(COMMON_DATA_DOC)
-class UniformTileMixin(tl.HasTraits):
+class UniformTileMixin(podpac.Node):
     """DataSource mixin for uniform tiles in a grid.
 
     Defines the tile coordinates from the grid coordinates using the tile position in the grid.
@@ -105,7 +105,7 @@ class UniformTileMixin(tl.HasTraits):
     """
 
     grid = tl.Instance(TileCompositor)
-    tile = tl.Tuple().tag(readonly=True)
+    tile = tl.Tuple()
 
     @tl.validate("tile")
     def _validate_tile(self, d):
@@ -128,4 +128,4 @@ class UniformTileMixin(tl.HasTraits):
 
     @property
     def _repr_keys(self):
-        return super(self, TileMixin)._repr_keys + ["tile"]
+        return super(UniformTileMixin, self)._repr_keys + ["tile"]
