@@ -336,8 +336,8 @@ class TestDayOfYearWindow(object):
         np.testing.assert_array_almost_equal(o, o_s)
 
     def test_doy_window2_mean_rescale_max_min(self):
-        with settings:
-            settings.set_unsafe_eval(True)
+        with podpac.settings:
+            podpac.settings.set_unsafe_eval(True)
 
             coords = podpac.coordinates.concat(
                 [
