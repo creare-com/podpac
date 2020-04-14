@@ -36,7 +36,7 @@ class FileCacheStore(CacheStore):
     # public cache API methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def put(self, node, data, key, coordinates=None, update=False):
+    def put(self, node, data, key, coordinates=None, update=True):
         """Cache data for specified node.
         
         Parameters
@@ -54,10 +54,10 @@ class FileCacheStore(CacheStore):
         """
 
         # check for existing entry
-        if self.has(node, key, coordinates):
-            if not update:
-                raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
-            self.rem(node, key, coordinates)
+        if not update and self.has(node, key, coordinates):
+            raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
+
+        self.rem(node, key, coordinates)
 
         # serialize
         path_root = self._path_join(self._get_node_dir(node), self._get_filename(node, key, coordinates))

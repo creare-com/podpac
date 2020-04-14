@@ -73,7 +73,7 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 
 
 class NodeException(Exception):
-    """ Summary """
+    """ Base class for exceptions when using podpac nodes """
 
     pass
 
@@ -87,7 +87,7 @@ class Node(tl.HasTraits):
     cache_output: bool
         Should the node's output be cached? If not provided or None, uses default based on settings.
     cache_update: bool
-        Default is False. Should the node's cached output be updated from the source data?
+        Default is True. Should the node's cached output be updated from the source data?
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
         Class that controls caching. If not provided, uses default based on settings.
     dtype : type
@@ -527,7 +527,7 @@ class Node(tl.HasTraits):
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
 
-    def put_cache(self, data, key, coordinates=None, overwrite=False):
+    def put_cache(self, data, key, coordinates=None, overwrite=True):
         """
         Cache data for this node.
 
@@ -540,7 +540,7 @@ class Node(tl.HasTraits):
         coordinates : podpac.Coordinates, optional
             Coordinates that the cached data depends on. Omit for coordinate-independent data.
         overwrite : bool, optional
-            Overwrite existing data, default False
+            Overwrite existing data, default True.
 
         Raises
         ------
@@ -601,6 +601,7 @@ class Node(tl.HasTraits):
         """
         if self.cache_ctrl is None:
             return
+
         self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
 
     # --------------------------------------------------------#
@@ -912,11 +913,8 @@ def node_eval(fn):
             self._from_cache = True
         else:
             data = fn(self, coordinates, output=output)
-
-            # We need to check if the cache now has the key because it is possible that
-            # the previous function call added the key with the coordinates to the cache
-            if self.cache_output and not (self.has_cache(key, cache_coordinates) and not self.cache_update):
-                self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update)
+            if self.cache_output:
+                self.put_cache(data, key, cache_coordinates)
             self._from_cache = False
 
         # extract single output, if necessary

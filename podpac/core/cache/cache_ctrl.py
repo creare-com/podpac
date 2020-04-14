@@ -101,7 +101,7 @@ class CacheCtrl(object):
 
         return [c for c in self._cache_stores if mode in c.cache_modes]
 
-    def put(self, node, data, key, coordinates=None, mode=None, update=False):
+    def put(self, node, data, key, coordinates=None, mode=None, update=True):
         """Cache data for specified node.
         
         Parameters
