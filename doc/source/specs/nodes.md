@@ -104,12 +104,12 @@ def eval(coordinates, output=None, method=None):
     ```
     * This requres that all the bands have the same `units` 
     ```python
-    >>> grey = UnitsDataArray(np.ones((2, 1)), dims=['lat', 'lon'],
+    grey = UnitsDataArray(np.ones((2, 1)), dims=['lat', 'lon'],
                               coords=[[0, 1], [0]], attrs={'units': ureg.m})
-    >>> rgba1 = UnitsDataArray(np.ones((2, 1, 4)), dims=['lat', 'lon', 'band'],
+    rgba1 = UnitsDataArray(np.ones((2, 1, 4)), dims=['lat', 'lon', 'band'],
                               coords=[[0, 1], [0], ['r', 'g', 'b', 'a']],
                               attrs={'units': ureg.km})
-    >>> grey + rgba1
+    grey + rgba1
     <xarray.UnitsDataArray (lat: 2, lon: 1, band: 4)>
     array([[[1001., 1001., 1001., 1001.]],
 
