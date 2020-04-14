@@ -1,6 +1,6 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
-import time
+import sys
 
 from multiprocessing import Process as mpProcess
 from multiprocessing import Queue
@@ -59,7 +59,8 @@ class Process(Node):
         _log.debug("Joining.")
         process.join()  # This is blocking!
         _log.debug("Closing.")
-        process.close()
+        if (sys.version_info.major + sys.version_info.minor / 10.0) >= 3.7:
+            process.close()  # New in version Python 3.7
         if isinstance(o, str):
             raise Exception(o)
         if o is None:
