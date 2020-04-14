@@ -95,25 +95,23 @@ class TestParallelOutputZarr(object):
         shutil.rmtree(tmpdir)
 
     def test_parallel_process_zarr_async_starti(self):
-        with settings:
-            settings.set_unsafe_eval(True)
-            # Can't use tempfile.TemporaryDirectory because multiple processess need access to dir
-            tmpdir = os.path.join(tempfile.gettempdir(), "test_parallel_process_zarr_async_starti.zarr")
+        # Can't use tempfile.TemporaryDirectory because multiple processess need access to dir
+        tmpdir = os.path.join(tempfile.gettempdir(), "test_parallel_process_zarr_async_starti.zarr")
 
-            node = Process(source=CoordData(coord_name="time"))  # , block=False)
-            coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
-            node_p = ParallelAsyncOutputZarr(
-                source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir, start_i=1
-            )
-            o_zarr = node_p.eval(coords)
-            # print(o_zarr.info)
-            time.sleep(0.01)
-            np.testing.assert_array_equal([np.nan, np.nan, 3, 4, 5], o_zarr["data"][:])
+        node = Process(source=CoordData(coord_name="time"))  # , block=False)
+        coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
+        node_p = ParallelAsyncOutputZarr(
+            source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir, start_i=1
+        )
+        o_zarr = node_p.eval(coords)
+        # print(o_zarr.info)
+        time.sleep(0.01)
+        np.testing.assert_array_equal([np.nan, np.nan, 3, 4, 5], o_zarr["data"][:])
 
-            node_p = ParallelAsyncOutputZarr(
-                source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir, start_i=0
-            )
-            o_zarr = node_p.eval(coords)
-            np.testing.assert_array_equal([1, 2, 3, 4, 5], o_zarr["data"][:])
+        node_p = ParallelAsyncOutputZarr(
+            source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir, start_i=0
+        )
+        o_zarr = node_p.eval(coords)
+        np.testing.assert_array_equal([1, 2, 3, 4, 5], o_zarr["data"][:])
 
-            shutil.rmtree(tmpdir)
+        shutil.rmtree(tmpdir)
