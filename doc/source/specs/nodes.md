@@ -90,9 +90,9 @@ def eval(coordinates, output=None, method=None):
 * For cases with multiple outputs, it may additionally contain the field `band`
     * This is to supported datasets such as multi-spectral imagery
     ```python
-    >>> grey = UnitsDataArray(np.ones((2, 1)), dims=['lat', 'lon'], coords=[[0, 1], [0]])
-    >>> rgba = UnitsDataArray(np.ones((2, 1, 4)), dims=['lat', 'lon', 'band'],                                               coords=[[0, 1], [0], ['r', 'g', 'b', 'a']])
-    >>> grey + rgba
+    grey = UnitsDataArray(np.ones((2, 1)), dims=['lat', 'lon'], coords=[[0, 1], [0]])
+    rgba = UnitsDataArray(np.ones((2, 1, 4)), dims=['lat', 'lon', 'band'], coords=[[0, 1], [0], ['r', 'g', 'b', 'a']])
+    grey + rgba
     <xarray.UnitsDataArray (lat: 2, lon: 1, band: 4)>
     array([[[2., 2., 2., 2.]],
 

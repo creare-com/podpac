@@ -55,18 +55,18 @@ smap = podpac.datalib.smap.SMAP(cache_output=True)
 
 Different instances of the same node share a cache. For example:
 ```python
->>> import podpac
->>> import podpac.datalib
->>> coords = podpac.Coordinates([podpac.clinspace(40, 39, 16),
+[.] import podpac
+[.] import podpac.datalib
+[.] coords = podpac.Coordinates([podpac.clinspace(40, 39, 16),
                                  podpac.clinspace(-100, -90, 16),
                                  '2015-01-01T00', ['lat', 'lon', 'time']])
->>> smap1 = podpac.datalib.smap.SMAP()
->>> o = smap1.eval(coords)
->>> smap1._from_cache
+[.] smap1 = podpac.datalib.smap.SMAP()
+[.] o = smap1.eval(coords)
+[.] smap1._from_cache
 False
->>> del smap1
->>> smap2 = podpac.datalib.smap.SMAP()
->>> o = smap2.eval(coords)
->>> smap2._from_cache
+[.] del smap1
+[.] smap2 = podpac.datalib.smap.SMAP()
+[.] o = smap2.eval(coords)
+[.] smap2._from_cache
 True
 ```
