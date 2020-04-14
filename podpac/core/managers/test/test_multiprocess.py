@@ -1,9 +1,11 @@
 import numpy as np
 import pytest
 
+from multiprocessing import Queue
+
 from podpac.core.coordinates import Coordinates
 from podpac.core.algorithm.utility import Arange
-from podpac.core.managers.multi_process import Process
+from podpac.core.managers.multi_process import Process, _f
 
 
 class TestProcess(object):
@@ -33,3 +35,19 @@ class TestProcess(object):
         o_mp = node_mp.eval(coords, output)
 
         np.testing.assert_array_equal(o_sp, output)
+
+    def test_f(self):
+        coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
+        node = Arange()
+        q = Queue()
+        _f(node.json, coords.json, q, {})
+        o = q.get()
+        np.testing.assert_array_equal(o, node.eval(coords))
+
+    def test_f_fmt(self):
+        coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
+        node = Arange()
+        q = Queue()
+        _f(node.json, coords.json, q, {"format": "dict", "format_kwargs": {}})
+        o = q.get()
+        np.testing.assert_array_equal(o["data"], node.eval(coords).to_dict()["data"])

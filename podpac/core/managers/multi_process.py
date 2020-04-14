@@ -25,7 +25,7 @@ def _f(definition, coords, q, outputkw):
         _log.debug("o.shape: {}, output_format: {}".format(o.shape, outputkw))
         if outputkw:
             _log.debug("Saving output results to output format {}".format(outputkw))
-            o.to_format(outputkw["format"], **outputkw["format_kwargs"])
+            o = o.to_format(outputkw["format"], **outputkw.get("format_kwargs"))
         q.put(o)
     except Exception as e:
         q.put(str(e))
