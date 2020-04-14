@@ -336,26 +336,29 @@ class TestDayOfYearWindow(object):
         np.testing.assert_array_almost_equal(o, o_s)
 
     def test_doy_window2_mean_rescale_max_min(self):
-        coords = podpac.coordinates.concat(
-            [
-                podpac.Coordinates([podpac.crange("1999-12-29", "2000-01-03", "1,D", "time")]),
-                podpac.Coordinates([podpac.crange("2001-12-30", "2002-01-02", "1,D", "time")]),
-            ]
-        )
+        with settings:
+            settings.set_unsafe_eval(True)
 
-        node = Arange()
-        node_max = Arithmetic(source=node, eqn="(source < 5) + source")
-        node_min = Arithmetic(source=node, eqn="-1*(source < 5) + source")
+            coords = podpac.coordinates.concat(
+                [
+                    podpac.Coordinates([podpac.crange("1999-12-29", "2000-01-03", "1,D", "time")]),
+                    podpac.Coordinates([podpac.crange("2001-12-30", "2002-01-02", "1,D", "time")]),
+                ]
+            )
 
-        nodedoywindow_s = FM(
-            source=node,
-            window=2,
-            cache_output=False,
-            cache_update=True,
-            scale_max=node_max,
-            scale_min=node_min,
-            rescale=False,
-        )
-        o_s = nodedoywindow_s.eval(coords)
+            node = Arange()
+            node_max = Arithmetic(source=node, eqn="(source < 5) + source")
+            node_min = Arithmetic(source=node, eqn="-1*(source < 5) + source")
 
-        np.testing.assert_array_almost_equal([0.5] * o_s.size, o_s)
+            nodedoywindow_s = FM(
+                source=node,
+                window=2,
+                cache_output=False,
+                cache_update=True,
+                scale_max=node_max,
+                scale_min=node_min,
+                rescale=False,
+            )
+            o_s = nodedoywindow_s.eval(coords)
+
+            np.testing.assert_array_almost_equal([0.5] * o_s.size, o_s)
