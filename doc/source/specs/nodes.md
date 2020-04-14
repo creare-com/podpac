@@ -82,8 +82,8 @@ def eval(coordinates, output=None, method=None):
 **Notes on what's returned: **
 * This function should always return a `UnitsDataArray` object.
     ```python
-    >>> node.native_coordinates = Coordinate(lat=(90, -90, -1.), lon=(-180, 180, 2.), order=['lat', 'lon'])
-    >>> type(node.initialize_output_array())
+    [.] node.native_coordinates = Coordinate(lat=(90, -90, -1.), lon=(-180, 180, 2.), order=['lat', 'lon'])
+    [.] type(node.initialize_output_array())
     podpac.core.units.UnitsDataArray
     ```
 * This `UnitsDataArray` may contain the following dimensions `['lat', 'lon', 'time', 'alt']`
@@ -123,12 +123,12 @@ def eval(coordinates, output=None, method=None):
     ```
     * [**FUTURE FEATURE**] We could support different units for differents bands as follows, but the dimensionality still has to be consistent, unless a specific band is selected 
     ```python
-    >>> rgba2 = UnitsDataArray(np.ones((2, 1, 4)), dims=['lat', 'lon', 'band'],
+    [.] rgba2 = UnitsDataArray(np.ones((2, 1, 4)), dims=['lat', 'lon', 'band'],
                               coords=[[0, 1], [0], ['r', 'g', 'b', 'a']],
                               attrs={'units': {'r': ureg.m, 'g': ureg.ft,
                                               'b': ureg.km, 'a': ureg.mile}})
 
-    >>> grey + rgba2
+    [.] grey + rgba2
     <xarray.UnitsDataArray (lat: 2, lon: 1, band: 4)>
     array([[[2., 1.3048, 1001., 1610.344]],
 
@@ -143,17 +143,17 @@ def eval(coordinates, output=None, method=None):
 * Dimensions should be returned in the order of the requested `coordinates`
     * eg. if underlying dataset has `['lat', 'lon']` `coordinates`, but the request has `['lon', 'lat']` coordinates, the output should match `['lon', 'lat']`
     ```python
-    >>> node.native_coordinates = Coordinate(lat=(90, -90, -1.), lon=(-180, 180, 2.), order=['lat', 'lon'])
-    >>> node.evaluated_coordinates = Coordinate(lon=(-180, 180, 4.), lat=(90, -90, -2.), order=['lon', 'lat'])
-    >>> node.initialize_output_array().dims
+    [.] node.native_coordinates = Coordinate(lat=(90, -90, -1.), lon=(-180, 180, 2.), order=['lat', 'lon'])
+    [.] node.evaluated_coordinates = Coordinate(lon=(-180, 180, 4.), lat=(90, -90, -2.), order=['lon', 'lat'])
+    [.] node.initialize_output_array().dims
     ('lon', 'lat')
     ```
 * If the underlying Node has unstacked dimensions not in the request, an exception is raised
     * eg. Node has `['lat', 'lon', 'time']` dimensions, but coordinates only have `['time']`
     ```python
-    >>> node.native_coordinates = Coordinate(lat=(90, -90, -1.), lon=(-180, 180, 2.), order=['lat', 'lon'])
-    >>> node.evaluated_coordinates = Coordinate(lon=(-180, 180, 4.),)
-    >>> node.initialize_output_array()
+    [.] node.native_coordinates = Coordinate(lat=(90, -90, -1.), lon=(-180, 180, 2.), order=['lat', 'lon'])
+    [.] node.evaluated_coordinates = Coordinate(lon=(-180, 180, 4.),)
+    [.] node.initialize_output_array()
     CoordinateError: 'Dimension "lat" not present in requested coordinates with dims ["lon"]'
     ```
     * Because some datasets may be huge, and without information about the subset, the safest behaviour is to throw an exception
@@ -162,9 +162,9 @@ def eval(coordinates, output=None, method=None):
 * If the request has unstacked dimensions not in the Node, just return without those dimensions
     * eg. Node has `['lat', 'lon']` dimensions, but evaluated coordinates have `['time', 'lon', 'lat']` then `UnitsDataArray` will have dimensions `['lon', 'lat']`
     ```python
-    >>> node.native_coordinates = Coordinate(lat=45, lon=0, order=['lat', 'lon'])
-    >>> node.evaluated_coordinates = Coordinate(lat=45, lon=0, time='2018-01-01', order=['lat', 'lon', 'time'])
-    >>> node.initialize_output_array()
+    [.] node.native_coordinates = Coordinate(lat=45, lon=0, order=['lat', 'lon'])
+    [.] node.evaluated_coordinates = Coordinate(lat=45, lon=0, time='2018-01-01', order=['lat', 'lon', 'time'])
+    [.] node.initialize_output_array()
     <xarray.UnitsDataArray (lat: 1, lon: 1)>
     array([[nan]])
     Coordinates:
@@ -229,9 +229,9 @@ def find_coordinates(dims=None, bounds=None, number=None, sortby='size', stop_ty
     Notes
     ------
     The `native_coordinates` could be retrieved using (for example):
-    >>> c = node.find_coordinates('time')
-    >>> node_key = list(c['time'].keys())[0]
-    >>> node[node_key].native_coordinates
+    [.] c = node.find_coordinates('time')
+    [.] node_key = list(c['time'].keys())[0]
+    [.] node[node_key].native_coordinates
     '''
     pass
 ```
