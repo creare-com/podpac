@@ -59,7 +59,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             store = str(self.source)  # has to be a string in Python2.7 for local files
         return store
 
-    def chunk_exists(self, index=None, chunk_str=None, data_key=None):
+    def chunk_exists(self, index=None, chunk_str=None, data_key=None, list_dir=[]):
         """
         Test to see if a chunk exists for a particular slice. 
         Note: Only the start of the index is used. 
@@ -72,7 +72,8 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             Default is None. A string equivalent to the filename of the chunk (.e.g. "1.0.5")
         data_key: str, optional
             Default is None. The data_key for the zarr array that will be queried. 
-            
+        list_dir: list, optional
+            A list of existing paths -- used in lieu of 'exist' calls
         """
         za = self.dataset
         if data_key:
@@ -87,6 +88,9 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             raise ValueError("Either the index or chunk_str needs to be specified")
 
         path = os.path.join(self.source, data_key, chunk_str)
+        if list_dir:
+            return chunk_str in list_dir
+
         if self.source.startswith("s3:"):
             fs = self.s3
             path = path.replace("\\", "/")

@@ -266,7 +266,7 @@ class ZarrOutputMixin(tl.HasTraits):
     zarr_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
     skip_existing = tl.Bool(True).tag(attr=True)
     list_dir = tl.Bool(False)
-    _list_dir = tl.List(allow_none=True, default_value=None)
+    _list_dir = tl.List(allow_none=True, default_value=[])
     _shape = tl.Tuple()
     aws_client_kwargs = tl.Dict()
     aws_config_kwargs = tl.Dict()
@@ -361,10 +361,7 @@ class ZarrOutputMixin(tl.HasTraits):
             if isinstance(dk, list):
                 dk = dk[0]
             try:
-                if self._list_dir:  # This option was needed because of read errors on a poor internet connection
-                    exists = dk in self._list_dir
-                else:
-                    exists = self.zarr_node.chunk_exists(coordinates_index, data_key=dk)
+                exists = self.zarr_node.chunk_exists(coordinates_index, data_key=dk, list_dir=self._list_dir)
             except ValueError as e:  # This was needed in cases where a poor internet connection caused read errors
                 exists = False
             if exists:

@@ -54,7 +54,7 @@ class TestParallel(object):
 
 class TestParallelAsync(object):
     def test_parallel_process_async(self):
-        node = Process(source=CoordData(coord_name="time"), block=False)
+        node = Process(source=CoordData(coord_name="time"))  # , block=False)
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
         node_p = ParallelAsync(source=node, number_of_workers=2, chunks={"time": 2}, fill_output=False)
         node_p.eval(coords)
@@ -67,7 +67,7 @@ class TestParallelOutputZarr(object):
         # Can't use tempfile.TemporaryDirectory because multiple processess need access to dir
         tmpdir = os.path.join(tempfile.gettempdir(), "test_parallel_process_zarr.zarr")
 
-        node = Process(source=CoordData(coord_name="time"), block=False)
+        node = Process(source=CoordData(coord_name="time"))  # , block=False)
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
         node_p = ParallelOutputZarr(
             source=node, number_of_workers=2, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir
@@ -82,7 +82,7 @@ class TestParallelOutputZarr(object):
         # Can't use tempfile.TemporaryDirectory because multiple processess need access to dir
         tmpdir = os.path.join(tempfile.gettempdir(), "test_parallel_process_zarr_async.zarr")
 
-        node = Process(source=CoordData(coord_name="time"), block=False)
+        node = Process(source=CoordData(coord_name="time"))  # , block=False)
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
         node_p = ParallelAsyncOutputZarr(
             source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir
@@ -98,7 +98,7 @@ class TestParallelOutputZarr(object):
         # Can't use tempfile.TemporaryDirectory because multiple processess need access to dir
         tmpdir = os.path.join(tempfile.gettempdir(), "test_parallel_process_zarr_async_starti.zarr")
 
-        node = Process(source=CoordData(coord_name="time"), block=False)
+        node = Process(source=CoordData(coord_name="time"))  # , block=False)
         coords = Coordinates([[1, 2, 3, 4, 5]], ["time"])
         node_p = ParallelAsyncOutputZarr(
             source=node, number_of_workers=5, chunks={"time": 2}, fill_output=False, zarr_file=tmpdir, start_i=1
