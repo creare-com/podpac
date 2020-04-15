@@ -21,12 +21,12 @@ class TestFakeLock(object):
         lock = FakeLock()
 
         def f(s):
-            print ("In", s)
+            print("In", s)
             with lock:
-                print ("Locked", s)
+                print("Locked", s)
                 assert lock._locked
                 time.sleep(0.05)
-            print ("Unlocked", s)
+            print("Unlocked", s)
             assert lock._locked == False
 
         if sys.version_info.major == 2:
@@ -37,9 +37,9 @@ class TestFakeLock(object):
         else:
             t1 = Thread(target=lambda: f("thread"), daemon=True)
             t2 = Thread(target=lambda: f("thread"), daemon=True)
-        print ("In Main Thread")
+        print("In Main Thread")
         f("main1")
-        print ("Starting Thread")
+        print("Starting Thread")
         t1.run()
         t2.run()
         f("main2")
@@ -68,11 +68,11 @@ class TestThreadManager(object):
 
     def test_request_release_threads_multi_threaded(self):
         def f(s):
-            print ("In", s)
+            print("In", s)
             n1 = thread_manager.release_n_threads(s)
             time.sleep(0.05)
             n2 = thread_manager.release_n_threads(s)
-            print ("Released", s)
+            print("Released", s)
             assert n2 >= n1
 
         with settings:
