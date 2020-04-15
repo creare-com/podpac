@@ -73,7 +73,13 @@ COMMON_DOC = COMMON_NODE_DOC.copy()
 
 
 class NodeException(Exception):
-    """ Summary """
+    """ Base class for exceptions when using podpac nodes """
+
+    pass
+
+
+class NodeDefinitionError(NodeException):
+    """ Raised node definition errors, such as when the definition is circular or is not yet unavailable. """
 
     pass
 
@@ -87,7 +93,7 @@ class Node(tl.HasTraits):
     cache_output: bool
         Should the node's output be cached? If not provided or None, uses default based on settings.
     cache_update: bool
-        Default is False. Should the node's cached output be updated from the source data?
+        Default is True. Should the node's cached output be updated from the source data?
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
         Class that controls caching. If not provided, uses default based on settings.
     dtype : type
@@ -162,6 +168,10 @@ class Node(tl.HasTraits):
     # Flag that is True if the Node was run multi-threaded, or None if the question doesn't apply
     _multi_threaded = tl.Bool(allow_none=True, default_value=None)
 
+    # util
+    _definition_guard = False
+    _traits_initialized_guard = False
+
     def __init__(self, **kwargs):
         """ Do not overwrite me """
 
@@ -183,8 +193,11 @@ class Node(tl.HasTraits):
                         self.set_trait(name, tkwargs.pop(name))
                     trait.read_only = True
 
-        # Call traitlets constructor
-        super(Node, self).__init__(**tkwargs)
+            # Call traitlets constructor
+            super(Node, self).__init__(**tkwargs)
+
+        self._traits_initialized_guard = True
+
         self.init()
 
     def _first_init(self, **kwargs):
@@ -388,60 +401,72 @@ class Node(tl.HasTraits):
             Dictionary-formatted node definition.
         """
 
+        if getattr(self, "_definition_guard", False):
+            raise NodeDefinitionError("node definition has a circular dependency")
+
+        if not getattr(self, "_traits_initialized_guard", False):
+            raise NodeDefinitionError("node is not yet fully initialized")
+
         nodes = []
         refs = []
         definitions = []
 
-        def add_node(node):
-            for ref, n in zip(refs, nodes):
-                if node == n:
-                    return ref
+        try:
+            self._definition_guard = True
 
-            # get base definition
-            d = node._base_definition
+            def add_node(node):
+                for ref, n in zip(refs, nodes):
+                    if node == n:
+                        return ref
 
-            if "inputs" in d:
-                # sort and shallow copy
-                d["inputs"] = OrderedDict([(key, d["inputs"][key]) for key in sorted(d["inputs"].keys())])
+                # get base definition
+                d = node._base_definition
 
-                # replace nodes with references, adding nodes depth first
-                for key, value in d["inputs"].items():
-                    if isinstance(value, Node):
-                        d["inputs"][key] = add_node(value)
-                    elif isinstance(value, (list, tuple, np.ndarray)):
-                        d["inputs"][key] = [add_node(item) for item in value]
-                    elif isinstance(value, dict):
-                        d["inputs"][key] = {k: add_node(v) for k, v in value.items()}
+                if "inputs" in d:
+                    # sort and shallow copy
+                    d["inputs"] = OrderedDict([(key, d["inputs"][key]) for key in sorted(d["inputs"].keys())])
+
+                    # replace nodes with references, adding nodes depth first
+                    for key, value in d["inputs"].items():
+                        if isinstance(value, Node):
+                            d["inputs"][key] = add_node(value)
+                        elif isinstance(value, (list, tuple, np.ndarray)):
+                            d["inputs"][key] = [add_node(item) for item in value]
+                        elif isinstance(value, dict):
+                            d["inputs"][key] = {k: add_node(v) for k, v in value.items()}
+                        else:
+                            raise TypeError("Invalid input '%s' of type '%s': %s" % (key, type(value)))
+
+                if "attrs" in d:
+                    # sort and shallow copy
+                    d["attrs"] = OrderedDict([(key, d["attrs"][key]) for key in sorted(d["attrs"].keys())])
+
+                # get base ref and then ensure it is unique
+                ref = node.base_ref
+                while ref in refs:
+                    if re.search("_[1-9][0-9]*$", ref):
+                        ref, i = ref.rsplit("_", 1)
+                        i = int(i)
                     else:
-                        raise TypeError("Invalid input '%s' of type '%s': %s" % (key, type(value)))
+                        i = 0
+                    ref = "%s_%d" % (ref, i + 1)
 
-            if "attrs" in d:
-                # sort and shallow copy
-                d["attrs"] = OrderedDict([(key, d["attrs"][key]) for key in sorted(d["attrs"].keys())])
+                nodes.append(node)
+                refs.append(ref)
+                definitions.append(d)
 
-            # get base ref and then ensure it is unique
-            ref = node.base_ref
-            while ref in refs:
-                if re.search("_[1-9][0-9]*$", ref):
-                    ref, i = ref.rsplit("_", 1)
-                    i = int(i)
-                else:
-                    i = 0
-                ref = "%s_%d" % (ref, i + 1)
+                return ref
 
-            nodes.append(node)
-            refs.append(ref)
-            definitions.append(d)
+            # add top level node
+            add_node(self)
 
-            return ref
+            # finalize, verify serializable, and return
+            definition = OrderedDict(zip(refs, definitions))
+            json.dumps(definition, cls=JSONEncoder)
+            return definition
 
-        # add top level node
-        add_node(self)
-
-        # finalize, verify serializable, and return
-        definition = OrderedDict(zip(refs, definitions))
-        json.dumps(definition, cls=JSONEncoder)
-        return definition
+        finally:
+            self._definition_guard = False
 
     @cached_property
     def json(self):
@@ -522,12 +547,17 @@ class Node(tl.HasTraits):
             Cached data not found.
         """
 
+        try:
+            self.definition
+        except NodeDefinitionError as e:
+            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+
         if self.cache_ctrl is None or not self.has_cache(key, coordinates=coordinates):
             raise NodeException("cached data not found for key '%s' and coordinates %s" % (key, coordinates))
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
 
-    def put_cache(self, data, key, coordinates=None, overwrite=False):
+    def put_cache(self, data, key, coordinates=None, overwrite=True):
         """
         Cache data for this node.
 
@@ -540,13 +570,18 @@ class Node(tl.HasTraits):
         coordinates : podpac.Coordinates, optional
             Coordinates that the cached data depends on. Omit for coordinate-independent data.
         overwrite : bool, optional
-            Overwrite existing data, default False
+            Overwrite existing data, default True.
 
         Raises
         ------
         NodeException
             Cached data already exists (and overwrite is False)
         """
+
+        try:
+            self.definition
+        except NodeDefinitionError as e:
+            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
 
         if self.cache_ctrl is None:
             return
@@ -574,13 +609,18 @@ class Node(tl.HasTraits):
             True if there is cached data for this node, key, and coordinates.
         """
 
+        try:
+            self.definition
+        except NodeDefinitionError as e:
+            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+
         if self.cache_ctrl is None:
             return False
 
         # with thread_manager.cache_lock:
         return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
-    def rem_cache(self, key, coordinates=None, mode=None):
+    def rem_cache(self, key, coordinates=None, mode="all"):
         """
         Clear cached data for this node.
 
@@ -592,15 +632,22 @@ class Node(tl.HasTraits):
             Default is None. Delete cached objects for these coordinates. If `'*'`, cached data is deleted for all
             coordinates, including coordinate-independent data. If None, will only affect coordinate-independent data.
         mode: str, optional
-            Specify which cache stores are affected.
+            Specify which cache stores are affected. Default 'all'.
 
 
         See Also
         ---------
         `podpac.core.cache.cache.CacheCtrl.clear` to remove ALL cache for ALL nodes.
         """
+
+        try:
+            self.definition
+        except NodeDefinitionError as e:
+            raise NodeException("Cache unavailable, %s (key='%s')" % (e.args[0], key))
+
         if self.cache_ctrl is None:
             return
+
         self.cache_ctrl.rem(self, key=key, coordinates=coordinates, mode=mode)
 
     # --------------------------------------------------------#
@@ -912,11 +959,8 @@ def node_eval(fn):
             self._from_cache = True
         else:
             data = fn(self, coordinates, output=output)
-
-            # We need to check if the cache now has the key because it is possible that
-            # the previous function call added the key with the coordinates to the cache
-            if self.cache_output and not (self.has_cache(key, cache_coordinates) and not self.cache_update):
-                self.put_cache(data, key, cache_coordinates, overwrite=self.cache_update)
+            if self.cache_output:
+                self.put_cache(data, key, cache_coordinates)
             self._from_cache = False
 
         # extract single output, if necessary

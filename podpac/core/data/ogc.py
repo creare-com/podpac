@@ -262,7 +262,7 @@ class WCS(DataSource):
                         with rasterio.open(io) as dataset:
                             output.data[i, ...] = dataset.read()
                     except Exception as e:  # Probably python 2
-                        print(e)
+                        print (e)
                         tmppath = os.path.join(settings["DISK_CACHE_DIR"], "wcs_temp.tiff")
 
                         if not os.path.exists(os.path.split(tmppath)[0]):
@@ -332,7 +332,7 @@ class WCS(DataSource):
                         else:
                             output.data[:] = dataset.read()
                 except Exception as e:  # Probably python 2
-                    print(e)
+                    print (e)
                     tmppath = os.path.join(settings["DISK_CACHE_DIR"], "wcs_temp.tiff")
                     if not os.path.exists(os.path.split(tmppath)[0]):
                         os.makedirs(os.path.split(tmppath)[0])
@@ -360,4 +360,7 @@ class WCS(DataSource):
     @property
     def base_ref(self):
         """ definition base_ref """
+        if not self.layer_name:
+            return super(WCS, self).base_ref
+
         return self.layer_name.rsplit(".", 1)[1]
