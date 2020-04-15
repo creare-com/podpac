@@ -580,7 +580,7 @@ class Node(tl.HasTraits):
         with thread_manager.cache_lock:
             return self.cache_ctrl.has(self, key, coordinates=coordinates)
 
-    def rem_cache(self, key, coordinates=None, mode=None):
+    def rem_cache(self, key, coordinates=None, mode="all"):
         """
         Clear cached data for this node.
 
