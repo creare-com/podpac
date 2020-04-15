@@ -55,7 +55,7 @@ jobs:
     # check formatting
     - stage: formatting
       python: "3.7"
-      script: black --check podpac
+      script: black --check --diff podpac
     # deploy docs to `podpac-docs` repository. This script only pushes the docs on pushes to develop and master.
     - stage: docs deploy
       python: "3.7"
