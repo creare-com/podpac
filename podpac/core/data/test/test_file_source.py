@@ -81,7 +81,7 @@ class TestLoadFile(object):
         node = MockLoadFile(source="file:///%s" % path)
         node.dataset
 
-    def test_cache(self):
+    def test_cache_dataset(self):
         path = os.path.join(os.path.dirname(__file__), "assets/points-single.csv")
 
         with podpac.settings:
@@ -90,11 +90,11 @@ class TestLoadFile(object):
             node.dataset
 
             # node caches dataset object
-            assert node.has_cache("dataset")
+            assert node._dataset_caching_node.has_cache("dataset")
 
             # another node can get cached object
             node2 = MockLoadFile(source="file:///%s" % path)
-            assert node2.has_cache("dataset")
+            assert node2._dataset_caching_node.has_cache("dataset")
             node2.dataset
 
 

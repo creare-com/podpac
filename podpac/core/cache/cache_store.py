@@ -29,7 +29,7 @@ class CacheStore(object):
 
         raise NotImplementedError
 
-    def put(self, node, data, key, coordinates=None, update=False):
+    def put(self, node, data, key, coordinates=None, update=True):
         """Cache data for specified node.
         
         Parameters

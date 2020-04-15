@@ -68,6 +68,13 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
 
         return d["value"]
 
+    @tl.default("outputs")
+    def _default_outputs(self):
+        if not isinstance(self.data_key, list):
+            return None
+        else:
+            return [self._get_key(elem) for elem in self.data_key]
+
     # -------------------------------------------------------------------------
     # public api methods
     # -------------------------------------------------------------------------

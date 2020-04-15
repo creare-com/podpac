@@ -111,10 +111,13 @@ class TestCSV(object):
         # specify multiple
         node = CSV(source=self.source_multiple, data_key=[4, 5], alt_key="altitude", crs="+proj=merc +vunits=m")
         assert node.data_key == [4, 5]
+        assert node.outputs == ["data", "other"]
 
         # specify one
         node = CSV(source=self.source_multiple, data_key=4, alt_key="altitude", crs="+proj=merc +vunits=m")
+
         assert node.data_key == 4
+        assert node.outputs is None
 
         # specify multiple: invalid item
         with pytest.raises(ValueError, match="Invalid data_key"):

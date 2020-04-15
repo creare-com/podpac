@@ -87,11 +87,11 @@ class BaseCacheStoreTests(object):
 
         # raise exception and do not change
         with pytest.raises(CacheException, match="Cache entry already exists."):
-            store.put(NODE1, 10, "mykey1")
+            store.put(NODE1, 10, "mykey1", update=False)
         assert store.get(NODE1, "mykey1") == 10
 
         # update
-        store.put(NODE1, 20, "mykey1", update=True)
+        store.put(NODE1, 20, "mykey1")
         assert store.get(NODE1, "mykey1") == 20
 
     def test_get_put_none(self):
