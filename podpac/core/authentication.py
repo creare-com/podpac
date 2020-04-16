@@ -163,6 +163,7 @@ class S3Mixin(tl.HasTraits):
     aws_secret_access_key = tl.Unicode(allow_none=True)
     aws_region_name = tl.Unicode(allow_none=True)
     aws_client_kwargs = tl.Dict()
+    config_kwargs = tl.Dict()
 
     @tl.default("aws_access_key_id")
     def _get_access_key_id(self):
@@ -189,4 +190,5 @@ class S3Mixin(tl.HasTraits):
                 secret=self.aws_secret_access_key,
                 region_name=self.aws_region_name,
                 client_kwargs=self.aws_client_kwargs,
+                config_kwargs=self.config_kwargs,
             )

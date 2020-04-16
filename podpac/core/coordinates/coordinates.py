@@ -1337,7 +1337,7 @@ class Coordinates(tl.HasTraits):
         from_crs = self.CRS
         to_crs = pyproj.CRS(crs)
 
-        # make sure to CRS defines vertical units
+        # make sure the CRS defines vertical units
         if "alt" in self.udims and not to_crs.is_vertical:
             raise ValueError("Altitude dimension is defined, but CRS to transform does not contain vertical unit")
 

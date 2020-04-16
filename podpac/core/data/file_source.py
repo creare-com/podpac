@@ -161,6 +161,7 @@ class FileKeysMixin(tl.HasTraits):
     cf_time = tl.Bool(default_value=False).tag(attr=True)
     cf_units = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     cf_calendar = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
+    skip_validation = tl.Bool(False).tag(attr=True)
 
     @property
     def _repr_keys(self):
@@ -180,6 +181,8 @@ class FileKeysMixin(tl.HasTraits):
     @tl.validate("data_key")
     def _validate_data_key(self, d):
         keys = d["value"]
+        if self.skip_validation:
+            return keys
         if not isinstance(keys, list):
             keys = [d["value"]]
         for key in keys:
@@ -197,6 +200,8 @@ class FileKeysMixin(tl.HasTraits):
     @tl.validate("outputs")
     def _validate_outputs(self, d):
         value = d["value"]
+        if self.skip_validation:
+            return value
         if not isinstance(self.data_key, list):
             if value is not None:
                 raise TypeError("outputs must be None for single-output nodes")

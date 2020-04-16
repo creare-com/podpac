@@ -1148,30 +1148,30 @@ if __name__ == "__main__":
     # sm.set_credentials(username=username, password=password)
 
     # SMAP info
-    print (sm)
-    print ("SMAP Definition:", sm.json_pretty)
-    print (
+    print(sm)
+    print("SMAP Definition:", sm.json_pretty)
+    print(
         "SMAP available_dates:",
         "%s - %s (%d)" % (sm.available_dates[0], sm.available_dates[1], len(sm.available_dates)),
     )
-    print ("SMAP source_coordinates:", sm.source_coordinates)
-    print ("SMAP shared_coordinates:", sm.shared_coordinates)
-    print ("Sources:", sm.sources[:3], "... (%d)" % len(sm.sources))
+    print("SMAP source_coordinates:", sm.source_coordinates)
+    print("SMAP shared_coordinates:", sm.shared_coordinates)
+    print("Sources:", sm.sources[:3], "... (%d)" % len(sm.sources))
 
     # sample SMAPDateFolder info
     sm_datefolder = sm.sources[0]
-    print ("Sample DateFolder:", sm_datefolder)
-    print ("Sample DateFolder Definition:", sm_datefolder.json_pretty)
-    print ("Sample DateFolder source_coordinates:", sm_datefolder.source_coordinates)
-    print ("Sample DateFolder Sources:", sm_datefolder.sources[:3], "... (%d)" % len(sm_datefolder.sources))
+    print("Sample DateFolder:", sm_datefolder)
+    print("Sample DateFolder Definition:", sm_datefolder.json_pretty)
+    print("Sample DateFolder source_coordinates:", sm_datefolder.source_coordinates)
+    print("Sample DateFolder Sources:", sm_datefolder.sources[:3], "... (%d)" % len(sm_datefolder.sources))
 
     # sample SMAPSource info
     sm_source = sm_datefolder.sources[0]
-    print ("Sample DAP Source:", sm_source)
-    print ("Sample DAP Source Definition:", sm_source.json_pretty)
-    print ("Sample DAP Native Coordinates:", sm_source.native_coordinates)
+    print("Sample DAP Source:", sm_source)
+    print("Sample DAP Source Definition:", sm_source.json_pretty)
+    print("Sample DAP Native Coordinates:", sm_source.native_coordinates)
 
-    print ("Another Sample DAP Native Coordinates:", sm_datefolder.sources[1].native_coordinates)
+    print("Another Sample DAP Native Coordinates:", sm_datefolder.sources[1].native_coordinates)
 
     # eval whole world
     c_world = Coordinates(
@@ -1192,4 +1192,4 @@ if __name__ == "__main__":
     pyplot.plot(ot.time, ot.data.T)
 
     pyplot.show()
-    print ("Done")
+    print("Done")

@@ -38,7 +38,7 @@ class LambdaException(Exception):
 
 class Lambda(Node):
     """A `Node` wrapper to evaluate source on AWS Lambda function
-    
+
 
     Attributes
     ----------
@@ -60,10 +60,12 @@ class Lambda(Node):
         S3 bucket name to use with lambda function. Defaults to :str:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
     eval_settings : dict, optional
         Default is podpac.settings. PODPAC settings that will be used to evaluate the Lambda function.
+    eval_timeout : float, optional
+        Default is None. The amount of time to wait for an eval to return. To get near asynchronous response, set this to a small number. 
 
     Other Attributes
     ----------------
-    attrs : dict
+    node_attrs : dict
         Additional attributes passed on to the Lambda definition of the base node
     download_result : Bool
         Flag that indicated whether node should wait to download the data.
@@ -140,6 +142,8 @@ class Lambda(Node):
         Defaults to "USD".
         See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.create_budget
         for currency (or Unit) options.
+    output_format : dict, optional
+        Definition for how output is saved after results are computed.
     session : :class:`podpac.managers.aws.Session`
         AWS Session to use for this node.
     source : :class:`podpac.Node`
@@ -195,6 +199,12 @@ class Lambda(Node):
     _function_triggers = tl.Dict(default_value={}, allow_none=True)
     _function_valid = tl.Bool(default_value=False, allow_none=True)
     _function = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
+
+    output_format = tl.Dict(None, allow_none=True).tag(attr=True)
+
+    @property
+    def outputs(self):
+        return self.source.outputs
 
     @tl.default("function_name")
     def _function_name_default(self):
@@ -386,10 +396,11 @@ class Lambda(Node):
     source = tl.Instance(Node, allow_none=True).tag(attr=True)
     source_output_format = tl.Unicode(default_value="netcdf")
     source_output_name = tl.Unicode()
-    attrs = tl.Dict()
+    node_attrs = tl.Dict()
     download_result = tl.Bool(True).tag(attr=True)
     force_compute = tl.Bool().tag(attr=True)
     eval_settings = tl.Dict().tag(attr=True)
+    eval_timeout = tl.Float(610).tag(attr=True)
 
     @tl.default("source_output_name")
     def _source_output_name_default(self):
@@ -413,9 +424,9 @@ class Lambda(Node):
         """
         d = OrderedDict()
         d["pipeline"] = self.source.definition
-        if self.attrs:
+        if self.node_attrs:
             out_node = next(reversed(d["pipeline"].keys()))
-            d["pipeline"][out_node]["attrs"].update(self.attrs)
+            d["pipeline"][out_node]["attrs"].update(self.node_attrs)
         d["output"] = {"format": self.source_output_format}
         d["settings"] = self.eval_settings
         return d
@@ -1401,26 +1412,44 @@ Lambda Node {status}
         pipeline["settings"][
             "FUNCTION_DEPENDENCIES_KEY"
         ] = self.function_s3_dependencies_key  # overwrite in case this is specified explicitly by class
+        if self.output_format:
+            pipeline["output"] = self.output_format
 
         return pipeline
 
     def _eval_invoke(self, coordinates, output=None):
         """eval node through invoke trigger"""
-        _log.debug("Evaluating pipeline via invoke")
 
         # create eval pipeline
         pipeline = self._create_eval_pipeline(coordinates)
 
         # create lambda client
-        awslambda = self.session.client("lambda")
-
-        # invoke
-        payload = bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))
-        response = awslambda.invoke(
-            FunctionName=self.function_name,
-            LogType="Tail",  # include the execution log in the response.
-            Payload=payload,
+        config = botocore.config.Config(
+            read_timeout=self.eval_timeout, max_pool_connections=1001, retries={"max_attempts": 0}
         )
+        awslambda = self.session.client("lambda", config=config)
+
+        # pipeline payload
+        payload = bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))
+
+        if self.download_result:
+            _log.debug("Evaluating pipeline via invoke synchronously")
+            response = awslambda.invoke(
+                FunctionName=self.function_name,
+                LogType="Tail",  # include the execution log in the response.
+                Payload=payload,
+            )
+        else:
+            # async invocation
+            _log.debug("Evaluating pipeline via invoke asynchronously")
+            awslambda.invoke(
+                FunctionName=self.function_name,
+                InvocationType="Event",
+                LogType="Tail",  # include the execution log in the response.
+                Payload=payload,
+            )
+
+            return
 
         _log.debug("Received response from lambda function")
 
@@ -1436,7 +1465,11 @@ Lambda Node {status}
 
         # After waiting, load the pickle file like this:
         payload = response["Payload"].read()
-        self._output = UnitsDataArray.open(payload)
+        try:
+            self._output = UnitsDataArray.open(payload)
+        except ValueError:
+            # Not actually a data-array, returning a string instead
+            return payload.decode("utf-8")
         return self._output
 
     def _eval_s3(self, coordinates, output=None):

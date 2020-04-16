@@ -5,9 +5,9 @@ PODPAC is available for Windows, Mac, and Linux.
 Select the installation method the best suits your development environment:
 
 - [pip](#install-with-pip): Recommended for most users
-- [Docker](#install-with-docker): For use in containers
+- [Docker](#docker): For use in containers
 - [Install from source](#install-from-source): For development
-- [Standalone distribution](#standalone-distribution): Includes Python and all dependencies
+- [Standalone distribution](#standalone-distibution): Includes Python and all dependencies
 
 ## Install with pip
 

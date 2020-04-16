@@ -108,9 +108,16 @@ class ExpandCoordinates(ModifyCoordinates):
         Expansion parameters for the given dimension: The options are::
          * [start_offset, end_offset, step] to expand uniformly around each input coordinate.
          * [start_offset, end_offset] to expand using the available source coordinates around each input coordinate.
+         
+    bounds_only: bool
+        Default is False. If True, will only expand the bounds of the overall coordinates request. Otherwise, it will 
+        expand around EACH coordinate in the request. For example, with bounds_only == True, and an expansion of 3
+        you may expand [5, 6, 8] to [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], whereas with bounds_only == False, it becomes
+        [[2, 5, 8], [3, 6, 9], [5, 8, 11]] (brackets added for clarity, they will be concatenated).
     """
 
     substitute_eval_coords = tl.Bool(False, read_only=True)
+    bounds_only = tl.Bool(False).tag(attr=True)
 
     def get_modified_coordinates1d(self, coords, dim):
         """Returns the expanded coordinates for the requested dimension, depending on the expansion parameter for the
@@ -143,14 +150,30 @@ class ExpandCoordinates(ModifyCoordinates):
             if len(available_coordinates) != 1:
                 raise ValueError("Cannot implicity expand coordinates; too many available coordinates")
             acoords = available_coordinates[0][dim]
-            cs = [acoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in coords1d.coordinates]
+            if self.bounds_only:
+                cs = [
+                    acoords.select(
+                        add_coord(coords1d.coordinates[0], dstart), add_coord(coords1d.coordinates[-1], dstop)
+                    )
+                ]
+            else:
+                cs = [acoords.select((add_coord(x, dstart), add_coord(x, dstop))) for x in coords1d.coordinates]
 
         elif len(expansion) == 3:
             # use a explicit step size
             dstart = make_coord_delta(expansion[0])
             dstop = make_coord_delta(expansion[1])
             step = make_coord_delta(expansion[2])
-            cs = [UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step) for x in coords1d.coordinates]
+            if self.bounds_only:
+                cs = [
+                    UniformCoordinates1d(
+                        add_coord(coords1d.coordinates[0], dstart), add_coord(coords1d.coordinates[-1], dstop), step
+                    )
+                ]
+            else:
+                cs = [
+                    UniformCoordinates1d(add_coord(x, dstart), add_coord(x, dstop), step) for x in coords1d.coordinates
+                ]
 
         else:
             raise ValueError("Invalid expansion attrs for '%s'" % dim)

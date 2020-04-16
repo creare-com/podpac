@@ -431,7 +431,7 @@ def _ind2slice(I):
 
     # convert boolean array to index array
     if I.dtype == bool:
-        I, = np.where(I)
+        (I,) = np.where(I)
 
     # empty slice
     if I.size == 0:
