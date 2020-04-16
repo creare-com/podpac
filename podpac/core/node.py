@@ -9,6 +9,7 @@ import functools
 import json
 import inspect
 import importlib
+import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from hashlib import md5 as hash_alg
@@ -17,6 +18,7 @@ import numpy as np
 import traitlets as tl
 import six
 
+import podpac
 from podpac.core.settings import settings
 from podpac.core.units import ureg, UnitsDataArray
 from podpac.core.utils import common_doc
@@ -385,7 +387,7 @@ class Node(tl.HasTraits):
             d["inputs"] = inputs
 
         # style
-        if self.style != Style() and self.style.definition:
+        if self.style.definition:
             d["style"] = self.style.definition
 
         return d
@@ -407,12 +409,12 @@ class Node(tl.HasTraits):
         if not getattr(self, "_traits_initialized_guard", False):
             raise NodeDefinitionError("node is not yet fully initialized")
 
-        nodes = []
-        refs = []
-        definitions = []
-
         try:
             self._definition_guard = True
+
+            nodes = []
+            refs = []
+            definitions = []
 
             def add_node(node):
                 for ref, n in zip(refs, nodes):
@@ -462,6 +464,7 @@ class Node(tl.HasTraits):
 
             # finalize, verify serializable, and return
             definition = OrderedDict(zip(refs, definitions))
+            definition["podpac_version"] = podpac.__version__
             json.dumps(definition, cls=JSONEncoder)
             return definition
 
@@ -470,29 +473,34 @@ class Node(tl.HasTraits):
 
     @cached_property
     def json(self):
-        """definition for this node in json format
+        """Definition for this node in JSON format."""
 
-        Returns
-        -------
-        str
-            JSON-formatted node definition.
-        """
         return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
     @cached_property
     def json_pretty(self):
+        """Definition for this node in JSON format, with indentation suitable for display."""
+
         return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
     @cached_property
     def hash(self):
-        # Style should not be part of the hash
-        defn = self.json
+        """ hash for this node, used in caching and to determine equality. """
 
-        # Note: this ONLY works because the Style node has NO dictionaries as part
-        # of its attributes
-        hashstr = re.sub(r'"style":\{.*?\},?', "", defn)
+        # deepcopy so that the cached definition property is not modified by the deletes below
+        d = deepcopy(self.definition)
 
-        return hash_alg(hashstr.encode("utf-8")).hexdigest()
+        # omit version
+        if "podpac_version" in d:
+            del d["podpac_version"]
+
+        # omit style in every node
+        for k in d:
+            if "style" in d[k]:
+                del d[k]["style"]
+
+        s = json.dumps(d, separators=(",", ":"), cls=JSONEncoder)
+        return hash_alg(s.encode("utf-8")).hexdigest()
 
     def save(self, path):
         """
@@ -676,12 +684,22 @@ class Node(tl.HasTraits):
         load : create a node from file
         """
 
+        if "podpac_version" in definition and definition["podpac_version"] != podpac.__version__:
+            warnings.warn(
+                "node definition version mismatch "
+                "(this node was created with podpac version '%s', "
+                "but your current podpac version is '%s')" % (definition["podpac_version"], podpac.__version__)
+            )
+
         if len(definition) == 0:
             raise ValueError("Invalid definition: definition cannot be empty.")
 
         # parse node definitions in order
         nodes = OrderedDict()
         for name, d in definition.items():
+            if name == "podpac_version":
+                continue
+
             if "node" not in d:
                 raise ValueError("Invalid definition for node '%s': 'node' property required" % name)
 

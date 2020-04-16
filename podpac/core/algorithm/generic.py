@@ -33,6 +33,8 @@ class GenericInputs(Algorithm):
 
     inputs = tl.Dict(read_only=True)
 
+    _repr_keys = ["inputs"]
+
     def _first_init(self, **kwargs):
         trait_names = self.trait_names()
         for key in kwargs:
@@ -62,6 +64,8 @@ class Arithmetic(GenericInputs):
 
     eqn = tl.Unicode().tag(attr=True)
     params = tl.Dict().tag(attr=True)
+
+    _repr_keys = ["eqn"]
 
     def init(self):
         if not settings.allow_unsafe_eval:
@@ -158,7 +162,7 @@ class Generic(GenericInputs):
                 "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
-        exec(self.code, inputs)
+        exec (self.code, inputs)
         return inputs["output"]
 
 
@@ -206,6 +210,8 @@ class Mask(Algorithm):
     bool_val = tl.Float(1).tag(attr=True)
     bool_op = tl.Enum(["==", "<", "<=", ">", ">="], default_value="==").tag(attr=True)
     in_place = tl.Bool(False).tag(attr=True)
+
+    _repr_keys = ["source", "mask"]
 
     def algorithm(self, inputs):
         """ Sets the values in inputs['source'] to self.masked_val using (inputs['mask'] <self.bool_op> <self.bool_val>)
