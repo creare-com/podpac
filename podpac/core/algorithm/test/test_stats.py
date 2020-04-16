@@ -4,6 +4,7 @@ import pytest
 import numpy as np
 import xarray as xr
 import scipy.stats
+import traitlets as tl
 
 import podpac
 from podpac.core.algorithm.utility import Arange
@@ -276,16 +277,16 @@ class TestDayOfYear(object):
 
 
 class F(DayOfYearWindow):
-    cache_output = False
-    cache_update = True
+    cache_output = tl.Bool(False)
+    cache_update = tl.Bool(True)
 
     def function(self, data, output):
         return len(data)
 
 
 class FM(DayOfYearWindow):
-    cache_output = False
-    cache_update = True
+    cache_output = tl.Bool(False)
+    cache_update = tl.Bool(True)
 
     def function(self, data, output):
         return np.mean(data)

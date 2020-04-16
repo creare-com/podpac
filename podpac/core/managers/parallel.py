@@ -115,7 +115,7 @@ class Parallel(Node):
                 slc = None
                 self.errors.append((i, res, e))
                 dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
-                _log.warn("({}) {} failed with exception {}".format(dt, i, e))
+                _log.warning("({}) {} failed with exception {}".format(dt, i, e))
 
             dt = str(np.timedelta64(int(1000 * (time.time() - start_time)), "ms").astype(object))
             _log.info("({}) Finished result: {} / {}".format(time.time() - start_time, i + 1, len(results)))

@@ -1099,7 +1099,8 @@ class DayOfYearWindow(Algorithm):
         _log.debug("scale_min: {}\nscale_max: {}".format(scale_min, scale_max))
         if scale_min is not None and scale_max is not None:
             source = (source.copy() - scale_min) / (scale_max - scale_min)
-            source.data[(source.data < 0) | (source.data > 1)] = np.nan
+            with np.errstate(invalid="ignore"):
+                source.data[(source.data < 0) | (source.data > 1)] = np.nan
 
         # Make the output coordinates with day-of-year as time
         coords = xr.Dataset({"time": self._requested_coordinates["time"].coordinates})

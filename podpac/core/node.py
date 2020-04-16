@@ -990,7 +990,7 @@ def node_eval(fn):
         order = [dim for dim in coordinates.idims if dim in data.dims]
         if "output" in data.dims:
             order.append("output")
-        data = data.transpose(*order)
+        data = data.transpose(*order, transpose_coords=False)
 
         if settings["DEBUG"]:
             self._output = data
