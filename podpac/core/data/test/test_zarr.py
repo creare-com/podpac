@@ -30,7 +30,7 @@ class TestZarr(object):
 
     def test_native_coordinates(self):
         node = Zarr(source=self.path, data_key="a")
-        assert node.native_coordinates == Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=["lat", "lon"])
+        assert node.coordinates == Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=["lat", "lon"])
 
     def test_eval(self):
         coords = Coordinates([0, 10], dims=["lat", "lon"])

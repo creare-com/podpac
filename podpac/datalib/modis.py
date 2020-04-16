@@ -86,5 +86,5 @@ if __name__ == "__main__":
     )
 
     print(source.source)
-    # print(source.native_coordinates)
-    # print(source.eval(source.native_coordinates[:10, :10]))
+    # print(source.coordinates)
+    # print(source.eval(source.coordinates[:10, :10]))

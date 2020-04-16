@@ -28,7 +28,7 @@ from podpac.core.interpolation.interpolation import Interpolation, Interpolation
 log = logging.getLogger(__name__)
 
 DATA_DOC = {
-    "native_coordinates": "The coordinates of the data source.",
+    "coordinates": "The coordinates of the data source.",
     "get_data": """
         This method must be defined by the data source implementing the DataSource class.
         When data source nodes are evaluated, this method is called with request coordinates and coordinate indexes.
@@ -64,12 +64,12 @@ DATA_DOC = {
             the data will be cast into  UnitsDataArray using the returned data to fill values
             at the requested source coordinates.
         """,
-    "get_native_coordinates": """
+    "get_coordinates": """
         Returns a Coordinates object that describes the native coordinates of the data source.
 
         In most cases, this method is defined by the data source implementing the DataSource class.
-        If method is not implemented by the data source, it will try to return ``self.native_coordinates``
-        if ``self.native_coordinates`` is not None.
+        If method is not implemented by the data source, it will try to return ``self.coordinates``
+        if ``self.coordinates`` is not None.
 
         Otherwise, this method will raise a NotImplementedError.
 
@@ -133,8 +133,8 @@ class DataSource(Node):
     source : Any
         The location of the source. Depending on the child node this can be a filepath,
         numpy array, or dictionary as a few examples.
-    native_coordinates : :class:`podpac.Coordinates`
-        {native_coordinates}
+    coordinates : :class:`podpac.Coordinates`
+        {coordinates}
     interpolation : str, dict, optional
         {interpolation_long}
     nan_vals : List, optional
@@ -148,7 +148,7 @@ class DataSource(Node):
     
     Notes
     -----
-    Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_native_coordinates` methods.
+    Custom DataSource Nodes must implement the :meth:`get_data` and :meth:`get_coordinates` methods.
     """
 
     interpolation = InterpolationTrait().tag(attr=True)
@@ -210,19 +210,19 @@ class DataSource(Node):
             return OrderedDict()
 
     @property
-    def native_coordinates(self):
-        """{native_coordinates}"""
+    def coordinates(self):
+        """{coordinates}"""
 
         if self._native_coordinates is not None:
             nc = self._native_coordinates
-        elif self.cache_native_coordinates and self.has_cache("native_coordinates"):
-            nc = self.get_cache("native_coordinates")
+        elif self.cache_native_coordinates and self.has_cache("coordinates"):
+            nc = self.get_cache("coordinates")
             self.set_trait("_native_coordinates", nc)
         else:
-            nc = self.get_native_coordinates()
+            nc = self.get_coordinates()
             self.set_trait("_native_coordinates", nc)
             if self.cache_native_coordinates:
-                self.put_cache(nc, "native_coordinates")
+                self.put_cache(nc, "coordinates")
         return nc
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -335,7 +335,7 @@ class DataSource(Node):
             self._original_requested_coordinates = coordinates
 
         # check for missing dimensions
-        for c in self.native_coordinates.values():
+        for c in self.coordinates.values():
             if isinstance(c, Coordinates1d):
                 if c.name not in coordinates.udims:
                     raise ValueError("Cannot evaluate these coordinates, missing dim '%s'" % c.name)
@@ -347,10 +347,10 @@ class DataSource(Node):
         extra = []
         for c in coordinates.values():
             if isinstance(c, Coordinates1d):
-                if c.name not in self.native_coordinates.udims:
+                if c.name not in self.coordinates.udims:
                     extra.append(c.name)
             elif isinstance(c, StackedCoordinates):
-                if all(dim not in self.native_coordinates.udims for dim in c.dims):
+                if all(dim not in self.coordinates.udims for dim in c.dims):
                     extra.append(c.name)
         coordinates = coordinates.drop(extra)
 
@@ -358,16 +358,15 @@ class DataSource(Node):
         self._evaluated_coordinates = deepcopy(coordinates)
 
         # transform coordinates into native crs if different
-        if self.native_coordinates.crs.lower() != coordinates.crs.lower():
-            coordinates = coordinates.transform(self.native_coordinates.crs)
+        if self.coordinates.crs.lower() != coordinates.crs.lower():
+            coordinates = coordinates.transform(self.coordinates.crs)
 
         # intersect the native coordinates with requested coordinates
         # to get native coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
-        (
-            self._requested_source_coordinates,
-            self._requested_source_coordinates_index,
-        ) = self.native_coordinates.intersect(coordinates, outer=True, return_indices=True)
+        (self._requested_source_coordinates, self._requested_source_coordinates_index) = self.coordinates.intersect(
+            coordinates, outer=True, return_indices=True
+        )
 
         # if requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
         if self._requested_source_coordinates.size == 0:
@@ -416,7 +415,7 @@ class DataSource(Node):
 
         # if not provided, create output using the evaluated coordinates, or
         # if provided, set the order of coordinates to match the output dims
-        # Note that at this point the coordinates are in the same CRS as the native_coordinates
+        # Note that at this point the coordinates are in the same CRS as the coordinates
         if output is None:
             requested_dims = None
             output_dims = None
@@ -461,15 +460,15 @@ class DataSource(Node):
 
     def find_coordinates(self):
         """
-        Get the available native coordinates for the Node. For a DataSource, this is just the native_coordinates.
+        Get the available native coordinates for the Node. For a DataSource, this is just the coordinates.
 
         Returns
         -------
         coords_list : list
-            singleton list containing the native_coordinates (Coordinates object)
+            singleton list containing the coordinates (Coordinates object)
         """
 
-        return [self.native_coordinates]
+        return [self.coordinates]
 
     @common_doc(COMMON_DATA_DOC)
     def get_data(self, coordinates, coordinates_index):
@@ -483,8 +482,8 @@ class DataSource(Node):
         raise NotImplementedError
 
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
 
         Raises
         ------
@@ -494,7 +493,7 @@ class DataSource(Node):
         raise NotImplementedError
 
     def set_native_coordinates(self, coordinates, force=False):
-        """ Set the native_coordinates. Used by Compositors as an optimization.
+        """ Set the coordinates. Used by Compositors as an optimization.
 
         Arguments
         ---------

@@ -71,13 +71,11 @@ if __name__ == "__main__":
     else:
         # drought monitor parameters
         d0 = DroughtMonitorCategory(source=path, data_key="d0")
-        print(d0.native_coordinates)
+        print(d0.coordinates)
         print(d0.eval(c))
 
         # drought category
-        mock_sm = podpac.data.Array(
-            data=np.random.random(d0.native_coordinates.shape), native_coordinates=d0.native_coordinates
-        )
+        mock_sm = podpac.data.Array(data=np.random.random(d0.coordinates.shape), coordinates=d0.coordinates)
 
         category = DroughtCategory(
             soil_moisture=mock_sm,
@@ -97,13 +95,11 @@ if __name__ == "__main__":
     if not d0.s3.exists(path):
         print("No drought monitor data found at '%s'. Check your AWS credentials." % path)
     else:
-        print(d0.native_coordinates)
+        print(d0.coordinates)
         print(d0.eval(c))
 
         # drought category algorithm
-        mock_sm = podpac.data.Array(
-            data=np.random.random(d0.native_coordinates.shape), native_coordinates=d0.native_coordinates
-        )
+        mock_sm = podpac.data.Array(data=np.random.random(d0.coordinates.shape), coordinates=d0.coordinates)
 
         category = DroughtCategory(
             soil_moisture=mock_sm,

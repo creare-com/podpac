@@ -128,7 +128,7 @@ class TestCSV(object):
 
     def test_native_coordinates(self):
         node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
-        nc = node.native_coordinates
+        nc = node.coordinates
         assert nc.dims == ("lat_lon_time_alt",)
         np.testing.assert_array_equal(nc["lat"].coordinates, self.lat)
         np.testing.assert_array_equal(nc["lon"].coordinates, self.lon)
@@ -137,25 +137,25 @@ class TestCSV(object):
 
         # one dim (unstacked)
         node = CSV(source=self.source_one_dim)
-        nc = node.native_coordinates
+        nc = node.coordinates
         assert nc.dims == ("time",)
 
     def test_get_data(self):
         node = CSV(source=self.source_single, alt_key="altitude", data_key="data", crs="+proj=merc +vunits=m")
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         np.testing.assert_array_equal(out, self.data)
 
         node = CSV(source=self.source_multiple, alt_key="altitude", data_key="data", crs="+proj=merc +vunits=m")
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         np.testing.assert_array_equal(out, self.data)
 
         node = CSV(source=self.source_multiple, alt_key="altitude", data_key="other", crs="+proj=merc +vunits=m")
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         np.testing.assert_array_equal(out, self.other)
 
         # default
         node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         np.testing.assert_array_equal(out, self.data)
 
     def test_get_data_multiple(self):
@@ -163,7 +163,7 @@ class TestCSV(object):
         node = CSV(
             source=self.source_multiple, alt_key="altitude", data_key=["data", "other"], crs="+proj=merc +vunits=m"
         )
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
         np.testing.assert_array_equal(out["output"], ["data", "other"])
         np.testing.assert_array_equal(out.sel(output="data"), self.data)
@@ -171,7 +171,7 @@ class TestCSV(object):
 
         # single data key
         node = CSV(source=self.source_multiple, alt_key="altitude", data_key=["data"], crs="+proj=merc +vunits=m")
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
         np.testing.assert_array_equal(out["output"], ["data"])
         np.testing.assert_array_equal(out.sel(output="data"), self.data)
@@ -184,7 +184,7 @@ class TestCSV(object):
             outputs=["a", "b"],
             crs="+proj=merc +vunits=m",
         )
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
         np.testing.assert_array_equal(out["output"], ["a", "b"])
         np.testing.assert_array_equal(out.sel(output="a"), self.data)
@@ -192,7 +192,7 @@ class TestCSV(object):
 
         # default
         node = CSV(source=self.source_multiple, alt_key="altitude", crs="+proj=merc +vunits=m")
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         assert out.dims == ("lat_lon_time_alt", "output")
         np.testing.assert_array_equal(out["output"], ["data", "other"])
         np.testing.assert_array_equal(out.sel(output="data"), self.data)
@@ -209,8 +209,8 @@ class TestCSV(object):
             crs="+proj=merc +vunits=m",
         )
 
-        # native_coordinates
-        nc = node.native_coordinates
+        # coordinates
+        nc = node.coordinates
         assert nc.dims == ("lat_lon_time_alt",)
         np.testing.assert_array_equal(nc["lat"].coordinates, self.lat)
         np.testing.assert_array_equal(nc["lon"].coordinates, self.lon)
@@ -234,7 +234,7 @@ class TestCSV(object):
         )
 
         # native coordinantes
-        nc = node.native_coordinates
+        nc = node.coordinates
         assert nc.dims == ("lat_lon_time_alt",)
         np.testing.assert_array_equal(nc["lat"].coordinates, self.lat)
         np.testing.assert_array_equal(nc["lon"].coordinates, self.lon)
@@ -261,7 +261,7 @@ class TestCSV(object):
         )
 
         # native coordinantes
-        nc = node.native_coordinates
+        nc = node.coordinates
         assert nc.dims == ("lat_lon_time_alt",)
         np.testing.assert_array_equal(nc["lat"].coordinates, self.lat)
         np.testing.assert_array_equal(nc["lon"].coordinates, self.lon)

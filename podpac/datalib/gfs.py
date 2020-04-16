@@ -59,8 +59,8 @@ class GFS(S3Mixin, DiskCacheMixin, DataSource):
         }
         return np.array([GFSSource(forecast=forecast, **params) for forecast in self.forecasts])
 
-    def get_native_coordinates(self):
-        nc = self.sources[0].native_coordinates
+    def get_coordinates(self):
+        nc = self.sources[0].coordinates
         base_time = datetime.datetime.strptime("%s %s" % (self.date, self.hour), "%Y%m%d %H%M")
         forecast_times = [base_time + datetime.timedelta(hours=int(h)) for h in self.forecasts]
         tc = Coordinates(
@@ -118,7 +118,7 @@ if __name__ == "__main__":
         anon=True,
     )
 
-    o = gfs_soim.eval(gfs_soim.native_coordinates)
+    o = gfs_soim.eval(gfs_soim.coordinates)
     print(o)
 
     # GFS (specify source date/time, select forecast at evaluation)
@@ -133,9 +133,7 @@ if __name__ == "__main__":
     )
 
     # whole world forecast at this time tomorrow
-    c = Coordinates(
-        [gfs_soim.native_coordinates["lat"], gfs_soim.native_coordinates["lon"], tomorrow], dims=["lat", "lon", "time"]
-    )
+    c = Coordinates([gfs_soim.coordinates["lat"], gfs_soim.coordinates["lon"], tomorrow], dims=["lat", "lon", "time"])
     o = gfs_soim.eval(c)
     print(o)
 
@@ -149,8 +147,6 @@ if __name__ == "__main__":
     # latest (get latest source, select forecast at evaluation)
     print("GFSLatest node (parameter, level)")
     gfs_soim = GFSLatest(parameter=parameter, level=level, cache_ctrl=cache_ctrl, anon=True)
-    c = Coordinates(
-        [gfs_soim.native_coordinates["lat"], gfs_soim.native_coordinates["lon"], tomorrow], dims=["lat", "lon", "time"]
-    )
+    c = Coordinates([gfs_soim.coordinates["lat"], gfs_soim.coordinates["lon"], tomorrow], dims=["lat", "lon", "time"])
     o = gfs_soim.eval(c)
     print(o)

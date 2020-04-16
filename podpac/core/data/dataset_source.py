@@ -17,8 +17,8 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
         In addition to local paths, file://, http://, ftp://, and s3:// transport protocols are supported.
     dataset : xarray.Dataset
         Dataset object.
-    native_coordinates : Coordinates
-        {native_coordinates}
+    coordinates : Coordinates
+        {coordinates}
     data_key : str
         data key, default 'data'
     lat_key : str

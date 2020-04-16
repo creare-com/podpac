@@ -26,11 +26,11 @@ def setup_module():
     a[3, 0, 0] = np.nan
     a[0, 3, 0] = np.nan
     a[0, 0, 3] = np.nan
-    source = Array(source=a, native_coordinates=coords)
+    source = Array(source=a, coordinates=coords)
     data = source.eval(coords)
 
     ab = np.stack([a, 2 * a], -1)
-    multisource = Array(source=ab, native_coordinates=coords, outputs=["a", "b"])
+    multisource = Array(source=ab, coordinates=coords, outputs=["a", "b"])
     bdata = 2 * data
 
 

@@ -24,8 +24,8 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
         Row number containing the column names, default 0. Use None for no header.
     dataset : pd.DataFrame
         Raw Pandas DataFrame used to read the data
-    native_coordinates : Coordinates
-        {native_coordinates}
+    coordinates : Coordinates
+        {coordinates}
     data_key : str, int
         data column number or column title, default 'data'
     lat_key : str, int
@@ -113,13 +113,13 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return [self._get_col(key) for key in self.available_data_keys]
 
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
         
         Note: CSV files have StackedCoordinates.
         """
 
-        coords = super(CSV, self).get_native_coordinates()
+        coords = super(CSV, self).get_coordinates()
         if len(coords) == 1:
             return coords
         stacked = StackedCoordinates(list(coords.values()))

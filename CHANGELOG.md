@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0
+
+# Breaking changes
+* Renamed 'native_coordinates' to 'coordinates'
 
 ## 1.3.0
 

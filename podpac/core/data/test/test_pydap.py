@@ -18,7 +18,7 @@ class MockPyDAP(PyDAP):
     data_key = "key"
     data = np.random.rand(11, 11)
 
-    def get_native_coordinates(self):
+    def get_coordinates(self):
         return Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
 
     def _open_url(self):
@@ -40,7 +40,7 @@ class TestPyDAP(object):
     def test_native_coordinates_not_implemented(self):
         node = PyDAP(source="mysource", data_key="key")
         with pytest.raises(NotImplementedError):
-            node.native_coordinates
+            node.coordinates
 
     def test_keys(self):
         """test return of dataset keys"""
@@ -94,5 +94,5 @@ class TestPyDAP(object):
     def test_get_data(self):
         """test get_data function of pydap"""
         node = MockPyDAP()
-        output = node.eval(node.native_coordinates)
+        output = node.eval(node.coordinates)
         np.testing.assert_array_equal(output.values, node.data)

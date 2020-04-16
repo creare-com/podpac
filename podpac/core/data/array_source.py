@@ -26,12 +26,12 @@ class Array(NoCacheMixin, DataSource):
     ----------
     source : np.ndarray
         Numpy array containing the source data
-    native_coordinates : podpac.Coordinates
+    coordinates : podpac.Coordinates
         The coordinates of the source data
         
     Notes
     ------
-    `native_coordinates` need to supplied by the user when instantiating this node.
+    `coordinates` need to supplied by the user when instantiating this node.
     
     This Node is not meant for large arrays, and cause issues with caching. As such, this Node override the default 
     cache behavior as having no cache -- its data is in RAM already and caching is not helpful.
@@ -45,12 +45,12 @@ class Array(NoCacheMixin, DataSource):
     >>> coords = podpac.Coordinates([podpac.clinspace(1, 10, 10, 'time'), 
                                      podpac.clinspace(1, 32, 32, 'lat'),
                                      podpac.clinspace(1, 34, 34, 'lon')])
-    >>> node = podpac.data.Array(source=data, native_coordinates=coords, outputs=['R', 'G', 'B'])
+    >>> node = podpac.data.Array(source=data, coordinates=coords, outputs=['R', 'G', 'B'])
     >>> output = node.eval(coords)
     """
 
     source = ArrayTrait().tag(attr=True)
-    native_coordinates = tl.Instance(Coordinates).tag(attr=True)
+    coordinates = tl.Instance(Coordinates).tag(attr=True)
 
     _repr_keys = ["shape", "interpolation"]
 
@@ -63,11 +63,11 @@ class Array(NoCacheMixin, DataSource):
         return d["value"]
 
     def _first_init(self, **kwargs):
-        # If the native_coordinates were supplied explicitly, they may need to be deserialized.
-        if isinstance(kwargs.get("native_coordinates"), OrderedDict):
-            kwargs["native_coordinates"] = Coordinates.from_definition(kwargs["native_coordinates"])
-        elif isinstance(kwargs.get("native_coordinates"), string_types):
-            kwargs["native_coordinates"] = Coordinates.from_json(kwargs["native_coordinates"])
+        # If the coordinates were supplied explicitly, they may need to be deserialized.
+        if isinstance(kwargs.get("coordinates"), OrderedDict):
+            kwargs["coordinates"] = Coordinates.from_definition(kwargs["coordinates"])
+        elif isinstance(kwargs.get("coordinates"), string_types):
+            kwargs["coordinates"] = Coordinates.from_json(kwargs["coordinates"])
 
         return kwargs
 

@@ -12,15 +12,15 @@ COORDS = podpac.Coordinates(
 )
 LON, LAT, TIME = np.meshgrid(COORDS["lon"].coordinates, COORDS["lat"].coordinates, COORDS["time"].coordinates)
 
-ARRAY_LAT = Array(source=LAT.astype(float), native_coordinates=COORDS, interpolation="bilinear")
-ARRAY_LON = Array(source=LON.astype(float), native_coordinates=COORDS, interpolation="bilinear")
-ARRAY_TIME = Array(source=TIME.astype(float), native_coordinates=COORDS, interpolation="bilinear")
+ARRAY_LAT = Array(source=LAT.astype(float), coordinates=COORDS, interpolation="bilinear")
+ARRAY_LON = Array(source=LON.astype(float), coordinates=COORDS, interpolation="bilinear")
+ARRAY_TIME = Array(source=TIME.astype(float), coordinates=COORDS, interpolation="bilinear")
 
-MULTI_0_XY = Array(source=np.full(COORDS.shape + (2,), 0), native_coordinates=COORDS, outputs=["x", "y"])
-MULTI_1_XY = Array(source=np.full(COORDS.shape + (2,), 1), native_coordinates=COORDS, outputs=["x", "y"])
-MULTI_4_YX = Array(source=np.full(COORDS.shape + (2,), 4), native_coordinates=COORDS, outputs=["y", "x"])
-MULTI_2_X = Array(source=np.full(COORDS.shape + (1,), 2), native_coordinates=COORDS, outputs=["x"])
-MULTI_3_Z = Array(source=np.full(COORDS.shape + (1,), 3), native_coordinates=COORDS, outputs=["z"])
+MULTI_0_XY = Array(source=np.full(COORDS.shape + (2,), 0), coordinates=COORDS, outputs=["x", "y"])
+MULTI_1_XY = Array(source=np.full(COORDS.shape + (2,), 1), coordinates=COORDS, outputs=["x", "y"])
+MULTI_4_YX = Array(source=np.full(COORDS.shape + (2,), 4), coordinates=COORDS, outputs=["y", "x"])
+MULTI_2_X = Array(source=np.full(COORDS.shape + (1,), 2), coordinates=COORDS, outputs=["x"])
+MULTI_3_Z = Array(source=np.full(COORDS.shape + (1,), 3), coordinates=COORDS, outputs=["z"])
 
 
 class TestBaseCompositor(object):
