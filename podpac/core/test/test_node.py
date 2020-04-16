@@ -727,6 +727,14 @@ class TestSerialization(object):
         assert n1.hash != n3.hash
         assert n1.hash != m1.hash
 
+    def test_hash_preserves_definition(self):
+        n = Node()
+        d_before = deepcopy(n.definition)
+        h = n.hash
+        d_after = deepcopy(n.definition)
+
+        assert d_before == d_after
+
     def test_hash_omit_style(self):
         class N(Node):
             my_attr = tl.Int().tag(attr=True)

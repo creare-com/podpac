@@ -392,7 +392,7 @@ class Node(tl.HasTraits):
 
         return d
 
-    @property
+    @cached_property
     def definition(self):
         """
         Full node definition.
@@ -487,7 +487,8 @@ class Node(tl.HasTraits):
     def hash(self):
         """ hash for this node, used in caching and to determine equality. """
 
-        d = self.definition
+        # deepcopy so that the cached definition property is not modified by the deletes below
+        d = deepcopy(self.definition)
 
         # omit version
         if "podpac_version" in d:
