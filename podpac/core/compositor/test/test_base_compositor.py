@@ -203,30 +203,40 @@ class TestBaseCompositor(object):
         node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME])
         assert node.outputs is None
 
-        # multi-output
+        # even if the sources have multiple outputs, the default here is outputs
         node = BaseCompositor(sources=[MULTI_0_XY, MULTI_1_XY])
+        assert node.outputs is None
+
+    def test_auto_outputs(self):
+        # autodetect single-output
+        node = BaseCompositor(sources=[ARRAY_LAT, ARRAY_LON, ARRAY_TIME], auto_outputs=True)
+        assert node.outputs is None
+
+        # autodetect multi-output
+        node = BaseCompositor(sources=[MULTI_0_XY, MULTI_1_XY], auto_outputs=True)
         assert node.outputs == ["x", "y"]
 
-        node = BaseCompositor(sources=[MULTI_0_XY, MULTI_3_Z])
+        node = BaseCompositor(sources=[MULTI_0_XY, MULTI_3_Z], auto_outputs=True)
         assert node.outputs == ["x", "y", "z"]
 
-        node = BaseCompositor(sources=[MULTI_3_Z, MULTI_0_XY])
+        node = BaseCompositor(sources=[MULTI_3_Z, MULTI_0_XY], auto_outputs=True)
         assert node.outputs == ["z", "x", "y"]
 
-        node = BaseCompositor(sources=[MULTI_0_XY, MULTI_4_YX])
+        node = BaseCompositor(sources=[MULTI_0_XY, MULTI_4_YX], auto_outputs=True)
         assert node.outputs == ["x", "y"]
 
         # mixed
         with pytest.raises(ValueError, match="Cannot composite standard sources with multi-output sources."):
-            node = BaseCompositor(sources=[MULTI_2_X, ARRAY_LAT])
+            node = BaseCompositor(sources=[MULTI_2_X, ARRAY_LAT], auto_outputs=True)
 
         # no sources
-        node = BaseCompositor(sources=[])
+        node = BaseCompositor(sources=[], auto_outputs=True)
         assert node.outputs is None
 
     def test_forced_invalid_sources(self):
         class MyCompositor(BaseCompositor):
             sources = [MULTI_2_X, ARRAY_LAT]
+            auto_outputs = True
 
         node = MyCompositor()
         with pytest.raises(RuntimeError, match="Compositor sources were not validated correctly"):

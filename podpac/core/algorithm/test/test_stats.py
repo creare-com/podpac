@@ -267,6 +267,10 @@ class TestGroupReduce(object):
     pass
 
 
+class TestResampleReduce(object):
+    pass
+
+
 class TestDayOfYear(object):
     pass
 

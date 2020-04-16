@@ -52,6 +52,8 @@ class BaseCompositor(Node):
     interpolation = InterpolationTrait(allow_none=True, default_value=None).tag(attr=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
 
+    auto_outputs = tl.Bool(False)
+
     # debug traits
     _eval_sources = tl.Any()
 
@@ -87,6 +89,10 @@ class BaseCompositor(Node):
 
     @tl.default("outputs")
     def _default_outputs(self):
+        if not self.auto_outputs:
+            return None
+
+        # autodetect outputs from sources
         if all(source.outputs is None for source in self.sources):
             outputs = None
 

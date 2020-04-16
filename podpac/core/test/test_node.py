@@ -28,7 +28,7 @@ from podpac.core.utils import ArrayTrait, NodeTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
 from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
-from podpac.core.node import Node, NodeException
+from podpac.core.node import Node, NodeException, NodeDefinitionError
 from podpac.core.node import node_eval
 from podpac.core.node import NoCacheMixin, DiskCacheMixin
 
@@ -372,9 +372,10 @@ class TestCaching(object):
         assert self.node.get_cache("test") == 0
 
         with pytest.raises(NodeException):
-            self.node.put_cache(1, "test")
+            self.node.put_cache(1, "test", overwrite=False)
+        assert self.node.get_cache("test") == 0
 
-        self.node.put_cache(1, "test", overwrite=True)
+        self.node.put_cache(1, "test")
         assert self.node.get_cache("test") == 1
 
     def test_rem_all(self):
@@ -443,6 +444,94 @@ class TestCaching(object):
         assert self.node.has_cache("c", coordinates=self.coords)
         assert self.node.has_cache("c", coordinates=self.coords2)
         assert self.node.has_cache("d", coordinates=self.coords)
+
+    # node definition errors
+    # this demonstrates both classes of error in the has_cache case, but only one for put/get/rem
+    # we could test both classes for put/get/rem as well, but that is not really necessary
+    def test_has_cache_unavailable_circular(self):
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
+
+            @tl.default("a")
+            def _default_a(self):
+                return self.b
+
+            @property
+            def b(self):
+                self.has_cache("b")
+                return 10
+
+        node = MyNode(cache_ctrl=["ram"])
+        with pytest.raises(NodeException, match="Cache unavailable, node definition has a circular dependency"):
+            assert node.b == 10
+
+    def test_has_cache_unavailable_uninitialized(self):
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
+
+            @tl.validate("a")
+            def _validate_a(self, d):
+                self.b
+                return d["value"]
+
+            @property
+            def b(self):
+                self.has_cache("key")
+                return 10
+
+        with pytest.raises(NodeException, match="Cache unavailable, node is not yet fully initialized"):
+            node = MyNode(a=3, cache_ctrl=["ram"])
+
+    def test_put_cache_unavailable_uninitialized(self):
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
+
+            @tl.validate("a")
+            def _validate_a(self, d):
+                self.b
+                return d["value"]
+
+            @property
+            def b(self):
+                self.put_cache(10, "key")
+                return 10
+
+        with pytest.raises(NodeException, match="Cache unavailable"):
+            node = MyNode(a=3, cache_ctrl=["ram"])
+
+    def test_get_cache_unavailable_uninitialized(self):
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
+
+            @tl.validate("a")
+            def _validate_a(self, d):
+                self.b
+                return d["value"]
+
+            @property
+            def b(self):
+                self.get_cache("key")
+                return 10
+
+        with pytest.raises(NodeException, match="Cache unavailable"):
+            node = MyNode(a=3, cache_ctrl=["ram"])
+
+    def test_rem_cache_unavailable_uninitialized(self):
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
+
+            @tl.validate("a")
+            def _validate_a(self, d):
+                self.b
+                return d["value"]
+
+            @property
+            def b(self):
+                self.rem_cache("key")
+                return 10
+
+        with pytest.raises(NodeException, match="Cache unavailable"):
+            node = MyNode(a=3, cache_ctrl=["ram"])
 
 
 class TestSerialization(object):
@@ -700,6 +789,20 @@ class TestSerialization(object):
         node = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         d = node.definition
         assert "style" not in d[node.base_ref]
+
+    def test_circular_definition(self):
+        # this is admittedly a contrived example in order to demonstrate the most direct case
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
+
+            @tl.default("a")
+            def _default_a(self):
+                self.definition
+                return 10
+
+        node = MyNode()
+        with pytest.raises(NodeDefinitionError, match="node definition has a circular dependency"):
+            node.a
 
 
 class TestUserDefinition(object):
