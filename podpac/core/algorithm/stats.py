@@ -844,10 +844,11 @@ class GroupReduce(UnaryAlgorithm):
         Source node
     """
 
+    _repr_keys = ["source", "groupby", "reduce_fn"]
     coordinates_source = NodeTrait(allow_none=True).tag(attr=True)
 
     # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
-    groupby = tl.CaselessStrEnum(["dayofyear"]).tag(attr=True)  # could add season, month, etc
+    groupby = tl.CaselessStrEnum(["dayofyear", "weekofyear", "season", "month"], allow_none=True).tag(attr=True)
     reduce_fn = tl.CaselessStrEnum(_REDUCE_FUNCTIONS).tag(attr=True)
     custom_reduce_fn = tl.Any(allow_none=True, default_value=None).tag(attr=True)
 
@@ -856,26 +857,6 @@ class GroupReduce(UnaryAlgorithm):
     @tl.default("coordinates_source")
     def _default_coordinates_source(self):
         return self.source
-
-    def _get_source_coordinates(self, requested_coordinates):
-        # get available time coordinates
-        # TODO do these two checks during node initialization
-        available_coordinates = self.coordinates_source.find_coordinates()
-        if len(available_coordinates) != 1:
-            raise ValueError("Cannot evaluate this node; too many available coordinates")
-        avail_coords = available_coordinates[0]
-        if "time" not in avail_coords.udims:
-            raise ValueError("GroupReduce coordinates source node must be time-dependent")
-
-        # intersect grouped time coordinates using groupby DatetimeAccessor
-        avail_time = xr.DataArray(avail_coords.coords["time"])
-        eval_time = xr.DataArray(requested_coordinates.coords["time"])
-        N = getattr(avail_time.dt, self.groupby)
-        E = getattr(eval_time.dt, self.groupby)
-        native_time_mask = np.in1d(N, E)
-
-        # use requested spatial coordinates and filtered available times
-        return coords[native_time_mask, :, :]
 
     @common_doc(COMMON_DOC)
     @node_eval
@@ -899,12 +880,7 @@ class GroupReduce(UnaryAlgorithm):
             If source it not time-depended (required by this node).
         """
 
-        self._source_coordinates = self._get_source_coordinates(coordinates)
-
-        if output is None:
-            output = self.create_output_array(coordinates)
-
-        source_output = self.source.eval(self._source_coordinates)
+        source_output = self.source.eval(coordinates)
 
         # group
         grouped = source_output.groupby("time.%s" % self.groupby)
@@ -916,14 +892,25 @@ class GroupReduce(UnaryAlgorithm):
             # standard, e.g. grouped.median('time')
             out = getattr(grouped, self.reduce_fn)("time")
 
-        # map
-        eval_time = xr.DataArray(coordinates.coords["time"])
-        E = getattr(eval_time.dt, self.groupby)
-        out = out.sel(**{self.groupby: E}).rename({self.groupby: "time"})
-        output[:] = out.transpose(*output.dims).data
+        out = out.rename({self.groupby: "time"})
+        if output is None:
+            coords = podpac.coordinates.merge_dims(
+                [coordinates.drop("time"), Coordinates([out.coords["time"]], ["time"])]
+            )
+            coords = coords.transpose(*out.dims)
+            output = self.create_output_array(coords, data=out.data)
+        else:
+            output.data[:] = out.data[:]
+
+        ## map
+        # eval_time = xr.DataArray(coordinates.coords["time"])
+        # E = getattr(eval_time.dt, self.groupby)
+        # out = out.sel(**{self.groupby: E}).rename({self.groupby: "time"})
+        # output[:] = out.transpose(*output.dims).data
 
         return output
 
+    @property
     def base_ref(self):
         """
         Default node reference/name in node definitions
@@ -934,6 +921,100 @@ class GroupReduce(UnaryAlgorithm):
             Default node reference/name in node definitions
         """
         return "%s.%s.%s" % (self.source.base_ref, self.groupby, self.reduce_fn)
+
+
+class ResampleReduce(UnaryAlgorithm):
+    """
+    Resample a time-dependent source node using a statistical operation to achieve the result.
+    
+    Attributes
+    ----------
+    custom_reduce_fn : function
+        required if reduce_fn is 'custom'.
+    resampleby : str
+        datetime sub-accessor. Currently 'dayofyear' is the enabled option.
+    reduce_fn : str
+        builtin xarray groupby reduce function, or 'custom'.
+    source : podpac.Node
+        Source node
+    """
+
+    _repr_keys = ["source", "resampleby", "reduce_fn"]
+    coordinates_source = NodeTrait(allow_none=True).tag(attr=True)
+
+    # see https://github.com/pydata/xarray/blob/eeb109d9181c84dfb93356c5f14045d839ee64cb/xarray/core/accessors.py#L61
+    resample = tl.Unicode().tag(attr=True)  # could add season, month, etc
+    reduce_fn = tl.CaselessStrEnum(_REDUCE_FUNCTIONS).tag(attr=True)
+    custom_reduce_fn = tl.Any(allow_none=True, default_value=None).tag(attr=True)
+
+    _source_coordinates = tl.Instance(Coordinates)
+
+    @tl.default("coordinates_source")
+    def _default_coordinates_source(self):
+        return self.source
+
+    @common_doc(COMMON_DOC)
+    @node_eval
+    def eval(self, coordinates, output=None):
+        """Evaluates this nodes using the supplied coordinates. 
+        
+        Parameters
+        ----------
+        coordinates : podpac.Coordinates
+            {requested_coordinates}
+        output : podpac.UnitsDataArray, optional
+            {eval_output}
+        
+        Returns
+        -------
+        {eval_return}
+        
+        Raises
+        ------
+        ValueError
+            If source it not time-depended (required by this node).
+        """
+
+        source_output = self.source.eval(coordinates)
+
+        # group
+        grouped = source_output.resample(time=self.resample)
+
+        # reduce
+        if self.reduce_fn == "custom":
+            out = grouped.reduce(self.custom_reduce_fn)
+        else:
+            # standard, e.g. grouped.median('time')
+            out = getattr(grouped, self.reduce_fn)()
+
+        if output is None:
+            coords = podpac.coordinates.merge_dims(
+                [coordinates.drop("time"), Coordinates([out.coords["time"]], ["time"])]
+            )
+            coords = coords.transpose(*out.dims)
+            output = self.create_output_array(coords, data=out.data)
+        else:
+            output.data[:] = out.data[:]
+
+        ## map
+        # eval_time = xr.DataArray(coordinates.coords["time"])
+        # E = getattr(eval_time.dt, self.groupby)
+        # out = out.sel(**{self.groupby: E}).rename({self.groupby: "time"})
+        # output[:] = out.transpose(*output.dims).data
+
+        return output
+
+    @property
+    def base_ref(self):
+        """
+        Default node reference/name in node definitions
+        
+        Returns
+        -------
+        str
+            Default node reference/name in node definitions
+        """
+        return "%s.%s.%s" % (self.source.base_ref, self.resample, self.reduce_fn)
 
 
 class DayOfYear(GroupReduce):
