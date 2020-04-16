@@ -621,7 +621,7 @@ class TestSerialization(object):
         # definition
         d = self.node.definition
         assert isinstance(d, OrderedDict)
-        assert len(d) == 4
+        assert len(d) == 5
 
         # from_definition
         with warnings.catch_warnings():
@@ -642,7 +642,7 @@ class TestSerialization(object):
         node = podpac.compositor.OrderedCompositor(sources=[n1, n2, n3])
         d = node.definition
         assert n1.base_ref == n2.base_ref == n3.base_ref
-        assert len(d) == 4
+        assert len(d) == 5
 
     def test_definition_inputs_array(self):
         global MyNodeWithArrayInput
@@ -663,6 +663,11 @@ class TestSerialization(object):
         node1 = MyNodeWithDictInput(my_dict={"a": podpac.algorithm.Arange()})
         node2 = Node.from_definition(node1.definition)
         assert node2 is not node1 and node2 == node1
+
+    def test_definition_version(self):
+        d = self.node.definition
+        assert "podpac_version" in d
+        assert d["podpac_version"] == podpac.__version__
 
     def test_json(self):
         # json
@@ -722,6 +727,42 @@ class TestSerialization(object):
         assert n1.hash != n3.hash
         assert n1.hash != m1.hash
 
+    def test_hash_omit_style(self):
+        class N(Node):
+            my_attr = tl.Int().tag(attr=True)
+
+        n1 = N(my_attr=1, style=Style(name="a"))
+        n2 = N(my_attr=1, style=Style(name="b"))
+
+        # json has style in it
+        assert n1.json != n2.json
+
+        # but hash does not
+        assert n1.hash == n2.hash
+
+    def test_hash_omit_version(self):
+        version = podpac.__version__
+
+        try:
+            # actual version
+            n1 = Node()
+            s1 = n1.json
+            h1 = n1.hash
+
+            # spoof different version
+            podpac.__version__ = "other"
+            n2 = Node()
+            s2 = n2.json
+            h2 = n2.hash
+
+            # JSON should be different, but hash should be the same
+            assert s1 != s2
+            assert h1 == h2
+
+        finally:
+            # reset version
+            podpac.__version__ = version
+
     def test_eq(self):
         class N(Node):
             my_attr = tl.Int().tag(attr=True)
@@ -745,6 +786,20 @@ class TestSerialization(object):
         assert n1 != n3
         assert n1 != m1
         assert n1 != "other"
+
+    def test_eq_ignore_style(self):
+        class N(Node):
+            my_attr = tl.Int().tag(attr=True)
+
+        n1 = N(my_attr=1, style=Style(name="a"))
+        n2 = N(my_attr=1, style=Style(name="b"))
+
+        # json has style in it
+        assert n1.json != n2.json
+
+        # but == and != don't care
+        assert n1 == n2
+        assert not n1 != n2
 
     def test_from_url(self):
         url = (
@@ -998,6 +1053,19 @@ class TestUserDefinition(object):
             podpac.settings["DEBUG"] = True
             node = Node.from_json(s)
             assert node.inputs["A"] is not node.inputs["B"].source
+
+    def test_from_definition_version_warning(self):
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Arange"
+            },
+            "podpac_version": "other"
+        }
+        """
+
+        with pytest.warns(UserWarning, match="node definition version mismatch"):
+            node = Node.from_json(s)
 
 
 class TestNoCacheMixin(object):

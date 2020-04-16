@@ -10,17 +10,17 @@ import json
 import datetime
 import functools
 import importlib
-from collections import OrderedDict
 import logging
+from collections import OrderedDict
 from copy import deepcopy
-from six import string_types
-import lazy_import
 
 try:
     import urllib.parse as urllib
 except:  # Python 2.7
     import urlparse as urllib
 
+from six import string_types
+import lazy_import
 import traitlets as tl
 import numpy as np
 import xarray as xr
