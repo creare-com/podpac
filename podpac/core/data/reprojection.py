@@ -66,21 +66,18 @@ class ReprojectedSource(DataSource):
         return source
 
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
         """
 
-        # cannot guarantee that native_coordinates exist
+        # cannot guarantee that coordinates exist
         if not isinstance(self.source, DataSource):
             return self.reprojected_coordinates
 
-        sc = self.source.native_coordinates
+        sc = self.source.coordinates
         rc = self.reprojected_coordinates
         return Coordinates(
-            [
-                rc[dim] if dim in rc.dims else self.source.native_coordinates[dim]
-                for dim in self.source.native_coordinates.dims
-            ],
+            [rc[dim] if dim in rc.dims else self.source.coordinates[dim] for dim in self.source.coordinates.dims],
             validate_crs=False,
         )
 

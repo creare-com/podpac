@@ -38,8 +38,8 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
         determines which variable is returned from the source.
     dataset : pydap.model.DatasetType
         The open pydap dataset. This is provided for troubleshooting.
-    native_coordinates : Coordinates
-        {native_coordinates}
+    coordinates : Coordinates
+        {coordinates}
     source : str
         URL of the OpenDAP server.
     """
@@ -59,8 +59,8 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
             return self.source
 
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
         
         Raises
         ------

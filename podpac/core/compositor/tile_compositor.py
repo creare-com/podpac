@@ -18,7 +18,7 @@ class TileCompositor(DataSource):
     ----------
     sources : list
         The tiled data sources.
-    native_coordinates : Coordinates
+    coordinates : Coordinates
         Coordinates encompassing all of the tiled sources.
 
     Notes
@@ -41,7 +41,7 @@ class TileCompositor(DataSource):
 
         output = self.create_output_array(coordinates)
         for source in self.sources:
-            c, I = source.native_coordinates.intersect(coordinates, return_indices=True)
+            c, I = source.coordinates.intersect(coordinates, return_indices=True)
             if c.size == 0:
                 continue
             source_data = source.get_data(c, I)
@@ -58,7 +58,7 @@ class UniformTileCompositor(TileCompositor):
     ----------
     sources : list
         The tiled data sources.
-    native_coordinates : Coordinates
+    coordinates : Coordinates
         Coordinates encompassing all of the tiled sources.
     shape : tuple
         shape of the tile grid
@@ -85,7 +85,7 @@ class UniformTileCompositor(TileCompositor):
     @cached_property
     def tile_width(self):
         """Tuple of the number of coordinates that the tile covers in each dimension."""
-        return tuple(int(n / m) for n, m in zip(self.native_coordinates.shape, self.shape))
+        return tuple(int(n / m) for n, m in zip(self.coordinates.shape, self.shape))
 
 
 @common_doc(COMMON_DATA_DOC)
@@ -120,11 +120,11 @@ class UniformTileMixin(podpac.Node):
     def width(self):
         return self.grid.tile_width
 
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
         """
         Is = tuple(slice(w * i, w * (i + 1)) for i, w in zip(self.tile, self.width))
-        return self.grid.native_coordinates[Is]
+        return self.grid.coordinates[Is]
 
     @property
     def _repr_keys(self):

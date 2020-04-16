@@ -40,8 +40,8 @@ class BaseFileSource(DataSource):
     ----------
     source : str
         Path to the data source.
-    native_coordinates : Coordinates
-        {native_coordinates}
+    coordinates : Coordinates
+        {coordinates}
     dataset : Any
         dataset object
     """
@@ -238,8 +238,8 @@ class FileKeysMixin(tl.HasTraits):
         return lookup[dim]
 
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
         """
 
         cs = [self.dataset[self._lookup_key(dim)] for dim in self.dims]

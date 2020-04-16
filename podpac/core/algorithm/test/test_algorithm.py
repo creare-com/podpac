@@ -30,15 +30,15 @@ class TestBaseAlgorithm(object):
             y = NodeTrait().tag(attr=True)
 
         node = MyAlgorithm(
-            x=Array(native_coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])),
-            y=Array(native_coordinates=podpac.Coordinates([[0, 1, 2], [110, 120]], dims=["lat", "lon"])),
+            x=Array(coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])),
+            y=Array(coordinates=podpac.Coordinates([[0, 1, 2], [110, 120]], dims=["lat", "lon"])),
         )
 
         l = node.find_coordinates()
         assert isinstance(l, list)
         assert len(l) == 2
-        assert node.x.native_coordinates in l
-        assert node.y.native_coordinates in l
+        assert node.x.coordinates in l
+        assert node.y.coordinates in l
 
 
 class TestAlgorithm(object):
@@ -208,7 +208,7 @@ class TestAlgorithm(object):
 
         coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
         x = Arange()
-        y = Array(source=np.full(coords.shape, 2), native_coordinates=coords)
+        y = Array(source=np.full(coords.shape, 2), coordinates=coords)
         xout = np.arange(6).reshape(3, 2)
 
         # all outputs
@@ -228,7 +228,7 @@ class TestAlgorithm(object):
 
 
 class TestUnaryAlgorithm(object):
-    source = Array(native_coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"]))
+    source = Array(coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"]))
 
     def test_outputs(self):
         node = UnaryAlgorithm(source=self.source)

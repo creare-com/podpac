@@ -28,7 +28,7 @@ class MockTileCompositor(UniformTileCompositor):
             for n, (i, j, k) in enumerate(itertools.product(range(3), range(3), range(3)))
         ]
 
-    def get_native_coordinates(self):
+    def get_coordinates(self):
         return podpac.Coordinates(
             [["2018-01-01", "2018-01-03", "2018-01-05"], podpac.clinspace(0, 11, 12), podpac.clinspace(0, 11, 12)],
             dims=["time", "lat", "lon"],
@@ -44,7 +44,7 @@ class TestUniformTileMixin(object):
         tile = MyTile(grid=grid, tile=(1, 1, 0))
 
         assert tile.width == grid.tile_width
-        assert tile.native_coordinates == podpac.Coordinates(
+        assert tile.coordinates == podpac.Coordinates(
             ["2018-01-03", podpac.clinspace(4, 7, 4), podpac.clinspace(0, 3, 4)], dims=["time", "lat", "lon"]
         )
 
@@ -71,10 +71,10 @@ class TestTileCompositor(object):
     def test_native_coordinates(self):
         node = TileCompositor()
         with pytest.raises(NotImplementedError):
-            node.native_coordinates
+            node.coordinates
 
         node = MockTileCompositor()
-        assert node.native_coordinates == podpac.Coordinates(
+        assert node.coordinates == podpac.Coordinates(
             [["2018-01-01", "2018-01-03", "2018-01-05"], podpac.clinspace(0, 11, 12), podpac.clinspace(0, 11, 12)],
             dims=["time", "lat", "lon"],
         )
@@ -88,8 +88,8 @@ class TestUniformTileCompositor(object):
     def test_get_data_native_coordinates(self):
         node = MockTileCompositor()
 
-        # all native_coordinates
-        output = node.eval(node.native_coordinates)
+        # all coordinates
+        output = node.eval(node.coordinates)
         assert np.all(np.isfinite(output))
         np.testing.assert_array_equal(output[0, :4, :4], np.arange(16).reshape(4, 4) + 0)
         np.testing.assert_array_equal(output[0, :4, 4:8], np.arange(16).reshape(4, 4) + 20)
@@ -97,11 +97,11 @@ class TestUniformTileCompositor(object):
         np.testing.assert_array_equal(output[1, :4, :4], np.arange(16).reshape(4, 4) + 180)
 
         # single point
-        output = node.eval(node.native_coordinates[2, 2, 2])
+        output = node.eval(node.coordinates[2, 2, 2])
         np.testing.assert_array_equal(output, [[[370]]])
 
         # partial tiles
-        output = node.eval(node.native_coordinates[1, 2:6, 2:4])
+        output = node.eval(node.coordinates[1, 2:6, 2:4])
         np.testing.assert_array_equal(output, [[[190, 191], [194, 195], [242, 243], [246, 247]]])
 
     def test_get_data_spatial_interpolation(self):

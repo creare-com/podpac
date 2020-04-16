@@ -73,8 +73,8 @@ class WeatherCitizen(DataSource):
     override_limit = tl.Bool(allow_none=True, default_value=False).tag(attr=True)
 
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
         """
 
         # TODO: how to limit data retrieval for large queries?

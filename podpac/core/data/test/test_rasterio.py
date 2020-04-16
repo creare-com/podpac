@@ -38,14 +38,14 @@ class TestRasterio(object):
         """test default native coordinates implementations"""
 
         node = Rasterio(source=self.source)
-        assert isinstance(node.native_coordinates, Coordinates)
-        assert len(node.native_coordinates["lat"]) == 718
+        assert isinstance(node.coordinates, Coordinates)
+        assert len(node.coordinates["lat"]) == 718
 
     def test_get_data(self):
         """test default get_data method"""
 
         node = Rasterio(source=self.source)
-        output = node.eval(node.native_coordinates)
+        output = node.eval(node.coordinates)
         assert isinstance(output, UnitsDataArray)
 
     def test_band_count(self):

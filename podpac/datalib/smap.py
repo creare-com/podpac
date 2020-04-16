@@ -302,7 +302,7 @@ class SMAPCompositor(OrderedCompositor):
     shared_coordinates : :class:`podpac.Coordinates`.
         Coordinates that are shared amongst all of the composited sources.
     is_source_coordinates_complete : Bool
-        This flag is used to automatically construct native_coordinates as on optimization. Default is False.
+        This flag is used to automatically construct coordinates as on optimization. Default is False.
         For example, if the source coordinates could include the year-month-day of the source, but the actual source
         also has hour-minute-second information, the source_coordinates is incomplete.
     """
@@ -311,7 +311,7 @@ class SMAPCompositor(OrderedCompositor):
     shared_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None)
 
     def select_sources(self, coordinates):
-        """Select sources based on requested coordinates, including setting native_coordinates, if possible.
+        """Select sources based on requested coordinates, including setting coordinates, if possible.
         
         Parameters
         ----------
@@ -327,7 +327,7 @@ class SMAPCompositor(OrderedCompositor):
         -----
          * If :attr:`source_coordinates` is defined, only sources that intersect the requested coordinates are selected.
          * Sets sources :attr:`interpolation`.
-         * If source coordinates complete, sets sources :attr:`native_coordinates` as an optimization.
+         * If source coordinates complete, sets sources :attr:`coordinates` as an optimization.
         """
 
         """ Optimization: . """
@@ -440,8 +440,8 @@ class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
         return times
 
     @common_doc(COMMON_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
         """
         lons = np.array(self.dataset[self.lon_key][:, :])
         lats = np.array(self.dataset[self.lat_key][:, :])
@@ -464,13 +464,13 @@ class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
             pm_key = self.layer_key.format(rdk=self.root_data_key + "PM") + "_pm"
 
             try:
-                t = self.native_coordinates.coords["time"][0]
+                t = self.coordinates.coords["time"][0]
                 d.loc[dict(time=t)] = np.array(self.dataset[am_key][s])
             except:
                 pass
 
             try:
-                t = self.native_coordinates.coords["time"][1]
+                t = self.coordinates.coords["time"][1]
                 d.loc[dict(time=t)] = np.array(self.dataset[pm_key][s])
             except:
                 pass
@@ -562,8 +562,8 @@ class SMAPProperties(SMAPSource):
         return "{rdk}" + self.property
 
     @common_doc(COMMON_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
         """
         lons = np.array(self.dataset[self.lon_key][:, :])
         lats = np.array(self.dataset[self.lat_key][:, :])
@@ -662,7 +662,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
         if self.product in SMAP_INCOMPLETE_SOURCE_COORDINATES:
             return None
-        coords = copy.deepcopy(self.sources[0].native_coordinates)
+        coords = copy.deepcopy(self.sources[0].coordinates)
         return coords.drop("time")
 
     @cached_property
@@ -708,8 +708,8 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
     @property
     def is_source_coordinates_complete(self):
-        """Flag use to optimize creation of native_coordinates. If the source_coordinates are complete,
-        native_coordinates can easily be reconstructed, and same with shared coordinates. 
+        """Flag use to optimize creation of coordinates. If the source_coordinates are complete,
+        coordinates can easily be reconstructed, and same with shared coordinates. 
 
         Returns
         -------
@@ -922,7 +922,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
     @common_doc(COMMON_DOC)
     def find_coordinates(self):
         """
-        {native_coordinates}
+        {coordinates}
         
         Notes
         -----
@@ -1169,9 +1169,9 @@ if __name__ == "__main__":
     sm_source = sm_datefolder.sources[0]
     print("Sample DAP Source:", sm_source)
     print("Sample DAP Source Definition:", sm_source.json_pretty)
-    print("Sample DAP Native Coordinates:", sm_source.native_coordinates)
+    print("Sample DAP Native Coordinates:", sm_source.coordinates)
 
-    print("Another Sample DAP Native Coordinates:", sm_datefolder.sources[1].native_coordinates)
+    print("Another Sample DAP Native Coordinates:", sm_datefolder.sources[1].coordinates)
 
     # eval whole world
     c_world = Coordinates(

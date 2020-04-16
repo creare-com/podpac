@@ -162,7 +162,7 @@ class Generic(GenericInputs):
                 "NOTE: Allowing unsafe evaluation enables arbitrary execution of Python code through PODPAC "
                 "Node definitions."
             )
-        exec (self.code, inputs)
+        exec(self.code, inputs)
         return inputs["output"]
 
 

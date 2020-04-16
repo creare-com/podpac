@@ -116,7 +116,7 @@ class IntakeCatalog(podpac.data.DataSource):
 
         return dims
 
-    def get_native_coordinates(self):
+    def get_coordinates(self):
         """Get native coordinates from catalog definition or input dims
         """
 
@@ -190,10 +190,10 @@ if __name__ == "__main__":
     print("datasource")
     print(node.datasource)
 
-    print("native_coordinates")
-    print(node.native_coordinates)
+    print("coordinates")
+    print(node.coordinates)
 
     print("eval")
-    print(node.eval(node.native_coordinates))
+    print(node.eval(node.coordinates))
 
     print("done")

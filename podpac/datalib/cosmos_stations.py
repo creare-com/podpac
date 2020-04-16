@@ -87,7 +87,7 @@ class COSMOSStation(podpac.data.DataSource):
         data /= 100.0  # Make it fractional
         return self.create_output_array(coordinates, data=data[:, None, None])
 
-    def get_native_coordinates(self):
+    def get_coordinates(self):
         lat_lon = self.station_data["location"]
         time = np.loadtxt(
             StringIO(self.raw_data),
@@ -399,4 +399,4 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
-    print ("Done")
+    print("Done")

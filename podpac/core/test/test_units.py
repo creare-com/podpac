@@ -478,8 +478,8 @@ class TestOpenDataArray(object):
         lat = np.linspace(-10, 10, 5)
         lon = np.linspace(-10, 10, 5)
         native_coords = Coordinates([lat, lon], ["lat", "lon"])
-        node = Array(source=data, native_coordinates=native_coords)
-        uda = node.eval(node.native_coordinates)
+        node = Array(source=data, coordinates=native_coords)
+        uda = node.eval(node.coordinates)
 
         ncdf = uda.to_netcdf()
         uda_2 = UnitsDataArray.open(ncdf)
@@ -513,7 +513,7 @@ class TestToGeoTiff(object):
         # bands = 3
         node = Array(
             source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
-            native_coordinates=Coordinates([clinspace(4, 0, 2, "lat"), clinspace(1, 4, 4, "lon")][::order]),
+            coordinates=Coordinates([clinspace(4, 0, 2, "lat"), clinspace(1, 4, 4, "lon")][::order]),
             outputs=[str(s) for s in list(range(bands))],
         )
         return node
@@ -527,7 +527,7 @@ class TestToGeoTiff(object):
         c = Coordinates([rc])
         node = Array(
             source=np.arange(8 * bands).reshape(3 - order, 3 + order, bands),
-            native_coordinates=c,
+            coordinates=c,
             outputs=[str(s) for s in list(range(bands))],
         )
         return node
@@ -535,105 +535,105 @@ class TestToGeoTiff(object):
     def test_to_geotiff_rountrip_1band(self):
         # lat/lon order, usual
         node = self.make_square_array()
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
             rnode = Rasterio(source=fp.name, outputs=node.outputs)
-            assert rnode.native_coordinates == node.native_coordinates
+            assert rnode.coordinates == node.coordinates
 
-            rout = rnode.eval(rnode.native_coordinates)
+            rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(rout.data, out.data)
 
         # lon/lat order, unusual
         node = self.make_square_array(order=-1)
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
             rnode = Rasterio(source=fp.name, outputs=node.outputs)
-            assert rnode.native_coordinates == node.native_coordinates
+            assert rnode.coordinates == node.coordinates
 
-            rout = rnode.eval(rnode.native_coordinates)
+            rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(rout.data, out.data)
 
     def test_to_geotiff_rountrip_2band(self):
         # lat/lon order, usual
         node = self.make_square_array(bands=2)
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
             rnode = Rasterio(source=fp.name, outputs=node.outputs)
-            assert rnode.native_coordinates == node.native_coordinates
+            assert rnode.coordinates == node.coordinates
 
-            rout = rnode.eval(rnode.native_coordinates)
+            rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(rout.data, out.data)
 
         # lon/lat order, unsual
         node = self.make_square_array(order=-1, bands=2)
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
             rnode = Rasterio(source=fp.name, outputs=node.outputs)
-            assert rnode.native_coordinates == node.native_coordinates
+            assert rnode.coordinates == node.coordinates
 
-            rout = rnode.eval(rnode.native_coordinates)
+            rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(rout.data, out.data)
 
             # Check single output
             fp.seek(0)
             rnode = Rasterio(source=fp.name, outputs=node.outputs, output=node.outputs[1])
-            rout = rnode.eval(rnode.native_coordinates)
+            rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
             # Check single band 1
             fp.seek(0)
             rnode = Rasterio(source=fp.name, band=1)
-            rout = rnode.eval(rnode.native_coordinates)
+            rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 0], rout.data)
 
             # Check single band 2
             fp.seek(0)
             rnode = Rasterio(source=fp.name, band=2)
-            rout = rnode.eval(rnode.native_coordinates)
+            rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data[..., 1], rout.data)
 
     @pytest.mark.skip("TODO: We can remove this skipped test after solving #363")
     def test_to_geotiff_rountrip_rotcoords(self):
         # lat/lon order, usual
         node = self.make_rot_array()
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
             rnode = Rasterio(source=fp.name, outputs=node.outputs, mode="r")
-            assert node.native_coordinates == rnode.native_coordinates
+            assert node.coordinates == rnode.coordinates
 
-            rout = rnode.eval(rnode.native_coordinates)
+            rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data, rout.data)
 
         # lon/lat order, unsual
         node = self.make_square_array(order=-1)
-        out = node.eval(node.native_coordinates)
+        out = node.eval(node.coordinates)
         with tempfile.NamedTemporaryFile("wb") as fp:
             out.to_geotiff(fp)
             fp.write(b"a")  # for some reason needed to get good comparison
 
             fp.seek(0)
             rnode = Rasterio(source=fp.name, outputs=node.outputs)
-            assert node.native_coordinates == rnode.native_coordinates
+            assert node.coordinates == rnode.coordinates
 
-            rout = rnode.eval(rnode.native_coordinates)
+            rout = rnode.eval(rnode.coordinates)
             np.testing.assert_almost_equal(out.data, rout.data)

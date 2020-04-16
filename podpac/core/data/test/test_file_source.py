@@ -226,7 +226,7 @@ class TestFileKeys(object):
 
     def test_native_coordinates(self):
         node = MockFileKeys()
-        nc = node.native_coordinates
+        nc = node.coordinates
         assert nc.dims == ("lat", "lon", "time", "alt")
         np.testing.assert_array_equal(nc["lat"].coordinates, LAT)
         np.testing.assert_array_equal(nc["lon"].coordinates, LON)

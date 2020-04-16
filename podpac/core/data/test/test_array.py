@@ -15,20 +15,20 @@ class TestArray(object):
     coordinates = Coordinates([clinspace(-25, 25, 11), clinspace(-25, 25, 11)], dims=["lat", "lon"])
 
     def test_data_array(self):
-        node = Array(source=self.data, native_coordinates=self.coordinates)
+        node = Array(source=self.data, coordinates=self.coordinates)
 
     def test_data_list(self):
         # list is coercable to array
-        node = Array(source=[0, 1, 1], native_coordinates=self.coordinates)
+        node = Array(source=[0, 1, 1], coordinates=self.coordinates)
 
     def test_invalid_data(self):
         with pytest.raises(ValueError, match="Array 'source' data must be numerical"):
-            node = Array(source=["a", "b"], native_coordinates=self.coordinates)
+            node = Array(source=["a", "b"], coordinates=self.coordinates)
 
     def test_get_data(self):
         """ defined get_data function"""
 
-        node = Array(source=self.data, native_coordinates=self.coordinates)
+        node = Array(source=self.data, coordinates=self.coordinates)
         output = node.eval(self.coordinates)
 
         assert isinstance(output, UnitsDataArray)
@@ -37,7 +37,7 @@ class TestArray(object):
 
     def test_get_data_multiple(self):
         data = np.random.rand(11, 11, 2)
-        node = Array(source=data, native_coordinates=self.coordinates, outputs=["a", "b"])
+        node = Array(source=data, coordinates=self.coordinates, outputs=["a", "b"])
         output = node.eval(self.coordinates)
         assert isinstance(output, UnitsDataArray)
         assert output.dims == ("lat", "lon", "output")
@@ -45,19 +45,19 @@ class TestArray(object):
         np.testing.assert_array_equal(output.sel(output="a"), data[:, :, 0])
         np.testing.assert_array_equal(output.sel(output="b"), data[:, :, 1])
 
-        node = Array(source=data, native_coordinates=self.coordinates, outputs=["a", "b"], output="b")
+        node = Array(source=data, coordinates=self.coordinates, outputs=["a", "b"], output="b")
         output = node.eval(self.coordinates)
         assert isinstance(output, UnitsDataArray)
         assert output.dims == ("lat", "lon")
         np.testing.assert_array_equal(output, data[:, :, 1])
 
     def test_native_coordinates(self):
-        node = Array(source=self.data, native_coordinates=self.coordinates)
-        assert node.native_coordinates
+        node = Array(source=self.data, coordinates=self.coordinates)
+        assert node.coordinates
 
         node = Array(source=self.data)
         with pytest.raises(tl.TraitError):
-            node.native_coordinates
+            node.coordinates
 
     def test_no_cache(self):
         node = Array()

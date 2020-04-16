@@ -28,8 +28,8 @@ class Rasterio(LoadFileMixin, BaseFileSource):
         Path to the data source
     dataset : :class:`rasterio._io.RasterReader`
         A reference to the datasource opened by rasterio
-    native_coordinates : :class:`podpac.Coordinates`
-        {native_coordinates}
+    coordinates : :class:`podpac.Coordinates`
+        {coordinates}
     band : int
         The 'band' or index for the variable being accessed in files such as GeoTIFFs. Use None for all bounds.
      crs : str, optional
@@ -70,8 +70,8 @@ class Rasterio(LoadFileMixin, BaseFileSource):
         self.dataset.close()
 
     @common_doc(COMMON_DATA_DOC)
-    def get_native_coordinates(self):
-        """{get_native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
         
         The default implementation tries to find the lat/lon coordinates based on dataset.affine.
         It cannot determine the alt or time dimensions, so child classes may
