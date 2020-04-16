@@ -51,7 +51,7 @@ class TestArray(object):
         assert output.dims == ("lat", "lon")
         np.testing.assert_array_equal(output, data[:, :, 1])
 
-    def test_native_coordinates(self):
+    def test_coordinates(self):
         node = Array(source=self.data, coordinates=self.coordinates)
         assert node.coordinates
 

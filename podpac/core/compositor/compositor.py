@@ -243,7 +243,7 @@ class BaseCompositor(Node):
 
     def find_coordinates(self):
         """
-        Get the available native coordinates for the Node.
+        Get the available coordinates for the Node.
 
         Returns
         -------

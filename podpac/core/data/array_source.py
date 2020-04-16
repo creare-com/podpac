@@ -89,6 +89,6 @@ class Array(NoCacheMixin, DataSource):
         d = self.create_output_array(coordinates, data=self.source[coordinates_index])
         return d
 
-    def set_native_coordinates(self, value):
+    def set_coordinates(self, value):
         """ Not needed. """
         pass

@@ -142,7 +142,7 @@ class ExpandCoordinates(ModifyCoordinates):
             return coords1d
 
         if len(expansion) == 2:
-            # use available native coordinates
+            # use available coordinates
             dstart = make_coord_delta(expansion[0])
             dstop = make_coord_delta(expansion[1])
 

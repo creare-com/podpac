@@ -282,7 +282,7 @@ class Node(tl.HasTraits):
 
     def find_coordinates(self):
         """
-        Get all available native coordinates for the Node. Implemented in child classes.
+        Get all available coordinates for the Node. Implemented in child classes.
 
         Returns
         -------

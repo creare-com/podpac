@@ -68,7 +68,7 @@ class TestTileCompositor(object):
         assert len(node.sources) == 27
         assert all(isinstance(tile, MockTile) for tile in node.sources)
 
-    def test_native_coordinates(self):
+    def test_coordinates(self):
         node = TileCompositor()
         with pytest.raises(NotImplementedError):
             node.coordinates
@@ -85,7 +85,7 @@ class TestUniformTileCompositor(object):
         node = MockTileCompositor()
         assert node.tile_width == (1, 4, 4)
 
-    def test_get_data_native_coordinates(self):
+    def test_get_data_coordinates(self):
         node = MockTileCompositor()
 
         # all coordinates

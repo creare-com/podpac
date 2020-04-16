@@ -135,8 +135,8 @@ class TestWCS(object):
         podpac.core.data.ogc.urllib3 = urllib3
         podpac.core.data.ogc.lxml = lxml
 
-    def test_native_coordinates(self):
-        """get native coordinates"""
+    def test_coordinates(self):
+        """get coordinates"""
 
         self.mock_requests()
         node = WCS(source=self.source)
