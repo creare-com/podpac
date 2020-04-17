@@ -35,7 +35,8 @@ DEFAULT_SETTINGS = {
     "UNSAFE_EVAL_HASH": uuid.uuid4().hex,  # unique id for running unsafe evaluations
     # cache
     "DEFAULT_CACHE": ["ram"],
-    "CACHE_OUTPUT_DEFAULT": True,
+    "CACHE_DATASOURCE_OUTPUT_DEFAULT": True,
+    "CACHE_NODE_OUTPUT_DEFAULT": False,
     "RAM_CACHE_MAX_BYTES": 1e9,  # ~1GB
     "DISK_CACHE_MAX_BYTES": 10e9,  # ~10GB
     "S3_CACHE_MAX_BYTES": 10e9,  # ~10GB
@@ -109,8 +110,10 @@ class PodpacSettings(dict):
         Notification email for when AWS usage reaches 80% of the `AWS_BUDGET_AMOUNT`
     DEFAULT_CACHE : list
         Defines a default list of cache stores in priority order. Defaults to `['ram']`.
-    CACHE_OUTPUT_DEFAULT : bool
+    CACHE_NODE_OUTPUT_DEFAULT : bool
         Default value for node ``cache_output`` trait. If True, the outputs of nodes (eval) will be automatically cached.
+    CACHE_DATASOURCE_OUTPUT_DEFAULT : bool
+        Default value for DataSource nodes ``cache_output`` trait. If True, the outputs of nodes (eval) will be automatically cached.
     RAM_CACHE_MAX_BYTES : int
         Maximum RAM cache size in bytes. 
         Note, for RAM cache only, the limit is applied to the total amount of RAM used by the python process; 
