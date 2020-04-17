@@ -53,7 +53,7 @@ class TestAlgorithm(object):
 
         with podpac.settings:
             podpac.settings.set_unsafe_eval(True)
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings["RAM_CACHE_ENABLED"] = False
 
@@ -78,7 +78,7 @@ class TestAlgorithm(object):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 3
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = True
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = True
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
             podpac.settings["RAM_CACHE_ENABLED"] = True
             podpac.settings.set_unsafe_eval(True)
@@ -113,7 +113,7 @@ class TestAlgorithm(object):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 8
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings["RAM_CACHE_ENABLED"] = False
             podpac.settings.set_unsafe_eval(True)
@@ -126,7 +126,7 @@ class TestAlgorithm(object):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 9  # 2 threads available after first 7
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings["RAM_CACHE_ENABLED"] = False
             podpac.settings.set_unsafe_eval(True)
