@@ -22,7 +22,7 @@ class TestH5PY(object):
         assert node.available_data_keys == ["/data/init"]
         node.close_dataset()
 
-    def test_native_coordinates(self):
+    def test_coordinates(self):
         node = H5PY(source=self.source, data_key="/data/init", lat_key="/coords/lat", lon_key="/coords/lon")
         nc = node.coordinates
         assert node.coordinates.shape == (3, 4)

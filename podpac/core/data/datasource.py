@@ -65,7 +65,7 @@ DATA_DOC = {
             at the requested source coordinates.
         """,
     "get_coordinates": """
-        Returns a Coordinates object that describes the native coordinates of the data source.
+        Returns a Coordinates object that describes the coordinates of the data source.
 
         In most cases, this method is defined by the data source implementing the DataSource class.
         If method is not implemented by the data source, it will try to return ``self.coordinates``
@@ -142,8 +142,8 @@ class DataSource(Node):
     coordinate_index_type : str, optional
         Type of index to use for data source. Possible values are ``['list', 'numpy', 'xarray', 'pandas']``
         Default is 'numpy'
-    cache_native_coordinates : bool
-        Whether to cache native coordinates using the podpac ``cache_ctrl``. Default False.
+    cache_coordinates : bool
+        Whether to cache coordinates using the podpac ``cache_ctrl``. Default False.
 
     
     Notes
@@ -155,11 +155,11 @@ class DataSource(Node):
     nan_vals = tl.List().tag(attr=True)
 
     coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
-    cache_native_coordinates = tl.Bool(False)
+    cache_coordinates = tl.Bool(False)
 
     # privates
     _interpolation = tl.Instance(Interpolation)
-    _native_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
+    _coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None, read_only=True)
 
     _original_requested_coordinates = tl.Instance(Coordinates, allow_none=True)
     _requested_source_coordinates = tl.Instance(Coordinates)
@@ -213,15 +213,15 @@ class DataSource(Node):
     def coordinates(self):
         """{coordinates}"""
 
-        if self._native_coordinates is not None:
-            nc = self._native_coordinates
-        elif self.cache_native_coordinates and self.has_cache("coordinates"):
+        if self._coordinates is not None:
+            nc = self._coordinates
+        elif self.cache_coordinates and self.has_cache("coordinates"):
             nc = self.get_cache("coordinates")
-            self.set_trait("_native_coordinates", nc)
+            self.set_trait("_coordinates", nc)
         else:
             nc = self.get_coordinates()
-            self.set_trait("_native_coordinates", nc)
-            if self.cache_native_coordinates:
+            self.set_trait("_coordinates", nc)
+            if self.cache_coordinates:
                 self.put_cache(nc, "coordinates")
         return nc
 
@@ -294,10 +294,10 @@ class DataSource(Node):
     def eval(self, coordinates, output=None):
         """Evaluates this node using the supplied coordinates.
 
-        The native coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
+        The coordinates are mapped to the requested coordinates, interpolated if necessary, and set to
         `_requested_source_coordinates` with associated index `_requested_source_coordinates_index`. The requested
         source coordinates and index are passed to `get_data()` returning the source data at the
-        native coordinatesset to `_requested_source_data`. Finally `_requested_source_data` is interpolated
+        coordinatesset to `_requested_source_data`. Finally `_requested_source_data` is interpolated
         using the `interpolate` method and set to the `output` attribute of the node.
 
 
@@ -361,14 +361,14 @@ class DataSource(Node):
         if self.coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
 
-        # intersect the native coordinates with requested coordinates
-        # to get native coordinates within requested coordinates bounds
+        # intersect the coordinates with requested coordinates
+        # to get coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
         (self._requested_source_coordinates, self._requested_source_coordinates_index) = self.coordinates.intersect(
             coordinates, outer=True, return_indices=True
         )
 
-        # if requested coordinates and native coordinates do not intersect, shortcut with nan UnitsDataArary
+        # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if self._requested_source_coordinates.size == 0:
             if output is None:
                 output = self.create_output_array(self._evaluated_coordinates)
@@ -447,7 +447,7 @@ class DataSource(Node):
             o = o.transpose(*output_dims)
             o.data[:] = output.transpose(*output_dims).data
 
-        # if requested crs is differented than native coordinates,
+        # if requested crs is differented than coordinates,
         # fabricate a new output with the original coordinates and new values
         if self._evaluated_coordinates.crs != coordinates.crs:
             output = self.create_output_array(self._evaluated_coordinates, data=output[:].values)
@@ -460,7 +460,7 @@ class DataSource(Node):
 
     def find_coordinates(self):
         """
-        Get the available native coordinates for the Node. For a DataSource, this is just the coordinates.
+        Get the available coordinates for the Node. For a DataSource, this is just the coordinates.
 
         Returns
         -------
@@ -492,7 +492,7 @@ class DataSource(Node):
         """
         raise NotImplementedError
 
-    def set_native_coordinates(self, coordinates, force=False):
+    def set_coordinates(self, coordinates, force=False):
         """ Set the coordinates. Used by Compositors as an optimization.
 
         Arguments
@@ -503,5 +503,5 @@ class DataSource(Node):
         NOTE: This is only currently used by SMAPCompositor. It should potentially be moved to the SMAPSource.
         """
 
-        if not self.trait_is_defined("_native_coordinates"):
-            self.set_trait("_native_coordinates", coordinates)
+        if not self.trait_is_defined("_coordinates"):
+            self.set_trait("_coordinates", coordinates)

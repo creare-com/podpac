@@ -42,7 +42,7 @@ COMMON_NODE_DOC = {
             Unit-aware xarray DataArray containing the results of the node evaluation.
         """,
     "hash_return": "A unique hash capturing the coordinates and parameters used to evaluate the node. ",
-    "outdir": "Optional output directory. Uses :attr:`podpac.settings['DISK_CACHE_DIR']` by default",
+    "outdir": "Optional output directory. Uses :attr:`podpac.settings[.cache_path` by default",
     "definition_return": """
         OrderedDict
             Dictionary containing the location of the Node, the name of the plugin (if required), as well as any
@@ -282,7 +282,7 @@ class Node(tl.HasTraits):
 
     def find_coordinates(self):
         """
-        Get all available native coordinates for the Node. Implemented in child classes.
+        Get all available coordinates for the Node. Implemented in child classes.
 
         Returns
         -------

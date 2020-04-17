@@ -71,12 +71,12 @@ class TestDataSource(object):
         with pytest.raises(NotImplementedError):
             node.get_data(None, None)
 
-    def test_get_native_coordinates_not_implemented(self):
+    def test_get_coordinates_not_implemented(self):
         node = DataSource()
         with pytest.raises(NotImplementedError):
             node.get_coordinates()
 
-    def test_native_coordinates(self):
+    def test_coordinates(self):
         # not implemented
         node = DataSource()
         with pytest.raises(NotImplementedError):
@@ -84,35 +84,35 @@ class TestDataSource(object):
 
         # use get_coordinates (once)
         class MyDataSource(DataSource):
-            get_native_coordinates_called = 0
+            get_coordinates_called = 0
 
             def get_coordinates(self):
-                self.get_native_coordinates_called += 1
+                self.get_coordinates_called += 1
                 return Coordinates([])
 
         node = MyDataSource()
-        assert node.get_native_coordinates_called == 0
+        assert node.get_coordinates_called == 0
         assert isinstance(node.coordinates, Coordinates)
-        assert node.get_native_coordinates_called == 1
+        assert node.get_coordinates_called == 1
         assert isinstance(node.coordinates, Coordinates)
-        assert node.get_native_coordinates_called == 1
+        assert node.get_coordinates_called == 1
 
         # can't set
         with pytest.raises(AttributeError, match="can't set attribute"):
             node.coordinates = Coordinates([])
 
-    def test_cache_native_coordinates(self):
+    def test_cache_coordinates(self):
         class MyDataSource(DataSource):
-            get_native_coordinates_called = 0
+            get_coordinates_called = 0
 
             def get_coordinates(self):
-                self.get_native_coordinates_called += 1
+                self.get_coordinates_called += 1
                 return Coordinates([])
 
-        a = MyDataSource(cache_native_coordinates=True, cache_ctrl=["ram"])
-        b = MyDataSource(cache_native_coordinates=True, cache_ctrl=["ram"])
-        c = MyDataSource(cache_native_coordinates=False, cache_ctrl=["ram"])
-        d = MyDataSource(cache_native_coordinates=True, cache_ctrl=[])
+        a = MyDataSource(cache_coordinates=True, cache_ctrl=["ram"])
+        b = MyDataSource(cache_coordinates=True, cache_ctrl=["ram"])
+        c = MyDataSource(cache_coordinates=False, cache_ctrl=["ram"])
+        d = MyDataSource(cache_coordinates=True, cache_ctrl=[])
 
         a.rem_cache("*")
         b.rem_cache("*")
@@ -121,11 +121,11 @@ class TestDataSource(object):
 
         # get_coordinates called once
         assert not a.has_cache("coordinates")
-        assert a.get_native_coordinates_called == 0
+        assert a.get_coordinates_called == 0
         assert isinstance(a.coordinates, Coordinates)
-        assert a.get_native_coordinates_called == 1
+        assert a.get_coordinates_called == 1
         assert isinstance(a.coordinates, Coordinates)
-        assert a.get_native_coordinates_called == 1
+        assert a.get_coordinates_called == 1
 
         # coordinates is cached to a, b, and c
         assert a.has_cache("coordinates")
@@ -134,30 +134,30 @@ class TestDataSource(object):
         assert not d.has_cache("coordinates")
 
         # b: use cache, get_coordinates not called
-        assert b.get_native_coordinates_called == 0
+        assert b.get_coordinates_called == 0
         assert isinstance(b.coordinates, Coordinates)
-        assert b.get_native_coordinates_called == 0
+        assert b.get_coordinates_called == 0
 
         # c: don't use cache, get_coordinates called
-        assert c.get_native_coordinates_called == 0
+        assert c.get_coordinates_called == 0
         assert isinstance(c.coordinates, Coordinates)
-        assert c.get_native_coordinates_called == 1
+        assert c.get_coordinates_called == 1
 
         # d: use cache but there is no ram cache for this node, get_coordinates is called
-        assert d.get_native_coordinates_called == 0
+        assert d.get_coordinates_called == 0
         assert isinstance(d.coordinates, Coordinates)
-        assert d.get_native_coordinates_called == 1
+        assert d.get_coordinates_called == 1
 
-    def test_set_native_coordinates(self):
+    def test_set_coordinates(self):
         node = MockDataSource()
-        node.set_native_coordinates(Coordinates([]))
+        node.set_coordinates(Coordinates([]))
         assert node.coordinates == Coordinates([])
         assert node.coordinates != node.get_coordinates()
 
         # don't overwrite
         node = MockDataSource()
         node.coordinates
-        node.set_native_coordinates(Coordinates([]))
+        node.set_coordinates(Coordinates([]))
         assert node.coordinates != Coordinates([])
         assert node.coordinates == node.get_coordinates()
 
@@ -199,8 +199,8 @@ class TestDataSource(object):
         assert "lon" in list(node.interpolators.keys())[0]
         assert isinstance(list(node.interpolators.values())[0], Interpolator)
 
-    def test_evaluate_at_native_coordinates(self):
-        """evaluate node at native coordinates"""
+    def test_evaluate_at_coordinates(self):
+        """evaluate node at coordinates"""
 
         node = MockDataSource()
         output = node.eval(node.coordinates)

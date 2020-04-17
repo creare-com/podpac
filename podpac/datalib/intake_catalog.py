@@ -34,7 +34,7 @@ class IntakeCatalog(podpac.data.DataSource):
         If source is a dataframe with multiple fields, this specifies the field to use for analysis.for
         Can be defined in the metadata in the intake catalog source.
     dims : dict, optional
-        Dictionary defining the native coordinates dimensions in the intake catalog source.
+        Dictionary defining the coordinates dimensions in the intake catalog source.
         Keys are the podpac dimensions (lat, lon, time, alt) in stacked or unstacked form.
         Values are the identifiers which locate the coordinates in the datasource.
         Can be defined in the metadata in the intake catalog source.
@@ -43,7 +43,7 @@ class IntakeCatalog(podpac.data.DataSource):
             {'lat_lon': ['lat column', 'lon column']}
             {'time': 'time'}
     crs : str, optional
-        Coordinate reference system of the native coordinates.
+        Coordinate reference system of the coordinates.
         Can be defined in the metadata in the intake catalog source.
 
 
@@ -117,7 +117,7 @@ class IntakeCatalog(podpac.data.DataSource):
         return dims
 
     def get_coordinates(self):
-        """Get native coordinates from catalog definition or input dims
+        """Get coordinates from catalog definition or input dims
         """
 
         # look for dims in catalog
@@ -125,7 +125,7 @@ class IntakeCatalog(podpac.data.DataSource):
             if "dims" in self.datasource.metadata:
                 self.dims = self.datasource.metadata["dims"]
             else:
-                raise ValueError("No native coordinates dims defined in catalog or input")
+                raise ValueError("No coordinates dims defined in catalog or input")
 
         # look for crs in catalog
         if self.crs is None:

@@ -37,7 +37,7 @@ class GFS(S3Mixin, DiskCacheMixin, DataSource):
     date = tl.Unicode().tag(attr=True)
     hour = tl.Unicode().tag(attr=True)
 
-    cache_native_coordinates = tl.Bool(True)
+    cache_coordinates = tl.Bool(True)
 
     @property
     def prefix(self):

@@ -23,10 +23,7 @@ class DiskCacheStore(FileCacheStore):
         if not settings["DISK_CACHE_ENABLED"]:
             raise CacheException("Disk cache is disabled in the podpac settings.")
 
-        if os.path.isabs(settings["DISK_CACHE_DIR"]):
-            self._root_dir_path = settings["DISK_CACHE_DIR"]
-        else:
-            self._root_dir_path = os.path.join(settings["ROOT_PATH"], settings["DISK_CACHE_DIR"])
+        self._root_dir_path = settings.cache_path
 
     # -----------------------------------------------------------------------------------------------------------------
     # public cache API

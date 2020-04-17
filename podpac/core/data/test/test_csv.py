@@ -126,7 +126,7 @@ class TestCSV(object):
             # specify one: invalid with pytest.raises(ValueError, match="Invalid data_key"):
             node = CSV(source=self.source_multiple, data_key=6, alt_key="altitude", crs="+proj=merc +vunits=m")
 
-    def test_native_coordinates(self):
+    def test_coordinates(self):
         node = CSV(source=self.source_single, alt_key="altitude", crs="+proj=merc +vunits=m")
         nc = node.coordinates
         assert nc.dims == ("lat_lon_time_alt",)

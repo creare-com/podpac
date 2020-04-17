@@ -473,7 +473,7 @@ def lower_precision_time_bounds(my_bounds, other_bounds, outer):
     Parameters
     -----------
     my_bounds : List(np.datetime64)
-        The bounds of the native coordinates of the dataset
+        The bounds of the coordinates of the dataset
     other_bounds : List(np.datetime64)
         The bounds used for the selection
     outer : bool
@@ -482,7 +482,7 @@ def lower_precision_time_bounds(my_bounds, other_bounds, outer):
     Returns
     --------
     my_bounds : List(np.datetime64)
-        The bounds of the native coordinates of the dataset at the new precision
+        The bounds of the coordinates of the dataset at the new precision
     other_bounds : List(np.datetime64)
         The bounds used for the selection at the new precision, if outer == True, otherwise return original coordinates    
     """
