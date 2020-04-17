@@ -75,10 +75,10 @@ class LoadFileMixin(S3Mixin):
     Attributes
     ----------
     cache_dataset : bool
-        Whether to cache the dataset after loading.
+        Default is False. Whether to cache the dataset after loading (as an optimization).
     """
 
-    cache_dataset = tl.Bool(True)
+    cache_dataset = tl.Bool(False)
 
     @cached_property
     def _dataset_caching_node(self):
@@ -88,7 +88,7 @@ class LoadFileMixin(S3Mixin):
     @cached_property
     def dataset(self):
         # use the _dataset_caching_node "stub" here because the only node attr we care about is the source
-        if self._dataset_caching_node.has_cache(key="dataset"):
+        if self.cache_dataset and self._dataset_caching_node.has_cache(key="dataset"):
             data = self._dataset_caching_node.get_cache(key="dataset")
             with BytesIO(data) as f:
                 return self._open(BytesIO(data), cache=False)

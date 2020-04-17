@@ -278,7 +278,7 @@ class TestDayOfYear(object):
 
 class F(DayOfYearWindow):
     cache_output = tl.Bool(False)
-    cache_update = tl.Bool(True)
+    force_eval = tl.Bool(True)
 
     def function(self, data, output):
         return len(data)
@@ -286,7 +286,7 @@ class F(DayOfYearWindow):
 
 class FM(DayOfYearWindow):
     cache_output = tl.Bool(False)
-    cache_update = tl.Bool(True)
+    force_eval = tl.Bool(True)
 
     def function(self, data, output):
         return np.mean(data)
@@ -302,7 +302,7 @@ class TestDayOfYearWindow(object):
         )
 
         node = Arange()
-        nodedoywindow = F(source=node, window=1, cache_output=False, cache_update=True)
+        nodedoywindow = F(source=node, window=1, cache_output=False, force_eval=True)
         o = nodedoywindow.eval(coords)
 
         np.testing.assert_array_equal(o, [2, 2, 1, 1, 2, 2])
@@ -316,7 +316,7 @@ class TestDayOfYearWindow(object):
         )
 
         node = Arange()
-        nodedoywindow = F(source=node, window=2, cache_output=False, cache_update=True)
+        nodedoywindow = F(source=node, window=2, cache_output=False, force_eval=True)
         o = nodedoywindow.eval(coords)
 
         np.testing.assert_array_equal(o, [6, 5, 3, 3, 5, 6])
@@ -330,11 +330,11 @@ class TestDayOfYearWindow(object):
         )
 
         node = Arange()
-        nodedoywindow = FM(source=node, window=2, cache_output=False, cache_update=True)
+        nodedoywindow = FM(source=node, window=2, cache_output=False, force_eval=True)
         o = nodedoywindow.eval(coords)
 
         nodedoywindow_s = FM(
-            source=node, window=2, cache_output=False, cache_update=True, scale_float=[0, coords.size], rescale=True
+            source=node, window=2, cache_output=False, force_eval=True, scale_float=[0, coords.size], rescale=True
         )
         o_s = nodedoywindow_s.eval(coords)
 
@@ -359,7 +359,7 @@ class TestDayOfYearWindow(object):
                 source=node,
                 window=2,
                 cache_output=False,
-                cache_update=True,
+                force_eval=True,
                 scale_max=node_max,
                 scale_min=node_min,
                 rescale=False,

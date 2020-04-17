@@ -97,8 +97,9 @@ class Node(tl.HasTraits):
         (CACHE_NODE_OUTPUT_DEFAULT for general Nodes, and CACHE_DATASOURCE_OUTPUT_DEFAULT  for DataSource nodes). 
         If True, outputs will be cached and retrieved from cache. If False, outputs will not be cached OR retrieved from cache (even if 
         they exist in cache). 
-    cache_update: bool
-        Default is True. Should the node's cached output be updated from the source data?
+    force_eval: bool
+        Default is False. Should the node's cached output be updated from the source data? If True it ignores the cache
+        when computing outputs but puts results into the cache (thereby updating the cache)
     cache_ctrl: :class:`podpac.core.cache.cache.CacheCtrl`
         Class that controls caching. If not provided, uses default based on settings.
     dtype : type
@@ -129,7 +130,7 @@ class Node(tl.HasTraits):
 
     dtype = tl.Any(default_value=float)
     cache_output = tl.Bool()
-    cache_update = tl.Bool(False)
+    force_eval = tl.Bool(False)
     cache_ctrl = tl.Instance(CacheCtrl, allow_none=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
@@ -972,7 +973,7 @@ def node_eval(fn):
         key = cache_key
         cache_coordinates = coordinates.transpose(*sorted(coordinates.dims))  # order agnostic caching
 
-        if not self.cache_update and self.cache_output and self.has_cache(key, cache_coordinates):
+        if not self.force_eval and self.cache_output and self.has_cache(key, cache_coordinates):
             data = self.get_cache(key, cache_coordinates)
             if output is not None:
                 order = [dim for dim in output.dims if dim not in data.dims] + list(data.dims)
