@@ -71,11 +71,11 @@ class TestNode(object):
 
     def test_cache_output(self):
         with podpac.settings:
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             node = Node()
             assert not node.cache_output
 
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = True
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = True
             node = Node()
             assert node.cache_output
 

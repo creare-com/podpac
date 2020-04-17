@@ -144,7 +144,10 @@ class DataSource(Node):
         Default is 'numpy'
     cache_coordinates : bool
         Whether to cache coordinates using the podpac ``cache_ctrl``. Default False.
-
+    cache_output : bool
+        Should the node's output be cached? If not provided or None, uses default based on 
+        settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]. If True, outputs will be cached and retrieved from cache. If False,
+        outputs will not be cached OR retrieved from cache (even if they exist in cache). 
     
     Notes
     -----
@@ -156,6 +159,7 @@ class DataSource(Node):
 
     coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
     cache_coordinates = tl.Bool(False)
+    cache_output = tl.Bool()
 
     # privates
     _interpolation = tl.Instance(Interpolation)
@@ -172,6 +176,10 @@ class DataSource(Node):
     def _default_interpolation(self):
         self._set_interpolation()
         return self._interpolation
+
+    @tl.default("cache_output")
+    def _cache_output_default(self):
+        return settings["CACHE_DATASOURCE_OUTPUT_DEFAULT"]
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
