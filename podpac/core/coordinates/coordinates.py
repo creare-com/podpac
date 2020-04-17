@@ -895,6 +895,22 @@ class Coordinates(tl.HasTraits):
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
 
+    def get_area_bounds(self, segments):
+        """Get coordinate area bounds, including segment information, for each unstacked dimension.
+
+        Arguments
+        ---------
+        segments : dict
+            dictionary of segments for each unstacked dimension. Non-segment dimensions can be omitted.
+
+        Returns
+        -------
+        area_bounds : dict
+            Dictionary of (low, high) coordinates area_bounds in each unstacked dimension
+        """
+
+        return {dim: self[dim].get_area_bounds(segments.get(dim)) for dim in self.udims}
+
     def drop(self, dims, ignore_missing=False):
         """
         Remove the given dimensions from the Coordinates `dims`.

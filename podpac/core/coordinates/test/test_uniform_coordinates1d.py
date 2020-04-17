@@ -7,6 +7,7 @@ import numpy as np
 from numpy.testing import assert_equal
 
 import podpac
+from podpac.core.coordinates.utils import make_coord_array
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
@@ -732,6 +733,48 @@ class TestUniformCoordinatesIndexing(object):
         assert c2.name == c.name
         assert c2.properties == c.properties
         assert_equal(c2.coordinates, [50, 40, 30, 10])
+
+
+class TestArrayCoordinatesAreaBounds(object):
+    def test_get_area_bounds_numerical(self):
+        c = UniformCoordinates1d(0, 50, 10)
+
+        # point
+        area_bounds = c.get_area_bounds(None)
+        assert_equal(area_bounds, [0.0, 50.0])
+
+        # uniform
+        area_bounds = c.get_area_bounds(0.5)
+        assert_equal(area_bounds, [-0.5, 50.5])
+
+        # segment
+        area_bounds = c.get_area_bounds([-0.2, 0.7])
+        assert_equal(area_bounds, [-0.2, 50.7])
+
+        # polygon (i.e. there would be corresponding offets for another dimension)
+        area_bounds = c.get_area_bounds([-0.2, -0.5, 0.7, 0.5])
+        assert_equal(area_bounds, [-0.5, 50.7])
+
+    def test_get_area_bounds_datetime(self):
+        c = UniformCoordinates1d("2018-01-01", "2018-01-04", "1,D")
+
+        # point
+        area_bounds = c.get_area_bounds(None)
+        assert_equal(area_bounds, make_coord_array(["2018-01-01", "2018-01-04"]))
+
+        # uniform
+        area_bounds = c.get_area_bounds("1,D")
+        assert_equal(area_bounds, make_coord_array(["2017-12-31", "2018-01-05"]))
+
+        area_bounds = c.get_area_bounds("1,M")
+        assert_equal(area_bounds, make_coord_array(["2017-12-01", "2018-02-04"]))
+
+        area_bounds = c.get_area_bounds("1,Y")
+        assert_equal(area_bounds, make_coord_array(["2017-01-01", "2019-01-04"]))
+
+        # segment
+        area_bounds = c.get_area_bounds(["0,h", "12,h"])
+        assert_equal(area_bounds, make_coord_array(["2018-01-01 00:00", "2018-01-04 12:00"]))
 
 
 class TestUniformCoordinatesSelection(object):

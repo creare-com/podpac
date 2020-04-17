@@ -5,7 +5,7 @@ Test interpolation methods
 """
 # pylint: disable=C0111,W0212,R0903
 
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from copy import deepcopy
 
 import pytest
@@ -309,7 +309,9 @@ class TestInterpolation(object):
         class TestInterp(Interpolator):
             dims_supported = ["lat", "lon"]
 
-            def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
+            def interpolate(
+                self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data
+            ):
                 output_data = source_data
                 return output_data
 
@@ -324,7 +326,7 @@ class TestInterpolation(object):
         )
 
         interp = Interpolation({"method": "myinterp", "interpolators": [TestInterp], "dims": ["lat", "lon"]})
-        outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
+        outdata = interp.interpolate(srccoords, defaultdict(lambda: None), srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
 
@@ -332,7 +334,9 @@ class TestInterpolation(object):
         class TestFakeInterp(Interpolator):
             dims_supported = ["lat"]
 
-            def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
+            def interpolate(
+                self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data
+            ):
                 return None
 
         reqcoords = Coordinates([[1]], dims=["lat"])
@@ -345,7 +349,7 @@ class TestInterpolation(object):
         )
 
         interp = Interpolation({"method": "myinterp", "interpolators": [TestFakeInterp], "dims": ["lat", "lon"]})
-        outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
+        outdata = interp.interpolate(srccoords, defaultdict(lambda: None), srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
 
@@ -592,8 +596,12 @@ class TestInterpolators(object):
             assert output.data[0, 3] == 9.0
             assert output.data[0, 4] == 9.0
 
+            # TODO boundary should be able to use a default
             node = MockArrayDataSource(
-                data=source, coordinates=coords_src, interpolation={"method": "bilinear", "interpolators": [Rasterio]}
+                data=source,
+                coordinates=coords_src,
+                interpolation={"method": "bilinear", "interpolators": [Rasterio]},
+                boundary={"lat": 2.5, "lon": 1.25},
             )
             output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)

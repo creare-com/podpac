@@ -272,6 +272,24 @@ class RotatedCoordinates(DependentCoordinates):
         """
         return RotatedCoordinates(self.shape, self.theta, self.origin, self.step, **self.properties)
 
+    def get_area_bounds(self, segments):
+        """Get coordinate area bounds, including segment information, for each unstacked dimension.
+
+        Arguments
+        ---------
+        segments : dict
+            dictionary of segments for each unstacked dimension. Non-segment dimensions can be omitted.
+
+        Returns
+        -------
+        area_bounds : dict
+            Dictionary of (low, high) coordinates area_bounds in each unstacked dimension
+        """
+
+        # TODO the segment lengths need to be rotated
+        warnings.warning("RotatedCoordinates area_bounds are not yet correctly implemented.")
+        return super(RotatedCoordinates, self).area_bounds
+
     def select(self, bounds, outer=False, return_indices=False):
         """
         Get the coordinate values that are within the given bounds in all dimensions.

@@ -444,7 +444,7 @@ class Interpolation(object):
 
         return selected_coords, tuple(selected_coords_idx)
 
-    def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
+    def interpolate(self, source_coordinates, source_boundary, source_data, eval_coordinates, output_data):
         """Interpolate data from requested coordinates to source coordinates
         
         Parameters
@@ -496,7 +496,7 @@ class Interpolation(object):
 
             # run interpolation
             output_data = interpolator.interpolate(
-                udims, source_coordinates, source_data, eval_coordinates, output_data
+                udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data
             )
 
         return output_data

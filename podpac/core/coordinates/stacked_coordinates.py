@@ -349,6 +349,24 @@ class StackedCoordinates(BaseCoordinates):
 
         return StackedCoordinates(self._coords)
 
+    def get_area_bounds(self, segments):
+        """Get coordinate area bounds, including segment information, for each unstacked dimension.
+
+        Arguments
+        ---------
+        segments : dict
+            dictionary of segments for each unstacked dimension. Non-segment dimensions can be omitted.
+
+        Returns
+        -------
+        area_bounds : dict
+            Dictionary of (low, high) coordinates area_bounds in each unstacked dimension
+        """
+
+        if None in self.dims:
+            raise ValueError("Cannot get area_bounds for StackedCoordinates with un-named dimensions")
+        return {dim: self[dim].get_area_bounds(segments.get(dim)) for dim in self.dims}
+
     def select(self, bounds, return_indices=False, outer=False):
         """
         Get the coordinate values that are within the given bounds in all dimensions.

@@ -6,7 +6,7 @@ including user defined data sources.
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from copy import deepcopy
 import warnings
 import logging
@@ -152,6 +152,7 @@ class DataSource(Node):
     """
 
     interpolation = InterpolationTrait().tag(attr=True)
+    boundary = tl.Dict().tag(attr=True)
     nan_vals = tl.List().tag(attr=True)
 
     coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
@@ -172,6 +173,10 @@ class DataSource(Node):
     def _default_interpolation(self):
         self._set_interpolation()
         return self._interpolation
+
+    @tl.default("boundary")
+    def _default_boundary(self):
+        return defaultdict(lambda: None)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -364,9 +369,10 @@ class DataSource(Node):
         # intersect the coordinates with requested coordinates
         # to get coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
-        (self._requested_source_coordinates, self._requested_source_coordinates_index) = self.coordinates.intersect(
-            coordinates, outer=True, return_indices=True
-        )
+        # TODO select segments, too, and maybe pass segments into intersect in order to compute area_bounds
+        (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
+        self._requested_source_coordinates = rsc
+        self._requested_source_coordinates_index = rsci
 
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if self._requested_source_coordinates.size == 0:
@@ -382,12 +388,12 @@ class DataSource(Node):
         self._set_interpolation()
 
         # interpolate requested coordinates before getting data
-        (
-            self._requested_source_coordinates,
-            self._requested_source_coordinates_index,
-        ) = self._interpolation.select_coordinates(
+        # TODO select segments, too, and maybe pass segments into select_coordinates
+        (rsc, rsci) = self._interpolation.select_coordinates(
             self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
         )
+        self._requested_source_coordinates = rsc
+        self._requested_source_coordinates_index = rsci
 
         # Check the coordinate_index_type
         if self.coordinate_index_type == "slice":  # Most restrictive
@@ -438,8 +444,9 @@ class DataSource(Node):
                 )
 
         # interpolate data into output
+        # TODO requested_source_boundary, or requested_source_area_bounds
         output = self._interpolation.interpolate(
-            self._requested_source_coordinates, self._requested_source_data, coordinates, output
+            self._requested_source_coordinates, self.boundary, self._requested_source_data, coordinates, output
         )
 
         # Fill the output that was passed to eval with the new data

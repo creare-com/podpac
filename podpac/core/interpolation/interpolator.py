@@ -127,6 +127,7 @@ COMMON_INTERPOLATOR_DOCS = {
             dimensions to interpolate
         source_coordinates : :class:`podpac.Coordinates`
             Description
+        source_boundary : dict
         source_data : podpac.core.units.UnitsDataArray
             Description
         eval_coordinates : :class:`podpac.Coordinates`
@@ -263,34 +264,17 @@ class Interpolator(tl.HasTraits):
         return True
 
     def _loop_helper(
-        self, func, keep_dims, udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs
-    ):
-        """Loop helper
-        
-        Parameters
-        ----------
-        func : TYPE
-            Description
-        keep_dims : TYPE
-            Description
-        udims : TYPE
-            Description
-        source_coordinates : TYPE
-            Description
-        source_data : TYPE
-            Description
-        eval_coordinates : TYPE
-            Description
-        output_data : TYPE
-            Description
+        self,
+        func,
+        keep_dims,
+        udims,
+        source_coordinates,
+        source_boundary,
+        source_data,
+        eval_coordinates,
+        output_data,
         **kwargs
-            Description
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
+    ):
         loop_dims = [d for d in source_data.dims if d not in keep_dims]
         if loop_dims:
             dim = loop_dims[0]
@@ -327,13 +311,16 @@ class Interpolator(tl.HasTraits):
                     keep_dims,
                     udims,
                     source_coordinates,
+                    source_boundary,
                     source_data.loc[src_idx],
                     eval_coordinates,
                     output_data.loc[idx],
                     **kwargs
                 )
         else:
-            return func(udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs)
+            return func(
+                udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data, **kwargs
+            )
 
         return output_data
 
@@ -346,7 +333,9 @@ class Interpolator(tl.HasTraits):
         return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def select_coordinates(self, udims, source_coordinates, source_coordinates_index, eval_coordinates):
+    def select_coordinates(
+        self, udims, source_coordinates, source_boundary, source_coordinates_index, eval_coordinates
+    ):
         """
         {interpolator_select}
         """
@@ -360,7 +349,7 @@ class Interpolator(tl.HasTraits):
         return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
+    def interpolate(self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """

@@ -8,6 +8,7 @@ import xarray as xr
 from numpy.testing import assert_equal
 
 import podpac
+from podpac.core.coordinates.utils import make_coord_array
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
@@ -445,6 +446,67 @@ class TestArrayCoordinatesIndexing(object):
 
         with pytest.raises(IndexError):
             c[10]
+
+
+class TestArrayCoordinatesAreaBounds(object):
+    def test_get_area_bounds_numerical(self):
+        values = np.array([0.0, 1.0, 4.0, 6.0])
+        c = ArrayCoordinates1d(values)
+
+        # point
+        area_bounds = c.get_area_bounds(None)
+        assert_equal(area_bounds, [0.0, 6.0])
+
+        # uniform
+        area_bounds = c.get_area_bounds(0.5)
+        assert_equal(area_bounds, [-0.5, 6.5])
+
+        # segment
+        area_bounds = c.get_area_bounds([-0.2, 0.7])
+        assert_equal(area_bounds, [-0.2, 6.7])
+
+        # polygon (i.e. there would be corresponding offets for another dimension)
+        area_bounds = c.get_area_bounds([-0.2, -0.5, 0.7, 0.5])
+        assert_equal(area_bounds, [-0.5, 6.7])
+
+        # boundaries
+        area_bounds = c.get_area_bounds([[-0.4, 0.1], [-0.3, 0.2], [-0.2, 0.3], [-0.1, 0.4]])
+        assert_equal(area_bounds, [-0.4, 6.4])
+
+    def test_get_area_bounds_datetime(self):
+        values = make_coord_array(["2017-01-02", "2017-01-01", "2019-01-01", "2018-01-01"])
+        c = ArrayCoordinates1d(values)
+
+        # point
+        area_bounds = c.get_area_bounds(None)
+        assert_equal(area_bounds, make_coord_array(["2017-01-01", "2019-01-01"]))
+
+        # uniform
+        area_bounds = c.get_area_bounds("1,D")
+        assert_equal(area_bounds, make_coord_array(["2016-12-31", "2019-01-02"]))
+
+        area_bounds = c.get_area_bounds("1,M")
+        assert_equal(area_bounds, make_coord_array(["2016-12-01", "2019-02-01"]))
+
+        area_bounds = c.get_area_bounds("1,Y")
+        assert_equal(area_bounds, make_coord_array(["2016-01-01", "2020-01-01"]))
+
+        # segment
+        area_bounds = c.get_area_bounds(["0,h", "12,h"])
+        assert_equal(area_bounds, make_coord_array(["2017-01-01 00:00", "2019-01-01 12:00"]))
+
+    def test_get_area_bounds_empty(self):
+        c = ArrayCoordinates1d([])
+        area_bounds = c.get_area_bounds(1.0)
+        assert np.all(np.isnan(area_bounds))
+
+    @pytest.mark.xfail(reason="spec uncertain")
+    def test_get_area_bounds_overlapping(self):
+        values = np.array([0.0, 1.0, 4.0, 6.0])
+        c = ArrayCoordinates1d(values)
+
+        area_bounds = c.get_area_bounds([[-0.1, 0.1], [-10.0, 10.0], [-0.1, 0.1], [-0.1, 0.1]])
+        assert_equal(area_bounds, [-11.0, 11.0])
 
 
 class TestArrayCoordinatesSelection(object):

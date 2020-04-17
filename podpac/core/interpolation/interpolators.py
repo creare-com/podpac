@@ -63,7 +63,7 @@ class NearestNeighbor(Interpolator):
             return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
+    def interpolate(self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
@@ -255,7 +255,7 @@ class Rasterio(Interpolator):
         return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
+    def interpolate(self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
@@ -266,10 +266,17 @@ class Rasterio(Interpolator):
         if len(source_data.dims) > 2:
             keep_dims = ["lat", "lon"]
             return self._loop_helper(
-                self.interpolate, keep_dims, udims, source_coordinates, source_data, eval_coordinates, output_data
+                self.interpolate,
+                keep_dims,
+                udims,
+                source_coordinates,
+                source_boundary,
+                source_data,
+                eval_coordinates,
+                output_data,
             )
 
-        def get_rasterio_transform(c):
+        def get_rasterio_transform(c, s):
             """Summary
             
             Parameters
@@ -282,14 +289,13 @@ class Rasterio(Interpolator):
             TYPE
                 Description
             """
-            west, east = c["lon"].area_bounds
-            south, north = c["lat"].area_bounds
+            west, east = c.get_area_bounds(s)["lon"]
+            south, north = c.get_area_bounds(s)["lat"]
             cols, rows = (c["lon"].size, c["lat"].size)
-            # print (east, west, south, north)
             return transform.from_bounds(west, south, east, north, cols, rows)
 
         with rasterio.Env():
-            src_transform = get_rasterio_transform(source_coordinates)
+            src_transform = get_rasterio_transform(source_coordinates, source_boundary)
             src_crs = {"init": source_coordinates.crs}
             # Need to make sure array is c-contiguous
             if source_coordinates["lat"].is_descending:
@@ -297,7 +303,7 @@ class Rasterio(Interpolator):
             else:
                 source = np.ascontiguousarray(source_data.data[::-1, :])
 
-            dst_transform = get_rasterio_transform(eval_coordinates)
+            dst_transform = get_rasterio_transform(eval_coordinates, source_boundary)
             dst_crs = {"init": eval_coordinates.crs}
             # Need to make sure array is c-contiguous
             if not output_data.data.flags["C_CONTIGUOUS"]:
@@ -362,7 +368,7 @@ class ScipyPoint(Interpolator):
         return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
+    def interpolate(self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
@@ -469,24 +475,24 @@ class ScipyGrid(ScipyPoint):
         return tuple()
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
-    def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
+    def interpolate(self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data):
         """
         {interpolator_interpolate}
         """
 
         if self._dim_in(["lat", "lon"], eval_coordinates):
             return self._interpolate_irregular_grid(
-                udims, source_coordinates, source_data, eval_coordinates, output_data, grid=True
+                udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data, grid=True
             )
 
         elif self._dim_in(["lat", "lon"], eval_coordinates, unstacked=True):
             eval_coordinates_us = eval_coordinates.unstack()
             return self._interpolate_irregular_grid(
-                udims, source_coordinates, source_data, eval_coordinates_us, output_data, grid=False
+                udims, source_coordinates, source_boundary, source_data, eval_coordinates_us, output_data, grid=False
             )
 
     def _interpolate_irregular_grid(
-        self, udims, source_coordinates, source_data, eval_coordinates, output_data, grid=True
+        self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data, grid=True
     ):
 
         if len(source_data.dims) > 2:
@@ -496,6 +502,7 @@ class ScipyGrid(ScipyPoint):
                 keep_dims,
                 udims,
                 source_coordinates,
+                source_boundary,
                 source_data,
                 eval_coordinates,
                 output_data,

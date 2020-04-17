@@ -182,6 +182,56 @@ class Coordinates1d(BaseCoordinates):
 
         raise NotImplementedError
 
+    def get_area_bounds(self, boundary):
+        """
+        Get low and high coordinate area bounds.
+
+        Arguments
+        ---------
+        boundary : float, timedelta, array, None
+            Boundary offsets in this dimension.
+            * For a centered uniform boundary, use a single positive float or timedelta offset
+            * For a uniform boundary (segment or polygon), use an array of float or timedelta offsets
+            * For a fully specified boundary, use an array of boundary arrays, one per coordinate
+            * For point coordinates, use None.
+
+        Returns
+        -------
+        low: float, np.datetime64
+            low area bound
+        high: float, np.datetime64
+            high area bound
+        """
+
+        # point coordinates
+        if boundary is None:
+            return self.bounds
+
+        # empty coordinates
+        if self.size == 0:
+            return self.bounds
+
+        if np.array(boundary).ndim == 0:
+            # shortcut for uniform centered boundary
+            boundary = make_coord_delta(boundary)
+            lo_offset = -boundary
+            hi_offset = boundary
+        elif np.array(boundary).ndim == 1:
+            # uniform boundary polygon
+            boundary = make_coord_delta_array(boundary)
+            lo_offset = min(boundary)
+            hi_offset = max(boundary)
+        else:
+            L, H = self.argbounds
+            lo_offset = min(make_coord_delta_array(boundary[L]))
+            hi_offset = max(make_coord_delta_array(boundary[H]))
+
+        lo, hi = self.bounds
+        lo = add_coord(lo, lo_offset)
+        hi = add_coord(hi, hi_offset)
+
+        return lo, hi
+
     def _select_empty(self, return_indices):
         I = []
         if return_indices:
