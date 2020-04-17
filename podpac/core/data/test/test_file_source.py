@@ -86,7 +86,7 @@ class TestLoadFile(object):
 
         with podpac.settings:
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
-            node = MockLoadFile(source="file:///%s" % path)
+            node = MockLoadFile(source="file:///%s" % path, cache_dataset=True)
             node.dataset
 
             # node caches dataset object
