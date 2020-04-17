@@ -27,8 +27,8 @@ class TestSettingsFile(object):
     def test_settings_file_defaults_to_home_dir(self):
         self.make_settings_tmp_dir()  # so teardown method has something ot tear down
         settings = PodpacSettings()
-        path = os.path.expanduser("~")
-        assert settings.settings_path == os.path.join(path, ".podpac", "settings.json")
+        path = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~"))
+        assert settings.settings_path == os.path.join(path, ".config", "podpac", "settings.json")
 
     def test_single_saved_setting_persists(self):
         path = self.make_settings_tmp_dir()
@@ -73,5 +73,5 @@ class TestSettingsFile(object):
         settings.load(path=path)
         assert isinstance(settings, dict)
 
-        path = os.path.expanduser("~")
-        assert settings.settings_path == os.path.join(path, ".podpac", "settings.json")
+        path = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~"))
+        assert settings.settings_path == os.path.join(path, ".config", "podpac", "settings.json")
