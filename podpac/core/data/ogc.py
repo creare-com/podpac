@@ -263,7 +263,7 @@ class WCS(DataSource):
                             output.data[i, ...] = dataset.read()
                     except Exception as e:  # Probably python 2
                         print(e)
-                        tmppath = os.path.join(settings["DISK_CACHE_DIR"], "wcs_temp.tiff")
+                        tmppath = os.path.join(settings.cache_path, "wcs_temp.tiff")
 
                         if not os.path.exists(os.path.split(tmppath)[0]):
                             os.makedirs(os.path.split(tmppath)[0])
@@ -333,7 +333,7 @@ class WCS(DataSource):
                             output.data[:] = dataset.read()
                 except Exception as e:  # Probably python 2
                     print(e)
-                    tmppath = os.path.join(settings["DISK_CACHE_DIR"], "wcs_temp.tiff")
+                    tmppath = os.path.join(settings.cache_path, "wcs_temp.tiff")
                     if not os.path.exists(os.path.split(tmppath)[0]):
                         os.makedirs(os.path.split(tmppath)[0])
                     open(tmppath, "wb").write(content)
