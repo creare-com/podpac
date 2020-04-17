@@ -20,10 +20,12 @@ except ImportError:
 DEFAULT_SETTINGS = {
     # podpac core settings
     "DEBUG": False,  # This flag currently sets self._output on nodes
-    "ROOT_PATH": os.path.join(os.path.expanduser("~"), ".podpac"),
+    "ROOT_PATH": os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~")), ".config", "podpac"),
     "AUTOSAVE_SETTINGS": False,
     "LOG_TO_FILE": False,
-    "LOG_FILE_PATH": os.path.join(os.path.expanduser("~"), ".podpac", "logs", "podpac.log"),
+    "LOG_FILE_PATH": os.path.join(
+        os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~")), "podpac", "logs", "podpac.log"
+    ),
     "MULTITHREADING": False,
     "N_THREADS": 8,
     "CHUNK_SIZE": None,  # Size of chunks for parallel processing or large arrays that do not fit in memory
@@ -65,17 +67,18 @@ class PodpacSettings(dict):
 
     Podpac settings are persistently stored in a ``settings.json`` file created at runtime.
     By default, podpac will create a settings json file in the users
-    home directory (``~/.podpac/settings.json``) when first run.
+    home directory (``~/.config/podpac/settings.json``), or $XDG_CONFIG_HOME/podpac/settings.json when first run.
 
     Default settings can be overridden or extended by:
-      * editing the ``settings.json`` file in the home directory (i.e. ``~/.podpac/settings.json``)
+      * editing the ``settings.json`` file in the settings directory (i.e. ``~/.podpac/settings.json`` or 
+      ``$XDG_CONFIG_HOME/podpac/settings.json``)
       * creating a ``settings.json`` in the current working directory (i.e. ``./settings.json``)
     
     If ``settings.json`` files exist in multiple places, podpac will load settings in the following order,
-    overwriting previously loaded settings in the process:
-      * podpac settings defaults
-      * home directory settings (``~/.podpac/settings.json``)
-      * current working directory settings (``./settings.json``)
+    overwriting previously loaded settings in the process (i.e. highest numbered settings file prefered):
+      1. podpac settings defaults
+      2. settings directory  (``~/.podpac/settings.json``  or ``$XDG_CONFIG_HOME/podpac/settings.json``)
+      3. current working directory settings (``./settings.json``)
     
     :attr:`settings.settings_path` shows the path of the last loaded settings file (e.g. the active settings file).
     To persistently update the active settings file as changes are made at runtime,
@@ -124,7 +127,9 @@ class PodpacSettings(dict):
         Defaults to ``10e9`` (~10G). 
         Set to `None` explicitly for no limit.
     DISK_CACHE_DIR : str
-        Subdirectory to use for the disk cache. Defaults to ``'cache'`` in the podpac root directory.
+        Subdirectory to use for the disk cache. Defaults to ``'cache'`` in the podpac root directory. 
+        Use settings.cache_path to access this settings (this property looks for the environmental variable 
+        `XDG_CACHE_HOME` to adjust the location of the cache directory)
     S3_CACHE_DIR : str
         Subdirectory to use for S3 cache (within the specified S3 bucket). Defaults to ``'cache'``.
     RAM_CACHE_ENABLED: bool
@@ -262,6 +267,22 @@ class PodpacSettings(dict):
             Path to the last loaded ``settings.json`` file
         """
         return self._settings_filepath
+
+    @property
+    def cache_path(self):
+        """Path to the cache
+
+        Returns
+        -------
+        str
+            Path to where the cache is stored
+        """
+        if os.path.isabs(settings["DISK_CACHE_DIR"]):
+            path = settings["DISK_CACHE_DIR"]
+        else:
+            path = os.path.join(os.environ.get("XDG_CACHE_HOME", settings["ROOT_PATH"]), settings["DISK_CACHE_DIR"])
+
+        return path
 
     @property
     def defaults(self):

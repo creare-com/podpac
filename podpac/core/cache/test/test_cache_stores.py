@@ -337,7 +337,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
 
         # relative path
         podpac.settings["DISK_CACHE_DIR"] = "_testcache_"
-        expected = os.path.join(podpac.settings["ROOT_PATH"], "_testcache_")
+        expected = os.path.join(os.environ.get("XDG_CACHE_HOME", settings["ROOT_PATH"]), "_testcache_")
         store = DiskCacheStore()
         store.clear()
         store.put(NODE1, 10, "mykey1")
