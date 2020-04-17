@@ -37,7 +37,7 @@ class TestPyDAP(object):
     def test_init(self):
         node = PyDAP(source="mysource", data_key="key")
 
-    def test_native_coordinates_not_implemented(self):
+    def test_coordinates_not_implemented(self):
         node = PyDAP(source="mysource", data_key="key")
         with pytest.raises(NotImplementedError):
             node.coordinates

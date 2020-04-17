@@ -34,7 +34,7 @@ class TestDataset(object):
         node = Dataset(source=self.source, time_key="day")
         assert node.available_data_keys == ["data", "other"]
 
-    def test_native_coordinates(self):
+    def test_coordinates(self):
         # specify dimension keys
         node = Dataset(source=self.source, time_key="day")
         nc = node.coordinates

@@ -1420,7 +1420,7 @@ class TestCoordinatesMethods(object):
         assert c2["lon"] == c["lon"][2:5]
 
     def test_intersect_crs(self):
-        # should change the other coordinates crs into the native coordinates crs for intersect
+        # should change the other coordinates crs into the coordinates crs for intersect
         c = Coordinates(
             [np.linspace(0, 10, 11), np.linspace(0, 10, 11), ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"]
         )

@@ -28,8 +28,8 @@ class TestReprojectedSource(object):
         node = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)
         assert isinstance(node, ReprojectedSource)
 
-    def test_native_coordinates(self):
-        """test native coordinates"""
+    def test_coordinates(self):
+        """test coordinates"""
 
         # source has no coordinates, just use reprojected_coordinates
         node = ReprojectedSource(source=Node(), reprojected_coordinates=self.reprojected_coordinates)

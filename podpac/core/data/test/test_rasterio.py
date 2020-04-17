@@ -34,8 +34,8 @@ class TestRasterio(object):
 
         node.close_dataset()
 
-    def test_native_coordinates(self):
-        """test default native coordinates implementations"""
+    def test_coordinates(self):
+        """test default coordinates implementations"""
 
         node = Rasterio(source=self.source)
         assert isinstance(node.coordinates, Coordinates)

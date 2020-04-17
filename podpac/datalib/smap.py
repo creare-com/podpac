@@ -345,7 +345,7 @@ class SMAPCompositor(OrderedCompositor):
                         self.shared_coordinates,
                     ]
                 )
-                s.set_native_coordinates(nc)
+                s.set_coordinates(nc)
 
         return src_subset
 
@@ -372,7 +372,7 @@ class SMAPSource(SMAPSessionMixin, DiskCacheMixin, PyDAP):
     layer_key = tl.Unicode().tag(attr=True)
     root_data_key = tl.Unicode().tag(attr=True)
     nan_vals = [-9999.0]
-    cache_native_coordinates = tl.Bool(True)
+    cache_coordinates = tl.Bool(True)
 
     # date_url_re = re.compile('[0-9]{4}\.[0-9]{2}\.[0-9]{2}')
     date_time_file_url_re = re.compile("[0-9]{8}T[0-9]{6}")

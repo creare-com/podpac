@@ -224,7 +224,7 @@ class TestFileKeys(object):
         with pytest.raises(ValueError, match="outputs and data_key size mismatch"):
             node = MockFileKeysMultipleAvailable(data_key=["data", "other"], outputs=["a"])
 
-    def test_native_coordinates(self):
+    def test_coordinates(self):
         node = MockFileKeys()
         nc = node.coordinates
         assert nc.dims == ("lat", "lon", "time", "alt")

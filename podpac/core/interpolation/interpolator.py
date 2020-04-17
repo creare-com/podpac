@@ -93,7 +93,7 @@ COMMON_INTERPOLATOR_DOCS = {
         -------
         (:class:`podpac.Coordinates`, list)
             returns the new down selected coordinates and the new associated index. These coordinates must exist
-            in the native coordinates of the source data
+            in the coordinates of the source data
 
         Raises
         ------

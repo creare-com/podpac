@@ -28,7 +28,7 @@ class TestZarr(object):
         node = Zarr(source=self.path)
         assert node.available_data_keys == ["a", "b"]
 
-    def test_native_coordinates(self):
+    def test_coordinates(self):
         node = Zarr(source=self.path, data_key="a")
         assert node.coordinates == Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=["lat", "lon"])
 
