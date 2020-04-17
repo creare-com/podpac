@@ -43,17 +43,6 @@ class TestStackedCoordinatesCreation(object):
 
         repr(c)
 
-    def test_ctype(self):
-        lat = ArrayCoordinates1d([0, 1, 2], name="lat", ctype="left")
-        lon = ArrayCoordinates1d([10, 20, 30], name="lon")
-        c = StackedCoordinates([lat, lon], ctype="right")
-
-        # lon ctype set by StackedCoordinates
-        assert c["lon"].ctype == "right"
-
-        # but lat is left by StackedCoordinates because it was already explicitly set
-        assert c["lat"].ctype == "left"
-
     def test_coercion_with_dims(self):
         c = StackedCoordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"])
         assert c.dims == ("lat", "lon")
@@ -289,22 +278,6 @@ class TestStackedCoordinatesProperties(object):
         c = StackedCoordinates([lat, lon])
         with pytest.raises(ValueError, match="Cannot get bounds"):
             c.bounds
-
-    def test_area_bounds(self):
-        lat = [0, 1, 2]
-        lon = [10, 20, 30]
-        dates = ["2018-01-01", "2018-01-02"]
-
-        c = StackedCoordinates([lat, lon], dims=["lat", "lon"])
-        area_bounds = c.area_bounds
-        assert isinstance(area_bounds, dict)
-        assert set(area_bounds.keys()) == set(c.udims)
-        assert_equal(area_bounds["lat"], c["lat"].area_bounds)
-        assert_equal(area_bounds["lon"], c["lon"].area_bounds)
-
-        c = StackedCoordinates([lat, lon])
-        with pytest.raises(ValueError, match="Cannot get area_bounds"):
-            c.area_bounds
 
 
 class TestStackedCoordinatesIndexing(object):

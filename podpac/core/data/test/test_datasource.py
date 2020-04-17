@@ -251,8 +251,7 @@ class TestDataSource(object):
 
         # this will not throw an error because the requested coordinates will be transformed before request
         output = node.create_output_array(c)
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            node.eval(c_x, output=output)
+        node.eval(c_x, output=output)
 
         # this will throw an error because output is not in the same crs as node
         output = node.create_output_array(c_x)
@@ -291,12 +290,10 @@ class TestDataSource(object):
     def test_evaluate_with_crs_transform(self):
         # grid coords
         grid_coords = Coordinates([np.linspace(-10, 10, 21), np.linspace(-10, -10, 21)], dims=["lat", "lon"])
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            grid_coords = grid_coords.transform("EPSG:2193")
+        grid_coords = grid_coords.transform("EPSG:2193")
 
         node = MockDataSource()
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            out = node.eval(grid_coords)
+        out = node.eval(grid_coords)
 
         assert round(out.coords["lat"].values[0, 0]) == -8889021.0
         assert round(out.coords["lon"].values[0, 0]) == 1928929.0

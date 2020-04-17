@@ -598,8 +598,9 @@ class TestInterpolators(object):
             output = node.eval(coords_dst)
             assert isinstance(output, UnitsDataArray)
             assert np.all(output.lat.values == coords_dst.coords["lat"])
-            assert int(output.data[0, 0]) == 1
-            assert int(output.data[0, 4]) == 5
+            np.testing.assert_allclose(
+                output, [[1.4, 2.4, 3.4, 4.4, 5.0], [6.4, 7.4, 8.4, 9.4, 10.0], [10.4, 11.4, 12.4, 13.4, 14.0]]
+            )
 
         def test_interpolate_rasterio_descending(self):
             """should handle descending"""

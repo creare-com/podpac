@@ -23,7 +23,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 0
         assert c.shape == (0,)
         assert c.dtype is None
-        assert c.ctype == "point"
         assert c.is_monotonic is None
         assert c.is_descending is None
         assert c.is_uniform is None
@@ -37,7 +36,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 1
         assert c.shape == (1,)
         assert c.dtype == float
-        assert c.ctype == "point"
         assert c.is_monotonic == True
         assert c.is_descending is None
         assert c.is_uniform == True
@@ -53,7 +51,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == float
-        assert c.ctype == "point"
         assert c.is_monotonic == False
         assert c.is_descending is None
         assert c.is_uniform == False
@@ -68,7 +65,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == float
-        assert c.ctype == "midpoint"
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == False
@@ -83,7 +79,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == float
-        assert c.ctype == "midpoint"
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == False
@@ -98,7 +93,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == float
-        assert c.ctype == "midpoint"
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
@@ -113,7 +107,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == float
-        assert c.ctype == "midpoint"
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == True
@@ -127,7 +120,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 1
         assert c.shape == (1,)
         assert c.dtype == np.datetime64
-        assert c.ctype == "point"
         assert c.is_monotonic == True
         assert c.is_descending is None
         assert c.is_uniform == True
@@ -137,13 +129,12 @@ class TestArrayCoordinatesInit(object):
         # unsorted
         values = ["2018-01-01", "2019-01-01", "2017-01-01", "2018-01-02"]
         a = np.array(values).astype(np.datetime64)
-        c = ArrayCoordinates1d(values, ctype="point")
+        c = ArrayCoordinates1d(values)
         assert_equal(c.coordinates, a)
         assert_equal(c.bounds, np.array(["2017-01-01", "2019-01-01"]).astype(np.datetime64))
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == np.datetime64
-        assert c.ctype == "point"
         assert c.is_monotonic == False
         assert c.is_descending is None
         assert c.is_uniform == False
@@ -158,7 +149,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == np.datetime64
-        assert c.ctype == "point"
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == False
@@ -173,7 +163,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 4
         assert c.shape == (4,)
         assert c.dtype == np.datetime64
-        assert c.ctype == "point"
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == False
@@ -188,7 +177,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 3
         assert c.shape == (3,)
         assert c.dtype == np.datetime64
-        assert c.ctype == "point"
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
@@ -203,7 +191,6 @@ class TestArrayCoordinatesInit(object):
         assert c.size == 3
         assert c.shape == (3,)
         assert c.dtype == np.datetime64
-        assert c.ctype == "point"
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == True
@@ -219,16 +206,14 @@ class TestArrayCoordinatesInit(object):
     def test_from_xarray(self):
         # numerical
         x = xr.DataArray([0, 1, 2], name="lat")
-        c = ArrayCoordinates1d.from_xarray(x, ctype="point")
+        c = ArrayCoordinates1d.from_xarray(x)
         assert c.name == "lat"
-        assert c.ctype == "point"
         assert_equal(c.coordinates, x.data)
 
         # datetime
         x = xr.DataArray([np.datetime64("2018-01-01"), np.datetime64("2018-01-02")], name="time")
-        c = ArrayCoordinates1d.from_xarray(x, ctype="point")
+        c = ArrayCoordinates1d.from_xarray(x)
         assert c.name == "time"
-        assert c.ctype == "point"
         assert_equal(c.coordinates, x.data)
 
         # unnamed
@@ -238,11 +223,6 @@ class TestArrayCoordinatesInit(object):
 
     def test_copy(self):
         c = ArrayCoordinates1d([1, 2, 3], name="lat")
-        c2 = c.copy()
-        assert c is not c2
-        assert c == c2
-
-        c = ArrayCoordinates1d([1, 2, 3], segment_lengths=0.5)
         c2 = c.copy()
         assert c is not c2
         assert c == c2
@@ -277,135 +257,6 @@ class TestArrayCoordinatesInit(object):
         c = ArrayCoordinates1d([])
         with pytest.raises(tl.TraitError):
             c._set_name("depth")
-
-    def test_set_ctype(self):
-        # set if not already set
-        c = ArrayCoordinates1d([])
-        c._set_ctype("point")
-        assert c.ctype == "point"
-
-        # ignore if set already
-        c = ArrayCoordinates1d([], ctype="point")
-        c._set_ctype("point")
-        assert c.ctype == "point"
-
-        c._set_ctype("left")
-        assert c.ctype == "point"
-
-        # invalid ctype
-        c = ArrayCoordinates1d([])
-        with pytest.raises(tl.TraitError):
-            c._set_ctype("ABC")
-
-    def test_segment_lengths_point(self):
-        with pytest.raises(TypeError, match="segment_lengths must be None"):
-            ArrayCoordinates1d([1, 2], ctype="point", segment_lengths=1.0)
-
-        with pytest.raises(TypeError, match="segment_lengths must be None"):
-            ArrayCoordinates1d([1, 2], ctype="point", segment_lengths=[1.0, 1.0])
-
-    def test_segment_lengths_empty(self):
-        c = ArrayCoordinates1d([])
-        assert c.segment_lengths is None
-
-    def test_segment_lengths_delta(self):
-        # numeric
-        c = ArrayCoordinates1d([1, 2, 3], ctype="midpoint", segment_lengths=1.0)
-        assert c.segment_lengths == 1.0
-
-        # datetime
-        c = ArrayCoordinates1d(["2018-01-01", "2018-01-02"], ctype="midpoint", segment_lengths="1,D")
-        assert c.segment_lengths == np.timedelta64(1, "D")
-
-        # mismatch
-        with pytest.raises(TypeError, match="coordinates and segment_lengths type mismatch"):
-            ArrayCoordinates1d([1, 2, 3], ctype="midpoint", segment_lengths="1,D")
-
-        with pytest.raises(TypeError, match="coordinates and segment_lengths type mismatch"):
-            ArrayCoordinates1d(["2018-01-01", "2018-01-02"], ctype="midpoint", segment_lengths=1.0)
-
-    def test_segment_lengths_array(self):
-        # numeric
-        c = ArrayCoordinates1d([1, 2, 3], ctype="midpoint", segment_lengths=[1.0, 1.0, 1.0])
-        assert_equal(c.segment_lengths, np.array([1.0, 1.0, 1.0]))
-
-        # datetime
-        c = ArrayCoordinates1d(["2018-01-01", "2018-01-02"], ctype="midpoint", segment_lengths=["1,D", "1,D"])
-        assert_equal(c.segment_lengths, np.array([np.timedelta64(1, "D"), np.timedelta64(1, "D")]))
-
-        # mismatch
-        with pytest.raises(ValueError, match="coordinates and segment_lengths size mismatch"):
-            ArrayCoordinates1d([1, 2, 3], ctype="midpoint", segment_lengths=[1.0, 1.0])
-
-        with pytest.raises(ValueError, match="coordinates and segment_lengths dtype mismatch"):
-            ArrayCoordinates1d([1, 2, 3], ctype="midpoint", segment_lengths=["1,D", "1,D", "1,D"])
-
-        with pytest.raises(ValueError, match="coordinates and segment_lengths dtype mismatch"):
-            ArrayCoordinates1d(["2018-01-01", "2018-01-02"], ctype="midpoint", segment_lengths=[1.0, 1.0])
-
-    def test_segment_lengths_inferred(self):
-        # no segment lengths for point coordinates
-        c = ArrayCoordinates1d([1, 2, 3], ctype="point")
-        assert c.segment_lengths is None
-
-        c = ArrayCoordinates1d(["2018-01-01", "2018-01-02"], ctype="point")
-        assert c.segment_lengths is None
-
-        # no segment lengths for empty segment coordinates
-        c = ArrayCoordinates1d([], ctype="midpoint")
-        assert c.segment_lengths is None
-
-        # segment lengths required for datetime segment coordinates
-        with pytest.raises(TypeError, match="segment_lengths required"):
-            ArrayCoordinates1d(["2018-01-01", "2018-01-02"], ctype="midpoint")
-
-        # segment lengths required for singleton segment coordinates
-        with pytest.raises(TypeError, match="segment_lengths required"):
-            ArrayCoordinates1d([1], ctype="midpoint")
-
-        # segment lengths required for nonmonotonic segment coordinates
-        with pytest.raises(TypeError, match="segment_lengths required"):
-            ArrayCoordinates1d([1, 4, 2], ctype="midpoint")
-
-        values = [1, 2, 4, 7]
-
-        # left
-        c = ArrayCoordinates1d(values, ctype="left")
-        assert_equal(c.segment_lengths, [1.0, 2.0, 3.0, 3.0])
-
-        c = ArrayCoordinates1d(values[::-1], ctype="left")
-        assert_equal(c.segment_lengths, [3.0, 3.0, 2.0, 1.0])
-
-        # right
-        c = ArrayCoordinates1d(values, ctype="right")
-        assert_equal(c.segment_lengths, [1.0, 1.0, 2.0, 3.0])
-
-        c = ArrayCoordinates1d(values[::-1], ctype="right")
-        assert_equal(c.segment_lengths, [3.0, 2.0, 1.0, 1.0])
-
-        # midpoint
-        c = ArrayCoordinates1d(values, ctype="midpoint")
-        assert_equal(c.segment_lengths, [1.0, 1.5, 2.5, 3.0])
-
-        c = ArrayCoordinates1d(values[::-1], ctype="midpoint")
-        assert_equal(c.segment_lengths, [3, 2.5, 1.5, 1.0])
-
-        # uniform coordinates should use a single segment length
-        c = ArrayCoordinates1d([1.0, 2.0, 3.0], ctype="midpoint")
-        assert c.segment_lengths == 1.0
-
-    def test_segment_lengths_positive(self):
-        with pytest.raises(ValueError, match="segment_lengths must be positive"):
-            ArrayCoordinates1d([0, 1, 2], segment_lengths=[1.0, 0.0, 1.0])
-
-        with pytest.raises(ValueError, match="segment_lengths must be positive"):
-            ArrayCoordinates1d([0, 1, 2], segment_lengths=[1.0, -1.0, 1.0])
-
-        with pytest.raises(ValueError, match="segment_lengths must be positive"):
-            ArrayCoordinates1d([0, 1, 2], segment_lengths=0.0)
-
-        with pytest.raises(ValueError, match="segment_lengths must be positive"):
-            ArrayCoordinates1d([0, 1, 2], segment_lengths=-1.0)
 
 
 class TestArrayCoordinatesEq(object):
@@ -469,43 +320,14 @@ class TestArrayCoordinatesEq(object):
         c4.name = "lat"
         assert c1 == c4
 
-    def test_eq_ctype(self):
-        c1 = ArrayCoordinates1d([0, 1, 3])
-        c2 = ArrayCoordinates1d([0, 1, 3], ctype="midpoint")
-        c3 = ArrayCoordinates1d([0, 1, 3], ctype="left")
-
-        assert c1 == c2
-        assert c1 != c3
-        assert c2 != c3
-
-    def test_eq_segment_lengths(self):
-        c1 = ArrayCoordinates1d([0, 1, 3], segment_lengths=[1, 1, 1])
-        c2 = ArrayCoordinates1d([0, 1, 3], segment_lengths=[1, 1, 1])
-        c3 = ArrayCoordinates1d([0, 1, 3], segment_lengths=[1, 2, 3])
-
-        assert c1 == c2
-        assert c1 != c3
-
-        c1 = ArrayCoordinates1d([0, 1, 3], segment_lengths=1)
-        c2 = ArrayCoordinates1d([0, 1, 3], segment_lengths=1)
-        c3 = ArrayCoordinates1d([0, 1, 3], segment_lengths=2)
-
-        assert c1 == c2
-        assert c1 != c3
-
-        # mixed segment_lengths type
-        c1 = ArrayCoordinates1d([0, 1, 3], segment_lengths=[1, 1, 1])
-        c2 = ArrayCoordinates1d([0, 1, 3], segment_lengths=1)
-        assert c1 == c2
-
 
 class TestArrayCoordinatesSerialization(object):
     def test_definition(self):
         # numerical
-        c = ArrayCoordinates1d([0, 1, 2], name="lat", ctype="point")
+        c = ArrayCoordinates1d([0, 1, 2], name="lat")
         d = c.definition
         assert isinstance(d, dict)
-        assert set(d.keys()) == {"values", "name", "ctype"}
+        assert set(d.keys()) == {"values", "name"}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)  # test serializable
         c2 = ArrayCoordinates1d.from_definition(d)  # test from_definition
         assert c2 == c
@@ -518,20 +340,6 @@ class TestArrayCoordinatesSerialization(object):
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)  # test serializable
         c2 = ArrayCoordinates1d.from_definition(d)  # test from_definition
         assert c2 == c
-
-    def test_definition_segment_lengths(self):
-        c = ArrayCoordinates1d([0, 1, 2], segment_lengths=0.5)
-        d = c.definition
-        assert isinstance(d, dict)
-        assert set(d.keys()) == {"values", "segment_lengths"}
-        json.dumps(d, cls=podpac.core.utils.JSONEncoder)  # test serializable
-        c2 = ArrayCoordinates1d.from_definition(d)  # test from_definition
-        assert c2 == c
-
-    def test_invalid_definition(self):
-        d = {"coordinates": [0, 1, 2]}
-        with pytest.raises(ValueError, match='ArrayCoordinates1d definition requires "values" property'):
-            ArrayCoordinates1d.from_definition(d)
 
 
 class TestArrayCoordinatesProperties(object):
@@ -551,102 +359,6 @@ class TestArrayCoordinatesProperties(object):
         with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
             c.idims
 
-    def test_area_bounds_point(self):
-        # numerical
-        values = np.array([0.0, 1.0, 4.0, 6.0])
-        c = ArrayCoordinates1d(values, ctype="point")
-        assert_equal(c.area_bounds, [0.0, 6.0])
-        c = ArrayCoordinates1d(values[::-1], ctype="point")
-        assert_equal(c.area_bounds, [0.0, 6.0])
-        c = ArrayCoordinates1d(values[[1, 2, 0, 3]], ctype="point")
-        assert_equal(c.area_bounds, [0.0, 6.0])
-
-        # datetime
-        values = np.array(["2017-01-01", "2017-01-02", "2018-01-01", "2019-01-01"]).astype(np.datetime64)
-        c = ArrayCoordinates1d(values, ctype="point")
-        assert_equal(c.area_bounds, np.array(["2017-01-01", "2019-01-01"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values[::-1], ctype="point")
-        assert_equal(c.area_bounds, np.array(["2017-01-01", "2019-01-01"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values[[1, 2, 0, 3]], ctype="point")
-        assert_equal(c.area_bounds, np.array(["2017-01-01", "2019-01-01"]).astype(np.datetime64))
-
-    def test_area_bounds_empty(self):
-        c = ArrayCoordinates1d([], ctype="midpoint")
-        assert np.all(np.isnan(c.area_bounds))
-
-    def test_area_bounds_left(self):
-        # numerical
-        values = np.array([0.0, 1.0, 4.0, 6.0])
-        c = ArrayCoordinates1d(values, ctype="left")
-        assert_equal(c.area_bounds, [0.0, 8.0])
-        c = ArrayCoordinates1d(values[::-1], ctype="left")
-        assert_equal(c.area_bounds, [0.0, 8.0])
-        c = ArrayCoordinates1d(values[[1, 0, 3, 2]], ctype="left", segment_lengths=2.0)
-        assert_equal(c.area_bounds, [0.0, 8.0])
-        c = ArrayCoordinates1d(values[[1, 0, 3, 2]], ctype="left", segment_lengths=[1.0, 1.0, 2.0, 1.0])
-        assert_equal(c.area_bounds, [0.0, 8.0])
-
-        # datetime
-        values = np.array(["2017-01-02", "2017-01-01", "2019-01-01", "2018-01-01"]).astype(np.datetime64)
-        c = ArrayCoordinates1d(values, ctype="left", segment_lengths="1,D")
-        assert_equal(c.area_bounds, np.array(["2017-01-01", "2019-01-02"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values, ctype="left", segment_lengths="1,M")
-        assert_equal(c.area_bounds, np.array(["2017-01-01", "2019-02-01"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values, ctype="left", segment_lengths="1,Y")
-        assert_equal(c.area_bounds, np.array(["2017-01-01", "2020-01-01"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values, ctype="left", segment_lengths=["2,D", "2,D", "1,D", "2,D"])
-        assert_equal(c.area_bounds, np.array(["2017-01-01", "2019-01-02"]).astype(np.datetime64))
-
-    def test_area_bounds_right(self):
-        # numerical
-        values = np.array([0.0, 1.0, 4.0, 6.0])
-        c = ArrayCoordinates1d(values, ctype="right")
-        assert_equal(c.area_bounds, [-1.0, 6.0])
-        c = ArrayCoordinates1d(values[::-1], ctype="right")
-        assert_equal(c.area_bounds, [-1.0, 6.0])
-        c = ArrayCoordinates1d(values[[1, 0, 3, 2]], ctype="right", segment_lengths=1.0)
-        assert_equal(c.area_bounds, [-1.0, 6.0])
-        c = ArrayCoordinates1d(values[[1, 0, 3, 2]], ctype="right", segment_lengths=[3.0, 1.0, 3.0, 3.0])
-        assert_equal(c.area_bounds, [-1.0, 6.0])
-
-        # datetime
-        values = np.array(["2017-01-02", "2017-01-01", "2019-01-01", "2018-01-01"]).astype(np.datetime64)
-        c = ArrayCoordinates1d(values, ctype="right", segment_lengths="1,D")
-        assert_equal(c.area_bounds, np.array(["2016-12-31", "2019-01-01"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values, ctype="right", segment_lengths="1,M")
-        assert_equal(c.area_bounds, np.array(["2016-12-01", "2019-01-01"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values, ctype="right", segment_lengths="1,Y")
-        assert_equal(c.area_bounds, np.array(["2016-01-01", "2019-01-01"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values, ctype="right", segment_lengths=["2,D", "1,D", "2,D", "2,D"])
-        assert_equal(c.area_bounds, np.array(["2016-12-31", "2019-01-01"]).astype(np.datetime64))
-
-    def test_area_bounds_midpoint(self):
-        # numerical
-        values = np.array([0.0, 1.0, 4.0, 6.0])
-        c = ArrayCoordinates1d(values, ctype="midpoint")
-        assert_equal(c.area_bounds, [-0.5, 7.0])
-        c = ArrayCoordinates1d(values[::-1], ctype="midpoint")
-        assert_equal(c.area_bounds, [-0.5, 7.0])
-        c = ArrayCoordinates1d(values[[1, 0, 3, 2]], ctype="midpoint", segment_lengths=1.0)
-        assert_equal(c.area_bounds, [-0.5, 6.5])
-        c = ArrayCoordinates1d(values[[1, 0, 3, 2]], ctype="midpoint", segment_lengths=[1.0, 2.0, 3.0, 4.0])
-        assert_equal(c.area_bounds, [-1.0, 7.5])
-
-        # datetime
-        values = np.array(["2017-01-02", "2017-01-01", "2019-01-01", "2018-01-01"]).astype(np.datetime64)
-        c = ArrayCoordinates1d(values, ctype="midpoint", segment_lengths="2,D")
-        assert_equal(c.area_bounds, np.array(["2016-12-31", "2019-01-02"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values, ctype="midpoint", segment_lengths="2,M")
-        assert_equal(c.area_bounds, np.array(["2016-12-01", "2019-02-01"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values, ctype="midpoint", segment_lengths="2,Y")
-        assert_equal(c.area_bounds, np.array(["2016-01-01", "2020-01-01"]).astype(np.datetime64))
-        c = ArrayCoordinates1d(values, ctype="midpoint", segment_lengths=["2,D", "4,D", "6,D", "8,D"])
-        assert_equal(c.area_bounds, np.array(["2016-12-30", "2019-01-04"]).astype(np.datetime64))
-
-        # datetime divide_delta
-        c = ArrayCoordinates1d(values, ctype="midpoint", segment_lengths="1,D")
-        assert_equal(c.area_bounds, np.array(["2016-12-31 12", "2019-01-01 12"]).astype(np.datetime64))
-
     def test_properties(self):
         c = ArrayCoordinates1d([])
         assert isinstance(c.properties, dict)
@@ -655,14 +367,6 @@ class TestArrayCoordinatesProperties(object):
         c = ArrayCoordinates1d([], name="lat")
         assert isinstance(c.properties, dict)
         assert set(c.properties) == {"name"}
-
-        c = ArrayCoordinates1d([], ctype="point")
-        assert isinstance(c.properties, dict)
-        assert set(c.properties) == {"ctype"}
-
-        c = ArrayCoordinates1d([1, 2], segment_lengths=1)
-        assert isinstance(c.properties, dict)
-        assert set(c.properties) == {"segment_lengths"}
 
     def test_coords(self):
         c = ArrayCoordinates1d([1, 2], name="lat")
@@ -681,7 +385,7 @@ class TestArrayCoordinatesIndexing(object):
         assert len(c) == 3
 
     def test_index(self):
-        c = ArrayCoordinates1d([20, 50, 60, 90, 40, 10], name="lat", ctype="point")
+        c = ArrayCoordinates1d([20, 50, 60, 90, 40, 10], name="lat")
 
         # int
         c2 = c[2]
@@ -742,42 +446,6 @@ class TestArrayCoordinatesIndexing(object):
         with pytest.raises(IndexError):
             c[10]
 
-    def test_index_segment_lengths(self):
-        # array segment_lengths
-        c = ArrayCoordinates1d([1, 2, 4, 5], segment_lengths=[0.1, 0.2, 0.3, 0.4])
-
-        c2 = c[1]
-        assert c2.segment_lengths == 0.2 or np.array_equal(c2.segment_lengths, [0.2])
-
-        c2 = c[1:3]
-        assert_equal(c2.segment_lengths, [0.2, 0.3])
-
-        c2 = c[[2, 1]]
-        assert_equal(c2.segment_lengths, [0.3, 0.2])
-
-        c2 = c[[]]
-        assert_equal(c2.segment_lengths, [])
-
-        # uniform segment_lengths
-        c = ArrayCoordinates1d([1, 2, 4, 5], segment_lengths=0.5)
-
-        c2 = c[1]
-        assert c2.segment_lengths == 0.5
-
-        c2 = c[1:3]
-        assert c2.segment_lengths == 0.5
-
-        c2 = c[[2, 1]]
-        assert c2.segment_lengths == 0.5
-
-        c2 = c[[]]
-        assert c2.segment_lengths == 0.5
-
-        # inferred segment_lengths
-        c = ArrayCoordinates1d([1, 2, 4, 7], ctype="left")
-        c2 = c[1]
-        assert c2.segment_lengths == 2.0 or np.array_equal(c2.segment_lengths, [2.0])
-
 
 class TestArrayCoordinatesSelection(object):
     def test_select_empty_shortcut(self):
@@ -792,7 +460,7 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(c.coordinates[I], [])
 
     def test_select_all_shortcut(self):
-        c = ArrayCoordinates1d([20.0, 50.0, 60.0, 90.0, 40.0, 10.0], ctype="point")
+        c = ArrayCoordinates1d([20.0, 50.0, 60.0, 90.0, 40.0, 10.0])
         bounds = [0, 100]
 
         s = c.select(bounds)
@@ -803,7 +471,7 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(c.coordinates[I], c.coordinates)
 
     def test_select_none_shortcut(self):
-        c = ArrayCoordinates1d([20.0, 50.0, 60.0, 90.0, 40.0, 10.0], ctype="point")
+        c = ArrayCoordinates1d([20.0, 50.0, 60.0, 90.0, 40.0, 10.0])
 
         # above
         s = c.select([100, 200])
@@ -822,7 +490,7 @@ class TestArrayCoordinatesSelection(object):
         assert_equal(c.coordinates[I], [])
 
     def test_select(self):
-        c = ArrayCoordinates1d([20.0, 50.0, 60.0, 90.0, 40.0, 10.0], ctype="point")
+        c = ArrayCoordinates1d([20.0, 50.0, 60.0, 90.0, 40.0, 10.0])
 
         # inner
         s = c.select([30.0, 55.0])

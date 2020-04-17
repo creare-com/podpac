@@ -87,15 +87,6 @@ class TestDependentCoordinatesStandardMethods(object):
         c2 = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=7, dims=["lat", "lon"])
         assert c1 != c2
 
-    def test_eq_properties(self):
-        c1 = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"], ctypes="left", segment_lengths=1
-        )
-        c2 = PolarCoordinates(
-            center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"], ctypes="right", segment_lengths=1
-        )
-        assert c1 != c2
-
     def test_eq(self):
         c1 = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
         c2 = PolarCoordinates(center=[1.5, 2.0], radius=[1, 2, 4, 5], theta_size=8, dims=["lat", "lon"])
@@ -168,7 +159,7 @@ class TestPolarCoordinatesSerialization(object):
         d = c.full_definition
 
         assert isinstance(d, dict)
-        assert set(d.keys()) == {"dims", "radius", "center", "theta", "ctypes", "segment_lengths"}
+        assert set(d.keys()) == {"dims", "radius", "center", "theta"}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)  # test serializable
 
 

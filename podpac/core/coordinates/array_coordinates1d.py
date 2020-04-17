@@ -32,11 +32,7 @@ class ArrayCoordinates1d(Coordinates1d):
         Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    ctype : str
-        Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-    segment_lengths : array, float, timedelta
-        When ctype is a segment type, the segment lengths for the coordinates.
-
+    
     See Also
     --------
     :class:`Coordinates1d`, :class:`UniformCoordinates1d`
@@ -46,7 +42,7 @@ class ArrayCoordinates1d(Coordinates1d):
     # coordinates.__doc__ = ":array: User-defined coordinate values"
     # coordinates = None
 
-    def __init__(self, coordinates, name=None, ctype=None, segment_lengths=None):
+    def __init__(self, coordinates, name=None):
         """
         Create 1d coordinates from an array.
 
@@ -56,11 +52,6 @@ class ArrayCoordinates1d(Coordinates1d):
             coordinate values.
         name : str, optional
             Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
-        ctype : str, optional
-            Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-        segment_lengths : array, optional
-            When ctype is a segment type, the segment lengths for the coordinates. The segment_lengths are required
-            for nonmonotonic coordinates. The segment can be inferred from coordinate values for monotonic coordinates.
         """
 
         # validate and set coordinates
@@ -93,55 +84,7 @@ class ArrayCoordinates1d(Coordinates1d):
                 self._is_uniform = np.allclose(deltas, deltas[0])
 
         # set common properties
-        super(ArrayCoordinates1d, self).__init__(name=name, ctype=ctype, segment_lengths=segment_lengths)
-
-        # check segment lengths
-        if segment_lengths is None:
-            if self.ctype == "point" or self.size == 0:
-                self.set_trait("segment_lengths", None)
-            elif self.dtype == np.datetime64:
-                raise TypeError("segment_lengths required for datetime coordinates (if ctype != 'point')")
-            elif self.size == 1:
-                raise TypeError("segment_lengths required for coordinates of size 1 (if ctype != 'point')")
-            elif not self.is_monotonic:
-                raise TypeError("segment_lengths required for nonmonotonic coordinates (if ctype != 'point')")
-
-    @tl.default("ctype")
-    def _default_ctype(self):
-        if self.size == 0 or self.size == 1 or not self.is_monotonic or self.dtype == np.datetime64:
-            return "point"
-        else:
-            return "midpoint"
-
-    @tl.default("segment_lengths")
-    def _default_segment_lengths(self):
-        if self.ctype == "point":
-            return None
-
-        if self.is_uniform:
-            return np.abs(self.coordinates[1] - self.coordinates[0])
-
-        deltas = np.abs(self.coordinates[1:] - self.coordinates[:-1])
-        if self.is_descending:
-            deltas = deltas[::-1]
-
-        segment_lengths = np.zeros(self.coordinates.size)
-        if self.ctype == "left":
-            segment_lengths[:-1] = deltas
-            segment_lengths[-1] = segment_lengths[-2]
-        elif self.ctype == "right":
-            segment_lengths[1:] = deltas
-            segment_lengths[0] = segment_lengths[1]
-        elif self.ctype == "midpoint":
-            segment_lengths[:-1] = deltas
-            segment_lengths[1:] += deltas
-            segment_lengths[1:-1] /= 2
-
-        if self.is_descending:
-            segment_lengths = segment_lengths[::-1]
-
-        segment_lengths.setflags(write=False)
-        return segment_lengths
+        super(ArrayCoordinates1d, self).__init__(name=name)
 
     def __eq__(self, other):
         if not super(ArrayCoordinates1d, self).__eq__(other):
@@ -165,11 +108,6 @@ class ArrayCoordinates1d(Coordinates1d):
         ---------
         x : xarray.DataArray
             Nade DataArray of the coordinate values
-        ctype : str, optional
-            Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-        segment_lengths : (low, high), optional
-            When ctype is a segment type, the segment lengths for the coordinates. The segment_lengths are required
-            for nonmonotonic coordinates. The segment can be inferred from coordinate values for monotonic coordinates.
 
         Returns
         -------
@@ -194,8 +132,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
             c = ArrayCoordinates1d.from_definition({
                 "values": [0, 1, 2, 3],
-                "name": "lat",
-                "ctype": "points"
+                "name": "lat"
             })
 
         Arguments
@@ -230,8 +167,7 @@ class ArrayCoordinates1d(Coordinates1d):
             Copy of the coordinates.
         """
 
-        kwargs = self.properties
-        return ArrayCoordinates1d(self.coordinates, **kwargs)
+        return ArrayCoordinates1d(self.coordinates, **self.properties)
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods, array-like
@@ -241,17 +177,7 @@ class ArrayCoordinates1d(Coordinates1d):
         return self.size
 
     def __getitem__(self, index):
-        coordinates = self.coordinates[index]
-        kwargs = self.properties
-        kwargs["ctype"] = self.ctype
-
-        if self.ctype != "point":
-            if isinstance(self.segment_lengths, np.ndarray):
-                kwargs["segment_lengths"] = self.segment_lengths[index]
-            else:
-                kwargs["segment_lengths"] = self.segment_lengths
-
-        return ArrayCoordinates1d(coordinates, **kwargs)
+        return ArrayCoordinates1d(self.coordinates[index], **self.properties)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -292,8 +218,6 @@ class ArrayCoordinates1d(Coordinates1d):
     def bounds(self):
         """ Low and high coordinate bounds. """
 
-        # TODO are we sure this can't be a tuple?
-
         if self.size == 0:
             lo, hi = np.nan, np.nan
         elif self.is_monotonic:
@@ -303,10 +227,7 @@ class ArrayCoordinates1d(Coordinates1d):
         else:
             lo, hi = np.nanmin(self.coordinates), np.nanmax(self.coordinates)
 
-        # read-only array with the correct dtype
-        bounds = np.array([lo, hi], dtype=self.dtype)
-        bounds.setflags(write=False)
-        return bounds
+        return lo, hi
 
     @property
     def argbounds(self):
