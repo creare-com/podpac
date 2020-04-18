@@ -6,7 +6,7 @@ including user defined data sources.
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from copy import deepcopy
 import warnings
 import logging
@@ -173,10 +173,6 @@ class DataSource(Node):
     def _default_interpolation(self):
         self._set_interpolation()
         return self._interpolation
-
-    @tl.default("boundary")
-    def _default_boundary(self):
-        return defaultdict(lambda: None)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -366,10 +362,8 @@ class DataSource(Node):
         if self.coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
 
-        # intersect the coordinates with requested coordinates
-        # to get coordinates within requested coordinates bounds
+        # intersect the coordinates with requested coordinates to get coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
-        # TODO select boundary, too, and maybe pass boundary into intersect in order to compute area_bounds
         (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
         self._requested_source_coordinates = rsc
         self._requested_source_coordinates_index = rsci
@@ -388,7 +382,6 @@ class DataSource(Node):
         self._set_interpolation()
 
         # interpolate requested coordinates before getting data
-        # TODO select boundary, too, and maybe pass boundary into select_coordinates
         (rsc, rsci) = self._interpolation.select_coordinates(
             self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
         )
@@ -443,8 +436,10 @@ class DataSource(Node):
                     + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
                 )
 
+        # get indexed boundary
+        self._requested_source_boundary = self.get_boundary(self._requested_source_coordinates_index)
+
         # interpolate data into output
-        # TODO requested_source_boundary, or requested_source_area_bounds
         output = self._interpolation.interpolate(
             self._requested_source_coordinates, self.boundary, self._requested_source_data, coordinates, output
         )
@@ -512,3 +507,29 @@ class DataSource(Node):
 
         if not self.trait_is_defined("_coordinates"):
             self.set_trait("_coordinates", coordinates)
+
+    def get_boundary(self, index):
+        """
+        Select the boundary for the given the coordinates index. Only non-uniform boundary arrays need to be indexed.
+
+        Arguments
+        ---------
+        index : tuple
+            Coordinates index (e.g. coordinates_index)
+
+        Returns
+        -------
+        boundary : dict
+            Indexed boundary. Uniform boundaries are unchanged and non-uniform boundary arrays are indexed.
+        """
+
+        boundary = {}
+        for c, I in zip(self.coordinates.values(), index):
+            for dim in c.dims:
+                if dim not in self.boundary:
+                    pass
+                elif np.array(self.boundary[dim]).ndim == 2:
+                    boundary[dim] = np.array(self.boundary[dim][I])
+                else:
+                    boundary[dim] = self.boundary[dim]
+        return boundary

@@ -208,7 +208,8 @@ class WCS(DataSource):
         output = self.create_output_array(coordinates)
         dotime = "time" in self.wcs_coordinates.dims
 
-        area_bounds = coordinates.get_area_bounds(self.boundary)  # TODO boundary needs to be indexed in some cases
+        boundary = self.get_boundary(coordinates_index)
+        area_bounds = coordinates.get_area_bounds(boundary)
         wbound = min(area_bounds["lon"])
         ebound = max(area_bounds["lon"])
         sbound = min(area_bounds["lat"])

@@ -463,6 +463,58 @@ class TestDataSource(object):
         assert len(l) == 1
         assert l[0] == node.coordinates
 
+    def test_get_boundary(self):
+        index = (slice(3, 9, 2), [3, 4, 6])
+
+        # points
+        node = MockDataSource(boundary={})
+        boundary = node.get_boundary(index)
+        assert boundary == {}
+
+        # uniform centered
+        node = MockDataSource(boundary={"lat": 0.1, "lon": 0.2})
+        boundary = node.get_boundary(index)
+        assert boundary == {"lat": 0.1, "lon": 0.2}
+
+        # uniform polygon
+        node = MockDataSource(boundary={"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]})
+        boundary = node.get_boundary(index)
+        assert boundary == {"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]}
+
+        # non-uniform
+        lat_boundary = np.vstack([-np.arange(11), np.arange(11)]).T
+        lon_boundary = np.vstack([-2 * np.arange(11), 2 * np.arange(11)]).T
+        node = MockDataSource(boundary={"lat": lat_boundary, "lon": lon_boundary})
+        boundary = node.get_boundary(index)
+        np.testing.assert_array_equal(boundary["lat"], lat_boundary[index[0]])
+        np.testing.assert_array_equal(boundary["lon"], lon_boundary[index[1]])
+
+    def test_get_boundary_stacked(self):
+        index = (slice(3, 9, 2),)
+
+        # points
+        node = MockDataSourceStacked(boundary={})
+        boundary = node.get_boundary(index)
+        assert boundary == {}
+
+        # uniform centered
+        node = MockDataSourceStacked(boundary={"lat": 0.1, "lon": 0.1})
+        boundary = node.get_boundary(index)
+        assert boundary == {"lat": 0.1, "lon": 0.1}
+
+        # uniform polygon
+        node = MockDataSourceStacked(boundary={"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]})
+        boundary = node.get_boundary(index)
+        assert boundary == {"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]}
+
+        # non-uniform
+        lat_boundary = np.vstack([-np.arange(11), np.arange(11)]).T
+        lon_boundary = np.vstack([-2 * np.arange(11), 2 * np.arange(11)]).T
+        node = MockDataSourceStacked(boundary={"lat": lat_boundary, "lon": lon_boundary})
+        boundary = node.get_boundary(index)
+        np.testing.assert_array_equal(boundary["lat"], lat_boundary[index])
+        np.testing.assert_array_equal(boundary["lon"], lon_boundary[index])
+
 
 class TestInterpolateData(object):
     """test default generic interpolation defaults"""
