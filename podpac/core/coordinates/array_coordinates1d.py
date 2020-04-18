@@ -64,11 +64,13 @@ class ArrayCoordinates1d(Coordinates1d):
             self._is_monotonic = None
             self._is_descending = None
             self._is_uniform = None
+            self._step = None
 
         elif self.coordinates.size == 1:
             self._is_monotonic = True
             self._is_descending = None
             self._is_uniform = True
+            self._step = None
 
         else:
             deltas = (self.coordinates[1:] - self.coordinates[:-1]).astype(float) * (
@@ -78,10 +80,12 @@ class ArrayCoordinates1d(Coordinates1d):
                 self._is_monotonic = False
                 self._is_descending = None
                 self._is_uniform = False
+                self._step = None
             else:
                 self._is_monotonic = True
                 self._is_descending = self.coordinates[1] < self.coordinates[0]
                 self._is_uniform = np.allclose(deltas, deltas[0])
+                self._step = self.coordinates[1] - self.coordinates[0] if self._is_uniform else None
 
         # set common properties
         super(ArrayCoordinates1d, self).__init__(name=name)
@@ -213,6 +217,10 @@ class ArrayCoordinates1d(Coordinates1d):
     @property
     def is_uniform(self):
         return self._is_uniform
+
+    @property
+    def step(self):
+        return self._step
 
     @property
     def bounds(self):

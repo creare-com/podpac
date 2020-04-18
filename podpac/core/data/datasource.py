@@ -174,6 +174,19 @@ class DataSource(Node):
         self._set_interpolation()
         return self._interpolation
 
+    @tl.observe("_coordinates")
+    def _set_default_boundary(self, d):
+        if self.trait_is_defined("boundary"):
+            return
+
+        # uniform numeric coordinates have a uniform centered boundary by default
+        boundary = {}
+        for dim in self.coordinates.udims:
+            c = self.coordinates[dim]
+            if c.step and c.dtype == float:
+                boundary[dim] = c.step / 2.0
+        self.set_trait("boundary", boundary)
+
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------

@@ -16,6 +16,7 @@ class TestCoordinates1d(object):
             "is_monotonic",
             "is_descending",
             "is_uniform",
+            "step",
             "dims",
             "idims",
             "udims",

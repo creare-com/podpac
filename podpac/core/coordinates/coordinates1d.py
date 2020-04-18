@@ -137,6 +137,10 @@ class Coordinates1d(BaseCoordinates):
         raise NotImplementedError
 
     @property
+    def step(self):
+        raise NotImplementedError
+
+    @property
     def bounds(self):
         """ Low and high coordinate bounds. """
 

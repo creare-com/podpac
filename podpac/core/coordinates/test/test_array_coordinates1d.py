@@ -40,6 +40,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending is None
         assert c.is_uniform == True
+        assert c.step is None
         repr(c)
 
     def test_numerical_array(self):
@@ -55,6 +56,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == False
         assert c.is_descending is None
         assert c.is_uniform == False
+        assert c.step is None
         repr(c)
 
         # sorted ascending
@@ -69,6 +71,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == False
+        assert c.step is None
         repr(c)
 
         # sorted descending
@@ -83,6 +86,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == False
+        assert c.step is None
         repr(c)
 
         # uniform ascending
@@ -97,6 +101,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
+        assert c.step == 2
         repr(c)
 
         # uniform descending
@@ -111,6 +116,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == True
+        assert c.step == -2
         repr(c)
 
     def test_datetime_singleton(self):
@@ -124,6 +130,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending is None
         assert c.is_uniform == True
+        assert c.step is None
         repr(c)
 
     def test_datetime_array(self):
@@ -139,6 +146,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == False
         assert c.is_descending is None
         assert c.is_uniform == False
+        assert c.step is None
         repr(c)
 
         # sorted ascending
@@ -153,6 +161,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == False
+        assert c.step is None
         repr(c)
 
         # sorted descending
@@ -167,6 +176,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == False
+        assert c.step is None
         repr(c)
 
         # uniform ascending
@@ -181,6 +191,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
+        assert c.step == np.timedelta64(365, "D")
         repr(c)
 
         # uniform descending
@@ -195,6 +206,7 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == True
+        assert c.step == np.timedelta64(-365, "D")
         repr(c)
 
     def test_invalid_coords(self):

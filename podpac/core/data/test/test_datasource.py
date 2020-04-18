@@ -161,6 +161,49 @@ class TestDataSource(object):
         assert node.coordinates != Coordinates([])
         assert node.coordinates == node.get_coordinates()
 
+    def test_boundary(self):
+        # empty, singleton, and non-uniform: point coordinates, no default boundaries
+        node = DataSource()
+        node.set_coordinates(Coordinates([[], []], dims=["lat", "lon"]))
+        assert node.boundary == {}
+
+        node = DataSource()
+        node.set_coordinates(Coordinates([[0], [1]], dims=["lat", "lon"]))
+        assert node.boundary == {}
+
+        node = DataSource()
+        node.set_coordinates(Coordinates([[0, 1, 4], [0, 2, 1]], dims=["lat", "lon"]))
+        assert node.boundary == {}
+
+        # uniform: default centered boundaries using the step
+        node = DataSource()
+        node.set_coordinates(Coordinates([[0, 1, 2], [6, 4, 2]], dims=["lat", "lon"]))
+        assert node.boundary == {"lat": 0.5, "lon": -1.0}
+
+        node = DataSource()
+        node.set_coordinates(Coordinates([clinspace(0, 10, 11), clinspace(20, 0, 11)], dims=["lat", "lon"]))
+        assert node.boundary == {"lat": 0.5, "lon": -1.0}
+
+        # uniform stacked
+        node = DataSource()
+        node.set_coordinates(Coordinates([[clinspace(0, 10, 11), clinspace(20, 0, 11)]], dims=["lat_lon"]))
+        assert node.boundary == {"lat": 0.5, "lon": -1.0}
+
+        # uniform time are point coordinates, no default boundaries
+        node = DataSource()
+        node.set_coordinates(Coordinates([["2018-01-01", "2018-01-02", "2018-01-03"]], dims=["time"]))
+        assert node.boundary == {}
+
+        # mixed
+        node = DataSource()
+        node.set_coordinates(
+            Coordinates(
+                [clinspace(0, 10, 11), clinspace(20, 0, 11), ["2018-01-01", "2018-01-02", "2018-01-03"]],
+                dims=["lat", "lon", "time"],
+            )
+        )
+        assert node.boundary == {"lat": 0.5, "lon": -1.0}
+
     def test_invalid_interpolation(self):
         with pytest.raises(tl.TraitError):
             DataSource(interpolation="myowninterp")
