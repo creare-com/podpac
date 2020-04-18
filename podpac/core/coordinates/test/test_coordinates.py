@@ -14,6 +14,7 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
+from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.cfunctions import crange, clinspace
 from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.coordinates.coordinates import concat, union, merge_dims
@@ -1248,6 +1249,70 @@ class TestCoordinatesMethods(object):
         np.testing.assert_array_almost_equal(t["lon"].coordinates[:, 3], [40.0, 40.0])
         assert t["time"] == c["time"]
         np.testing.assert_array_almost_equal(t["alt"].coordinates, 0.30480061 * c["alt"].coordinates)
+
+    def test_transform_uniform_to_uniform(self):
+        c = Coordinates([clinspace(-90, 90, 5, "lat"), clinspace(-180, 180, 11, "lon"), clinspace(0, 1, 5, "time")])
+        t = c.transform("EPSG:4269")  # NAD 1983 uses same ellipsoid
+
+        assert isinstance(t["lat"], UniformCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
+        assert t.dims == c.dims
+
+        c = Coordinates(
+            [clinspace(-90, 90, 5, "lat"), clinspace(-180, 180, 11, "lon"), clinspace(0, 1, 5, "time")][::-1]
+        )
+        t = c.transform("EPSG:4269")  # NAD 1983 uses same ellipsoid
+
+        assert isinstance(t["lat"], UniformCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
+        assert t.dims == c.dims
+        for d in ["lat", "lon"]:
+            for a in ["start", "stop", "step"]:
+                np.testing.assert_almost_equal(getattr(c[d], a), getattr(t[d], a))
+
+    def test_transform_uniform_stacked(self):
+        c = Coordinates(
+            [[clinspace(-90, 90, 11, "lat"), clinspace(-180, 180, 11, "lon")], clinspace(0, 1, 5, "time")],
+            [["lat", "lon"], "time"],
+        )
+        t = c.transform("EPSG:4269")  # NAD 1983 uses same ellipsoid
+
+        assert isinstance(t["lat"], UniformCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
+
+    def test_transform_uniform_to_array(self):
+        c = Coordinates([clinspace(-45, 45, 5, "lat"), clinspace(-180, 180, 11, "lon")])
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:3395")
+
+        assert isinstance(t["lat"], ArrayCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
+
+        t2 = t.transform(c.crs)
+
+        for d in ["lat", "lon"]:
+            for a in ["start", "stop", "step"]:
+                np.testing.assert_almost_equal(getattr(c[d], a), getattr(t2[d], a))
+
+    def test_transform_uniform_to_dependent_to_uniform(self):
+        c = Coordinates([clinspace(-45, 45, 7, "lat"), clinspace(-180, 180, 11, "lon")])
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:3395")
+
+        t2 = t.transform(c.crs)
+        for d in ["lat", "lon"]:
+            for a in ["start", "stop", "step"]:
+                np.testing.assert_almost_equal(getattr(c[d], a), getattr(t2[d], a))
+
+    def test_transform_uniform_to_dependent(self):
+        c = Coordinates([clinspace(1000, 100, 7, "lat"), clinspace(1000, 100, 11, "lon")], crs="EPSG:32628")
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:32629")
+
+        assert "lat,lon" in t.dims
 
     def test_select_single(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
