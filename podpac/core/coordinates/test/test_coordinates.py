@@ -1758,8 +1758,10 @@ class TestCoordinatesMethodTransform(object):
         )
         t = c.transform("EPSG:4269")  # NAD 1983 uses same ellipsoid
 
-        assert isinstance(t["lat"], UniformCoordinates1d)
-        assert isinstance(t["lon"], UniformCoordinates1d)
+        assert isinstance(t["lat"], ArrayCoordinates1d)
+        assert isinstance(t["lon"], ArrayCoordinates1d)
+        np.testing.assert_array_almost_equal(t["lat"].coordinates, c["lat"].coordinates)
+        np.testing.assert_array_almost_equal(t["lon"].coordinates, c["lon"].coordinates)
 
     def test_transform_uniform_to_array(self):
         c = Coordinates([clinspace(-45, 45, 5, "lat"), clinspace(-180, 180, 11, "lon")])
@@ -1787,3 +1789,43 @@ class TestCoordinatesMethodTransform(object):
         for d in ["lat", "lon"]:
             for a in ["start", "stop", "step"]:
                 np.testing.assert_almost_equal(getattr(c[d], a), getattr(t2[d], a))
+
+    def test_transform_dependent_stacked_to_dependent_stacked(self):
+        c = Coordinates([[np.array([[1, 2, 3], [4, 5, 6]]), np.array([[7, 8, 9], [10, 11, 12]])]], ["lat,lon"])
+        c2 = Coordinates([[np.array([1, 2, 3, 4, 5, 6]), np.array([7, 8, 9, 10, 11, 12])]], ["lat_lon"])
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:32629")
+        assert "lat,lon" in t.dims
+        t_s = c2.transform("EPSG:32629")
+        assert "lat_lon" in t_s.dims
+
+        for d in ["lat", "lon"]:
+            np.testing.assert_almost_equal(t[d].coordinates.ravel(), t_s[d].coordinates.ravel())
+
+        t2 = t.transform(c.crs)
+        t2_s = t_s.transform(c.crs)
+
+        for d in ["lat", "lon"]:
+            np.testing.assert_almost_equal(t2[d].coordinates, c[d].coordinates)
+            np.testing.assert_almost_equal(t2_s[d].coordinates, c2[d].coordinates)
+
+        # Reverse order
+        c = Coordinates([[np.array([[1, 2, 3], [4, 5, 6]]), np.array([[7, 8, 9], [10, 11, 12]])]], ["lon,lat"])
+        c2 = Coordinates([[np.array([1, 2, 3, 4, 5, 6]), np.array([7, 8, 9, 10, 11, 12])]], ["lon_lat"])
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:32629")
+        assert "lon,lat" in t.dims
+        t_s = c2.transform("EPSG:32629")
+        assert "lon_lat" in t_s.dims
+
+        for d in ["lat", "lon"]:
+            np.testing.assert_almost_equal(t[d].coordinates.ravel(), t_s[d].coordinates.ravel())
+
+        t2 = t.transform(c.crs)
+        t2_s = t_s.transform(c.crs)
+
+        for d in ["lat", "lon"]:
+            np.testing.assert_almost_equal(t2[d].coordinates, c[d].coordinates)
+            np.testing.assert_almost_equal(t2_s[d].coordinates, c2[d].coordinates)

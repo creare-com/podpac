@@ -430,9 +430,11 @@ class StackedCoordinates(BaseCoordinates):
             lon = coords[ilon]
             alt = coords[ialt]
             tlon, tlat, talt = transformer.transform(lon.coordinates, lat.coordinates, alt.coordinates)
-            coords[ilat].set_trait("coordinates", tlat)
-            coords[ilon].set_trait("coordinates", tlon)
-            coords[ialt].set_trait("coordinates", talt)
+
+            # Could check for uniform coordinates here, but a rare case.
+            coords[ilat] = ArrayCoordinates1d(tlat, "lat", ctype=lat.ctype, segment_lengths=lat.segment_lengths)
+            coords[ilon] = ArrayCoordinates1d(tlon, "lon", ctype=lon.ctype, segment_lengths=lon.segment_lengths)
+            coords[ialt] = ArrayCoordinates1d(talt, "alt", ctype=alt.ctype, segment_lengths=lon.segment_lengths)
 
             # segment lengths
             # TODO can we use the proj4 '+units' here, at least sometimes?
@@ -453,8 +455,10 @@ class StackedCoordinates(BaseCoordinates):
             lat = coords[ilat]
             lon = coords[ilon]
             tlon, tlat = transformer.transform(lon.coordinates, lat.coordinates)
-            coords[ilat].set_trait("coordinates", tlat)
-            coords[ilon].set_trait("coordinates", tlon)
+
+            # Could check for uniform coordinates here, but a rare case.
+            coords[ilat] = ArrayCoordinates1d(tlat, "lat", ctype=lat.ctype, segment_lengths=lat.segment_lengths)
+            coords[ilon] = ArrayCoordinates1d(tlon, "lon", ctype=lon.ctype, segment_lengths=lon.segment_lengths)
 
             # segment lengths
             # TODO can we use proj4 '+units' here, at least sometimes?
@@ -469,7 +473,9 @@ class StackedCoordinates(BaseCoordinates):
             # coordinates
             alt = coords[ialt]
             _, _, talt = transformer.transform(np.zeros(self.size), np.zeros(self.size), alt.coordinates)
-            coords[ialt].set_trait("coordinates", talt)
+
+            # Could check for uniform coordinates here, but a rare case.
+            coords[ialt] = ArrayCoordinates1d(talt, "alt", ctype=alt.ctype, segment_lengths=lon.segment_lengths)
 
             # segment lengths
             if alt.ctype != "point" and "segment_lengths" in lon.properties:

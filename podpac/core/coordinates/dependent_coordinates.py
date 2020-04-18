@@ -478,7 +478,9 @@ class DependentCoordinates(BaseCoordinates):
                 warnings.warn("transformation of coordinate segment lengths not yet implemented")
             if self.ctypes[ialt] != "point":
                 _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
-                properties["segment_lengths"][ialt] = tsl
+                new_prop = list(properties["segment_lengths"])
+                new_prop[ialt] = tsl
+                properties["segment_lengths"] = tuple(new_prop)
 
         elif "lat" in self.dims and "lon" in self.dims:
             ilat = self.dims.index("lat")
