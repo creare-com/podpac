@@ -69,6 +69,10 @@ class BaseCoordinates(tl.HasTraits):
         """Deep copy of the coordinates and their properties."""
         raise NotImplementedError
 
+    def get_area_bounds(self, boundary):
+        """Get coordinate area bounds, including boundary information, for each unstacked dimension. """
+        raise NotImplementedError
+
     def select(self, bounds, outer=False, return_indices=False):
         """Get coordinate values that are with the given bounds."""
         raise NotImplementedError

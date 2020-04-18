@@ -72,8 +72,8 @@ Note the order of the ``dims`` keyword must match the shape of our data.
     In [8]: coords
     Out[8]: coords
     Coordinates (EPSG:4326)
-            lat: ArrayCoordinates1d(lat): Bounds[40.0, 50.0], N[11], ctype['midpoint']
-            lon: ArrayCoordinates1d(lon): Bounds[-10.0, 10.0], N[21], ctype['midpoint']
+            lat: ArrayCoordinates1d(lat): Bounds[40.0, 50.0], N[11]
+            lon: ArrayCoordinates1d(lon): Bounds[-10.0, 10.0], N[21]
 
 Create a PODPAC ``Array`` Node from ``data`` and ``coords``.
 An ``Array`` Node is a sub-class of ``DataSource`` Node.
@@ -92,8 +92,8 @@ An ``Array`` Node is a sub-class of ``DataSource`` Node.
       0.00474486 0.00650152 0.08999056]
         ...]]
             native_coordinates:
-                    lat: ArrayCoordinates1d(lat): Bounds[40.0, 50.0], N[11], ctype['midpoint']
-                    lon: ArrayCoordinates1d(lon): Bounds[-10.0, 10.0], N[21], ctype['midpoint']
+                    lat: ArrayCoordinates1d(lat): Bounds[40.0, 50.0], N[11]
+                    lon: ArrayCoordinates1d(lon): Bounds[-10.0, 10.0], N[21]
             interpolation: nearest
 
 We've successfully created a ``DataSource`` Node that describes an 11 x 21 grid of data values with lat and lon ``Coordinates``.

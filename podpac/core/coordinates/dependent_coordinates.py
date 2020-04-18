@@ -327,13 +327,13 @@ class DependentCoordinates(BaseCoordinates):
 
         return DependentCoordinates(self.coordinates, **self.properties)
 
-    def get_area_bounds(self, segments):
-        """Get coordinate area bounds, including segment information, for each unstacked dimension.
+    def get_area_bounds(self, boundary):
+        """Get coordinate area bounds, including boundary information, for each unstacked dimension.
 
         Arguments
         ---------
-        segments : dict
-            dictionary of segments for each unstacked dimension. Non-segment dimensions can be omitted.
+        boundary : dict
+            dictionary of boundary offsets for each unstacked dimension. Point dimensions can be omitted.
 
         Returns
         -------
@@ -343,7 +343,7 @@ class DependentCoordinates(BaseCoordinates):
 
         if None in self.dims:
             raise ValueError("Cannot get area_bounds for DependentCoordinates with un-named dimensions")
-        return {dim: self[dim].get_area_bounds(segments.get(dim)) for dim in self.dims}
+        return {dim: self[dim].get_area_bounds(boundary.get(dim)) for dim in self.dims}
 
     def select(self, bounds, outer=False, return_indices=False):
         """

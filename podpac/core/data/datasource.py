@@ -369,7 +369,7 @@ class DataSource(Node):
         # intersect the coordinates with requested coordinates
         # to get coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
-        # TODO select segments, too, and maybe pass segments into intersect in order to compute area_bounds
+        # TODO select boundary, too, and maybe pass boundary into intersect in order to compute area_bounds
         (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
         self._requested_source_coordinates = rsc
         self._requested_source_coordinates_index = rsci
@@ -388,7 +388,7 @@ class DataSource(Node):
         self._set_interpolation()
 
         # interpolate requested coordinates before getting data
-        # TODO select segments, too, and maybe pass segments into select_coordinates
+        # TODO select boundary, too, and maybe pass boundary into select_coordinates
         (rsc, rsci) = self._interpolation.select_coordinates(
             self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
         )

@@ -41,6 +41,11 @@ class TestBaseCoordinates(object):
             pass
 
         try:
+            c.get_area_bounds(None)
+        except NotImplementedError:
+            pass
+
+        try:
             c.select([0, 1])
         except NotImplementedError:
             pass
