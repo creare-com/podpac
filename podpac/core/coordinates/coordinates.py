@@ -27,6 +27,7 @@ from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
+from podpac.core.coordinates.dependent_coordinates import ArrayCoordinatesNd
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
@@ -1265,7 +1266,7 @@ class Coordinates(tl.HasTraits):
         else:
             return Coordinates(coords, validate_crs=False, **self.properties)
 
-    def transform(self, crs=None):
+    def transform(self, crs):
         """
         Transform coordinate dimensions (`lat`, `lon`, `alt`) into a different coordinate reference system.
         Uses PROJ syntax for coordinate reference systems and units.
@@ -1336,7 +1337,81 @@ class Coordinates(tl.HasTraits):
 
         transformer = pyproj.Transformer.from_proj(from_crs, to_crs, always_xy=True)
 
+        # Let's test to see if the transformed coordinates can be simplified to either UniformCoordinates1D or
+        # ArrayCoordinates1D
+        def simplified_transform():
+            """ I'm wrapping this in a function so that I can escape early if the coordinates prove dependent
+            """
+            # TODO: ADD ALTITUDE
+            TOL = 1e-7  # assume float 32 coordinate representation
+
+            def make_uniform(coords, size, name):
+                tc = None
+                dcoords = np.diff(coords)
+                if np.all(np.abs(dcoords[1:] - dcoords[0]) < (np.abs(dcoords[0]) * TOL)):
+                    # We've actually already done the needed transformation, so we can just go ahead and create the
+                    # coordinates
+                    tc = clinspace(coords[0], coords[-1], size, name)
+                return tc
+
+            lat = clinspace(self["lat"].coordinates[0], self["lat"].coordinates[-1], 5)
+            lon = clinspace(self["lon"].coordinates[0], self["lon"].coordinates[-1], 5)
+
+            c = DependentCoordinates(
+                np.meshgrid(lat.coordinates, lon.coordinates, indexing="ij"),
+                dims=["lat", "lon"],
+                ctypes=[self["lat"].ctype, self["lon"].ctype],
+                segment_lengths=[self["lat"].segment_lengths, self["lon"].segment_lengths],
+            )
+            t = c._transform(transformer)
+            if not isinstance(t, list):
+                # Then we are not independent -- this was checked in the Dependent Coordinates
+                return
+
+            # Great, we CAN simplify the transformed coordinates. Now let's test if these are uniform or not
+            # Note, the dependent coordinates may already give UniformCoordinates, but these are not the correct size
+
+            # Lat uniform test and transform
+            if isinstance(t[0], UniformCoordinates1d):
+                t_lat = make_uniform(t[0].coordinates, self["lat"].size, "lat")
+            else:
+                # Need to compute the non-uniform transformed coordinates
+                temp_coords = Coordinates(
+                    [[self["lat"].coordinates, self["lat"].coordinates * 0 + self["lon"].coordinates.mean()]],
+                    ["lat_lon"],
+                    crs=self.crs,
+                )
+                t_lat = temp_coords.transform(crs)["lat"]
+
+                # There is a small possibility here that these are again uniform (i.e. non-inform array input gives
+                # uniform array output). So let's check that...
+                t_lat_2 = make_uniform(t_lat.coordinates, self["lat"].size, "lat")
+                if t_lat_2 is not None:
+                    t_lat = t_lat_2
+
+            # Lon uniform test and transform
+            if isinstance(t[1], UniformCoordinates1d):
+                t_lon = make_uniform(t[1].coordinates, self["lon"].size, "lon")
+            else:
+                # Need to compute the non-uniform coordinates
+                temp_coords = Coordinates(
+                    [[self["lon"].coordinates, self["lon"].coordinates * 0 + self["lat"].coordinates.mean()]],
+                    ["lon_lat"],
+                    crs=self.crs,
+                )
+                t_lon = temp_coords.transform(crs)["lon"]
+
+                # There is a small possibility here that these are again uniform (i.e. non-inform array input gives
+                # uniform array output). So let's check that...
+                t_lon_2 = make_uniform(t_lon.coordinates, self["lon"].size, "lon")
+                if t_lon_2 is not None:
+                    t_lon = t_lon_2
+
+            return (t_lat, t_lon)
+
+        # Collect the individual coordinates
         cs = [c for c in self.values()]
+
         # if lat-lon transform is required, check dims and convert unstacked lat-lon coordinates if necessary
         # Also, check to see if we can short-cut the transformation because the results are uniform coordinates
         if "lat" in self.dims and "lon" in self.dims:
@@ -1349,88 +1424,13 @@ class Coordinates(tl.HasTraits):
             else:
                 raise ValueError("Cannot transform coordinates with nonadjacent lat and lon, transpose first")
 
-            # Let's test to see if the transformed coordinates can be simplified to either UniformCoordinates1D or
-            # ArrayCoordinates1D
-            def simplified_transform():
-                """ I'm wrapping this in a function so that I can escape early if the coordinates prove dependent
-                """
-                lat = clinspace(self["lat"].bounds[0], self["lat"].bounds[1], 5)
-                lon = clinspace(self["lon"].bounds[0], self["lon"].bounds[1], 5)
-                c = DependentCoordinates(
-                    np.meshgrid(lat.coordinates, lon.coordinates, indexing="ij"),
-                    dims=["lat", "lon"],
-                    ctypes=[self["lat"].ctype, self["lon"].ctype],
-                    segment_lengths=[self["lat"].segment_lengths, self["lon"].segment_lengths],
-                )
-                t = c._transform(transformer)
-
-                TOL = 1e-7  # assume float 32 coordinate representation
-                # Test for independence
-                dlatlon = np.diff(t["lat"].coordinates[0, :])
-                if not np.all(np.abs(dlatlon) < TOL):
-                    return
-                dlonlat = np.diff(t["lon"].coordinates[:, 0])
-                if not np.all(np.abs(dlonlat) < TOL):
-                    return
-
-                # Great, we CAN simplify the transformed coordinates. Now let's test if these are uniform or not
-                # Lat
-                dlat = np.diff(t["lat"].coordinates[:, 0])
-                lat_is_uniform = np.all(np.abs(dlat[1:] - dlat[0]) < (dlat[0] * TOL))
-                if lat_is_uniform:
-                    # We've actually already done the needed transformation, so we can just go ahead and create the
-                    # coordinates
-                    t_lat = clinspace(t["lat"].coordinates[0, 0], t["lat"].coordinates[-1, 0], self["lat"].size, "lat")
-                else:  # Need to compute the non-uniform coordinates
-                    temp_coords = Coordinates(
-                        [[self["lat"].coordinates, self["lat"].coordinates * 0 + t["lon"].coordinates.mean()]],
-                        ["lat_lon"],
-                        crs=self.crs,
-                    )
-                    t_lat = temp_coords.transform(crs)["lat"]
-
-                    # This is a small possibility here that these are again uniform, so let's check that...
-                    dlat = np.diff(t_lat.coordinates)
-                    lat_is_uniform = np.all(np.abs(dlat[1:] - dlat[0]) < (dlat[0] * TOL))
-                    if lat_is_uniform:
-                        t_lat = clinspace(
-                            t["lat"].coordinates[0, 0], t["lat"].coordinates[-1, 0], self["lat"].size, "lat"
-                        )
-
-                # Lon
-                dlon = np.diff(t["lon"].coordinates[0, :])
-                lon_is_uniform = np.all(np.abs(dlon[1:] - dlon[0]) < (dlon[0] * TOL))
-                if lon_is_uniform:
-                    # We've actually already done the needed transformation, so we can just go ahead and create the
-                    # coordinates
-                    t_lon = clinspace(t["lon"].coordinates[0, 0], t["lon"].coordinates[0, -1], self["lon"].size, "lon")
-                else:  # Need to compute the non-uniform coordinates
-                    temp_coords = Coordinates(
-                        [[self["lon"].coordinates, self["lon"].coordinates * 0 + t["lat"].coordinates.mean()]],
-                        ["lon_lat"],
-                        crs=self.crs,
-                    )
-                    t_lon = temp_coords.transform(crs)["lon"]
-
-                    # This is a small possibility here that these are again uniform, so let's check that...
-                    dlon = np.diff(t_lon.coordinates)
-                    lon_is_uniform = np.all(np.abs(dlon[1:] - dlon[0]) < (dlon[0] * TOL))
-                    if lon_is_uniform:
-                        t_lon = clinspace(
-                            t["lon"].coordinates[0, 0], t["lon"].coordinates[-1, 0], self["lon"].size, "lon"
-                        )
-
-                # Replace the lat and lon coordinates in cs
+            tc = simplified_transform()
+            if tc:
                 cs.pop(ilat)
-                cs.insert(ilat, t_lat)
+                cs.insert(ilat, tc[0])
                 cs.pop(ilon)
-                cs.insert(ilon, t_lon)
-
+                cs.insert(ilon, tc[1])
                 return Coordinates(cs, crs=crs, validate_crs=False)
-
-            c = simplified_transform()
-            if c is not None:
-                return c
 
             c = DependentCoordinates(
                 np.meshgrid(c1.coordinates, c2.coordinates, indexing="ij"),
@@ -1452,7 +1452,13 @@ class Coordinates(tl.HasTraits):
             raise ValueError("Cannot transform lon coordinates without lat coordinates")
 
         # transform
-        ts = [c._transform(transformer) for c in cs]
+        ts = []
+        for c in cs:
+            tc = c._transform(transformer)
+            if isinstance(tc, list):
+                ts.extend(tc)
+            else:
+                ts.append(tc)
         return Coordinates(ts, crs=crs, validate_crs=False)
 
     # ------------------------------------------------------------------------------------------------------------------
