@@ -62,6 +62,10 @@ class Array(NoCacheMixin, DataSource):
             raise ValueError("Array 'source' data must be numerical")
         return d["value"]
 
+    @tl.observe("coordinates")
+    def _set_coordinates(self, d):
+        self._set_default_boundary(d)
+
     def _first_init(self, **kwargs):
         # If the coordinates were supplied explicitly, they may need to be deserialized.
         if isinstance(kwargs.get("coordinates"), OrderedDict):

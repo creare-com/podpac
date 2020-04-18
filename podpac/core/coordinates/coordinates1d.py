@@ -250,7 +250,7 @@ class Coordinates1d(BaseCoordinates):
         else:
             return self[I]
 
-    def select(self, bounds, return_indices=False, outer=False):
+    def select(self, bounds, boundary=None, return_indices=False, outer=False):
         """
         Get the coordinate values that are within the given bounds.
 
@@ -302,6 +302,9 @@ class Coordinates1d(BaseCoordinates):
             if bounds is None:
                 return self._select_full(return_indices)
 
+        if isinstance(boundary, dict):
+            boundary = boundary.get(self.name)
+
         bounds = make_coord_value(bounds[0]), make_coord_value(bounds[1])
 
         # check type
@@ -314,7 +317,7 @@ class Coordinates1d(BaseCoordinates):
                 "Input bounds do match the coordinates dtype (%s != %s)" % (type(self.bounds[1]), self.dtype)
             )
 
-        my_bounds = self.bounds
+        my_bounds = self.get_area_bounds(boundary)
 
         # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
         if self.dtype == np.datetime64:

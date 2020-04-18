@@ -377,7 +377,7 @@ class DataSource(Node):
 
         # intersect the coordinates with requested coordinates to get coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
-        (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
+        (rsc, rsci) = self.coordinates.intersect(coordinates, boundary=self.boundary, outer=True, return_indices=True)
         self._requested_source_coordinates = rsc
         self._requested_source_coordinates_index = rsci
 

@@ -345,7 +345,7 @@ class DependentCoordinates(BaseCoordinates):
             raise ValueError("Cannot get area_bounds for DependentCoordinates with un-named dimensions")
         return {dim: self[dim].get_area_bounds(boundary.get(dim)) for dim in self.dims}
 
-    def select(self, bounds, outer=False, return_indices=False):
+    def select(self, bounds, boundary=None, outer=False, return_indices=False):
         """
         Get the coordinate values that are within the given bounds in all dimensions.
 
@@ -355,6 +355,8 @@ class DependentCoordinates(BaseCoordinates):
         ----------
         bounds : dict
             dictionary of dim -> (low, high) selection bounds
+        boundary : dict, optional
+            dictionary of boundary offsets for each unstacked dimension. Non-segment dimensions can be omitted.
         outer : bool, optional
             If True, do *outer* selections. Default False.
         return_indices : bool, optional
