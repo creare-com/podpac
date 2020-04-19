@@ -19,6 +19,7 @@ import traitlets as tl
 from podpac.core.settings import settings
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES, make_coord_delta, make_coord_delta_array
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
@@ -152,8 +153,8 @@ class DataSource(Node):
     """
 
     interpolation = InterpolationTrait().tag(attr=True)
-    boundary = tl.Dict().tag(attr=True)
     nan_vals = tl.List().tag(attr=True)
+    boundary = tl.Dict().tag(attr=True)
 
     coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
     cache_coordinates = tl.Bool(False)
@@ -174,18 +175,33 @@ class DataSource(Node):
         self._set_interpolation()
         return self._interpolation
 
-    @tl.observe("_coordinates")
-    def _set_default_boundary(self, d):
-        if self.trait_is_defined("boundary"):
-            return
+    @tl.validate("boundary")
+    def _validate_boundary(self, d):
+        val = d["value"]
+        for dim, boundary in val.items():
+            if dim not in VALID_DIMENSION_NAMES:
+                raise ValueError("Invalid dimension '%s' in boundary" % dim)
+            if np.array(boundary).ndim == 0:
+                try:
+                    delta = make_coord_delta(boundary)
+                except ValueError:
+                    raise ValueError(
+                        "Invalid boundary for dimension '%s' ('%s' is not a valid coordinate delta)" % (dim, boundary)
+                    )
 
-        # uniform numeric coordinates have a uniform centered boundary by default
-        boundary = {}
-        for dim in self.coordinates.udims:
-            c = self.coordinates[dim]
-            if c.step and c.dtype == float:
-                boundary[dim] = c.step / 2.0
-        self.set_trait("boundary", boundary)
+                if np.array(delta).astype(float) < 0:
+                    raise ValueError("Invalid boundary for dimension '%s' (%s < 0)" % (dim, delta))
+
+            if np.array(boundary).ndim == 1:
+                make_coord_delta_array(boundary)
+                raise NotImplementedError("Non-centered boundary not yet supported for dimension '%s'" % dim)
+
+            if np.array(boundary).ndim == 2:
+                for elem in boundary:
+                    make_coord_delta_array(elem)
+                raise NotImplementedError("Non-uniform boundary not yet supported for dimension '%s'" % dim)
+
+        return val
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -454,7 +470,7 @@ class DataSource(Node):
 
         # interpolate data into output
         output = self._interpolation.interpolate(
-            self._requested_source_coordinates, self.boundary, self._requested_source_data, coordinates, output
+            self._requested_source_coordinates, self._requested_source_data, coordinates, output
         )
 
         # Fill the output that was passed to eval with the new data

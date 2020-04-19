@@ -27,6 +27,9 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic is None
         assert c.is_descending is None
         assert c.is_uniform is None
+        assert c.start is None
+        assert c.stop is None
+        assert c.step is None
         repr(c)
 
     def test_numerical_singleton(self):
@@ -39,7 +42,9 @@ class TestArrayCoordinatesInit(object):
         assert c.dtype == float
         assert c.is_monotonic == True
         assert c.is_descending is None
-        assert c.is_uniform == True
+        assert c.is_uniform is None
+        assert c.start is None
+        assert c.stop is None
         assert c.step is None
         repr(c)
 
@@ -54,8 +59,10 @@ class TestArrayCoordinatesInit(object):
         assert c.shape == (4,)
         assert c.dtype == float
         assert c.is_monotonic == False
-        assert c.is_descending is None
+        assert c.is_descending is False
         assert c.is_uniform == False
+        assert c.start is None
+        assert c.stop is None
         assert c.step is None
         repr(c)
 
@@ -71,6 +78,8 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == False
+        assert c.start is None
+        assert c.stop is None
         assert c.step is None
         repr(c)
 
@@ -86,6 +95,8 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == False
+        assert c.start is None
+        assert c.stop is None
         assert c.step is None
         repr(c)
 
@@ -101,6 +112,8 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
+        assert c.start == 0.0
+        assert c.stop == 6.0
         assert c.step == 2
         repr(c)
 
@@ -116,6 +129,8 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == True
+        assert c.start == 6.0
+        assert c.stop == 0.0
         assert c.step == -2
         repr(c)
 
@@ -129,7 +144,9 @@ class TestArrayCoordinatesInit(object):
         assert c.dtype == np.datetime64
         assert c.is_monotonic == True
         assert c.is_descending is None
-        assert c.is_uniform == True
+        assert c.is_uniform is None
+        assert c.start is None
+        assert c.stop is None
         assert c.step is None
         repr(c)
 
@@ -144,8 +161,10 @@ class TestArrayCoordinatesInit(object):
         assert c.shape == (4,)
         assert c.dtype == np.datetime64
         assert c.is_monotonic == False
-        assert c.is_descending is None
+        assert c.is_descending == False
         assert c.is_uniform == False
+        assert c.start is None
+        assert c.stop is None
         assert c.step is None
         repr(c)
 
@@ -161,6 +180,8 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == False
+        assert c.start is None
+        assert c.stop is None
         assert c.step is None
         repr(c)
 
@@ -176,6 +197,8 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == False
+        assert c.start is None
+        assert c.stop is None
         assert c.step is None
         repr(c)
 
@@ -191,6 +214,8 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == False
         assert c.is_uniform == True
+        assert c.start == np.datetime64("2017-01-01")
+        assert c.stop == np.datetime64("2019-01-01")
         assert c.step == np.timedelta64(365, "D")
         repr(c)
 
@@ -206,6 +231,8 @@ class TestArrayCoordinatesInit(object):
         assert c.is_monotonic == True
         assert c.is_descending == True
         assert c.is_uniform == True
+        assert c.start == np.datetime64("2019-01-01")
+        assert c.stop == np.datetime64("2017-01-01")
         assert c.step == np.timedelta64(-365, "D")
         repr(c)
 

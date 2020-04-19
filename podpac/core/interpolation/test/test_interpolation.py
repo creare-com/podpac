@@ -294,9 +294,7 @@ class TestInterpolation(object):
         class TestInterp(Interpolator):
             dims_supported = ["lat", "lon"]
 
-            def interpolate(
-                self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data
-            ):
+            def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
                 output_data = source_data
                 return output_data
 
@@ -311,7 +309,7 @@ class TestInterpolation(object):
         )
 
         interp = Interpolation({"method": "myinterp", "interpolators": [TestInterp], "dims": ["lat", "lon"]})
-        outdata = interp.interpolate(srccoords, {}, srcdata, reqcoords, outdata)
+        outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
 
@@ -319,9 +317,7 @@ class TestInterpolation(object):
         class TestFakeInterp(Interpolator):
             dims_supported = ["lat"]
 
-            def interpolate(
-                self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data
-            ):
+            def interpolate(self, udims, source_coordinates, source_data, eval_coordinates, output_data):
                 return None
 
         reqcoords = Coordinates([[1]], dims=["lat"])
@@ -334,41 +330,6 @@ class TestInterpolation(object):
         )
 
         interp = Interpolation({"method": "myinterp", "interpolators": [TestFakeInterp], "dims": ["lat", "lon"]})
-        outdata = interp.interpolate(srccoords, {}, srcdata, reqcoords, outdata)
+        outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
-
-    def test_interpolate_boundary_not_implemented(self):
-        class TestInterp(Interpolator):
-            dims_supported = ["lat", "lon"]
-
-            def interpolate(
-                self, udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data
-            ):
-                output_data = source_data
-                return output_data
-
-        # test basic functionality
-        reqcoords = Coordinates([[-0.5, 1.5, 3.5], [0.5, 2.5, 4.5]], dims=["lat", "lon"])
-        srccoords = Coordinates([[0, 2, 4], [0, 3, 4]], dims=["lat", "lon"])
-        srcdata = UnitsDataArray(
-            np.random.rand(3, 3), coords=[srccoords[c].coordinates for c in srccoords], dims=srccoords.dims
-        )
-        outdata = UnitsDataArray(
-            np.zeros(srcdata.shape), coords=[reqcoords[c].coordinates for c in reqcoords], dims=reqcoords.dims
-        )
-
-        interp = Interpolation({"method": "myinterp", "interpolators": [TestInterp], "dims": ["lat", "lon"]})
-        outdata = interp.interpolate(srccoords, {}, srcdata, reqcoords, outdata)
-
-        assert np.all(outdata == srcdata)
-
-        # uniform centered boundary is fine
-        outdata = interp.interpolate(srccoords, {"lat": -0.1}, srcdata, reqcoords, outdata)
-
-        # but non-uniform and non-centered boundaries not yet supported
-        with pytest.raises(NotImplementedError, match="Non-centered coordinate boundary not yet supported"):
-            outdata = interp.interpolate(srccoords, {"lat": [-0.1, 0.2]}, srcdata, reqcoords, outdata)
-
-        with pytest.raises(NotImplementedError, match="Non-uniform coordinate boundary not yet supported"):
-            outdata = interp.interpolate(srccoords, {"lat": [[-0.1, 0.2]]}, srcdata, reqcoords, outdata)

@@ -42,6 +42,13 @@ class ArrayCoordinates1d(Coordinates1d):
     # coordinates.__doc__ = ":array: User-defined coordinate values"
     # coordinates = None
 
+    _is_monotonic = None
+    _is_descending = None
+    _is_uniform = None
+    _step = None
+    _start = None
+    _stop = None
+
     def __init__(self, coordinates, name=None):
         """
         Create 1d coordinates from an array.
@@ -61,16 +68,10 @@ class ArrayCoordinates1d(Coordinates1d):
 
         # precalculate once
         if self.coordinates.size == 0:
-            self._is_monotonic = None
-            self._is_descending = None
-            self._is_uniform = None
-            self._step = None
+            pass
 
         elif self.coordinates.size == 1:
             self._is_monotonic = True
-            self._is_descending = None
-            self._is_uniform = True
-            self._step = None
 
         else:
             deltas = (self.coordinates[1:] - self.coordinates[:-1]).astype(float) * (
@@ -78,14 +79,16 @@ class ArrayCoordinates1d(Coordinates1d):
             ).astype(float)
             if np.any(deltas <= 0):
                 self._is_monotonic = False
-                self._is_descending = None
+                self._is_descending = False
                 self._is_uniform = False
-                self._step = None
             else:
                 self._is_monotonic = True
                 self._is_descending = self.coordinates[1] < self.coordinates[0]
                 self._is_uniform = np.allclose(deltas, deltas[0])
-                self._step = self.coordinates[1] - self.coordinates[0] if self._is_uniform else None
+                if self._is_uniform:
+                    self._start = self.coordinates[0]
+                    self._stop = self.coordinates[-1]
+                    self._step = self.coordinates[1] - self.coordinates[0]
 
         # set common properties
         super(ArrayCoordinates1d, self).__init__(name=name)
@@ -217,6 +220,14 @@ class ArrayCoordinates1d(Coordinates1d):
     @property
     def is_uniform(self):
         return self._is_uniform
+
+    @property
+    def start(self):
+        return self._start
+
+    @property
+    def stop(self):
+        return self._stop
 
     @property
     def step(self):

@@ -162,47 +162,53 @@ class TestDataSource(object):
         assert node.coordinates == node.get_coordinates()
 
     def test_boundary(self):
-        # empty, singleton, and non-uniform: point coordinates, no default boundaries
+        # default
         node = DataSource()
-        node.set_coordinates(Coordinates([[], []], dims=["lat", "lon"]))
         assert node.boundary == {}
 
-        node = DataSource()
-        node.set_coordinates(Coordinates([[0], [1]], dims=["lat", "lon"]))
-        assert node.boundary == {}
+        # none
+        node = DataSource(boundary={})
 
-        node = DataSource()
-        node.set_coordinates(Coordinates([[0, 1, 4], [0, 2, 1]], dims=["lat", "lon"]))
-        assert node.boundary == {}
+        # centered
+        node = DataSource(boundary={"lat": 0.25, "lon": 2.0})
+        node = DataSource(boundary={"time": "1,D"})
 
-        # uniform: default centered boundaries using the step
-        node = DataSource()
-        node.set_coordinates(Coordinates([[0, 1, 2], [6, 4, 2]], dims=["lat", "lon"]))
-        assert node.boundary == {"lat": 0.5, "lon": -1.0}
+        # box (not necessary centered)
+        with pytest.raises(NotImplementedError, match="Non-centered boundary not yet supported"):
+            node = DataSource(boundary={"lat": [-0.2, 0.3], "lon": [-2.0, 2.0]})
 
-        node = DataSource()
-        node.set_coordinates(Coordinates([clinspace(0, 10, 11), clinspace(20, 0, 11)], dims=["lat", "lon"]))
-        assert node.boundary == {"lat": 0.5, "lon": -1.0}
+        with pytest.raises(NotImplementedError, match="Non-centered boundary not yet supported"):
+            node = DataSource(boundary={"time": ["-1,D", "2,D"]})
 
-        # uniform stacked
-        node = DataSource()
-        node.set_coordinates(Coordinates([[clinspace(0, 10, 11), clinspace(20, 0, 11)]], dims=["lat_lon"]))
-        assert node.boundary == {"lat": 0.5, "lon": -1.0}
+        # polygon
+        with pytest.raises(NotImplementedError, match="Non-centered boundary not yet supported"):
+            node = DataSource(boundary={"lat": [0.0, -0.5, 0.0, 0.5], "lon": [-0.5, 0.0, 0.5, 0.0]})  # diamond
 
-        # uniform time are point coordinates, no default boundaries
-        node = DataSource()
-        node.set_coordinates(Coordinates([["2018-01-01", "2018-01-02", "2018-01-03"]], dims=["time"]))
-        assert node.boundary == {}
+        # array of boundaries (one for each coordinate)
+        with pytest.raises(NotImplementedError, match="Non-uniform boundary not yet supported"):
+            node = DataSource(boundary={"lat": [[-0.1, 0.4], [-0.2, 0.3], [-0.3, 0.2]], "lon": 0.5})
 
-        # mixed
-        node = DataSource()
-        node.set_coordinates(
-            Coordinates(
-                [clinspace(0, 10, 11), clinspace(20, 0, 11), ["2018-01-01", "2018-01-02", "2018-01-03"]],
-                dims=["lat", "lon", "time"],
-            )
-        )
-        assert node.boundary == {"lat": 0.5, "lon": -1.0}
+        with pytest.raises(NotImplementedError, match="Non-uniform boundary not yet supported"):
+            node = DataSource(boundary={"time": [["-1,D", "1,D"], ["-2,D", "1,D"]]})
+
+        # invalid
+        with pytest.raises(tl.TraitError):
+            node = DataSource(boundary=0.5)
+
+        with pytest.raises(ValueError, match="Invalid dimension"):
+            node = DataSource(boundary={"other": 0.5})
+
+        with pytest.raises(TypeError, match="Invalid coordinate delta"):
+            node = DataSource(boundary={"lat": {}})
+
+        with pytest.raises(ValueError, match="Invalid boundary"):
+            node = DataSource(boundary={"lat": -0.25, "lon": 2.0})  # negative
+
+        with pytest.raises(ValueError, match="Invalid boundary"):
+            node = DataSource(boundary={"time": "-2,D"})  # negative
+
+        with pytest.raises(ValueError, match="Invalid boundary"):
+            node = DataSource(boundary={"time": "2018-01-01"})  # not a delta
 
     def test_invalid_interpolation(self):
         with pytest.raises(tl.TraitError):
@@ -507,53 +513,65 @@ class TestDataSource(object):
         assert l[0] == node.coordinates
 
     def test_get_boundary(self):
+        # disable boundary validation (until non-centered and non-uniform boundaries are fully implemented)
+        class MockDataSourceNoBoundaryValidation(MockDataSource):
+            @tl.validate("boundary")
+            def _validate_boundary(self, d):
+                return d["value"]
+
         index = (slice(3, 9, 2), [3, 4, 6])
 
         # points
-        node = MockDataSource(boundary={})
+        node = MockDataSourceNoBoundaryValidation(boundary={})
         boundary = node.get_boundary(index)
         assert boundary == {}
 
         # uniform centered
-        node = MockDataSource(boundary={"lat": 0.1, "lon": 0.2})
+        node = MockDataSourceNoBoundaryValidation(boundary={"lat": 0.1, "lon": 0.2})
         boundary = node.get_boundary(index)
         assert boundary == {"lat": 0.1, "lon": 0.2}
 
         # uniform polygon
-        node = MockDataSource(boundary={"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]})
+        node = MockDataSourceNoBoundaryValidation(boundary={"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]})
         boundary = node.get_boundary(index)
         assert boundary == {"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]}
 
         # non-uniform
         lat_boundary = np.vstack([-np.arange(11), np.arange(11)]).T
         lon_boundary = np.vstack([-2 * np.arange(11), 2 * np.arange(11)]).T
-        node = MockDataSource(boundary={"lat": lat_boundary, "lon": lon_boundary})
+        node = MockDataSourceNoBoundaryValidation(boundary={"lat": lat_boundary, "lon": lon_boundary})
         boundary = node.get_boundary(index)
         np.testing.assert_array_equal(boundary["lat"], lat_boundary[index[0]])
         np.testing.assert_array_equal(boundary["lon"], lon_boundary[index[1]])
 
     def test_get_boundary_stacked(self):
+        # disable boundary validation (until non-centered and non-uniform boundaries are fully implemented)
+        class MockDataSourceStackedNoBoundaryValidation(MockDataSourceStacked):
+            @tl.validate("boundary")
+            def _validate_boundary(self, d):
+                return d["value"]
+
         index = (slice(3, 9, 2),)
 
         # points
-        node = MockDataSourceStacked(boundary={})
+        node = MockDataSourceStackedNoBoundaryValidation(boundary={})
         boundary = node.get_boundary(index)
         assert boundary == {}
 
         # uniform centered
-        node = MockDataSourceStacked(boundary={"lat": 0.1, "lon": 0.1})
+        node = MockDataSourceStackedNoBoundaryValidation(boundary={"lat": 0.1, "lon": 0.1})
         boundary = node.get_boundary(index)
         assert boundary == {"lat": 0.1, "lon": 0.1}
 
         # uniform polygon
-        node = MockDataSourceStacked(boundary={"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]})
+        node = MockDataSourceStackedNoBoundaryValidation(boundary={"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]})
         boundary = node.get_boundary(index)
         assert boundary == {"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]}
 
         # non-uniform
         lat_boundary = np.vstack([-np.arange(11), np.arange(11)]).T
         lon_boundary = np.vstack([-2 * np.arange(11), 2 * np.arange(11)]).T
-        node = MockDataSourceStacked(boundary={"lat": lat_boundary, "lon": lon_boundary})
+        node = MockDataSourceStackedNoBoundaryValidation(boundary={"lat": lat_boundary, "lon": lon_boundary})
         boundary = node.get_boundary(index)
         np.testing.assert_array_equal(boundary["lat"], lat_boundary[index])
         np.testing.assert_array_equal(boundary["lon"], lon_boundary[index])

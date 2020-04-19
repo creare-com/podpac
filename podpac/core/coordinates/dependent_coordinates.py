@@ -11,7 +11,7 @@ import numbers
 
 from podpac.core.settings import settings
 from podpac.core.utils import ArrayTrait, TupleTrait
-from podpac.core.coordinates.utils import Dimension, CoordinateType
+from podpac.core.coordinates.utils import Dimension
 from podpac.core.coordinates.utils import make_coord_array, make_coord_value, make_coord_delta
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d

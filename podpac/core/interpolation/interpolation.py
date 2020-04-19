@@ -444,7 +444,7 @@ class Interpolation(object):
 
         return selected_coords, tuple(selected_coords_idx)
 
-    def interpolate(self, source_coordinates, source_boundary, source_data, eval_coordinates, output_data):
+    def interpolate(self, source_coordinates, source_data, eval_coordinates, output_data):
         """Interpolate data from requested coordinates to source coordinates
         
         Parameters
@@ -490,20 +490,13 @@ class Interpolation(object):
         # for debugging purposes, save the last defined interpolator queue
         self._last_interpolator_queue = interpolator_queue
 
-        # interpolation of non-centered boundaries not yet supported
-        for dim, boundary in source_boundary.items():
-            if np.array(boundary).ndim == 2:
-                raise NotImplementedError("Non-uniform coordinate boundary not yet supported for dim '%s'" % dim)
-            if np.array(boundary).ndim == 1:
-                raise NotImplementedError("Non-centered coordinate boundary not yet supported for dim '%s'" % dim)
-
         # iterate through each dim tuple in the queue
         for udims in interpolator_queue:
             interpolator = interpolator_queue[udims]
 
             # run interpolation
             output_data = interpolator.interpolate(
-                udims, source_coordinates, source_boundary, source_data, eval_coordinates, output_data
+                udims, source_coordinates, source_data, eval_coordinates, output_data
             )
 
         return output_data

@@ -208,12 +208,10 @@ class WCS(DataSource):
         output = self.create_output_array(coordinates)
         dotime = "time" in self.wcs_coordinates.dims
 
-        boundary = self.get_boundary(coordinates_index)
-        area_bounds = coordinates.get_area_bounds(boundary)
-        wbound = min(area_bounds["lon"])
-        ebound = max(area_bounds["lon"])
-        sbound = min(area_bounds["lat"])
-        nbound = max(area_bounds["lat"])
+        wbound = coordinates["lon"].bounds[0] - coordinates["lon"].step / 2.0
+        ebound = coordinates["lon"].bounds[1] + coordinates["lon"].step / 2.0
+        sbound = coordinates["lat"].bounds[0] - coordinates["lat"].step / 2.0
+        nbound = coordinates["lat"].bounds[1] + coordinates["lat"].step / 2.0
 
         if "time" in coordinates.dims and dotime:
             sd = np.timedelta64(0, "s")

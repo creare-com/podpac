@@ -41,7 +41,7 @@ class TileCompositor(DataSource):
 
         output = self.create_output_array(coordinates)
         for source in self.sources:
-            c, I = source.coordinates.intersect(coordinates, return_indices=True)
+            c, I = source.coordinates.intersect(coordinates, boundary=source.boundary, return_indices=True)
             if c.size == 0:
                 continue
             source_data = source.get_data(c, I)
@@ -89,7 +89,7 @@ class UniformTileCompositor(TileCompositor):
 
 
 @common_doc(COMMON_DATA_DOC)
-class UniformTileMixin(podpac.Node):
+class UniformTileMixin(tl.HasTraits):
     """DataSource mixin for uniform tiles in a grid.
 
     Defines the tile coordinates from the grid coordinates using the tile position in the grid.

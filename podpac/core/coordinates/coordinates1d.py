@@ -13,7 +13,7 @@ import traitlets as tl
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, lower_precision_time_bounds
-from podpac.core.coordinates.utils import Dimension, CoordinateType
+from podpac.core.coordinates.utils import Dimension
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
 
@@ -134,6 +134,14 @@ class Coordinates1d(BaseCoordinates):
 
     @property
     def is_uniform(self):
+        raise NotImplementedError
+
+    @property
+    def start(self):
+        raise NotImplementedError
+
+    @property
+    def stop(self):
         raise NotImplementedError
 
     @property

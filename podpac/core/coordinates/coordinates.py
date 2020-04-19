@@ -863,9 +863,9 @@ class Coordinates(tl.HasTraits):
         # Do the uniform coordinates case
         if (
             "lat" in self.dims
-            and isinstance(self._coords["lat"], UniformCoordinates1d)
             and "lon" in self.dims
-            and isinstance(self._coords["lon"], UniformCoordinates1d)
+            and self._coords["lat"].is_uniform
+            and self._coords["lon"].is_uniform
         ):
             if self.dims.index("lon") < self.dims.index("lat"):
                 first, second = "lat", "lon"
