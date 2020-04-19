@@ -474,7 +474,7 @@ class DataSource(Node):
                 )
 
         # get indexed boundary
-        self._requested_source_boundary = self.get_boundary(self._requested_source_coordinates_index)
+        self._requested_source_boundary = self._get_boundary(self._requested_source_coordinates_index)
 
         # interpolate data into output
         output = self._interpolation.interpolate(
@@ -545,7 +545,7 @@ class DataSource(Node):
         if not self.trait_is_defined("_coordinates"):
             self.set_trait("_coordinates", coordinates)
 
-    def get_boundary(self, index):
+    def _get_boundary(self, index):
         """
         Select the boundary for the given the coordinates index. Only non-uniform boundary arrays need to be indexed.
 
