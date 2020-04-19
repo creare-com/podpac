@@ -105,6 +105,9 @@ class UniformCoordinates1d(Coordinates1d):
                 % (type(start), type(stop), type(step))
             )
 
+        if fstep == 0:
+            raise ValueError("Uniformcoordinates1d step cannot be zero")
+
         if fstep <= 0 and start < stop:
             raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
 

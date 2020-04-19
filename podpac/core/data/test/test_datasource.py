@@ -290,7 +290,7 @@ class TestDataSource(object):
 
     def test_evaluate_with_crs_transform(self):
         # grid coords
-        grid_coords = Coordinates([np.linspace(-10, 10, 21), np.linspace(-10, -10, 21)], dims=["lat", "lon"])
+        grid_coords = Coordinates([np.linspace(-10, 10, 21), np.linspace(-10, 10, 21)], dims=["lat", "lon"])
         with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
             grid_coords = grid_coords.transform("EPSG:2193")
 
