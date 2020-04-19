@@ -160,7 +160,6 @@ class Coordinates1d(BaseCoordinates):
 
         return {key: getattr(self, key) for key in self._properties}
 
-    # TODO do we need these two versions still?
     @property
     def definition(self):
         """:dict: Serializable 1d coordinates definition."""
