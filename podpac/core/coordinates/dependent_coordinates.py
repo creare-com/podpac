@@ -519,7 +519,7 @@ class DependentCoordinates(BaseCoordinates):
             slc_start = [slice(0, 1) for d in self.dims]
 
             def check_independent(crds, slc):
-                return np.all(np.abs(crds[slc] - crds) < TOL)
+                return np.all(np.abs(crds[tuple(slc)] - crds) < TOL)
 
             def make_coords(crds, name):
                 dcrds = np.diff(crds)
@@ -545,8 +545,8 @@ class DependentCoordinates(BaseCoordinates):
                 coords[ialt] = make_coords(coords[ialt][alt_slc].squeeze(), "alt")
 
             # Make the independent coordinates for lat and lon
-            coords[ilat] = make_coords(coords[ilat][lat_slc].squeeze(), "lat")
-            coords[ilon] = make_coords(coords[ilon][lon_slc].squeeze(), "lon")
+            coords[ilat] = make_coords(coords[ilat][tuple(lat_slc)].squeeze(), "lat")
+            coords[ilon] = make_coords(coords[ilon][tuple(lon_slc)].squeeze(), "lon")
 
             return coords
 
