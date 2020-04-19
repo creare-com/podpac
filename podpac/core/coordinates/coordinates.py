@@ -1017,7 +1017,7 @@ class Coordinates(tl.HasTraits):
 
         return Coordinates(cs, validate_crs=False, **self.properties)
 
-    def intersect(self, other, boundary=None, dims=None, outer=False, return_indices=False):
+    def intersect(self, other, dims=None, outer=False, return_indices=False):
         """
         Get the coordinate values that are within the bounds of a given coordinates object.
 
@@ -1060,8 +1060,6 @@ class Coordinates(tl.HasTraits):
         ----------
         other : :class:`Coordinates1d`, :class:`StackedCoordinates`, :class:`Coordinates`
             Coordinates to intersect with.
-        boundary : dict, optional
-            dictionary of boundary offsets for each unstacked dimension. Non-segment dimensions can be omitted.
         dims : list, optional
             Restrict intersection to the given dimensions. Default is all available dimensions.
         outer : bool, optional
@@ -1087,9 +1085,9 @@ class Coordinates(tl.HasTraits):
         if dims is not None:
             bounds = {dim: bounds[dim] for dim in dims}  # if dim in bounds}
 
-        return self.select(bounds, boundary=boundary, outer=outer, return_indices=return_indices)
+        return self.select(bounds, outer=outer, return_indices=return_indices)
 
-    def select(self, bounds, boundary=None, return_indices=False, outer=False):
+    def select(self, bounds, return_indices=False, outer=False):
         """
         Get the coordinate values that are within the given bounds for each dimension.
 
@@ -1121,8 +1119,6 @@ class Coordinates(tl.HasTraits):
         ----------
         bounds : dict
             Selection bounds for the desired coordinates.
-        boundary : dict, optional
-            dictionary of boundary offsets for each unstacked dimension. Non-segment dimensions can be omitted.
         outer : bool, optional
             If True, do *outer* selections. Default False.
         return_indices : bool, optional
@@ -1136,10 +1132,7 @@ class Coordinates(tl.HasTraits):
             index or slice for the selected coordinates in each dimension (only if return_indices=True)
         """
 
-        selections = [
-            c.select(bounds, boundary=boundary, outer=outer, return_indices=return_indices)
-            for c in self._coords.values()
-        ]
+        selections = [c.select(bounds, outer=outer, return_indices=return_indices) for c in self._coords.values()]
         return self._make_selected_coordinates(selections, return_indices)
 
     def _make_selected_coordinates(self, selections, return_indices):
