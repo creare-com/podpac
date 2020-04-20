@@ -1355,30 +1355,28 @@ class Coordinates(tl.HasTraits):
             if tc:
                 cs[self.dims.index("lat")] = tc[0]
                 cs[self.dims.index("lon")] = tc[1]
-                if "alt" in self.dims:
-                    cs[self.dims.index("alt")] = tc[2]
-                return Coordinates(cs, crs=crs, validate_crs=False)
 
             # otherwise convert lat-lon to dependent coordinates
-            ilat = self.dims.index("lat")
-            ilon = self.dims.index("lon")
-            if ilat == ilon - 1:
-                c1, c2 = self["lat"], self["lon"]
-            elif ilon == ilat - 1:
-                c1, c2 = self["lon"], self["lat"]
+            else:
+                ilat = self.dims.index("lat")
+                ilon = self.dims.index("lon")
+                if ilat == ilon - 1:
+                    c1, c2 = self["lat"], self["lon"]
+                elif ilon == ilat - 1:
+                    c1, c2 = self["lon"], self["lat"]
 
-            c = DependentCoordinates(
-                np.meshgrid(c1.coordinates, c2.coordinates, indexing="ij"),
-                dims=[c1.name, c2.name],
-                ctypes=[c1.ctype, c2.ctype],
-                segment_lengths=[c1.segment_lengths, c2.segment_lengths],
-            )
+                c = DependentCoordinates(
+                    np.meshgrid(c1.coordinates, c2.coordinates, indexing="ij"),
+                    dims=[c1.name, c2.name],
+                    ctypes=[c1.ctype, c2.ctype],
+                    segment_lengths=[c1.segment_lengths, c2.segment_lengths],
+                )
 
-            # replace 'lat' and 'lon' entries with single 'lat,lon' entry
-            i = min(ilat, ilon)
-            cs.pop(i)
-            cs.pop(i)
-            cs.insert(i, c)
+                # replace 'lat' and 'lon' entries with single 'lat,lon' entry
+                i = min(ilat, ilon)
+                cs.pop(i)
+                cs.pop(i)
+                cs.insert(i, c)
 
         # transform
         ts = []
@@ -1406,21 +1404,12 @@ class Coordinates(tl.HasTraits):
 
         lat = clinspace(self["lat"].coordinates[0], self["lat"].coordinates[-1], 5)
         lon = clinspace(self["lon"].coordinates[0], self["lon"].coordinates[-1], 5)
-        if "alt" in self.dims:
-            alt = clinspace(self["alt"].coordinates[0], self["alt"].coordinates[-1], 5)
-            c = DependentCoordinates(
-                np.meshgrid(lat.coordinates, lon.coordinates, alt.coordinates, indexing="ij"),
-                dims=["lat", "lon", "alt"],
-                ctypes=[self["lat"].ctype, self["lon"].ctype, self["alt"].ctype],
-                segment_lengths=[self["lat"].segment_lengths, self["lon"].segment_lengths, self["alt"].segment_lengths],
-            )
-        else:
-            c = DependentCoordinates(
-                np.meshgrid(lat.coordinates, lon.coordinates, indexing="ij"),
-                dims=["lat", "lon"],
-                ctypes=[self["lat"].ctype, self["lon"].ctype],
-                segment_lengths=[self["lat"].segment_lengths, self["lon"].segment_lengths],
-            )
+        c = DependentCoordinates(
+            np.meshgrid(lat.coordinates, lon.coordinates, indexing="ij"),
+            dims=["lat", "lon"],
+            ctypes=[self["lat"].ctype, self["lon"].ctype],
+            segment_lengths=[self["lat"].segment_lengths, self["lon"].segment_lengths],
+        )
         t = c._transform(transformer)
         if not isinstance(t, list):
             # Then we are not independent -- this was checked in the Dependent Coordinates
@@ -1465,34 +1454,7 @@ class Coordinates(tl.HasTraits):
             if t_lon_2 is not None:
                 t_lon = t_lon_2
 
-        if len(t) < 3:
-            return (t_lat, t_lon)
-
-        # If we also have altitude, we haven't returned yet, so compute its transform
-        if isinstance(t[2], UniformCoordinates1d):
-            t_alt = make_uniform(t[2].coordinates, self["alt"].size, "alt")
-        else:
-            # Need to compute the non-uniform coordinates
-            temp_coords = Coordinates(
-                [
-                    [
-                        self["alt"].coordinates,
-                        self["alt"].coordinates * 0 + self["lat"].coordinates.mean(),
-                        self["alt"].coordinates * 0 + self["lon"].coordinates.mean(),
-                    ]
-                ],
-                ["alt_lon_lat"],
-                crs=self.crs,
-            )
-            t_alt = temp_coords.transform(crs)["alt"]
-
-            # There is a small possibility here that these are again uniform (i.e. non-inform array input gives
-            # uniform array output). So let's check that...
-            t_alt_2 = make_uniform(t_alt.coordinates, self["alt"].size, "alt")
-            if t_alt_2 is not None:
-                t_alt = t_alt_2
-
-        return (t_lat, t_lon, t_alt)
+        return t_lat, t_lon
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
