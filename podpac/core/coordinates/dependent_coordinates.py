@@ -516,8 +516,6 @@ class DependentCoordinates(BaseCoordinates):
         return DependentCoordinates(coords, **properties).simplify()
 
     def simplify(self):
-        TOL = 1e-7
-
         coords = [c.copy() for c in self.coordinates]
         slc_start = [slice(0, 1) for d in self.dims]
 
@@ -525,7 +523,7 @@ class DependentCoordinates(BaseCoordinates):
             i = self.dims.index(dim)
             slc = slc_start.copy()
             slc[i] = slice(None)
-            if np.any(np.abs(coords[i][tuple(slc)] - coords[i]).astype(float) >= TOL):  # check indepedent
+            if not np.allclose(coords[i][tuple(slc)], coords[i]):
                 return self
             coords[i] = ArrayCoordinates1d(coords[i][tuple(slc)].squeeze(), name=dim).simplify()
 

@@ -244,15 +244,9 @@ class ArrayCoordinates1d(Coordinates1d):
 
         from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 
-        # if self.is_uniform:
-        #      return UniformCoordinates1d(self.start, self.stop, self.step, **self.properties)
-
-        TOL = 1e-7
-        dcrds = np.diff(self.coordinates)
-        if np.all(np.abs(dcrds - dcrds[0]) < np.abs(TOL * dcrds[0])):
-            return UniformCoordinates1d(
-                self.coordinates[0], self.coordinates[-1], self.coordinates[1] - self.coordinates[0], **self.properties
-            )
+        if self.is_uniform:
+            # return UniformCoordinates1d(self.start, self.stop, self.step, **self.properties)
+            return UniformCoordinates1d(self.coordinates[0], self.coordinates[-1], size=self.size, **self.properties)
 
         return self
 
