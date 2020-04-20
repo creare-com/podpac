@@ -386,6 +386,17 @@ class UniformCoordinates1d(Coordinates1d):
         kwargs = self.properties
         return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
+    def simplify(self):
+        """ Get the simplified/optimized representation of these coordinates.
+
+        Returns
+        -------
+        simplified : UniformCoordinates1d
+            These coordinates (the coordinates are already simplified).
+        """
+
+        return self
+
     def _select(self, bounds, return_indices, outer):
         # TODO is there an easier way to do this with the new outer flag?
         my_bounds = self.bounds.copy()

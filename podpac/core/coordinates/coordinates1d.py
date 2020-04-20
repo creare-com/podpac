@@ -293,6 +293,17 @@ class Coordinates1d(BaseCoordinates):
 
         raise NotImplementedError
 
+    def simplify(self):
+        """ Get the simplified/optimized representation of these coordinates.
+
+        Returns
+        -------
+        simplified : Coordinates1d
+            simplified version of the coordinates
+        """
+
+        raise NotImplementedError
+
     def _select_empty(self, return_indices):
         I = []
         if return_indices:

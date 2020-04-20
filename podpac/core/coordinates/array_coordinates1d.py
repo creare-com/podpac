@@ -233,6 +233,29 @@ class ArrayCoordinates1d(Coordinates1d):
         kwargs = self.properties
         return ArrayCoordinates1d(self.coordinates, **kwargs)
 
+    def simplify(self):
+        """ Get the simplified/optimized representation of these coordinates.
+
+        Returns
+        -------
+        simplified : ArrayCoordinates1d, UniformCoordinates1d
+            UniformCoordinates1d if the coordinates are uniform, otherwise ArrayCoordinates1d
+        """
+
+        from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
+
+        # if self.is_uniform:
+        #      return UniformCoordinates1d(self.start, self.stop, self.step, **self.properties)
+
+        TOL = 1e-7
+        dcrds = np.diff(self.coordinates)
+        if np.all(np.abs(dcrds - dcrds[0]) < np.abs(TOL * dcrds[0])):
+            return UniformCoordinates1d(
+                self.coordinates[0], self.coordinates[-1], self.coordinates[1] - self.coordinates[0], **self.properties
+            )
+
+        return self
+
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods, array-like
     # ------------------------------------------------------------------------------------------------------------------

@@ -513,48 +513,26 @@ class DependentCoordinates(BaseCoordinates):
                 _, _, tsl = transformer.transform(0, 0, self.segment_lengths[ialt])
                 properties["segment_lengths"][ialt] = tsl
 
-        # simplify the coordinates if possible
-        def check_simplified():
-            TOL = 1e-7
-            slc_start = [slice(0, 1) for d in self.dims]
+        return DependentCoordinates(coords, **properties).simplify()
 
-            def check_independent(crds, slc):
-                return np.all(np.abs(crds[tuple(slc)] - crds) < TOL)
+    def simplify(self):
+        TOL = 1e-7
 
-            def make_coords(crds, name):
-                dcrds = np.diff(crds)
-                if np.all(np.abs(dcrds - dcrds[0]) < np.abs(TOL * dcrds[0])):
-                    return clinspace(crds[0], crds[-1], crds.size, name)
-                else:
-                    return ArrayCoordinates1d(crds, name)
+        coords = [c.copy() for c in self.coordinates]
+        slc_start = [slice(0, 1) for d in self.dims]
 
-            lat_slc = slc_start.copy()
-            lat_slc[ilat] = slice(None)
-            lon_slc = slc_start.copy()
-            lon_slc[ilon] = slice(None)
+        for dim in self.dims:
+            if dim == "time":
+                continue
 
-            if not (check_independent(coords[ilat], lat_slc) and check_independent(coords[ilon], lon_slc)):
-                return
+            i = self.dims.index(dim)
+            slc = slc_start.copy()
+            slc[i] = slice(None)
+            if np.any(np.abs(coords[i][tuple(slc)] - coords[i]) >= TOL):  # check indepedent
+                return self
+            coords[i] = ArrayCoordinates1d(coords[i][tuple(slc)].squeeze(), name=dim).simplify()
 
-            if "alt" in self.dims:
-                alt_slc = slc_start.copy()
-                alt_slc[ialt] = slice(None)
-                if not check_independent(coords[ialt], alt_slc):
-                    return
-                # Make the independent coordinates for altitude
-                coords[ialt] = make_coords(coords[ialt][alt_slc].squeeze(), "alt")
-
-            # Make the independent coordinates for lat and lon
-            coords[ilat] = make_coords(coords[ilat][tuple(lat_slc)].squeeze(), "lat")
-            coords[ilon] = make_coords(coords[ilon][tuple(lon_slc)].squeeze(), "lon")
-
-            return coords
-
-        simple_coords = check_simplified()
-        if simple_coords:
-            return simple_coords
-
-        return DependentCoordinates(coords, **properties)
+        return coords
 
     def transpose(self, *dims, **kwargs):
         """
