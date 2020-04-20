@@ -70,12 +70,12 @@ Generic data source wrappers
 
     podpac.data.Array
     podpac.data.CSV
+    podpac.data.H5PY
     podpac.data.PyDAP
     podpac.data.Rasterio
     podpac.data.WCS
     podpac.data.ReprojectedSource
-    podpac.data.S3
-    podpac.data.H5PY
+    podpac.data.Zarr
 
 
 .. rubric:: Utilities
@@ -86,7 +86,6 @@ Generic data source wrappers
 
     podpac.data.DataSource
     podpac.data.Interpolation
-    podpac.data.InterpolationException
     podpac.data.INTERPOLATION_SHORTCUTS
     podpac.data.INTERPOLATION_DEFAULT
 
