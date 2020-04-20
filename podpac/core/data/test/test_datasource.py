@@ -523,24 +523,24 @@ class TestDataSource(object):
 
         # points
         node = MockDataSourceNoBoundaryValidation(boundary={})
-        boundary = node.get_boundary(index)
+        boundary = node._get_boundary(index)
         assert boundary == {}
 
         # uniform centered
         node = MockDataSourceNoBoundaryValidation(boundary={"lat": 0.1, "lon": 0.2})
-        boundary = node.get_boundary(index)
+        boundary = node._get_boundary(index)
         assert boundary == {"lat": 0.1, "lon": 0.2}
 
         # uniform polygon
         node = MockDataSourceNoBoundaryValidation(boundary={"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]})
-        boundary = node.get_boundary(index)
+        boundary = node._get_boundary(index)
         assert boundary == {"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]}
 
         # non-uniform
         lat_boundary = np.vstack([-np.arange(11), np.arange(11)]).T
         lon_boundary = np.vstack([-2 * np.arange(11), 2 * np.arange(11)]).T
         node = MockDataSourceNoBoundaryValidation(boundary={"lat": lat_boundary, "lon": lon_boundary})
-        boundary = node.get_boundary(index)
+        boundary = node._get_boundary(index)
         np.testing.assert_array_equal(boundary["lat"], lat_boundary[index[0]])
         np.testing.assert_array_equal(boundary["lon"], lon_boundary[index[1]])
 
@@ -555,24 +555,24 @@ class TestDataSource(object):
 
         # points
         node = MockDataSourceStackedNoBoundaryValidation(boundary={})
-        boundary = node.get_boundary(index)
+        boundary = node._get_boundary(index)
         assert boundary == {}
 
         # uniform centered
         node = MockDataSourceStackedNoBoundaryValidation(boundary={"lat": 0.1, "lon": 0.1})
-        boundary = node.get_boundary(index)
+        boundary = node._get_boundary(index)
         assert boundary == {"lat": 0.1, "lon": 0.1}
 
         # uniform polygon
         node = MockDataSourceStackedNoBoundaryValidation(boundary={"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]})
-        boundary = node.get_boundary(index)
+        boundary = node._get_boundary(index)
         assert boundary == {"lat": [-0.1, 0.1], "lon": [-0.1, 0.0, 0.1]}
 
         # non-uniform
         lat_boundary = np.vstack([-np.arange(11), np.arange(11)]).T
         lon_boundary = np.vstack([-2 * np.arange(11), 2 * np.arange(11)]).T
         node = MockDataSourceStackedNoBoundaryValidation(boundary={"lat": lat_boundary, "lon": lon_boundary})
-        boundary = node.get_boundary(index)
+        boundary = node._get_boundary(index)
         np.testing.assert_array_equal(boundary["lat"], lat_boundary[index])
         np.testing.assert_array_equal(boundary["lon"], lon_boundary[index])
 
