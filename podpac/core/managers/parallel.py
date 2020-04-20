@@ -268,6 +268,7 @@ class ZarrOutputMixin(tl.HasTraits):
     list_dir = tl.Bool(False)
     _list_dir = tl.List(allow_none=True, default_value=[])
     _shape = tl.Tuple()
+    _chunks = tl.List()
     aws_client_kwargs = tl.Dict()
     aws_config_kwargs = tl.Dict()
 
@@ -282,6 +283,7 @@ class ZarrOutputMixin(tl.HasTraits):
             chunks = [self.chunks[d] for d in coordinates]
         else:
             chunks = [self.zarr_chunks[d] for d in coordinates]
+        self._chunks = chunks
         zf, data_key, zn = self.initialize_zarr_array(self._shape, chunks)
         self.dataset = zf
         self.zarr_data_key = data_key
@@ -361,7 +363,9 @@ class ZarrOutputMixin(tl.HasTraits):
             if isinstance(dk, list):
                 dk = dk[0]
             try:
-                exists = self.zarr_node.chunk_exists(coordinates_index, data_key=dk, list_dir=self._list_dir)
+                exists = self.zarr_node.chunk_exists(
+                    coordinates_index, data_key=dk, list_dir=self._list_dir, chunks=self._chunks
+                )
             except ValueError as e:  # This was needed in cases where a poor internet connection caused read errors
                 exists = False
             if exists:
