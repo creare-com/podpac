@@ -1379,6 +1379,8 @@ class Coordinates(tl.HasTraits):
                 cs.insert(i, c)
 
         # transform
+        # note that unstacked lat and lon coordinates are ignored in the _transform method
+        # so the simplified transform above will be preserved
         ts = []
         for c in cs:
             tc = c._transform(transformer)
