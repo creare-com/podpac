@@ -248,7 +248,7 @@ class TestInterpolateRasterio(object):
         """should handle descending"""
 
         source = np.random.rand(5, 5)
-        coords_src = Coordinates([clinspace(0, 10, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
+        coords_src = Coordinates([clinspace(10, 0, 5), clinspace(0, 10, 5)], dims=["lat", "lon"])
         coords_dst = Coordinates([clinspace(2, 12, 5), clinspace(2, 12, 5)], dims=["lat", "lon"])
 
         node = MockArrayDataSource(

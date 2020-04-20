@@ -269,27 +269,13 @@ class Rasterio(Interpolator):
                 self.interpolate, keep_dims, udims, source_coordinates, source_data, eval_coordinates, output_data
             )
 
-        def get_rasterio_transform(c):
-            west = c["lon"].bounds[0] - c["lon"].step / 2.0
-            east = c["lon"].bounds[1] + c["lon"].step / 2.0
-            south = c["lat"].bounds[0] - c["lat"].step / 2.0
-            north = c["lat"].bounds[1] + c["lat"].step / 2.0
-            cols = c["lon"].size
-            rows = c["lat"].size
-            return transform.from_bounds(west, south, east, north, cols, rows)
-
         with rasterio.Env():
-            # src_transform = transform.Affine.from_gdal(*source_coordinates.geotransform)
-            src_transform = get_rasterio_transform(source_coordinates)
+            src_transform = transform.Affine.from_gdal(*source_coordinates.geotransform)
             src_crs = {"init": source_coordinates.crs}
             # Need to make sure array is c-contiguous
-            if source_coordinates["lat"].is_descending:
-                source = np.ascontiguousarray(source_data.data)
-            else:
-                source = np.ascontiguousarray(source_data.data[::-1, :])
+            source = np.ascontiguousarray(source_data.data)
 
-            # dst_transform = transform.Affine.from_gdal(*eval_coordinates.geotransform)
-            dst_transform = get_rasterio_transform(eval_coordinates)
+            dst_transform = transform.Affine.from_gdal(*eval_coordinates.geotransform)
             dst_crs = {"init": eval_coordinates.crs}
             # Need to make sure array is c-contiguous
             if not output_data.data.flags["C_CONTIGUOUS"]:
@@ -308,10 +294,7 @@ class Rasterio(Interpolator):
                 dst_nodata=np.nan,
                 resampling=getattr(Resampling, self.method),
             )
-            if eval_coordinates["lat"].is_descending:
-                output_data.data[:] = destination
-            else:
-                output_data.data[:] = destination[::-1, :]
+            output_data.data[:] = destination
 
         return output_data
 

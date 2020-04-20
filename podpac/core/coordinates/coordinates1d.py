@@ -201,9 +201,12 @@ class Coordinates1d(BaseCoordinates):
         ---------
         boundary : float, timedelta, array, None
             Boundary offsets in this dimension.
-            * For a centered uniform boundary, use a single positive float or timedelta offset
-            * For a uniform boundary (segment or polygon), use an array of float or timedelta offsets
-            * For a fully specified boundary, use an array of boundary arrays, one per coordinate
+            * For a centered uniform boundary (same for every coordinate), use a single positive float or timedelta 
+                offset. This represents the "total segment length" / 2.
+            * For a uniform boundary (segment or polygon same for every coordinate), use an array of float or 
+                timedelta offsets
+            * For a fully specified boundary, use an array of boundary arrays (2-D array, N_coords x boundary spec), 
+                 one per coordinate. The boundary_spec can be a single number, two numbers, or an array of numbers.
             * For point coordinates, use None.
 
         Returns
