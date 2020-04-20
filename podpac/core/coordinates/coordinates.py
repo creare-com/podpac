@@ -1343,12 +1343,10 @@ class Coordinates(tl.HasTraits):
             """ I'm wrapping this in a function so that I can escape early if the coordinates prove dependent
             """
             # TODO: ADD ALTITUDE
-            TOL = 1e-7  # assume float 32 coordinate representation
-
             def make_uniform(coords, size, name):
                 tc = None
                 dcoords = np.diff(coords)
-                if np.all(np.abs(dcoords[1:] - dcoords[0]) < (np.abs(dcoords[0]) * TOL)):
+                if np.allclose(dcoords[1:], dcoords[0], atol=1e-7):
                     # We've actually already done the needed transformation, so we can just go ahead and create the
                     # coordinates
                     tc = clinspace(coords[0], coords[-1], size, name)
