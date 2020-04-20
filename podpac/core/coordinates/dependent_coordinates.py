@@ -523,7 +523,7 @@ class DependentCoordinates(BaseCoordinates):
             i = self.dims.index(dim)
             slc = slc_start.copy()
             slc[i] = slice(None)
-            if not np.allclose(coords[i][tuple(slc)], coords[i]):
+            if not np.allclose(coords[i][tuple(slc)], coords[i], atol=1e-7):
                 return self
             coords[i] = ArrayCoordinates1d(coords[i][tuple(slc)].squeeze(), name=dim).simplify()
 

@@ -90,7 +90,7 @@ class ArrayCoordinates1d(Coordinates1d):
             else:
                 self._is_monotonic = True
                 self._is_descending = self.coordinates[1] < self.coordinates[0]
-                self._is_uniform = np.allclose(deltas, deltas[0])
+                self._is_uniform = np.allclose(deltas, deltas[0], atol=1e-7)
 
         # set common properties
         super(ArrayCoordinates1d, self).__init__(name=name, ctype=ctype, segment_lengths=segment_lengths)
