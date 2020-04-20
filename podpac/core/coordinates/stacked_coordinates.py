@@ -32,9 +32,9 @@ class StackedCoordinates(BaseCoordinates):
         >>> time = ['2018-01-01', '2018-01-02']
         >>> podpac.Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
         Coordinates
-            lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
-            lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
-            time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']
+            lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3]
+            lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3]
+            time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2]
 
     For convenience, you can also create uniformly-spaced stacked coordinates using :class:`clinspace`::
 
@@ -42,9 +42,9 @@ class StackedCoordinates(BaseCoordinates):
         >>> time = ['2018-01-01', '2018-01-02']
         >>> podpac.Coordinates([lat_lon, time], dims=['lat_lon', 'time'])
         Coordinates
-            lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
-            lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
-            time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']
+            lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3]
+            lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3]
+            time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2]
 
     Parameters
     ----------
@@ -61,7 +61,7 @@ class StackedCoordinates(BaseCoordinates):
 
     _coords = tl.List(trait=tl.Instance(Coordinates1d), read_only=True)
 
-    def __init__(self, coords, name=None, dims=None, ctype=None):
+    def __init__(self, coords, name=None, dims=None):
         """
         Initialize a multidimensional coords bject.
 
@@ -69,8 +69,6 @@ class StackedCoordinates(BaseCoordinates):
         ----------
         coords : list, :class:`StackedCoordinates`
             Coordinate values in a list, or a StackedCoordinates object to copy.
-        ctype : str, optional
-            Default coordinates type.
         
         See Also
         --------
@@ -96,8 +94,6 @@ class StackedCoordinates(BaseCoordinates):
             self._set_dims(dims)
         if name is not None:
             self._set_name(name)
-        if ctype is not None:
-            self._set_ctype(ctype)
 
         # finalize
         super(StackedCoordinates, self).__init__()
@@ -140,16 +136,12 @@ class StackedCoordinates(BaseCoordinates):
                 continue
             c._set_name(dim)
 
-    def _set_ctype(self, value):
-        for c in self._coords:
-            c._set_ctype(value)
-
     # ------------------------------------------------------------------------------------------------------------------
     # Alternate constructors
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_xarray(cls, xcoords, ctype=None):
+    def from_xarray(cls, xcoords):
         """
         Convert an xarray coord to StackedCoordinates
 
@@ -157,8 +149,6 @@ class StackedCoordinates(BaseCoordinates):
         ----------
         xcoords : DataArrayCoordinates
             xarray coords attribute to convert
-        ctype : str, optional
-            Default coordinates type.
 
         Returns
         -------
@@ -168,7 +158,7 @@ class StackedCoordinates(BaseCoordinates):
 
         dims = xcoords.indexes[xcoords.dims[0]].names
         coords = [ArrayCoordinates1d.from_xarray(xcoords[dims]) for dims in dims]
-        return cls(coords, ctype=ctype)
+        return cls(coords)
 
     @classmethod
     def from_definition(cls, d):
@@ -313,13 +303,6 @@ class StackedCoordinates(BaseCoordinates):
         return {dim: self[dim].bounds for dim in self.udims}
 
     @property
-    def area_bounds(self):
-        """:dict: Dictionary of (low, high) coordinates area_bounds in each dimension"""
-        if None in self.dims:
-            raise ValueError("Cannot get area_bounds for StackedCoordinates with un-named dimensions")
-        return {dim: self[dim].area_bounds for dim in self.udims}
-
-    @property
     def coordinates(self):
         """:pandas.MultiIndex: MultiIndex of stacked coordinates values."""
 
@@ -366,7 +349,25 @@ class StackedCoordinates(BaseCoordinates):
 
         return StackedCoordinates(self._coords)
 
-    def select(self, bounds, return_indices=False, outer=False):
+    def get_area_bounds(self, boundary):
+        """Get coordinate area bounds, including boundary information, for each unstacked dimension.
+
+        Arguments
+        ---------
+        boundary : dict
+            dictionary of boundary offsets for each unstacked dimension. Point dimensions can be omitted.
+
+        Returns
+        -------
+        area_bounds : dict
+            Dictionary of (low, high) coordinates area_bounds in each unstacked dimension
+        """
+
+        if None in self.dims:
+            raise ValueError("Cannot get area_bounds for StackedCoordinates with un-named dimensions")
+        return {dim: self[dim].get_area_bounds(boundary.get(dim)) for dim in self.dims}
+
+    def select(self, bounds, outer=False, return_indices=False):
         """
         Get the coordinate values that are within the given bounds in all dimensions.
 
@@ -425,7 +426,6 @@ class StackedCoordinates(BaseCoordinates):
             ilon = self.dims.index("lon")
             ialt = self.dims.index("alt")
 
-            # coordinates
             lat = coords[ilat]
             lon = coords[ilon]
             alt = coords[ialt]
@@ -434,48 +434,22 @@ class StackedCoordinates(BaseCoordinates):
             coords[ilon].set_trait("coordinates", tlon)
             coords[ialt].set_trait("coordinates", talt)
 
-            # segment lengths
-            # TODO can we use the proj4 '+units' here, at least sometimes?
-            if lat.ctype != "point" and "segment_lengths" in lat.properties:
-                warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if lon.ctype != "point" and "segment_lengths" in lon.properties:
-                warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if alt.ctype != "point" and "segment_lengths" in lon.properties:
-                sl = alt.segment_lengths
-                _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
-                coords[ialt].set_trait("segment_lengths", tsl)
-
         elif "lat" in self.dims and "lon" in self.dims:
             ilat = self.dims.index("lat")
             ilon = self.dims.index("lon")
 
-            # coordinates
             lat = coords[ilat]
             lon = coords[ilon]
             tlon, tlat = transformer.transform(lon.coordinates, lat.coordinates)
             coords[ilat].set_trait("coordinates", tlat)
             coords[ilon].set_trait("coordinates", tlon)
 
-            # segment lengths
-            # TODO can we use proj4 '+units' here, at least sometimes?
-            if lat.ctype != "point" and "segment_lengths" in lat.properties:
-                warnings.warn("transformation of coordinate segment lengths not yet implemented")
-            if lon.ctype != "point" and "segment_lengths" in lon.properties:
-                warnings.warn("transformation of coordinate segment lengths not yet implemented")
-
         elif "alt" in self.dims:
             ialt = self.dims.index("alt")
 
-            # coordinates
             alt = coords[ialt]
             _, _, talt = transformer.transform(np.zeros(self.size), np.zeros(self.size), alt.coordinates)
             coords[ialt].set_trait("coordinates", talt)
-
-            # segment lengths
-            if alt.ctype != "point" and "segment_lengths" in lon.properties:
-                sl = alt.segment_lengths
-                _, _, tsl = transformer.transform(np.zeros_like(sl), np.zeros_like(sl), sl)
-                coords[ialt].set_trait("segment_lengths", tsl)
 
         return StackedCoordinates(coords)
 

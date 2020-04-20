@@ -13,7 +13,7 @@ import traitlets as tl
 from podpac.core.utils import ArrayTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, lower_precision_time_bounds
-from podpac.core.coordinates.utils import Dimension, CoordinateType
+from podpac.core.coordinates.utils import Dimension
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 
 
@@ -23,17 +23,6 @@ class Coordinates1d(BaseCoordinates):
 
     Coordinates1d objects contain values and metadata for a single dimension of coordinates. :class:`Coordinates` and
     :class:`StackedCoordinates` use Coordinate1d objects.
-
-    The following coordinates types (``ctype``) are supported:
-
-     * 'point': each coordinate represents a single location
-     * 'left': each coordinate is the left endpoint of its segment
-     * 'right': each coordinate is the right endpoint of its endpoint
-     * 'midpoint': segment endpoints are at the midpoints between coordinate values.
-
-    The ``bounds`` are always the low and high coordinate value. For *point* coordinates, the ``area_bounds`` are the
-    same as the ``bounds``. For *segment* coordinates (left, right, and midpoint), the ``area_bounds`` include the
-    portion of the segments above and below the ``bounds`.
     
     Parameters
     ----------
@@ -41,72 +30,19 @@ class Coordinates1d(BaseCoordinates):
         Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    ctype : str
-        Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-    segment_lengths : array, float, timedelta
-        When ctype is a segment type, the segment lengths for the coordinates. This may be single coordinate delta for
-        uniform segment lengths or an array of coordinate deltas corresponding to the coordinates for variable lengths.
-
+    
     See Also
     --------
     :class:`ArrayCoordinates1d`, :class:`UniformCoordinates1d`
     """
 
     name = Dimension(allow_none=True)
-    ctype = CoordinateType(read_only=True)
-    segment_lengths = tl.Any(read_only=True)
-
     _properties = tl.Set()
 
-    def __init__(self, name=None, ctype=None, segment_lengths=None):
-        """*Do not use.*"""
-
-        if name is not None:
-            self.name = name
-
-        if ctype is not None:
-            self.set_trait("ctype", ctype)
-
-        if segment_lengths is not None:
-            if np.array(segment_lengths).ndim == 0:
-                segment_lengths = make_coord_delta(segment_lengths)
-            else:
-                segment_lengths = make_coord_delta_array(segment_lengths)
-                segment_lengths.setflags(write=False)
-
-            self.set_trait("segment_lengths", segment_lengths)
-
-        super(Coordinates1d, self).__init__()
-
-    @tl.observe("name", "ctype", "segment_lengths")
+    @tl.observe("name")
     def _set_property(self, d):
-        self._properties.add(d["name"])
-
-    @tl.validate("segment_lengths")
-    def _validate_segment_lengths(self, d):
-        val = d["value"]
-
-        if self.ctype == "point":
-            if val is not None:
-                raise TypeError("segment_lengths must be None when ctype='point'")
-            return None
-
-        if isinstance(val, np.ndarray):
-            if val.size != self.size:
-                raise ValueError("coordinates and segment_lengths size mismatch, %d != %d" % (self.size, val.size))
-            if not np.issubdtype(val.dtype, np.dtype(self.deltatype).type):
-                raise ValueError(
-                    "coordinates and segment_lengths dtype mismatch, %s != %s" % (self.dtype, self.deltatype)
-                )
-
-        else:
-            if self.size > 0 and not isinstance(val, self.deltatype):
-                raise TypeError("coordinates and segment_lengths type mismatch, %s != %s" % (self.deltatype, type(val)))
-
-        if np.any(np.array(val).astype(float) <= 0.0):
-            raise ValueError("segment_lengths must be positive")
-
-        return val
+        if d["name"] is not None:
+            self._properties.add(d["name"])
 
     def _set_name(self, value):
         # set name if it is not set already, otherwise check that it matches
@@ -115,23 +51,17 @@ class Coordinates1d(BaseCoordinates):
         elif self.name != value:
             raise ValueError("Dimension mismatch, %s != %s" % (value, self.name))
 
-    def _set_ctype(self, value):
-        # only set ctype if it is not set already
-        if "ctype" not in self._properties:
-            self.set_trait("ctype", value)
-
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        return "%s(%s): Bounds[%s, %s], N[%d], ctype['%s']" % (
+        return "%s(%s): Bounds[%s, %s], N[%d]" % (
             self.__class__.__name__,
             self.name or "?",
             self.bounds[0],
             self.bounds[1],
             self.size,
-            self.ctype,
         )
 
     def __eq__(self, other):
@@ -140,11 +70,7 @@ class Coordinates1d(BaseCoordinates):
 
         # defined coordinate properties should match
         for name in self._properties.union(other._properties):
-            if name == "segment_lengths":
-                if not np.all(self.segment_lengths == other.segment_lengths):
-                    return False
-
-            elif getattr(self, name) != getattr(other, name):
+            if getattr(self, name) != getattr(other, name):
                 return False
 
         # shortcuts (not strictly necessary)
@@ -211,48 +137,22 @@ class Coordinates1d(BaseCoordinates):
         raise NotImplementedError
 
     @property
+    def start(self):
+        raise NotImplementedError
+
+    @property
+    def stop(self):
+        raise NotImplementedError
+
+    @property
+    def step(self):
+        raise NotImplementedError
+
+    @property
     def bounds(self):
         """ Low and high coordinate bounds. """
 
         raise NotImplementedError
-
-    @property
-    def area_bounds(self):
-        """
-        Low and high coordinate area bounds.
-
-        When ctype != 'point', this includes the portions of the segments beyond the coordinate bounds.
-        """
-
-        # point ctypes, just use bounds
-        if self.ctype == "point":
-            return self.bounds
-
-        # empty coordinates [np.nan, np.nan]
-        if self.size == 0:
-            return self.bounds
-
-        # segment ctypes, calculated
-        L, H = self.argbounds
-        lo, hi = self.bounds
-
-        if not isinstance(self.segment_lengths, np.ndarray):
-            lo_length = hi_length = self.segment_lengths  # uniform segment_lengths
-        else:
-            lo_length, hi_length = self.segment_lengths[L], self.segment_lengths[H]
-
-        if self.ctype == "left":
-            hi = add_coord(hi, hi_length)
-        elif self.ctype == "right":
-            lo = add_coord(lo, -lo_length)
-        elif self.ctype == "midpoint":
-            lo = add_coord(lo, -divide_delta(lo_length, 2.0))
-            hi = add_coord(hi, divide_delta(hi_length, 2.0))
-
-        # read-only array with the correct dtype
-        area_bounds = np.array([lo, hi], dtype=self.dtype)
-        area_bounds.setflags(write=False)
-        return area_bounds
 
     @property
     def properties(self):
@@ -275,7 +175,7 @@ class Coordinates1d(BaseCoordinates):
 
     @property
     def _full_properties(self):
-        return {"name": self.name, "ctype": self.ctype, "segment_lengths": self.segment_lengths}
+        return {"name": self.name}
 
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
@@ -292,6 +192,59 @@ class Coordinates1d(BaseCoordinates):
         """
 
         raise NotImplementedError
+
+    def get_area_bounds(self, boundary):
+        """
+        Get low and high coordinate area bounds.
+
+        Arguments
+        ---------
+        boundary : float, timedelta, array, None
+            Boundary offsets in this dimension.
+            * For a centered uniform boundary (same for every coordinate), use a single positive float or timedelta 
+                offset. This represents the "total segment length" / 2.
+            * For a uniform boundary (segment or polygon same for every coordinate), use an array of float or 
+                timedelta offsets
+            * For a fully specified boundary, use an array of boundary arrays (2-D array, N_coords x boundary spec), 
+                 one per coordinate. The boundary_spec can be a single number, two numbers, or an array of numbers.
+            * For point coordinates, use None.
+
+        Returns
+        -------
+        low: float, np.datetime64
+            low area bound
+        high: float, np.datetime64
+            high area bound
+        """
+
+        # point coordinates
+        if boundary is None:
+            return self.bounds
+
+        # empty coordinates
+        if self.size == 0:
+            return self.bounds
+
+        if np.array(boundary).ndim == 0:
+            # shortcut for uniform centered boundary
+            boundary = make_coord_delta(boundary)
+            lo_offset = -boundary
+            hi_offset = boundary
+        elif np.array(boundary).ndim == 1:
+            # uniform boundary polygon
+            boundary = make_coord_delta_array(boundary)
+            lo_offset = min(boundary)
+            hi_offset = max(boundary)
+        else:
+            L, H = self.argbounds
+            lo_offset = min(make_coord_delta_array(boundary[L]))
+            hi_offset = max(make_coord_delta_array(boundary[H]))
+
+        lo, hi = self.bounds
+        lo = add_coord(lo, lo_offset)
+        hi = add_coord(hi, hi_offset)
+
+        return lo, hi
 
     def _select_empty(self, return_indices):
         I = []
@@ -371,7 +324,7 @@ class Coordinates1d(BaseCoordinates):
                 "Input bounds do match the coordinates dtype (%s != %s)" % (type(self.bounds[1]), self.dtype)
             )
 
-        my_bounds = self.area_bounds.copy()
+        my_bounds = self.bounds
 
         # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
         if self.dtype == np.datetime64:
@@ -392,24 +345,12 @@ class Coordinates1d(BaseCoordinates):
         raise NotImplementedError
 
     def _transform(self, transformer):
+        if self.name != "alt":
+            # this assumes that the transformer does not have a spatial transform
+            return self.copy()
+
+        # transform "alt" coordinates
         from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
-        if self.name == "alt":
-            # coordinates
-            _, _, tcoordinates = transformer.transform(np.zeros(self.size), np.zeros(self.size), self.coordinates)
-
-            # segment lengths
-            properties = self.properties
-            if self.ctype != "point" and "segment_lengths" in self.properties:
-                _ = np.zeros_like(self.segment_lengths)
-                _, _, tsl = transformer.transform(_, _, self.segment_lengths)
-                properties["segment_lengths"] = tsl
-
-            t = ArrayCoordinates1d(tcoordinates, **properties)
-
-        else:
-            # this assumes that the transformer has been checked and that if this is a lat or lon dimension, the
-            # transformer must not have a spatial transform
-            t = self.copy()
-
-        return t
+        _, _, tcoordinates = transformer.transform(np.zeros(self.size), np.zeros(self.size), self.coordinates)
+        return ArrayCoordinates1d(tcoordinates, **self.properties)

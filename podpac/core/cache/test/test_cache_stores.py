@@ -327,24 +327,27 @@ class TestDiskCacheStore(FileCacheStoreTests):
         shutil.rmtree(self.test_cache_dir, ignore_errors=True)
 
     def test_cache_dir(self):
-        # absolute path
-        podpac.settings["DISK_CACHE_DIR"] = self.test_cache_dir
-        expected = self.test_cache_dir
-        store = DiskCacheStore()
-        store.put(NODE1, 10, "mykey1")
-        assert store.find(NODE1, "mykey1").startswith(expected)
-        store.clear()
+        with podpac.settings:
 
-        # relative path
-        podpac.settings["DISK_CACHE_DIR"] = "_testcache_"
-        expected = os.path.join(
-            os.environ.get("XDG_CACHE_HOME", os.path.join(os.path.expanduser("~"), ".config", "podpac")), "_testcache_"
-        )
-        store = DiskCacheStore()
-        store.clear()
-        store.put(NODE1, 10, "mykey1")
-        assert store.find(NODE1, "mykey1").startswith(expected)
-        store.clear()
+            # absolute path
+            podpac.settings["DISK_CACHE_DIR"] = self.test_cache_dir
+            expected = self.test_cache_dir
+            store = DiskCacheStore()
+            store.put(NODE1, 10, "mykey1")
+            assert store.find(NODE1, "mykey1").startswith(expected)
+            store.clear()
+
+            # relative path
+            podpac.settings["DISK_CACHE_DIR"] = "_testcache_"
+            expected = os.path.join(
+                os.environ.get("XDG_CACHE_HOME", os.path.join(os.path.expanduser("~"), ".config", "podpac")),
+                "_testcache_",
+            )
+            store = DiskCacheStore()
+            store.clear()
+            store.put(NODE1, 10, "mykey1")
+            assert store.find(NODE1, "mykey1").startswith(expected)
+            store.clear()
 
     def test_size(self):
         store = self.Store()

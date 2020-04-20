@@ -10,9 +10,6 @@ class BaseCoordinates(tl.HasTraits):
     def _set_name(self, value):
         raise NotImplementedError
 
-    def _set_ctype(self, value):
-        raise NotImplementedError
-
     @property
     def name(self):
         """:str: Dimension name."""
@@ -70,6 +67,10 @@ class BaseCoordinates(tl.HasTraits):
 
     def copy(self):
         """Deep copy of the coordinates and their properties."""
+        raise NotImplementedError
+
+    def get_area_bounds(self, boundary):
+        """Get coordinate area bounds, including boundary information, for each unstacked dimension. """
         raise NotImplementedError
 
     def select(self, bounds, outer=False, return_indices=False):

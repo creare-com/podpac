@@ -3,6 +3,7 @@ from podpac.core.coordinates.utils import make_coord_delta
 from podpac.core.coordinates.utils import make_coord_array
 from podpac.core.coordinates.utils import make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES
 
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d

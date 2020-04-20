@@ -209,7 +209,7 @@ def make_coord_delta(val):
         try:
             val = val.item()
         except ValueError:
-            raise TypeError("Invalid coordinate delta, unsuported type '%s'" % type(val))
+            raise TypeError("Invalid coordinate delta, unsupported type '%s'" % type(val))
 
     # type checking and conversion
     if isinstance(val, string_types):
@@ -221,7 +221,7 @@ def make_coord_delta(val):
     elif isinstance(val, numbers.Number):
         val = float(val)
     else:
-        raise TypeError("Invalid coordinate delta, unsuported type '%s'" % type(val))
+        raise TypeError("Invalid coordinate delta, unsupported type '%s'" % type(val))
 
     return val
 
@@ -458,11 +458,6 @@ VALID_DIMENSION_NAMES = ["lat", "lon", "alt", "time"]
 class Dimension(tl.Enum):
     def __init__(self, *args, **kwargs):
         super(Dimension, self).__init__(VALID_DIMENSION_NAMES, *args, **kwargs)
-
-
-class CoordinateType(tl.Enum):
-    def __init__(self, *args, **kwargs):
-        super(CoordinateType, self).__init__(["point", "left", "right", "midpoint"], *args, **kwargs)
 
 
 def lower_precision_time_bounds(my_bounds, other_bounds, outer):

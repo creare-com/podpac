@@ -21,7 +21,7 @@ class PolarCoordinates(DependentCoordinates):
     theta = tl.Instance(Coordinates1d, read_only=True)
     ndims = 2
 
-    def __init__(self, center, radius, theta=None, theta_size=None, dims=None, ctypes=None, segment_lengths=None):
+    def __init__(self, center, radius, theta=None, theta_size=None, dims=None):
 
         # radius
         if not isinstance(radius, Coordinates1d):
@@ -41,9 +41,8 @@ class PolarCoordinates(DependentCoordinates):
         self.set_trait("center", center)
         self.set_trait("radius", radius)
         self.set_trait("theta", theta)
-
-        # properties
-        self._set_properties(dims, ctypes, segment_lengths)
+        if dims is not None:
+            self.set_trait("dims", dims)
 
     @tl.validate("dims")
     def _validate_dims(self, d):
@@ -107,12 +106,7 @@ class PolarCoordinates(DependentCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        if self.ctypes[0] == self.ctypes[1]:
-            ctypes = "ctype['%s']" % self.ctypes[0]
-        else:
-            ctypes = "ctypes[%s]" % ", ".join(self.ctypes)
-
-        return "%s(%s): center%s, shape%s, %s" % (self.__class__.__name__, self.dims, self.center, self.shape, ctypes)
+        return "%s(%s): center%s, shape%s" % (self.__class__.__name__, self.dims, self.center, self.shape)
 
     def __eq__(self, other):
         if not isinstance(other, PolarCoordinates):

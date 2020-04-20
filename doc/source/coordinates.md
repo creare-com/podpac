@@ -32,13 +32,13 @@ Unstacked multidimensional coordinates form a grid of points. For example, the f
 [.] time = ['2018-01-01', '2018-01-02']
 [.] Coordinates([lat, lon], dims=['lat', 'lon'])
 Coordinates
-    lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
-    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
+    lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3]
+    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4]
 [.] Coordinates([lat, lon, time], dims=['lat', 'lon', 'time'])
 Coordinates
-    lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
-    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
-    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']
+    lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3]
+    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4]
+    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2]
 ```
 
 You can also create coordinates with just one dimension the same way:
@@ -47,7 +47,7 @@ You can also create coordinates with just one dimension the same way:
 >>> from podpac import Coordinates
 >>> Coordinates([time], dims=['time'])
 Coordinates
-    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']
+    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2]
 ```
 
 ### Stacked Coordinates
@@ -65,8 +65,8 @@ The following example has a single stacked dimension and a total of 3 points.
 [.] c = Coordinates([[lat, lon]], dims=['lat_lon'])
 [.] c
 Coordinates
-    lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
-    lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
+    lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3]
+    lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3]
 [.] c['lat_lon'].coordinates[0]
 (0.0, 10.0)
 ```
@@ -80,9 +80,9 @@ Coordinates can combine stacked dimensions and unstacked dimensions. For example
 [.] time = ['2018-01-01', '2018-01-02']
 [.] c = Coordinates([[lat, lon], time], dims=['lat_lon', 'time'])
 Coordinates
-    lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
-    lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
-    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2], ctype['midpoint']
+    lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3]
+    lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3]
+    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-02], N[2]
 [.] c['lat_lon'].coordinates[0]
 (0.0, 10.0)
 [.] c['time'].coordinates[0]
@@ -143,10 +143,6 @@ extremely large number of points.
 
 TODO
 
-### Coordinate Properties
-
-TODO ctype, etc
-
 ### Alternate Constructors
 
 Unstacked coordinates can also be created using the `Coordinates.grid` alternate constructor:
@@ -155,8 +151,8 @@ Unstacked coordinates can also be created using the `Coordinates.grid` alternate
 >>> from podpac import Coordinates
 >>> Coordinates.grid(lat=[0, 1, 2], lon=[10, 20, 30, 40])
 Coordinates
-    lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
-    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
+    lat: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3]
+    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4]
 ```
 
 Stacked coordinates can be created using the `Coordinates.points` alternate constructor:
@@ -165,8 +161,8 @@ Stacked coordinates can be created using the `Coordinates.points` alternate cons
 >>> from podpac import Coordinates
 >>> Coordinates.points(lat=[0, 1, 2], lon=[10, 20, 30])
 Coordinates
-    lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3], ctype['midpoint']
-    lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3], ctype['midpoint']
+    lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 2.0], N[3]
+    lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 30.0], N[3]
 ```
 
 For convenience, a tuple can be used to generate uniformly-spaced coordinates. If the third item is an integer, it
@@ -197,12 +193,10 @@ from podpac.coordinates import UniformCoordinates1d, ArrayCoordinates1d, Coordin
 >>> time = ArrayCoordinates1d(['2018-01-01', '2018-02-03'], name='time')
 >>> Coordinates([StackedCoordinates([lat, lon]), time])
 Coordinates
-    lat_lon[lat]: UniformCoordinates1d(lat): Bounds[0.0, 1.0], N[100], ctype['midpoint']
-    lat_lon[lon]: UniformCoordinates1d(lon): Bounds[10.0, 20.0], N[100], ctype['midpoint']
-    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-02-03], N[2], ctype['midpoint']
+    lat_lon[lat]: UniformCoordinates1d(lat): Bounds[0.0, 1.0], N[100]
+    lat_lon[lon]: UniformCoordinates1d(lon): Bounds[10.0, 20.0], N[100]
+    time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-02-03], N[2]
 ```
-
-TODO mixed ctypes, etc...
 
 ## Coordinate API
 

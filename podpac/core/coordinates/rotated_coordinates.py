@@ -47,9 +47,7 @@ class RotatedCoordinates(DependentCoordinates):
     step = ArrayTrait(shape=(2,), dtype=float, read_only=True)
     ndims = 2
 
-    def __init__(
-        self, shape=None, theta=None, origin=None, step=None, corner=None, dims=None, ctypes=None, segment_lengths=None
-    ):
+    def __init__(self, shape=None, theta=None, origin=None, step=None, corner=None, dims=None):
         """
         Create a grid of rotated coordinates from a `shape`, `theta`, `origin`, and `step` or `corner`.
 
@@ -67,12 +65,6 @@ class RotatedCoordinates(DependentCoordinates):
             Scaling, ie rotated distance between points in the grid, in each dimension. (corner or step required)
         dims : tuple (required)
             tuple of dimension names ('lat', 'lon', 'time', or 'alt').
-        ctype : tuple, str (optional)
-            tuple of coordinates types ('point', 'left', 'right', or 'midpoint') for each dimension. A single ctype
-            str can be specified for all dimensions.
-        segment_lengths : tuple, float, or timedelta (optional)
-            tuple of segment lengths for each dimension. A single segment length can be specified for both dimensions.
-            For point coordinates, the segment_lengths must be None; omit if all dimensions are point coordinates.
         """
 
         self.set_trait("shape", shape)
@@ -84,8 +76,8 @@ class RotatedCoordinates(DependentCoordinates):
             d = np.array(a * corner) - np.array(a * origin)
             step = d / np.array([shape[0] - 1, shape[1] - 1])
         self.set_trait("step", step)
-
-        self._set_properties(dims, ctypes, segment_lengths)
+        if dims is not None:
+            self.set_trait("dims", dims)
 
     @tl.validate("dims")
     def _validate_dims(self, d):
@@ -114,14 +106,14 @@ class RotatedCoordinates(DependentCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     @classmethod
-    def from_geotransform(cls, geotransform, shape, dims=None, ctypes=None, segment_lengths=None):
+    def from_geotransform(cls, geotransform, shape, dims=None):
         affine = rasterio.Affine.from_gdal(*geotransform)
         origin = affine.f, affine.c
         deg = affine.rotation_angle
         scale = ~affine.rotation(deg) * ~affine.translation(*origin) * affine
         step = np.array([scale.e, scale.a])
         origin = affine.f + step[0] / 2, affine.c + step[1] / 2
-        return cls(shape, np.deg2rad(deg), origin, step, dims=dims, ctypes=ctypes, segment_lengths=segment_lengths)
+        return cls(shape, np.deg2rad(deg), origin, step, dims=dims)
 
     @classmethod
     def from_definition(cls, d):
@@ -165,19 +157,13 @@ class RotatedCoordinates(DependentCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        if self.ctypes[0] == self.ctypes[1]:
-            ctypes = "ctype['%s']" % self.ctypes[0]
-        else:
-            ctypes = "ctypes[%s]" % ", ".join(self.ctypes)
-
-        return "%s(%s): Origin%s, Corner%s, rad[%.4f], shape%s, %s" % (
+        return "%s(%s): Origin%s, Corner%s, rad[%.4f], shape%s" % (
             self.__class__.__name__,
             self.dims,
             self.origin,
             self.corner,
             self.theta,
             self.shape,
-            ctypes,
         )
 
     def __eq__(self, other):
@@ -261,12 +247,6 @@ class RotatedCoordinates(DependentCoordinates):
         """:dict: Dictionary of the coordinate properties. """
         return {key: getattr(self, key) for key in self._properties}
 
-    @property
-    def area_bounds(self):
-        """:dict: Dictionary of (low, high) coordinates area_bounds in each unstacked dimension"""
-        # TODO this is not accurate, the segment lengths need to be rotated
-        return super(RotatedCoordinates, self).area_bounds
-
     def _get_definition(self, full=True):
         d = OrderedDict()
         d["dims"] = self.dims
@@ -291,6 +271,24 @@ class RotatedCoordinates(DependentCoordinates):
             Copy of the rotated coordinates.
         """
         return RotatedCoordinates(self.shape, self.theta, self.origin, self.step, **self.properties)
+
+    def get_area_bounds(self, boundary):
+        """Get coordinate area bounds, including boundary information, for each unstacked dimension.
+
+        Arguments
+        ---------
+        boundary : dict
+            dictionary of boundary offsets for each unstacked dimension. Point dimensions can be omitted.
+
+        Returns
+        -------
+        area_bounds : dict
+            Dictionary of (low, high) coordinates area_bounds in each unstacked dimension
+        """
+
+        # TODO the boundary offsets need to be rotated
+        warnings.warning("RotatedCoordinates area_bounds are not yet correctly implemented.")
+        return super(RotatedCoordinates, self).get_area_bounds(boundary)
 
     def select(self, bounds, outer=False, return_indices=False):
         """

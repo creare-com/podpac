@@ -265,32 +265,6 @@ class Interpolator(tl.HasTraits):
     def _loop_helper(
         self, func, keep_dims, udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs
     ):
-        """Loop helper
-        
-        Parameters
-        ----------
-        func : TYPE
-            Description
-        keep_dims : TYPE
-            Description
-        udims : TYPE
-            Description
-        source_coordinates : TYPE
-            Description
-        source_data : TYPE
-            Description
-        eval_coordinates : TYPE
-            Description
-        output_data : TYPE
-            Description
-        **kwargs
-            Description
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
         loop_dims = [d for d in source_data.dims if d not in keep_dims]
         if loop_dims:
             dim = loop_dims[0]

@@ -88,18 +88,6 @@ class TestRotatedCoordinatesCreation(object):
         c = RotatedCoordinates(shape=(3, 4), theta=-np.pi / 4, origin=[10, 20], step=[1.0, 2.0], dims=["lat", "lon"])
         assert_allclose(c.corner, [15.656854, 22.828427])
 
-    def test_ctypes(self):
-        c = RotatedCoordinates(
-            shape=(3, 4),
-            theta=np.pi / 4,
-            origin=[10, 20],
-            step=[1.0, 2.0],
-            dims=["lat", "lon"],
-            ctypes=["left", "right"],
-            segment_lengths=1.0,
-        )
-        repr(c)
-
     def test_invalid(self):
         with pytest.raises(ValueError, match="Invalid shape"):
             RotatedCoordinates(shape=(-3, 4), theta=np.pi / 4, origin=[10, 20], step=[1.0, 2.0], dims=["lat", "lon"])
@@ -213,7 +201,7 @@ class TestRotatedCoordinatesSerialization(object):
         d = c.full_definition
 
         assert isinstance(d, dict)
-        assert set(d.keys()) == {"dims", "shape", "theta", "origin", "step", "ctypes", "segment_lengths"}
+        assert set(d.keys()) == {"dims", "shape", "theta", "origin", "step"}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)  # test serializable
 
 

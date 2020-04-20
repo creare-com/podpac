@@ -89,7 +89,7 @@ class UniformTileCompositor(TileCompositor):
 
 
 @common_doc(COMMON_DATA_DOC)
-class UniformTileMixin(podpac.Node):
+class UniformTileMixin(tl.HasTraits):
     """DataSource mixin for uniform tiles in a grid.
 
     Defines the tile coordinates from the grid coordinates using the tile position in the grid.
