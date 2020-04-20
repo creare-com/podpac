@@ -522,13 +522,10 @@ class DependentCoordinates(BaseCoordinates):
         slc_start = [slice(0, 1) for d in self.dims]
 
         for dim in self.dims:
-            if dim == "time":
-                continue
-
             i = self.dims.index(dim)
             slc = slc_start.copy()
             slc[i] = slice(None)
-            if np.any(np.abs(coords[i][tuple(slc)] - coords[i]) >= TOL):  # check indepedent
+            if np.any(np.abs(coords[i][tuple(slc)] - coords[i]).astype(float) >= TOL):  # check indepedent
                 return self
             coords[i] = ArrayCoordinates1d(coords[i][tuple(slc)].squeeze(), name=dim).simplify()
 
