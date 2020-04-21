@@ -96,6 +96,9 @@ class UniformCoordinates1d(Coordinates1d):
                 % (type(start), type(stop), type(step))
             )
 
+        if fstep == 0:
+            raise ValueError("Uniformcoordinates1d step cannot be zero")
+
         if fstep <= 0 and start < stop:
             raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
 
@@ -334,6 +337,17 @@ class UniformCoordinates1d(Coordinates1d):
 
         kwargs = self.properties
         return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
+
+    def simplify(self):
+        """ Get the simplified/optimized representation of these coordinates.
+
+        Returns
+        -------
+        simplified : UniformCoordinates1d
+            These coordinates (the coordinates are already simplified).
+        """
+
+        return self
 
     def _select(self, bounds, return_indices, outer):
         # TODO is there an easier way to do this with the new outer flag?

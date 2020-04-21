@@ -17,6 +17,7 @@ from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
+from podpac.core.coordinates.cfunctions import clinspace
 
 
 class DependentCoordinates(BaseCoordinates):
@@ -438,7 +439,21 @@ class DependentCoordinates(BaseCoordinates):
             _, _, talt = transformer.transform(np.zeros(self.size), np.zeros(self.size), alt)
             coords[ialt] = talt.reshape(self.shape)
 
-        return DependentCoordinates(coords, **properties)
+        return DependentCoordinates(coords, **properties).simplify()
+
+    def simplify(self):
+        coords = [c.copy() for c in self.coordinates]
+        slc_start = [slice(0, 1) for d in self.dims]
+
+        for dim in self.dims:
+            i = self.dims.index(dim)
+            slc = slc_start.copy()
+            slc[i] = slice(None)
+            if dim in ["lat", "lon"] and not np.allclose(coords[i][tuple(slc)], coords[i], atol=1e-7):
+                return self
+            coords[i] = ArrayCoordinates1d(coords[i][tuple(slc)].squeeze(), name=dim).simplify()
+
+        return coords
 
     def transpose(self, *dims, **kwargs):
         """

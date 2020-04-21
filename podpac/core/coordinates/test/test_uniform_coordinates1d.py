@@ -397,6 +397,9 @@ class TestUniformCoordinatesCreation(object):
 
     def test_invalid_init(self):
         with pytest.raises(ValueError):
+            UniformCoordinates1d(0, 0, 0)
+
+        with pytest.raises(ValueError):
             UniformCoordinates1d(0, 50, 0)
 
         with pytest.raises(ValueError):

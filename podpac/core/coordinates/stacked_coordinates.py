@@ -430,9 +430,10 @@ class StackedCoordinates(BaseCoordinates):
             lon = coords[ilon]
             alt = coords[ialt]
             tlon, tlat, talt = transformer.transform(lon.coordinates, lat.coordinates, alt.coordinates)
-            coords[ilat].set_trait("coordinates", tlat)
-            coords[ilon].set_trait("coordinates", tlon)
-            coords[ialt].set_trait("coordinates", talt)
+
+            coords[ilat] = ArrayCoordinates1d(tlat, "lat").simplify()
+            coords[ilon] = ArrayCoordinates1d(tlon, "lon").simplify()
+            coords[ialt] = ArrayCoordinates1d(talt, "alt").simplify()
 
         elif "lat" in self.dims and "lon" in self.dims:
             ilat = self.dims.index("lat")
@@ -441,15 +442,17 @@ class StackedCoordinates(BaseCoordinates):
             lat = coords[ilat]
             lon = coords[ilon]
             tlon, tlat = transformer.transform(lon.coordinates, lat.coordinates)
-            coords[ilat].set_trait("coordinates", tlat)
-            coords[ilon].set_trait("coordinates", tlon)
+
+            coords[ilat] = ArrayCoordinates1d(tlat, "lat").simplify()
+            coords[ilon] = ArrayCoordinates1d(tlon, "lon").simplify()
 
         elif "alt" in self.dims:
             ialt = self.dims.index("alt")
 
             alt = coords[ialt]
             _, _, talt = transformer.transform(np.zeros(self.size), np.zeros(self.size), alt.coordinates)
-            coords[ialt].set_trait("coordinates", talt)
+
+            coords[ialt] = ArrayCoordinates1d(talt, "alt").simplify()
 
         return StackedCoordinates(coords)
 

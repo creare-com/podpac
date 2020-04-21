@@ -84,7 +84,7 @@ class ArrayCoordinates1d(Coordinates1d):
             else:
                 self._is_monotonic = True
                 self._is_descending = self.coordinates[1] < self.coordinates[0]
-                self._is_uniform = np.allclose(deltas, deltas[0])
+                self._is_uniform = np.allclose(deltas, deltas[0], atol=1e-7)
                 if self._is_uniform:
                     self._start = self.coordinates[0]
                     self._stop = self.coordinates[-1]
@@ -175,6 +175,22 @@ class ArrayCoordinates1d(Coordinates1d):
         """
 
         return ArrayCoordinates1d(self.coordinates, **self.properties)
+
+    def simplify(self):
+        """ Get the simplified/optimized representation of these coordinates.
+
+        Returns
+        -------
+        simplified : ArrayCoordinates1d, UniformCoordinates1d
+            UniformCoordinates1d if the coordinates are uniform, otherwise ArrayCoordinates1d
+        """
+
+        from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
+
+        if self.is_uniform:
+            return UniformCoordinates1d(self.start, self.stop, self.step, **self.properties)
+
+        return self
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods, array-like

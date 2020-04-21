@@ -14,6 +14,7 @@ from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
+from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.cfunctions import crange, clinspace
 from podpac.core.coordinates.coordinates import Coordinates
 from podpac.core.coordinates.coordinates import concat, union, merge_dims
@@ -1159,62 +1160,6 @@ class TestCoordinatesMethods(object):
         c.transpose("time", "lon_lat", in_place=True)
         assert c.dims == ("time", "lon_lat")
 
-    def test_transform(self):
-        c = Coordinates([[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
-
-        # transform
-        t = c.transform("EPSG:2193")
-        assert c.crs == "EPSG:4326"
-        assert t.crs == "EPSG:2193"
-        assert round(t["lat"].coordinates[0, 0]) == 29995930.0
-
-        # no transform needed
-        t = c.transform("EPSG:4326")
-        assert c.crs == "EPSG:4326"
-        assert t.crs == "EPSG:4326"
-        assert t is not c
-        assert t == c
-
-        # support proj4 strings
-        proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
-        t = c.transform(proj)
-        assert c.crs == "EPSG:4326"
-        assert t.crs == proj
-        assert round(t["lat"].coordinates[0, 0]) == 0.0
-
-        # no parameter
-        with pytest.raises(TypeError, match="transform requires crs argument"):
-            c.transform()
-
-    def test_transform_stacked(self):
-        c = Coordinates([[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02", "2018-01-03"]], dims=["lat_lon", "time"])
-
-        proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
-        t = c.transform(proj)
-        assert c.crs == "EPSG:4326"
-        assert t.crs == proj
-        assert round(t["lat"].coordinates[0]) == 0.0
-
-    def test_transform_alt(self):
-        c = Coordinates(
-            [[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"], [100, 200, 300]],
-            dims=["lat", "lon", "time", "alt"],
-            crs="+proj=merc +vunits=us-ft",
-        )
-
-        proj = "+proj=merc +vunits=m"
-        t = c.transform(proj)
-        assert c.crs == "+proj=merc +vunits=us-ft"
-        assert t.crs == "+proj=merc +vunits=m"
-        np.testing.assert_array_almost_equal(t["lat"].coordinates[0], [0.0, 0.0, 0.0, 0.0])
-        np.testing.assert_array_almost_equal(t["lat"].coordinates[1], [1.0, 1.0, 1.0, 1.0])
-        np.testing.assert_array_almost_equal(t["lon"].coordinates[:, 0], [10.0, 10.0])
-        np.testing.assert_array_almost_equal(t["lon"].coordinates[:, 1], [20.0, 20.0])
-        np.testing.assert_array_almost_equal(t["lon"].coordinates[:, 2], [30.0, 30.0])
-        np.testing.assert_array_almost_equal(t["lon"].coordinates[:, 3], [40.0, 40.0])
-        assert t["time"] == c["time"]
-        np.testing.assert_array_almost_equal(t["alt"].coordinates, 0.30480061 * c["alt"].coordinates)
-
     def test_select_single(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
@@ -1677,3 +1622,157 @@ class TestCoordinatesGeoTransform(object):
                 ]
             ),
         )
+
+
+class TestCoordinatesMethodTransform(object):
+    def test_transform(self):
+        c = Coordinates([[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
+
+        # transform
+        t = c.transform("EPSG:2193")
+        assert c.crs == "EPSG:4326"
+        assert t.crs == "EPSG:2193"
+        assert round(t["lat"].coordinates[0, 0]) == 29995930.0
+
+        # no transform needed
+        t = c.transform("EPSG:4326")
+        assert c.crs == "EPSG:4326"
+        assert t.crs == "EPSG:4326"
+        assert t is not c
+        assert t == c
+
+        # support proj4 strings
+        proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
+        t = c.transform(proj)
+        assert c.crs == "EPSG:4326"
+        assert t.crs == proj
+        assert round(t["lat"].coordinates[0]) == 0.0
+
+    def test_transform_stacked(self):
+        c = Coordinates([[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02", "2018-01-03"]], dims=["lat_lon", "time"])
+
+        proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
+        t = c.transform(proj)
+        assert c.crs == "EPSG:4326"
+        assert t.crs == proj
+        assert round(t["lat"].coordinates[0]) == 0.0
+
+    def test_transform_alt(self):
+        c = Coordinates(
+            [[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"], [100, 200, 300]],
+            dims=["lat", "lon", "time", "alt"],
+            crs="+proj=merc +vunits=us-ft",
+        )
+
+        proj = "+proj=merc +vunits=m"
+        t = c.transform(proj)
+        assert c.crs == "+proj=merc +vunits=us-ft"
+        assert t.crs == "+proj=merc +vunits=m"
+        np.testing.assert_array_almost_equal(t["lat"].coordinates, c["lat"].coordinates)
+        np.testing.assert_array_almost_equal(t["lon"].coordinates, c["lon"].coordinates)
+        assert t["time"] == c["time"]
+        np.testing.assert_array_almost_equal(t["alt"].coordinates, 0.30480061 * c["alt"].coordinates)
+
+    def test_transform_uniform_to_uniform(self):
+        c = Coordinates([clinspace(-90, 90, 5, "lat"), clinspace(-180, 180, 11, "lon"), clinspace(0, 1, 5, "time")])
+        t = c.transform("EPSG:4269")  # NAD 1983 uses same ellipsoid
+
+        assert isinstance(t["lat"], UniformCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
+        assert t.crs == "EPSG:4269"
+        assert t.dims == c.dims
+
+        # Same thing, change the order of the inputs
+        c = Coordinates(
+            [clinspace(90, -90, 5, "lat"), clinspace(180, -180, 11, "lon"), clinspace(0, 1, 5, "time")][::-1]
+        )
+        t = c.transform("EPSG:4269")  # NAD 1983 uses same ellipsoid
+
+        assert isinstance(t["lat"], UniformCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
+        assert t.crs == "EPSG:4269"
+
+        assert t.dims == c.dims
+        for d in ["lat", "lon"]:
+            for a in ["start", "stop", "step"]:
+                np.testing.assert_almost_equal(getattr(c[d], a), getattr(t[d], a))
+
+    def test_transform_uniform_stacked(self):
+        # TODO: Fix this test
+        c = Coordinates(
+            [[clinspace(-90, 90, 11, "lat"), clinspace(-180, 180, 11, "lon")], clinspace(0, 1, 5, "time")],
+            [["lat", "lon"], "time"],
+        )
+        t = c.transform("EPSG:4269")  # NAD 1983 uses same ellipsoid
+
+        assert isinstance(t["lat"], UniformCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
+        np.testing.assert_array_almost_equal(t["lat"].coordinates, c["lat"].coordinates)
+        np.testing.assert_array_almost_equal(t["lon"].coordinates, c["lon"].coordinates)
+
+    def test_transform_uniform_to_array(self):
+        c = Coordinates([clinspace(-45, 45, 5, "lat"), clinspace(-180, 180, 11, "lon")])
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:3395")
+
+        assert isinstance(t["lat"], ArrayCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
+
+        t2 = t.transform(c.crs)
+
+        for d in ["lon", "lat"]:
+            for a in ["start", "stop", "step"]:
+                np.testing.assert_almost_equal(getattr(c[d], a), getattr(t2[d], a))
+
+    def test_transform_uniform_to_dependent_to_uniform(self):
+        c = Coordinates([clinspace(50, 45, 7, "lat"), clinspace(70, 75, 11, "lon")])
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:32629")
+
+        assert "lat,lon" in t.dims
+        t2 = t.transform(c.crs)
+        for d in ["lat", "lon"]:
+            for a in ["start", "stop", "step"]:
+                np.testing.assert_almost_equal(getattr(c[d], a), getattr(t2[d], a))
+
+    def test_transform_dependent_stacked_to_dependent_stacked(self):
+        c = Coordinates([[np.array([[1, 2, 3], [4, 5, 6]]), np.array([[7, 8, 9], [10, 11, 12]])]], ["lat,lon"])
+        c2 = Coordinates([[np.array([1, 2, 3, 4, 5, 6]), np.array([7, 8, 9, 10, 11, 12])]], ["lat_lon"])
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:32629")
+        assert "lat,lon" in t.dims
+        t_s = c2.transform("EPSG:32629")
+        assert "lat_lon" in t_s.dims
+
+        for d in ["lat", "lon"]:
+            np.testing.assert_almost_equal(t[d].coordinates.ravel(), t_s[d].coordinates.ravel())
+
+        t2 = t.transform(c.crs)
+        t2_s = t_s.transform(c.crs)
+
+        for d in ["lat", "lon"]:
+            np.testing.assert_almost_equal(t2[d].coordinates, c[d].coordinates)
+            np.testing.assert_almost_equal(t2_s[d].coordinates, c2[d].coordinates)
+
+        # Reverse order
+        c = Coordinates([[np.array([[1, 2, 3], [4, 5, 6]]), np.array([[7, 8, 9], [10, 11, 12]])]], ["lon,lat"])
+        c2 = Coordinates([[np.array([1, 2, 3, 4, 5, 6]), np.array([7, 8, 9, 10, 11, 12])]], ["lon_lat"])
+
+        # Ok for array coordinates
+        t = c.transform("EPSG:32629")
+        assert "lon,lat" in t.dims
+        t_s = c2.transform("EPSG:32629")
+        assert "lon_lat" in t_s.dims
+
+        for d in ["lat", "lon"]:
+            np.testing.assert_almost_equal(t[d].coordinates.ravel(), t_s[d].coordinates.ravel())
+
+        t2 = t.transform(c.crs)
+        t2_s = t_s.transform(c.crs)
+
+        for d in ["lat", "lon"]:
+            np.testing.assert_almost_equal(t2[d].coordinates, c[d].coordinates)
+            np.testing.assert_almost_equal(t2_s[d].coordinates, c2[d].coordinates)

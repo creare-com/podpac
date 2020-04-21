@@ -27,11 +27,13 @@ from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
+from podpac.core.coordinates.dependent_coordinates import ArrayCoordinatesNd
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
+from podpac.core.coordinates.cfunctions import clinspace
 
 # Optional dependencies
 from lazy_import import lazy_module, lazy_class
@@ -771,8 +773,7 @@ class Coordinates(tl.HasTraits):
 
     @property
     def CRS(self):
-        crs = self.crs
-        return pyproj.CRS(crs)
+        return pyproj.CRS(self.crs)
 
     # TODO: add a convenience property for displaying altitude units for the CRS
     # @property
@@ -1265,7 +1266,7 @@ class Coordinates(tl.HasTraits):
         else:
             return Coordinates(coords, validate_crs=False, **self.properties)
 
-    def transform(self, crs=None):
+    def transform(self, crs):
         """
         Transform coordinate dimensions (`lat`, `lon`, `alt`) into a different coordinate reference system.
         Uses PROJ syntax for coordinate reference systems and units.
@@ -1310,9 +1311,8 @@ class Coordinates(tl.HasTraits):
 
         Parameters
         ----------
-        crs : str, optional
+        crs : str
             PROJ4 compatible coordinate reference system string.
-            Defaults to the current `crs`
 
         Returns
         -------
@@ -1324,42 +1324,46 @@ class Coordinates(tl.HasTraits):
         ValueError
             Coordinates must have both lat and lon dimensions if either is defined
         """
-
-        if crs is None:
-            raise TypeError("transform requires crs argument")
-
-        input_crs = crs
-
-        # use self.crs by default
-        if crs is None:
-            crs = self.crs
-
         from_crs = self.CRS
         to_crs = pyproj.CRS(crs)
-
-        # make sure the CRS defines vertical units
-        if "alt" in self.udims and not to_crs.is_vertical:
-            raise ValueError("Altitude dimension is defined, but CRS to transform does not contain vertical unit")
 
         # no transform needed
         if from_crs == to_crs:
             return deepcopy(self)
 
+        # make sure the CRS defines vertical units
+        if "alt" in self.udims and not to_crs.is_vertical:
+            raise ValueError("Altitude dimension is defined, but CRS to transform does not contain vertical unit")
+
+        if "lat" in self.dims and "lon" not in self.dims:
+            raise ValueError("Cannot transform lat coordinates without lon coordinates")
+
+        if "lon" in self.dims and "lat" not in self.dims:
+            raise ValueError("Cannot transform lon coordinates without lon coordinates")
+
+        if "lat" in self.dims and "lon" in self.dims and abs(self.dims.index("lat") - self.dims.index("lon")) != 1:
+            raise ValueError("Cannot transform coordinates with nonadjacent lat and lon, transpose first")
+
+        transformer = pyproj.Transformer.from_proj(from_crs, to_crs, always_xy=True)
+
+        # Collect the individual coordinates
         cs = [c for c in self.values()]
 
-        # if lat-lon transform is required, check dims and convert unstacked lat-lon coordinates if necessary
-        from_spatial = pyproj.CRS(self.crs)
-        to_spatial = pyproj.CRS(crs)
-        if from_spatial != to_spatial:
-            if "lat" in self.dims and "lon" in self.dims:
+        if "lat" in self.dims and "lon" in self.dims:
+            # try to do a simplified transform (resulting in unstacked lat-lon coordinates)
+            tc = self._simplified_transform(crs, transformer)
+            if tc:
+                cs[self.dims.index("lat")] = tc[0]
+                cs[self.dims.index("lon")] = tc[1]
+
+            # otherwise convert lat-lon to dependent coordinates
+            else:
                 ilat = self.dims.index("lat")
                 ilon = self.dims.index("lon")
                 if ilat == ilon - 1:
                     c1, c2 = self["lat"], self["lon"]
                 elif ilon == ilat - 1:
                     c1, c2 = self["lon"], self["lat"]
-                else:
-                    raise ValueError("Cannot transform coordinates with nonadjacent lat and lon, transpose first")
 
                 c = DependentCoordinates(
                     np.meshgrid(c1.coordinates, c2.coordinates, indexing="ij"), dims=[c1.name, c2.name]
@@ -1371,16 +1375,56 @@ class Coordinates(tl.HasTraits):
                 cs.pop(i)
                 cs.insert(i, c)
 
-            elif "lat" in self.dims:
-                raise ValueError("Cannot transform lat coordinates without lon coordinates")
-
-            elif "lon" in self.dims:
-                raise ValueError("Cannot transform lon coordinates without lat coordinates")
-
         # transform
-        transformer = pyproj.Transformer.from_proj(from_crs, to_crs, always_xy=True)
-        ts = [c._transform(transformer) for c in cs]
-        return Coordinates(ts, crs=input_crs, validate_crs=False)
+        ts = []
+        for c in cs:
+            tc = c._transform(transformer)
+            if isinstance(tc, list):
+                ts.extend(tc)
+            else:
+                ts.append(tc)
+
+        return Coordinates(ts, crs=crs, validate_crs=False)
+
+    def _simplified_transform(self, crs, transformer):
+        """ Transform coordinates to simple Coordinates1d (instead of DependentCoordinates) if possible """
+
+        # check if we can simplify the coordinates by transforming a downsampled grid
+        sample = [np.linspace(self[dim].coordinates[0], self[dim].coordinates[-1], 5) for dim in ["lat", "lon"]]
+        temp_coords = DependentCoordinates(np.meshgrid(*sample, indexing="ij"), dims=["lat", "lon"])
+        t = temp_coords._transform(transformer)
+
+        # if we get DependentCoordinates from the transform, they are not independent
+        if isinstance(t, DependentCoordinates):
+            return
+
+        # Great, we CAN simplify the transformed coordinates.
+        # If they are uniform already, we just need to expand to the full size
+        # If the are non-uniform, we have to compute the full transformed array
+
+        # lat
+        if isinstance(t[0], UniformCoordinates1d):
+            t_lat = clinspace(t[0].coordinates[0], t[0].coordinates[-1], self["lat"].size, name="lat")
+        else:
+            # compute the non-uniform coordinates (and simplify to uniform if they are *now* uniform)
+            temp_coords = StackedCoordinates(
+                [self["lat"].coordinates, np.full_like(self["lat"].coordinates, self["lon"].coordinates.mean())],
+                name="lat_lon",
+            )
+            t_lat = temp_coords._transform(transformer)["lat"].simplify()
+
+        # lon
+        if isinstance(t[1], UniformCoordinates1d):
+            t_lon = clinspace(t[1].coordinates[0], t[1].coordinates[-1], self["lon"].size, name="lon")
+        else:
+            # compute the non-uniform coordinates (and simplify to uniform if they are *now* uniform)
+            temp_coords = StackedCoordinates(
+                [self["lon"].coordinates, np.full_like(self["lon"].coordinates, self["lat"].coordinates.mean())],
+                name="lon_lat",
+            )
+            t_lon = temp_coords._transform(transformer)["lon"].simplify()
+
+        return t_lat, t_lon
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
