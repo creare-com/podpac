@@ -74,9 +74,11 @@ class ArrayCoordinates1d(Coordinates1d):
             self._is_monotonic = True
 
         else:
-            deltas = (self.coordinates[1:] - self.coordinates[:-1]).astype(float) * (
-                self.coordinates[1] - self.coordinates[0]
-            ).astype(float)
+            deltas = (
+                (self.coordinates[1:] - self.coordinates[:-1]).astype(float)
+                / (self.coordinates[1] - self.coordinates[0]).astype(float)
+                * self.coordinates.size
+            )
             if np.any(deltas <= 0):
                 self._is_monotonic = False
                 self._is_descending = False
