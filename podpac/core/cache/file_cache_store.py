@@ -47,7 +47,7 @@ class FileCacheStore(CacheStore):
             Data to cache
         key : str
             Cached object key, e.g. 'output'.
-        coordinates : Coordinates, optional
+        coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
@@ -120,7 +120,7 @@ class FileCacheStore(CacheStore):
             node requesting storage.
         key : str
             Cached object key, e.g. 'output'.
-        coordinates : Coordinates, optional
+        coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
             
         Returns
@@ -195,7 +195,7 @@ class FileCacheStore(CacheStore):
             node requesting storage
         key : str, CacheWildCard, optional
             Delete cached objects with this key, or any key if `key` is a CacheWildCard.
-        coordinates : Coordinates, CacheWildCard, None, optional
+        coordinates : :class:`podpac.Coordinates`, CacheWildCard, None, optional
             Delete only cached objects for these coordinates, or any coordinates if `coordinates` is a CacheWildCard. `None` specifically indicates entries that do not have coordinates.
         """
 

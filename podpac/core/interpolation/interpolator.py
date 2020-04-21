@@ -30,7 +30,7 @@ COMMON_INTERPOLATOR_DOCS = {
         methods_supported : list
             List of methods supported by the interpolator.
             This attribute should be defined by the implementing :class:`Interpolator`.
-            See :ref:`INTERPOLATION_METHODS` for list of available method strings.
+            See :attr:`podpac.data.INTERPOLATION_METHODS` for list of available method strings.
         dims_supported : list
             List of unstacked dimensions supported by the interpolator.
             This attribute should be defined by the implementing :class:`Interpolator`.

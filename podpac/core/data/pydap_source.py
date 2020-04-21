@@ -38,7 +38,7 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
         determines which variable is returned from the source.
     dataset : pydap.model.DatasetType
         The open pydap dataset. This is provided for troubleshooting.
-    coordinates : Coordinates
+    coordinates : :class:`podpac.Coordinates`
         {coordinates}
     source : str
         URL of the OpenDAP server.

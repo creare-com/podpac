@@ -26,7 +26,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
         Default is 'r'. The mode used to open the Zarr archive. Options are r, r+, w, w- or x, a.
     dataset : zarr.Group
         The h5py file object used to read the file
-    coordinates : Coordinates
+    coordinates : :class:`podpac.Coordinates`
         {coordinates}
     data_key : str, int
         data key, default 'data'

@@ -40,7 +40,7 @@ class BaseFileSource(DataSource):
     ----------
     source : str
         Path to the data source.
-    coordinates : Coordinates
+    coordinates : :class:`podpac.Coordinates`
         {coordinates}
     dataset : Any
         dataset object

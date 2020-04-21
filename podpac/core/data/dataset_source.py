@@ -17,7 +17,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
         In addition to local paths, file://, http://, ftp://, and s3:// transport protocols are supported.
     dataset : xarray.Dataset
         Dataset object.
-    coordinates : Coordinates
+    coordinates : :class:`podpac.Coordinates`
         {coordinates}
     data_key : str
         data key, default 'data'

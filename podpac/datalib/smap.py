@@ -943,7 +943,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
         Parameters
         -----------
-        bounds: Coordinates, Optional
+        bounds: :class:`podpac.Coordinates`, Optional
             Default is None. Return the coordinates based on filenames of the source only within the specified bounds. 
             When not None, the result is not cached.
             
@@ -954,7 +954,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
         Returns
         -------
-        Coordinates
+        :class:`podpac.Coordinates` 
             Coordinates of all the sources in the product family
         Container
             Container that will generate an array of the SMAPSources pointing to unique OpenDAP urls corresponding to

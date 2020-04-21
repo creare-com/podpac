@@ -19,7 +19,7 @@ class H5PY(FileKeysMixin, BaseFileSource):
         Path to the h5py file
     dataset : h5py.File
         The h5py file object used to read the file
-    coordinates : Coordinates
+    coordinates : :class:`podpac.Coordinates`
         {coordinates}
     file_mode : str, optional
         Default is 'r'. The mode used to open the HDF5 file. Options are r, r+, w, w- or x, a (see h5py.File).
