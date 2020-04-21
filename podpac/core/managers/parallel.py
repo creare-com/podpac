@@ -396,7 +396,7 @@ class ZarrOutputMixin(tl.HasTraits):
         o, slc = super(ZarrOutputMixin, self).eval_source(coordinates, coordinates_index, out, i, source)
 
         if not source.has_trait("output_format"):
-            o.to_format(output)
+            o.to_format(output["format"], **output["format_kwargs"])
         return o, slc
 
 
