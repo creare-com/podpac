@@ -151,19 +151,14 @@ class TerrainTiles(OrderedCompositor):
     zoom = tl.Int(default_value=6).tag(attr=True)
     tile_format = tl.Enum(["geotiff", "terrarium", "normal"], default_value="geotiff").tag(attr=True)
     bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
-
-    @tl.default("sources")
-    def _default_sources(self):
-        return np.array([])
+    sources = None  # these are loaded as needed
 
     def select_sources(self, coordinates):
         # get all the tile sources for the requested zoom level and coordinates
         sources = get_tile_urls(self.tile_format, self.zoom, coordinates)
 
         # create TerrainTilesSource classes for each url source
-        self.sources = np.array([self._create_source(source) for source in sources])
-
-        return self.sources
+        return np.array([self._create_source(source) for source in sources])
 
     def download(self, path="terraintiles"):
         """
