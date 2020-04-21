@@ -87,7 +87,7 @@ if sys.version_info.major == 2:
     ]
 else:
     extras_require["dev"] += [
-        "sphinx>=2.3",
+        "sphinx>=2.3, <3.0",
         "sphinx-rtd-theme>=0.4",
         "sphinx-autobuild>=0.7",
         "pytest>=5.0"
