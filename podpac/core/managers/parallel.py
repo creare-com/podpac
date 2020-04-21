@@ -387,11 +387,17 @@ class ZarrOutputMixin(tl.HasTraits):
             ),
         )
         _log.debug("Finished creating output format.")
-        source.set_trait("output_format", output)
+
+        if source.has_trait("output_format"):
+            source.set_trait("output_format", output)
         _log.debug("output: {}, coordinates.shape: {}".format(output, coordinates.shape))
         _log.debug("Evaluating node.")
 
-        return super(ZarrOutputMixin, self).eval_source(coordinates, coordinates_index, out, i, source)
+        o, slc = super(ZarrOutputMixin, self).eval_source(coordinates, coordinates_index, out, i, source)
+
+        if not source.has_trait("output_format"):
+            o.to_format(output)
+        return o, slc
 
 
 class ParallelOutputZarr(ZarrOutputMixin, Parallel):

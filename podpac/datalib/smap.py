@@ -30,10 +30,11 @@ import traitlets as tl
 _logger = logging.getLogger(__name__)
 
 # Helper utility for optional imports
-from lazy_import import lazy_module
+from lazy_import import lazy_module, lazy_class
 
 # Optional dependencies
 bs4 = lazy_module("bs4")
+BeautifulSoup = lazy_class("bs4.BeautifulSoup")
 boto3 = lazy_module("boto3")
 
 # fixing problem with older versions of numpy
@@ -762,7 +763,7 @@ class SMAPDateFolder(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
         if r is None:
             _logger.warning("Could not contact {} to retrieve source coordinates".format(self.folder_url))
             return np.array([]), None, np.array([])
-        soup = bs4.BeautifulSoup(r.text, "lxml")
+        soup = BeautifulSoup(r.text, "lxml")
         a = soup.find_all("a")
         file_regex = self.file_url_re
         file_regex2 = self.file_url_re2
@@ -876,7 +877,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
         if r is None:
             _logger.warning("Could not contact {} to retrieve source coordinates".format(url))
             return []
-        soup = bs4.BeautifulSoup(r.text, "lxml")
+        soup = BeautifulSoup(r.text, "lxml")
         matches = [self.date_url_re.match(a.get_text()) for a in soup.find_all("a")]
         dates = [m.group() for m in matches if m]
         return dates
