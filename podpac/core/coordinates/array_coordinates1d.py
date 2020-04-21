@@ -88,7 +88,7 @@ class ArrayCoordinates1d(Coordinates1d):
                 if self._is_uniform:
                     self._start = self.coordinates[0]
                     self._stop = self.coordinates[-1]
-                    self._step = self.coordinates[1] - self.coordinates[0]
+                    self._step = (self._stop - self._start) / (self.coordinates.size - 1)
 
         # set common properties
         super(ArrayCoordinates1d, self).__init__(name=name)
