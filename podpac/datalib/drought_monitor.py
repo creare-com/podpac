@@ -99,7 +99,7 @@ if __name__ == "__main__":
         print(d0.eval(c))
 
         # drought category algorithm
-        mock_sm = podpac.data.Array(data=np.random.random(d0.coordinates.shape), coordinates=d0.coordinates)
+        mock_sm = podpac.data.Array(source=np.random.random(d0.coordinates.shape), coordinates=d0.coordinates)
 
         category = DroughtCategory(
             soil_moisture=mock_sm,
