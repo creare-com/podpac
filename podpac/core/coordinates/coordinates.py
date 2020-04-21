@@ -1394,103 +1394,63 @@ class Coordinates(tl.HasTraits):
     def _simplified_transform(self, crs, transformer):
         """ Transform coordinates to simple Coordinates1d (instead of DependentCoordinates) if possible """
 
-        # TODO: ADD ALTITUDE
-        def make_uniform(coords, size, name):
-            tc = None
-            dcoords = np.diff(coords)
-            if np.allclose(dcoords[1:], dcoords[0], atol=1e-7):
-                # We've actually already done the needed transformation, so we can just go ahead and create the
-                # coordinates
-                tc = clinspace(coords[0], coords[-1], size, name)
-            return tc
-
-        lat = clinspace(self["lat"].coordinates[0], self["lat"].coordinates[-1], 5)
-        lon = clinspace(self["lon"].coordinates[0], self["lon"].coordinates[-1], 5)
+        # check if we can simplify the coordinates by transforming a downsampled grid
         if "alt" in self.dims:
-            alt = clinspace(self["alt"].coordinates[0], self["alt"].coordinates[-1], 5)
-            c = DependentCoordinates(
-                np.meshgrid(lat.coordinates, lon.coordinates, alt.coordinates, indexing="ij"),
-                dims=["lat", "lon", "alt"],
-                ctypes=[self["lat"].ctype, self["lon"].ctype, self["alt"].ctype],
-                segment_lengths=[self["lat"].segment_lengths, self["lon"].segment_lengths, self["alt"].segment_lengths],
-            )
+            dims = ["lat", "lon", "alt"]
         else:
-            c = DependentCoordinates(
-                np.meshgrid(lat.coordinates, lon.coordinates, indexing="ij"),
-                dims=["lat", "lon"],
-                ctypes=[self["lat"].ctype, self["lon"].ctype],
-                segment_lengths=[self["lat"].segment_lengths, self["lon"].segment_lengths],
-            )
-        t = c._transform(transformer)
-        if not isinstance(t, list):
-            # Then we are not independent -- this was checked in the Dependent Coordinates
+            dims = ["lat", "lon"]
+        sample = [np.linspace(self[dim].coordinates[0], self[dim].coordinates[-1], 5) for dim in dims]
+        temp_coords = DependentCoordinates(np.meshgrid(*sample, indexing="ij"), dims=dims)
+        t = temp_coords._transform(transformer)
+
+        # if we get DependentCoordinates from the transform, they are not independent
+        if isinstance(t, DependentCoordinates):
             return
 
-        # Great, we CAN simplify the transformed coordinates. Now let's test if these are uniform or not
-        # Note, the dependent coordinates may already give UniformCoordinates, but these are not the correct size
+        # Great, we CAN simplify the transformed coordinates.
+        # If they are uniform already, we just need to expand to the full size
+        # If the are non-uniform, we have to compute the full transformed array
 
-        # Lat uniform test and transform
+        # lat
         if isinstance(t[0], UniformCoordinates1d):
-            t_lat = make_uniform(t[0].coordinates, self["lat"].size, "lat")
+            t_lat = clinspace(t[0].coordinates[0], t[0].coordinates[-1], self["lat"].size, name="lat")
         else:
-            # Need to compute the non-uniform transformed coordinates
-            temp_coords = Coordinates(
-                [[self["lat"].coordinates, self["lat"].coordinates * 0 + self["lon"].coordinates.mean()]],
-                ["lat_lon"],
-                crs=self.crs,
+            # compute the non-uniform coordinates (and simplify to uniform if they are *now* uniform)
+            temp_coords = StackedCoordinates(
+                [self["lat"].coordinates, np.full_like(self["lat"].coordinates, self["lon"].coordinates.mean())],
+                name="lat_lon",
             )
-            t_lat = temp_coords.transform(crs)["lat"]
+            t_lat = temp_coords._transform(transformer)["lat"].simplify()
 
-            # There is a small possibility here that these are again uniform (i.e. non-uniform array input gives
-            # uniform array output). So let's check that...
-            t_lat_2 = make_uniform(t_lat.coordinates, self["lat"].size, "lat")
-            if t_lat_2 is not None:
-                t_lat = t_lat_2
-
-        # Lon uniform test and transform
+        # lon
         if isinstance(t[1], UniformCoordinates1d):
-            t_lon = make_uniform(t[1].coordinates, self["lon"].size, "lon")
+            t_lon = clinspace(t[1].coordinates[0], t[1].coordinates[-1], self["lon"].size, name="lon")
         else:
-            # Need to compute the non-uniform coordinates
-            temp_coords = Coordinates(
-                [[self["lon"].coordinates, self["lon"].coordinates * 0 + self["lat"].coordinates.mean()]],
-                ["lon_lat"],
-                crs=self.crs,
+            # compute the non-uniform coordinates (and simplify to uniform if they are *now* uniform)
+            temp_coords = StackedCoordinates(
+                [self["lon"].coordinates, np.full_like(self["lon"].coordinates, self["lat"].coordinates.mean())],
+                name="lon_lat",
             )
-            t_lon = temp_coords.transform(crs)["lon"]
+            temp_coords._transform(transformer)["lon"].simplify()
 
-            # There is a small possibility here that these are again uniform (i.e. non-inform array input gives
-            # uniform array output). So let's check that...
-            t_lon_2 = make_uniform(t_lon.coordinates, self["lon"].size, "lon")
-            if t_lon_2 is not None:
-                t_lon = t_lon_2
-
+        # no alt coordinates, return now
         if len(t) < 3:
             return (t_lat, t_lon)
 
-        # If we also have altitude, we haven't returned yet, so compute its transform
+        # alt
         if isinstance(t[2], UniformCoordinates1d):
-            t_alt = make_uniform(t[2].coordinates, self["alt"].size, "alt")
+            t_alt = clinspace(t[2].coordinates[0], t[2].coordinates[-1], self["alt"].size, name="alt")
         else:
-            # Need to compute the non-uniform coordinates
-            temp_coords = Coordinates(
+            # compute the non-uniform coordinates (and simplify to uniform if they are *now* uniform)
+            temp_coords = StackedCoordinates(
                 [
-                    [
-                        self["alt"].coordinates,
-                        self["alt"].coordinates * 0 + self["lat"].coordinates.mean(),
-                        self["alt"].coordinates * 0 + self["lon"].coordinates.mean(),
-                    ]
+                    self["alt"].coordinates,
+                    np.full_like(self["alt"].coordinates, self["lat"].coordinates.mean()),
+                    np.full_like(self["alt"].coordinates, self["lat"].coordinates.mean()),
                 ],
-                ["alt_lon_lat"],
-                crs=self.crs,
+                name="alt_lon_lat",
             )
-            t_alt = temp_coords.transform(crs)["alt"]
-
-            # There is a small possibility here that these are again uniform (i.e. non-inform array input gives
-            # uniform array output). So let's check that...
-            t_alt_2 = make_uniform(t_alt.coordinates, self["alt"].size, "alt")
-            if t_alt_2 is not None:
-                t_alt = t_alt_2
+            t_alt = temp_coords._transform(transformer)["alt"].simplify()
 
         return (t_lat, t_lon, t_alt)
 
