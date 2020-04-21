@@ -87,8 +87,8 @@ Generic data source wrappers
 
     podpac.data.DataSource
     podpac.data.Interpolation
-    podpac.data.INTERPOLATION_SHORTCUTS
     podpac.data.INTERPOLATION_DEFAULT
+    podpac.data.INTERPOLATION_METHODS
 
 
 Interpolators

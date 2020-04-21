@@ -22,7 +22,7 @@ Confirm you have the required dependencies installed on your computer:
 
 If using Anaconda Python, create a PODPAC dedicated Anconda environment:
 
-```bash
+```
 # create environment with all `anaconda` packages
 $ conda create -n podpac python=3 anaconda
 
@@ -32,7 +32,7 @@ $ conda activate podpac
 
 If using a non-Anaconda Python distribution, create a PODPAC dedicated virtual environment:
 
-```bash
+```
 # create environment in <DIR>
 $ python3 -m venv <DIR>
 
@@ -44,7 +44,7 @@ $ source <DIR>/bin/activate
 
 After activating the virtual environment, install using `pip` with one of the following commands:
 
-```bash
+```
 $ pip install podpac                # base installation
 $ pip install podpac[datatype]      # install podpac and optional data handling dependencies
 $ pip install podpac[notebook]      # install podpac and optional notebook dependencies
@@ -69,14 +69,14 @@ Once you have Docker installed, the following steps will allow you to run PODPAC
 - Download the [PODPAC Dockerfile](https://github.com/creare-com/podpac/blob/master/Dockerfile) from the repository
 - From the directory where you downloaded the `Dockerfile`, run:
 
-```bash
+```
 # build the docker image with the tag `podpac`
 $ docker build -t podpac .
 ```
 
 - Run the built image
 
-```bash
+```
 # run the docker image in an interactive shell
 $ docker run -i -t podpac
 ```
@@ -120,7 +120,7 @@ Confirm you have the required dependencies installed on your computer:
 
 If using Anaconda Python, create a PODPAC dedicated Anconda environment:
 
-```bash
+```
 # create environment with all `anaconda` packages
 $ conda create -n podpac python=3 anaconda
 
@@ -130,7 +130,7 @@ $ conda activate podpac
 
 If using a non-Anaconda Python distribution, create a PODPAC dedicated virtual environment:
 
-```bash
+```
 # create environment in <DIR>
 $ python3 -m venv <DIR>
 
@@ -142,7 +142,7 @@ $ source <DIR>/bin/activate
 
 After activating the virtual environment, clone the [podpac repository](https://github.com/creare-com/podpac) onto your machine:
 
-```bash
+```
 $ cd <install-path>
 $ git clone https://github.com/creare-com/podpac.git
 $ cd podpac
@@ -153,7 +153,7 @@ By default, PODPAC clones to the `master` branch, which is the latest stable rel
 To use a previous release, checkout the `tags/<version>` reference.
 For bleeding edge, checkout the `develop` branch.
 
-```bash
+```
 $ git fetch origin                                  # fetch all remote branches
 $ git checkout -b release/<version> tags/<version>  # checkout specific release
 $ git checkout -b develop origin/develop            # latest stable version
@@ -161,7 +161,7 @@ $ git checkout -b develop origin/develop            # latest stable version
 
 From the root of the git repository, install using `pip` with one of the following commands:
 
-```bash
+```
 $ pip install .                # base installation
 $ pip install .[datatype]      # install podpac and optional data handling dependencies
 $ pip install .[notebook]      # install podpac and optional notebook dependencies
@@ -174,7 +174,7 @@ See [Optional Dependencies](dependencies.html#optional-dependencies) more inform
 
 To install PODPAC and keep installation up to date with local changes, use the option `-e` when installing:
 
-```bash
+```
 $ pip install -e .          # install podpac with only core dependencies
 $ pip install -e .[devall]  # install podpac and all optional dependencies
 ```
@@ -189,7 +189,7 @@ If you encounter issues, we recommend trying to install [rasterio](https://raste
 
 ### UnicodeDecodeError
 
-```bash
+```
 UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2 in position 13: ordinal not in range(128)*
 ```
 
@@ -198,7 +198,7 @@ See this [stack overflow answer](https://stackoverflow.com/a/49127686) for a sol
 
 ### Python.h
 
-```bash
+```
 psutil/_psutil_common.c:9:10: fatal error: Python.h: No such file or directory
  #include <Python.h>
           ^~~~~~~~~~
