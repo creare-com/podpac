@@ -80,7 +80,7 @@ class Coordinates(tl.HasTraits):
 
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
 
-    def __init__(self, coords, dims=None, crs=None, crs_desc=None, ctype=None, validate_crs=True):
+    def __init__(self, coords, dims=None, crs=None, crs_desc=None, validate_crs=True):
         """
         Create multidimensional coordinates.
 
@@ -102,8 +102,6 @@ class Coordinates(tl.HasTraits):
             Coordinate reference system. Supports PROJ4 and WKT.
         crs_desc : str, optional
             Abbreviated display description for the crs.
-        ctype : str, optional
-            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
         validate_crs : bool, optional
             Use False to skip crs validation. Default True.
         """
@@ -146,10 +144,8 @@ class Coordinates(tl.HasTraits):
             else:
                 c = ArrayCoordinates1d(coords[i])
 
-            # propagate properties and name
+            # propagate name
             c._set_name(dim)
-            if ctype is not None:
-                c._set_ctype(ctype)
 
             # set coords
             dcoords[dim] = c
@@ -221,7 +217,7 @@ class Coordinates(tl.HasTraits):
         return coords
 
     @classmethod
-    def grid(cls, dims=None, crs=None, ctype=None, **kwargs):
+    def grid(cls, dims=None, crs=None, **kwargs):
         """
         Create a grid of coordinates.
 
@@ -252,8 +248,6 @@ class Coordinates(tl.HasTraits):
             argument is optional, and the dims will match the order of the provided keyword arguments.
         crs : str, optional
             Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org).
-        ctype : str, optional
-            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
 
         Returns
         -------
@@ -266,10 +260,10 @@ class Coordinates(tl.HasTraits):
         """
 
         coords = cls._coords_from_dict(kwargs, order=dims)
-        return cls(coords, crs=crs, ctype=ctype)
+        return cls(coords, crs=crs)
 
     @classmethod
-    def points(cls, crs=None, ctype=None, dims=None, **kwargs):
+    def points(cls, crs=None, dims=None, **kwargs):
         """
         Create a list of multidimensional coordinates.
 
@@ -303,8 +297,6 @@ class Coordinates(tl.HasTraits):
             argument is optional, and the dims will match the order of the provided keyword arguments.
         crs : str, optional
             Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org/).
-        ctype : str, optional
-            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
 
         Returns
         -------
@@ -318,10 +310,10 @@ class Coordinates(tl.HasTraits):
 
         coords = cls._coords_from_dict(kwargs, order=dims)
         stacked = StackedCoordinates(coords)
-        return cls([stacked], crs=crs, ctype=ctype)
+        return cls([stacked], crs=crs)
 
     @classmethod
-    def from_xarray(cls, xcoord, crs=None, ctype=None):
+    def from_xarray(cls, xcoord, crs=None):
         """
         Create podpac Coordinates from xarray coords.
 
@@ -331,8 +323,6 @@ class Coordinates(tl.HasTraits):
             xarray coords
         crs : str, optional
             Coordinate reference system. Supports any PROJ4 or PROJ6 compliant string (https://proj.org/).
-        ctype : str, optional
-            Default coordinates type. One of 'point', 'midpoint', 'left', 'right'.
 
         Returns
         -------
@@ -355,7 +345,7 @@ class Coordinates(tl.HasTraits):
                 raise NotImplementedError
             coords.append(c)
 
-        return cls(coords, crs=crs, ctype=ctype)
+        return cls(coords, crs=crs)
 
     @classmethod
     def from_json(cls, s):
@@ -379,7 +369,6 @@ class Coordinates(tl.HasTraits):
                 },
                 {
                     "name": "time",
-                    "ctype": "left"
                     "values": [
                         "2018-01-01",
                         "2018-01-03",
@@ -772,11 +761,6 @@ class Coordinates(tl.HasTraits):
         return {dim: self[dim].bounds for dim in self.udims}
 
     @property
-    def area_bounds(self):
-        """:dict: Dictionary of (low, high) coordinates area_bounds in each unstacked dimension"""
-        return {dim: self[dim].area_bounds for dim in self.udims}
-
-    @property
     def coords(self):
         """
         :xarray.core.coordinates.DataArrayCoordinates: xarray coords, a dictionary-like container of coordinate arrays.
@@ -791,7 +775,7 @@ class Coordinates(tl.HasTraits):
     def CRS(self):
         return pyproj.CRS(self.crs)
 
-    # TODO: add a convience property for displaying altitude units for the CRS
+    # TODO: add a convenience property for displaying altitude units for the CRS
     # @property
     # def alt_units(self):
     #     CRS = self.CRS
@@ -880,9 +864,9 @@ class Coordinates(tl.HasTraits):
         # Do the uniform coordinates case
         if (
             "lat" in self.dims
-            and isinstance(self._coords["lat"], UniformCoordinates1d)
             and "lon" in self.dims
-            and isinstance(self._coords["lon"], UniformCoordinates1d)
+            and self._coords["lat"].is_uniform
+            and self._coords["lon"].is_uniform
         ):
             if self.dims.index("lon") < self.dims.index("lat"):
                 first, second = "lat", "lon"
@@ -911,6 +895,22 @@ class Coordinates(tl.HasTraits):
     # ------------------------------------------------------------------------------------------------------------------
     # Methods
     # ------------------------------------------------------------------------------------------------------------------
+
+    def get_area_bounds(self, boundary):
+        """Get coordinate area bounds, including segment information, for each unstacked dimension.
+
+        Arguments
+        ---------
+        boundary : dict
+            dictionary of boundary offsets for each unstacked dimension. Non-segment dimensions can be omitted.
+
+        Returns
+        -------
+        area_bounds : dict
+            Dictionary of (low, high) coordinates area_bounds in each unstacked dimension
+        """
+
+        return {dim: self[dim].get_area_bounds(boundary.get(dim)) for dim in self.udims}
 
     def drop(self, dims, ignore_missing=False):
         """
@@ -963,15 +963,15 @@ class Coordinates(tl.HasTraits):
             In [2]: c
             Out[2]:
             Coordinates
-                lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 1.0], N[2], ctype['midpoint']
-                lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2], ctype['midpoint']
-                time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1], ctype['midpoint']
+                lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[0.0, 1.0], N[2]
+                lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2]
+                time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1]
 
             In [3]: c.udrop('lat')
             Out[3]:
             Coordinates
-                lon: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2], ctype['midpoint']
-                time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1], ctype['midpoint']
+                lon: ArrayCoordinates1d(lon): Bounds[10.0, 20.0], N[2]
+                time: ArrayCoordinates1d(time): Bounds[2018-01-01, 2018-01-01], N[1]
 
         Parameters
         ----------
@@ -1099,22 +1099,22 @@ class Coordinates(tl.HasTraits):
             In [2]: c.select({'lat': [1.5, 3.5]})
             Out[2]:
             Coordinates
-                    lat: ArrayCoordinates1d(lat): Bounds[2.0, 3.0], N[2], ctype['midpoint']
-                    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
+                    lat: ArrayCoordinates1d(lat): Bounds[2.0, 3.0], N[2]
+                    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4]
 
             In [3]: c.select({'lat': [1.5, 3.5], 'lon': [25, 45]})
             Out[3]:
             Coordinates
-                    lat: ArrayCoordinates1d(lat): Bounds[2.0, 3.0], N[2], ctype['midpoint']
-                    lon: ArrayCoordinates1d(lon): Bounds[30.0, 40.0], N[2], ctype['midpoint']
+                    lat: ArrayCoordinates1d(lat): Bounds[2.0, 3.0], N[2]
+                    lon: ArrayCoordinates1d(lon): Bounds[30.0, 40.0], N[2]
 
         The *outer* selection returns the minimal set of coordinates that contain the bounds::
 
             In [4]: c.select({'lat':[1.5, 3.5]}, outer=True)
             Out[4]:
             Coordinates
-                    lat: ArrayCoordinates1d(lat): Bounds[1.0, 3.0], N[3], ctype['midpoint']
-                    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4], ctype['midpoint']
+                    lat: ArrayCoordinates1d(lat): Bounds[1.0, 3.0], N[3]
+                    lon: ArrayCoordinates1d(lon): Bounds[10.0, 40.0], N[4]
 
         Parameters
         ----------
@@ -1288,8 +1288,8 @@ class Coordinates(tl.HasTraits):
             c.transform('EPSG:2193')
 
             >> Coordinates
-                lat: ArrayCoordinates1d(lat): Bounds[-9881992.849134896, 29995929.885877542], N[21], ctype['point']
-                lon: ArrayCoordinates1d(lon): Bounds[1928928.7360588573, 4187156.434405213], N[21], ctype['midpoint']
+                lat: ArrayCoordinates1d(lat): Bounds[-9881992.849134896, 29995929.885877542], N[21]
+                lon: ArrayCoordinates1d(lon): Bounds[1928928.7360588573, 4187156.434405213], N[21]
 
         Transform stacked coordinates::
 
@@ -1297,8 +1297,8 @@ class Coordinates(tl.HasTraits):
             c.transform('EPSG:2193')
 
             >> Coordinates
-                lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[-9881992.849134896, 29995929.885877542], N[21], ctype['point']
-                lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[1928928.7360588573, 4187156.434405213], N[21], ctype['midpoint']
+                lat_lon[lat]: ArrayCoordinates1d(lat): Bounds[-9881992.849134896, 29995929.885877542], N[21]
+                lat_lon[lon]: ArrayCoordinates1d(lon): Bounds[1928928.7360588573, 4187156.434405213], N[21]
 
         Transform coordinates using a PROJ4 string::
 
@@ -1306,8 +1306,8 @@ class Coordinates(tl.HasTraits):
             c.transform('+proj=merc +lat_ts=56.5 +ellps=GRS80')
 
             >> Coordinates
-                lat: ArrayCoordinates1d(lat): Bounds[-1847545.541169525, -615848.513723175], N[21], ctype['midpoint']
-                lon: ArrayCoordinates1d(lon): Bounds[-614897.0725896168, 614897.0725896184], N[21], ctype['midpoint']
+                lat: ArrayCoordinates1d(lat): Bounds[-1847545.541169525, -615848.513723175], N[21]
+                lon: ArrayCoordinates1d(lon): Bounds[-614897.0725896168, 614897.0725896184], N[21]
 
         Parameters
         ----------
@@ -1368,10 +1368,7 @@ class Coordinates(tl.HasTraits):
                 c1, c2 = self["lon"], self["lat"]
 
             c = DependentCoordinates(
-                np.meshgrid(c1.coordinates, c2.coordinates, indexing="ij"),
-                dims=[c1.name, c2.name],
-                ctypes=[c1.ctype, c2.ctype],
-                segment_lengths=[c1.segment_lengths, c2.segment_lengths],
+                np.meshgrid(c1.coordinates, c2.coordinates, indexing="ij"), dims=[c1.name, c2.name]
             )
 
             # replace 'lat' and 'lon' entries with single 'lat,lon' entry

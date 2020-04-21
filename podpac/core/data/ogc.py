@@ -208,6 +208,11 @@ class WCS(DataSource):
         output = self.create_output_array(coordinates)
         dotime = "time" in self.wcs_coordinates.dims
 
+        wbound = coordinates["lon"].bounds[0] - coordinates["lon"].step / 2.0
+        ebound = coordinates["lon"].bounds[1] + coordinates["lon"].step / 2.0
+        sbound = coordinates["lat"].bounds[0] - coordinates["lat"].step / 2.0
+        nbound = coordinates["lat"].bounds[1] + coordinates["lat"].step / 2.0
+
         if "time" in coordinates.dims and dotime:
             sd = np.timedelta64(0, "s")
             times = [str(t + sd) for t in coordinates["time"].coordinates]
@@ -222,10 +227,10 @@ class WCS(DataSource):
                     + self._get_data_qs.format(
                         version=self.version,
                         layer=self.layer_name,
-                        w=min(coordinates["lon"].area_bounds),
-                        e=max(coordinates["lon"].area_bounds),
-                        s=min(coordinates["lat"].area_bounds),
-                        n=max(coordinates["lat"].area_bounds),
+                        w=wbound,
+                        e=ebound,
+                        s=sbound,
+                        n=nbound,
                         width=coordinates["lon"].size,
                         height=coordinates["lat"].size,
                         time=time,
@@ -291,10 +296,10 @@ class WCS(DataSource):
                 + self._get_data_qs.format(
                     version=self.version,
                     layer=self.layer_name,
-                    w=min(coordinates["lon"].area_bounds),
-                    e=max(coordinates["lon"].area_bounds),
-                    s=min(coordinates["lat"].area_bounds),
-                    n=max(coordinates["lat"].area_bounds),
+                    w=wbound,
+                    e=ebound,
+                    s=sbound,
+                    n=nbound,
                     width=coordinates["lon"].size,
                     height=coordinates["lat"].size,
                     time=time,

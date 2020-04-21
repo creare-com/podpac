@@ -37,7 +37,7 @@ from podpac import Coordinates, UnitsDataArray, cached_property
 from podpac.datalib import EGI
 
 SMAP_PRODUCT_DICT = {
-    #'shortname':    ['lat_key', 'lon_key', 'data_key', 'quality_flag', 'default_verison']
+    #'shortname':    ['lat_key', 'lon_key', '_data_key', 'quality_flag', 'default_verison']
     "SPL4SMAU": ["/x", "/y", "/Analysis_Data/sm_surface_analysis", None, 4],
     "SPL4SMGP": ["/x", "/y", "/Geophysical_Data/sm_surface", None, 4],
     "SPL4SMLM": ["/x", "/y", "/Land_Model_Constants_Data", None, 4],
@@ -109,6 +109,7 @@ class SMAP(EGI):
     min_bounds_span = tl.Dict(default_value={"lon": 0.3, "lat": 0.3, "time": "3,h"}).tag(attr=True)
     check_quality_flags = tl.Bool(True).tag(attr=True)
     quality_flag_key = tl.Unicode(allow_none=True).tag(attr=True)
+    data_key = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
 
     @property
     def short_name(self):
@@ -117,7 +118,7 @@ class SMAP(EGI):
         else:
             return self.product
 
-    # pull data_key, lat_key, lon_key, and version from product dict
+    # pull _data_key, lat_key, lon_key, and version from product dict
     @cached_property
     def _product_data(self):
         return SMAP_PRODUCT_DICT[self.product]
@@ -131,8 +132,11 @@ class SMAP(EGI):
         return self._product_data[1]
 
     @property
-    def data_key(self):
-        return self._product_data[2]
+    def _data_key(self):
+        if self.data_key is None:
+            return self._product_data[2]
+        else:
+            return self.data_key
 
     @property
     def quality_flag_key(self):
@@ -145,9 +149,9 @@ class SMAP(EGI):
     @property
     def coverage(self):
         if self.quality_flag_key:
-            return (self.data_key, self.quality_flag_key, self.lat_key, self.lon_key)
+            return (self._data_key, self.quality_flag_key, self.lat_key, self.lon_key)
         else:
-            return (self.data_key, self.lat_key, self.lon_key)
+            return (self._data_key, self.lat_key, self.lon_key)
 
     def read_file(self, filelike):
         """Interpret individual SMAP file from  EGI zip archive.
@@ -168,7 +172,7 @@ class SMAP(EGI):
         ds = h5py.File(filelike)
 
         # handle data
-        data = ds[self.data_key][()]
+        data = ds[self._data_key][()]
 
         if self.check_quality_flags and self.quality_flag_key:
             flag = ds[self.quality_flag_key][()]

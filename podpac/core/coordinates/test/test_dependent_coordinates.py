@@ -73,76 +73,6 @@ class TestDependentCoordinatesCreation(object):
         with pytest.raises(ValueError, match="Dimension mismatch"):
             c._set_name("lon,lat")
 
-    def test_ctype_and_segment_lengths(self):
-        # explicit
-        c = DependentCoordinates((LAT, LON), ctypes=["left", "right"], segment_lengths=[1.0, 2.0])
-        assert c.ctypes == ("left", "right")
-        assert c.segment_lengths == (1.0, 2.0)
-
-        c = DependentCoordinates((LAT, LON), ctypes=["point", "point"])
-        assert c.ctypes == ("point", "point")
-        assert c.segment_lengths == (None, None)
-
-        c = DependentCoordinates((LAT, LON), ctypes=["midpoint", "point"], segment_lengths=[1.0, None])
-        assert c.ctypes == ("midpoint", "point")
-        assert c.segment_lengths == (1.0, None)
-
-        # single value
-        c = DependentCoordinates((LAT, LON), ctypes="left", segment_lengths=1.0)
-        assert c.ctypes == ("left", "left")
-        assert c.segment_lengths == (1.0, 1.0)
-
-        c = DependentCoordinates((LAT, LON), ctypes="point")
-        assert c.ctypes == ("point", "point")
-        assert c.segment_lengths == (None, None)
-
-        # defaults
-        c = DependentCoordinates((LAT, LON))
-        assert c.ctypes == ("point", "point")
-
-        # don't overwrite
-        c = DependentCoordinates((LAT, LON), ctypes="left", segment_lengths=1.0)
-        c._set_ctype("right")
-        assert c.ctypes == ("left", "left")
-
-        # size mismatch
-        with pytest.raises(ValueError, match="size mismatch"):
-            DependentCoordinates((LAT, LON), ctypes=["left", "left", "left"], segment_lengths=1.0)
-
-        with pytest.raises(ValueError, match="segment_lengths and coordinates size mismatch"):
-            DependentCoordinates((LAT, LON), ctypes="left", segment_lengths=[1.0, 1.0, 1.0])
-
-        # segment lengths required
-        with pytest.raises(TypeError, match="segment_lengths cannot be None"):
-            DependentCoordinates((LAT, LON), ctypes="left")
-
-        with pytest.raises(TypeError, match="segment_lengths cannot be None"):
-            DependentCoordinates((LAT, LON), ctypes=["left", "point"])
-
-        with pytest.raises(TypeError, match="segment_lengths cannot be None"):
-            DependentCoordinates((LAT, LON), ctypes=["left", "point"], segment_lengths=[None, None])
-
-        # segment lengths prohibited
-        with pytest.raises(TypeError, match="segment_lengths must be None"):
-            DependentCoordinates((LAT, LON), segment_lengths=1.0)
-
-        with pytest.raises(TypeError, match="segment_lengths must be None"):
-            DependentCoordinates((LAT, LON), ctypes="point", segment_lengths=1.0)
-
-        with pytest.raises(TypeError, match="segment_lengths must be None"):
-            DependentCoordinates((LAT, LON), ctypes=["left", "point"], segment_lengths=[1.0, 1.0])
-
-        # invalid
-        with pytest.raises(tl.TraitError):
-            DependentCoordinates((LAT, LON), ctypes="abc")
-
-        # invalid segment_lengths
-        with pytest.raises(ValueError):
-            DependentCoordinates((LAT, LON), ctypes="left", segment_lengths="abc")
-
-        with pytest.raises(ValueError, match="segment_lengths must be positive"):
-            DependentCoordinates((LAT, LON), ctypes=["left", "right"], segment_lengths=[1.0, -2.0])
-
     def test_copy(self):
         c = DependentCoordinates((LAT, LON))
 
@@ -196,7 +126,7 @@ class TestDependentCoordinatesSerialization(object):
         d = c.full_definition
 
         assert isinstance(d, dict)
-        assert set(d.keys()) == {"dims", "values", "ctypes", "segment_lengths"}
+        assert set(d.keys()) == {"dims", "values"}
         json.dumps(d, cls=podpac.core.utils.JSONEncoder)  # test serializable
 
 
@@ -236,18 +166,6 @@ class TestDependentCoordinatesProperties(object):
         with pytest.raises(ValueError, match="Cannot get bounds"):
             c.bounds
 
-    def test_area_bounds(self):
-        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
-        area_bounds = c.area_bounds
-        assert isinstance(area_bounds, dict)
-        assert set(area_bounds.keys()) == set(c.udims)
-        assert_equal(area_bounds["lat"], c["lat"].area_bounds)
-        assert_equal(area_bounds["lon"], c["lon"].area_bounds)
-
-        c = DependentCoordinates([LAT, LON])
-        with pytest.raises(ValueError, match="Cannot get area_bounds"):
-            c.area_bounds
-
 
 class TestDependentCoordinatesIndexing(object):
     def test_get_dim(self):
@@ -266,21 +184,17 @@ class TestDependentCoordinatesIndexing(object):
             c["other"]
 
     def test_get_dim_with_properties(self):
-        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"], ctypes=["left", "right"], segment_lengths=[1.0, 2.0])
+        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
 
         lat = c["lat"]
         assert isinstance(lat, ArrayCoordinatesNd)
         assert lat.name == c.dims[0]
-        assert lat.ctype == c.ctypes[0]
-        assert lat.segment_lengths == c.segment_lengths[0]
         assert lat.shape == c.shape
         repr(lat)
 
         lon = c["lon"]
         assert isinstance(lon, ArrayCoordinatesNd)
         assert lon.name == c.dims[1]
-        assert lon.ctype == c.ctypes[1]
-        assert lon.segment_lengths == c.segment_lengths[1]
         assert lon.shape == c.shape
         repr(lon)
 
@@ -320,12 +234,10 @@ class TestDependentCoordinatesIndexing(object):
         assert_equal(c2._coords[1].coordinates, lon[B])
 
     def test_get_index_with_properties(self):
-        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"], ctypes=["left", "right"], segment_lengths=[1.0, 2.0])
+        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
 
         c2 = c[[1, 2]]
         assert c2.dims == c.dims
-        assert c2.ctypes == c.ctypes
-        assert c2.segment_lengths == c.segment_lengths
 
     def test_iter(self):
         c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])

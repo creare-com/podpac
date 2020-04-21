@@ -19,6 +19,7 @@ import traitlets as tl
 from podpac.core.settings import settings
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
+from podpac.core.coordinates.utils import VALID_DIMENSION_NAMES, make_coord_delta, make_coord_delta_array
 from podpac.core.node import Node, NodeException
 from podpac.core.utils import common_doc
 from podpac.core.node import COMMON_NODE_DOC
@@ -156,6 +157,7 @@ class DataSource(Node):
 
     interpolation = InterpolationTrait().tag(attr=True)
     nan_vals = tl.List().tag(attr=True)
+    boundary = tl.Dict().tag(attr=True)
 
     coordinate_index_type = tl.Enum(["slice", "list", "numpy"], default_value="numpy")  # , "xarray", "pandas"],
     cache_coordinates = tl.Bool(False)
@@ -176,6 +178,34 @@ class DataSource(Node):
     def _default_interpolation(self):
         self._set_interpolation()
         return self._interpolation
+
+    @tl.validate("boundary")
+    def _validate_boundary(self, d):
+        val = d["value"]
+        for dim, boundary in val.items():
+            if dim not in VALID_DIMENSION_NAMES:
+                raise ValueError("Invalid dimension '%s' in boundary" % dim)
+            if np.array(boundary).ndim == 0:
+                try:
+                    delta = make_coord_delta(boundary)
+                except ValueError:
+                    raise ValueError(
+                        "Invalid boundary for dimension '%s' ('%s' is not a valid coordinate delta)" % (dim, boundary)
+                    )
+
+                if np.array(delta).astype(float) < 0:
+                    raise ValueError("Invalid boundary for dimension '%s' (%s < 0)" % (dim, delta))
+
+            if np.array(boundary).ndim == 1:
+                make_coord_delta_array(boundary)
+                raise NotImplementedError("Non-centered boundary not yet supported for dimension '%s'" % dim)
+
+            if np.array(boundary).ndim == 2:
+                for elem in boundary:
+                    make_coord_delta_array(elem)
+                raise NotImplementedError("Non-uniform boundary not yet supported for dimension '%s'" % dim)
+
+        return val
 
     @tl.default("cache_output")
     def _cache_output_default(self):
@@ -369,12 +399,11 @@ class DataSource(Node):
         if self.coordinates.crs.lower() != coordinates.crs.lower():
             coordinates = coordinates.transform(self.coordinates.crs)
 
-        # intersect the coordinates with requested coordinates
-        # to get coordinates within requested coordinates bounds
+        # intersect the coordinates with requested coordinates to get coordinates within requested coordinates bounds
         # TODO: support coordinate_index_type parameter to define other index types
-        (self._requested_source_coordinates, self._requested_source_coordinates_index) = self.coordinates.intersect(
-            coordinates, outer=True, return_indices=True
-        )
+        (rsc, rsci) = self.coordinates.intersect(coordinates, outer=True, return_indices=True)
+        self._requested_source_coordinates = rsc
+        self._requested_source_coordinates_index = rsci
 
         # if requested coordinates and coordinates do not intersect, shortcut with nan UnitsDataArary
         if self._requested_source_coordinates.size == 0:
@@ -390,12 +419,11 @@ class DataSource(Node):
         self._set_interpolation()
 
         # interpolate requested coordinates before getting data
-        (
-            self._requested_source_coordinates,
-            self._requested_source_coordinates_index,
-        ) = self._interpolation.select_coordinates(
+        (rsc, rsci) = self._interpolation.select_coordinates(
             self._requested_source_coordinates, self._requested_source_coordinates_index, coordinates
         )
+        self._requested_source_coordinates = rsc
+        self._requested_source_coordinates_index = rsci
 
         # Check the coordinate_index_type
         if self.coordinate_index_type == "slice":  # Most restrictive
@@ -444,6 +472,9 @@ class DataSource(Node):
                     "Output coordinate reference system ({}) does not match".format(output.crs)
                     + "request Coordinates coordinate reference system ({})".format(coordinates.crs)
                 )
+
+        # get indexed boundary
+        self._requested_source_boundary = self._get_boundary(self._requested_source_coordinates_index)
 
         # interpolate data into output
         output = self._interpolation.interpolate(
@@ -513,3 +544,29 @@ class DataSource(Node):
 
         if not self.trait_is_defined("_coordinates"):
             self.set_trait("_coordinates", coordinates)
+
+    def _get_boundary(self, index):
+        """
+        Select the boundary for the given the coordinates index. Only non-uniform boundary arrays need to be indexed.
+
+        Arguments
+        ---------
+        index : tuple
+            Coordinates index (e.g. coordinates_index)
+
+        Returns
+        -------
+        boundary : dict
+            Indexed boundary. Uniform boundaries are unchanged and non-uniform boundary arrays are indexed.
+        """
+
+        boundary = {}
+        for c, I in zip(self.coordinates.values(), index):
+            for dim in c.dims:
+                if dim not in self.boundary:
+                    pass
+                elif np.array(self.boundary[dim]).ndim == 2:
+                    boundary[dim] = np.array(self.boundary[dim][I])
+                else:
+                    boundary[dim] = self.boundary[dim]
+        return boundary

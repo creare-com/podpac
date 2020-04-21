@@ -81,7 +81,6 @@ The purpose of PODPAC is to facilitate:
     dependencies
     nodes
     coordinates  
-    pipelines
     cache
     datasets
     earthdata

@@ -446,23 +446,6 @@ class TestCoordinateCreation(object):
         with pytest.raises(ValueError):
             Coordinates([alt], crs="EPSG:2193")
 
-    def test_ctype(self):
-        # assign
-        lat = ArrayCoordinates1d([0, 1, 2])
-        lon = ArrayCoordinates1d([0, 1, 2])
-
-        c = Coordinates([lat, lon], dims=["lat", "lon"], ctype="left")
-        assert c["lat"].ctype == "left"
-        assert c["lon"].ctype == "left"
-
-        # don't overwrite
-        lat = ArrayCoordinates1d([0, 1, 2], ctype="right")
-        lon = ArrayCoordinates1d([0, 1, 2])
-
-        c = Coordinates([lat, lon], dims=["lat", "lon"], ctype="left")
-        assert c["lat"].ctype == "right"
-        assert c["lon"].ctype == "left"
-
 
 class TestCoordinatesSerialization(object):
     def test_definition(self):
@@ -547,8 +530,7 @@ class TestCoordinatesSerialization(object):
 
     def test_from_url(self):
         crds = Coordinates([[41, 40], [-71, -70], "2018-05-19"], dims=["lat", "lon", "time"])
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            crds2 = crds.transform("EPSG:3857")
+        crds2 = crds.transform("EPSG:3857")
 
         url = (
             r"http://testwms/?map=map&&service=WMS&request=GetMap&layers=layer&styles=&format=image%2Fpng"
@@ -556,37 +538,37 @@ class TestCoordinatesSerialization(object):
             r"&bbox={},{},{},{}&time={}"
         )
 
-        version = "1.1.1"
+        # version 1.1.1
         for cc, epsg in zip([crds, crds2], ["3857", "4326"]):
             c = Coordinates.from_url(
                 url.format(
-                    crds2.bounds["lon"].min(),
-                    crds2.bounds["lat"].min(),
-                    crds2.bounds["lon"].max(),
-                    crds2.bounds["lat"].max(),
+                    min(crds2.bounds["lon"]),
+                    min(crds2.bounds["lat"]),
+                    max(crds2.bounds["lon"]),
+                    max(crds2.bounds["lat"]),
                     crds2.bounds["time"][0],
-                    version=version,
+                    version="1.1.1",
                     epsg=epsg,
                 )
             )
-            for d in crds.dims:
-                assert np.allclose(c.bounds[d].astype(float), crds2.bounds[d].astype(float))
 
-        version = "1.3"
+            assert c.bounds == crds2.bounds
+
+        # version 1.3
         for cc, epsg in zip([crds, crds2], ["3857", "4326"]):
             c = Coordinates.from_url(
                 url.format(
-                    crds2.bounds["lat"].min(),
-                    crds2.bounds["lon"].min(),
-                    crds2.bounds["lat"].max(),
-                    crds2.bounds["lon"].max(),
+                    min(crds2.bounds["lat"]),
+                    min(crds2.bounds["lon"]),
+                    max(crds2.bounds["lat"]),
+                    max(crds2.bounds["lon"]),
                     crds2.bounds["time"][0],
-                    version=version,
+                    version="1.3",
                     epsg=epsg,
                 )
             )
-            for d in crds.dims:
-                assert np.allclose(c.bounds[d].astype(float), crds2.bounds[d].astype(float))
+
+            assert c.bounds == crds2.bounds
 
 
 class TestCoordinatesProperties(object):
@@ -658,19 +640,6 @@ class TestCoordinatesProperties(object):
         assert_equal(bounds["lat"], c["lat"].bounds)
         assert_equal(bounds["lon"], c["lon"].bounds)
         assert_equal(bounds["time"], c["time"].bounds)
-
-    def test_area_bounds(self):
-        lat = [0, 1, 2]
-        lon = [10, 20, 30]
-        dates = ["2018-01-01", "2018-01-02"]
-
-        c = Coordinates([[lat, lon], dates], dims=["lat_lon", "time"])
-        area_bounds = c.area_bounds
-        assert isinstance(area_bounds, dict)
-        assert set(area_bounds.keys()) == set(c.udims)
-        assert_equal(area_bounds["lat"], c["lat"].area_bounds)
-        assert_equal(area_bounds["lon"], c["lon"].area_bounds)
-        assert_equal(area_bounds["time"], c["time"].area_bounds)
 
 
 class TestCoordinatesDict(object):
@@ -1372,8 +1341,7 @@ class TestCoordinatesMethods(object):
             crs="EPSG:2193",
         )
 
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            c_int = c.intersect(o)
+        c_int = c.intersect(o)
         assert c_int.crs == c.crs
         assert o.crs == "EPSG:2193"  # didn't get changed
         assert np.all(c_int["lat"].bounds == np.array([5.0, 10.0]))
@@ -1396,7 +1364,7 @@ class TestCoordinatesSpecial(object):
     def test_repr(self):
         repr(Coordinates([[0, 1], [10, 20], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"]))
         repr(Coordinates([[[0, 1], [10, 20]], ["2018-01-01", "2018-01-02"]], dims=["lat_lon", "time"]))
-        repr(Coordinates([0, 10, []], dims=["lat", "lon", "time"], ctype="point"))
+        repr(Coordinates([0, 10, []], dims=["lat", "lon", "time"]))
         repr(Coordinates([crange(0, 10, 0.5)], dims=["alt"], crs="+proj=merc +vunits=us-ft"))
         repr(Coordinates([]))
         # TODO dependent coordinates
@@ -1436,24 +1404,6 @@ class TestCoordinatesSpecial(object):
         assert c1.hash != c2.hash
         assert c1.hash != c4.hash
         assert c1.hash != c5.hash
-
-    def test_eq_ne_hash_ctype(self):
-        lat = [0, 1, 2]
-        lon = [10, 20, 30]
-        c1 = Coordinates([lat, lon], dims=["lat", "lon"])
-        c2 = Coordinates([lat, lon], dims=["lat", "lon"], ctype="point")
-
-        # eq
-        assert not c1 == c2
-        assert c2 == deepcopy(c2)
-
-        # ne (this only matters in python 2)
-        assert c1 != c2
-        assert not c2 != deepcopy(c2)
-
-        # hash
-        assert c1.hash != c2.hash
-        assert c2.hash == deepcopy(c2).hash
 
     def test_eq_ne_hash_crs(self):
         lat = [0, 1, 2]
@@ -1568,20 +1518,20 @@ class TestCoordinatesGeoTransform(object):
         c = Coordinates([clinspace(1.5, 0.5, 5, "lat"), clinspace(1, 2, 9, "lon")])
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].area_bounds[0], c["lon"].step, 0], [c["lat"].area_bounds[1], 0, c["lat"].step]])
+            tf, np.array([[c["lon"].bounds[0], c["lon"].step, 0], [c["lat"].bounds[1], 0, c["lat"].step]])
         )
         # order: lon, lat
         c = Coordinates([clinspace(0.5, 1.5, 5, "lon"), clinspace(1, 2, 9, "lat")])
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].area_bounds[0], 0, c["lon"].step], [c["lat"].area_bounds[0], c["lat"].step, 0]])
+            tf, np.array([[c["lon"].bounds[0], 0, c["lon"].step], [c["lat"].bounds[0], c["lat"].step, 0]])
         )
 
         # order: lon, -lat, time
         c = Coordinates([clinspace(0.5, 1.5, 5, "lon"), clinspace(2, 1, 9, "lat"), crange(10, 11, 2, "time")])
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].area_bounds[0], 0, c["lon"].step], [c["lat"].area_bounds[1], c["lat"].step, 0]])
+            tf, np.array([[c["lon"].bounds[0], 0, c["lon"].step], [c["lat"].bounds[1], c["lat"].step, 0]])
         )
         # order: -lon, -lat, time, alt
         c = Coordinates(
@@ -1594,7 +1544,7 @@ class TestCoordinatesGeoTransform(object):
         )
         tf = np.array(c.geotransform).reshape(2, 3)
         np.testing.assert_almost_equal(
-            tf, np.array([[c["lon"].area_bounds[1], 0, c["lon"].step], [c["lat"].area_bounds[1], c["lat"].step, 0]])
+            tf, np.array([[c["lon"].bounds[1], 0, c["lon"].step], [c["lat"].bounds[1], c["lat"].step, 0]])
         )
 
     def error_time_alt_too_big(self):
@@ -1679,8 +1629,7 @@ class TestCoordinatesMethodTransform(object):
         c = Coordinates([[0, 1], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
 
         # transform
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            t = c.transform("EPSG:2193")
+        t = c.transform("EPSG:2193")
         assert c.crs == "EPSG:4326"
         assert t.crs == "EPSG:2193"
         assert round(t["lat"].coordinates[0, 0]) == 29995930.0
@@ -1694,8 +1643,7 @@ class TestCoordinatesMethodTransform(object):
 
         # support proj4 strings
         proj = "+proj=merc +lat_ts=56.5 +ellps=GRS80"
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            t = c.transform(proj)
+        t = c.transform(proj)
         assert c.crs == "EPSG:4326"
         assert t.crs == proj
         assert round(t["lat"].coordinates[0]) == 0.0
@@ -1717,8 +1665,7 @@ class TestCoordinatesMethodTransform(object):
         )
 
         proj = "+proj=merc +vunits=m"
-        with pytest.warns(UserWarning, match="transformation of coordinate segment lengths not yet implemented"):
-            t = c.transform(proj)
+        t = c.transform(proj)
         assert c.crs == "+proj=merc +vunits=us-ft"
         assert t.crs == "+proj=merc +vunits=m"
         np.testing.assert_array_almost_equal(t["lat"].coordinates, c["lat"].coordinates)
@@ -1758,8 +1705,8 @@ class TestCoordinatesMethodTransform(object):
         )
         t = c.transform("EPSG:4269")  # NAD 1983 uses same ellipsoid
 
-        assert isinstance(t["lat"], ArrayCoordinates1d)
-        assert isinstance(t["lon"], ArrayCoordinates1d)
+        assert isinstance(t["lat"], UniformCoordinates1d)
+        assert isinstance(t["lon"], UniformCoordinates1d)
         np.testing.assert_array_almost_equal(t["lat"].coordinates, c["lat"].coordinates)
         np.testing.assert_array_almost_equal(t["lon"].coordinates, c["lon"].coordinates)
 

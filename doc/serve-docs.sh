@@ -8,4 +8,4 @@ if [ "$1" == "clean" ]; then
 fi
 
 # build sphinx-docs
-sphinx-autobuild -b html -i source/example-links.inc -i api/* -i source/changelog.md source build 
+sphinx-autobuild -b html -i source/example-links.inc -i source/api -i source/changelog.md source build

@@ -23,7 +23,7 @@ class TestBaseCoordinates(object):
             except NotImplementedError:
                 pass
 
-        for method_name in ["_set_name", "_set_ctype"]:
+        for method_name in ["_set_name"]:
             try:
                 method = getattr(c, method_name)
                 method(None)
@@ -37,6 +37,11 @@ class TestBaseCoordinates(object):
 
         try:
             c.copy()
+        except NotImplementedError:
+            pass
+
+        try:
+            c.get_area_bounds(None)
         except NotImplementedError:
             pass
 
