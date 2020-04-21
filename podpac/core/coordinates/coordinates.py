@@ -1355,27 +1355,25 @@ class Coordinates(tl.HasTraits):
             if tc:
                 cs[self.dims.index("lat")] = tc[0]
                 cs[self.dims.index("lon")] = tc[1]
-                if "alt" in self.dims:
-                    cs[self.dims.index("alt")] = tc[2]
-                return Coordinates(cs, crs=crs, validate_crs=False)
 
             # otherwise convert lat-lon to dependent coordinates
-            ilat = self.dims.index("lat")
-            ilon = self.dims.index("lon")
-            if ilat == ilon - 1:
-                c1, c2 = self["lat"], self["lon"]
-            elif ilon == ilat - 1:
-                c1, c2 = self["lon"], self["lat"]
+            else:
+                ilat = self.dims.index("lat")
+                ilon = self.dims.index("lon")
+                if ilat == ilon - 1:
+                    c1, c2 = self["lat"], self["lon"]
+                elif ilon == ilat - 1:
+                    c1, c2 = self["lon"], self["lat"]
 
-            c = DependentCoordinates(
-                np.meshgrid(c1.coordinates, c2.coordinates, indexing="ij"), dims=[c1.name, c2.name]
-            )
+                c = DependentCoordinates(
+                    np.meshgrid(c1.coordinates, c2.coordinates, indexing="ij"), dims=[c1.name, c2.name]
+                )
 
-            # replace 'lat' and 'lon' entries with single 'lat,lon' entry
-            i = min(ilat, ilon)
-            cs.pop(i)
-            cs.pop(i)
-            cs.insert(i, c)
+                # replace 'lat' and 'lon' entries with single 'lat,lon' entry
+                i = min(ilat, ilon)
+                cs.pop(i)
+                cs.pop(i)
+                cs.insert(i, c)
 
         # transform
         ts = []
@@ -1392,12 +1390,8 @@ class Coordinates(tl.HasTraits):
         """ Transform coordinates to simple Coordinates1d (instead of DependentCoordinates) if possible """
 
         # check if we can simplify the coordinates by transforming a downsampled grid
-        if "alt" in self.dims:
-            dims = ["lat", "lon", "alt"]
-        else:
-            dims = ["lat", "lon"]
-        sample = [np.linspace(self[dim].coordinates[0], self[dim].coordinates[-1], 5) for dim in dims]
-        temp_coords = DependentCoordinates(np.meshgrid(*sample, indexing="ij"), dims=dims)
+        sample = [np.linspace(self[dim].coordinates[0], self[dim].coordinates[-1], 5) for dim in ["lat", "lon"]]
+        temp_coords = DependentCoordinates(np.meshgrid(*sample, indexing="ij"), dims=["lat", "lon"])
         t = temp_coords._transform(transformer)
 
         # if we get DependentCoordinates from the transform, they are not independent
@@ -1428,28 +1422,9 @@ class Coordinates(tl.HasTraits):
                 [self["lon"].coordinates, np.full_like(self["lon"].coordinates, self["lat"].coordinates.mean())],
                 name="lon_lat",
             )
-            temp_coords._transform(transformer)["lon"].simplify()
+            t_lon = temp_coords._transform(transformer)["lon"].simplify()
 
-        # no alt coordinates, return now
-        if len(t) < 3:
-            return (t_lat, t_lon)
-
-        # alt
-        if isinstance(t[2], UniformCoordinates1d):
-            t_alt = clinspace(t[2].coordinates[0], t[2].coordinates[-1], self["alt"].size, name="alt")
-        else:
-            # compute the non-uniform coordinates (and simplify to uniform if they are *now* uniform)
-            temp_coords = StackedCoordinates(
-                [
-                    self["alt"].coordinates,
-                    np.full_like(self["alt"].coordinates, self["lat"].coordinates.mean()),
-                    np.full_like(self["alt"].coordinates, self["lat"].coordinates.mean()),
-                ],
-                name="alt_lon_lat",
-            )
-            t_alt = temp_coords._transform(transformer)["alt"].simplify()
-
-        return (t_lat, t_lon, t_alt)
+        return t_lat, t_lon
 
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
