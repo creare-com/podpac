@@ -333,7 +333,10 @@ class ZarrOutputMixin(tl.HasTraits):
             data_key = self.source.output
             if data_key is None:
                 data_key = self.source.data_key
-            data_key = [data_key]
+            if not isinstance(data_key, list):
+                data_key = [data_key]
+            elif self.source.outputs:  # If someone restricted the outputs for this node, we need to know
+                data_key = [dk for dk in data_key if dk in self.source.outputs]
         elif self.source.outputs:
             data_key = self.source.outputs
         else:
