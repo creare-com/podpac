@@ -811,6 +811,7 @@ class Node(tl.HasTraits):
         Notes
         -------
         The request can specify the PODPAC node by four different mechanism:
+        
         * Direct node name: PODPAC will look for an appropriate node in podpac.datalib
         * JSON definition passed using the 'PARAMS' query string: Need to specify the special LAYER/COVERAGE value of
           "%PARAMS%"

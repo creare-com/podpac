@@ -191,7 +191,6 @@ Interfaces to external data sources
     :toctree: api/
     :template: class.rst
 
-    podpac.datalib.smap
     podpac.datalib.SMAP
     podpac.datalib.SMAPBestAvailable
     podpac.datalib.SMAPSource

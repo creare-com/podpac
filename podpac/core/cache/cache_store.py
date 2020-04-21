@@ -40,7 +40,7 @@ class CacheStore(object):
             Data to cache
         key : str
             Cached object key, e.g. 'output'.
-        coordinates : Coordinates, optional
+        coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
@@ -56,7 +56,7 @@ class CacheStore(object):
             node requesting storage.
         key : str
             Cached object key, e.g. 'output'.
-        coordinates : Coordinates, optional
+        coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
             
         Returns
@@ -80,7 +80,7 @@ class CacheStore(object):
             node requesting storage.
         key : str, optional
             Delete only cached objects with this key.
-        coordinates : Coordinates
+        coordinates : :class:`podpac.Coordinates`
             Delete only cached objects for these coordinates.
         """
         raise NotImplementedError

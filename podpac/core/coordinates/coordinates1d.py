@@ -21,7 +21,7 @@ class Coordinates1d(BaseCoordinates):
     """
     Base class for 1-dimensional coordinates.
 
-    Coordinates1d objects contain values and metadata for a single dimension of coordinates. :class:`Coordinates` and
+    Coordinates1d objects contain values and metadata for a single dimension of coordinates. :class:`podpac.Coordinates` and
     :class:`StackedCoordinates` use Coordinate1d objects.
     
     Parameters
@@ -201,6 +201,7 @@ class Coordinates1d(BaseCoordinates):
         ---------
         boundary : float, timedelta, array, None
             Boundary offsets in this dimension.
+            
             * For a centered uniform boundary (same for every coordinate), use a single positive float or timedelta 
                 offset. This represents the "total segment length" / 2.
             * For a uniform boundary (segment or polygon same for every coordinate), use an array of float or 

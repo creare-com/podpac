@@ -349,20 +349,20 @@ def cached_property(*args, **kwargs):
     --------
 
     >>> class MyNode(Node):
-            # property that is recomputed every time
-            @property
-            def my_property(self):
-                return 0
+        # property that is recomputed every time
+        @property
+        def my_property(self):
+            return 0
 
-            # property is computed once for each object
-            @cached_property
-            def my_cached_property(self):
-                return 1
+        # property is computed once for each object
+        @cached_property
+        def my_cached_property(self):
+            return 1
 
-            # property that is computed once and can be reused by other Nodes or sessions, depending on the cache_ctrl
-            @cached_property(use_cache_ctrl=True)
-            def my_persistent_cached_property(self):
-                return 2
+        # property that is computed once and can be reused by other Nodes or sessions, depending on the cache_ctrl
+        @cached_property(use_cache_ctrl=True)
+        def my_persistent_cached_property(self):
+            return 2
     """
 
     use_cache_ctrl = kwargs.pop("use_cache_ctrl", False)

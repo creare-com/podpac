@@ -130,7 +130,7 @@ class ExpandCoordinates(ModifyCoordinates):
         
         Returns
         -------
-        expanded : Coordinates1d
+        expanded : :class:`podpac.coordinates.Coordinates1d`
             Expanded coordinates
         """
 

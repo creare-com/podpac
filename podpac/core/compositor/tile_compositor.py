@@ -18,7 +18,7 @@ class TileCompositor(DataSource):
     ----------
     sources : list
         The tiled data sources.
-    coordinates : Coordinates
+    coordinates : :class:`podpac.Coordinates`
         Coordinates encompassing all of the tiled sources.
 
     Notes
@@ -58,7 +58,7 @@ class UniformTileCompositor(TileCompositor):
     ----------
     sources : list
         The tiled data sources.
-    coordinates : Coordinates
+    coordinates : :class:`podpac.Coordinates`
         Coordinates encompassing all of the tiled sources.
     shape : tuple
         shape of the tile grid

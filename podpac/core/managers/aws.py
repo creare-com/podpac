@@ -43,21 +43,21 @@ class Lambda(Node):
     Attributes
     ----------
     aws_access_key_id : str, optional
-        Access key id from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :dict:`podpac.settings`.
+        Access key id from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :attr:`podpac.settings`.
     aws_region_name : str, optional
-        Name of the AWS region. If :attr:`session` is provided, this attribute will be ignored. Overrides :dict:`podpac.settings`.
+        Name of the AWS region. If :attr:`session` is provided, this attribute will be ignored. Overrides :attr:`podpac.settings`.
     aws_secret_access_key : str
-        Access key value from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :dict:`podpac.settings`.
+        Access key value from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :attr:`podpac.settings`.
     function_name : str, optional
-        Name of the lambda function to use or create. Defaults to :str:`podpac.settings["FUNCTION_NAME"]` or "podpac-lambda-autogen".
+        Name of the lambda function to use or create. Defaults to :attr:`podpac.settings["FUNCTION_NAME"]` or "podpac-lambda-autogen".
     function_timeout : int, optional
         Timeout of the lambda function, in seconds. Defaults to 600.
     function_triggers : list of str, optional
         Methods to trigger this function. May only include ["eval", "S3", "APIGateway"]. During the :meth:`self.build()` process, this list will determine which AWS resources are linked to Lambda function. Defaults to ["eval"].
     function_role_name : str, optional
-        Name of the AWS role created for lambda function. Defaults to :str:`podpac.settings["FUNCTION_ROLE_NAME"]` or "podpac-lambda-autogen".
+        Name of the AWS role created for lambda function. Defaults to :attr:`podpac.settings["FUNCTION_ROLE_NAME"]` or "podpac-lambda-autogen".
     function_s3_bucket : str, optional
-        S3 bucket name to use with lambda function. Defaults to :str:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
+        S3 bucket name to use with lambda function. Defaults to :attr:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
     eval_settings : dict, optional
         Default is podpac.settings. PODPAC settings that will be used to evaluate the Lambda function.
     eval_timeout : float, optional
@@ -123,16 +123,16 @@ class Lambda(Node):
     function_source_dist_zip : str, optional
         Override :attr:`self.function_source_dist_key` and create lambda function using custom source podpac dist archive to :attr:`self.function_s3_bucket` during :meth:`self.build()` process.
     function_tags : dict, optional
-        AWS Tags for Lambda function resource. Defaults to :dict:`podpac.settings["AWS_TAGS"]` or {}.
+        AWS Tags for Lambda function resource. Defaults to :attr:`podpac.settings["AWS_TAGS"]` or {}.
     function_budget_amount : float, optional
         EXPERIMENTAL FEATURE
         Monthly budget for function and associated AWS resources. 
         When usage reaches 80% of this amount, AWS will notify :attr:`function_budget_email`.
-        Defaults to :str:`podpac.settings["AWS_BUDGET_AMOUNT"]`.
+        Defaults to :attr:`podpac.settings["AWS_BUDGET_AMOUNT"]`.
     function_budget_email : str, optional
         EXPERIMENTAL FEATURE
         Email to notify when usage reaches 80% of :attr:`function_budget_amount`.
-        Defaults to :str:`podpac.settings["AWS_BUDGET_EMAIL"]`.
+        Defaults to :attr:`podpac.settings["AWS_BUDGET_EMAIL"]`.
     function_budget_name : str, optional
         EXPERIMENTAL FEATURE
         Name for AWS budget

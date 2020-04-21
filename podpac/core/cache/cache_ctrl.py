@@ -113,7 +113,7 @@ class CacheCtrl(object):
             Data to cache
         key : str
             Cached object key, e.g. 'output'.
-        coordinates : Coordinates, optional
+        coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
             determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
@@ -148,7 +148,7 @@ class CacheCtrl(object):
             node requesting storage.
         key : str
             Cached object key, e.g. 'output'.
-        coordinates : Coordinates, optional
+        coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
             determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
@@ -234,7 +234,7 @@ class CacheCtrl(object):
             node requesting storage.
         key : str
             Delete only cached objects with this key. Use `'*'` to match all keys.
-        coordinates : Coordinates, str
+        coordinates : :class:`podpac.Coordinates`, str
             Delete only cached objects for these coordinates. Use `'*'` to match all coordinates.
         mode : str
             determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.

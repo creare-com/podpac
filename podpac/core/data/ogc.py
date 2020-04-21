@@ -47,7 +47,7 @@ class WCS(DataSource):
         URL of the WCS server endpoint
     version : str
         Default is 1.0.0. WCS version string.
-    wcs_coordinates : Coordinates
+    wcs_coordinates : :class:`podpac.Coordinates`
         The coordinates of the WCS source
     """
 

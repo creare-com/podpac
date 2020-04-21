@@ -25,7 +25,7 @@ class ReprojectedSource(DataSource):
         The source node
     source_interpolation : str
         Type of interpolation method to use for the source node
-    reprojected_coordinates : Coordinates
+    reprojected_coordinates : :class:`podpac.Coordinates`
         Coordinates where the source node should be evaluated. 
     """
 

@@ -24,7 +24,7 @@ class CSV(FileKeysMixin, LoadFileMixin, BaseFileSource):
         Row number containing the column names, default 0. Use None for no header.
     dataset : pd.DataFrame
         Raw Pandas DataFrame used to read the data
-    coordinates : Coordinates
+    coordinates : :class:`podpac.Coordinates`
         {coordinates}
     data_key : str, int
         data column number or column title, default 'data'

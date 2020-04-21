@@ -1155,7 +1155,7 @@ class Coordinates(tl.HasTraits):
             If True, return indices for the unique coordinates in addition to the coordinates. Default False.
         Returns
         -------
-        coords : Coordinates
+        coords : :class:`podpac.Coordinates`
             New Coordinates object with unique, sorted coordinate values in each dimension.
         I : list of indices
             index for the unique coordinates in each dimension (only if return_indices=True)
@@ -1174,7 +1174,7 @@ class Coordinates(tl.HasTraits):
 
         Returns
         -------
-        unstacked : :class:`Coordinates`
+        unstacked : :class:`podpac.Coordinates`
             A new Coordinates object with unstacked coordinates.
 
         See Also
