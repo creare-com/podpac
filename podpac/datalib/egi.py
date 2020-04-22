@@ -198,7 +198,8 @@ class EGI(DataSource):
         # other parameters are included at eval time
         return url
 
-    def get_coordinates(self):
+    @property
+    def coordinates(self):
         if self.data is None:
             _log.warning("No coordinates found in EGI source")
             return Coordinates([], dims=[])

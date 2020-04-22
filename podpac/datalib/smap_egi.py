@@ -242,8 +242,8 @@ class SMAP(EGI):
         NotImplementedError
         """
         if all_data.shape[1:] == data.shape[1:]:
-            data.lat.data = all_data.lat.data
-            data.lon.data = all_data.lon.data
+            data.lat.data[:] = all_data.lat.data
+            data.lon.data[:] = all_data.lon.data
         else:
             # select only data with finite coordinates
             data = data.isel(lon=np.isfinite(data.lon), lat=np.isfinite(data.lat))
@@ -262,8 +262,8 @@ class SMAP(EGI):
             lon.data[Ilon] = data.lon[Ilon]
 
             # Assign to data
-            data.lon.data = lon.data
-            data.lat.data = lat.data
+            data.lon.data[:] = lon.data
+            data.lat.data[:] = lat.data
 
         return all_data.combine_first(data)
 
