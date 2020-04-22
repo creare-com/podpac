@@ -264,6 +264,7 @@ class ZarrOutputMixin(tl.HasTraits):
     zarr_chunks = tl.Dict(default_value=None, allow_none=True).tag(attr=True)
     zarr_shape = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
     zarr_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
+    zarr_dtype = tl.Unicode("f4")
     skip_existing = tl.Bool(True).tag(attr=True)
     list_dir = tl.Bool(False)
     _list_dir = tl.List(allow_none=True, default_value=[])
@@ -348,7 +349,12 @@ class ZarrOutputMixin(tl.HasTraits):
         for dk in data_key:
             try:
                 arr = zf.create_dataset(
-                    dk, shape=shape, chunks=chunks, fill_value=np.nan, overwrite=not self.skip_existing
+                    dk,
+                    shape=shape,
+                    chunks=chunks,
+                    fill_value=np.nan,
+                    dtype=self.zarr_dtype,
+                    overwrite=not self.skip_existing,
                 )
             except ValueError:
                 pass  # Dataset already exists
