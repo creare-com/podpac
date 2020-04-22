@@ -1776,3 +1776,16 @@ class TestCoordinatesMethodTransform(object):
         for d in ["lat", "lon"]:
             np.testing.assert_almost_equal(t2[d].coordinates, c[d].coordinates)
             np.testing.assert_almost_equal(t2_s[d].coordinates, c2[d].coordinates)
+
+    def test_transform_missing_lat_lon(self):
+        with pytest.raises(ValueError, match="Cannot transform lat coordinates without lon coordinates"):
+            grid_coords = Coordinates([np.linspace(-10, 10, 21)], dims=["lat"])
+            grid_coords.transform(crs="EPSG:2193")
+
+        with pytest.raises(ValueError, match="Cannot transform lon coordinates without lat coordinates"):
+            stack_coords = Coordinates([(np.linspace(-10, 10, 21), np.linspace(-30, -10, 21))], dims=["lon_time"])
+            stack_coords.transform(crs="EPSG:2193")
+
+        with pytest.raises(ValueError, match="nonadjacent lat and lon"):
+            grid_coords = Coordinates([np.linspace(-10, 10, 21), [1], [1, 2, 3]], dims=["lat", "time", "lon"])
+            grid_coords.transform(crs="EPSG:2193")

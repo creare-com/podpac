@@ -1335,11 +1335,11 @@ class Coordinates(tl.HasTraits):
         if "alt" in self.udims and not to_crs.is_vertical:
             raise ValueError("Altitude dimension is defined, but CRS to transform does not contain vertical unit")
 
-        if "lat" in self.dims and "lon" not in self.dims:
+        if "lat" in self.udims and "lon" not in self.udims:
             raise ValueError("Cannot transform lat coordinates without lon coordinates")
 
-        if "lon" in self.dims and "lat" not in self.dims:
-            raise ValueError("Cannot transform lon coordinates without lon coordinates")
+        if "lon" in self.udims and "lat" not in self.udims:
+            raise ValueError("Cannot transform lon coordinates without lat coordinates")
 
         if "lat" in self.dims and "lon" in self.dims and abs(self.dims.index("lat") - self.dims.index("lon")) != 1:
             raise ValueError("Cannot transform coordinates with nonadjacent lat and lon, transpose first")
