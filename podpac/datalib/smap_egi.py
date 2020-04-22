@@ -38,7 +38,7 @@ from podpac.datalib import EGI
 
 SMAP_PRODUCT_DICT = {
     #'shortname':    ['lat_key', 'lon_key', '_data_key', 'quality_flag', 'default_verison']
-    "SPL4SMAU": ["/x", "/y", "/Analysis_Data/sm_surface_analysis", None, 4],
+    "SPL4SMAU": ["/x", "/y", "/Analysis_Data/sm_surface_analysis", None, None],
     "SPL4SMGP": ["/x", "/y", "/Geophysical_Data/sm_surface", None, 4],
     "SPL4SMLM": ["/x", "/y", "/Land_Model_Constants_Data", None, 4],
     "SPL3SMAP": [

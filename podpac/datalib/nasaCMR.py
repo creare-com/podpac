@@ -3,12 +3,11 @@ Search using NASA CMR
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
-from collections import OrderedDict
 import json
 import logging
 
 import requests
-from six import string_types
+import numpy as np
 
 _logger = logging.getLogger(__name__)
 
@@ -55,9 +54,7 @@ def get_collection_id(session=None, short_name=None, keyword=None, **kwargs):
     if session is None:
         session = requests
 
-    json_ = _get_from_url(base_url + query_string, session)
-
-    pydict = json.loads(json_)
+    pydict = _get_from_url(base_url + query_string, session).json()
 
     entries = pydict["feed"]["entry"]
     if len(entries) > 1:
@@ -124,8 +121,7 @@ def search_granule_json(session=None, entry_map=None, **kwargs):
     if "page_num" not in kwargs:
         entries = _get_all_granule_pages(session, url, entry_map)
     else:
-        granules = _get_from_url(url, session)
-        pydict = json.loads(granules)
+        pydict = _get_from_url(url, session).json()
         entries = list(map(entry_map, pydict["feed"]["entry"]))
 
     return entries
@@ -147,12 +143,12 @@ def _get_all_granule_pages(session, url, entry_map, max_paging_depth=1000000):
     page_size = int([q for q in url.split("?")[1].split("&") if "page_size" in q][0].split("=")[1])
     max_pages = int(max_paging_depth / page_size)
 
-    pydict = json.loads(_get_from_url(url, session))
+    pydict = _get_from_url(url, session).json()
     entries = list(map(entry_map, pydict["feed"]["entry"]))
 
     for i in range(1, max_pages):
         page_url = url + "&page_num=%d" % (i + 1)
-        page_entries = json.loads(_get_from_url(page_url, session))["feed"]["entry"]
+        page_entries = _get_from_url(page_url, session).json()["feed"]["entry"]
         if not page_entries:
             break
         entries.extend(list(map(entry_map, page_entries)))

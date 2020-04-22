@@ -1002,7 +1002,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
 
             # Restrict the query to any specified bounds
             if bounds:
-                kwargs["temporal"] = ",".join([str(b.astype("datetime64[s]")) for b in bounds["time"].area_bounds])
+                kwargs["temporal"] = ",".join([str(b.astype("datetime64[s]")) for b in bounds["time"].bounds])
 
             # Get CMR data
             filenames = nasaCMR.search_granule_json(
@@ -1040,7 +1040,7 @@ class SMAP(SMAPSessionMixin, DiskCacheMixin, SMAPCompositor):
                 # Specify the bounds based on the last entry in the cached coordinates
                 # Add a minute to the bounds to make sure we get unique coordinates
                 kwargs = {
-                    "temporal": str(crds["time"].area_bounds[-1].astype("datetime64[s]") + np.timedelta64(5, "m")) + "/"
+                    "temporal": str(crds["time"].bounds[-1].astype("datetime64[s]") + np.timedelta64(5, "m")) + "/"
                 }
                 crds_new, filenames_new, dates_new = cmr_query(kwargs)
 
@@ -1118,7 +1118,7 @@ class GetSMAPSources(object):
 
     @cached_property
     def base_url(self):
-        return SMAPDateFolder(product=self.product, folder_date="00001122").source[:-8]
+        return SMAPDateFolder(product=self.product, folder_date="00001122").folder_url[:-8]
 
     def __len__(self):
         return len(self.filenames)
