@@ -169,7 +169,7 @@ class SMAP(EGI):
         ------
         ValueError
         """
-        ds = h5py.File(filelike)
+        ds = h5py.File(filelike, "r")
 
         # handle data
         data = ds[self._data_key][()]
