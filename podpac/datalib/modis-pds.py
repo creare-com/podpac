@@ -346,7 +346,7 @@ if __name__ == "__main__":
     print("   .e.g: %s" % repr(node.sources[0]))
 
     # single tile
-    assert len(node.select_sources(ct3)) == 1
+    assert len(node.select_sources(ct2)) == 1
     o5 = node.eval(ct2)
 
     # time-series in a single tile

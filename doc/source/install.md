@@ -82,7 +82,7 @@ $ docker run -i -t podpac
 ```
 
 
-## Standalone Distibution
+## Standalone Windows Distibution
 
 ### Windows 10
 
@@ -104,6 +104,7 @@ Once the folder is unzipped:
     - This will open up a Windows command prompt, and launch a JupyterLab notebook in your default web browser
     - To close the notebook, close the browser tab, and close the Windows console
 
+To make this standalone distribution, see the [deploy notes](deploy-notes.md).
 
 ## Install from Source
 

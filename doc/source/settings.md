@@ -30,7 +30,7 @@ The settings are stored in a dictionary format, accessible in the interpreter:
 In [2]: settings
 Out[2]:
 {'DEBUG': False,
- 'ROOT_PATH': 'C:\\Users\\user\\.podpac',
+ 'ROOT_PATH': 'C:\\Users\\user\\.config\\podpac',
  'AUTOSAVE_SETTINGS': False,
  ...
 }
@@ -42,7 +42,7 @@ To view the default settings, view `settings.defaults`:
 In [3]: settings.defaults
 Out[3]:
 {'DEBUG': False,
- 'ROOT_PATH': 'C:\\Users\\user\\.podpac',
+ 'ROOT_PATH': 'C:\\Users\\user\\.config\\podpac',
  'AUTOSAVE_SETTINGS': False,
  ...
 }
@@ -145,7 +145,7 @@ To see the PODPAC root directory, view `settings["ROOT_PATH"]`:
 In [1]: from podpac import settings
 
 In [2]: settings["ROOT_PATH"]
-Out[5]: 'C:\\Users\\user\\.podpac'
+Out[5]: 'C:\\Users\\user\\.config\\podpac'
 ```
 
 Edit the `settings.json` file in the `"ROOT_PATH"` location, then open a new interpreter and load the `podpac.settings` module to see the overwritten values:
@@ -164,11 +164,11 @@ Out[2]:  1000000000.0
 ```
 
 If a `settings.json` files exist in multiple places, PODPAC will load settings in the following order,
-overwriting previously loaded settings in the process:
+overwriting previously loaded settings (lower numbered items) in the process:
 
-* podpac default settings
-* home directory settings (`~/.podpac/settings.json`)
-* current working directory settings (`./settings.json`)
+1. podpac default settings
+2. home directory settings (`~/.config/podpac/settings.json`)
+3. current working directory settings (`./settings.json`)
 
 The attribute `settings.settings_path` shows the path of the last loaded settings file (e.g. the active settings file).
 
@@ -176,7 +176,7 @@ The attribute `settings.settings_path` shows the path of the last loaded setting
 In [1]: from podpac import settings
 
 In [2]: settings.settings_path
-Out[2]: 'C:\\Users\\user\\.podpac'
+Out[2]: 'C:\\Users\\user\\.config\\podpac'
 ```
 
 A `settings.json` file can be loaded from outside the search path using the `settings.load()` method:

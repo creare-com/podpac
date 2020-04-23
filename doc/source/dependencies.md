@@ -12,11 +12,11 @@ If using `pip` to install, the following OS specific dependencies are required t
 
 ### Windows
 
-> No external dependencies necessary
+> No external dependencies necessary, though using Anaconda is recommended.
 
 ### Mac
 
-> No external dependencies necessary
+> No external dependencies necessary, though using Anaconda is recommended.
 
 ### Linux
 
@@ -64,9 +64,11 @@ $ sudo apt-get install build-essential python-dev
     - [rasterio](https://github.com/mapbox/rasterio): read GeoTiff and other raster datasets
     - [lxml](https://github.com/lxml/lxml): read xml and html files
     - [beautifulsoup4](https://www.crummy.com/software/BeautifulSoup/): text parser and screen scraper
+    - [zarr](https://zarr.readthedocs.io/en/stable/): cloud optimized storage format
 - `aws`: AWS integration
     - [awscli](https://github.com/aws/aws-cli): unified command line interface to Amazon Web Services
     - [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html): Amazon Web Services (AWS) SDK for Python
+    - [s3fs](https://pypi.org/project/s3fs/): Convenient Filesystem interface over S3.
 - `algorithm`: Algorithm development
     - [numexpr](https://github.com/pydata/numexpr): fast numerical expression evaluator for NumPy
 - `notebook`: Jupyter Notebooks
