@@ -1,9 +1,45 @@
 # Changelog
 
 ## 2.0.0
+### Introduction
 
-# Breaking changes
-* Renamed 'native_coordinates' to 'coordinates'
+### Features
+* Added `MODIS` datasource `datalib.modis_pds`
+* Added `datalib.weathercitizen` to retrieve weathercitizen data
+* Added `datalib.cosmos_stations` to retrieve soil moisture data from the stationary COSMOS soil moisture network
+* Added `algorithm.ResampleReduce`, which allows users to coarsen a dataset based on a reduce operation (such as mean, max, etc.). 
+* Added the `managers.parallel` submodule that enables parallel computation with PODPAC in a multi-threaded, multi-process, or multi-AWS-Lambda-function way
+* Added the `managers.multi_process` submodule that enables PODPAC nodes to be run in another process.
+* Added the `compositor.UniformTileCompositor` and `compositor.UniformTileMixin` to enable compositing of data sources BEFORE harmonization (so that interpolation can happen across data sources with the same coordinate systems)
+* Added the `validate_crs` flag to `Coordinates` so that validation of the `crs` can be skipped if needed (this improved speed)
+* Added `managers.aws.Lambda.eval_timeout` attribute so that Python will only wait a certain amount of time before returning from a invoke call.
+* Added asynchronous evaluation of `managers.aws.Lambda` Nodes.  Note! This does not do error checking (e.g. exceeding AWS allocation f the number of allowed concurrent threads).
+* Added `alglib.climatology`, which allows computation of Beta distribution fits to time series for each day of the year
+* Added `core.algorithm.stats.DayOfYearWindow`, which is similar to `GroupReduce`, but also allows a window for the computation and only works for time
+* `Coordinates` will now be automatically simplified when transformed from one `crs` to another. Previously, transformations always resulted in `DependentCoordinates`. This change adds the `.simply` method to some `Coordinates1d` classes.
+* Improved performance of PODPAC AWS Lambda function by only downloading dependencies when the function is not already "hot". "Hot" functions retain the files in the `/tmp` directory of the Lambda function.
+* `data.Zarr` will now use `zarr.open_consolidated` whenever the `file_mode='r'` for more efficient read operations on S3
+
+### Bug Fixes
+* Fixed `algorithm.GroupReduce` to accept `dayofyear`, `weekofyear`, `season`, and `month`. It also now returns the time coordinate in one of these units. 
+* Implemented a circular dependency check to avoid infinite recursion and locking up due to cache accessing. This change also defined the `NodeDefinitionError` exception.
+* Fixed the `UnitsDataArray.to_format` function's `zarr_part` format to work propertly with parallel computations
+* Added the `[algorithm]` dependencies as part of the AWS Lambda function build -- previously the `numexpr` Python package was missing
+
+### Breaking changes
+* Renamed `native_coordinates` to `coordinates`
+* Deprecated `Pipeline` nodes
+* Removed `ctype` and `segment_length` from `Coordinates`. Now specify the `boundary` attribute for `DataSource` nodes instead.
+* Fixed `datalib.smap_egi` module to work with `xarray` version `0.15`
+* Modified PODPAC's root setting directory from `~/.podpac` to `~/.config/podpac`
+* Changed default cache behaviour to overwrite by default (prevents certain cache lock situations)
+* Removed `datalib.airmoss` -- it was no longer working!
+
+### Maintenance
+* Refactored the way PODPAC keeps track of `Node` definition. Most all of it is now handled by the base class, previously `DataSource`, `Algorithm`, and `Compositor` had to implement specialized functions. 
+* Refactored `datalib` nodes to prefer using the new `cached_property` decorator instead of `defaults` which were causing severe circular dependencies
+* Refactored `DataSource` nodes that access files on S3 to use a common `Mixin`
+* Refactored authentication to use more consistent approach across the library
 
 ## 1.3.0
 
