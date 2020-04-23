@@ -43,7 +43,8 @@ RUN mkdir /tmp/vendored/ && \
     cd /podpac/ && rm -rf .git/ doc/ .github/ && \
     pip3 install . -t /tmp/vendored/ --upgrade && \
     pip3 install .[datatype] -t /tmp/vendored/ --upgrade && \
-    pip3 install .[aws] -t /tmp/vendored/ --upgrade
+    pip3 install .[aws] -t /tmp/vendored/ --upgrade && \
+    pip3 install .[algorithms] -t /tmp/vendored/ --upgrade
 
 # need to add some __init__ files
 RUN cd /tmp/vendored/ && touch pydap/__init__.py && \
