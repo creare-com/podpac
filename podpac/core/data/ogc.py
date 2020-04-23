@@ -12,7 +12,7 @@ import numpy as np
 import traitlets as tl
 
 from podpac.core.settings import settings
-from podpac.core.utils import common_doc
+from podpac.core.utils import common_doc, cached_property
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, ArrayCoordinates1d
 
@@ -47,17 +47,17 @@ class WCS(DataSource):
         URL of the WCS server endpoint
     version : str
         Default is 1.0.0. WCS version string.
-    wcs_coordinates : Coordinates
+    wcs_coordinates : :class:`podpac.Coordinates`
         The coordinates of the WCS source
     """
 
-    source = tl.Unicode().tag(readonly=True)
-    wcs_coordinates = tl.Instance(Coordinates).tag(readonly=True)  # default below
-
-    # node attrs
+    source = tl.Unicode().tag(attr=True)
     layer_name = tl.Unicode().tag(attr=True)
-    version = tl.Unicode(WCS_DEFAULT_VERSION).tag(attr=True)
-    crs = tl.Unicode(WCS_DEFAULT_CRS).tag(attr=True)
+    version = tl.Unicode(default_value=WCS_DEFAULT_VERSION).tag(attr=True)
+    crs = tl.Unicode(default_value=WCS_DEFAULT_CRS).tag(attr=True)
+
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
+    _repr_keys = ["source", "interpolation"]
 
     _get_capabilities_qs = tl.Unicode("SERVICE=WCS&REQUEST=DescribeCoverage&" "VERSION={version}&COVERAGE={layer}")
     _get_data_qs = tl.Unicode(
@@ -67,9 +67,8 @@ class WCS(DataSource):
         "WIDTH={width}&HEIGHT={height}&TIME={time}"
     )
 
-    # TODO: This should be capabilities_url, not get_
     @property
-    def get_capabilities_url(self):
+    def capabilities_url(self):
         """Constructs the url that requests the WCS capabilities
         
         Returns
@@ -77,16 +76,16 @@ class WCS(DataSource):
         str
             The url that requests the WCS capabilities
         """
+
         return self.source + "?" + self._get_capabilities_qs.format(version=self.version, layer=self.layer_name)
 
-    @tl.default("wcs_coordinates")
-    def get_wcs_coordinates(self):
-        """Retrieves the native coordinates reported by the WCS service.
+    @cached_property
+    def wcs_coordinates(self):
+        """ Coordinates reported by the WCS service.
         
         Returns
         -------
         Coordinates
-            The native coordinates reported by the WCS service.
         
         Notes
         -------
@@ -97,8 +96,9 @@ class WCS(DataSource):
         Exception
             Raises this if the required dependencies are not installed.
         """
+
         if requests is not None:
-            capabilities = requests.get(self.get_capabilities_url)
+            capabilities = requests.get(self.capabilities_url)
             if capabilities.status_code != 200:
                 raise Exception("Could not get capabilities from WCS server")
             capabilities = capabilities.text
@@ -110,10 +110,10 @@ class WCS(DataSource):
             else:
                 http = urllib3.PoolManager()
 
-            r = http.request("GET", self.get_capabilities_url)
+            r = http.request("GET", self.capabilities_url)
             capabilities = r.data
             if r.status != 200:
-                raise Exception("Could not get capabilities from WCS server:" + self.get_capabilities_url)
+                raise Exception("Could not get capabilities from WCS server:" + self.capabilities_url)
         else:
             raise Exception("Do not have a URL request library to get WCS data.")
 
@@ -166,15 +166,9 @@ class WCS(DataSource):
             ]
         )
 
-    @property
     @common_doc(COMMON_DATA_DOC)
-    def native_coordinates(self):
-        """{native_coordinates}
-        
-        Returns
-        -------
-        Coordinates
-            {native_coordinates}
+    def get_coordinates(self):
+        """{get_coordinates}
             
         Notes
         ------
@@ -214,6 +208,11 @@ class WCS(DataSource):
         output = self.create_output_array(coordinates)
         dotime = "time" in self.wcs_coordinates.dims
 
+        wbound = coordinates["lon"].bounds[0] - coordinates["lon"].step / 2.0
+        ebound = coordinates["lon"].bounds[1] + coordinates["lon"].step / 2.0
+        sbound = coordinates["lat"].bounds[0] - coordinates["lat"].step / 2.0
+        nbound = coordinates["lat"].bounds[1] + coordinates["lat"].step / 2.0
+
         if "time" in coordinates.dims and dotime:
             sd = np.timedelta64(0, "s")
             times = [str(t + sd) for t in coordinates["time"].coordinates]
@@ -228,10 +227,10 @@ class WCS(DataSource):
                     + self._get_data_qs.format(
                         version=self.version,
                         layer=self.layer_name,
-                        w=min(coordinates["lon"].area_bounds),
-                        e=max(coordinates["lon"].area_bounds),
-                        s=min(coordinates["lat"].area_bounds),
-                        n=max(coordinates["lat"].area_bounds),
+                        w=wbound,
+                        e=ebound,
+                        s=sbound,
+                        n=nbound,
                         width=coordinates["lon"].size,
                         height=coordinates["lat"].size,
                         time=time,
@@ -269,7 +268,7 @@ class WCS(DataSource):
                             output.data[i, ...] = dataset.read()
                     except Exception as e:  # Probably python 2
                         print(e)
-                        tmppath = os.path.join(settings["DISK_CACHE_DIR"], "wcs_temp.tiff")
+                        tmppath = os.path.join(settings.cache_path, "wcs_temp.tiff")
 
                         if not os.path.exists(os.path.split(tmppath)[0]):
                             os.makedirs(os.path.split(tmppath)[0])
@@ -297,10 +296,10 @@ class WCS(DataSource):
                 + self._get_data_qs.format(
                     version=self.version,
                     layer=self.layer_name,
-                    w=min(coordinates["lon"].area_bounds),
-                    e=max(coordinates["lon"].area_bounds),
-                    s=min(coordinates["lat"].area_bounds),
-                    n=max(coordinates["lat"].area_bounds),
+                    w=wbound,
+                    e=ebound,
+                    s=sbound,
+                    n=nbound,
                     width=coordinates["lon"].size,
                     height=coordinates["lat"].size,
                     time=time,
@@ -339,7 +338,7 @@ class WCS(DataSource):
                             output.data[:] = dataset.read()
                 except Exception as e:  # Probably python 2
                     print(e)
-                    tmppath = os.path.join(settings["DISK_CACHE_DIR"], "wcs_temp.tiff")
+                    tmppath = os.path.join(settings.cache_path, "wcs_temp.tiff")
                     if not os.path.exists(os.path.split(tmppath)[0]):
                         os.makedirs(os.path.split(tmppath)[0])
                     open(tmppath, "wb").write(content)
@@ -365,11 +364,8 @@ class WCS(DataSource):
 
     @property
     def base_ref(self):
-        """Summary
-        
-        Returns
-        -------
-        TYPE
-            Description
-        """
+        """ definition base_ref """
+        if not self.layer_name:
+            return super(WCS, self).base_ref
+
         return self.layer_name.rsplit(".", 1)[1]

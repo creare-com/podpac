@@ -29,40 +29,17 @@ class BaseAlgorithm(Node):
     """
 
     @property
-    def _inputs(self):
-        # this first version is nicer, but the gettattr(self, ref) can take a
-        # a long time if it is has a default value or is a property
-
-        # return = {
-        #     ref:getattr(self, ref)
-        #     for ref in self.trait_names()
-        #     if isinstance(getattr(self, ref, None), Node)
-        # }
-
+    def inputs(self):
+        # gettattr(self, ref) can take a long time, so we inspect trait.klass instead
         return {
             ref: getattr(self, ref)
             for ref, trait in self.traits().items()
             if hasattr(trait, "klass") and Node in inspect.getmro(trait.klass) and getattr(self, ref) is not None
         }
 
-    @property
-    def base_definition(self):
-        """Base node definition. 
-
-        Returns
-        -------
-        OrderedDict
-            Extends base description by adding 'inputs'
-        """
-
-        d = super(BaseAlgorithm, self).base_definition
-        inputs = self._inputs
-        d["inputs"] = OrderedDict([(key, inputs[key]) for key in sorted(inputs.keys())])
-        return d
-
     def find_coordinates(self):
         """
-        Get the available native coordinates for the inputs to the Node.
+        Get the available coordinates for the inputs to the Node.
 
         Returns
         -------
@@ -70,7 +47,7 @@ class BaseAlgorithm(Node):
             list of available coordinates (Coordinate objects)
         """
 
-        return [c for node in self._inputs.values() for c in node.find_coordinates()]
+        return [c for node in self.inputs.values() for c in node.find_coordinates()]
 
 
 class Algorithm(BaseAlgorithm):
@@ -117,7 +94,7 @@ class Algorithm(BaseAlgorithm):
         inputs = {}
 
         if settings["MULTITHREADING"]:
-            n_threads = thread_manager.request_n_threads(len(self._inputs))
+            n_threads = thread_manager.request_n_threads(len(self.inputs))
             if n_threads == 1:
                 thread_manager.release_n_threads(n_threads)
         else:
@@ -132,13 +109,13 @@ class Algorithm(BaseAlgorithm):
             pool = thread_manager.get_thread_pool(processes=n_threads)
 
             # Evaluate nodes in parallel/asynchronously
-            results = [pool.apply_async(f, [node]) for node in self._inputs.values()]
+            results = [pool.apply_async(f, [node]) for node in self.inputs.values()]
 
             # Collect the results in dictionary
-            for key, res in zip(self._inputs.keys(), results):
+            for key, res in zip(self.inputs.keys(), results):
                 inputs[key] = res.get()
 
-            # This prevents any more tasks from being submitted to the pool, and will close the workers one done
+            # This prevents any more tasks from being submitted to the pool, and will close the workers once done
             pool.close()
 
             # Release these number of threads back to the thread pool
@@ -146,7 +123,7 @@ class Algorithm(BaseAlgorithm):
             self._multi_threaded = True
         else:
             # Evaluate nodes in serial
-            for key, node in self._inputs.items():
+            for key, node in self.inputs.items():
                 inputs[key] = node.eval(coordinates)
             self._multi_threaded = False
 
@@ -159,7 +136,7 @@ class Algorithm(BaseAlgorithm):
             if output is None:
                 output = result
             else:
-                output[:] = result
+                output[:] = result.data[:]
         elif isinstance(result, xr.DataArray):
             if output is None:
                 output = self.create_output_array(
@@ -195,7 +172,10 @@ class UnaryAlgorithm(BaseAlgorithm):
     Developers of new Algorithm nodes need to implement the `eval` method.
     """
 
-    source = NodeTrait()
+    source = NodeTrait().tag(attr=True)
+
+    # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
+    _repr_keys = ["source"]
 
     @tl.default("outputs")
     def _default_outputs(self):

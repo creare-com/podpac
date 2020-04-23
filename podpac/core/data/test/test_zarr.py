@@ -6,7 +6,7 @@ import numpy as np
 from traitlets import TraitError
 
 from podpac.core.coordinates import Coordinates
-from podpac.core.data.file import Zarr
+from podpac.core.data.zarr_source import Zarr
 
 
 class TestZarr(object):
@@ -24,13 +24,13 @@ class TestZarr(object):
         node = Zarr(source=self.path)
         assert node.dims == ["lat", "lon"]
 
-    def test_available_keys(self):
+    def test_available_data_keys(self):
         node = Zarr(source=self.path)
-        assert node.available_keys == ["a", "b"]
+        assert node.available_data_keys == ["a", "b"]
 
-    def test_native_coordinates(self):
+    def test_coordinates(self):
         node = Zarr(source=self.path, data_key="a")
-        assert node.native_coordinates == Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=["lat", "lon"])
+        assert node.coordinates == Coordinates([[0, 1, 2], [10, 20, 30, 40]], dims=["lat", "lon"])
 
     def test_eval(self):
         coords = Coordinates([0, 10], dims=["lat", "lon"])
@@ -44,7 +44,7 @@ class TestZarr(object):
     def test_eval_multiple(self):
         coords = Coordinates([0, 10], dims=["lat", "lon"])
 
-        z = Zarr(source=self.path, output_keys=["a", "b"])
+        z = Zarr(source=self.path, data_key=["a", "b"])
         out = z.eval(coords)
         assert out.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["a", "b"])
@@ -52,14 +52,14 @@ class TestZarr(object):
         assert out.sel(output="b")[0, 0] == 1.0
 
         # single output key
-        z = Zarr(source=self.path, output_keys=["a"])
+        z = Zarr(source=self.path, data_key=["a"])
         out = z.eval(coords)
         assert out.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["a"])
         assert out.sel(output="a")[0, 0] == 0.0
 
         # alternate output names
-        z = Zarr(source=self.path, output_keys=["a", "b"], outputs=["A", "B"])
+        z = Zarr(source=self.path, data_key=["a", "b"], outputs=["A", "B"])
         out = z.eval(coords)
         assert out.dims == ("lat", "lon", "output")
         np.testing.assert_array_equal(out["output"], ["A", "B"])
@@ -79,7 +79,3 @@ class TestZarr(object):
         path = "s3://podpac-internal-test/drought_parameters.zarr"
         node = Zarr(source=path, data_key="d0")
         node.close_dataset()
-
-    def test_used_dataset_directly(self):
-        dataset = zarr.open(self.path, "r")
-        node = Zarr(dataset=dataset, data_key="a")

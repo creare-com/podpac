@@ -209,7 +209,7 @@ def make_coord_delta(val):
         try:
             val = val.item()
         except ValueError:
-            raise TypeError("Invalid coordinate delta, unsuported type '%s'" % type(val))
+            raise TypeError("Invalid coordinate delta, unsupported type '%s'" % type(val))
 
     # type checking and conversion
     if isinstance(val, string_types):
@@ -221,7 +221,7 @@ def make_coord_delta(val):
     elif isinstance(val, numbers.Number):
         val = float(val)
     else:
-        raise TypeError("Invalid coordinate delta, unsuported type '%s'" % type(val))
+        raise TypeError("Invalid coordinate delta, unsupported type '%s'" % type(val))
 
     return val
 
@@ -460,11 +460,6 @@ class Dimension(tl.Enum):
         super(Dimension, self).__init__(VALID_DIMENSION_NAMES, *args, **kwargs)
 
 
-class CoordinateType(tl.Enum):
-    def __init__(self, *args, **kwargs):
-        super(CoordinateType, self).__init__(["point", "left", "right", "midpoint"], *args, **kwargs)
-
-
 def lower_precision_time_bounds(my_bounds, other_bounds, outer):
     """
     When given two bounds of np.datetime64, this function will convert both bounds to the lower-precision (in terms of 
@@ -473,7 +468,7 @@ def lower_precision_time_bounds(my_bounds, other_bounds, outer):
     Parameters
     -----------
     my_bounds : List(np.datetime64)
-        The bounds of the native coordinates of the dataset
+        The bounds of the coordinates of the dataset
     other_bounds : List(np.datetime64)
         The bounds used for the selection
     outer : bool
@@ -482,7 +477,7 @@ def lower_precision_time_bounds(my_bounds, other_bounds, outer):
     Returns
     --------
     my_bounds : List(np.datetime64)
-        The bounds of the native coordinates of the dataset at the new precision
+        The bounds of the coordinates of the dataset at the new precision
     other_bounds : List(np.datetime64)
         The bounds used for the selection at the new precision, if outer == True, otherwise return original coordinates    
     """

@@ -36,7 +36,7 @@ class FileCacheStore(CacheStore):
     # public cache API methods
     # -----------------------------------------------------------------------------------------------------------------
 
-    def put(self, node, data, key, coordinates=None, update=False):
+    def put(self, node, data, key, coordinates=None, update=True):
         """Cache data for specified node.
         
         Parameters
@@ -47,17 +47,17 @@ class FileCacheStore(CacheStore):
             Data to cache
         key : str
             Cached object key, e.g. 'output'.
-        coordinates : Coordinates, optional
+        coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         """
 
         # check for existing entry
-        if self.has(node, key, coordinates):
-            if not update:
-                raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
-            self.rem(node, key, coordinates)
+        if not update and self.has(node, key, coordinates):
+            raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
+
+        self.rem(node, key, coordinates)
 
         # serialize
         path_root = self._path_join(self._get_node_dir(node), self._get_filename(node, key, coordinates))
@@ -88,7 +88,7 @@ class FileCacheStore(CacheStore):
         else:
             warnings.warn(
                 "Object of type '%s' is not json serializable; caching object to file using pickle, which "
-                "may not be compatible with other Python versions or podpac versions."
+                "may not be compatible with other Python versions or podpac versions." % type(data)
             )
             path = path_root + ".pkl"
             s = pickle.dumps(data)
@@ -120,7 +120,7 @@ class FileCacheStore(CacheStore):
             node requesting storage.
         key : str
             Cached object key, e.g. 'output'.
-        coordinates : Coordinates, optional
+        coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
             
         Returns
@@ -195,7 +195,7 @@ class FileCacheStore(CacheStore):
             node requesting storage
         key : str, CacheWildCard, optional
             Delete cached objects with this key, or any key if `key` is a CacheWildCard.
-        coordinates : Coordinates, CacheWildCard, None, optional
+        coordinates : :class:`podpac.Coordinates`, CacheWildCard, None, optional
             Delete only cached objects for these coordinates, or any coordinates if `coordinates` is a CacheWildCard. `None` specifically indicates entries that do not have coordinates.
         """
 

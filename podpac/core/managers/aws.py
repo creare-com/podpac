@@ -11,6 +11,8 @@ from copy import deepcopy
 import base64
 from datetime import datetime
 
+from six import string_types
+
 import boto3
 import botocore
 import traitlets as tl
@@ -36,32 +38,34 @@ class LambdaException(Exception):
 
 class Lambda(Node):
     """A `Node` wrapper to evaluate source on AWS Lambda function
-    
+
 
     Attributes
     ----------
     aws_access_key_id : str, optional
-        Access key id from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :dict:`podpac.settings`.
+        Access key id from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :attr:`podpac.settings`.
     aws_region_name : str, optional
-        Name of the AWS region. If :attr:`session` is provided, this attribute will be ignored. Overrides :dict:`podpac.settings`.
+        Name of the AWS region. If :attr:`session` is provided, this attribute will be ignored. Overrides :attr:`podpac.settings`.
     aws_secret_access_key : str
-        Access key value from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :dict:`podpac.settings`.
+        Access key value from AWS credentials. If :attr:`session` is provided, this attribute will be ignored. Overrides :attr:`podpac.settings`.
     function_name : str, optional
-        Name of the lambda function to use or create. Defaults to :str:`podpac.settings["FUNCTION_NAME"]` or "podpac-lambda-autogen".
+        Name of the lambda function to use or create. Defaults to :attr:`podpac.settings["FUNCTION_NAME"]` or "podpac-lambda-autogen".
     function_timeout : int, optional
         Timeout of the lambda function, in seconds. Defaults to 600.
     function_triggers : list of str, optional
         Methods to trigger this function. May only include ["eval", "S3", "APIGateway"]. During the :meth:`self.build()` process, this list will determine which AWS resources are linked to Lambda function. Defaults to ["eval"].
     function_role_name : str, optional
-        Name of the AWS role created for lambda function. Defaults to :str:`podpac.settings["FUNCTION_ROLE_NAME"]` or "podpac-lambda-autogen".
+        Name of the AWS role created for lambda function. Defaults to :attr:`podpac.settings["FUNCTION_ROLE_NAME"]` or "podpac-lambda-autogen".
     function_s3_bucket : str, optional
-        S3 bucket name to use with lambda function. Defaults to :str:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
+        S3 bucket name to use with lambda function. Defaults to :attr:`podpac.settings["S3_BUCKET_NAME"]` or "podpac-autogen-<timestamp>" with the timestamp to ensure uniqueness.
     eval_settings : dict, optional
         Default is podpac.settings. PODPAC settings that will be used to evaluate the Lambda function.
+    eval_timeout : float, optional
+        Default is None. The amount of time to wait for an eval to return. To get near asynchronous response, set this to a small number. 
 
     Other Attributes
     ----------------
-    attrs : dict
+    node_attrs : dict
         Additional attributes passed on to the Lambda definition of the base node
     download_result : Bool
         Flag that indicated whether node should wait to download the data.
@@ -119,16 +123,16 @@ class Lambda(Node):
     function_source_dist_zip : str, optional
         Override :attr:`self.function_source_dist_key` and create lambda function using custom source podpac dist archive to :attr:`self.function_s3_bucket` during :meth:`self.build()` process.
     function_tags : dict, optional
-        AWS Tags for Lambda function resource. Defaults to :dict:`podpac.settings["AWS_TAGS"]` or {}.
+        AWS Tags for Lambda function resource. Defaults to :attr:`podpac.settings["AWS_TAGS"]` or {}.
     function_budget_amount : float, optional
         EXPERIMENTAL FEATURE
         Monthly budget for function and associated AWS resources. 
         When usage reaches 80% of this amount, AWS will notify :attr:`function_budget_email`.
-        Defaults to :str:`podpac.settings["AWS_BUDGET_AMOUNT"]`.
+        Defaults to :attr:`podpac.settings["AWS_BUDGET_AMOUNT"]`.
     function_budget_email : str, optional
         EXPERIMENTAL FEATURE
         Email to notify when usage reaches 80% of :attr:`function_budget_amount`.
-        Defaults to :str:`podpac.settings["AWS_BUDGET_EMAIL"]`.
+        Defaults to :attr:`podpac.settings["AWS_BUDGET_EMAIL"]`.
     function_budget_name : str, optional
         EXPERIMENTAL FEATURE
         Name for AWS budget
@@ -138,6 +142,8 @@ class Lambda(Node):
         Defaults to "USD".
         See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/budgets.html#Budgets.Client.create_budget
         for currency (or Unit) options.
+    output_format : dict, optional
+        Definition for how output is saved after results are computed.
     session : :class:`podpac.managers.aws.Session`
         AWS Session to use for this node.
     source : :class:`podpac.Node`
@@ -164,7 +170,7 @@ class Lambda(Node):
         )
 
     # general function parameters
-    function_eval_trigger = tl.Enum(["eval", "S3", "APIGateway"], default_value="eval").tag(attr=True, readonly=True)
+    function_eval_trigger = tl.Enum(["eval", "S3", "APIGateway"], default_value="eval").tag(attr=True)
 
     # lambda function parameters
     function_name = tl.Unicode().tag(attr=True, readonly=True)  # see default below
@@ -184,7 +190,7 @@ class Lambda(Node):
     function_source_bucket = tl.Unicode(default_value="podpac-dist", allow_none=True).tag(readonly=True)
     function_source_dist_key = tl.Unicode().tag(readonly=True)  # see default below
     function_source_dependencies_key = tl.Unicode().tag(readonly=True)  # see default below
-    function_allow_unsafe_eval = tl.Bool(default_value=False).tag(readonly=True)
+    function_allow_unsafe_eval = tl.Bool().tag(readonly=True)  # see default below
     function_restrict_pipelines = tl.List(tl.Unicode(), default_value=[]).tag(readonly=True)
     _function_arn = tl.Unicode(default_value=None, allow_none=True)
     _function_last_modified = tl.Unicode(default_value=None, allow_none=True)
@@ -193,6 +199,12 @@ class Lambda(Node):
     _function_triggers = tl.Dict(default_value={}, allow_none=True)
     _function_valid = tl.Bool(default_value=False, allow_none=True)
     _function = tl.Dict(default_value=None, allow_none=True)  # raw response from AWS on "get_"
+
+    output_format = tl.Dict(None, allow_none=True).tag(attr=True)
+
+    @property
+    def outputs(self):
+        return self.source.outputs
 
     @tl.default("function_name")
     def _function_name_default(self):
@@ -227,6 +239,12 @@ class Lambda(Node):
     @tl.default("function_tags")
     def _function_tags_default(self):
         return settings["AWS_TAGS"] or {}
+
+    @tl.default("function_allow_unsafe_eval")
+    def _function_allow_unsafe_eval_default(self):
+        return "UNSAFE_EVAL_HASH" in self.eval_settings and isinstance(
+            self.eval_settings["UNSAFE_EVAL_HASH"], string_types
+        )
 
     # role parameters
     function_role_name = tl.Unicode().tag(readonly=True)  # see default below
@@ -378,10 +396,11 @@ class Lambda(Node):
     source = tl.Instance(Node, allow_none=True).tag(attr=True)
     source_output_format = tl.Unicode(default_value="netcdf")
     source_output_name = tl.Unicode()
-    attrs = tl.Dict()
+    node_attrs = tl.Dict()
     download_result = tl.Bool(True).tag(attr=True)
     force_compute = tl.Bool().tag(attr=True)
     eval_settings = tl.Dict().tag(attr=True)
+    eval_timeout = tl.Float(610).tag(attr=True)
 
     @tl.default("source_output_name")
     def _source_output_name_default(self):
@@ -405,9 +424,9 @@ class Lambda(Node):
         """
         d = OrderedDict()
         d["pipeline"] = self.source.definition
-        if self.attrs:
+        if self.node_attrs:
             out_node = next(reversed(d["pipeline"].keys()))
-            d["pipeline"][out_node]["attrs"].update(self.attrs)
+            d["pipeline"][out_node]["attrs"].update(self.node_attrs)
         d["output"] = {"format": self.source_output_format}
         d["settings"] = self.eval_settings
         return d
@@ -1393,26 +1412,44 @@ Lambda Node {status}
         pipeline["settings"][
             "FUNCTION_DEPENDENCIES_KEY"
         ] = self.function_s3_dependencies_key  # overwrite in case this is specified explicitly by class
+        if self.output_format:
+            pipeline["output"] = self.output_format
 
         return pipeline
 
     def _eval_invoke(self, coordinates, output=None):
         """eval node through invoke trigger"""
-        _log.debug("Evaluating pipeline via invoke")
 
         # create eval pipeline
         pipeline = self._create_eval_pipeline(coordinates)
 
         # create lambda client
-        awslambda = self.session.client("lambda")
-
-        # invoke
-        payload = bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))
-        response = awslambda.invoke(
-            FunctionName=self.function_name,
-            LogType="Tail",  # include the execution log in the response.
-            Payload=payload,
+        config = botocore.config.Config(
+            read_timeout=self.eval_timeout, max_pool_connections=1001, retries={"max_attempts": 0}
         )
+        awslambda = self.session.client("lambda", config=config)
+
+        # pipeline payload
+        payload = bytes(json.dumps(pipeline, indent=4, cls=JSONEncoder).encode("UTF-8"))
+
+        if self.download_result:
+            _log.debug("Evaluating pipeline via invoke synchronously")
+            response = awslambda.invoke(
+                FunctionName=self.function_name,
+                LogType="Tail",  # include the execution log in the response.
+                Payload=payload,
+            )
+        else:
+            # async invocation
+            _log.debug("Evaluating pipeline via invoke asynchronously")
+            awslambda.invoke(
+                FunctionName=self.function_name,
+                InvocationType="Event",
+                LogType="Tail",  # include the execution log in the response.
+                Payload=payload,
+            )
+
+            return
 
         _log.debug("Received response from lambda function")
 
@@ -1428,7 +1465,11 @@ Lambda Node {status}
 
         # After waiting, load the pickle file like this:
         payload = response["Payload"].read()
-        self._output = UnitsDataArray.open(payload)
+        try:
+            self._output = UnitsDataArray.open(payload)
+        except ValueError:
+            # Not actually a data-array, returning a string instead
+            return payload.decode("utf-8")
         return self._output
 
     def _eval_s3(self, coordinates, output=None):
@@ -1708,7 +1749,7 @@ def put_object(session, bucket_name, bucket_path, file=None, object_acl="private
     object_config = {"ACL": object_acl, "Bucket": bucket_name, "Key": bucket_path}
 
     object_body = None
-    if isinstance(file, str):
+    if isinstance(file, string_types):
         with open(file, "rb") as f:
             object_body = f.read()
     else:

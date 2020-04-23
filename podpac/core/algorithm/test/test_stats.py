@@ -4,13 +4,16 @@ import pytest
 import numpy as np
 import xarray as xr
 import scipy.stats
+import traitlets as tl
 
 import podpac
+from podpac.core.algorithm.utility import Arange
 from podpac.core.data.array_source import Array
 from podpac.core.algorithm.stats import Reduce
 from podpac.core.algorithm.stats import Min, Max, Sum, Count, Mean, Variance, Skew, Kurtosis, StandardDeviation
+from podpac.core.algorithm.generic import Arithmetic
 from podpac.core.algorithm.stats import Median, Percentile
-from podpac.core.algorithm.stats import GroupReduce, DayOfYear
+from podpac.core.algorithm.stats import GroupReduce, DayOfYear, DayOfYearWindow
 
 
 def setup_module():
@@ -24,11 +27,11 @@ def setup_module():
     a[3, 0, 0] = np.nan
     a[0, 3, 0] = np.nan
     a[0, 0, 3] = np.nan
-    source = Array(source=a, native_coordinates=coords)
+    source = Array(source=a, coordinates=coords)
     data = source.eval(coords)
 
     ab = np.stack([a, 2 * a], -1)
-    multisource = Array(source=ab, native_coordinates=coords, outputs=["a", "b"])
+    multisource = Array(source=ab, coordinates=coords, outputs=["a", "b"])
     bdata = 2 * data
 
 
@@ -40,13 +43,13 @@ class TestReduce(object):
         node = Min(source=source)
 
         with podpac.settings:
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["CHUNK_SIZE"] = "auto"
             node.eval(coords)
 
     def test_chunked_fallback(self):
         with podpac.settings:
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
 
             class First(Reduce):
                 def reduce(self, x):
@@ -72,7 +75,7 @@ class BaseTests(object):
 
     def test_full(self):
         with podpac.settings:
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["CHUNK_SIZE"] = None
 
             node = self.NodeClass(source=source)
@@ -88,7 +91,7 @@ class BaseTests(object):
     def test_full_chunked(self):
         with podpac.settings:
             node = self.NodeClass(source=source, dims=coords.dims)
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["CHUNK_SIZE"] = 500
             output = node.eval(coords)
             # xr.testing.assert_allclose(output, self.expected_full)
@@ -96,7 +99,7 @@ class BaseTests(object):
 
     def test_lat_lon(self):
         with podpac.settings:
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=source, dims=["lat", "lon"])
             output = node.eval(coords)
@@ -105,7 +108,7 @@ class BaseTests(object):
 
     def test_lat_lon_chunked(self):
         with podpac.settings:
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["CHUNK_SIZE"] = 500
             node = self.NodeClass(source=source, dims=["lat", "lon"])
             output = node.eval(coords)
@@ -114,7 +117,7 @@ class BaseTests(object):
 
     def test_time(self):
         with podpac.settings:
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=source, dims="time")
             output = node.eval(coords)
@@ -123,7 +126,7 @@ class BaseTests(object):
 
     def test_time_chunked(self):
         with podpac.settings:
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["CHUNK_SIZE"] = 500
             node = self.NodeClass(source=source, dims="time")
             output = node.eval(coords)
@@ -132,7 +135,7 @@ class BaseTests(object):
 
     def test_multiple_outputs(self):
         with podpac.settings:
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["CHUNK_SIZE"] = None
             node = self.NodeClass(source=multisource, dims=["lat", "lon"])
             output = node.eval(coords)
@@ -265,5 +268,102 @@ class TestGroupReduce(object):
     pass
 
 
+class TestResampleReduce(object):
+    pass
+
+
 class TestDayOfYear(object):
     pass
+
+
+class F(DayOfYearWindow):
+    cache_output = tl.Bool(False)
+    force_eval = tl.Bool(True)
+
+    def function(self, data, output):
+        return len(data)
+
+
+class FM(DayOfYearWindow):
+    cache_output = tl.Bool(False)
+    force_eval = tl.Bool(True)
+
+    def function(self, data, output):
+        return np.mean(data)
+
+
+class TestDayOfYearWindow(object):
+    def test_doy_window1(self):
+        coords = podpac.coordinates.concat(
+            [
+                podpac.Coordinates([podpac.crange("1999-12-29", "2000-01-02", "1,D", "time")]),
+                podpac.Coordinates([podpac.crange("2001-12-30", "2002-01-03", "1,D", "time")]),
+            ]
+        )
+
+        node = Arange()
+        nodedoywindow = F(source=node, window=1, cache_output=False, force_eval=True)
+        o = nodedoywindow.eval(coords)
+
+        np.testing.assert_array_equal(o, [2, 2, 1, 1, 2, 2])
+
+    def test_doy_window2(self):
+        coords = podpac.coordinates.concat(
+            [
+                podpac.Coordinates([podpac.crange("1999-12-29", "2000-01-03", "1,D", "time")]),
+                podpac.Coordinates([podpac.crange("2001-12-30", "2002-01-02", "1,D", "time")]),
+            ]
+        )
+
+        node = Arange()
+        nodedoywindow = F(source=node, window=2, cache_output=False, force_eval=True)
+        o = nodedoywindow.eval(coords)
+
+        np.testing.assert_array_equal(o, [6, 5, 3, 3, 5, 6])
+
+    def test_doy_window2_mean_rescale_float(self):
+        coords = podpac.coordinates.concat(
+            [
+                podpac.Coordinates([podpac.crange("1999-12-29", "2000-01-03", "1,D", "time")]),
+                podpac.Coordinates([podpac.crange("2001-12-30", "2002-01-02", "1,D", "time")]),
+            ]
+        )
+
+        node = Arange()
+        nodedoywindow = FM(source=node, window=2, cache_output=False, force_eval=True)
+        o = nodedoywindow.eval(coords)
+
+        nodedoywindow_s = FM(
+            source=node, window=2, cache_output=False, force_eval=True, scale_float=[0, coords.size], rescale=True
+        )
+        o_s = nodedoywindow_s.eval(coords)
+
+        np.testing.assert_array_almost_equal(o, o_s)
+
+    def test_doy_window2_mean_rescale_max_min(self):
+        with podpac.settings:
+            podpac.settings.set_unsafe_eval(True)
+
+            coords = podpac.coordinates.concat(
+                [
+                    podpac.Coordinates([podpac.crange("1999-12-29", "2000-01-03", "1,D", "time")]),
+                    podpac.Coordinates([podpac.crange("2001-12-30", "2002-01-02", "1,D", "time")]),
+                ]
+            )
+
+            node = Arange()
+            node_max = Arithmetic(source=node, eqn="(source < 5) + source")
+            node_min = Arithmetic(source=node, eqn="-1*(source < 5) + source")
+
+            nodedoywindow_s = FM(
+                source=node,
+                window=2,
+                cache_output=False,
+                force_eval=True,
+                scale_max=node_max,
+                scale_min=node_min,
+                rescale=False,
+            )
+            o_s = nodedoywindow_s.eval(coords)
+
+            np.testing.assert_array_almost_equal([0.5] * o_s.size, o_s)

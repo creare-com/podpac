@@ -81,11 +81,11 @@ class TestWCS(object):
         """test the capabilities url generation"""
 
         node = WCS(source=self.source)
-        url = node.get_capabilities_url
+        url = node.capabilities_url
         assert isinstance(url, string_types)
         assert node.source in url
 
-    def test_get_wcs_coordinates(self):
+    def test_wcs_coordinates(self):
         """get wcs coordinates"""
 
         import podpac.core.data.ogc
@@ -128,44 +128,44 @@ class TestWCS(object):
 
         node = WCS(source=self.source)
         with pytest.raises(Exception):
-            node.get_wcs_coordinates()
+            node.wcs_coordinates
 
         # put all dependencies back
         podpac.core.data.ogc.requests = requests
         podpac.core.data.ogc.urllib3 = urllib3
         podpac.core.data.ogc.lxml = lxml
 
-    def test_get_native_coordinates(self):
-        """get native coordinates"""
+    def test_coordinates(self):
+        """get coordinates"""
 
         self.mock_requests()
         node = WCS(source=self.source)
 
         # equal to wcs coordinates when no eval coordinates
-        native_coordinates = node.native_coordinates
+        coordinates = node.coordinates
         wcs_coordinates = node.wcs_coordinates
-        assert native_coordinates == wcs_coordinates
+        assert coordinates == wcs_coordinates
 
         # with eval coordinates
         # TODO: use real eval coordinates
-        node._output_coordinates = native_coordinates
-        native_coordinates = node.native_coordinates
+        node._output_coordinates = coordinates
+        coordinates = node.coordinates
 
-        assert isinstance(native_coordinates, Coordinates)
+        assert isinstance(coordinates, Coordinates)
         # TODO: one returns monotonic, the other returns uniform
-        assert native_coordinates == node._output_coordinates
-        assert native_coordinates["lat"]
-        assert native_coordinates["lon"]
-        assert native_coordinates["time"]
+        assert coordinates == node._output_coordinates
+        assert coordinates["lat"]
+        assert coordinates["lon"]
+        assert coordinates["time"]
 
     def test_get_data(self):
         """get data from wcs server"""
 
         self.mock_requests()
         node = WCS(source=self.source)
-        lat = node.native_coordinates["lat"].coordinates
-        lon = node.native_coordinates["lon"].coordinates
-        time = node.native_coordinates["time"].coordinates
+        lat = node.coordinates["lat"].coordinates
+        lon = node.coordinates["lon"].coordinates
+        time = node.coordinates["time"].coordinates
 
         # no time
         notime_coordinates = Coordinates(
@@ -176,7 +176,7 @@ class TestWCS(object):
         with pytest.raises(ValueError):
             output = node.eval(notime_coordinates)
             assert isinstance(output, UnitsDataArray)
-            assert output.native_coordinates["lat"][0] == node.native_coordinates["lat"][0]
+            assert output.coordinates["lat"][0] == node.coordinates["lat"][0]
 
         # time
         time_coordinates = Coordinates(

@@ -4,6 +4,7 @@ General-purpose Algorithm Nodes.
 
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+import sys
 import warnings
 
 import numpy as np
@@ -21,15 +22,18 @@ from podpac.core.node import Node
 from podpac.core.utils import NodeTrait
 from podpac.core.algorithm.algorithm import Algorithm
 
+if sys.version_info.major == 2:
+
+    class PermissionError(OSError):
+        pass
+
 
 class GenericInputs(Algorithm):
     """Base class for Algorithms that accept generic named inputs."""
 
-    inputs = tl.Dict()
+    inputs = tl.Dict(read_only=True)
 
-    @property
-    def _inputs(self):
-        return self.inputs
+    _repr_keys = ["inputs"]
 
     def _first_init(self, **kwargs):
         trait_names = self.trait_names()
@@ -38,7 +42,14 @@ class GenericInputs(Algorithm):
                 raise RuntimeError("Trait '%s' is reserved and cannot be used as an Generic Algorithm input" % key)
         input_keys = [key for key in kwargs if key not in trait_names and isinstance(kwargs[key], Node)]
         inputs = {key: kwargs.pop(key) for key in input_keys}
-        return super(GenericInputs, self)._first_init(inputs=inputs, **kwargs)
+        self.set_trait("inputs", inputs)
+        return super(GenericInputs, self)._first_init(**kwargs)
+
+    @property
+    def _base_definition(self):
+        d = super(GenericInputs, self)._base_definition
+        d["inputs"] = self.inputs
+        return d
 
 
 class Arithmetic(GenericInputs):
@@ -53,6 +64,8 @@ class Arithmetic(GenericInputs):
 
     eqn = tl.Unicode().tag(attr=True)
     params = tl.Dict().tag(attr=True)
+
+    _repr_keys = ["eqn"]
 
     def init(self):
         if not settings.allow_unsafe_eval:
@@ -191,12 +204,14 @@ class Mask(Algorithm):
     
     """
 
-    source = NodeTrait()
-    mask = NodeTrait()
+    source = NodeTrait().tag(attr=True)
+    mask = NodeTrait().tag(attr=True)
     masked_val = tl.Float(np.nan).tag(attr=True)
     bool_val = tl.Float(1).tag(attr=True)
     bool_op = tl.Enum(["==", "<", "<=", ">", ">="], default_value="==").tag(attr=True)
     in_place = tl.Bool(False).tag(attr=True)
+
+    _repr_keys = ["source", "mask"]
 
     def algorithm(self, inputs):
         """ Sets the values in inputs['source'] to self.masked_val using (inputs['mask'] <self.bool_op> <self.bool_val>)
@@ -237,7 +252,8 @@ class Combine(GenericInputs):
 
     @tl.default("outputs")
     def _default_outputs(self):
-        return list(self.inputs.keys())
+        input_keys = list(self.inputs.keys())
+        return input_keys
 
     def algorithm(self, inputs):
         return np.stack([inputs[key] for key in self.inputs], axis=-1)

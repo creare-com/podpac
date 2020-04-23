@@ -1,9 +1,7 @@
-from podpac.core.node import Node
-from podpac.core.style import Style
-from podpac.core.utils import NodeTrait
-from podpac.core.algorithm.algorithm import Algorithm
-from podpac.core.data.file import Zarr
-from podpac.core.coordinates import ArrayCoordinates1d
+from podpac.algorithm import Algorithm
+from podpac.data import Zarr
+from podpac.style import Style
+from podpac.utils import NodeTrait
 
 
 def drought_style():
@@ -25,7 +23,6 @@ def sm_style():
 
 
 class DroughtMonitorCategory(Zarr):
-    # dims = ["lat", "lon", "time"]
     cf_time = True
     cf_units = "days since 2018-01-01 00:00:00"
     cf_calendar = "proleptic_gregorian"
@@ -33,12 +30,12 @@ class DroughtMonitorCategory(Zarr):
 
 
 class DroughtCategory(Algorithm):
-    soil_moisture = NodeTrait()
-    d0 = NodeTrait()
-    d1 = NodeTrait()
-    d2 = NodeTrait()
-    d3 = NodeTrait()
-    d4 = NodeTrait()
+    soil_moisture = NodeTrait().tag(attr=True)
+    d0 = NodeTrait().tag(attr=True)
+    d1 = NodeTrait().tag(attr=True)
+    d2 = NodeTrait().tag(attr=True)
+    d3 = NodeTrait().tag(attr=True)
+    d4 = NodeTrait().tag(attr=True)
     style = drought_style()
 
     def algorithm(self, inputs):
@@ -61,29 +58,55 @@ class DroughtCategory(Algorithm):
 
 
 if __name__ == "__main__":
+    import os
+    import numpy as np
     import podpac
 
     c = podpac.Coordinates([46.6, -123.5, "2018-06-01"], dims=["lat", "lon", "time"])
 
     # local
     path = "droughtmonitor/beta_parameters.zarr"
-    d0 = DroughtMonitorCategory(source=path, datakey="d0")
-    print(d0.native_coordinates)
-    print(d0.eval(c))
+    if not os.path.exists(path):
+        print("No local drought monitor data found at '%s'" % path)
+    else:
+        # drought monitor parameters
+        d0 = DroughtMonitorCategory(source=path, data_key="d0")
+        print(d0.coordinates)
+        print(d0.eval(c))
+
+        # drought category
+        mock_sm = podpac.data.Array(data=np.random.random(d0.coordinates.shape), coordinates=d0.coordinates)
+
+        category = DroughtCategory(
+            soil_moisture=mock_sm,
+            d0=DroughtMonitorCategory(source=path, data_key="d0"),
+            d1=DroughtMonitorCategory(source=path, data_key="d1"),
+            d2=DroughtMonitorCategory(source=path, data_key="d2"),
+            d3=DroughtMonitorCategory(source=path, data_key="d3"),
+            d4=DroughtMonitorCategory(source=path, data_key="d4"),
+        )
+        print(category.eval(c))
 
     # s3
     bucket = "podpac-internal-test"
     store = "drought_parameters.zarr"
     path = "s3://%s/%s" % (bucket, store)
-    d0 = DroughtMonitorCategory(source=path, datakey="d0")
-    print(d0.native_coordinates)
-    print(d0.eval(c))
+    d0 = DroughtMonitorCategory(source=path, data_key="d0")
+    if not d0.s3.exists(path):
+        print("No drought monitor data found at '%s'. Check your AWS credentials." % path)
+    else:
+        print(d0.coordinates)
+        print(d0.eval(c))
 
-    # the Zarr node uses the podpac AWS settings by default, but credentials can be explicitly provided, too
-    d0 = DroughtMonitorCategory(
-        source=path,
-        datakey="d0",
-        access_key_id=podpac.settings["AWS_ACCESS_KEY_ID"],
-        secret_access_key=podpac.settings["AWS_SECRET_ACCESS_KEY"],
-        region_name=podpac.settings["AWS_REGION_NAME"],
-    )
+        # drought category algorithm
+        mock_sm = podpac.data.Array(source=np.random.random(d0.coordinates.shape), coordinates=d0.coordinates)
+
+        category = DroughtCategory(
+            soil_moisture=mock_sm,
+            d0=DroughtMonitorCategory(source=path, data_key="d0"),
+            d1=DroughtMonitorCategory(source=path, data_key="d1"),
+            d2=DroughtMonitorCategory(source=path, data_key="d2"),
+            d3=DroughtMonitorCategory(source=path, data_key="d3"),
+            d4=DroughtMonitorCategory(source=path, data_key="d4"),
+        )
+        print(category.eval(c))

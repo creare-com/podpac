@@ -9,6 +9,7 @@ import numpy as np
 import xarray as xr
 
 import podpac
+from podpac.core.utils import NodeTrait
 from podpac.core.node import Node, NodeException
 from podpac.core.data.array_source import Array
 from podpac.core.algorithm.utility import Arange
@@ -23,43 +24,21 @@ class TestBaseAlgorithm(object):
         with pytest.raises(NotImplementedError):
             node.eval(c)
 
-    def test_base_definition(self):
-        class MyAlgorithm(BaseAlgorithm):
-            x = tl.Instance(Node)
-            y = tl.Instance(Node)
-            z = tl.Unicode().tag(attr=True)
-
-        node = MyAlgorithm(x=Arange(), y=Arange(), z="abcd")
-
-        d = node.base_definition
-        assert isinstance(d, OrderedDict)
-        assert "node" in d
-        assert "attrs" in d
-
-        # base (node, params)
-        assert d["node"] == "MyAlgorithm"
-        assert d["attrs"]["z"] == "abcd"
-
-        # inputs
-        assert "inputs" in d
-        assert isinstance(d["inputs"], dict)
-        assert set(d["inputs"].keys()) == set(["x", "y"])
-
     def test_find_coordinates(self):
         class MyAlgorithm(BaseAlgorithm):
-            x = tl.Instance(Node)
-            y = tl.Instance(Node)
+            x = NodeTrait().tag(attr=True)
+            y = NodeTrait().tag(attr=True)
 
         node = MyAlgorithm(
-            x=Array(native_coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])),
-            y=Array(native_coordinates=podpac.Coordinates([[0, 1, 2], [110, 120]], dims=["lat", "lon"])),
+            x=Array(coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])),
+            y=Array(coordinates=podpac.Coordinates([[0, 1, 2], [110, 120]], dims=["lat", "lon"])),
         )
 
         l = node.find_coordinates()
         assert isinstance(l, list)
         assert len(l) == 2
-        assert node.x.native_coordinates in l
-        assert node.y.native_coordinates in l
+        assert node.x.coordinates in l
+        assert node.y.coordinates in l
 
 
 class TestAlgorithm(object):
@@ -74,7 +53,7 @@ class TestAlgorithm(object):
 
         with podpac.settings:
             podpac.settings.set_unsafe_eval(True)
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings["RAM_CACHE_ENABLED"] = False
 
@@ -99,7 +78,7 @@ class TestAlgorithm(object):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 3
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = True
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = True
             podpac.settings["DEFAULT_CACHE"] = ["ram"]
             podpac.settings["RAM_CACHE_ENABLED"] = True
             podpac.settings.set_unsafe_eval(True)
@@ -134,7 +113,7 @@ class TestAlgorithm(object):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 8
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings["RAM_CACHE_ENABLED"] = False
             podpac.settings.set_unsafe_eval(True)
@@ -147,7 +126,7 @@ class TestAlgorithm(object):
         with podpac.settings:
             podpac.settings["MULTITHREADING"] = True
             podpac.settings["N_THREADS"] = 9  # 2 threads available after first 7
-            podpac.settings["CACHE_OUTPUT_DEFAULT"] = False
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
             podpac.settings["DEFAULT_CACHE"] = []
             podpac.settings["RAM_CACHE_ENABLED"] = False
             podpac.settings.set_unsafe_eval(True)
@@ -217,8 +196,8 @@ class TestAlgorithm(object):
 
     def test_multiple_outputs(self):
         class MyAlgorithm(Algorithm):
-            x = tl.Instance(Node)
-            y = tl.Instance(Node)
+            x = NodeTrait().tag(attr=True)
+            y = NodeTrait().tag(attr=True)
             outputs = ["sum", "prod", "diff"]
 
             def algorithm(self, inputs):
@@ -229,7 +208,7 @@ class TestAlgorithm(object):
 
         coords = podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"])
         x = Arange()
-        y = Array(source=np.full(coords.shape, 2), native_coordinates=coords)
+        y = Array(source=np.full(coords.shape, 2), coordinates=coords)
         xout = np.arange(6).reshape(3, 2)
 
         # all outputs
@@ -249,7 +228,7 @@ class TestAlgorithm(object):
 
 
 class TestUnaryAlgorithm(object):
-    source = Array(native_coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"]))
+    source = Array(coordinates=podpac.Coordinates([[0, 1, 2], [10, 20]], dims=["lat", "lon"]))
 
     def test_outputs(self):
         node = UnaryAlgorithm(source=self.source)

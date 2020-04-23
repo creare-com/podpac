@@ -1,13 +1,13 @@
-import numpy as np
 import os
 import shutil
 import copy
+import tempfile
 
 import pytest
 import xarray as xr
+import numpy as np
 
 import podpac
-
 from podpac.core.cache.utils import CacheException
 from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
@@ -15,7 +15,7 @@ from podpac.core.cache.s3_cache_store import S3CacheStore
 
 COORDS1 = podpac.Coordinates([[0, 1, 2], [10, 20, 30, 40], ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"])
 COORDS2 = podpac.Coordinates([[0, 1, 2], [10, 20, 30]], dims=["lat", "lon"])
-NODE1 = podpac.data.Array(source=np.ones(COORDS1.shape), native_coordinates=COORDS1)
+NODE1 = podpac.data.Array(source=np.ones(COORDS1.shape), coordinates=COORDS1)
 NODE2 = podpac.algorithm.Arange()
 
 
@@ -87,11 +87,11 @@ class BaseCacheStoreTests(object):
 
         # raise exception and do not change
         with pytest.raises(CacheException, match="Cache entry already exists."):
-            store.put(NODE1, 10, "mykey1")
+            store.put(NODE1, 10, "mykey1", update=False)
         assert store.get(NODE1, "mykey1") == 10
 
         # update
-        store.put(NODE1, 20, "mykey1", update=True)
+        store.put(NODE1, 20, "mykey1")
         assert store.get(NODE1, "mykey1") == 20
 
     def test_get_put_none(self):
@@ -314,36 +314,40 @@ class TestDiskCacheStore(FileCacheStoreTests):
     Store = DiskCacheStore
     enabled_setting = "DISK_CACHE_ENABLED"
     limit_setting = "DISK_CACHE_MAX_BYTES"
-    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "tmp_cache"))
 
     def setup_method(self):
         super(TestDiskCacheStore, self).setup_method()
 
-        podpac.settings["DISK_CACHE_DIR"] = self.cache_dir
-        assert not os.path.exists(self.cache_dir)
+        self.test_cache_dir = tempfile.mkdtemp(prefix="podpac-test-")
+        podpac.settings["DISK_CACHE_DIR"] = self.test_cache_dir
 
     def teardown_method(self):
         super(TestDiskCacheStore, self).teardown_method()
 
-        shutil.rmtree(self.cache_dir, ignore_errors=True)
+        shutil.rmtree(self.test_cache_dir, ignore_errors=True)
 
     def test_cache_dir(self):
-        # absolute path
-        podpac.settings["DISK_CACHE_DIR"] = self.cache_dir
-        expected = self.cache_dir
-        store = DiskCacheStore()
-        store.put(NODE1, 10, "mykey1")
-        assert store.find(NODE1, "mykey1").startswith(expected)
-        store.clear()
+        with podpac.settings:
 
-        # relative path
-        podpac.settings["DISK_CACHE_DIR"] = "_testcache_"
-        expected = os.path.join(podpac.settings["ROOT_PATH"], "_testcache_")
-        store = DiskCacheStore()
-        store.clear()
-        store.put(NODE1, 10, "mykey1")
-        assert store.find(NODE1, "mykey1").startswith(expected)
-        store.clear()
+            # absolute path
+            podpac.settings["DISK_CACHE_DIR"] = self.test_cache_dir
+            expected = self.test_cache_dir
+            store = DiskCacheStore()
+            store.put(NODE1, 10, "mykey1")
+            assert store.find(NODE1, "mykey1").startswith(expected)
+            store.clear()
+
+            # relative path
+            podpac.settings["DISK_CACHE_DIR"] = "_testcache_"
+            expected = os.path.join(
+                os.environ.get("XDG_CACHE_HOME", os.path.join(os.path.expanduser("~"), ".config", "podpac")),
+                "_testcache_",
+            )
+            store = DiskCacheStore()
+            store.clear()
+            store.put(NODE1, 10, "mykey1")
+            assert store.find(NODE1, "mykey1").startswith(expected)
+            store.clear()
 
     def test_size(self):
         store = self.Store()
@@ -363,17 +367,17 @@ class TestS3CacheStore(FileCacheStoreTests):
     Store = S3CacheStore
     enabled_setting = "S3_CACHE_ENABLED"
     limit_setting = "S3_CACHE_MAX_BYTES"
-    cache_dir = "tmp_cache"
+    test_cache_dir = "tmp_cache"
 
     def setup_method(self):
         super(TestS3CacheStore, self).setup_method()
 
-        podpac.settings["S3_CACHE_DIR"] = self.cache_dir
+        podpac.settings["S3_CACHE_DIR"] = self.test_cache_dir
 
     def teardown_method(self):
         try:
             store = S3CacheStore()
-            store._rmtree(self.cache_dir)
+            store._rmtree(self.test_cache_dir)
         except:
             pass
 

@@ -87,8 +87,8 @@ import podpac
 nodeA = podpac.data.Rasterio(source="elevation.tif", interpolation="cubic")  
 nodeB = podpac.datalib.TerrainTiles(tile_format='geotiff', zoom=8) 
 
-# take the mean of the two data sources
-alg_node = podpac.algorithm.Arithmetic(A=nodeA, B=nodeB, eqn='(A * B) / 2')
+# average the two data sources together point-wise
+alg_node = podpac.algorithm.Arithmetic(A=nodeA, B=nodeB, eqn='(A + B) / 2')
 ```
 
 Evaluate pipelines at arbitrary PODPAC coordinates.

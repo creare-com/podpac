@@ -37,10 +37,6 @@ class UniformCoordinates1d(Coordinates1d):
         Dimension name, one of 'lat', 'lon', 'time', 'alt'.
     coordinates : array, read-only
         Full array of coordinate values.
-    ctype : str
-        Coordinates type, one of'point', 'left', 'right', or 'midpoint'.
-    segment_lengths : array, float, timedelta
-        When ctype is a segment type, the segment lengths for the coordinates.
 
     See Also
     --------
@@ -56,7 +52,7 @@ class UniformCoordinates1d(Coordinates1d):
     step = tl.Union([tl.Float(), tl.Instance(np.timedelta64)], read_only=True)
     step.__doc__ = ":float, timedelta64: Signed, non-zero step between coordinates."
 
-    def __init__(self, start, stop, step=None, size=None, name=None, ctype=None, segment_lengths=None):
+    def __init__(self, start, stop, step=None, size=None, name=None):
         """
         Create uniformly-spaced 1d coordinates from a `start`, `stop`, and `step` or `size`.
 
@@ -72,11 +68,6 @@ class UniformCoordinates1d(Coordinates1d):
             Number of coordinates (either step or size required).
         name : str, optional
             Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
-        ctype : str, optional
-            Coordinates type: 'point', 'left', 'right', or 'midpoint'.
-        segment_lengths: array, float, timedelta, optional
-            When ctype is a segment type, the segment lengths for the coordinates. By defaul, the segment_lengths are
-            equal the step.
         """
 
         if step is not None and size is not None:
@@ -105,6 +96,9 @@ class UniformCoordinates1d(Coordinates1d):
                 % (type(start), type(stop), type(step))
             )
 
+        if fstep == 0:
+            raise ValueError("Uniformcoordinates1d step cannot be zero")
+
         if fstep <= 0 and start < stop:
             raise ValueError("UniformCoordinates1d step must be greater than zero if start < stop.")
 
@@ -116,18 +110,7 @@ class UniformCoordinates1d(Coordinates1d):
         self.set_trait("step", step)
 
         # set common properties
-        super(UniformCoordinates1d, self).__init__(name=name, ctype=ctype, segment_lengths=segment_lengths)
-
-    @tl.default("ctype")
-    def _default_ctype(self):
-        return "midpoint"
-
-    @tl.default("segment_lengths")
-    def _default_segment_lengths(self):
-        if self.ctype == "point":
-            return None
-
-        return np.abs(self.step)
+        super(UniformCoordinates1d, self).__init__(name=name)
 
     def __eq__(self, other):
         if not super(UniformCoordinates1d, self).__eq__(other):
@@ -184,8 +167,7 @@ class UniformCoordinates1d(Coordinates1d):
                 "start": 1,
                 "stop": 10,
                 "step": 0.5,
-                "name": "lat",
-                "ctype": "points"
+                "name": "lat"
             })
 
         Arguments
@@ -221,60 +203,37 @@ class UniformCoordinates1d(Coordinates1d):
         return self.size
 
     def __getitem__(self, index):
-        if isinstance(index, slice):
-            # start, stop, step
-            if index.start is None:
-                start = self.start
-            elif index.start >= 0:
-                start = add_coord(self.start, self.step * min(index.start, self.size - 1))
-            else:
-                start = add_coord(self.start, self.step * max(0, self.size + index.start))
+        # fallback for non-slices
+        if not isinstance(index, slice):
+            return ArrayCoordinates1d(self.coordinates[index], **self.properties)
 
-            if index.stop is None:
-                stop = self.stop
-            elif index.stop >= 0:
-                stop = add_coord(self.start, self.step * (min(index.stop, self.size) - 1))
-            else:
-                stop = add_coord(self.start, self.step * max(0, self.size + index.stop - 1))
-
-            if index.step is None:
-                step = self.step
-            else:
-                step = index.step * self.step
-                if index.step < 0:
-                    start, stop = stop, start
-
-            # properties and segment_lengths
-            kwargs = self.properties
-
-            if self.ctype != "point":
-                if isinstance(self.segment_lengths, np.ndarray):
-                    kwargs["segment_lengths"] = self.segment_lengths[index]
-                elif self.segment_lengths != step:
-                    kwargs["segment_lengths"] = self.segment_lengths
-
-            # reroute empty slices to the else clause
-            if start > stop and step > 0:
-                return self[[]]
-
-            return UniformCoordinates1d(start, stop, step, **kwargs)
-
+        # start, stop, step
+        if index.start is None:
+            start = self.start
+        elif index.start >= 0:
+            start = add_coord(self.start, self.step * min(index.start, self.size - 1))
         else:
-            # coordinates
-            coordinates = self.coordinates[index]
+            start = add_coord(self.start, self.step * max(0, self.size + index.start))
 
-            # properties and segment_lengths
-            kwargs = self.properties
+        if index.stop is None:
+            stop = self.stop
+        elif index.stop >= 0:
+            stop = add_coord(self.start, self.step * (min(index.stop, self.size) - 1))
+        else:
+            stop = add_coord(self.start, self.step * max(0, self.size + index.stop - 1))
 
-            if self.ctype != "point":
-                if isinstance(self.segment_lengths, np.ndarray):
-                    kwargs["segment_lengths"] = self.segment_lengths[index]
-                else:
-                    kwargs["segment_lengths"] = self.segment_lengths
+        if index.step is None:
+            step = self.step
+        else:
+            step = index.step * self.step
+            if index.step < 0:
+                start, stop = stop, start
 
-            kwargs["ctype"] = self.ctype
+        # empty slice
+        if start > stop and step > 0:
+            return ArrayCoordinates1d([], **self.properties)
 
-            return ArrayCoordinates1d(coordinates, **kwargs)
+        return UniformCoordinates1d(start, stop, step, **self.properties)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
@@ -345,11 +304,7 @@ class UniformCoordinates1d(Coordinates1d):
         hi = add_coord(self.start, self.step * (self.size - 1))
         if self.is_descending:
             lo, hi = hi, lo
-
-        # read-only array with the correct dtype
-        bounds = np.array([lo, hi], dtype=self.dtype)
-        bounds.setflags(write=False)
-        return bounds
+        return lo, hi
 
     @property
     def argbounds(self):
@@ -383,9 +338,20 @@ class UniformCoordinates1d(Coordinates1d):
         kwargs = self.properties
         return UniformCoordinates1d(self.start, self.stop, self.step, **kwargs)
 
+    def simplify(self):
+        """ Get the simplified/optimized representation of these coordinates.
+
+        Returns
+        -------
+        simplified : UniformCoordinates1d
+            These coordinates (the coordinates are already simplified).
+        """
+
+        return self
+
     def _select(self, bounds, return_indices, outer):
         # TODO is there an easier way to do this with the new outer flag?
-        my_bounds = self.bounds.copy()
+        my_bounds = self.bounds
 
         # If the bounds are of instance datetime64, then the comparison should happen at the lowest precision
         if self.dtype == np.datetime64:

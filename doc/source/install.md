@@ -5,9 +5,9 @@ PODPAC is available for Windows, Mac, and Linux.
 Select the installation method the best suits your development environment:
 
 - [pip](#install-with-pip): Recommended for most users
-- [Docker](#install-with-docker): For use in containers
+- [Docker](#docker): For use in containers
 - [Install from source](#install-from-source): For development
-- [Standalone distribution](#standalone-distribution): Includes Python and all dependencies
+- [Standalone distribution](#standalone-distibution): Includes Python and all dependencies
 
 ## Install with pip
 
@@ -15,15 +15,14 @@ Select the installation method the best suits your development environment:
 
 Confirm you have the required dependencies installed on your computer:
 
-- [Python](https://www.python.org/) (3.6 or later)
-    - We recommend the [Anaconda Python Distribution](https://www.anaconda.com/distribution/#download-section)
+- [Python](https://www.python.org/) (3.6 or later) &mdash; [Anaconda Python Distribution](https://www.anaconda.com/distribution/#download-section) recommended
 - See [operating system requirements](dependencies.html#os-specific-requirements)
 
 ### Environment
 
 If using Anaconda Python, create a PODPAC dedicated Anconda environment:
 
-```bash
+```
 # create environment with all `anaconda` packages
 $ conda create -n podpac python=3 anaconda
 
@@ -33,7 +32,7 @@ $ conda activate podpac
 
 If using a non-Anaconda Python distribution, create a PODPAC dedicated virtual environment:
 
-```bash
+```
 # create environment in <DIR>
 $ python3 -m venv <DIR>
 
@@ -45,7 +44,7 @@ $ source <DIR>/bin/activate
 
 After activating the virtual environment, install using `pip` with one of the following commands:
 
-```bash
+```
 $ pip install podpac                # base installation
 $ pip install podpac[datatype]      # install podpac and optional data handling dependencies
 $ pip install podpac[notebook]      # install podpac and optional notebook dependencies
@@ -70,20 +69,20 @@ Once you have Docker installed, the following steps will allow you to run PODPAC
 - Download the [PODPAC Dockerfile](https://github.com/creare-com/podpac/blob/master/Dockerfile) from the repository
 - From the directory where you downloaded the `Dockerfile`, run:
 
-```bash
+```
 # build the docker image with the tag `podpac`
 $ docker build -t podpac .
 ```
 
 - Run the built image
 
-```bash
+```
 # run the docker image in an interactive shell
 $ docker run -i -t podpac
 ```
 
 
-## Standalone Distibution
+## Standalone Windows Distibution
 
 ### Windows 10
 
@@ -94,7 +93,6 @@ The Window 10 standalone distribution requires no pre-installed operating system
         - For older versions, substitute `latest` in the url with the version number, i.e. `PODPAC_1.2.0_install_windows10.zip`
 - Once downloaded, extract the zip file into a folder on your machine.
     - We recommend expanding it near the root of your drive (e.g. `C:\PODPAC`) due to long file paths that are part of the installation.
-    - We also recommend *unblocking* the file to speed up the unzipping process. See this [Microsoft Developer Entry](https://blogs.msdn.microsoft.com/delay/p/unblockingdownloadedfile/).
 
 Once the folder is unzipped:
 
@@ -106,6 +104,7 @@ Once the folder is unzipped:
     - This will open up a Windows command prompt, and launch a JupyterLab notebook in your default web browser
     - To close the notebook, close the browser tab, and close the Windows console
 
+To make this standalone distribution, see the [deploy notes](deploy-notes.md).
 
 ## Install from Source
 
@@ -122,7 +121,7 @@ Confirm you have the required dependencies installed on your computer:
 
 If using Anaconda Python, create a PODPAC dedicated Anconda environment:
 
-```bash
+```
 # create environment with all `anaconda` packages
 $ conda create -n podpac python=3 anaconda
 
@@ -132,7 +131,7 @@ $ conda activate podpac
 
 If using a non-Anaconda Python distribution, create a PODPAC dedicated virtual environment:
 
-```bash
+```
 # create environment in <DIR>
 $ python3 -m venv <DIR>
 
@@ -144,7 +143,7 @@ $ source <DIR>/bin/activate
 
 After activating the virtual environment, clone the [podpac repository](https://github.com/creare-com/podpac) onto your machine:
 
-```bash
+```
 $ cd <install-path>
 $ git clone https://github.com/creare-com/podpac.git
 $ cd podpac
@@ -155,7 +154,7 @@ By default, PODPAC clones to the `master` branch, which is the latest stable rel
 To use a previous release, checkout the `tags/<version>` reference.
 For bleeding edge, checkout the `develop` branch.
 
-```bash
+```
 $ git fetch origin                                  # fetch all remote branches
 $ git checkout -b release/<version> tags/<version>  # checkout specific release
 $ git checkout -b develop origin/develop            # latest stable version
@@ -163,7 +162,7 @@ $ git checkout -b develop origin/develop            # latest stable version
 
 From the root of the git repository, install using `pip` with one of the following commands:
 
-```bash
+```
 $ pip install .                # base installation
 $ pip install .[datatype]      # install podpac and optional data handling dependencies
 $ pip install .[notebook]      # install podpac and optional notebook dependencies
@@ -176,7 +175,7 @@ See [Optional Dependencies](dependencies.html#optional-dependencies) more inform
 
 To install PODPAC and keep installation up to date with local changes, use the option `-e` when installing:
 
-```bash
+```
 $ pip install -e .          # install podpac with only core dependencies
 $ pip install -e .[devall]  # install podpac and all optional dependencies
 ```
@@ -191,7 +190,7 @@ If you encounter issues, we recommend trying to install [rasterio](https://raste
 
 ### UnicodeDecodeError
 
-```bash
+```
 UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2 in position 13: ordinal not in range(128)*
 ```
 
@@ -200,7 +199,7 @@ See this [stack overflow answer](https://stackoverflow.com/a/49127686) for a sol
 
 ### Python.h
 
-```bash
+```
 psutil/_psutil_common.c:9:10: fatal error: Python.h: No such file or directory
  #include <Python.h>
           ^~~~~~~~~~

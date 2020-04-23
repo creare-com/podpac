@@ -2,8 +2,8 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import os
 import json
-import six
 import warnings
+import tempfile
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -12,6 +12,7 @@ try:
 except:  # Python 2.7
     import urlparse as urllib
 
+import six
 import pytest
 import numpy as np
 import xarray as xr
@@ -23,27 +24,153 @@ import traitlets as tl
 
 import podpac
 from podpac.core import common_test_utils as ctu
-from podpac.core.utils import ArrayTrait
+from podpac.core.utils import ArrayTrait, NodeTrait
 from podpac.core.units import UnitsDataArray
 from podpac.core.style import Style
-from podpac.core.cache import CacheCtrl, RamCacheStore
-from podpac.core.node import Node, NodeException
+from podpac.core.cache import CacheCtrl, RamCacheStore, DiskCacheStore
+from podpac.core.node import Node, NodeException, NodeDefinitionError
 from podpac.core.node import node_eval
+from podpac.core.node import NoCacheMixin, DiskCacheMixin
 
 
 class TestNode(object):
-    def test_eval_not_implemented(self):
-        n = Node()
-        with pytest.raises(NotImplementedError):
-            n.eval(None)
+    def test_style(self):
+        node = Node()
+        assert isinstance(node.style, Style)
 
-        with pytest.raises(NotImplementedError):
-            n.eval(None, output=None)
+    def test_units(self):
+        node = Node(units="meters")
 
-    def test_find_coordinates_not_implemented(self):
+        with pytest.raises(UndefinedUnitError):
+            Node(units="abc")
+
+    def test_outputs(self):
+        node = Node()
+        assert node.outputs is None
+
+        node = Node(outputs=["a", "b"])
+        assert node.outputs == ["a", "b"]
+
+    def test_output(self):
+        node = Node()
+        assert node.output is None
+
+        node = Node(outputs=["a", "b"])
+        assert node.output is None
+
+        node = Node(outputs=["a", "b"], output="b")
+        assert node.output == "b"
+
+        # must be one of the outputs
+        with pytest.raises(ValueError, match="Invalid output"):
+            node = Node(outputs=["a", "b"], output="other")
+
+        # only valid for multiple-output nodes
+        with pytest.raises(TypeError, match="Invalid output"):
+            node = Node(output="other")
+
+    def test_cache_output(self):
+        with podpac.settings:
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = False
+            node = Node()
+            assert not node.cache_output
+
+            podpac.settings["CACHE_NODE_OUTPUT_DEFAULT"] = True
+            node = Node()
+            assert node.cache_output
+
+    def test_cache_ctrl(self):
+        # settings
+        with podpac.settings:
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+            node = Node()
+            assert node.cache_ctrl is not None
+            assert len(node.cache_ctrl._cache_stores) == 1
+            assert isinstance(node.cache_ctrl._cache_stores[0], RamCacheStore)
+
+            podpac.settings["DEFAULT_CACHE"] = ["ram", "disk"]
+            node = Node()
+            assert node.cache_ctrl is not None
+            assert len(node.cache_ctrl._cache_stores) == 2
+            assert isinstance(node.cache_ctrl._cache_stores[0], RamCacheStore)
+            assert isinstance(node.cache_ctrl._cache_stores[1], DiskCacheStore)
+
+        # specify
+        node = Node(cache_ctrl=["ram"])
+        assert node.cache_ctrl is not None
+        assert len(node.cache_ctrl._cache_stores) == 1
+        assert isinstance(node.cache_ctrl._cache_stores[0], RamCacheStore)
+
+        node = Node(cache_ctrl=["ram", "disk"])
+        assert node.cache_ctrl is not None
+        assert len(node.cache_ctrl._cache_stores) == 2
+        assert isinstance(node.cache_ctrl._cache_stores[0], RamCacheStore)
+        assert isinstance(node.cache_ctrl._cache_stores[1], DiskCacheStore)
+
+    def test_tagged_attr_readonly(self):
+        class MyNode(Node):
+            my_attr = tl.Any().tag(attr=True)
+
+        with podpac.settings:
+            podpac.settings["DEBUG"] = False
+            node = MyNode()
+            assert node.traits()["my_attr"].read_only
+
+            podpac.settings["DEBUG"] = True
+            node = MyNode()
+            assert not node.traits()["my_attr"].read_only
+
+    def test_trait_is_defined(self):
+        node = Node()
+        assert node.trait_is_defined("units")
+
+    def test_init(self):
+        class MyNode(Node):
+            init_run = False
+
+            def init(self):
+                super(MyNode, self).init()
+                self.init_run = True
+
+        node = MyNode()
+        assert node.init_run
+
+    def test_attrs(self):
+        class MyNode(Node):
+            my_attr = tl.Any().tag(attr=True)
+            my_trait = tl.Any()
+
+        n = MyNode()
+        assert "my_attr" in n.attrs
+        assert "my_trait" not in n.attrs
+
+    def test_repr(self):
         n = Node()
-        with pytest.raises(NotImplementedError):
-            n.find_coordinates()
+        repr(n)
+
+        n = Node(outputs=["a", "b"])
+        repr(n)
+        assert "outputs=" in repr(n)
+        assert "output=" not in repr(n)
+
+        n = Node(outputs=["a", "b"], output="a")
+        repr(n)
+        assert "outputs=" not in repr(n)
+        assert "output=" in repr(n)
+
+    def test_str(self):
+        n = Node()
+        str(n)
+
+        n = Node(outputs=["a", "b"])
+        str(n)
+        assert "outputs=" in str(n)
+        assert "output=" not in str(n)
+
+        n = Node(outputs=["a", "b"], output="a")
+        str(n)
+        assert "outputs=" not in str(n)
+        assert "output=" in str(n)
 
     def test_eval_group(self):
         class MyNode(Node):
@@ -54,8 +181,8 @@ class TestNode(object):
         c2 = podpac.Coordinates([[10, 11], [10, 11, 12]], dims=["lat", "lon"])
         g = podpac.coordinates.GroupCoordinates([c1, c2])
 
-        n = MyNode()
-        outputs = n.eval_group(g)
+        node = MyNode()
+        outputs = node.eval_group(g)
         assert isinstance(outputs, list)
         assert len(outputs) == 2
         assert isinstance(outputs[0], UnitsDataArray)
@@ -65,69 +192,23 @@ class TestNode(object):
 
         # invalid
         with pytest.raises(Exception):
-            n.eval_group(c1)
+            node.eval_group(c1)
 
         with pytest.raises(Exception):
-            n.eval(g)
+            node.eval(g)
 
-    def test_units(self):
-        n = Node(units="meters")
+    def test_eval_not_implemented(self):
+        node = Node()
+        with pytest.raises(NotImplementedError):
+            node.eval(None)
 
-        with pytest.raises(UndefinedUnitError):
-            Node(units="abc")
+        with pytest.raises(NotImplementedError):
+            node.eval(None, output=None)
 
-    def test_outputs(self):
-        n = Node()
-        assert n.outputs is None
-
-        n = Node(outputs=["a", "b"])
-        assert n.outputs == ["a", "b"]
-
-    def test_outputs_and_output(self):
-        n = Node(outputs=["a", "b"])
-        assert n.output is None
-
-        n = Node(outputs=["a", "b"], output="b")
-        assert n.output == "b"
-
-        # must be one of the outputs
-        with pytest.raises(ValueError, match="Invalid output"):
-            n = Node(outputs=["a", "b"], output="other")
-
-        # only valid for multiple-output nodes
-        with pytest.raises(TypeError, match="Invalid output"):
-            n = Node(output="other")
-
-
-def TestNodeEval(self):
-    def test_extract_output(self):
-        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
-
-        class MyNode1(Node):
-            @node_eval
-            def eval(self, coordinates, output=None):
-                return self.create_output_array(coordinates)
-
-        # don't extract when no output field is requested
-        n = MyNode1()
-        out = n.eval(coords)
-        assert out.shape == (4, 2, 3)
-
-        # do extract when an output field is requested
-        n = MyNode1(output="b")
-        out = n.eval(coords)
-        assert out.shape == (4, 2)
-
-        # should still work if the node has already extracted it
-        class MyNode2(Node):
-            @node_eval
-            def eval(self, coordinates, output=None):
-                out = self.create_output_array(coordinates)
-                return out.sel(output=self.output)
-
-        n = MyNode2(output="b")
-        out = n.eval(coords)
-        assert out.shape == (4, 2)
+    def test_find_coordinates_not_implemented(self):
+        node = Node()
+        with pytest.raises(NotImplementedError):
+            node.find_coordinates()
 
 
 class TestCreateOutputArray(object):
@@ -182,6 +263,41 @@ class TestCreateOutputArray(object):
 
         output = node.create_output_array(c)
         assert output.crs == crs
+
+
+class TestNodeEval(object):
+    def test_extract_output(self):
+        coords = podpac.Coordinates([[0, 1, 2, 3], [0, 1]], dims=["lat", "lon"])
+
+        class MyNode1(Node):
+            outputs = ["a", "b", "c"]
+
+            @node_eval
+            def eval(self, coordinates, output=None):
+                return self.create_output_array(coordinates)
+
+        # don't extract when no output field is requested
+        node = MyNode1()
+        out = node.eval(coords)
+        assert out.shape == (4, 2, 3)
+
+        # do extract when an output field is requested
+        node = MyNode1(output="b")
+        out = node.eval(coords)
+        assert out.shape == (4, 2)
+
+        # should still work if the node has already extracted it
+        class MyNode2(Node):
+            outputs = ["a", "b", "c"]
+
+            @node_eval
+            def eval(self, coordinates, output=None):
+                out = self.create_output_array(coordinates)
+                return out.sel(output=self.output)
+
+        node = MyNode2(output="b")
+        out = node.eval(coords)
+        assert out.shape == (4, 2)
 
 
 class TestCaching(object):
@@ -256,9 +372,10 @@ class TestCaching(object):
         assert self.node.get_cache("test") == 0
 
         with pytest.raises(NodeException):
-            self.node.put_cache(1, "test")
+            self.node.put_cache(1, "test", overwrite=False)
+        assert self.node.get_cache("test") == 0
 
-        self.node.put_cache(1, "test", overwrite=True)
+        self.node.put_cache(1, "test")
         assert self.node.get_cache("test") == 1
 
     def test_rem_all(self):
@@ -328,249 +445,183 @@ class TestCaching(object):
         assert self.node.has_cache("c", coordinates=self.coords2)
         assert self.node.has_cache("d", coordinates=self.coords)
 
-    def test_cache_property_decorator(self):
-        class Test(podpac.Node):
-            a = tl.Int(1).tag(attr=True)
-            b = tl.Int(1).tag(attr=True)
-            c = tl.Int(1)
-            d = tl.Int(1)
+    # node definition errors
+    # this demonstrates both classes of error in the has_cache case, but only one for put/get/rem
+    # we could test both classes for put/get/rem as well, but that is not really necessary
+    def test_has_cache_unavailable_circular(self):
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
 
-            @podpac.core.node.cache_func("a2", "a")
-            def a2(self):
-                """a2 docstring"""
-                return self.a * 2
+            @tl.default("a")
+            def _default_a(self):
+                return self.b
 
-            @podpac.core.node.cache_func("b2")
-            def b2(self):
-                """ b2 docstring """
-                return self.b * 2
+            @property
+            def b(self):
+                self.has_cache("b")
+                return 10
 
-            @podpac.core.node.cache_func("c2", "c")
-            def c2(self):
-                """ c2 docstring """
-                return self.c * 2
+        node = MyNode(cache_ctrl=["ram"])
+        with pytest.raises(NodeException, match="Cache unavailable, node definition has a circular dependency"):
+            assert node.b == 10
 
-            @podpac.core.node.cache_func("d2")
-            def d2(self):
-                """ d2 docstring """
-                return self.d * 2
+    def test_has_cache_unavailable_uninitialized(self):
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
 
-        t = Test(cache_ctrl=CacheCtrl([RamCacheStore()]))
-        t2 = Test(cache_ctrl=CacheCtrl([RamCacheStore()]))
-        t.rem_cache(key="*", coordinates="*")
-        t2.rem_cache(key="*", coordinates="*")
+            @tl.validate("a")
+            def _validate_a(self, d):
+                self.b
+                return d["value"]
 
-        try:
-            t.get_cache("a2")
-            raise Exception("Cache should be cleared.")
-        except podpac.NodeException:
-            pass
+            @property
+            def b(self):
+                self.has_cache("key")
+                return 10
 
-        assert t.a2() == 2
-        assert t.b2() == 2
-        assert t.c2() == 2
-        assert t.d2() == 2
-        assert t2.a2() == 2
-        assert t2.b2() == 2
-        assert t2.c2() == 2
-        assert t2.d2() == 2
+        with pytest.raises(NodeException, match="Cache unavailable, node is not yet fully initialized"):
+            node = MyNode(a=3, cache_ctrl=["ram"])
 
-        t.set_trait("a", 2)
-        assert t.a2() == 4
-        t.set_trait("b", 2)
-        assert t.b2() == 4  # This happens because the node definition changed
-        t.rem_cache(key="*", coordinates="*")
-        assert t.c2() == 2  # This forces the cache to update based on the new node definition
-        assert t.d2() == 2  # This forces the cache to update based on the new node definition
-        t.c = 2
-        assert t.c2() == 4  # This happens because of depends
-        t.d = 2
-        assert t.d2() == 2  # No depends, and doesn't have a tag
+    def test_put_cache_unavailable_uninitialized(self):
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
 
-        # These should not change
-        assert t2.a2() == 2
-        assert t2.b2() == 2
-        assert t2.c2() == 2
-        assert t2.d2() == 2
+            @tl.validate("a")
+            def _validate_a(self, d):
+                self.b
+                return d["value"]
 
-        t2.set_trait("a", 2)
-        assert t2.get_cache("a2") == 4  # This was cached by t
-        t2.set_trait("b", 2)
-        assert t2.get_cache("c2") == 4  # This was cached by t
-        assert t2.get_cache("d2") == 2  # This was cached by t
+            @property
+            def b(self):
+                self.put_cache(10, "key")
+                return 10
 
-    def test_cache_func_decorator_with_no_cache(self):
-        class Test(podpac.Node):
-            a = tl.Int(1).tag(attr=True)
-            b = tl.Int(1).tag(attr=True)
-            c = tl.Int(1)
-            d = tl.Int(1)
+        with pytest.raises(NodeException, match="Cache unavailable"):
+            node = MyNode(a=3, cache_ctrl=["ram"])
 
-            @podpac.core.node.cache_func("a2", "a")
-            def a2(self):
-                """a2 docstring"""
-                return self.a * 2
+    def test_get_cache_unavailable_uninitialized(self):
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
 
-            @podpac.core.node.cache_func("b2")
-            def b2(self):
-                """ b2 docstring """
-                return self.b * 2
+            @tl.validate("a")
+            def _validate_a(self, d):
+                self.b
+                return d["value"]
 
-            @podpac.core.node.cache_func("c2", "c")
-            def c2(self):
-                """ c2 docstring """
-                return self.c * 2
+            @property
+            def b(self):
+                self.get_cache("key")
+                return 10
 
-            @podpac.core.node.cache_func("d2")
-            def d2(self):
-                """ d2 docstring """
-                return self.d * 2
+        with pytest.raises(NodeException, match="Cache unavailable"):
+            node = MyNode(a=3, cache_ctrl=["ram"])
 
-        t = Test(cache_ctrl=None)
-        t2 = Test(cache_ctrl=None)
-        t.rem_cache(key="*", coordinates="*")
-        t2.rem_cache(key="*", coordinates="*")
+    def test_rem_cache_unavailable_uninitialized(self):
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
 
-        try:
-            t.get_cache("a2")
-            raise Exception("Cache should be cleared.")
-        except podpac.NodeException:
-            pass
+            @tl.validate("a")
+            def _validate_a(self, d):
+                self.b
+                return d["value"]
 
-        assert t.a2() == 2
-        assert t.b2() == 2
-        assert t.c2() == 2
-        assert t.d2() == 2
-        assert t2.a2() == 2
-        assert t2.b2() == 2
-        assert t2.c2() == 2
-        assert t2.d2() == 2
+            @property
+            def b(self):
+                self.rem_cache("key")
+                return 10
 
-        t.set_trait("a", 2)
-        assert t.a2() == 4
-        t.set_trait("b", 2)
-        assert t.b2() == 4  # This happens because the node definition changed
-        t.rem_cache(key="*", coordinates="*")
-        assert t.c2() == 2  # This forces the cache to update based on the new node definition
-        assert t.d2() == 2  # This forces the cache to update based on the new node definition
-        t.c = 2
-        assert t.c2() == 4  # This happens because of depends
-        t.d = 2
-        assert t.d2() == 4  # No caching here, so it SHOULD update
-
-        # These should not change
-        assert t2.a2() == 2
-        assert t2.b2() == 2
-        assert t2.c2() == 2
-        assert t2.d2() == 2
+        with pytest.raises(NodeException, match="Cache unavailable"):
+            node = MyNode(a=3, cache_ctrl=["ram"])
 
 
 class TestSerialization(object):
     @classmethod
     def setup_class(cls):
         a = podpac.algorithm.Arange()
-        b = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
-        c = podpac.compositor.OrderedCompositor(sources=np.array([a, b]))
+        b = podpac.data.Array(source=[10, 20, 30], coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
+        c = podpac.compositor.OrderedCompositor(sources=[a, b])
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", "Insecure evaluation.*")
             cls.node = podpac.algorithm.Arithmetic(A=a, B=b, C=c, eqn="A + B + C")
 
-        cls.node_file_path = "node.json"
-        if os.path.exists(cls.node_file_path):
-            os.remove(cls.node_file_path)
-
-    @classmethod
-    def teardown_class(cls):
-        if os.path.exists(cls.node_file_path):
-            os.remove(cls.node_file_path)
-
     def test_base_ref(self):
-        n = Node()
-        assert isinstance(n.base_ref, str)
+        node = Node()
+        assert isinstance(node.base_ref, six.string_types)
 
     def test_base_definition(self):
-        class N(Node):
+        node = Node()
+        d = node._base_definition
+        assert "node" in d
+        assert isinstance(d["node"], six.string_types)
+
+    def test_base_definition_attrs(self):
+        class MyNode(Node):
             my_attr = tl.Int().tag(attr=True)
-            my_node_attr = tl.Instance(Node).tag(attr=True)
+
+        node = MyNode(my_attr=7)
+
+        d = node._base_definition
+        assert d["attrs"]["my_attr"] == 7
+
+    def test_base_definition_inputs(self):
+        class MyNode(Node):
+            my_attr = NodeTrait().tag(attr=True)
 
         a = Node()
-        node = N(my_attr=7, my_node_attr=a)
+        node = MyNode(my_attr=a)
 
-        d = node.base_definition
-        assert isinstance(d, OrderedDict)
-        assert "node" in d
-        assert isinstance(d["node"], str)
-        assert "attrs" in d
-        assert isinstance(d["attrs"], OrderedDict)
-        assert "my_attr" in d["attrs"]
-        assert d["attrs"]["my_attr"] == 7
-        assert isinstance(d["lookup_attrs"], OrderedDict)
-        assert "my_node_attr" in d["lookup_attrs"]
-        assert d["lookup_attrs"]["my_node_attr"] is a
+        d = node._base_definition
+        assert d["inputs"]["my_attr"] == a
 
-    def test_base_definition_multiple_outputs(self):
-        n = Node()
-        d = n.base_definition
+    def test_base_definition_inputs_array(self):
+        class MyNode(Node):
+            my_attr = ArrayTrait().tag(attr=True)
+
+        a = Node()
+        b = Node()
+        node = MyNode(my_attr=[a, b])
+
+        d = node._base_definition
+        assert d["inputs"]["my_attr"][0] == a
+        assert d["inputs"]["my_attr"][1] == b
+
+    def test_base_definition_inputs_dict(self):
+        class MyNode(Node):
+            my_attr = tl.Dict().tag(attr=True)
+
+        a = Node()
+        b = Node()
+        node = MyNode(my_attr={"a": a, "b": b})
+
+        d = node._base_definition
+        assert d["inputs"]["my_attr"]["a"] == a
+        assert d["inputs"]["my_attr"]["b"] == b
+
+    def test_base_definition_style(self):
+        node = Node(style=Style(name="test"))
+        d = node._base_definition
+        assert "style" in node._base_definition
+
+    def test_base_definition_remove_unnecessary_attrs(self):
+        node = Node(outputs=["a", "b"], output="a", units="m")
+        d = node._base_definition
+        assert "outputs" in d["attrs"]
+        assert "output" in d["attrs"]
+        assert "units" in d["attrs"]
+
+        node = Node()
+        d = node._base_definition
         if "attrs" in d:
             assert "outputs" not in d["attrs"]
             assert "output" not in d["attrs"]
-
-        n = Node(outputs=["a", "b"])
-        d = n.base_definition
-        assert "attrs" in d
-        assert "outputs" in d["attrs"]
-        assert "output" not in d["attrs"]
-
-        n = Node(outputs=["a", "b"], output="b")
-        d = n.base_definition
-        assert "attrs" in d
-        assert "outputs" in d["attrs"]
-        assert "output" in d["attrs"]
-
-    def test_base_definition_units(self):
-        n = Node(units="meters")
-
-        d = n.base_definition
-        assert "attrs" in d
-        assert isinstance(d["attrs"], OrderedDict)
-        assert "units" in d["attrs"]
-        assert d["attrs"]["units"] == "meters"
-
-        n = Node()
-        d = n.base_definition
-        assert "units" not in d
-
-    def test_base_definition_array_attr(self):
-        class N(Node):
-            my_attr = ArrayTrait().tag(attr=True)
-
-        node = N(my_attr=np.ones((2, 3, 4)))
-        d = node.base_definition
-        my_attr = np.array(d["attrs"]["my_attr"])
-        np.testing.assert_array_equal(my_attr, node.my_attr)
-
-    def test_base_definition_coordinates_attr(self):
-        class N(Node):
-            my_attr = tl.Instance(podpac.Coordinates).tag(attr=True)
-
-        node = N(my_attr=podpac.Coordinates([[0, 1], [1, 2, 3]], dims=["lat", "lon"]))
-        d = node.base_definition
-        assert d["attrs"]["my_attr"] == node.my_attr
-
-    def test_base_definition_unserializable(self):
-        class N(Node):
-            my_attr = tl.Instance(xr.DataArray).tag(attr=True)
-
-        node = N(my_attr=xr.DataArray([0, 1]))
-        with pytest.raises(NodeException, match="Cannot serialize attr 'my_attr'"):
-            node.base_definition
+            assert "units" not in d["attrs"]
 
     def test_definition(self):
         # definition
         d = self.node.definition
         assert isinstance(d, OrderedDict)
-        assert len(d) == 4
+        assert len(d) == 5
 
         # from_definition
         with warnings.catch_warnings():
@@ -578,7 +629,7 @@ class TestSerialization(object):
             node = Node.from_definition(d)
 
         assert node is not self.node
-        assert node.hash == self.node.hash
+        assert node == self.node
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
@@ -588,49 +639,40 @@ class TestSerialization(object):
         n1 = Node(units="m")
         n2 = Node(units="ft")
         n3 = Node(units="in")
-        n = podpac.compositor.OrderedCompositor(sources=[n1, n2, n3])
-        d = n.definition
+        node = podpac.compositor.OrderedCompositor(sources=[n1, n2, n3])
+        d = node.definition
         assert n1.base_ref == n2.base_ref == n3.base_ref
-        assert len(d) == 4
+        assert len(d) == 5
 
-    def test_definition_lookup_attrs(self):
-        global MyNodeWithNodeAttr
+    def test_definition_inputs_array(self):
+        global MyNodeWithArrayInput
 
-        class MyNodeWithNodeAttr(Node):
-            my_node_attr = tl.Instance(Node).tag(attr=True)
+        class MyNodeWithArrayInput(Node):
+            my_array = ArrayTrait().tag(attr=True)
 
-        node = MyNodeWithNodeAttr(my_node_attr=podpac.algorithm.Arange())
-        d = node.definition
-        assert isinstance(d, OrderedDict)
-        assert len(d) == 2
+        node1 = MyNodeWithArrayInput(my_array=[podpac.algorithm.Arange()])
+        node2 = Node.from_definition(node1.definition)
+        assert node2 is not node1 and node2 == node1
 
-        node2 = Node.from_definition(d)
-        assert node2 is not node
-        assert node2.hash == node.hash
-        assert isinstance(node2, MyNodeWithNodeAttr)
-        assert isinstance(node2.my_node_attr, podpac.algorithm.Arange)
+    def test_definition_inputs_dict(self):
+        global MyNodeWithDictInput
 
-    def test_definition_lookup_source(self):
-        global MyNodeWithNodeSource
+        class MyNodeWithDictInput(Node):
+            my_dict = tl.Dict().tag(attr=True)
 
-        class MyNodeWithNodeSource(podpac.data.DataSource):
-            source = tl.Instance(Node)
+        node1 = MyNodeWithDictInput(my_dict={"a": podpac.algorithm.Arange()})
+        node2 = Node.from_definition(node1.definition)
+        assert node2 is not node1 and node2 == node1
 
-        node = MyNodeWithNodeSource(source=podpac.algorithm.Arange())
-        d = node.definition
-        assert isinstance(d, OrderedDict)
-        assert len(d) == 2
-
-        node2 = Node.from_definition(d)
-        assert node2 is not node
-        assert node2.hash == node.hash
-        assert isinstance(node2, MyNodeWithNodeSource)
-        assert isinstance(node2.source, podpac.algorithm.Arange)
+    def test_definition_version(self):
+        d = self.node.definition
+        assert "podpac_version" in d
+        assert d["podpac_version"] == podpac.__version__
 
     def test_json(self):
         # json
         s = self.node.json
-        assert isinstance(s, str)
+        assert isinstance(s, six.string_types)
         assert json.loads(s)
 
         # test from_json
@@ -638,33 +680,35 @@ class TestSerialization(object):
             warnings.filterwarnings("ignore", "Insecure evaluation.*")
             node = Node.from_json(s)
         assert node is not self.node
-        assert node.hash == self.node.hash
+        assert node == self.node
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
         assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
 
     def test_file(self):
-        # save
-        self.node.save(self.node_file_path)
+        path = tempfile.mkdtemp(prefix="podpac-test-")
+        filename = os.path.join(path, "node.json")
 
-        assert os.path.exists(self.node_file_path)
+        # save
+        self.node.save(filename)
+        assert os.path.exists(filename)
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", "Insecure evaluation.*")
-            node = Node.load(self.node_file_path)
+            node = Node.load(filename)
 
         assert node is not self.node
-        assert node.hash == self.node.hash
+        assert node == self.node
         assert isinstance(node, podpac.algorithm.Arithmetic)
         assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
         assert isinstance(node.inputs["B"], podpac.data.Array)
         assert isinstance(node.inputs["C"], podpac.compositor.OrderedCompositor)
 
     def test_json_pretty(self):
-        n = Node()
-        s = n.json_pretty
-        assert isinstance(s, str)
+        node = Node()
+        s = node.json_pretty
+        assert isinstance(s, six.string_types)
         json.loads(s)
 
     def test_hash(self):
@@ -682,6 +726,88 @@ class TestSerialization(object):
         assert n1.hash == n2.hash
         assert n1.hash != n3.hash
         assert n1.hash != m1.hash
+
+    def test_hash_preserves_definition(self):
+        n = Node()
+        d_before = deepcopy(n.definition)
+        h = n.hash
+        d_after = deepcopy(n.definition)
+
+        assert d_before == d_after
+
+    def test_hash_omit_style(self):
+        class N(Node):
+            my_attr = tl.Int().tag(attr=True)
+
+        n1 = N(my_attr=1, style=Style(name="a"))
+        n2 = N(my_attr=1, style=Style(name="b"))
+
+        # json has style in it
+        assert n1.json != n2.json
+
+        # but hash does not
+        assert n1.hash == n2.hash
+
+    def test_hash_omit_version(self):
+        version = podpac.__version__
+
+        try:
+            # actual version
+            n1 = Node()
+            s1 = n1.json
+            h1 = n1.hash
+
+            # spoof different version
+            podpac.__version__ = "other"
+            n2 = Node()
+            s2 = n2.json
+            h2 = n2.hash
+
+            # JSON should be different, but hash should be the same
+            assert s1 != s2
+            assert h1 == h2
+
+        finally:
+            # reset version
+            podpac.__version__ = version
+
+    def test_eq(self):
+        class N(Node):
+            my_attr = tl.Int().tag(attr=True)
+
+        class M(Node):
+            my_attr = tl.Int().tag(attr=True)
+
+        n1 = N(my_attr=1)
+        n2 = N(my_attr=1)
+        n3 = N(my_attr=2)
+        m1 = M(my_attr=1)
+
+        # eq
+        assert n1 == n2
+        assert not n1 == n3
+        assert not n1 == m1
+        assert not n1 == "other"
+
+        # ne
+        assert not n1 != n2
+        assert n1 != n3
+        assert n1 != m1
+        assert n1 != "other"
+
+    def test_eq_ignore_style(self):
+        class N(Node):
+            my_attr = tl.Int().tag(attr=True)
+
+        n1 = N(my_attr=1, style=Style(name="a"))
+        n2 = N(my_attr=1, style=Style(name="b"))
+
+        # json has style in it
+        assert n1.json != n2.json
+
+        # but == and != don't care
+        assert n1 == n2
+        assert not n1 != n2
 
     def test_from_url(self):
         url = (
@@ -704,16 +830,10 @@ class TestSerialization(object):
             ):
                 pipe = Node.from_url(url.format(service=service, layername=layername, layer=layer, params=param))
 
-    def test_pipeline(self):
-        n = Node()
-        with pytest.warns(DeprecationWarning):
-            p = n.pipeline
-        assert isinstance(p, podpac.pipeline.Pipeline)
-
     def test_style(self):
         node = podpac.data.Array(
             source=[10, 20, 30],
-            native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]),
+            coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]),
             style=Style(name="test", units="m"),
         )
 
@@ -729,9 +849,23 @@ class TestSerialization(object):
         assert node2.style.units == "m"
 
         # default style
-        node = podpac.data.Array(source=[10, 20, 30], native_coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
+        node = podpac.data.Array(source=[10, 20, 30], coordinates=podpac.Coordinates([[0, 1, 2]], dims=["lat"]))
         d = node.definition
         assert "style" not in d[node.base_ref]
+
+    def test_circular_definition(self):
+        # this is admittedly a contrived example in order to demonstrate the most direct case
+        class MyNode(Node):
+            a = tl.Any().tag(attr=True)
+
+            @tl.default("a")
+            def _default_a(self):
+                self.definition
+                return 10
+
+        node = MyNode()
+        with pytest.raises(NodeDefinitionError, match="node definition has a circular dependency"):
+            node.a
 
 
 class TestUserDefinition(object):
@@ -756,476 +890,34 @@ class TestUserDefinition(object):
         with pytest.raises(ValueError, match="class 'Nonexistent' not found in module"):
             Node.from_json(s)
 
-    def test_datasource_source(self):
-        # basic
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.DataSource)
-        assert node.source == "my_data_string"
-
-        # not required
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.DataSource)
-
-        # incorrect
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource",
-                "attrs": {
-                    "source": "my_data_string"
-                }
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="DataSource 'attrs' cannot have a 'source' property"):
-            node = Node.from_json(s)
-
-    def test_datasource_lookup_source(self):
-        # sub-node
+    def test_inputs(self):
+        # invalid type
         s = """
         {
             "a": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "b": {
-                "node": "data.DataSource",
-                "lookup_source": "a.source"
+                "node": "algorithm.Min",
+                "inputs": { "source": 10 }
             }
         }
         """
 
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.DataSource)
-        assert node.source == "my_data_string"
+        with pytest.raises(ValueError, match="Invalid definition for node"):
+            Node.from_json(s)
 
         # nonexistent node
         s = """
         {
             "a": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "b": {
-                "node": "data.DataSource",
-                "lookup_source": "nonexistent.source"
+                "node": "algorithm.Min",
+                "inputs": { "source": "nonexistent" }
             }
         }
         """
 
-        with pytest.raises(ValueError, match="reference to nonexistent node/attribute"):
+        with pytest.raises(ValueError, match="Invalid definition for node"):
             Node.from_json(s)
-
-        # nonexistent subattr
-        s = """
-        {
-            "a": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "b": {
-                "node": "data.DataSource",
-                "lookup_source": "a.nonexistent"
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="reference to nonexistent node/attribute"):
-            Node.from_json(s)
-
-        # nonexistent subsubattr
-        s = """
-        {
-            "a": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "b": {
-                "node": "data.DataSource",
-                "lookup_source": "a.source.nonexistent"
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="reference to nonexistent node/attribute"):
-            Node.from_json(s)
-
-        # in attrs (incorrect)
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource",
-                "attrs": {
-                    "lookup_source": "my_data_string"
-                }
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="DataSource 'attrs' cannot have a 'lookup_source' property"):
-            Node.from_json(s)
-
-    def test_reprojected_source_lookup_source(self):
-        # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
-
-        # lookup_source
-        s = """
-        {
-            "mysource": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "reprojected": {
-                "node": "data.ReprojectedSource",
-                "lookup_source": "mysource"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.ReprojectedSource)
-        assert isinstance(node.source, podpac.data.DataSource)
-        assert node.source.source == "my_data_string"
-
-        # lookup_source subattr
-        s = """
-        {
-            "mysource": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "mean": {
-                "node": "algorithm.Mean",
-                "inputs": {"source": "mysource"}
-            },
-            "reprojected": {
-                "node": "data.ReprojectedSource",
-                "lookup_source": "mean.source"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.ReprojectedSource)
-        assert isinstance(node.source, podpac.data.DataSource)
-        assert node.source.source == "my_data_string"
-
-        # 'source' should fail
-        s = """
-        {
-            "mysource": {
-                "node": "data.DataSource",
-                "source": "my_data_string"
-            },
-            "reprojected": {
-                "node": "data.ReprojectedSource",
-                "source": "mysource"
-            }
-        }
-        """
-
-        with pytest.raises(tl.TraitError):
-            Node.from_json(s)
-
-    def test_array_source(self):
-        s = """
-        {
-            "mysource": {
-                "node": "data.Array",
-                "source": [0, 1, 2]
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.Array)
-        np.testing.assert_array_equal(node.source, [0, 1, 2])
-
-    def test_array_lookup_source(self):
-        s = """
-        {
-            "a": {
-                "node": "data.Array",
-                "source": [0, 1, 2]
-            },
-            "b": {
-                "node": "data.Array",
-                "lookup_source": "a.source"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.Array)
-        np.testing.assert_array_equal(node.source, [0, 1, 2])
-
-        # 'source' should fail
-        s = """
-        {
-            "a": {
-                "node": "data.Array",
-                "source": [0, 1, 2]
-            },
-            "b": {
-                "node": "data.Array",
-                "source": "a.source"
-            }
-        }
-        """
-
-        with pytest.raises(ValueError):
-            Node.from_json(s)
-
-    def test_algorithm_inputs(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", "Insecure evaluation.*")
-            # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
-
-            # basic
-            s = """
-            {
-                "source1": {"node": "algorithm.Arange"},
-                "source2": {"node": "algorithm.CoordData"},
-                "result": {        
-                    "node": "algorithm.Arithmetic",
-                    "inputs": {
-                        "A": "source1",
-                        "B": "source2"
-                    },
-                    "attrs": {
-                        "eqn": "A + B"
-                    }
-                }
-            }
-            """
-
-            node = Node.from_json(s)
-            assert isinstance(node, podpac.algorithm.Arithmetic)
-            assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
-            assert isinstance(node.inputs["B"], podpac.algorithm.CoordData)
-
-            # sub-node
-            s = """
-            {
-                "mysource": {"node": "algorithm.Arange"},
-                "mean": {        
-                    "node": "algorithm.Mean",
-                    "inputs": { "source": "mysource" }
-                },
-                "double": {
-                    "node": "algorithm.Arithmetic",
-                    "inputs": { "A": "mean.source" },
-                    "attrs": { "eqn": "2 * A" }
-                }
-            }
-            """
-
-            node = Node.from_json(s)
-            assert isinstance(node, podpac.algorithm.Arithmetic)
-            assert isinstance(node.inputs["A"], podpac.algorithm.Arange)
-
-            # in attrs (incorrect)
-            s = """
-            {
-                "source1": {"node": "algorithm.Arange"},
-                "source2": {"node": "algorithm.CoordData"},
-                "result": {        
-                    "node": "algorithm.Arithmetic",
-                    "attrs": {
-                        "inputs": {
-                            "A": "source1",
-                            "B": "source2"
-                        },
-                        "eqn": "A + B"
-                    }
-                }
-            }
-            """
-
-            with pytest.raises(ValueError, match="Algorithm 'attrs' cannot have an 'inputs' property"):
-                Node.from_json(s)
-
-    def test_compositor_sources(self):
-        # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
-
-        # basic
-        s = """
-        {
-            "a": {"node": "algorithm.Arange"},
-            "b": {"node": "algorithm.CoordData"},
-            "c": {
-                "node": "compositor.OrderedCompositor",
-                "sources": ["a", "b"]
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.compositor.OrderedCompositor)
-        assert isinstance(node.sources[0], podpac.algorithm.Arange)
-        assert isinstance(node.sources[1], podpac.algorithm.CoordData)
-
-        # sub-node
-        s = """
-        {
-            "source1": {"node": "algorithm.Arange"},
-            "mean1": {
-                "node": "algorithm.Mean",
-                "inputs": {"source": "source1"}
-            },
-            "c": {
-                "node": "compositor.OrderedCompositor",
-                "sources": ["mean1.source", "source1"]
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.compositor.OrderedCompositor)
-        assert isinstance(node.sources[0], podpac.algorithm.Arange)
-        assert isinstance(node.sources[1], podpac.algorithm.Arange)
-
-    def test_datasource_interpolation(self):
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource",
-                "source": "my_data_string",
-                "interpolation": "nearest"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.DataSource)
-        assert node.interpolation == "nearest"
-
-        # not required
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.data.DataSource)
-
-        # incorrect
-        s = """
-        {
-            "mydata": {
-                "node": "data.DataSource",
-                "attrs": {
-                    "interpolation": "nearest"
-                }
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="DataSource 'attrs' cannot have an 'interpolation' property"):
-            Node.from_json(s)
-
-    def test_compositor_interpolation(self):
-        s = """
-        {
-            "a": {
-                "node": "algorithm.Arange"
-            },
-            "b": {
-                "node": "algorithm.Arange"
-            },
-            "c": {
-                "node": "compositor.OrderedCompositor",
-                "sources": ["a", "b"],
-                "interpolation": "nearest"
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.compositor.OrderedCompositor)
-        assert node.interpolation == "nearest"
-
-        # not required
-        s = """
-        {
-            "a": {
-                "node": "algorithm.Arange"
-            },
-            "b": {
-                "node": "algorithm.Arange"
-            },
-            "c": {
-                "node": "compositor.OrderedCompositor",
-                "sources": ["a", "b"]
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.compositor.OrderedCompositor)
-
-        # incorrect
-        s = """
-        {
-            "a": {
-                "node": "algorithm.Arange"
-            },
-            "b": {
-                "node": "algorithm.Arange"
-            },
-            "c": {
-                "node": "compositor.OrderedCompositor",
-                "sources": ["a", "b"],
-                "attrs": {
-                    "interpolation": "nearest"
-                }
-            }
-        }
-        """
-
-        with pytest.raises(ValueError, match="Compositor 'attrs' cannot have an 'interpolation' property"):
-            Node.from_json(s)
-
-    def test_attrs(self):
-        s = """
-        {
-            "sm": {
-                "node": "datalib.smap.SMAP",
-                "attrs": {
-                    "product": "SPL4SMGP"
-                }
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, podpac.datalib.smap.SMAP)
-        assert node.product == "SPL4SMGP"
 
     def test_lookup_attrs(self):
-        # NOTE: nonexistent node/attribute references are tested in test_datasource_lookup_source
-
         s = """
         {
             "a": {
@@ -1243,32 +935,7 @@ class TestUserDefinition(object):
         assert isinstance(node, podpac.algorithm.CoordData)
         assert node.coord_name == "lat"
 
-        # lookup node directly (instead of a sub-attr)
-        global MyNodeWithNodeAttr
-
-        class MyNodeWithNodeAttr(Node):
-            my_node_attr = tl.Instance(Node).tag(attr=True)
-
-        s = """
-        {
-            "mysource": {
-                "node": "data.DataSource"
-            },
-            "mynode": {
-                "plugin": "test_node",
-                "node": "MyNodeWithNodeAttr",
-                "lookup_attrs": {
-                    "my_node_attr": "mysource"
-                }
-            }
-        }
-        """
-
-        node = Node.from_json(s)
-        assert isinstance(node, MyNodeWithNodeAttr)
-        assert isinstance(node.my_node_attr, podpac.data.DataSource)
-
-        # attrs should not work
+        # invalid type
         s = """
         {
             "a": {
@@ -1277,13 +944,47 @@ class TestUserDefinition(object):
             },
             "b": {
                 "node": "algorithm.CoordData",
-                "attrs": { "coord_name": "a.coord_name" }
+                "lookup_attrs": { "coord_name": 10 }
             }
         }
         """
 
-        node = Node.from_json(s)
-        assert node.coord_name == "a.coord_name"  # this will fail at evaluation
+        with pytest.raises(ValueError, match="Invalid definition for node"):
+            Node.from_json(s)
+
+        # nonexistent node
+        s = """
+        {
+            "a": {
+                "node": "algorithm.CoordData",
+                "attrs": { "coord_name": "lat" }
+            },
+            "b": {
+                "node": "algorithm.CoordData",
+                "lookup_attrs": { "coord_name": "nonexistent.coord_name" }
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="Invalid definition for node"):
+            Node.from_json(s)
+
+        # nonexistent subattr
+        s = """
+        {
+            "a": {
+                "node": "algorithm.CoordData",
+                "attrs": { "coord_name": "lat" }
+            },
+            "b": {
+                "node": "algorithm.CoordData",
+                "lookup_attrs": { "coord_name": "a.nonexistent" }
+            }
+        }
+        """
+
+        with pytest.raises(ValueError, match="Invalid definition for node"):
+            Node.from_json(s)
 
     def test_invalid_property(self):
         s = """
@@ -1337,18 +1038,18 @@ class TestUserDefinition(object):
             },
             "mean": {
                 "node": "algorithm.SpatialConvolution",
-                "inputs": {"source": "a"},
+                "lookup_attrs": {"source": "a"},
                 "attrs": {"kernel_type": "mean,3"}
             },
             "c": {
                 "node": "algorithm.Arithmetic",
-                "inputs": {"A": "a", "B": "mean"},
+                "lookup_attrs": {"A": "a", "B": "mean"},
                 "attrs": {"eqn": "a-b"}
             }
         }
         """
 
-        with warnings.catch_warnings():
+        with warnings.catch_warnings(), podpac.settings:
             warnings.filterwarnings("ignore", "Insecure evaluation.*")
 
             # normally node objects can and should be re-used
@@ -1360,6 +1061,56 @@ class TestUserDefinition(object):
             podpac.settings["DEBUG"] = True
             node = Node.from_json(s)
             assert node.inputs["A"] is not node.inputs["B"].source
+
+    def test_from_definition_version_warning(self):
+        s = """
+        {
+            "a": {
+                "node": "algorithm.Arange"
+            },
+            "podpac_version": "other"
+        }
+        """
+
+        with pytest.warns(UserWarning, match="node definition version mismatch"):
+            node = Node.from_json(s)
+
+
+class TestNoCacheMixin(object):
+    class NoCacheNode(NoCacheMixin, Node):
+        pass
+
+    def test_default_no_cache(self):
+        with podpac.settings:
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+            node = self.NoCacheNode()
+            assert len(node.cache_ctrl._cache_stores) == 0
+
+    def test_customizable(self):
+        podpac.settings["DEFAULT_CACHE"] = ["ram"]
+        node = self.NoCacheNode(cache_ctrl=["ram"])
+        assert len(node.cache_ctrl._cache_stores) == 1
+
+
+class TestDiskCacheMixin(object):
+    class DiskCacheNode(DiskCacheMixin, Node):
+        pass
+
+    def test_default_disk_cache(self):
+        with podpac.settings:
+            # add disk cache
+            podpac.settings["DEFAULT_CACHE"] = ["ram"]
+            node = self.DiskCacheNode()
+            assert len(node.cache_ctrl._cache_stores) == 2
+
+            # don't add if it is already there
+            podpac.settings["DEFAULT_CACHE"] = ["ram", "disk"]
+            node = self.DiskCacheNode()
+            assert len(node.cache_ctrl._cache_stores) == 2
+
+    def test_customizable(self):
+        node = self.DiskCacheNode(cache_ctrl=["ram"])
+        assert len(node.cache_ctrl._cache_stores) == 1
 
 
 # TODO: remove this - this is currently a placeholder test until we actually have integration tests (pytest will exit with code 5 if no tests found)

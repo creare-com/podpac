@@ -1,36 +1,28 @@
 #!/bin/sh
 #
 # Upload podpac lambda distribution and dependencies
-# 
-# Currently, this uploads the zip archives and updates
-# the specific lambda function
+# Change $BUCKET or $DIR to control the S3 Bucket and Bucket path
+# where zip archives are uploaded.
 # 
 # Usage:
 # 
-# $ bash upload_lambda.sh [s3-bucket]
+# $ bash upload_lambda.sh
 # 
 # Requires:
 # - AWS CLI: https://docs.aws.amazon.com/cli/
 # - AWS credentials must be configured using the `aws` cli.
 #   See https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html#cli-quick-configuration
-#
-# Example usage:
-# 
-# $ bash upload_lambda.sh
 
-BUCKET=podpac-dist
-TAG="$(git describe --always)"
 
-if [ ! -z "$1" ]
-  then
-    BUCKET=$1
-fi
+BUCKET="podpac-dist"
+DIR="dev"
+# DIR="1.3.0"  # for releases, upload to release path by semantic version
 
-echo "Uploading podpac distribution to bucket: ${BUCKET}"
+AWSPATH="s3://$BUCKET/$DIR"
+echo "Uploading podpac distribution to S3 path: ${AWSPATH}"
 
 # Upload zips to S3
-aws s3 cp podpac_deps.zip s3://$BUCKET/$TAG/podpac_deps.zip
-aws s3 cp podpac_dist.zip s3://$BUCKET/$TAG/podpac_dist.zip
-# rm podpac_deps.zip podpac_dist.zip
+aws s3 cp podpac_deps.zip $AWSPATH/podpac_deps.zip
+aws s3 cp podpac_dist.zip $AWSPATH/podpac_dist.zip
 
 echo "Navigate to your bucket $BUCKET, select the zip archives you just uploaded and make them public"

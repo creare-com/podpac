@@ -72,8 +72,8 @@ Note the order of the ``dims`` keyword must match the shape of our data.
     In [8]: coords
     Out[8]: coords
     Coordinates (EPSG:4326)
-            lat: ArrayCoordinates1d(lat): Bounds[40.0, 50.0], N[11], ctype['midpoint']
-            lon: ArrayCoordinates1d(lon): Bounds[-10.0, 10.0], N[21], ctype['midpoint']
+            lat: ArrayCoordinates1d(lat): Bounds[40.0, 50.0], N[11]
+            lon: ArrayCoordinates1d(lon): Bounds[-10.0, 10.0], N[21]
 
 Create a PODPAC ``Array`` Node from ``data`` and ``coords``.
 An ``Array`` Node is a sub-class of ``DataSource`` Node.
@@ -81,7 +81,7 @@ An ``Array`` Node is a sub-class of ``DataSource`` Node.
 .. code:: python
 
     # create node for data source
-    In [9]: node = podpac.data.Array(source=data, native_coordinates=coords)
+    In [9]: node = podpac.data.Array(source=data, coordinates=coords)
     In [10]: node
     Out[10]:
     Array DataSource
@@ -91,9 +91,9 @@ An ``Array`` Node is a sub-class of ``DataSource`` Node.
       0.11195743 0.58360194 0.15225759 0.99246553 0.31122967 0.80974094
       0.00474486 0.00650152 0.08999056]
         ...]]
-            native_coordinates:
-                    lat: ArrayCoordinates1d(lat): Bounds[40.0, 50.0], N[11], ctype['midpoint']
-                    lon: ArrayCoordinates1d(lon): Bounds[-10.0, 10.0], N[21], ctype['midpoint']
+            coordinates:
+                    lat: ArrayCoordinates1d(lat): Bounds[40.0, 50.0], N[11]
+                    lon: ArrayCoordinates1d(lon): Bounds[-10.0, 10.0], N[21]
             interpolation: nearest
 
 We've successfully created a ``DataSource`` Node that describes an 11 x 21 grid of data values with lat and lon ``Coordinates``.
@@ -140,7 +140,7 @@ configured.
     output = node.eval(coords) 
 
 
-`Notebooks <https://github.com/creare-com/podpac_examples/tree/master/notebooks>`__
+Notebooks
 ---------
 
 Interactive PODPAC examples are distributed as `example Jupyter
