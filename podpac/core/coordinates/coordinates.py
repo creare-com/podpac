@@ -1261,6 +1261,20 @@ class Coordinates(tl.HasTraits):
         else:
             return Coordinates(coords, validate_crs=False, **self.properties)
 
+    def transform_time(self, units):
+        if "time" not in self.dims:
+            raise ValueError("Time dimension is required to do a time transformation.")
+
+        time_coords = self["time"].coordinates
+        xr_time = xr.Dataset({"time": time_coords})
+        new_time = getattr(xr_time.time.dt, units).data
+
+        new_time_coord = ArrayCoordinates1d(coordinates=new_time, name="time").simplify()
+        coords = (self).drop("time")
+        # transpose will make a copy
+        coords = merge_dims([coords, Coordinates([new_time_coord])]).transpose(*self.dims, in_place=False)
+        return coords
+
     def transform(self, crs):
         """
         Transform coordinate dimensions (`lat`, `lon`, `alt`) into a different coordinate reference system.

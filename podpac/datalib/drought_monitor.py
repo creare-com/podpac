@@ -23,9 +23,6 @@ def sm_style():
 
 
 class DroughtMonitorCategory(Zarr):
-    cf_time = True
-    cf_units = "days since 2018-01-01 00:00:00"
-    cf_calendar = "proleptic_gregorian"
     style = sm_style()
 
 

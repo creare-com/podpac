@@ -19,6 +19,7 @@
 * `Coordinates` will now be automatically simplified when transformed from one `crs` to another. Previously, transformations always resulted in `DependentCoordinates`. This change adds the `.simply` method to some `Coordinates1d` classes.
 * Improved performance of PODPAC AWS Lambda function by only downloading dependencies when the function is not already "hot". "Hot" functions retain the files in the `/tmp` directory of the Lambda function.
 * `data.Zarr` will now use `zarr.open_consolidated` whenever the `file_mode='r'` for more efficient read operations on S3
+* Added podpac's version to pipeline definitions
 
 ### Bug Fixes
 * Fixed `algorithm.GroupReduce` to accept `dayofyear`, `weekofyear`, `season`, and `month`. It also now returns the time coordinate in one of these units. 
