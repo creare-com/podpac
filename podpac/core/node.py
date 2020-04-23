@@ -829,7 +829,7 @@ class Node(tl.HasTraits):
 
         d = None
         if layer.startswith("https://"):
-            s = _get_from_url(layer)
+            d = _get_from_url(layer).json()
         elif layer.startswith("s3://"):
             parts = layer.split("/")
             bucket = parts[2]
