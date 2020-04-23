@@ -1272,7 +1272,7 @@ class Coordinates(tl.HasTraits):
         new_time_coord = ArrayCoordinates1d(coordinates=new_time, name="time").simplify()
         coords = (self).drop("time")
         # transpose will make a copy
-        coords = merge_dims([coords, Coordinates([new_time_coord])]).transpose(*self.dims, in_place=False)
+        coords = merge_dims([coords, Coordinates([new_time_coord], crs=self.crs)]).transpose(*self.dims, in_place=False)
         return coords
 
     def transform(self, crs):
