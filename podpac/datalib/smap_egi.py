@@ -38,7 +38,7 @@ from podpac.datalib import EGI
 
 SMAP_PRODUCT_DICT = {
     #'shortname':    ['lat_key', 'lon_key', '_data_key', 'quality_flag', 'default_verison']
-    "SPL4SMAU": ["/x", "/y", "/Analysis_Data/sm_surface_analysis", None, 4],
+    "SPL4SMAU": ["/x", "/y", "/Analysis_Data/sm_surface_analysis", None, None],
     "SPL4SMGP": ["/x", "/y", "/Geophysical_Data/sm_surface", None, 4],
     "SPL4SMLM": ["/x", "/y", "/Land_Model_Constants_Data", None, 4],
     "SPL3SMAP": [
@@ -169,7 +169,7 @@ class SMAP(EGI):
         ------
         ValueError
         """
-        ds = h5py.File(filelike)
+        ds = h5py.File(filelike, "r")
 
         # handle data
         data = ds[self._data_key][()]
@@ -242,8 +242,8 @@ class SMAP(EGI):
         NotImplementedError
         """
         if all_data.shape[1:] == data.shape[1:]:
-            data.lat.data = all_data.lat.data
-            data.lon.data = all_data.lon.data
+            data.lat.data[:] = all_data.lat.data
+            data.lon.data[:] = all_data.lon.data
         else:
             # select only data with finite coordinates
             data = data.isel(lon=np.isfinite(data.lon), lat=np.isfinite(data.lat))
@@ -262,8 +262,8 @@ class SMAP(EGI):
             lon.data[Ilon] = data.lon[Ilon]
 
             # Assign to data
-            data.lon.data = lon.data
-            data.lat.data = lat.data
+            data.lon.data[:] = lon.data
+            data.lat.data[:] = lat.data
 
         return all_data.combine_first(data)
 

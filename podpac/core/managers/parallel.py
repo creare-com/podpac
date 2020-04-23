@@ -264,6 +264,7 @@ class ZarrOutputMixin(tl.HasTraits):
     zarr_chunks = tl.Dict(default_value=None, allow_none=True).tag(attr=True)
     zarr_shape = tl.Dict(allow_none=True, default_value=None).tag(attr=True)
     zarr_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
+    zarr_dtype = tl.Unicode("f4")
     skip_existing = tl.Bool(True).tag(attr=True)
     list_dir = tl.Bool(False)
     _list_dir = tl.List(allow_none=True, default_value=[])
@@ -333,7 +334,10 @@ class ZarrOutputMixin(tl.HasTraits):
             data_key = self.source.output
             if data_key is None:
                 data_key = self.source.data_key
-            data_key = [data_key]
+            if not isinstance(data_key, list):
+                data_key = [data_key]
+            elif self.source.outputs:  # If someone restricted the outputs for this node, we need to know
+                data_key = [dk for dk in data_key if dk in self.source.outputs]
         elif self.source.outputs:
             data_key = self.source.outputs
         else:
@@ -345,7 +349,12 @@ class ZarrOutputMixin(tl.HasTraits):
         for dk in data_key:
             try:
                 arr = zf.create_dataset(
-                    dk, shape=shape, chunks=chunks, fill_value=np.nan, overwrite=not self.skip_existing
+                    dk,
+                    shape=shape,
+                    chunks=chunks,
+                    fill_value=np.nan,
+                    dtype=self.zarr_dtype,
+                    overwrite=not self.skip_existing,
                 )
             except ValueError:
                 pass  # Dataset already exists
@@ -384,11 +393,17 @@ class ZarrOutputMixin(tl.HasTraits):
             ),
         )
         _log.debug("Finished creating output format.")
-        source.set_trait("output_format", output)
+
+        if source.has_trait("output_format"):
+            source.set_trait("output_format", output)
         _log.debug("output: {}, coordinates.shape: {}".format(output, coordinates.shape))
         _log.debug("Evaluating node.")
 
-        return super(ZarrOutputMixin, self).eval_source(coordinates, coordinates_index, out, i, source)
+        o, slc = super(ZarrOutputMixin, self).eval_source(coordinates, coordinates_index, out, i, source)
+
+        if not source.has_trait("output_format"):
+            o.to_format(output["format"], **output["format_kwargs"])
+        return o, slc
 
 
 class ParallelOutputZarr(ZarrOutputMixin, Parallel):

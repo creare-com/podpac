@@ -104,7 +104,7 @@ class TerrainTilesSource(Rasterio):
         """
 
         filename = os.path.split(self.source)[1]  # get filename off of source
-        joined_path = os.path.join(path, os.path.split(self.source)[0])  # path to file
+        joined_path = os.path.join(path, os.path.split(self.source)[0].replace("s3://", ""))  # path to file
         filepath = os.path.abspath(os.path.join(joined_path, filename))
 
         # make the directory if it hasn't been made already
@@ -158,7 +158,8 @@ class TerrainTiles(OrderedCompositor):
         sources = get_tile_urls(self.tile_format, self.zoom, coordinates)
 
         # create TerrainTilesSource classes for each url source
-        return np.array([self._create_source(source) for source in sources])
+        self.sources = np.array([self._create_source(source) for source in sources])
+        return self.sources
 
     def download(self, path="terraintiles"):
         """

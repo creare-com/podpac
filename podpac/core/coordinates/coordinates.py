@@ -76,11 +76,10 @@ class Coordinates(tl.HasTraits):
     """
 
     crs = tl.Unicode(read_only=True, allow_none=True)
-    crs_desc = tl.Unicode(allow_none=True)
 
     _coords = OrderedDictTrait(trait=tl.Instance(BaseCoordinates), default_value=OrderedDict())
 
-    def __init__(self, coords, dims=None, crs=None, crs_desc=None, validate_crs=True):
+    def __init__(self, coords, dims=None, crs=None, validate_crs=True):
         """
         Create multidimensional coordinates.
 
@@ -100,8 +99,6 @@ class Coordinates(tl.HasTraits):
              * dimension names joined by an underscore for stacked coordinates
         crs : str, optional
             Coordinate reference system. Supports PROJ4 and WKT.
-        crs_desc : str, optional
-            Abbreviated display description for the crs.
         validate_crs : bool, optional
             Use False to skip crs validation. Default True.
         """
@@ -164,7 +161,7 @@ class Coordinates(tl.HasTraits):
 
             crs = self.set_trait("crs", crs)
 
-        super(Coordinates, self).__init__(crs_desc=crs_desc)
+        super(Coordinates, self).__init__()
 
     @tl.validate("_coords")
     def _validate_coords(self, d):
@@ -654,6 +651,7 @@ class Coordinates(tl.HasTraits):
             return False
 
         # properties
+        # TODO check transform instead
         if self.CRS != other.CRS:
             return False
 
@@ -810,11 +808,8 @@ class Coordinates(tl.HasTraits):
 
         d = OrderedDict()
         d["coords"] = [c.full_definition for c in self._coords.values()]
-        d[
-            "crs"
-        ] = (
-            self.CRS.to_wkt()
-        )  # use "wkt" which is suggested as best format: https://proj.org/faq.html#what-is-the-best-format-for-describing-coordinate-reference-systems
+        # "wkt" is suggested as best format: https://proj.org/faq.html#what-is-the-best-format-for-describing-coordinate-reference-systems
+        d["crs"] = self.CRS.to_wkt()
         return d
 
     @property
@@ -1335,11 +1330,11 @@ class Coordinates(tl.HasTraits):
         if "alt" in self.udims and not to_crs.is_vertical:
             raise ValueError("Altitude dimension is defined, but CRS to transform does not contain vertical unit")
 
-        if "lat" in self.dims and "lon" not in self.dims:
+        if "lat" in self.udims and "lon" not in self.udims:
             raise ValueError("Cannot transform lat coordinates without lon coordinates")
 
-        if "lon" in self.dims and "lat" not in self.dims:
-            raise ValueError("Cannot transform lon coordinates without lon coordinates")
+        if "lon" in self.udims and "lat" not in self.udims:
+            raise ValueError("Cannot transform lon coordinates without lat coordinates")
 
         if "lat" in self.dims and "lon" in self.dims and abs(self.dims.index("lat") - self.dims.index("lon")) != 1:
             raise ValueError("Cannot transform coordinates with nonadjacent lat and lon, transpose first")
@@ -1432,9 +1427,7 @@ class Coordinates(tl.HasTraits):
 
     def __repr__(self):
         rep = str(self.__class__.__name__)
-        if self.crs_desc:
-            rep += " ({})".format(self.crs_desc)
-        elif self.crs:
+        if self.crs:
             rep += " ({})".format(self.crs)
         for c in self._coords.values():
             if isinstance(c, Coordinates1d):

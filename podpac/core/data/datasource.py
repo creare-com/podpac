@@ -542,7 +542,7 @@ class DataSource(Node):
         NOTE: This is only currently used by SMAPCompositor. It should potentially be moved to the SMAPSource.
         """
 
-        if not self.trait_is_defined("_coordinates"):
+        if force or not self.trait_is_defined("_coordinates"):
             self.set_trait("_coordinates", coordinates)
 
     def _get_boundary(self, index):

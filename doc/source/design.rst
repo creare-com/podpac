@@ -61,7 +61,8 @@ Pipelines can also be complex, like two data sources being combined into an algo
 .. image:: /_static/img/complex-pipeline.png
     :width: 85%
 
-
+Pipelines are note explicitly implemented, but this functionality is available through `Nodes`.To see the representation of
+a pipeline use `Node.definition`. To create a pipeline from a definition use `Node.from_definition(definition)`. 
 
 Repository Organization
 -----------------------
@@ -70,9 +71,6 @@ The directory structure is as follows:
 
 - ``dist``: Contains installation instructions and environments for various deployments, including cloud deployment on AWS
 - ``doc``: Sphinx based documentation
-    - ``source``: sphinx docs source
-    - ``notebooks``: example jupyter notebooks
-- ``html``: HTML pages used for demonstrations
 - ``podpac``: The PODPAC Python library
     - ``core``: The core PODPAC functionality -- contains general implementation so of classes
     - ``datalib``: Library of Nodes used to access specific data sources -- this is where the SMAP node is implemented (for example)

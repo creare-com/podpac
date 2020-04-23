@@ -6,18 +6,18 @@ continue to expand support each release. The following datasets are currently su
 ## SMAP
 
 - **Source**: [NASA Soil Moisture Active Passive (SMAP) Satellites](https://smap.jpl.nasa.gov/data/)
-- **Module**: `podpac.datalib.smap`
+- **Module**: `podpac.datalib.smap`, `podpac.datalib.smap_egi`
 
 Global soil moisture measurements from NASA.
 
 ### Examples
 
-- [Analyzing SMAP Data](https://github.com/creare-com/podpac-examples/blob/master/notebooks/basic_examples/analyzing-SMAP-data.ipynb)
-- [Running SMAP Analysis on AWS Lambda](https://github.com/creare-com/podpac-examples/blob/master/notebooks/basic_examples/running-on-aws-lambda.ipynb)
-- [SMAP Sentinel data access](https://github.com/creare-com/podpac-examples/blob/master/notebooks/demos/SMAP-Sentinel-data-access.ipynb)
-- [SMAP downscaling example application](https://github.com/creare-com/podpac-examples/blob/master/notebooks/demos/SMAP-downscaling-example-application.ipynb)
-- [SMAP level 4 data access](https://github.com/creare-com/podpac-examples/blob/master/notebooks/demos/SMAP-level4-data-access.ipynb)
-- [SMAP data access widget](https://github.com/creare-com/podpac-examples/blob/master/notebooks/demos/SMAP-widget-data-access.ipynb)
+- [Retrieving SMAP Data](https://github.com/creare-com/podpac-examples/blob/master/notebooks/5-datalib/smap/010-retrieving-SMAP-data.ipynb)
+- [Analyzing SMAP Data](https://github.com/creare-com/podpac-examples/blob/master/notebooks/5-datalib/smap/100-analyzing-SMAP-data.ipynb)
+- [Working with SMAP-Sentinel Data](https://github.com/creare-com/podpac-examples/blob/master/notebooks/5-datalib/smap/101-working-with-SMAP-Sentinel-data.ipynb)
+- [SMAP-EGI](https://github.com/creare-com/podpac-examples/blob/master/notebooks/5-datalib/smap/SMAP-EGI.ipynb)
+- [SMAP Data Access Without PODPAC](https://github.com/creare-com/podpac-examples/blob/master/notebooks/5-datalib/smap/SMAP-data-access-without-podpac.ipynb)
+- [SMAP Downscaling Example Application](https://github.com/creare-com/podpac-examples/blob/master/notebooks/5-datalib/smap/SMAP-downscaling-example-application.ipynb)
 
 ## TerrainTiles
 
@@ -28,8 +28,8 @@ Global dataset providing bare-earth terrain heights, tiled for easy usage and pr
 
 ### Examples
 
-- [Terrain Tiles Usage](https://github.com/creare-com/podpac-examples/blob/master/notebooks/demos/Terrain-Tiles.ipynb)
-- [Terrain Tiles Pattern Match](https://github.com/creare-com/podpac-examples/blob/master/notebooks/demos/Terrain-Tiles-Pattern-Match.ipynb)
+- [Terrain Tiles Usage](https://github.com/creare-com/podpac-examples/blob/master/notebooks/5-datalib/terrtain-tiles.ipynb)
+- [Terrain Tiles Pattern Match](https://github.com/creare-com/podpac-examples/blob/master/notebooks/scratch/demos/Terrain-Tiles-Pattern-Match.ipynb)
 
 ## GFS
 
@@ -40,4 +40,4 @@ Weather forecast model produced by the National Centers for Environmental Predic
 
 ### Examples
 
-- [GFS Usage](https://github.com/creare-com/podpac-examples/blob/master/notebooks/demos/gfs.ipynb)
+- [GFS Usage](https://github.com/creare-com/podpac-examples/blob/master/notebooks/5-datalib/gfs.ipynb)

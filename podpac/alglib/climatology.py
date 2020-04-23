@@ -44,6 +44,8 @@ class BetaFitDayOfYear(DayOfYearWindow):
     def function(self, data, output):
         # define the fit function
         try:
+            data[data == 1] -= 1e-6
+            data[data == 0] += 1e-6
             a, b, loc, scale = beta.fit(data, floc=0, fscale=1)
         except FitSolverError as e:
             print(e)
