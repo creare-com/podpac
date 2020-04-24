@@ -1003,6 +1003,10 @@ def node_eval(fn):
         # Add style information
         data.attrs["layer_style"] = self.style
 
+        # Add crs if it is missing
+        if "crs" not in data.attrs:
+            data.attrs["crs"] = coordinates.crs
+
         return data
 
     return wrapper
