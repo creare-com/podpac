@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.1.0
+### Introduction
+
+Fixing some bugs associated with AWS evaluation and the drought-monitor application
+
+### Features
+* Added `algorithm.TransformTimeUnits` algorithm to be able to utilize time in terms of `dayofyear`
+* Added `Coordinates.transform_time` method to transform YYYY-MM-DD time units to something like `dayofyear`
+
+### Bug Fixes
+* Removed `region_name` from `authentication.S3Mixin` because it is not a valid argument
+* Made the `algorithm.Mask` node simpler to JSON serialize
+* Made `interpolator` tolerant of string-based timedelta values
+* Added the `crs` to `Node` outputs if it is not present -- this caused issues with the `union` call in `Algorithm.eval`
+* Fixed `data.Zarr`'s `open_consolidated` call. It was erroneously passing the `r` argument.
+
+
 ## 2.0.0
 ### Introduction
 
