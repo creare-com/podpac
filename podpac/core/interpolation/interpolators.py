@@ -3,6 +3,7 @@ Interpolator implementations
 """
 
 from __future__ import division, unicode_literals, print_function, absolute_import
+from six import string_types
 
 import numpy as np
 import traitlets as tl
@@ -26,6 +27,7 @@ from podpac.core.interpolation.interpolator import COMMON_INTERPOLATOR_DOCS, Int
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates, UniformCoordinates1d, StackedCoordinates
 from podpac.core.utils import common_doc
+from podpac.core.coordinates.utils import get_timedelta
 
 
 @common_doc(COMMON_INTERPOLATOR_DOCS)
@@ -41,7 +43,7 @@ class NearestNeighbor(Interpolator):
     # defined at instantiation
     method = tl.Unicode(default_value="nearest")
     spatial_tolerance = tl.Float(default_value=np.inf, allow_none=True)
-    time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
+    time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
 
     def __repr__(self):
         rep = super(NearestNeighbor, self).__repr__()
@@ -97,6 +99,8 @@ class NearestNeighbor(Interpolator):
             # set tolerance value based on dim type
             tolerance = None
             if dim == "time" and self.time_tolerance:
+                if isinstance(self.time_tolerance, string_types):
+                    self.time_tolerance = get_timedelta(self.time_tolerance)
                 tolerance = self.time_tolerance
             elif dim != "time":
                 tolerance = self.spatial_tolerance
@@ -229,7 +233,7 @@ class Rasterio(Interpolator):
 
     # TODO: implement these parameters for the method 'nearest'
     spatial_tolerance = tl.Float(default_value=np.inf)
-    time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
+    time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
 
     # TODO: support 'gauss' method?
 
@@ -313,7 +317,7 @@ class ScipyPoint(Interpolator):
 
     # TODO: implement these parameters for the method 'nearest'
     spatial_tolerance = tl.Float(default_value=np.inf)
-    time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
+    time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
@@ -421,7 +425,7 @@ class ScipyGrid(ScipyPoint):
 
     # TODO: implement these parameters for the method 'nearest'
     spatial_tolerance = tl.Float(default_value=np.inf)
-    time_tolerance = tl.Instance(np.timedelta64, allow_none=True)
+    time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):

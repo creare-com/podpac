@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.1.0
+### Introduction
+
+Fixing some bugs associated with AWS evaluation and the drought-monitor application
+
+### Features
+* Added `algorithm.TransformTimeUnits` algorithm to be able to utilize time in terms of `dayofyear`
+* Added `Coordinates.transform_time` method to transform YYYY-MM-DD time units to something like `dayofyear`
+
+### Bug Fixes
+* Removed `region_name` from `authentication.S3Mixin` because it is not a valid argument
+* Made the `algorithm.Mask` node simpler to JSON serialize
+* Made `interpolator` tolerant of string-based timedelta values
+* Added the `crs` to `Node` outputs if it is not present -- this caused issues with the `union` call in `Algorithm.eval`
+* Fixed `data.Zarr`'s `open_consolidated` call. It was erroneously passing the `r` argument.
+
+
 ## 2.0.0
 ### Introduction
 
@@ -19,6 +36,7 @@
 * `Coordinates` will now be automatically simplified when transformed from one `crs` to another. Previously, transformations always resulted in `DependentCoordinates`. This change adds the `.simply` method to some `Coordinates1d` classes.
 * Improved performance of PODPAC AWS Lambda function by only downloading dependencies when the function is not already "hot". "Hot" functions retain the files in the `/tmp` directory of the Lambda function.
 * `data.Zarr` will now use `zarr.open_consolidated` whenever the `file_mode='r'` for more efficient read operations on S3
+* Added podpac's version to pipeline definitions
 
 ### Bug Fixes
 * Fixed `algorithm.GroupReduce` to accept `dayofyear`, `weekofyear`, `season`, and `month`. It also now returns the time coordinate in one of these units. 

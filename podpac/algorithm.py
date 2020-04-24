@@ -22,5 +22,10 @@ from podpac.core.algorithm.stats import (
     GroupReduce,
     ResampleReduce,
 )
-from podpac.core.algorithm.coord_select import ExpandCoordinates, SelectCoordinates, YearSubstituteCoordinates
+from podpac.core.algorithm.coord_select import (
+    ExpandCoordinates,
+    SelectCoordinates,
+    YearSubstituteCoordinates,
+    TransformTimeUnits,
+)
 from podpac.core.algorithm.signal import Convolution, SpatialConvolution, TimeConvolution

@@ -50,6 +50,7 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
 
     file_mode = tl.Unicode(default_value="r").tag(readonly=True)
     coordinate_index_type = "slice"
+    _consolidated = False
 
     def _get_store(self):
         if self.source.startswith("s3://"):
@@ -135,9 +136,11 @@ class Zarr(S3Mixin, FileKeysMixin, BaseFileSource):
             # import zarr.open_consolidated
             if self.file_mode == "r":
                 try:
-                    return zarr_open_consolidated(store, self.file_mode)
+                    self._consolidated = True
+                    return zarr_open_consolidated(store)
                 except KeyError:
                     pass  # No consolidated metadata available
+            self._consolidated = False
             return zarr_open(store, mode=self.file_mode)
         except ValueError:
             raise ValueError("No Zarr store found at path '%s'" % self.source)

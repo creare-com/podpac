@@ -829,7 +829,7 @@ class Node(tl.HasTraits):
 
         d = None
         if layer.startswith("https://"):
-            s = _get_from_url(layer)
+            d = _get_from_url(layer).json()
         elif layer.startswith("s3://"):
             parts = layer.split("/")
             bucket = parts[2]
@@ -1002,6 +1002,10 @@ def node_eval(fn):
 
         # Add style information
         data.attrs["layer_style"] = self.style
+
+        # Add crs if it is missing
+        if "crs" not in data.attrs:
+            data.attrs["crs"] = coordinates.crs
 
         return data
 

@@ -125,6 +125,8 @@ class ExpandCoordinates(ModifyCoordinates):
         
         Parameters
         ----------
+        coords : Coordinates
+            The requested input coordinates
         dim : str
             Dimension to expand
         
@@ -203,6 +205,8 @@ class SelectCoordinates(ModifyCoordinates):
 
         Parameters
         ----------
+        coords : Coordinates
+            The requested input coordinates
         dim : str
             Dimension for doing the selection
         
@@ -251,6 +255,22 @@ class YearSubstituteCoordinates(ModifyCoordinates):
     coordinates_source = None
 
     def get_modified_coordinates1d(self, coord, dim):
+        """
+        Get the desired 1d coordinates for the given dimension, depending on the selection attr for the given
+        dimension::
+
+        Parameters
+        ----------
+        coords : Coordinates
+            The requested input coordinates
+        dim : str
+            Dimension for doing the selection
+        
+        Returns
+        -------
+        coords1d : ArrayCoordinates1d
+            The selected coordinates for the given dimension.
+        """
         if dim != "time":
             return coord[dim]
         times = coord["time"]
@@ -258,3 +278,56 @@ class YearSubstituteCoordinates(ModifyCoordinates):
         new_times = [add_coord(c, delta - c.astype("datetime64[Y]")) for c in times.coordinates]
 
         return ArrayCoordinates1d(new_times, name="time")
+
+
+class TransformTimeUnits(ModifyCoordinates):
+    time_units = tl.Enum(
+        [
+            "day",
+            "dayofweek",
+            "dayofyear",
+            "daysinmonth",
+            "microsecond",
+            "minute",
+            "month",
+            "nanosecond",
+            "quarter",
+            "season",
+            "second",
+            "time",
+            "week",
+            "weekday",
+            "weekday_name",
+            "weekofyear",
+            "year",
+        ]
+    ).tag(attr=True)
+
+    # Remove tags from attributes
+    lat = tl.List()
+    lon = tl.List()
+    time = tl.List()
+    alt = tl.List()
+    coordinates_source = None
+
+    def get_modified_coordinates1d(self, coords, dim):
+        """
+        Get the desired 1d coordinates for the given dimension, depending on the selection attr for the given
+        dimension::
+
+        Parameters
+        ----------
+        coords : Coordinates
+            The requested input coordinates
+        dim : str
+            Dimension for doing the selection
+        
+        Returns
+        -------
+        coords1d : ArrayCoordinates1d
+            The selected coordinates for the given dimension.
+        """
+        if dim != "time":
+            return coords[dim]
+
+        return coords.transform_time(self.time_units)["time"]

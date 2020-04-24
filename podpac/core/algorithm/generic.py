@@ -206,7 +206,7 @@ class Mask(Algorithm):
 
     source = NodeTrait().tag(attr=True)
     mask = NodeTrait().tag(attr=True)
-    masked_val = tl.Float(np.nan).tag(attr=True)
+    masked_val = tl.Float(allow_none=True, default_value=None).tag(attr=True)
     bool_val = tl.Float(1).tag(attr=True)
     bool_op = tl.Enum(["==", "<", "<=", ">", ">="], default_value="==").tag(attr=True)
     in_place = tl.Bool(False).tag(attr=True)
@@ -239,7 +239,10 @@ class Mask(Algorithm):
             mask = mask >= bv
 
         # Mask the values and return
-        source.set(self.masked_val, mask)
+        if self.masked_val is None:
+            source.set(np.nan, mask)
+        else:
+            source.set(self.masked_val, mask)
 
         return source
 

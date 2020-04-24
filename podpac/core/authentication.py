@@ -188,7 +188,6 @@ class S3Mixin(tl.HasTraits):
             return s3fs.S3FileSystem(
                 key=self.aws_access_key_id,
                 secret=self.aws_secret_access_key,
-                region_name=self.aws_region_name,
                 client_kwargs=self.aws_client_kwargs,
                 config_kwargs=self.config_kwargs,
             )
