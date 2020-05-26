@@ -68,6 +68,10 @@ extras_require = {
         "certifi>=2018.1.18",
         "urllib3>=1.22",
     ],
+    "stac": [
+        "sat-search>=0.2",
+        "sat-stac>=0.3",
+    ],
     "dev": [
         "pylint>=1.8.2",
         "pytest-cov>=2.5.1",
