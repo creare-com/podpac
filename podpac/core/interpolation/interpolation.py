@@ -470,8 +470,9 @@ class Interpolation(object):
             of the requested coordinates
         """
 
+        # TODO does this allow undesired extrapolation?
         # short circuit if the source data and requested coordinates are of shape == 1
-        if source_data.size == 1 and np.prod(eval_coordinates.shape) == 1:
+        if source_data.size == 1 and eval_coordinates.size == 1:
             output_data[:] = source_data
             return output_data
 

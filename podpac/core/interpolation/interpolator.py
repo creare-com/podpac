@@ -306,7 +306,24 @@ class Interpolator(tl.HasTraits):
                     output_data.loc[idx],
                     **kwargs
                 )
+
         else:
+            # don't interpolate if the eval_coordinates match the source_coordinates
+
+            # TODO does this allow undesired extrapolation?
+            # short circuit if the source data and requested coordinates are of size 1
+            if source_data.size == 1 and eval_coordinates.size == 1:
+                output_data[:] = source_data
+                return output_data
+
+            # TODO: short circuit if source_coordinates contains eval_coordinates
+            # this has to be done better...
+            # short circuit if source and eval coordinates are the same
+            elif all(udims in eval_coordinates.udims for udims in source_coordinates.udims):
+                if all(source_coordinates[udim] == eval_coordinates[udim] for udim in source_coordinates.udims):
+                    output_data.data = source_data.transpose(*output_data.dims).data  # transpose and insert
+                    return output_data
+
             return func(udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs)
 
         return output_data
