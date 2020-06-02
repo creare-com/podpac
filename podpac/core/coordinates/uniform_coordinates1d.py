@@ -349,6 +349,60 @@ class UniformCoordinates1d(Coordinates1d):
 
         return self
 
+    def issubset(self, other):
+        """ Report whether other coordinates contains these coordinates.
+
+        Arguments
+        ---------
+        other : Coordinates, Coordinates1d
+            Other coordinates to check
+
+        Returns
+        -------
+        issubset : bool
+            True if these coordinates are a subset of the other coordinates.
+
+        Notes
+        -----
+        This overrides the Coordinates1d.issubset method with optimizations for uniform coordinates.
+        """
+
+        from podpac.core.coordinates import Coordinates
+
+        if isinstance(other, Coordinates):
+            if self.name not in other.dims:
+                return False
+            other = other[self.name]
+
+        # use Coordinates1d implementation when the other coordinates are not uniform
+        if not other.is_uniform:
+            return super(UniformCoordinates1d, self).issubset(other)
+
+        # use Coordinates1d implementation when the steps cannot be compared (e.g. months and days)
+        try:
+            self.step / other.step
+        except TypeError:
+            return super(UniformCoordinates1d, self).issubset(other)
+
+        # short-cuts that don't require checking coordinates
+        if self.dtype != other.dtype:
+            return False
+
+        if self.bounds[0] < other.bounds[0] or self.bounds[1] > other.bounds[1]:
+            return False
+
+        # check start and step
+        if self.start not in other.coordinates:
+            return False
+
+        if self.size == 1:
+            return True
+
+        if self.dtype == np.datetime64:
+            return (self.step % other.step).astype(float) == 0
+        else:
+            return self.step % other.step == 0
+
     def _select(self, bounds, return_indices, outer):
         # TODO is there an easier way to do this with the new outer flag?
         my_bounds = self.bounds

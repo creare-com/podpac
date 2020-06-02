@@ -490,6 +490,7 @@ def lower_precision_time_bounds(my_bounds, other_bounds, outer):
     mine = np.timedelta64(1, my_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
     your = np.timedelta64(1, other_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
 
+    assert (mine > your) == (my_bounds[0].dtype < other_bounds[0].dtype)
     if mine > your and outer:
         other_bounds = [b.astype(my_bounds[0].dtype) for b in other_bounds]
     else:

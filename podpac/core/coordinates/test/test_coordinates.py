@@ -1359,6 +1359,85 @@ class TestCoordinatesMethods(object):
         with pytest.raises(TypeError, match="Coordinates cannot be intersected with type"):
             c.intersect({"lat": [0, 1]})
 
+    def test_issubset(self):
+        c1 = Coordinates([[0, 1, 2, 3], [10, 20, 30, 40]], dims=["lat", "lon"])
+        c2 = Coordinates([[1, 2, 3, 4], [10, 20, 30, 40]], dims=["lat", "lon"])
+        c3 = Coordinates([[1, 3], [40, 30, 20, 10]], dims=["lat", "lon"])
+
+        # self
+        assert c1.issubset(c1)
+        assert c2.issubset(c2)
+        assert c3.issubset(c3)
+
+        # other
+        assert not c1.issubset(c2)
+        assert not c1.issubset(c3)
+        assert not c2.issubset(c1)
+        assert not c2.issubset(c3)
+        assert c3.issubset(c1)
+        assert c3.issubset(c2)
+
+        # missing dims
+        c4 = c1.drop("lat")
+        assert not c1.issubset(c4)
+        assert not c4.issubset(c1)
+
+    def test_issubset_stacked(self):
+        lat1, lon1 = [0, 1, 2, 3], [10, 20, 30, 40]
+        u1 = Coordinates([lat1, lon1], dims=["lat", "lon"])
+        s1 = Coordinates([[lat1, lon1]], dims=["lat_lon"])
+
+        lat2, lon2 = [1, 3], [20, 40]
+        u2 = Coordinates([lat2, lon2], dims=["lat", "lon"])
+        s2 = Coordinates([[lat2, lon2]], dims=["lat_lon"])
+
+        lat3, lon3 = [1, 3], [40, 20]
+        u3 = Coordinates([lat3, lon3], dims=["lat", "lon"])
+        s3 = Coordinates([[lat3, lon3]], dims=["lat_lon"])
+
+        # stacked issubset of stacked: must check stacked dims together
+        assert s1.issubset(s1)
+        assert s2.issubset(s1)
+        assert not s1.issubset(s2)
+        assert not s3.issubset(s1)  # this is an important case because the udims are all subsets
+
+        # stacked issubset of unstacked: check udims individually
+        assert s1.issubset(u1)
+        assert s2.issubset(u2)
+        assert s3.issubset(u3)
+
+        assert s2.issubset(u1)
+        assert s3.issubset(u1)
+
+        # unstacked issubset of stacked: must check other's stacked dims together
+        assert not u1.issubset(s1)
+        assert not u2.issubset(s2)
+        assert not u3.issubset(s3)
+
+        # lat, lon = np.meshgrid(lat1, lon1)
+        # s = Coordinates([[lat.flatten(), lon.flatten()]], dims=['lat_lon'])
+        # assert u1.issubset(s)
+        # assert u2.issubset(s)
+        # assert u3.issubset(s)
+
+    def test_issubset_time(self):
+        c1 = Coordinates([["2020-01-01", "2020-01-02", "2020-01-03"]], dims=["time"])
+        c2 = Coordinates([["2020-01-02", "2020-01-03"]], dims=["time"])
+        c3 = Coordinates([["2020-01-01T00:00:00", "2020-01-02T00:00:00", "2020-01-03T00:00:00"]], dims=["time"])
+
+        # self
+        assert c1.issubset(c1)
+        assert c2.issubset(c2)
+        assert c3.issubset(c3)
+
+        # other
+        assert not c1.issubset(c2)
+        assert c1.issubset(c3)
+        assert c2.issubset(c1)
+        assert c2.issubset(c3)
+        assert c3.issubset(c1)
+        assert not c3.issubset(c2)
+
 
 class TestCoordinatesSpecial(object):
     def test_repr(self):

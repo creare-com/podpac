@@ -489,3 +489,23 @@ class StackedCoordinates(BaseCoordinates):
             return self
         else:
             return StackedCoordinates(coordinates)
+
+    def issubset(self, other):
+        """ Report whether other coordinates contains these coordinates.
+
+        Arguments
+        ---------
+        other : Coordinates, StackedCoordinates
+            Other coordinates to check
+
+        Returns
+        -------
+        issubset : bool
+            True if these coordinates are a subset of the other coordinates.
+        """
+
+        if self.name in other.dims:
+            # TODO handle time resolutions
+            return set(self.coordinates).issubset(other[self.name].coordinates)
+        else:
+            return all(self[dim].issubset(other[dim]) for dim in self.dims)

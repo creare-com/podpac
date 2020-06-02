@@ -287,12 +287,15 @@ class Interpolator(tl.HasTraits):
                         tol = self.spatial_tolerance
 
                     diff = np.abs(source_data.coords[dim].values - i.values)
-                    if tol == None or np.any(diff <= tol):
-                        src_i = (diff).argmin()
-                        src_idx = {dim: source_data.coords[dim][src_i]}
-                    else:
-                        src_idx = None  # There is no closest neighbor within the tolerance
-                        continue
+                    try:
+                        if tol == None or np.any(diff <= tol):
+                            src_i = (diff).argmin()
+                            src_idx = {dim: source_data.coords[dim][src_i]}
+                        else:
+                            src_idx = None  # There is no closest neighbor within the tolerance
+                            continue
+                    except:
+                        breakpoint()
                 else:
                     src_idx = idx
 
@@ -316,13 +319,15 @@ class Interpolator(tl.HasTraits):
                 output_data[:] = source_data
                 return output_data
 
-            # TODO: short circuit if source_coordinates contains eval_coordinates
-            # this has to be done better...
-            # short circuit if source and eval coordinates are the same
-            elif all(udims in eval_coordinates.udims for udims in source_coordinates.udims):
-                if all(source_coordinates[udim] == eval_coordinates[udim] for udim in source_coordinates.udims):
-                    output_data.data = source_data.transpose(*output_data.dims).data  # transpose and insert
-                    return output_data
+            # short circuit if source_coordinates contains eval_coordinates
+            if eval_coordinates.issubset(source_coordinates):
+                # select/transpose, and copy
+                if "output" in output_data.coords:
+                    output_coords = output_data.drop("output").coords
+                else:
+                    output_coords = output_data.coords
+                output_data[:] = source_data.sel(output_coords)
+                return output_data
 
             return func(udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs)
 

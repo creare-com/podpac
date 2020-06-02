@@ -476,13 +476,15 @@ class Interpolation(object):
             output_data[:] = source_data
             return output_data
 
-        # TODO: short circuit if source_coordinates contains eval_coordinates
-        # this has to be done better...
-        # short circuit if source and eval coordinates are the same
-        if all(udims in eval_coordinates.udims for udims in source_coordinates.udims):
-            if all(source_coordinates[udim] == eval_coordinates[udim] for udim in source_coordinates.udims):
-                output_data.data = source_data.transpose(*output_data.dims).data  # transpose and insert
-                return output_data
+        # short circuit if source_coordinates contains eval_coordinates
+        if eval_coordinates.issubset(source_coordinates):
+            # select/transpose, and copy
+            if "output" in output_data.coords:
+                output_coords = output_data.drop_vars("output").coords
+            else:
+                output_coords = output_data.coords
+            output_data[:] = source_data.sel(output_coords)
+            return output_data
 
         interpolator_queue = self._select_interpolator_queue(
             source_coordinates, eval_coordinates, "can_interpolate", strict=True

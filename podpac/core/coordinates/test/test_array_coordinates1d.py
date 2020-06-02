@@ -826,3 +826,113 @@ class TestArrayCoordinatesSelection(object):
         c = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time")
         with pytest.raises(TypeError):
             c.select({"time": [1, 10]})
+
+
+class TestArrayCoordinatesMethods(object):
+    def test_simplify(self):
+        # convert to UniformCoordinates
+        c = ArrayCoordinates1d([1, 2, 3, 4])
+        c2 = c.simplify()
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2 == c
+
+        # reversed, step -2
+        c = ArrayCoordinates1d([4, 2, 0])
+        c2 = c.simplify()
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2 == c
+
+        # don't simplify
+        c = ArrayCoordinates1d([1, 2, 4])
+        c2 = c.simplify()
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2 == c
+
+        # time, convert to UniformCoordinates
+        c = ArrayCoordinates1d(["2020-01-01", "2020-01-02", "2020-01-03"])
+        c2 = c.simplify()
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2 == c
+
+        # time, reverse -2,H
+        c = ArrayCoordinates1d(["2020-01-01T12:00", "2020-01-01T10:00", "2020-01-01T08:00"])
+        c2 = c.simplify()
+        assert isinstance(c2, UniformCoordinates1d)
+        assert c2 == c
+
+        # time, don't simplify
+        c = ArrayCoordinates1d(["2020-01-01", "2020-01-02", "2020-01-04"])
+        c2 = c.simplify()
+        assert isinstance(c2, ArrayCoordinates1d)
+        assert c2 == c
+
+        # empty
+        c = ArrayCoordinates1d([])
+        c2 = c.simplify()
+        assert c2 == c
+
+    def test_issubset(self):
+        c1 = ArrayCoordinates1d([2, 1])
+        c2 = ArrayCoordinates1d([1, 2, 3])
+        c3 = ArrayCoordinates1d([1, 2, 4])
+        e = ArrayCoordinates1d([])
+
+        # self
+        assert c1.issubset(c1)
+        assert e.issubset(e)
+
+        # subsets
+        assert c1.issubset(c2)
+        assert c1.issubset(c3)
+        assert e.issubset(c1)
+
+        # not subsets
+        assert not c2.issubset(c1)
+        assert not c3.issubset(c1)
+        assert not c2.issubset(c3)
+        assert not c3.issubset(c2)
+        assert not c1.issubset(e)
+
+    def test_issubset_datetime(self):
+        c1 = ArrayCoordinates1d(["2020-01-01", "2020-01-02"])
+        c2 = ArrayCoordinates1d(["2020-01-01", "2020-01-02", "2020-01-03"])
+        c3 = ArrayCoordinates1d(["2020-01-01T00:00", "2020-01-02T00:00"])
+        c4 = ArrayCoordinates1d(["2020-01-01T12:00", "2020-01-02T12:00"])
+
+        # same resolution
+        assert c1.issubset(c1)
+        assert c1.issubset(c2)
+        assert not c2.issubset(c1)
+
+        # different resolution
+        assert c3.issubset(c2)
+        assert c1.issubset(c3)
+        assert not c1.issubset(c4)
+        assert not c4.issubset(c1)
+
+    def test_issubset_dtype(self):
+        c1 = ArrayCoordinates1d([0, 1])
+        c2 = ArrayCoordinates1d(["2018", "2019"])
+        assert not c1.issubset(c2)
+        assert not c2.issubset(c1)
+
+    def test_issubset_uniform_coordinates(self):
+        a = ArrayCoordinates1d([2, 1])
+        u1 = UniformCoordinates1d(start=1, stop=3, step=1)
+        u2 = UniformCoordinates1d(start=1, stop=3, step=0.5)
+        u3 = UniformCoordinates1d(start=1, stop=4, step=2)
+
+        # self
+        assert a.issubset(u1)
+        assert a.issubset(u2)
+        assert not a.issubset(u3)
+
+    def test_issubset_coordinates(self):
+        a = ArrayCoordinates1d([3, 1], name="lat")
+        c1 = Coordinates([[1, 2, 3], [10, 20, 30]], dims=["lat", "lon"])
+        c2 = Coordinates([[1, 2, 4], [10, 20, 30]], dims=["lat", "lon"])
+        c3 = Coordinates([[10, 20, 30]], dims=["alt"])
+
+        assert a.issubset(c1)
+        assert not a.issubset(c2)
+        assert not a.issubset(c3)

@@ -425,7 +425,7 @@ class ScipyGrid(ScipyPoint):
 
     # TODO: implement these parameters for the method 'nearest'
     spatial_tolerance = tl.Float(default_value=np.inf)
-    time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
+    time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)], default_value=None)
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):
