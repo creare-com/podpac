@@ -9,28 +9,55 @@ Supports access to:
 
 import logging
 import datetime
+import os
 
 import numpy as np
 import traitlets as tl
 from satsearch import Search
+import satstac
 
 # Internal dependencies
-from podpac import Coordinates, Node
+import podpac
 from podpac.compositor import OrderedCompositor
-from podpac.data import DataSource
-from podpac import authentication
-from podpac import settings
-from podpac import cached_property
+from podpac.data import Rasterio
 from podpac.core.units import UnitsDataArray
 from podpac.core.node import node_eval
+from podpac.authentication import S3Mixin
+from podpac import settings
 
 _logger = logging.getLogger(__name__)
 
 
-class SatUtils(DataSource):
+class SatUtilsSource(Rasterio):
+    date = tl.Unicode(help="item.properties.datetime from sat-utils item").tag(attr=True)
+
+    def get_coordinates(self):
+        # get original coordinates
+        spatial_coordinates = super(SatUtilsSource, self).get_coordinates()
+
+        # lookup available dates and use pre-fetched lat and lon bounds. Make sure CRS is set to spatial coords
+        time = podpac.Coordinates([self.date], dims=["time"], crs=spatial_coordinates.crs)
+
+        # merge dims
+        return podpac.coordinates.merge_dims([time, spatial_coordinates])
+
+    def get_data(self, coordinates, coordinates_index):
+
+        # create array for time, lat, lon
+        data = self.create_output_array(coordinates)
+
+        # eval in space for single time
+        data[0, :, :] = super(SatUtilsSource, self).get_data(coordinates.drop("time"), coordinates_index[1:])
+
+        return data
+
+
+class SatUtils(S3Mixin, OrderedCompositor):
     """
     PODPAC DataSource node to access the data using sat-utils developed by Development Seed
     See https://github.com/sat-utils
+
+    See :class:`podpac.compositor.OrderedCompositor` for more information.
     
     Parameters
     ----------
@@ -47,53 +74,72 @@ class SatUtils(DataSource):
         Asset to download from the satellite image.
         The asset must be a band name or a common extension name, see https://github.com/radiantearth/stac-spec/tree/master/extensions/eo
         See also the Assets section of this tutorial: https://github.com/sat-utils/sat-stac/blob/master/tutorial-2.ipynb 
-        Defaults to "MTL"
-    min_bounds_span: dict, optional
+        Defaults to "B3" (green)
+    min_bounds_span : dict, optional
         Default is {}. When specified, gives the minimum bounds that will be used for a coordinate in the query, so
         it works properly. If a user specified a lat, lon point, the query may fail since the min/max values for 
         lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example): 
         [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
-
-    Attributes
-    ----------
-    data : :class:`podpac.UnitsDataArray`
-        The data array compiled from downloaded satellite imagery
+    requestor_pays : bool
+        Some data sources require the requestor to pay for egress costs.
+        Pass "True" to acknowledge you are 
     """
 
     # required
     collection = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     query = tl.Dict(default_value=None, allow_none=True).tag(attr=True)
-    asset = tl.Unicode(default_value="MTL").tag(attr=True)
+    asset = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    requestor_pays = tl.Bool(default_value=False).tag(attr=True)
 
     min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
 
     # attributes
-    data = tl.Any(allow_none=True)
+    _search = None
 
     @property
-    def coordinates(self):
-        if self.data is None:
-            _log.warning("No coordinates found in SatUtils source")
-            return Coordinates([], dims=[])
+    def sources(self):
+        if not self._search:
+            raise AttributeError("Run `node.eval` or `node.search` with coordinates to define `node.sources` property")
 
-        return Coordinates.from_xarray(self.data.coords, crs=self.data.attrs["crs"])
+        items = self._search.items()
 
-    def get_data(self, coordinates, coordinates_index):
-        if self.data is not None:
-            da = self.data[coordinates_index]
-            return da
+        if self.asset is None:
+            raise ValueError("Asset type must be defined. Use `list_assets` method")
+
+        if self.asset not in items[0].assets:
+            raise ValueError(
+                'Requested asset "{}" is not available in item assets: {}'.format(
+                    self.asset, list(items[0].assets.keys())
+                )
+            )
+
+        # TODO: this should not rely on the user to know when the requestor needs to pay
+        # TODO: this does not work yet
+        if self.requestor_pays:
+
+            # satstac requires environment variables to create urls. Uses S3Mixin
+            os.environ["AWS_BUCKET_ACCESS_KEY_ID"] = self.aws_access_key_id
+            os.environ["AWS_BUCKET_SECRET_ACCESS_KEY"] = self.aws_secret_access_key
+            os.environ["AWS_BUCKET_REGION"] = self.aws_region_name  # "eu-central-1"
+
+            # download to local cache directory because file source mixin can't handle custom headers
+            path = os.path.join(settings.cache_path, self.collection)
+            filenames = items.download(self.asset, path=path)
+            # assets = [satstac.utils.get_s3_signed_url(item.assets[self.asset]["href"], requester_pays=True) ]
+            return [
+                SatUtilsSource(source=os.path.join(filenames[item_idx]), date=item.properties["datetime"])
+                for item_idx, item in enumerate(items)
+            ]
         else:
-            _log.warning("No data found in SatUtils source")
-            return np.array([])
+            return [
+                SatUtilsSource(source=item.assets[self.asset]["href"], date=item.properties["datetime"])
+                for item in items
+            ]
 
     @node_eval
     def eval(self, coordinates, output=None):
-
-        search = self.search(coordinates)
-
-        # download data for coordinate bounds, then handle that data as an H5PY node
-        # zip_files = self._download(coordinates)
-        # self.data = self._read_zips(zip_files)  # reads each file in zip archive and creates single dataarray
+        # update sources with search
+        _ = self.search(coordinates)
 
         # run normal eval once self.data is prepared
         return super(SatUtils, self).eval(coordinates, output)
@@ -183,29 +229,49 @@ class SatUtils(DataSource):
             search["query"]["collection"] = {"eq": self.collection}
 
         # search with sat-search
-        s = Search(**search)
-        _logger.debug("sat-search found {} items".format(s.found()))
+        self._search = Search(**search)
+        _logger.debug("sat-search found {} items".format(self._search.found()))
 
-        return s
+        return self._search
 
-    def download(self, coordinates):
-        """
-        Download data from sat-utils Interface within PODPAC coordinates
-        
-        Parameters
-        ----------
-        coordinates : :class:`podpac.Coordinates`
-            PODPAC coordinates specifying spatial and temporal bounds
-        
-        Raises
-        ------
-        ValueError
-            Error raised when no spatial or temporal bounds are provided
+    def list_assets(self):
+        """List available assets (or bands) within data source.
+        You must run `search` with coordinates before you can list the assets available for those coordinates
         
         Returns
         -------
-        zipfile.ZipFile
-            Returns zip file byte-str to downloaded data
+        list
+            list of string asset names
         """
+        if not self._search:
+            raise AttributeError("Run `node.eval` or `node.search` with coordinates to be able to list assets")
+        else:
+            items = self._search.items()
+            return list(items[0].assets.keys())
 
-        pass
+
+class Landsat8(SatUtils):
+    """
+    Landsat 8 on AWS OpenData
+    https://registry.opendata.aws/landsat-8/
+
+    Leverages sat-utils (https://github.com/sat-utils) developed by Development Seed
+    See :class:`podpac.datalib.satutils.SatUtils` for attributes
+    """
+
+    collection = "landsat-8-l1"
+    asset = "B1"  # default asset
+
+
+class Sentinel2(SatUtils):
+    """
+    Sentinel 2 on AWS OpenData
+    https://registry.opendata.aws/sentinel-2/
+    Note this data source requires the requestor to pay, so you must pass `requestor_pays=True` which you instantiate this node.
+
+    Leverages sat-utils (https://github.com/sat-utils) developed by Development Seed.
+    See :class:`podpac.datalib.satutils.SatUtils` for attributes
+    """
+
+    collection = "sentinel-2-l1c"
+    asset = "tki"  # default asset
