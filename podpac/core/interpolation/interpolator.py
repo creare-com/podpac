@@ -287,7 +287,7 @@ class Interpolator(tl.HasTraits):
                         tol = self.spatial_tolerance
 
                     diff = np.abs(source_data.coords[dim].values - i.values)
-                    if tol == None or np.any(diff <= tol):
+                    if tol == None or tol == "" or np.any(diff <= tol):
                         src_i = (diff).argmin()
                         src_idx = {dim: source_data.coords[dim][src_i]}
                     else:
