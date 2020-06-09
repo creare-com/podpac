@@ -68,9 +68,6 @@ class TerrainTilesSource(Rasterio):
         rasterio dataset
     """
 
-    # parameters
-    source = tl.Unicode().tag(readonly=True)
-
     # attributes
     interpolation = InterpolationTrait(
         default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
@@ -158,7 +155,7 @@ class TerrainTiles(OrderedCompositor):
         sources = get_tile_urls(self.tile_format, self.zoom, coordinates)
 
         # create TerrainTilesSource classes for each url source
-        self.sources = np.array([self._create_source(source) for source in sources])
+        self.sources = [self._create_source(source) for source in sources]
         return self.sources
 
     def download(self, path="terraintiles"):
