@@ -80,16 +80,12 @@ class SatUtils(S3Mixin, OrderedCompositor):
         it works properly. If a user specified a lat, lon point, the query may fail since the min/max values for 
         lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example): 
         [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
-    requestor_pays : bool
-        Some data sources require the requestor to pay for egress costs.
-        Pass "True" to acknowledge you are 
     """
 
     # required
     collection = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     query = tl.Dict(default_value=None, allow_none=True).tag(attr=True)
     asset = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
-    requestor_pays = tl.Bool(default_value=False).tag(attr=True)
 
     min_bounds_span = tl.Dict(allow_none=True).tag(attr=True)
 
@@ -113,28 +109,16 @@ class SatUtils(S3Mixin, OrderedCompositor):
                 )
             )
 
-        # TODO: this should not rely on the user to know when the requestor needs to pay
-        # TODO: this does not work yet
-        if self.requestor_pays:
+        # generate s3:// urls instead of https:// so that file-loader can handle
+        s3_urls = [
+            item.assets[self.asset]["href"].replace("https://", "s3://").replace(".s3.amazonaws.com", "")
+            for item in items
+        ]
 
-            # satstac requires environment variables to create urls. Uses S3Mixin
-            os.environ["AWS_BUCKET_ACCESS_KEY_ID"] = self.aws_access_key_id
-            os.environ["AWS_BUCKET_SECRET_ACCESS_KEY"] = self.aws_secret_access_key
-            os.environ["AWS_BUCKET_REGION"] = self.aws_region_name  # "eu-central-1"
-
-            # download to local cache directory because file source mixin can't handle custom headers
-            path = os.path.join(settings.cache_path, self.collection)
-            filenames = items.download(self.asset, path=path)
-            # assets = [satstac.utils.get_s3_signed_url(item.assets[self.asset]["href"], requester_pays=True) ]
-            return [
-                SatUtilsSource(source=os.path.join(filenames[item_idx]), date=item.properties["datetime"])
-                for item_idx, item in enumerate(items)
-            ]
-        else:
-            return [
-                SatUtilsSource(source=item.assets[self.asset]["href"], date=item.properties["datetime"])
-                for item in items
-            ]
+        return [
+            SatUtilsSource(source=s3_urls[item_idx], date=item.properties["datetime"])
+            for item_idx, item in enumerate(items)
+        ]
 
     @node_eval
     def eval(self, coordinates, output=None):
@@ -260,18 +244,16 @@ class Landsat8(SatUtils):
     """
 
     collection = "landsat-8-l1"
-    asset = "B1"  # default asset
 
 
 class Sentinel2(SatUtils):
     """
     Sentinel 2 on AWS OpenData
     https://registry.opendata.aws/sentinel-2/
-    Note this data source requires the requestor to pay, so you must pass `requestor_pays=True` which you instantiate this node.
+    Note this data source requires the requester to pay, so you must set podpac settings["AWS_REQUESTER_PAYS"] = True
 
     Leverages sat-utils (https://github.com/sat-utils) developed by Development Seed.
     See :class:`podpac.datalib.satutils.SatUtils` for attributes
     """
 
     collection = "sentinel-2-l1c"
-    asset = "tki"  # default asset
