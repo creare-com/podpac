@@ -14,7 +14,6 @@ import os
 import numpy as np
 import traitlets as tl
 from satsearch import Search
-import satstac
 
 # Internal dependencies
 import podpac
