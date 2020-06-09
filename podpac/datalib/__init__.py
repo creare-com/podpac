@@ -22,6 +22,7 @@ from podpac.datalib.gfs import GFS, GFSLatest
 from podpac.datalib.egi import EGI
 from podpac.datalib import smap_egi
 from podpac.datalib import drought_monitor
+from podpac.datalib.modis import MODIS, MODISTile, MODISSource
 
 # intake requires python >= 3.6
 if sys.version >= "3.6":
