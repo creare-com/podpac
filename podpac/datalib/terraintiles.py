@@ -149,6 +149,7 @@ class TerrainTiles(OrderedCompositor):
     tile_format = tl.Enum(["geotiff", "terrarium", "normal"], default_value="geotiff").tag(attr=True)
     bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
     sources = None  # these are loaded as needed
+    composite_dims = ["lat", "lon"]
 
     def select_sources(self, coordinates):
         # get all the tile sources for the requested zoom level and coordinates

@@ -12,7 +12,8 @@ import traitlets as tl
 
 # Internal imports
 from podpac.core.settings import settings
-from podpac.core.coordinates import Coordinates
+from podpac.core.coordinates import Coordinates, Coordinates1d, StackedCoordinates
+from podpac.core.coordinates.utils import Dimension
 from podpac.core.utils import common_doc, NodeTrait
 from podpac.core.node import COMMON_NODE_DOC, node_eval, Node
 from podpac.core.data.datasource import COMMON_DATA_DOC
@@ -52,6 +53,7 @@ class BaseCompositor(Node):
     interpolation = InterpolationTrait(allow_none=True, default_value=None).tag(attr=True)
     source_coordinates = tl.Instance(Coordinates, allow_none=True, default_value=None).tag(attr=True)
 
+    composite_dims = tl.List(trait=Dimension())
     auto_outputs = tl.Bool(False)
 
     # debug traits
@@ -237,6 +239,17 @@ class BaseCompositor(Node):
         """
 
         self._requested_coordinates = coordinates
+
+        # remove extra dimensions
+        extra = [
+            c.name
+            for c in coordinates.values()
+            if (isinstance(c, Coordinates1d) and c.name not in self.composite_dims)
+            or (isinstance(c, StackedCoordinates) and all(dim not in self.composite_dims for dim in c.dims))
+        ]
+        coordinates = coordinates.drop(extra)
+
+        self._evaluated_coordinates = coordinates
         outputs = self.iteroutputs(coordinates)
         output = self.composite(coordinates, outputs, output)
         return output
