@@ -160,8 +160,8 @@ class BaseCompositor(Node):
         ----------
         coordinates : :class:`podpac.Coordinates`
             {requested_coordinates}
-        data_arrays : list
-            Evaluated data from the sources.
+        data_arrays : generator
+            Evaluated data, in the same order as the sources. Yields a UnitsDataArray.
         result : UnitDataArray, optional
             An optional pre-filled array may be supplied, otherwise the output will be allocated.
 

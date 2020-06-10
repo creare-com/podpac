@@ -780,6 +780,13 @@ class StandardDeviation(Variance):
 
 class Median(ReduceOrthogonal):
     """Computes the median across dimension(s)
+    
+    Example
+    ---------
+    coords.dims == ['lat', 'lon', 'time']
+    median = Median(source=node, dims=['lat', 'lon'])
+    o = median.eval(coords)
+    o.dims == ['time']
     """
 
     def reduce(self, x):
