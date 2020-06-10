@@ -310,7 +310,7 @@ class ReduceOrthogonal(Reduce):
 
         y = xr.full_like(output, np.nan)
         for x, xslices in xs:
-            yslc = tuple(xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims)
+            yslc = tuple(xslices[self._requested_coordinates.dims.index(dim)] for dim in self._reduced_coordinates.dims)
             y.data[yslc] = self.reduce(x)
         return y
 
