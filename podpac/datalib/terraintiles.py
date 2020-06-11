@@ -67,7 +67,7 @@ class TerrainTilesSource(Rasterio):
     dataset : :class:`rasterio.io.DatasetReader`
         rasterio dataset
     """
-
+    anon = tl.Bool(True)
     # attributes
     interpolation = InterpolationTrait(
         default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
