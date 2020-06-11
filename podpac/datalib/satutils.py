@@ -13,7 +13,9 @@ import os
 
 import numpy as np
 import traitlets as tl
-from satsearch import Search
+from lazy_import import lazy_module
+
+satsearch = lazy_module("satsearch")
 
 # Internal dependencies
 import podpac
@@ -212,7 +214,7 @@ class SatUtils(S3Mixin, OrderedCompositor):
             search["query"]["collection"] = {"eq": self.collection}
 
         # search with sat-search
-        self._search = Search(**search)
+        self._search = satsearch.Search(**search)
         _logger.debug("sat-search found {} items".format(self._search.found()))
 
         return self._search
@@ -239,7 +241,25 @@ class Landsat8(SatUtils):
     https://registry.opendata.aws/landsat-8/
 
     Leverages sat-utils (https://github.com/sat-utils) developed by Development Seed
-    See :class:`podpac.datalib.satutils.SatUtils` for attributes
+
+    Parameters
+    ----------
+    asset : str, optional
+        Asset to download from the satellite image.
+        For Landsat8, this includes: 'B1','B2','B3','B4','B5','B6','B7','B8','B9','B10','B11'
+        The asset must be a band name or a common extension name, see https://github.com/radiantearth/stac-spec/tree/master/extensions/eo
+        See also the Assets section of this tutorial: https://github.com/sat-utils/sat-stac/blob/master/tutorial-2.ipynb
+        Use `list_assets` helper to list the assets available for a search.
+    query : dict, optional
+        Dictionary of properties to query on, supports eq, lt, gt, lte, gte
+        Passed through to the sat-search module.
+        See https://github.com/sat-utils/sat-search/blob/master/tutorial-1.ipynb
+        Defaults to None
+    min_bounds_span : dict, optional
+        Default is {}. When specified, gives the minimum bounds that will be used for a coordinate in the query, so
+        it works properly. If a user specified a lat, lon point, the query may fail since the min/max values for 
+        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example): 
+        [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     """
 
     collection = "landsat-8-l1"
@@ -249,10 +269,29 @@ class Sentinel2(SatUtils):
     """
     Sentinel 2 on AWS OpenData
     https://registry.opendata.aws/sentinel-2/
-    Note this data source requires the requester to pay, so you must set podpac settings["AWS_REQUESTER_PAYS"] = True
 
     Leverages sat-utils (https://github.com/sat-utils) developed by Development Seed.
-    See :class:`podpac.datalib.satutils.SatUtils` for attributes
+
+    Note this data source requires the requester to pay, so you must set podpac settings["AWS_REQUESTER_PAYS"] = True
+
+    Parameters
+    ----------
+    asset : str, optional
+        Asset to download from the satellite image.
+        For Sentinel2, this includes: 'tki','B01','B02','B03','B04','B05','B06','B07','B08','B8A','B09','B10','B11','B12
+        The asset must be a band name or a common extension name, see https://github.com/radiantearth/stac-spec/tree/master/extensions/eo
+        See also the Assets section of this tutorial: https://github.com/sat-utils/sat-stac/blob/master/tutorial-2.ipynb
+        Use `list_assets` helper to list the assets available for a search.
+    query : dict, optional
+        Dictionary of properties to query on, supports eq, lt, gt, lte, gte
+        Passed through to the sat-search module.
+        See https://github.com/sat-utils/sat-search/blob/master/tutorial-1.ipynb
+        Defaults to None
+    min_bounds_span : dict, optional
+        Default is {}. When specified, gives the minimum bounds that will be used for a coordinate in the query, so
+        it works properly. If a user specified a lat, lon point, the query may fail since the min/max values for 
+        lat/lon are the same. When specified, these bounds will be padded by the following for latitude (as an example): 
+        [lat - min_bounds_span['lat'] / 2, lat + min_bounds_span['lat'] / 2]
     """
 
     collection = "sentinel-2-l1c"
