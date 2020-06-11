@@ -215,6 +215,17 @@ class TestBaseCompositor(object):
         np.testing.assert_array_equal(node.eval(coords), a.source)
         np.testing.assert_array_equal(node.eval(COORDS), a.source)
 
+        # drop stacked dimensions if none of its dimensions are needed
+        c = podpac.Coordinates(
+            [COORDS["lat"], COORDS["lon"], [COORDS["time"], [10, 20]]], dims=["lat", "lon", "time_alt"]
+        )
+        np.testing.assert_array_equal(node.eval(c), a.source)
+
+        # TODO
+        # but don't drop stacked dimensions if any of its dimensions are needed
+        # c = podpac.Coordinates([[COORDS['lat'], COORDS['lon'], np.arange(COORDS['lat'].size)]], dims=['lat_lon_alt'])
+        # np.testing.assert_array_equal(node.eval(c), np.ones(COORDS['lat'].size))
+
         # dims can also be specified by the node
         class MockComposite2(MockComposite):
             dims = ["lat", "lon"]
