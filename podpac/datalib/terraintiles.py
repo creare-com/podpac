@@ -149,7 +149,7 @@ class TerrainTiles(OrderedCompositor):
     tile_format = tl.Enum(["geotiff", "terrarium", "normal"], default_value="geotiff").tag(attr=True)
     bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
     sources = None  # these are loaded as needed
-    dims = ["lat", "lon"]
+    # dims = ["lat", "lon"]
 
     def select_sources(self, coordinates):
         # get all the tile sources for the requested zoom level and coordinates
@@ -419,10 +419,16 @@ if __name__ == "__main__":
     from podpac import Coordinates, clinspace
 
     c = Coordinates([clinspace(40, 43, 1000), clinspace(-76, -72, 1000)], dims=["lat", "lon"])
+    c2 = Coordinates(
+        [clinspace(40, 43, 1000), clinspace(-76, -72, 1000), ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"]
+    )
 
     print("TerrainTiles")
     node = TerrainTiles(tile_format="geotiff", zoom=8)
     output = node.eval(c)
+    print(output)
+
+    output = node.eval(c2)
     print(output)
 
     print("TerrainTiles cached")

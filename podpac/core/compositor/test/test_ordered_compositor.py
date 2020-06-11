@@ -1,5 +1,7 @@
 import numpy as np
 
+import pytest
+
 import podpac
 from podpac.core.data.array_source import Array
 from podpac.core.compositor.ordered_compositor import OrderedCompositor
@@ -166,3 +168,23 @@ class TestOrderedCompositor(object):
         # Check that both data sources are being used in the interpolation
         assert np.any(o.data >= 2)
         assert np.any(o.data <= 1)
+
+    def test_composite_extra_dims(self):
+        with podpac.settings:
+            podpac.settings["MULTITHREADING"] = False
+
+            coords = podpac.Coordinates([[0, 1], [10, 20, 30]], dims=["lat", "lon"])
+            a = Array(source=np.ones(coords.shape), coordinates=coords)
+
+            extra = podpac.Coordinates([coords["lat"], coords["lon"], "2020-01-01"], dims=["lat", "lon", "time"])
+
+            # dims not provided, eval fails with extra dims
+            node = OrderedCompositor(sources=[a], interpolation="bilinear")
+            np.testing.assert_array_equal(node.eval(coords), a.source)
+            with pytest.raises(podpac.NodeException, match="Cannot evaluate compositor with requested dims"):
+                node.eval(extra)
+
+            # dims provided, remove extra dims
+            node = OrderedCompositor(sources=[a], dims=["lat", "lon"], interpolation="bilinear")
+            np.testing.assert_array_equal(node.eval(coords), a.source)
+            np.testing.assert_array_equal(node.eval(extra), a.source)
