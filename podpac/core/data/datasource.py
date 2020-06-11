@@ -382,14 +382,12 @@ class DataSource(Node):
                     raise ValueError("Cannot evaluate these coordinates, missing at least one dim in '%s'" % c.name)
 
         # remove extra dimensions
-        extra = []
-        for c in coordinates.values():
-            if isinstance(c, Coordinates1d):
-                if c.name not in self.coordinates.udims:
-                    extra.append(c.name)
-            elif isinstance(c, StackedCoordinates):
-                if all(dim not in self.coordinates.udims for dim in c.dims):
-                    extra.append(c.name)
+        extra = [
+            c.name
+            for c in coordinates.values()
+            if (isinstance(c, Coordinates1d) and c.name not in self.coordinates.udims)
+            or (isinstance(c, StackedCoordinates) and all(dim not in self.coordinates.udims for dim in c.dims))
+        ]
         coordinates = coordinates.drop(extra)
 
         # store input coordinates to evaluated coordinates
