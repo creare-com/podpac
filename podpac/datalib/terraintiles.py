@@ -82,12 +82,6 @@ class TerrainTilesSource(Rasterio):
         if "normal" in self.source:
             return "EPSG:3857"
 
-    def get_data(self, coordinates, coordinates_index):
-        data = super(TerrainTilesSource, self).get_data(coordinates, coordinates_index)
-        data.data[data.data < 0] = np.nan
-        # data.data[data.data < 0] = np.nan  # TODO: handle really large values
-        return data
-
     def download(self, path="terraintiles"):
         """
         Download the TerrainTile file from S3 to a local file.
