@@ -122,6 +122,7 @@ class TerrainTilesSource(Rasterio):
 
 class TerrainTilesComposite(S3Mixin, TileCompositor):
     urls = tl.List(trait=tl.Unicode()).tag(attr=True)
+    anon = tl.Bool(True)
 
     _repr_keys = ["urls"]
 
@@ -180,6 +181,7 @@ class TerrainTiles(S3Mixin, OrderedCompositor):
     bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
     sources = None  # these are loaded as needed
     dims = ["lat", "lon"]
+    anon = tl.Bool(True)
 
     def select_sources(self, coordinates):
         # get all the tile sources for the requested zoom level and coordinates
