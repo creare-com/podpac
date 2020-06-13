@@ -43,7 +43,7 @@ class Reduce(UnaryAlgorithm):
     dims = tl.List().tag(attr=True)
 
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
-    _dims = tl.List(trait_type=str)
+    _dims = tl.List(trait=tl.Unicode())
 
     def _first_init(self, **kwargs):
         if "dims" in kwargs and isinstance(kwargs["dims"], string_types):
@@ -807,7 +807,7 @@ class Percentile(ReduceOrthogonal):
         Description
     """
 
-    percentile = tl.Float(default=50.0).tag(attr=True)
+    percentile = tl.Float(default_value=50.0).tag(attr=True)
 
     def reduce(self, x):
         """Computes the percentile across dimension(s)
