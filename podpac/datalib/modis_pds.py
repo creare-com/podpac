@@ -115,7 +115,7 @@ class MODISSource(Rasterio):
         row in the MODIS Sinusoidal Tiling System, e.g. '07'
     date : str
         year and three-digit day of year, e.g. '2011260'
-    data : str
+    data_key : str
         individual object (varies by product)
     """
 
@@ -233,7 +233,7 @@ class MODIS(S3Mixin, OrderedCompositor):
     ----------
     product : str
         MODIS product ('MCD43A4.006', 'MOD09GA.006', 'MYD09GA.006', 'MOD09GQ.006', or 'MYD09GQ.006')
-    data : str
+    data_key : str
         individual object (varies by product)
     """
 

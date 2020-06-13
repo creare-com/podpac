@@ -287,15 +287,13 @@ class Interpolator(tl.HasTraits):
                         tol = self.spatial_tolerance
 
                     diff = np.abs(source_data.coords[dim].values - i.values)
-                    try:
-                        if tol == None or np.any(diff <= tol):
-                            src_i = (diff).argmin()
-                            src_idx = {dim: source_data.coords[dim][src_i]}
-                        else:
-                            src_idx = None  # There is no closest neighbor within the tolerance
-                            continue
-                    except:
-                        breakpoint()
+                    if tol == None or tol == "" or np.any(diff <= tol):
+                        src_i = (diff).argmin()
+                        src_idx = {dim: source_data.coords[dim][src_i]}
+                    else:
+                        src_idx = None  # There is no closest neighbor within the tolerance
+                        continue
+
                 else:
                     src_idx = idx
 

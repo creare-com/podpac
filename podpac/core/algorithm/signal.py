@@ -130,7 +130,7 @@ class Convolution(UnaryAlgorithm):
                 continue
 
             s_start = -s // 2
-            s_end = s // 2 - ((s + 1) % 2)
+            s_end = max(s // 2 - ((s + 1) % 2), 1)
             # The 1e-07 is for floating point error because if endpoint is slightly
             # in front of step * N then the endpoint is excluded
             exp_coords.append(
@@ -150,6 +150,19 @@ class Convolution(UnaryAlgorithm):
 
         # evaluate source using expanded coordinates, convolve, and then slice out original coordinates
         source = self.source.eval(expanded_coordinates)
+
+        # The source may not contain all of the same dimensions as the requested coordinates, which means
+        # The kernel could be too big. So, let's detect this and fix the problem.
+        extra_dims = [d for d in expanded_coordinates.dims if d not in source.dims]
+        if extra_dims:
+            coordinates = coordinates.drop(extra_dims)
+
+            extra_dims_ind = [expanded_coordinates.dims.index(d) for d in extra_dims]
+            for ind in extra_dims_ind:
+                full_kernel = full_kernel.sum(axis=ind)
+                exp_list = list(exp_slice)
+                exp_list.pop(ind)
+                exp_slice = tuple(exp_list)
 
         if np.any(np.isnan(source)):
             method = "direct"
