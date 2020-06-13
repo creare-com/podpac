@@ -316,7 +316,7 @@ class Interpolator(tl.HasTraits):
             # TODO does this allow undesired extrapolation?
             # short circuit if the source data and requested coordinates are of size 1
             if source_data.size == 1 and eval_coordinates.size == 1:
-                output_data[:] = source_data
+                output_data.data[:] = source_data.data.flatten()[0]
                 return output_data
 
             # short circuit if source_coordinates contains eval_coordinates

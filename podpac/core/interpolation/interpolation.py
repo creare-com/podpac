@@ -6,7 +6,8 @@ from six import string_types
 import traitlets as tl
 import numpy as np
 
-# podpac imports
+from podpac.core.units import UnitsDataArray
+from podpac.core.coordinates import merge_dims
 from podpac.core.interpolation.interpolator import Interpolator
 from podpac.core.interpolation.interpolators import NearestNeighbor, NearestPreview, Rasterio, ScipyPoint, ScipyGrid
 
@@ -473,7 +474,7 @@ class Interpolation(object):
         # TODO does this allow undesired extrapolation?
         # short circuit if the source data and requested coordinates are of shape == 1
         if source_data.size == 1 and eval_coordinates.size == 1:
-            output_data[:] = source_data
+            output_data.data[:] = source_data.data.flatten()[0]
             return output_data
 
         # short circuit if source_coordinates contains eval_coordinates
@@ -494,13 +495,25 @@ class Interpolation(object):
         self._last_interpolator_queue = interpolator_queue
 
         # iterate through each dim tuple in the queue
-        for udims in interpolator_queue:
-            interpolator = interpolator_queue[udims]
+        outputs = output_data.coords.get("output")
+        dtype = output_data.dtype
+        for udims, interpolator in interpolator_queue.items():
+            # TODO use short-circuits within this loop
 
-            # run interpolation
-            output_data = interpolator.interpolate(
-                udims, source_coordinates, source_data, eval_coordinates, output_data
+            # interp_coordinates are essentially intermediate eval_coordinates
+            interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
+            other_dims = [dim for dim, c in eval_coordinates.items() if not set(c.dims).issubset(udims)]
+            interp_coordinates = merge_dims([source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)])
+            interp_data = UnitsDataArray.create(interp_coordinates, outputs=outputs, dtype=dtype)
+            interp_data = interpolator.interpolate(
+                udims, source_coordinates, source_data, interp_coordinates, interp_data
             )
+
+            # prepare for the next iteration
+            source_data = interp_data
+            source_coordinates = interp_coordinates
+
+        output_data.data = interp_data.transpose(*output_data.dims)
 
         return output_data
 
