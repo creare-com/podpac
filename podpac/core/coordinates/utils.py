@@ -487,11 +487,7 @@ def lower_precision_time_bounds(my_bounds, other_bounds, outer):
     if not isinstance(my_bounds[0], np.datetime64) or not isinstance(my_bounds[1], np.datetime64):
         raise TypeError("Native bounds should be of type np.datetime64 when selecting data using:", str(other_bounds))
 
-    mine = np.timedelta64(1, my_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
-    your = np.timedelta64(1, other_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
-
-    assert (mine > your) == (my_bounds[0].dtype < other_bounds[0].dtype)
-    if mine > your and outer:
+    if my_bounds[0].dtype < other_bounds[0].dtype and outer:
         other_bounds = [b.astype(my_bounds[0].dtype) for b in other_bounds]
     else:
         my_bounds = [b.astype(other_bounds[0].dtype) for b in my_bounds]
