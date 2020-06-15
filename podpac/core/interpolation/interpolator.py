@@ -268,11 +268,11 @@ class Interpolator(tl.HasTraits):
         loop_dims = [d for d in source_data.dims if d not in keep_dims]
         if loop_dims:
             dim = loop_dims[0]
-            for i in output_data.coords[dim]:
-                idx = {dim: i}
+            for i, coord in enumerate(output_data.coords[dim]):
+                idx = {dim: coord}
 
                 # TODO: handle this using presecribed interpolation method instead of "nearest"
-                if not i.isin(source_data.coords[dim]):
+                if not coord.isin(source_data.coords[dim]):
                     if self.method != "nearest":
                         _log.warning(
                             "Interpolation method {} is not supported yet in this context. Using 'nearest' for {}".format(
@@ -286,7 +286,7 @@ class Interpolator(tl.HasTraits):
                     else:
                         tol = self.spatial_tolerance
 
-                    diff = np.abs(source_data.coords[dim].values - i.values)
+                    diff = np.abs(source_data.coords[dim].values - coord.values)
                     if tol == None or tol == "" or np.any(diff <= tol):
                         src_i = (diff).argmin()
                         src_idx = {dim: source_data.coords[dim][src_i]}
@@ -301,9 +301,9 @@ class Interpolator(tl.HasTraits):
                     func,
                     keep_dims,
                     udims,
-                    source_coordinates,
+                    source_coordinates.drop(dim),
                     source_data.loc[src_idx],
-                    eval_coordinates,
+                    eval_coordinates.drop(dim),
                     output_data.loc[idx],
                     **kwargs
                 )

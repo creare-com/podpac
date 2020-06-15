@@ -380,7 +380,23 @@ class TestHeterogenousInterpolation(object):
         assert node.eval(self.C2)[0, 0, 0] == 25.4
         assert node.eval(self.C3)[0, 0, 0] == 21.0
         assert node.eval(self.C4)[0, 0, 0] == 25.4
-        # node.eval(self.C) # TODO doesn't currently work
+        np.testing.assert_array_equal(node.eval(self.C), [[[21, 21], [22.2, 22.2]], [[24.2, 24.2], [25.4, 25.4]]])
+
+        assert node.eval(self.S1)[0, 0] == 21.0
+        assert node.eval(self.S2)[0, 0] == 25.4
+        assert node.eval(self.S3)[0, 0] == 21.0
+        assert node.eval(self.S4)[0, 0] == 25.4
+        np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [25.4, 25.4], [21, 21], [25.4, 25.4]])
+
+        # other order
+        interpolation = [{"method": "bilinear", "dims": ["lat", "lon"]}, {"method": "nearest", "dims": ["time"]}]
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+
+        assert node.eval(self.C1)[0, 0, 0] == 21.0
+        assert node.eval(self.C2)[0, 0, 0] == 25.4
+        assert node.eval(self.C3)[0, 0, 0] == 21.0
+        assert node.eval(self.C4)[0, 0, 0] == 25.4
+        np.testing.assert_array_equal(node.eval(self.C), [[[21, 21], [22.2, 22.2]], [[24.2, 24.2], [25.4, 25.4]]])
 
         assert node.eval(self.S1)[0, 0] == 21.0
         assert node.eval(self.S2)[0, 0] == 25.4
