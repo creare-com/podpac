@@ -280,7 +280,7 @@ class Interpolator(tl.HasTraits):
                             )
                         )
 
-                    # find the closest i
+                    # find the closest value
                     if dim == "time":
                         tol = self.time_tolerance
                     else:
