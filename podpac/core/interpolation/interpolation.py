@@ -498,7 +498,7 @@ class Interpolation(object):
         outputs = output_data.coords.get("output")
         dtype = output_data.dtype
         for udims, interpolator in interpolator_queue.items():
-            # TODO use short-circuits within this loop
+            # TODO move the above short-circuits into this loop
 
             # interp_coordinates are essentially intermediate eval_coordinates
             interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]

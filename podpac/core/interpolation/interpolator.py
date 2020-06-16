@@ -309,8 +309,6 @@ class Interpolator(tl.HasTraits):
                 )
 
         else:
-            # don't interpolate if the eval_coordinates match the source_coordinates
-
             # TODO does this allow undesired extrapolation?
             # short circuit if the source data and requested coordinates are of size 1
             if source_data.size == 1 and eval_coordinates.size == 1:
