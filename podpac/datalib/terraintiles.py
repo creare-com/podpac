@@ -41,10 +41,13 @@ from io import BytesIO
 import traitlets as tl
 import numpy as np
 
+import podpac
 from podpac.data import Rasterio
-from podpac.compositor import OrderedCompositor
+from podpac.compositor import OrderedCompositor, TileCompositor
 from podpac.interpolators import Rasterio as RasterioInterpolator, ScipyGrid, ScipyPoint
 from podpac.data import InterpolationTrait
+from podpac.utils import cached_property
+from podpac.authentication import S3Mixin
 
 ####
 # private module attributes
@@ -68,6 +71,7 @@ class TerrainTilesSource(Rasterio):
         rasterio dataset
     """
 
+    anon = tl.Bool(True)
     # attributes
     interpolation = InterpolationTrait(
         default_value={"method": "nearest", "interpolators": [RasterioInterpolator, ScipyGrid, ScipyPoint]}
@@ -106,8 +110,41 @@ class TerrainTilesSource(Rasterio):
         _logger.debug("Downloading terrain tile {} to filepath: {}".format(self.source, filepath))
         self.s3.get(self.source, filepath)
 
+    # this is a little crazy, but I get floating point issues with indexing if i don't round to 7 decimal digits
+    def get_coordinates(self):
+        coordinates = super(TerrainTilesSource, self).get_coordinates()
 
-class TerrainTiles(OrderedCompositor):
+        for dim in coordinates:
+            coordinates[dim] = np.round(coordinates[dim].coordinates, 6)
+
+        return coordinates
+
+
+class TerrainTilesComposite(S3Mixin, TileCompositor):
+    urls = tl.List(trait=tl.Unicode()).tag(attr=True)
+    anon = tl.Bool(True)
+
+    _repr_keys = ["urls"]
+
+    @cached_property
+    def sources(self):
+        return [self._create_source(url) for url in self.urls]
+
+    def get_coordinates(self):
+        return podpac.coordinates.union([source.coordinates for source in self.sources])
+
+    def _create_source(self, url):
+        return TerrainTilesSource(
+            source=url,
+            cache_ctrl=self.cache_ctrl,
+            force_eval=self.force_eval,
+            cache_output=self.cache_output,
+            cache_dataset=True,
+            s3=self.s3,
+        )
+
+
+class TerrainTiles(S3Mixin, OrderedCompositor):
     """Terrain Tiles gridded elevation tiles data library
 
     Hosted on AWS S3
@@ -143,13 +180,16 @@ class TerrainTiles(OrderedCompositor):
     tile_format = tl.Enum(["geotiff", "terrarium", "normal"], default_value="geotiff").tag(attr=True)
     bucket = tl.Unicode(default_value="elevation-tiles-prod").tag(attr=True)
     sources = None  # these are loaded as needed
+    dims = ["lat", "lon"]
+    anon = tl.Bool(True)
 
     def select_sources(self, coordinates):
         # get all the tile sources for the requested zoom level and coordinates
         sources = get_tile_urls(self.tile_format, self.zoom, coordinates)
+        urls = ["s3://{}/{}".format(self.bucket, s) for s in sources]
 
         # create TerrainTilesSource classes for each url source
-        self.sources = [self._create_source(source) for source in sources]
+        self.sources = self._create_composite(urls)
         return self.sources
 
     def download(self, path="terraintiles"):
@@ -169,8 +209,17 @@ class TerrainTiles(OrderedCompositor):
         except tl.TraitError as e:
             raise ValueError("No terrain tile sources selected. Evaluate node at coordinates to select sources.")
 
-    def _create_source(self, source):
-        return TerrainTilesSource(source="s3://{}/{}".format(self.bucket, source), cache_ctrl=self.cache_ctrl)
+    def _create_composite(self, urls):
+        return [
+            TerrainTilesComposite(
+                urls=urls,
+                cache_ctrl=self.cache_ctrl,
+                force_eval=self.force_eval,
+                cache_output=self.cache_output,
+                cache_dataset=True,
+                s3=self.s3,
+            )
+        ]
 
 
 ############
@@ -412,10 +461,16 @@ if __name__ == "__main__":
     from podpac import Coordinates, clinspace
 
     c = Coordinates([clinspace(40, 43, 1000), clinspace(-76, -72, 1000)], dims=["lat", "lon"])
+    c2 = Coordinates(
+        [clinspace(40, 43, 1000), clinspace(-76, -72, 1000), ["2018-01-01", "2018-01-02"]], dims=["lat", "lon", "time"]
+    )
 
     print("TerrainTiles")
     node = TerrainTiles(tile_format="geotiff", zoom=8)
     output = node.eval(c)
+    print(output)
+
+    output = node.eval(c2)
     print(output)
 
     print("TerrainTiles cached")

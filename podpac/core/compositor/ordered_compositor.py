@@ -2,7 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 import numpy as np
 
-# Internal imports
+from podpac.core.node import NodeException
 from podpac.core.units import UnitsDataArray
 from podpac.core.utils import common_doc
 from podpac.core.compositor.compositor import COMMON_COMPOSITOR_DOC, BaseCompositor
@@ -50,7 +50,15 @@ class OrderedCompositor(BaseCompositor):
         mask = UnitsDataArray.create(coordinates, outputs=self.outputs, data=0, dtype=bool)
         for data in data_arrays:
             if self.outputs is None:
-                data = data.transpose(*result.dims)
+                try:
+                    data = data.transpose(*result.dims)
+                except ValueError:
+                    raise NodeException(
+                        "Cannot evaluate compositor with requested dims %s. "
+                        "The compositor source dims are %s. "
+                        "Specify the compositor 'dims' attribute to ignore extra requested dims."
+                        % (coordinates.dims, data.dims)
+                    )
                 self._composite(result, data, mask)
             else:
                 for name in data["output"]:

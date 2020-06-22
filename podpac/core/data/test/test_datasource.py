@@ -385,6 +385,7 @@ class TestDataSource(object):
         output = node.eval(coords)
         assert output.dims == ("time",)  # lat_lon dropped
 
+        # TODO
         # but don't drop extra stacked dimension if any of its dimensions are needed
         # output = node.eval(Coordinates([[1, 11, '2018-01-01']], dims=['lat_lon_time']))
         # assert output.dims == ('lat_lon_time') # lat and lon not dropped
