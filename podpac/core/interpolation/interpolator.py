@@ -318,10 +318,7 @@ class Interpolator(tl.HasTraits):
             # short circuit if source_coordinates contains eval_coordinates
             if eval_coordinates.issubset(source_coordinates):
                 # select/transpose, and copy
-                if "output" in output_data.coords:
-                    output_coords = output_data.drop("output").coords
-                else:
-                    output_coords = output_data.coords
+                output_coords = output_data.coords
                 output_data[:] = source_data.sel(output_coords)
                 return output_data
 

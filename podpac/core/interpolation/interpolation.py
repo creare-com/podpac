@@ -471,6 +471,22 @@ class Interpolation(object):
             of the requested coordinates
         """
 
+        # loop through multiple outputs if necessary
+        if "output" in output_data.dims:
+            for output in output_data.coords["output"]:
+                output_data.sel(output=output)[:] = self.interpolate(
+                    source_coordinates,
+                    source_data.sel(output=output).drop_vars("output"),
+                    eval_coordinates,
+                    output_data.sel(output=output).drop_vars("output"),
+                )
+            return output_data
+
+        # drop already-selected output variable
+        if "output" in output_data.coords:
+            source_data = source_data.drop_vars("output")
+            output_data = output_data.drop_vars("output")
+
         # TODO does this allow undesired extrapolation?
         # short circuit if the source data and requested coordinates are of shape == 1
         if source_data.size == 1 and eval_coordinates.size == 1:
@@ -479,12 +495,7 @@ class Interpolation(object):
 
         # short circuit if source_coordinates contains eval_coordinates
         if eval_coordinates.issubset(source_coordinates):
-            # select/transpose, and copy
-            if "output" in output_data.coords:
-                output_coords = output_data.drop_vars("output").coords
-            else:
-                output_coords = output_data.coords
-            output_data[:] = source_data.sel(output_coords)
+            output_data[:] = source_data.sel(output_data.coords)
             return output_data
 
         interpolator_queue = self._select_interpolator_queue(
@@ -495,7 +506,6 @@ class Interpolation(object):
         self._last_interpolator_queue = interpolator_queue
 
         # iterate through each dim tuple in the queue
-        outputs = output_data.coords.get("output")
         dtype = output_data.dtype
         for udims, interpolator in interpolator_queue.items():
             # TODO move the above short-circuits into this loop
@@ -504,7 +514,7 @@ class Interpolation(object):
             interp_dims = [dim for dim, c in source_coordinates.items() if set(c.dims).issubset(udims)]
             other_dims = [dim for dim, c in eval_coordinates.items() if not set(c.dims).issubset(udims)]
             interp_coordinates = merge_dims([source_coordinates.drop(interp_dims), eval_coordinates.drop(other_dims)])
-            interp_data = UnitsDataArray.create(interp_coordinates, outputs=outputs, dtype=dtype)
+            interp_data = UnitsDataArray.create(interp_coordinates, dtype=dtype)
             interp_data = interpolator.interpolate(
                 udims, source_coordinates, source_data, interp_coordinates, interp_data
             )

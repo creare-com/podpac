@@ -421,6 +421,25 @@ class TestHeterogenousInterpolation(object):
         assert node.eval(self.S4)[0, 0] == 21.25
         # TODO np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [25.4, 25.4], [21, 21], [25.4, 25.4]])
 
+    def test_multiple_outputs_nearest(self):
+        interpolation = "nearest"
+        node = podpac.data.Array(
+            source=np.transpose([self.DATA, 2 * self.DATA], [1, 2, 3, 0]),
+            coordinates=self.COORDS,
+            interpolation=interpolation,
+            outputs=["a", "b"],
+        )
+
+        np.testing.assert_array_equal(node.eval(self.C1)[0, 0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.C2)[0, 0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.C3)[0, 0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.C4)[0, 0, 0], [21.0, 2 * 21.0])
+
+        np.testing.assert_array_equal(node.eval(self.S1)[0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.S2)[0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.S3)[0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.S4)[0, 0], [21.0, 2 * 21.0])
+
     def test_multiple_outputs(self):
         interpolation = [{"method": "nearest", "dims": ["time"]}, {"method": "bilinear", "dims": ["lat", "lon"]}]
         node = podpac.data.Array(
@@ -435,11 +454,18 @@ class TestHeterogenousInterpolation(object):
         np.testing.assert_array_equal(node.eval(self.C3)[0, 0, 0], [21.0, 2 * 21.0])
         np.testing.assert_array_equal(node.eval(self.C4)[0, 0, 0], [25.4, 2 * 25.4])
         np.testing.assert_array_equal(
-            node.eval(self.C), [[[21, 21], [22.2, 22.2]], [[24.2, 24.2], [25.4, 25.4]]]
-        )  # TODO
+            node.eval(self.C),
+            [
+                [[[21, 42], [21, 42]], [[22.2, 44.4], [22.2, 44.4]]],
+                [[[24.2, 48.4], [24.2, 48.4]], [[25.4, 50.8], [25.4, 50.8]]],
+            ],
+        )
 
         np.testing.assert_array_equal(node.eval(self.S1)[0, 0], [21.0, 2 * 21.0])
         np.testing.assert_array_equal(node.eval(self.S2)[0, 0], [25.4, 2 * 25.4])
         np.testing.assert_array_equal(node.eval(self.S3)[0, 0], [21.0, 2 * 21.0])
         np.testing.assert_array_equal(node.eval(self.S4)[0, 0], [25.4, 2 * 25.4])
-        np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [25.4, 25.4], [21, 21], [25.4, 25.4]])  # TODO
+        np.testing.assert_array_equal(
+            node.eval(self.S),
+            [[[21, 42], [21, 42]], [[25.4, 50.8], [25.4, 50.8]], [[21, 42], [21, 42]], [[25.4, 50.8], [25.4, 50.8]]],
+        )
