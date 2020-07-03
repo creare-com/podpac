@@ -49,7 +49,7 @@ class Rasterio(LoadFileMixin, BaseFileSource):
     @cached_property
     def dataset(self):
         try:
-            super(Rasterio, self).dataset()
+            return super(Rasterio, self).dataset
         except OSError:  # This can happen if the dataset has subdatasets
             # i.e. user supplied a non-file-looking string like 'HDF4_EOS:EOS_GRID:"MOD13Q1.A2013033.h08v05.006.2015256072248.hdf":MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days NDVI"'
             self.set_trait("read_from_source", True)
