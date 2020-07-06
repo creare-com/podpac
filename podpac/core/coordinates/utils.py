@@ -431,6 +431,23 @@ def divide_delta(delta, divisor):
 
 
 def divide_timedelta(delta, divisor):
+    """
+    Divide a timedelta by a numerical divisor. This is a helper function for divide_delta.
+    
+    Parameters
+    ----------
+    delta : np.timedelta64
+        The base delta.
+    divisor : number
+        The divisor
+    
+    Returns
+    -------
+    result : np.timedelta64
+        The result, converted to higher resolution if necessary.
+
+    """
+
     result = delta / divisor
     if divisor * result.astype(int) == delta.astype(int):
         return result
@@ -443,10 +460,27 @@ def divide_timedelta(delta, divisor):
 
 
 def timedelta_divisible(numerator, divisor):
+    """ Check if a numpy timedelta64 is evenly divisible by another.
+
+    Arguments
+    ---------
+    numerator : numpy.timedelta64
+        numerator
+    divisor : numpy.timedelta64
+        divisor
+
+    Returns
+    -------
+    divisible : bool
+        if the numerator is evenly divisible by the divisor
+    """
+
     try:
+        # NOTE: numerator % divisor works in some versions of numpy, but not all
         r = numerator / divisor
         return float(r) == int(r)
     except TypeError:
+        # e.g. months and days are not comparible
         return False
 
 
