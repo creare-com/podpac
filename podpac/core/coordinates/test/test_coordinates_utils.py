@@ -7,7 +7,7 @@ from datetime import datetime
 
 from podpac.core.coordinates.utils import get_timedelta, get_timedelta_unit, make_timedelta_string
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_array, make_coord_delta_array
-from podpac.core.coordinates.utils import add_coord, divide_delta, divide_timedelta
+from podpac.core.coordinates.utils import add_coord, divide_delta, divide_timedelta, timedelta_divisible
 
 
 def test_get_timedelta():
@@ -465,3 +465,19 @@ def test_divide_delta():
     assert divide_delta(np.timedelta64(1, "D"), 2) == np.timedelta64(12, "h")
     with pytest.raises(ValueError, match="Cannot divide timedelta .* evenly"):
         divide_delta(np.timedelta64(1, "D"), 17)
+
+
+def test_timedelta_divisible():
+    assert timedelta_divisible(np.timedelta64(1, "D"), np.timedelta64(1, "D"))
+    assert timedelta_divisible(np.timedelta64(4, "D"), np.timedelta64(2, "D"))
+    assert timedelta_divisible(np.timedelta64(1, "D"), np.timedelta64(6, "h"))
+    assert timedelta_divisible(np.timedelta64(1, "D"), np.timedelta64(6, "m"))
+    assert timedelta_divisible(np.timedelta64(1, "D"), np.timedelta64(6, "s"))
+    assert timedelta_divisible(np.timedelta64(1, "Y"), np.timedelta64(2, "M"))
+
+    assert not timedelta_divisible(np.timedelta64(4, "D"), np.timedelta64(3, "D"))
+    assert not timedelta_divisible(np.timedelta64(1, "D"), np.timedelta64(2, "D"))
+    assert not timedelta_divisible(np.timedelta64(6, "h"), np.timedelta64(1, "D"))
+    assert not timedelta_divisible(np.timedelta64(1, "D"), np.timedelta64(5, "h"))
+
+    assert not timedelta_divisible(np.timedelta64(1, "M"), np.timedelta64(1, "D"))

@@ -442,6 +442,14 @@ def divide_timedelta(delta, divisor):
     raise ValueError("Cannot divide timedelta '%s' evenly by %d" % (make_timedelta_string(delta), divisor))
 
 
+def timedelta_divisible(numerator, divisor):
+    try:
+        r = numerator / divisor
+        return float(r) == int(r)
+    except TypeError:
+        return False
+
+
 _TIMEDELTA_ZOOM = {
     "<m8[Y]": "<m8[D]",
     "<m8[D]": "<m8[h]",

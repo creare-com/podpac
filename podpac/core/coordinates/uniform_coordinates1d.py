@@ -7,8 +7,14 @@ import numpy as np
 import traitlets as tl
 from collections import OrderedDict
 
-from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, add_coord, divide_delta
-from podpac.core.coordinates.utils import lower_precision_time_bounds
+from podpac.core.coordinates.utils import (
+    make_coord_value,
+    make_coord_delta,
+    add_coord,
+    divide_delta,
+    timedelta_divisible,
+    lower_precision_time_bounds,
+)
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
@@ -399,7 +405,7 @@ class UniformCoordinates1d(Coordinates1d):
             return True
 
         if self.dtype == np.datetime64:
-            return (self.step % other.step).astype(float) == 0
+            return timedelta_divisible(self.step, other.step)
         else:
             return self.step % other.step == 0
 
