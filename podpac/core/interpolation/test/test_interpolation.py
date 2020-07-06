@@ -12,6 +12,7 @@ import pytest
 import traitlets as tl
 import numpy as np
 
+import podpac
 from podpac.core.units import UnitsDataArray
 from podpac.core.coordinates import Coordinates
 from podpac.core.interpolation.interpolation import Interpolation, InterpolationException
@@ -333,3 +334,138 @@ class TestInterpolation(object):
         outdata = interp.interpolate(srccoords, srcdata, reqcoords, outdata)
 
         assert np.all(outdata == srcdata)
+
+
+class TestHeterogenousInterpolation(object):
+    DATA = np.arange(64).reshape((4, 4, 4))
+    COORDS = Coordinates(
+        [[0, 1, 2, 3], [0, 1, 2, 3], ["2020-01-01", "2020-01-05", "2020-01-09", "2020-01-13"]],
+        dims=["lat", "lon", "time"],
+    )
+    C1 = Coordinates([1.0, 1.0, "2020-01-05"], dims=["lat", "lon", "time"])
+    C2 = Coordinates([1.2, 1.3, "2020-01-05"], dims=["lat", "lon", "time"])
+    C3 = Coordinates([1.0, 1.0, "2020-01-06"], dims=["lat", "lon", "time"])
+    C4 = Coordinates([1.2, 1.3, "2020-01-06"], dims=["lat", "lon", "time"])
+    C = Coordinates([[1.0, 1.2], [1.0, 1.3], ["2020-01-05", "2020-01-06"]], dims=["lat", "lon", "time"])
+
+    S1 = Coordinates([[1.0, 1.0], "2020-01-05"], dims=["lat_lon", "time"])
+    S2 = Coordinates([[1.2, 1.3], "2020-01-05"], dims=["lat_lon", "time"])
+    S3 = Coordinates([[1.0, 1.0], "2020-01-06"], dims=["lat_lon", "time"])
+    S4 = Coordinates([[1.2, 1.3], "2020-01-06"], dims=["lat_lon", "time"])
+    S = Coordinates(
+        [[[1.0, 1.2, 1.0, 1.2], [1.0, 1.3, 1.0, 1.3]], ["2020-01-05", "2020-01-06"]], dims=["lat_lon", "time"]
+    )
+
+    def test_nearest(self):
+        interpolation = "nearest"
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+
+        assert node.eval(self.C1)[0, 0, 0] == 21.0
+        assert node.eval(self.C2)[0, 0, 0] == 21.0
+        assert node.eval(self.C3)[0, 0, 0] == 21.0
+        assert node.eval(self.C4)[0, 0, 0] == 21.0
+        assert np.all(node.eval(self.C) == 21.0)
+
+        assert node.eval(self.S1)[0, 0] == 21.0
+        assert node.eval(self.S2)[0, 0] == 21.0
+        assert node.eval(self.S3)[0, 0] == 21.0
+        assert node.eval(self.S4)[0, 0] == 21.0
+        np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [21, 21], [21, 21], [21, 21]])
+
+    def test_mixed(self):
+        interpolation = [{"method": "nearest", "dims": ["time"]}, {"method": "bilinear", "dims": ["lat", "lon"]}]
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+
+        assert node.eval(self.C1)[0, 0, 0] == 21.0
+        assert node.eval(self.C2)[0, 0, 0] == 25.4
+        assert node.eval(self.C3)[0, 0, 0] == 21.0
+        assert node.eval(self.C4)[0, 0, 0] == 25.4
+        np.testing.assert_array_equal(node.eval(self.C), [[[21, 21], [22.2, 22.2]], [[24.2, 24.2], [25.4, 25.4]]])
+
+        assert node.eval(self.S1)[0, 0] == 21.0
+        assert node.eval(self.S2)[0, 0] == 25.4
+        assert node.eval(self.S3)[0, 0] == 21.0
+        assert node.eval(self.S4)[0, 0] == 25.4
+        np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [25.4, 25.4], [21, 21], [25.4, 25.4]])
+
+        # other order
+        interpolation = [{"method": "bilinear", "dims": ["lat", "lon"]}, {"method": "nearest", "dims": ["time"]}]
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+
+        assert node.eval(self.C1)[0, 0, 0] == 21.0
+        assert node.eval(self.C2)[0, 0, 0] == 25.4
+        assert node.eval(self.C3)[0, 0, 0] == 21.0
+        assert node.eval(self.C4)[0, 0, 0] == 25.4
+        np.testing.assert_array_equal(node.eval(self.C), [[[21, 21], [22.2, 22.2]], [[24.2, 24.2], [25.4, 25.4]]])
+
+        assert node.eval(self.S1)[0, 0] == 21.0
+        assert node.eval(self.S2)[0, 0] == 25.4
+        assert node.eval(self.S3)[0, 0] == 21.0
+        assert node.eval(self.S4)[0, 0] == 25.4
+        np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [25.4, 25.4], [21, 21], [25.4, 25.4]])
+
+    @pytest.mark.xfail
+    def test_mixed_linear_time(self):
+        interpolation = [{"method": "bilinear", "dims": ["time"]}, {"method": "nearest", "dims": ["lat", "lon"]}]
+        node = podpac.data.Array(source=self.DATA, coordinates=self.COORDS, interpolation=interpolation)
+
+        assert node.eval(self.C1)[0, 0, 0] == 21.0
+        assert node.eval(self.C2)[0, 0, 0] == 21.0
+        assert node.eval(self.C3)[0, 0, 0] == 21.25
+        assert node.eval(self.C4)[0, 0, 0] == 21.25
+        # TODO np.testing.assert_array_equal(node.eval(self.C), [[[21, 21], [22.2, 22.2]], [[24.2, 24.2], [25.4, 25.4]]])
+
+        assert node.eval(self.S1)[0, 0] == 21.0
+        assert node.eval(self.S2)[0, 0] == 21.0
+        assert node.eval(self.S3)[0, 0] == 21.25
+        assert node.eval(self.S4)[0, 0] == 21.25
+        # TODO np.testing.assert_array_equal(node.eval(self.S), [[21, 21], [25.4, 25.4], [21, 21], [25.4, 25.4]])
+
+    def test_multiple_outputs_nearest(self):
+        interpolation = "nearest"
+        node = podpac.data.Array(
+            source=np.transpose([self.DATA, 2 * self.DATA], [1, 2, 3, 0]),
+            coordinates=self.COORDS,
+            interpolation=interpolation,
+            outputs=["a", "b"],
+        )
+
+        np.testing.assert_array_equal(node.eval(self.C1)[0, 0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.C2)[0, 0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.C3)[0, 0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.C4)[0, 0, 0], [21.0, 2 * 21.0])
+
+        np.testing.assert_array_equal(node.eval(self.S1)[0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.S2)[0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.S3)[0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.S4)[0, 0], [21.0, 2 * 21.0])
+
+    def test_multiple_outputs(self):
+        interpolation = [{"method": "nearest", "dims": ["time"]}, {"method": "bilinear", "dims": ["lat", "lon"]}]
+        node = podpac.data.Array(
+            source=np.transpose([self.DATA, 2 * self.DATA], [1, 2, 3, 0]),
+            coordinates=self.COORDS,
+            interpolation=interpolation,
+            outputs=["a", "b"],
+        )
+
+        np.testing.assert_array_equal(node.eval(self.C1)[0, 0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.C2)[0, 0, 0], [25.4, 2 * 25.4])
+        np.testing.assert_array_equal(node.eval(self.C3)[0, 0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.C4)[0, 0, 0], [25.4, 2 * 25.4])
+        np.testing.assert_array_equal(
+            node.eval(self.C),
+            [
+                [[[21, 42], [21, 42]], [[22.2, 44.4], [22.2, 44.4]]],
+                [[[24.2, 48.4], [24.2, 48.4]], [[25.4, 50.8], [25.4, 50.8]]],
+            ],
+        )
+
+        np.testing.assert_array_equal(node.eval(self.S1)[0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.S2)[0, 0], [25.4, 2 * 25.4])
+        np.testing.assert_array_equal(node.eval(self.S3)[0, 0], [21.0, 2 * 21.0])
+        np.testing.assert_array_equal(node.eval(self.S4)[0, 0], [25.4, 2 * 25.4])
+        np.testing.assert_array_equal(
+            node.eval(self.S),
+            [[[21, 42], [21, 42]], [[25.4, 50.8], [25.4, 50.8]], [[21, 42], [21, 42]], [[25.4, 50.8], [25.4, 50.8]]],
+        )
