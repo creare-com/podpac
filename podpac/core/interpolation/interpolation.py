@@ -476,16 +476,16 @@ class Interpolation(object):
             for output in output_data.coords["output"]:
                 output_data.sel(output=output)[:] = self.interpolate(
                     source_coordinates,
-                    source_data.sel(output=output).drop_vars("output"),
+                    source_data.sel(output=output).drop("output"),
                     eval_coordinates,
-                    output_data.sel(output=output).drop_vars("output"),
+                    output_data.sel(output=output).drop("output"),
                 )
             return output_data
 
         # drop already-selected output variable
         if "output" in output_data.coords:
-            source_data = source_data.drop_vars("output")
-            output_data = output_data.drop_vars("output")
+            source_data = source_data.drop("output")
+            output_data = output_data.drop("output")
 
         # TODO does this allow undesired extrapolation?
         # short circuit if the source data and requested coordinates are of shape == 1
