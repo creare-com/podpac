@@ -98,7 +98,23 @@ class SatUtils(S3Mixin, OrderedCompositor):
         if not self._search:
             raise AttributeError("Run `node.eval` or `node.search` with coordinates to define `node.sources` property")
 
-        items = self._search.items()
+        try:
+            items = self._search.items()
+        except AttributeError:
+            _logger.warning(
+                "Sat Utils did not find any items for collection {}. Ensure that sat-stac is installed, or try with a different set of coordinates (self.search(coordinates)).".format(
+                    self.collection
+                )
+            )
+            return []
+
+        if len(items) == 0:
+            _logger.warning(
+                "Sat Utils did not find any items for collection {}. Ensure that sat-stac is installed, or try with a different set of coordinates (self.search(coordinates)).".format(
+                    self.collection
+                )
+            )
+            return []
 
         if self.asset is None:
             raise ValueError("Asset type must be defined. Use `list_assets` method")
@@ -214,6 +230,7 @@ class SatUtils(S3Mixin, OrderedCompositor):
             search["query"]["collection"] = {"eq": self.collection}
 
         # search with sat-search
+        _logger.debug("sat-search searching with {}".format(search))
         self._search = satsearch.Search(**search)
         _logger.debug("sat-search found {} items".format(self._search.found()))
 

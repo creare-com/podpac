@@ -89,13 +89,18 @@ class COSMOSStation(podpac.data.DataSource):
 
     def get_coordinates(self):
         lat_lon = self.station_data["location"]
-        time = np.loadtxt(
-            StringIO(self.raw_data),
-            skiprows=1,
-            usecols=[self.data_columns.index("YYYY-MM-DD"), self.data_columns.index("HH:MM")],
-            dtype=str,
+        time = np.atleast_2d(
+            np.loadtxt(
+                StringIO(self.raw_data),
+                skiprows=1,
+                usecols=[self.data_columns.index("YYYY-MM-DD"), self.data_columns.index("HH:MM")],
+                dtype=str,
+            )
         )
-        time = np.array([t[0] + "T" + t[1] for t in time], np.datetime64)
+        if time.size == 0:
+            time = np.datetime64("NaT")
+        else:
+            time = np.array([t[0] + "T" + t[1] for t in time], np.datetime64)
         c = podpac.Coordinates([time, lat_lon[0], lat_lon[1]], ["time", "lat", "lon"])
         return c
 
