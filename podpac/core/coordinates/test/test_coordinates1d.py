@@ -64,3 +64,13 @@ class TestCoordinates1d(object):
             pass
 
         assert c != None
+
+        try:
+            c.simplify()
+        except NotImplementedError:
+            pass
+
+        try:
+            c.issubset(c)
+        except NotImplementedError:
+            pass
