@@ -8,6 +8,7 @@ import traitlets as tl
 import lazy_import
 from six import string_types
 import numbers
+import logging
 
 from podpac.core.settings import settings
 from podpac.core.utils import ArrayTrait, TupleTrait
@@ -18,6 +19,8 @@ from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
 from podpac.core.coordinates.cfunctions import clinspace
+
+_logger = logging.getLogger(__file__)
 
 
 class DependentCoordinates(BaseCoordinates):
@@ -492,6 +495,39 @@ class DependentCoordinates(BaseCoordinates):
             properties["dims"] = dims
             return DependentCoordinates(coordinates, **properties)
 
+    def issubset(self, other):
+        """ Report whether other coordinates contains these coordinates.
+
+        Arguments
+        ---------
+        other : Coordinates, StackedCoordinates
+            Other coordinates to check
+
+        Returns
+        -------
+        issubset : bool
+            True if these coordinates are a subset of the other coordinates.
+        """
+
+        # Check at least that the individual dims are there
+        if not all([self[dim].issubset(other[dim]) for dim in self.dims]):
+            return False
+
+        # NOTE: From this point forward, it gets expensive. We're essentially doing NN interpolation here. Would be nice
+        # to reuse these results...
+
+        # Check that the pairs line up as well.
+        # make pair sets
+        mine = []
+        theirs = []
+        for dim in self.dims:
+            mine.append(self[dim].coordinates.ravel())
+            theirs.append(other[dim].coordinates.ravel())
+        mine = set([tuple(a) for a in np.stack(mine, axis=1)])
+        theirs = set([tuple(a) for a in np.stack(theirs, axis=1)])
+        # Compare
+        return mine.issubset(theirs)
+
     # ------------------------------------------------------------------------------------------------------------------
     # Debug
     # ------------------------------------------------------------------------------------------------------------------
@@ -586,3 +622,35 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
     def select(self, bounds, outer=False, return_indices=False):
         """ restricted """
         raise RuntimeError("ArrayCoordinatesNd select is unavailable.")
+
+    def issubset(self, other):
+        """ Report whether other coordinates contains these coordinates.
+
+        Arguments
+        ---------
+        other : Coordinates, StackedCoordinates
+            Other coordinates to check
+
+        Returns
+        -------
+        issubset : bool
+            True if these coordinates are a subset of the other coordinates.
+        """
+        # short-cuts that don't require checking coordinates
+        if self.size == 0:
+            return True
+
+        if other.size == 0:
+            return False
+
+        if self.dtype != other.dtype:
+            return False
+
+        if self.bounds[0] < other.bounds[0] or self.bounds[1] > other.bounds[1]:
+            return False
+
+        # check actual coordinates using built-in set method issubset
+        # for datetimes, convert to the higher resolution
+        my_coordinates = self.coordinates.ravel()
+        other_coordinates = other.coordinates.ravel()
+        return set(my_coordinates).issubset(other_coordinates)
