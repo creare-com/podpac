@@ -510,7 +510,7 @@ class DependentCoordinates(BaseCoordinates):
         """
 
         # Check at least that the individual dims are there
-        if not all([self[dim].issubset(other[dim]) for dim in self.dims]):
+        if not all([self[dim].issubset(other) for dim in self.dims]):
             return False
 
         # NOTE: From this point forward, it gets expensive. We're essentially doing NN interpolation here. Would be nice
@@ -637,6 +637,7 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
             True if these coordinates are a subset of the other coordinates.
         """
         # short-cuts that don't require checking coordinates
+        other = other[self.name]
         if self.size == 0:
             return True
 
