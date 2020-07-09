@@ -158,11 +158,8 @@ class Convolution(UnaryAlgorithm):
             coordinates = coordinates.drop(extra_dims)
 
             extra_dims_ind = [expanded_coordinates.dims.index(d) for d in extra_dims]
-            for ind in extra_dims_ind:
-                full_kernel = full_kernel.sum(axis=ind)
-                exp_list = list(exp_slice)
-                exp_list.pop(ind)
-                exp_slice = tuple(exp_list)
+            full_kernel = full_kernel.sum(axis=tuple(extra_dims_ind))
+            exp_slice = tuple([es for i, es in enumerate(exp_slice) if i not in extra_dims_ind])
 
         if np.any(np.isnan(source)):
             method = "direct"
