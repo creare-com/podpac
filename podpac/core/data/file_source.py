@@ -79,6 +79,7 @@ class LoadFileMixin(S3Mixin):
     """
 
     cache_dataset = tl.Bool(False)
+    _file = None
 
     @cached_property
     def _dataset_caching_node(self):
@@ -94,7 +95,7 @@ class LoadFileMixin(S3Mixin):
             self._file = BytesIO(data)
             return self._open(self._file, cache=False)
 
-        # otherwise, open the file
+        # otherwise, open the file (and cache it if desired)
         if self.source.startswith("s3://"):
             _logger.info("Loading AWS resource: %s" % self.source)
             self._file = self.s3.open(self.source, "rb")
@@ -125,7 +126,8 @@ class LoadFileMixin(S3Mixin):
         raise NotImplementedError()
 
     def close_dataset(self):
-        self._file.close()
+        if self._file is not None:
+            self._file.close()
 
 
 @common_doc(COMMON_DATA_DOC)
