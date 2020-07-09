@@ -448,3 +448,76 @@ class TestDependentCoordinatesTranspose(object):
         assert t["lat"] == lat
         assert t["lon"] == lon
         assert t["time"] == time
+
+    def test_issubset(self):
+        s1 = StackedCoordinates([[0, 1, 2, 3], [10, 20, 30, 40]], name="lat_lon")
+        s2 = StackedCoordinates([[1, 3], [20, 40]], name="lat_lon")
+        s3 = StackedCoordinates([[1, 3], [40, 20]], name="lat_lon")
+        s4 = StackedCoordinates([[1, 3], [20, 40], [100, 200]], name="lat_lon_time")
+
+        assert s1.issubset(s1)
+        assert s2.issubset(s1)
+        assert s2[::-1].issubset(s1)
+        assert s2.transpose("lon", "lat").issubset(s1)
+        assert not s3.issubset(s1)  # not a subset even though unstacked dims are all subsets
+        assert not s4.issubset(s1)  # extra dimension
+        assert not s2.issubset(s4)  # missing dimension
+
+    def test_issubset_coordinates(self):
+        s1 = StackedCoordinates([[0, 1, 2, 3], [10, 20, 30, 40]], name="lat_lon")
+        s2 = StackedCoordinates([[1, 3], [20, 40]], name="lat_lon")
+        s3 = StackedCoordinates([[1, 3], [40, 20]], name="lat_lon")
+        s4 = StackedCoordinates([[1, 3], [20, 40], [100, 200]], name="lat_lon_time")
+
+        lat = s1["lat"].coordinates
+        lon = s1["lon"].coordinates
+
+        # coordinates with stacked lat_lon
+        cs = podpac.Coordinates([[lat, lon]], dims=["lat_lon"])
+        assert s1.issubset(cs)
+        assert s2.issubset(cs)
+        assert s2[::-1].issubset(cs)
+        assert s2.transpose("lon", "lat").issubset(cs)
+        assert not s3.issubset(cs)
+        assert not s4.issubset(cs)
+
+        # coordinates with dependent lat,lon
+        cd = podpac.Coordinates([[lat.reshape((2, 2)), lon.reshape((2, 2))]], dims=["lat,lon"])
+        assert s1.issubset(cd)
+        assert s2.issubset(cd)
+        assert s2[::-1].issubset(cd)
+        assert s2.transpose("lon", "lat").issubset(cd)
+        assert not s3.issubset(cd)
+        assert not s4.issubset(cd)
+
+        # coordinates with unstacked lat, lon
+        cu = podpac.Coordinates([lat, lon[::-1]], dims=["lat", "lon"])
+        assert s1.issubset(cu)
+        assert s2.issubset(cu)
+        assert s2[::-1].issubset(cu)
+        assert s2.transpose("lon", "lat").issubset(cu)
+        assert s3.issubset(cu)  # this is an important case
+        assert not s4.issubset(cu)
+
+        # coordinates with unstacked lat, lon, time
+        cu2 = podpac.Coordinates([lat, lon, [100, 200]], dims=["lat", "lon", "time"])
+        assert s1.issubset(cu2)
+        assert s2.issubset(cu2)
+        assert s2[::-1].issubset(cu2)
+        assert s2.transpose("lon", "lat").issubset(cu2)
+        assert s3.issubset(cu2)
+        assert s4.issubset(cu2)
+
+        assert not s1.issubset(cu2[:2, :, :])
+
+        # mixed coordinates
+        cu3 = podpac.Coordinates([[lat, lon], [100, 200]], dims=["lat_lon", "time"])
+        assert s1.issubset(cu3)
+        assert s2.issubset(cu3)
+        assert s2[::-1].issubset(cu3)
+        assert s2.transpose("lon", "lat").issubset(cu3)
+        assert not s3.issubset(cu3)
+        assert s4.issubset(cu3)  # TODO this is a hard case
+
+        assert not s1.issubset(cu3[:2, :])
+        assert not s4.issubset(cu3[:, :1])
