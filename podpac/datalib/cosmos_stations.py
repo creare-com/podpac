@@ -163,13 +163,17 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
 
     @cached_property(use_cache_ctrl=True)
     def source_coordinates(self):
-        lat_lon = np.array(self.stations_value("location"))
+        lat_lon = np.array(self.stations_value("location"))[self.has_data]
         c = podpac.Coordinates([[lat_lon[:, 0], lat_lon[:, 1]]], ["lat_lon"])
         return c
 
     @cached_property
+    def has_data(self):
+        return ~(np.array(self.stations_value("lastdat")) == "YYYY-MM-DD")
+
+    @cached_property
     def sources(self):
-        return np.array([COSMOSStation(station_data=item) for item in self.stations_data["items"]])
+        return np.array([COSMOSStation(station_data=item) for item in self.stations_data["items"]])[self.has_data]
 
     @property
     def available_data_keys(self):
