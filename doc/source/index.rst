@@ -83,6 +83,7 @@ The purpose of PODPAC is to facilitate:
     coordinates  
     cache
     datasets
+    interpolation
     earthdata
     aws-development
 
