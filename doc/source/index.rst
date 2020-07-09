@@ -93,6 +93,7 @@ The purpose of PODPAC is to facilitate:
     :caption: References
 
     api
+    wrapping-datasets
 
 .. Anything else clerical
 .. toctree::
