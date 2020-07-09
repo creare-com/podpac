@@ -412,4 +412,4 @@ class Coordinates1d(BaseCoordinates):
             elif other_coordinates[0].dtype < my_coordinates[0].dtype:
                 other_coordinates = other_coordinates.astype(my_coordinates.dtype)
 
-        return set(my_coordinates).issubset(other_coordinates)
+        return set(my_coordinates).issubset(other_coordinates.ravel())

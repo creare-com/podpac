@@ -106,6 +106,27 @@ class TestDependentCoordinatesStandardMethods(object):
         assert c1 != c3
         assert c1 != c4
 
+    def test_is_subset(self):
+        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
+        c2 = DependentCoordinates([LAT[:2, :2], LON[:2, :2]], dims=["lat", "lon"])
+        c2p = DependentCoordinates([LAT[1:3, :2], LON[:2, :2]], dims=["lat", "lon"])
+
+        # Dependent to Dependent
+        assert c2.issubset(c)
+        assert not c.issubset(c2)
+        assert not c2p.issubset(c)  # pairs don't match
+
+        # Dependent to stacked
+        cs = podpac.Coordinates([[LAT.ravel(), LON.ravel()]], [["lat", "lon"]])
+        assert c2.issubset(cs)
+
+        # Stacked to Dependent
+        css = podpac.Coordinates([[LAT[0], LON[0]]], [["lat", "lon"]])
+        assert css.issubset(c)
+
+        csp = podpac.Coordinates([[np.roll(LAT.ravel(), 1), LON.ravel()]], [["lat", "lon"]])
+        assert not c2.issubset(csp)
+
 
 class TestDependentCoordinatesSerialization(object):
     def test_definition(self):
