@@ -128,15 +128,12 @@ class Convolution(UnaryAlgorithm):
         # source is some sort of reduction Node.
         kernel_dims = [kd for kd in coordinates.dims if kd in self.kernel_dims]
         missing_dims = [kd for kd in coordinates.dims if kd not in self.kernel_dims]
-        extra_kernel_dims = [kd for kd in self.kernel_dims if kd not in coordinates.dims]
 
-        # Sum out the extra dims
-        full_kernel = full_kernel.transpose([self.kernel_dims.index(d) for d in coordinates.dims])
-        full_kernel = full_kernel.sum(axis=tuple([kernel_dims.index(d) for d in extra_kernel_dims]))
         exp_coords = []
         exp_slice = []
-        for dim, s in zip(kernel_dims, full_kernel.shape):
+        for dim in kernel_dims:
             coord = coordinates[dim]
+            s = full_kernel.shape[self.kernel_dims.index(dim)]
             if s == 1 or not isinstance(coord, UniformCoordinates1d):
                 exp_coords.append(coord)
                 exp_slice.append(slice(None))
