@@ -113,8 +113,6 @@ class NearestNeighbor(Interpolator):
         # at this point, output_data and eval_coordinates have the same dim order
         # this transpose makes sure the source_data has the same dim order as the eval coordinates
         eval_dims = eval_coordinates.dims
-        if "output" in output_data.dims:
-            eval_dims = eval_dims + ("output",)
         output_data.data = source_data.transpose(*eval_dims)
 
         return output_data
@@ -425,7 +423,7 @@ class ScipyGrid(ScipyPoint):
 
     # TODO: implement these parameters for the method 'nearest'
     spatial_tolerance = tl.Float(default_value=np.inf)
-    time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)])
+    time_tolerance = tl.Union([tl.Unicode(), tl.Instance(np.timedelta64, allow_none=True)], default_value=None)
 
     @common_doc(COMMON_INTERPOLATOR_DOCS)
     def can_interpolate(self, udims, source_coordinates, eval_coordinates):

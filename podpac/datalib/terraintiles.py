@@ -191,7 +191,7 @@ class TerrainTiles(S3Mixin, OrderedCompositor):
         # create TerrainTilesSource classes for each url source
         self.sources = self._create_composite(urls)
         if self.trait_is_defined("interpolation") and self.interpolation is not None:
-            for s in sources:
+            for s in self.sources:
                 if s.has_trait("interpolation"):
                     s.set_trait("interpolation", self.interpolation)
         return self.sources

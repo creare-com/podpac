@@ -1435,6 +1435,27 @@ class Coordinates(tl.HasTraits):
 
         return t_lat, t_lon
 
+    def issubset(self, other):
+        """ Report whether other Coordinates contains these coordinates.
+
+        Note that the dimension order and stacking is ignored.
+
+        Arguments
+        ---------
+        other : Coordinates
+            Other coordinates to check
+
+        Returns
+        -------
+        issubset : bool
+            True if these coordinates are a subset of the other coordinates in every dimension.
+        """
+
+        if set(self.udims) != set(other.udims):
+            return False
+
+        return all(c.issubset(other) for c in self.values())
+
     # ------------------------------------------------------------------------------------------------------------------
     # Operators/Magic Methods
     # ------------------------------------------------------------------------------------------------------------------

@@ -77,6 +77,14 @@ class BaseCoordinates(tl.HasTraits):
         """Get coordinate values that are with the given bounds."""
         raise NotImplementedError
 
+    def simplify(self):
+        """ Get the simplified/optimized representation of these coordinates. """
+        raise NotImplementedError
+
+    def issubset(self, other):
+        """Report if these coordinates are a subset of other coordinates."""
+        raise NotImplementedError
+
     def __getitem__(self, index):
         raise NotImplementedError
 

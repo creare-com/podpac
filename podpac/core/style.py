@@ -10,7 +10,7 @@ import matplotlib.cm
 from matplotlib.colors import ListedColormap
 
 from podpac.core.units import ureg
-from podpac.core.utils import trait_is_defined, JSONEncoder
+from podpac.core.utils import trait_is_defined, JSONEncoder, TupleTrait
 
 
 class Style(tl.HasTraits):
@@ -44,8 +44,8 @@ class Style(tl.HasTraits):
     units = tl.Unicode(allow_none=True)
     clim = tl.List(default_value=[None, None])
     colormap = tl.Unicode(allow_none=True, default_value=None)
-    enumeration_legend = tl.Tuple(trait=tl.Unicode)
-    enumeration_colors = tl.Tuple(trait=tl.Tuple)
+    enumeration_legend = TupleTrait(trait=tl.Unicode())
+    enumeration_colors = tl.Tuple()
 
     @tl.validate("colormap")
     def _validate_colormap(self, d):

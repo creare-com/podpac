@@ -79,6 +79,7 @@ class LoadFileMixin(S3Mixin):
     """
 
     cache_dataset = tl.Bool(False)
+    _file = None
 
     @cached_property
     def _dataset_caching_node(self):
@@ -87,32 +88,32 @@ class LoadFileMixin(S3Mixin):
 
     @cached_property
     def dataset(self):
+        # get from the cache
         # use the _dataset_caching_node "stub" here because the only node attr we care about is the source
         if self.cache_dataset and self._dataset_caching_node.has_cache(key="dataset"):
             data = self._dataset_caching_node.get_cache(key="dataset")
-            with BytesIO(data) as f:
-                return self._open(BytesIO(data), cache=False)
-        elif self.source.startswith("s3://"):
+            self._file = BytesIO(data)
+            return self._open(self._file, cache=False)
+
+        # otherwise, open the file (and cache it if desired)
+        if self.source.startswith("s3://"):
             _logger.info("Loading AWS resource: %s" % self.source)
-            with self.s3.open(self.source, "rb") as f:
-                return self._open(f)
+            self._file = self.s3.open(self.source, "rb")
         elif self.source.startswith("http://") or self.source.startswith("https://"):
             _logger.info("Downloading: %s" % self.source)
             response = requests.get(self.source)
-            with BytesIO(response.content) as f:
-                return self._open(f)
+            self._file = BytesIO(response.content)
         elif self.source.startswith("ftp://"):
             _logger.info("Downloading: %s" % self.source)
             addinfourl = urlopen(self.source)
-            with BytesIO(addinfourl.read()) as f:
-                return self._open(f)
+            self._file = BytesIO(addinfourl.read())
         elif self.source.startswith("file://"):
             addinfourl = urlopen(self.source)
-            with BytesIO(addinfourl.read()) as f:
-                return self._open(f)
+            self._file = BytesIO(addinfourl.read())
         else:
-            with open(self.source, "rb") as f:
-                return self._open(f)
+            self._file = open(self.source, "rb")
+
+        return self._open(self._file)
 
     def _open(self, f, cache=True):
         if self.cache_dataset and cache:
@@ -123,6 +124,10 @@ class LoadFileMixin(S3Mixin):
     def open_dataset(self, f):
         """ TODO """
         raise NotImplementedError()
+
+    def close_dataset(self):
+        if self._file is not None:
+            self._file.close()
 
 
 @common_doc(COMMON_DATA_DOC)
