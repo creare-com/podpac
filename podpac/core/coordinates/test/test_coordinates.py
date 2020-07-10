@@ -1423,46 +1423,46 @@ class TestCoordinatesMethods(object):
         # assert u2.issubset(s)
         # assert u3.issubset(s)
 
-    # def test_issubset_dependent(self):
-    #     lat1, lon1 = np.array([0, 1, 2, 3]), np.array([10, 20, 30, 40])
-    #     u1 = Coordinates([lat1, lon1], dims=["lat", "lon"])
-    #     d1 = Coordinates([[lat1.reshape((2, 2)), lon1.reshape((2, 2))]], dims=["lat,lon"])
+    def test_issubset_dependent(self):
+        lat1, lon1 = np.array([0, 1, 2, 3]), np.array([10, 20, 30, 40])
+        u1 = Coordinates([lat1, lon1], dims=["lat", "lon"])
+        d1 = Coordinates([[lat1.reshape((2, 2)), lon1.reshape((2, 2))]], dims=["lat,lon"])
 
-    #     lat2, lon2 = np.array([1, 3]), np.array([20, 40])
-    #     u2 = Coordinates([lat2, lon2], dims=["lat", "lon"])
-    #     d2 = Coordinates([[lat2.reshape((2, 1)), lon2.reshape((2, 1))]], dims=["lat,lon"])
+        lat2, lon2 = np.array([1, 3]), np.array([20, 40])
+        u2 = Coordinates([lat2, lon2], dims=["lat", "lon"])
+        d2 = Coordinates([[lat2.reshape((2, 1)), lon2.reshape((2, 1))]], dims=["lat,lon"])
 
-    #     lat3, lon3 = np.array([1, 3]), np.array([40, 20])
-    #     u3 = Coordinates([lat3, lon3], dims=["lat", "lon"])
-    #     d3 = Coordinates([[lat3.reshape((2, 1)), lon3.reshape((2, 1))]], dims=["lat,lon"])
+        lat3, lon3 = np.array([1, 3]), np.array([40, 20])
+        u3 = Coordinates([lat3, lon3], dims=["lat", "lon"])
+        d3 = Coordinates([[lat3.reshape((2, 1)), lon3.reshape((2, 1))]], dims=["lat,lon"])
 
-    #     # dependent issubset of dependent: must check dependent dims together
-    #     assert d1.issubset(d1)
-    #     assert d2.issubset(d1)
-    #     assert not d1.issubset(d2)
-    #     assert not d3.issubset(d1)  # this is an important case because the udims are all subsets
+        # dependent issubset of dependent: must check dependent dims together
+        assert d1.issubset(d1)
+        assert d2.issubset(d1)
+        assert not d1.issubset(d2)
+        assert not d3.issubset(d1)  # this is an important case because the udims are all subsets
 
-    #     # dependent issubset of unstacked: check udims individually
-    #     assert d1.issubset(u1)
-    #     assert d2.issubset(u2)
-    #     assert d3.issubset(u3)
+        # dependent issubset of unstacked: check udims individually
+        assert d1.issubset(u1)
+        assert d2.issubset(u2)
+        assert d3.issubset(u3)
 
-    #     assert d2.issubset(u1)
-    #     assert d3.issubset(u1)
+        assert d2.issubset(u1)
+        assert d3.issubset(u1)
 
-    #     assert not d1.issubset(u2)
+        assert not d1.issubset(u2)
 
-    #     # unstacked issubset of dependent: must check other's dependent dims together
-    #     assert not u1.issubset(d1)
-    #     assert not u2.issubset(d2)
-    #     assert not u3.issubset(d3)
+        # unstacked issubset of dependent: must check other's dependent dims together
+        assert not u1.issubset(d1)
+        assert not u2.issubset(d2)
+        assert not u3.issubset(d3)
 
-    #     # unstacked issubset of dependent: sometimes it is a subset, not yet implemented
-    #     # lat, lon = np.meshgrid(lat1, lon1)
-    #     # d = Coordinates([[lat, lon]], dims=['lat,lon'])
-    #     # assert u1.issubset(d)
-    #     # assert u2.issubset(d)
-    #     # assert u3.issubset(d)
+        # unstacked issubset of dependent: sometimes it is a subset, not yet implemented
+        # lat, lon = np.meshgrid(lat1, lon1)
+        # d = Coordinates([[lat, lon]], dims=['lat,lon'])
+        # assert u1.issubset(d)
+        # assert u2.issubset(d)
+        # assert u3.issubset(d)
 
     def test_issubset_time(self):
         c1 = Coordinates([["2020-01-01", "2020-01-02", "2020-01-03"]], dims=["time"])
