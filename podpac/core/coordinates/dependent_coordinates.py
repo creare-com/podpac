@@ -509,24 +509,50 @@ class DependentCoordinates(BaseCoordinates):
             True if these coordinates are a subset of the other coordinates.
         """
 
-        # Check at least that the individual dims are there
-        if not all([self[dim].issubset(other) for dim in self.dims]):
-            return False
+        from podpac.core.coordinates import Coordinates, StackedCoordinates
 
-        # NOTE: From this point forward, it gets expensive. We're essentially doing NN interpolation here. Would be nice
-        # to reuse these results...
+        if not isinstance(other, (Coordinates, DependentCoordinates)):
+            raise TypeError(
+                "DependentCoordinates issubset expected Coordinates or DependentCoordinates, not '%s'" % type(other)
+            )
 
-        # Check that the pairs line up as well.
-        # make pair sets
-        mine = []
-        theirs = []
-        for dim in self.dims:
-            mine.append(self[dim].coordinates.ravel())
-            theirs.append(other[dim].coordinates.ravel())
-        mine = set([tuple(a) for a in np.stack(mine, axis=1)])
-        theirs = set([tuple(a) for a in np.stack(theirs, axis=1)])
-        # Compare
-        return mine.issubset(theirs)
+        if isinstance(other, DependentCoordinates):
+            if set(self.dims) != set(other.dims):
+                return False
+
+            mine = zip(*[self[dim].coordinates.ravel() for dim in self.dims])
+            theirs = zip(*[other[dim].coordinates.ravel() for dim in self.dims])
+            return set(mine).issubset(theirs)
+
+        elif isinstance(other, Coordinates):
+            if not all(dim in other.udims for dim in self.dims):
+                return False
+
+            acs = []
+            ocs = []
+            for coords in other.values():
+                dims = [dim for dim in coords.dims if dim in self.dims]
+
+                if len(dims) == 0:
+                    continue
+
+                elif len(dims) == 1:
+                    acs.append(self[dims[0]])
+                    if isinstance(coords, Coordinates1d):
+                        ocs.append(coords)
+                    elif isinstance(coords, StackedCoordinates):
+                        ocs.append(coords[dims[0]])
+                    elif isinstance(coords, DependentCoordinates):
+                        ocs.append(coords[dims[0]].coordinates.ravel(), name=dims[0])
+
+                elif len(dims) > 1:
+                    acs.append(DependentCoordinates([self[dim].coordinates for dim in dims], dims=dims))
+                    if isinstance(coords, StackedCoordinates):
+                        ocs.append(DependentCoordinates([coords[dim].coordinates for dim in dims], dims=dims))
+                    elif isinstance(coords, DependentCoordinates):
+                        ocs.append(DependentCoordinates([coords[dim].coordinates for dim in dims], dims=dims))
+
+            return all(a.issubset(o) for a, o in zip(acs, ocs))
 
     # ------------------------------------------------------------------------------------------------------------------
     # Debug
@@ -628,7 +654,7 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
 
         Arguments
         ---------
-        other : Coordinates, StackedCoordinates
+        other : Coordinates, Coordinates1d
             Other coordinates to check
 
         Returns
@@ -636,8 +662,15 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
         issubset : bool
             True if these coordinates are a subset of the other coordinates.
         """
+
+        from podpac.core.coordinates import Coordinates
+
+        if isinstance(other, Coordinates):
+            if self.name not in other.dims:
+                return False
+            other = other[self.name]
+
         # short-cuts that don't require checking coordinates
-        other = other[self.name]
         if self.size == 0:
             return True
 
@@ -654,4 +687,11 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
         # for datetimes, convert to the higher resolution
         my_coordinates = self.coordinates.ravel()
         other_coordinates = other.coordinates.ravel()
+
+        if self.dtype == np.datetime64:
+            if my_coordinates[0].dtype < other_coordinates[0].dtype:
+                my_coordinates = my_coordinates.astype(other_coordinates.dtype)
+            elif other_coordinates[0].dtype < my_coordinates[0].dtype:
+                other_coordinates = other_coordinates.astype(my_coordinates.dtype)
+
         return set(my_coordinates).issubset(other_coordinates)
