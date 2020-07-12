@@ -168,7 +168,7 @@ class Convolution(UnaryAlgorithm):
         source = self.source.eval(expanded_coordinates)
 
         # Check dimensions
-        if any([d not in kernel_dims for d in source.dims if d is not "output"]):
+        if any([d not in kernel_dims for d in source.dims if d != "output"]):
             raise ValueError(
                 "Kernel dims must contain all of the dimensions in source but not all of {} is in kernel_dims={}".format(
                     source.dims, kernel_dims

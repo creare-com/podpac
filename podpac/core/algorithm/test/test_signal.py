@@ -10,7 +10,7 @@ import podpac
 from podpac import Coordinates, clinspace, crange
 from podpac.algorithm import Arange
 from podpac.data import Array
-from podpac.core.algorithm.signal import Convolution, TimeConvolution, SpatialConvolution
+from podpac.core.algorithm.signal import Convolution
 
 
 class TestConvolution(object):
