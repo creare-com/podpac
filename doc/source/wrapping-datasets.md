@@ -9,7 +9,8 @@ Wrapping a new dataset is challenging because you have to understand all of the 
 2. When returning data from a data source node:
    a. The ORDER of the evaluation coordinates MUST be preserved (see `UnitsDataArray.part_transpose`)
    b. Any multi-channel data must be returned using the `output` dimension which is ALWAYS the LAST dimension
-   
+3. Nodes should be **lightweight** to instantiate and users should expect *fail on eval*. Easy checks should be performed on initialization, but anything expensive should be delayed. 
+
 ## Guide
 In theory, to wrap a new `DataSource`:
 1. Create a new class that inherits from `podpac.core.data.DataSource` or a derived class (see the `podpac.core.data` module for generic data readers).
