@@ -155,6 +155,17 @@ class TestConvolution(object):
         node = Convolution(source=Arange(), kernel=[[[1, 2, 1]]], kernel_dims=["time", "lat", "lon"])
         o = node.eval(coords)
 
+    def test_extra_coord_dims(self):
+        lat = clinspace(-0.25, 1.25, 7, name="lat")
+        lon = clinspace(-0.125, 1.125, 11, name="lon")
+        time = ["2012-05-19", "2016-01-31", "2018-06-20"]
+        coords = Coordinates([lat, lon, time], dims=["lat", "lon", "time"])
+
+        source = Array(source=np.random.random(coords.drop("time").shape), coordinates=coords.drop("time"))
+        node = Convolution(source=source, kernel=[[-1, 2, -1]], kernel_dims=["lat", "lon"], force_eval=True)
+        o = node.eval(coords)
+        assert np.all([d in ["lat", "lon"] for d in o.dims])
+
     def test_coords_order(self):
         lat = clinspace(-0.25, 1.25, 7, name="lat")
         lon = clinspace(-0.125, 1.125, 11, name="lon")
