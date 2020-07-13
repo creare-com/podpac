@@ -222,14 +222,17 @@ def handler(event, context):
     bucket = os.environ.get("S3_BUCKET_NAME", pipeline["settings"].get("S3_BUCKET_NAME"))
 
     # get dependencies path
-    if "FUNCTION_DEPENDENCIES_KEY" in pipeline["settings"]:
+    if "FUNCTION_DEPENDENCIES_KEY" in pipeline["settings"] or "FUNCTION_DEPENDENCIES_KEY" in os.environ:
         dependencies = os.environ.get(
             "FUNCTION_DEPENDENCIES_KEY", pipeline["settings"].get("FUNCTION_DEPENDENCIES_KEY")
         )
     else:
         dependencies = "podpac_deps_{}.zip".format(
             os.environ.get("PODPAC_VERSION", pipeline["settings"].get("PODPAC_VERSION"))
-        )  # this should be equivalent to version.semver()
+        ) 
+        if 'None' in dependencies:
+            dependencies = 'podpac_deps.zip'  # Development version of podpac
+        # this should be equivalent to version.semver()
 
     # Check to see if this function is "hot", in which case the dependencies have already been downloaded and are
     # available for use right away.
@@ -240,7 +243,7 @@ def handler(event, context):
         )
     else:
         # Download dependencies from specific bucket/object
-        print ("Downloading and extracting dependencies")
+        print ("Downloading and extracting dependencies from {} {}".format(bucket, dependencies))
         s3 = boto3.client("s3")
         s3.download_file(bucket, dependencies, "/tmp/" + dependencies)
         subprocess.call(["unzip", "/tmp/" + dependencies, "-d", "/tmp"])
@@ -261,8 +264,9 @@ def handler(event, context):
     import podpac.datalib
 
     # update podpac settings with inputs from the trigger
+    settings.update(json.loads(os.environ.get("SETTINGS", "{}")))
     settings.update(pipeline["settings"])
-
+  
     # build the Node and Coordinates
     if trigger in ("eval", "S3"):
         node = Node.from_definition(pipeline["pipeline"])

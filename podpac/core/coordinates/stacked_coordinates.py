@@ -489,3 +489,60 @@ class StackedCoordinates(BaseCoordinates):
             return self
         else:
             return StackedCoordinates(coordinates)
+
+    def issubset(self, other):
+        """ Report whether other coordinates contains these coordinates.
+
+        Arguments
+        ---------
+        other : Coordinates, StackedCoordinates
+            Other coordinates to check
+
+        Returns
+        -------
+        issubset : bool
+            True if these coordinates are a subset of the other coordinates.
+        """
+
+        from podpac.core.coordinates import Coordinates, DependentCoordinates
+
+        if not isinstance(other, (Coordinates, StackedCoordinates)):
+            raise TypeError(
+                "StackedCoordinates issubset expected Coordinates or StackedCoordinates, not '%s'" % type(other)
+            )
+
+        if isinstance(other, StackedCoordinates):
+            if set(self.dims) != set(other.dims):
+                return False
+
+            return set(self.coordinates).issubset(other.transpose(*self.dims).coordinates)
+
+        elif isinstance(other, Coordinates):
+            if not all(dim in other.udims for dim in self.dims):
+                return False
+
+            acs = []
+            ocs = []
+            for coords in other.values():
+                dims = [dim for dim in coords.dims if dim in self.dims]
+
+                if len(dims) == 0:
+                    continue
+
+                elif len(dims) == 1:
+                    acs.append(self[dims[0]])
+                    if isinstance(coords, Coordinates1d):
+                        ocs.append(coords)
+                    elif isinstance(coords, StackedCoordinates):
+                        ocs.append(coords[dims[0]])
+                    elif isinstance(coords, DependentCoordinates):
+                        ocs.append(coords[dims[0]].coordinates.ravel(), name=dims[0])
+
+                elif len(dims) > 1:
+                    acs.append(StackedCoordinates([self[dim] for dim in dims]))
+                    if isinstance(coords, StackedCoordinates):
+                        ocs.append(StackedCoordinates([coords[dim] for dim in dims]))
+                    elif isinstance(coords, DependentCoordinates):
+                        ocs.append(StackedCoordinates([coords[dim].coordinates.ravel() for dim in dims], dims=dims))
+
+            return all(a.issubset(o) for a, o in zip(acs, ocs))

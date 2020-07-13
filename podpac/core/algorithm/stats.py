@@ -43,7 +43,7 @@ class Reduce(UnaryAlgorithm):
     dims = tl.List().tag(attr=True)
 
     _reduced_coordinates = tl.Instance(Coordinates, allow_none=True)
-    _dims = tl.List(trait_type=str)
+    _dims = tl.List(trait=tl.Unicode())
 
     def _first_init(self, **kwargs):
         if "dims" in kwargs and isinstance(kwargs["dims"], string_types):
@@ -310,7 +310,7 @@ class ReduceOrthogonal(Reduce):
 
         y = xr.full_like(output, np.nan)
         for x, xslices in xs:
-            yslc = tuple(xslices[x.dims.index(dim)] for dim in self._reduced_coordinates.dims)
+            yslc = tuple(xslices[self._requested_coordinates.dims.index(dim)] for dim in self._reduced_coordinates.dims)
             y.data[yslc] = self.reduce(x)
         return y
 
@@ -780,6 +780,13 @@ class StandardDeviation(Variance):
 
 class Median(ReduceOrthogonal):
     """Computes the median across dimension(s)
+    
+    Example
+    ---------
+    coords.dims == ['lat', 'lon', 'time']
+    median = Median(source=node, dims=['lat', 'lon'])
+    o = median.eval(coords)
+    o.dims == ['time']
     """
 
     def reduce(self, x):
@@ -807,7 +814,7 @@ class Percentile(ReduceOrthogonal):
         Description
     """
 
-    percentile = tl.Float(default=50.0).tag(attr=True)
+    percentile = tl.Float(default_value=50.0).tag(attr=True)
 
     def reduce(self, x):
         """Computes the percentile across dimension(s)

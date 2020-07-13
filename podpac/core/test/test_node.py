@@ -1037,9 +1037,9 @@ class TestUserDefinition(object):
                 "node": "algorithm.Arange"
             },
             "mean": {
-                "node": "algorithm.SpatialConvolution",
+                "node": "algorithm.Convolution",
                 "lookup_attrs": {"source": "a"},
-                "attrs": {"kernel_type": "mean,3"}
+                "attrs": {"kernel_type": "mean,3", "kernel_dims": ["lat", "lon"]}
             },
             "c": {
                 "node": "algorithm.Arithmetic",

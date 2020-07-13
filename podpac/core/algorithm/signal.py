@@ -63,12 +63,15 @@ class Convolution(UnaryAlgorithm):
     ----------
     source : podpac.Node
         Source node on which convolution will be performed. 
-    kernel : np.ndarray
-        The convolution kernel
-    kernel_ndim : int
-        Number of dimensions of the kernel
+    kernel : np.ndarray, optional
+        The convolution kernel. This kernel must have the same number of dimensions as the source data outputs
+    kernel_dims : list, optional
+        A list of the dimensions for the kernel axes. The dimensions in this list must match the 
+        coordinates in the source, or contain additional dimensions, and the order does not need to match.
+        Any extra dimensions are summed out. 
     kernel_type : str, optional
-        If kernel is not defined, kernel_type will create a kernel based on the inputs. 
+        If kernel is not defined, kernel_type will create a kernel based on the inputs, and it will have the
+        same number of axes as kernel_ndim.
         The format for the created  kernels is '<kernel_type>, <kernel_size>, <kernel_params>'.
         Any kernel defined in `scipy.signal` as well as `mean` can be used. For example:
         kernel_type = 'mean, 8' or kernel_type = 'gaussian,16,8' are both valid. 
@@ -76,21 +79,29 @@ class Convolution(UnaryAlgorithm):
     """
 
     kernel = ArrayTrait(dtype=float).tag(attr=True)
+    kernel_dims = tl.List().tag(attr=True)
 
-    def _first_init(self, kernel=None, kernel_type=None, kernel_ndim=None, **kwargs):
-        if kernel is not None:
-            if kernel_type is not None:
-                raise TypeError("Convolution expected 'kernel' or 'kernel_type', not both")
+    def _first_init(self, kernel=None, kernel_dims=None, kernel_type=None, kernel_ndim=None, **kwargs):
+        if kernel_dims is None:
+            raise TypeError("Convolution expected 'kernel_dims' to be specified when giving a 'kernel' array")
+
+        if kernel is not None and kernel_type is not None:
+            raise TypeError("Convolution expected 'kernel' or 'kernel_type', not both")
 
         if kernel is None:
             if kernel_type is None:
                 raise TypeError("Convolution requires 'kernel' array or 'kernel_type' string")
-            if kernel_ndim is None:
-                raise TypeError("Convolution requires 'kernel_ndim' when supplying a 'kernel_type' string")
+            kernel = self._make_kernel(kernel_type, len(kernel_dims))
 
-            kernel = self._make_kernel(kernel_type, kernel_ndim)
+        if len(kernel_dims) != len(np.array(kernel).shape):
+            raise TypeError(
+                "The kernel_dims should contain the same number of dimensions as the number of axes in 'kernel', but len(kernel_dims) {} != len(kernel.shape) {}".format(
+                    len(kernel_dims), len(np.array(kernel).shape)
+                )
+            )
 
         kwargs["kernel"] = kernel
+        kwargs["kernel_dims"] = kernel_dims
         return super(Convolution, self)._first_init(**kwargs)
 
     @common_doc(COMMON_DOC)
@@ -109,28 +120,27 @@ class Convolution(UnaryAlgorithm):
         -------
         {eval_return}
         """
-        # This should be aligned with coordinates' dimension order
         # The size of this kernel is used to figure out the expanded size
         full_kernel = self._get_full_kernel(coordinates)
 
-        if full_kernel.ndim != coordinates.ndim:
-            raise ValueError(
-                "Cannot evaluate coordinates, kernel and coordinates ndims mismatch (%d != %d)"
-                % (full_kernel.ndim, coordinates.ndim)
-            )
-
         # expand the coordinates
+        # The next line effectively drops extra coordinates, so we have to add those later in case the
+        # source is some sort of reduction Node.
+        kernel_dims = [kd for kd in coordinates.dims if kd in self.kernel_dims]
+        missing_dims = [kd for kd in coordinates.dims if kd not in self.kernel_dims]
+
         exp_coords = []
         exp_slice = []
-        for dim, s in zip(coordinates.dims, full_kernel.shape):
+        for dim in kernel_dims:
             coord = coordinates[dim]
+            s = full_kernel.shape[self.kernel_dims.index(dim)]
             if s == 1 or not isinstance(coord, UniformCoordinates1d):
                 exp_coords.append(coord)
                 exp_slice.append(slice(None))
                 continue
 
             s_start = -s // 2
-            s_end = s // 2 - ((s + 1) % 2)
+            s_end = max(s // 2 - ((s + 1) % 2), 1)
             # The 1e-07 is for floating point error because if endpoint is slightly
             # in front of step * N then the endpoint is excluded
             exp_coords.append(
@@ -142,6 +152,12 @@ class Convolution(UnaryAlgorithm):
                 )
             )
             exp_slice.append(slice(-s_start, -s_end))
+
+        # Add missing dims back in -- this is needed in case the source is a reduce node.
+        exp_coords += [coordinates[d] for d in missing_dims]
+        # exp_slice += [slice(None) for d in missing_dims]
+
+        # Create expanded coordinates
         exp_slice = tuple(exp_slice)
         expanded_coordinates = Coordinates(exp_coords, crs=coordinates.crs, validate_crs=False)
 
@@ -151,20 +167,46 @@ class Convolution(UnaryAlgorithm):
         # evaluate source using expanded coordinates, convolve, and then slice out original coordinates
         source = self.source.eval(expanded_coordinates)
 
+        # Check dimensions
+        if any([d not in kernel_dims for d in source.dims if d != "output"]):
+            raise ValueError(
+                "Kernel dims must contain all of the dimensions in source but not all of {} is in kernel_dims={}".format(
+                    source.dims, kernel_dims
+                )
+            )
+
+        full_kernel = self._get_full_kernel(coordinates)
+        kernel_dims = self.kernel_dims
+        sum_dims = [d for d in kernel_dims if d not in source.dims]
+        # Sum out the extra dims
+        full_kernel = full_kernel.sum(axis=tuple([kernel_dims.index(d) for d in sum_dims]))
+        kernel_dims = [d for d in kernel_dims if d in source.dims]
+
+        # Put the kernel axes in the correct order
+        # The (if d in kernel_dims) takes care of "output", which can be optionally present
+        full_kernel = full_kernel.transpose([kernel_dims.index(d) for d in source.dims if (d in kernel_dims)])
+
         if np.any(np.isnan(source)):
             method = "direct"
         else:
             method = "auto"
 
-        if "output" not in source.dims:
+        if ("output" not in source.dims) or ("output" in source.dims and "output" in kernel_dims):
             result = scipy.signal.convolve(source, full_kernel, mode="same", method=method)
         else:
             # source with multiple outputs
-            result = np.array([scipy.signal.convolve(src, full_kernel, mode="same", method=method) for src in source])
+            result = np.stack(
+                [
+                    scipy.signal.convolve(source.sel(output=output), full_kernel, mode="same", method=method)
+                    for output in source.coords["output"]
+                ],
+                axis=source.dims.index("output"),
+            )
         result = result[exp_slice]
 
         if output is None:
-            output = self.create_output_array(coordinates, data=result)
+            missing_dims = [d for d in coordinates.dims if d not in source.dims]
+            output = self.create_output_array(coordinates.drop(missing_dims), data=result)
         else:
             output[:] = result
 
@@ -190,69 +232,3 @@ class Convolution(UnaryAlgorithm):
         """{full_kernel}
         """
         return self.kernel
-
-
-class TimeConvolution(Convolution):
-    """Compute a temporal convolution over a source node.
-    
-    Attributes
-    ----------
-    kernel_ndim : int
-        Value is 1. Should not be modified.
-    """
-
-    kernel = ArrayTrait(dtype=float, ndim=1).tag(attr=True)
-
-    def _first_init(self, kernel=None, kernel_type=None, kernel_ndim=1, **kwargs):
-        return super(TimeConvolution, self)._first_init(
-            kernel=kernel, kernel_type=kernel_type, kernel_ndim=kernel_ndim, **kwargs
-        )
-
-    def _get_full_kernel(self, coordinates):
-        """{full_kernel}
-        
-        Raises
-        ------
-        ValueError
-            If source data doesn't have time dimension.
-        """
-        if "time" not in coordinates.dims:
-            raise ValueError("cannot compute time convolution with time-independent coordinates")
-        if "lat" not in coordinates.dims and "lon" not in coordinates.dims:
-            return self.kernel
-
-        kernel = np.array([[self.kernel]])
-        kernel = xr.DataArray(kernel, dims=("lat", "lon", "time"))
-        kernel = kernel.transpose(*coordinates.dims)
-        return kernel.data
-
-
-class SpatialConvolution(Convolution):
-    """Compute a lat-lon convolution over a source node.
-    
-    Attributes
-    ----------
-    kernel_ndim : int
-        Value is 2. Should not be modified.
-    """
-
-    kernel = ArrayTrait(dtype=float, ndim=2).tag(attr=True)
-
-    def _first_init(self, kernel=None, kernel_type=None, kernel_ndim=2, **kwargs):
-        return super(SpatialConvolution, self)._first_init(
-            kernel=kernel, kernel_type=kernel_type, kernel_ndim=kernel_ndim, **kwargs
-        )
-
-    def _get_full_kernel(self, coordinates):
-        """{full_kernel}
-        """
-        if "lat" not in coordinates.dims or "lon" not in coordinates.dims:
-            raise ValueError("cannot compute spatial convolution with coordinate dims %s" % coordinates.dims)
-        if "time" not in coordinates.dims:
-            return self.kernel
-
-        kernel = np.array([self.kernel]).T
-        kernel = xr.DataArray(kernel, dims=("lat", "lon", "time"))
-        kernel = kernel.transpose(*coordinates.dims)
-
-        return kernel.data

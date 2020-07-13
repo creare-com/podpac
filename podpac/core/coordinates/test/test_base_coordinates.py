@@ -69,3 +69,13 @@ class TestBaseCoordinates(object):
             c == c
         except NotImplementedError:
             pass
+
+        try:
+            c.simplify()
+        except NotImplementedError:
+            pass
+
+        try:
+            c.issubset(c)
+        except NotImplementedError:
+            pass

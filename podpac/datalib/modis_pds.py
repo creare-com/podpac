@@ -115,7 +115,7 @@ class MODISSource(Rasterio):
         row in the MODIS Sinusoidal Tiling System, e.g. '07'
     date : str
         year and three-digit day of year, e.g. '2011260'
-    data : str
+    data_key : str
         individual object (varies by product)
     """
 
@@ -124,7 +124,7 @@ class MODISSource(Rasterio):
     vertical = tl.Unicode(help="row in the MODIS Sinusoidal Tiling System, e.g. '07'").tag(attr=True)
     date = tl.Unicode(help="year and three-digit day of year, e.g. '2011460'").tag(attr=True)
     data_key = tl.Unicode(help="data to retrieve (varies by product)").tag(attr=True)
-
+    anon = tl.Bool(True)
     check_exists = tl.Bool(True)
 
     _repr_keys = ["prefix", "data_key"]
@@ -181,7 +181,7 @@ class MODISTile(S3Mixin, DataSource):
     horizontal = tl.Unicode(help="column in the MODIS Sinusoidal Tiling System, e.g. '21'").tag(attr=True)
     vertical = tl.Unicode(help="row in the MODIS Sinusoidal Tiling System, e.g. '07'").tag(attr=True)
     data_key = tl.Unicode(help="data to retrieve (varies by product)").tag(attr=True)
-
+    anon = tl.Bool(True)
     _repr_keys = ["product", "data_key"]
 
     @cached_property
@@ -233,7 +233,7 @@ class MODIS(S3Mixin, OrderedCompositor):
     ----------
     product : str
         MODIS product ('MCD43A4.006', 'MOD09GA.006', 'MYD09GA.006', 'MOD09GQ.006', or 'MYD09GQ.006')
-    data : str
+    data_key : str
         individual object (varies by product)
     """
 
@@ -243,6 +243,7 @@ class MODIS(S3Mixin, OrderedCompositor):
     tile_width = (1, 2400, 2400)
     start_date = "2013-01-01"
     end_date = datetime.date.today().strftime("%Y-%m-%d")
+    anon = tl.Bool(True)
 
     _repr_keys = ["product", "data_key"]
 

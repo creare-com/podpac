@@ -51,6 +51,7 @@ class Dataset(FileKeysMixin, LoadFileMixin, BaseFileSource):
         return xr.open_dataset(fp)
 
     def close_dataset(self):
+        super(Dataset, self).close_dataset()
         self.dataset.close()
 
     @cached_property

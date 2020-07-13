@@ -50,7 +50,7 @@ extras_require = {
     "aws": [
         "awscli>=1.16",
         "boto3>=1.9.200",
-        "s3fs>=0.2"
+        "s3fs>=0.4"
     ],
     "algorithms": [
         "numexpr>=2.6"
@@ -67,6 +67,10 @@ extras_require = {
         # 'arcpy',
         "certifi>=2018.1.18",
         "urllib3>=1.22",
+    ],
+    "stac": [
+        "sat-search>=0.2",
+        "sat-stac>=0.3",
     ],
     "dev": [
         "pylint>=1.8.2",

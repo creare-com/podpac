@@ -7,21 +7,16 @@ and exposed its contents to podpac.datalib
 
 import sys
 
-from podpac.datalib import smap
-from podpac.datalib.smap import (
-    SMAP,
-    SMAPBestAvailable,
-    SMAPSource,
-    SMAPPorosity,
-    SMAPProperties,
-    SMAPWilt,
-    SMAP_PRODUCT_MAP,
-)
-from podpac.datalib.terraintiles import TerrainTiles
-from podpac.datalib.gfs import GFS, GFSLatest
+from podpac.datalib.cosmos_stations import COSMOSStations
+from podpac.datalib.drought_monitor import DroughtCategory, DroughtMonitorCategory
 from podpac.datalib.egi import EGI
-from podpac.datalib import smap_egi
-from podpac.datalib import drought_monitor
+from podpac.datalib.gfs import GFS, GFSLatest
+from podpac.datalib.modis_pds import MODIS
+from podpac.datalib.satutils import Landsat8, Sentinel2
+from podpac.datalib.smap import SMAP as SMAPOpenDAP
+from podpac.datalib.smap_egi import SMAP
+from podpac.datalib.terraintiles import TerrainTiles
+from podpac.datalib.weathercitizen import WeatherCitizen
 
 # intake requires python >= 3.6
 if sys.version >= "3.6":

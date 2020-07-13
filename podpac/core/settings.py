@@ -52,6 +52,7 @@ DEFAULT_SETTINGS = {
     "AWS_TAGS": None,
     "AWS_BUDGET_AMOUNT": None,
     "AWS_BUDGET_EMAIL": None,
+    "AWS_REQUESTER_PAYS": False,
     "S3_BUCKET_NAME": None,
     "FUNCTION_NAME": None,
     "FUNCTION_ROLE_NAME": None,
@@ -108,6 +109,8 @@ class PodpacSettings(dict):
         Budget amount for AWS resources
     AWS_BUDGET_EMAIL : str
         Notification email for when AWS usage reaches 80% of the `AWS_BUDGET_AMOUNT`
+    AWS_REQUESTER_PAYS : bool
+        Allow access to "requester pays" S3 buckets
     DEFAULT_CACHE : list
         Defines a default list of cache stores in priority order. Defaults to `['ram']`.
     CACHE_NODE_OUTPUT_DEFAULT : bool

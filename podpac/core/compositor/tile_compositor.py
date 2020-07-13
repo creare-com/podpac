@@ -41,11 +41,11 @@ class TileCompositor(DataSource):
 
         output = self.create_output_array(coordinates)
         for source in self.sources:
-            c, I = source.coordinates.intersect(coordinates, return_indices=True)
+            c, I = source.coordinates.intersect(coordinates, outer=True, return_indices=True)
             if c.size == 0:
                 continue
             source_data = source.get_data(c, I)
-            output.loc[source_data.coords] = source_data
+            output.loc[source_data.coords] = source_data.data
 
         return output
 
