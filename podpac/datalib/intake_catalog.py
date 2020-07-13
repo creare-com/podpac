@@ -61,13 +61,13 @@ class IntakeCatalog(podpac.data.DataSource):
 
     # input parameters
     source = tl.Unicode().tag(attr=True)
-    uri = tl.Unicode()
+    uri = tl.Unicode().tag(attr=True)
 
     # optional input parameters
-    field = tl.Unicode(default_value=None, allow_none=True)
-    dims = tl.Dict(default_value=None, allow_none=True)
-    crs = tl.Unicode(default_value=None, allow_none=True)
-    query = tl.Unicode(default_value=None, allow_none=True)
+    field = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    dims = tl.Dict(default_value=None, allow_none=True).tag(attr=True)
+    crs = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
+    query = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
 
     @cached_property
     def catalog(self):
