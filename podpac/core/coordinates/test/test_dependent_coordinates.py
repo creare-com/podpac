@@ -106,26 +106,135 @@ class TestDependentCoordinatesStandardMethods(object):
         assert c1 != c3
         assert c1 != c4
 
-    def test_is_subset(self):
-        c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
-        c2 = DependentCoordinates([LAT[:2, :2], LON[:2, :2]], dims=["lat", "lon"])
-        c2p = DependentCoordinates([LAT[1:3, :2], LON[:2, :2]], dims=["lat", "lon"])
+    # def test_issubset2(self):
+    #     c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
+    #     c2 = DependentCoordinates([LAT[:2, :2], LON[:2, :2]], dims=["lat", "lon"])
+    #     c2p = DependentCoordinates([LAT[1:3, :2], LON[:2, :2]], dims=["lat", "lon"])
 
-        # Dependent to Dependent
-        assert c2.issubset(c)
-        assert not c.issubset(c2)
-        assert not c2p.issubset(c)  # pairs don't match
+    #     # Dependent to Dependent
+    #     assert c2.issubset(c)
+    #     assert not c.issubset(c2)
+    #     assert not c2p.issubset(c)  # pairs don't match
 
-        # Dependent to stacked
-        cs = podpac.Coordinates([[LAT.ravel(), LON.ravel()]], [["lat", "lon"]])
-        assert c2.issubset(cs)
+    #     # Dependent to stacked
+    #     cs = podpac.Coordinates([[LAT.ravel(), LON.ravel()]], [["lat", "lon"]])
+    #     assert c2.issubset(cs)
 
-        # Stacked to Dependent
-        css = podpac.Coordinates([[LAT[0], LON[0]]], [["lat", "lon"]])
-        assert css.issubset(c)
+    #     # Stacked to Dependent
+    #     css = podpac.Coordinates([[LAT[0], LON[0]]], [["lat", "lon"]])
+    #     assert css.issubset(c)
 
-        csp = podpac.Coordinates([[np.roll(LAT.ravel(), 1), LON.ravel()]], [["lat", "lon"]])
-        assert not c2.issubset(csp)
+    #     csp = podpac.Coordinates([[np.roll(LAT.ravel(), 1), LON.ravel()]], [["lat", "lon"]])
+    #     assert not c2.issubset(csp)
+
+    def test_issubset(self):
+        lat = np.arange(12).reshape(3, 4)
+        lon = 10 * np.arange(12).reshape(3, 4)
+        time = 100 * np.arange(12).reshape(3, 4)
+
+        dc = DependentCoordinates([lat, lon], dims=["lat", "lon"])
+        dc_2 = DependentCoordinates([lat + 100, lon], dims=["lat", "lon"])  # different coordinates
+        dc_3 = DependentCoordinates([lat[::-1], lon], dims=["lat", "lon"])  # same coordinates, but paired differently
+        dc_t = dc.transpose("lon", "lat")
+        dc_shape = DependentCoordinates([lat.reshape(6, 2), lon.reshape(6, 2)], dims=["lat", "lon"])
+        dc_time = DependentCoordinates([lat, lon, time], dims=["lat", "lon", "time"])
+
+        assert dc.issubset(dc)
+        assert dc[:2, :2].issubset(dc)
+        assert not dc.issubset(dc[:2, :2])
+        assert not dc_2.issubset(dc)
+        assert not dc_3.issubset(dc)
+
+        assert dc_t.issubset(dc)
+        assert dc_shape.issubset(dc)
+
+        # extra/missing dimension
+        assert not dc_time.issubset(dc)
+        assert not dc.issubset(dc_time)
+
+    def test_issubset_coordinates(self):
+        ulat = np.arange(12)
+        ulon = 10 * np.arange(12)
+        utime = 100 * np.arange(12)
+
+        lat = ulat.reshape(3, 4)
+        lon = ulon.reshape(3, 4)
+        time = utime.reshape(3, 4)
+
+        dc = DependentCoordinates([lat, lon], dims=["lat", "lon"])
+        dc_2 = DependentCoordinates([lat + 100, lon], dims=["lat", "lon"])  # different coordinates
+        dc_3 = DependentCoordinates([lat[::-1], lon], dims=["lat", "lon"])  # same coordinates, but paired differently
+        dc_t = dc.transpose("lon", "lat")
+        dc_shape = DependentCoordinates([lat.reshape(6, 2), lon.reshape(6, 2)], dims=["lat", "lon"])
+        dc_time = DependentCoordinates([lat, lon, time], dims=["lat", "lon", "time"])
+
+        # coordinates with stacked lat_lon
+        cs = podpac.Coordinates([[ulat, ulon]], dims=["lat_lon"])
+        assert dc.issubset(cs)
+        assert dc[:2, :3].issubset(cs)
+        assert dc[::-1].issubset(cs)
+        assert not dc_2.issubset(cs)
+        assert not dc_3.issubset(cs)
+        assert dc_t.issubset(cs)
+        assert dc_shape.issubset(cs)
+        assert not dc_time.issubset(cs)
+
+        # coordinates with dependent lat,lon
+        cd = podpac.Coordinates([[lat, lon]], dims=["lat,lon"])
+        assert dc.issubset(cd)
+        assert dc[:2, :3].issubset(cd)
+        assert dc[::-1].issubset(cd)
+        assert not dc_2.issubset(cd)
+        assert not dc_3.issubset(cd)
+        assert dc_t.issubset(cd)
+        assert dc_shape.issubset(cd)
+        assert not dc_time.issubset(cd)
+
+        # coordinates with unstacked lat, lon
+        cu = podpac.Coordinates([ulat, ulon[::-1]], dims=["lat", "lon"])
+        assert dc.issubset(cu)
+        assert dc[:2, :3].issubset(cu)
+        assert dc[::-1].issubset(cu)
+        assert not dc_2.issubset(cu)
+        assert dc_3.issubset(cu)  # this is an important case!
+        assert dc_t.issubset(cu)
+        assert dc_shape.issubset(cu)
+        assert not dc_time.issubset(cu)
+
+        # coordinates with unstacked lat, lon, time
+        cu_time = podpac.Coordinates([ulat, ulon, utime], dims=["lat", "lon", "time"])
+        assert dc.issubset(cu_time)
+        assert dc[:2, :3].issubset(cu_time)
+        assert dc[::-1].issubset(cu_time)
+        assert not dc_2.issubset(cu_time)
+        assert dc_3.issubset(cu_time)
+        assert dc_t.issubset(cu_time)
+        assert dc_shape.issubset(cu_time)
+        assert dc_time.issubset(cu_time)
+
+        assert not dc.issubset(cu_time[:2, :, :])
+
+        # mixed coordinates
+        cmixed = podpac.Coordinates([[ulat, ulon], utime], dims=["lat_lon", "time"])
+        assert dc.issubset(cmixed)
+        assert dc[:2, :3].issubset(cmixed)
+        assert dc[::-1].issubset(cmixed)
+        assert not dc_2.issubset(cmixed)
+        assert not dc_3.issubset(cmixed)
+        assert dc_t.issubset(cmixed)
+        assert dc_shape.issubset(cmixed)
+        assert dc_time.issubset(cmixed)  # this is the most general case
+
+        assert not dc.issubset(cmixed[:2, :])
+        assert not dc_time.issubset(cmixed[:, :1])
+
+    def test_issubset_other(self):
+        dc = DependentCoordinates([[[1, 2, 3]], [[10, 20, 30]]], dims=["lat", "lon"])
+
+        with pytest.raises(
+            TypeError, match="DependentCoordinates issubset expected Coordinates or DependentCoordinates"
+        ):
+            dc.issubset([])
 
 
 class TestDependentCoordinatesSerialization(object):
