@@ -67,7 +67,7 @@ class IntakeCatalog(podpac.data.DataSource):
     field = tl.Unicode(default_value=None, allow_none=True)
     dims = tl.Dict(default_value=None, allow_none=True)
     crs = tl.Unicode(default_value=None, allow_none=True)
-    query = tl.Dict(default_value=None, allow_none=True)
+    query = tl.Unicode(default_value=None, allow_none=True)
 
     @cached_property
     def catalog(self):
@@ -80,7 +80,7 @@ class IntakeCatalog(podpac.data.DataSource):
     @cached_property
     def source_data(self):
         data = self.dataset.read()
-        if self.dataset.container == "dataframe":
+        if self.dataset.container == "dataframe" and self.query:
             data = data.query(self.query)
         return data
 
