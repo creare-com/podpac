@@ -205,7 +205,8 @@ class Convolution(UnaryAlgorithm):
         result = result[exp_slice]
 
         if output is None:
-            output = self.create_output_array(coordinates, data=result)
+            missing_dims = [d for d in coordinates.dims if d not in source.dims]
+            output = self.create_output_array(coordinates.drop(missing_dims), data=result)
         else:
             output[:] = result
 

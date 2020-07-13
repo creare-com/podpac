@@ -208,7 +208,7 @@ class TerrainTiles(S3Mixin, OrderedCompositor):
         """
 
         try:
-            for source in self.sources:
+            for source in self.sources[0].sources:
                 source.download(path)
         except tl.TraitError as e:
             raise ValueError("No terrain tile sources selected. Evaluate node at coordinates to select sources.")
