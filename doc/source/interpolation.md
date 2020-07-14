@@ -6,9 +6,9 @@ PODPAC allows users to specify various different interpolation schemes for nodes
 increased granularity, and even lets users write their own interpolators. 
 
 Relevant example notebooks include:
-* https://github.com/creare-com/podpac-examples/blob/master/notebooks/4-advanced/interpolation.ipynb
-* https://github.com/creare-com/podpac-examples/blob/master/notebooks/2-combining-data/automatic-interpolation-and-regridding.ipynb
-* https://github.com/creare-com/podpac-examples/blob/master/notebooks/examples/drought-monitor/03-data-access-harmonization-processing.ipynb
+* [Advanced Interpolation](https://github.com/creare-com/podpac-examples/blob/master/notebooks/4-advanced/interpolation.ipynb)
+* [Basic Interpolation](https://github.com/creare-com/podpac-examples/blob/master/notebooks/2-combining-data/automatic-interpolation-and-regridding.ipynb)
+* [Drought Monitor Data Access Harmonization Processing](https://github.com/creare-com/podpac-examples/blob/master/notebooks/examples/drought-monitor/03-data-access-harmonization-processing.ipynb)
 
 ## Examples
 Consider a `DataSource` with `lat`, `lon`, `time` coordinates that we will instantiate as: 

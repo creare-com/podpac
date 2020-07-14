@@ -17,7 +17,7 @@ Node
 **Nodes** describe the components of your analysis.
 These include data sources, combined data sources (**Compositors**), algorithms, and the assembly of data sources.
 Nodes are assembled into :ref:`design_pipelines`, which can be output to a text file or pushed to the cloud
-with minimal configuration. **Nodes** are design to **FAIL ON EVAL**, not fail when instantiated. This is order to defer
+with minimal configuration. **Nodes** are designed to **FAIL ON EVAL**, not fail when instantiated. This is in order to defer
 expensive operations till the user really wants them. 
 
 .. image:: /_static/img/node.png
