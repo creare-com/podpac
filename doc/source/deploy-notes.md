@@ -2,6 +2,15 @@
 
 > Note this it not included in built documentation
 
+## Checklist
+* [ ] Update version number
+* [ ] Update changelog
+* [ ] Update windows installation (see below)
+* [ ] Check all of the notebooks using the updated windows installation 
+* [ ] Update the conda environment .yml file (do this by-hand with any new packages in setup.py)
+* [ ] Update the explicit conda environemnt file `conda list --explicit > filename.json`
+* [ ] Update the `podpac_deps.zip` and `podpac_dist.zip` for the lambda function installs
+
 ## Uploading to pypi
 Run this command to create the wheel and source code tarball
 ```bash
