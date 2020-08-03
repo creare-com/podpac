@@ -89,13 +89,18 @@ class COSMOSStation(podpac.data.DataSource):
 
     def get_coordinates(self):
         lat_lon = self.station_data["location"]
-        time = np.loadtxt(
-            StringIO(self.raw_data),
-            skiprows=1,
-            usecols=[self.data_columns.index("YYYY-MM-DD"), self.data_columns.index("HH:MM")],
-            dtype=str,
+        time = np.atleast_2d(
+            np.loadtxt(
+                StringIO(self.raw_data),
+                skiprows=1,
+                usecols=[self.data_columns.index("YYYY-MM-DD"), self.data_columns.index("HH:MM")],
+                dtype=str,
+            )
         )
-        time = np.array([t[0] + "T" + t[1] for t in time], np.datetime64)
+        if time.size == 0:
+            time = np.datetime64("NaT")
+        else:
+            time = np.array([t[0] + "T" + t[1] for t in time], np.datetime64)
         c = podpac.Coordinates([time, lat_lon[0], lat_lon[1]], ["time", "lat", "lon"])
         return c
 
@@ -158,13 +163,17 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
 
     @cached_property(use_cache_ctrl=True)
     def source_coordinates(self):
-        lat_lon = np.array(self.stations_value("location"))
+        lat_lon = np.array(self.stations_value("location"))[self.has_data]
         c = podpac.Coordinates([[lat_lon[:, 0], lat_lon[:, 1]]], ["lat_lon"])
         return c
 
     @cached_property
+    def has_data(self):
+        return ~(np.array(self.stations_value("lastdat")) == "YYYY-MM-DD")
+
+    @cached_property
     def sources(self):
-        return np.array([COSMOSStation(station_data=item) for item in self.stations_data["items"]])
+        return np.array([COSMOSStation(station_data=item) for item in self.stations_data["items"]])[self.has_data]
 
     @property
     def available_data_keys(self):

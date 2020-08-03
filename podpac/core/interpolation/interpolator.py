@@ -293,6 +293,7 @@ class Interpolator(tl.HasTraits):
                     else:
                         src_idx = None  # There is no closest neighbor within the tolerance
                         continue
+
                 else:
                     src_idx = idx
 
@@ -300,13 +301,27 @@ class Interpolator(tl.HasTraits):
                     func,
                     keep_dims,
                     udims,
-                    source_coordinates,
+                    source_coordinates.drop(dim),
                     source_data.loc[src_idx],
-                    eval_coordinates,
+                    eval_coordinates.drop(dim),
                     output_data.loc[idx],
                     **kwargs
                 )
+
         else:
+            # TODO does this allow undesired extrapolation?
+            # short circuit if the source data and requested coordinates are of size 1
+            if source_data.size == 1 and eval_coordinates.size == 1:
+                output_data.data[:] = source_data.data.flatten()[0]
+                return output_data
+
+            # short circuit if source_coordinates contains eval_coordinates
+            if eval_coordinates.issubset(source_coordinates):
+                # select/transpose, and copy
+                output_coords = output_data.coords
+                output_data[:] = source_data.sel(output_coords)
+                return output_data
+
             return func(udims, source_coordinates, source_data, eval_coordinates, output_data, **kwargs)
 
         return output_data

@@ -123,7 +123,7 @@ class Node(tl.HasTraits):
      * ``_multi_threaded``: whether the most recent call to eval was executed using multiple threads
     """
 
-    outputs = tl.List(tl.Unicode, allow_none=True).tag(attr=True)
+    outputs = tl.List(trait=tl.Unicode(), allow_none=True).tag(attr=True)
     output = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     units = tl.Unicode(default_value=None, allow_none=True).tag(attr=True)
     style = tl.Instance(Style)

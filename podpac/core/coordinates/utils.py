@@ -431,6 +431,23 @@ def divide_delta(delta, divisor):
 
 
 def divide_timedelta(delta, divisor):
+    """
+    Divide a timedelta by a numerical divisor. This is a helper function for divide_delta.
+    
+    Parameters
+    ----------
+    delta : np.timedelta64
+        The base delta.
+    divisor : number
+        The divisor
+    
+    Returns
+    -------
+    result : np.timedelta64
+        The result, converted to higher resolution if necessary.
+
+    """
+
     result = delta / divisor
     if divisor * result.astype(int) == delta.astype(int):
         return result
@@ -440,6 +457,31 @@ def divide_timedelta(delta, divisor):
 
     # months, for example
     raise ValueError("Cannot divide timedelta '%s' evenly by %d" % (make_timedelta_string(delta), divisor))
+
+
+def timedelta_divisible(numerator, divisor):
+    """ Check if a numpy timedelta64 is evenly divisible by another.
+
+    Arguments
+    ---------
+    numerator : numpy.timedelta64
+        numerator
+    divisor : numpy.timedelta64
+        divisor
+
+    Returns
+    -------
+    divisible : bool
+        if the numerator is evenly divisible by the divisor
+    """
+
+    try:
+        # NOTE: numerator % divisor works in some versions of numpy, but not all
+        r = numerator / divisor
+        return float(r) == int(r)
+    except TypeError:
+        # e.g. months and days are not comparible
+        return False
 
 
 _TIMEDELTA_ZOOM = {
@@ -487,10 +529,7 @@ def lower_precision_time_bounds(my_bounds, other_bounds, outer):
     if not isinstance(my_bounds[0], np.datetime64) or not isinstance(my_bounds[1], np.datetime64):
         raise TypeError("Native bounds should be of type np.datetime64 when selecting data using:", str(other_bounds))
 
-    mine = np.timedelta64(1, my_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
-    your = np.timedelta64(1, other_bounds[0].dtype.name.replace("datetime64", "")[1:-1])
-
-    if mine > your and outer:
+    if my_bounds[0].dtype < other_bounds[0].dtype and outer:
         other_bounds = [b.astype(my_bounds[0].dtype) for b in other_bounds]
     else:
         my_bounds = [b.astype(other_bounds[0].dtype) for b in my_bounds]
