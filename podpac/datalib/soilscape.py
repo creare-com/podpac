@@ -1,4 +1,5 @@
 import logging
+import datetime
 
 import traitlets as tl
 import numpy as np
@@ -408,7 +409,7 @@ NODE_LOCATIONS = {
 }
 
 
-def get_node_coords(node):
+def get_node_location(node):
     """
     Get SoilSCAPE node location by id.
 
@@ -430,7 +431,7 @@ def get_node_coords(node):
     return NODE_LOCATIONS[node]
 
 
-def get_site_coords(site=None):
+def get_site_coordinates(site, time=None, depth=None):
     """
     Get location coordinates for the given SoilSCAPE site.
 
@@ -438,27 +439,38 @@ def get_site_coords(site=None):
     ---------
     site : str
         SoilSCAPE site, e.g. 'Canton_OK'
+    time : array, datetime64, str
+        datetime(s). Default is the current time.
+    depth : float, array
+        depth(s). Default: [4, 13, 30] (all available depths)
 
     Returns
     -------
     coords : Coordinates
-        Spatial Coordinates (lat_lon) for all nodes at the site.
+        Coordinates with (lat_lon) for all nodes at the site and the given time and depth
     """
 
     if site not in NODES:
         raise ValueError("site '%s' not found" % site)
 
+    if time is None:
+        time = np.datetime64(datetime.datetime.now())  # now
+
+    if depth is None:
+        depth = [4, 13, 30]  # all
+
     lats = []
     lons = []
     for node in NODES[site]:
         try:
-            lat, lon = get_node_coords(node)
+            lat, lon = get_node_location(node)
         except:
             _logger.exception("Could not get coordinates for '%s' node '%s'" % (NODE2SITE[node], node))
-        else:
-            lats.append(lat)
-            lons.append(lon)
-    return podpac.Coordinates([[lat, lon]], dims=["lat_lon"], crs=CRS)
+            continue
+        lats.append(lat)
+        lons.append(lon)
+
+    return podpac.Coordinates([[lats, lons], time, depth], dims=["lat_lon", "time", "alt"], crs=CRS)
 
 
 class SoilSCAPEFile(podpac.data.Dataset):
@@ -582,6 +594,25 @@ class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
         result.data[b.data] = np.nan
         return result
 
+    def make_coordinates(self, time=None, depth=None):
+        """
+        Make coordinates with the site locations and the given time and depth.
+
+        Arguments
+        ---------
+        time : array, datetime64, str
+            datetime(s). Default is the current time.
+        depth : float, array
+            depth(s). Default: [4, 13, 30] (all available depths)
+
+        Returns
+        -------
+        coords : Coordinates
+            Coordinates with (lat_lon) for all nodes at the site and the given time and depth
+        """
+
+        return get_site_coordinates(self.site, time=time, depth=depth)
+
 
 # class SoilSCAPEDaily(SoilSCAPEFile):
 #     """ SoilSCAPE daily soil moisture data for a site.
@@ -641,40 +672,41 @@ class SoilSCAPEFileFilter(podpac.algorithm.Algorithm):
 def test_soilscape():
     # 20m local file
     node = SoilSCAPEFile(source="/home/jmilloy/Creare/Pipeline/SoilSCAPE_1339/data/soil_moist_20min_Canton_OK_n101.nc")
-    coords = node.coordinates[:5, :5]
-    interp_time = podpac.Coordinates(
-        [node.coordinates["alt"].coordinates[0], "2012-01-01T12:00:00"], dims=["alt", "time"], crs=CRS
+    coords_source = podpac.Coordinates([node.coordinates["alt"], node.coordinates["time"][:5]], crs=CRS)
+    coords_interp_time = podpac.Coordinates(
+        [node.coordinates["alt"], "2012-01-01T12:00:00"], dims=["alt", "time"], crs=CRS
     )
-    interp_alt = podpac.Coordinates([5, node.coordinates["time"].coordinates[0]], dims=["alt", "time"], crs=CRS)
+    coords_interp_alt = podpac.Coordinates([5, node.coordinates["time"][:5]], dims=["alt", "time"], crs=CRS)
 
-    o1 = node.eval(coords)
-    o2 = node.eval(interp_time)
-    o3 = node.eval(interp_alt)
+    o1 = node.eval(coords_source)
+    o2 = node.eval(coords_interp_time)
+    o3 = node.eval(coords_interp_alt)
 
     # 20m url https url
     node = SoilSCAPEFile(
         source="https://thredds.daac.ornl.gov/thredds/fileServer/ornldaac/1339/soil_moist_20min_Canton_OK_n101.nc"
     )
     node.coordinates
-    o1 = node.eval(coords)
-    o2 = node.eval(interp_time)
-    o3 = node.eval(interp_alt)
+    o1 = node.eval(coords_source)
+    o2 = node.eval(coords_interp_time)
+    o3 = node.eval(coords_interp_alt)
 
     # 20m site and node
     node = SoilSCAPENode(site="Canton_OK", node=101)
     node.coordinates
-    o1 = node.eval(coords)
-    o2 = node.eval(interp_time)
-    o3 = node.eval(interp_alt)
+    o1 = node.eval(coords_source)
+    o2 = node.eval(coords_interp_time)
+    o3 = node.eval(coords_interp_alt)
 
     # 20m site (composite), with filtering
     sm = SoilSCAPE20min(site="Canton_OK", cache_ctrl=["ram", "disk"])
-    coords2 = podpac.coordinates.merge_dims([coords, get_site_coords("Canton_OK")])
-    interp_time2 = podpac.coordinates.merge_dims([interp_time, get_site_coords("Canton_OK")])
-    interp_alt2 = podpac.coordinates.merge_dims([interp_alt, get_site_coords("Canton_OK")])
-    o1 = sm.eval(coords2)
-    o2 = sm.eval(interp_time2)
-    o3 = sm.eval(interp_alt2)
+    coords_source = sm.make_coordinate(time=sm.sources[0].coordinates["time"][:5])
+    coords_interp_time = sm.make_coordinates("Canton_OK", time="2016-01-01")
+    coords_interp_alt = sm.make_coordinates("Canton_OK", time=sm.sources[0].coordinates["time"][:5], depth=5)
+    o1 = sm.eval(coords_source)
+    o2 = sm.eval(coords_interp_time)
+    o3 = sm.eval(coords_interp_alt)
+    o4 = sm.eval(now)
 
     # daily
     # daily = SoilSCAPEDaily(site='Canton_OK')
