@@ -614,61 +614,6 @@ class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
         return get_site_coordinates(self.site, time=time, depth=depth)
 
 
-# class SoilSCAPEDaily(SoilSCAPEFile):
-#     """ SoilSCAPE daily soil moisture data for a site.
-
-#         Data is loaded from the THREDDS https fileserver.
-#     """
-
-#     site = tl.Enum(list(NODES)).tag(attr=True)
-#     cache_dataset = tl.Bool(True)
-
-#     @property
-#     def source(self):
-#         return '{base_url}/{filename}'.format(base_url=SOILSCAPE_FILESERVER_BASE, filename=self.filename)
-
-#     @property
-#     def filename(self):
-#         return 'soil_moist_daily_{site}'.format(site=self.site, node=self.node)
-
-
-class SoilSCAPEFileFilter(podpac.algorithm.Algorithm):
-    source = tl.Instance(SoilSCAPEFile).tag(attr=True)
-    exclude = tl.List([1, 2, 3, 4, 5]).tag(attr=True)
-
-    def algorithm(self, inputs):
-        soil_moisture = inputs["source"].sel(output="soil_moisture", drop=True)
-        moisture_flag = inputs["source"].sel(output="moisture_flag", drop=True)
-        b = moisture_flag.isin(self.exclude)
-        soil_moisture.data[b.data] = np.nan
-        return soil_moisture
-
-    @property
-    def lat(self):
-        return self.source.lat
-
-    @property
-    def lon(self):
-        return self.source.lon
-
-
-# class SoilSCAPE(podpac.compositor.OrderedCompositor):
-#     """ SoilSCAPE best available soil moisture data for a site. Daily data is used if 20min data is not available.
-
-#         Data is loaded from the THREDDS https fileserver.
-#     """
-
-#     site = tl.Enum(list(NODES)).tag(attr=True)
-#     exclude = tl.List([1, 2, 3, 4]).tag(attr=True)
-
-#     @property
-#     def sources(self):
-#         return [
-#             SoilSCAPE20min(site=self.site, exclude=self.exclude, cache_ctrl=self.cache_ctrl),
-#             SoilScapeFileFilter(SoilSCAPEDaily(site=self.site, exclude=self.exclude, cache_ctrl=self.cache_ctrl)),
-#         ]
-
-
 def test_soilscape():
     # 20m local file
     node = SoilSCAPEFile(source="/home/jmilloy/Creare/Pipeline/SoilSCAPE_1339/data/soil_moist_20min_Canton_OK_n101.nc")
@@ -706,13 +651,3 @@ def test_soilscape():
     o1 = sm.eval(coords_source)
     o2 = sm.eval(coords_interp_time)
     o3 = sm.eval(coords_interp_alt)
-    o4 = sm.eval(now)
-
-    # daily
-    # daily = SoilSCAPEDaily(site='Canton_OK')
-
-    # daily, filtered
-    # daily_filtered = SoilSCAPEFileFilter(source=daily))
-
-    # best available (composite)
-    # best = SoilSCAPE(site='Canton_OK')
