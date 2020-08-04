@@ -486,6 +486,23 @@ class TestArrayCoordinatesIndexing(object):
         with pytest.raises(IndexError):
             c[10]
 
+    def test_in(self):
+        c = ArrayCoordinates1d([20, 50, 60, 90, 40, 10], name="lat")
+        assert 20.0 in c
+        assert 50.0 in c
+        assert 20 in c
+        assert 5.0 not in c
+        assert np.datetime64("2018") not in c
+        assert "a" not in c
+
+        c = ArrayCoordinates1d(["2020-01-01", "2020-01-05", "2020-01-04"], name="time")
+        assert np.datetime64("2020-01-01") in c
+        assert np.datetime64("2020-01-05") in c
+        assert "2020-01-01" in c
+        assert np.datetime64("2020-01-02") not in c
+        assert 10 not in c
+        assert "a" not in c
+
 
 class TestArrayCoordinatesAreaBounds(object):
     def test_get_area_bounds_numerical(self):

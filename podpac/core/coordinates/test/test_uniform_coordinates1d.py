@@ -738,6 +738,36 @@ class TestUniformCoordinatesIndexing(object):
         assert c2.properties == c.properties
         assert_equal(c2.coordinates, [50, 40, 30, 10])
 
+    def test_in(self):
+        c = UniformCoordinates1d(0, 50, 10, name="lat")
+        assert 0 in c
+        assert 10 in c
+        assert 50 in c
+        assert -10 not in c
+        assert 60 not in c
+        assert 5 not in c
+        assert np.datetime64("2018") not in c
+        assert "a" not in c
+
+        c = UniformCoordinates1d(50, 0, -10, name="lat")
+        assert 0 in c
+        assert 10 in c
+        assert 50 in c
+        assert -10 not in c
+        assert 60 not in c
+        assert 5 not in c
+        assert np.datetime64("2018") not in c
+        assert "a" not in c
+
+        c = UniformCoordinates1d("2020-01-01", "2020-01-09", "2,D", name="time")
+        assert np.datetime64("2020-01-01") in c
+        assert np.datetime64("2020-01-03") in c
+        assert np.datetime64("2020-01-09") in c
+        assert np.datetime64("2020-01-11") not in c
+        assert np.datetime64("2020-01-02") not in c
+        assert 10 not in c
+        assert "a" not in c
+
 
 class TestArrayCoordinatesAreaBounds(object):
     def test_get_area_bounds_numerical(self):
