@@ -645,9 +645,9 @@ def test_soilscape():
 
     # 20m site (composite), with filtering
     sm = SoilSCAPE20min(site="Canton_OK", cache_ctrl=["ram", "disk"])
-    coords_source = sm.make_coordinate(time=sm.sources[0].coordinates["time"][:5])
-    coords_interp_time = sm.make_coordinates("Canton_OK", time="2016-01-01")
-    coords_interp_alt = sm.make_coordinates("Canton_OK", time=sm.sources[0].coordinates["time"][:5], depth=5)
+    coords_source = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5])
+    coords_interp_time = sm.make_coordinates(time="2016-01-01")
+    coords_interp_alt = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5], depth=5)
     o1 = sm.eval(coords_source)
     o2 = sm.eval(coords_interp_time)
     o3 = sm.eval(coords_interp_alt)
