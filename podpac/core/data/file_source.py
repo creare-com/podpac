@@ -24,6 +24,7 @@ s3fs = lazy_module("s3fs")
 requests = lazy_module("requests")
 
 from podpac.core.utils import common_doc, cached_property
+from podpac.core.cache.utils import expiration_timestamp
 from podpac.core.coordinates import Coordinates
 from podpac.core.authentication import S3Mixin
 from podpac.core.data.datasource import COMMON_DATA_DOC, DataSource
@@ -79,7 +80,13 @@ class LoadFileMixin(S3Mixin):
     """
 
     cache_dataset = tl.Bool(False)
+    dataset_expires = tl.Any()
     _file = None
+
+    @tl.validate("dataset_expires")
+    def _validate_dataset_expires(self, d):
+        expiration_timestamp(d["value"])
+        return d["value"]
 
     @cached_property
     def _dataset_caching_node(self):
@@ -117,7 +124,7 @@ class LoadFileMixin(S3Mixin):
 
     def _open(self, f, cache=True):
         if self.cache_dataset and cache:
-            self._dataset_caching_node.put_cache(f.read(), key="dataset")
+            self._dataset_caching_node.put_cache(f.read(), key="dataset", expires=self.dataset_expires)
             f.seek(0)
         return self.open_dataset(f)
 

@@ -9,7 +9,7 @@ import podpac
 _logger = logging.getLogger(__name__)
 
 SOILSCAPE_FILESERVER_BASE = "https://thredds.daac.ornl.gov/thredds/fileServer/ornldaac/1339"
-CRS = "+proj=merc +vunits=m"  # TODO
+CRS = "+proj=merc +vunits=cm"  # TODO
 
 NODES = {
     "BLMLand1STonzi_CA": [900, 901, 902, 903, 904, 905, 906, 907, 908, 909, 910, 911, 912, 913, 914, 915, 916],
@@ -171,6 +171,9 @@ NODES = {
         680,
     ],
 }
+
+
+EXPIRED = ["BLMLand1STonzi_CA", "BLMLand3NTonzi_CA", "Canton_OK", "Vaira_CA", "NewHoganLakeS_CA", "MatthaeiGardens_MI"]
 
 NODE2SITE = {node: site for site in NODES for node in NODES[site]}
 
@@ -513,9 +516,16 @@ class SoilSCAPENode(SoilSCAPEFile):
 
     site = tl.Enum(list(NODES)).tag(attr=True)
     node = tl.Int().tag(attr=True)
-    cache_dataset = tl.Bool(True)  # TODO cache expiration!!!
+    cache_dataset = tl.Bool(True)
 
     _repr_keys = ["site", "node"]
+
+    @tl.default("dataset_expires")
+    def default_dataset_expires(self):
+        if self.site in EXPIRED:
+            return None
+        else:
+            return "1,D"
 
     @tl.validate("node")
     def _validate_node(self, d):
@@ -637,14 +647,14 @@ def test_soilscape():
     o3 = node.eval(coords_interp_alt)
 
     # 20m site and node
-    node = SoilSCAPENode(site="Canton_OK", node=101)
+    node = SoilSCAPENode(site="Canton_OK", node=101, cache_ctrl=["disk"])
     node.coordinates
     o1 = node.eval(coords_source)
     o2 = node.eval(coords_interp_time)
     o3 = node.eval(coords_interp_alt)
 
     # 20m site (composite), with filtering
-    sm = SoilSCAPE20min(site="Canton_OK", cache_ctrl=["ram", "disk"])
+    sm = SoilSCAPE20min(site="Canton_OK", cache_ctrl=["disk"])
     coords_source = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5])
     coords_interp_time = sm.make_coordinates(time="2016-01-01")
     coords_interp_alt = sm.make_coordinates(time=sm.sources[0].coordinates["time"][:5], depth=5)
