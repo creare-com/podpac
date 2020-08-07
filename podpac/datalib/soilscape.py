@@ -520,13 +520,6 @@ class SoilSCAPENode(SoilSCAPEFile):
 
     _repr_keys = ["site", "node"]
 
-    @tl.default("dataset_expires")
-    def default_dataset_expires(self):
-        if self.site in EXPIRED:
-            return None
-        else:
-            return "1,D"
-
     @tl.validate("node")
     def _validate_node(self, d):
         if d["value"] not in NODES[self.site]:
@@ -565,6 +558,19 @@ class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
 
     site = tl.Enum(list(NODES), allow_none=True, default_value=None).tag(attr=True)
     exclude = tl.List([1, 2, 3, 4]).tag(attr=True)
+    dataset_expires = tl.Any()
+
+    @tl.default("dataset_expires")
+    def default_dataset_expires(self):
+        if self.site in EXPIRED:
+            return None
+        else:
+            return "1,D"
+
+    @tl.validate("dataset_expires")
+    def _validate_dataset_expires(self, d):
+        podpac.core.cache.utils.expiration_timestamp(d["value"])
+        return d["value"]
 
     @property
     def _repr_keys(self):
@@ -585,7 +591,7 @@ class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
         return [self._make_source(site, node) for site, node in self.nodes]
 
     def _make_source(self, site, node):
-        return SoilSCAPENode(site=site, node=node, cache_ctrl=self.cache_ctrl)
+        return SoilSCAPENode(site=site, node=node, cache_ctrl=self.cache_ctrl, dataset_expires=self.dataset_expires)
 
     def select_sources(self, coordinates):
         return [source for source in self.sources if (source.lat, source.lon) in coordinates["lat_lon"]]
