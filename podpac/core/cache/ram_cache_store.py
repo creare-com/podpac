@@ -89,8 +89,8 @@ class RamCacheStore(CacheStore):
         # check size
         if self.max_size is not None:
             if self.size > self.max_size:
-                # clean and check again
-                self.clean()
+                # cleanup and check again
+                self.cleanup()
 
             if self.size > self.max_size:
                 # TODO removal policy (using create time, last access, etc)
@@ -209,7 +209,7 @@ class RamCacheStore(CacheStore):
 
         _thread_local.cache = {}
 
-    def clean(self):
+    def cleanup(self):
         """ Remove all expired entries. """
         for full_key, entry in list(_thread_local.cache.items()):
             if entry["expires"] is not None and time.time() >= entry["expires"]:

@@ -72,6 +72,11 @@ def clear_cache(mode="all"):
     cache_ctrl.clear(mode=mode)
 
 
+def cache_cleanup():
+    cache_ctrl = get_default_cache_ctrl()
+    cache_ctrl.cleanup()
+
+
 class CacheCtrl(object):
 
     """Objects of this class are used to manage multiple CacheStore objects of different types
@@ -278,3 +283,13 @@ class CacheCtrl(object):
 
         for c in self._get_cache_stores_by_mode(mode):
             c.clear()
+
+    def cleanup(self):
+        """
+        Cleanup all cache stores.
+
+        Removes expired cache entries, orphaned metadata, empty directories, etc.
+        """
+
+        for c in self._cache_stores:
+            c.cleanup()

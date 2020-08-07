@@ -79,7 +79,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
                     total_size += obj["Size"]
         return total_size
 
-    def clean(self):
+    def cleanup(self):
         """
         Remove expired entries.
         """

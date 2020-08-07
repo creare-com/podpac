@@ -307,7 +307,7 @@ class BaseCacheStoreTests(object):
     def test_clean_basic(self):
         store = self.Store()
         store.put(NODE1, 10, "mykey1", expires=time.time())
-        store.clean()
+        store.cleanup()
 
 
 class FileCacheStoreTests(BaseCacheStoreTests):
@@ -396,7 +396,7 @@ class TestRamCacheStore(BaseCacheStoreTests):
     def test_limit(self):
         super(TestRamCacheStore, self).test_size()
 
-    def test_clean(self):
+    def test_cleanup(self):
         from podpac.core.cache.ram_cache_store import _thread_local
 
         store = self.Store()
@@ -404,10 +404,10 @@ class TestRamCacheStore(BaseCacheStoreTests):
         store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
         assert len(_thread_local.cache) == 2
 
-        store.clean()
+        store.cleanup()
         assert len(_thread_local.cache) == 1
 
-    def test_has_autoclean(self):
+    def test_has_auto_cleanup(self):
         from podpac.core.cache.ram_cache_store import _thread_local
 
         store = self.Store()
@@ -420,7 +420,7 @@ class TestRamCacheStore(BaseCacheStoreTests):
 
         assert len(_thread_local.cache) == 1
 
-    def test_get_autoclean(self):
+    def test_get_auto_cleanup(self):
         from podpac.core.cache.ram_cache_store import _thread_local
 
         store = self.Store()
@@ -513,13 +513,13 @@ class TestDiskCacheStore(FileCacheStoreTests):
         )
         assert store.size == expected_size
 
-    def test_clean(self):
+    def test_cleanup(self):
         store = self.Store()
         store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
         store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
         assert len(store.search(NODE1)) == 2
 
-        store.clean()
+        store.cleanup()
         assert len(store.search(NODE1)) == 1
 
         store = self.Store()
@@ -527,11 +527,11 @@ class TestDiskCacheStore(FileCacheStoreTests):
         store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
         assert len(store.search(NODE1)) == 2
 
-        store.clean()
+        store.cleanup()
         assert len(store.search(NODE1)) == 0
         assert not store._exists(store._get_node_dir(NODE1))  # empty node directories are removed
 
-    def test_has_autoclean(self):
+    def test_has_auto_cleanup(self):
         store = self.Store()
         store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
         store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
@@ -542,7 +542,7 @@ class TestDiskCacheStore(FileCacheStoreTests):
 
         assert len(store.search(NODE1)) == 1
 
-    def test_get_autoclean(self):
+    def test_get_auto_cleanup(self):
         store = self.Store()
         store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
         store.put(NODE1, 10, "mykey2", expires=time.time() - 100)

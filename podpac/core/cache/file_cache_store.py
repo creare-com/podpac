@@ -32,7 +32,6 @@ class FileCacheStore(CacheStore):
 
     cache_mode = ""
     cache_modes = ["all"]
-    time_fmt = "%Y-%m-%d %H:%M:%S"
 
     # -----------------------------------------------------------------------------------------------------------------
     # public cache API methods
@@ -103,8 +102,8 @@ class FileCacheStore(CacheStore):
             new_size = self.size + len(s)
 
             if new_size > self.max_size:
-                # clean and check again
-                self.clean()
+                # cleanup and check again
+                self.cleanup()
 
             if new_size > self.max_size:
                 # TODO removal policy (using create time, last access, etc)

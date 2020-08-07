@@ -120,7 +120,7 @@ class DiskCacheStore(FileCacheStore):
         with open(metadata_path, "w") as f:
             json.dump(metadata, f)
 
-    def clean(self):
+    def cleanup(self):
         """
         Remove expired entries and orphaned metadata.
         """

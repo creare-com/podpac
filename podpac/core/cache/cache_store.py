@@ -112,8 +112,8 @@ class CacheStore(object):
         """
         raise NotImplementedError
 
-    def clean(self):
+    def cleanup(self):
         """
-        Remove expired entries and orphaned metadata.
+        Cache housekeeping, e.g. remove expired entries.
         """
         raise NotImplementedError
