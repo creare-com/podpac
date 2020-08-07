@@ -574,7 +574,7 @@ class Node(tl.HasTraits):
 
         return self.cache_ctrl.get(self, key, coordinates=coordinates)
 
-    def put_cache(self, data, key, coordinates=None, overwrite=True):
+    def put_cache(self, data, key, coordinates=None, expires=None, overwrite=True):
         """
         Cache data for this node.
 
@@ -586,6 +586,8 @@ class Node(tl.HasTraits):
             Unique key for the data, e.g. 'output'
         coordinates : podpac.Coordinates, optional
             Coordinates that the cached data depends on. Omit for coordinate-independent data.
+        expires : float, datetime, timedelta
+            Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
         overwrite : bool, optional
             Overwrite existing data, default True.
 
@@ -607,7 +609,7 @@ class Node(tl.HasTraits):
             raise NodeException("Cached data already exists for key '%s' and coordinates %s" % (key, coordinates))
 
         with thread_manager.cache_lock:
-            self.cache_ctrl.put(self, data, key, coordinates=coordinates, update=overwrite)
+            self.cache_ctrl.put(self, data, key, coordinates=coordinates, expires=expires, update=overwrite)
 
     def has_cache(self, key, coordinates=None):
         """

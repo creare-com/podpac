@@ -4,10 +4,12 @@ import threading
 import copy
 import warnings
 import os
+import time
+
 import psutil
 
 from podpac.core.settings import settings
-from podpac.core.cache.utils import CacheException, CacheWildCard
+from podpac.core.cache.utils import CacheException, CacheWildCard, expiration_timestamp
 from podpac.core.cache.cache_store import CacheStore
 
 _thread_local = threading.local()
@@ -55,7 +57,7 @@ class RamCacheStore(CacheStore):
         process = psutil.Process(os.getpid())
         return process.memory_info().rss  # this is actually the total size of the process
 
-    def put(self, node, data, key, coordinates=None, update=True):
+    def put(self, node, data, key, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
         
         Parameters
@@ -68,6 +70,8 @@ class RamCacheStore(CacheStore):
             Cached object key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
+        expires : float, datetime, timedelta
+            Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         """
@@ -77,21 +81,31 @@ class RamCacheStore(CacheStore):
 
         full_key = self._get_full_key(node, key, coordinates)
 
-        if not update and full_key in _thread_local.cache:
+        if not update and self.has(node, key, coordinates):
             raise CacheException("Cache entry already exists. Use update=True to overwrite.")
 
         self.rem(node, key, coordinates)
 
-        if self.max_size is not None and self.size >= self.max_size:
-            #     # TODO removal policy
-            warnings.warn(
-                "Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. No longer caching. Consider increasing this limit or try clearing the cache (e.g. podpac.utils.clear_cache(mode='RAM') to clear ALL cached results in RAM)",
-                UserWarning,
-            )
-            return False
+        # check size
+        if self.max_size is not None:
+            if self.size > self.max_size:
+                # clean and check again
+                self.clean()
 
-        # TODO include insert date, last retrieval date, and/or # retrievals for use in a removal policy
-        _thread_local.cache[full_key] = data
+            if self.size > self.max_size:
+                # TODO removal policy (using create time, last access, etc)
+                warnings.warn(
+                    "Warning: Process is using more RAM than the specified limit in settings.RAM_CACHE_MAX_BYTES. "
+                    "No longer caching. Consider increasing this limit or try clearing the cache "
+                    "(e.g. podpac.utils.clear_cache(mode='RAM') to clear ALL cached results in RAM)",
+                    UserWarning,
+                )
+                return False
+
+        # store
+        entry = {"data": data, "created": time.time(), "accessed": None, "expires": expiration_timestamp(expires)}
+
+        _thread_local.cache[full_key] = entry
 
     def get(self, node, key, coordinates=None):
         """Get cached data for this node.
@@ -112,8 +126,8 @@ class RamCacheStore(CacheStore):
         
         Raises
         -------
-        CacheError
-            If the data is not in the cache.
+        CacheException
+            If the data is not in the cache, or is expired.
         """
 
         if not hasattr(_thread_local, "cache"):
@@ -124,7 +138,11 @@ class RamCacheStore(CacheStore):
         if full_key not in _thread_local.cache:
             raise CacheException("Cache miss. Requested data not found.")
 
-        return copy.deepcopy(_thread_local.cache[full_key])
+        if self._expired(full_key):
+            raise CacheException("Cache miss. Requested data expired.")
+
+        self._set_metadata(full_key, "accessed", time.time())
+        return copy.deepcopy(_thread_local.cache[full_key]["data"])
 
     def has(self, node, key, coordinates=None):
         """Check for cached data for this node
@@ -148,7 +166,7 @@ class RamCacheStore(CacheStore):
             _thread_local.cache = {}
 
         full_key = self._get_full_key(node, key, coordinates)
-        return full_key in _thread_local.cache
+        return full_key in _thread_local.cache and not self._expired(full_key)
 
     def rem(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
         """Delete cached data for this node.
@@ -187,4 +205,33 @@ class RamCacheStore(CacheStore):
             del _thread_local.cache[k]
 
     def clear(self):
+        """Remove all entries from the cache. """
+
         _thread_local.cache = {}
+
+    def clean(self):
+        """ Remove all expired entries. """
+        for full_key, entry in list(_thread_local.cache.items()):
+            if entry["expires"] is not None and time.time() >= entry["expires"]:
+                del _thread_local.cache[full_key]
+
+    # -------------------------------------------------------------------------
+    # helper methods
+    # -------------------------------------------------------------------------
+
+    def _get_metadata(self, full_key, key):
+        return _thread_local.cache[full_key].get(key)
+
+    def _set_metadata(self, full_key, key, value):
+        _thread_local.cache[full_key]["accessed"] = time.time()
+
+    def _expired(self, full_key):
+        """Check if the given entry is expired. Expired entries are removed."""
+
+        expires = self._get_metadata(full_key, "expires")
+
+        if expires is not None and time.time() >= expires:
+            del _thread_local.cache[full_key]
+            return True
+
+        return False

@@ -2,6 +2,8 @@ import os
 import shutil
 import copy
 import tempfile
+import time
+import datetime
 
 import pytest
 import xarray as xr
@@ -50,13 +52,13 @@ class BaseCacheStoreTests(object):
         store.put(NODE2, 110, "mykey1")
         store.put(NODE2, 120, "mykeyA", COORDS1)
 
-        assert store.has(NODE1, "mykey1")
-        assert store.has(NODE1, "mykey2")
-        assert store.has(NODE1, "mykeyA", COORDS1)
-        assert store.has(NODE1, "mykeyB", COORDS1)
-        assert store.has(NODE1, "mykeyA", COORDS2)
-        assert store.has(NODE2, "mykey1")
-        assert store.has(NODE2, "mykeyA", COORDS1)
+        assert store.has(NODE1, "mykey1") is True
+        assert store.has(NODE1, "mykey2") is True
+        assert store.has(NODE1, "mykeyA", COORDS1) is True
+        assert store.has(NODE1, "mykeyB", COORDS1) is True
+        assert store.has(NODE1, "mykeyA", COORDS2) is True
+        assert store.has(NODE2, "mykey1") is True
+        assert store.has(NODE2, "mykeyA", COORDS1) is True
 
         assert store.get(NODE1, "mykey1") == 10
         assert store.get(NODE1, "mykey2") == 20
@@ -113,13 +115,13 @@ class BaseCacheStoreTests(object):
         store.rem(NODE1, key="mykey1")
         store.rem(NODE1, key="mykeyA", coordinates=COORDS1)
 
-        store.has(NODE1, "mykey1") is False
-        store.has(NODE1, "mykey2") is True
-        store.has(NODE1, "mykeyA", COORDS1) is False
-        store.has(NODE1, "mykeyB", COORDS1) is True
-        store.has(NODE1, "mykeyA", COORDS2) is True
-        store.has(NODE2, "mykey1") is True
-        store.has(NODE2, "mykeyA", COORDS1) is True
+        assert store.has(NODE1, "mykey1") is False
+        assert store.has(NODE1, "mykey2") is True
+        assert store.has(NODE1, "mykeyA", COORDS1) is False
+        assert store.has(NODE1, "mykeyB", COORDS1) is True
+        assert store.has(NODE1, "mykeyA", COORDS2) is True
+        assert store.has(NODE2, "mykey1") is True
+        assert store.has(NODE2, "mykeyA", COORDS1) is True
 
     def test_rem_key(self):
         store = self.Store()
@@ -135,13 +137,13 @@ class BaseCacheStoreTests(object):
         store.rem(NODE1, key="mykey1")
         store.rem(NODE1, key="mykeyA")
 
-        store.has(NODE1, "mykey1") is False
-        store.has(NODE1, "mykey2") is True
-        store.has(NODE1, "mykeyA", COORDS1) is False
-        store.has(NODE1, "mykeyB", COORDS1) is True
-        store.has(NODE1, "mykeyA", COORDS2) is False
-        store.has(NODE2, "mykey1") is True
-        store.has(NODE2, "mykeyA", COORDS1) is True
+        assert store.has(NODE1, "mykey1") is False
+        assert store.has(NODE1, "mykey2") is True
+        assert store.has(NODE1, "mykeyA", COORDS1) is False
+        assert store.has(NODE1, "mykeyB", COORDS1) is True
+        assert store.has(NODE1, "mykeyA", COORDS2) is False
+        assert store.has(NODE2, "mykey1") is True
+        assert store.has(NODE2, "mykeyA", COORDS1) is True
 
     def test_rem_coordinates(self):
         store = self.Store()
@@ -156,13 +158,13 @@ class BaseCacheStoreTests(object):
 
         store.rem(NODE1, coordinates=COORDS1)
 
-        store.has(NODE1, "mykey1") is True
-        store.has(NODE1, "mykey2") is True
-        store.has(NODE1, "mykeyA", COORDS1) is False
-        store.has(NODE1, "mykeyB", COORDS1) is False
-        store.has(NODE1, "mykeyA", COORDS2) is True
-        store.has(NODE2, "mykey1") is True
-        store.has(NODE2, "mykeyA", COORDS1) is True
+        assert store.has(NODE1, "mykey1") is True
+        assert store.has(NODE1, "mykey2") is True
+        assert store.has(NODE1, "mykeyA", COORDS1) is False
+        assert store.has(NODE1, "mykeyB", COORDS1) is False
+        assert store.has(NODE1, "mykeyA", COORDS2) is True
+        assert store.has(NODE2, "mykey1") is True
+        assert store.has(NODE2, "mykeyA", COORDS1) is True
 
     def test_rem_node(self):
         store = self.Store()
@@ -177,13 +179,13 @@ class BaseCacheStoreTests(object):
 
         store.rem(NODE1)
 
-        store.has(NODE1, "mykey1") is False
-        store.has(NODE1, "mykey2") is False
-        store.has(NODE1, "mykeyA", COORDS1) is False
-        store.has(NODE1, "mykeyB", COORDS1) is False
-        store.has(NODE1, "mykeyA", COORDS2) is False
-        store.has(NODE2, "mykey1") is True
-        store.has(NODE2, "mykeyA", COORDS1) is True
+        assert store.has(NODE1, "mykey1") is False
+        assert store.has(NODE1, "mykey2") is False
+        assert store.has(NODE1, "mykeyA", COORDS1) is False
+        assert store.has(NODE1, "mykeyB", COORDS1) is False
+        assert store.has(NODE1, "mykeyA", COORDS2) is False
+        assert store.has(NODE2, "mykey1") is True
+        assert store.has(NODE2, "mykeyA", COORDS1) is True
 
     def test_clear(self):
         store = self.Store()
@@ -198,13 +200,13 @@ class BaseCacheStoreTests(object):
 
         store.clear()
 
-        store.has(NODE1, "mykey1") is False
-        store.has(NODE1, "mykey2") is False
-        store.has(NODE1, "mykeyA", COORDS1) is False
-        store.has(NODE1, "mykeyB", COORDS1) is False
-        store.has(NODE1, "mykeyA", COORDS2) is False
-        store.has(NODE2, "mykey1") is False
-        store.has(NODE2, "mykeyA", COORDS1) is False
+        assert store.has(NODE1, "mykey1") is False
+        assert store.has(NODE1, "mykey2") is False
+        assert store.has(NODE1, "mykeyA", COORDS1) is False
+        assert store.has(NODE1, "mykeyB", COORDS1) is False
+        assert store.has(NODE1, "mykeyA", COORDS2) is False
+        assert store.has(NODE2, "mykey1") is False
+        assert store.has(NODE2, "mykeyA", COORDS1) is False
 
     def test_max_size(self):
         store = self.Store()
@@ -221,6 +223,91 @@ class BaseCacheStoreTests(object):
 
         with pytest.warns(UserWarning, match="Warning: .* cache is full"):
             store.put(NODE1, "11111111", "mykey2")
+
+    def test_expiration(self):
+        store = self.Store()
+
+        # timestamp
+        expires = time.time() + 100  # in 100 seconds
+        store.put(NODE1, 10, "mykey1", expires=expires)
+        assert store.has(NODE1, "mykey1") is True
+
+        expires = time.time() - 100  # 100 seconds ago
+        store.put(NODE1, 10, "mykey2", expires=expires)
+        assert store.has(NODE1, "mykey2") is False
+
+        # datetime
+        expires = datetime.datetime.now() + datetime.timedelta(1)  # in 1 day
+        store.put(NODE1, 10, "mykey3", expires=expires)
+        assert store.has(NODE1, "mykey3") is True
+
+        expires = datetime.datetime.now() - datetime.timedelta(1)  # 1 day ago
+        store.put(NODE1, 10, "mykey4", expires=expires)
+        assert store.has(NODE1, "mykey4") is False
+
+        # timedelta
+        expires = datetime.timedelta(1)  # in 1 day
+        store.put(NODE1, 10, "mykey5", expires=expires)
+        assert store.has(NODE1, "mykey5") is True
+
+        expires = -datetime.timedelta(1)  # 1 day ago
+        store.put(NODE1, 10, "mykey6", expires=expires)
+        assert store.has(NODE1, "mykey6") is False
+
+        # string datetime
+        expires = "3000-01-01"  # in the year 3000
+        store.put(NODE1, 10, "mykey7", expires=expires)
+        assert store.has(NODE1, "mykey7") is True
+
+        expires = "1000-01-01"  # in the year 1000
+        store.put(NODE1, 10, "mykey8", expires=expires)
+        assert store.has(NODE1, "mykey8") is False
+
+        # string timedelta
+        expires = "1,D"  # in 1 day
+        store.put(NODE1, 10, "mykey9", expires=expires)
+        assert store.has(NODE1, "mykey9") is True
+
+        expires = "-1,D"  # 1 day ago
+        store.put(NODE1, 10, "mykey10", expires=expires)
+        assert store.has(NODE1, "mykey10") is False
+
+        # None
+        expires = None  # never (default)
+        store.put(NODE1, 10, "mykey11", expires=None)
+        assert store.has(NODE1, "mykey11") is True
+
+    def test_expiration_put(self):
+        store = self.Store()
+
+        # exception putting data that is not expired when update=False
+        expires = time.time() + 100  # in 100 seconds
+        store.put(NODE1, 10, "mykey1", expires=expires)
+        with pytest.raises(CacheException, match="Cache entry already exists"):
+            store.put(NODE1, 10, "mykey1", update=False)
+        store.put(NODE1, 10, "mykey1")
+
+        # no exception putting data that is expired even when update=False
+        expires = time.time() - 100  # 100 seconds ago
+        store.put(NODE1, 10, "mykey2", expires=expires)
+        store.put(NODE1, 10, "mykey2", update=False)
+
+    def test_expiration_get(self):
+        store = self.Store()
+
+        # getting unexpired data
+        store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
+        assert store.get(NODE1, "mykey1") == 10
+
+        # exception getting expired data
+        store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
+        with pytest.raises(CacheException, match="Cache miss. Requested data expired"):
+            store.get(NODE1, "mykey2")
+
+    def test_clean_basic(self):
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1", expires=time.time())
+        store.clean()
 
 
 class FileCacheStoreTests(BaseCacheStoreTests):
@@ -309,6 +396,44 @@ class TestRamCacheStore(BaseCacheStoreTests):
     def test_limit(self):
         super(TestRamCacheStore, self).test_size()
 
+    def test_clean(self):
+        from podpac.core.cache.ram_cache_store import _thread_local
+
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
+        store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
+        assert len(_thread_local.cache) == 2
+
+        store.clean()
+        assert len(_thread_local.cache) == 1
+
+    def test_has_autoclean(self):
+        from podpac.core.cache.ram_cache_store import _thread_local
+
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
+        store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
+        assert len(_thread_local.cache) == 2
+
+        assert store.has(NODE1, "mykey1") is True
+        assert store.has(NODE1, "mykey2") is False
+
+        assert len(_thread_local.cache) == 1
+
+    def test_get_autoclean(self):
+        from podpac.core.cache.ram_cache_store import _thread_local
+
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
+        store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
+        assert len(_thread_local.cache) == 2
+
+        assert store.get(NODE1, "mykey1") == 10
+        with pytest.raises(CacheException, match="Cache miss. Requested data expired"):
+            store.get(NODE1, "mykey2")
+
+        assert len(_thread_local.cache) == 1
+
 
 class TestDiskCacheStore(FileCacheStoreTests):
     Store = DiskCacheStore
@@ -349,6 +474,28 @@ class TestDiskCacheStore(FileCacheStoreTests):
             assert store.find(NODE1, "mykey1").startswith(expected)
             store.clear()
 
+    def test_rem_node_dir(self):
+        store = self.Store()
+
+        store.put(NODE1, 10, "mykey1")
+        store.put(NODE1, 10, "mykey2")
+        store.put(NODE2, 10, "mykey1")
+
+        assert store._exists(store._get_node_dir(NODE1))
+        assert store._exists(store._get_node_dir(NODE2))
+
+        store.rem(NODE1, "mykey1")
+        assert store._exists(store._get_node_dir(NODE1))
+        assert store._exists(store._get_node_dir(NODE2))
+
+        store.rem(NODE1, "mykey2")
+        assert not store._exists(store._get_node_dir(NODE1))
+        assert store._exists(store._get_node_dir(NODE2))
+
+        store.rem(NODE2)
+        assert not store._exists(store._get_node_dir(NODE1))
+        assert not store._exists(store._get_node_dir(NODE2))
+
     def test_size(self):
         store = self.Store()
         assert store.size == 0
@@ -358,8 +505,54 @@ class TestDiskCacheStore(FileCacheStoreTests):
 
         p1 = store.find(NODE1, "mykey1", None)
         p2 = store.find(NODE1, "mykey2", None)
-        expected_size = os.path.getsize(p1) + os.path.getsize(p2)
+        expected_size = (
+            os.path.getsize(p1)
+            + os.path.getsize("%s.meta" % p1)
+            + os.path.getsize(p2)
+            + os.path.getsize("%s.meta" % p2)
+        )
         assert store.size == expected_size
+
+    def test_clean(self):
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
+        store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
+        assert len(store.search(NODE1)) == 2
+
+        store.clean()
+        assert len(store.search(NODE1)) == 1
+
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1", expires=time.time() - 100)
+        store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
+        assert len(store.search(NODE1)) == 2
+
+        store.clean()
+        assert len(store.search(NODE1)) == 0
+        assert not store._exists(store._get_node_dir(NODE1))  # empty node directories are removed
+
+    def test_has_autoclean(self):
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
+        store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
+        assert len(store.search(NODE1)) == 2
+
+        assert store.has(NODE1, "mykey1") is True
+        assert store.has(NODE1, "mykey2") is False
+
+        assert len(store.search(NODE1)) == 1
+
+    def test_get_autoclean(self):
+        store = self.Store()
+        store.put(NODE1, 10, "mykey1", expires=time.time() + 100)
+        store.put(NODE1, 10, "mykey2", expires=time.time() - 100)
+        assert len(store.search(NODE1)) == 2
+
+        assert store.get(NODE1, "mykey1") == 10
+        with pytest.raises(CacheException, match="Cache miss. Requested data expired"):
+            store.get(NODE1, "mykey2")
+
+        assert len(store.search(NODE1)) == 1
 
 
 @pytest.mark.aws

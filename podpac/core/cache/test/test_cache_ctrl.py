@@ -1,7 +1,10 @@
+import copy
+import tempfile
+import shutil
+
 import pytest
 
 import podpac
-
 from podpac.core.cache.utils import CacheException
 from podpac.core.cache.ram_cache_store import RamCacheStore
 from podpac.core.cache.disk_cache_store import DiskCacheStore
@@ -17,6 +20,34 @@ NODE = CacheCtrlTestNode()
 
 
 class TestCacheCtrl(object):
+    def setup_method(self):
+        # store the current settings
+        self.settings_orig = copy.deepcopy(podpac.settings)
+
+        # delete the ram cache
+        from podpac.core.cache.ram_cache_store import _thread_local
+
+        if hasattr(_thread_local, "cache"):
+            delattr(_thread_local, "cache")
+
+        # use an fresh temporary disk cache
+        self.test_cache_dir = tempfile.mkdtemp(prefix="podpac-test-")
+        podpac.settings["DISK_CACHE_DIR"] = self.test_cache_dir
+
+    def teardown_method(self):
+        # delete the ram cache
+        from podpac.core.cache.ram_cache_store import _thread_local
+
+        if hasattr(_thread_local, "cache"):
+            delattr(_thread_local, "cache")
+
+        # delete the disk cache
+        shutil.rmtree(self.test_cache_dir, ignore_errors=True)
+
+        # reset the settings
+        for key in podpac.settings:
+            podpac.settings[key] = self.settings_orig[key]
+
     def test_init_default(self):
         ctrl = CacheCtrl()
         assert len(ctrl._cache_stores) == 0
@@ -44,7 +75,6 @@ class TestCacheCtrl(object):
 
     def test_put_has_get(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
-        ctrl.clear()
 
         # has False
         assert not ctrl._cache_stores[0].has(NODE, "key")
@@ -66,7 +96,6 @@ class TestCacheCtrl(object):
 
     def test_partial_has_get(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
-        ctrl.clear()
 
         # has False
         assert not ctrl._cache_stores[0].has(NODE, "key")
@@ -89,7 +118,6 @@ class TestCacheCtrl(object):
 
     def test_get_cache_miss(self):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
-        ctrl.clear()
 
         with pytest.raises(CacheException, match="Requested data is not in any cache stores"):
             ctrl.get(NODE, "key")
@@ -140,7 +168,6 @@ class TestCacheCtrl(object):
         ctrl = CacheCtrl(cache_stores=[RamCacheStore(), DiskCacheStore()])
 
         # put disk and check has
-        ctrl.clear()
         assert not ctrl.has(NODE, "key")
 
         ctrl.put(NODE, 10, "key", mode="disk")
