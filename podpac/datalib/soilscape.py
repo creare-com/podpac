@@ -172,9 +172,6 @@ NODES = {
     ],
 }
 
-
-EXPIRED = ["BLMLand1STonzi_CA", "BLMLand3NTonzi_CA", "Canton_OK", "Vaira_CA", "NewHoganLakeS_CA", "MatthaeiGardens_MI"]
-
 NODE2SITE = {node: site for site in NODES for node in NODES[site]}
 
 NODE_LOCATIONS = {
@@ -559,13 +556,6 @@ class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
     site = tl.Enum(list(NODES), allow_none=True, default_value=None).tag(attr=True)
     exclude = tl.List([1, 2, 3, 4]).tag(attr=True)
     dataset_expires = tl.Any()
-
-    @tl.default("dataset_expires")
-    def default_dataset_expires(self):
-        if self.site in EXPIRED:
-            return None
-        else:
-            return "1,D"
 
     @tl.validate("dataset_expires")
     def _validate_dataset_expires(self, d):
