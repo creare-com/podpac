@@ -384,7 +384,7 @@ def cached_property(*args, **kwargs):
         @property
         def wrapper(self):
             if hasattr(self, key):
-                return getattr(self, key)
+                value = getattr(self, key)
             elif use_cache_ctrl and self.has_cache(key):
                 value = self.get_cache(key)
                 setattr(self, key, value)
