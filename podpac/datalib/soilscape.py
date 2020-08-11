@@ -9,7 +9,7 @@ import podpac
 _logger = logging.getLogger(__name__)
 
 SOILSCAPE_FILESERVER_BASE = "https://thredds.daac.ornl.gov/thredds/fileServer/ornldaac/1339"
-CRS = "+proj=merc +vunits=cm"  # TODO
+CRS = "+proj=longlat +datum=WGS84 +vunits=cm"
 
 NODES = {
     "BLMLand1STonzi_CA": [900, 901, 902, 903, 904, 905, 906, 907, 908, 909, 910, 911, 912, 913, 914, 915, 916],
