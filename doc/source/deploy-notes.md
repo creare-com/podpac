@@ -10,6 +10,8 @@
 * [ ] Update the conda environment .yml file (do this by-hand with any new packages in setup.py)
 * [ ] Update the explicit conda environemnt file `conda list --explicit > filename.json`
 * [ ] Update the `podpac_deps.zip` and `podpac_dist.zip` for the lambda function installs
+* [ ] Upload windows install folder to AWS
+* [ ] Make windows install folder public on AWS
 
 ## Uploading to pypi
 Run this command to create the wheel and source code tarball
