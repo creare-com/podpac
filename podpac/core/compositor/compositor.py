@@ -152,6 +152,7 @@ class BaseCompositor(Node):
             for s in sources:
                 if s.has_trait("interpolation"):
                     s.set_trait("interpolation", self.interpolation)
+                    del s._podpac_cached_property_definition
 
         return sources
 
