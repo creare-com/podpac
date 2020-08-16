@@ -227,7 +227,9 @@ class MODISTile(S3Mixin, DataSource):
 
 
 class MODIS(S3Mixin, OrderedCompositor):
-    """ MODIS whole-world compositor.
+    """ MODIS whole-world compositor. 
+    For documentation about the data, start here: https://ladsweb.modaps.eosdis.nasa.gov/search/order/1 
+    For information about the bands, see here: https://modis.gsfc.nasa.gov/about/specifications.php
 
     Attributes
     ----------
