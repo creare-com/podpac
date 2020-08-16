@@ -475,19 +475,16 @@ class Node(tl.HasTraits):
         finally:
             self._definition_guard = False
 
-    @cached_property
     def json(self):
         """Definition for this node in JSON format."""
 
         return json.dumps(self.definition, separators=(",", ":"), cls=JSONEncoder)
 
-    @cached_property
     def json_pretty(self):
         """Definition for this node in JSON format, with indentation suitable for display."""
 
         return json.dumps(self.definition, indent=4, cls=JSONEncoder)
 
-    @cached_property
     def hash(self):
         """ hash for this node, used in caching and to determine equality. """
 
