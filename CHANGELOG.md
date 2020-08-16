@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.2
+### Bug Fixes
+* Fixed floating point errors on selection of data subset (short circuit optimization to avoid unnecessary interpolation)
+* Fixed bug in cosmos_stations.latlon_from_label giving the wrong latlon for a label
+* Fixing compositor to update interpolation of sources automatically (and deleting cached definitions). 
+    * Also making cached node definitions easier to remove -- no longer caching node.json, node.json_pretty and node.hash
+
 ## 2.2.0
 ### Introduction
 
