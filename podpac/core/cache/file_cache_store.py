@@ -37,6 +37,27 @@ class FileCacheStore(CacheStore):
     # public cache API methods
     # -----------------------------------------------------------------------------------------------------------------
 
+    def has(self, node, key, coordinates=None):
+        """Check for valid cached data for this node.
+        
+        Parameters
+        ------------
+        node : Node
+            node requesting storage.
+        key : str
+            Cached object key, e.g. 'output'.
+        coordinates: Coordinate, optional
+            Coordinates for which cached object should be checked
+        
+        Returns
+        -------
+        has_cache : bool
+             True if there is a valid cached object for this node for the given key and coordinates.
+        """
+
+        path = self.find(node, key, coordinates)
+        return path is not None and not self._expired(path)
+
     def put(self, node, data, key, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
         
@@ -56,7 +77,7 @@ class FileCacheStore(CacheStore):
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         """
 
-        # check for existing entry
+        # check for valid existing entry (expired entries are automatically ignored and overwritten)
         if self.has(node, key, coordinates):
             if not update:
                 raise CacheException("Cache entry already exists. Use `update=True` to overwrite.")
@@ -186,27 +207,6 @@ class FileCacheStore(CacheStore):
             raise RuntimeError("Unexpected cached file type '%s'" % self._basename(path))
 
         return data
-
-    def has(self, node, key, coordinates=None):
-        """Check for cached data for this node
-        
-        Parameters
-        ------------
-        node : Node
-            node requesting storage.
-        key : str
-            Cached object key, e.g. 'output'.
-        coordinates: Coordinate, optional
-            Coordinates for which cached object should be checked
-        
-        Returns
-        -------
-        has_cache : bool
-             True if there as a cached object for this node for the given key and coordinates.
-        """
-
-        path = self.find(node, key, coordinates)
-        return path is not None and not self._expired(path)
 
     def rem(self, node, key=CacheWildCard(), coordinates=CacheWildCard()):
         """Delete cached data for this node.
