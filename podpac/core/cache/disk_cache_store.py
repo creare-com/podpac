@@ -5,11 +5,15 @@ import glob
 import shutil
 import json
 import fnmatch
+import logging
 
 import podpac
 from podpac.core.settings import settings
 from podpac.core.cache.utils import CacheException, CacheWildCard
 from podpac.core.cache.file_cache_store import FileCacheStore
+
+
+logger = logging.getLogger(__name__)
 
 
 class DiskCacheStore(FileCacheStore):
@@ -100,7 +104,13 @@ class DiskCacheStore(FileCacheStore):
         try:
             with open(metadata_path, "r") as f:
                 metadata = json.load(f)
-        except:
+        except IOError:
+            # missing, permissions
+            logger.exception("Error reading metadata file: '%s'" % metadata_path)
+            return None
+        except ValueError:
+            # invalid json
+            logger.exception("Error reading metadata file: '%s'" % metadata_path)
             return None
 
         return metadata.get(key)
@@ -112,7 +122,13 @@ class DiskCacheStore(FileCacheStore):
         try:
             with open(metadata_path, "r") as f:
                 metadata = json.load(f)
-        except:
+        except IOError:
+            # missing, permissions
+            logger.exception("Error reading metadata file: '%s'" % metadata_path)
+            metadata = {}
+        except ValueError:
+            # invalid json
+            logger.exception("Error reading metadata file: '%s'" % metadata_path)
             metadata = {}
 
         # write
