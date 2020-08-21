@@ -27,11 +27,11 @@ to enable simple, reproducible geospatial analyses that run locally or in the cl
     soil_moisture = podpac.data.H5PY(source="smap.h5", interpolation="bilinear")
 
     # evaluate soil moisture at the coordinates of the elevation data
-    output = soil_moisture.eval(elevation.native_coordinates)
+    output = soil_moisture.eval(elevation.coordinates)
 
     # run evaluation in the cloud
     aws_node = podpac.managers.aws.Lambda(source=soil_moisture)
-    output = aws_node.eval(elevation.native_coordinates)
+    output = aws_node.eval(elevation.coordinates)
 
 
 
@@ -83,6 +83,7 @@ The purpose of PODPAC is to facilitate:
     coordinates  
     cache
     datasets
+    interpolation
     earthdata
     aws-development
 
@@ -92,6 +93,7 @@ The purpose of PODPAC is to facilitate:
     :caption: References
 
     api
+    wrapping-datasets
 
 .. Anything else clerical
 .. toctree::

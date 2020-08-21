@@ -495,7 +495,10 @@ class Interpolation(object):
 
         # short circuit if source_coordinates contains eval_coordinates
         if eval_coordinates.issubset(source_coordinates):
-            output_data[:] = source_data.sel(output_data.coords)
+            try:
+                output_data.data[:] = source_data.sel(output_data.coords, method="nearest").transpose(*output_data.dims)
+            except NotImplementedError:
+                output_data.data[:] = source_data.sel(output_data.coords).transpose(*output_data.dims)
             return output_data
 
         interpolator_queue = self._select_interpolator_queue(

@@ -5,7 +5,7 @@
 > In development
 
 ## Presentations
-
+- Scipy 2020: [Geospatial Analysis in the Cloud Using PODPAC and JupyterLab](https://www.youtube.com/watch?v=BXI6w9BECgs&t=959s)
 - AGU 2019: [Building Web Browser Apps for On-Demand Retrieval and Processing of Cloud-Optimized Earth Science Data using the Open-Source WebESD Toolkit](https://agu.confex.com/agu/fm19/meetingapp.cgi/Paper/505588)
 - AMS 2018: [A RESTful API for Python-Based Server-Side Analysis of High-Resolution Soil Moisture Downscaling Data](https://ams.confex.com/ams/98Annual/webprogram/Paper332957.html)
 

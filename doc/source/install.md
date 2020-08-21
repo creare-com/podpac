@@ -7,7 +7,7 @@ Select the installation method the best suits your development environment:
 - [pip](#install-with-pip): Recommended for most users
 - [Docker](#docker): For use in containers
 - [Install from source](#install-from-source): For development
-- [Standalone distribution](#standalone-distibution): Includes Python and all dependencies
+- [Windows Standalone distribution](#standalone-windows-distribution): Includes Python and all dependencies
 
 ## Install with pip
 
@@ -82,7 +82,7 @@ $ docker run -i -t podpac
 ```
 
 
-## Standalone Windows Distibution
+## Standalone Windows Distribution
 
 ### Windows 10
 

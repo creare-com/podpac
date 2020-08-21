@@ -2,10 +2,10 @@
 podpac module
 """
 
-# Always perfer setuptools over distutils
 import sys
 import subprocess
 
+# Always prefer setuptools over distutils
 from setuptools import find_packages, setup
 from setuptools.command.develop import develop
 
