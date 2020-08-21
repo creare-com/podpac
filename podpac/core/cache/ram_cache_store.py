@@ -223,7 +223,7 @@ class RamCacheStore(CacheStore):
         return _thread_local.cache[full_key].get(key)
 
     def _set_metadata(self, full_key, key, value):
-        _thread_local.cache[full_key]["accessed"] = time.time()
+        _thread_local.cache[full_key][key] = value
 
     def _expired(self, full_key):
         """Check if the given entry is expired. Expired entries are removed."""
