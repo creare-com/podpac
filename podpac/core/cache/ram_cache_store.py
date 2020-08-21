@@ -207,7 +207,7 @@ class RamCacheStore(CacheStore):
     def clear(self):
         """Remove all entries from the cache. """
 
-        _thread_local.cache = {}
+        _thread_local.cache.clear()
 
     def cleanup(self):
         """ Remove all expired entries. """
