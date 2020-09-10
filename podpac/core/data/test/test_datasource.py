@@ -311,7 +311,7 @@ class TestDataSource(object):
         # there is a shortcut if there is no intersect, so we test that here
         node = MockDataSource()
         coords = Coordinates([clinspace(30, 40, 10), clinspace(30, 40, 10)], dims=["lat", "lon"])
-        output = UnitsDataArray(np.ones(coords.shape), coords=coords.coords, dims=coords.dims)
+        output = UnitsDataArray.create(coords, data=1)
         node.eval(coords, output=output)
         np.testing.assert_equal(output.data, np.full(output.shape, np.nan))
 
@@ -600,7 +600,7 @@ class TestInterpolateData(object):
         output = node.eval(coords)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.time.values == coords.coords["time"])
+        assert np.all(output.time.values == coords["time"].coordinates)
 
     def test_interpolate_lat_time(self):
         """interpolate with n dims and time"""
@@ -621,4 +621,4 @@ class TestInterpolateData(object):
         output = node.eval(coords)
 
         assert isinstance(output, UnitsDataArray)
-        assert np.all(output.alt.values == coords.coords["alt"])
+        assert np.all(output.alt.values == coords["alt"].coordinates)

@@ -368,7 +368,7 @@ class ScipyPoint(Interpolator):
             if order == "lat_lon":
                 pts = pts[:, ::-1]
             pts = KDTree(pts)
-            lon, lat = np.meshgrid(eval_coordinates.coords["lon"], eval_coordinates.coords["lat"])
+            lon, lat = np.meshgrid(eval_coordinates["lon"].coordinates, eval_coordinates["lat"].coordinates)
             dist, ind = pts.query(np.stack((lon.ravel(), lat.ravel()), axis=1), distance_upper_bound=tol)
             mask = ind == source_data[order].size
             ind[mask] = 0  # This is a hack to make the select on the next line work

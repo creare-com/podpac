@@ -84,7 +84,7 @@ class TestStackedCoordinatesCreation(object):
         lon = ArrayCoordinates1d([10, 20, 30], name="lon")
         time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03"], name="time")
         c = StackedCoordinates([lat, lon, time])
-        x = xr.DataArray(np.empty(c.shape), coords=c.coords, dims=c.idims)
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.idims)
 
         c2 = StackedCoordinates.from_xarray(x.coords)
         assert c2.dims == ("lat", "lon", "time")
@@ -244,14 +244,14 @@ class TestStackedCoordinatesProperties(object):
         assert c.coordinates[2] == (2.0, 30, np.datetime64("2018-01-03"))
         assert c.coordinates[3] == (3.0, 40, np.datetime64("2018-01-04"))
 
-    def test_coords(self):
+    def test_xcoords(self):
         lat = ArrayCoordinates1d([0, 1, 2, 3], name="lat")
         lon = ArrayCoordinates1d([10, 20, 30, 40], name="lon")
         time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"], name="time")
         c = StackedCoordinates([lat, lon, time])
 
-        assert isinstance(c.coords, dict)
-        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.coords)
+        assert isinstance(c.xcoords, dict)
+        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
         assert x.dims == ("lat_lon_time",)
         assert_equal(x.coords["lat"], c["lat"].coordinates)
         assert_equal(x.coords["lon"], c["lon"].coordinates)
@@ -261,8 +261,8 @@ class TestStackedCoordinatesProperties(object):
         lon = ArrayCoordinates1d([10, 20, 30, 40])
         time = ArrayCoordinates1d(["2018-01-01", "2018-01-02", "2018-01-03", "2018-01-04"])
         c = StackedCoordinates([lat, lon, time])
-        with pytest.raises(ValueError, match="Cannot get coords"):
-            c.coords
+        with pytest.raises(ValueError, match="Cannot get xcoords"):
+            c.xcoords
 
     def test_bounds(self):
         lat = [0, 1, 2]

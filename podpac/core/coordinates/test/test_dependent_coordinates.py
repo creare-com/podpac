@@ -10,7 +10,8 @@ from numpy.testing import assert_equal
 
 import podpac
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
+from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 
 LAT = np.linspace(0, 1, 12).reshape((3, 4))
 LON = np.linspace(10, 20, 12).reshape((3, 4))
@@ -272,8 +273,8 @@ class TestDependentCoordinatesProperties(object):
     def test_coords(self):
         c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
 
-        assert isinstance(c.coords, dict)
-        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.coords)
+        assert isinstance(c.xcoords, dict)
+        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
         assert x.dims == ("i", "j")
         assert_equal(x.coords["i"], np.arange(c.shape[0]))
         assert_equal(x.coords["j"], np.arange(c.shape[1]))
@@ -281,8 +282,8 @@ class TestDependentCoordinatesProperties(object):
         assert_equal(x.coords["lon"], c["lon"].coordinates)
 
         c = DependentCoordinates([LAT, LON])
-        with pytest.raises(ValueError, match="Cannot get coords"):
-            c.coords
+        with pytest.raises(ValueError, match="Cannot get xcoords"):
+            c.xcoords
 
     def test_bounds(self):
         c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
@@ -303,8 +304,8 @@ class TestDependentCoordinatesIndexing(object):
 
         lat = c["lat"]
         lon = c["lon"]
-        assert isinstance(lat, ArrayCoordinatesNd)
-        assert isinstance(lon, ArrayCoordinatesNd)
+        assert isinstance(lat, ArrayCoordinates1d)
+        assert isinstance(lon, ArrayCoordinates1d)
         assert lat.name == "lat"
         assert lon.name == "lon"
         assert_equal(lat.coordinates, LAT)
@@ -317,13 +318,13 @@ class TestDependentCoordinatesIndexing(object):
         c = DependentCoordinates([LAT, LON], dims=["lat", "lon"])
 
         lat = c["lat"]
-        assert isinstance(lat, ArrayCoordinatesNd)
+        assert isinstance(lat, ArrayCoordinates1d)
         assert lat.name == c.dims[0]
         assert lat.shape == c.shape
         repr(lat)
 
         lon = c["lon"]
-        assert isinstance(lon, ArrayCoordinatesNd)
+        assert isinstance(lon, ArrayCoordinates1d)
         assert lon.name == c.dims[1]
         assert lon.shape == c.shape
         repr(lon)
@@ -481,26 +482,3 @@ class TestDependentCoordinatesTranspose(object):
         assert c.dims == ("lon", "lat")
         assert_equal(c.coordinates[0], LON)
         assert_equal(c.coordinates[1], LAT)
-
-
-class TestArrayCoordinatesNd(object):
-    def test_unavailable(self):
-        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd from_definition is unavailable"):
-            ArrayCoordinatesNd.from_definition({})
-
-        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd from_xarray is unavailable"):
-            ArrayCoordinatesNd.from_xarray(xr.DataArray([]))
-
-        a = ArrayCoordinatesNd([])
-
-        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd definition is unavailable"):
-            a.definition
-
-        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd coords is unavailable"):
-            a.coords
-
-        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd intersect is unavailable"):
-            a.intersect(a)
-
-        with pytest.raises(RuntimeError, match="ArrayCoordinatesNd select is unavailable"):
-            a.select([0, 1])

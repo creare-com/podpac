@@ -1,5 +1,5 @@
 """
-One-Dimensional Coordinates: Array
+Single-Dimensional Coordinates: Array
 """
 
 
@@ -38,9 +38,7 @@ class ArrayCoordinates1d(Coordinates1d):
     :class:`Coordinates1d`, :class:`UniformCoordinates1d`
     """
 
-    coordinates = ArrayTrait(ndim=1, read_only=True)
-    # coordinates.__doc__ = ":array: User-defined coordinate values"
-    # coordinates = None
+    coordinates = ArrayTrait(read_only=True)
 
     _is_monotonic = None
     _is_descending = None
@@ -49,7 +47,7 @@ class ArrayCoordinates1d(Coordinates1d):
     _start = None
     _stop = None
 
-    def __init__(self, coordinates, name=None):
+    def __init__(self, coordinates, name=None, **kwargs):
         """
         Create 1d coordinates from an array.
 
@@ -73,6 +71,12 @@ class ArrayCoordinates1d(Coordinates1d):
         elif self.coordinates.size == 1:
             self._is_monotonic = True
 
+        elif self.coordinates.ndim > 1:
+            # TODO ND
+            self._is_monotonic = None
+            self._is_descending = None
+            self._is_uniform = None
+
         else:
             deltas = (self.coordinates[1:] - self.coordinates[:-1]).astype(float) * np.sign(
                 self.coordinates[1] - self.coordinates[0]
@@ -91,7 +95,7 @@ class ArrayCoordinates1d(Coordinates1d):
                     self._step = (self._stop - self._start) / (self.coordinates.size - 1)
 
         # set common properties
-        super(ArrayCoordinates1d, self).__init__(name=name)
+        super(ArrayCoordinates1d, self).__init__(name=name, **kwargs)
 
     def __eq__(self, other):
         if not super(ArrayCoordinates1d, self).__eq__(other):
@@ -181,7 +185,7 @@ class ArrayCoordinates1d(Coordinates1d):
 
         Returns
         -------
-        simplified : ArrayCoordinates1d, UniformCoordinates1d
+        :class:`ArrayCoordinates1d`, :class:`UniformCoordinates1d`
             UniformCoordinates1d if the coordinates are uniform, otherwise ArrayCoordinates1d
         """
 
@@ -191,6 +195,38 @@ class ArrayCoordinates1d(Coordinates1d):
             return UniformCoordinates1d(self.start, self.stop, self.step, **self.properties)
 
         return self
+
+    def flatten(self):
+        """
+        Get a copy of the coordinates with a flattened array (wraps numpy.flatten).
+        
+        Returns
+        -------
+        :class:`ArrayCoordinates1d`
+            Flattened coordinates.
+        """
+
+        if self.ndim == 1:
+            return self.copy()
+
+        return ArrayCoordinates1d(self.coordinates.flatten(), **self.properties)
+
+    def reshape(self, newshape):
+        """
+        Get a copy of the coordinates with a reshaped array (wraps numpy.reshape).
+
+        Arguments
+        ---------
+        newshape: int, tuple
+            The new shape.
+        
+        Returns
+        -------
+        :class:`ArrayCoordinates1d`
+            Reshaped coordinates.
+        """
+
+        return ArrayCoordinates1d(self.coordinates.reshape(newshape), **self.properties)
 
     # ------------------------------------------------------------------------------------------------------------------
     # standard methods, array-like
@@ -207,9 +243,17 @@ class ArrayCoordinates1d(Coordinates1d):
     # ------------------------------------------------------------------------------------------------------------------
 
     @property
+    def ndim(self):
+        return self.coordinates.ndim
+
+    @property
     def size(self):
         """ Number of coordinates. """
         return self.coordinates.size
+
+    @property
+    def shape(self):
+        return self.coordinates.shape
 
     @property
     def dtype(self):

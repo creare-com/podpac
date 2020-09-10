@@ -31,13 +31,18 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     @property
+    def ndim(self):
+        """coordinates array ndim."""
+        raise NotImplementedError
+
+    @property
     def size(self):
-        """Number of coordinates."""
+        """coordinates array size."""
         raise NotImplementedError
 
     @property
     def shape(self):
-        """coordinates shape."""
+        """coordinates array shape."""
         raise NotImplementedError
 
     @property
@@ -46,8 +51,8 @@ class BaseCoordinates(tl.HasTraits):
         raise NotImplementedError
 
     @property
-    def coords(self):
-        """xarray coords value"""
+    def xcoords(self):
+        """xarray coords"""
         raise NotImplementedError
 
     @property
@@ -79,6 +84,14 @@ class BaseCoordinates(tl.HasTraits):
 
     def simplify(self):
         """ Get the simplified/optimized representation of these coordinates. """
+        raise NotImplementedError
+
+    def flatten(self):
+        """ Get a copy of the coordinates with a flattened array. """
+        raise NotImplementedError
+
+    def reshape(self, newshape):
+        """ Get a copy of the coordinates with a reshaped array (wraps numpy.reshape). """
         raise NotImplementedError
 
     def issubset(self, other):

@@ -254,6 +254,14 @@ class UniformCoordinates1d(Coordinates1d):
         return coordinates
 
     @property
+    def ndim(self):
+        return 1  # TODO ND
+
+    @property
+    def shape(self):
+        return (self.size,)  # TODO ND
+
+    @property
     def size(self):
         """ Number of coordinates. """
 

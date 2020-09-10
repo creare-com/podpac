@@ -11,7 +11,8 @@ from numpy.testing import assert_equal, assert_allclose
 import podpac
 from podpac.coordinates import ArrayCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
-from podpac.core.coordinates.dependent_coordinates import DependentCoordinates, ArrayCoordinatesNd
+from podpac.core.coordinates.dependent_coordinates import DependentCoordinates
+from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.rotated_coordinates import RotatedCoordinates
 
 
@@ -240,8 +241,8 @@ class TestRotatedCoordinatesIndexing(object):
 
         lat = c["lat"]
         lon = c["lon"]
-        assert isinstance(lat, ArrayCoordinatesNd)
-        assert isinstance(lon, ArrayCoordinatesNd)
+        assert isinstance(lat, ArrayCoordinates1d)
+        assert isinstance(lon, ArrayCoordinates1d)
         assert lat.name == "lat"
         assert lon.name == "lon"
         assert_equal(lat.coordinates, c.coordinates[0])

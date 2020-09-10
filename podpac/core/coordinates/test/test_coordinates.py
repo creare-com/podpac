@@ -262,9 +262,6 @@ class TestCoordinateCreation(object):
         with pytest.raises(ValueError, match="coords and dims size mismatch"):
             Coordinates([lat, lon], dims=["lat_lon"])
 
-        with pytest.raises(ValueError, match="Invalid coordinate values"):
-            Coordinates([[lat, lon]], dims=["lat"])
-
         with pytest.raises(TypeError, match="Cannot get dim for coordinates at position"):
             # this doesn't work because lat and lon are not named BaseCoordinates/xarray objects
             Coordinates([lat, lon])
@@ -385,7 +382,7 @@ class TestCoordinateCreation(object):
         )
 
         # from xarray
-        x = xr.DataArray(np.empty(c.shape), coords=c.coords, dims=c.idims)
+        x = xr.DataArray(np.empty(c.shape), coords=c.xcoords, dims=c.idims)
         c2 = Coordinates.from_xarray(x.coords)
         assert c2.dims == c.dims
         assert c2.shape == c.shape
@@ -585,13 +582,12 @@ class TestCoordinatesProperties(object):
             ]
         )
 
-        dcoords = c.coords
+        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
 
-        assert isinstance(dcoords, dict)
-        assert set(dcoords.keys()) == {"lat", "lon", "time"}
-        np.testing.assert_equal(dcoords["lat"], np.array(lat, dtype=float))
-        np.testing.assert_equal(dcoords["lon"], np.array(lon, dtype=float))
-        np.testing.assert_equal(dcoords["time"], np.array(dates).astype(np.datetime64))
+        assert x.dims == ("lat", "lon", "time")
+        np.testing.assert_equal(x["lat"], np.array(lat, dtype=float))
+        np.testing.assert_equal(x["lon"], np.array(lon, dtype=float))
+        np.testing.assert_equal(x["time"], np.array(dates).astype(np.datetime64))
 
     def test_xarray_coords_stacked(self):
         lat = [0, 1, 2]
@@ -605,12 +601,12 @@ class TestCoordinatesProperties(object):
             ]
         )
 
-        dcoords = c.coords
+        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
 
-        assert isinstance(dcoords, dict)
-        assert set(dcoords.keys()) == {"lat_lon", "time"}
-        assert np.all(dcoords["lat_lon"] == c["lat_lon"].coordinates)
-        np.testing.assert_equal(dcoords["time"], np.array(dates).astype(np.datetime64))
+        assert x.dims == ("lat_lon", "time")
+        np.testing.assert_equal(x["lat"], np.array(lat, dtype=float))
+        np.testing.assert_equal(x["lon"], np.array(lon, dtype=float))
+        np.testing.assert_equal(x["time"], np.array(dates).astype(np.datetime64))
 
     def test_xarray_coords_dependent(self):
         lat = np.linspace(0, 1, 12).reshape((3, 4))
@@ -618,15 +614,13 @@ class TestCoordinatesProperties(object):
         dates = ["2018-01-01", "2018-01-02"]
 
         c = Coordinates([DependentCoordinates([lat, lon], dims=["lat", "lon"]), ArrayCoordinates1d(dates, name="time")])
-        dcoords = c.coords
 
-        assert isinstance(dcoords, dict)
-        assert set(dcoords.keys()) == {"lat", "lon", "time"}
-        assert dcoords["lat"][0] == ("i", "j")
-        assert dcoords["lon"][0] == ("i", "j")
-        np.testing.assert_equal(dcoords["lat"][1], lat)
-        np.testing.assert_equal(dcoords["lon"][1], lon)
-        np.testing.assert_equal(dcoords["time"], np.array(dates).astype(np.datetime64))
+        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
+
+        assert x.dims == ("i", "j", "time")
+        np.testing.assert_equal(x["lat"], np.array(lat, dtype=float))
+        np.testing.assert_equal(x["lon"], np.array(lon, dtype=float))
+        np.testing.assert_equal(x["time"], np.array(dates).astype(np.datetime64))
 
     def test_bounds(self):
         lat = [0, 1, 2]

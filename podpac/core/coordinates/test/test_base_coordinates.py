@@ -11,7 +11,7 @@ class TestBaseCoordinates(object):
             "idims",
             "udims",
             "coordinates",
-            "coords",
+            "xcoords",
             "size",
             "shape",
             "definition",

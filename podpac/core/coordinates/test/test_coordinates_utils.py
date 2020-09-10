@@ -150,6 +150,11 @@ class TestMakeCoordArray(object):
         np.testing.assert_array_equal(make_coord_array(l), a)
         np.testing.assert_array_equal(make_coord_array(np.array(l)), a)
 
+    def test_numerical_ndarray(self):
+        a = [[0, 1], [5, 6]]
+        np.testing.assert_array_equal(make_coord_array(a), a)
+        np.testing.assert_array_equal(make_coord_array(np.array(a)), a)
+
     def test_date_singleton(self):
         a = np.array(["2018-01-01"]).astype(np.datetime64)
         s = "2018-01-01"
@@ -277,13 +282,6 @@ class TestMakeCoordArray(object):
     def test_invalid_time_string(self):
         with pytest.raises(ValueError, match="Error parsing datetime string"):
             make_coord_array(["invalid"])
-
-    def test_invalid_shape(self):
-        with pytest.raises(ValueError, match="Invalid coordinate values"):
-            make_coord_array([[0, 1], [5, 6]])
-
-        with pytest.raises(ValueError, match="Invalid coordinate values"):
-            make_coord_array(np.array([[0, 1], [5, 6]]))
 
 
 class TestMakeCoordDeltaArray(object):

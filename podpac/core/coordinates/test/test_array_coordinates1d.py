@@ -236,12 +236,13 @@ class TestArrayCoordinatesInit(object):
         assert c.step == np.timedelta64(-365, "D")
         repr(c)
 
+    def test_ndarray(self):
+        # TODO ND
+        a = ArrayCoordinates1d([[1.0, 2.0, 3.0], [11.0, 12.0, 13.0]])
+
     def test_invalid_coords(self):
         with pytest.raises(ValueError, match="Invalid coordinate values"):
             ArrayCoordinates1d([1, 2, "2018-01"])
-
-        with pytest.raises(ValueError, match="Invalid coordinate values"):
-            ArrayCoordinates1d([[1.0, 2.0], [3.0, 4.0]])
 
     def test_from_xarray(self):
         # numerical
@@ -387,17 +388,29 @@ class TestArrayCoordinatesProperties(object):
         c = ArrayCoordinates1d([], name="lat")
         assert c.dims == ("lat",)
         assert c.udims == ("lat",)
-        assert c.idims == ("lat",)
 
         c = ArrayCoordinates1d([])
         with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
             c.dims
-
         with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
             c.udims
 
-        with pytest.raises(TypeError, match="cannot access dims property of unnamed Coordinates1d"):
-            c.idims
+    def test_idims(self):
+        c = ArrayCoordinates1d([], name="lat")
+        assert c.idims == ("lat",)
+
+        c = ArrayCoordinates1d([0, 1, 2], name="lat")
+        assert c.idims == ("lat",)
+
+        c = ArrayCoordinates1d([[0, 1, 2], [10, 11, 12]], name="lat")
+        assert c.idims == ("i", "j")
+
+        # specify
+        c = ArrayCoordinates1d([0, 1, 2], name="lat", idims=("a",))
+        assert c.idims == ("a",)
+
+        c = ArrayCoordinates1d([[0, 1, 2], [10, 11, 12]], name="lat", idims=("a", "b"))
+        assert c.idims == ("a", "b")
 
     def test_properties(self):
         c = ArrayCoordinates1d([])
@@ -408,12 +421,16 @@ class TestArrayCoordinatesProperties(object):
         assert isinstance(c.properties, dict)
         assert set(c.properties) == {"name"}
 
-    def test_coords(self):
+    def test_xcoords(self):
+        # 1d
         c = ArrayCoordinates1d([1, 2], name="lat")
-        coords = c.coords
-        assert isinstance(coords, dict)
-        assert set(coords) == {"lat"}
-        assert_equal(coords["lat"], c.coordinates)
+        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
+        np.testing.assert_array_equal(x["lat"].data, c.coordinates)
+
+        # nd
+        c = ArrayCoordinates1d([[0, 1, 2], [10, 11, 12]], name="lat")
+        x = xr.DataArray(np.empty(c.shape), dims=c.idims, coords=c.xcoords)
+        np.testing.assert_array_equal(x["lat"].data, c.coordinates)
 
 
 class TestArrayCoordinatesIndexing(object):

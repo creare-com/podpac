@@ -10,7 +10,7 @@ import copy
 import numpy as np
 import traitlets as tl
 
-from podpac.core.utils import ArrayTrait
+from podpac.core.utils import ArrayTrait, TupleTrait
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, lower_precision_time_bounds
 from podpac.core.coordinates.utils import Dimension
@@ -37,9 +37,24 @@ class Coordinates1d(BaseCoordinates):
     """
 
     name = Dimension(allow_none=True)
+    idims = TupleTrait(trait=tl.Unicode())
     _properties = tl.Set()
 
-    @tl.observe("name")
+    @tl.validate("idims")
+    def _validate_idims(self, d):
+        val = d["value"]
+        if len(val) != self.ndim:
+            raise ValueError("idims and coordinates size mismatch, %d != %d" % (len(val), self.ndims))
+        return val
+
+    @tl.default("idims")
+    def _default_idims(self):
+        if self.ndim == 1:
+            return (self.name,)
+        else:
+            return tuple("ijkl")[: self.ndim]
+
+    @tl.observe("name", "idims")
     def _set_property(self, d):
         if d["name"] is not None:
             self._properties.add(d["name"])
@@ -56,13 +71,17 @@ class Coordinates1d(BaseCoordinates):
     # ------------------------------------------------------------------------------------------------------------------
 
     def __repr__(self):
-        return "%s(%s): Bounds[%s, %s], N[%d]" % (
-            self.__class__.__name__,
-            self.name or "?",
-            self.bounds[0],
-            self.bounds[1],
-            self.size,
-        )
+        if self.name is None:
+            name = "%s" % (self.__class__.__name__,)
+        else:
+            name = "%s(%s)" % (self.__class__.__name__, self.name)
+
+        if self.ndim == 1:
+            desc = "Bounds[%s, %s], N[%d]" % (self.bounds[0], self.bounds[1], self.size)
+        else:
+            desc = "Bounds[%s, %s], N[%s], Shape%s" % (self.bounds[0], self.bounds[1], self.size, self.shape)
+
+        return "%s: %s" % (name, desc)
 
     def __eq__(self, other):
         if not isinstance(other, Coordinates1d):
@@ -95,18 +114,10 @@ class Coordinates1d(BaseCoordinates):
         return self.dims
 
     @property
-    def idims(self):
-        return self.dims
+    def xcoords(self):
+        """:dict: xarray coords"""
 
-    @property
-    def shape(self):
-        return (self.size,)
-
-    @property
-    def coords(self):
-        """:dict-like: xarray coordinates (container of coordinate arrays)"""
-
-        return {self.name: self.coordinates}
+        return {self.name: (self.idims, self.coordinates)}
 
     @property
     def dtype(self):
@@ -403,8 +414,8 @@ class Coordinates1d(BaseCoordinates):
 
         # check actual coordinates using built-in set method issubset
         # for datetimes, convert to the higher resolution
-        my_coordinates = self.coordinates
-        other_coordinates = other.coordinates
+        my_coordinates = self.coordinates.ravel()
+        other_coordinates = other.coordinates.ravel()
 
         if self.dtype == np.datetime64:
             if my_coordinates[0].dtype < other_coordinates[0].dtype:
@@ -412,4 +423,51 @@ class Coordinates1d(BaseCoordinates):
             elif other_coordinates[0].dtype < my_coordinates[0].dtype:
                 other_coordinates = other_coordinates.astype(my_coordinates.dtype)
 
-        return set(my_coordinates).issubset(other_coordinates.ravel())
+        return set(my_coordinates).issubset(other_coordinates)
+
+    # def issubset(self, other):
+    #     """ Report whether other coordinates contains these coordinates.
+
+    #     Arguments
+    #     ---------
+    #     other : Coordinates, Coordinates1d
+    #         Other coordinates to check
+
+    #     Returns
+    #     -------
+    #     issubset : bool
+    #         True if these coordinates are a subset of the other coordinates.
+    #     """
+
+    #     from podpac.core.coordinates import Coordinates
+
+    #     if isinstance(other, Coordinates):
+    #         if self.name not in other.dims:
+    #             return False
+    #         other = other[self.name]
+
+    #     # short-cuts that don't require checking coordinates
+    #     if self.size == 0:
+    #         return True
+
+    #     if other.size == 0:
+    #         return False
+
+    #     if self.dtype != other.dtype:
+    #         return False
+
+    #     if self.bounds[0] < other.bounds[0] or self.bounds[1] > other.bounds[1]:
+    #         return False
+
+    #     # check actual coordinates using built-in set method issubset
+    #     # for datetimes, convert to the higher resolution
+    #     my_coordinates = self.coordinates.ravel()
+    #     other_coordinates = other.coordinates.ravel()
+
+    #     if self.dtype == np.datetime64:
+    #         if my_coordinates[0].dtype < other_coordinates[0].dtype:
+    #             my_coordinates = my_coordinates.astype(other_coordinates.dtype)
+    #         elif other_coordinates[0].dtype < my_coordinates[0].dtype:
+    #             other_coordinates = other_coordinates.astype(my_coordinates.dtype)
+
+    #     return set(my_coordinates).issubset(other_coordinates)

@@ -58,7 +58,7 @@ class DependentCoordinates(BaseCoordinates):
 
     coordinates = TupleTrait(trait=ArrayTrait(), read_only=True)
     dims = TupleTrait(trait=Dimension(allow_none=True), read_only=True)
-    idims = TupleTrait(trait=tl.Unicode(), read_only=True)
+    idims = TupleTrait(trait=tl.Unicode())
 
     _properties = tl.Set()
 
@@ -215,7 +215,7 @@ class DependentCoordinates(BaseCoordinates):
                 raise KeyError("Cannot get dimension '%s' in RotatedCoordinates %s" % (dim, self.dims))
 
             i = self.dims.index(dim)
-            return ArrayCoordinatesNd(self.coordinates[i], **self._properties_at(i))
+            return ArrayCoordinates1d(self.coordinates[i], **self._properties_at(i))
 
         else:
             coordinates = tuple(a[index] for a in self.coordinates)
@@ -280,10 +280,10 @@ class DependentCoordinates(BaseCoordinates):
         return {dim: self[dim].bounds for dim in self.dims}
 
     @property
-    def coords(self):
+    def xcoords(self):
         """:dict-like: xarray coordinates (container of coordinate arrays)"""
         if None in self.dims:
-            raise ValueError("Cannot get coords for DependentCoordinates with un-named dimensions")
+            raise ValueError("Cannot get xcoords for DependentCoordinates with un-named dimensions")
         return {dim: (self.idims, c) for dim, c in (zip(self.dims, self.coordinates))}
 
     @property
@@ -567,131 +567,3 @@ class DependentCoordinates(BaseCoordinates):
     #     pyplot.xlabel(self.dims[0])
     #     pyplot.ylabel(self.dims[1])
     #     pyplot.axis('equal')
-
-
-class ArrayCoordinatesNd(ArrayCoordinates1d):
-    """
-    Partial implementation for internal use.
-    
-    Provides name, dtype, size, bounds (and others).
-    Prohibits coords, intersect, select (and others).
-
-    Used primarily for intersection with DependentCoordinates.
-    """
-
-    coordinates = ArrayTrait(read_only=True)
-
-    def __init__(self, coordinates, name=None):
-        """
-        Create shaped array coordinates. You should not need to use this class directly.
-
-        Parameters
-        ----------
-        coordinates : array
-            coordinate values.
-        name : str, optional
-            Dimension name, one of 'lat', 'lon', 'time', or 'alt'.
-        """
-
-        self.set_trait("coordinates", coordinates)
-        self._is_monotonic = None
-        self._is_descending = None
-        self._is_uniform = None
-
-        Coordinates1d.__init__(self, name=name)
-
-    def __repr__(self):
-        return "%s(%s): Bounds[%s, %s], shape%s" % (
-            self.__class__.__name__,
-            self.name or "?",
-            self.bounds[0],
-            self.bounds[1],
-            self.shape,
-        )
-
-    @property
-    def shape(self):
-        """:tuple: Shape of the coordinates."""
-        return self.coordinates.shape
-
-    # Restricted methods and properties
-
-    @classmethod
-    def from_xarray(cls, x):
-        """ restricted """
-        raise RuntimeError("ArrayCoordinatesNd from_xarray is unavailable.")
-
-    @classmethod
-    def from_definition(cls, d):
-        """ restricted """
-        raise RuntimeError("ArrayCoordinatesNd from_definition is unavailable.")
-
-    @property
-    def definition(self):
-        """ restricted """
-        raise RuntimeError("ArrayCoordinatesNd definition is unavailable.")
-
-    @property
-    def full_definition(self):
-        """ restricted """
-        raise RuntimeError("ArrayCoordinatesNd full_definition is unavailable.")
-
-    @property
-    def coords(self):
-        """ restricted """
-        raise RuntimeError("ArrayCoordinatesNd coords is unavailable.")
-
-    def intersect(self, other, outer=False, return_indices=False):
-        """ restricted """
-        raise RuntimeError("ArrayCoordinatesNd intersect is unavailable.")
-
-    def select(self, bounds, outer=False, return_indices=False):
-        """ restricted """
-        raise RuntimeError("ArrayCoordinatesNd select is unavailable.")
-
-    def issubset(self, other):
-        """ Report whether other coordinates contains these coordinates.
-
-        Arguments
-        ---------
-        other : Coordinates, Coordinates1d
-            Other coordinates to check
-
-        Returns
-        -------
-        issubset : bool
-            True if these coordinates are a subset of the other coordinates.
-        """
-
-        from podpac.core.coordinates import Coordinates
-
-        if isinstance(other, Coordinates):
-            if self.name not in other.dims:
-                return False
-            other = other[self.name]
-
-        # short-cuts that don't require checking coordinates
-        if self.size == 0:
-            return True
-
-        if other.size == 0:
-            return False
-
-        if self.dtype != other.dtype:
-            return False
-
-        if self.bounds[0] < other.bounds[0] or self.bounds[1] > other.bounds[1]:
-            return False
-
-        # check actual coordinates using built-in set method issubset
-        # for datetimes, convert to the higher resolution
-        my_coordinates = self.coordinates.ravel()
-        other_coordinates = other.coordinates.ravel()
-
-        if self.dtype == np.datetime64:
-            if my_coordinates[0].dtype < other_coordinates[0].dtype:
-                my_coordinates = my_coordinates.astype(other_coordinates.dtype)
-            elif other_coordinates[0].dtype < my_coordinates[0].dtype:
-                other_coordinates = other_coordinates.astype(my_coordinates.dtype)
-
-        return set(my_coordinates).issubset(other_coordinates)

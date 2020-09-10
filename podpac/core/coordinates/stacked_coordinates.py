@@ -315,10 +315,10 @@ class StackedCoordinates(BaseCoordinates):
         return self.coordinates
 
     @property
-    def coords(self):
+    def xcoords(self):
         """:dict-like: xarray coordinates (container of coordinate arrays)"""
         if None in self.dims:
-            raise ValueError("Cannot get coords for StackedCoordinates with un-named dimensions")
+            raise ValueError("Cannot get xcoords for StackedCoordinates with un-named dimensions")
         return {self.name: self.coordinates}
 
     @property

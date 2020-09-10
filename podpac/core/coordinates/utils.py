@@ -249,9 +249,6 @@ def make_coord_array(values):
 
     a = np.atleast_1d(values)
 
-    if a.ndim != 1:
-        raise ValueError("Invalid coordinate values (ndim=%d, must be ndim=1)" % a.ndim)
-
     if a.dtype == float or np.issubdtype(a.dtype, np.datetime64):
         pass
 

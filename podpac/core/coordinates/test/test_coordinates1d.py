@@ -27,7 +27,7 @@ class TestCoordinates1d(object):
             "dtype",
             "deltatype",
             "bounds",
-            "coords",
+            "xcoords",
             "definition",
             "full_definition",
         ]

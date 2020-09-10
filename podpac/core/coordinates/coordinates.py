@@ -27,7 +27,6 @@ from podpac.core.settings import settings
 from podpac.core.utils import OrderedDictTrait, _get_query_params_from_url, _get_param
 from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
-from podpac.core.coordinates.dependent_coordinates import ArrayCoordinatesNd
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
 from podpac.core.coordinates.stacked_coordinates import StackedCoordinates
@@ -759,14 +758,14 @@ class Coordinates(tl.HasTraits):
         return {dim: self[dim].bounds for dim in self.udims}
 
     @property
-    def coords(self):
+    def xcoords(self):
         """
-        :xarray.core.coordinates.DataArrayCoordinates: xarray coords, a dictionary-like container of coordinate arrays.
+        :dict: xarray coords
         """
 
         coords = OrderedDict()
         for c in self._coords.values():
-            coords.update(c.coords)
+            coords.update(c.xcoords)
         return coords
 
     @property
