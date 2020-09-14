@@ -617,6 +617,10 @@ class SoilSCAPE20min(podpac.core.compositor.compositor.BaseCompositor):
 
         return get_site_coordinates(self.site, time=time, depth=depth)
 
+    @property
+    def available_sites(self):
+        return list(NODES.keys())
+
 
 def test_soilscape():
     # 20m local file
