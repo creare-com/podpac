@@ -1,5 +1,45 @@
 # Changelog
 
+## 2.2.2
+### Bug Fixes
+* Fixed floating point errors on selection of data subset (short circuit optimization to avoid unnecessary interpolation)
+* Fixed bug in cosmos_stations.latlon_from_label giving the wrong latlon for a label
+* Fixing compositor to update interpolation of sources automatically (and deleting cached definitions). 
+    * Also making cached node definitions easier to remove -- no longer caching node.json, node.json_pretty and node.hash
+
+## 2.2.0
+### Introduction
+
+Wrapping Landsat8, Sentinel2, and MODIS data and improving interpolation.
+
+### Features
+* Added `datalib.satutils` which wraps Landsat8 and Sentinel2 data
+* Added `datalib.modis_pds` which wraps MODIS products ["MCD43A4.006", "MOD09GA.006", "MYD09GA.006", "MOD09GQ.006", "MYD09GQ.006"]
+* Added settings['AWS_REQUESTER_PAYS'] and `authentication.S3Mixing.aws_requester_pays` attribute to support Sentinel2 data
+* Added `issubset` method to Coordinates which allows users to test if a coordinate is a subset of another one
+* Added environmental variables in Lambda function deployment allowing users to specify the location of additional 
+dependencies (`FUNCTION_DEPENDENCIES_KEY`) and settings (`SETTINGS`). This was in support the WMS service. 
+* Intake nodes can now filter inputs by additional data columns for .csv files / pandas dataframes by using the pandas
+`query` method. 
+* Added documentation on `Interpolation` and `Wrapping Datasets`
+
+### Bug Fixes
+* Added `dims` attributes to `Compositor` nodes which indicates the dimensions that sources are expected to have. This 
+fixes a bug where `Nodes` throw and error if Coordinates contain extra dimensions when the `Compositor` sources are missing
+those dimensions.
+* `COSMOSStations` will no longer fail for sites with no data or one data point. These sites are now automatically filtered. 
+* Fixed `core.data.file_source` closing files prematurely due to using context managers
+* Fixed heterogenous interpolation (where lat/lon uses a different interpolator than time, for example)
+* `datalib.TerrainTiles` now accesses S3 anonymously by default. Interpolation specified at the compositor level are 
+also now passed down to the sources. 
+
+### Breaking changes
+* Fixed `core.algorithm.signal.py` and in the process removed `SpatialConvolution` and `TemporalConvolutions`. Users now
+have to label the dimensions of the kernel -- which prevents results from being modified if the eval coordinates are 
+transposed. This was a major bug in the `Convolution` node, and the new change obviates the need for the removed Nodes, 
+but it may break some pipelines. 
+
+
 ## 2.1.0
 ### Introduction
 

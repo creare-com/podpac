@@ -255,7 +255,10 @@ class COSMOSStations(podpac.compositor.OrderedCompositor):
         if ind.size == 0:
             return podpac.Coordinates([])  # Empty
 
-        return self.source_coordinates[ind]
+        lat_lon = np.array(self.stations_value("location"))[ind].squeeze()
+        c = podpac.Coordinates([[lat_lon[0], lat_lon[1]]], ["lat_lon"])
+
+        return c
 
     def _get_label_inds(self, label):
         """ Helper function to get source indices for partially matched labels """

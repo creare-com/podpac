@@ -28,4 +28,4 @@ from podpac.core.algorithm.coord_select import (
     YearSubstituteCoordinates,
     TransformTimeUnits,
 )
-from podpac.core.algorithm.signal import Convolution, SpatialConvolution, TimeConvolution
+from podpac.core.algorithm.signal import Convolution

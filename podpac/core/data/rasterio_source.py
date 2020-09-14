@@ -2,6 +2,7 @@ from __future__ import division, unicode_literals, print_function, absolute_impo
 
 from collections import OrderedDict
 import io
+import re
 
 from six import string_types
 import traitlets as tl
@@ -35,12 +36,26 @@ class Rasterio(LoadFileMixin, BaseFileSource):
      crs : str, optional
         The coordinate reference system. Normally this will come directly from the file, but this allows users to
         specify the crs in case this information is missing from the file.
+    read_as_filename : bool, optional
+        Default is False. If True, the file will be read using rasterio.open(self.source) instead of being automatically
+        parsed to handle ftp, s3, in-memory files, etc. 
     """
 
     # dataset = tl.Instance(rasterio.DatasetReader).tag(readonly=True)
     band = tl.CInt(allow_none=True).tag(attr=True)
     crs = tl.Unicode(allow_none=True, default_value=None).tag(attr=True)
     driver = tl.Unicode(allow_none=True, default_value=None)
+    read_from_source = tl.Bool(False).tag(attr=True)
+
+    @cached_property
+    def dataset(self):
+        if re.match(".*:.*:.*", self.source):
+            # i.e. user supplied a non-file-looking string like 'HDF4_EOS:EOS_GRID:"MOD13Q1.A2013033.h08v05.006.2015256072248.hdf":MODIS_Grid_16DAY_250m_500m_VI:"250m 16 days NDVI"'
+            # This also includes many subdatsets as part of GDAL data drivers; https://gdal.org/drivers/raster/index.html
+            self.set_trait("read_from_source", True)
+            return rasterio.open(self.source)
+        else:
+            return super(Rasterio, self).dataset
 
     @tl.default("band")
     def _band_default(self):
@@ -60,6 +75,9 @@ class Rasterio(LoadFileMixin, BaseFileSource):
         return list(self.dataset.nodatavals)
 
     def open_dataset(self, fp, **kwargs):
+        if self.read_from_source:
+            return rasterio.open(self.source)
+
         with rasterio.MemoryFile() as mf:
             mf.write(fp.read())
             return mf.open(driver=self.driver)
@@ -118,6 +136,14 @@ class Rasterio(LoadFileMixin, BaseFileSource):
     # -------------------------------------------------------------------------
     # additional methods and properties
     # -------------------------------------------------------------------------
+
+    @property
+    def tags(self):
+        return self.dataset.tags()
+
+    @property
+    def subdatasets(self):
+        return self.dataset.subdatasets
 
     @property
     def band_count(self):
