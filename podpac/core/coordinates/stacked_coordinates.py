@@ -13,6 +13,7 @@ from podpac.core.coordinates.base_coordinates import BaseCoordinates
 from podpac.core.coordinates.coordinates1d import Coordinates1d
 from podpac.core.coordinates.array_coordinates1d import ArrayCoordinates1d
 from podpac.core.coordinates.uniform_coordinates1d import UniformCoordinates1d
+from podpac.core.coordinates.utils import make_coord_value
 
 
 class StackedCoordinates(BaseCoordinates):
@@ -237,6 +238,14 @@ class StackedCoordinates(BaseCoordinates):
 
         # set (and check) new coords list
         self.set_trait("_coords", coords)
+
+    def __contains__(self, item):
+        try:
+            item = tuple(make_coord_value(value) for value in item)
+        except:
+            return False
+
+        return item in self.coordinates
 
     def __eq__(self, other):
         if not isinstance(other, StackedCoordinates):

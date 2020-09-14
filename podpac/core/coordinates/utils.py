@@ -13,6 +13,8 @@ import datetime
 import re
 import calendar
 import numbers
+import warnings
+
 import numpy as np
 import traitlets as tl
 from six import string_types
@@ -535,3 +537,23 @@ def lower_precision_time_bounds(my_bounds, other_bounds, outer):
         my_bounds = [b.astype(other_bounds[0].dtype) for b in my_bounds]
 
     return my_bounds, other_bounds
+
+
+def has_alt_units(crs):
+    """
+    Check if the CRS has vertical units.
+
+    Arguments
+    ---------
+    crs : pyproj.CRS
+        CRS to check
+
+    Returns
+    -------
+    has_alt_units : bool
+        True if the CRS has vunits or other altitude units.
+    """
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return crs.is_vertical or "vunits" in crs.to_dict() or any(axis.direction == "up" for axis in crs.axis_info)

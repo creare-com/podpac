@@ -1,13 +1,16 @@
 from __future__ import division, unicode_literals, print_function, absolute_import
 
+from datetime import datetime
+
 import pytest
 import numpy as np
 import pandas as pd
-from datetime import datetime
+import pyproj
 
 from podpac.core.coordinates.utils import get_timedelta, get_timedelta_unit, make_timedelta_string
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_array, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, divide_timedelta, timedelta_divisible
+from podpac.core.coordinates.utils import has_alt_units
 
 
 def test_get_timedelta():
@@ -481,3 +484,8 @@ def test_timedelta_divisible():
     assert not timedelta_divisible(np.timedelta64(1, "D"), np.timedelta64(5, "h"))
 
     assert not timedelta_divisible(np.timedelta64(1, "M"), np.timedelta64(1, "D"))
+
+
+def test_has_alt_units():
+    assert has_alt_units(pyproj.CRS("+proj=merc")) is False
+    assert has_alt_units(pyproj.CRS("+proj=merc +vunits=m")) is True

@@ -445,6 +445,19 @@ class TestCaching(object):
         assert self.node.has_cache("c", coordinates=self.coords2)
         assert self.node.has_cache("d", coordinates=self.coords)
 
+    def test_put_has_expires(self):
+        self.node.put_cache(10, "key1", expires="1,D")
+        self.node.put_cache(10, "key2", expires="-1,D")
+        assert self.node.has_cache("key1")
+        assert not self.node.has_cache("key2")
+
+    def test_put_get_expires(self):
+        self.node.put_cache(10, "key1", expires="1,D")
+        self.node.put_cache(10, "key2", expires="-1,D")
+        assert self.node.get_cache("key1") == 10
+        with pytest.raises(NodeException, match="cached data not found"):
+            self.node.get_cache("key2")
+
     # node definition errors
     # this demonstrates both classes of error in the has_cache case, but only one for put/get/rem
     # we could test both classes for put/get/rem as well, but that is not really necessary

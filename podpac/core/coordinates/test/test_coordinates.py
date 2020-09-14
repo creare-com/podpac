@@ -446,6 +446,23 @@ class TestCoordinateCreation(object):
         with pytest.raises(ValueError):
             Coordinates([alt], crs="EPSG:2193")
 
+    def test_CRS(self):
+        lat = ArrayCoordinates1d([0, 1, 2], "lat")
+        lon = ArrayCoordinates1d([0, 1, 2], "lon")
+        c = Coordinates([lat, lon])
+        assert isinstance(c.CRS, pyproj.CRS)
+
+    def test_alt_units(self):
+        lat = ArrayCoordinates1d([0, 1, 2], "lat")
+        lon = ArrayCoordinates1d([0, 1, 2], "lon")
+        alt = ArrayCoordinates1d([0, 1, 2], name="alt")
+
+        c = Coordinates([lat, lon])
+        assert c.alt_units is None
+
+        c = Coordinates([alt], crs="+proj=merc +vunits=us-ft")
+        assert c.alt_units == "us-ft"
+
 
 class TestCoordinatesSerialization(object):
     def test_definition(self):

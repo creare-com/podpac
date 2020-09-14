@@ -11,6 +11,7 @@ import datetime
 import functools
 import importlib
 import logging
+import time
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -339,6 +340,9 @@ def cached_property(*args, **kwargs):
     use_cache_ctrl : bool
         If True, the property is cached using the Node cache_ctrl. If False, the property is only cached as a private
         attribute. Default False.
+    expires : float, datetime, timedelta
+        Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
+        Ignored if use_cache_ctrl=False. 
 
     Notes
     -----
@@ -366,6 +370,7 @@ def cached_property(*args, **kwargs):
     """
 
     use_cache_ctrl = kwargs.pop("use_cache_ctrl", False)
+    expires = kwargs.pop("expires", None)
 
     if args and (len(args) != 1 or not callable(args[0])):
         raise TypeError("cached_property decorator does not accept any positional arguments")
@@ -387,7 +392,7 @@ def cached_property(*args, **kwargs):
                 value = fn(self)
                 setattr(self, key, value)
                 if use_cache_ctrl:
-                    self.put_cache(value, key)
+                    self.put_cache(value, key, expires=expires)
             return value
 
         return wrapper

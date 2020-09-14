@@ -72,6 +72,11 @@ def clear_cache(mode="all"):
     cache_ctrl.clear(mode=mode)
 
 
+def cache_cleanup():
+    cache_ctrl = get_default_cache_ctrl()
+    cache_ctrl.cleanup()
+
+
 class CacheCtrl(object):
 
     """Objects of this class are used to manage multiple CacheStore objects of different types
@@ -102,7 +107,7 @@ class CacheCtrl(object):
     def _get_cache_stores_by_mode(self, mode="all"):
         return [c for c in self._cache_stores if mode in c.cache_modes]
 
-    def put(self, node, data, key, coordinates=None, mode="all", update=True):
+    def put(self, node, data, key, coordinates=None, expires=None, mode="all", update=True):
         """Cache data for specified node.
         
         Parameters
@@ -117,6 +122,8 @@ class CacheCtrl(object):
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
         mode : str
             determines what types of the `CacheStore` are affected. Options: 'ram', 'disk', 'network', 'all'. Default 'all'.
+        expires : float, datetime, timedelta
+            Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         """
@@ -137,7 +144,7 @@ class CacheCtrl(object):
             raise ValueError("Invalid key ('*' is reserved)")
 
         for c in self._get_cache_stores_by_mode(mode):
-            c.put(node=node, data=data, key=key, coordinates=coordinates, update=update)
+            c.put(node=node, data=data, key=key, coordinates=coordinates, expires=expires, update=update)
 
     def get(self, node, key, coordinates=None, mode="all"):
         """Get cached data for this node.
@@ -276,3 +283,13 @@ class CacheCtrl(object):
 
         for c in self._get_cache_stores_by_mode(mode):
             c.clear()
+
+    def cleanup(self):
+        """
+        Cleanup all cache stores.
+
+        Removes expired cache entries, orphaned metadata, empty directories, etc.
+        """
+
+        for c in self._cache_stores:
+            c.cleanup()

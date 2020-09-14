@@ -196,9 +196,6 @@ class ArrayCoordinates1d(Coordinates1d):
     # standard methods, array-like
     # ------------------------------------------------------------------------------------------------------------------
 
-    def __len__(self):
-        return self.size
-
     def __getitem__(self, index):
         return ArrayCoordinates1d(self.coordinates[index], **self.properties)
 

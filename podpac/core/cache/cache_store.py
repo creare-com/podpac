@@ -29,11 +29,11 @@ class CacheStore(object):
 
         raise NotImplementedError
 
-    def put(self, node, data, key, coordinates=None, update=True):
+    def put(self, node, data, key, coordinates=None, expires=None, update=True):
         """Cache data for specified node.
         
         Parameters
-        ------------
+        -----------
         node : Node
             node requesting storage.
         data : any
@@ -42,6 +42,8 @@ class CacheStore(object):
             Cached object key, e.g. 'output'.
         coordinates : :class:`podpac.Coordinates`, optional
             Coordinates for which cached object should be retrieved, for coordinate-dependent data such as evaluation output
+        expires : float, datetime, timedelta
+            Expiration date. If a timedelta is supplied, the expiration date will be calculated from the current time.
         update : bool
             If True existing data in cache will be updated with `data`, If False, error will be thrown if attempting put something into the cache with the same node, key, coordinates of an existing entry.
         """
@@ -67,7 +69,7 @@ class CacheStore(object):
         Raises
         -------
         CacheError
-            If the data is not in the cache.
+            If the data is not in the cache or is expired.
         """
         raise NotImplementedError
 
@@ -100,12 +102,18 @@ class CacheStore(object):
         Returns
         -------
         has_cache : bool
-             True if there as a cached object for this node for the given key and coordinates.
+             True if there as a valid cached object for this node for the given key and coordinates.
         """
         raise NotImplementedError
 
     def clear(self, node):
         """
         Clear all cached data.
+        """
+        raise NotImplementedError
+
+    def cleanup(self):
+        """
+        Cache housekeeping, e.g. remove expired entries.
         """
         raise NotImplementedError

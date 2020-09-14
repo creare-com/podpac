@@ -80,6 +80,20 @@ class Coordinates1d(BaseCoordinates):
 
         return True
 
+    def __len__(self):
+        return self.size
+
+    def __contains__(self, item):
+        try:
+            item = make_coord_value(item)
+        except:
+            return False
+
+        if type(item) != self.dtype:
+            return False
+
+        return item in self.coordinates
+
     # ------------------------------------------------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------------------------------------------------

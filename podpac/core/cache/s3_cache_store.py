@@ -79,6 +79,13 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
                     total_size += obj["Size"]
         return total_size
 
+    def cleanup(self):
+        """
+        Remove expired entries.
+        """
+
+        pass  # TODO metadata
+
     # -----------------------------------------------------------------------------------------------------------------
     # helper methods
     # -----------------------------------------------------------------------------------------------------------------
@@ -110,18 +117,20 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         else:
             obj_names = []
 
-        obj_names = fnmatch.filter(obj_names, self._match_filename(node, key, coordinates))
-        paths = [delim.join([self._get_node_dir(node), filename]) for filename in obj_names]
+        node_dir = self._get_node_dir(node)
+        obj_names = fnmatch.filter(obj_names, self._get_filename_pattern(node, key, coordinates))
+        paths = [self._path_join([node_dir, filename]) for filename in obj_names]
         return paths
 
     # -----------------------------------------------------------------------------------------------------------------
     # file storage abstraction
     # -----------------------------------------------------------------------------------------------------------------
 
-    def _save(self, path, s):
+    def _save(self, path, s, metadata=None):
         # note s needs to be b'bytes' or file below
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_object
         self._s3_client.put_object(Bucket=self._s3_bucket, Body=s, Key=path)
+        # TODO metadata
 
     def _load(self, path):
         response = self._s3_client.get_object(Bucket=self._s3_bucket, Key=path)
@@ -145,7 +154,7 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         obj_count = response["KeyCount"]
         return obj_count == 1 and response["Contents"][0]["Key"] == path
 
-    def _make_node_dir(self, node):
+    def _make_dir(self, path):
         # Does not need to do anything for S3 as the prefix is just part of the object name.
         # note: I believe AWS uses prefixes to decide how to partition objects in a bucket which could affect performance.
         pass
@@ -185,3 +194,13 @@ class S3CacheStore(FileCacheStore):  # pragma: no cover
         if not directory.endswith(self._delim):
             directory += self._delim
         self._s3_client.delete_object(Bucket=self._s3_bucket, Key=directory)
+
+    def _dirname(self, path):
+        dirname, basename = path.rsplit(self._delim, 1)
+        return dirname
+
+    def _get_metadata(self, path, key):
+        return None  # TODO metadata
+
+    def _set_metadata(self, path, key, value):
+        pass  # TODO metadata

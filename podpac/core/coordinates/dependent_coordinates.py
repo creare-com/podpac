@@ -228,6 +228,14 @@ class DependentCoordinates(BaseCoordinates):
             else:
                 return DependentCoordinates(coordinates, **self.properties)
 
+    def __contains__(self, item):
+        try:
+            item = tuple(make_coord_value(value) for value in item)
+        except:
+            return False
+
+        return item in list(zip(*[c.flatten() for c in self.coordinates]))
+
     def _properties_at(self, index=None, dim=None):
         if index is None:
             index = self.dims.index(dim)
@@ -594,6 +602,9 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
         """
 
         self.set_trait("coordinates", coordinates)
+        if self.coordinates.dtype not in [float, np.datetime64]:
+            dtype = make_coord_array(self.coordinates.flatten()).dtype
+            self.set_trait("coordinates", self.coordinates.astype(dtype))
         self._is_monotonic = None
         self._is_descending = None
         self._is_uniform = None
@@ -613,6 +624,17 @@ class ArrayCoordinatesNd(ArrayCoordinates1d):
     def shape(self):
         """:tuple: Shape of the coordinates."""
         return self.coordinates.shape
+
+    def __contains__(self, item):
+        try:
+            item = make_coord_value(item)
+        except:
+            return False
+
+        if type(item) != self.dtype:
+            return False
+
+        return item in self.coordinates.flatten()
 
     # Restricted methods and properties
 
