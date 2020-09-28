@@ -8,10 +8,13 @@ import logging
 
 import requests
 import traitlets as tl
-from lazy_import import lazy_module
+from lazy_import import lazy_module, lazy_function
 
 from podpac.core.settings import settings
 from podpac.core.utils import cached_property
+
+# Optional dependencies
+pydap_setup_session = lazy_function("pydap.cas.urs.setup_session")
 
 _log = logging.getLogger(__name__)
 
@@ -146,6 +149,34 @@ class RequestsSessionMixin(tl.HasTraits):
 
         try:
             s.auth = (self.username, self.password)
+        except ValueError as e:
+            if self.auth_required:
+                raise e
+            else:
+                _log.warning("No auth provided for session")
+
+        return s
+
+
+class NASAURSSessionMixin(RequestsSessionMixin):
+    check_url = tl.Unicode()
+    hostname = tl.Unicode(default_value="urs.earthdata.nasa.gov")
+    auth_required = tl.Bool(True)
+
+    def _create_session(self):
+        """Creates an authenticated :class:`requests.Session` with username and password defined
+        
+        Returns
+        -------
+        :class:`requests.Session`
+        
+        Notes
+        -----
+        The session is authenticated against the user-provided self.check_url
+        """
+
+        try:
+            s = pydap_setup_session(self.username, self.password, check_url=self.check_url)
         except ValueError as e:
             if self.auth_required:
                 raise e
