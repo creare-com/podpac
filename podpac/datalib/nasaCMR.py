@@ -87,7 +87,7 @@ def get_collection_id(session=None, short_name=None, keyword=None, **kwargs):
     ['C1522341104-NSIDC_ECS']
     """
 
-    entries = get_collection_entries(session=None, short_name=None, keyword=None, **kwargs)
+    entries = get_collection_entries(session=session, short_name=short_name, keyword=keyword, **kwargs)
     if len(entries) > 1:
         _logger.warning("Found more than 1 entry for collection_id search")
 
