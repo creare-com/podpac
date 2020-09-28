@@ -75,7 +75,6 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
     def dataset(self):
         # auth session
         try:
-            # self.session.get(self.source + ".dds")
             return self._open_url()
         except HTTPError as e:
             # I need the 500 because pydap re-raises HTTPError wihout setting the code

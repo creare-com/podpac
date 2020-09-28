@@ -15,6 +15,8 @@ import numpy as np
 import xarray as xr
 import traitlets as tl
 
+from podpac.datalib import nasaCMR
+
 # Set up logging
 _log = logging.getLogger(__name__)
 
@@ -35,6 +37,7 @@ if not hasattr(np, "isnat"):
 # Internal dependencies
 from podpac import Coordinates, UnitsDataArray, cached_property
 from podpac.datalib import EGI
+
 
 SMAP_PRODUCT_DICT = {
     #'shortname':    ['lat_key', 'lon_key', '_data_key', 'quality_flag', 'default_verison']
@@ -74,14 +77,14 @@ SMAP_PRODUCT_DICT = {
         "/Soil_Moisture_Retrieval_Data_AM/longitude",
         "/Soil_Moisture_Retrieval_Data_AM/soil_moisture",
         "/Soil_Moisture_Retrieval_Data_AM/retrieval_qual_flag",
-        "003",
+        "004",
     ],
     "SPL3SMP_E_PM": [
         "/Soil_Moisture_Retrieval_Data_PM/latitude_pm",
         "/Soil_Moisture_Retrieval_Data_PM/longitude_pm",
         "/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm",
         "/Soil_Moisture_Retrieval_Data_PM/retrieval_qual_flag_pm",
-        "003",
+        "004",
     ],
 }
 
@@ -144,7 +147,11 @@ class SMAP(EGI):
 
     @property
     def version(self):
-        return self._product_data[4]
+        try:
+            return nasaCMR.get_collection_entries(short_name=self.product)[-1]["version_id"]
+        except:
+            _log.warning("Could not automatically retrieve newest product version id from NASA CMR.")
+            return self._product_data[4]
 
     @property
     def coverage(self):
