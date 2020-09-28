@@ -16,8 +16,53 @@ from podpac.core.utils import _get_from_url
 CMR_URL = r"https://cmr.earthdata.nasa.gov/search/"
 
 
+def get_collection_entries(session=None, short_name=None, keyword=None, **kwargs):
+    """ Uses NASA CMR to retrieve metadata about a collection
+    
+    Parameters
+    -----------
+    session: :class:`requets.Session`, optional
+        An authenticated Earthdata login session
+    short_name: str, optional
+        The short name of the dataset
+    keyword: str, optional
+        Any keyword search parameters
+    **kwargs: str, optional
+        Any additional query parameters
+        
+    Returns
+    ---------
+    list:
+        A list of collection metadata dictionaries
+        
+    Examples: 
+    -----------
+    >>> # This make the following request https://cmr.earthdata.nasa.gov/search/collections.json?short_name=SPL2SMAP_S
+    >>> get_collection_id(short_name='SPL2SMAP_S')
+    ['C1522341104-NSIDC_ECS']
+    """
+
+    base_url = CMR_URL + "collections.json?"
+    if short_name is not None:
+        kwargs["short_name"] = short_name
+    if keyword is not None:
+        kwargs["keyword"] = keyword
+
+    query_string = "&".join([k + "=" + v for k, v in kwargs.items()])
+
+    # use generic requests session if `session` is not defined
+    if session is None:
+        session = requests
+
+    pydict = _get_from_url(base_url + query_string, session).json()
+
+    entries = pydict["feed"]["entry"]
+
+    return entries
+
+
 def get_collection_id(session=None, short_name=None, keyword=None, **kwargs):
-    """ Users NASA CMR to retrieve metadata about a data collection
+    """ Uses NASA CMR to retrieve collection id 
     
     Parameters
     -----------
@@ -42,21 +87,7 @@ def get_collection_id(session=None, short_name=None, keyword=None, **kwargs):
     ['C1522341104-NSIDC_ECS']
     """
 
-    base_url = CMR_URL + "collections.json?"
-    if short_name is not None:
-        kwargs["short_name"] = short_name
-    if keyword is not None:
-        kwargs["keyword"] = keyword
-
-    query_string = "&".join([k + "=" + v for k, v in kwargs.items()])
-
-    # use generic requests session if `session` is not defined
-    if session is None:
-        session = requests
-
-    pydict = _get_from_url(base_url + query_string, session).json()
-
-    entries = pydict["feed"]["entry"]
+    entries = get_collection_entries(session=None, short_name=None, keyword=None, **kwargs)
     if len(entries) > 1:
         _logger.warning("Found more than 1 entry for collection_id search")
 
