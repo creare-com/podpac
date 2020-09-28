@@ -10,7 +10,7 @@ import pyproj
 from podpac.core.coordinates.utils import get_timedelta, get_timedelta_unit, make_timedelta_string
 from podpac.core.coordinates.utils import make_coord_value, make_coord_delta, make_coord_array, make_coord_delta_array
 from podpac.core.coordinates.utils import add_coord, divide_delta, divide_timedelta, timedelta_divisible
-from podpac.core.coordinates.utils import has_alt_units
+from podpac.core.coordinates.utils import has_alt_units, lower_precision_time_bounds, higher_precision_time_bounds
 
 
 def test_get_timedelta():
