@@ -48,6 +48,10 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
 
     source = tl.Unicode().tag(attr=True)
     data_key = tl.Unicode().tag(attr=True)
+    server_throttle_sleep_time = tl.Float(
+        default_value=0.001, help="Some server have a throttling time for requests per period. "
+    ).tag(attr=True)
+    server_throttle_retries = tl.Int(default_value=100, help="Number of retries for a throttled server.").tag(attr=True)
 
     # list of attribute names, used by __repr__ and __str__ to display minimal info about the node
     _repr_keys = ["source", "interpolation"]
@@ -98,14 +102,14 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
         """{get_data}
         """
         data = None
-        count = 100
+        count = self.server_throttle_retries
         while data is None:
             count -= 1
             try:
                 data = self.dataset[self.data_key][tuple(coordinates_index)]
             except HTTPError as e:
                 if e.code == 500 and str(e).startswith("503") and count > 0:  # Service temporarily unavailable
-                    time.sleep(0.001)
+                    time.sleep(self.server_throttle_sleep_time)
                     continue
                 raise e
         # PyDAP 3.2.1 gives a numpy array for the above, whereas 3.2.2 needs the .data attribute to get a numpy array
