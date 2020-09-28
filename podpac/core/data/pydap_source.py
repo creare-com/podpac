@@ -5,10 +5,12 @@ PyDap DataSource
 from __future__ import division, unicode_literals, print_function, absolute_import
 
 import logging
+import time
 
 import numpy as np
 import traitlets as tl
 import requests
+from webob.exc import HTTPError
 
 # Helper utility for optional imports
 from lazy_import import lazy_module, lazy_class
@@ -73,17 +75,21 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
     def dataset(self):
         # auth session
         try:
+            # self.session.get(self.source + ".dds")
             return self._open_url()
-        except Exception:
-            # TODO handle a 403 error
-            # TODO: Check Url (probably inefficient...)
+        except HTTPError as e:
+            # I need the 500 because pydap re-raises HTTPError wihout setting the code
+            if not (e.code != 400 or e.code != 300 or e.code != 500):
+                raise e
+            # Check Url (probably inefficient..., but worth a try to get authenticated)
             try:
                 self.session.get(self.source + ".dds")
                 return self._open_url()
-            except Exception:
-                # TODO: handle 403 error
+            except HTTPError as e:
+                if e.code != 400:
+                    raise e
                 _logger.exception("Error opening PyDap url '%s'" % self.source)
-                raise RuntimeError("Could not open PyDap url '%s'.\nCheck login credentials." % self.source)
+                raise HTTPError("Could not open PyDap url '%s'.\nCheck login credentials." % self.source)
 
     def _open_url(self):
         return pydap.client.open_url(self.source, session=self.session)
@@ -92,7 +98,17 @@ class PyDAP(authentication.RequestsSessionMixin, DataSource):
     def get_data(self, coordinates, coordinates_index):
         """{get_data}
         """
-        data = self.dataset[self.data_key][tuple(coordinates_index)]
+        data = None
+        count = 100
+        while data is None:
+            count -= 1
+            try:
+                data = self.dataset[self.data_key][tuple(coordinates_index)]
+            except HTTPError as e:
+                if e.code == 500 and str(e).startswith("503") and count > 0:  # Service temporarily unavailable
+                    time.sleep(0.001)
+                    continue
+                raise e
         # PyDAP 3.2.1 gives a numpy array for the above, whereas 3.2.2 needs the .data attribute to get a numpy array
         if not isinstance(data, np.ndarray) and hasattr(data, "data"):
             data = data.data
